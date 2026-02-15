@@ -1,0 +1,212 @@
+name: Post to Bluesky
+
+on:
+  push:
+    paths:
+      - 'posts/**.md'
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find new post files
+        id: find-posts
+        run: |
+          # Get list of added/modified post files in this push
+          POSTS=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'posts/*.md' || echo "")
+          echo "posts=$POSTS" >> $GITHUB_OUTPUT
+          if [ -z "$POSTS" ]; then
+            echo "No new posts found"
+          else
+            echo "Found posts: $POSTS"
+          fi
+
+      - name: Post to Bluesky
+        if: steps.find-posts.outputs.posts != ''
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: |
+          set -e
+
+          # Authenticate with Bluesky
+          AUTH_RESPONSE=$(curl -s -X POST "https://bsky.social/xrpc/com.atproto.server.createSession" \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\": \"$BLUESKY_HANDLE\", \"password\": \"$BLUESKY_APP_PASSWORD\"}")
+
+          DID=$(echo "$AUTH_RESPONSE" | jq -r '.did')
+          ACCESS_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.accessJwt')
+
+          if [ "$DID" = "null" ] || [ -z "$DID" ]; then
+            echo "Authentication failed"
+            echo "$AUTH_RESPONSE" | jq .
+            exit 1
+          fi
+
+          echo "Authenticated as $DID"
+
+          # Process each new post file
+          for POST_FILE in ${{ steps.find-posts.outputs.posts }}; do
+            echo "Processing: $POST_FILE"
+
+            # Read the post file - extract posts separated by ---
+            # Each section between --- markers is a separate post in a thread
+            THREAD_ROOT_URI=""
+            THREAD_ROOT_CID=""
+            PARENT_URI=""
+            PARENT_CID=""
+            POST_INDEX=0
+
+            # Split file by --- delimiters, skip frontmatter
+            IN_FRONTMATTER=true
+            CURRENT_POST=""
+
+            while IFS= read -r line || [ -n "$CURRENT_POST" ]; do
+              if [ "$line" = "---" ]; then
+                if $IN_FRONTMATTER && [ $POST_INDEX -eq 0 ]; then
+                  IN_FRONTMATTER=false
+                  POST_INDEX=1
+                  continue
+                fi
+
+                # We hit a delimiter - post the accumulated content
+                if [ -n "$(echo "$CURRENT_POST" | tr -d '[:space:]')" ]; then
+                  TRIMMED=$(echo "$CURRENT_POST" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+                  NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+                  # Build the post JSON
+                  if [ -z "$THREAD_ROOT_URI" ]; then
+                    # First post in thread - no reply
+                    POST_JSON=$(jq -n \
+                      --arg did "$DID" \
+                      --arg text "$TRIMMED" \
+                      --arg now "$NOW" \
+                      '{
+                        repo: $did,
+                        collection: "app.bsky.feed.post",
+                        record: {
+                          "$type": "app.bsky.feed.post",
+                          text: $text,
+                          createdAt: $now
+                        }
+                      }')
+                  else
+                    # Reply in thread
+                    POST_JSON=$(jq -n \
+                      --arg did "$DID" \
+                      --arg text "$TRIMMED" \
+                      --arg now "$NOW" \
+                      --arg root_uri "$THREAD_ROOT_URI" \
+                      --arg root_cid "$THREAD_ROOT_CID" \
+                      --arg parent_uri "$PARENT_URI" \
+                      --arg parent_cid "$PARENT_CID" \
+                      '{
+                        repo: $did,
+                        collection: "app.bsky.feed.post",
+                        record: {
+                          "$type": "app.bsky.feed.post",
+                          text: $text,
+                          createdAt: $now,
+                          reply: {
+                            root: { uri: $root_uri, cid: $root_cid },
+                            parent: { uri: $parent_uri, cid: $parent_cid }
+                          }
+                        }
+                      }')
+                  fi
+
+                  RESPONSE=$(curl -s -X POST "https://bsky.social/xrpc/com.atproto.repo.createRecord" \
+                    -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer $ACCESS_TOKEN" \
+                    -d "$POST_JSON")
+
+                  NEW_URI=$(echo "$RESPONSE" | jq -r '.uri')
+                  NEW_CID=$(echo "$RESPONSE" | jq -r '.cid')
+
+                  if [ "$NEW_URI" = "null" ]; then
+                    echo "Failed to post:"
+                    echo "$RESPONSE" | jq .
+                    exit 1
+                  fi
+
+                  echo "Posted: $NEW_URI"
+
+                  # Track thread references
+                  if [ -z "$THREAD_ROOT_URI" ]; then
+                    THREAD_ROOT_URI="$NEW_URI"
+                    THREAD_ROOT_CID="$NEW_CID"
+                  fi
+                  PARENT_URI="$NEW_URI"
+                  PARENT_CID="$NEW_CID"
+
+                  # Small delay between posts
+                  sleep 2
+                fi
+                CURRENT_POST=""
+                continue
+              fi
+
+              if ! $IN_FRONTMATTER || [ $POST_INDEX -gt 0 ]; then
+                CURRENT_POST="$CURRENT_POST
+$line"
+              fi
+            done < "$POST_FILE"
+
+            # Post any remaining content
+            if [ -n "$(echo "$CURRENT_POST" | tr -d '[:space:]')" ]; then
+              TRIMMED=$(echo "$CURRENT_POST" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+              NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+              if [ -z "$THREAD_ROOT_URI" ]; then
+                POST_JSON=$(jq -n \
+                  --arg did "$DID" \
+                  --arg text "$TRIMMED" \
+                  --arg now "$NOW" \
+                  '{
+                    repo: $did,
+                    collection: "app.bsky.feed.post",
+                    record: {
+                      "$type": "app.bsky.feed.post",
+                      text: $text,
+                      createdAt: $now
+                    }
+                  }')
+              else
+                POST_JSON=$(jq -n \
+                  --arg did "$DID" \
+                  --arg text "$TRIMMED" \
+                  --arg now "$NOW" \
+                  --arg root_uri "$THREAD_ROOT_URI" \
+                  --arg root_cid "$THREAD_ROOT_CID" \
+                  --arg parent_uri "$PARENT_URI" \
+                  --arg parent_cid "$PARENT_CID" \
+                  '{
+                    repo: $did,
+                    collection: "app.bsky.feed.post",
+                    record: {
+                      "$type": "app.bsky.feed.post",
+                      text: $text,
+                      createdAt: $now,
+                      reply: {
+                        root: { uri: $root_uri, cid: $root_cid },
+                        parent: { uri: $parent_uri, cid: $parent_cid }
+                      }
+                    }
+                  }')
+              fi
+
+              RESPONSE=$(curl -s -X POST "https://bsky.social/xrpc/com.atproto.repo.createRecord" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -d "$POST_JSON")
+
+              echo "Posted final: $(echo "$RESPONSE" | jq -r '.uri')"
+            fi
+
+            echo "Thread complete for $POST_FILE"
+          done

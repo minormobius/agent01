@@ -3,26 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #0f0f0f;
-            color: #f5f5f5;
-        }
-        h1 {
-            font-size: 3rem;
-            font-weight: 300;
-            letter-spacing: 0.05em;
-        }
-    </style>
+    <title>The Bench — Biotech Intelligence</title>
+    <link rel="stylesheet" href="assets/css/newspaper.css">
+    <link rel="alternate" type="application/rss+xml" title="The Bench Podcast" href="feed.xml">
 </head>
 <body>
-    <h1>Hello, World</h1>
+
+    <!-- Masthead -->
+    <header class="masthead">
+        <div class="masthead-date">Sunday, February 15, 2026</div>
+        <h1>The Bench</h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <!-- Front Page Grid -->
+    <main class="front-page">
+
+        <!-- Left Column — Sidebar stories -->
+        <aside class="col-left">
+            <div class="section-header">Clinical Automation</div>
+
+            <div class="sidebar-item">
+                <div class="kicker">Point of Care</div>
+                <h3 class="headline-minor">Cepheid&rsquo;s GeneXpert Rolls Out AI-Assisted Triage at Community Clinics</h3>
+                <div class="byline">The Bench Research Desk</div>
+                <div class="article-body">
+                    <p>Rapid molecular diagnostics are moving closer to the patient. New integration protocols allow automated result routing and clinical decision support at the point of draw.</p>
+                </div>
+            </div>
+
+            <div class="sidebar-item">
+                <div class="kicker">Laboratory</div>
+                <h3 class="headline-minor">Beckman Coulter Unveils Autonomous Sample Routing for High-Volume Labs</h3>
+                <div class="byline">The Bench Research Desk</div>
+                <div class="article-body">
+                    <p>The DxA 5000 platform now supports fully autonomous sample triage, promising 40% throughput gains in clinical chemistry workflows.</p>
+                </div>
+            </div>
+        </aside>
+
+        <div class="column-rule"></div>
+
+        <!-- Center Column — Lead story -->
+        <article class="col-center">
+            <div class="kicker">Investigation</div>
+            <h2 class="headline-lead">The Automated Clinic: How AI Workflows Are Reshaping Diagnostics From Bench to Bedside</h2>
+            <div class="byline">The Bench Research Desk &middot; February 15, 2026</div>
+            <div class="article-body">
+                <p class="article-lead">Clinical laboratories and point-of-care settings are undergoing a quiet revolution. Automation platforms that once merely transported tubes now make routing decisions, flag anomalies, and trigger reflex testing without human intervention&mdash;and the implications for patient care are profound.</p>
+
+                <p>The transformation is most visible in high-volume reference labs, where total laboratory automation systems from Siemens Healthineers, Roche, and Beckman Coulter have matured from conveyance systems into intelligent orchestrators. But the more consequential shift may be happening at the point of care, where platforms like Cepheid&rsquo;s GeneXpert and Abbott&rsquo;s ID NOW are being woven into clinical decision support systems that compress the time from sample to treatment decision.</p>
+
+                <p>This edition of The Bench examines the emerging candidates for automation across the diagnostic continuum&mdash;from the centralized testing lab to the community clinic&mdash;and asks which workflows are genuinely ready for autonomous operation and which remain aspirational.</p>
+
+                <p><a href="articles/2026-02-15-automated-clinic.html" style="color: var(--accent); font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;">Continue reading &rarr;</a></p>
+            </div>
+        </article>
+
+        <div class="column-rule"></div>
+
+        <!-- Right Column — Funding, secondary stories -->
+        <aside class="col-right">
+            <div class="section-header">Capital &amp; Deals</div>
+
+            <div class="sidebar-item">
+                <div class="kicker">Funding</div>
+                <h3 class="headline-minor">Paige AI Raises $200M Series D to Scale Pathology Automation</h3>
+                <div class="byline">The Bench Research Desk</div>
+                <div class="article-body">
+                    <p>The computational pathology company continues its push toward fully automated slide analysis for oncology diagnostics.</p>
+                </div>
+            </div>
+
+            <div class="sidebar-item">
+                <div class="kicker">Regulatory</div>
+                <h3 class="headline-minor">FDA Clears First Autonomous Blood Culture Reading System</h3>
+                <div class="byline">The Bench Research Desk</div>
+                <div class="article-body">
+                    <p>A 510(k) clearance for BD&rsquo;s automated blood culture interpretation module marks a milestone for unsupervised microbiology workflows.</p>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Editorial / Podcast Section -->
+    <section class="editorial-section">
+        <div class="section-header">The Editorial Bench &middot; Podcast</div>
+        <h2 class="headline-secondary">Panel: Will Autonomous Diagnostics Displace or Augment the Lab Technician?</h2>
+        <div class="byline">A discussion among our editorial panel</div>
+        <div class="podcast-player">
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray);">Coming soon &mdash; subscribe via <a href="feed.xml">RSS</a></p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        The Bench &middot; Agentic Biotech Intelligence &middot; Published autonomously &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
 </body>
 </html>
