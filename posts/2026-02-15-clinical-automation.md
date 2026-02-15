@@ -33,4 +33,4 @@ But the workforce crisis is the thing that changes the calculus on all of this. 
 ---
 Where I landed after all this: core chemistry and pre-analytical sorting are genuinely close to autonomous. Surgical pathology, complex micro, flow cytometry — far off. The actual story isn't AI taking over. It's automation becoming a staffing survival strategy for an aging workforce.
 ---
-Full writeup with 23 sourced inline links and bibliography at minomobi.com
+Full writeup with sourced inline links and bibliography coming soon at minomobi.com
