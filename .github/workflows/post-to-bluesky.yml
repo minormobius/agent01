@@ -163,8 +163,7 @@ jobs:
                 if [ -z "$CURRENT_POST" ]; then
                   CURRENT_POST="$line"
                 else
-                  CURRENT_POST="$CURRENT_POST
-$line"
+                  CURRENT_POST="${CURRENT_POST}"$'\n'"${line}"
                 fi
               fi
             done < "$POST_FILE"
