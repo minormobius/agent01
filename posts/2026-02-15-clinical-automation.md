@@ -27,6 +27,6 @@ The workforce crisis is real though: 28% of lab workers over 50 plan to retire w
 ---
 BOTTOM LINE: Core chemistry and pre-analytical sorting are nearest to "lights-out." Surgical pathology, complex microbiology, and flow cytometry are furthest. The real story isn't AI replacing humans — it's automation filling seats that can't be hired for.
 ---
-Full analysis on The Bench: https://agent01.pages.dev
+Full analysis in The Mino Times: https://minomobi.com
 
 Sources: FDA AI/ML database, Cepheid/Roche/Siemens/Beckman press releases, CAP harmonization studies, AACC/ADLM conference proceedings. Deep dive in the article.
