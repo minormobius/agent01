@@ -51,17 +51,21 @@ Posts are markdown files in `posts/`. The format:
 ---
 Thread title or topic identifier
 ---
-First post in the thread (max 300 chars).
+[Cepheid](https://cepheid.com) just dropped something interesting. FDA cleared an 11-pathogen GI panel for GeneXpert. That's a direct shot at [BioFire FilmArray](https://www.biomerieux.com/us/en/our-offer/product-ranges/biofire-filmarray.html).
 ---
-Second post in the thread (max 300 chars).
+Second post. Bare URLs like minomobi.com are auto-linked too.
 ---
 Third post, and so on.
 ```
 
 - Each section between `---` delimiters is one post in the thread
 - The first `---` block is metadata/title (not posted)
-- Keep each post under 300 characters
-- The GitHub Action handles authentication and threading automatically
+- **Maximum 9 posts per thread** (enforced by the Action)
+- Keep each post under 300 characters (display text, after link syntax is stripped)
+- **Links**: Use `[display text](url)` for inline links — renders as blue clickable text on Bluesky
+- **Bare URLs**: `https://...` and bare domains like `minomobi.com` are auto-detected and linked
+- The 300-char limit applies to the display text, not the raw markdown (link URLs don't count)
+- The GitHub Action handles authentication, threading, and rich text facets automatically
 
 ### Bluesky Secrets Required
 Add these as GitHub repository secrets:

@@ -59,6 +59,57 @@ jobs:
 
           echo "Authenticated as $DID"
 
+          # Create rich text parser (markdown links → Bluesky facets)
+          cat > /tmp/parse_richtext.py << 'PYEOF'
+          import sys, json, re
+
+          text = sys.stdin.read().strip()
+          facets = []
+
+          # Pass 1: markdown links [text](url) → display text + link facet
+          clean = ""
+          last = 0
+          for m in re.finditer(r'\[([^\]]+)\]\(([^)]+)\)', text):
+              clean += text[last:m.start()]
+              display, url = m.group(1), m.group(2)
+              byte_start = len(clean.encode('utf-8'))
+              clean += display
+              byte_end = len(clean.encode('utf-8'))
+              if not url.startswith(('http://', 'https://')):
+                  url = 'https://' + url
+              facets.append({
+                  "index": {"byteStart": byte_start, "byteEnd": byte_end},
+                  "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]
+              })
+              last = m.end()
+          clean += text[last:]
+
+          # Pass 2: bare https:// URLs in clean text
+          for m in re.finditer(r'https?://[^\s\)\]]+', clean):
+              url = m.group(0).rstrip('.,;:!?')
+              bs = len(clean[:m.start()].encode('utf-8'))
+              be = bs + len(url.encode('utf-8'))
+              if not any(f['index']['byteStart'] <= bs and f['index']['byteEnd'] >= be for f in facets):
+                  facets.append({
+                      "index": {"byteStart": bs, "byteEnd": be},
+                      "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]
+                  })
+
+          # Pass 3: bare domains (minomobi.com, etc.)
+          for m in re.finditer(r'(?<![/\w@])([a-zA-Z0-9][-a-zA-Z0-9]*\.(?:com|org|net|io|co|dev|social|app)\b[/\w.-]*)', clean):
+              dt = m.group(0).rstrip('.,;:!?')
+              bs = len(clean[:m.start()].encode('utf-8'))
+              be = bs + len(dt.encode('utf-8'))
+              if not any(f['index']['byteStart'] <= bs and f['index']['byteEnd'] >= be for f in facets):
+                  facets.append({
+                      "index": {"byteStart": bs, "byteEnd": be},
+                      "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "https://" + dt}]
+                  })
+
+          facets.sort(key=lambda f: f['index']['byteStart'])
+          json.dump({"text": clean, "facets": facets}, sys.stdout)
+          PYEOF
+
           for POST_FILE in ${{ steps.find-posts.outputs.posts }}; do
             echo "Processing: $POST_FILE"
 
@@ -76,7 +127,7 @@ jobs:
             POST_COUNT=0
 
             post_to_bluesky() {
-              local TEXT="$1"
+              local RAW_TEXT="$1"
 
               # Enforce max thread length
               if [ "$POST_COUNT" -ge "$MAX_POSTS" ]; then
@@ -84,54 +135,62 @@ jobs:
                 return 2
               fi
 
-              # Warn if post exceeds 300 graphemes (Bluesky limit)
+              # Parse rich text: strip markdown links, build facets
+              local PARSED
+              PARSED=$(printf '%s' "$RAW_TEXT" | python3 /tmp/parse_richtext.py)
+              local TEXT FACETS_JSON
+              TEXT=$(echo "$PARSED" | jq -r '.text')
+              FACETS_JSON=$(echo "$PARSED" | jq -c '.facets')
+
+              # Check character limit on display text
               local CHAR_COUNT=${#TEXT}
               if [ "$CHAR_COUNT" -gt 300 ]; then
                 echo "WARNING: Post is $CHAR_COUNT chars (limit 300), truncating"
                 TEXT="${TEXT:0:297}..."
+                # Drop facets past truncation point
+                local BYTE_LIMIT
+                BYTE_LIMIT=$(printf '%s' "$TEXT" | wc -c)
+                FACETS_JSON=$(echo "$FACETS_JSON" | jq -c --argjson lim "$BYTE_LIMIT" '[.[] | select(.index.byteEnd <= $lim)]')
               fi
 
               local NOW
               NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
-              local POST_JSON
-              if [ -z "$THREAD_ROOT_URI" ]; then
-                POST_JSON=$(jq -n \
-                  --arg did "$DID" \
-                  --arg text "$TEXT" \
-                  --arg now "$NOW" \
-                  '{
-                    repo: $did,
-                    collection: "app.bsky.feed.post",
-                    record: {
-                      "$type": "app.bsky.feed.post",
-                      text: $text,
-                      createdAt: $now
-                    }
-                  }')
-              else
-                POST_JSON=$(jq -n \
-                  --arg did "$DID" \
-                  --arg text "$TEXT" \
-                  --arg now "$NOW" \
+              # Build the record with optional facets and reply
+              local RECORD
+              RECORD=$(jq -n \
+                --arg text "$TEXT" \
+                --arg now "$NOW" \
+                --argjson facets "$FACETS_JSON" \
+                '{
+                  "$type": "app.bsky.feed.post",
+                  text: $text,
+                  createdAt: $now
+                } + (if ($facets | length) > 0 then {facets: $facets} else {} end)')
+
+              if [ -n "$THREAD_ROOT_URI" ]; then
+                RECORD=$(echo "$RECORD" | jq -c \
                   --arg root_uri "$THREAD_ROOT_URI" \
                   --arg root_cid "$THREAD_ROOT_CID" \
                   --arg parent_uri "$PARENT_URI" \
                   --arg parent_cid "$PARENT_CID" \
-                  '{
-                    repo: $did,
-                    collection: "app.bsky.feed.post",
-                    record: {
-                      "$type": "app.bsky.feed.post",
-                      text: $text,
-                      createdAt: $now,
-                      reply: {
-                        root: { uri: $root_uri, cid: $root_cid },
-                        parent: { uri: $parent_uri, cid: $parent_cid }
-                      }
+                  '. + {
+                    reply: {
+                      root: { uri: $root_uri, cid: $root_cid },
+                      parent: { uri: $parent_uri, cid: $parent_cid }
                     }
                   }')
               fi
+
+              local POST_JSON
+              POST_JSON=$(jq -n \
+                --arg did "$DID" \
+                --argjson record "$RECORD" \
+                '{
+                  repo: $did,
+                  collection: "app.bsky.feed.post",
+                  record: $record
+                }')
 
               local RESPONSE
               RESPONSE=$(curl -s -X POST "https://bsky.social/xrpc/com.atproto.repo.createRecord" \
@@ -150,7 +209,9 @@ jobs:
                 return 1
               fi
 
-              echo "Posted ($((POST_COUNT + 1))/$MAX_POSTS): $NEW_URI"
+              local FACET_COUNT
+              FACET_COUNT=$(echo "$FACETS_JSON" | jq 'length')
+              echo "Posted ($((POST_COUNT + 1))/$MAX_POSTS, $FACET_COUNT links): $NEW_URI"
 
               if [ -z "$THREAD_ROOT_URI" ]; then
                 THREAD_ROOT_URI="$NEW_URI"
