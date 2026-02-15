@@ -1,32 +1,36 @@
 ---
 Clinical Automation Workflows — Point of Care & Lab
 ---
-Thread: The clinical lab is being quietly rewired. Not by a single breakthrough, but by incremental automation eating workflow after workflow. Here's what's actually shipping vs. what's still a conference slide. 🧵
+Been digging into clinical lab automation all week. Not the vendor pitch version. The actual state of what's running, what's vaporware, and what's quietly changing how diagnostics work. Buckle up.
 ---
-POINT OF CARE: Cepheid just got FDA clearance (Jan 2026) for an 11-pathogen GI panel on GeneXpert — their first highly multiplexed syndromic panel. <1 min hands-on time, ~74 min to result. This puts them in direct competition with BioFire FilmArray.
+Ok so Cepheid just dropped something interesting. FDA cleared an 11-pathogen GI panel for GeneXpert in January. Their FIRST syndromic multiplex panel. 10-color multiplexing, 74 min, under a minute of hands-on time. That's a direct shot at BioFire FilmArray.
 ---
-Cepheid's cartridge revenue is growing 35% YoY with ~50,000 GeneXpert units deployed globally. Meanwhile Roche acquired LumiraDx's POC tech for $295M in July 2024 — a shoebox-sized instrument consolidating immunoassay + chemistry on one platform.
+The numbers behind it are wild. ~50,000 GeneXpert units already deployed globally. Cartridge revenue up 35% YoY. That installed base is a distribution moat. You don't need to sell new instruments, you just sell new cartridges into an existing fleet.
 ---
-LAB AUTOMATION: The big four TLA platforms (Siemens Atellica, Roche cobas, Beckman DxA 5000, Abbott Alinity) now do more than move tubes. Siemens claims their Atellica Integrated Automation reduces manual workflow steps by 75% and consolidates 25 manual tasks.
+Meanwhile Roche quietly closed on LumiraDx for $295M last July. Got a shoebox-sized instrument that does immunoassay AND chemistry on one platform. Plus a Gates Foundation TB testing partnership. Roche is basically building a decentralized diagnostics empire piece by piece.
 ---
-Beckman's DxA 5000 cuts sample processing from 32 manual steps to 4. Their new DxA 5000 Fit targets labs under 5,200 samples/day — eliminating up to 80% of manual steps for smaller operations that couldn't justify full TLA before.
+Alright, lab automation. This is where it gets properly nerdy. The big four TLA tracks — Siemens Atellica, Roche cobas, Beckman DxA 5000, Abbott Alinity — these aren't conveyor belts anymore. They're making routing decisions. Flagging anomalies. Triggering reflex tests autonomously.
 ---
-Roche launched the cobas Connection Modules Vertical — elevator and overhead conveyor for multi-floor sample transport. First US install at Vanderbilt. Handles 2,500 samples/hour. The physical infrastructure of labs is literally being rebuilt.
+Found this gem from Dr. Lal PathLabs in India. Deployed 15 Atellica modules on a Siemens Aptio track. Manual steps went from 34 to 14. Aliquot costs dropped 93.2%. Zhongshan hospital reported 93% error reduction. Those aren't marketing numbers, those are operational transformations.
 ---
-AUTO-VERIFICATION is where "automation" gets real. Mature systems hit 95%+ auto-verification rates in core chemistry. University of Iowa refined theirs over 13 years to 99.5%. But here's the catch: rules are lab-specific. No universal rule sets exist.
+Beckman's DxA 5000 compresses sample processing from 32 manual steps to 4. But here's the actually interesting part — the DxA 5000 Fit. Built for labs doing <5,200 samples/day. Smaller labs that could never justify full TLA now have an on-ramp. That's where the growth story is.
 ---
-CAP has documented cases where identical samples through the same middleware at different sites produce different results — because auto-verification rules differ. Multi-site harmonization is a genuinely unsolved problem.
+Roche went vertical. Literally. The cobas Connection Modules Vertical uses elevators and overhead conveyors for multi-floor sample transport. First US install at Vanderbilt. 2,500 samples/hour. They're not just automating the bench, they're re-plumbing the building.
 ---
-AI IN DIAGNOSTICS: 1,356 FDA-authorized AI/ML devices as of Sept 2025, with 295 cleared in 2025 alone — a record. But 77% are radiology. And the dirty secret: only 2 CPT reimbursement codes exist for AI diagnostics. No billing code, no adoption.
+Now here's where I fell down a rabbit hole. Auto-verification. This is where "lab automation" stops being about moving tubes and starts being about making decisions. University of Iowa has been refining their auto-verification rules for 13 YEARS. They're at 99.5% pass rate.
 ---
-DIGITAL PATHOLOGY is consolidating fast. Tempus acquired Paige AI for just $81.25M (Aug 2025) — gaining 7M digitized pathology slides. PathAI got FDA clearance for AISight Dx with a rare Predetermined Change Control Plan, letting them update the AI post-clearance.
+But — and this is the part nobody talks about at conferences — the rules are completely lab-specific. No universal rule sets exist. CAP literally documented cases where the SAME sample through the SAME middleware at different sites produced different results. Different rules, different outcomes. Unsolved problem.
 ---
-THE SKEPTIC'S VIEW: "Lights-out lab" is a conference slide, not reality. No clinical lab runs fully autonomously. Of 717 radiology AI devices studied, only 5% underwent prospective testing and only 8% included human-in-the-loop evaluation.
+The AI-in-diagnostics numbers are staggering and misleading in equal measure. 1,356 FDA-authorized AI/ML devices. 295 cleared in 2025 alone. Sounds incredible until you learn 77% are radiology, 97% went through 510(k), and exactly TWO CPT codes exist. No billing code = no adoption pathway.
 ---
-The workforce crisis is real though: 28% of lab workers over 50 plan to retire within 3-5 years. Vacancy rates hit 7-11% nationally, 25% in some regions. Automation isn't optional — it's a staffing survival strategy.
+Digital pathology is consolidating fast and it's fascinating to watch. Tempus picked up Paige for just $81.25M. PAIGE. First FDA-cleared AI pathology tool. 7 million digitized slides from 45 countries. That price tag tells you everything about the funding environment.
 ---
-BOTTOM LINE: Core chemistry and pre-analytical sorting are nearest to "lights-out." Surgical pathology, complex microbiology, and flow cytometry are furthest. The real story isn't AI replacing humans — it's automation filling seats that can't be hired for.
+PathAI got something rare though — FDA clearance for AISight Dx with a Predetermined Change Control Plan. Fewer than 60 of those exist total. It lets them update the AI post-clearance within pre-agreed guardrails. That's the regulatory framework that could actually scale.
 ---
-Full analysis in The Mino Times: https://minomobi.com
-
-Sources: FDA AI/ML database, Cepheid/Roche/Siemens/Beckman press releases, CAP harmonization studies, AACC/ADLM conference proceedings. Deep dive in the article.
+The skeptic in me: "lights-out lab" is still a conference slide. No clinical lab runs fully autonomously. A study of 717 radiology AI devices found only 5% had prospective testing. 8% did human-in-the-loop eval. We're approving these things on remarkably thin evidence.
+---
+But the workforce crisis is the thing that changes the calculus on all of this. 28% of lab workers over 50 plan to retire within 3-5 years. Vacancy rates hit 25% in some regions. This isn't about replacing humans. It's about there not being enough humans to replace.
+---
+Where I landed after all this: core chemistry and pre-analytical sorting are genuinely close to autonomous. Surgical pathology, complex micro, flow cytometry — far off. The actual story isn't AI taking over. It's automation becoming a staffing survival strategy for an aging workforce.
+---
+Full writeup with 23 sourced inline links and bibliography at minomobi.com
