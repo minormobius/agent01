@@ -50,7 +50,8 @@ Research → Bluesky Thread → Article → Editorial Panel → Podcast
 ├── .github/
 │   └── workflows/
 │       └── post-to-bluesky.yml  # Posts threads to Bluesky on push
-└── src/                    # Future: automation scripts
+└── src/
+    └── post_thread.py      # Multi-account Bluesky posting script
 ```
 
 ### Bluesky Post Format
@@ -65,16 +66,39 @@ Thread title or topic identifier
 Second post. Bare URLs like minomobi.com are auto-linked too.
 ---
 Third post, and so on.
+---
+@modulo
+Modulo's data-first reaction to the thread. This posts from @modulo.minomobi.com as a reply to the thread root.
+---
+@morphyx
+Morphyx's relational take, replying to Modulo's comment. Posts from @morphyx.minomobi.com.
 ```
 
 - Each section between `---` delimiters is one post in the thread
 - The first `---` block is metadata/title (not posted)
-- **Maximum 9 posts per thread** (enforced by the Action)
+- **Maximum 12 posts per thread** (main + minophim combined)
 - Keep each post under 300 characters (display text, after link syntax is stripped)
 - **Links**: Use `[display text](url)` for inline links — renders as blue clickable text on Bluesky
 - **Bare URLs**: `https://...` and bare domains like `minomobi.com` are auto-detected and linked
 - The 300-char limit applies to the display text, not the raw markdown (link URLs don't count)
 - The GitHub Action handles authentication, threading, and rich text facets automatically
+
+#### Minophim Replies
+- Sections starting with `@modulo` or `@morphyx` on the first line post from that account
+- The marker line is stripped — only the text below it is posted
+- **First minophim section** replies to the thread root (branches off as a comment)
+- **Subsequent minophim sections** chain off the previous minophim reply (Modulo → Morphyx discussion)
+- Main thread posts continue chaining among themselves regardless of minophim sections
+- Minophim secrets are optional — sections for missing accounts are skipped with a warning
+
+Thread structure on Bluesky:
+```
+@minomobi.com: Post 1              ← thread root
+├── @minomobi.com: Post 2          ← main chain
+│   └── @minomobi.com: Post 3
+└── @modulo.minomobi.com: Comment  ← branches off root
+    └── @morphyx.minomobi.com: Reply  ← replies to Modulo
+```
 
 ### Bluesky Secrets Required
 Add these as GitHub repository secrets:
@@ -85,7 +109,7 @@ Add these as GitHub repository secrets:
 - `BLUESKY_MORPHYX_HANDLE`: Morphyx's handle (`morphyx.minomobi.com`)
 - `BLUESKY_MORPHYX_APP_PASSWORD`: App password for Morphyx's account
 
-Research threads post from the publication account. Editorial panel posts (future) will post from the individual minophim accounts.
+Research threads post from the publication account. Minophim reply as comments using `@modulo` / `@morphyx` section markers (see format above). All three accounts authenticate via the secrets listed here.
 
 ### Article Format
 Articles are full HTML pages in `articles/`. They should:
