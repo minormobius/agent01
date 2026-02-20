@@ -156,6 +156,42 @@ function formatNum(n) {
   return Math.round(n).toString();
 }
 
+const ENRICHMENTS = [
+  {
+    key: "butter",
+    label: "Butter",
+    emoji: "🧈",
+    unit: "g",
+    color: "#f9e076",
+    per100: { calories: 717, totalFat: 81, saturatedFat: 51, transFat: 0, cholesterol: 215, sodium: 11, totalCarb: 0.06, fiber: 0, totalSugars: 0.06, addedSugars: 0, protein: 0.85, vitaminD: 0, calcium: 24, iron: 0.02, potassium: 24 },
+  },
+  {
+    key: "eggs",
+    label: "Eggs",
+    emoji: "🥚",
+    unit: "eggs",
+    gramsPerUnit: 50,
+    color: "#ffe0b2",
+    per100: { calories: 143, totalFat: 9.5, saturatedFat: 3.1, transFat: 0, cholesterol: 372, sodium: 142, totalCarb: 0.72, fiber: 0, totalSugars: 0.37, addedSugars: 0, protein: 12.6, vitaminD: 2, calcium: 56, iron: 1.75, potassium: 138 },
+  },
+  {
+    key: "milk",
+    label: "Whole Milk",
+    emoji: "🥛",
+    unit: "g",
+    color: "#e3f2fd",
+    per100: { calories: 61, totalFat: 3.25, saturatedFat: 1.87, transFat: 0, cholesterol: 14, sodium: 43, totalCarb: 4.8, fiber: 0, totalSugars: 5.05, addedSugars: 0, protein: 3.15, vitaminD: 1.3, calcium: 113, iron: 0.03, potassium: 132 },
+  },
+  {
+    key: "oliveOil",
+    label: "Olive Oil",
+    emoji: "🫒",
+    unit: "g",
+    color: "#c5e1a5",
+    per100: { calories: 884, totalFat: 100, saturatedFat: 13.8, transFat: 0, cholesterol: 0, sodium: 2, totalCarb: 0, fiber: 0, totalSugars: 0, addedSugars: 0, protein: 0, vitaminD: 0, calcium: 1, iron: 0.56, potassium: 1 },
+  },
+];
+
 export default function FlourBlendCalculator() {
   const [tab, setTab] = useState("compare");
   const [blendGrams, setBlendGrams] = useState(
@@ -166,6 +202,14 @@ export default function FlourBlendCalculator() {
   const [blendPercents, setBlendPercents] = useState(
     FLOURS.map(() => 0)
   );
+  const [waterGrams, setWaterGrams] = useState(0);
+  const [isEnriched, setIsEnriched] = useState(false);
+  const [enrichAmounts, setEnrichAmounts] = useState({
+    butter: 0,
+    eggs: 0,
+    milk: 0,
+    oliveOil: 0,
+  });
 
   const totalBlendGrams = blendGrams.reduce((a, b) => a + b, 0);
   const totalBlendPercent = blendPercents.reduce((a, b) => a + b, 0);
@@ -179,6 +223,18 @@ export default function FlourBlendCalculator() {
 
   const totalEffective = effectiveGrams.reduce((a, b) => a + b, 0);
 
+  const hydrationPercent = useMemo(() => {
+    if (totalEffective === 0) return 0;
+    let totalLiquid = waterGrams;
+    if (isEnriched) {
+      const milkG = enrichAmounts.milk;
+      const eggG = enrichAmounts.eggs * (ENRICHMENTS.find((e) => e.key === "eggs").gramsPerUnit);
+      // Milk is ~87% water, eggs are ~75% water
+      totalLiquid += milkG * 0.87 + eggG * 0.75;
+    }
+    return (totalLiquid / totalEffective) * 100;
+  }, [totalEffective, waterGrams, isEnriched, enrichAmounts]);
+
   const blendNutrition = useMemo(() => {
     const result = {};
     NUTRIENTS.forEach(({ key }) => {
@@ -188,10 +244,19 @@ export default function FlourBlendCalculator() {
           total += (FLOURS[i][key] / FLOURS[i].servingG) * g;
         }
       });
+      if (isEnriched) {
+        ENRICHMENTS.forEach((en) => {
+          const amount = enrichAmounts[en.key];
+          if (amount > 0) {
+            const grams = en.gramsPerUnit ? amount * en.gramsPerUnit : amount;
+            total += (en.per100[key] / 100) * grams;
+          }
+        });
+      }
       result[key] = total;
     });
     return result;
-  }, [effectiveGrams]);
+  }, [effectiveGrams, isEnriched, enrichAmounts]);
 
   const handlePercentChange = (idx, val) => {
     const next = [...blendPercents];
@@ -203,6 +268,10 @@ export default function FlourBlendCalculator() {
     const next = [...blendGrams];
     next[idx] = Math.max(0, val);
     setBlendGrams(next);
+  };
+
+  const handleEnrichChange = (key, val) => {
+    setEnrichAmounts((prev) => ({ ...prev, [key]: Math.max(0, val) }));
   };
 
   return (
@@ -404,6 +473,141 @@ export default function FlourBlendCalculator() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Water & Hydration */}
+          <div style={{
+            background: "#fff",
+            borderRadius: 10,
+            padding: "14px 16px",
+            marginBottom: 12,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            border: waterGrams > 0 ? "2px solid #42a5f5" : "2px solid transparent",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 14, color: "#3e2723" }}>
+                💧 Water
+              </span>
+              {totalEffective > 0 && waterGrams > 0 && (
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: hydrationPercent >= 58 && hydrationPercent <= 75 ? "#2e7d32" : "#e65100",
+                  background: hydrationPercent >= 58 && hydrationPercent <= 75 ? "#e8f5e9" : "#fff3e0",
+                  padding: "2px 10px",
+                  borderRadius: 20,
+                }}>
+                  {Math.round(hydrationPercent)}% hydration
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                type="range"
+                min={0}
+                max={usePercentMode ? totalFlourInLoaf : 2000}
+                step={5}
+                value={waterGrams}
+                onChange={(e) => setWaterGrams(Number(e.target.value))}
+                style={{ flex: 1, accentColor: "#42a5f5" }}
+              />
+              <input
+                type="number"
+                min={0}
+                value={waterGrams}
+                onChange={(e) => setWaterGrams(Math.max(0, Number(e.target.value)))}
+                style={{
+                  width: 56,
+                  padding: "4px 6px",
+                  borderRadius: 6,
+                  border: "1px solid #d7ccc8",
+                  fontSize: 14,
+                  textAlign: "center",
+                }}
+              />
+              <span style={{ fontSize: 12, color: "#a1887f", width: 16 }}>g</span>
+            </div>
+            {totalEffective > 0 && (
+              <div style={{ fontSize: 11, color: "#8d6e63", marginTop: 6 }}>
+                {isEnriched ? "Effective hydration includes water content from milk & eggs" : "Hydration = water \u00f7 flour \u00d7 100"}
+              </div>
+            )}
+          </div>
+
+          {/* Enriched toggle & ingredients */}
+          <div style={{
+            background: "#fff",
+            borderRadius: 10,
+            padding: "14px 16px",
+            marginBottom: 20,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            border: isEnriched ? "2px solid #ff8a65" : "2px solid transparent",
+          }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: isEnriched ? 12 : 0 }}>
+              <input
+                type="checkbox"
+                checked={isEnriched}
+                onChange={(e) => setIsEnriched(e.target.checked)}
+                style={{ accentColor: "#ff8a65", width: 18, height: 18 }}
+              />
+              <span style={{ fontWeight: 600, fontSize: 14, color: "#3e2723" }}>
+                Enriched Dough
+              </span>
+              <span style={{ fontSize: 12, color: "#a1887f" }}>
+                (butter, eggs, milk, olive oil)
+              </span>
+            </label>
+
+            {isEnriched && (
+              <div style={{ display: "grid", gap: 10 }}>
+                {ENRICHMENTS.map((en) => {
+                  const val = enrichAmounts[en.key];
+                  const maxVal = en.key === "eggs" ? 12 : 500;
+                  const step = en.key === "eggs" ? 1 : 5;
+                  return (
+                    <div key={en.key}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, color: "#5d4037" }}>
+                          {en.emoji} {en.label}
+                        </span>
+                        <span style={{ fontSize: 12, color: "#795548" }}>
+                          {val}{en.unit === "eggs" ? (val === 1 ? " egg" : " eggs") : "g"}
+                          {en.gramsPerUnit && val > 0 ? ` (${val * en.gramsPerUnit}g)` : ""}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <input
+                          type="range"
+                          min={0}
+                          max={maxVal}
+                          step={step}
+                          value={val}
+                          onChange={(e) => handleEnrichChange(en.key, Number(e.target.value))}
+                          style={{ flex: 1, accentColor: en.color }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          value={val}
+                          onChange={(e) => handleEnrichChange(en.key, Number(e.target.value))}
+                          style={{
+                            width: 56,
+                            padding: "4px 6px",
+                            borderRadius: 6,
+                            border: "1px solid #d7ccc8",
+                            fontSize: 14,
+                            textAlign: "center",
+                          }}
+                        />
+                        <span style={{ fontSize: 12, color: "#a1887f", width: 30 }}>
+                          {en.unit === "eggs" ? "qty" : en.unit}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Totals warning */}
