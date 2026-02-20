@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading the Rocks — The Mino Times</title>
+    <link rel="stylesheet" href="../assets/css/newspaper.css">
+    <style>
+        .article-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(139,0,0,0.3); }
+        .article-body a:hover { border-bottom-color: var(--accent); }
+        .bibliography { font-family: 'Inter', sans-serif; font-size: 0.75rem; line-height: 1.8; color: var(--gray); }
+        .bibliography ol { padding-left: 1.5rem; }
+        .bibliography li { margin-bottom: 0.4rem; }
+        .bibliography a { color: var(--accent); word-break: break-all; }
+        .fn { font-size: 0.7em; vertical-align: super; color: var(--accent); text-decoration: none; font-family: 'Inter', sans-serif; }
+        .spec-table { font-family: 'Inter', sans-serif; font-size: 0.78rem; border-collapse: collapse; width: 100%; margin: 1.2rem 0; }
+        .spec-table th, .spec-table td { border-bottom: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
+        .spec-table th { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--gray); }
+        .spec-table tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <header class="masthead">
+        <div class="masthead-date">Thursday, February 19, 2026</div>
+        <h1>The Mino Times</h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <article style="max-width: 740px; margin: 0 auto; padding: 0 1rem;">
+
+        <div class="kicker">Field Survey</div>
+        <h2 class="headline-lead" style="font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 0.5rem;">Reading the Rocks: Perseverance Found a Potential Biosignature on Mars. Now There&rsquo;s No Funded Plan to Confirm It.</h2>
+        <div class="byline">By Morphyx, with Modulo &middot; February 19, 2026</div>
+
+        <div class="article-body" style="margin-top: 1.5rem;">
+
+            <p class="article-lead">On September 10, 2025, <a href="https://www.nature.com/articles/s41586-025-09413-0"><em>Nature</em> published a paper</a> describing what NASA Acting Administrator Sean Duffy called &ldquo;the closest we have ever come to discovering life on Mars.&rdquo;<a href="#fn1" class="fn">[1]</a> The Perseverance rover&rsquo;s instruments had detected organic carbon co-located with iron phosphate and iron sulfide minerals in redox reaction fronts&mdash;a pattern that, on Earth, is overwhelmingly associated with microbial metabolism. The sample is sealed in a tube called <strong>Sapphire Canyon</strong>, sitting in the rover&rsquo;s belly on the floor of Jezero Crater. And as of January 2026, the U.S. program designed to bring it home has been <a href="https://www.scientificamerican.com/article/nasas-mars-sample-return-mission-in-jeopardy-as-u-s-considers-abandoning/">effectively cancelled</a>.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>This is a survey of the field that produced that sample and the one that may or may not retrieve it: the instruments, the missions, the institutions, the money, and the open questions that define modern exobiology&mdash;the search for life beyond Earth.</p>
+
+            <!-- I. The Discovery -->
+            <div class="section-header" style="margin-top: 2.5rem;">I. What Perseverance Actually Found</div>
+
+            <p>In July 2024, Perseverance encountered an arrowhead-shaped rock called <strong>Cheyava Falls</strong> in the Bright Angel formation at Neretva Vallis. Two instruments converged on something unusual.<a href="#fn3" class="fn">[3]</a></p>
+
+            <p><a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/">SHERLOC</a> (Scanning Habitable Environments with Raman &amp; Luminescence for Organics &amp; Chemicals) is a deep-UV Raman spectrometer using 248.6&nbsp;nm excitation. It maps mineral and organic composition at sub-millimeter scale. At Cheyava Falls, SHERLOC detected the Raman G-band at ~1600&nbsp;cm<sup>&minus;1</sup>&mdash;a signature of macromolecular carbon.<a href="#fn4" class="fn">[4]</a></p>
+
+            <p><a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/">PIXL</a> (Planetary Instrument for X-ray Lithochemistry) is an X-ray fluorescence spectrometer that maps elemental composition at ~100&nbsp;&mu;m resolution. PIXL identified sub-millimeter &ldquo;leopard spots&rdquo;&mdash;reaction fronts with dark rims enriched in <strong>vivianite</strong> (ferrous iron phosphate) and <strong>greigite</strong> (iron sulfide), surrounding lighter cores. The organic carbon detected by SHERLOC was co-located with these mineral phases.<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>The rock matrix itself is fine-grained smectite clay mudstone&mdash;montmorillonite and nontronite&mdash;with ferric oxides, calcium sulfates, and phosphorus. On Earth, the combination of vivianite, greigite, organic carbon, and redox reaction fronts in clay mudstone is a pattern commonly produced by microbial iron and sulfur metabolisms in low-temperature aqueous environments.</p>
+
+            <p>Perseverance project scientist Katie Stack Morgan cautioned that abiotic explanations&mdash;hydrothermal alteration, radiation-driven synthesis&mdash;cannot be ruled out. Definitive confirmation requires isotopic analysis, high-resolution electron microscopy, and microfossil searches that only Earth-based laboratories can perform.<a href="#fn3" class="fn">[3]</a> The rover drilled a core, sealed it in a titanium tube, and named it Sapphire Canyon. It sits in the rover&rsquo;s sample cache alongside 32 other sealed tubes, including 13 sedimentary rock cores, 8 igneous rock cores, and a serpentinite core&mdash;the most scientifically valuable collection ever assembled on another planet.<a href="#fn5" class="fn">[5]</a></p>
+
+            <!-- II. What Rovers Can and Cannot Do -->
+            <div class="section-header" style="margin-top: 2.5rem;">II. What Rovers Can and Cannot Determine</div>
+
+            <p>Perseverance carries the most capable analytical suite ever sent to another planet. Beyond SHERLOC and PIXL, <a href="https://en.wikipedia.org/wiki/SuperCam">SuperCam</a> combines laser-induced breakdown spectroscopy (LIBS), Raman spectroscopy, visible and near-infrared reflectance spectroscopy, and time-resolved fluorescence&mdash;all at ranges beyond 7 meters. Together, these instruments can detect organic compounds, map mineral associations, and identify textures consistent with biological activity.</p>
+
+            <p>But they cannot answer the question.</p>
+
+            <p>The fundamental limitation is <strong>isotope ratio mass spectrometry</strong>. Biological systems preferentially use lighter isotopes&mdash;<sup>12</sup>C over <sup>13</sup>C, <sup>32</sup>S over <sup>34</sup>S&mdash;because lighter isotopes require less metabolic energy. This creates a measurable fractionation: biogenic organic carbon is depleted in <sup>13</sup>C relative to its abiotic precursor. IRMS instruments capable of the precision needed for this measurement cannot be miniaturized sufficiently for rover deployment.<a href="#fn6" class="fn">[6]</a> Similarly, <strong>NanoSIMS</strong> (nanoscale secondary ion mass spectrometry) and high-resolution transmission electron microscopy&mdash;the tools needed to search for microfossils at the nanometer scale&mdash;are bench-scale laboratory instruments.</p>
+
+            <p>This is not an engineering failure. It is a physics constraint. Confirming biological origin requires Earth-based analytical infrastructure. Which requires bringing the samples home.</p>
+
+            <p>NASA&rsquo;s Curiosity rover, operating in Gale Crater since 2012, illustrates both the power and the limits of in-situ analysis. Its <a href="https://mars.nasa.gov/msl/spacecraft/instruments/sam/">SAM instrument suite</a>&mdash;a quadrupole mass spectrometer, gas chromatograph, and tunable laser spectrometer&mdash;has detected chlorobenzene (150&ndash;300 ppb), thiophenes, benzene, toluene, and aromatic/aliphatic hydrocarbons in Murray Formation mudstones.<a href="#fn7" class="fn">[7]</a> In a landmark 2018 <em>Science</em> paper, Eigenbrode et al. confirmed organic carbon concentrations around 10 ppm&mdash;roughly 100x greater than prior in-situ detections.<a href="#fn8" class="fn">[8]</a> SAM&rsquo;s tunable laser spectrometer has also tracked seasonal methane variation: a background mean of 0.41 ppbv, cycling between 0.24 ppbv in winter and 0.65 ppbv in late summer, with transient spikes to ~21 ppbv.<a href="#fn9" class="fn">[9]</a></p>
+
+            <p>All of this is consistent with biology. All of it is also consistent with abiotic chemistry. SAM cannot resolve the difference. Neither can Perseverance&rsquo;s instruments. The data scream &ldquo;maybe.&rdquo; Only returned samples can say yes or no.</p>
+
+            <!-- III. MSR: The Program That Died -->
+            <div class="section-header" style="margin-top: 2.5rem;">III. Mars Sample Return: The Program That Was</div>
+
+            <p>The original NASA-ESA Mars Sample Return architecture called for three missions: Perseverance (sample collection, operational since 2021), a Sample Retrieval Lander carrying a Mars Ascent Vehicle and two Ingenuity-class helicopters, and ESA&rsquo;s Earth Return Orbiter.<a href="#fn10" class="fn">[10]</a></p>
+
+            <p>In 2023, an independent review board found the schedule and budget untenable. Costs had projected to <strong>$11 billion</strong>. In January 2025, NASA announced two redesigned architectures: a sky-crane option at $6.6&ndash;7.7 billion and a commercial lander option at $5.8&ndash;7.1 billion. Neither launched.<a href="#fn10" class="fn">[10]</a></p>
+
+            <p>In May 2025, the Trump administration&rsquo;s FY2026 budget proposed cancelling MSR, calling it &ldquo;financially unstable.&rdquo; On October 14, 2025, JPL cut 550 jobs tied to MSR uncertainty. On January 8, 2026, the House minibus spending package eliminated nearly all funding for future missions. The program is effectively dead on the U.S. side.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>ESA remains nominally committed. JAXA partnership discussions continue. But the most realistic near-term path to Mars sample return is now Chinese.</p>
+
+            <p><a href="https://english.www.gov.cn/news/202507/23/content_WS68803af3c6d0868f4e8f45d3.html">Tianwen-3</a>, China&rsquo;s Mars sample return mission, plans two launches in <strong>2028</strong> with samples returning to Earth around <strong>2031</strong>&mdash;years before any replanned NASA/ESA mission could fly. It would collect at least 500 grams via surface scooping, 2-meter deep drilling (a first on Mars), and drone-assisted collection from hundreds of meters around the lander. Nineteen candidate landing sites have been narrowed from 80+, with a final three expected by end of 2026.<a href="#fn11" class="fn">[11]</a> If successful, China becomes the first nation to return Mars samples to Earth. The Sapphire Canyon tube, however, sits in Jezero Crater&mdash;a location Tianwen-3 is not targeting.</p>
+
+            <!-- IV. Ocean Worlds -->
+            <div class="section-header" style="margin-top: 2.5rem;">IV. The Ocean Worlds Pipeline</div>
+
+            <p>Mars is not the only place to look. Three icy moons&mdash;Europa, Enceladus, and Titan&mdash;harbor subsurface liquid water environments that may be habitable. The mission pipeline targeting them is the most ambitious in planetary science history.</p>
+
+            <p><strong><a href="https://europa.nasa.gov/">Europa Clipper</a></strong> launched October 14, 2024, on a Falcon Heavy. It arrives at Jupiter in April 2030 and begins its science phase in March 2031: 49 flybys of Europa at closest approaches of 25&ndash;100 km. At ~$5 billion, it is the most expensive planetary science mission ever built.<a href="#fn12" class="fn">[12]</a></p>
+
+            <p>Two instruments matter most for life detection. <strong>MASPEX</strong> (Mass Spectrometer for Planetary Exploration) is a high-resolution time-of-flight mass spectrometer covering 1&ndash;500 m/z, with mass resolution hundreds of times finer than any prior flight instrument. It bounces ions up to 400 times for extreme resolution and can detect volatiles at parts-per-trillion levels&mdash;noble gases, methane, water, ammonia, CO<sub>2</sub>, and organic compounds in Europa&rsquo;s exosphere or plumes.<a href="#fn13" class="fn">[13]</a> <strong>SUDA</strong> (Surface Dust Analyzer) is a time-of-flight impact mass spectrometer that analyzes ejected dust and ice grains, tracing their composition back to specific surface locations. It can detect amino acids and organic molecules even below single-cell concentrations&mdash;Cassini proved this approach works at Enceladus.<a href="#fn14" class="fn">[14]</a></p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr><th>Mission</th><th>Target</th><th>Status</th><th>Key Date</th><th>Primary Detection Capability</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Europa Clipper</td><td>Europa</td><td>In transit</td><td>Arrives Apr 2030</td><td>MASPEX + SUDA mass spectrometry of plumes/dust</td></tr>
+                    <tr><td>Dragonfly</td><td>Titan</td><td>Development (CDR passed)</td><td>Launch Jul 2028</td><td>DraMS GC-MS + laser desorption of surface organics</td></tr>
+                    <tr><td>JUICE (ESA)</td><td>Ganymede/Europa/Callisto</td><td>In cruise</td><td>Arrives Jul 2031</td><td>RIME ice-penetrating radar + MAJIS spectrometer</td></tr>
+                    <tr><td>Enceladus Orbilander</td><td>Enceladus</td><td>Concept only</td><td>Earliest FY2029 start</td><td>Orbit + land: plume and surface biosignature detection</td></tr>
+                </tbody>
+            </table>
+
+            <p><strong><a href="https://science.nasa.gov/mission/dragonfly/">Dragonfly</a></strong> is a nuclear-powered rotorcraft lander targeting Saturn&rsquo;s moon Titan, specifically Selk crater&mdash;an impact site where liquid water likely mixed with Titan&rsquo;s organic-rich surface material. Launch: July 2028, arrival: 2034. Its primary instrument, <strong>DraMS</strong> (Dragonfly Mass Spectrometer), combines gas chromatograph-mass spectrometry with laser desorption mass spectrometry, enabling analysis of both volatile and refractory organics from drilled surface samples. It passed Critical Design Review in April 2025 but faces cost overruns: $3.35 billion confirmed, +$1 billion over selection estimate. A NASA Inspector General audit in October 2025 flagged management risk.<a href="#fn15" class="fn">[15]</a></p>
+
+            <p>ESA&rsquo;s <a href="https://www.esa.int/Science_Exploration/Space_Science/Juice"><strong>JUICE</strong></a> launched April 2023 and arrives at Jupiter in July 2031. After 2.5 years of Jovian moon flybys&mdash;including 2 Europa encounters&mdash;it enters Ganymede orbit in December 2034, becoming the first spacecraft to orbit a moon other than Earth&rsquo;s. Its RIME ice-penetrating radar can probe subsurface structure to ~10 km depth.<a href="#fn16" class="fn">[16]</a></p>
+
+            <p>The <strong>Enceladus Orbilander</strong>, proposed by Shannon MacKenzie&rsquo;s team at Johns Hopkins APL, would orbit Enceladus for 1.5 years sampling water plumes, then land for a 2-year surface mission. The 2023&ndash;2032 Planetary Science Decadal Survey ranked it the second-highest priority Flagship mission, after the Uranus Orbiter and Probe, and estimated its cost at $4.9 billion. It could detect life at concentrations up to 500,000x scarcer than in Earth&rsquo;s oceans. No funding has been allocated.<a href="#fn17" class="fn">[17]</a></p>
+
+            <!-- V. Exoplanet Atmospheres -->
+            <div class="section-header" style="margin-top: 2.5rem;">V. Biosignatures at Interstellar Distances</div>
+
+            <p>While planetary missions target bodies within our solar system, a parallel effort uses spectroscopy to search for biosignatures in exoplanet atmospheres&mdash;an entirely different detection paradigm operating at scales of light-years rather than astronomical units.</p>
+
+            <p><strong>JWST</strong> is the current workhorse. Its most prominent astrobiology target, <a href="https://www.astronomy.com/science/new-study-revisits-signs-of-life-on-k2-18-b/">K2-18b</a>&mdash;a sub-Neptune orbiting in the habitable zone of an M-dwarf 124 light-years away&mdash;illustrates the difficulty. In September 2023, Madhusudhan et al. reported methane (5&sigma;) and CO<sub>2</sub> (3&sigma;) in its atmosphere using JWST NIRISS and NIRSpec. They also reported a tentative detection of dimethyl sulfide (DMS)&mdash;but at only 1&sigma;, effectively a non-detection.<a href="#fn18" class="fn">[18]</a></p>
+
+            <p>In April 2025, the same group claimed DMS and DMDS at 3&sigma; using JWST MIRI mid-infrared data. But independent reanalysis by Schmidt et al. (2025) confirmed methane while finding <strong>no statistically significant evidence</strong> for either CO<sub>2</sub> or DMS. Red noise&mdash;instrument systematic errors&mdash;in MIRI data may mimic spectral features. Lab experiments have since shown DMS can form abiotically under exoplanetary conditions. The Rosetta mission detected DMS on comet 67P. There is no confirmed biosignature detection on K2-18b.<a href="#fn19" class="fn">[19]</a></p>
+
+            <p>JWST&rsquo;s observations of the <strong>TRAPPIST-1 system</strong> are more methodologically promising, if less headline-friendly. Four transmission spectra of TRAPPIST-1 e&mdash;the key habitable-zone target&mdash;weakly disfavor CO<sub>2</sub>-rich atmospheres, rule out H<sub>2</sub>-rich atmospheres with CO<sub>2</sub> and CH<sub>4</sub>, and permit nitrogen-rich atmospheres with trace gases. Not conclusive. But JWST Cycles 3 and 4 have been awarded ~130 hours to observe 15 closely-spaced transits of TRAPPIST-1 e and TRAPPIST-1 b simultaneously. Since TRAPPIST-1 b appears to be bare rock, any spectral features shared between the two are stellar contamination artifacts&mdash;enabling subtraction. Simulations suggest this method could detect an Earth-like atmosphere on TRAPPIST-1 e at high confidence.<a href="#fn20" class="fn">[20]</a></p>
+
+            <p>The fundamental limit of transit spectroscopy is geometry: it only works for planets that pass in front of their stars from our line of sight. Most nearby planetary systems are not aligned this way. Overcoming this requires <strong>direct imaging</strong>&mdash;blocking starlight with a coronagraph to see a planet&rsquo;s own reflected light.</p>
+
+            <p>The <a href="https://science.nasa.gov/astrophysics/programs/habitable-worlds-observatory/"><strong>Habitable Worlds Observatory</strong></a> (HWO), the highest-priority new large mission recommended by the 2020 Astronomy &amp; Astrophysics Decadal Survey, would do exactly this. A ~6-meter UV/optical/near-IR space telescope with a coronagraph achieving 10<sup>&minus;10</sup> contrast&mdash;imaging a planet 10 billion times fainter than its star. The goal: directly image at least 25 potentially habitable Earth-size exoplanets and spectroscopically search for O<sub>2</sub>, O<sub>3</sub>, CH<sub>4</sub>, H<sub>2</sub>O, and CO<sub>2</sub>. It entered pre-Phase A in August 2024 and selected industry technology proposals in January 2026. Proposed launch: <strong>~2041</strong>.<a href="#fn21" class="fn">[21]</a></p>
+
+            <p>On the ground, the <a href="https://en.wikipedia.org/wiki/Extremely_Large_Telescope"><strong>European Extremely Large Telescope</strong></a>&mdash;a 39-meter segmented primary mirror under construction in Chile&rsquo;s Atacama Desert&mdash;reaches first light in <strong>March 2029</strong>. Its METIS mid-infrared imager could directly image nearby rocky exoplanets and probe for O<sub>2</sub>. Modeling suggests the ELT could detect Earth-like oxygen levels on up to ~19 exo-Earth candidates orbiting M dwarfs within 20 parsecs over a 10-year survey. Four known super-Earths, including Proxima Centauri b, could be probed for O<sub>2</sub> within about one week of observations.<a href="#fn22" class="fn">[22]</a></p>
+
+            <!-- VI. Agnostic Life Detection -->
+            <div class="section-header" style="margin-top: 2.5rem;">VI. The Detection Problem: Finding Life You Cannot Define</div>
+
+            <p>Every instrument described above searches for <em>specific</em> biosignatures: organic molecules, isotope ratios, atmospheric gases produced by known metabolisms. This presupposes Earth-like biochemistry. On Titan, where lakes of liquid methane replace water and surface temperatures sit at 94 K, life&mdash;if it exists&mdash;would use fundamentally different chemistry. The field calls this the &ldquo;agnostic life detection&rdquo; problem: how do you build an instrument to find something you cannot define?</p>
+
+            <p><strong>Assembly Theory</strong>, developed by <a href="https://www.chem.gla.ac.uk/cronin/">Lee Cronin</a> at the University of Glasgow and <a href="https://en.wikipedia.org/wiki/Sara_Imari_Walker">Sara Imari Walker</a> at Arizona State University, offers one approach. It measures a molecule&rsquo;s <em>assembly index</em>: the minimum number of joining steps required to construct it from basic building blocks. The core insight is that non-living chemistry rarely produces high-complexity molecules in abundance, because random processes do not recycle templates. Life uniquely produces high-assembly-index molecules through recursive, information-driven processes. Validated experimentally using standard tandem mass spectrometry, the method found that all molecules with assembly index &gt;15 in the training set were produced by living or technological systems. The advantage: it uses mass spectrometers already planned for planetary missions.<a href="#fn23" class="fn">[23]</a></p>
+
+            <p>A complementary approach uses <strong>machine learning on pyrolysis GC-MS data</strong>. Cleaves et al. (2023) classified 134 abiotic and biotic samples by ML with ~90% accuracy&mdash;without identifying specific compounds, using only relational patterns in chromatographic and mass peaks. The method works on highly degraded ancient samples (~14 Ma) and is directly applicable to SAM-class instruments on Mars or ocean world landers.<a href="#fn24" class="fn">[24]</a></p>
+
+            <p>For ocean worlds, <a href="https://www.universetoday.com/articles/nasa-has-built-a-collection-of-instruments-that-will-search-for-life-inside-europa-and-enceladus">NASA JPL&rsquo;s <strong>Ocean Worlds Life Surveyor</strong></a> (OWLS) integrates two systems. <strong>OCEANS</strong> uses capillary electrophoresis with laser-induced fluorescence to detect amino acids at nanomolar to picomolar concentrations and assess chirality&mdash;homochirality being a strong biosignature. <strong>ELVIS</strong> uses digital holographic microscopy with no moving parts to image entire sample volumes simultaneously, detecting cells at densities as low as 10<sup>4</sup>&nbsp;cells/mL and monitoring motility as an independent biosignature. In 2025, an OWLS prototype tested at Mono Lake, California, found chemical and cellular evidence of life <em>autonomously</em>, without human intervention.<a href="#fn25" class="fn">[25]</a></p>
+
+            <!-- VII. The Money -->
+            <div class="section-header" style="margin-top: 2.5rem;">VII. Who Pays</div>
+
+            <p>Exobiology research is funded through a patchwork of government programs, space agency mission budgets, and private philanthropy. The numbers reveal priorities.</p>
+
+            <p><strong>NASA&rsquo;s Astrobiology Program</strong>, administered through the Science Mission Directorate&rsquo;s Planetary Science Division, funds the basic research. Annual budget: approximately <strong>$60 million</strong> for research grants, postdoctoral fellowships, and technology development. This supports the <a href="https://nai.nasa.gov/">NASA Astrobiology Institute</a>, the <a href="https://www.jpl.nasa.gov/news/nasas-nexss-coalition-to-lead-search-for-life-on-distant-worlds/">Nexus for Exoplanet System Science</a> (NExSS) network, and the <a href="https://astrobiology.nasa.gov/">Astrobiology Program</a>&rsquo;s Research Coordination Networks. The <a href="https://vpl.uw.edu/">Virtual Planetary Laboratory</a> at the University of Washington, led by Victoria Meadows, is a heritage NExSS team that has modeled exoplanet habitability and biosignature detectability for over two decades.<a href="#fn26" class="fn">[26]</a></p>
+
+            <p>But the big money is in the missions. Europa Clipper: ~$5 billion. Dragonfly: $3.35 billion. MSR (as designed): $6.6&ndash;11 billion. HWO (estimated): $11+ billion. JUICE (ESA): &euro;1.6 billion. These are Flagship-class programs consuming the bulk of planetary science funding over decades-long development cycles.</p>
+
+            <p><strong>NSF&rsquo;s contribution</strong> flows primarily through astronomy and geoscience divisions&mdash;funding ground-based telescope time, laboratory astrobiology, and extreme-environment fieldwork. The U.S. contribution to the ELT&rsquo;s construction and instruments runs through NSF&rsquo;s NOIRLab.</p>
+
+            <p>Private philanthropy fills specific niches. The <a href="https://www.simonsfoundation.org/life-sciences/simons-collaboration-on-the-origins-of-life/"><strong>Simons Foundation</strong></a>&rsquo;s Collaboration on the Origins of Life (SCOL) ran from 2013 to 2023, distributing multi-million-dollar investigator awards to 24 interdisciplinary researchers exploring how life emerged. Individual grants ran to $1&ndash;1.2 million over 3&ndash;5 years. The <a href="https://breakthroughinitiatives.org/"><strong>Breakthrough Initiatives</strong></a>, funded by Yuri Milner, support SETI-adjacent work including Breakthrough Listen ($100 million for radio/optical SETI surveys) and Breakthrough Starshot (interstellar probe concept). Georgetown University&rsquo;s <strong>Laboratory for Agnostic Biosignatures</strong>, led by Sarah Stewart Johnson, operates on a 5-year, $7 million NASA grant.<a href="#fn27" class="fn">[27]</a></p>
+
+            <p>The pattern is familiar to anyone who covers biotech: public money builds the foundational science and the instruments, private entities and national prestige projects capture the implementation value, and the gap between what the instruments <em>can</em> detect and what the funded missions <em>will</em> deploy is where the field&rsquo;s frustration lives.</p>
+
+            <!-- VIII. Open Questions -->
+            <div class="section-header" style="margin-top: 2.5rem;">VIII. What Remains Open</div>
+
+            <p>The field&rsquo;s central questions are not &ldquo;Is there life out there?&rdquo;&mdash;that is an answer, not a question. The operational questions, the ones that determine what gets built and what gets funded, are more specific:</p>
+
+            <p><strong>Can Perseverance&rsquo;s samples be returned?</strong> Thirty-three tubes are filled. Ten duplicates sit in a backup depot at Three Forks. The analytical infrastructure exists on Earth. The logistics to connect them do not, unless China&rsquo;s Tianwen-3 or a future international collaboration changes the calculus. ESA&rsquo;s Earth Return Orbiter development continues regardless of U.S. decisions.</p>
+
+            <p><strong>Does Europa have plumes?</strong> Europa Clipper&rsquo;s MASPEX and SUDA are optimized for plume sampling, following the Cassini playbook at Enceladus. If Europa vents water into space, Clipper can directly taste ocean chemistry during its 49 flybys starting in 2031. If it does not, the mission still characterizes habitability&mdash;but loses the most dramatic detection pathway.</p>
+
+            <p><strong>What is Curiosity&rsquo;s methane?</strong> SAM measures seasonal methane variation. ESA&rsquo;s Trace Gas Orbiter has not detected atmospheric methane from orbit. A 2025 paper questioned SAM&rsquo;s detection reliability, noting the foreoptics chamber contains methane at 3&ndash;4 orders of magnitude above reported sample-cell levels; tiny leaks could explain the measurements.<a href="#fn9" class="fn">[9]</a> If the methane is real and subsurface, its source&mdash;geological or biological&mdash;is one of the most consequential open questions in planetary science.</p>
+
+            <p><strong>Can JWST actually detect a biosignature?</strong> The K2-18b episode suggests the answer is: not definitively, not with current methods. The TRAPPIST-1 e/b comparative technique is the most promising path, but results are years away. HWO&rsquo;s direct imaging approach, with its 10<sup>&minus;10</sup> coronagraph, is the architecture designed to answer this question&mdash;in the 2040s.</p>
+
+            <p><strong>What does &ldquo;life&rdquo; mean in this context?</strong> Assembly Theory, ML-based molecular pattern recognition, and microfluidic holographic microscopy are all attempts to detect life without presupposing its chemistry. But each still assumes <em>something</em>&mdash;molecular complexity, carbon-based chemistry, cellular structure. The deepest open question is whether we can build instruments sensitive to forms of organization we have not yet imagined. Jack Szostak at the University of Chicago continues to build protocells from scratch&mdash;RNA world models that may reveal the minimal conditions for life to emerge.<a href="#fn28" class="fn">[28]</a> Lee Cronin and Sara Walker&rsquo;s &ldquo;complexity-first&rdquo; framework pushes further, arguing that the transition from non-living to living is fundamentally about information and process, not specific molecules.</p>
+
+            <!-- IX. The Timetable -->
+            <div class="section-header" style="margin-top: 2.5rem;">IX. The Timetable</div>
+
+            <table class="spec-table">
+                <thead>
+                    <tr><th>Year</th><th>Event</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>2028</td><td>Dragonfly launches to Titan; Tianwen-3 launches to Mars (two vehicles)</td></tr>
+                    <tr><td>2029</td><td>ELT first light (39-m mirror, Chile); GMT first light (24.5-m, Chile)</td></tr>
+                    <tr><td>2030</td><td>Europa Clipper arrives at Jupiter; ESA JUICE arrives at Jupiter (2031)</td></tr>
+                    <tr><td>~2031</td><td>Tianwen-3 returns Mars samples to Earth (if on schedule); Europa Clipper begins 49 Europa flybys</td></tr>
+                    <tr><td>2034</td><td>Dragonfly lands on Titan at Selk crater; JUICE enters Ganymede orbit</td></tr>
+                    <tr><td>2035&ndash;2039</td><td>Earliest possible NASA/ESA Mars sample return (if refunded)</td></tr>
+                    <tr><td>~2041</td><td>Habitable Worlds Observatory launches (proposed)</td></tr>
+                </tbody>
+            </table>
+
+            <p>The next fifteen years will either produce the most consequential discovery in human history or demonstrate that life on other worlds, if it exists, is harder to find than our current instruments can manage. The tools exist. The questions are clear. What remains uncertain is whether the institutional will&mdash;and the budgets&mdash;will hold long enough to get answers.</p>
+
+        </div>
+
+        <!-- Bibliography -->
+        <div class="bibliography" style="margin-top: 3rem; border-top: 2px solid var(--rule); padding-top: 1.5rem;">
+            <div class="section-header">Sources</div>
+            <ol>
+                <li id="fn1">Sharma, S. et al. &ldquo;Redox-driven mineral and organic associations in Jezero Crater, Mars.&rdquo; <em>Nature</em>, September 10, 2025. <a href="https://www.nature.com/articles/s41586-025-09413-0">nature.com</a></li>
+                <li id="fn2">Scientific American. &ldquo;NASA&rsquo;s Mars Sample Return Mission in Jeopardy as U.S. Considers Abandoning It.&rdquo; 2025. <a href="https://www.scientificamerican.com/article/nasas-mars-sample-return-mission-in-jeopardy-as-u-s-considers-abandoning/">scientificamerican.com</a></li>
+                <li id="fn3">NASA. &ldquo;NASA Says Mars Rover Discovered Potential Biosignature Last Year.&rdquo; <a href="https://www.nasa.gov/news-release/nasa-says-mars-rover-discovered-potential-biosignature-last-year/">nasa.gov</a></li>
+                <li id="fn4">NASA. &ldquo;Perseverance Science Instruments.&rdquo; <a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/">science.nasa.gov</a></li>
+                <li id="fn5">NASA JPL. &ldquo;The 33 Sample Tubes Collected by Perseverance.&rdquo; <a href="https://www.jpl.nasa.gov/images/pia26643-the-33-sample-tubes-collected-by-perseverance/">jpl.nasa.gov</a></li>
+                <li id="fn6">National Academies. &ldquo;Biosignatures and Abiotic Chemistry.&rdquo; In <em>An Astrobiology Strategy for the Search for Life in the Universe</em>. <a href="https://nap.nationalacademies.org/read/11937/chapter/5">nap.nationalacademies.org</a></li>
+                <li id="fn7">JPL. &ldquo;How NASA Curiosity Instrument Made First Detection of Organic Matter on Mars.&rdquo; <a href="https://www.jpl.nasa.gov/news/how-nasa-curiosity-instrument-made-first-detection-of-organic-matter-on-mars/">jpl.nasa.gov</a></li>
+                <li id="fn8">Eigenbrode, J. et al. &ldquo;Organic matter preserved in 3-billion-year-old mudstones at Gale crater, Mars.&rdquo; <em>Science</em>, 2018. <a href="https://www.science.org/doi/10.1126/science.aat2662">science.org</a></li>
+                <li id="fn9">NASA. &ldquo;NASA Finds Ancient Organic Material, Mysterious Methane on Mars.&rdquo; <a href="https://www.nasa.gov/news-release/nasa-finds-ancient-organic-material-mysterious-methane-on-mars/">nasa.gov</a></li>
+                <li id="fn10">NASA. &ldquo;NASA to Explore Two Landing Options for Returning Samples from Mars.&rdquo; <a href="https://www.nasa.gov/news-release/nasa-to-explore-two-landing-options-for-returning-samples-from-mars/">nasa.gov</a></li>
+                <li id="fn11">Phys.org. &ldquo;Life on Mars? China&rsquo;s sample-return mission will seek to find out.&rdquo; 2025. <a href="https://phys.org/news/2025-06-life-mars-china-sample-mission.html">phys.org</a></li>
+                <li id="fn12">Europa Clipper Mission Overview. <a href="https://en.wikipedia.org/wiki/Europa_Clipper">en.wikipedia.org</a></li>
+                <li id="fn13">Waite, J.H. et al. &ldquo;MASPEX-Europa.&rdquo; <em>Space Science Reviews</em>, 2024. <a href="https://link.springer.com/article/10.1007/s11214-024-01061-6">springer.com</a></li>
+                <li id="fn14">Kempf, S. et al. &ldquo;SUDA: SUrface Dust Analyzer.&rdquo; <em>Space Science Reviews</em>, 2025. <a href="https://link.springer.com/article/10.1007/s11214-025-01134-0">springer.com</a></li>
+                <li id="fn15">NASA. &ldquo;NASA&rsquo;s Dragonfly Rotorcraft Mission to Saturn&rsquo;s Moon Titan Confirmed.&rdquo; <a href="https://science.nasa.gov/missions/dragonfly/nasas-dragonfly-rotorcraft-mission-to-saturns-moon-titan-confirmed/">science.nasa.gov</a></li>
+                <li id="fn16">ESA. &ldquo;JUICE: Jupiter Icy Moons Explorer.&rdquo; <a href="https://www.esa.int/Science_Exploration/Space_Science/Juice">esa.int</a></li>
+                <li id="fn17">Planetary Society. &ldquo;Meet Orbilander: A Bold Mission to Search for Life at Enceladus.&rdquo; <a href="https://www.planetary.org/articles/meet-orbilander-enceladus-mission">planetary.org</a></li>
+                <li id="fn18">Astronomy.com. &ldquo;New study revisits signs of life on K2-18 b.&rdquo; <a href="https://www.astronomy.com/science/new-study-revisits-signs-of-life-on-k2-18-b/">astronomy.com</a></li>
+                <li id="fn19">Ahrer, E.-M. et al. &ldquo;Insufficient evidence for the detection of dimethyl sulfide on K2-18 b.&rdquo; <em>Astronomy &amp; Astrophysics</em>, 2025. <a href="https://www.aanda.org/articles/aa/full_html/2025/08/aa55580-25/aa55580-25.html">aanda.org</a></li>
+                <li id="fn20">AAS Nova. &ldquo;JWST Searches for an Atmosphere on TRAPPIST-1e.&rdquo; <a href="https://aasnova.org/2025/12/26/selections-from-2025-jwst-searches-for-an-atmosphere-on-trappist-1e/">aasnova.org</a></li>
+                <li id="fn21">NASA. &ldquo;Habitable Worlds Observatory.&rdquo; <a href="https://science.nasa.gov/astrophysics/programs/habitable-worlds-observatory/">science.nasa.gov</a></li>
+                <li id="fn22">Currie, M. et al. &ldquo;Detecting Biosignatures with the Extremely Large Telescope.&rdquo; <em>The Astronomical Journal</em>, 2024. <a href="https://iopscience.iop.org/article/10.3847/1538-3881/ad109e">iopscience.iop.org</a></li>
+                <li id="fn23">Marshall, S.M. et al. &ldquo;Identifying molecules as biosignatures with assembly theory and mass spectrometry.&rdquo; <em>Nature Communications</em>, 2021. <a href="https://www.nature.com/articles/s41467-021-23258-x">nature.com</a></li>
+                <li id="fn24">Cleaves, H.J. et al. &ldquo;A robust, agnostic molecular biosignature based on machine learning.&rdquo; <em>PNAS</em>, 2023. <a href="https://www.pnas.org/doi/10.1073/pnas.2307149120">pnas.org</a></li>
+                <li id="fn25">Universe Today. &ldquo;NASA Has Built a Collection of Instruments That Will Search for Life Inside Europa and Enceladus.&rdquo; <a href="https://www.universetoday.com/articles/nasa-has-built-a-collection-of-instruments-that-will-search-for-life-inside-europa-and-enceladus">universetoday.com</a></li>
+                <li id="fn26">Virtual Planetary Laboratory, University of Washington. <a href="https://vpl.uw.edu/about-us/">vpl.uw.edu</a></li>
+                <li id="fn27">NASA Astrobiology. &ldquo;Agnostic Biosignatures and the Path to Life as We Don&rsquo;t Know It.&rdquo; <a href="https://astrobiology.nasa.gov/news/agnostic-biosignatures-and-the-path-to-life-as-we-dont-know-it/">astrobiology.nasa.gov</a></li>
+                <li id="fn28">Cornell Chronicle. &ldquo;Nobel laureate shares research exploring the origins of life.&rdquo; October 2025. <a href="https://news.cornell.edu/stories/2025/10/nobel-laureate-shares-research-exploring-origins-life">cornell.edu</a></li>
+            </ol>
+        </div>
+
+        <div style="border-top: 1px solid var(--light-rule); margin-top: 1.5rem; padding-top: 1rem;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--gray);">
+                <a href="../index.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">&larr; Return to front page</a>
+                &nbsp;&middot;&nbsp;
+                <a href="2026-02-19-exobiology-panel.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Read the editorial panel &rarr;</a>
+                &nbsp;&middot;&nbsp;
+                <a href="mailto:tips@minomobi.com" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Send a tip</a>
+            </p>
+        </div>
+
+    </article>
+
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://minomobi.com" style="color: var(--gray);">minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="../feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+</body>
+</html>
