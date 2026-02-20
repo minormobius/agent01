@@ -77,24 +77,30 @@ body {
   margin: 1.5rem 0 1rem;
 }
 
-/* ---- Article Grid ---- */
-.front-page {
-  display: grid;
-  grid-template-columns: 1fr 1px 2fr 1px 1fr;
-  gap: 0;
+/* ---- Lead Article ---- */
+.lead-article {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 1.5rem 0 0;
 }
 
-.column-rule {
-  background: var(--light-rule);
-  width: 1px;
+.lead-article .headline-lead {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  text-align: center;
+  margin-bottom: 0.3rem;
 }
 
-.col-left, .col-right {
-  padding: 0 var(--col-gap);
+.lead-article .kicker {
+  text-align: center;
 }
 
-.col-center {
-  padding: 0 var(--col-gap);
+.lead-article .byline {
+  text-align: center;
+  margin-bottom: 1.2rem;
+}
+
+.lead-article .article-body {
+  margin-top: 0.5rem;
 }
 
 /* ---- Headlines ---- */
@@ -167,19 +173,47 @@ body {
   line-height: 1.5;
 }
 
-/* ---- Sidebar Items ---- */
-.sidebar-item {
-  border-bottom: 1px solid var(--light-rule);
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+/* ---- Archive ---- */
+.archive-list {
+  max-width: 740px;
+  margin: 0 auto;
 }
 
-.sidebar-item:last-child {
+.archive-entry {
+  border-bottom: 1px solid var(--light-rule);
+  padding: 0.8rem 0;
+}
+
+.archive-entry:last-child {
   border-bottom: none;
 }
 
-.sidebar-item .article-body {
-  font-size: 0.85rem;
+.archive-entry .headline-minor a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.archive-entry .headline-minor a:hover {
+  color: var(--accent);
+}
+
+.archive-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: var(--gray);
+  margin-top: 0.3rem;
+}
+
+.archive-links {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  margin-top: 0.2rem;
+}
+
+.archive-links a {
+  color: var(--accent);
+  text-decoration: none;
 }
 
 /* ---- Editorial / Podcast ---- */
@@ -215,21 +249,6 @@ body {
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-  .front-page {
-    grid-template-columns: 1fr;
-  }
-
-  .column-rule {
-    display: none;
-  }
-
-  .col-left, .col-center, .col-right {
-    padding: 0;
-    border-bottom: 1px solid var(--light-rule);
-    padding-bottom: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
   .article-body p {
     text-align: left;
   }
