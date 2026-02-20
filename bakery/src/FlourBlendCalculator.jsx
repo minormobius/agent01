@@ -129,20 +129,38 @@ const FLOURS = [
   },
 ];
 
+// FDA daily values for %DV calculation
+const DAILY_VALUES = {
+  totalFat: 78,
+  saturatedFat: 20,
+  cholesterol: 300,
+  sodium: 2300,
+  totalCarb: 275,
+  fiber: 28,
+  addedSugars: 50,
+  protein: 50,
+  calcium: 1300,
+  iron: 18,
+  potassium: 4700,
+  vitaminD: 20,
+};
+
 const NUTRIENTS = [
   { key: "calories", label: "Calories", unit: "", bold: true },
-  { key: "totalFat", label: "Total Fat", unit: "g", bold: true },
-  { key: "saturatedFat", label: "  Saturated Fat", unit: "g", indent: true },
-  { key: "transFat", label: "  Trans Fat", unit: "g", indent: true },
-  { key: "cholesterol", label: "Cholesterol", unit: "mg", bold: true },
-  { key: "sodium", label: "Sodium", unit: "mg", bold: true },
-  { key: "totalCarb", label: "Total Carbohydrate", unit: "g", bold: true },
-  { key: "fiber", label: "  Dietary Fiber", unit: "g", indent: true },
-  { key: "totalSugars", label: "  Total Sugars", unit: "g", indent: true },
-  { key: "protein", label: "Protein", unit: "g", bold: true },
-  { key: "calcium", label: "Calcium", unit: "mg" },
-  { key: "iron", label: "Iron", unit: "mg" },
-  { key: "potassium", label: "Potassium", unit: "mg" },
+  { key: "totalFat", label: "Total Fat", unit: "g", bold: true, dv: true },
+  { key: "saturatedFat", label: "Saturated Fat", unit: "g", indent: true, dv: true },
+  { key: "transFat", label: "Trans Fat", unit: "g", indent: true },
+  { key: "cholesterol", label: "Cholesterol", unit: "mg", bold: true, dv: true },
+  { key: "sodium", label: "Sodium", unit: "mg", bold: true, dv: true },
+  { key: "totalCarb", label: "Total Carbohydrate", unit: "g", bold: true, dv: true },
+  { key: "fiber", label: "Dietary Fiber", unit: "g", indent: true, dv: true },
+  { key: "totalSugars", label: "Total Sugars", unit: "g", indent: true },
+  { key: "addedSugars", label: "Incl. Added Sugars", unit: "g", indent: true, dv: true, extraIndent: true },
+  { key: "protein", label: "Protein", unit: "g", bold: true, dv: true },
+  { key: "vitaminD", label: "Vitamin D", unit: "mcg", dv: true, bottom: true },
+  { key: "calcium", label: "Calcium", unit: "mg", dv: true, bottom: true },
+  { key: "iron", label: "Iron", unit: "mg", dv: true, bottom: true },
+  { key: "potassium", label: "Potassium", unit: "mg", dv: true, bottom: true },
 ];
 
 function per100(flour, key) {
@@ -627,7 +645,14 @@ export default function FlourBlendCalculator() {
           )}
 
           {/* Blend Nutrition Facts */}
-          {totalEffective > 0 && (
+          {totalEffective > 0 && (() => {
+            const servings = 10;
+            const servingFraction = 1 / servings;
+            const totalDoughWeight = totalEffective + waterGrams
+              + (isEnriched ? enrichAmounts.butter + enrichAmounts.milk + enrichAmounts.oliveOil + enrichAmounts.eggs * (ENRICHMENTS.find((e) => e.key === "eggs").gramsPerUnit) : 0);
+            const servingWeight = Math.round(totalDoughWeight / servings);
+
+            return (
             <div style={{
               background: "#fff",
               borderRadius: 12,
@@ -637,45 +662,76 @@ export default function FlourBlendCalculator() {
               margin: "0 auto",
               boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
             }}>
-              <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 2px", color: "#3e2723", borderBottom: "8px solid #3e2723", paddingBottom: 4 }}>
+              <h2 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 2px", color: "#3e2723", borderBottom: "10px solid #3e2723", paddingBottom: 4, letterSpacing: "-0.5px" }}>
                 Nutrition Facts
               </h2>
-              <p style={{ fontSize: 12, color: "#5d4037", margin: "4px 0 2px", borderBottom: "1px solid #3e2723", paddingBottom: 4 }}>
-                Flour blend total: {Math.round(totalEffective)}g
+              <p style={{ fontSize: 13, color: "#3e2723", margin: "6px 0 0", fontWeight: 600 }}>
+                {servings} servings per loaf
               </p>
-              <p style={{ fontSize: 11, color: "#8d6e63", margin: "2px 0 8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "6px solid #3e2723", paddingBottom: 4, margin: "2px 0 4px" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#3e2723" }}>
+                  Serving size
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#3e2723" }}>
+                  1/10 loaf ({servingWeight}g)
+                </span>
+              </div>
+
+              <p style={{ fontSize: 11, color: "#8d6e63", margin: "4px 0 6px" }}>
                 Blend: {FLOURS.map((f, i) => effectiveGrams[i] > 0 ? `${f.name} ${Math.round(effectiveGrams[i])}g` : null).filter(Boolean).join(" \u00b7 ")}
               </p>
 
-              {NUTRIENTS.map(({ key, label, unit, bold, indent }, ri) => (
+              {/* %DV header */}
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "2px 0 4px", borderBottom: "1px solid #3e2723" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#3e2723" }}>% Daily Value*</span>
+              </div>
+
+              {NUTRIENTS.map(({ key, label, unit, bold, indent, dv, extraIndent, bottom }) => {
+                const totalVal = blendNutrition[key];
+                const perServing = totalVal * servingFraction;
+                const dvPercent = dv && DAILY_VALUES[key] ? Math.round((perServing / DAILY_VALUES[key]) * 100) : null;
+
+                return (
                 <div
                   key={key}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    padding: "4px 0",
+                    alignItems: "baseline",
+                    padding: "3px 0",
                     borderBottom: key === "calories" ? "4px solid #3e2723"
                       : key === "protein" ? "6px solid #3e2723"
+                      : bottom ? "1px solid #e0dad5"
                       : "1px solid #e0dad5",
-                    paddingLeft: indent ? 16 : 0,
+                    paddingLeft: extraIndent ? 28 : indent ? 16 : 0,
                   }}
                 >
                   <span style={{
                     fontWeight: bold ? 700 : 400,
-                    fontSize: key === "calories" ? 16 : 13,
+                    fontSize: key === "calories" ? 15 : 13,
                     color: "#3e2723",
+                    flex: 1,
                   }}>
-                    {label.trim()}
+                    {label} {key !== "calories" && <span style={{ fontWeight: 400 }}>{formatNum(perServing)}{unit}</span>}
                   </span>
-                  <span style={{
-                    fontWeight: bold ? 700 : 400,
-                    fontSize: key === "calories" ? 16 : 13,
-                    color: "#3e2723",
-                  }}>
-                    {formatNum(blendNutrition[key])}{unit}
-                  </span>
+                  {key === "calories" ? (
+                    <span style={{ fontWeight: 900, fontSize: 20, color: "#3e2723" }}>
+                      {formatNum(perServing)}
+                    </span>
+                  ) : dvPercent !== null ? (
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#3e2723", minWidth: 36, textAlign: "right" }}>
+                      {dvPercent}%
+                    </span>
+                  ) : (
+                    <span style={{ minWidth: 36 }} />
+                  )}
                 </div>
-              ))}
+                );
+              })}
+
+              <p style={{ fontSize: 10, color: "#8d6e63", marginTop: 8, lineHeight: 1.4 }}>
+                * The % Daily Value (DV) tells you how much a nutrient in a serving of food contributes to a daily diet. 2,000 calories a day is used for general nutrition advice.
+              </p>
 
               {/* Pie chart of flour composition */}
               <div style={{ marginTop: 16 }}>
@@ -725,7 +781,8 @@ export default function FlourBlendCalculator() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {totalEffective === 0 && (
             <div style={{
