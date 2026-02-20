@@ -162,6 +162,20 @@ const card = (active, borderColor) => ({
   border: active ? `2px solid ${borderColor}` : "2px solid transparent",
 });
 
+function SliderRow({ min = 0, max, step, value, onChange, color, unitLabel }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ flex: 1, accentColor: color }} />
+      <input type="number" min={min} value={value}
+        onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
+        style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #d7ccc8", fontSize: 14, textAlign: "center" }} />
+      <span style={{ fontSize: 12, color: "#a1887f", width: 30 }}>{unitLabel}</span>
+    </div>
+  );
+}
+
 export default function FlourBlendCalculator() {
   const [tab, setTab] = useState("blend");
   const [blendGrams, setBlendGrams] = useState(FLOURS.map(() => 0));
@@ -308,19 +322,6 @@ export default function FlourBlendCalculator() {
     setSavedRecipes(next);
     saveRecipes(next);
   };
-
-  // Slider row component to reduce repetition
-  const SliderRow = ({ min = 0, max, step, value, onChange, color, unitLabel }) => (
-    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        style={{ flex: 1, accentColor: color }} />
-      <input type="number" min={min} value={value}
-        onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
-        style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #d7ccc8", fontSize: 14, textAlign: "center" }} />
-      <span style={{ fontSize: 12, color: "#a1887f", width: 30 }}>{unitLabel}</span>
-    </div>
-  );
 
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", maxWidth: 900, margin: "0 auto", padding: "16px", background: "#faf8f5", minHeight: "100vh" }}>
