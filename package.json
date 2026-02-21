@@ -1,0 +1,7 @@
+{
+  "name": "agent01",
+  "private": true,
+  "scripts": {
+    "build": "cd bakery && npm install && npm run build"
+  }
+}
