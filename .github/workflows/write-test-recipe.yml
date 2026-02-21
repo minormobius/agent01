@@ -124,8 +124,30 @@ jobs:
           echo "=== Create response ==="
           echo "$BODY" | python3 -m json.tool || echo "$BODY"
 
+          # Save debug info regardless of status
+          mkdir -p atproto-data/test-results
+          python3 -c "
+          import json
+          info = {
+              'http_status': '$HTTP_STATUS',
+              'response_body': '''$BODY''',
+              'request_file': open('/tmp/create-request.json').read()
+          }
+          with open('atproto-data/test-results/debug-response.json', 'w') as f:
+              json.dump(info, f, indent=2)
+          " 2>/dev/null || echo "$BODY" > atproto-data/test-results/debug-response.txt
+
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "::error::API returned status $HTTP_STATUS"
+            echo "::error::Response body: $BODY"
+            # Still commit the debug info before failing
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add atproto-data/test-results/ /tmp/create-request.json 2>/dev/null || true
+            cp /tmp/create-request.json atproto-data/test-results/last-request.json 2>/dev/null || true
+            git add atproto-data/test-results/
+            git commit -m "debug: save failed ATProto API response (status $HTTP_STATUS)" || true
+            git push || true
             exit 1
           fi
 
