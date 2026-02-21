@@ -60,6 +60,18 @@
   #info-panel .info-flags { color: #665; font-size: .8em; margin-top: .3em; }
   #info-panel .info-synonyms { color: #666; font-size: .85em; }
   #info-panel .info-synonyms span { color: #888; }
+  #info-panel .iucn-badge {
+    display: inline-block; font-size: .75em; padding: 1px 5px; border-radius: 3px;
+    color: #111; font-weight: bold; margin-left: .4em; vertical-align: middle;
+  }
+  .iucn-LC { background: #4caf50; } .iucn-NT { background: #8bc34a; }
+  .iucn-VU { background: #ff9800; } .iucn-EN { background: #f44336; }
+  .iucn-CR { background: #b71c1c; color: #fff; } .iucn-EW { background: #555; color: #fff; }
+  .iucn-EX { background: #000; color: #666; } .iucn-DD { background: #888; }
+  #info-panel .info-img { margin-bottom: .8em; }
+  #info-panel .info-img img {
+    max-width: 100%; border-radius: 4px; border: 1px solid #222;
+  }
 </style>
 </head>
 <body>
@@ -73,6 +85,12 @@
 const OTT_PRIMATES = 913935;
 const API = "https://api.opentreeoflife.org/v3";
 const infoCache = {};
+const ozCache = {};
+const IUCN_LABELS = {
+  LC: "Least Concern", NT: "Near Threatened", VU: "Vulnerable",
+  EN: "Endangered", CR: "Critically Endangered", EW: "Extinct in Wild",
+  EX: "Extinct", DD: "Data Deficient"
+};
 
 async function fetchSubtree(ottId, heightLimit = -1) {
   const r = await fetch(`${API}/tree_of_life/subtree`, {
@@ -96,34 +114,106 @@ async function fetchTaxonInfo(ottId) {
   return d;
 }
 
-function buildLinks(ottId, name, taxSources) {
+async function fetchOneZoom(ottId) {
+  if (ozCache[ottId]) return ozCache[ottId];
+  try {
+    const r = await fetch(`https://www.onezoom.org/API/otts2identifiers?key=0&otts=${ottId}`);
+    const d = await r.json();
+    const row = d && d[0] ? d[0] : {};
+    ozCache[ottId] = row;
+    return row;
+  } catch { ozCache[ottId] = {}; return {}; }
+}
+
+function buildLinks(ottId, name, taxSources, oz) {
   const links = [];
-  // Wikipedia — use taxon name directly
-  links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}` });
+  // Wikipedia via Wikidata (best), fallback to name
+  if (oz && oz.wikidata) {
+    links.push({ label: "Wikipedia", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+    links.push({ label: "Wikidata", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+  }
+  // Try direct Wikipedia by name (reliable for most taxa)
+  if (!oz || !oz.wikidata) {
+    links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
+  } else {
+    // Wikidata exists — build Wikipedia link from name too (Wikidata doesn't go straight to article)
+    links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
+    // Remove the duplicate Wikidata-based Wikipedia entry
+    links.splice(0, 1);
+  }
+  // Encyclopedia of Life
+  if (oz && oz.eol) {
+    links.push({ label: "Encyclopedia of Life", url: `https://eol.org/pages/${oz.eol}`, cat: "reference" });
+  }
+  // IUCN Red List
+  if (oz && oz.iucn) {
+    links.push({ label: "IUCN Red List", url: `https://www.iucnredlist.org/species/${oz.iucn}`, cat: "conservation" });
+  }
+  // OneZoom visualization
+  links.push({ label: "OneZoom", url: `https://www.onezoom.org/life/@=${ottId}`, cat: "tree" });
   // Open Tree of Life
-  links.push({ label: "Open Tree of Life", url: `https://tree.opentreeoflife.org/taxonomy/browse?id=${ottId}` });
-  // Parse tax_sources
+  links.push({ label: "Open Tree of Life", url: `https://tree.opentreeoflife.org/taxonomy/browse?id=${ottId}`, cat: "tree" });
+  // Parse tax_sources from OTL
   for (const src of (taxSources || [])) {
     const [prefix, id] = src.split(":");
     switch (prefix) {
       case "ncbi":
-        links.push({ label: "NCBI Taxonomy", url: `https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=${id}` });
+        links.push({ label: "NCBI Taxonomy", url: `https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=${id}`, cat: "database" });
         break;
       case "gbif":
-        links.push({ label: "GBIF", url: `https://www.gbif.org/species/${id}` });
+        links.push({ label: "GBIF", url: `https://www.gbif.org/species/${id}`, cat: "database" });
         break;
       case "worms":
-        links.push({ label: "WoRMS", url: `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${id}` });
+        links.push({ label: "WoRMS", url: `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
         break;
       case "irmng":
-        links.push({ label: "IRMNG", url: `https://www.irmng.org/aphia.php?p=taxdetails&id=${id}` });
-        break;
-      case "if":
-        links.push({ label: "Index Fungorum", url: `https://www.indexfungorum.org/names/NamesRecord.asp?RecordID=${id}` });
+        links.push({ label: "IRMNG", url: `https://www.irmng.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
         break;
     }
   }
   return links;
+}
+
+function renderPanel(inner, ottId, name, rank, data, oz) {
+  const links = buildLinks(ottId, data.name || name, data.tax_sources, oz);
+  const synonyms = (data.synonyms || []).filter(s => s !== name);
+  const flags = (data.flags || []).filter(f => f);
+  const iucnCode = oz && oz.iucn ? (oz.iucn_code || null) : null;
+
+  let html = `<span class="info-close">&times;</span>`;
+  html += `<h2>${data.unique_name || data.name || name}`;
+  if (iucnCode && IUCN_LABELS[iucnCode]) {
+    html += ` <span class="iucn-badge iucn-${iucnCode}" title="${IUCN_LABELS[iucnCode]}">${iucnCode}</span>`;
+  }
+  html += `</h2>`;
+  html += (data.rank && data.rank !== "no rank") ? `<div class="info-rank">${data.rank} · ott${ottId}</div>` : `<div class="info-rank">ott${ottId}</div>`;
+
+  // Group links by category
+  const cats = [
+    { key: "reference", label: "Reference" },
+    { key: "conservation", label: "Conservation" },
+    { key: "tree", label: "Tree Browsers" },
+    { key: "database", label: "Databases" }
+  ];
+  for (const cat of cats) {
+    const catLinks = links.filter(l => l.cat === cat.key);
+    if (catLinks.length === 0) continue;
+    html += `<div class="info-section"><div class="info-label">${cat.label}</div>`;
+    for (const lnk of catLinks) {
+      html += `<a href="${lnk.url}" target="_blank" rel="noopener">${lnk.label}</a>`;
+    }
+    html += `</div>`;
+  }
+
+  if (synonyms.length > 0) {
+    html += `<div class="info-section"><div class="info-label">Synonyms</div>`;
+    html += `<div class="info-synonyms">${synonyms.map(s => `<span>${s}</span>`).join(", ")}</div></div>`;
+  }
+  if (flags.length > 0) {
+    html += `<div class="info-section"><div class="info-flags">${flags.join(", ")}</div></div>`;
+  }
+  inner.innerHTML = html;
+  inner.querySelector(".info-close").onclick = () => document.getElementById("info-panel").classList.remove("open");
 }
 
 function showInfoPanel(ottId, name, rank) {
@@ -135,29 +225,15 @@ function showInfoPanel(ottId, name, rank) {
     `<div class="info-loading">fetching…</div>`;
   inner.querySelector(".info-close").onclick = () => panel.classList.remove("open");
 
-  fetchTaxonInfo(ottId).then(data => {
-    const links = buildLinks(ottId, data.name || name, data.tax_sources);
-    const synonyms = (data.synonyms || []).filter(s => s !== name);
-    const flags = (data.flags || []).filter(f => f);
-    let html = `<span class="info-close">&times;</span>`;
-    html += `<h2>${data.unique_name || data.name || name}</h2>`;
-    html += (data.rank && data.rank !== "no rank") ? `<div class="info-rank">${data.rank} · ott${ottId}</div>` : `<div class="info-rank">ott${ottId}</div>`;
+  // Fetch OTL + OneZoom in parallel
+  const pOtl = fetchTaxonInfo(ottId);
+  const pOz = fetchOneZoom(ottId);
 
-    html += `<div class="info-section"><div class="info-label">Links</div>`;
-    for (const lnk of links) {
-      html += `<a href="${lnk.url}" target="_blank" rel="noopener">${lnk.label}</a>`;
-    }
-    html += `</div>`;
-
-    if (synonyms.length > 0) {
-      html += `<div class="info-section"><div class="info-label">Synonyms</div>`;
-      html += `<div class="info-synonyms">${synonyms.map(s => `<span>${s}</span>`).join(", ")}</div></div>`;
-    }
-    if (flags.length > 0) {
-      html += `<div class="info-section"><div class="info-flags">${flags.join(", ")}</div></div>`;
-    }
-    inner.innerHTML = html;
-    inner.querySelector(".info-close").onclick = () => panel.classList.remove("open");
+  pOtl.then(data => {
+    // Render immediately with OTL data (OneZoom will enhance when ready)
+    renderPanel(inner, ottId, name, rank, data, {});
+    // Then enhance with OneZoom data
+    pOz.then(oz => renderPanel(inner, ottId, name, rank, data, oz));
   }).catch(() => {
     inner.querySelector(".info-loading").textContent = "couldn't load info";
   });
