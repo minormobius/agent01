@@ -106,6 +106,10 @@ const ENRICHMENTS = [
     key: "oliveOil", label: "Olive Oil", emoji: "\u{1FAD2}", unit: "g", color: "#c5e1a5",
     per100: { calories: 884, totalFat: 100, saturatedFat: 13.8, transFat: 0, cholesterol: 0, sodium: 2, totalCarb: 0, fiber: 0, totalSugars: 0, addedSugars: 0, protein: 0, vitaminD: 0, calcium: 1, iron: 0.56, potassium: 1 },
   },
+  {
+    key: "sugar", label: "Sugar", emoji: "\u{1F36C}", unit: "g", color: "#f5f5f5",
+    per100: { calories: 387, totalFat: 0, saturatedFat: 0, transFat: 0, cholesterol: 0, sodium: 1, totalCarb: 100, fiber: 0, totalSugars: 100, addedSugars: 100, protein: 0, vitaminD: 0, calcium: 1, iron: 0.01, potassium: 2 },
+  },
 ];
 
 // Starter flour types — user picks which flour their starter is fed with
@@ -186,7 +190,7 @@ export default function FlourBlendCalculator() {
   const [waterGrams, setWaterGrams] = useState(0);
   const [saltGrams, setSaltGrams] = useState(0);
   const [isEnriched, setIsEnriched] = useState(false);
-  const [enrichAmounts, setEnrichAmounts] = useState({ butter: 0, eggs: 0, milk: 0, oliveOil: 0 });
+  const [enrichAmounts, setEnrichAmounts] = useState({ butter: 0, eggs: 0, milk: 0, oliveOil: 0, sugar: 0 });
   const [starterEnabled, setStarterEnabled] = useState(false);
   const [starterGrams, setStarterGrams] = useState(0);
   const [starterHydration, setStarterHydration] = useState(100);
@@ -853,6 +857,54 @@ export default function FlourBlendCalculator() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* About AT Protocol integration */}
+          <div style={{ marginTop: 32 }}>
+            <div style={{
+              background: "#fff", borderRadius: 12, padding: "20px 24px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              border: "1px solid #d7ccc8",
+            }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#3e2723", margin: "0 0 12px" }}>
+                This calculator publishes to AT Protocol
+              </h3>
+              <div style={{ fontSize: 14, color: "#5d4037", lineHeight: 1.7 }}>
+                <p style={{ margin: "0 0 12px" }}>
+                  This isn't just a calculator — it's a recipe publisher for the{" "}
+                  <a href="https://atproto.com" target="_blank" rel="noopener noreferrer" style={{ color: "#8d6e63", fontWeight: 600 }}>AT Protocol</a>,
+                  the open network behind Bluesky. When you publish a recipe here, it gets written directly to your
+                  Personal Data Server as an{" "}
+                  <a href="https://recipe.exchange" target="_blank" rel="noopener noreferrer" style={{ color: "#8d6e63", fontWeight: 600 }}>exchange.recipe.recipe</a>{" "}
+                  record — the same schema used by recipe.exchange.
+                </p>
+                <p style={{ margin: "0 0 12px" }}>
+                  <strong>What that means:</strong> your recipes live on your PDS, not in someone else's database. Any app
+                  that speaks AT Protocol can read them. This page is a static site on Cloudflare Pages with zero backend —
+                  it talks directly to PDS endpoints using <code style={{ background: "#efebe9", padding: "1px 5px", borderRadius: 4, fontSize: 13 }}>fetch()</code>.
+                  No API keys, no server, no database.
+                </p>
+                <p style={{ margin: "0 0 16px" }}>
+                  <strong>How it works:</strong> design a flour blend with the sliders in Recipe Builder, write your
+                  baking instructions, then flip to the AT Protocol tab to sign in and publish. You can also browse
+                  anyone's published recipes by handle and load them back into the calculator to tweak and republish.
+                </p>
+                <div style={{
+                  background: "#efebe9", borderRadius: 8, padding: "12px 16px",
+                  fontSize: 13, color: "#5d4037",
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Try it:</div>
+                  <ol style={{ margin: 0, paddingLeft: 20 }}>
+                    <li style={{ marginBottom: 4 }}>Build a flour blend in the Recipe Builder tab</li>
+                    <li style={{ marginBottom: 4 }}>Go to the AT Protocol tab and sign in with your Bluesky handle + an{" "}
+                      <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" style={{ color: "#8d6e63" }}>app password</a>
+                    </li>
+                    <li style={{ marginBottom: 4 }}>Hit publish — your recipe is now an AT Protocol record on your PDS</li>
+                    <li>Browse "My Recipes" to see it, load it back, or share your handle so others can pull your recipes</li>
+                  </ol>
+                </div>
+              </div>
             </div>
           </div>
         </div>

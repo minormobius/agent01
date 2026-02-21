@@ -140,7 +140,7 @@ export function recipeToCalculator(record, flours, enrichments, starterFlours) {
     waterGrams: 0,
     saltGrams: 0,
     isEnriched: false,
-    enrichAmounts: { butter: 0, eggs: 0, milk: 0, oliveOil: 0 },
+    enrichAmounts: { butter: 0, eggs: 0, milk: 0, oliveOil: 0, sugar: 0 },
     starterEnabled: false,
     starterGrams: 0,
     starterHydration: 100,
