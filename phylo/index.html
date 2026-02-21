@@ -6,28 +6,73 @@
 <title>phylo — tree of life browser — minomobi</title>
 <style>
   * { margin: 0; box-sizing: border-box; }
-  body { font: 14px/1.6 monospace; padding: 1em; max-width: 60em; background: #111; color: #ccc; }
+  body { font: 14px/1.6 monospace; padding: 1em; background: #111; color: #ccc; }
   h1 { font-size: 1em; color: #888; margin-bottom: .5em; }
   #status { color: #666; margin-bottom: 1em; }
+
+  #main { display: flex; gap: 0; }
+  #tree { flex: 1; min-width: 0; overflow-x: auto; }
+
   ul { list-style: none; padding-left: 1.2em; }
   li { border-left: 1px solid #333; padding-left: .6em; margin: 2px 0; }
+  .node-row { display: inline-flex; align-items: baseline; gap: .3em; }
   .name { cursor: pointer; }
   .name:hover { color: #fff; }
   .rank { color: #555; font-size: .85em; }
   .tips { color: #444; font-size: .85em; }
+  .info-btn {
+    cursor: pointer; font-size: .7em; color: #444; border: 1px solid #333;
+    border-radius: 50%; width: 1.4em; height: 1.4em; display: inline-flex;
+    align-items: center; justify-content: center; opacity: 0; transition: opacity .15s;
+    vertical-align: middle; flex-shrink: 0;
+  }
+  .node-row:hover .info-btn { opacity: 1; }
+  .info-btn:hover { color: #adf; border-color: #adf; }
   .collapsed > ul { display: none; }
-  .collapsed > .name::before { content: "▸ "; color: #555; }
-  .expanded > .name::before { content: "▾ "; color: #555; }
-  .leaf > .name::before { content: "· "; color: #333; }
+  .collapsed > .node-row > .name::before { content: "▸ "; color: #555; }
+  .expanded > .node-row > .name::before { content: "▾ "; color: #555; }
+  .leaf > .node-row > .name::before { content: "· "; color: #333; }
+
+  /* info panel */
+  #info-panel {
+    width: 0; overflow: hidden; transition: width .2s; border-left: 1px solid #222;
+    flex-shrink: 0; background: #0d0d0d;
+  }
+  #info-panel.open { width: 320px; }
+  #info-inner {
+    width: 320px; padding: 1em; font-size: .9em; overflow-y: auto; max-height: calc(100vh - 4em);
+  }
+  #info-panel h2 { font-size: 1em; color: #ddd; margin-bottom: .2em; font-weight: normal; }
+  #info-panel .info-rank { color: #777; font-size: .85em; margin-bottom: .8em; }
+  #info-panel .info-section { margin-bottom: .8em; }
+  #info-panel .info-label { color: #666; font-size: .8em; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3em; }
+  #info-panel a {
+    color: #8bf; text-decoration: none; display: block; padding: 3px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  #info-panel a:hover { color: #adf; }
+  #info-panel a::before { content: "↗ "; color: #444; }
+  #info-panel .info-loading { color: #555; }
+  #info-panel .info-close {
+    cursor: pointer; color: #555; float: right; font-size: 1.2em; line-height: 1;
+  }
+  #info-panel .info-close:hover { color: #fff; }
+  #info-panel .info-flags { color: #665; font-size: .8em; margin-top: .3em; }
+  #info-panel .info-synonyms { color: #666; font-size: .85em; }
+  #info-panel .info-synonyms span { color: #888; }
 </style>
 </head>
 <body>
 <h1>phylo.minomobi.com</h1>
 <div id="status">loading…</div>
-<div id="tree"></div>
+<div id="main">
+  <div id="tree"></div>
+  <div id="info-panel"><div id="info-inner"></div></div>
+</div>
 <script>
 const OTT_PRIMATES = 913935;
 const API = "https://api.opentreeoflife.org/v3";
+const infoCache = {};
 
 async function fetchSubtree(ottId, heightLimit = -1) {
   const r = await fetch(`${API}/tree_of_life/subtree`, {
@@ -39,6 +84,85 @@ async function fetchSubtree(ottId, heightLimit = -1) {
   return d.arguson;
 }
 
+async function fetchTaxonInfo(ottId) {
+  if (infoCache[ottId]) return infoCache[ottId];
+  const r = await fetch(`${API}/taxonomy/taxon_info`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ott_id: ottId, include_lineage: false })
+  });
+  const d = await r.json();
+  infoCache[ottId] = d;
+  return d;
+}
+
+function buildLinks(ottId, name, taxSources) {
+  const links = [];
+  // Wikipedia — use taxon name directly
+  links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}` });
+  // Open Tree of Life
+  links.push({ label: "Open Tree of Life", url: `https://tree.opentreeoflife.org/taxonomy/browse?id=${ottId}` });
+  // Parse tax_sources
+  for (const src of (taxSources || [])) {
+    const [prefix, id] = src.split(":");
+    switch (prefix) {
+      case "ncbi":
+        links.push({ label: "NCBI Taxonomy", url: `https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=${id}` });
+        break;
+      case "gbif":
+        links.push({ label: "GBIF", url: `https://www.gbif.org/species/${id}` });
+        break;
+      case "worms":
+        links.push({ label: "WoRMS", url: `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${id}` });
+        break;
+      case "irmng":
+        links.push({ label: "IRMNG", url: `https://www.irmng.org/aphia.php?p=taxdetails&id=${id}` });
+        break;
+      case "if":
+        links.push({ label: "Index Fungorum", url: `https://www.indexfungorum.org/names/NamesRecord.asp?RecordID=${id}` });
+        break;
+    }
+  }
+  return links;
+}
+
+function showInfoPanel(ottId, name, rank) {
+  const panel = document.getElementById("info-panel");
+  const inner = document.getElementById("info-inner");
+  panel.classList.add("open");
+  inner.innerHTML = `<span class="info-close">&times;</span><h2>${name}</h2>` +
+    (rank && rank !== "no rank" ? `<div class="info-rank">${rank}</div>` : "") +
+    `<div class="info-loading">fetching…</div>`;
+  inner.querySelector(".info-close").onclick = () => panel.classList.remove("open");
+
+  fetchTaxonInfo(ottId).then(data => {
+    const links = buildLinks(ottId, data.name || name, data.tax_sources);
+    const synonyms = (data.synonyms || []).filter(s => s !== name);
+    const flags = (data.flags || []).filter(f => f);
+    let html = `<span class="info-close">&times;</span>`;
+    html += `<h2>${data.unique_name || data.name || name}</h2>`;
+    html += (data.rank && data.rank !== "no rank") ? `<div class="info-rank">${data.rank} · ott${ottId}</div>` : `<div class="info-rank">ott${ottId}</div>`;
+
+    html += `<div class="info-section"><div class="info-label">Links</div>`;
+    for (const lnk of links) {
+      html += `<a href="${lnk.url}" target="_blank" rel="noopener">${lnk.label}</a>`;
+    }
+    html += `</div>`;
+
+    if (synonyms.length > 0) {
+      html += `<div class="info-section"><div class="info-label">Synonyms</div>`;
+      html += `<div class="info-synonyms">${synonyms.map(s => `<span>${s}</span>`).join(", ")}</div></div>`;
+    }
+    if (flags.length > 0) {
+      html += `<div class="info-section"><div class="info-flags">${flags.join(", ")}</div></div>`;
+    }
+    inner.innerHTML = html;
+    inner.querySelector(".info-close").onclick = () => panel.classList.remove("open");
+  }).catch(() => {
+    inner.querySelector(".info-loading").textContent = "couldn't load info";
+  });
+}
+
 function renderNode(node) {
   const li = document.createElement("li");
   const tax = node.taxon || {};
@@ -46,24 +170,42 @@ function renderNode(node) {
   const rank = tax.rank || "";
   const tips = node.num_tips || 0;
   const kids = node.children || [];
+  const ottId = tax.ott_id;
+
+  const row = document.createElement("span");
+  row.className = "node-row";
 
   const span = document.createElement("span");
   span.className = "name";
   span.textContent = name;
-  li.appendChild(span);
+  row.appendChild(span);
 
   if (rank && rank !== "no rank") {
     const r = document.createElement("span");
     r.className = "rank";
-    r.textContent = ` ${rank}`;
-    li.appendChild(r);
+    r.textContent = rank;
+    row.appendChild(r);
   }
   if (tips > 0) {
     const t = document.createElement("span");
     t.className = "tips";
-    t.textContent = ` (${tips})`;
-    li.appendChild(t);
+    t.textContent = `(${tips})`;
+    row.appendChild(t);
   }
+
+  if (ottId) {
+    const btn = document.createElement("span");
+    btn.className = "info-btn";
+    btn.textContent = "i";
+    btn.title = "taxon info & links";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showInfoPanel(ottId, name, rank);
+    });
+    row.appendChild(btn);
+  }
+
+  li.appendChild(row);
 
   if (kids.length > 0) {
     const ul = document.createElement("ul");
