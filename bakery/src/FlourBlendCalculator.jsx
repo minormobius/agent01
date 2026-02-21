@@ -191,6 +191,7 @@ export default function FlourBlendCalculator() {
   const [starterGrams, setStarterGrams] = useState(0);
   const [starterHydration, setStarterHydration] = useState(100);
   const [starterFlourIdx, setStarterFlourIdx] = useState(0);
+  const [recipeInstructions, setRecipeInstructions] = useState("");
   const [savedRecipes, setSavedRecipes] = useState(loadRecipes);
   const [recipeName, setRecipeName] = useState("");
 
@@ -288,9 +289,11 @@ export default function FlourBlendCalculator() {
     blendPercents, blendGrams, totalFlourInLoaf, usePercentMode,
     waterGrams, saltGrams, isEnriched, enrichAmounts,
     starterEnabled, starterGrams, starterHydration, starterFlourIdx,
+    recipeInstructions,
   }), [blendPercents, blendGrams, totalFlourInLoaf, usePercentMode,
     waterGrams, saltGrams, isEnriched, enrichAmounts,
-    starterEnabled, starterGrams, starterHydration, starterFlourIdx]);
+    starterEnabled, starterGrams, starterHydration, starterFlourIdx,
+    recipeInstructions]);
 
   const handleSaveRecipe = () => {
     const name = recipeName.trim() || `Recipe ${savedRecipes.length + 1}`;
@@ -315,6 +318,7 @@ export default function FlourBlendCalculator() {
     setStarterGrams(s.starterGrams ?? 0);
     setStarterHydration(s.starterHydration ?? 100);
     setStarterFlourIdx(s.starterFlourIdx ?? 0);
+    setRecipeInstructions(s.recipeInstructions ?? "");
     setRecipeName(recipe.name);
   };
 
@@ -322,6 +326,26 @@ export default function FlourBlendCalculator() {
     const next = savedRecipes.filter((r) => r.name !== name);
     setSavedRecipes(next);
     saveRecipes(next);
+  };
+
+  // Load a recipe from ATProto record into the calculator
+  const handleLoadFromAT = (parsedName, parsedState) => {
+    const s = parsedState;
+    setBlendPercents(s.blendPercents);
+    setBlendGrams(s.blendGrams);
+    setTotalFlourInLoaf(s.totalFlourInLoaf);
+    setUsePercentMode(s.usePercentMode);
+    setWaterGrams(s.waterGrams);
+    setSaltGrams(s.saltGrams ?? 0);
+    setIsEnriched(s.isEnriched);
+    setEnrichAmounts(s.enrichAmounts);
+    setStarterEnabled(s.starterEnabled ?? false);
+    setStarterGrams(s.starterGrams ?? 0);
+    setStarterHydration(s.starterHydration ?? 100);
+    setStarterFlourIdx(s.starterFlourIdx ?? 0);
+    setRecipeInstructions(s.recipeInstructions ?? "");
+    setRecipeName(parsedName);
+    setTab("blend");
   };
 
   return (
@@ -590,6 +614,27 @@ export default function FlourBlendCalculator() {
             )}
           </div>
 
+          {/* Instructions */}
+          <div style={card(false, "")}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#3e2723", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              Instructions
+              <span style={{ fontSize: 12, fontWeight: 400, color: "#a1887f" }}>(optional)</span>
+            </h3>
+            <textarea
+              placeholder={"Write your baking instructions here...\n\nIf left blank, standard sourdough instructions will be generated when publishing to AT Protocol."}
+              value={recipeInstructions}
+              onChange={(e) => setRecipeInstructions(e.target.value)}
+              rows={5}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "10px 12px", borderRadius: 8,
+                border: "1px solid #d7ccc8", fontSize: 14,
+                fontFamily: "inherit", color: "#3e2723",
+                resize: "vertical", lineHeight: 1.5,
+              }}
+            />
+          </div>
+
           {/* Totals warning */}
           {usePercentMode && totalBlendPercent !== 100 && totalBlendPercent > 0 && (
             <div style={{
@@ -822,6 +867,7 @@ export default function FlourBlendCalculator() {
           starterFlours={STARTER_FLOURS}
           nutrition={blendNutrition}
           recipeName={recipeName}
+          onLoadToBuilder={handleLoadFromAT}
         />
       )}
     </div>

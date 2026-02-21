@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
-import { calculatorToRecipe, parseAtUri, formatDuration } from "./recipeTransform";
+import { calculatorToRecipe, recipeToCalculator, parseAtUri, formatDuration } from "./recipeTransform";
 
 const SESSION_KEY = "bakery-atproto-session";
 const HANDLE_KEY = "bakery-atproto-handle";
@@ -224,7 +224,7 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
 
 // --- Recipe Card (displays a single recipe) ---
 
-function RecipeCard({ record, uri, onDelete, canDelete }) {
+function RecipeCard({ record, uri, onDelete, canDelete, onLoadToBuilder }) {
   const [expanded, setExpanded] = useState(false);
   const v = record.value || record;
   const rkey = parseAtUri(uri)?.rkey;
@@ -312,15 +312,25 @@ function RecipeCard({ record, uri, onDelete, canDelete }) {
             {uri}
           </div>
 
-          {/* Delete button */}
-          {canDelete && rkey && onDelete && (
-            <button
-              onClick={() => onDelete(rkey)}
-              style={{ ...btnSecondary, marginTop: 8, color: "#c62828", borderColor: "#ef9a9a", fontSize: 12 }}
-            >
-              Delete from PDS
-            </button>
-          )}
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {onLoadToBuilder && (
+              <button
+                onClick={() => onLoadToBuilder(record)}
+                style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+              >
+                Load to Builder
+              </button>
+            )}
+            {canDelete && rkey && onDelete && (
+              <button
+                onClick={() => onDelete(rkey)}
+                style={{ ...btnSecondary, color: "#c62828", borderColor: "#ef9a9a", fontSize: 12 }}
+              >
+                Delete from PDS
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -337,7 +347,7 @@ function Tag({ label }) {
 
 // --- Browse Panel ---
 
-function BrowsePanel({ session }) {
+function BrowsePanel({ session, onLoadToBuilder }) {
   const [handle, setHandle] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -423,6 +433,7 @@ function BrowsePanel({ session }) {
           uri={r.uri}
           canDelete={isOwnRecipes}
           onDelete={handleDelete}
+          onLoadToBuilder={onLoadToBuilder}
         />
       ))}
 
@@ -437,7 +448,7 @@ function BrowsePanel({ session }) {
 
 // --- Main ATProto Panel ---
 
-export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName }) {
+export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder }) {
   const [session, setSession] = useState(loadSession);
   const [view, setView] = useState("publish"); // "publish" | "browse"
 
@@ -445,6 +456,13 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
     saveSession(null);
     setSession(null);
   };
+
+  const handleLoadToBuilder = onLoadToBuilder
+    ? (record) => {
+        const { name, state } = recipeToCalculator(record, flours, enrichments, starterFlours);
+        onLoadToBuilder(name, state);
+      }
+    : null;
 
   if (!session) {
     return (
@@ -455,7 +473,7 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
           <p style={{ color: "#795548", fontSize: 13, margin: "0 0 10px" }}>
             You can read anyone's recipes from their PDS without an account.
           </p>
-          <BrowsePanel session={null} />
+          <BrowsePanel session={null} onLoadToBuilder={handleLoadToBuilder} />
         </div>
       </div>
     );
@@ -505,7 +523,7 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
           recipeName={recipeName}
         />
       )}
-      {view === "browse" && <BrowsePanel session={session} />}
+      {view === "browse" && <BrowsePanel session={session} onLoadToBuilder={handleLoadToBuilder} />}
     </div>
   );
 }
