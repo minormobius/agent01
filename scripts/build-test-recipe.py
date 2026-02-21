@@ -40,9 +40,9 @@ record = {
     "cookTime": "PT45M",
     "totalTime": "PT18H",
     "recipeYield": "1 loaf",
-    "recipeCategory": "exchange.recipe.defs#categoryBreakfast",
-    "recipeCuisine": "exchange.recipe.defs#cuisineEuropean",
-    "cookingMethod": "exchange.recipe.defs#cookingMethodBaking",
+    "recipeCategory": "breakfast",
+    "recipeCuisine": "european",
+    "cookingMethod": "baking",
     "nutrition": {
         "calories": 2200,
         "fatContent": 8.5,
