@@ -1,0 +1,149 @@
+name: Fetch ATProto Recipe Exchange Data
+
+on:
+  push:
+    branches:
+      - 'claude/deploy-bakery-subdomain-zf2qG'
+    paths:
+      - '.github/workflows/fetch-atproto-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-recipe-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Create output directory
+        run: mkdir -p atproto-data
+
+      - name: Resolve joshhuckabee.com DID
+        run: |
+          echo "=== Resolving DID for joshhuckabee.com ==="
+          curl -s "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=joshhuckabee.com" | tee atproto-data/did-resolve.json
+          echo ""
+
+      - name: Extract DID and resolve DID document
+        run: |
+          DID=$(cat atproto-data/did-resolve.json | python3 -c "import sys,json; print(json.load(sys.stdin)['did'])")
+          echo "DID: $DID"
+          echo "$DID" > atproto-data/did.txt
+
+          echo "=== Resolving DID document ==="
+          curl -s "https://plc.directory/$DID" | tee atproto-data/did-document.json
+          echo ""
+
+      - name: Fetch recipe records from PDS
+        run: |
+          DID=$(cat atproto-data/did.txt)
+
+          # Try public API first
+          echo "=== Fetching recipe records via public API ==="
+          curl -s "https://public.api.bsky.app/xrpc/com.atproto.repo.listRecords?repo=$DID&collection=exchange.recipe.recipe&limit=3" | tee atproto-data/recipe-records.json
+          echo ""
+
+          # Also try listing all collections to see what's available
+          echo "=== Describing repo to see all collections ==="
+          curl -s "https://public.api.bsky.app/xrpc/com.atproto.repo.describeRepo?repo=$DID" | tee atproto-data/repo-describe.json
+          echo ""
+
+      - name: Try fetching from recipe.exchange PDS directly
+        run: |
+          DID=$(cat atproto-data/did.txt)
+
+          # Check if recipe.exchange has its own PDS endpoint
+          echo "=== Trying recipe.exchange well-known ==="
+          curl -s "https://recipe.exchange/.well-known/atproto-did" | tee atproto-data/recipe-exchange-did.json 2>&1 || echo "no well-known"
+          echo ""
+
+          # Try the PDS service endpoint from the DID document
+          PDS=$(cat atproto-data/did-document.json | python3 -c "
+          import sys, json
+          doc = json.load(sys.stdin)
+          for s in doc.get('service', []):
+              if s.get('type') == 'AtprotoPersonalDataServer':
+                  print(s['serviceEndpoint'])
+                  break
+          " 2>/dev/null || echo "")
+
+          if [ -n "$PDS" ]; then
+            echo "PDS endpoint: $PDS"
+            echo "$PDS" > atproto-data/pds-endpoint.txt
+            echo "=== Fetching records from actual PDS: $PDS ==="
+            curl -s "$PDS/xrpc/com.atproto.repo.listRecords?repo=$DID&collection=exchange.recipe.recipe&limit=3" | tee atproto-data/recipe-records-pds.json
+            echo ""
+          fi
+
+      - name: Try fetching lexicon definitions
+        run: |
+          echo "=== Fetching recipe.exchange lexicons page ==="
+          curl -sL "https://recipe.exchange/lexicons/" | tee atproto-data/lexicons-page.html 2>&1 | head -200
+          echo ""
+
+          # Try common lexicon paths
+          for NSID in exchange.recipe.recipe exchange.recipe.like exchange.recipe.comment exchange.recipe.defs; do
+            echo "=== Trying lexicon: $NSID ==="
+            curl -s "https://recipe.exchange/lexicons/$NSID.json" | tee "atproto-data/lexicon-$NSID.json" 2>&1 | head -50
+            echo ""
+          done
+
+      - name: Try resolving lexicons via resolve-lexicon service
+        run: |
+          for NSID in exchange.recipe.recipe exchange.recipe.defs; do
+            echo "=== resolve-lexicon: $NSID ==="
+            curl -s "https://resolve-lexicon.pages.dev/$NSID" | tee "atproto-data/resolved-$NSID.json" 2>&1 | head -100
+            echo ""
+          done
+
+      - name: Try finding other recipe.exchange users and their records
+        run: |
+          # Look up recipe.exchange's own DID
+          echo "=== Resolving recipe.exchange DID ==="
+          curl -s "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=recipe.exchange" | tee atproto-data/recipe-exchange-handle.json
+          echo ""
+
+          # Try a known recipe URL to see the record structure
+          echo "=== Trying to find recipe via web scrape ==="
+          curl -sL "https://recipe.exchange/" | python3 -c "
+          import sys, re
+          html = sys.stdin.read()
+          # Find any AT URIs or record keys
+          uris = re.findall(r'at://[^\s\"<>]+', html)
+          links = re.findall(r'href=\"(/recipes/[^\"]*)\"', html)
+          print('AT URIs found:', uris[:10])
+          print('Recipe links found:', links[:10])
+          " 2>&1 | tee atproto-data/web-scrape.txt
+
+      - name: Pretty print results summary
+        run: |
+          echo "=========================================="
+          echo "  FETCH RESULTS SUMMARY"
+          echo "=========================================="
+          echo ""
+          for f in atproto-data/*.json; do
+            echo "--- $f ---"
+            python3 -c "
+          import json, sys
+          try:
+              data = json.load(open('$f'))
+              print(json.dumps(data, indent=2)[:3000])
+          except:
+              print('(not valid JSON)')
+          "
+            echo ""
+          done
+
+      - name: Commit fetched data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add atproto-data/
+          git commit -m "feat: fetch ATProto recipe exchange data via GitHub Actions
+
+          Automated fetch of recipe records and lexicon definitions
+          from the AT Protocol network." || echo "No changes to commit"
+          git push

@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-02-21T02:59:34Z",
+  "handle": "minomobi.bsky.social",
+  "did": "did:plc:oqyev6xmuwgbtpr6jgxh5xg3",
+  "pds": "https://cortinarius.us-west.host.bsky.network",
+  "record_uri": "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/exchange.recipe.recipe/3mfdmx2jncp2j",
+  "record_cid": "bafyreieempp5nzac7jom5vmldmxyjpi6imsxfddtujgr4k56yc7kz3vp3i",
+  "record_rkey": "3mfdmx2jncp2j",
+  "recipe_name": "Bakery Calculator Test Loaf",
+  "deleted": "true"
+}
