@@ -67,22 +67,29 @@ jobs:
           echo "PDS: $PDS"
           echo "pds=$PDS" >> "$GITHUB_OUTPUT"
 
-      - name: Authenticate with ATProto
+      - name: Authenticate and write to temp files
         id: auth
         run: |
           PDS="${{ steps.resolve.outputs.pds }}"
           echo "=== Creating session at $PDS ==="
 
-          AUTH_RESPONSE=$(curl -sf -X POST \
+          AUTH_RESPONSE=$(curl -s -X POST \
             "$PDS/xrpc/com.atproto.server.createSession" \
             -H "Content-Type: application/json" \
             -d "{\"identifier\": \"$BLUESKY_HANDLE\", \"password\": \"$BLUESKY_APP_PASSWORD\"}")
 
-          ACCESS_JWT=$(echo "$AUTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessJwt'])")
-          AUTH_DID=$(echo "$AUTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['did'])")
+          # Write auth data to files to avoid step output issues with long JWTs
+          echo "$AUTH_RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          with open('/tmp/access_jwt.txt', 'w') as f:
+              f.write(data['accessJwt'])
+          with open('/tmp/auth_did.txt', 'w') as f:
+              f.write(data['did'])
+          print('Authenticated as:', data['did'])
+          "
 
-          echo "Authenticated as: $AUTH_DID"
-          echo "access_jwt=$ACCESS_JWT" >> "$GITHUB_OUTPUT"
+          AUTH_DID=$(cat /tmp/auth_did.txt)
           echo "auth_did=$AUTH_DID" >> "$GITHUB_OUTPUT"
 
       - name: Create test recipe record
@@ -90,26 +97,40 @@ jobs:
         env:
           PDS: ${{ steps.resolve.outputs.pds }}
           DID: ${{ steps.auth.outputs.auth_did }}
-          TOKEN: ${{ steps.auth.outputs.access_jwt }}
           RECIPE_NAME: ${{ github.event.inputs.recipe_name || 'Bakery Calculator Test Loaf' }}
           OUTPUT_PATH: /tmp/create-request.json
         run: |
+          set -x
           echo "=== Building recipe JSON ==="
+          echo "DID=$DID"
+          echo "PDS=$PDS"
+          echo "RECIPE_NAME=$RECIPE_NAME"
+
           python3 scripts/build-test-recipe.py
 
           echo ""
           echo "=== Creating record via ATProto API ==="
-          RESPONSE=$(curl -sf -X POST \
+          TOKEN=$(cat /tmp/access_jwt.txt)
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
             "$PDS/xrpc/com.atproto.repo.createRecord" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN" \
             -d @/tmp/create-request.json)
 
-          echo "=== Create response ==="
-          echo "$RESPONSE" | python3 -m json.tool
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -1 | sed 's/HTTP_STATUS://')
+          BODY=$(echo "$RESPONSE" | sed '$d')
 
-          RECORD_URI=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['uri'])")
-          RECORD_CID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['cid'])")
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "=== Create response ==="
+          echo "$BODY" | python3 -m json.tool || echo "$BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::API returned status $HTTP_STATUS"
+            exit 1
+          fi
+
+          RECORD_URI=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['uri'])")
+          RECORD_CID=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['cid'])")
           RKEY=$(echo "$RECORD_URI" | python3 -c "import sys; print(sys.stdin.read().strip().split('/')[-1])")
 
           echo "uri=$RECORD_URI" >> "$GITHUB_OUTPUT"
@@ -182,7 +203,7 @@ jobs:
         run: |
           PDS="${{ steps.resolve.outputs.pds }}"
           DID="${{ steps.auth.outputs.auth_did }}"
-          TOKEN="${{ steps.auth.outputs.access_jwt }}"
+          TOKEN=$(cat /tmp/access_jwt.txt)
           RKEY="${{ steps.create.outputs.rkey }}"
 
           echo "=== Deleting test record ==="
