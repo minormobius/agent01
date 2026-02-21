@@ -1,6 +1,11 @@
 name: Write Test Recipe to ATProto
 
 on:
+  push:
+    branches:
+      - 'claude/deploy-bakery-subdomain-zf2qG'
+    paths:
+      - '.github/workflows/write-test-recipe.yml'
   workflow_dispatch:
     inputs:
       recipe_name:
@@ -81,94 +86,91 @@ jobs:
 
       - name: Create test recipe record
         id: create
+        env:
+          PDS: ${{ steps.resolve.outputs.pds }}
+          DID: ${{ steps.auth.outputs.auth_did }}
+          TOKEN: ${{ steps.auth.outputs.access_jwt }}
+          RECIPE_NAME: ${{ github.event.inputs.recipe_name || 'Bakery Calculator Test Loaf' }}
         run: |
-          PDS="${{ steps.resolve.outputs.pds }}"
-          DID="${{ steps.auth.outputs.auth_did }}"
-          TOKEN="${{ steps.auth.outputs.access_jwt }}"
-          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          RECIPE_NAME="${{ github.event.inputs.recipe_name || 'Bakery Calculator Test Loaf' }}"
+          export NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           echo "=== Creating recipe record ==="
 
-          # Build the recipe JSON — a simple sourdough-style bread recipe
-          # that matches what a bakery calculator would produce
-          RECORD=$(python3 -c "
-          import json
+          # Build the full createRecord request via Python (avoids shell escaping hell)
+          python3 << 'PYEOF' > /tmp/create-request.json
+          import json, os
+
           record = {
-              '\$type': 'exchange.recipe.recipe',
-              'name': '$RECIPE_NAME',
-              'text': 'A test recipe published from a bakery percentage calculator. 68% hydration sourdough with a simple flour blend. This record was written programmatically via GitHub Actions to test ATProto recipe publishing.',
-              'ingredients': [
-                  '500g bread flour (80%)',
-                  '125g whole wheat flour (20%)',
-                  '425g water (68%)',
-                  '12.5g salt (2%)',
-                  '125g sourdough starter (20%)'
+              "$type": "exchange.recipe.recipe",
+              "name": os.environ["RECIPE_NAME"],
+              "text": "A test recipe published from a bakery percentage calculator. 68% hydration sourdough with a simple flour blend. This record was written programmatically via GitHub Actions to test ATProto recipe publishing.",
+              "ingredients": [
+                  "500g bread flour (80%)",
+                  "125g whole wheat flour (20%)",
+                  "425g water (68%)",
+                  "12.5g salt (2%)",
+                  "125g sourdough starter (20%)"
               ],
-              'instructions': [
-                  '## Autolyse',
-                  'Mix flour and water. Rest 30 minutes.',
-                  '## Mix',
-                  'Add salt and starter to the dough. Mix until incorporated using the slap and fold method.',
-                  '## Bulk Fermentation',
-                  'Ferment at room temperature for 4-5 hours, performing stretch and folds every 30 minutes for the first 2 hours.',
-                  '## Shape',
-                  'Pre-shape into a round. Bench rest 20 minutes. Final shape into a batard or boule.',
-                  '## Cold Proof',
-                  'Place in a banneton, cover, and refrigerate overnight (12-16 hours).',
-                  '## Bake',
-                  'Preheat oven with dutch oven to 500°F (260°C). Score the loaf. Bake covered for 20 minutes, then uncovered at 450°F (230°C) for 20-25 minutes until deep golden brown.'
+              "instructions": [
+                  "## Autolyse",
+                  "Mix flour and water. Rest 30 minutes.",
+                  "## Mix",
+                  "Add salt and starter to the dough. Mix until incorporated using the slap and fold method.",
+                  "## Bulk Fermentation",
+                  "Ferment at room temperature for 4-5 hours, performing stretch and folds every 30 minutes for the first 2 hours.",
+                  "## Shape",
+                  "Pre-shape into a round. Bench rest 20 minutes. Final shape into a batard or boule.",
+                  "## Cold Proof",
+                  "Place in a banneton, cover, and refrigerate overnight (12-16 hours).",
+                  "## Bake",
+                  "Preheat oven with dutch oven to 500F (260C). Score the loaf. Bake covered for 20 minutes, then uncovered at 450F (230C) for 20-25 minutes until deep golden brown."
               ],
-              'prepTime': 'PT30M',
-              'cookTime': 'PT45M',
-              'totalTime': 'PT18H',
-              'recipeYield': '1 loaf',
-              'recipeCategory': 'exchange.recipe.defs#categoryBreakfast',
-              'recipeCuisine': 'exchange.recipe.defs#cuisineEuropean',
-              'cookingMethod': 'exchange.recipe.defs#cookingMethodBaking',
-              'nutrition': {
-                  'calories': 2200,
-                  'fatContent': 8.5,
-                  'proteinContent': 72.0,
-                  'carbohydrateContent': 440.0
+              "prepTime": "PT30M",
+              "cookTime": "PT45M",
+              "totalTime": "PT18H",
+              "recipeYield": "1 loaf",
+              "recipeCategory": "exchange.recipe.defs#categoryBreakfast",
+              "recipeCuisine": "exchange.recipe.defs#cuisineEuropean",
+              "cookingMethod": "exchange.recipe.defs#cookingMethodBaking",
+              "nutrition": {
+                  "calories": 2200,
+                  "fatContent": 8.5,
+                  "proteinContent": 72.0,
+                  "carbohydrateContent": 440.0
               },
-              'keywords': [
-                  'sourdough',
-                  'bread',
-                  'bakery calculator',
-                  'bakers percentage',
-                  'atproto-test'
+              "keywords": [
+                  "sourdough",
+                  "bread",
+                  "bakery calculator",
+                  "bakers percentage",
+                  "atproto-test"
               ],
-              'attribution': {
-                  '\$type': 'exchange.recipe.defs#attributionOriginal',
-                  'license': 'cc_by'
+              "attribution": {
+                  "$type": "exchange.recipe.defs#attributionOriginal",
+                  "license": "cc_by"
               },
-              'createdAt': '$NOW',
-              'updatedAt': '$NOW'
+              "createdAt": os.environ.get("NOW", "2026-01-01T00:00:00Z"),
+              "updatedAt": os.environ.get("NOW", "2026-01-01T00:00:00Z")
           }
-          print(json.dumps(record))
-          ")
 
-          # Wrap in createRecord request
-          REQUEST=$(python3 -c "
-          import json
-          record = json.loads('$( echo "$RECORD" | sed "s/'/\\\\'/g" )')
-          req = {
-              'repo': '$DID',
-              'collection': 'exchange.recipe.recipe',
-              'record': record
+          request = {
+              "repo": os.environ["DID"],
+              "collection": "exchange.recipe.recipe",
+              "record": record
           }
-          print(json.dumps(req))
-          ")
 
+          print(json.dumps(request, indent=2))
+          PYEOF
+
+          export NOW
           echo "Request body:"
-          echo "$REQUEST" | python3 -m json.tool
+          cat /tmp/create-request.json
 
           RESPONSE=$(curl -sf -X POST \
             "$PDS/xrpc/com.atproto.repo.createRecord" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN" \
-            -d "$REQUEST")
+            -d @/tmp/create-request.json)
 
           echo ""
           echo "=== Create response ==="
@@ -246,7 +248,7 @@ jobs:
           ENDJSON
 
       - name: Delete test record (if requested)
-        if: ${{ github.event.inputs.delete_after != 'false' }}
+        if: ${{ github.event.inputs.delete_after == 'true' }}
         run: |
           PDS="${{ steps.resolve.outputs.pds }}"
           DID="${{ steps.auth.outputs.auth_did }}"
