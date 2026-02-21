@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AT Protocol Lexicons - recipe.exchange</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1f2937" media="(prefers-color-scheme: dark)">
+
+  <meta name="description" content="Explore recipe.exchange&#39;s AT Protocol lexicons for recipe sharing, including our Schema.org-compatible recipe format">
+
+  <meta property="og:site_name" content="recipe.exchange">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AT Protocol Lexicons - recipe.exchange">
+  <meta property="og:description" content="Explore recipe.exchange&#39;s AT Protocol lexicons for recipe sharing, including our Schema.org-compatible recipe format">
+  <meta property="og:url" content="https://recipe.exchange/lexicons/">
+
+    <meta property="og:image" content="https://recipe.exchange/assets/og-image-814c8e05.png">
+
+
+
+
+
+  <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="InDwt5izcCj2A6xWl895jwRqDSHtUqbPRVB2oqoaE4dGYD-qS3NAkEo05aa6HTGX3i3msR6uN7Xqp0obXyuhaA" />
+  
+
+  <link rel="stylesheet" href="/assets/tailwind-d8c74de7.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/inter-font-1d90a608.css" data-turbo-track="reload" />
+  <link rel="stylesheet" href="/assets/application-8b441ae0.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/application.tailwind-4d849dd9.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/tailwind-d8c74de7.css" data-turbo-track="reload" />
+  <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="NS3J-RmRFZevZxVAe68ihzDmflTYg8wU3pG4FCf8UtNRPQbkylElLxNQXLBWfWqf6qGVxCt_XW5xZoSt0s3gPA" />
+  
+
+  
+
+  <link rel="manifest" href="/manifest.json">
+
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" href="/icon.png" type="image/png">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/assets/tailwind-d8c74de7.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/inter-font-1d90a608.css" data-turbo-track="reload" />
+  <link rel="stylesheet" href="/assets/application-8b441ae0.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/application.tailwind-4d849dd9.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/tailwind-d8c74de7.css" data-turbo-track="reload" />
+  <script type="importmap" data-turbo-track="reload">{
+  "imports": {
+    "application": "/assets/application-38b39567.js",
+    "@hotwired/turbo-rails": "/assets/turbo.min-3a2e143f.js",
+    "@hotwired/stimulus": "/assets/stimulus.min-4b1e420e.js",
+    "@hotwired/stimulus-loading": "/assets/stimulus-loading-1fc53fe7.js",
+    "@rails/actioncable": "/assets/@rails--actioncable-b6b0941e.js",
+    "sortablejs": "/assets/sortablejs-d5bfebfd.js",
+    "@rails/activestorage": "/assets/@rails--activestorage-27acb671.js",
+    "controllers/application": "/assets/controllers/application-43f56e35.js",
+    "controllers/auto_expand_textarea_controller": "/assets/controllers/auto_expand_textarea_controller-e304ef5f.js",
+    "controllers/barcode_scanner_controller": "/assets/controllers/barcode_scanner_controller-8f845da9.js",
+    "controllers/book_form_controller": "/assets/controllers/book_form_controller-f9b96d18.js",
+    "controllers/comment_controller": "/assets/controllers/comment_controller-e33ac1e4.js",
+    "controllers/comment_form_controller": "/assets/controllers/comment_form_controller-f2d9e1c9.js",
+    "controllers/cook_mode_controller": "/assets/controllers/cook_mode_controller-a8e228eb.js",
+    "controllers/dynamic_links_controller": "/assets/controllers/dynamic_links_controller-6131311b.js",
+    "controllers/flash_controller": "/assets/controllers/flash_controller-ccbc7192.js",
+    "controllers": "/assets/controllers/index-ee64e1f1.js",
+    "controllers/like_button_controller": "/assets/controllers/like_button_controller-06ef58c5.js",
+    "controllers/menu_controller": "/assets/controllers/menu_controller-28be1dcb.js",
+    "controllers/mobile_search_controller": "/assets/controllers/mobile_search_controller-6777e94f.js",
+    "controllers/modal_controller": "/assets/controllers/modal_controller-1bdf6bff.js",
+    "controllers/notifications_controller": "/assets/controllers/notifications_controller-5c224939.js",
+    "controllers/option_cards_controller": "/assets/controllers/option_cards_controller-33377e59.js",
+    "controllers/photo_upload_controller": "/assets/controllers/photo_upload_controller-9fd45ab7.js",
+    "controllers/places_autocomplete_controller": "/assets/controllers/places_autocomplete_controller-21d0e83b.js",
+    "controllers/print_frame_controller": "/assets/controllers/print_frame_controller-f4e83e2d.js",
+    "controllers/recipe_form_controller": "/assets/controllers/recipe_form_controller-cf48c147.js",
+    "controllers/recipe_photo_source_controller": "/assets/controllers/recipe_photo_source_controller-48f77fb4.js",
+    "controllers/recipe_photos_controller": "/assets/controllers/recipe_photos_controller-77978fd8.js",
+    "controllers/recipe_sync_controller": "/assets/controllers/recipe_sync_controller-f9c69f17.js",
+    "controllers/scroll_header_controller": "/assets/controllers/scroll_header_controller-d783591a.js",
+    "controllers/sortable_collection_controller": "/assets/controllers/sortable_collection_controller-d27a1c3e.js",
+    "controllers/source_form_controller": "/assets/controllers/source_form_controller-97e7c13d.js",
+    "channels/consumer": "/assets/channels/consumer-5c12076e.js"
+  }
+}</script>
+<link rel="modulepreload" href="/assets/application-38b39567.js">
+<link rel="modulepreload" href="/assets/turbo.min-3a2e143f.js">
+<link rel="modulepreload" href="/assets/stimulus.min-4b1e420e.js">
+<link rel="modulepreload" href="/assets/stimulus-loading-1fc53fe7.js">
+<link rel="modulepreload" href="/assets/@rails--actioncable-b6b0941e.js">
+<link rel="modulepreload" href="/assets/sortablejs-d5bfebfd.js">
+<link rel="modulepreload" href="/assets/@rails--activestorage-27acb671.js">
+<link rel="modulepreload" href="/assets/controllers/application-43f56e35.js">
+<link rel="modulepreload" href="/assets/controllers/auto_expand_textarea_controller-e304ef5f.js">
+<link rel="modulepreload" href="/assets/controllers/barcode_scanner_controller-8f845da9.js">
+<link rel="modulepreload" href="/assets/controllers/book_form_controller-f9b96d18.js">
+<link rel="modulepreload" href="/assets/controllers/comment_controller-e33ac1e4.js">
+<link rel="modulepreload" href="/assets/controllers/comment_form_controller-f2d9e1c9.js">
+<link rel="modulepreload" href="/assets/controllers/cook_mode_controller-a8e228eb.js">
+<link rel="modulepreload" href="/assets/controllers/dynamic_links_controller-6131311b.js">
+<link rel="modulepreload" href="/assets/controllers/flash_controller-ccbc7192.js">
+<link rel="modulepreload" href="/assets/controllers/index-ee64e1f1.js">
+<link rel="modulepreload" href="/assets/controllers/like_button_controller-06ef58c5.js">
+<link rel="modulepreload" href="/assets/controllers/menu_controller-28be1dcb.js">
+<link rel="modulepreload" href="/assets/controllers/mobile_search_controller-6777e94f.js">
+<link rel="modulepreload" href="/assets/controllers/modal_controller-1bdf6bff.js">
+<link rel="modulepreload" href="/assets/controllers/notifications_controller-5c224939.js">
+<link rel="modulepreload" href="/assets/controllers/option_cards_controller-33377e59.js">
+<link rel="modulepreload" href="/assets/controllers/photo_upload_controller-9fd45ab7.js">
+<link rel="modulepreload" href="/assets/controllers/places_autocomplete_controller-21d0e83b.js">
+<link rel="modulepreload" href="/assets/controllers/print_frame_controller-f4e83e2d.js">
+<link rel="modulepreload" href="/assets/controllers/recipe_form_controller-cf48c147.js">
+<link rel="modulepreload" href="/assets/controllers/recipe_photo_source_controller-48f77fb4.js">
+<link rel="modulepreload" href="/assets/controllers/recipe_photos_controller-77978fd8.js">
+<link rel="modulepreload" href="/assets/controllers/recipe_sync_controller-f9c69f17.js">
+<link rel="modulepreload" href="/assets/controllers/scroll_header_controller-d783591a.js">
+<link rel="modulepreload" href="/assets/controllers/sortable_collection_controller-d27a1c3e.js">
+<link rel="modulepreload" href="/assets/controllers/source_form_controller-97e7c13d.js">
+<link rel="modulepreload" href="/assets/channels/consumer-5c12076e.js">
+<script type="module">import "application"</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/sort@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/mask@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://unpkg.com/@popperjs/core@2"></script>
+  <script defer src="https://unpkg.com/tippy.js@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ryangjchandler/alpine-clipboard@2.x.x/dist/alpine-clipboard.js" defer></script>
+  <script src="https://unpkg.com/@alpinejs/ui@3.14.7/dist/cdn.min.js" defer="defer"></script>
+  <script src="https://unpkg.com/@alpinejs/focus@3.14.7/dist/cdn.min.js" defer="defer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpine-turbo-drive-adapter@2.0.x/dist/alpine-turbo-drive-adapter.min.js" defer></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+</head>
+
+<body id="top" class="min-h-full bg-gray-50 dark:bg-gray-900" data-controller="scroll-header">
+    <div id="global-notifications" data-controller="notifications" class="fixed text-center top-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none"></div>
+
+
+    <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm pt-[env(safe-area-inset-top)] print:hidden"
+        data-scroll-header-target="siteHeader">
+  <div class="container mx-auto px-4 py-4">
+    <div class="mx-auto flex justify-between items-center">
+      <!-- Logo -->
+      <a href="/" class="flex items-center justify-center">
+        <img class="h-6 md:h-8 hidden dark:block" src="/assets/logo-dark-357b84c7.png" />
+        <img class="h-6 md:h-8 dark:hidden" src="/assets/logo-light-b72ad392.png" />
+      </a>
+
+      <!-- Desktop Navigation Items -->
+      <div class="hidden md:flex items-center">
+        <div
+  x-data="{
+    filtersOpen: false,
+    toggleFilters() {
+      this.filtersOpen = !this.filtersOpen;
+
+            // Toggle body scroll lock
+      if (this.filtersOpen) {
+        document.body.classList.add('overflow-hidden');
+      } else {
+        document.body.classList.remove('overflow-hidden');
+      }
+    }
+    }"
+  @keydown.escape.window="filtersOpen && toggleFilters()"
+>
+  <form action="https://recipe.exchange/recipes" accept-charset="UTF-8" method="get">
+    <input type="hidden" name="collection_id" id="collection_id" autocomplete="off" />
+    <button
+      type="button"
+      class="mr-2 p-2"
+      data-action="click->search#toggleAdvanced"
+      aria-label="Advanced search options"
+      @click="toggleFilters()"
+      aria-expanded="false"
+      aria-controls="filter-panel"
+    >
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-gray-400 hover:text-orange-500 dark:text-gray-500 dark:hover:text-orange-400"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+    </button>
+    <!-- Filter Panel Backdrop -->
+<div
+  x-show="filtersOpen"
+  x-transition:enter="transition-opacity ease-in-out duration-300"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition-opacity ease-in-out duration-300"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+  class="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 dark:bg-opacity-50 z-40"
+  @click="toggleFilters()"
+  aria-hidden="true"
+  style="display: none;"
+></div>
+
+<!-- Filter Panel -->
+<div
+  x-show="filtersOpen"
+  x-transition:enter="transform transition ease-in-out duration-300"
+  x-transition:enter-start="translate-x-full"
+  x-transition:enter-end="translate-x-0"
+  x-transition:leave="transform transition ease-in-out duration-300"
+  x-transition:leave-start="translate-x-0"
+  x-transition:leave-end="translate-x-full"
+  class="fixed inset-y-0 right-0 w-full sm:max-w-80 flex flex-col bg-white dark:bg-gray-800 shadow-xl z-50"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="filters-heading"
+  style="display: none;"
+>
+  <!-- Panel Header -->
+  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <h2 id="filters-heading" class="text-lg font-semibold text-gray-900 dark:text-white">
+      Search Recipes
+    </h2>
+    <button
+      @click="toggleFilters()"
+      type="button"
+      class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+      aria-label="Close filters"
+    >
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    </button>
+  </div>
+
+  <!-- Panel Content (Scrollable) -->
+  <div class="flex-1 overflow-y-auto overscroll-contain p-4">
+      <!-- Search Input -->
+      <input placeholder="Keyword" class="w-full px-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-transparent" type="text" name="search[query]" id="search_query" />
+    <!-- Filter content will go here -->
+    <!-- Time Filter -->
+<div x-data="{
+  open: true,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Time</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+          
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_15" value="15" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 15 minutes</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_30" value="30" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 30 minutes</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_60" value="60" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 1 hour</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_120" value="120" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 2 hours</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_121" value="121" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Over 2 hours</span>
+  </label>
+
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Category Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Category</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_appetizer" value="appetizer" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Appetizers</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_beverage" value="beverage" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Beverages</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_breakfast" value="breakfast" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Breakfast</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_brunch" value="brunch" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Brunch</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_cocktail" value="cocktail" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Cocktails</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_dessert" value="dessert" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Desserts</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_dinner" value="dinner" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Dinner</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_entree" value="entree" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Entree/Main</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_garnish" value="garnish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Garnishes</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_kid_friendly" value="kid_friendly" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Kid Friendly</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_lunch" value="lunch" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Lunch</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_salad" value="salad" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Salads</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_side" value="side" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Side Dishes</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_snack" value="snack" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Snacks</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_soup" value="soup" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Soups</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Cuisine Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Cuisine</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_african" value="african" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">African</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_american" value="american" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">American</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_australian" value="australian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Australian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_brazilian" value="brazilian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Brazilian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_british" value="british" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">British</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_caribbean" value="caribbean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Caribbean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_chinese" value="chinese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Chinese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_creole" value="creole" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Creole</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_european" value="european" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">European</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_french" value="french" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">French</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_german" value="german" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">German</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_greek" value="greek" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Greek</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_indian" value="indian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Indian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_indonesian" value="indonesian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Indonesian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_italian" value="italian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Italian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_japanese" value="japanese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Japanese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_korean" value="korean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Korean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_lebanese" value="lebanese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Lebanese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_mediterranean" value="mediterranean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Mediterranean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_mexican" value="mexican" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Mexican</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_middle_eastern" value="middle_eastern" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Middle Eastern</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_moroccan" value="moroccan" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Moroccan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_peruvian" value="peruvian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Peruvian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_polish" value="polish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Polish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_portuguese" value="portuguese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Portuguese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_russian" value="russian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Russian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_spanish" value="spanish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Spanish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_southern" value="southern" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Southern</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_texan" value="texan" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Texan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_tex_mex" value="tex_mex" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Tex-Mex</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_thai" value="thai" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Thai</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_turkish" value="turkish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Turkish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_vietnamese" value="vietnamese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vietnamese</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Cooking Method Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Cooking Method</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_baking" value="baking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Baking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_broiling" value="broiling" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Broiling</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_grilling" value="grilling" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Grilling</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_frying" value="frying" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Frying</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_roasting" value="roasting" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Roasting</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_sautéing" value="sautéing" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Sautéing</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_steaming" value="steaming" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Steaming</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_slow_cooking" value="slow_cooking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Slow Cooking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_pressure_cooking" value="pressure_cooking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Pressure Cooking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_no_cook" value="no_cook" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">No Cook</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_air_frying" value="air_frying" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Air Frying</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Dietary Restrictions -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Dietary Restrictions</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_fat_diet" value="low_fat_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Fat</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_calorie_diet" value="low_calorie_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Calorie</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_carb_diet" value="low_carb_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Carb</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_vegetarian_diet" value="vegetarian_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vegetarian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_vegan_diet" value="vegan_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vegan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_gluten_free_diet" value="gluten_free_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Gluten Free</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_diabetic_diet" value="diabetic_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Diabetic</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_halal_diet" value="halal_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Halal</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_kosher_diet" value="kosher_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Kosher</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_paleo_diet" value="paleo_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Paleo</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_keto_diet" value="keto_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Keto</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  </div>
+
+  <!-- Panel Footer -->
+  <div class="flex items-center justify-center gap-3 px-4 pt-3 border-t border-gray-200 dark:border-gray-700 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <button
+      class="px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+    >
+      Search
+    </button>
+    <button
+      @click="toggleFilters()"
+      type="button"
+      class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-500 dark:hover:text-gray-400"
+    >
+      Cancel
+    </button>
+  </div>
+</div>
+
+</form></div>
+
+
+          <!-- Login to Share Button for non-authenticated users -->
+          <a class="group relative px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-sm font-medium flex items-center" data-controller="tooltip" data-tooltip-text="Login to share your recipes" data-tooltip-placement="bottom" href="/login">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>
+            Login to Share
+</a>      </div>
+
+      <!-- Mobile Navigation Items -->
+      <div class="flex md:hidden items-center">
+        <div
+  x-data="{
+    filtersOpen: false,
+    toggleFilters() {
+      this.filtersOpen = !this.filtersOpen;
+
+            // Toggle body scroll lock
+      if (this.filtersOpen) {
+        document.body.classList.add('overflow-hidden');
+      } else {
+        document.body.classList.remove('overflow-hidden');
+      }
+    }
+    }"
+  @keydown.escape.window="filtersOpen && toggleFilters()"
+>
+  <form action="https://recipe.exchange/recipes" accept-charset="UTF-8" method="get">
+    <input type="hidden" name="collection_id" id="collection_id" autocomplete="off" />
+    <button
+      type="button"
+      class="mr-2 p-2"
+      data-action="click->search#toggleAdvanced"
+      aria-label="Advanced search options"
+      @click="toggleFilters()"
+      aria-expanded="false"
+      aria-controls="filter-panel"
+    >
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-gray-400 hover:text-orange-500 dark:text-gray-500 dark:hover:text-orange-400"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+    </button>
+    <!-- Filter Panel Backdrop -->
+<div
+  x-show="filtersOpen"
+  x-transition:enter="transition-opacity ease-in-out duration-300"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition-opacity ease-in-out duration-300"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+  class="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 dark:bg-opacity-50 z-40"
+  @click="toggleFilters()"
+  aria-hidden="true"
+  style="display: none;"
+></div>
+
+<!-- Filter Panel -->
+<div
+  x-show="filtersOpen"
+  x-transition:enter="transform transition ease-in-out duration-300"
+  x-transition:enter-start="translate-x-full"
+  x-transition:enter-end="translate-x-0"
+  x-transition:leave="transform transition ease-in-out duration-300"
+  x-transition:leave-start="translate-x-0"
+  x-transition:leave-end="translate-x-full"
+  class="fixed inset-y-0 right-0 w-full sm:max-w-80 flex flex-col bg-white dark:bg-gray-800 shadow-xl z-50"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="filters-heading"
+  style="display: none;"
+>
+  <!-- Panel Header -->
+  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <h2 id="filters-heading" class="text-lg font-semibold text-gray-900 dark:text-white">
+      Search Recipes
+    </h2>
+    <button
+      @click="toggleFilters()"
+      type="button"
+      class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+      aria-label="Close filters"
+    >
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    </button>
+  </div>
+
+  <!-- Panel Content (Scrollable) -->
+  <div class="flex-1 overflow-y-auto overscroll-contain p-4">
+      <!-- Search Input -->
+      <input placeholder="Keyword" class="w-full px-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-transparent" type="text" name="search[query]" id="search_query" />
+    <!-- Filter content will go here -->
+    <!-- Time Filter -->
+<div x-data="{
+  open: true,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Time</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+          
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_15" value="15" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 15 minutes</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_30" value="30" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 30 minutes</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_60" value="60" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 1 hour</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_120" value="120" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Under 2 hours</span>
+  </label>
+
+  <label class="flex items-center">
+    <input type="radio" name="search[max_total_time]" id="search_max_total_time_121" value="121" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+    <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Over 2 hours</span>
+  </label>
+
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Category Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Category</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_appetizer" value="appetizer" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Appetizers</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_beverage" value="beverage" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Beverages</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_breakfast" value="breakfast" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Breakfast</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_brunch" value="brunch" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Brunch</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_cocktail" value="cocktail" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Cocktails</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_dessert" value="dessert" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Desserts</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_dinner" value="dinner" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Dinner</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_entree" value="entree" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Entree/Main</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_garnish" value="garnish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Garnishes</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_kid_friendly" value="kid_friendly" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Kid Friendly</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_lunch" value="lunch" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Lunch</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_salad" value="salad" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Salads</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_side" value="side" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Side Dishes</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_snack" value="snack" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Snacks</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[categories][]" id="categories_soup" value="soup" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Soups</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Cuisine Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Cuisine</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_african" value="african" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">African</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_american" value="american" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">American</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_australian" value="australian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Australian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_brazilian" value="brazilian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Brazilian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_british" value="british" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">British</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_caribbean" value="caribbean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Caribbean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_chinese" value="chinese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Chinese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_creole" value="creole" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Creole</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_european" value="european" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">European</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_french" value="french" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">French</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_german" value="german" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">German</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_greek" value="greek" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Greek</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_indian" value="indian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Indian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_indonesian" value="indonesian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Indonesian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_italian" value="italian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Italian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_japanese" value="japanese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Japanese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_korean" value="korean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Korean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_lebanese" value="lebanese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Lebanese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_mediterranean" value="mediterranean" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Mediterranean</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_mexican" value="mexican" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Mexican</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_middle_eastern" value="middle_eastern" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Middle Eastern</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_moroccan" value="moroccan" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Moroccan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_peruvian" value="peruvian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Peruvian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_polish" value="polish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Polish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_portuguese" value="portuguese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Portuguese</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_russian" value="russian" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Russian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_spanish" value="spanish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Spanish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_southern" value="southern" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Southern</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_texan" value="texan" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Texan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_tex_mex" value="tex_mex" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Tex-Mex</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_thai" value="thai" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Thai</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_turkish" value="turkish" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Turkish</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cuisines][]" id="cuisines_vietnamese" value="vietnamese" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vietnamese</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Cooking Method Filter -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Cooking Method</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_baking" value="baking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Baking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_broiling" value="broiling" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Broiling</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_grilling" value="grilling" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Grilling</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_frying" value="frying" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Frying</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_roasting" value="roasting" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Roasting</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_sautéing" value="sautéing" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Sautéing</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_steaming" value="steaming" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Steaming</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_slow_cooking" value="slow_cooking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Slow Cooking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_pressure_cooking" value="pressure_cooking" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Pressure Cooking</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_no_cook" value="no_cook" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">No Cook</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[cooking_methods][]" id="cooking_methods_air_frying" value="air_frying" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Air Frying</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Dietary Restrictions -->
+<div x-data="{
+  open: false,
+  hasOverflow: false,
+  isScrolledToBottom: false,
+  checkOverflow() {
+    this.$nextTick(() => {
+      const content = this.$refs.scrollContent;
+      this.hasOverflow = content.scrollHeight > content.clientHeight;
+    })
+  },
+  checkScroll() {
+    const content = this.$refs.scrollContent;
+    // Use a small threshold to account for precision issues
+    this.isScrolledToBottom = Math.abs(
+      content.scrollHeight - content.scrollTop - content.clientHeight
+    ) < 1;
+  }
+  }"
+  class="border-b border-gray-200 dark:border-gray-700"
+  @resize.window="checkOverflow()"
+  x-init="() => {
+    $watch('open', value => {
+      if(value) {
+        checkOverflow();
+        checkScroll();
+      }
+    });
+    if(open) {
+      $nextTick(() => {
+        checkOverflow();
+        checkScroll();
+      });
+    }
+  }">
+
+  <!-- Section Header -->
+  <button
+    type="button"
+    @click="open = !open"
+    class="flex items-center justify-between w-full py-4 px-4 text-left">
+    <span class="text-sm font-medium text-gray-900 dark:text-white">Dietary Restrictions</span>
+    <span class="ml-6 flex items-center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-200" :class="{ &#39;rotate-180&#39;: open }"><path d="m6 9 6 6 6-6"></path></svg>
+    </span>
+  </button>
+
+  <!-- Content wrapper -->
+  <div
+    x-show="open"
+    x-collapse
+    class="px-4 pb-4">
+
+    <div class="relative">
+      <div
+        x-ref="scrollContent"
+        @scroll="checkScroll()"
+        class="space-y-3 max-h-48 overflow-y-auto px-2 py-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
+
+
+
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_fat_diet" value="low_fat_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Fat</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_calorie_diet" value="low_calorie_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Calorie</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_low_carb_diet" value="low_carb_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Low Carb</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_vegetarian_diet" value="vegetarian_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vegetarian</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_vegan_diet" value="vegan_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Vegan</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_gluten_free_diet" value="gluten_free_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Gluten Free</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_diabetic_diet" value="diabetic_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Diabetic</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_halal_diet" value="halal_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Halal</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_kosher_diet" value="kosher_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Kosher</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_paleo_diet" value="paleo_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Paleo</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" name="search[diets][]" id="diets_keto_diet" value="keto_diet" class="border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700" />
+              <span class="ml-3 text-sm text-gray-600 dark:text-gray-300">Keto</span>
+            </label>
+      </div>
+
+      <div
+        x-show="hasOverflow && !isScrolledToBottom"
+        x-transition.opacity.duration.200ms
+        class="absolute bottom-0 left-0 right-2 h-8 bg-gradient-to-t from-white dark:from-gray-800 pointer-events-none">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  </div>
+
+  <!-- Panel Footer -->
+  <div class="flex items-center justify-center gap-3 px-4 pt-3 border-t border-gray-200 dark:border-gray-700 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <button
+      class="px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+    >
+      Search
+    </button>
+    <button
+      @click="toggleFilters()"
+      type="button"
+      class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-500 dark:hover:text-gray-400"
+    >
+      Cancel
+    </button>
+  </div>
+</div>
+
+</form></div>
+
+
+          <!-- Login to Share (Mobile) -->
+          <a class="p-2 text-orange-500 hover:text-orange-600" data-controller="tooltip" data-tooltip-text="Login to share your recipes" data-tooltip-placement="bottom" href="/recipes/new">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>
+</a>      </div>
+    </div>
+  </div>
+</header>
+
+    <main class="container mx-auto px-4 py-6 print:px-0 max-w-4xl">
+  <div class="mx-auto">
+    
+
+  <div class="bg-white dark:bg-gray-800 rounded-sm shadow-sm p-6 space-y-8">
+    <!-- Hero Section -->
+    <div class="space-y-4">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">AT Protocol Lexicons</h1>
+      <p class="text-lg text-gray-600 dark:text-gray-300">
+        recipe.exchange is built on the
+        <a href="https://atproto.com/" target="_blank" class="underline text-black dark:text-white">AT Protocol</a>, a
+        decentralized social networking technology that powers
+        <a href="https://bsky.app" class="underline text-black dark:text-white" target="_blank">Bluesky</a> and numerous
+        other applications on the web. We've defined several custom lexicons that enable recipe sharing, interactions,
+        and discovery across the AT Protocol network. These lexicons establish the structure and validation rules for
+        recipes and social features, ensuring compatibility and interoperability with other applications in the AT
+        Protocol ecosystem.
+      </p>
+    </div>
+
+    <!-- Available Lexicons Section -->
+    <section class="space-y-6">
+      <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Available Lexicons</h2>
+
+      <!-- Recipe Lexicon -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-2">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-orange-500"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"></path><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"></path></svg>
+          <h3 class="font-medium text-gray-900 dark:text-white">
+            <a href="/lexicons/recipe.json" class="hover:text-orange-500 dark:hover:text-orange-400">recipe.json</a>
+          </h3>
+        </div>
+        <p class="text-gray-600 dark:text-gray-300 pl-7">
+          The core recipe lexicon, inspired by and compatible with
+          <a href="https://schema.org/Recipe" target="_blank" class="underline hover:text-orange-500 dark:hover:text-orange-400">Schema.org's
+            Recipe type</a>.
+          Defines the structure for recipe records including ingredients, instructions, cooking times, nutrition
+          information, and more.
+        </p>
+      </div>
+
+      <!-- Collection Lexicon -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-2">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-orange-500"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"></path><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"></path></svg>
+          <h3 class="font-medium text-gray-900 dark:text-white">
+            <a href="/lexicons/collection.json" class="hover:text-orange-500 dark:hover:text-orange-400">collection.json</a>
+          </h3>
+        </div>
+        <p class="text-gray-600 dark:text-gray-300 pl-7">
+          Defines the structure for organizing recipes into named collections.
+        </p>
+      </div>
+
+      <!-- Definitions Lexicon -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-2">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-orange-500"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"></path><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"></path></svg>
+          <h3 class="font-medium text-gray-900 dark:text-white">
+            <a href="/lexicons/defs.json" class="hover:text-orange-500 dark:hover:text-orange-400">defs.json</a>
+          </h3>
+        </div>
+        <p class="text-gray-600 dark:text-gray-300 pl-7">
+          Contains shared definitions used across other lexicons, including cooking methods and dietary restrictions.
+        </p>
+      </div>
+    </section>
+
+    <!-- Schema.org Section -->
+    <section class="space-y-4">
+      <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Schema.org Compatibility</h2>
+      <p class="text-gray-600 dark:text-gray-300">
+        Our recipe lexicon is designed to be compatible with Schema.org's Recipe type, ensuring that recipes shared on
+        recipe.exchange
+        can be easily converted to and from Schema.org's widely-adopted format. This compatibility enables better
+        interoperability
+        with existing recipe platforms and search engines.
+      </p>
+      <p class="text-gray-600 dark:text-gray-300">
+        Key properties from Schema.org that we've incorporated include:
+      </p>
+      <ul class="list-disc pl-8 space-y-2 text-gray-600 dark:text-gray-300">
+        <li>Recipe metadata (name, description, yield, category, cuisine)</li>
+        <li>Time-related properties (prepTime, cookTime, totalTime)</li>
+        <li>Nutritional information</li>
+        <li>Dietary restrictions</li>
+        <li>Ingredients and instructions</li>
+      </ul>
+    </section>
+  </div>
+
+  </div>
+</main>
+
+    <footer class="mt-auto pt-8 pb-16 print:hidden">
+  <div class="container mx-auto px-4">
+    <div class="hidden md:flex items-center justify-center gap-4">
+      <div class="flex items-center gap-4">
+          <a href="/login" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Login</a>
+          <span class="text-gray-400 dark:text-gray-600">•</span>
+        <a href="/about" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">About</a>
+        <span class="text-gray-400 dark:text-gray-600">•</span>
+        <a href="/docs" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Help</a>
+        <span class="text-gray-400 dark:text-gray-600">•</span>
+        <a href="/contact" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Contact</a>
+        <span class="text-gray-400 dark:text-gray-600">•</span>
+        <a href="/updates" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Updates</a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 dark:text-gray-600">•</span>
+        <div class="text-gray-600 dark:text-gray-400">
+          Follow us
+          <a href="https://bsky.app/profile/recipe.exchange" class="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-500">@recipe.exchange</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="md:hidden flex flex-col items-center">
+      <div class="flex items-center gap-6 text-center mb-4">
+          <a href="/login" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Login</a>
+        <a href="/docs" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Help</a>
+        <a href="/contact" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Contact</a>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 text-center mb-8">
+        <a href="/about" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">About</a>
+        <a href="/updates" class="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400">Updates</a>
+      </div>
+
+      <div class="text-gray-600 dark:text-gray-400">
+        Follow us
+        <a href="https://bsky.app/profile/recipe.exchange" class="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-500">@recipe.exchange</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+    <div
+  id="global-modal"
+  x-data="{
+    open: false,
+    title: '',
+    loading: false,
+    openModal(title = '', href='') {
+      this.title = title;
+      const frame = this.$refs.frame;
+      if (frame) frame.src = href;
+      this.open = true;
+      document.body.classList.add('overflow-hidden');
+    },
+    closeModal() {
+      this.open = false;
+      document.body.classList.remove('overflow-hidden');
+
+      // Wait for close animation to complete before clearing frame
+      setTimeout(() => {
+        const frame = this.$refs.frame;
+        if (frame) {
+          // Clear the src and content
+          frame.src = '';
+          frame.innerHTML = '';
+        }
+      }, 300); // Match transition duration
+    }
+  }"
+  @keydown.escape.window="closeModal()"
+  @open-modal.window="openModal($event.detail.title, $event.detail.href)"
+  @close-modal.window="closeModal()"
+  @turbo:frame-loading.window="loading = true"
+  @turbo:frame-load.window="loading = false"
+  class="relative z-50"
+  aria-labelledby="modal-title"
+  role="dialog"
+  aria-modal="true"
+>
+  <!-- Backdrop -->
+  <div
+    x-show="open"
+    style="display: none;"
+    x-transition:enter="transition-opacity ease-linear duration-300"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition-opacity ease-linear duration-300"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity"
+    @click="closeModal()"
+  ></div>
+
+  <!-- Modal Panel -->
+  <div
+    x-show="open"
+    style="display: none;"
+    x-transition:enter="transform transition ease-in-out duration-300"
+    x-transition:enter-start="translate-y-full sm:translate-y-0 sm:scale-95"
+    x-transition:enter-end="translate-y-0 sm:scale-100"
+    x-transition:leave="transform transition ease-in-out duration-300"
+    x-transition:leave-start="translate-y-0 sm:scale-100"
+    x-transition:leave-end="translate-y-full sm:translate-y-0 sm:scale-95"
+    class="fixed inset-0 z-10 sm:flex sm:items-center sm:justify-center p-0 sm:p-4"
+  >
+    <div
+      class="relative flex flex-col h-full sm:h-auto w-full sm:max-w-lg bg-white dark:bg-gray-800 sm:rounded-sm shadow-xl"
+      @click.outside="closeModal()"
+    >
+      <!-- Header - Fixed on mobile -->
+      <div class="sticky top-0 z-10 pt-[env(safe-area-inset-top)] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between p-4">
+          <h3
+            x-show="title"
+            class="text-lg font-semibold text-gray-900 dark:text-white"
+            id="modal-title"
+            x-text="title"
+          ></h3>
+          <button
+            type="button"
+            class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            @click="closeModal()"
+          >
+            <span class="sr-only">Close</span>
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content - Scrollable -->
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        <!-- Loading State -->
+        <div
+          x-show="loading"
+          class="p-4 flex justify-center"
+        >
+          <svg class="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <!-- Turbo Frame for Content -->
+        <turbo-frame
+          id="modal-content"
+          x-ref="frame"
+          target="modal-content"
+          class="block"
+        ></turbo-frame>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

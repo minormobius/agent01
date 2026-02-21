@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html class="h-full antialiased" lang="en">
+<head>
+  <title>The page you were looking for doesn't exist (404)</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <script>
+    // Check if dark mode is preferred
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark')
+    }
+  </script>
+  <style>
+    /* Base Tailwind-like styles */
+    :root { color-scheme: light dark; }
+    *, ::before, ::after { box-sizing: border-box; border: 0 solid #e5e7eb; }
+    html { line-height: 1.5; -webkit-text-size-adjust: 100%; font-family: Inter var, ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; font-family: inherit; line-height: inherit; }
+    .dark { color-scheme: dark; }
+    .container { width: 100%; margin-right: auto; margin-left: auto; padding-left: 1rem; padding-right: 1rem; }
+    @media (min-width: 640px) { .container { max-width: 640px; } }
+    @media (min-width: 768px) { .container { max-width: 768px; } }
+    @media (min-width: 1024px) { .container { max-width: 1024px; } }
+
+    /* Light mode colors */
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --accent: #f97316;
+    }
+
+    /* Dark mode colors */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #111827;
+        --bg-secondary: #1f2937;
+        --text-primary: #f9fafb;
+        --text-secondary: #9ca3af;
+      }
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .error-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 1.875rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+
+    .logo-text { color: var(--accent); }
+    .logo-icon { color: var(--text-secondary); }
+
+    .error-code {
+      font-size: 6rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .error-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .error-message {
+      color: var(--text-secondary);
+      max-width: 28rem;
+      margin-bottom: 2rem;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background-color: var(--accent);
+      color: white;
+      text-decoration: none;
+      border-radius: 0.125rem;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+
+    .back-link:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+<div class="error-container">
+  <div class="logo">
+    <span class="logo-text">recipe</span>
+    <svg class="logo-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"/>
+      <path d="M6 17h12"/>
+    </svg>
+    <span class="logo-text">exchange</span>
+  </div>
+
+  <div class="error-code">404</div>
+  <h1 class="error-title">Page not found</h1>
+  <p class="error-message">
+    Sorry, we couldn't find the page you're looking for. It might have been moved or deleted.
+  </p>
+  <a href="/" class="back-link">
+    Back to home
+  </a>
+</div>
+</body>
+</html>
