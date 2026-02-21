@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tree of Life — ATProto Phylogenetic Viewer</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --fg: #e8e4dc;
+    --muted: #6b6860;
+    --accent: #c4956a;
+    --accent2: #6a9ec4;
+    --panel: #141418;
+    --border: #2a2a30;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* Header */
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  #header h1 {
+    font-size: 15px; font-weight: 600; letter-spacing: 0.5px;
+    color: var(--accent);
+  }
+  #header .subtitle {
+    font-size: 12px; color: var(--muted);
+  }
+  #controls {
+    display: flex; gap: 8px; margin-left: auto; align-items: center;
+  }
+  #controls input, #controls select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 4px; font-size: 13px;
+  }
+  #controls button {
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 6px 14px; border-radius: 4px; font-size: 13px;
+    cursor: pointer; font-weight: 600;
+  }
+  #controls button:hover { opacity: 0.85; }
+
+  /* Canvas area */
+  #tree-container {
+    position: fixed; top: 52px; left: 0; right: 300px; bottom: 0;
+  }
+  svg { width: 100%; height: 100%; }
+
+  /* Info panel */
+  #info-panel {
+    position: fixed; top: 52px; right: 0; bottom: 0; width: 300px;
+    background: var(--panel); border-left: 1px solid var(--border);
+    padding: 20px; overflow-y: auto;
+  }
+  #info-panel h2 {
+    font-size: 18px; color: var(--accent); margin-bottom: 4px;
+  }
+  #info-panel .rank {
+    font-size: 12px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 16px;
+  }
+  #info-panel .stat {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  #info-panel .stat .label { color: var(--muted); }
+  #info-panel .stat .value { color: var(--fg); font-weight: 500; }
+  #info-panel .at-uri {
+    margin-top: 16px; padding: 10px;
+    background: var(--bg); border-radius: 4px;
+    font-family: monospace; font-size: 11px;
+    color: var(--accent2); word-break: break-all;
+  }
+  #info-panel .children-list {
+    margin-top: 16px;
+  }
+  #info-panel .children-list h3 {
+    font-size: 12px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 8px;
+  }
+  #info-panel .child-link {
+    display: block; padding: 4px 0; font-size: 13px;
+    color: var(--accent2); cursor: pointer; text-decoration: none;
+  }
+  #info-panel .child-link:hover { text-decoration: underline; }
+
+  /* Status bar */
+  #status {
+    position: fixed; bottom: 0; left: 0; right: 300px;
+    padding: 6px 20px; background: var(--panel);
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* Loading overlay */
+  #loading {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--bg);
+  }
+  #loading.hidden { display: none; }
+  #loading h2 { color: var(--accent); margin-bottom: 8px; }
+  #loading p { color: var(--muted); font-size: 14px; }
+  #loading .bar {
+    width: 200px; height: 3px; background: var(--border);
+    border-radius: 2px; margin-top: 16px; overflow: hidden;
+  }
+  #loading .bar-fill {
+    height: 100%; background: var(--accent); width: 0%;
+    transition: width 0.3s;
+  }
+
+  /* Demo mode banner */
+  #demo-banner {
+    display: none; position: fixed; bottom: 40px; left: 20px;
+    background: var(--accent); color: var(--bg);
+    padding: 8px 14px; border-radius: 4px;
+    font-size: 12px; font-weight: 600; z-index: 20;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>TREE OF LIFE</h1>
+    <div class="subtitle">ATProto Phylogenetic Viewer</div>
+  </div>
+  <div id="controls">
+    <input id="handle-input" type="text" placeholder="handle (e.g. minomobi.com)" value="">
+    <select id="mode-select">
+      <option value="sunburst">Sunburst</option>
+      <option value="radial">Radial Tree</option>
+    </select>
+    <button id="load-btn">Load</button>
+    <button id="demo-btn" style="background:var(--accent2)">Demo</button>
+    <label style="cursor:pointer;font-size:12px;color:var(--muted);border:1px dashed var(--border);padding:6px 10px;border-radius:4px">
+      Load JSON <input id="file-input" type="file" accept=".json" style="display:none">
+    </label>
+  </div>
+</div>
+
+<div id="tree-container">
+  <svg id="tree-svg"></svg>
+</div>
+
+<div id="info-panel">
+  <h2 id="node-name">Tree of Life</h2>
+  <div class="rank" id="node-rank">Select a node</div>
+  <div id="node-stats"></div>
+  <div class="at-uri" id="node-uri" style="display:none"></div>
+  <div class="children-list" id="node-children"></div>
+</div>
+
+<div id="status">Ready. Enter a Bluesky handle and click Load, or click Demo for sample data.</div>
+
+<div id="loading" class="hidden">
+  <h2>Loading phylogenetic data...</h2>
+  <p id="loading-text">Connecting to PDS...</p>
+  <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+</div>
+
+<div id="demo-banner">DEMO MODE — sample data, not from ATProto</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ============================================================
+// ATProto Phylo Viewer
+// Reads com.minomobi.phylo.node records from any PDS
+// and renders them as a zoomable sunburst or radial tree.
+// ============================================================
+
+const PUBLIC_API = "https://public.api.bsky.app";
+const COLLECTION = "com.minomobi.phylo.node";
+
+// --- ATProto fetch layer ---
+
+async function resolveHandle(handle) {
+  const res = await fetch(
+    `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+  );
+  if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
+  const data = await res.json();
+  return data.did;
+}
+
+async function resolvePDS(did) {
+  let url;
+  if (did.startsWith("did:plc:")) {
+    url = `https://plc.directory/${did}`;
+  } else if (did.startsWith("did:web:")) {
+    const host = did.split(":").slice(2).join(":");
+    url = `https://${host}/.well-known/did.json`;
+  } else {
+    throw new Error(`Unknown DID method: ${did}`);
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+  const doc = await res.json();
+  const svc = doc.service?.find(s => s.type === "AtprotoPersonalDataServer");
+  if (!svc) throw new Error("No PDS endpoint in DID document");
+  return svc.serviceEndpoint;
+}
+
+async function fetchAllRecords(did, onProgress) {
+  // Try public API first, fall back to PDS
+  let baseUrl = `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords`;
+  const records = [];
+  let cursor = undefined;
+  let page = 0;
+
+  while (true) {
+    let url = `${baseUrl}?repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=100`;
+    if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+    let res = await fetch(url);
+
+    // If public API fails, try PDS directly
+    if (!res.ok && page === 0) {
+      const pds = await resolvePDS(did);
+      baseUrl = `${pds}/xrpc/com.atproto.repo.listRecords`;
+      url = `${baseUrl}?repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=100`;
+      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+      res = await fetch(url);
+    }
+
+    if (!res.ok) throw new Error(`Failed to list records (page ${page}): ${res.status}`);
+
+    const data = await res.json();
+    for (const rec of (data.records || [])) {
+      records.push(rec.value);
+    }
+
+    if (onProgress) onProgress(records.length);
+
+    cursor = data.cursor;
+    page++;
+    if (!cursor || !(data.records?.length)) break;
+  }
+
+  return records;
+}
+
+
+// --- Build tree hierarchy from flat records ---
+
+function buildHierarchy(records) {
+  const byOtt = new Map();
+  for (const rec of records) {
+    byOtt.set(rec.ottId, { ...rec, children: [] });
+  }
+
+  let root = null;
+  for (const [ottId, node] of byOtt) {
+    if (node.parentOttId && byOtt.has(node.parentOttId)) {
+      byOtt.get(node.parentOttId).children.push(node);
+    } else if (!node.parentOttId || !byOtt.has(node.parentOttId)) {
+      // Root or orphan — pick the one with highest numTips as root
+      if (!root || (node.numTips || 0) > (root.numTips || 0)) {
+        root = node;
+      }
+    }
+  }
+
+  // Assign sizes for layout (leaf nodes get size 1)
+  function assignSize(node) {
+    if (!node.children || node.children.length === 0) {
+      node.size = 1;
+    } else {
+      node.size = 0;
+      for (const child of node.children) {
+        assignSize(child);
+        node.size += child.size;
+      }
+    }
+  }
+  if (root) assignSize(root);
+
+  return { root, byOtt, total: records.length };
+}
+
+
+// --- Sunburst visualization ---
+
+function renderSunburst(root, container) {
+  const svg = d3.select(container);
+  svg.selectAll("*").remove();
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  const radius = Math.min(width, height) / 2;
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${width / 2},${height / 2})`);
+
+  const hierarchy = d3.hierarchy(root)
+    .sum(d => d.children?.length ? 0 : 1)
+    .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+  const partition = d3.partition()
+    .size([2 * Math.PI, radius]);
+
+  partition(hierarchy);
+
+  // Color scale based on depth
+  const maxDepth = d3.max(hierarchy.descendants(), d => d.depth) || 1;
+  const colorScale = d3.scaleSequential()
+    .domain([0, maxDepth])
+    .interpolator(d3.interpolateWarm);
+
+  // Arc generator
+  const arc = d3.arc()
+    .startAngle(d => d.x0)
+    .endAngle(d => d.x1)
+    .padAngle(d => Math.min((d.x1 - d.x0) / 2, 0.005))
+    .padRadius(radius / 2)
+    .innerRadius(d => d.y0)
+    .outerRadius(d => d.y1 - 1);
+
+  // Current focus for zoom
+  let currentFocus = hierarchy;
+
+  // Draw arcs
+  const paths = g.selectAll("path")
+    .data(hierarchy.descendants().filter(d => d.depth))
+    .join("path")
+    .attr("fill", d => {
+      let node = d;
+      while (node.depth > 1) node = node.parent;
+      return colorScale(node.data.ottId ? (node.data.ottId % maxDepth) : node.depth);
+    })
+    .attr("fill-opacity", d => arcVisible(currentFocus, d) ? (d.children ? 0.7 : 0.5) : 0)
+    .attr("pointer-events", d => arcVisible(currentFocus, d) ? "auto" : "none")
+    .attr("d", d => arc(d.current = d))
+    .style("cursor", "pointer")
+    .on("click", (event, d) => {
+      if (d.children) {
+        clicked(d);
+      }
+    })
+    .on("mouseover", (event, d) => showInfo(d.data))
+    .on("mouseout", () => {});
+
+  paths.append("title")
+    .text(d => `${d.data.name}\n${d.data.rank || ""}\n${d.data.numTips || 0} species`);
+
+  // Labels for larger arcs
+  const labels = g.selectAll("text")
+    .data(hierarchy.descendants().filter(d => d.depth && (d.x1 - d.x0) > 0.03))
+    .join("text")
+    .attr("transform", d => labelTransform(d))
+    .attr("dy", "0.35em")
+    .attr("font-size", d => Math.min(11, (d.x1 - d.x0) * radius * 0.4))
+    .attr("fill", "#fff")
+    .attr("fill-opacity", d => +labelVisible(currentFocus, d))
+    .attr("pointer-events", "none")
+    .text(d => d.data.name);
+
+  // Center circle for back navigation
+  const parent = g.append("circle")
+    .datum(hierarchy)
+    .attr("r", hierarchy.y1 ? hierarchy.children?.[0]?.y0 || radius * 0.1 : radius * 0.1)
+    .attr("fill", "none")
+    .attr("pointer-events", "all")
+    .style("cursor", "pointer")
+    .on("click", (event, d) => {
+      if (currentFocus.parent) clicked(currentFocus.parent);
+    });
+
+  // Center label
+  const centerLabel = g.append("text")
+    .attr("text-anchor", "middle")
+    .attr("dy", "0.35em")
+    .attr("fill", "var(--accent)")
+    .attr("font-size", "14px")
+    .attr("pointer-events", "none")
+    .text(root.name);
+
+  function clicked(p) {
+    currentFocus = p;
+    parent.datum(p);
+    centerLabel.text(p.data.name);
+    showInfo(p.data);
+
+    const t = g.transition().duration(600);
+
+    hierarchy.each(d => {
+      d.target = {
+        x0: Math.max(0, Math.min(1, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+        x1: Math.max(0, Math.min(1, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+        y0: Math.max(0, d.y0 - p.y0),
+        y1: Math.max(0, d.y1 - p.y0),
+      };
+    });
+
+    paths.transition(t)
+      .tween("data", d => {
+        const i = d3.interpolate(d.current, d.target);
+        return t => d.current = i(t);
+      })
+      .filter(function(d) {
+        return +this.getAttribute("fill-opacity") || arcVisible(p, d);
+      })
+      .attr("fill-opacity", d => arcVisible(p, d) ? (d.children ? 0.7 : 0.5) : 0)
+      .attr("pointer-events", d => arcVisible(p, d) ? "auto" : "none")
+      .attrTween("d", d => () => arc(d.current));
+
+    labels.transition(t)
+      .attr("fill-opacity", d => +labelVisible(p, d))
+      .attrTween("transform", d => () => labelTransform(d.current || d));
+  }
+
+  function arcVisible(focus, d) {
+    const x0 = (d.x0 - focus.x0) / (focus.x1 - focus.x0);
+    const x1 = (d.x1 - focus.x0) / (focus.x1 - focus.x0);
+    const y0 = d.y0 - focus.y0;
+    return x1 > 0 && x0 < 1 && y0 >= 0 && d.y0 < radius;
+  }
+
+  function labelVisible(focus, d) {
+    const x0 = (d.x0 - focus.x0) / (focus.x1 - focus.x0);
+    const x1 = (d.x1 - focus.x0) / (focus.x1 - focus.x0);
+    return (x1 - x0) > 0.02 && d.y0 >= focus.y0 && d.y0 < radius;
+  }
+
+  function labelTransform(d) {
+    const x = ((d.x0 || 0) + (d.x1 || 0)) / 2;
+    const y = ((d.y0 || 0) + (d.y1 || 0)) / 2;
+    const rotate = x * 180 / Math.PI - 90;
+    return `rotate(${rotate}) translate(${y},0) rotate(${rotate > 90 ? 180 : 0})`;
+  }
+}
+
+
+// --- Radial tree visualization ---
+
+function renderRadialTree(root, container) {
+  const svg = d3.select(container);
+  svg.selectAll("*").remove();
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  const radius = Math.min(width, height) / 2 - 40;
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${width / 2},${height / 2})`);
+
+  // Zoom behavior
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 8])
+    .on("zoom", (event) => {
+      g.attr("transform", `translate(${width / 2 + event.transform.x},${height / 2 + event.transform.y}) scale(${event.transform.k})`);
+    });
+  svg.call(zoom);
+
+  const hierarchy = d3.hierarchy(root)
+    .sum(d => d.children?.length ? 0 : 1)
+    .sort((a, b) => d3.ascending(a.data.name, b.data.name));
+
+  const tree = d3.tree()
+    .size([2 * Math.PI, radius])
+    .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+
+  tree(hierarchy);
+
+  // Links
+  g.selectAll(".link")
+    .data(hierarchy.links())
+    .join("path")
+    .attr("class", "link")
+    .attr("fill", "none")
+    .attr("stroke", "var(--border)")
+    .attr("stroke-opacity", 0.5)
+    .attr("stroke-width", 1)
+    .attr("d", d3.linkRadial()
+      .angle(d => d.x)
+      .radius(d => d.y));
+
+  // Nodes
+  const nodes = g.selectAll(".node")
+    .data(hierarchy.descendants())
+    .join("g")
+    .attr("class", "node")
+    .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
+    .style("cursor", "pointer")
+    .on("click", (event, d) => showInfo(d.data));
+
+  nodes.append("circle")
+    .attr("r", d => d.children ? 2.5 : 1.5)
+    .attr("fill", d => d.children ? "var(--accent)" : "var(--accent2)")
+    .attr("stroke", "none");
+
+  // Labels (only for nodes with enough space)
+  nodes.filter(d => d.depth <= 3 || !d.children)
+    .append("text")
+    .attr("dy", "0.31em")
+    .attr("x", d => d.x < Math.PI === !d.children ? 6 : -6)
+    .attr("text-anchor", d => d.x < Math.PI === !d.children ? "start" : "end")
+    .attr("transform", d => d.x >= Math.PI ? "rotate(180)" : null)
+    .attr("font-size", d => d.children ? "9px" : "7px")
+    .attr("fill", "var(--muted)")
+    .text(d => d.data.name);
+}
+
+
+// --- Info panel ---
+
+function showInfo(node) {
+  document.getElementById("node-name").textContent = node.name || "Unknown";
+  document.getElementById("node-rank").textContent = node.rank || "no rank";
+
+  const stats = document.getElementById("node-stats");
+  stats.innerHTML = "";
+  const fields = [
+    ["OTT ID", node.ottId],
+    ["Species below", node.numTips || 0],
+    ["Direct children", node.childOttIds?.length || node.children?.length || 0],
+    ["Common name", node.commonName || "—"],
+  ];
+  for (const [label, value] of fields) {
+    const div = document.createElement("div");
+    div.className = "stat";
+    div.innerHTML = `<span class="label">${label}</span><span class="value">${value}</span>`;
+    stats.appendChild(div);
+  }
+
+  // AT URI
+  const uriEl = document.getElementById("node-uri");
+  if (window._currentDid && node.ottId) {
+    uriEl.style.display = "block";
+    uriEl.textContent = `at://${window._currentDid}/${COLLECTION}/${node.ottId}`;
+  } else {
+    uriEl.style.display = "none";
+  }
+
+  // Children list
+  const childrenEl = document.getElementById("node-children");
+  childrenEl.innerHTML = "";
+  const kids = node.children || [];
+  if (kids.length > 0 && kids.length <= 30) {
+    const h3 = document.createElement("h3");
+    h3.textContent = `Children (${kids.length})`;
+    childrenEl.appendChild(h3);
+    for (const child of kids.slice(0, 30)) {
+      const a = document.createElement("a");
+      a.className = "child-link";
+      a.textContent = `${child.name || child.ottId} ${child.rank ? `(${child.rank})` : ""}`;
+      childrenEl.appendChild(a);
+    }
+  } else if (kids.length > 30) {
+    const h3 = document.createElement("h3");
+    h3.textContent = `Children (${kids.length}, showing first 30)`;
+    childrenEl.appendChild(h3);
+  }
+}
+
+
+// --- Demo data generator ---
+
+function generateDemoTree() {
+  // A small hand-crafted phylogeny of life's major branches
+  const taxa = [
+    { ottId: 93302, name: "cellular organisms", rank: "no rank", numTips: 2400000, childOttIds: [2, 3] },
+    { ottId: 2, name: "Bacteria", rank: "domain", numTips: 300000, parentOttId: 93302, childOttIds: [20, 21, 22] },
+    { ottId: 3, name: "Eukaryota", rank: "domain", numTips: 2000000, parentOttId: 93302, childOttIds: [30, 31, 32, 33] },
+    // Bacteria
+    { ottId: 20, name: "Proteobacteria", rank: "phylum", numTips: 80000, parentOttId: 2 },
+    { ottId: 21, name: "Firmicutes", rank: "phylum", numTips: 50000, parentOttId: 2 },
+    { ottId: 22, name: "Cyanobacteria", rank: "phylum", numTips: 10000, parentOttId: 2 },
+    // Eukaryota
+    { ottId: 30, name: "Fungi", rank: "kingdom", numTips: 150000, parentOttId: 3, childOttIds: [300, 301] },
+    { ottId: 31, name: "Metazoa", rank: "kingdom", numTips: 1500000, parentOttId: 3, childOttIds: [310, 311, 312, 313] },
+    { ottId: 32, name: "Viridiplantae", rank: "kingdom", numTips: 400000, parentOttId: 3, childOttIds: [320, 321] },
+    { ottId: 33, name: "SAR", rank: "no rank", numTips: 100000, parentOttId: 3, childOttIds: [330, 331] },
+    // Fungi
+    { ottId: 300, name: "Ascomycota", rank: "phylum", numTips: 80000, parentOttId: 30 },
+    { ottId: 301, name: "Basidiomycota", rank: "phylum", numTips: 40000, parentOttId: 30 },
+    // Metazoa
+    { ottId: 310, name: "Arthropoda", rank: "phylum", numTips: 1200000, parentOttId: 31, childOttIds: [3100, 3101, 3102] },
+    { ottId: 311, name: "Chordata", rank: "phylum", numTips: 80000, parentOttId: 31, childOttIds: [3110, 3111, 3112, 3113] },
+    { ottId: 312, name: "Mollusca", rank: "phylum", numTips: 85000, parentOttId: 31, childOttIds: [3120, 3121] },
+    { ottId: 313, name: "Cnidaria", rank: "phylum", numTips: 16000, parentOttId: 31 },
+    // Plants
+    { ottId: 320, name: "Magnoliopsida", rank: "class", commonName: "Flowering plants", numTips: 350000, parentOttId: 32 },
+    { ottId: 321, name: "Pinopsida", rank: "class", commonName: "Conifers", numTips: 600, parentOttId: 32 },
+    // SAR
+    { ottId: 330, name: "Stramenopiles", rank: "no rank", numTips: 25000, parentOttId: 33 },
+    { ottId: 331, name: "Alveolata", rank: "no rank", numTips: 30000, parentOttId: 33 },
+    // Arthropoda
+    { ottId: 3100, name: "Insecta", rank: "class", numTips: 1000000, parentOttId: 310, childOttIds: [31000, 31001, 31002, 31003] },
+    { ottId: 3101, name: "Arachnida", rank: "class", numTips: 100000, parentOttId: 310 },
+    { ottId: 3102, name: "Crustacea", rank: "no rank", numTips: 70000, parentOttId: 310 },
+    // Chordata
+    { ottId: 3110, name: "Mammalia", rank: "class", numTips: 6500, parentOttId: 311, childOttIds: [31100, 31101, 31102, 31103] },
+    { ottId: 3111, name: "Aves", rank: "class", commonName: "Birds", numTips: 10000, parentOttId: 311 },
+    { ottId: 3112, name: "Actinopterygii", rank: "class", commonName: "Ray-finned fishes", numTips: 35000, parentOttId: 311 },
+    { ottId: 3113, name: "Amphibia", rank: "class", numTips: 8000, parentOttId: 311 },
+    // Mollusca
+    { ottId: 3120, name: "Gastropoda", rank: "class", commonName: "Snails & slugs", numTips: 65000, parentOttId: 312 },
+    { ottId: 3121, name: "Cephalopoda", rank: "class", commonName: "Octopuses & squids", numTips: 800, parentOttId: 312 },
+    // Insecta
+    { ottId: 31000, name: "Coleoptera", rank: "order", commonName: "Beetles", numTips: 400000, parentOttId: 3100 },
+    { ottId: 31001, name: "Lepidoptera", rank: "order", commonName: "Butterflies & moths", numTips: 180000, parentOttId: 3100 },
+    { ottId: 31002, name: "Hymenoptera", rank: "order", commonName: "Ants, bees & wasps", numTips: 150000, parentOttId: 3100 },
+    { ottId: 31003, name: "Diptera", rank: "order", commonName: "Flies", numTips: 150000, parentOttId: 3100 },
+    // Mammalia
+    { ottId: 31100, name: "Primates", rank: "order", numTips: 500, parentOttId: 3110, childOttIds: [311000, 311001] },
+    { ottId: 31101, name: "Rodentia", rank: "order", commonName: "Rodents", numTips: 2500, parentOttId: 3110 },
+    { ottId: 31102, name: "Chiroptera", rank: "order", commonName: "Bats", numTips: 1400, parentOttId: 3110 },
+    { ottId: 31103, name: "Cetacea", rank: "order", commonName: "Whales & dolphins", numTips: 90, parentOttId: 3110 },
+    // Primates
+    { ottId: 311000, name: "Hominidae", rank: "family", commonName: "Great apes", numTips: 7, parentOttId: 31100, childOttIds: [3110000, 3110001, 3110002] },
+    { ottId: 311001, name: "Cercopithecidae", rank: "family", commonName: "Old World monkeys", numTips: 160, parentOttId: 31100 },
+    // Hominidae
+    { ottId: 3110000, name: "Homo sapiens", rank: "species", commonName: "Human", numTips: 1, parentOttId: 311000 },
+    { ottId: 3110001, name: "Pan troglodytes", rank: "species", commonName: "Chimpanzee", numTips: 1, parentOttId: 311000 },
+    { ottId: 3110002, name: "Gorilla gorilla", rank: "species", commonName: "Western gorilla", numTips: 1, parentOttId: 311000 },
+  ];
+  return taxa;
+}
+
+
+// --- Main ---
+
+let currentMode = "sunburst";
+const modeSelect = document.getElementById("mode-select");
+const treeSvg = document.getElementById("tree-svg");
+
+modeSelect.addEventListener("change", () => {
+  currentMode = modeSelect.value;
+  if (window._currentTree) {
+    render(window._currentTree);
+  }
+});
+
+function render(root) {
+  window._currentTree = root;
+  if (currentMode === "sunburst") {
+    renderSunburst(root, treeSvg);
+  } else {
+    renderRadialTree(root, treeSvg);
+  }
+  showInfo(root);
+}
+
+function setStatus(text) {
+  document.getElementById("status").textContent = text;
+}
+
+function showLoading(show, text) {
+  const el = document.getElementById("loading");
+  el.classList.toggle("hidden", !show);
+  if (text) document.getElementById("loading-text").textContent = text;
+}
+
+function setProgress(pct) {
+  document.getElementById("bar-fill").style.width = pct + "%";
+}
+
+// Load from ATProto
+document.getElementById("load-btn").addEventListener("click", async () => {
+  const handle = document.getElementById("handle-input").value.trim();
+  if (!handle) { setStatus("Enter a Bluesky handle first."); return; }
+
+  document.getElementById("demo-banner").style.display = "none";
+  showLoading(true, `Resolving ${handle}...`);
+  setProgress(5);
+
+  try {
+    const did = await resolveHandle(handle);
+    window._currentDid = did;
+    showLoading(true, `Fetching records from PDS...`);
+    setProgress(20);
+
+    const records = await fetchAllRecords(did, (count) => {
+      showLoading(true, `Loaded ${count} nodes...`);
+      setProgress(20 + Math.min(70, count / 10));
+    });
+
+    if (records.length === 0) {
+      showLoading(false);
+      setStatus(`No ${COLLECTION} records found for ${handle}. Run the sync script first.`);
+      return;
+    }
+
+    showLoading(true, `Building tree from ${records.length} records...`);
+    setProgress(95);
+
+    const { root, total } = buildHierarchy(records);
+    if (!root) {
+      showLoading(false);
+      setStatus("Could not build tree hierarchy — no root node found.");
+      return;
+    }
+
+    showLoading(false);
+    render(root);
+    setStatus(`Loaded ${total} nodes from ${handle} (${did}). Click arcs to zoom in, click center to zoom out.`);
+
+  } catch (err) {
+    showLoading(false);
+    setStatus(`Error: ${err.message}`);
+    console.error(err);
+  }
+});
+
+// Demo mode
+document.getElementById("demo-btn").addEventListener("click", () => {
+  window._currentDid = null;
+  document.getElementById("demo-banner").style.display = "block";
+  const demoRecords = generateDemoTree();
+  const { root } = buildHierarchy(demoRecords);
+  render(root);
+  setStatus(`Demo mode: ${demoRecords.length} taxa from cellular organisms to Homo sapiens. Click arcs to explore.`);
+});
+
+// Load from local JSON file (output of sync script --dump-json)
+document.getElementById("file-input").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  document.getElementById("demo-banner").style.display = "none";
+  window._currentDid = null;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const records = JSON.parse(e.target.result);
+      const { root, total } = buildHierarchy(records);
+      if (!root) { setStatus("Could not build tree from JSON file."); return; }
+      render(root);
+      setStatus(`Loaded ${total} nodes from ${file.name}. Click arcs to explore.`);
+    } catch (err) {
+      setStatus(`Error parsing JSON: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+});
+
+// Handle URL params
+const params = new URLSearchParams(window.location.search);
+if (params.get("handle")) {
+  document.getElementById("handle-input").value = params.get("handle");
+  document.getElementById("load-btn").click();
+} else if (params.get("demo") !== null) {
+  document.getElementById("demo-btn").click();
+}
+
+// Resize handler
+window.addEventListener("resize", () => {
+  if (window._currentTree) render(window._currentTree);
+});
+</script>
+</body>
+</html>

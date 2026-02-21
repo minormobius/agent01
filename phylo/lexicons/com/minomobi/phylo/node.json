@@ -1,0 +1,63 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.phylo.node",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A node in a phylogenetic tree. Represents a taxon (species, genus, family, etc.) from the Open Tree of Life. Record key is the OTT ID as a string.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["ottId", "name", "createdAt"],
+        "properties": {
+          "ottId": {
+            "type": "integer",
+            "description": "Open Tree of Life Taxonomy identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Scientific name (e.g., 'Homo sapiens', 'Mammalia')"
+          },
+          "commonName": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Common name if available (e.g., 'Human', 'Mammals')"
+          },
+          "rank": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Taxonomic rank (species, genus, family, order, class, phylum, kingdom, domain, no rank)"
+          },
+          "parentOttId": {
+            "type": "integer",
+            "description": "OTT ID of the parent node. Absent for the root."
+          },
+          "childOttIds": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "description": "OTT IDs of direct child nodes"
+          },
+          "numTips": {
+            "type": "integer",
+            "description": "Number of descendant tip (leaf/species) nodes"
+          },
+          "extinct": {
+            "type": "boolean",
+            "description": "Whether this taxon is extinct"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Source tree or taxonomy (e.g., 'ott3.7', 'synthesis')"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp when this record was created"
+          }
+        }
+      }
+    }
+  }
+}
