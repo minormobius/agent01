@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import ATProtoPanel from "./ATProtoPanel";
 
 const FLOURS = [
   {
@@ -339,6 +340,7 @@ export default function FlourBlendCalculator() {
         {[
           { id: "blend", label: "\u{1F35E} Recipe Builder" },
           { id: "reference", label: "\u{1F4D6} Flour Reference" },
+          { id: "atproto", label: "\u{1F310} AT Protocol" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             flex: 1, padding: "12px 16px", border: "none",
@@ -809,6 +811,18 @@ export default function FlourBlendCalculator() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ====== AT PROTOCOL TAB ====== */}
+      {tab === "atproto" && (
+        <ATProtoPanel
+          recipeState={getRecipeState()}
+          flours={FLOURS}
+          enrichments={ENRICHMENTS}
+          starterFlours={STARTER_FLOURS}
+          nutrition={blendNutrition}
+          recipeName={recipeName}
+        />
       )}
     </div>
   );
