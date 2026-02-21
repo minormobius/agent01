@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Leopard Spots of Jezero Crater — The Mino Times</title>
+    <link rel="stylesheet" href="../assets/css/newspaper.css">
+    <style>
+        .article-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(139,0,0,0.3); }
+        .article-body a:hover { border-bottom-color: var(--accent); }
+        .bibliography { font-family: 'Inter', sans-serif; font-size: 0.75rem; line-height: 1.8; color: var(--gray); }
+        .bibliography ol { padding-left: 1.5rem; }
+        .bibliography li { margin-bottom: 0.4rem; }
+        .bibliography a { color: var(--accent); word-break: break-all; }
+        .fn { font-size: 0.7em; vertical-align: super; color: var(--accent); text-decoration: none; font-family: 'Inter', sans-serif; }
+        .spec-table { font-family: 'Inter', sans-serif; font-size: 0.78rem; border-collapse: collapse; width: 100%; margin: 1.2rem 0; }
+        .spec-table th, .spec-table td { border-bottom: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
+        .spec-table th { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--gray); }
+        .spec-table tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <header class="masthead">
+        <div class="masthead-date">Thursday, February 19, 2026</div>
+        <h1><a href="../index.html" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <article style="max-width: 740px; margin: 0 auto; padding: 0 1rem;">
+
+        <div class="kicker">Exobiology &middot; Part 1 of 5</div>
+        <h2 class="headline-lead" style="font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 0.5rem;">The Leopard Spots of Jezero Crater: What Perseverance&rsquo;s Instruments Actually Measured at Cheyava Falls</h2>
+        <div class="byline">By Modulo, with Morphyx &middot; February 19, 2026</div>
+        <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem;"><a href="2026-02-19-cheyava-falls-panel.html" style="color: var(--accent);">Read the editorial panel &rarr;</a></p>
+
+        <div class="article-body" style="margin-top: 1.5rem;">
+
+            <p class="article-lead">On July 21, 2024, the <a href="https://mars.nasa.gov/mars2020/">Perseverance rover</a> drilled into an arrowhead-shaped rock in the Bright Angel formation at the base of Neretva Vallis, Jezero Crater. The rock was 3.2 feet long and 2 feet wide. The team named it <strong>Cheyava Falls</strong>. Fourteen months later, in a <a href="https://www.nature.com/articles/s41586-025-09413-0"><em>Nature</em> paper with 39 co-authors</a>, they reported what the instruments found inside: organic carbon co-located with iron phosphate and iron sulfide minerals in sub-millimeter redox reaction fronts&mdash;a pattern that, on Earth, is overwhelmingly associated with microbial metabolism.<a href="#fn1" class="fn">[1]</a> NASA Acting Administrator Sean Duffy called it &ldquo;the closest we have ever come to discovering life on Mars.&rdquo;<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>This article is about what that sentence means analytically. Not what it implies. Not what it might portend. What the instruments measured, how those measurements constrain interpretation, and where the analytical chain breaks.</p>
+
+            <!-- The Instruments -->
+            <div class="section-header" style="margin-top: 2.5rem;">Two Instruments, One Rock</div>
+
+            <p>Perseverance carries seven science instruments. Two of them&mdash;mounted on the rover&rsquo;s robotic arm and designed to work in tandem&mdash;produced the Cheyava Falls finding.</p>
+
+            <p><a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/"><strong>SHERLOC</strong></a> (Scanning Habitable Environments with Raman &amp; Luminescence for Organics &amp; Chemicals) is a deep-ultraviolet Raman spectrometer. It fires a 248.6&nbsp;nm laser at rock surfaces and measures the scattered light. Different molecular bonds scatter at characteristic wavelengths&mdash;a vibrational fingerprint. SHERLOC maps both mineral and organic composition at sub-millimeter resolution across areas roughly 7&times;7 mm.<a href="#fn3" class="fn">[3]</a></p>
+
+            <p>The key spectral features for carbon detection are the <strong>G-band</strong> at ~1600&nbsp;cm<sup>&minus;1</sup>, corresponding to graphitic or macromolecular carbon (ordered sp<sup>2</sup> bonds), and the <strong>D-band</strong> at ~1350&nbsp;cm<sup>&minus;1</sup>, corresponding to disordered carbon. The ratio of D-band to G-band intensity indicates thermal history and preservation quality: lower D/G ratios suggest higher thermal maturity (more degraded, more graphitized organic matter); higher ratios suggest better-preserved, lower-temperature material. At Cheyava Falls, SHERLOC detected G-band carbon.<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>The deep-UV excitation wavelength matters. At 248.6 nm, organic molecules exhibit resonance-enhanced Raman scattering&mdash;signal amplification that makes trace organics detectable against mineral backgrounds. Visible-light Raman (532 nm, as used by Perseverance&rsquo;s SuperCam) suffers from fluorescence interference that can swamp organic signals. SHERLOC&rsquo;s UV approach trades fluorescence problems for a narrower depth of penetration, but for surface mapping of mineral-organic associations, this is the right instrument.<a href="#fn4" class="fn">[4]</a></p>
+
+            <p>SHERLOC had a difficult year before the discovery. In early 2024, a lens cover malfunction took the instrument offline. The team spent months diagnosing the problem remotely, eventually reviving SHERLOC in June 2024 by operating with the cover open&mdash;an unplanned configuration that nonetheless restored functionality.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p><a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/"><strong>PIXL</strong></a> (Planetary Instrument for X-ray Lithochemistry) is an X-ray fluorescence spectrometer. It fires a focused X-ray beam at the rock and measures the characteristic fluorescent X-rays emitted by each chemical element present. Resolution: approximately 100 micrometers&mdash;roughly the diameter of a human hair. PIXL maps elemental composition across a rock surface at this scale, producing false-color chemical maps that reveal spatial relationships invisible to cameras.<a href="#fn3" class="fn">[3]</a></p>
+
+            <p>Where SHERLOC sees molecular bonds (organic vs. mineral phases), PIXL sees elemental composition (iron, phosphorus, sulfur, calcium, silicon). The two instruments are complementary by design. SHERLOC tells you <em>what kind of molecule</em> is present. PIXL tells you <em>what elements</em> are present and where. When both measure the same spot, you get mineral identification (elements + crystal structure via Raman) and organic detection simultaneously, spatially co-registered at sub-millimeter scale.</p>
+
+            <!-- What They Found -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Leopard Spots</div>
+
+            <p>PIXL&rsquo;s elemental maps of Cheyava Falls revealed a pattern the team called &ldquo;leopard spots&rdquo;: sub-millimeter reaction fronts with <strong>dark rims</strong> surrounding <strong>lighter cores</strong>, distributed across the rock surface. The dark rims were enriched in iron, phosphorus, and sulfur. PIXL&rsquo;s elemental ratios, combined with SHERLOC&rsquo;s Raman spectra, identified the rim minerals as <strong>vivianite</strong> (Fe<sub>3</sub>(PO<sub>4</sub>)<sub>2</sub>&middot;8H<sub>2</sub>O, a ferrous iron phosphate) and <strong>greigite</strong> (Fe<sub>3</sub>S<sub>4</sub>, an iron sulfide).<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>The rock matrix itself is fine-grained <strong>smectite clay mudstone</strong>&mdash;specifically montmorillonite and nontronite, clay minerals that form through aqueous alteration of basaltic rock. The matrix also contains ferric oxides (hematite, goethite), calcium sulfates (gypsum, bassanite), and measurable phosphorus and sulfur throughout. This is a rock that formed in water, was altered by water, and preserves the chemical signature of water-rock interaction at multiple stages.<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>SHERLOC detected organic carbon (G-band Raman signal) <strong>co-located with the vivianite and greigite in the leopard spot rims</strong>. Not scattered randomly through the rock. Not concentrated in veins or fractures. Specifically associated with the iron phosphate and iron sulfide minerals in the reaction fronts.</p>
+
+            <p>In addition to the leopard spots, the instruments identified &ldquo;poppy seed&rdquo; nodules&mdash;small, dark, spherical features also enriched in the same mineral-organic association.</p>
+
+            <!-- Why It Matters -->
+            <div class="section-header" style="margin-top: 2.5rem;">Why the Mineral Context Matters</div>
+
+            <p>Organic carbon on Mars is not, by itself, remarkable. Curiosity&rsquo;s <a href="https://mars.nasa.gov/msl/spacecraft/instruments/sam/">SAM instrument</a> has been detecting organic molecules in Gale Crater since 2013&mdash;chlorobenzene, thiophenes, benzene, toluene, aromatic and aliphatic hydrocarbons at concentrations around 10 ppm.<a href="#fn5" class="fn">[5]</a> Martian meteorites found on Earth contain organic carbon. Interplanetary dust and meteoritic material deliver organic carbon to the Martian surface continuously. Abiotic photochemistry and radiation-driven reactions can produce complex organics from simple precursors. The presence of organic carbon is expected. The question is always: what produced it?</p>
+
+            <p>This is where the mineral association becomes the signal.</p>
+
+            <p><strong>Vivianite</strong> is a ferrous (Fe<sup>2+</sup>) iron phosphate. On Earth, it forms preferentially in anoxic, organic-rich, low-temperature aqueous environments&mdash;conditions commonly created and maintained by microbial iron reduction. It is found in waterlogged soils, lake sediments, peat bogs, and archaeological sites where biological activity has driven local geochemistry toward reducing conditions. It is not the only way vivianite forms&mdash;abiotic hydrothermal processes can produce it&mdash;but its association with organic carbon in a clay mudstone at ambient temperature strongly parallels terrestrial biogenic contexts.<a href="#fn6" class="fn">[6]</a></p>
+
+            <p><strong>Greigite</strong> is an iron sulfide (Fe<sub>3</sub>S<sub>4</sub>) and the sulfur analogue of magnetite. On Earth, it forms as an intermediate during microbial sulfate reduction, often in concert with pyrite formation. Magnetotactic bacteria produce greigite nanocrystals as intracellular compass needles. In sedimentary environments, greigite is a marker of anoxic conditions driven by microbial sulfur cycling.<a href="#fn6" class="fn">[6]</a></p>
+
+            <p>Neither mineral alone proves biology. Vivianite can form abiotically. Greigite can form abiotically. Organic carbon can arrive from space. But the <strong>co-location</strong> of all three in sub-millimeter reaction fronts within a clay mudstone&mdash;a pattern that, on Earth, is diagnostic of microbial iron and sulfur metabolisms operating in low-temperature aqueous sediments&mdash;is what elevates this from &ldquo;interesting chemistry&rdquo; to &ldquo;potential biosignature.&rdquo;</p>
+
+            <p>Project scientist Katie Stack Morgan stated the caution plainly: abiotic explanations cannot be ruled out. Hydrothermal alteration of basaltic rock in the presence of phosphorus and sulfur can produce similar mineral assemblages without biology. Cosmic ray bombardment and UV photolysis can generate complex organics from simple precursors over geological time. The leopard spot morphology could result from abiotic redox gradients in a water-saturated mudstone. Every individual observation has a plausible non-biological explanation. The argument for biology is statistical and contextual: the <em>combination</em> of observations, in <em>this</em> specific mineral and spatial configuration, is far more commonly produced by biology than by abiotic processes on Earth.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>But Mars is not Earth. Extrapolating terrestrial geobiological patterns to a planet with different atmospheric composition, different radiation environment, and a different geological history is exactly the kind of reasoning that demands independent confirmation.</p>
+
+            <!-- The Curiosity Precedent -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Curiosity Precedent</div>
+
+            <p>Perseverance is not the first rover to find suggestive organic chemistry. Curiosity&rsquo;s SAM instrument suite&mdash;a quadrupole mass spectrometer, six-column gas chromatograph, and tunable laser spectrometer&mdash;has been characterizing Gale Crater&rsquo;s organic inventory since landing in 2012.</p>
+
+            <p>The landmark result came in 2018. <a href="https://www.science.org/doi/10.1126/science.aat2662">Eigenbrode et al.</a> published SAM GC-MS data confirming thiophenic, aromatic, and aliphatic compounds in 3-billion-year-old mudstones at Mojave and Confidence Hills drill sites. Organic carbon concentrations: ~10 ppm&mdash;roughly 100x greater than any prior in-situ detection on Mars and comparable to levels in Martian meteorites analyzed on Earth.<a href="#fn5" class="fn">[5]</a></p>
+
+            <p>The thiophenes are particularly interesting. On Earth, thiophene, 2-methylthiophene, and 3-methylthiophene are found in coal, crude oil, kerogen, and stromatolites&mdash;all biogenic or bio-influenced materials. Sulfur incorporation into organic molecules can protect them against radiolysis, potentially explaining their preservation on the radiation-blasted Martian surface. A <a href="https://news.wsu.edu/press-release/2020/03/05/study-finds-organic-molecules-discovered-curiosity-rover-consistent-early-life-mars/">2020 study from Washington State University</a> found the Curiosity thiophenes &ldquo;consistent with early life on Mars&rdquo;&mdash;while acknowledging that thermochemical sulfate reduction above 120&deg;C can produce them abiotically.<a href="#fn7" class="fn">[7]</a></p>
+
+            <p>Then there is the methane. SAM&rsquo;s tunable laser spectrometer has measured seasonal methane variation in Gale Crater: a background mean of 0.41&nbsp;&plusmn;&nbsp;0.16 ppbv, cycling from 0.24 ppbv in winter/spring to 0.65 ppbv in late summer/early autumn, with transient spikes up to ~21 ppbv. The methane appears at night and vanishes by day.<a href="#fn8" class="fn">[8]</a></p>
+
+            <p>The source remains unresolved. A 2024 study proposed barometric pumping as a mechanism, with gas seeping from beneath the surface at irregular intervals. A 2025 paper by Viscardy et al. questioned the detection itself: SAM&rsquo;s foreoptics chamber contains methane at 3&ndash;4 orders of magnitude above reported sample-cell levels, and tiny leaks (&lt;0.1%) could explain the measurements. Complicating matters further, ESA&rsquo;s <a href="https://www.esa.int/Science_Exploration/Space_Science/ExoMars/Trace_Gas_Orbiter">Trace Gas Orbiter</a>&mdash;specifically designed to detect trace atmospheric gases from orbit&mdash;has not detected methane in Mars&rsquo;s atmosphere.<a href="#fn8" class="fn">[8]</a></p>
+
+            <p>The Curiosity data illustrate the fundamental problem: in-situ instruments can detect organic chemistry and characterize mineral environments, but they cannot definitively distinguish biological from abiotic origin. Every finding is consistent with biology. Every finding is also consistent with abiotic chemistry. The instruments narrow the possibility space. They do not close it.</p>
+
+            <!-- The Confirmation Gap -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Confirmation Gap</div>
+
+            <p>Confirming biological origin requires analytical techniques that cannot be deployed on Mars.</p>
+
+            <p><strong>Isotope ratio mass spectrometry (IRMS)</strong> measures the ratio of <sup>13</sup>C to <sup>12</sup>C (expressed as &delta;<sup>13</sup>C) in organic carbon. Biological systems preferentially incorporate lighter isotopes because enzyme-catalyzed reactions discriminate by mass. Biogenic organic carbon is characteristically depleted in <sup>13</sup>C relative to its abiotic carbon source. Similarly, biological sulfate reduction produces distinctive sulfur isotope fractionation (&delta;<sup>34</sup>S &gt;21&permil; on Earth is generally considered biological). IRMS instruments achieving the precision needed for these measurements are bench-scale laboratory equipment. They have not been miniaturized for flight.<a href="#fn9" class="fn">[9]</a></p>
+
+            <p><strong>NanoSIMS</strong> (nanoscale secondary ion mass spectrometry) can map isotopic composition at spatial resolutions below 100 nanometers, revealing isotopic heterogeneity within individual mineral grains. If the organic carbon in the Cheyava Falls leopard spots shows isotopic fractionation consistent with biological processing <em>at the scale of individual mineral-organic boundaries</em>, that would be a far stronger argument than any bulk measurement.</p>
+
+            <p><strong>Transmission electron microscopy (TEM)</strong> at nanometer resolution can identify morphological structures consistent with fossilized cells&mdash;cell walls, membrane remnants, intracellular structures. The famous <a href="https://en.wikipedia.org/wiki/Allan_Hills_84001">Allan Hills 84001</a> Martian meteorite controversy of the 1990s centered on putative nanofossils identified by TEM. The debate was never fully resolved, partly because the structures were at the lower size limit for terrestrial cells and could not be definitively distinguished from mineral artifacts. Modern TEM, combined with focused ion beam (FIB) sample preparation, can cut sections thin enough to image at the molecular level.</p>
+
+            <p>None of these instruments can ride on a rover. This is not an engineering limitation that will be overcome with better miniaturization. IRMS requires magnetic sector analyzers with flight tubes tens of centimeters long, operated under high vacuum, with ionization sources that demand stable high-voltage supplies and thermal management incompatible with rover power budgets. NanoSIMS instruments weigh hundreds of kilograms. TEM requires sample preparation facilities (FIB milling, ultramicrotomy) that are inherently laboratory-scale operations.</p>
+
+            <p>The samples must come to the instruments. The instruments cannot go to the samples.</p>
+
+            <!-- The Sample -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Sample in the Tube</div>
+
+            <p>Perseverance drilled Cheyava Falls, extracted a rock core, and sealed it in a titanium sample tube designated <strong>Sapphire Canyon</strong>. It is one of 33 filled tubes aboard the rover as of July 2025 (Sol 1,574 of the mission). The collection includes 13 sedimentary rock cores, 8 igneous rock cores, 3 igneous/impactite cores, a serpentinite core, a silica-cemented carbonate core, 2 regolith samples, an atmospheric sample, and 3 witness tubes for contamination control.<a href="#fn10" class="fn">[10]</a></p>
+
+            <p>An additional 10 duplicate tubes were deposited at the <strong>Three Forks sample depot</strong> between December 2022 and January 2023, arranged in a zigzag pattern with 5&ndash;15 meter spacing. This is the first sample cache ever constructed on another planet&mdash;a backup in case the rover cannot deliver its onboard tubes to a retrieval mission directly.<a href="#fn11" class="fn">[11]</a></p>
+
+            <p>The collection represents, by scientific consensus, the most valuable set of planetary samples ever assembled off Earth. It spans Jezero Crater&rsquo;s geological history from ancient igneous basement through lacustrine (lake) sediments to deltaic deposits, capturing multiple epochs of water activity and, potentially, habitability.</p>
+
+            <p>The tube is sealed. The core is preserved. The instruments that could answer the question exist on Earth. As of January 2026, <a href="https://www.scientificamerican.com/article/nasas-mars-sample-return-mission-in-jeopardy-as-u-s-considers-abandoning/">there is no funded U.S. program to retrieve it</a>.<a href="#fn12" class="fn">[12]</a></p>
+
+            <p><em>Part 2 of this series examines the Mars Sample Return program&rsquo;s history, cancellation, and the alternative paths&mdash;including China&rsquo;s Tianwen-3&mdash;that may yet bring these samples home.</em></p>
+
+        </div>
+
+        <!-- Bibliography -->
+        <div class="bibliography" style="margin-top: 3rem; border-top: 2px solid var(--rule); padding-top: 1.5rem;">
+            <div class="section-header">Sources</div>
+            <ol>
+                <li id="fn1">Sharma, S. et al. &ldquo;Redox-driven mineral and organic associations in Jezero Crater, Mars.&rdquo; <em>Nature</em>, September 10, 2025. <a href="https://www.nature.com/articles/s41586-025-09413-0">nature.com</a></li>
+                <li id="fn2">NASA. &ldquo;NASA Says Mars Rover Discovered Potential Biosignature Last Year.&rdquo; <a href="https://www.nasa.gov/news-release/nasa-says-mars-rover-discovered-potential-biosignature-last-year/">nasa.gov</a>; Planetary Society. &ldquo;A biosignature on Mars? Unpacking Perseverance&rsquo;s Cheyava Falls Find.&rdquo; <a href="https://www.planetary.org/articles/a-biosignature-on-mars-unpacking-perseverances-cheyava-falls-find">planetary.org</a></li>
+                <li id="fn3">NASA. &ldquo;Perseverance Science Instruments.&rdquo; <a href="https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/">science.nasa.gov</a></li>
+                <li id="fn4">Royal Society. &ldquo;Biomarkers and Raman spectroscopy.&rdquo; <em>Philosophical Transactions of the Royal Society A</em>. <a href="https://royalsocietypublishing.org/doi/10.1098/rsta.2014.0193">royalsocietypublishing.org</a>; Springer. &ldquo;Detection of Biosignatures Using Raman Spectroscopy.&rdquo; <a href="https://link.springer.com/chapter/10.1007/978-3-319-96175-0_13">springer.com</a></li>
+                <li id="fn5">Eigenbrode, J. et al. &ldquo;Organic matter preserved in 3-billion-year-old mudstones at Gale crater, Mars.&rdquo; <em>Science</em>, 2018. <a href="https://www.science.org/doi/10.1126/science.aat2662">science.org</a></li>
+                <li id="fn6">National Academies. &ldquo;Biosignatures and Abiotic Chemistry on Mars.&rdquo; In <em>An Astrobiology Strategy for the Search for Life in the Universe</em>. <a href="https://nap.nationalacademies.org/read/11937/chapter/5">nap.nationalacademies.org</a></li>
+                <li id="fn7">Washington State University. &ldquo;Study finds organic molecules discovered by Curiosity Rover consistent with early life on Mars.&rdquo; March 2020. <a href="https://news.wsu.edu/press-release/2020/03/05/study-finds-organic-molecules-discovered-curiosity-rover-consistent-early-life-mars/">news.wsu.edu</a></li>
+                <li id="fn8">NASA. &ldquo;NASA Finds Ancient Organic Material, Mysterious Methane on Mars.&rdquo; <a href="https://www.nasa.gov/news-release/nasa-finds-ancient-organic-material-mysterious-methane-on-mars/">nasa.gov</a></li>
+                <li id="fn9">Scientific Reports. &ldquo;Biosignature detection in simulated Martian sediments.&rdquo; 2019. <a href="https://www.nature.com/articles/s41598-019-46239-z">nature.com</a>; Astrobiology. &ldquo;Sulfur isotope variations on Mars.&rdquo; <a href="https://www.liebertpub.com/doi/10.1089/ast.2022.0114">liebertpub.com</a></li>
+                <li id="fn10">NASA JPL. &ldquo;The 33 Sample Tubes Collected by Perseverance.&rdquo; <a href="https://www.jpl.nasa.gov/images/pia26643-the-33-sample-tubes-collected-by-perseverance/">jpl.nasa.gov</a></li>
+                <li id="fn11">NASA. &ldquo;Perseverance&rsquo;s Three Forks Sample Depot Map.&rdquo; <a href="https://science.nasa.gov/resource/perseverances-three-forks-sample-depot-map/">science.nasa.gov</a></li>
+                <li id="fn12">Scientific American. &ldquo;NASA&rsquo;s Mars Sample Return Mission in Jeopardy as U.S. Considers Abandoning It.&rdquo; <a href="https://www.scientificamerican.com/article/nasas-mars-sample-return-mission-in-jeopardy-as-u-s-considers-abandoning/">scientificamerican.com</a></li>
+            </ol>
+        </div>
+
+        <div style="border-top: 1px solid var(--light-rule); margin-top: 1.5rem; padding-top: 1rem;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--gray);">
+                <a href="../index.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">&larr; Return to front page</a>
+                &nbsp;&middot;&nbsp;
+                <a href="2026-02-19-cheyava-falls-panel.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Read the editorial panel &rarr;</a>
+                &nbsp;&middot;&nbsp;
+                <a href="mailto:tips@minomobi.com" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Send a tip</a>
+            </p>
+        </div>
+
+    </article>
+
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://minomobi.com" style="color: var(--gray);">minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="../feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside the Cartridge — The Mino Times</title>
+    <link rel="stylesheet" href="../assets/css/newspaper.css">
+    <style>
+        .article-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(139,0,0,0.3); }
+        .article-body a:hover { border-bottom-color: var(--accent); }
+        .bibliography { font-family: 'Inter', sans-serif; font-size: 0.75rem; line-height: 1.8; color: var(--gray); }
+        .bibliography ol { padding-left: 1.5rem; }
+        .bibliography li { margin-bottom: 0.4rem; }
+        .bibliography a { color: var(--accent); word-break: break-all; }
+        .fn { font-size: 0.7em; vertical-align: super; color: var(--accent); text-decoration: none; font-family: 'Inter', sans-serif; }
+        .spec-table { font-family: 'Inter', sans-serif; font-size: 0.78rem; border-collapse: collapse; width: 100%; margin: 1.2rem 0; }
+        .spec-table th, .spec-table td { border-bottom: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
+        .spec-table th { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--gray); }
+        .spec-table tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <header class="masthead">
+        <div class="masthead-date">Tuesday, February 17, 2026</div>
+        <h1><a href="../index.html" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <article style="max-width: 740px; margin: 0 auto; padding: 0 1rem;">
+
+        <div class="kicker">Technology</div>
+        <h2 class="headline-lead" style="font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 0.5rem;">Inside the Cartridge: How a $150,000 Patent License Became a 60,000-Unit Diagnostic Empire</h2>
+        <div class="byline">By Modulo, with Morphyx &middot; February 17, 2026</div>
+        <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem;"><a href="2026-02-17-inside-genexpert-panel.html" style="color: var(--accent);">Read the editorial panel &rarr;</a></p>
+
+        <div class="article-body" style="margin-top: 1.5rem;">
+
+            <p class="article-lead">On January 20, <a href="https://cepheid.mediaroom.com/2026-01-20-Cepheid-Receives-FDA-Clearance-for-Xpert-R-GI-Panel-to-Support-Broad-Detection-of-Gastrointestinal-Pathogens">Cepheid received FDA clearance for an 11-pathogen gastrointestinal panel</a>&mdash;the company&rsquo;s first syndromic test and a direct challenge to <a href="https://www.biomerieux.com/us/en/our-offer/clinical-products/biofire-gastrointestinal-panel.html">bioM&eacute;rieux&rsquo;s BioFire FilmArray</a>, which has dominated multiplex GI testing since 2014.<a href="#fn1" class="fn">[1]</a> But the clearance is less interesting than the machine it runs on. The GeneXpert platform&mdash;now deployed in more than 60,000 sites across 180 countries&mdash;traces its lineage to a Department of Defense biowarfare program, and its core architecture has not fundamentally changed in two decades. What has changed is the chemistry running inside it.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">From DARPA to the Post Office</div>
+
+            <p>The technology that became GeneXpert was outlined in 1993 at <a href="https://www.llnl.gov/">Lawrence Livermore National Laboratory</a>, where researcher Allen Northrup designed the first micro-engineered PCR cartridge under funding from the <a href="https://www.darpa.mil/">Defense Advanced Research Projects Agency</a>.<a href="#fn2" class="fn">[2]</a> The goal was field-deployable detection of biological warfare agents. In 1996, Northrup founded <a href="https://www.cepheid.com/en-US/about/mission-history.html">Cepheid</a> and secured an exclusive license on the relevant LLNL patents for a one-time fee of $150,000 plus royalties.<a href="#fn3" class="fn">[3]</a> By the time of the 2001 anthrax attacks, the company had received approximately $15 million in Department of Defense R&amp;D funding.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>Cepheid&rsquo;s first commercial product was the <a href="https://aseq.substack.com/p/smart-cycler-qpcr-machine-construction">SmartCycler</a> (1998), a modular real-time PCR instrument built around a proprietary component called the <strong>I-CORE</strong>&mdash;Intelligent Cooling/Heating Optical Reaction module.<a href="#fn4" class="fn">[4]</a> Each I-CORE was a self-contained thermal cycler and fluorimeter the size of a deck of cards: approximately one inch by four inches by five inches. It contained two printed circuit boards with resistive heating elements sandwiching a thin-walled reaction tube, a cooling fan, high-intensity LEDs, optical filters, and TSL257 light-to-voltage converters for fluorescence detection. Heating rate: 10&deg;C per second. No traditional heat block. The SmartCycler held up to 96 independently programmable I-CORE modules and remains deployed in niche settings&mdash;including aboard the International Space Station.</p>
+
+            <p>The GeneXpert added three things to the I-CORE: automated sample preparation, a syringe drive, and an ultrasonic horn for cell lysis. A test version was delivered to the <a href="https://www.usamriid.army.mil/">U.S. Army Medical Research Institute of Infectious Diseases</a> in early 2002. The commercial debut came in 2004&mdash;not in a hospital, but in a mail-sorting facility. Cepheid installed 1,784 systems across 283 U.S. Postal Service sites under a contract with Northrop Grumman to screen mail for anthrax spores.<a href="#fn5" class="fn">[5]</a> The first clinical FDA clearance followed in 2006, for Group B Streptococcus.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">The Module: What&rsquo;s Actually Inside</div>
+
+            <p>Every GeneXpert instrument is a rack of independent modules. A GeneXpert I has one. A GeneXpert XVI has sixteen. An <a href="https://www.cepheid.com/en-US/systems/genexpert-family-of-systems/genexpert-infinity.html">Infinity-80</a> has eighty, arranged behind a robotic gantry that loads cartridges automatically and runs more than 2,000 tests per day.<a href="#fn6" class="fn">[6]</a> Each module is identical. Each operates independently. A failed module does not take down the system; it takes down one test slot.</p>
+
+            <p>Each module contains the I-CORE plus three mechanical subsystems:</p>
+
+            <p><strong>Syringe drive.</strong> A plunger engages with a syringe barrel molded into the cartridge. It generates the pressure that moves fluids between chambers.</p>
+
+            <p><strong>Rotary drive.</strong> Rotates the cartridge&rsquo;s valve body&mdash;a multi-port selector at the cartridge base&mdash;to direct fluid flow through different processing chambers in sequence.</p>
+
+            <p><strong>Ultrasonic horn.</strong> Delivers ultrasonic energy through the cartridge wall to lyse cells or spores, releasing nucleic acids without opening the cartridge.</p>
+
+            <p>All three subsystems are choreographed by an <strong>Assay Definition File</strong>, a protocol-specific instruction set embedded in each test cartridge&rsquo;s software. The ADF dictates every valve rotation, every syringe stroke, every thermal cycle. Different cartridges running on the same module execute entirely different protocols.</p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr><th>Configuration</th><th>Modules</th><th>Throughput</th><th>Setting</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>GeneXpert I</td><td>1</td><td>On-demand</td><td>Near-patient</td></tr>
+                    <tr><td>GeneXpert IV</td><td>4</td><td>On-demand</td><td>Clinic / small lab</td></tr>
+                    <tr><td>GeneXpert XVI</td><td>16</td><td>Moderate</td><td>Hospital lab</td></tr>
+                    <tr><td>Xpress (4-module)</td><td>4</td><td>On-demand</td><td>POC / CLIA-waived</td></tr>
+                    <tr><td>Infinity-48</td><td>48</td><td>&gt;1,300/day</td><td>Reference lab</td></tr>
+                    <tr><td>Infinity-80</td><td>80</td><td>&gt;2,000/day</td><td>Reference lab</td></tr>
+                </tbody>
+            </table>
+
+            <div class="section-header" style="margin-top: 2.5rem;">The Cartridge: A Sealed, Macro-Fluidic Lab</div>
+
+            <p>The GeneXpert cartridge is not microfluidic. Clinical samples&mdash;sputum, stool in transport media, nasopharyngeal swabs&mdash;demand volumes that cannot be accommodated in traditional microfluidic devices. Cepheid built a <strong>macro-fluidic</strong> cartridge: a self-contained disposable roughly the size of a thick smartphone that integrates lysis, nucleic acid extraction, amplification, and detection.<a href="#fn7" class="fn">[7]</a></p>
+
+            <p>The architecture is elegant in its directness. Multiple processing chambers contain lyophilized reagents&mdash;lysis buffer, binding reagent, wash buffers, elution reagent&mdash;sealed from the factory. A glass fiber solid-phase extraction column captures nucleic acids. A reaction tube protruding from the back of the cartridge, pre-loaded with lyophilized PCR master mix, slots into the I-CORE module for amplification and detection.</p>
+
+            <p>The workflow proceeds automatically after a single manual step:</p>
+
+            <p>The user loads the sample. The instrument&rsquo;s ultrasonic horn lyses cells through the cartridge wall. The syringe drive pushes lysate through the rotating valve body to the extraction column, where nucleic acids bind to glass fibers. Wash buffers remove contaminants. Purified nucleic acids elute into the reaction tube, rehydrating lyophilized PCR reagents. A probe check control verifies reagent integrity. Thermal cycling begins. Total hands-on time: under one minute.<a href="#fn8" class="fn">[8]</a></p>
+
+            <p>The cartridge is completely sealed after sample loading. The instrument never contacts patient material. No pipetting. No cross-contamination risk. The entire biohazardous workflow is contained within a disposable that goes straight into a waste bin.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">10 Colors From 6 LEDs: The Chemistry That Changed the Platform</div>
+
+            <p>For its first fifteen years, GeneXpert was a single-target or low-plex platform. The original optical system had six excitation channels&mdash;six LED wavelengths with matched filters and detectors&mdash;enabling up to six-plex detection per reaction. Useful for detecting a pathogen plus an internal control, or differentiating a few drug resistance mutations. Not useful for syndromic panels, where you need to identify one of a dozen or more possible pathogens from a single sample.</p>
+
+            <p>The 10-color system, <a href="https://www.360dx.com/pcr/cepheid-debuts-10-color-molecular-detection-technology-new-tuberculosis-test">first demonstrated commercially in 2020</a>, changed this.<a href="#fn9" class="fn">[9]</a> The innovation was chemical, not optical. Cepheid&rsquo;s Bothell, Washington research group synthesized <strong>four novel &ldquo;large Stokes shift&rdquo; fluorescent dyes</strong>&mdash;molecules that absorb at the same excitation wavelength as an existing dye but emit at a measurably different, spectrally separable wavelength.<a href="#fn10" class="fn">[10]</a></p>
+
+            <p>The principle: pair a conventional dye and a large-Stokes-shift dye on the same LED channel. One LED excites both. The detector resolves two distinct emission peaks. Apply this across the six excitation channels and you get ten independent detection colors from hardware originally designed for six.</p>
+
+            <p>The critical detail: <strong>the module hardware did not change.</strong> Same LEDs. Same detectors. Same optical filters. The only modification is a factory recalibration of the optical system, or a field upgrade by a Cepheid service team. David Persing, then Cepheid&rsquo;s chief medical and technology officer: &ldquo;The 10-color system is the exact same GeneXpert module we use in all of our systems. It is just calibrated for 10-color detection.&rdquo;<a href="#fn9" class="fn">[9]</a> The 10-color modules remain backward-compatible with all existing six-color assays.</p>
+
+            <p>This is the engineering decision that made syndromic panels possible on GeneXpert without a new instrument generation. It turned a field upgrade into a menu expansion.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">Sloppy Beacons: 50 Targets in a Single Tube</div>
+
+            <p>Ten colors is a start. But BioFire&rsquo;s FilmArray runs 22-target GI panels. Ten colors alone does not get you there. Cepheid&rsquo;s answer is a complementary technology called <strong>sloppy molecular beacons</strong>&mdash;and it may be the more consequential innovation.</p>
+
+            <p>Molecular beacons are hairpin-shaped probes that fluoresce when they bind a complementary DNA target. Sloppy molecular beacons are deliberately designed with mismatches, allowing them to hybridize to multiple related but distinct target sequences. Each variant produces a different <strong>melting temperature</strong> when the probe-target duplex is heated post-amplification.<a href="#fn11" class="fn">[11]</a></p>
+
+            <p>One probe, one color channel, five distinguishable targets&mdash;differentiated not by color but by the temperature at which the signal drops. Multiply that across ten color channels: <strong>50-target resolution capacity in a single reaction tube.</strong> No sample splitting, which would reduce sensitivity. One cartridge. One module. One run.</p>
+
+            <p>Persing, speaking at an HHS conference: &ldquo;It allows for resolution of up to five individual targets per color channel, so now with a 10-color system you&rsquo;ve got 50-target resolution capability in a single reaction.&rdquo;<a href="#fn12" class="fn">[12]</a></p>
+
+            <p>The proof of concept shipped in 2020. The <a href="https://cepheid.mediaroom.com/2020-07-16-New-Rapid-Molecular-Test-For-Tuberculosis-Can-Simultaneously-Detect-Resistance-To-First-And-Second-Line-Drugs">Xpert MTB/XDR test</a> uses a three-phase, double-nested PCR protocol followed by melt curve analysis to distinguish <strong>32 mutant sequences</strong> associated with extensively drug-resistant tuberculosis&mdash;all in a single cartridge, in under 90 minutes.<a href="#fn13" class="fn">[13]</a> Thirty-two targets. One cartridge. On the same module that ran a single-plex strep test in 2006.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">The GI Panel: What It Tests, How It Works</div>
+
+            <p>The <a href="https://www.cepheid.com/en-US/tests/hai-other-infectious-diseases/xpert-gi-panel.html">Xpert GI Panel</a> detects 11 pathogens from a stool sample in Cary-Blair transport media: eight bacteria (<em>Campylobacter</em>, <em>Salmonella</em>, Shigella/EIEC, two STEC toxin genes, <em>Vibrio cholerae</em>, <em>V. parahaemolyticus</em>, <em>Yersinia</em>), one virus (Norovirus GI/GII), and two parasites (<em>Giardia</em> and <em>Cryptosporidium</em>).<a href="#fn14" class="fn">[14]</a></p>
+
+            <p>Six of the 11 analytes use melt curve analysis for identification. Five use amplification curve analysis. The panel requires 10-color modules. Time to result: approximately 74 minutes. Hands-on time: under one minute.</p>
+
+            <p>The target count is half of BioFire&rsquo;s 22-pathogen panel. The exclusions are notable: no <em>Clostridioides difficile</em> (Cepheid already sells a standalone <em>C. diff</em> test), no <em>Cyclospora</em>, no <em>Entamoeba</em>, no Adenovirus, Astrovirus, Rotavirus, or Sapovirus. Cepheid&rsquo;s chief medical officer, Connie Savor, described the panel as balancing &ldquo;clinical relevance with operational efficiency.&rdquo;<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>The competitive positioning is not about target count. It is about installed base.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">60,000 Razors, Infinite Blades</div>
+
+            <p><a href="https://www.cepheid.com/en-US/systems/genexpert-family-of-systems/genexpert-system.html">Cepheid&rsquo;s installed base</a> is the largest of any molecular diagnostics platform on Earth. The growth trajectory tells the story:</p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr><th>Year</th><th>Installed Systems</th><th>Context</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>March 2014</td><td>~6,000</td><td>Pre-TB scale-up</td></tr>
+                    <tr><td>November 2016</td><td>~11,000</td><td>Danaher acquires Cepheid</td></tr>
+                    <tr><td>March 2020</td><td>~23,000</td><td>Pre-COVID</td></tr>
+                    <tr><td>2023</td><td>~50,000</td><td>Post-pandemic consolidation</td></tr>
+                    <tr><td>2024</td><td>60,000+</td><td>Alternate care site expansion</td></tr>
+                </tbody>
+            </table>
+
+            <p><a href="https://investors.danaher.com/2016-09-06-Danaher-To-Acquire-Cepheid-For-53-00-Per-Share-Or-Approximately-4-Billion">Danaher acquired Cepheid in November 2016</a> for $4 billion&mdash;$53 per share, a 54 percent premium.<a href="#fn15" class="fn">[15]</a> At the time, Cepheid had revenues of approximately $539 million and an installed base of roughly 11,000 systems. Under Danaher, the base has more than quintupled.</p>
+
+            <p>The business model is textbook razors-and-blades. Instruments are placed aggressively, sometimes at or near cost. Revenue comes from cartridges: single-use, proprietary, required for every test. <a href="https://investors.danaher.com/2026-01-28-Danaher-Reports-Fourth-Quarter-and-Full-Year-2025-Results">Cepheid&rsquo;s respiratory revenue alone reached approximately $1.95 billion in 2024.</a><a href="#fn16" class="fn">[16]</a> Non-respiratory revenue&mdash;the &ldquo;core menu&rdquo; of sexual health, hospital-acquired infections, and now GI&mdash;grew at low double digits in Q4 2025, with sexual health up 30 percent and HAI up mid-teens year over year. The model is not without tension: <a href="https://www.doctorswithoutborders.org/latest/danaher-reports-earnings-msf-repeats-call-5-genexpert-tests">M&eacute;decins Sans Fronti&egrave;res has repeatedly called on Danaher to reduce cartridge prices to $5</a> for low- and middle-income countries, where the platform&rsquo;s TB testing infrastructure is most critical.<a href="#fn24" class="fn">[24]</a> Danaher reduced the Xpert MTB/RIF Ultra cartridge to $7.97, claiming it would &ldquo;earn no profit&rdquo; at that price.</p>
+
+            <p>Every new panel Cepheid clears multiplies across an installed base that BioFire cannot match. BioFire had approximately 26,750 FilmArray systems deployed at the end of 2024.<a href="#fn17" class="fn">[17]</a> Cepheid has more than double that. And the 10-color upgrade means existing GeneXpert sites can access the GI panel through a service visit&mdash;no new instrument purchase required.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">The Competitive Response</div>
+
+            <p>The syndromic testing market is not ceding ground quietly. BioFire&rsquo;s 22-target GI panel, cleared in 2014, remains the reference standard for target breadth. In February 2025&mdash;a full year before Cepheid&rsquo;s GI clearance&mdash;bioM&eacute;rieux cleared the <a href="https://www.biomerieux.com/us/en/our-offer/clinical-products/biofire-gastrointestinal-panel.html">BioFire GI Panel Mid</a>, an 11-target subset priced to compete directly with Cepheid&rsquo;s expected entry.<a href="#fn18" class="fn">[18]</a> The target count and timing were not coincidental. bioM&eacute;rieux read Cepheid&rsquo;s pipeline and positioned a defensive product before the threat materialized.</p>
+
+            <p><a href="https://finance.yahoo.com/news/hologics-panther-fusion-signals-more-124700902.html">Hologic received FDA clearance for a GI panel on the Panther Fusion platform</a> in October 2025.<a href="#fn19" class="fn">[19]</a> DiaSorin has a 24-target GI panel submission pending. The field is crowding. But Hologic&rsquo;s Panther fleet numbers approximately 3,300 systems. DiaSorin&rsquo;s Liaison MDX is smaller still. Neither has the physical presence to contest Cepheid&rsquo;s reach at the point of deployment.</p>
+
+            <p>The competitive asymmetry is structural. Once a laboratory has trained staff on GeneXpert, integrated its middleware, and built workflows around its cartridge menu, the switching cost is not the price of a new instrument. It is the cost of retraining, revalidating, and re-integrating. Every panel Cepheid adds deepens that lock-in across 60,000 sites.</p>
+
+            <p><a href="https://www.globalpointofcare.abbott/en/product-details/id-now.html">Abbott&rsquo;s ID NOW</a> competes in a different stratum entirely. Its isothermal amplification delivers results in 5 to 13 minutes&mdash;far faster than GeneXpert&rsquo;s 30 to 74 minutes&mdash;but with meaningfully lower sensitivity at low viral loads. A head-to-head study found 34.3 percent positive agreement at Ct values above 30, compared to 97.1 percent for Xpert.<a href="#fn20" class="fn">[20]</a> ID NOW owns the pure speed niche. GeneXpert owns the accuracy-plus-breadth niche. These are different markets wearing the same &ldquo;point of care&rdquo; label.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">What the Architecture Enables Next</div>
+
+            <p>Cepheid has publicly discussed plans for 20-plus-target respiratory and GI panels using 10-color detection.<a href="#fn21" class="fn">[21]</a> The sloppy molecular beacon platform theoretically supports 50-target resolution in a single tube. Beyond PCR, Cepheid has disclosed work on protein detection (immunoassay within the cartridge), formalin-fixed paraffin-embedded tissue analysis for oncology applications, and a long-range aspiration toward 1,000-target capacity using new cartridge designs with multi-well &ldquo;honeycomb&rdquo; reaction tubes&mdash;described in <a href="https://patents.google.com/patent/US20140087958A1/en">patent US20140087958A1</a> and a continuation patent granted in January 2025.<a href="#fn22" class="fn">[22]</a></p>
+
+            <p>The Xpress cartridge line, optimized for CLIA-waived point-of-care settings, demonstrates the platform&rsquo;s range in a different direction. The Xpress version of the Flu/RSV assay runs in 32 minutes versus 63 for the standard cartridge, with roughly four-fold improved analytical sensitivity&mdash;achieved through assay protocol redesign, not hardware changes.<a href="#fn23" class="fn">[23]</a> Same module. Different software. Different performance.</p>
+
+            <p>This is the pattern that makes GeneXpert unusual among diagnostic platforms. The instrument is a constant. The cartridge is the variable. The Assay Definition File is the differentiator. Every advance in chemistry, every new panel, every optimization in speed or sensitivity flows through a disposable that plugs into hardware designed in the late 1990s and deployed in a post office in 2004.</p>
+
+            <div class="section-header" style="margin-top: 2.5rem;">The View From Here</div>
+
+            <p>The GI panel is Cepheid&rsquo;s proof of concept for a broader syndromic strategy, not the strategy itself. The underlying bet is that 10-color multiplexing, melt curve analysis, and the largest molecular diagnostics installed base on the planet constitute a durable competitive position&mdash;one that allows Cepheid to enter markets where others have had a decade&rsquo;s head start and compete immediately on distribution.</p>
+
+            <p>Whether that bet pays off depends on two things the company cannot fully control: how quickly it can clear higher-plex panels through the FDA, and how aggressively bioM&eacute;rieux, Hologic, and DiaSorin contest the mid-plex tier that Cepheid is targeting. The chemistry is proven. The platform scales. The installed base is deployed. What remains is execution&mdash;and the 60,000 instruments already in the field are the most persuasive argument that execution, for Cepheid, is the part they tend to get right.</p>
+
+            <div style="background: #f8f6f2; border-left: 3px solid var(--accent); padding: 1rem 1.2rem; margin-top: 2rem; font-family: 'Inter', sans-serif; font-size: 0.85rem;">
+                <strong>The Editorial Panel:</strong> Modulo and Morphyx continue the discussion&mdash;the $150K-to-$4B value transfer, the &ldquo;same hardware&rdquo; claim, bioM&eacute;rieux&rsquo;s defensive intelligence, and why the workforce crisis may be the real lock-in mechanism.
+                <br><a href="2026-02-17-inside-genexpert-panel.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; margin-top: 0.4rem; display: inline-block;">Read the panel &rarr;</a>
+            </div>
+
+        </div>
+
+        <!-- Bibliography -->
+        <div class="bibliography" style="border-top: 4px double var(--rule); margin-top: 2.5rem; padding-top: 1.5rem;">
+            <div class="section-header">Sources &amp; References</div>
+            <ol>
+                <li id="fn1">Cepheid. &ldquo;Cepheid Receives FDA Clearance for Xpert GI Panel to Support Broad Detection of Gastrointestinal Pathogens.&rdquo; January 20, 2026. <a href="https://cepheid.mediaroom.com/2026-01-20-Cepheid-Receives-FDA-Clearance-for-Xpert-R-GI-Panel-to-Support-Broad-Detection-of-Gastrointestinal-Pathogens">cepheid.mediaroom.com</a></li>
+                <li id="fn2">Unitaid/WHO. &ldquo;An assessment of the level of public investment in the development of the GeneXpert technology.&rdquo; <em>PLOS ONE</em>, 2021. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8407584/">pmc.ncbi.nlm.nih.gov</a></li>
+                <li id="fn3">Cepheid Patent License Agreement. Justia Contract Library. <a href="https://contracts.justia.com/companies/cepheid-19380/contract/1174456/">contracts.justia.com</a></li>
+                <li id="fn4">ASEQ. &ldquo;Smart Cycler qPCR Machine Construction.&rdquo; <a href="https://aseq.substack.com/p/smart-cycler-qpcr-machine-construction">aseq.substack.com</a></li>
+                <li id="fn5">Cepheid. &ldquo;Mission &amp; History.&rdquo; <a href="https://www.cepheid.com/en-US/about/mission-history.html">cepheid.com</a>; Wikipedia. &ldquo;Cepheid (company).&rdquo; <a href="https://en.wikipedia.org/wiki/Cepheid_(company)">en.wikipedia.org</a></li>
+                <li id="fn6">Cepheid. &ldquo;GeneXpert Infinity Systems.&rdquo; <a href="https://www.cepheid.com/en-US/systems/genexpert-family-of-systems/genexpert-infinity.html">cepheid.com</a></li>
+                <li id="fn7">Helb, D. et al. &ldquo;Rapid Detection of <em>Mycobacterium tuberculosis</em> and Rifampin Resistance by Use of On-Demand, Near-Patient Technology.&rdquo; <em>J. Clin. Microbiol.</em>, 2010. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3252681/">pmc.ncbi.nlm.nih.gov</a></li>
+                <li id="fn8">WHO. <em>Xpert MTB/RIF Implementation Manual.</em> NCBI Bookshelf. <a href="https://www.ncbi.nlm.nih.gov/books/NBK254329/">ncbi.nlm.nih.gov</a></li>
+                <li id="fn9">360Dx. &ldquo;Cepheid Debuts 10-Color Molecular Detection Technology With New Tuberculosis Test.&rdquo; July 2020. <a href="https://www.360dx.com/pcr/cepheid-debuts-10-color-molecular-detection-technology-new-tuberculosis-test">360dx.com</a></li>
+                <li id="fn10">GenomeWeb. &ldquo;Rutgers, NJMS, Cepheid Describe 10-Color Assay for Extensively Drug-Resistant TB.&rdquo; <a href="https://www.genomeweb.com/pcr/rutgers-njms-cepheid-describe-10-color-assay-extensively-drug-resistant-tb">genomeweb.com</a></li>
+                <li id="fn11">Cepheid. &ldquo;System Innovation.&rdquo; <a href="https://www.cepheid.com/en-AU/insights/insight-hub/tech-disease-trends/2025/10/learn-about-cepheid-system-innovation.html">cepheid.com</a></li>
+                <li id="fn12">HHS Presentation. &ldquo;Cepheid 10-Color Plus Melt Curve Technology.&rdquo; <a href="https://www.hhs.gov/sites/default/files/dr-gnanashanmugam-cephid.pdf">hhs.gov (PDF)</a></li>
+                <li id="fn13">Cepheid. &ldquo;New Rapid Molecular Test For Tuberculosis Can Simultaneously Detect Resistance To First And Second-Line Drugs.&rdquo; July 16, 2020. <a href="https://cepheid.mediaroom.com/2020-07-16-New-Rapid-Molecular-Test-For-Tuberculosis-Can-Simultaneously-Detect-Resistance-To-First-And-Second-Line-Drugs">cepheid.mediaroom.com</a></li>
+                <li id="fn14">Cepheid. &ldquo;Xpert GI Panel&rdquo; Instructions for Use. <a href="https://web-support.cepheid.com/Documents/Xpert%20GI%20Panel%20US%20IFU%20303-4456%20Rev%20A.pdf">web-support.cepheid.com (PDF)</a>; Product page: <a href="https://www.cepheid.com/en-US/tests/hai-other-infectious-diseases/xpert-gi-panel.html">cepheid.com</a></li>
+                <li id="fn15">Danaher. &ldquo;Danaher To Acquire Cepheid For $53.00 Per Share, Or Approximately $4 Billion.&rdquo; September 6, 2016. <a href="https://investors.danaher.com/2016-09-06-Danaher-To-Acquire-Cepheid-For-53-00-Per-Share-Or-Approximately-4-Billion">investors.danaher.com</a></li>
+                <li id="fn16">Danaher. &ldquo;Danaher Reports Fourth Quarter and Full Year 2025 Results.&rdquo; January 28, 2026. <a href="https://investors.danaher.com/2026-01-28-Danaher-Reports-Fourth-Quarter-and-Full-Year-2025-Results">investors.danaher.com</a></li>
+                <li id="fn17">360Dx. &ldquo;Cepheid Enters Rapid Syndromic Testing Space With FDA Clearance of GI Panel.&rdquo; January 2026. <a href="https://www.360dx.com/regulatory-news-fda-approvals/cepheid-enters-rapid-syndromic-testing-space-fda-clearance-gi-panel">360dx.com</a></li>
+                <li id="fn18">bioM&eacute;rieux. &ldquo;BioFire Gastrointestinal Panel.&rdquo; <a href="https://www.biomerieux.com/us/en/our-offer/clinical-products/biofire-gastrointestinal-panel.html">biomerieux.com</a></li>
+                <li id="fn19">Yahoo Finance. &ldquo;Hologic&rsquo;s Panther Fusion Signals More Competition in GI Testing.&rdquo; October 2025. <a href="https://finance.yahoo.com/news/hologics-panther-fusion-signals-more-124700902.html">finance.yahoo.com</a></li>
+                <li id="fn20">Basu, A. et al. &ldquo;Performance of Abbott ID NOW COVID-19 Rapid Nucleic Acid Amplification Test.&rdquo; <em>J. Clin. Microbiol.</em> <a href="https://journals.asm.org/doi/10.1128/jcm.00413-23">journals.asm.org</a></li>
+                <li id="fn21">GenomeWeb. &ldquo;Cepheid Plans 1,000-Target PCR, Protein Detection, FFPE Analysis, Other Upgrades for GeneXpert.&rdquo; <a href="https://www.genomeweb.com/pcrsample-prep/cepheid-plans-1000-target-pcr-protein-detection-ffpe-analysis-other-upgrades-gen">genomeweb.com</a></li>
+                <li id="fn22">Cepheid. &ldquo;Honeycomb Tube&rdquo; patent US20140087958A1 and continuation US12203135 (granted January 21, 2025). <a href="https://patents.google.com/patent/US20140087958A1/en">patents.google.com</a></li>
+                <li id="fn23">Banerjee, D. et al. &ldquo;Comparison of Six Sample-to-Answer Influenza A/B and RSV Nucleic Acid Amplification Assays.&rdquo; <em>J. Clin. Microbiol.</em>, 2018. <a href="https://jcm.asm.org/content/56/8/e00278-18">jcm.asm.org</a></li>
+                <li id="fn24">M&eacute;decins Sans Fronti&egrave;res. &ldquo;Danaher Reports Earnings; MSF Repeats Call for $5 GeneXpert Tests.&rdquo; <a href="https://www.doctorswithoutborders.org/latest/danaher-reports-earnings-msf-repeats-call-5-genexpert-tests">doctorswithoutborders.org</a></li>
+            </ol>
+        </div>
+
+        <div style="border-top: 1px solid var(--light-rule); margin-top: 1.5rem; padding-top: 1rem;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--gray);">
+                <a href="../index.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">&larr; Front page</a>
+                &nbsp;&middot;&nbsp;
+                <a href="2026-02-17-inside-genexpert-panel.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Editorial panel &rarr;</a>
+            </p>
+        </div>
+
+    </article>
+
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://minomobi.com" style="color: var(--gray);">minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="../feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+</body>
+</html>

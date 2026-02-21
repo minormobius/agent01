@@ -1,0 +1,36 @@
+name: Post to Bluesky
+
+on:
+  push:
+    paths:
+      - 'posts/**.md'
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find new post files
+        id: find-posts
+        run: |
+          POSTS=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'posts/*.md' || echo "")
+          echo "posts=$POSTS" >> $GITHUB_OUTPUT
+          if [ -z "$POSTS" ]; then
+            echo "No new posts found"
+          else
+            echo "Found posts: $POSTS"
+          fi
+
+      - name: Post to Bluesky
+        if: steps.find-posts.outputs.posts != ''
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: python3 src/post_thread.py ${{ steps.find-posts.outputs.posts }}
