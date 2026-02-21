@@ -17,7 +17,7 @@ Usage:
     # Sync Cephalopoda (~800 nodes)
     python3 scripts/sync-otol-to-atproto.py --ott-id 795941
 
-    # Sync Mammalia (~6500 nodes, takes a few hours on bsky.social)
+    # Sync Mammalia (~6500 nodes, ~3 minutes batched, hours if --no-batch)
     python3 scripts/sync-otol-to-atproto.py --ott-id 244265
 
     # Dry run (just fetch and count, don't write)
@@ -36,7 +36,9 @@ from urllib.request import Request, urlopen
 OTOL_API = "https://api.opentreeoflife.org/v3"
 BSKY_PUBLIC_API = "https://public.api.bsky.app"
 COLLECTION = "com.minomobi.phylo.node"
-RATE_DELAY = 2.2  # seconds between writes (stays under 1666/hr)
+RATE_DELAY = 2.2  # seconds between single writes (stays under 1666/hr)
+BATCH_SIZE = 200  # applyWrites supports up to 200 ops per call
+BATCH_DELAY = 5   # seconds between batches (each batch = 200 records toward hourly limit)
 
 
 # --- OToL API ---
@@ -208,6 +210,51 @@ def write_record(pds, did, token, rkey, record):
         return None
 
 
+def write_batch(pds, did, token, records_batch):
+    """Write up to 200 records in a single applyWrites call.
+    Returns (success_count, error_count)."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    writes = []
+    for rec in records_batch:
+        writes.append({
+            "$type": "com.atproto.repo.applyWrites#create",
+            "collection": COLLECTION,
+            "rkey": str(rec["ottId"]),
+            "value": {
+                "$type": COLLECTION,
+                "createdAt": now,
+                **rec,
+            },
+        })
+    payload = {
+        "repo": did,
+        "writes": writes,
+    }
+    data = json.dumps(payload).encode()
+    req = Request(f"{pds}/xrpc/com.atproto.repo.applyWrites", data=data, headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    })
+    try:
+        with urlopen(req, timeout=60) as resp:
+            json.loads(resp.read())
+        return len(records_batch), 0
+    except HTTPError as exc:
+        body = exc.read().decode()
+        print(f"  Batch error ({len(records_batch)} records): {exc.code} {body}", file=sys.stderr)
+        # Fall back to individual writes
+        print(f"  Falling back to individual writes for this batch...", file=sys.stderr)
+        ok, err = 0, 0
+        for rec in records_batch:
+            uri = write_record(pds, did, token, str(rec["ottId"]), rec)
+            if uri:
+                ok += 1
+            else:
+                err += 1
+            time.sleep(RATE_DELAY)
+        return ok, err
+
+
 # --- Main ---
 
 def main():
@@ -222,6 +269,8 @@ def main():
                         help="Fetch and count nodes without writing to PDS")
     parser.add_argument("--dump-json", type=str, default=None,
                         help="Dump fetched nodes to a JSON file (useful for visualization testing)")
+    parser.add_argument("--no-batch", action="store_true",
+                        help="Write one record at a time instead of using applyWrites batches")
     args = parser.parse_args()
 
     # Fetch from OToL
@@ -254,8 +303,13 @@ def main():
         print(f"Wrote {len(nodes)} nodes to {args.dump_json}")
 
     if args.dry_run:
-        est_hours = (len(nodes) * RATE_DELAY) / 3600
-        print(f"\nDry run complete. Writing {len(nodes)} records would take ~{est_hours:.1f} hours at {RATE_DELAY}s intervals.")
+        if args.no_batch:
+            est_hours = (len(nodes) * RATE_DELAY) / 3600
+            print(f"\nDry run complete. Writing {len(nodes)} records individually would take ~{est_hours:.1f} hours.")
+        else:
+            num_batches = (len(nodes) + BATCH_SIZE - 1) // BATCH_SIZE
+            est_mins = (num_batches * BATCH_DELAY) / 60
+            print(f"\nDry run complete. Writing {len(nodes)} records in {num_batches} batches of {BATCH_SIZE} would take ~{est_mins:.1f} minutes.")
         return
 
     # Auth
@@ -284,25 +338,46 @@ def main():
         print("Nothing to do!")
         return
 
-    est_hours = (len(to_write) * RATE_DELAY) / 3600
-    print(f"Estimated time: {est_hours:.1f} hours at {RATE_DELAY}s intervals")
-    print(f"Writing records...\n")
-
     written = 0
     errors = 0
-    for i, node in enumerate(to_write):
-        rkey = str(node["ottId"])
-        uri = write_record(pds, did, token, rkey, node)
-        if uri:
-            written += 1
-            if written % 50 == 0 or written == len(to_write):
-                pct = (i + 1) / len(to_write) * 100
-                print(f"  [{pct:5.1f}%] Written {written}/{len(to_write)} (errors: {errors})")
-        else:
-            errors += 1
 
-        if i < len(to_write) - 1:
-            time.sleep(RATE_DELAY)
+    if args.no_batch:
+        est_hours = (len(to_write) * RATE_DELAY) / 3600
+        print(f"Estimated time: {est_hours:.1f} hours (individual writes)")
+        print(f"Writing records...\n")
+
+        for i, node in enumerate(to_write):
+            rkey = str(node["ottId"])
+            uri = write_record(pds, did, token, rkey, node)
+            if uri:
+                written += 1
+                if written % 50 == 0 or written == len(to_write):
+                    pct = (i + 1) / len(to_write) * 100
+                    print(f"  [{pct:5.1f}%] Written {written}/{len(to_write)} (errors: {errors})")
+            else:
+                errors += 1
+            if i < len(to_write) - 1:
+                time.sleep(RATE_DELAY)
+    else:
+        num_batches = (len(to_write) + BATCH_SIZE - 1) // BATCH_SIZE
+        est_mins = (num_batches * BATCH_DELAY) / 60
+        print(f"Writing {len(to_write)} records in {num_batches} batches of up to {BATCH_SIZE} (~{est_mins:.1f} minutes)")
+        print(f"Using com.atproto.repo.applyWrites for batch writes\n")
+
+        for batch_num in range(num_batches):
+            start = batch_num * BATCH_SIZE
+            end = min(start + BATCH_SIZE, len(to_write))
+            batch = to_write[start:end]
+
+            ok, err = write_batch(pds, did, token, batch)
+            written += ok
+            errors += err
+
+            pct = end / len(to_write) * 100
+            print(f"  [{pct:5.1f}%] Batch {batch_num + 1}/{num_batches}: {ok} written, {err} errors (total: {written}/{len(to_write)})")
+
+            if batch_num < num_batches - 1:
+                time.sleep(BATCH_DELAY)
 
     print(f"\nDone. Written: {written}, Errors: {errors}, Skipped: {len(nodes) - len(to_write)}")
     print(f"View at: https://bsky.app/profile/{handle}")
