@@ -52,13 +52,14 @@ def otol_post(endpoint, payload=None):
         return json.loads(resp.read())
 
 
-def fetch_subtree(ott_id):
-    """Fetch the synthetic subtree rooted at ott_id. Returns Newick-style
-    node structure with embedded node IDs."""
+def fetch_subtree(ott_id, height_limit=-1):
+    """Fetch the synthetic subtree rooted at ott_id. Returns arguson JSON.
+    The OToL API has a hard limit of 25,000 tips per request.
+    Use height_limit to constrain depth for large clades."""
     result = otol_post("tree_of_life/subtree", {
         "node_id": f"ott{ott_id}",
         "format": "arguson",
-        "height_limit": 200,
+        "height_limit": height_limit,
     })
     return result.get("arguson")
 
@@ -71,32 +72,40 @@ def fetch_taxon_info(ott_id):
     })
 
 
+def collect_named_descendants(node):
+    """Walk down through unnamed (mrca) nodes to find all named descendant OTT IDs.
+    Stops at the first named node in each branch."""
+    result = []
+    for child in node.get("children", []):
+        child_ott = child.get("taxon", {}).get("ott_id")
+        if child_ott:
+            result.append(child_ott)
+        else:
+            # Unnamed mrca node — look through it
+            result.extend(collect_named_descendants(child))
+    return result
+
+
 def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=0):
-    """Recursively flatten an arguson tree into a list of node dicts."""
+    """Recursively flatten an arguson tree into a list of node dicts.
+    Unnamed interior nodes (mrcaott...) are collapsed: their children
+    inherit the nearest named ancestor as parent, preserving the tree
+    structure without creating records for unnamed nodes."""
     if nodes is None:
         nodes = []
     if max_depth is not None and depth > max_depth:
         return nodes
 
-    # Extract OTT ID from node_id (format: "ott12345" or "mrcaott12345ott67890")
-    node_id = node.get("node_id", "")
     tax_info = node.get("taxon", {})
     ott_id = tax_info.get("ott_id")
-    name = tax_info.get("name", node_id)
+    name = tax_info.get("name", node.get("node_id", ""))
     rank = tax_info.get("rank", "no rank")
     unique_name = tax_info.get("unique_name", "")
-
-    children = node.get("children", [])
-    child_ott_ids = []
-    for child in children:
-        child_tax = child.get("taxon", {})
-        child_ott = child_tax.get("ott_id")
-        if child_ott:
-            child_ott_ids.append(child_ott)
-
     num_tips = node.get("num_tips", 0)
 
+    # For named nodes, collect all named descendants (traversing through mrca nodes)
     if ott_id:
+        child_ott_ids = collect_named_descendants(node)
         record = {
             "ottId": ott_id,
             "name": name,
@@ -111,9 +120,11 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
             record["childOttIds"] = child_ott_ids
         nodes.append(record)
 
-    # Recurse into children
-    for child in children:
-        flatten_arguson(child, parent_ott_id=ott_id, nodes=nodes,
+    # Recurse into children. If this node is unnamed (mrca), pass through
+    # the parent_ott_id so children link to the nearest named ancestor.
+    effective_parent = ott_id if ott_id else parent_ott_id
+    for child in node.get("children", []):
+        flatten_arguson(child, parent_ott_id=effective_parent, nodes=nodes,
                         max_depth=max_depth, depth=depth + 1)
 
     return nodes
@@ -264,7 +275,10 @@ def main():
     parser.add_argument("--ott-id", type=int, required=True,
                         help="OTT ID of the root taxon (e.g., 244265 for Mammalia)")
     parser.add_argument("--max-depth", type=int, default=None,
-                        help="Maximum tree depth to fetch (default: unlimited)")
+                        help="Maximum tree depth to flatten (default: unlimited)")
+    parser.add_argument("--height-limit", type=int, default=-1,
+                        help="OToL API height_limit parameter (-1=unlimited, default). "
+                             "Use 5-10 for large clades to stay under the 25k tip limit.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch and count nodes without writing to PDS")
     parser.add_argument("--dump-json", type=str, default=None,
@@ -275,7 +289,7 @@ def main():
 
     # Fetch from OToL
     print(f"Fetching subtree rooted at ott{args.ott_id} from Open Tree of Life...")
-    tree = fetch_subtree(args.ott_id)
+    tree = fetch_subtree(args.ott_id, height_limit=args.height_limit)
     if not tree:
         print("Error: Could not fetch subtree. Check that the OTT ID is valid.", file=sys.stderr)
         sys.exit(1)
