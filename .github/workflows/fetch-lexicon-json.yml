@@ -1,0 +1,84 @@
+name: Fetch Lexicon JSON Files
+
+on:
+  push:
+    branches:
+      - 'claude/deploy-bakery-subdomain-zf2qG'
+    paths:
+      - '.github/workflows/fetch-lexicon-json.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-lexicons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Fetch lexicon JSON files
+        run: |
+          mkdir -p atproto-data/lexicons
+
+          echo "=== Fetching recipe.json ==="
+          curl -sL "https://recipe.exchange/lexicons/recipe.json" | tee atproto-data/lexicons/recipe.json
+          echo ""
+
+          echo "=== Fetching collection.json ==="
+          curl -sL "https://recipe.exchange/lexicons/collection.json" | tee atproto-data/lexicons/collection.json
+          echo ""
+
+          echo "=== Fetching defs.json ==="
+          curl -sL "https://recipe.exchange/lexicons/defs.json" | tee atproto-data/lexicons/defs.json
+          echo ""
+
+          # Also try to fetch more records from different users
+          # First get some handles from web scrape
+          echo "=== Fetching recipe.exchange homepage for user profiles ==="
+          curl -sL "https://recipe.exchange/" | python3 -c "
+          import sys, re
+          html = sys.stdin.read()
+          profiles = re.findall(r'/profiles/([^\"/?]+)', html)
+          links = re.findall(r'/recipes/([^\"/?]+)', html)
+          print('Profiles found:', list(set(profiles))[:20])
+          print('Recipe paths found:', list(set(links))[:10])
+          " 2>&1 | tee atproto-data/web-profiles.txt
+
+          # Fetch a couple more recipe records from different users
+          echo "=== Fetching records from recipe.exchange user ==="
+          RECIPE_DID=$(curl -s "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=recipe.exchange" | python3 -c "import sys,json; print(json.load(sys.stdin).get('did',''))" 2>/dev/null)
+          if [ -n "$RECIPE_DID" ]; then
+            echo "recipe.exchange DID: $RECIPE_DID"
+            curl -s "https://public.api.bsky.app/xrpc/com.atproto.repo.listRecords?repo=$RECIPE_DID&collection=exchange.recipe.recipe&limit=2" | tee atproto-data/lexicons/recipe-exchange-recipes.json
+          fi
+
+      - name: Pretty print lexicons
+        run: |
+          echo "=========================================="
+          echo "  LEXICON FILES"
+          echo "=========================================="
+          for f in atproto-data/lexicons/*.json; do
+            echo ""
+            echo "=== $f ==="
+            python3 -c "
+          import json
+          try:
+              data = json.load(open('$f'))
+              print(json.dumps(data, indent=2))
+          except:
+              print('(not valid JSON or empty)')
+          " 2>&1 | head -200
+          done
+
+      - name: Commit lexicon data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add atproto-data/
+          git commit -m "feat: fetch recipe.exchange lexicon JSON definitions
+
+          Fetched recipe.json, collection.json, defs.json from
+          recipe.exchange/lexicons/" || echo "No changes to commit"
+          git push
