@@ -119,8 +119,8 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
     text: description || `A ${hydration.toFixed(0)}% hydration bread recipe designed with the Flour Blend Calculator.`,
     ingredients,
     instructions,
-    cookingMethod: "baking",
-    recipeCategory: "breakfast",
+    cookingMethod: "exchange.recipe.defs#cookingMethodBaking",
+    recipeCategory: "exchange.recipe.defs#categoryBreakfast",
     createdAt: now,
     updatedAt: now,
   };
