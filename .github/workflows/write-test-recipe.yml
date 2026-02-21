@@ -1,0 +1,278 @@
+name: Write Test Recipe to ATProto
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipe_name:
+        description: 'Recipe name (default: test recipe)'
+        required: false
+        default: 'Bakery Calculator Test Loaf'
+      delete_after:
+        description: 'Delete the record after verifying (true/false)'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  write-recipe:
+    runs-on: ubuntu-latest
+    env:
+      BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Validate secrets exist
+        run: |
+          if [ -z "$BLUESKY_HANDLE" ]; then
+            echo "::error::BLUESKY_HANDLE secret is not set"
+            exit 1
+          fi
+          if [ -z "$BLUESKY_APP_PASSWORD" ]; then
+            echo "::error::BLUESKY_APP_PASSWORD secret is not set"
+            exit 1
+          fi
+          echo "Handle: $BLUESKY_HANDLE"
+          echo "Secrets validated OK"
+
+      - name: Resolve DID and PDS endpoint
+        id: resolve
+        run: |
+          echo "=== Resolving DID for $BLUESKY_HANDLE ==="
+          DID_RESPONSE=$(curl -sf "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$BLUESKY_HANDLE")
+          DID=$(echo "$DID_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['did'])")
+          echo "DID: $DID"
+          echo "did=$DID" >> "$GITHUB_OUTPUT"
+
+          echo "=== Resolving PDS endpoint ==="
+          DID_DOC=$(curl -sf "https://plc.directory/$DID")
+          PDS=$(echo "$DID_DOC" | python3 -c "
+          import sys, json
+          doc = json.load(sys.stdin)
+          for s in doc.get('service', []):
+              if s.get('type') == 'AtprotoPersonalDataServer':
+                  print(s['serviceEndpoint'])
+                  break
+          ")
+          echo "PDS: $PDS"
+          echo "pds=$PDS" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate with ATProto
+        id: auth
+        run: |
+          PDS="${{ steps.resolve.outputs.pds }}"
+          echo "=== Creating session at $PDS ==="
+
+          AUTH_RESPONSE=$(curl -sf -X POST \
+            "$PDS/xrpc/com.atproto.server.createSession" \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\": \"$BLUESKY_HANDLE\", \"password\": \"$BLUESKY_APP_PASSWORD\"}")
+
+          ACCESS_JWT=$(echo "$AUTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessJwt'])")
+          AUTH_DID=$(echo "$AUTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['did'])")
+
+          echo "Authenticated as: $AUTH_DID"
+          echo "access_jwt=$ACCESS_JWT" >> "$GITHUB_OUTPUT"
+          echo "auth_did=$AUTH_DID" >> "$GITHUB_OUTPUT"
+
+      - name: Create test recipe record
+        id: create
+        run: |
+          PDS="${{ steps.resolve.outputs.pds }}"
+          DID="${{ steps.auth.outputs.auth_did }}"
+          TOKEN="${{ steps.auth.outputs.access_jwt }}"
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          RECIPE_NAME="${{ github.event.inputs.recipe_name || 'Bakery Calculator Test Loaf' }}"
+
+          echo "=== Creating recipe record ==="
+
+          # Build the recipe JSON — a simple sourdough-style bread recipe
+          # that matches what a bakery calculator would produce
+          RECORD=$(python3 -c "
+          import json
+          record = {
+              '\$type': 'exchange.recipe.recipe',
+              'name': '$RECIPE_NAME',
+              'text': 'A test recipe published from a bakery percentage calculator. 68% hydration sourdough with a simple flour blend. This record was written programmatically via GitHub Actions to test ATProto recipe publishing.',
+              'ingredients': [
+                  '500g bread flour (80%)',
+                  '125g whole wheat flour (20%)',
+                  '425g water (68%)',
+                  '12.5g salt (2%)',
+                  '125g sourdough starter (20%)'
+              ],
+              'instructions': [
+                  '## Autolyse',
+                  'Mix flour and water. Rest 30 minutes.',
+                  '## Mix',
+                  'Add salt and starter to the dough. Mix until incorporated using the slap and fold method.',
+                  '## Bulk Fermentation',
+                  'Ferment at room temperature for 4-5 hours, performing stretch and folds every 30 minutes for the first 2 hours.',
+                  '## Shape',
+                  'Pre-shape into a round. Bench rest 20 minutes. Final shape into a batard or boule.',
+                  '## Cold Proof',
+                  'Place in a banneton, cover, and refrigerate overnight (12-16 hours).',
+                  '## Bake',
+                  'Preheat oven with dutch oven to 500°F (260°C). Score the loaf. Bake covered for 20 minutes, then uncovered at 450°F (230°C) for 20-25 minutes until deep golden brown.'
+              ],
+              'prepTime': 'PT30M',
+              'cookTime': 'PT45M',
+              'totalTime': 'PT18H',
+              'recipeYield': '1 loaf',
+              'recipeCategory': 'exchange.recipe.defs#categoryBreakfast',
+              'recipeCuisine': 'exchange.recipe.defs#cuisineEuropean',
+              'cookingMethod': 'exchange.recipe.defs#cookingMethodBaking',
+              'nutrition': {
+                  'calories': 2200,
+                  'fatContent': 8.5,
+                  'proteinContent': 72.0,
+                  'carbohydrateContent': 440.0
+              },
+              'keywords': [
+                  'sourdough',
+                  'bread',
+                  'bakery calculator',
+                  'bakers percentage',
+                  'atproto-test'
+              ],
+              'attribution': {
+                  '\$type': 'exchange.recipe.defs#attributionOriginal',
+                  'license': 'cc_by'
+              },
+              'createdAt': '$NOW',
+              'updatedAt': '$NOW'
+          }
+          print(json.dumps(record))
+          ")
+
+          # Wrap in createRecord request
+          REQUEST=$(python3 -c "
+          import json
+          record = json.loads('$( echo "$RECORD" | sed "s/'/\\\\'/g" )')
+          req = {
+              'repo': '$DID',
+              'collection': 'exchange.recipe.recipe',
+              'record': record
+          }
+          print(json.dumps(req))
+          ")
+
+          echo "Request body:"
+          echo "$REQUEST" | python3 -m json.tool
+
+          RESPONSE=$(curl -sf -X POST \
+            "$PDS/xrpc/com.atproto.repo.createRecord" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d "$REQUEST")
+
+          echo ""
+          echo "=== Create response ==="
+          echo "$RESPONSE" | python3 -m json.tool
+
+          RECORD_URI=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['uri'])")
+          RECORD_CID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['cid'])")
+
+          echo "uri=$RECORD_URI" >> "$GITHUB_OUTPUT"
+          echo "cid=$RECORD_CID" >> "$GITHUB_OUTPUT"
+
+          # Extract the rkey from the URI
+          RKEY=$(echo "$RECORD_URI" | python3 -c "import sys; print(sys.stdin.read().strip().split('/')[-1])")
+          echo "rkey=$RKEY" >> "$GITHUB_OUTPUT"
+
+      - name: Verify record can be read back
+        id: verify
+        run: |
+          PDS="${{ steps.resolve.outputs.pds }}"
+          DID="${{ steps.auth.outputs.auth_did }}"
+          RKEY="${{ steps.create.outputs.rkey }}"
+          URI="${{ steps.create.outputs.uri }}"
+
+          echo "=== Reading record back from PDS ==="
+          echo "URI: $URI"
+
+          RECORD=$(curl -sf "$PDS/xrpc/com.atproto.repo.getRecord?repo=$DID&collection=exchange.recipe.recipe&rkey=$RKEY")
+          echo "$RECORD" | python3 -m json.tool
+
+          echo ""
+          echo "=== Checking via public API ==="
+          sleep 2
+          PUBLIC_RECORD=$(curl -sf "https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=$DID&collection=exchange.recipe.recipe&rkey=$RKEY" 2>&1 || echo "Not yet available on public API")
+          echo "$PUBLIC_RECORD" | python3 -m json.tool 2>/dev/null || echo "$PUBLIC_RECORD"
+
+      - name: Check recipe.exchange visibility
+        run: |
+          DID="${{ steps.auth.outputs.auth_did }}"
+          HANDLE="$BLUESKY_HANDLE"
+          RKEY="${{ steps.create.outputs.rkey }}"
+
+          echo "=== Checking recipe.exchange ==="
+          echo ""
+          echo "The recipe should eventually be visible at:"
+          echo "  https://recipe.exchange/profiles/$HANDLE"
+          echo "  or via AT URI: at://$DID/exchange.recipe.recipe/$RKEY"
+          echo ""
+          echo "Attempting to fetch profile page..."
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://recipe.exchange/profiles/$HANDLE")
+          echo "Profile page status: $HTTP_CODE"
+
+          # Try fetching the recipe page directly
+          echo ""
+          echo "Trying to fetch recipe page..."
+          RECIPE_PAGE=$(curl -sL "https://recipe.exchange/recipes/$RKEY" -o /dev/null -w "%{http_code}")
+          echo "Recipe page status: $RECIPE_PAGE"
+
+      - name: Save results
+        run: |
+          mkdir -p atproto-data/test-results
+
+          cat > atproto-data/test-results/write-test-$(date +%Y%m%d-%H%M%S).json << ENDJSON
+          {
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "handle": "$BLUESKY_HANDLE",
+            "did": "${{ steps.auth.outputs.auth_did }}",
+            "pds": "${{ steps.resolve.outputs.pds }}",
+            "record_uri": "${{ steps.create.outputs.uri }}",
+            "record_cid": "${{ steps.create.outputs.cid }}",
+            "record_rkey": "${{ steps.create.outputs.rkey }}",
+            "recipe_name": "${{ github.event.inputs.recipe_name || 'Bakery Calculator Test Loaf' }}",
+            "deleted": "${{ github.event.inputs.delete_after || 'true' }}"
+          }
+          ENDJSON
+
+      - name: Delete test record (if requested)
+        if: ${{ github.event.inputs.delete_after != 'false' }}
+        run: |
+          PDS="${{ steps.resolve.outputs.pds }}"
+          DID="${{ steps.auth.outputs.auth_did }}"
+          TOKEN="${{ steps.auth.outputs.access_jwt }}"
+          RKEY="${{ steps.create.outputs.rkey }}"
+
+          echo "=== Deleting test record ==="
+
+          DELETE_RESPONSE=$(curl -sf -X POST \
+            "$PDS/xrpc/com.atproto.repo.deleteRecord" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d "{\"repo\": \"$DID\", \"collection\": \"exchange.recipe.recipe\", \"rkey\": \"$RKEY\"}")
+
+          echo "Delete response: $DELETE_RESPONSE"
+          echo "Record deleted successfully."
+
+      - name: Commit test results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add atproto-data/test-results/
+          git commit -m "test: ATProto recipe write test results
+
+          Wrote and verified exchange.recipe.recipe record.
+          Handle: $BLUESKY_HANDLE
+          URI: ${{ steps.create.outputs.uri }}
+          Deleted: ${{ github.event.inputs.delete_after || 'true' }}" || echo "No changes to commit"
+          git push
