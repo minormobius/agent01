@@ -129,25 +129,29 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
   const [publishing, setPublishing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (recipeName && !name) setName(recipeName);
   }, [recipeName]);
+
+  const buildRecord = () =>
+    calculatorToRecipe({
+      name,
+      description,
+      state: recipeState,
+      flours,
+      enrichments,
+      starterFlours,
+      nutrition,
+    });
 
   const handlePublish = async () => {
     setPublishing(true);
     setError("");
     setResult(null);
     try {
-      const record = calculatorToRecipe({
-        name,
-        description,
-        state: recipeState,
-        flours,
-        enrichments,
-        starterFlours,
-        nutrition,
-      });
+      const record = buildRecord();
       const res = await publishRecipe(session, record);
       setResult(res);
     } catch (err) {
@@ -178,13 +182,30 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
           rows={2}
           style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
         />
-        <button
-          onClick={handlePublish}
-          disabled={publishing || !name.trim()}
-          style={{ ...btnPrimary, opacity: publishing || !name.trim() ? 0.6 : 1 }}
-        >
-          {publishing ? "Publishing..." : "Publish to AT Protocol"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={handlePublish}
+            disabled={publishing || !name.trim()}
+            style={{ ...btnPrimary, flex: 1, opacity: publishing || !name.trim() ? 0.6 : 1 }}
+          >
+            {publishing ? "Publishing..." : "Publish to AT Protocol"}
+          </button>
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            style={btnSecondary}
+          >
+            {showPreview ? "Hide JSON" : "Preview JSON"}
+          </button>
+        </div>
+        {showPreview && (
+          <pre style={{
+            background: "#263238", color: "#a5d6a7", padding: 12, borderRadius: 8,
+            fontSize: 11, overflow: "auto", maxHeight: 300, margin: 0,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>
+            {JSON.stringify(buildRecord(), null, 2)}
+          </pre>
+        )}
         {result && (
           <div style={{ background: "#e8f5e9", padding: 12, borderRadius: 8, fontSize: 13 }}>
             <strong style={{ color: "#2e7d32" }}>Published!</strong>
@@ -194,7 +215,7 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
           </div>
         )}
         {error && (
-          <p style={{ color: "#c62828", fontSize: 13, margin: 0 }}>{error}</p>
+          <p style={{ color: "#c62828", fontSize: 13, margin: 0, wordBreak: "break-word" }}>{error}</p>
         )}
       </div>
     </div>

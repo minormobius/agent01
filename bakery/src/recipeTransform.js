@@ -15,7 +15,6 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
 
   const totalFlour = effectiveGrams.reduce((a, b) => a + b, 0);
 
-  ingredients.push("## Flour Blend");
   effectiveGrams.forEach((g, i) => {
     if (g > 0) {
       const pct = totalFlour > 0 ? ((g / totalFlour) * 100).toFixed(0) : 0;
@@ -25,7 +24,6 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
 
   // Water
   if (state.waterGrams > 0) {
-    ingredients.push("## Liquids & Leavening");
     ingredients.push(`${Math.round(state.waterGrams)}g water`);
   }
 
@@ -44,16 +42,11 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
 
   // Enrichments
   if (state.isEnriched) {
-    const enrichLines = [];
     for (const en of enrichments) {
       const amount = state.enrichAmounts[en.key];
       if (amount > 0) {
-        enrichLines.push(`${amount}${en.unit} ${en.label.toLowerCase()}`);
+        ingredients.push(`${amount}${en.unit} ${en.label.toLowerCase()}`);
       }
-    }
-    if (enrichLines.length > 0) {
-      ingredients.push("## Enrichments");
-      ingredients.push(...enrichLines);
     }
   }
 
@@ -76,12 +69,10 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
       : 0;
 
   const instructions = [];
-  instructions.push("## Autolyse");
   instructions.push(
-    `Mix ${Math.round(totalFlour)}g flour blend with ${Math.round(state.waterGrams)}g water. Rest 30 minutes.`
+    `Mix ${Math.round(totalFlour)}g flour blend with ${Math.round(state.waterGrams)}g water. Rest 30 minutes (autolyse).`
   );
 
-  instructions.push("## Mix");
   const mixParts = [];
   if (state.saltGrams > 0) mixParts.push("salt");
   if (state.starterEnabled && state.starterGrams > 0) mixParts.push("starter");
@@ -97,53 +88,28 @@ export function calculatorToRecipe({ name, description, state, flours, enrichmen
     );
   }
 
-  instructions.push("## Bulk Fermentation");
   instructions.push(
-    `Ferment at room temperature. Perform stretch and folds every 30 minutes for the first 2 hours. Target: ${hydration.toFixed(0)}% hydration dough.`
+    `Bulk ferment at room temperature. Stretch and fold every 30 minutes for the first 2 hours. Target: ${hydration.toFixed(0)}% hydration dough.`
   );
 
-  instructions.push("## Shape & Proof");
   instructions.push(
     "Pre-shape into a round, bench rest 20 minutes, then final shape. Cold proof in the refrigerator overnight."
   );
 
-  instructions.push("## Bake");
   instructions.push(
-    "Preheat oven with dutch oven to 500F (260C). Score the loaf and bake covered 20 minutes, then uncovered at 450F (230C) for 20-25 minutes until deep golden brown."
+    "Preheat oven with dutch oven to 500\u00B0F (260\u00B0C). Score the loaf and bake covered 20 minutes, then uncovered at 450\u00B0F (230\u00B0C) for 20-25 minutes until deep golden brown."
   );
 
-  // Build the record
+  // Build the record — required fields only, matching the proven test format
   const record = {
     $type: "exchange.recipe.recipe",
     name: name || "Untitled Bread Recipe",
     text: description || `A ${hydration.toFixed(0)}% hydration bread recipe designed with the Flour Blend Calculator.`,
     ingredients,
     instructions,
-    cookingMethod: "exchange.recipe.defs#cookingMethodBaking",
-    recipeCategory: "exchange.recipe.defs#categoryBreakfast",
     createdAt: now,
     updatedAt: now,
   };
-
-  // Add nutrition if available
-  if (nutrition && nutrition.calories > 0) {
-    record.nutrition = {
-      calories: Math.round(nutrition.calories),
-      fatContent: Number(nutrition.totalFat?.toFixed(1)) || 0,
-      proteinContent: Number(nutrition.protein?.toFixed(1)) || 0,
-      carbohydrateContent: Number(nutrition.totalCarb?.toFixed(1)) || 0,
-    };
-  }
-
-  // Build keywords from flour types used
-  const keywords = [];
-  effectiveGrams.forEach((g, i) => {
-    if (g > 0) keywords.push(flours[i].name.split(" (")[0].toLowerCase());
-  });
-  if (state.starterEnabled) keywords.push("sourdough");
-  if (state.isEnriched) keywords.push("enriched");
-  keywords.push("bread");
-  record.keywords = [...new Set(keywords)].slice(0, 8);
 
   return record;
 }

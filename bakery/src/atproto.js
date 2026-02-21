@@ -79,7 +79,8 @@ export async function publishRecipe(session, record) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Publish failed (${res.status})`);
+    const detail = [err.error, err.message].filter(Boolean).join(": ");
+    throw new Error(detail || `Publish failed (${res.status})`);
   }
 
   return res.json();
