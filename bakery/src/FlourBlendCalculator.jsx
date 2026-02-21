@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import ATProtoPanel from "./ATProtoPanel";
+import TernaryChart from "./TernaryChart";
 
 const FLOURS = [
   {
@@ -783,6 +784,8 @@ export default function FlourBlendCalculator() {
       {/* ====== FLOUR REFERENCE TAB ====== */}
       {tab === "reference" && (
         <div>
+          <TernaryChart />
+
           <p style={{ fontSize: 14, color: "#5d4037", marginBottom: 16, lineHeight: 1.5 }}>
             Nutritional comparison of all available flours, normalized to 100g. Use this reference to understand the strengths of each flour when designing your blend.
           </p>
