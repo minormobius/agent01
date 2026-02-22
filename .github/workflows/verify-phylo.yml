@@ -1,0 +1,103 @@
+name: Verify Phylo ATProto Records
+
+on:
+  push:
+    branches:
+      - claude/atproto-tree-visualization-6QTyy
+    paths:
+      - '.github/workflows/verify-phylo.yml'
+
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check ATProto phylo records
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, urllib.request, sys
+
+          handle = "${{ secrets.BLUESKY_HANDLE }}"
+          if not handle:
+              print("ERROR: BLUESKY_HANDLE secret not set")
+              sys.exit(1)
+
+          # Resolve handle → DID
+          url = f"https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}"
+          with urllib.request.urlopen(url, timeout=15) as r:
+              did = json.loads(r.read())["did"]
+          print(f"Handle: {handle}")
+          print(f"DID: {did}")
+
+          # Resolve DID → PDS
+          with urllib.request.urlopen(f"https://plc.directory/{did}", timeout=15) as r:
+              doc = json.loads(r.read())
+          pds = None
+          for svc in doc.get("service", []):
+              if svc.get("type") == "AtprotoPersonalDataServer":
+                  pds = svc["serviceEndpoint"]
+                  break
+          if not pds:
+              print("ERROR: No PDS found in DID document")
+              sys.exit(1)
+          print(f"PDS: {pds}")
+
+          # List phylo.node records with pagination
+          collection = "com.minomobi.phylo.node"
+          records = []
+          cursor = ""
+          while True:
+              url = f"{pds}/xrpc/com.atproto.repo.listRecords?repo={did}&collection={collection}&limit=100"
+              if cursor:
+                  url += f"&cursor={cursor}"
+              with urllib.request.urlopen(url, timeout=15) as r:
+                  page = json.loads(r.read())
+              batch = page.get("records", [])
+              records.extend(batch)
+              cursor = page.get("cursor", "")
+              if not cursor or not batch:
+                  break
+
+          print(f"\n{'='*60}")
+          print(f"TOTAL RECORDS: {len(records)}")
+          print(f"{'='*60}")
+
+          if not records:
+              print("\nNo phylo.node records found. Run sync-phylo workflow first.")
+              sys.exit(0)
+
+          # Analyze what's there
+          ranks = {}
+          roots = []
+          sample = []
+          for rec in records:
+              val = rec.get("value", rec)
+              rank = val.get("rank", "no rank")
+              ranks[rank] = ranks.get(rank, 0) + 1
+              if not val.get("parentOttId"):
+                  roots.append(val)
+              if len(sample) < 5:
+                  sample.append(val)
+
+          print(f"\nRoots (no parent): {len(roots)}")
+          for root in roots:
+              print(f"  ott{root['ottId']}: {root['name']} ({root.get('rank','?')}) — {root.get('numTips',0)} tips")
+
+          print(f"\nRank breakdown:")
+          for rank, count in sorted(ranks.items(), key=lambda x: -x[1]):
+              print(f"  {rank}: {count}")
+
+          print(f"\nSample records:")
+          for s in sample:
+              kids = len(s.get("childOttIds", []))
+              print(f"  ott{s['ottId']}: {s['name']} ({s.get('rank','?')}) — {s.get('numTips',0)} tips, {kids} children")
+          PYEOF
