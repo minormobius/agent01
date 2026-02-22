@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tracker — minomobi</title>
+<title>Sweat — minomobi</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 :root {
@@ -330,7 +330,7 @@ label {
   <!-- Login view -->
   <div id="login-view">
     <div style="padding: 60px 0 20px; text-align: center;">
-      <h1 style="font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px;">Tracker</h1>
+      <h1 style="font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px;">Sweat</h1>
       <p style="color: var(--text2); font-size: 13px;">Log workouts to your AT Protocol PDS</p>
     </div>
     <div class="card">
@@ -355,7 +355,7 @@ label {
   <!-- Main app view -->
   <div id="app-view" class="hidden">
     <div class="header">
-      <h1>Tracker</h1>
+      <h1>Sweat</h1>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="handle" id="display-handle"></span>
         <button class="btn-small" id="logout-btn">Sign out</button>
@@ -443,8 +443,8 @@ label {
 // ============================================================
 const PUBLIC_API = "https://public.api.bsky.app";
 const COLLECTION = "com.minomobi.workout";
-const SESSION_KEY = "tracker-session";
-const HANDLE_KEY = "tracker-handle";
+const SESSION_KEY = "sweat-session";
+const HANDLE_KEY = "sweat-handle";
 
 async function resolveHandle(handle) {
   const r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
