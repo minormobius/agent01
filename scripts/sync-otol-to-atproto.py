@@ -42,6 +42,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 OTOL_API = "https://api.opentreeoflife.org/v3"
+WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 BSKY_PUBLIC_API = "https://public.api.bsky.app"
 COLLECTION = "com.minomobi.phylo.clade"
 LEGACY_COLLECTION = "com.minomobi.phylo.node"
@@ -128,8 +129,6 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
             "rank": rank,
             "numTips": num_tips,
         }
-        if unique_name and unique_name != name:
-            record["commonName"] = unique_name
         if parent_ott_id:
             record["parentOttId"] = parent_ott_id
         if child_ott_ids:
@@ -142,6 +141,57 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
                         max_depth=max_depth, depth=depth + 1)
 
     return nodes
+
+
+# --- Wikidata Common Names ---
+
+SPARQL_BATCH = 300  # OTT IDs per SPARQL query (stay within URL/timeout limits)
+
+
+def fetch_common_names(ott_ids):
+    """Batch-fetch English common names from Wikidata via SPARQL.
+    Uses Wikidata property P9157 (Open Tree of Life ID) to map OTT IDs
+    to English labels. Returns {ott_id: common_name} dict."""
+    all_names = {}
+    batches = [ott_ids[i:i + SPARQL_BATCH]
+               for i in range(0, len(ott_ids), SPARQL_BATCH)]
+
+    for batch_num, batch in enumerate(batches):
+        values = " ".join(f'"{oid}"' for oid in batch)
+        query = f"""
+SELECT ?ottId ?label WHERE {{
+  VALUES ?ottId {{ {values} }}
+  ?item wdt:P9157 ?ottId .
+  ?item rdfs:label ?label .
+  FILTER(LANG(?label) = "en")
+}}"""
+        url = f"{WIKIDATA_SPARQL}?query={_urlencode(query)}&format=json"
+        req = Request(url, headers={
+            "Accept": "application/sparql-results+json",
+            "User-Agent": "MinoTimes-PhyloSync/1.0 (https://minomobi.com)"
+        })
+        try:
+            with urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read())
+            for row in data.get("results", {}).get("bindings", []):
+                oid = row["ottId"]["value"]
+                label = row["label"]["value"]
+                # Skip labels that are just the scientific name repeated
+                all_names[int(oid)] = label
+        except Exception as e:
+            print(f"  Wikidata batch {batch_num + 1}/{len(batches)} failed: {e}",
+                  file=sys.stderr)
+
+        if batch_num < len(batches) - 1:
+            time.sleep(1)  # respect Wikidata rate limits
+
+    return all_names
+
+
+def _urlencode(s):
+    """URL-encode a string for query parameters."""
+    from urllib.parse import quote
+    return quote(s, safe="")
 
 
 # --- Adaptive Chunking ---
@@ -414,6 +464,8 @@ def main():
                         help="Delete all existing clade records before writing")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch, chunk, and report without writing to PDS")
+    parser.add_argument("--skip-common-names", action="store_true",
+                        help="Skip Wikidata common name enrichment")
     parser.add_argument("--dump-json", type=str, default=None,
                         help="Dump clade records to a JSON file")
     parser.add_argument("--no-batch", action="store_true",
@@ -442,6 +494,22 @@ def main():
     print("Rank breakdown:")
     for rank, count in sorted(rank_counts.items(), key=lambda x: -x[1]):
         print(f"  {rank}: {count}")
+
+    # Wikidata common name enrichment
+    if not args.skip_common_names:
+        ott_ids = [n["ottId"] for n in nodes]
+        print(f"\nFetching common names from Wikidata for {len(ott_ids)} taxa...")
+        common_names = fetch_common_names(ott_ids)
+        enriched = 0
+        for n in nodes:
+            cn = common_names.get(n["ottId"])
+            if cn and cn.lower() != n["name"].lower():
+                n["commonName"] = cn
+                enriched += 1
+        print(f"Enriched {enriched}/{len(nodes)} nodes with common names "
+              f"({len(common_names)} found in Wikidata)")
+    else:
+        print("\nSkipping Wikidata common name enrichment (--skip-common-names)")
 
     # Adaptive chunking
     print(f"\nPartitioning into adaptive clades (target {args.chunk_size}, min clade {args.min_clade})...")

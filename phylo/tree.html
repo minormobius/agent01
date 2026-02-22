@@ -28,6 +28,7 @@
   }
   .node-row:hover .info-btn { opacity: 1; }
   .info-btn:hover { color: #adf; border-color: #adf; }
+  .common { color: #9b9; font-size: .9em; }
   .collapsed > ul { display: none; }
   .collapsed > .node-row > .name::before { content: "▸ "; color: #555; }
   .expanded > .node-row > .name::before { content: "▾ "; color: #555; }
@@ -131,19 +132,11 @@ async function fetchOneZoom(ottId) {
 
 function buildLinks(ottId, name, taxSources, oz) {
   const links = [];
-  // Wikipedia via Wikidata (best), fallback to name
   if (oz && oz.wikidata) {
-    links.push({ label: "Wikipedia", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+    links.push({ label: "Wikipedia", url: `https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/${oz.wikidata}`, cat: "reference" });
     links.push({ label: "Wikidata", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
-  }
-  // Try direct Wikipedia by name (reliable for most taxa)
-  if (!oz || !oz.wikidata) {
-    links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
   } else {
-    // Wikidata exists — build Wikipedia link from name too (Wikidata doesn't go straight to article)
     links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
-    // Remove the duplicate Wikidata-based Wikipedia entry
-    links.splice(0, 1);
   }
   // Encyclopedia of Life
   if (oz && oz.eol) {
@@ -284,7 +277,10 @@ function flatToTree(records, rootOttId) {
   if (!rootRec) throw new Error("no records found");
   function build(rec) {
     const node = {
-      taxon: { ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank" },
+      taxon: {
+        ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank",
+        common_name: rec.commonName || ""
+      },
       num_tips: rec.numTips || 0,
       children: []
     };
@@ -303,6 +299,7 @@ function renderNode(node) {
   const li = document.createElement("li");
   const tax = node.taxon || {};
   const name = tax.name || node.node_id || "?";
+  const commonName = tax.common_name || "";
   const rank = tax.rank || "";
   const tips = node.num_tips || 0;
   const kids = node.children || [];
@@ -315,6 +312,13 @@ function renderNode(node) {
   span.className = "name";
   span.textContent = name;
   row.appendChild(span);
+
+  if (commonName) {
+    const cn = document.createElement("span");
+    cn.className = "common";
+    cn.textContent = commonName;
+    row.appendChild(cn);
+  }
 
   if (rank && rank !== "no rank") {
     const r = document.createElement("span");

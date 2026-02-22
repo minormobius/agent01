@@ -215,7 +215,10 @@ function flatToTree(records, rootOttId) {
 
   function build(rec) {
     const node = {
-      taxon: { ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank" },
+      taxon: {
+        ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank",
+        common_name: rec.commonName || ""
+      },
       num_tips: rec.numTips || 0,
       children: []
     };
@@ -241,6 +244,7 @@ function layoutTree(node, cx, cy, radius, aStart, aSweep, depth, parent) {
   node._r = radius;
   node._depth = depth;
   node._name = tax.name || "";
+  node._common = tax.common_name || "";
   node._rank = tax.rank || "";
   node._ottId = tax.ott_id;
   node._tips = node.num_tips || 0;
@@ -385,12 +389,20 @@ function drawSubtree(node) {
     ctx.fillStyle = sr > 70
       ? `hsla(0, 0%, ${75 + Math.min(node._depth, 5) * 2}%, .9)`
       : `hsla(0, 0%, 50%, ${Math.min(1, (sr - 28) / 40)})`;
-    ctx.fillText(node._name, sx, sy + dotR + 2);
+    const label = node._common || node._name;
+    ctx.fillText(label, sx, sy + dotR + 2);
 
-    if (sr > 90 && node._rank && node._rank !== "no rank") {
+    // Show scientific name below common name (or rank if no common name)
+    let subLabel = "";
+    if (node._common) {
+      subLabel = node._name;
+    } else if (node._rank && node._rank !== "no rank") {
+      subLabel = node._rank;
+    }
+    if (sr > 90 && subLabel) {
       ctx.fillStyle = `hsla(0, 0%, 40%, .7)`;
       ctx.font = `${Math.max(7, fontSize * 0.72)}px monospace`;
-      ctx.fillText(node._rank, sx, sy + dotR + fontSize + 3);
+      ctx.fillText(subLabel, sx, sy + dotR + fontSize + 3);
     }
   }
 }
@@ -547,7 +559,7 @@ function updateHover(sx, sy) {
   }
   if (hit && hit._name) {
     hoverEl.classList.add("visible");
-    hName.textContent = hit._name;
+    hName.textContent = hit._common ? `${hit._common} (${hit._name})` : hit._name;
     hRank.textContent = hit._rank && hit._rank !== "no rank" ? ` \u00b7 ${hit._rank}` : "";
     hTips.textContent = hit._tips > 0 ? ` \u00b7 ${hit._tips} species` : "";
     updateBreadcrumb(hit);
@@ -634,9 +646,11 @@ async function fetchOneZoom(ottId) {
 function buildLinks(ottId, name, taxSources, oz) {
   const links = [];
   if (oz && oz.wikidata) {
+    links.push({ label: "Wikipedia", url: `https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/${oz.wikidata}`, cat: "reference" });
     links.push({ label: "Wikidata", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+  } else {
+    links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
   }
-  links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
   if (oz && oz.eol) {
     links.push({ label: "Encyclopedia of Life", url: `https://eol.org/pages/${oz.eol}`, cat: "reference" });
   }
@@ -665,14 +679,18 @@ function buildLinks(ottId, name, taxSources, oz) {
   return links;
 }
 
-function renderInfoPanel(inner, ottId, name, rank, data, oz) {
+function renderInfoPanel(inner, ottId, name, rank, data, oz, commonName) {
   const links = buildLinks(ottId, data.name || name, data.tax_sources, oz);
   const synonyms = (data.synonyms || []).filter(s => s !== name);
   const flags = (data.flags || []).filter(f => f);
   const iucnCode = oz && oz.iucn ? (oz.iucn_code || null) : null;
 
   let html = `<span class="info-close">&times;</span>`;
-  html += `<h2>${data.unique_name || data.name || name}`;
+  if (commonName) {
+    html += `<h2>${commonName} <span style="color:#888;font-size:.85em">(${data.name || name})</span>`;
+  } else {
+    html += `<h2>${data.unique_name || data.name || name}`;
+  }
   if (iucnCode && IUCN_LABELS[iucnCode]) {
     html += ` <span class="iucn-badge iucn-${iucnCode}" title="${IUCN_LABELS[iucnCode]}">${iucnCode}</span>`;
   }
@@ -732,7 +750,8 @@ function selectNode(node) {
   scheduleDraw();
 
   panel.classList.add("open");
-  inner.innerHTML = `<span class="info-close">&times;</span><h2>${node._name}</h2>` +
+  const heading = node._common ? `${node._common} <span style="color:#888;font-size:.85em">(${node._name})</span>` : node._name;
+  inner.innerHTML = `<span class="info-close">&times;</span><h2>${heading}</h2>` +
     (node._rank && node._rank !== "no rank" ? `<div class="info-rank">${node._rank}</div>` : "") +
     `<div class="info-loading">fetching…</div>`;
   inner.querySelector(".info-close").onclick = () => {
@@ -745,8 +764,8 @@ function selectNode(node) {
   const pOz = fetchOneZoom(node._ottId);
 
   pOtl.then(data => {
-    renderInfoPanel(inner, node._ottId, node._name, node._rank, data, {});
-    pOz.then(oz => renderInfoPanel(inner, node._ottId, node._name, node._rank, data, oz));
+    renderInfoPanel(inner, node._ottId, node._name, node._rank, data, {}, node._common);
+    pOz.then(oz => renderInfoPanel(inner, node._ottId, node._name, node._rank, data, oz, node._common));
   }).catch(() => {
     const loading = inner.querySelector(".info-loading");
     if (loading) loading.textContent = "couldn't load info";
