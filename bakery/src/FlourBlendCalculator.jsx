@@ -306,7 +306,6 @@ export default function FlourBlendCalculator() {
     const next = [recipe, ...savedRecipes.filter((r) => r.name !== name)];
     setSavedRecipes(next);
     saveRecipes(next);
-    setRecipeName("");
   };
 
   const handleLoadRecipe = (recipe) => {
