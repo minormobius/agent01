@@ -12,18 +12,31 @@ on:
 
   workflow_dispatch:
     inputs:
-      ott_id:
-        description: 'OTT ID of root taxon (913935=Primates, 244265=Mammalia, 795941=Cephalopoda)'
+      mode:
+        description: 'Sync mode'
         required: true
-        default: '913935'
+        default: 'full-sync'
+        type: choice
+        options:
+          - full-sync
+          - enrich-only
+      ott_id:
+        description: 'OTT ID of root taxon (244265=Mammalia, 913935=Primates)'
+        required: false
+        default: '244265'
       height_limit:
         description: 'OToL API height limit (-1=unlimited, use 5-10 for large clades)'
         required: false
         default: '-1'
       chunk_size:
-        description: 'Max nodes per clade record (default: 250)'
+        description: 'Max nodes per clade record (default: 500)'
         required: false
-        default: '250'
+        default: '500'
+      force_enrich:
+        description: 'Re-enrich all nodes even if they already have common names'
+        required: false
+        default: false
+        type: boolean
       account:
         description: 'Bluesky account to write to'
         required: false
@@ -48,7 +61,24 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Sync to ATProto PDS (adaptive chunking)
+      - name: Enrich existing records with Wikidata common names
+        if: inputs.mode == 'enrich-only'
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: |
+          python3 scripts/sync-otol-to-atproto.py \
+            --enrich-only \
+            ${{ inputs.force_enrich == 'true' && '--force-enrich' || '' }} \
+            --account ${{ inputs.account || 'main' }} \
+            2>&1 | tee phylo/sync-log.txt
+
+      - name: Full sync from OToL to ATProto PDS
+        if: inputs.mode != 'enrich-only'
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}

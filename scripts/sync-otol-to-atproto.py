@@ -145,45 +145,110 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
 
 # --- Wikidata Common Names ---
 
-SPARQL_BATCH = 300  # OTT IDs per SPARQL query (stay within URL/timeout limits)
+SPARQL_BATCH = 200  # OTT IDs per SPARQL query (stay within URL/timeout limits)
 
 
-def fetch_common_names(ott_ids):
+def _sparql_query(query):
+    """Execute a Wikidata SPARQL query. Returns list of result bindings."""
+    url = f"{WIKIDATA_SPARQL}?query={_urlencode(query)}&format=json"
+    req = Request(url, headers={
+        "Accept": "application/sparql-results+json",
+        "User-Agent": "MinoTimes-PhyloSync/1.0 (https://minomobi.com)"
+    })
+    with urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read())
+    return data.get("results", {}).get("bindings", [])
+
+
+def fetch_common_names(ott_ids, sci_names=None):
     """Batch-fetch English common names from Wikidata via SPARQL.
-    Uses Wikidata property P9157 (Open Tree of Life ID) to map OTT IDs
-    to English labels. Returns {ott_id: common_name} dict."""
+
+    Two-pass strategy:
+      Pass 1: P1843 (taxon common name) — the gold-standard vernacular name
+              property, filtered to English. Most reliable but has gaps.
+      Pass 2: rdfs:label@en fallback — covers species where the Wikidata
+              label IS the common name (e.g. "gray wolf" not "Canis lupus").
+              Filters out labels matching the scientific name.
+
+    Args:
+        ott_ids: list of OTT IDs (int) to look up
+        sci_names: optional dict { ott_id: scientific_name } for filtering
+
+    Returns {ott_id: common_name} dict.
+    """
     all_names = {}
     batches = [ott_ids[i:i + SPARQL_BATCH]
                for i in range(0, len(ott_ids), SPARQL_BATCH)]
 
+    # Pass 1: P1843 (taxon common name)
+    print(f"  Pass 1: P1843 taxon common name ({len(batches)} batches)...")
     for batch_num, batch in enumerate(batches):
         values = " ".join(f'"{oid}"' for oid in batch)
         query = f"""
+SELECT ?ottId ?commonName WHERE {{
+  VALUES ?ottId {{ {values} }}
+  ?item wdt:P9157 ?ottId .
+  ?item wdt:P1843 ?commonName .
+  FILTER(LANG(?commonName) = "en")
+}}"""
+        try:
+            for row in _sparql_query(query):
+                oid = int(row["ottId"]["value"])
+                name = row["commonName"]["value"]
+                # Take shortest name when multiple exist
+                if oid not in all_names or len(name) < len(all_names[oid]):
+                    all_names[oid] = name
+        except Exception as e:
+            print(f"  WARNING: P1843 batch {batch_num + 1}/{len(batches)} failed: {e}",
+                  file=sys.stderr)
+
+        if batch_num < len(batches) - 1:
+            time.sleep(1)
+        if (batch_num + 1) % 5 == 0 or batch_num == len(batches) - 1:
+            print(f"    [{batch_num + 1}/{len(batches)}] {len(all_names)} names so far")
+
+    # Pass 2: rdfs:label fallback for remaining IDs
+    remaining = [oid for oid in ott_ids if oid not in all_names]
+    if remaining:
+        rem_batches = [remaining[i:i + SPARQL_BATCH]
+                       for i in range(0, len(remaining), SPARQL_BATCH)]
+        print(f"  Pass 2: rdfs:label fallback for {len(remaining)} remaining "
+              f"({len(rem_batches)} batches)...")
+
+        for batch_num, batch in enumerate(rem_batches):
+            values = " ".join(f'"{oid}"' for oid in batch)
+            query = f"""
 SELECT ?ottId ?label WHERE {{
   VALUES ?ottId {{ {values} }}
   ?item wdt:P9157 ?ottId .
   ?item rdfs:label ?label .
   FILTER(LANG(?label) = "en")
 }}"""
-        url = f"{WIKIDATA_SPARQL}?query={_urlencode(query)}&format=json"
-        req = Request(url, headers={
-            "Accept": "application/sparql-results+json",
-            "User-Agent": "MinoTimes-PhyloSync/1.0 (https://minomobi.com)"
-        })
-        try:
-            with urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read())
-            for row in data.get("results", {}).get("bindings", []):
-                oid = row["ottId"]["value"]
-                label = row["label"]["value"]
-                # Skip labels that are just the scientific name repeated
-                all_names[int(oid)] = label
-        except Exception as e:
-            print(f"  Wikidata batch {batch_num + 1}/{len(batches)} failed: {e}",
-                  file=sys.stderr)
+            try:
+                for row in _sparql_query(query):
+                    oid = int(row["ottId"]["value"])
+                    label = row["label"]["value"]
+                    # Skip if it matches the scientific name
+                    if sci_names and oid in sci_names:
+                        if label.lower() == sci_names[oid].lower():
+                            continue
+                    # Skip binomial-looking labels (Genus species)
+                    if label[0].isupper() and " " in label:
+                        words = label.split()
+                        if (len(words) == 2 and words[1][0].islower()
+                                and words[1].isalpha()):
+                            continue
+                    if oid not in all_names:
+                        all_names[oid] = label
+            except Exception as e:
+                print(f"  WARNING: label batch {batch_num + 1}/{len(rem_batches)} "
+                      f"failed: {e}", file=sys.stderr)
 
-        if batch_num < len(batches) - 1:
-            time.sleep(1)  # respect Wikidata rate limits
+            if batch_num < len(rem_batches) - 1:
+                time.sleep(1)
+            if (batch_num + 1) % 5 == 0 or batch_num == len(rem_batches) - 1:
+                print(f"    [{batch_num + 1}/{len(rem_batches)}] "
+                      f"{len(all_names)} names total")
 
     return all_names
 
@@ -446,8 +511,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Sync Open Tree of Life subtree to ATProto PDS using adaptive chunking"
     )
-    parser.add_argument("--ott-id", type=int, required=True,
-                        help="OTT ID of the root taxon (e.g., 244265 for Mammalia)")
+    parser.add_argument("--ott-id", type=int, default=244265,
+                        help="OTT ID of the root taxon (default: 244265 for Mammalia)")
     parser.add_argument("--max-depth", type=int, default=None,
                         help="Maximum tree depth to flatten (default: unlimited)")
     parser.add_argument("--height-limit", type=int, default=-1,
@@ -470,9 +535,126 @@ def main():
                         help="Dump clade records to a JSON file")
     parser.add_argument("--no-batch", action="store_true",
                         help="Write one clade at a time instead of using applyWrites")
+    parser.add_argument("--enrich-only", action="store_true",
+                        help="Read existing PDS records, enrich with Wikidata common "
+                             "names, and write back. Skips OToL fetch.")
+    parser.add_argument("--force-enrich", action="store_true",
+                        help="Re-enrich all nodes, even those that already have common names")
     args = parser.parse_args()
 
-    # Fetch from OToL
+    # --- Enrich-only mode: read from PDS, enrich, write back ---
+    if args.enrich_only:
+        acct = ACCOUNTS[args.account]
+        handle = os.environ.get(acct["handle_env"])
+        password = os.environ.get(acct["password_env"])
+        if not handle or not password:
+            print(f"Error: Set {acct['handle_env']} and {acct['password_env']}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Authenticating as {handle} ({args.account})...")
+        did = resolve_handle(handle)
+        pds = resolve_pds(did)
+        token, did = create_session(pds, handle, password)
+        print(f"Authenticated. DID: {did}, PDS: {pds}")
+
+        print(f"\nReading existing clade records from PDS...")
+        existing = list_existing_records(pds, did, token, collection=COLLECTION)
+        print(f"Found {len(existing)} existing records")
+
+        # Fetch full records with values
+        all_records = []  # (rkey, full_value)
+        cursor = None
+        while True:
+            url = (f"{pds}/xrpc/com.atproto.repo.listRecords"
+                   f"?repo={did}&collection={COLLECTION}&limit=100")
+            if cursor:
+                url += f"&cursor={cursor}"
+            req = Request(url, headers={"Authorization": f"Bearer {token}"})
+            with urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+            for rec in data.get("records", []):
+                rkey = rec["uri"].split("/")[-1]
+                all_records.append((rkey, rec["value"]))
+            cursor = data.get("cursor")
+            if not cursor or not data.get("records"):
+                break
+
+        all_nodes = []
+        for rkey, value in all_records:
+            for node in value.get("nodes", []):
+                all_nodes.append(node)
+        print(f"Total nodes across all records: {len(all_nodes)}")
+
+        # Identify nodes needing enrichment
+        if args.force_enrich:
+            need = [n["ottId"] for n in all_nodes if n.get("ottId")]
+        else:
+            need = [n["ottId"] for n in all_nodes
+                    if n.get("ottId") and not n.get("commonName")]
+        print(f"Nodes needing common names: {len(need)} / {len(all_nodes)}")
+
+        if not need:
+            print("All nodes already have common names. Nothing to do.")
+            return
+
+        sci_names = {n["ottId"]: n["name"] for n in all_nodes
+                     if n.get("ottId") and n.get("name")}
+        print(f"\nFetching common names from Wikidata for {len(need)} taxa...")
+        common_names = fetch_common_names(need, sci_names)
+
+        enriched = 0
+        for n in all_nodes:
+            cn = common_names.get(n.get("ottId"))
+            if cn and cn.lower() != n.get("name", "").lower():
+                old = n.get("commonName", "")
+                if cn != old:
+                    n["commonName"] = cn
+                    enriched += 1
+        print(f"Enriched {enriched} nodes ({len(common_names)} found in Wikidata)")
+
+        if enriched == 0:
+            print("No new enrichments. Done.")
+            return
+
+        if args.dry_run:
+            sample = [(n["name"], n.get("commonName", ""))
+                      for n in all_nodes if n.get("commonName")][:15]
+            print(f"\n[DRY RUN] Would update {len(all_records)} records "
+                  f"with {enriched} enriched nodes")
+            for sci, cn in sample:
+                print(f"  {sci} → {cn}")
+            return
+
+        # Write enriched records back
+        print(f"\nWriting {len(all_records)} enriched records back to PDS...")
+        for i, (rkey, value) in enumerate(all_records):
+            value["createdAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            url = f"{pds}/xrpc/com.atproto.repo.putRecord"
+            payload = {
+                "repo": did,
+                "collection": COLLECTION,
+                "rkey": rkey,
+                "record": value,
+            }
+            body = json.dumps(payload).encode()
+            req = Request(url, data=body, headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}",
+            })
+            try:
+                with urlopen(req, timeout=30) as resp:
+                    json.loads(resp.read())
+                print(f"  [{i + 1}/{len(all_records)}] {rkey}: "
+                      f"{len(value.get('nodes', []))} nodes")
+            except HTTPError as exc:
+                err = exc.read().decode()
+                print(f"  ERROR {rkey}: {exc.code} {err}", file=sys.stderr)
+            time.sleep(0.5)
+
+        print(f"\nDone. {enriched} nodes enriched across {len(all_records)} records.")
+        return
+
+    # --- Full sync mode: fetch from OToL ---
     print(f"Fetching subtree rooted at ott{args.ott_id} from Open Tree of Life...")
     tree = fetch_subtree(args.ott_id, height_limit=args.height_limit)
     if not tree:
@@ -498,8 +680,9 @@ def main():
     # Wikidata common name enrichment
     if not args.skip_common_names:
         ott_ids = [n["ottId"] for n in nodes]
+        sci_names = {n["ottId"]: n["name"] for n in nodes if n.get("name")}
         print(f"\nFetching common names from Wikidata for {len(ott_ids)} taxa...")
-        common_names = fetch_common_names(ott_ids)
+        common_names = fetch_common_names(ott_ids, sci_names)
         enriched = 0
         for n in nodes:
             cn = common_names.get(n["ottId"])
