@@ -180,6 +180,19 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
 }
 .history-type.lift { background: rgba(108,140,255,0.15); color: var(--accent); }
 .history-type.swim { background: rgba(76,175,132,0.15); color: var(--green); }
+.history-type.weigh-in { background: rgba(224,144,80,0.15); color: var(--orange); }
+
+/* BMI result display */
+.bmi-result {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-radius: 8px; margin-top: 10px;
+  font-size: 14px; font-weight: 600;
+}
+.bmi-result .bmi-value { font-size: 20px; font-weight: 700; }
+.bmi-underweight { background: rgba(108,140,255,0.1); color: var(--accent); }
+.bmi-normal { background: rgba(76,175,132,0.1); color: var(--green); }
+.bmi-overweight { background: rgba(224,144,80,0.1); color: var(--orange); }
+.bmi-obese { background: rgba(224,85,85,0.1); color: var(--red); }
 .history-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .history-summary { font-size: 13px; color: var(--text); line-height: 1.4; }
 .history-detail {
@@ -303,6 +316,31 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
 
         <div id="log-status" class="msg hidden"></div>
       </div>
+
+      <!-- WEIGH-IN CARD -->
+      <div class="card">
+        <h2>Weigh-in</h2>
+        <div class="form-row">
+          <div>
+            <label>Weight (lb)</label>
+            <input type="number" id="weighin-weight" placeholder="185" inputmode="decimal" step="0.1" />
+          </div>
+          <div>
+            <label>Height</label>
+            <div class="form-row" style="margin-bottom:0">
+              <div>
+                <input type="number" id="weighin-feet" placeholder="ft" inputmode="numeric" style="padding:10px 8px" />
+              </div>
+              <div>
+                <input type="number" id="weighin-inches" placeholder="in" inputmode="numeric" style="padding:10px 8px" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="bmi-display" class="hidden"></div>
+        <button class="btn btn-primary" id="log-weighin-btn" style="margin-top: 6px;">Log Weight</button>
+        <div id="weighin-status" class="msg hidden"></div>
+      </div>
     </div>
 
     <!-- HISTORY TAB -->
@@ -319,6 +357,7 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
         <div class="toggle-group" id="analytics-type-toggle">
           <button class="active" data-type="swim">Swim</button>
           <button data-type="lift">Lifts</button>
+          <button data-type="body">Body</button>
         </div>
         <div id="analytics-swim">
           <div class="filter-row" id="swim-metric-chips"></div>
@@ -330,6 +369,12 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
           <div class="filter-row" id="lift-filter-chips"></div>
           <div class="chart-container">
             <canvas id="lift-chart"></canvas>
+          </div>
+        </div>
+        <div id="analytics-body" class="hidden">
+          <div class="filter-row" id="body-metric-chips"></div>
+          <div class="chart-container">
+            <canvas id="body-chart"></canvas>
           </div>
         </div>
       </div>
@@ -470,6 +515,97 @@ const LIFT_PRESETS = ["Squat", "Bench Press", "Barbell Row", "Overhead Press", "
 const WORKOUT_A = ["Squat", "Bench Press", "Barbell Row"];
 const WORKOUT_B = ["Squat", "Overhead Press", "Deadlift"];
 const STARTING_WEIGHTS = { "Squat": 45, "Bench Press": 45, "Barbell Row": 65, "Overhead Press": 45, "Deadlift": 95 };
+const HEIGHT_KEY = "sweat-height-inches";
+
+// ============================================================
+//  HEIGHT & BMI (local-only)
+// ============================================================
+function getSavedHeight() {
+  return parseFloat(localStorage.getItem(HEIGHT_KEY)) || 0;
+}
+function saveHeight(inches) {
+  if (inches > 0) localStorage.setItem(HEIGHT_KEY, String(inches));
+}
+function calcBMI(weightLb, heightIn) {
+  if (!weightLb || !heightIn) return null;
+  return (weightLb * 703) / (heightIn * heightIn);
+}
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return { label: "Underweight", cls: "bmi-underweight" };
+  if (bmi < 25) return { label: "Normal", cls: "bmi-normal" };
+  if (bmi < 30) return { label: "Overweight", cls: "bmi-overweight" };
+  return { label: "Obese", cls: "bmi-obese" };
+}
+function formatHeight(inches) {
+  const ft = Math.floor(inches / 12);
+  const inPart = Math.round(inches % 12);
+  return `${ft}'${inPart}"`;
+}
+
+function initWeighIn() {
+  const saved = getSavedHeight();
+  if (saved) {
+    $("weighin-feet").value = Math.floor(saved / 12);
+    $("weighin-inches").value = Math.round(saved % 12);
+  }
+
+  // Live BMI preview
+  const updateBMI = () => {
+    const w = parseFloat($("weighin-weight").value);
+    const ft = parseInt($("weighin-feet").value) || 0;
+    const inVal = parseInt($("weighin-inches").value) || 0;
+    const totalIn = ft * 12 + inVal;
+    const bmi = calcBMI(w, totalIn);
+    const el = $("bmi-display");
+    if (bmi) {
+      const cat = bmiCategory(bmi);
+      el.className = `bmi-result ${cat.cls}`;
+      el.innerHTML = `<span>${cat.label}</span><span class="bmi-value">${bmi.toFixed(1)}</span>`;
+      show(el);
+    } else {
+      hide(el);
+    }
+  };
+  $("weighin-weight").addEventListener("input", updateBMI);
+  $("weighin-feet").addEventListener("input", updateBMI);
+  $("weighin-inches").addEventListener("input", updateBMI);
+
+  $("log-weighin-btn").onclick = async () => {
+    const w = parseFloat($("weighin-weight").value);
+    if (!w) return;
+    const ft = parseInt($("weighin-feet").value) || 0;
+    const inVal = parseInt($("weighin-inches").value) || 0;
+    const totalIn = ft * 12 + inVal;
+    if (totalIn > 0) saveHeight(totalIn);
+
+    const statusEl = $("weighin-status");
+    hide(statusEl);
+    $("log-weighin-btn").disabled = true;
+    $("log-weighin-btn").textContent = "Saving...";
+    try {
+      await createRecord(session, {
+        workoutType: "weigh-in",
+        weight: w,
+        unit: "lb",
+        createdAt: new Date().toISOString(),
+      });
+      statusEl.className = "msg msg-success";
+      statusEl.textContent = "Weight logged!";
+      show(statusEl);
+      setTimeout(() => hide(statusEl), 3000);
+      $("weighin-weight").value = "";
+      hide($("bmi-display"));
+      loadHistory();
+    } catch (e) {
+      statusEl.className = "msg msg-error";
+      statusEl.textContent = e.message;
+      show(statusEl);
+    } finally {
+      $("log-weighin-btn").disabled = false;
+      $("log-weighin-btn").textContent = "Log Weight";
+    }
+  };
+}
 
 // ============================================================
 //  AUTH
@@ -510,6 +646,7 @@ function enterApp() {
   $("display-handle").textContent = `@${session.handle}`;
   addSwimInterval();
   addLiftExercise();
+  initWeighIn();
   loadHistory();
 }
 
@@ -938,7 +1075,6 @@ function makeHistoryEntry(record) {
       const strokeLabel = i.stroke ? ` ${i.stroke}` : "";
       const intLabel = i.interval ? ` on ${i.interval}` : "";
       const dist = reps > 1 ? `${reps}x${i.distance}` : `${i.distance}`;
-      // Pace per 100
       const intSecs = parseInterval(i.interval);
       let paceStr = "";
       if (intSecs && i.distance) {
@@ -947,6 +1083,14 @@ function makeHistoryEntry(record) {
       }
       return `<div style="margin-bottom:4px">${label}${dist} ${i.unit || "yd"}${strokeLabel}${intLabel}${paceStr}</div>`;
     }).join("");
+  } else if (v.workoutType === "weigh-in") {
+    summary = `${v.weight} ${v.unit || "lb"}`;
+    const heightIn = getSavedHeight();
+    if (heightIn) {
+      const bmi = calcBMI(v.weight, heightIn);
+      const cat = bmiCategory(bmi);
+      detail = `<div>BMI: <strong>${bmi.toFixed(1)}</strong> (${cat.label}) at ${formatHeight(heightIn)}</div>`;
+    }
   }
 
   const nameHtml = v.name ? `<div class="history-name">${escapeHtml(v.name)}</div>` : "";
@@ -1004,14 +1148,19 @@ $("analytics-type-toggle").onclick = e => {
   if (!btn) return;
   $("analytics-type-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  if (btn.dataset.type === "swim") { show($("analytics-swim")); hide($("analytics-lift")); }
-  else { hide($("analytics-swim")); show($("analytics-lift")); }
+  const t = btn.dataset.type;
+  ["swim", "lift", "body"].forEach(k => {
+    const el = $(`analytics-${k}`);
+    if (k === t) show(el); else hide(el);
+  });
   renderAnalytics();
 };
 
 function renderAnalytics() {
-  const isSwim = $("analytics-type-toggle").querySelector(".active").dataset.type === "swim";
-  if (isSwim) renderSwimAnalytics(); else renderLiftAnalytics();
+  const activeType = $("analytics-type-toggle").querySelector(".active").dataset.type;
+  if (activeType === "swim") renderSwimAnalytics();
+  else if (activeType === "lift") renderLiftAnalytics();
+  else renderBodyAnalytics();
 }
 
 // --- Swim Analytics ---
@@ -1243,6 +1392,121 @@ function renderLiftAnalytics() {
       <div>Sessions: ${points.length}</div>
       <div>Starting: ${first.y} lb &rarr; Current: ${last.y} lb (${sign}${diff} lb)</div>
       <div>Best: ${Math.max(...points.map(p => p.y))} lb</div>
+    `;
+    $("stats-card").style.display = "";
+  } else {
+    $("stats-card").style.display = "none";
+  }
+}
+
+// --- Body Analytics ---
+let bodyChart = null;
+let selectedBodyMetric = "weight"; // "weight" | "bmi"
+
+function renderBodyAnalytics() {
+  const weighIns = workouts
+    .filter(r => r.value?.workoutType === "weigh-in")
+    .sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
+
+  const chipRow = $("body-metric-chips");
+  chipRow.innerHTML = "";
+  const heightIn = getSavedHeight();
+  const metrics = ["weight"];
+  if (heightIn) metrics.push("bmi");
+  metrics.forEach(metric => {
+    const chip = document.createElement("button");
+    chip.className = `filter-chip ${metric === selectedBodyMetric ? "active" : ""}`;
+    chip.textContent = metric === "weight" ? "Weight" : "BMI";
+    chip.onclick = () => { selectedBodyMetric = metric; renderBodyAnalytics(); };
+    chipRow.appendChild(chip);
+  });
+  if (!heightIn) selectedBodyMetric = "weight";
+
+  if (weighIns.length === 0) {
+    if (bodyChart) { bodyChart.destroy(); bodyChart = null; }
+    $("stats-card").style.display = "none";
+    return;
+  }
+
+  let points, yLabel, borderColor, bgColor;
+
+  if (selectedBodyMetric === "weight") {
+    points = weighIns.map(r => ({
+      x: new Date(r.value.createdAt),
+      y: r.value.weight,
+    }));
+    yLabel = "Weight (lb)";
+    borderColor = "#e09050";
+    bgColor = "rgba(224,144,80,0.1)";
+  } else {
+    points = weighIns.map(r => ({
+      x: new Date(r.value.createdAt),
+      y: parseFloat(calcBMI(r.value.weight, heightIn).toFixed(1)),
+    }));
+    yLabel = "BMI";
+    borderColor = "#e09050";
+    bgColor = "rgba(224,144,80,0.1)";
+  }
+
+  if (bodyChart) bodyChart.destroy();
+  bodyChart = new Chart($("body-chart"), {
+    type: "line",
+    data: {
+      datasets: [{
+        label: selectedBodyMetric === "weight" ? "Weight" : "BMI",
+        data: points,
+        borderColor, backgroundColor: bgColor,
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: borderColor,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: yLabel, color: "#8b90a0", font: { size: 12 } },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = ctx.raw;
+              if (selectedBodyMetric === "bmi") return `BMI: ${p.y}`;
+              return `${p.y} lb`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Stats
+  if (points.length >= 1) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    const diff = last.y - first.y;
+    const sign = diff >= 0 ? "+" : "";
+    let bmiLine = "";
+    if (heightIn && selectedBodyMetric === "weight") {
+      const bmi = calcBMI(last.y, heightIn);
+      const cat = bmiCategory(bmi);
+      bmiLine = `<div>Current BMI: ${bmi.toFixed(1)} (${cat.label}) at ${formatHeight(heightIn)}</div>`;
+    }
+    $("stats-content").innerHTML = `
+      <div><strong>${selectedBodyMetric === "weight" ? "Body Weight" : "BMI"}</strong></div>
+      <div>Entries: ${points.length}</div>
+      <div>First: ${first.y}${selectedBodyMetric === "weight" ? " lb" : ""} &rarr; Latest: ${last.y}${selectedBodyMetric === "weight" ? " lb" : ""} (${sign}${diff.toFixed(1)})</div>
+      ${bmiLine}
     `;
     $("stats-card").style.display = "";
   } else {
