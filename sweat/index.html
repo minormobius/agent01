@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Sweat — minomobi</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sweat">
+<link rel="apple-touch-icon" href="/icon-192.png">
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 :root {
@@ -30,6 +39,8 @@ body {
   font-family: var(--font);
   line-height: 1.5;
   min-height: 100vh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .app {
@@ -528,15 +539,24 @@ async function deleteRecord(session, rkey) {
   }
 }
 
+async function refreshSession(s) {
+  const r = await fetch(`${s.pds}/xrpc/com.atproto.server.refreshSession`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${s.refreshJwt}` },
+  });
+  if (!r.ok) throw new Error("Session expired");
+  return { ...(await r.json()), pds: s.pds };
+}
+
 // ============================================================
-//  SESSION MANAGEMENT
+//  SESSION MANAGEMENT (localStorage for persistence across restarts)
 // ============================================================
 function saveSession(s) {
-  if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  else sessionStorage.removeItem(SESSION_KEY);
+  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESSION_KEY);
 }
 function loadSession() {
-  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
 }
 
 let session = loadSession();
@@ -1146,9 +1166,28 @@ function loadDateAdapter() {
 async function init() {
   await loadDateAdapter();
   initAuth();
-  if (session) {
+
+  if (session?.refreshJwt) {
+    // Silent token refresh on mount — stay signed in across restarts
+    try {
+      session = await refreshSession(session);
+      saveSession(session);
+      enterApp();
+    } catch {
+      // Refresh token expired — force re-login
+      session = null;
+      saveSession(null);
+    }
+  } else if (session) {
     enterApp();
   }
+}
+
+// Register service worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js");
+  });
 }
 
 init();
