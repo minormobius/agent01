@@ -1,0 +1,45 @@
+Fetching subtree rooted at ott913935 from Open Tree of Life...
+Root taxon: Primates
+Flattening tree (collapsing unnamed nodes)...
+Found 1007 named nodes
+Rank breakdown:
+  species: 573
+  subspecies: 219
+  no rank: 101
+  genus: 76
+  family: 13
+  subfamily: 11
+  infraorder: 5
+  subgenus: 3
+  suborder: 2
+  parvorder: 2
+  superfamily: 1
+  no rank - terminal: 1
+
+Partitioning into adaptive clades (max 250 nodes/clade)...
+Result: 10 clade records for 1007 nodes
+  Average: 101 nodes/clade
+  Largest: 241 nodes
+  Smallest: 1 nodes
+
+Clade breakdown:
+  Strepsirrhini (suborder): 241 nodes (~27.9 KB)
+  Platyrrhini (parvorder): 202 nodes, 1 refs (~23.6 KB)
+  Cercopithecinae (subfamily): 179 nodes (~21.6 KB)
+  Cercopithecidae (family): 135 nodes, 1 refs (~16.2 KB)
+  Catarrhini (parvorder): 129 nodes, 1 refs (~15.4 KB)
+  Pitheciidae (family): 79 nodes (~9.2 KB)
+  Haplorrhini (suborder): 26 nodes, 1 refs (~3.1 KB)
+  Primates (no rank): 12 nodes, 2 refs (~1.5 KB)
+  Simiiformes (infraorder): 3 nodes, 2 refs (~0.4 KB)
+  Cercopithecoidea (superfamily): 1 nodes, 1 refs (~0.2 KB)
+
+Total payload: 119.0 KB across 10 records
+Compression ratio: 1007 nodes → 10 records (101x)
+
+Authenticating as minomobi.bsky.social (main)...
+Authenticated. DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3, PDS: https://cortinarius.us-west.host.bsky.network
+Checking for existing clade records...
+Found 10 existing records in com.minomobi.phylo.clade
+0 new clade records to write (10 already exist)
+Nothing to do!
