@@ -32,7 +32,28 @@ Rank breakdown:
   subclass: 1
 
 Fetching common names from Wikidata for 11715 taxa...
-Enriched 4251/11715 nodes with common names (7594 found in Wikidata)
+  Pass 1: P1843 taxon common name (59 batches)...
+    [5/59] 552 names so far
+    [10/59] 1047 names so far
+    [15/59] 1490 names so far
+    [20/59] 1963 names so far
+    [25/59] 2386 names so far
+    [30/59] 2743 names so far
+    [35/59] 3091 names so far
+    [40/59] 3550 names so far
+    [45/59] 4097 names so far
+    [50/59] 4431 names so far
+    [55/59] 4872 names so far
+    [59/59] 5179 names so far
+  Pass 2: rdfs:label fallback for 6536 remaining (33 batches)...
+    [5/33] 5202 names total
+    [10/33] 5229 names total
+    [15/33] 5275 names total
+    [20/33] 5307 names total
+    [25/33] 5330 names total
+    [30/33] 5353 names total
+    [33/33] 5376 names total
+Enriched 5375/11715 nodes with common names (5376 found in Wikidata)
 
 Partitioning into adaptive clades (target 500, min clade 50)...
 Result: 44 clade records for 11715 nodes
@@ -41,60 +62,60 @@ Result: 44 clade records for 11715 nodes
   Smallest: 1 nodes
 
 Clade breakdown:
-  Muridae (family): 1136 nodes, 1 refs (~150.0 KB)
-  Vespertilionidae (family): 770 nodes, 1 refs (~98.3 KB)
-  Cricetidae (family): 670 nodes, 3 refs (~85.7 KB)
-  Bovidae (family): 488 nodes (~61.0 KB)
-  Hystricomorpha (suborder): 455 nodes (~60.1 KB)
-  Catarrhini (parvorder): 444 nodes (~58.0 KB)
-  Metatheria (no rank): 423 nodes, 1 refs (~55.2 KB)
-  Crocidurinae (subfamily): 394 nodes (~51.7 KB)
-  Artiodactyla (order): 391 nodes, 1 refs (~49.0 KB)
-  Rodentia (order): 370 nodes, 3 refs (~48.3 KB)
-  Caniformia (suborder): 355 nodes, 1 refs (~43.8 KB)
-  Chiroptera (order): 351 nodes, 5 refs (~44.7 KB)
-  Carnivora (order): 343 nodes, 1 refs (~42.1 KB)
-  Eutheria (no rank): 334 nodes, 1 refs (~43.1 KB)
-  Phyllostomidae (family): 326 nodes (~42.7 KB)
-  Sciuridae (family): 315 nodes, 1 refs (~42.2 KB)
-  Megachiroptera (suborder): 286 nodes (~36.3 KB)
-  Simiiformes (infraorder): 284 nodes, 1 refs (~36.7 KB)
-  Diprotodontia (order): 271 nodes (~35.7 KB)
-  Canidae (family): 263 nodes (~31.0 KB)
-  Pecora (infraorder): 259 nodes, 1 refs (~32.7 KB)
-  Arvicolinae (subfamily): 258 nodes (~34.8 KB)
-  Primates (no rank): 253 nodes, 1 refs (~32.9 KB)
-  Neotominae (subfamily): 246 nodes (~32.7 KB)
-  Soricidae (family): 243 nodes, 1 refs (~32.1 KB)
-  Glires (no rank): 226 nodes, 1 refs (~28.5 KB)
-  Marmotini (tribe): 199 nodes (~26.3 KB)
-  Muroidea (no rank): 193 nodes, 2 refs (~26.0 KB)
-  Eulipotyphla (order): 174 nodes, 1 refs (~21.6 KB)
-  Molossidae (family): 168 nodes (~22.0 KB)
-  Rhinolophidae (family): 168 nodes (~22.9 KB)
-  Myomorpha (suborder): 135 nodes, 1 refs (~17.6 KB)
-  Laurasiatheria (superorder): 125 nodes, 4 refs (~16.0 KB)
-  Deomyinae (subfamily): 112 nodes (~14.1 KB)
-  Sciuromorpha (suborder): 60 nodes, 1 refs (~7.9 KB)
-  Oligoryzomys (genus): 53 nodes (~6.6 KB)
-  Miniopterinae (subfamily): 50 nodes (~6.4 KB)
-  Euarchontoglires (superorder): 43 nodes, 2 refs (~5.5 KB)
-  Haplorrhini (suborder): 26 nodes, 1 refs (~3.3 KB)
-  Mammalia (class): 21 nodes, 1 refs (~2.7 KB)
+  Muridae (family): 1136 nodes, 1 refs (~151.0 KB)
+  Vespertilionidae (family): 770 nodes, 1 refs (~100.8 KB)
+  Cricetidae (family): 670 nodes, 3 refs (~89.7 KB)
+  Bovidae (family): 488 nodes (~61.5 KB)
+  Hystricomorpha (suborder): 455 nodes (~60.6 KB)
+  Catarrhini (parvorder): 444 nodes (~59.3 KB)
+  Metatheria (no rank): 423 nodes, 1 refs (~55.5 KB)
+  Crocidurinae (subfamily): 394 nodes (~51.8 KB)
+  Artiodactyla (order): 391 nodes, 1 refs (~49.9 KB)
+  Rodentia (order): 370 nodes, 3 refs (~48.9 KB)
+  Caniformia (suborder): 355 nodes, 1 refs (~45.4 KB)
+  Chiroptera (order): 351 nodes, 5 refs (~48.4 KB)
+  Carnivora (order): 343 nodes, 1 refs (~42.6 KB)
+  Eutheria (no rank): 334 nodes, 1 refs (~43.3 KB)
+  Phyllostomidae (family): 326 nodes (~44.1 KB)
+  Sciuridae (family): 315 nodes, 1 refs (~43.9 KB)
+  Megachiroptera (suborder): 286 nodes (~40.0 KB)
+  Simiiformes (infraorder): 284 nodes, 1 refs (~37.9 KB)
+  Diprotodontia (order): 271 nodes (~36.2 KB)
+  Canidae (family): 263 nodes (~31.2 KB)
+  Pecora (infraorder): 259 nodes, 1 refs (~32.8 KB)
+  Arvicolinae (subfamily): 258 nodes (~34.7 KB)
+  Primates (no rank): 253 nodes, 1 refs (~34.0 KB)
+  Neotominae (subfamily): 246 nodes (~33.1 KB)
+  Soricidae (family): 243 nodes, 1 refs (~32.2 KB)
+  Glires (no rank): 226 nodes, 1 refs (~28.9 KB)
+  Marmotini (tribe): 199 nodes (~27.6 KB)
+  Muroidea (no rank): 193 nodes, 2 refs (~26.4 KB)
+  Eulipotyphla (order): 174 nodes, 1 refs (~22.1 KB)
+  Molossidae (family): 168 nodes (~22.7 KB)
+  Rhinolophidae (family): 168 nodes (~23.3 KB)
+  Myomorpha (suborder): 135 nodes, 1 refs (~17.7 KB)
+  Laurasiatheria (superorder): 125 nodes, 4 refs (~16.1 KB)
+  Deomyinae (subfamily): 112 nodes (~14.3 KB)
+  Sciuromorpha (suborder): 60 nodes, 1 refs (~8.0 KB)
+  Oligoryzomys (genus): 53 nodes (~7.2 KB)
+  Miniopterinae (subfamily): 50 nodes (~6.9 KB)
+  Euarchontoglires (superorder): 43 nodes, 2 refs (~5.6 KB)
+  Haplorrhini (suborder): 26 nodes, 1 refs (~3.4 KB)
+  Mammalia (class): 21 nodes, 1 refs (~2.9 KB)
   Ruminantia (suborder): 19 nodes, 1 refs (~2.5 KB)
-  Primatomorpha (no rank): 13 nodes, 1 refs (~1.6 KB)
+  Primatomorpha (no rank): 13 nodes, 1 refs (~1.7 KB)
   Boreoeutheria (no rank): 1 nodes, 2 refs (~0.2 KB)
   Theria (subclass): 1 nodes, 2 refs (~0.2 KB)
 
-Total payload: 1512.7 KB across 44 records
+Total payload: 1546.7 KB across 44 records
 Compression ratio: 11715 nodes → 44 records (266x)
 
 Authenticating as minomobi.bsky.social (main)...
 Authenticated. DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3, PDS: https://cortinarius.us-west.host.bsky.network
 Checking for existing clade records...
-Found 44 existing records in com.minomobi.phylo.clade
-Deleting 44 existing records (--replace)...
-Deleted 44, errors 0
+Found 43 existing records in com.minomobi.phylo.clade
+Deleting 43 existing records (--replace)...
+Deleted 43, errors 0
 44 new clade records to write (0 already exist)
 Writing 44 clade records in 5 batches of up to 10
 
