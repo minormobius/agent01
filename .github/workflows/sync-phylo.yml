@@ -29,9 +29,9 @@ on:
         required: false
         default: '-1'
       chunk_size:
-        description: 'Max nodes per clade record (default: 500)'
+        description: 'Max nodes per clade record (default: 400)'
         required: false
-        default: '500'
+        default: '400'
       force_enrich:
         description: 'Re-enrich all nodes even if they already have common names'
         required: false
@@ -90,7 +90,7 @@ jobs:
           python3 scripts/sync-otol-to-atproto.py \
             --ott-id ${{ inputs.ott_id || '244265' }} \
             --height-limit ${{ inputs.height_limit || '-1' }} \
-            --chunk-size ${{ inputs.chunk_size || '500' }} \
+            --chunk-size ${{ inputs.chunk_size || '400' }} \
             --min-clade 50 \
             --replace \
             --account ${{ inputs.account || 'main' }} \
