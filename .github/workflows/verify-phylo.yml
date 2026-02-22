@@ -12,8 +12,12 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: claude/atproto-tree-visualization-6QTyy
 
       - uses: actions/setup-python@v5
         with:
@@ -23,7 +27,7 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         run: |
-          python3 - <<'PYEOF'
+          python3 - <<'PYEOF' | tee phylo/atproto-status.txt
           import json, urllib.request, sys
 
           handle = "${{ secrets.BLUESKY_HANDLE }}"
@@ -101,3 +105,10 @@ jobs:
               kids = len(s.get("childOttIds", []))
               print(f"  ott{s['ottId']}: {s['name']} ({s.get('rank','?')}) — {s.get('numTips',0)} tips, {kids} children")
           PYEOF
+
+      - name: Commit status file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add phylo/atproto-status.txt
+          git diff --cached --quiet && echo "No changes" || git commit -m "verify-phylo: ATProto record status [auto]" && git push origin claude/atproto-tree-visualization-6QTyy
