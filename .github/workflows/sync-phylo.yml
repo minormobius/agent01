@@ -58,7 +58,7 @@ jobs:
           BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: |
           python3 scripts/sync-otol-to-atproto.py \
-            --ott-id ${{ inputs.ott_id || '913935' }} \
+            --ott-id ${{ inputs.ott_id || '244265' }} \
             --height-limit ${{ inputs.height_limit || '-1' }} \
             --chunk-size ${{ inputs.chunk_size || '250' }} \
             --account ${{ inputs.account || 'main' }} \
