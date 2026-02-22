@@ -37,8 +37,12 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -57,48 +61,13 @@ jobs:
             --ott-id ${{ inputs.ott_id || '913935' }} \
             --height-limit ${{ inputs.height_limit || '-1' }} \
             --chunk-size ${{ inputs.chunk_size || '250' }} \
-            --account ${{ inputs.account || 'main' }}
+            --account ${{ inputs.account || 'main' }} \
+            2>&1 | tee phylo/sync-log.txt
 
-      - name: Verify clade records written
-        env:
-          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+      - name: Commit sync log
+        if: always()
         run: |
-          # Resolve handle to DID
-          DID=$(python3 -c "
-          import json, urllib.request
-          url = 'https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${{ secrets.BLUESKY_HANDLE }}'
-          with urllib.request.urlopen(url) as r:
-              print(json.loads(r.read())['did'])
-          ")
-          echo "DID: $DID"
-
-          # Resolve PDS
-          PDS=$(python3 -c "
-          import json, urllib.request
-          with urllib.request.urlopen('https://plc.directory/${DID}') as r:
-              doc = json.loads(r.read())
-          for svc in doc.get('service', []):
-              if svc.get('type') == 'AtprotoPersonalDataServer':
-                  print(svc['serviceEndpoint'])
-                  break
-          ")
-          echo "PDS: $PDS"
-
-          # Count clade records
-          COUNT=$(python3 -c "
-          import json, urllib.request
-          total = 0
-          cursor = ''
-          while True:
-              url = '${PDS}/xrpc/com.atproto.repo.listRecords?repo=${DID}&collection=com.minomobi.phylo.clade&limit=100'
-              if cursor:
-                  url += '&cursor=' + cursor
-              with urllib.request.urlopen(url) as r:
-                  data = json.loads(r.read())
-              total += len(data.get('records', []))
-              cursor = data.get('cursor', '')
-              if not cursor or not data.get('records'):
-                  break
-          print(total)
-          ")
-          echo "✓ $COUNT phylo.clade records in repo"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add phylo/sync-log.txt
+          git diff --cached --quiet && echo "No log changes" || git commit -m "sync-phylo: sync log [auto]" && git push origin ${{ github.ref_name }}
