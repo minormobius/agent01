@@ -55,9 +55,9 @@ Fetching common names from Wikidata for 11715 taxa...
     [33/33] 5376 names total
 Enriched 5375/11715 nodes with common names (5376 found in Wikidata)
 
-Partitioning into adaptive clades (target 500, min clade 50)...
-Result: 44 clade records for 11715 nodes
-  Average: 266 nodes/clade
+Partitioning into adaptive clades (target 400, min clade 50)...
+Result: 48 clade records for 11715 nodes
+  Average: 244 nodes/clade
   Largest: 1136 nodes
   Smallest: 1 nodes
 
@@ -65,18 +65,17 @@ Clade breakdown:
   Muridae (family): 1136 nodes, 1 refs (~151.0 KB)
   Vespertilionidae (family): 770 nodes, 1 refs (~100.8 KB)
   Cricetidae (family): 670 nodes, 3 refs (~89.7 KB)
-  Bovidae (family): 488 nodes (~61.5 KB)
-  Hystricomorpha (suborder): 455 nodes (~60.6 KB)
-  Catarrhini (parvorder): 444 nodes (~59.3 KB)
-  Metatheria (no rank): 423 nodes, 1 refs (~55.5 KB)
   Crocidurinae (subfamily): 394 nodes (~51.8 KB)
   Artiodactyla (order): 391 nodes, 1 refs (~49.9 KB)
+  Hystricomorpha (suborder): 385 nodes, 1 refs (~51.3 KB)
   Rodentia (order): 370 nodes, 3 refs (~48.9 KB)
+  Bovidae (family): 357 nodes, 1 refs (~45.0 KB)
   Caniformia (suborder): 355 nodes, 1 refs (~45.4 KB)
   Chiroptera (order): 351 nodes, 5 refs (~48.4 KB)
   Carnivora (order): 343 nodes, 1 refs (~42.6 KB)
   Eutheria (no rank): 334 nodes, 1 refs (~43.3 KB)
   Phyllostomidae (family): 326 nodes (~44.1 KB)
+  Cercopithecoidea (superfamily): 315 nodes (~42.8 KB)
   Sciuridae (family): 315 nodes, 1 refs (~43.9 KB)
   Megachiroptera (suborder): 286 nodes (~40.0 KB)
   Simiiformes (infraorder): 284 nodes, 1 refs (~37.9 KB)
@@ -87,15 +86,20 @@ Clade breakdown:
   Primates (no rank): 253 nodes, 1 refs (~34.0 KB)
   Neotominae (subfamily): 246 nodes (~33.1 KB)
   Soricidae (family): 243 nodes, 1 refs (~32.2 KB)
+  Metatheria (no rank): 227 nodes, 2 refs (~30.0 KB)
   Glires (no rank): 226 nodes, 1 refs (~28.9 KB)
   Marmotini (tribe): 199 nodes (~27.6 KB)
+  Didelphimorphia (order): 196 nodes (~25.5 KB)
   Muroidea (no rank): 193 nodes, 2 refs (~26.4 KB)
   Eulipotyphla (order): 174 nodes, 1 refs (~22.1 KB)
   Molossidae (family): 168 nodes (~22.7 KB)
   Rhinolophidae (family): 168 nodes (~23.3 KB)
   Myomorpha (suborder): 135 nodes, 1 refs (~17.7 KB)
+  Caprinae (subfamily): 131 nodes (~16.6 KB)
+  Catarrhini (parvorder): 129 nodes, 1 refs (~16.5 KB)
   Laurasiatheria (superorder): 125 nodes, 4 refs (~16.1 KB)
   Deomyinae (subfamily): 112 nodes (~14.3 KB)
+  Ctenomys (genus): 70 nodes (~9.4 KB)
   Sciuromorpha (suborder): 60 nodes, 1 refs (~8.0 KB)
   Oligoryzomys (genus): 53 nodes (~7.2 KB)
   Miniopterinae (subfamily): 50 nodes (~6.9 KB)
@@ -107,8 +111,8 @@ Clade breakdown:
   Boreoeutheria (no rank): 1 nodes, 2 refs (~0.2 KB)
   Theria (subclass): 1 nodes, 2 refs (~0.2 KB)
 
-Total payload: 1546.7 KB across 44 records
-Compression ratio: 11715 nodes → 44 records (266x)
+Total payload: 1546.9 KB across 48 records
+Compression ratio: 11715 nodes → 48 records (244x)
 
 Authenticating as minomobi.bsky.social (main)...
 Authenticated. DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3, PDS: https://cortinarius.us-west.host.bsky.network
@@ -116,16 +120,16 @@ Checking for existing clade records...
 Found 43 existing records in com.minomobi.phylo.clade
 Deleting 43 existing records (--replace)...
 Deleted 43, errors 0
-44 new clade records to write (0 already exist)
-Writing 44 clade records in 5 batches of up to 10
+48 new clade records to write (0 already exist)
+Writing 48 clade records in 5 batches of up to 10
 
-  [ 22.7%] Batch 1/5: 10 written, 0 errors (total: 10/44)
-  [ 45.5%] Batch 2/5: 10 written, 0 errors (total: 20/44)
-  [ 68.2%] Batch 3/5: 10 written, 0 errors (total: 30/44)
-  [ 90.9%] Batch 4/5: 9 written, 1 errors (total: 39/44)
-  [100.0%] Batch 5/5: 4 written, 0 errors (total: 43/44)
+  [ 20.8%] Batch 1/5: 10 written, 0 errors (total: 10/48)
+  [ 41.7%] Batch 2/5: 10 written, 0 errors (total: 20/48)
+  [ 62.5%] Batch 3/5: 10 written, 0 errors (total: 30/48)
+  [ 83.3%] Batch 4/5: 9 written, 1 errors (total: 39/48)
+  [100.0%] Batch 5/5: 8 written, 0 errors (total: 47/48)
 
-Done. Clades written: 43, Errors: 1, Skipped: 0
-Nodes packed: 11694 across 43 records
+Done. Clades written: 47, Errors: 1, Skipped: 0
+Nodes packed: 11694 across 47 records
 View at: https://bsky.app/profile/minomobi.bsky.social
 Query records: https://cortinarius.us-west.host.bsky.network/xrpc/com.atproto.repo.listRecords?repo=did:plc:oqyev6xmuwgbtpr6jgxh5xg3&collection=com.minomobi.phylo.clade&limit=100
