@@ -1,6 +1,15 @@
 name: Sync Phylo to ATProto
 
 on:
+  push:
+    branches:
+      - claude/atproto-tree-visualization-6QTyy
+      - main
+    paths:
+      - 'scripts/sync-otol-to-atproto.py'
+      - 'phylo/lexicons/**'
+      - '.github/workflows/sync-phylo.yml'
+
   workflow_dispatch:
     inputs:
       ott_id:
@@ -22,7 +31,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Sync OToL subtree to ATProto PDS
+      - name: Sync Primates to ATProto PDS
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
@@ -30,3 +39,47 @@ jobs:
           python3 scripts/sync-otol-to-atproto.py \
             --ott-id ${{ inputs.ott_id || '913935' }} \
             --height-limit ${{ inputs.height_limit || '-1' }}
+
+      - name: Verify records written
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+        run: |
+          # Resolve handle to DID
+          DID=$(python3 -c "
+          import json, urllib.request
+          url = 'https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${{ secrets.BLUESKY_HANDLE }}'
+          with urllib.request.urlopen(url) as r:
+              print(json.loads(r.read())['did'])
+          ")
+          echo "DID: $DID"
+
+          # Resolve PDS
+          PDS=$(python3 -c "
+          import json, urllib.request
+          with urllib.request.urlopen('https://plc.directory/${DID}') as r:
+              doc = json.loads(r.read())
+          for svc in doc.get('service', []):
+              if svc.get('type') == 'AtprotoPersonalDataServer':
+                  print(svc['serviceEndpoint'])
+                  break
+          ")
+          echo "PDS: $PDS"
+
+          # Count phylo.node records
+          COUNT=$(python3 -c "
+          import json, urllib.request
+          total = 0
+          cursor = ''
+          while True:
+              url = '${PDS}/xrpc/com.atproto.repo.listRecords?repo=${DID}&collection=com.minomobi.phylo.node&limit=100'
+              if cursor:
+                  url += '&cursor=' + cursor
+              with urllib.request.urlopen(url) as r:
+                  data = json.loads(r.read())
+              total += len(data.get('records', []))
+              cursor = data.get('cursor', '')
+              if not cursor or not data.get('records'):
+                  break
+          print(total)
+          ")
+          echo "✓ $COUNT phylo.node records in repo"
