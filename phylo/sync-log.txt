@@ -1,3 +1,4 @@
+========== Syncing OTT 244265 ==========
   Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
   Falling back to individual writes...
   Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
@@ -133,3 +134,173 @@ Done. Clades written: 47, Errors: 1, Skipped: 0
 Nodes packed: 11694 across 47 records
 View at: https://bsky.app/profile/minomobi.bsky.social
 Query records: https://cortinarius.us-west.host.bsky.network/xrpc/com.atproto.repo.listRecords?repo=did:plc:oqyev6xmuwgbtpr6jgxh5xg3&collection=com.minomobi.phylo.clade&limit=100
+
+========== Syncing OTT 81461 ==========
+  Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Falling back to individual writes...
+  Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Falling back to individual writes...
+  Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Falling back to individual writes...
+  Batch error (10 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Falling back to individual writes...
+  Batch error (5 clades): 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Falling back to individual writes...
+  Error writing clade 1041547: 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+  Error writing clade 241846: 413 {"error":"PayloadTooLargeError","message":"request entity too large"}
+Fetching subtree rooted at ott81461 from Open Tree of Life...
+Root taxon: Aves
+Flattening tree (collapsing unnamed nodes)...
+Found 23125 named nodes
+Rank breakdown:
+  species: 16578
+  subspecies: 4135
+  genus: 2124
+  family: 115
+  no rank: 100
+  order: 28
+  no rank - terminal: 23
+  subfamily: 18
+  superorder: 2
+  class: 1
+  infraclass: 1
+
+Fetching common names from Wikidata for 23125 taxa...
+  Pass 1: P1843 taxon common name (116 batches)...
+    [5/116] 415 names so far
+    [10/116] 874 names so far
+    [15/116] 1403 names so far
+    [20/116] 1911 names so far
+    [25/116] 2313 names so far
+    [30/116] 2668 names so far
+    [35/116] 3102 names so far
+    [40/116] 3502 names so far
+    [45/116] 3809 names so far
+    [50/116] 4216 names so far
+    [55/116] 4654 names so far
+    [60/116] 5123 names so far
+    [65/116] 5634 names so far
+    [70/116] 6051 names so far
+    [75/116] 6398 names so far
+    [80/116] 6792 names so far
+    [85/116] 7234 names so far
+    [90/116] 7637 names so far
+    [95/116] 8072 names so far
+    [100/116] 8543 names so far
+    [105/116] 8976 names so far
+    [110/116] 9426 names so far
+    [115/116] 9794 names so far
+    [116/116] 9850 names so far
+  Pass 2: rdfs:label fallback for 13275 remaining (67 batches)...
+    [5/67] 9858 names total
+    [10/67] 9882 names total
+    [15/67] 9910 names total
+    [20/67] 9934 names total
+    [25/67] 9943 names total
+    [30/67] 9958 names total
+    [35/67] 9968 names total
+    [40/67] 9981 names total
+    [45/67] 9994 names total
+    [50/67] 10013 names total
+    [55/67] 10030 names total
+    [60/67] 10051 names total
+    [65/67] 10080 names total
+    [67/67] 10086 names total
+Enriched 10085/23125 nodes with common names (10086 found in Wikidata)
+
+Partitioning into adaptive clades (target 400, min clade 50)...
+Result: 65 clade records for 23125 nodes
+  Average: 356 nodes/clade
+  Largest: 10618 nodes
+  Smallest: 50 nodes
+
+Clade breakdown:
+  Passeriformes (order): 10618 nodes, 29 refs (~1418.8 KB)
+  Neognathae (infraclass): 1601 nodes, 24 refs (~207.6 KB)
+  Psittaciformes (order): 837 nodes, 1 refs (~110.4 KB)
+  Trochilidae (family): 712 nodes (~94.0 KB)
+  Accipitridae (family): 666 nodes (~86.3 KB)
+  Columbiformes (order): 584 nodes (~78.1 KB)
+  Galliformes (order): 492 nodes, 3 refs (~64.5 KB)
+  Picidae (family): 440 nodes (~59.4 KB)
+  Strigidae (family): 417 nodes (~54.1 KB)
+  Galloanserae (superorder): 398 nodes, 1 refs (~51.1 KB)
+  Piciformes (order): 332 nodes, 1 refs (~44.4 KB)
+  Cuculiformes (order): 326 nodes (~42.3 KB)
+  Procellariiformes (order): 288 nodes (~38.4 KB)
+  Alaudidae (family): 271 nodes (~35.3 KB)
+  Caprimulgimorphae (no rank): 239 nodes, 1 refs (~31.9 KB)
+  Falconiformes (order): 222 nodes (~27.6 KB)
+  Apodiformes (order): 217 nodes, 1 refs (~29.0 KB)
+  Troglodytinae (subfamily): 203 nodes (~27.3 KB)
+  Scolopacidae (family): 191 nodes (~24.8 KB)
+  Hirundinidae (family): 173 nodes (~22.8 KB)
+  Phylloscopidae (family): 168 nodes (~23.7 KB)
+  Aves (class): 167 nodes, 1 refs (~21.5 KB)
+  Petroicidae (family): 149 nodes (~19.6 KB)
+  Ardeidae (family): 144 nodes (~18.5 KB)
+  Pachycephala (genus): 143 nodes (~19.4 KB)
+  Corvus (genus): 133 nodes (~17.0 KB)
+  Bucerotiformes (order): 127 nodes (~17.0 KB)
+  Galbuliformes (order): 120 nodes (~15.4 KB)
+  Oriolus (genus): 118 nodes (~15.2 KB)
+  Odontophoridae (family): 112 nodes (~14.9 KB)
+  Malaconotidae (family): 109 nodes (~14.3 KB)
+  Vireonidae (family): 106 nodes (~14.0 KB)
+  Acrocephalus (genus): 104 nodes (~14.5 KB)
+  Dicaeidae (family): 99 nodes (~13.2 KB)
+  Pittidae (family): 97 nodes (~12.3 KB)
+  Trogoniformes (order): 92 nodes (~11.7 KB)
+  Cracidae (family): 91 nodes (~11.3 KB)
+  Maluridae (family): 91 nodes (~11.9 KB)
+  Rhipidura (genus): 89 nodes (~11.5 KB)
+  Phalacrocoracidae (family): 87 nodes (~11.3 KB)
+  Cisticola (genus): 87 nodes (~11.5 KB)
+  Paradisaeidae (family): 85 nodes (~11.4 KB)
+  Sphenisciformes (order): 80 nodes (~10.1 KB)
+  Icterus (genus): 77 nodes (~10.3 KB)
+  Setophaga (genus): 69 nodes (~9.3 KB)
+  Amazona (genus): 67 nodes (~9.1 KB)
+  Strigiformes (order): 66 nodes, 1 refs (~8.2 KB)
+  Saxicola (genus): 66 nodes (~8.1 KB)
+  Todiramphus (genus): 65 nodes (~8.9 KB)
+  Tetraoninae (subfamily): 63 nodes (~8.4 KB)
+  Meropidae (family): 60 nodes (~7.9 KB)
+  Scytalopus (genus): 60 nodes (~8.2 KB)
+  Musophagiformes (order): 59 nodes (~8.0 KB)
+  Grallaria (genus): 59 nodes (~7.8 KB)
+  Polioptila (genus): 58 nodes (~7.7 KB)
+  Threskiornithidae (family): 57 nodes (~7.6 KB)
+  Accipitriformes (order): 56 nodes, 1 refs (~7.0 KB)
+  Prinia (genus): 55 nodes (~7.2 KB)
+  Myiagra (genus): 54 nodes (~7.0 KB)
+  Dicrurus (genus): 53 nodes (~6.9 KB)
+  Rallus (genus): 52 nodes (~6.5 KB)
+  Sitta (genus): 52 nodes (~6.7 KB)
+  Passer (genus): 51 nodes (~6.6 KB)
+  Terpsiphone (genus): 51 nodes (~7.0 KB)
+  Gruidae (family): 50 nodes (~6.3 KB)
+
+Total payload: 3059.8 KB across 65 records
+Compression ratio: 23125 nodes → 65 records (356x)
+
+Authenticating as minomobi.bsky.social (main)...
+Authenticated. DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3, PDS: https://cortinarius.us-west.host.bsky.network
+Checking for existing clade records...
+Found 47 existing records in com.minomobi.phylo.clade
+65 new clade records to write (0 already exist)
+Writing 65 clade records in 7 batches of up to 10
+
+  [ 15.4%] Batch 1/7: 10 written, 0 errors (total: 10/65)
+  [ 30.8%] Batch 2/7: 10 written, 0 errors (total: 20/65)
+  [ 46.2%] Batch 3/7: 10 written, 0 errors (total: 30/65)
+  [ 61.5%] Batch 4/7: 10 written, 0 errors (total: 40/65)
+  [ 76.9%] Batch 5/7: 10 written, 0 errors (total: 50/65)
+  [ 92.3%] Batch 6/7: 10 written, 0 errors (total: 60/65)
+  [100.0%] Batch 7/7: 3 written, 2 errors (total: 63/65)
+
+Done. Clades written: 63, Errors: 2, Skipped: 0
+Nodes packed: 21357 across 63 records
+View at: https://bsky.app/profile/minomobi.bsky.social
+Query records: https://cortinarius.us-west.host.bsky.network/xrpc/com.atproto.repo.listRecords?repo=did:plc:oqyev6xmuwgbtpr6jgxh5xg3&collection=com.minomobi.phylo.clade&limit=100
+
