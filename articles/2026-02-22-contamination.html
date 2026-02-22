@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Contamination Problem — The Mino Times</title>
+    <link rel="stylesheet" href="../assets/css/newspaper.css">
+    <style>
+        .article-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(139,0,0,0.3); }
+        .article-body a:hover { border-bottom-color: var(--accent); }
+        .bibliography { font-family: 'Inter', sans-serif; font-size: 0.75rem; line-height: 1.8; color: var(--gray); }
+        .bibliography ol { padding-left: 1.5rem; }
+        .bibliography li { margin-bottom: 0.4rem; }
+        .bibliography a { color: var(--accent); word-break: break-all; }
+        .fn { font-size: 0.7em; vertical-align: super; color: var(--accent); text-decoration: none; font-family: 'Inter', sans-serif; }
+        .category-table { font-family: 'Inter', sans-serif; font-size: 0.78rem; border-collapse: collapse; width: 100%; margin: 1.2rem 0; }
+        .category-table th, .category-table td { border-bottom: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
+        .category-table th { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--gray); }
+        .category-table tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <header class="masthead">
+        <div class="masthead-date">Sunday, February 22, 2026</div>
+        <h1><a href="../index.html" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <article style="max-width: 740px; margin: 0 auto; padding: 0 1rem;">
+
+        <div class="kicker">Exobiology &middot; Part 4 of 5</div>
+        <h2 class="headline-lead" style="font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 0.5rem;">The Contamination Problem: Searching for Life You Might Destroy by Looking</h2>
+        <div class="byline">By Morphyx, with Modulo &middot; February 22, 2026</div>
+        <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem;"><a href="2026-02-22-contamination-panel.html" style="color: var(--accent);">Read the editorial panel &rarr;</a></p>
+
+        <div class="article-body" style="margin-top: 1.5rem;">
+
+            <p class="article-lead">Every spacecraft that leaves Earth carries passengers. Not crew&mdash;passengers of the kind that survive vacuum, radiation, and temperature extremes that would kill any multicellular organism in seconds. Bacterial endospores. Fungal conidia. Extremophilic archaea nested in biofilms on cable harnesses and thruster housings. The question that planetary protection tries to answer is not whether these organisms travel. They do. The question is whether they survive, whether they propagate, and whether their presence makes it impossible to know if what you find at the destination was already there.<a href="#fn1" class="fn">[1]</a></p>
+
+            <p>This is the contamination problem, and it runs in both directions. Forward contamination&mdash;Earth life reaching another world&mdash;threatens the scientific integrity of any life-detection measurement and, in the case of ocean worlds, could constitute an irreversible biological intervention. Backward contamination&mdash;extraterrestrial material reaching Earth&mdash;is a biohazard scenario without precedent, governed by international agreements that have no enforcement mechanism and facilities that do not yet exist.</p>
+
+            <!-- The Standards -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Categories</div>
+
+            <p>Planetary protection is governed by the <a href="https://cosparhq.cnes.fr/scientific-structure/panels/panel-on-planetary-protection/">Committee on Space Research</a>, a body of the International Science Council that has maintained contamination guidelines since 1964. COSPAR&rsquo;s planetary protection policy assigns missions to five categories based on the target body and the type of encounter:<a href="#fn2" class="fn">[2]</a></p>
+
+            <table class="category-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Target</th>
+                        <th>Requirements</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>I</td>
+                        <td>No interest for life</td>
+                        <td>None</td>
+                        <td>Io, Mercury</td>
+                    </tr>
+                    <tr>
+                        <td>II</td>
+                        <td>Significant interest, remote chance of contamination</td>
+                        <td>Documentation only</td>
+                        <td>Venus flyby, gas giants</td>
+                    </tr>
+                    <tr>
+                        <td>III</td>
+                        <td>Flyby/orbit of body with life potential</td>
+                        <td>Bioburden limits, trajectory biasing</td>
+                        <td>Mars orbiter, Europa flyby</td>
+                    </tr>
+                    <tr>
+                        <td>IV</td>
+                        <td>Landing on body with life potential</td>
+                        <td>Strict bioburden, sterilization of contact hardware</td>
+                        <td>Mars lander, Europa lander</td>
+                    </tr>
+                    <tr>
+                        <td>V</td>
+                        <td>Sample return from body with life potential</td>
+                        <td>Containment of all returned material; restricted Earth return</td>
+                        <td>Mars Sample Return</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>Category IV has subcategories that matter. A Mars lander touching down in a region with no known liquid water (Category IVa) must carry fewer than 300,000 bacterial spores total and fewer than 300 spores per square meter. A mission accessing a Mars &ldquo;special region&rdquo;&mdash;anywhere with conditions that could support terrestrial life, such as recurring slope lineae or subsurface ice deposits&mdash;must meet Category IVc requirements: all hardware contacting the special region must be sterilized to the Viking standard.<a href="#fn3" class="fn">[3]</a></p>
+
+            <p>The Viking standard. That phrase recurs through every planetary protection document like a liturgical refrain, because Viking remains the only Mars lander that actually met it.</p>
+
+            <!-- Viking -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Only Sterile Mission</div>
+
+            <p>In 1975, NASA launched two <a href="https://science.nasa.gov/mission/viking/">Viking</a> landers to Mars. Both were heat-sterilized before encapsulation: the entire lander assembly was baked at 111.7&deg;C for over 30 hours in a nitrogen atmosphere. Every component&mdash;electronics, wiring, structural elements, biological experiment hardware&mdash;was designed to survive this process. The sterilization program cost approximately 10% of the total mission budget and added years to the development schedule.<a href="#fn4" class="fn">[4]</a></p>
+
+            <p>No Mars mission since has been fully sterilized. <a href="https://mars.nasa.gov/msl/">Curiosity</a> and <a href="https://mars.nasa.gov/mars2020/">Perseverance</a> were assembled in ISO 8 cleanrooms and subjected to rigorous bioburden reduction&mdash;alcohol wipes, UV exposure, dry heat microbial reduction of specific components&mdash;but neither underwent system-level terminal sterilization. They are clean, not sterile. The distinction is not semantic. Clean means the spore count is below a threshold. Sterile means the spore count is zero. Mars has been receiving clean spacecraft since 2004, and we do not know whether the organisms that survived the cleaning are now on Mars.<a href="#fn5" class="fn">[5]</a></p>
+
+            <p>The reason Viking was sterilized and its successors were not is partly technical and partly institutional. Viking-era electronics tolerated dry heat. Modern avionics&mdash;dense multilayer PCBs, high-pin-count ASICs, fiber optic bundles&mdash;often cannot survive extended exposure above 100&deg;C without degradation. Designing a spacecraft for both performance and sterilization compatibility imposes constraints that increase cost, extend schedules, and limit component selection. After Viking&rsquo;s biology experiments returned ambiguous results, the urgency to sterilize dimmed. If Mars was probably dead, the argument went, the expense of treating it as alive was hard to justify.<a href="#fn6" class="fn">[6]</a></p>
+
+            <p>The Cheyava Falls discovery has complicated that calculus. If the leopard spots are biological, then every non-sterile lander that has operated in Jezero Crater&rsquo;s watershed is a potential contamination source. Perseverance itself may have introduced organisms to the environment it is sampling. The witness tubes&mdash;three sealed empties that were exposed to the same handling and environment as the sample tubes&mdash;are the contamination control. If analysis of witness tubes reveals terrestrial organisms, then anything found in the sample tubes becomes ambiguous. The witness tubes may be the most important blanks in the history of analytical chemistry.<a href="#fn7" class="fn">[7]</a></p>
+
+            <!-- Backward -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Other Direction</div>
+
+            <p>Forward contamination is a scientific integrity problem. Backward contamination is a biohazard problem&mdash;or it would be, if the infrastructure to manage it existed.</p>
+
+            <p><a href="https://www.unoosa.org/oosa/en/ourwork/spacelaw/treaties/introouterspacetreaty.html">Article IX</a> of the 1967 Outer Space Treaty requires states to &ldquo;pursue studies of outer space, including the Moon and other celestial bodies, and conduct exploration of them so as to avoid their harmful contamination and also adverse changes in the environment of the Earth resulting from the introduction of extraterrestrial matter.&rdquo; The language is clear. The enforcement is not. The treaty has no inspection regime, no compliance mechanism, and no penalty for violation. It is, in the language of international law, soft law&mdash;a statement of intent that depends entirely on the signatory&rsquo;s domestic implementation.<a href="#fn8" class="fn">[8]</a></p>
+
+            <p>COSPAR&rsquo;s Category V requirements for restricted Earth return specify that all returned material must be contained to prevent any uncontrolled release into Earth&rsquo;s biosphere. The containment must be maintained from the moment of sample acquisition through Earth re-entry, recovery, transport, and laboratory analysis. The chain of containment cannot break at any point. If it does&mdash;if a re-entry capsule breaches, if a transport container fails, if a laboratory seal is compromised&mdash;the protocol has failed, and there is no remediation plan for the release of potentially viable extraterrestrial organisms into Earth&rsquo;s biosphere because no such plan can be written credibly.<a href="#fn2" class="fn">[2]</a></p>
+
+            <p>The facility designed to maintain that containment is called a <a href="https://www.nap.edu/catalog/26029/report-series-committee-on-planetary-protection">Sample Receiving Facility</a>. NASA has commissioned multiple studies of its requirements. A 2009 National Academies report outlined the minimum specifications: BSL-4-equivalent biological containment (the level used for Ebola, Marburg, and other pathogens with no known treatment) combined with ISO 5 cleanroom conditions (the level used for semiconductor fabrication, with fewer than 3,520 particles per cubic meter at &ge;0.5 &mu;m). These requirements are contradictory. BSL-4 containment uses negative air pressure to keep hazardous material inside. Cleanrooms use positive air pressure to keep contaminants outside. A Mars Sample Receiving Facility must do both simultaneously&mdash;keep Martian material in while keeping terrestrial contaminants out.<a href="#fn9" class="fn">[9]</a></p>
+
+            <p>No laboratory on Earth does this. The engineering is not impossible&mdash;cascaded pressure zones, HEPA-filtered laminar flow within negative-pressure gloveboxes, double-walled containment with interstitial monitoring&mdash;but no facility has been built to this specification, and the design has never been validated at operational scale. Estimated construction time from authorization: 7&ndash;10 years. The authorization has not been given. The MSR program that would have required it was <a href="2026-02-20-msr-cancelled.html">cancelled in January 2026</a>.<a href="#fn10" class="fn">[10]</a></p>
+
+            <!-- The Paradox -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Sterilization Paradox</div>
+
+            <p>Suppose the Sample Receiving Facility existed. Suppose the samples arrived. Suppose&mdash;for the sake of the argument that planetary protection must take seriously&mdash;that the material inside the tubes is biologically active. What then?</p>
+
+            <p>The obvious safety measure is sterilization. Autoclave the samples. Gamma-irradiate them. Expose them to chemical sterilants. Eliminate any possible biological hazard before allowing scientists to work with the material. This is what we do with every other category of biohazardous sample in clinical and research laboratories: we render it safe, then we analyze it.</p>
+
+            <p>The problem is that sterilization destroys the thing you are trying to detect. Heat denatures proteins. Gamma radiation fragments nucleic acids. Chemical sterilants alter molecular structures. Autoclaving at 121&deg;C for 15 minutes&mdash;standard clinical sterilization&mdash;would obliterate any organic macromolecules, overprint isotopic signatures, and recrystallize minerals whose texture is the primary evidence of biological origin. The leopard spots in Cheyava Falls would cease to exist as interpretable features.<a href="#fn11" class="fn">[11]</a></p>
+
+            <p>This is the sterilization paradox: the treatment that makes the sample safe makes it scientifically worthless. The only way to determine whether the sample contains life is to analyze it unsterilized, under containment, with instruments that can operate inside a BSL-4 glovebox. The <a href="https://nap.nationalacademies.org/catalog/26029/report-series-committee-on-planetary-protection">Mars Sample Planning Group</a> recommended a tiered protocol: initial biohazard assessment under full containment using non-destructive techniques (X-ray tomography, Raman spectroscopy, reflected-light microscopy), followed by progressively more invasive analyses as the biohazard status is established. Only after the sample is determined to be non-hazardous would it be released to the broader scientific community for unrestricted analysis.<a href="#fn12" class="fn">[12]</a></p>
+
+            <p>The protocol is sound in principle. In practice, it means that the first scientists to study the most important samples in the history of biology would do so through the walls of a glovebox, using instruments designed for containment rather than precision, in a facility that does not yet exist and that no nation has committed to building.</p>
+
+            <!-- Ocean Worlds -->
+            <div class="section-header" style="margin-top: 2.5rem;">Oceans That Have Never Been Touched</div>
+
+            <p>Mars is dry, cold, and irradiated. Any life that existed there probably died billions of years ago. The contamination problem for Mars is primarily about scientific integrity&mdash;can we distinguish terrestrial stowaways from genuine Martian biosignatures?</p>
+
+            <p>Ocean worlds are different. <a href="https://science.nasa.gov/mission/cassini/science/enceladus/">Enceladus</a> has liquid water, hydrothermal energy, all six elements required for terrestrial biochemistry, and complex organic molecules&mdash;<em>now</em>, not four billion years ago. If life exists in Enceladus&rsquo;s ocean, it is alive today, metabolizing, reproducing, evolving in an environment that has never been exposed to a single terrestrial organism.<a href="#fn13" class="fn">[13]</a></p>
+
+            <p>Forward contamination of an ocean world is not a measurement problem. It is potentially an ecological catastrophe. A single viable terrestrial extremophile delivered to Enceladus&rsquo;s hydrothermal vents&mdash;a thermophilic archaeon, a radiation-resistant <em>Deinococcus</em>&mdash;could encounter an environment more hospitable than many habitats on Earth where these organisms thrive. If it reproduced, the contamination would be irreversible. Earth life could colonize or displace an independent biosphere before we ever detected it. The scientific loss would be total: you cannot discover alien life in an ocean you have already polluted with terrestrial life.</p>
+
+            <p>COSPAR recognized this in its 2024 update to the planetary protection framework, which extended Category III/IV requirements to icy ocean worlds and introduced new guidelines for missions that might access subsurface liquid water. The <a href="https://nap.nationalacademies.org/catalog/25172/review-and-assessment-of-planetary-protection-policy-development-processes">2018 National Academies review</a> of planetary protection policy called for a comprehensive reassessment of contamination protocols for ocean worlds, noting that the existing framework was developed primarily for Mars and may be insufficient for environments with active liquid water. A further update addressing icy worlds specifically is expected from COSPAR in 2026.<a href="#fn14" class="fn">[14]</a></p>
+
+            <p><a href="https://europa.nasa.gov/">Europa Clipper</a> navigated this by design. It is an orbiter, not a lander. It will fly through any plumes that Europa vents, but it will not touch the surface. At end of mission, it will be directed into Ganymede or deep space&mdash;not into Europa&mdash;to prevent uncontrolled impact on a potentially habitable body. The <a href="https://dragonfly.jhuapl.edu/">Dragonfly</a> mission to Titan faces a different calculus: Titan has organic chemistry but almost certainly no liquid water accessible from the surface, and its &minus;179&deg;C temperatures are hostile to all known terrestrial life. The <a href="https://ntrs.nasa.gov/citations/20210014731">Enceladus Orbilander</a>, if ever funded, would face the hardest contamination challenge of any mission ever conceived: a spacecraft that must land on the surface of an active ocean world, sample material potentially minutes old from a subsurface ocean, and do so without introducing a single viable terrestrial cell.<a href="#fn15" class="fn">[15]</a></p>
+
+            <!-- The Gap -->
+            <div class="section-header" style="margin-top: 2.5rem;">Two Nations, No Coordination</div>
+
+            <p>As of February 2026, two nations have active or planned programs to return samples from Mars: China (<a href="https://www.nature.com/articles/d41586-024-02543-7">Tianwen-3</a>, launching 2028, returning ~2031) and, in suspended animation, the United States (MSR, defunded). A third partner, ESA, has hardware in development (<a href="https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Exploration/Mars_sample_return/Earth_Return_Orbiter">Earth Return Orbiter</a>) but no retrieval mission to feed it.</p>
+
+            <p>If Tianwen-3 succeeds, China will open Mars samples in a purpose-built facility. Reports indicate a <a href="http://english.hf.cas.cn/">Mars Sample Laboratory</a> is planned at the Hefei Institutes of Physical Science, part of the Chinese Academy of Sciences. The facility will presumably meet COSPAR Category V requirements&mdash;China is a COSPAR member state and has publicly committed to compliance with international planetary protection norms. But &ldquo;presumably&rdquo; is doing considerable work in that sentence.<a href="#fn16" class="fn">[16]</a></p>
+
+            <p>The <a href="https://www.congress.gov/bill/112th-congress/house-bill/2596">Wolf Amendment</a>, first enacted in 2011 and renewed annually in appropriations language since, prohibits NASA from using federal funds to engage in bilateral coordination with China or Chinese-owned companies unless specifically authorized by Congress. The amendment was written to address technology transfer and national security concerns. Its effect on planetary protection is collateral but significant: NASA cannot coordinate contamination protocols, share facility design specifications, or conduct joint biohazard assessments with the Chinese space program for what may be humanity&rsquo;s first Mars sample return.<a href="#fn17" class="fn">[17]</a></p>
+
+            <p>Two nations may independently open samples from Mars in facilities built to different specifications, using protocols developed without mutual review, and subject to different domestic regulatory regimes. There is no international body with the authority to inspect either facility, certify either protocol, or adjudicate a disagreement about whether containment standards are adequate. COSPAR publishes guidelines. It does not enforce them. The Outer Space Treaty establishes obligations. It does not verify compliance.</p>
+
+            <p>The Apollo precedent is instructive but insufficient. When NASA returned lunar samples in 1969, the <a href="https://curator.jsc.nasa.gov/lunar/">Lunar Receiving Laboratory</a> at Johnson Space Center quarantined astronauts and samples for 21 days. The quarantine was breached almost immediately&mdash;by ants, by air leaks, by the practical impossibility of maintaining sterile containment in a facility designed under time pressure for a mission whose schedule was set by geopolitics rather than biology. The lunar samples turned out to be sterile. The quarantine protocols were quietly acknowledged to have been inadequate. The lesson learned was not that containment works. The lesson was that the Moon was dead and the question was moot.<a href="#fn18" class="fn">[18]</a></p>
+
+            <p>Mars is not the Moon. The question is not moot.</p>
+
+            <!-- Coda -->
+            <div class="section-header" style="margin-top: 2.5rem;">The Infrastructure That Wasn&rsquo;t Built</div>
+
+            <p>The contamination problem is the exobiology series in miniature. Every element of the search for life beyond Earth follows the same structural pattern: the science is ready before the institutions are.</p>
+
+            <p>Perseverance found a potential biosignature. The <a href="2026-02-20-msr-cancelled.html">program to retrieve it was cancelled</a>. <a href="2026-02-20-ocean-worlds.html">Ocean worlds instruments</a> can detect life at concentrations millions of times below Earth&rsquo;s oceans. No funded mission carries them. COSPAR has maintained contamination guidelines for sixty years. No signatory has built the facility those guidelines require for sample return. The Outer Space Treaty mandates protection of celestial environments. No mechanism exists to verify compliance.</p>
+
+            <p>The instruments work. The samples are collected. The targets are identified. The oceans are there. And between all of this readiness and any actual answer stands the same gap that has defined every piece in this series: the institutional infrastructure&mdash;the laboratories, the protocols, the agreements, the political will&mdash;has not been built.</p>
+
+            <p>The contamination problem is not a technical problem. It is a problem of preparedness. And the window in which preparation would have been useful&mdash;the decade before samples arrive on Earth&mdash;is closing. If Tianwen-3 launches on schedule in 2028 and returns samples by 2031, the first extraterrestrial material ever collected from a planet with possible biological history will arrive on Earth in approximately five years. The facility, the protocols, and the international framework needed to handle it responsibly have not been started.</p>
+
+            <p>Five years is not enough time to build a Sample Receiving Facility. It may be enough time to build a political consensus that one is necessary. But political consensus, like sterilization, has never been achieved for Mars.</p>
+
+            <p><em>Part 5 asks the final question: what would confirmation actually look like, and are the institutions prepared for the answer?</em></p>
+
+        </div>
+
+        <!-- Bibliography -->
+        <div class="bibliography" style="margin-top: 3rem; border-top: 2px solid var(--rule); padding-top: 1.5rem;">
+            <div class="section-header">Sources</div>
+            <ol>
+                <li id="fn1">Rummel, J. et al. &ldquo;A New Analysis of Mars &lsquo;Special Regions&rsquo;: Findings of the Second MEPAG Special Regions Science Analysis Group (SR-SAG2).&rdquo; <em>Astrobiology</em>, 2014. <a href="https://www.liebertpub.com/doi/10.1089/ast.2014.1227">liebertpub.com</a></li>
+                <li id="fn2">COSPAR. &ldquo;COSPAR Policy on Planetary Protection.&rdquo; <a href="https://cosparhq.cnes.fr/scientific-structure/panels/panel-on-planetary-protection/">cosparhq.cnes.fr</a></li>
+                <li id="fn3">NASA. &ldquo;Planetary Protection Provisions for Robotic Extraterrestrial Missions.&rdquo; NPR 8020.12D. <a href="https://nodis3.gsfc.nasa.gov/displayDir.cfm?t=NPR&c=8020&s=12D">nodis3.gsfc.nasa.gov</a></li>
+                <li id="fn4">Bionetics Corporation. &ldquo;Lessons Learned from the Viking Planetary Quarantine and Contamination Control Experience.&rdquo; NASA CR-4461, 1992. <a href="https://ntrs.nasa.gov/citations/19930005929">ntrs.nasa.gov</a></li>
+                <li id="fn5">Benardini, J. et al. &ldquo;Implementing Planetary Protection on the Atlas V Fairing and Ground Systems Used to Launch the Mars 2020 Mission.&rdquo; <em>Astrobiology</em>, 2021. <a href="https://www.liebertpub.com/doi/10.1089/ast.2020.2434">liebertpub.com</a></li>
+                <li id="fn6">Klein, H. &ldquo;The Viking Biology Experiments on Mars.&rdquo; <em>Icarus</em>, 1978. <a href="https://www.sciencedirect.com/science/article/abs/pii/0019103578900140">sciencedirect.com</a></li>
+                <li id="fn7">NASA JPL. &ldquo;The 33 Sample Tubes Collected by Perseverance.&rdquo; <a href="https://www.jpl.nasa.gov/images/pia26643-the-33-sample-tubes-collected-by-perseverance/">jpl.nasa.gov</a></li>
+                <li id="fn8">United Nations Office for Outer Space Affairs. &ldquo;Treaty on Principles Governing the Activities of States in the Exploration and Use of Outer Space.&rdquo; 1967. <a href="https://www.unoosa.org/oosa/en/ourwork/spacelaw/treaties/introouterspacetreaty.html">unoosa.org</a></li>
+                <li id="fn9">National Academies. &ldquo;Assessment of Planetary Protection Requirements for Mars Sample Return Missions.&rdquo; 2009. <a href="https://nap.nationalacademies.org/catalog/12576/assessment-of-planetary-protection-requirements-for-mars-sample-return-missions">nap.nationalacademies.org</a></li>
+                <li id="fn10">National Academies. &ldquo;Report Series: Committee on Planetary Protection.&rdquo; <a href="https://nap.nationalacademies.org/catalog/26029/report-series-committee-on-planetary-protection">nap.nationalacademies.org</a></li>
+                <li id="fn11">Velbel, M. &ldquo;Contamination, Sample Integrity, and Sterilization Considerations for Mars Sample Return.&rdquo; <em>Meteoritics &amp; Planetary Science</em>, 2021. <a href="https://onlinelibrary.wiley.com/journal/19455100">wiley.com</a></li>
+                <li id="fn12">Beaty, D. et al. &ldquo;The Potential Science and Engineering Value of Samples Delivered to Earth by Mars Sample Return.&rdquo; <em>Meteoritics &amp; Planetary Science</em>, 2019. <a href="https://onlinelibrary.wiley.com/doi/10.1111/maps.13232">wiley.com</a></li>
+                <li id="fn13">Postberg, F. et al. &ldquo;Macromolecular organic compounds from the depths of Enceladus.&rdquo; <em>Nature</em> 558, 2018. <a href="https://www.nature.com/articles/s41586-018-0246-4">nature.com</a>; Postberg, F. et al. &ldquo;Detection of phosphates originating from Enceladus&rsquo;s ocean.&rdquo; <em>Nature</em> 618, 2023. <a href="https://www.nature.com/articles/s41586-023-05987-9">nature.com</a></li>
+                <li id="fn14">National Academies. &ldquo;Review and Assessment of Planetary Protection Policy Development Processes.&rdquo; 2018. <a href="https://nap.nationalacademies.org/catalog/25172/review-and-assessment-of-planetary-protection-policy-development-processes">nap.nationalacademies.org</a></li>
+                <li id="fn15">MacKenzie, S. et al. &ldquo;The Enceladus Orbilander Mission Concept.&rdquo; <em>Planetary Science Journal</em>, 2021. <a href="https://ntrs.nasa.gov/citations/20210014731">ntrs.nasa.gov</a></li>
+                <li id="fn16">Nature. &ldquo;China&rsquo;s ambitious plan to bring back Mars samples.&rdquo; <a href="https://www.nature.com/articles/d41586-024-02543-7">nature.com</a></li>
+                <li id="fn17">U.S. Congress. &ldquo;Consolidated and Further Continuing Appropriations Act, 2012.&rdquo; Section 539 (Wolf Amendment). <a href="https://www.congress.gov/bill/112th-congress/house-bill/2596">congress.gov</a></li>
+                <li id="fn18">Mangus, S. and Larsen, W. &ldquo;Lunar Receiving Laboratory Project History.&rdquo; NASA/CR-2004-208938. <a href="https://ntrs.nasa.gov/citations/20040055066">ntrs.nasa.gov</a></li>
+            </ol>
+        </div>
+
+        <div style="border-top: 1px solid var(--light-rule); margin-top: 1.5rem; padding-top: 1rem;">
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--gray);">
+                <a href="2026-02-20-ocean-worlds.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">&larr; Part 3: The Instrument Gap</a>
+                &nbsp;&middot;&nbsp;
+                <a href="../index.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Front page</a>
+                &nbsp;&middot;&nbsp;
+                <a href="2026-02-22-contamination-panel.html" style="color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Editorial panel &rarr;</a>
+            </p>
+        </div>
+
+    </article>
+
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://minomobi.com" style="color: var(--gray);">minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="../feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+</body>
+</html>
