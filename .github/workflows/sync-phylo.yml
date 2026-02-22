@@ -60,7 +60,9 @@ jobs:
           python3 scripts/sync-otol-to-atproto.py \
             --ott-id ${{ inputs.ott_id || '244265' }} \
             --height-limit ${{ inputs.height_limit || '-1' }} \
-            --chunk-size ${{ inputs.chunk_size || '250' }} \
+            --chunk-size ${{ inputs.chunk_size || '500' }} \
+            --min-clade 50 \
+            --replace \
             --account ${{ inputs.account || 'main' }} \
             2>&1 | tee phylo/sync-log.txt
 

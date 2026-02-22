@@ -3,33 +3,32 @@
 Sync Open Tree of Life data to ATProto PDS using adaptive chunking.
 
 Fetches a phylogenetic subtree from the OToL API, partitions it into
-adaptive clade chunks (packing as many nodes as will fit per record),
-and writes each chunk as a com.minomobi.phylo.clade record.
+adaptive clade chunks, and writes each as a com.minomobi.phylo.clade record.
 
-Adaptive chunking: small subtrees are inlined into their parent's record.
-Large subtrees get their own record. The algorithm greedily packs nodes,
-splitting at natural boundaries when a chunk would exceed the threshold.
-This minimizes total records while staying well under ATProto's 1 MiB
-record size limit.
+Two thresholds control chunking:
+  - target (--chunk-size): aim for this many nodes per record (default 500)
+  - floor  (--min-clade):  never split out a subtree smaller than this (default 50).
+    Small subtrees are inlined into the parent even if it overflows the target.
+
+This prevents orphan records. Mammalia (11,715 nodes) packs into ~40-60 records
+instead of 673 under the old algorithm. ATProto's hard limit is ~1 MiB per record
+(~8,000 nodes), so overflow to 600-800 nodes (~75-100 KB) is safe.
 
 Usage:
     export BLUESKY_HANDLE=minomobi.com
     export BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
-    # Sync Primates (~1000 nodes → ~5 clade records)
+    # Sync Mammalia (--replace cleans up old records first)
+    python3 scripts/sync-otol-to-atproto.py --ott-id 244265 --replace
+
+    # Sync Primates
     python3 scripts/sync-otol-to-atproto.py --ott-id 913935
 
-    # Sync Mammalia (~6500 nodes → ~30 clade records)
-    python3 scripts/sync-otol-to-atproto.py --ott-id 244265
+    # Dry run to see the partition plan
+    python3 scripts/sync-otol-to-atproto.py --ott-id 244265 --dry-run
 
-    # Use Modulo's account
-    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --account modulo
-
-    # Dry run with JSON dump
-    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --dry-run --dump-json clades.json
-
-    # Custom chunk size (default 250 nodes per clade)
-    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --chunk-size 150
+    # Tune thresholds
+    python3 scripts/sync-otol-to-atproto.py --ott-id 244265 --chunk-size 750 --min-clade 100
 """
 
 import argparse
@@ -46,7 +45,8 @@ OTOL_API = "https://api.opentreeoflife.org/v3"
 BSKY_PUBLIC_API = "https://public.api.bsky.app"
 COLLECTION = "com.minomobi.phylo.clade"
 LEGACY_COLLECTION = "com.minomobi.phylo.node"
-MAX_CHUNK_NODES = 250          # default nodes per clade record (~50-75 KB)
+MAX_CHUNK_NODES = 500          # target nodes per clade record
+MIN_CLADE_NODES = 50           # never create a clade record smaller than this
 BATCH_SIZE = 10                # applyWrites limit (lowered from 200 by Bluesky)
 BATCH_DELAY = 3                # seconds between batches
 RATE_DELAY = 2.2               # seconds between individual writes (fallback)
@@ -146,19 +146,22 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
 
 # --- Adaptive Chunking ---
 
-def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES):
+def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
+                          min_clade=MIN_CLADE_NODES):
     """Partition a flat node list into adaptive clade chunks.
 
-    Each clade record contains a connected subtree. Small subtrees are
-    packed entirely into their parent's record. Large subtrees are split
-    into their own clade record, referenced by the parent via 'refs'.
+    Two thresholds control the split:
+      - max_nodes: target ceiling. The algorithm tries to stay under this.
+      - min_clade: floor. A subtree smaller than this is ALWAYS inlined
+        into its parent, even if the parent overflows the target. This
+        prevents tiny orphan records (the old algorithm produced hundreds
+        of 1-node records for leaf species that didn't fit).
 
-    The algorithm processes children smallest-first to maximize packing —
-    small genera get inlined, only the large ones split out.
+    The soft overflow is safe because ATProto's hard record limit is ~1 MiB
+    (~8,000 nodes at ~120 bytes each). A clade of 600-800 nodes is ~75-100 KB.
 
     Returns a list of clade dicts ready to write as ATProto records.
     """
-    # Build tree index from flat nodes
     by_id = {n["ottId"]: n for n in flat_nodes}
     children_of = defaultdict(list)
     root_id = None
@@ -173,7 +176,6 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES):
     if root_id is None:
         raise ValueError("No root node found (all nodes have parentOttId)")
 
-    # Compute subtree sizes
     size_cache = {}
 
     def subtree_size(ott_id):
@@ -185,20 +187,16 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES):
         size_cache[ott_id] = count
         return count
 
-    # Pre-compute all sizes
     subtree_size(root_id)
 
-    # Partition into clades
     clades = []
 
     def make_clade(root_ott_id):
-        """Create a clade record rooted at root_ott_id."""
         clade_nodes = []
         child_clade_ids = []
 
         def fill(ott_id):
             clade_nodes.append(by_id[ott_id])
-            # Sort children smallest-first to maximize packing
             kids = sorted(
                 children_of.get(ott_id, []),
                 key=lambda cid: subtree_size(cid)
@@ -207,10 +205,11 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES):
                 child_size = subtree_size(child_id)
                 remaining = max_nodes - len(clade_nodes)
                 if child_size <= remaining:
-                    # Inline: this subtree fits
+                    fill(child_id)
+                elif child_size < min_clade:
+                    # Too small to be its own record — inline with overflow
                     fill(child_id)
                 else:
-                    # Split: too large, becomes its own clade record
                     child_clade_ids.append(child_id)
                     make_clade(child_id)
 
@@ -356,6 +355,29 @@ def write_batch(pds, did, token, clade_records):
         return ok, err
 
 
+def delete_batch(pds, did, token, rkeys):
+    """Delete up to BATCH_SIZE records in a single applyWrites call."""
+    writes = [{
+        "$type": "com.atproto.repo.applyWrites#delete",
+        "collection": COLLECTION,
+        "rkey": rkey,
+    } for rkey in rkeys]
+    payload = {"repo": did, "writes": writes}
+    data = json.dumps(payload).encode()
+    req = Request(f"{pds}/xrpc/com.atproto.repo.applyWrites", data=data, headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    })
+    try:
+        with urlopen(req, timeout=60) as resp:
+            json.loads(resp.read())
+        return len(rkeys), 0
+    except HTTPError as exc:
+        body = exc.read().decode()
+        print(f"  Delete batch error: {exc.code} {body}", file=sys.stderr)
+        return 0, len(rkeys)
+
+
 def build_record_value(clade):
     """Build the ATProto record value dict from a clade partition."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -382,9 +404,14 @@ def main():
                         help="OToL API height_limit parameter (-1=unlimited). "
                              "Use 5-10 for large clades to stay under the 25k tip limit.")
     parser.add_argument("--chunk-size", type=int, default=MAX_CHUNK_NODES,
-                        help=f"Max nodes per clade record (default: {MAX_CHUNK_NODES})")
+                        help=f"Target nodes per clade record (default: {MAX_CHUNK_NODES})")
+    parser.add_argument("--min-clade", type=int, default=MIN_CLADE_NODES,
+                        help=f"Minimum clade size — smaller subtrees are inlined into "
+                             f"their parent even if it overflows the target (default: {MIN_CLADE_NODES})")
     parser.add_argument("--account", choices=list(ACCOUNTS.keys()), default="main",
                         help="Which Bluesky account to write to (default: main)")
+    parser.add_argument("--replace", action="store_true",
+                        help="Delete all existing clade records before writing")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch, chunk, and report without writing to PDS")
     parser.add_argument("--dump-json", type=str, default=None,
@@ -417,8 +444,8 @@ def main():
         print(f"  {rank}: {count}")
 
     # Adaptive chunking
-    print(f"\nPartitioning into adaptive clades (max {args.chunk_size} nodes/clade)...")
-    clades = partition_into_clades(nodes, max_nodes=args.chunk_size)
+    print(f"\nPartitioning into adaptive clades (target {args.chunk_size}, min clade {args.min_clade})...")
+    clades = partition_into_clades(nodes, max_nodes=args.chunk_size, min_clade=args.min_clade)
     print(f"Result: {len(clades)} clade records for {len(nodes)} nodes")
 
     total_packed = sum(len(c["nodes"]) for c in clades)
@@ -471,6 +498,21 @@ def main():
     print("Checking for existing clade records...")
     existing = list_existing_records(pds, did, token, collection=COLLECTION)
     print(f"Found {len(existing)} existing records in {COLLECTION}")
+
+    # Delete existing records if --replace
+    if args.replace and existing:
+        print(f"Deleting {len(existing)} existing records (--replace)...")
+        rkey_list = sorted(existing)
+        deleted, del_errors = 0, 0
+        for i in range(0, len(rkey_list), BATCH_SIZE):
+            batch = rkey_list[i:i + BATCH_SIZE]
+            ok, err = delete_batch(pds, did, token, batch)
+            deleted += ok
+            del_errors += err
+            if i + BATCH_SIZE < len(rkey_list):
+                time.sleep(BATCH_DELAY)
+        print(f"Deleted {deleted}, errors {del_errors}")
+        existing = set()
 
     # Filter out clades that already exist
     to_write = [c for c in clades if str(c["rootOttId"]) not in existing]
