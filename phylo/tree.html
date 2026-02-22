@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>phylo — tree of life browser — minomobi</title>
+<title>phylo — Mammalia — text tree — minomobi</title>
 <style>
   * { margin: 0; box-sizing: border-box; }
   body { font: 14px/1.6 monospace; padding: 1em; background: #111; color: #ccc; }
@@ -82,7 +82,11 @@
   <div id="info-panel"><div id="info-inner"></div></div>
 </div>
 <script>
-const OTT_PRIMATES = 913935;
+const params = new URLSearchParams(location.search);
+const ATPROTO_HANDLE = params.get("repo") || "minomobi.bsky.social";
+const OTT_ROOT = parseInt(params.get("ott") || "244265"); // default: Mammalia
+const CLADE_COLLECTION = "com.minomobi.phylo.clade";
+const BSKY_PUBLIC = "https://public.api.bsky.app";
 const API = "https://api.opentreeoflife.org/v3";
 const infoCache = {};
 const ozCache = {};
@@ -239,6 +243,62 @@ function showInfoPanel(ottId, name, rank) {
   });
 }
 
+// ATProto: resolve handle → DID → PDS
+async function resolveATProto(handle) {
+  const res = await fetch(`${BSKY_PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!res.ok) throw new Error(`handle resolution failed: ${res.status}`);
+  const { did } = await res.json();
+  let didUrl;
+  if (did.startsWith("did:plc:")) didUrl = `https://plc.directory/${did}`;
+  else if (did.startsWith("did:web:")) didUrl = `https://${did.split(":").pop()}/.well-known/did.json`;
+  else throw new Error(`unknown DID method: ${did}`);
+  const docRes = await fetch(didUrl);
+  const doc = await docRes.json();
+  const svc = (doc.service || []).find(s => s.type === "AtprotoPersonalDataServer");
+  if (!svc) throw new Error("no PDS in DID document");
+  return { did, pds: svc.serviceEndpoint };
+}
+
+async function fetchATProtoRecords(pds, did, collection) {
+  const records = [];
+  let cursor = null;
+  while (true) {
+    let url = `${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}&limit=100`;
+    if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
+    const page = await res.json();
+    for (const rec of (page.records || [])) records.push(rec.value);
+    cursor = page.cursor;
+    if (!cursor || !page.records || page.records.length === 0) break;
+  }
+  return records;
+}
+
+function flatToTree(records, rootOttId) {
+  const byId = {};
+  for (const rec of records) byId[rec.ottId] = rec;
+  let rootRec = byId[rootOttId];
+  if (!rootRec) rootRec = records.find(r => !r.parentOttId);
+  if (!rootRec) rootRec = records[0];
+  if (!rootRec) throw new Error("no records found");
+  function build(rec) {
+    const node = {
+      taxon: { ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank" },
+      num_tips: rec.numTips || 0,
+      children: []
+    };
+    if (rec.childOttIds) {
+      for (const childId of rec.childOttIds) {
+        const childRec = byId[childId];
+        if (childRec) node.children.push(build(childRec));
+      }
+    }
+    return node;
+  }
+  return build(rootRec);
+}
+
 function renderNode(node) {
   const li = document.createElement("li");
   const tax = node.taxon || {};
@@ -284,11 +344,15 @@ function renderNode(node) {
   li.appendChild(row);
 
   if (kids.length > 0) {
-    const ul = document.createElement("ul");
-    for (const child of kids) ul.appendChild(renderNode(child));
-    li.appendChild(ul);
     li.className = "collapsed";
+    let populated = false;
     span.addEventListener("click", () => {
+      if (!populated) {
+        const ul = document.createElement("ul");
+        for (const child of kids) ul.appendChild(renderNode(child));
+        li.appendChild(ul);
+        populated = true;
+      }
       li.className = li.className === "collapsed" ? "expanded" : "collapsed";
     });
   } else {
@@ -300,17 +364,45 @@ function renderNode(node) {
 (async () => {
   const status = document.getElementById("status");
   const treeEl = document.getElementById("tree");
+  let tree = null;
+  let dataSource = "";
+
+  // Try ATProto clade records first
   try {
-    status.textContent = "fetching primates from open tree of life…";
-    const tree = await fetchSubtree(OTT_PRIMATES);
-    const count = JSON.stringify(tree).length;
-    status.textContent = `loaded (${(count / 1024).toFixed(0)} KB arguson)`;
-    const ul = document.createElement("ul");
-    ul.appendChild(renderNode(tree));
-    treeEl.appendChild(ul);
+    status.textContent = `resolving ${ATPROTO_HANDLE}\u2026`;
+    const { did, pds } = await resolveATProto(ATPROTO_HANDLE);
+    status.textContent = `fetching clades from ${pds.replace("https://","")}\u2026`;
+    const clades = await fetchATProtoRecords(pds, did, CLADE_COLLECTION);
+    if (clades.length > 0) {
+      const allNodes = [];
+      for (const clade of clades) for (const node of (clade.nodes || [])) allNodes.push(node);
+      status.textContent = `${clades.length} clades \u00b7 ${allNodes.length} nodes \u00b7 building tree\u2026`;
+      tree = flatToTree(allNodes, OTT_ROOT);
+      dataSource = `at://${ATPROTO_HANDLE}`;
+    }
   } catch (e) {
-    status.textContent = `error: ${e.message}`;
+    console.warn("ATProto fetch failed, falling back to OToL:", e.message);
   }
+
+  // Fallback to OToL API
+  if (!tree) {
+    try {
+      status.textContent = "fetching from open tree of life\u2026";
+      tree = await fetchSubtree(OTT_ROOT);
+      dataSource = "opentreeoflife.org";
+    } catch (e) {
+      status.textContent = `error: ${e.message}`;
+      return;
+    }
+  }
+
+  const rootName = (tree.taxon || {}).name || "tree";
+  status.textContent = `${rootName} \u00b7 via ${dataSource}`;
+  const ul = document.createElement("ul");
+  ul.appendChild(renderNode(tree));
+  treeEl.appendChild(ul);
+  // Auto-expand root
+  treeEl.querySelector("li .name").click();
 })();
 </script>
 </body>
