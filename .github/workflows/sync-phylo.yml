@@ -20,6 +20,19 @@ on:
         description: 'OToL API height limit (-1=unlimited, use 5-10 for large clades)'
         required: false
         default: '-1'
+      chunk_size:
+        description: 'Max nodes per clade record (default: 250)'
+        required: false
+        default: '250'
+      account:
+        description: 'Bluesky account to write to'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - modulo
+          - morphyx
 
 jobs:
   sync:
@@ -31,16 +44,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Sync Primates to ATProto PDS
+      - name: Sync to ATProto PDS (adaptive chunking)
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: |
           python3 scripts/sync-otol-to-atproto.py \
             --ott-id ${{ inputs.ott_id || '913935' }} \
-            --height-limit ${{ inputs.height_limit || '-1' }}
+            --height-limit ${{ inputs.height_limit || '-1' }} \
+            --chunk-size ${{ inputs.chunk_size || '250' }} \
+            --account ${{ inputs.account || 'main' }}
 
-      - name: Verify records written
+      - name: Verify clade records written
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         run: |
@@ -65,13 +84,13 @@ jobs:
           ")
           echo "PDS: $PDS"
 
-          # Count phylo.node records
+          # Count clade records
           COUNT=$(python3 -c "
           import json, urllib.request
           total = 0
           cursor = ''
           while True:
-              url = '${PDS}/xrpc/com.atproto.repo.listRecords?repo=${DID}&collection=com.minomobi.phylo.node&limit=100'
+              url = '${PDS}/xrpc/com.atproto.repo.listRecords?repo=${DID}&collection=com.minomobi.phylo.clade&limit=100'
               if cursor:
                   url += '&cursor=' + cursor
               with urllib.request.urlopen(url) as r:
@@ -82,4 +101,4 @@ jobs:
                   break
           print(total)
           ")
-          echo "✓ $COUNT phylo.node records in repo"
+          echo "✓ $COUNT phylo.clade records in repo"

@@ -1,0 +1,83 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.phylo.clade",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "An adaptive chunk of a phylogenetic tree. Contains a connected subtree of taxon nodes packed into a single record. Large subtrees are split across multiple clade records; the 'refs' array lists OTT IDs of child subtrees stored in separate clade records. Record key is the root OTT ID of the chunk.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["rootOttId", "nodes", "createdAt"],
+        "properties": {
+          "rootOttId": {
+            "type": "integer",
+            "description": "OTT ID of the root node of this chunk"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {"type": "ref", "ref": "#taxonNode"},
+            "description": "All taxon nodes packed into this chunk. Topology is reconstructed from parentOttId/childOttIds fields on each node."
+          },
+          "refs": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "description": "OTT IDs of child subtrees stored in separate clade records. These are children of nodes in this chunk whose subtrees exceeded the chunk size threshold."
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Source taxonomy (e.g., 'otol-synthesis')"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp when this record was created"
+          }
+        }
+      }
+    },
+    "taxonNode": {
+      "type": "object",
+      "required": ["ottId", "name"],
+      "properties": {
+        "ottId": {
+          "type": "integer",
+          "description": "Open Tree of Life Taxonomy identifier"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "Scientific name (e.g., 'Homo sapiens', 'Mammalia')"
+        },
+        "commonName": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "Common name if available"
+        },
+        "rank": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Taxonomic rank (species, genus, family, order, etc.)"
+        },
+        "parentOttId": {
+          "type": "integer",
+          "description": "OTT ID of the parent node. Absent for the tree root."
+        },
+        "childOttIds": {
+          "type": "array",
+          "items": {"type": "integer"},
+          "description": "OTT IDs of direct children (both inline and in child clades)"
+        },
+        "numTips": {
+          "type": "integer",
+          "description": "Number of descendant leaf nodes"
+        },
+        "extinct": {
+          "type": "boolean",
+          "description": "Whether this taxon is extinct"
+        }
+      }
+    }
+  }
+}

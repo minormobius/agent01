@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 """
-Sync Open Tree of Life data to an ATProto PDS.
+Sync Open Tree of Life data to ATProto PDS using adaptive chunking.
 
-Fetches a phylogenetic subtree from the OToL API, transforms each node
-into a com.minomobi.phylo.node record, and writes it to the user's
-ATProto repository. Record keys are OTT IDs, so re-running is idempotent
-(existing records are skipped).
+Fetches a phylogenetic subtree from the OToL API, partitions it into
+adaptive clade chunks (packing as many nodes as will fit per record),
+and writes each chunk as a com.minomobi.phylo.clade record.
+
+Adaptive chunking: small subtrees are inlined into their parent's record.
+Large subtrees get their own record. The algorithm greedily packs nodes,
+splitting at natural boundaries when a chunk would exceed the threshold.
+This minimizes total records while staying well under ATProto's 1 MiB
+record size limit.
 
 Usage:
     export BLUESKY_HANDLE=minomobi.com
     export BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
-    # Sync Primates (~500 nodes, good for testing)
-    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --max-depth 20
+    # Sync Primates (~1000 nodes → ~5 clade records)
+    python3 scripts/sync-otol-to-atproto.py --ott-id 913935
 
-    # Sync Cephalopoda (~800 nodes)
-    python3 scripts/sync-otol-to-atproto.py --ott-id 795941
-
-    # Sync Mammalia (~6500 nodes, ~3 minutes batched, hours if --no-batch)
+    # Sync Mammalia (~6500 nodes → ~30 clade records)
     python3 scripts/sync-otol-to-atproto.py --ott-id 244265
 
-    # Dry run (just fetch and count, don't write)
-    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --dry-run
+    # Use Modulo's account
+    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --account modulo
+
+    # Dry run with JSON dump
+    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --dry-run --dump-json clades.json
+
+    # Custom chunk size (default 250 nodes per clade)
+    python3 scripts/sync-otol-to-atproto.py --ott-id 913935 --chunk-size 150
 """
 
 import argparse
@@ -29,16 +37,35 @@ import json
 import os
 import sys
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 OTOL_API = "https://api.opentreeoflife.org/v3"
 BSKY_PUBLIC_API = "https://public.api.bsky.app"
-COLLECTION = "com.minomobi.phylo.node"
-RATE_DELAY = 2.2  # seconds between single writes (stays under 1666/hr)
-BATCH_SIZE = 200  # applyWrites supports up to 200 ops per call
-BATCH_DELAY = 5   # seconds between batches (each batch = 200 records toward hourly limit)
+COLLECTION = "com.minomobi.phylo.clade"
+LEGACY_COLLECTION = "com.minomobi.phylo.node"
+MAX_CHUNK_NODES = 250          # default nodes per clade record (~50-75 KB)
+BATCH_SIZE = 10                # applyWrites limit (lowered from 200 by Bluesky)
+BATCH_DELAY = 3                # seconds between batches
+RATE_DELAY = 2.2               # seconds between individual writes (fallback)
+
+# Account presets matching GitHub secrets
+ACCOUNTS = {
+    "main": {
+        "handle_env": "BLUESKY_HANDLE",
+        "password_env": "BLUESKY_APP_PASSWORD",
+    },
+    "modulo": {
+        "handle_env": "BLUESKY_MODULO_HANDLE",
+        "password_env": "BLUESKY_MODULO_APP_PASSWORD",
+    },
+    "morphyx": {
+        "handle_env": "BLUESKY_MORPHYX_HANDLE",
+        "password_env": "BLUESKY_MORPHYX_APP_PASSWORD",
+    },
+}
 
 
 # --- OToL API ---
@@ -64,14 +91,6 @@ def fetch_subtree(ott_id, height_limit=-1):
     return result.get("arguson")
 
 
-def fetch_taxon_info(ott_id):
-    """Fetch taxonomy info for a single taxon."""
-    return otol_post("taxonomy/taxon_info", {
-        "ott_id": ott_id,
-        "include_lineage": False,
-    })
-
-
 def collect_named_descendants(node):
     """Walk down through unnamed (mrca) nodes to find all named descendant OTT IDs.
     Stops at the first named node in each branch."""
@@ -81,7 +100,6 @@ def collect_named_descendants(node):
         if child_ott:
             result.append(child_ott)
         else:
-            # Unnamed mrca node — look through it
             result.extend(collect_named_descendants(child))
     return result
 
@@ -89,8 +107,7 @@ def collect_named_descendants(node):
 def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=0):
     """Recursively flatten an arguson tree into a list of node dicts.
     Unnamed interior nodes (mrcaott...) are collapsed: their children
-    inherit the nearest named ancestor as parent, preserving the tree
-    structure without creating records for unnamed nodes."""
+    inherit the nearest named ancestor as parent."""
     if nodes is None:
         nodes = []
     if max_depth is not None and depth > max_depth:
@@ -103,7 +120,6 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
     unique_name = tax_info.get("unique_name", "")
     num_tips = node.get("num_tips", 0)
 
-    # For named nodes, collect all named descendants (traversing through mrca nodes)
     if ott_id:
         child_ott_ids = collect_named_descendants(node)
         record = {
@@ -120,14 +136,93 @@ def flatten_arguson(node, parent_ott_id=None, nodes=None, max_depth=None, depth=
             record["childOttIds"] = child_ott_ids
         nodes.append(record)
 
-    # Recurse into children. If this node is unnamed (mrca), pass through
-    # the parent_ott_id so children link to the nearest named ancestor.
     effective_parent = ott_id if ott_id else parent_ott_id
     for child in node.get("children", []):
         flatten_arguson(child, parent_ott_id=effective_parent, nodes=nodes,
                         max_depth=max_depth, depth=depth + 1)
 
     return nodes
+
+
+# --- Adaptive Chunking ---
+
+def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES):
+    """Partition a flat node list into adaptive clade chunks.
+
+    Each clade record contains a connected subtree. Small subtrees are
+    packed entirely into their parent's record. Large subtrees are split
+    into their own clade record, referenced by the parent via 'refs'.
+
+    The algorithm processes children smallest-first to maximize packing —
+    small genera get inlined, only the large ones split out.
+
+    Returns a list of clade dicts ready to write as ATProto records.
+    """
+    # Build tree index from flat nodes
+    by_id = {n["ottId"]: n for n in flat_nodes}
+    children_of = defaultdict(list)
+    root_id = None
+
+    for n in flat_nodes:
+        parent = n.get("parentOttId")
+        if parent is None:
+            root_id = n["ottId"]
+        else:
+            children_of[parent].append(n["ottId"])
+
+    if root_id is None:
+        raise ValueError("No root node found (all nodes have parentOttId)")
+
+    # Compute subtree sizes
+    size_cache = {}
+
+    def subtree_size(ott_id):
+        if ott_id in size_cache:
+            return size_cache[ott_id]
+        count = 1
+        for child_id in children_of.get(ott_id, []):
+            count += subtree_size(child_id)
+        size_cache[ott_id] = count
+        return count
+
+    # Pre-compute all sizes
+    subtree_size(root_id)
+
+    # Partition into clades
+    clades = []
+
+    def make_clade(root_ott_id):
+        """Create a clade record rooted at root_ott_id."""
+        clade_nodes = []
+        child_clade_ids = []
+
+        def fill(ott_id):
+            clade_nodes.append(by_id[ott_id])
+            # Sort children smallest-first to maximize packing
+            kids = sorted(
+                children_of.get(ott_id, []),
+                key=lambda cid: subtree_size(cid)
+            )
+            for child_id in kids:
+                child_size = subtree_size(child_id)
+                remaining = max_nodes - len(clade_nodes)
+                if child_size <= remaining:
+                    # Inline: this subtree fits
+                    fill(child_id)
+                else:
+                    # Split: too large, becomes its own clade record
+                    child_clade_ids.append(child_id)
+                    make_clade(child_id)
+
+        fill(root_ott_id)
+        clades.append({
+            "rootOttId": root_ott_id,
+            "nodes": clade_nodes,
+            "refs": child_clade_ids,
+        })
+
+    make_clade(root_id)
+    return clades
 
 
 # --- ATProto API ---
@@ -171,19 +266,18 @@ def create_session(pds, handle, password):
     return session["accessJwt"], session["did"]
 
 
-def list_existing_records(pds, did, token, limit=100):
-    """List existing phylo.node records to avoid duplicates."""
+def list_existing_records(pds, did, token, collection=COLLECTION, limit=100):
+    """List existing records to check for duplicates."""
     existing = set()
     cursor = None
     while True:
-        url = f"{pds}/xrpc/com.atproto.repo.listRecords?repo={did}&collection={COLLECTION}&limit={limit}"
+        url = f"{pds}/xrpc/com.atproto.repo.listRecords?repo={did}&collection={collection}&limit={limit}"
         if cursor:
             url += f"&cursor={cursor}"
         req = Request(url, headers={"Authorization": f"Bearer {token}"})
         with urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
         for rec in data.get("records", []):
-            # rkey is the last segment of the AT URI
             rkey = rec["uri"].split("/")[-1]
             existing.add(rkey)
         cursor = data.get("cursor")
@@ -193,16 +287,14 @@ def list_existing_records(pds, did, token, limit=100):
 
 
 def write_record(pds, did, token, rkey, record):
-    """Write a single phylo.node record to the PDS."""
+    """Write a single clade record to the PDS."""
     url = f"{pds}/xrpc/com.atproto.repo.createRecord"
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     payload = {
         "repo": did,
         "collection": COLLECTION,
         "rkey": rkey,
         "record": {
             "$type": COLLECTION,
-            "createdAt": now,
             **record,
         },
     }
@@ -212,29 +304,27 @@ def write_record(pds, did, token, rkey, record):
         "Authorization": f"Bearer {token}",
     })
     try:
-        with urlopen(req, timeout=15) as resp:
+        with urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read())
         return result.get("uri")
     except HTTPError as exc:
         body = exc.read().decode()
-        print(f"  Error writing ott{rkey}: {exc.code} {body}", file=sys.stderr)
+        print(f"  Error writing clade {rkey}: {exc.code} {body}", file=sys.stderr)
         return None
 
 
-def write_batch(pds, did, token, records_batch):
-    """Write up to 200 records in a single applyWrites call.
+def write_batch(pds, did, token, clade_records):
+    """Write up to BATCH_SIZE clade records in a single applyWrites call.
     Returns (success_count, error_count)."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     writes = []
-    for rec in records_batch:
+    for clade in clade_records:
         writes.append({
             "$type": "com.atproto.repo.applyWrites#create",
             "collection": COLLECTION,
-            "rkey": str(rec["ottId"]),
+            "rkey": str(clade["rootOttId"]),
             "value": {
                 "$type": COLLECTION,
-                "createdAt": now,
-                **rec,
+                **build_record_value(clade),
             },
         })
     payload = {
@@ -249,15 +339,15 @@ def write_batch(pds, did, token, records_batch):
     try:
         with urlopen(req, timeout=60) as resp:
             json.loads(resp.read())
-        return len(records_batch), 0
+        return len(clade_records), 0
     except HTTPError as exc:
         body = exc.read().decode()
-        print(f"  Batch error ({len(records_batch)} records): {exc.code} {body}", file=sys.stderr)
-        # Fall back to individual writes
-        print(f"  Falling back to individual writes for this batch...", file=sys.stderr)
+        print(f"  Batch error ({len(clade_records)} clades): {exc.code} {body}", file=sys.stderr)
+        print(f"  Falling back to individual writes...", file=sys.stderr)
         ok, err = 0, 0
-        for rec in records_batch:
-            uri = write_record(pds, did, token, str(rec["ottId"]), rec)
+        for clade in clade_records:
+            rec_value = build_record_value(clade)
+            uri = write_record(pds, did, token, str(clade["rootOttId"]), rec_value)
             if uri:
                 ok += 1
             else:
@@ -266,25 +356,41 @@ def write_batch(pds, did, token, records_batch):
         return ok, err
 
 
+def build_record_value(clade):
+    """Build the ATProto record value dict from a clade partition."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {
+        "rootOttId": clade["rootOttId"],
+        "nodes": clade["nodes"],
+        "refs": clade["refs"] if clade["refs"] else [],
+        "source": "otol-synthesis",
+        "createdAt": now,
+    }
+
+
 # --- Main ---
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sync Open Tree of Life subtree to ATProto PDS"
+        description="Sync Open Tree of Life subtree to ATProto PDS using adaptive chunking"
     )
     parser.add_argument("--ott-id", type=int, required=True,
                         help="OTT ID of the root taxon (e.g., 244265 for Mammalia)")
     parser.add_argument("--max-depth", type=int, default=None,
                         help="Maximum tree depth to flatten (default: unlimited)")
     parser.add_argument("--height-limit", type=int, default=-1,
-                        help="OToL API height_limit parameter (-1=unlimited, default). "
+                        help="OToL API height_limit parameter (-1=unlimited). "
                              "Use 5-10 for large clades to stay under the 25k tip limit.")
+    parser.add_argument("--chunk-size", type=int, default=MAX_CHUNK_NODES,
+                        help=f"Max nodes per clade record (default: {MAX_CHUNK_NODES})")
+    parser.add_argument("--account", choices=list(ACCOUNTS.keys()), default="main",
+                        help="Which Bluesky account to write to (default: main)")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Fetch and count nodes without writing to PDS")
+                        help="Fetch, chunk, and report without writing to PDS")
     parser.add_argument("--dump-json", type=str, default=None,
-                        help="Dump fetched nodes to a JSON file (useful for visualization testing)")
+                        help="Dump clade records to a JSON file")
     parser.add_argument("--no-batch", action="store_true",
-                        help="Write one record at a time instead of using applyWrites batches")
+                        help="Write one clade at a time instead of using applyWrites")
     args = parser.parse_args()
 
     # Fetch from OToL
@@ -297,11 +403,11 @@ def main():
     root_taxon = tree.get("taxon", {}).get("name", "unknown")
     print(f"Root taxon: {root_taxon}")
 
-    print("Flattening tree...")
+    print("Flattening tree (collapsing unnamed nodes)...")
     nodes = flatten_arguson(tree, max_depth=args.max_depth)
-    print(f"Found {len(nodes)} nodes with OTT IDs")
+    print(f"Found {len(nodes)} named nodes")
 
-    # Count by rank
+    # Rank breakdown
     rank_counts = {}
     for n in nodes:
         r = n.get("rank", "no rank")
@@ -310,43 +416,65 @@ def main():
     for rank, count in sorted(rank_counts.items(), key=lambda x: -x[1]):
         print(f"  {rank}: {count}")
 
+    # Adaptive chunking
+    print(f"\nPartitioning into adaptive clades (max {args.chunk_size} nodes/clade)...")
+    clades = partition_into_clades(nodes, max_nodes=args.chunk_size)
+    print(f"Result: {len(clades)} clade records for {len(nodes)} nodes")
+
+    total_packed = sum(len(c["nodes"]) for c in clades)
+    avg_pack = total_packed / len(clades) if clades else 0
+    print(f"  Average: {avg_pack:.0f} nodes/clade")
+    print(f"  Largest: {max(len(c['nodes']) for c in clades)} nodes")
+    print(f"  Smallest: {min(len(c['nodes']) for c in clades)} nodes")
+
+    # Show clade overview
+    print(f"\nClade breakdown:")
+    for c in sorted(clades, key=lambda x: -len(x["nodes"])):
+        root_node = next((n for n in c["nodes"] if n["ottId"] == c["rootOttId"]), {})
+        name = root_node.get("name", f"ott{c['rootOttId']}")
+        rank = root_node.get("rank", "")
+        refs_str = f", {len(c['refs'])} refs" if c["refs"] else ""
+        est_kb = len(json.dumps(c).encode()) / 1024
+        print(f"  {name} ({rank}): {len(c['nodes'])} nodes{refs_str} (~{est_kb:.1f} KB)")
+
+    # Estimate record sizes
+    total_bytes = sum(len(json.dumps(c).encode()) for c in clades)
+    print(f"\nTotal payload: {total_bytes / 1024:.1f} KB across {len(clades)} records")
+    print(f"Compression ratio: {len(nodes)} nodes → {len(clades)} records ({len(nodes)/len(clades):.0f}x)")
+
     # Dump JSON if requested
     if args.dump_json:
         with open(args.dump_json, "w") as f:
-            json.dump(nodes, f, indent=2)
-        print(f"Wrote {len(nodes)} nodes to {args.dump_json}")
+            json.dump(clades, f, indent=2)
+        print(f"Wrote {len(clades)} clade records to {args.dump_json}")
 
     if args.dry_run:
-        if args.no_batch:
-            est_hours = (len(nodes) * RATE_DELAY) / 3600
-            print(f"\nDry run complete. Writing {len(nodes)} records individually would take ~{est_hours:.1f} hours.")
-        else:
-            num_batches = (len(nodes) + BATCH_SIZE - 1) // BATCH_SIZE
-            est_mins = (num_batches * BATCH_DELAY) / 60
-            print(f"\nDry run complete. Writing {len(nodes)} records in {num_batches} batches of {BATCH_SIZE} would take ~{est_mins:.1f} minutes.")
+        print(f"\nDry run complete. Would write {len(clades)} clade records.")
         return
 
     # Auth
-    handle = os.environ.get("BLUESKY_HANDLE")
-    password = os.environ.get("BLUESKY_APP_PASSWORD")
+    acct = ACCOUNTS[args.account]
+    handle = os.environ.get(acct["handle_env"])
+    password = os.environ.get(acct["password_env"])
     if not handle or not password:
-        print("Error: Set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD environment variables.", file=sys.stderr)
+        print(f"Error: Set {acct['handle_env']} and {acct['password_env']} "
+              f"environment variables for --account {args.account}.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nAuthenticating as {handle}...")
+    print(f"\nAuthenticating as {handle} ({args.account})...")
     did = resolve_handle(handle)
     pds = resolve_pds(did)
     token, did = create_session(pds, handle, password)
     print(f"Authenticated. DID: {did}, PDS: {pds}")
 
-    # Check existing records
-    print("Checking for existing records...")
-    existing = list_existing_records(pds, did, token)
+    # Check existing clade records
+    print("Checking for existing clade records...")
+    existing = list_existing_records(pds, did, token, collection=COLLECTION)
     print(f"Found {len(existing)} existing records in {COLLECTION}")
 
-    # Write records
-    to_write = [n for n in nodes if str(n["ottId"]) not in existing]
-    print(f"{len(to_write)} new records to write ({len(nodes) - len(to_write)} already exist)")
+    # Filter out clades that already exist
+    to_write = [c for c in clades if str(c["rootOttId"]) not in existing]
+    print(f"{len(to_write)} new clade records to write ({len(clades) - len(to_write)} already exist)")
 
     if not to_write:
         print("Nothing to do!")
@@ -355,28 +483,24 @@ def main():
     written = 0
     errors = 0
 
-    if args.no_batch:
-        est_hours = (len(to_write) * RATE_DELAY) / 3600
-        print(f"Estimated time: {est_hours:.1f} hours (individual writes)")
-        print(f"Writing records...\n")
-
-        for i, node in enumerate(to_write):
-            rkey = str(node["ottId"])
-            uri = write_record(pds, did, token, rkey, node)
+    if args.no_batch or len(to_write) <= 3:
+        # For very few records, individual writes are simpler
+        print(f"Writing {len(to_write)} clade records individually...\n")
+        for i, clade in enumerate(to_write):
+            rkey = str(clade["rootOttId"])
+            rec_value = build_record_value(clade)
+            uri = write_record(pds, did, token, rkey, rec_value)
             if uri:
                 written += 1
-                if written % 50 == 0 or written == len(to_write):
-                    pct = (i + 1) / len(to_write) * 100
-                    print(f"  [{pct:5.1f}%] Written {written}/{len(to_write)} (errors: {errors})")
+                root_node = next((n for n in clade["nodes"] if n["ottId"] == clade["rootOttId"]), {})
+                print(f"  [{i+1}/{len(to_write)}] {root_node.get('name', rkey)}: {len(clade['nodes'])} nodes → {uri}")
             else:
                 errors += 1
             if i < len(to_write) - 1:
                 time.sleep(RATE_DELAY)
     else:
         num_batches = (len(to_write) + BATCH_SIZE - 1) // BATCH_SIZE
-        est_mins = (num_batches * BATCH_DELAY) / 60
-        print(f"Writing {len(to_write)} records in {num_batches} batches of up to {BATCH_SIZE} (~{est_mins:.1f} minutes)")
-        print(f"Using com.atproto.repo.applyWrites for batch writes\n")
+        print(f"Writing {len(to_write)} clade records in {num_batches} batches of up to {BATCH_SIZE}\n")
 
         for batch_num in range(num_batches):
             start = batch_num * BATCH_SIZE
@@ -388,14 +512,19 @@ def main():
             errors += err
 
             pct = end / len(to_write) * 100
-            print(f"  [{pct:5.1f}%] Batch {batch_num + 1}/{num_batches}: {ok} written, {err} errors (total: {written}/{len(to_write)})")
+            print(f"  [{pct:5.1f}%] Batch {batch_num + 1}/{num_batches}: "
+                  f"{ok} written, {err} errors (total: {written}/{len(to_write)})")
 
             if batch_num < num_batches - 1:
                 time.sleep(BATCH_DELAY)
 
-    print(f"\nDone. Written: {written}, Errors: {errors}, Skipped: {len(nodes) - len(to_write)}")
+    new_nodes = sum(len(c["nodes"]) for c in to_write[:written])
+    print(f"\nDone. Clades written: {written}, Errors: {errors}, "
+          f"Skipped: {len(clades) - len(to_write)}")
+    print(f"Nodes packed: {new_nodes} across {written} records")
     print(f"View at: https://bsky.app/profile/{handle}")
-    print(f"Query records: {pds}/xrpc/com.atproto.repo.listRecords?repo={did}&collection={COLLECTION}&limit=10")
+    print(f"Query records: {pds}/xrpc/com.atproto.repo.listRecords"
+          f"?repo={did}&collection={COLLECTION}&limit=100")
 
 
 if __name__ == "__main__":

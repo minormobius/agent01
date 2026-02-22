@@ -96,10 +96,11 @@
 const params = new URLSearchParams(location.search);
 const ATPROTO_HANDLE = params.get("repo") || "minomobi.bsky.social";
 const OTT_ROOT = parseInt(params.get("ott") || "913935"); // default: Primates
-const COLLECTION = "com.minomobi.phylo.node";
+const CLADE_COLLECTION = "com.minomobi.phylo.clade";
+const NODE_COLLECTION = "com.minomobi.phylo.node";
 const OTOL_API = "https://api.opentreeoflife.org/v3";
 const BSKY_PUBLIC = "https://public.api.bsky.app";
-let dataSource = ""; // "atproto" or "otol" — set during init
+let dataSource = ""; // "atproto-clade", "atproto-node", or "otol"
 
 // ── Canvas ──────────────────────────────────────────────────────────
 const canvas = document.getElementById("c");
@@ -171,12 +172,12 @@ async function resolveATProto(handle) {
   return { did, pds: svc.serviceEndpoint };
 }
 
-// ATProto: paginate through all phylo.node records
-async function fetchATProtoRecords(pds, did) {
+// ATProto: paginate through all records in a collection
+async function fetchATProtoRecords(pds, did, collection) {
   const records = [];
   let cursor = null;
   while (true) {
-    let url = `${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=100`;
+    let url = `${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}&limit=100`;
     if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
@@ -188,6 +189,17 @@ async function fetchATProtoRecords(pds, did) {
     if (!cursor || !page.records || page.records.length === 0) break;
   }
   return records;
+}
+
+// Unpack clade records: extract all nodes from all clades into a flat list
+function unpackClades(cladeRecords) {
+  const allNodes = [];
+  for (const clade of cladeRecords) {
+    for (const node of (clade.nodes || [])) {
+      allNodes.push(node);
+    }
+  }
+  return allNodes;
 }
 
 // Reconstruct nested arguson-like tree from flat ATProto records
@@ -747,17 +759,34 @@ function selectNode(node) {
   resize();
 
   let tree = null;
+  let nodeCount = 0;
 
-  // Try ATProto first
+  // Try ATProto clade records first (adaptive chunked format)
   try {
     status.textContent = `resolving ${ATPROTO_HANDLE}\u2026`;
     const { did, pds } = await resolveATProto(ATPROTO_HANDLE);
-    status.textContent = `fetching records from ${pds.replace("https://","")}\u2026`;
-    const records = await fetchATProtoRecords(pds, did);
-    if (records.length > 0) {
-      status.textContent = `${records.length} records \u00b7 building tree\u2026`;
-      tree = flatToTree(records, OTT_ROOT);
-      dataSource = "atproto";
+
+    // Try clade collection first
+    status.textContent = `fetching clades from ${pds.replace("https://","")}\u2026`;
+    const clades = await fetchATProtoRecords(pds, did, CLADE_COLLECTION);
+    if (clades.length > 0) {
+      const allNodes = unpackClades(clades);
+      nodeCount = allNodes.length;
+      status.textContent = `${clades.length} clades \u00b7 ${nodeCount} nodes \u00b7 building tree\u2026`;
+      tree = flatToTree(allNodes, OTT_ROOT);
+      dataSource = "atproto-clade";
+    }
+
+    // Fall back to legacy node collection
+    if (!tree) {
+      status.textContent = `fetching node records from ${pds.replace("https://","")}\u2026`;
+      const records = await fetchATProtoRecords(pds, did, NODE_COLLECTION);
+      if (records.length > 0) {
+        nodeCount = records.length;
+        status.textContent = `${records.length} records \u00b7 building tree\u2026`;
+        tree = flatToTree(records, OTT_ROOT);
+        dataSource = "atproto-node";
+      }
     }
   } catch (e) {
     console.warn("ATProto fetch failed, falling back to OToL:", e.message);
@@ -782,9 +811,10 @@ function selectNode(node) {
   // Initial camera: fit root
   cam.scale = Math.min(W, H) * 0.38;
 
-  const src = dataSource === "atproto" ? `at://${ATPROTO_HANDLE}` : "opentreeoflife.org";
+  const src = dataSource.startsWith("atproto") ? `at://${ATPROTO_HANDLE}` : "opentreeoflife.org";
   document.getElementById("source").textContent = `[${dataSource}]`;
-  status.textContent = `${flat.length} nodes via ${src} \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
+  const countLabel = dataSource === "atproto-clade" ? `${flat.length} nodes (chunked)` : `${flat.length} nodes`;
+  status.textContent = `${countLabel} via ${src} \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
   scheduleDraw();
 })();
 </script>
