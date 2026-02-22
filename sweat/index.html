@@ -58,225 +58,133 @@ body {
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
 }
-.header h1 {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.header .handle {
-  font-size: 13px;
-  color: var(--text2);
-}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.header .handle { font-size: 13px; color: var(--text2); }
 .btn-small {
-  font-size: 12px;
-  padding: 4px 12px;
-  background: var(--surface2);
-  color: var(--text2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: var(--font);
+  font-size: 12px; padding: 4px 12px;
+  background: var(--surface2); color: var(--text2);
+  border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; font-family: var(--font);
 }
 .btn-small:hover { background: var(--border); color: var(--text); }
 
 /* Cards */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
 }
 .card h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
+  font-size: 14px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
 }
 
 /* Forms */
 input, select {
-  width: 100%;
-  padding: 10px 12px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 14px;
-  font-family: var(--font);
-  outline: none;
-  transition: border-color 0.15s;
+  width: 100%; padding: 10px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 14px; font-family: var(--font);
+  outline: none; transition: border-color 0.15s;
 }
 input:focus, select:focus { border-color: var(--accent); }
 input::placeholder { color: var(--text2); }
 
-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text2);
-  margin-bottom: 4px;
-}
+label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
 
-.form-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
+.form-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .form-row > div { flex: 1; }
 .form-group { margin-bottom: 10px; }
 
 /* Buttons */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; font-size: 14px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 8px; cursor: pointer;
+  transition: opacity 0.15s; width: 100%;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--accent2); }
 .btn-danger { background: var(--red); color: #fff; }
-.btn-ghost {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--border);
-}
+.btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--surface2); }
 
 /* Toggle */
-.toggle-group {
-  display: flex;
-  background: var(--surface2);
-  border-radius: 8px;
-  padding: 3px;
-  margin-bottom: 14px;
-}
+.toggle-group { display: flex; background: var(--surface2); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
 .toggle-group button {
-  flex: 1;
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--text2);
-  transition: all 0.15s;
+  flex: 1; padding: 8px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
 }
-.toggle-group button.active {
-  background: var(--accent);
-  color: #fff;
-}
+.toggle-group button.active { background: var(--accent); color: #fff; }
 
-/* Tabs (views) */
+/* Tabs */
 .tab-bar {
-  display: flex;
-  gap: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 3px;
-  margin-bottom: 16px;
+  display: flex; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 3px; margin-bottom: 16px;
 }
 .tab-bar button {
-  flex: 1;
-  padding: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--text2);
-  transition: all 0.15s;
+  flex: 1; padding: 10px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
 }
-.tab-bar button.active {
-  background: var(--surface2);
-  color: var(--text);
-}
+.tab-bar button.active { background: var(--surface2); color: var(--text); }
 
-/* Exercise rows */
+/* Exercise / set rows */
 .exercise-row {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
 }
 .exercise-row .row-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
 }
-.exercise-row .row-header span {
-  font-size: 14px;
-  font-weight: 600;
-}
+.exercise-row .row-header span { font-size: 14px; font-weight: 600; }
 .remove-btn {
-  background: none;
-  border: none;
-  color: var(--text2);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 2px 6px;
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px;
 }
 .remove-btn:hover { color: var(--red); }
 
+/* Swim total bar */
+.swim-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: rgba(76,175,132,0.08);
+  border: 1px solid rgba(76,175,132,0.2); border-radius: 8px;
+  margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--green);
+}
+
+/* Suggest banner */
+.suggest-banner {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: rgba(108,140,255,0.08);
+  border: 1px solid rgba(108,140,255,0.2); border-radius: 8px;
+  margin-bottom: 12px; font-size: 13px; color: var(--accent);
+}
+.suggest-banner button {
+  font-size: 12px; padding: 4px 10px; background: var(--accent); color: #fff;
+  border: none; border-radius: 6px; cursor: pointer; font-family: var(--font); font-weight: 600;
+}
+
 /* History entries */
 .history-entry {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+  cursor: pointer; transition: border-color 0.15s;
 }
 .history-entry:hover { border-color: var(--accent); }
-.history-date {
-  font-size: 12px;
-  color: var(--text2);
-  margin-bottom: 4px;
-}
+.history-date { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
 .history-type {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-bottom: 6px;
+  display: inline-block; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 4px; margin-bottom: 6px;
 }
 .history-type.lift { background: rgba(108,140,255,0.15); color: var(--accent); }
 .history-type.swim { background: rgba(76,175,132,0.15); color: var(--green); }
-.history-summary {
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.4;
-}
+.history-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.history-summary { font-size: 13px; color: var(--text); line-height: 1.4; }
 .history-detail {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--text2);
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text2);
 }
 
 /* Status messages */
@@ -285,53 +193,25 @@ label {
 .msg-success { background: rgba(76,175,132,0.12); color: var(--green); }
 
 /* Chart container */
-.chart-container {
-  position: relative;
-  height: 240px;
-  margin-top: 8px;
-}
+.chart-container { position: relative; height: 240px; margin-top: 8px; }
 
 /* Empty states */
-.empty {
-  text-align: center;
-  padding: 32px 16px;
-  color: var(--text2);
-  font-size: 14px;
-}
+.empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
 
 /* Analytics filters */
-.filter-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .filter-chip {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  font-family: var(--font);
-  transition: all 0.15s;
+  font-size: 12px; font-weight: 500; padding: 5px 12px;
+  border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2);
+  cursor: pointer; font-family: var(--font); transition: all 0.15s;
 }
-.filter-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-chip.active-green { background: var(--green); border-color: var(--green); color: #fff; }
 
 .hidden { display: none; }
 
-/* Delete row in detail view */
-.detail-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
+.detail-actions { display: flex; gap: 8px; margin-top: 10px; }
 .detail-actions .btn { width: auto; padding: 6px 14px; font-size: 12px; }
 </style>
 </head>
@@ -383,12 +263,35 @@ label {
     <div id="tab-log">
       <div class="card">
         <div class="toggle-group" id="workout-toggle">
-          <button class="active" data-type="lift">Lift</button>
-          <button data-type="swim">Swim</button>
+          <button data-type="swim" class="active">Swim</button>
+          <button data-type="lift">Lift</button>
+        </div>
+
+        <!-- SWIM FORM -->
+        <div id="swim-form">
+          <div class="form-group">
+            <label>Workout name (optional)</label>
+            <input type="text" id="swim-name" placeholder="e.g. Tuesday AM, Sprint Day" />
+          </div>
+          <div id="swim-intervals"></div>
+          <div id="swim-total" class="swim-total hidden">
+            <span id="swim-total-text">0 yd</span>
+            <span id="swim-total-sets">0 sets</span>
+          </div>
+          <button class="btn btn-ghost" id="add-interval-btn" style="margin-bottom: 12px;">+ Add Set</button>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" id="swim-notes" placeholder="Pool, conditions, etc." />
+          </div>
+          <button class="btn btn-primary" id="log-swim-btn">Log Workout</button>
         </div>
 
         <!-- LIFT FORM -->
-        <div id="lift-form">
+        <div id="lift-form" class="hidden">
+          <div id="lift-suggest" class="suggest-banner hidden">
+            <span id="lift-suggest-text"></span>
+            <button id="lift-suggest-btn">Load</button>
+          </div>
           <div id="lift-exercises"></div>
           <button class="btn btn-ghost" id="add-exercise-btn" style="margin-bottom: 12px;">+ Add Exercise</button>
           <div class="form-group">
@@ -396,17 +299,6 @@ label {
             <input type="text" id="lift-notes" placeholder="How it felt, RPE, etc." />
           </div>
           <button class="btn btn-primary" id="log-lift-btn">Log Workout</button>
-        </div>
-
-        <!-- SWIM FORM -->
-        <div id="swim-form" class="hidden">
-          <div id="swim-intervals"></div>
-          <button class="btn btn-ghost" id="add-interval-btn" style="margin-bottom: 12px;">+ Add Set</button>
-          <div class="form-group">
-            <label>Notes (optional)</label>
-            <input type="text" id="swim-notes" placeholder="Pool, conditions, etc." />
-          </div>
-          <button class="btn btn-primary" id="log-swim-btn">Log Workout</button>
         </div>
 
         <div id="log-status" class="msg hidden"></div>
@@ -425,18 +317,19 @@ label {
       <div class="card">
         <h2>Progress</h2>
         <div class="toggle-group" id="analytics-type-toggle">
-          <button class="active" data-type="lift">Lifts</button>
-          <button data-type="swim">Swim</button>
+          <button class="active" data-type="swim">Swim</button>
+          <button data-type="lift">Lifts</button>
         </div>
-        <div id="analytics-lift">
+        <div id="analytics-swim">
+          <div class="filter-row" id="swim-metric-chips"></div>
+          <div class="chart-container">
+            <canvas id="swim-chart"></canvas>
+          </div>
+        </div>
+        <div id="analytics-lift" class="hidden">
           <div class="filter-row" id="lift-filter-chips"></div>
           <div class="chart-container">
             <canvas id="lift-chart"></canvas>
-          </div>
-        </div>
-        <div id="analytics-swim" class="hidden">
-          <div class="chart-container">
-            <canvas id="swim-chart"></canvas>
           </div>
         </div>
       </div>
@@ -450,7 +343,7 @@ label {
 
 <script>
 // ============================================================
-//  AT PROTOCOL CLIENT (adapted from bakery/src/atproto.js)
+//  AT PROTOCOL CLIENT
 // ============================================================
 const PUBLIC_API = "https://public.api.bsky.app";
 const COLLECTION = "com.minomobi.workout";
@@ -515,7 +408,6 @@ async function createRecord(session, record) {
 
 async function listRecords(did, pds, limit = 100) {
   const params = `repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=${limit}`;
-  // Try public API first, fall back to PDS
   let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
   if (!r.ok && pds) {
     r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
@@ -549,7 +441,7 @@ async function refreshSession(s) {
 }
 
 // ============================================================
-//  SESSION MANAGEMENT (localStorage for persistence across restarts)
+//  SESSION MANAGEMENT
 // ============================================================
 function saveSession(s) {
   if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -560,7 +452,7 @@ function loadSession() {
 }
 
 let session = loadSession();
-let workouts = []; // cached records
+let workouts = [];
 
 // ============================================================
 //  DOM HELPERS
@@ -568,6 +460,16 @@ let workouts = []; // cached records
 const $ = id => document.getElementById(id);
 const show = el => el.classList.remove("hidden");
 const hide = el => el.classList.add("hidden");
+
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const STROKES = ["Free", "Back", "Breast", "Fly", "IM", "Kick", "Pull", "Drill", "Choice"];
+const SET_CATEGORIES = ["Warmup", "Pre-set", "Main", "Kick", "Pull", "Sprint", "Cooldown"];
+const LIFT_PRESETS = ["Squat", "Bench Press", "Barbell Row", "Overhead Press", "Deadlift"];
+const WORKOUT_A = ["Squat", "Bench Press", "Barbell Row"];
+const WORKOUT_B = ["Squat", "Overhead Press", "Deadlift"];
+const STARTING_WEIGHTS = { "Squat": 45, "Bench Press": 45, "Barbell Row": 65, "Overhead Press": 45, "Deadlift": 95 };
 
 // ============================================================
 //  AUTH
@@ -597,7 +499,6 @@ function initAuth() {
     }
   };
 
-  // Enter on password field
   $("login-password").addEventListener("keydown", e => {
     if (e.key === "Enter") $("login-btn").click();
   });
@@ -607,8 +508,8 @@ function enterApp() {
   hide($("login-view"));
   show($("app-view"));
   $("display-handle").textContent = `@${session.handle}`;
-  addLiftExercise();
   addSwimInterval();
+  addLiftExercise();
   loadHistory();
 }
 
@@ -642,14 +543,117 @@ $("workout-toggle").onclick = e => {
   if (!btn) return;
   $("workout-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  if (btn.dataset.type === "lift") { show($("lift-form")); hide($("swim-form")); }
-  else { hide($("lift-form")); show($("swim-form")); }
+  if (btn.dataset.type === "swim") { show($("swim-form")); hide($("lift-form")); }
+  else { hide($("swim-form")); show($("lift-form")); }
 };
+
+// ============================================================
+//  SWIM FORM
+// ============================================================
+let swimCount = 0;
+
+function addSwimInterval(distance = "", interval = "", reps = "", stroke = "Free", category = "") {
+  const id = swimCount++;
+  const div = document.createElement("div");
+  div.className = "exercise-row";
+  div.dataset.id = id;
+  div.innerHTML = `
+    <div class="row-header">
+      <span>Set ${id + 1}</span>
+      <button class="remove-btn" data-remove-swim="${id}">&times;</button>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Category</label>
+        <select data-field="category">
+          <option value="">—</option>
+          ${SET_CATEGORIES.map(c => `<option value="${c}" ${c === category ? "selected" : ""}>${c}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label>Stroke</label>
+        <select data-field="stroke">
+          ${STROKES.map(s => `<option value="${s}" ${s === stroke ? "selected" : ""}>${s}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Distance</label>
+        <input type="number" data-field="distance" placeholder="yds" value="${distance}" inputmode="numeric" />
+      </div>
+      <div>
+        <label>Interval</label>
+        <input type="text" data-field="interval" placeholder="1:30" value="${interval}" />
+      </div>
+      <div>
+        <label>Reps</label>
+        <input type="number" data-field="reps" placeholder="1" value="${reps}" inputmode="numeric" />
+      </div>
+    </div>
+  `;
+
+  // Update totals on input change
+  div.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", updateSwimTotal);
+  });
+
+  $("swim-intervals").appendChild(div);
+  updateSwimTotal();
+}
+
+function updateSwimTotal() {
+  let totalDist = 0;
+  let totalSets = 0;
+  $("swim-intervals").querySelectorAll(".exercise-row").forEach(row => {
+    const dist = parseInt(row.querySelector('[data-field="distance"]').value) || 0;
+    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 1;
+    totalDist += dist * reps;
+    totalSets++;
+  });
+  const totalEl = $("swim-total");
+  if (totalDist > 0) {
+    $("swim-total-text").textContent = `${totalDist} yd total`;
+    $("swim-total-sets").textContent = `${totalSets} set${totalSets !== 1 ? "s" : ""}`;
+    show(totalEl);
+  } else {
+    hide(totalEl);
+  }
+}
+
+$("add-interval-btn").onclick = () => addSwimInterval();
+
+$("swim-intervals").addEventListener("click", e => {
+  const btn = e.target.closest("[data-remove-swim]");
+  if (!btn) return;
+  const row = btn.closest(".exercise-row");
+  if ($("swim-intervals").children.length > 1) {
+    row.remove();
+    updateSwimTotal();
+  }
+});
+
+function gatherSwimData() {
+  const intervals = [];
+  $("swim-intervals").querySelectorAll(".exercise-row").forEach(row => {
+    const distance = parseInt(row.querySelector('[data-field="distance"]').value) || 0;
+    const interval = row.querySelector('[data-field="interval"]').value.trim();
+    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 1;
+    const stroke = row.querySelector('[data-field="stroke"]').value;
+    const category = row.querySelector('[data-field="category"]').value;
+    if (distance) {
+      const set = { distance, unit: "yd", reps, stroke };
+      if (interval) set.interval = interval;
+      if (category) set.category = category;
+      intervals.push(set);
+    }
+  });
+  return intervals;
+}
 
 // ============================================================
 //  LIFT FORM
 // ============================================================
-const LIFT_PRESETS = ["Squat", "Bench Press", "Barbell Row", "Overhead Press", "Deadlift"];
 let liftCount = 0;
 
 function addLiftExercise(name = "", weight = "", reps = "5", sets = "5") {
@@ -692,7 +696,6 @@ function addLiftExercise(name = "", weight = "", reps = "5", sets = "5") {
     </div>
   `;
 
-  // Show custom name field when "Custom..." is selected
   const sel = div.querySelector('[data-field="name"]');
   const customGroup = div.querySelector(`[data-custom-name="${id}"]`);
   sel.addEventListener("change", () => {
@@ -732,58 +735,67 @@ function gatherLiftData() {
 }
 
 // ============================================================
-//  SWIM FORM
+//  STRONGLIFTS AUTO-SUGGEST
 // ============================================================
-let swimCount = 0;
+function suggestNextLift() {
+  const lifts = workouts
+    .filter(r => r.value?.workoutType === "lift")
+    .sort((a, b) => (b.value?.createdAt || "").localeCompare(a.value?.createdAt || ""));
 
-function addSwimInterval(distance = "", interval = "", reps = "") {
-  const id = swimCount++;
-  const div = document.createElement("div");
-  div.className = "exercise-row";
-  div.dataset.id = id;
-  div.innerHTML = `
-    <div class="row-header">
-      <span>Set ${id + 1}</span>
-      <button class="remove-btn" data-remove-swim="${id}">&times;</button>
-    </div>
-    <div class="form-row">
-      <div>
-        <label>Distance</label>
-        <input type="number" data-field="distance" placeholder="yards" value="${distance}" inputmode="numeric" />
-      </div>
-      <div>
-        <label>Interval</label>
-        <input type="text" data-field="interval" placeholder="1:30" value="${interval}" />
-      </div>
-      <div>
-        <label>Reps</label>
-        <input type="number" data-field="reps" placeholder="4" value="${reps}" inputmode="numeric" />
-      </div>
-    </div>
-  `;
-  $("swim-intervals").appendChild(div);
+  if (lifts.length === 0) {
+    // First ever workout: Workout A at starting weights
+    showLiftSuggestion("A", WORKOUT_A.map(name => ({
+      name, weight: STARTING_WEIGHTS[name], reps: 5, sets: name === "Deadlift" ? 1 : 5
+    })));
+    return;
+  }
+
+  const last = lifts[0].value;
+  const lastNames = (last.exercises || []).map(e => e.name);
+
+  // Determine if last was A or B
+  const wasA = lastNames.includes("Bench Press") || lastNames.includes("Barbell Row");
+  const wasB = lastNames.includes("Overhead Press") || lastNames.includes("Deadlift");
+
+  // Next is the opposite
+  const nextIsA = wasB && !wasA;
+  const nextExercises = nextIsA ? WORKOUT_A : WORKOUT_B;
+  const nextLabel = nextIsA ? "A" : "B";
+
+  // Build weight map from last exercise weights, adding 5lb (10lb for deadlift)
+  const lastWeights = {};
+  (last.exercises || []).forEach(ex => { lastWeights[ex.name] = ex.weight; });
+
+  // Also scan history for exercises not in last workout
+  for (const r of lifts) {
+    for (const ex of (r.value.exercises || [])) {
+      if (!(ex.name in lastWeights)) lastWeights[ex.name] = ex.weight;
+    }
+  }
+
+  const suggested = nextExercises.map(name => {
+    const prevWeight = lastWeights[name] || STARTING_WEIGHTS[name];
+    const increment = name === "Deadlift" ? 10 : 5;
+    const weight = lastWeights[name] ? prevWeight + increment : prevWeight;
+    return { name, weight, reps: 5, sets: name === "Deadlift" ? 1 : 5 };
+  });
+
+  showLiftSuggestion(nextLabel, suggested);
 }
 
-$("add-interval-btn").onclick = () => addSwimInterval();
+function showLiftSuggestion(label, exercises) {
+  const banner = $("lift-suggest");
+  const text = $("lift-suggest-text");
+  const summary = exercises.map(e => `${e.name} ${e.weight}lb`).join(", ");
+  text.innerHTML = `<strong>Workout ${label}</strong>: ${summary}`;
+  show(banner);
 
-$("swim-intervals").addEventListener("click", e => {
-  const btn = e.target.closest("[data-remove-swim]");
-  if (!btn) return;
-  const row = btn.closest(".exercise-row");
-  if ($("swim-intervals").children.length > 1) row.remove();
-});
-
-function gatherSwimData() {
-  const intervals = [];
-  $("swim-intervals").querySelectorAll(".exercise-row").forEach(row => {
-    const distance = parseInt(row.querySelector('[data-field="distance"]').value) || 0;
-    const interval = row.querySelector('[data-field="interval"]').value.trim();
-    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 0;
-    if (distance || reps) {
-      intervals.push({ distance, unit: "yd", interval, reps });
-    }
-  });
-  return intervals;
+  $("lift-suggest-btn").onclick = () => {
+    $("lift-exercises").innerHTML = "";
+    liftCount = 0;
+    exercises.forEach(e => addLiftExercise(e.name, String(e.weight), String(e.reps), String(e.sets)));
+    hide(banner);
+  };
 }
 
 // ============================================================
@@ -814,6 +826,8 @@ async function logWorkout(type) {
       return;
     }
     record = { workoutType: "swim", intervals, createdAt: new Date().toISOString() };
+    const swimName = $("swim-name").value.trim();
+    if (swimName) record.name = swimName;
   }
   if (notes) record.notes = notes;
 
@@ -825,7 +839,6 @@ async function logWorkout(type) {
     statusEl.textContent = "Workout logged!";
     show(statusEl);
     setTimeout(() => hide(statusEl), 3000);
-    // Reset form
     if (type === "lift") {
       $("lift-exercises").innerHTML = "";
       liftCount = 0;
@@ -836,8 +849,9 @@ async function logWorkout(type) {
       swimCount = 0;
       addSwimInterval();
       $("swim-notes").value = "";
+      $("swim-name").value = "";
+      updateSwimTotal();
     }
-    // Refresh cached data
     loadHistory();
   } catch (e) {
     statusEl.className = "msg msg-error";
@@ -865,7 +879,6 @@ async function loadHistory() {
   listEl.innerHTML = "";
   try {
     const records = await listRecords(session.did, session.pds);
-    // Sort by createdAt descending
     workouts = records.sort((a, b) => {
       const da = a.value?.createdAt || "";
       const db = b.value?.createdAt || "";
@@ -874,10 +887,27 @@ async function loadHistory() {
     hide(loadingEl);
     if (workouts.length === 0) { show(emptyEl); return; }
     workouts.forEach(r => listEl.appendChild(makeHistoryEntry(r)));
+    // Now that we have history, compute lift suggestion
+    suggestNextLift();
   } catch (e) {
     hide(loadingEl);
     listEl.innerHTML = `<div class="msg msg-error">${e.message}</div>`;
   }
+}
+
+function parseInterval(str) {
+  // "1:30" -> 90 seconds, "45" -> 45 seconds
+  if (!str) return 0;
+  const parts = str.split(":").map(Number);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
+}
+
+function formatPace(secondsPer100) {
+  if (!secondsPer100 || !isFinite(secondsPer100)) return "—";
+  const m = Math.floor(secondsPer100 / 60);
+  const s = Math.round(secondsPer100 % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function makeHistoryEntry(record) {
@@ -901,17 +931,31 @@ function makeHistoryEntry(record) {
     ).join("");
   } else if (v.workoutType === "swim" && v.intervals) {
     const totalDist = v.intervals.reduce((s, i) => s + (i.distance * (i.reps || 1)), 0);
-    summary = `${totalDist} ${v.intervals[0]?.unit || "yd"} total`;
-    detail = v.intervals.map(i =>
-      `<div style="margin-bottom:4px">${i.reps}x${i.distance} ${i.unit || "yd"}${i.interval ? ` @ ${i.interval}` : ""}</div>`
-    ).join("");
+    summary = `${totalDist} ${v.intervals[0]?.unit || "yd"}`;
+    detail = v.intervals.map(i => {
+      const reps = i.reps || 1;
+      const label = i.category ? `<span style="color:var(--green)">${i.category}</span> ` : "";
+      const strokeLabel = i.stroke ? ` ${i.stroke}` : "";
+      const intLabel = i.interval ? ` on ${i.interval}` : "";
+      const dist = reps > 1 ? `${reps}x${i.distance}` : `${i.distance}`;
+      // Pace per 100
+      const intSecs = parseInterval(i.interval);
+      let paceStr = "";
+      if (intSecs && i.distance) {
+        const pace100 = (intSecs / i.distance) * 100;
+        paceStr = ` <span style="color:var(--text2)">(${formatPace(pace100)}/100)</span>`;
+      }
+      return `<div style="margin-bottom:4px">${label}${dist} ${i.unit || "yd"}${strokeLabel}${intLabel}${paceStr}</div>`;
+    }).join("");
   }
 
+  const nameHtml = v.name ? `<div class="history-name">${escapeHtml(v.name)}</div>` : "";
   if (v.notes) detail += `<div style="margin-top:6px; font-style: italic;">${escapeHtml(v.notes)}</div>`;
 
   div.innerHTML = `
     <div class="history-date">${dateStr}</div>
     <span class="history-type ${v.workoutType || ''}">${v.workoutType || "?"}</span>
+    ${nameHtml}
     <div class="history-summary">${escapeHtml(summary)}</div>
     <div class="history-detail hidden">
       ${detail}
@@ -923,8 +967,7 @@ function makeHistoryEntry(record) {
 
   div.addEventListener("click", e => {
     if (e.target.closest(".btn-delete")) return;
-    const det = div.querySelector(".history-detail");
-    det.classList.toggle("hidden");
+    div.querySelector(".history-detail").classList.toggle("hidden");
   });
 
   div.querySelector(".btn-delete").addEventListener("click", async e => {
@@ -954,23 +997,162 @@ function escapeHtml(s) {
 let liftChart = null;
 let swimChart = null;
 let selectedLiftExercise = null;
+let selectedSwimMetric = "volume"; // "volume" | "pace"
 
-// Analytics type toggle
 $("analytics-type-toggle").onclick = e => {
   const btn = e.target.closest("button");
   if (!btn) return;
   $("analytics-type-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  if (btn.dataset.type === "lift") { show($("analytics-lift")); hide($("analytics-swim")); }
-  else { hide($("analytics-lift")); show($("analytics-swim")); }
+  if (btn.dataset.type === "swim") { show($("analytics-swim")); hide($("analytics-lift")); }
+  else { hide($("analytics-swim")); show($("analytics-lift")); }
   renderAnalytics();
 };
 
 function renderAnalytics() {
-  const isLift = $("analytics-type-toggle").querySelector(".active").dataset.type === "lift";
-  if (isLift) renderLiftAnalytics(); else renderSwimAnalytics();
+  const isSwim = $("analytics-type-toggle").querySelector(".active").dataset.type === "swim";
+  if (isSwim) renderSwimAnalytics(); else renderLiftAnalytics();
 }
 
+// --- Swim Analytics ---
+function renderSwimAnalytics() {
+  const swims = workouts
+    .filter(r => r.value?.workoutType === "swim")
+    .sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
+
+  // Metric chips
+  const chipRow = $("swim-metric-chips");
+  chipRow.innerHTML = "";
+  ["volume", "pace"].forEach(metric => {
+    const chip = document.createElement("button");
+    chip.className = `filter-chip ${metric === selectedSwimMetric ? "active-green" : ""}`;
+    chip.textContent = metric === "volume" ? "Total Volume" : "Avg Pace /100";
+    chip.onclick = () => { selectedSwimMetric = metric; renderSwimAnalytics(); };
+    chipRow.appendChild(chip);
+  });
+
+  if (swims.length === 0) {
+    if (swimChart) { swimChart.destroy(); swimChart = null; }
+    $("stats-card").style.display = "none";
+    return;
+  }
+
+  let points, yLabel, yCallback;
+
+  if (selectedSwimMetric === "volume") {
+    points = swims.map(r => {
+      const v = r.value;
+      const total = (v.intervals || []).reduce((s, i) => s + (i.distance * (i.reps || 1)), 0);
+      return { x: new Date(v.createdAt), y: total, name: v.name };
+    });
+    yLabel = "Distance (yd)";
+    yCallback = null;
+  } else {
+    // Average pace per 100 across all timed intervals
+    points = [];
+    swims.forEach(r => {
+      const v = r.value;
+      let totalSecs = 0, totalDist = 0;
+      (v.intervals || []).forEach(i => {
+        const secs = parseInterval(i.interval);
+        if (secs && i.distance) {
+          const reps = i.reps || 1;
+          totalSecs += secs * reps;
+          totalDist += i.distance * reps;
+        }
+      });
+      if (totalDist > 0) {
+        const pace100 = (totalSecs / totalDist) * 100;
+        points.push({ x: new Date(v.createdAt), y: pace100, name: v.name });
+      }
+    });
+    yLabel = "Pace per 100 (sec)";
+    yCallback = val => formatPace(val);
+  }
+
+  if (swimChart) swimChart.destroy();
+  swimChart = new Chart($("swim-chart"), {
+    type: "line",
+    data: {
+      datasets: [{
+        label: selectedSwimMetric === "volume" ? "Volume" : "Pace",
+        data: points,
+        borderColor: "#4caf84",
+        backgroundColor: "rgba(76,175,132,0.1)",
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: "#4caf84",
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: yLabel, color: "#8b90a0", font: { size: 12 } },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: {
+            color: "#8b90a0", font: { size: 11 },
+            callback: yCallback || (v => v),
+          },
+          reverse: selectedSwimMetric === "pace", // Lower pace = faster = better = higher on chart
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = ctx.raw;
+              if (selectedSwimMetric === "pace") return `${formatPace(p.y)} /100`;
+              return `${p.y} yd`;
+            },
+            title: ctx => {
+              const p = ctx[0]?.raw;
+              const dateStr = ctx[0]?.label || "";
+              return p?.name ? `${p.name} — ${dateStr}` : dateStr;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Stats
+  if (points.length >= 1) {
+    const allSwimDist = swims.map(r =>
+      (r.value.intervals || []).reduce((s, i) => s + (i.distance * (i.reps || 1)), 0)
+    );
+    const totalAll = allSwimDist.reduce((a, b) => a + b, 0);
+    const avg = Math.round(totalAll / swims.length);
+    const max = Math.max(...allSwimDist);
+
+    let paceStr = "";
+    if (selectedSwimMetric === "pace" && points.length >= 2) {
+      const first = points[0];
+      const last = points[points.length - 1];
+      paceStr = `<div>First: ${formatPace(first.y)}/100 &rarr; Latest: ${formatPace(last.y)}/100</div>`;
+    }
+
+    $("stats-content").innerHTML = `
+      <div><strong>Swim</strong></div>
+      <div>Sessions: ${swims.length}</div>
+      <div>Total: ${totalAll.toLocaleString()} yd</div>
+      <div>Avg/session: ${avg.toLocaleString()} yd</div>
+      <div>Best session: ${max.toLocaleString()} yd</div>
+      ${paceStr}
+    `;
+    $("stats-card").style.display = "";
+  } else {
+    $("stats-card").style.display = "none";
+  }
+}
+
+// --- Lift Analytics ---
 function renderLiftAnalytics() {
   const lifts = workouts.filter(r => r.value?.workoutType === "lift");
   const exerciseNames = new Set();
@@ -994,14 +1176,10 @@ function renderLiftAnalytics() {
     const chip = document.createElement("button");
     chip.className = `filter-chip ${name === selectedLiftExercise ? "active" : ""}`;
     chip.textContent = name;
-    chip.onclick = () => {
-      selectedLiftExercise = name;
-      renderLiftAnalytics();
-    };
+    chip.onclick = () => { selectedLiftExercise = name; renderLiftAnalytics(); };
     chipRow.appendChild(chip);
   });
 
-  // Build data series for selected exercise
   const points = [];
   lifts.sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
   lifts.forEach(r => {
@@ -1022,10 +1200,7 @@ function renderLiftAnalytics() {
         data: points,
         borderColor: "#6c8cff",
         backgroundColor: "rgba(108,140,255,0.1)",
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointBackgroundColor: "#6c8cff",
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: "#6c8cff",
       }],
     },
     options: {
@@ -1058,7 +1233,6 @@ function renderLiftAnalytics() {
     },
   });
 
-  // Stats
   if (points.length >= 2) {
     const first = points[0];
     const last = points[points.length - 1];
@@ -1076,80 +1250,9 @@ function renderLiftAnalytics() {
   }
 }
 
-function renderSwimAnalytics() {
-  const swims = workouts
-    .filter(r => r.value?.workoutType === "swim")
-    .sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
-
-  if (swims.length === 0) {
-    if (swimChart) { swimChart.destroy(); swimChart = null; }
-    $("stats-card").style.display = "none";
-    return;
-  }
-
-  const points = swims.map(r => {
-    const v = r.value;
-    const total = (v.intervals || []).reduce((s, i) => s + (i.distance * (i.reps || 1)), 0);
-    return { x: new Date(v.createdAt), y: total };
-  });
-
-  if (swimChart) swimChart.destroy();
-  swimChart = new Chart($("swim-chart"), {
-    type: "line",
-    data: {
-      datasets: [{
-        label: "Total Distance",
-        data: points,
-        borderColor: "#4caf84",
-        backgroundColor: "rgba(76,175,132,0.1)",
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointBackgroundColor: "#4caf84",
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          type: "time",
-          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
-          grid: { color: "rgba(255,255,255,0.05)" },
-          ticks: { color: "#8b90a0", font: { size: 11 } },
-        },
-        y: {
-          title: { display: true, text: "Distance (yd)", color: "#8b90a0", font: { size: 12 } },
-          grid: { color: "rgba(255,255,255,0.05)" },
-          ticks: { color: "#8b90a0", font: { size: 11 } },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-      },
-    },
-  });
-
-  if (points.length >= 2) {
-    const first = points[0];
-    const last = points[points.length - 1];
-    $("stats-content").innerHTML = `
-      <div><strong>Swim Volume</strong></div>
-      <div>Sessions: ${points.length}</div>
-      <div>First: ${first.y} yd &rarr; Latest: ${last.y} yd</div>
-      <div>Max: ${Math.max(...points.map(p => p.y))} yd</div>
-    `;
-    $("stats-card").style.display = "";
-  } else {
-    $("stats-card").style.display = "none";
-  }
-}
-
 // ============================================================
-//  CHART.JS DATE ADAPTER (minimal — needed for time scale)
+//  CHART.JS DATE ADAPTER
 // ============================================================
-// Chart.js 4 needs a date adapter for time scale. We load the
-// luxon adapter from CDN after Chart.js is available.
 function loadDateAdapter() {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -1168,13 +1271,11 @@ async function init() {
   initAuth();
 
   if (session?.refreshJwt) {
-    // Silent token refresh on mount — stay signed in across restarts
     try {
       session = await refreshSession(session);
       saveSession(session);
       enterApp();
     } catch {
-      // Refresh token expired — force re-login
       session = null;
       saveSession(null);
     }
@@ -1183,7 +1284,6 @@ async function init() {
   }
 }
 
-// Register service worker
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js");
