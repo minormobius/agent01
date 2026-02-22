@@ -20,10 +20,10 @@ on:
         options:
           - full-sync
           - enrich-only
-      ott_id:
-        description: 'OTT ID of root taxon (244265=Mammalia, 913935=Primates)'
+      ott_ids:
+        description: 'Comma-separated OTT IDs to sync (244265=Mammalia, 81461=Aves)'
         required: false
-        default: '244265'
+        default: '244265,81461'
       height_limit:
         description: 'OToL API height limit (-1=unlimited, use 5-10 for large clades)'
         required: false
@@ -87,14 +87,24 @@ jobs:
           BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
           BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: |
-          python3 scripts/sync-otol-to-atproto.py \
-            --ott-id ${{ inputs.ott_id || '244265' }} \
-            --height-limit ${{ inputs.height_limit || '-1' }} \
-            --chunk-size ${{ inputs.chunk_size || '400' }} \
-            --min-clade 50 \
-            --replace \
-            --account ${{ inputs.account || 'main' }} \
-            2>&1 | tee phylo/sync-log.txt
+          # Sync each clade in the list
+          OTT_IDS="${{ inputs.ott_ids || '244265,81461' }}"
+          echo "Syncing clades: $OTT_IDS"
+          > phylo/sync-log.txt
+          IFS=',' read -ra IDS <<< "$OTT_IDS"
+          for OTT in "${IDS[@]}"; do
+            OTT=$(echo "$OTT" | tr -d ' ')
+            echo "========== Syncing OTT $OTT ==========" | tee -a phylo/sync-log.txt
+            python3 scripts/sync-otol-to-atproto.py \
+              --ott-id "$OTT" \
+              --height-limit ${{ inputs.height_limit || '-1' }} \
+              --chunk-size ${{ inputs.chunk_size || '400' }} \
+              --min-clade 50 \
+              --replace \
+              --account ${{ inputs.account || 'main' }} \
+              2>&1 | tee -a phylo/sync-log.txt
+            echo "" | tee -a phylo/sync-log.txt
+          done
 
       - name: Commit sync log
         if: always()
