@@ -261,19 +261,21 @@ def _urlencode(s):
 
 # --- Adaptive Chunking ---
 
+HARD_MAX_NODES = 800  # absolute ceiling — force-split above this
+
 def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
-                          min_clade=MIN_CLADE_NODES):
+                          min_clade=MIN_CLADE_NODES,
+                          hard_max=HARD_MAX_NODES):
     """Partition a flat node list into adaptive clade chunks.
 
-    Two thresholds control the split:
-      - max_nodes: target ceiling. The algorithm tries to stay under this.
-      - min_clade: floor. A subtree smaller than this is ALWAYS inlined
-        into its parent, even if the parent overflows the target. This
-        prevents tiny orphan records (the old algorithm produced hundreds
-        of 1-node records for leaf species that didn't fit).
-
-    The soft overflow is safe because ATProto's hard record limit is ~1 MiB
-    (~8,000 nodes at ~120 bytes each). A clade of 600-800 nodes is ~75-100 KB.
+    Three thresholds control the split:
+      - max_nodes: soft target ceiling. The algorithm tries to stay under this.
+      - min_clade: floor. A subtree smaller than this is inlined into its
+        parent, even if the parent overflows the soft target.
+      - hard_max: absolute ceiling. Once a clade reaches this size, ALL
+        remaining children are split off as separate records regardless
+        of their size. This prevents megaclades (e.g. Passeriformes 10k+
+        nodes) from blowing past the PDS payload limit.
 
     Returns a list of clade dicts ready to write as ATProto records.
     """
@@ -319,10 +321,15 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
             for child_id in kids:
                 child_size = subtree_size(child_id)
                 remaining = max_nodes - len(clade_nodes)
-                if child_size <= remaining:
+                overflowing = len(clade_nodes) >= hard_max
+                if overflowing and child_size > 1:
+                    # Hard ceiling hit — force-split any non-leaf child
+                    child_clade_ids.append(child_id)
+                    make_clade(child_id)
+                elif child_size <= remaining:
                     fill(child_id)
                 elif child_size < min_clade:
-                    # Too small to be its own record — inline with overflow
+                    # Too small to be its own record — inline with soft overflow
                     fill(child_id)
                 else:
                     child_clade_ids.append(child_id)
