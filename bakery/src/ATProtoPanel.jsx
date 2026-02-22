@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
+import { createSession, refreshSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
 import { calculatorToRecipe, recipeToCalculator, parseAtUri, formatDuration } from "./recipeTransform";
 
 const SESSION_KEY = "bakery-atproto-session";
@@ -7,15 +7,15 @@ const HANDLE_KEY = "bakery-atproto-handle";
 
 function loadSession() {
   try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY));
+    return JSON.parse(localStorage.getItem(SESSION_KEY));
   } catch {
     return null;
   }
 }
 
 function saveSession(session) {
-  if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  else sessionStorage.removeItem(SESSION_KEY);
+  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  else localStorage.removeItem(SESSION_KEY);
 }
 
 const sectionCard = {
@@ -451,6 +451,22 @@ function BrowsePanel({ session, onLoadToBuilder }) {
 export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder }) {
   const [session, setSession] = useState(loadSession);
   const [view, setView] = useState("publish"); // "publish" | "browse"
+
+  // On mount, silently refresh the access token if we have a stored session
+  useEffect(() => {
+    const stored = loadSession();
+    if (!stored?.refreshJwt) return;
+    refreshSession(stored)
+      .then((refreshed) => {
+        saveSession(refreshed);
+        setSession(refreshed);
+      })
+      .catch(() => {
+        // Refresh token expired — clear and force re-login
+        saveSession(null);
+        setSession(null);
+      });
+  }, []);
 
   const handleLogout = () => {
     saveSession(null);
