@@ -35,6 +35,44 @@
   #hover-info .h-name { color: #ccc; }
   #hover-info .h-rank { color: #666; }
   #hover-info .h-tips { color: #555; }
+
+  /* info panel */
+  #info-panel {
+    position: fixed; top: 30px; right: 0; bottom: 0;
+    width: 0; overflow: hidden; transition: width .2s;
+    border-left: 1px solid #222; background: rgba(10,10,10,.96);
+    z-index: 20; font: 13px/1.6 monospace; color: #ccc;
+  }
+  #info-panel.open { width: 320px; }
+  #info-inner {
+    width: 320px; padding: 1em; overflow-y: auto; height: 100%;
+  }
+  #info-panel h2 { font-size: 1em; color: #ddd; margin-bottom: .2em; font-weight: normal; }
+  #info-panel .info-rank { color: #777; font-size: .85em; margin-bottom: .8em; }
+  #info-panel .info-section { margin-bottom: .8em; }
+  #info-panel .info-label { color: #666; font-size: .8em; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3em; }
+  #info-panel a {
+    color: #8bf; text-decoration: none; display: block; padding: 3px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  #info-panel a:hover { color: #adf; }
+  #info-panel a::before { content: "↗ "; color: #444; }
+  #info-panel .info-loading { color: #555; }
+  #info-panel .info-close {
+    cursor: pointer; color: #555; float: right; font-size: 1.2em; line-height: 1;
+  }
+  #info-panel .info-close:hover { color: #fff; }
+  #info-panel .info-flags { color: #665; font-size: .8em; margin-top: .3em; }
+  #info-panel .info-synonyms { color: #666; font-size: .85em; }
+  #info-panel .info-synonyms span { color: #888; }
+  #info-panel .iucn-badge {
+    display: inline-block; font-size: .75em; padding: 1px 5px; border-radius: 3px;
+    color: #111; font-weight: bold; margin-left: .4em; vertical-align: middle;
+  }
+  .iucn-LC { background: #4caf50; } .iucn-NT { background: #8bc34a; }
+  .iucn-VU { background: #ff9800; } .iucn-EN { background: #f44336; }
+  .iucn-CR { background: #b71c1c; color: #fff; } .iucn-EW { background: #555; color: #fff; }
+  .iucn-EX { background: #000; color: #666; } .iucn-DD { background: #888; }
 </style>
 </head>
 <body>
@@ -50,6 +88,7 @@
   <span class="h-rank"></span>
   <span class="h-tips"></span>
 </div>
+<div id="info-panel"><div id="info-inner"></div></div>
 <canvas id="c"></canvas>
 <script>
 // ── Config ──────────────────────────────────────────────────────────
@@ -226,8 +265,22 @@ function drawSubtree(node) {
   ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
   ctx.fill();
 
+  // ── Highlight selected ──
+  if (node === selectedNode) {
+    ctx.strokeStyle = "#f92";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, dotR + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,153,34,.25)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(sx, sy, dotR + 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   // ── Highlight hovered ──
-  if (node === hoveredNode) {
+  if (node === hoveredNode && node !== selectedNode) {
     ctx.strokeStyle = "#8bf";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -259,9 +312,13 @@ let dragging = false;
 let dragStart = null;
 let dragCamStart = null;
 let hoveredNode = null;
+let selectedNode = null;
+
+let dragMoved = false;
 
 canvas.addEventListener("mousedown", e => {
   dragging = true;
+  dragMoved = false;
   dragStart = { x: e.clientX, y: e.clientY };
   dragCamStart = { x: cam.x, y: cam.y };
   canvas.classList.add("dragging");
@@ -269,22 +326,29 @@ canvas.addEventListener("mousedown", e => {
 
 window.addEventListener("mousemove", e => {
   if (dragging) {
-    cam.x = dragCamStart.x - (e.clientX - dragStart.x) / cam.scale;
-    cam.y = dragCamStart.y - (e.clientY - dragStart.y) / cam.scale;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+    cam.x = dragCamStart.x - dx / cam.scale;
+    cam.y = dragCamStart.y - dy / cam.scale;
     scheduleDraw();
   } else if (root) {
     updateHover(e.clientX, e.clientY);
   }
 });
 
-window.addEventListener("mouseup", () => {
+window.addEventListener("mouseup", e => {
+  if (!dragMoved && root) {
+    const hit = hitTest(e.clientX, e.clientY);
+    selectNode(hit);
+  }
   dragging = false;
   canvas.classList.remove("dragging");
 });
 
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  const zoomFactor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+  const zoomFactor = e.deltaY > 0 ? 1.05 : 1 / 1.05;
   const [wx, wy] = s2w(e.clientX, e.clientY);
   cam.scale /= zoomFactor;
   // Keep world point under cursor fixed
@@ -301,9 +365,11 @@ canvas.addEventListener("dblclick", e => {
 // Touch support
 let lastTouchDist = 0;
 let lastTouchMid = null;
+let touchMoved = false;
 canvas.addEventListener("touchstart", e => {
   if (e.touches.length === 1) {
     dragging = true;
+    touchMoved = false;
     dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     dragCamStart = { x: cam.x, y: cam.y };
   } else if (e.touches.length === 2) {
@@ -321,8 +387,11 @@ canvas.addEventListener("touchstart", e => {
 
 canvas.addEventListener("touchmove", e => {
   if (e.touches.length === 1 && dragging) {
-    cam.x = dragCamStart.x - (e.touches[0].clientX - dragStart.x) / cam.scale;
-    cam.y = dragCamStart.y - (e.touches[0].clientY - dragStart.y) / cam.scale;
+    const dx = e.touches[0].clientX - dragStart.x;
+    const dy = e.touches[0].clientY - dragStart.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchMoved = true;
+    cam.x = dragCamStart.x - dx / cam.scale;
+    cam.y = dragCamStart.y - dy / cam.scale;
     scheduleDraw();
   } else if (e.touches.length === 2) {
     const dx = e.touches[1].clientX - e.touches[0].clientX;
@@ -347,7 +416,13 @@ canvas.addEventListener("touchmove", e => {
 }, { passive: false });
 
 canvas.addEventListener("touchend", e => {
+  if (!touchMoved && e.changedTouches.length === 1 && root) {
+    const t = e.changedTouches[0];
+    const hit = hitTest(t.clientX, t.clientY);
+    selectNode(hit);
+  }
   dragging = false;
+  touchMoved = false;
   lastTouchDist = 0;
   lastTouchMid = null;
 });
@@ -436,6 +511,160 @@ function flyTo(node, duration) {
   requestAnimationFrame(step);
 }
 
+// ── Info panel ──────────────────────────────────────────────────────
+const infoCache = {};
+const ozCache = {};
+const IUCN_LABELS = {
+  LC: "Least Concern", NT: "Near Threatened", VU: "Vulnerable",
+  EN: "Endangered", CR: "Critically Endangered", EW: "Extinct in Wild",
+  EX: "Extinct", DD: "Data Deficient"
+};
+
+async function fetchTaxonInfo(ottId) {
+  if (infoCache[ottId]) return infoCache[ottId];
+  const r = await fetch(`${API}/taxonomy/taxon_info`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ott_id: ottId, include_lineage: false })
+  });
+  const d = await r.json();
+  infoCache[ottId] = d;
+  return d;
+}
+
+async function fetchOneZoom(ottId) {
+  if (ozCache[ottId]) return ozCache[ottId];
+  try {
+    const r = await fetch(`https://www.onezoom.org/API/otts2identifiers?key=0&otts=${ottId}`);
+    const d = await r.json();
+    const row = d && d[0] ? d[0] : {};
+    ozCache[ottId] = row;
+    return row;
+  } catch { ozCache[ottId] = {}; return {}; }
+}
+
+function buildLinks(ottId, name, taxSources, oz) {
+  const links = [];
+  if (oz && oz.wikidata) {
+    links.push({ label: "Wikidata", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+  }
+  links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
+  if (oz && oz.eol) {
+    links.push({ label: "Encyclopedia of Life", url: `https://eol.org/pages/${oz.eol}`, cat: "reference" });
+  }
+  if (oz && oz.iucn) {
+    links.push({ label: "IUCN Red List", url: `https://www.iucnredlist.org/species/${oz.iucn}`, cat: "conservation" });
+  }
+  links.push({ label: "OneZoom", url: `https://www.onezoom.org/life/@=${ottId}`, cat: "tree" });
+  links.push({ label: "Open Tree of Life", url: `https://tree.opentreeoflife.org/taxonomy/browse?id=${ottId}`, cat: "tree" });
+  for (const src of (taxSources || [])) {
+    const [prefix, id] = src.split(":");
+    switch (prefix) {
+      case "ncbi":
+        links.push({ label: "NCBI Taxonomy", url: `https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=${id}`, cat: "database" });
+        break;
+      case "gbif":
+        links.push({ label: "GBIF", url: `https://www.gbif.org/species/${id}`, cat: "database" });
+        break;
+      case "worms":
+        links.push({ label: "WoRMS", url: `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
+        break;
+      case "irmng":
+        links.push({ label: "IRMNG", url: `https://www.irmng.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
+        break;
+    }
+  }
+  return links;
+}
+
+function renderInfoPanel(inner, ottId, name, rank, data, oz) {
+  const links = buildLinks(ottId, data.name || name, data.tax_sources, oz);
+  const synonyms = (data.synonyms || []).filter(s => s !== name);
+  const flags = (data.flags || []).filter(f => f);
+  const iucnCode = oz && oz.iucn ? (oz.iucn_code || null) : null;
+
+  let html = `<span class="info-close">&times;</span>`;
+  html += `<h2>${data.unique_name || data.name || name}`;
+  if (iucnCode && IUCN_LABELS[iucnCode]) {
+    html += ` <span class="iucn-badge iucn-${iucnCode}" title="${IUCN_LABELS[iucnCode]}">${iucnCode}</span>`;
+  }
+  html += `</h2>`;
+  html += (data.rank && data.rank !== "no rank")
+    ? `<div class="info-rank">${data.rank} · ott${ottId}</div>`
+    : `<div class="info-rank">ott${ottId}</div>`;
+
+  if (data.num_tips) {
+    html += `<div class="info-rank">${data.num_tips.toLocaleString()} descendant species</div>`;
+  }
+
+  const cats = [
+    { key: "reference", label: "Reference" },
+    { key: "conservation", label: "Conservation" },
+    { key: "tree", label: "Tree Browsers" },
+    { key: "database", label: "Databases" }
+  ];
+  for (const cat of cats) {
+    const catLinks = links.filter(l => l.cat === cat.key);
+    if (catLinks.length === 0) continue;
+    html += `<div class="info-section"><div class="info-label">${cat.label}</div>`;
+    for (const lnk of catLinks) {
+      html += `<a href="${lnk.url}" target="_blank" rel="noopener">${lnk.label}</a>`;
+    }
+    html += `</div>`;
+  }
+
+  if (synonyms.length > 0) {
+    html += `<div class="info-section"><div class="info-label">Synonyms</div>`;
+    html += `<div class="info-synonyms">${synonyms.map(s => `<span>${s}</span>`).join(", ")}</div></div>`;
+  }
+  if (flags.length > 0) {
+    html += `<div class="info-section"><div class="info-flags">${flags.join(", ")}</div></div>`;
+  }
+  inner.innerHTML = html;
+  inner.querySelector(".info-close").onclick = () => {
+    document.getElementById("info-panel").classList.remove("open");
+    selectedNode = null;
+    scheduleDraw();
+  };
+}
+
+function selectNode(node) {
+  const panel = document.getElementById("info-panel");
+  const inner = document.getElementById("info-inner");
+
+  if (!node || !node._name || !node._ottId) {
+    // Clicked empty space — deselect
+    selectedNode = null;
+    panel.classList.remove("open");
+    scheduleDraw();
+    return;
+  }
+
+  selectedNode = node;
+  scheduleDraw();
+
+  panel.classList.add("open");
+  inner.innerHTML = `<span class="info-close">&times;</span><h2>${node._name}</h2>` +
+    (node._rank && node._rank !== "no rank" ? `<div class="info-rank">${node._rank}</div>` : "") +
+    `<div class="info-loading">fetching…</div>`;
+  inner.querySelector(".info-close").onclick = () => {
+    panel.classList.remove("open");
+    selectedNode = null;
+    scheduleDraw();
+  };
+
+  const pOtl = fetchTaxonInfo(node._ottId);
+  const pOz = fetchOneZoom(node._ottId);
+
+  pOtl.then(data => {
+    renderInfoPanel(inner, node._ottId, node._name, node._rank, data, {});
+    pOz.then(oz => renderInfoPanel(inner, node._ottId, node._name, node._rank, data, oz));
+  }).catch(() => {
+    const loading = inner.querySelector(".info-loading");
+    if (loading) loading.textContent = "couldn't load info";
+  });
+}
+
 // ── Init ────────────────────────────────────────────────────────────
 (async () => {
   const status = document.getElementById("status");
@@ -452,7 +681,7 @@ function flyTo(node, duration) {
     // Initial camera: fit root
     cam.scale = Math.min(W, H) * 0.38;
 
-    status.textContent = `${flat.length} nodes \u00b7 scroll to zoom \u00b7 drag to pan \u00b7 double-click to focus`;
+    status.textContent = `${flat.length} nodes \u00b7 scroll to zoom \u00b7 drag to pan \u00b7 click node for info \u00b7 double-click to focus`;
     scheduleDraw();
   } catch (e) {
     status.textContent = `error: ${e.message}`;
