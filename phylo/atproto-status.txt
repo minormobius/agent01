@@ -1,0 +1,31 @@
+Handle: minomobi.bsky.social
+DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3
+PDS: https://cortinarius.us-west.host.bsky.network
+
+============================================================
+TOTAL RECORDS: 1007
+============================================================
+
+Roots (no parent): 1
+  ott913935: Primates (no rank) — 748 tips
+
+Rank breakdown:
+  species: 573
+  subspecies: 219
+  no rank: 101
+  genus: 76
+  family: 13
+  subfamily: 11
+  infraorder: 5
+  subgenus: 3
+  parvorder: 2
+  suborder: 2
+  superfamily: 1
+  no rank - terminal: 1
+
+Sample records:
+  ott99704: Chiropotes albinasus (species) — 0 tips, 0 children
+  ott995054: Hylobates pileatus (species) — 0 tips, 0 children
+  ott995050: Hylobates muelleri (species) — 3 tips, 3 children
+  ott995047: Hylobates klossii (species) — 0 tips, 0 children
+  ott995043: Nomascus siki (species) — 0 tips, 0 children
