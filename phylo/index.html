@@ -73,6 +73,35 @@
   .iucn-VU { background: #ff9800; } .iucn-EN { background: #f44336; }
   .iucn-CR { background: #b71c1c; color: #fff; } .iucn-EW { background: #555; color: #fff; }
   .iucn-EX { background: #000; color: #666; } .iucn-DD { background: #888; }
+
+  /* search */
+  #search-wrap {
+    position: relative; display: inline-block;
+  }
+  #search {
+    background: #1a1a1a; border: 1px solid #333; color: #ccc;
+    font: 12px monospace; padding: 2px 6px; width: 160px;
+    border-radius: 3px; outline: none;
+  }
+  #search:focus { border-color: #555; width: 220px; }
+  #search-results {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: #141414; border: 1px solid #333; border-top: none;
+    max-height: 260px; overflow-y: auto; z-index: 30;
+    display: none; border-radius: 0 0 3px 3px;
+  }
+  #search-results.open { display: block; }
+  .sr-item {
+    padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #1a1a1a;
+    font: 12px monospace; color: #aaa;
+  }
+  .sr-item:hover, .sr-item.active { background: #222; color: #eee; }
+  .sr-item .sr-common { color: #9b9; }
+  .sr-item .sr-rank { color: #555; font-size: .9em; }
+  .sr-item .sr-tree-link {
+    float: right; color: #555; text-decoration: none; font-size: .9em;
+  }
+  .sr-item .sr-tree-link:hover { color: #8bf; }
 </style>
 </head>
 <body>
@@ -81,6 +110,7 @@
   <span style="color:#222">|</span>
   <span style="color:#777">phylo zoom</span>
   <span id="source" style="color:#444;font-size:10px"></span>
+  <span id="search-wrap"><input id="search" type="text" placeholder="search taxa…" autocomplete="off"><div id="search-results"></div></span>
   <span id="status">loading&hellip;</span>
   <span id="breadcrumb"></span>
 </div>
@@ -100,6 +130,7 @@ const CLADE_COLLECTION = "com.minomobi.phylo.clade";
 const NODE_COLLECTION = "com.minomobi.phylo.node";
 const OTOL_API = "https://api.opentreeoflife.org/v3";
 const BSKY_PUBLIC = "https://public.api.bsky.app";
+const FOCUS_OTT = params.get("focus") ? parseInt(params.get("focus")) : null;
 let dataSource = ""; // "atproto-clade", "atproto-node", or "otol"
 
 // ── Canvas ──────────────────────────────────────────────────────────
@@ -772,6 +803,81 @@ function selectNode(node) {
   });
 }
 
+// ── Search ──────────────────────────────────────────────────────────
+const searchInput = document.getElementById("search");
+const searchResults = document.getElementById("search-results");
+let searchActive = -1; // keyboard selection index
+
+function doSearch(query) {
+  searchResults.innerHTML = "";
+  searchActive = -1;
+  if (!query || query.length < 2 || !root) {
+    searchResults.classList.remove("open");
+    return;
+  }
+  const q = query.toLowerCase();
+  const matches = [];
+  for (const n of flat) {
+    if (!n._name) continue;
+    const inName = n._name.toLowerCase().includes(q);
+    const inCommon = n._common && n._common.toLowerCase().includes(q);
+    if (inName || inCommon) matches.push(n);
+    if (matches.length >= 20) break;
+  }
+  if (matches.length === 0) {
+    searchResults.classList.remove("open");
+    return;
+  }
+  for (let i = 0; i < matches.length; i++) {
+    const n = matches[i];
+    const div = document.createElement("div");
+    div.className = "sr-item";
+    let html = `<span>${n._name}</span>`;
+    if (n._common) html += ` <span class="sr-common">${n._common}</span>`;
+    if (n._rank && n._rank !== "no rank") html += ` <span class="sr-rank">${n._rank}</span>`;
+    if (n._ottId) html += `<a class="sr-tree-link" href="tree.html?ott=${OTT_ROOT}&focus=${n._ottId}" title="text tree">tree</a>`;
+    div.innerHTML = html;
+    div.addEventListener("click", (e) => {
+      if (e.target.classList.contains("sr-tree-link")) return; // let link navigate
+      flyTo(n);
+      selectNode(n);
+      searchResults.classList.remove("open");
+      searchInput.blur();
+    });
+    searchResults.appendChild(div);
+  }
+  searchResults.classList.add("open");
+}
+
+searchInput.addEventListener("input", () => doSearch(searchInput.value.trim()));
+
+searchInput.addEventListener("keydown", e => {
+  const items = searchResults.querySelectorAll(".sr-item");
+  if (!items.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    searchActive = Math.min(searchActive + 1, items.length - 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    searchActive = Math.max(searchActive - 1, 0);
+  } else if (e.key === "Enter" && searchActive >= 0) {
+    e.preventDefault();
+    items[searchActive].click();
+    return;
+  } else if (e.key === "Escape") {
+    searchResults.classList.remove("open");
+    searchInput.blur();
+    return;
+  } else { return; }
+  items.forEach((el, i) => el.classList.toggle("active", i === searchActive));
+  items[searchActive].scrollIntoView({ block: "nearest" });
+});
+
+// Close search when clicking outside
+document.addEventListener("click", e => {
+  if (!e.target.closest("#search-wrap")) searchResults.classList.remove("open");
+});
+
 // ── Init ────────────────────────────────────────────────────────────
 (async () => {
   const status = document.getElementById("status");
@@ -835,6 +941,14 @@ function selectNode(node) {
   const countLabel = dataSource === "atproto-clade" ? `${flat.length} nodes (chunked)` : `${flat.length} nodes`;
   status.textContent = `${countLabel} via ${src} \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
   scheduleDraw();
+
+  // Handle ?focus= param: fly to a specific node after load
+  if (FOCUS_OTT) {
+    const target = flat.find(n => n._ottId === FOCUS_OTT);
+    if (target) {
+      setTimeout(() => { flyTo(target, 800); selectNode(target); }, 300);
+    }
+  }
 })();
 </script>
 </body>
