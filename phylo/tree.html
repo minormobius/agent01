@@ -109,7 +109,9 @@
 </style>
 </head>
 <body>
-<h1>phylo.minomobi.com <a href="." style="color:#555;font-size:.85em;text-decoration:none;margin-left:.6em" title="zoom navigator">&rarr; zoom view</a></h1>
+<h1>phylo.minomobi.com <a href="." style="color:#555;font-size:.85em;text-decoration:none;margin-left:.6em" title="zoom navigator">&rarr; zoom view</a>
+  <select id="clade-picker" style="background:#1a1a1a;border:1px solid #333;color:#ccc;font:11px monospace;padding:1px 4px;border-radius:3px;margin-left:.6em;display:none"></select>
+</h1>
 <div id="status">loading…</div>
 <div id="search-bar">
   <input id="search" type="text" placeholder="search taxa…" autocomplete="off">
@@ -335,7 +337,7 @@ function flatToTree(records, rootOttId) {
 }
 
 // DOM element map: ottId → <li> element (populated as nodes render)
-const domMap = {};
+let domMap = {};
 
 function renderNode(node) {
   const li = document.createElement("li");
@@ -530,9 +532,41 @@ document.addEventListener("click", e => {
 });
 
 // ── Init ────────────────────────────────────────────────────────────
+let allFetchedNodes = [];
+let availableRoots = [];
+
+function findRoots(nodes) {
+  const byId = {};
+  for (const n of nodes) byId[n.ottId] = n;
+  return nodes.filter(n => !n.parentOttId || !byId[n.parentOttId]);
+}
+
+function buildAndShow(ottRoot) {
+  const treeEl = document.getElementById("tree");
+  const status = document.getElementById("status");
+  treeEl.innerHTML = "";
+  searchIndex.length = 0;
+  domMap = {};
+
+  const tree = flatToTree(allFetchedNodes, ottRoot);
+  const rootName = (tree.taxon || {}).name || "tree";
+  status.textContent = `${rootName} · ${allFetchedNodes.length} nodes`;
+
+  const ul = document.createElement("ul");
+  ul.appendChild(renderNode(tree));
+  treeEl.appendChild(ul);
+  treeEl.querySelector("li .name").click();
+
+  buildSearchIndex(tree, []);
+  searchInput.placeholder = `search ${searchIndex.length} taxa…`;
+
+  document.title = `phylo — ${rootName} — text tree — minomobi`;
+}
+
 (async () => {
   const status = document.getElementById("status");
   const treeEl = document.getElementById("tree");
+  const picker = document.getElementById("clade-picker");
   let tree = null;
   let dataSource = "";
 
@@ -543,11 +577,55 @@ document.addEventListener("click", e => {
     status.textContent = `fetching clades from ${pds.replace("https://","")}\u2026`;
     const clades = await fetchATProtoRecords(pds, did, CLADE_COLLECTION);
     if (clades.length > 0) {
-      const allNodes = [];
-      for (const clade of clades) for (const node of (clade.nodes || [])) allNodes.push(node);
-      status.textContent = `${clades.length} clades \u00b7 ${allNodes.length} nodes \u00b7 building tree\u2026`;
-      tree = flatToTree(allNodes, OTT_ROOT);
+      for (const clade of clades)
+        for (const node of (clade.nodes || [])) allFetchedNodes.push(node);
+      status.textContent = `${clades.length} clades · ${allFetchedNodes.length} nodes · building tree…`;
       dataSource = `at://${ATPROTO_HANDLE}`;
+
+      // Detect available roots and count nodes per root
+      const rootNodes = findRoots(allFetchedNodes);
+      const byId = {};
+      for (const n of allFetchedNodes) byId[n.ottId] = n;
+      // Map each node to its root by walking parent chain (using hash lookup)
+      const rootOf = {};
+      function getRoot(ottId) {
+        if (rootOf[ottId] !== undefined) return rootOf[ottId];
+        const n = byId[ottId];
+        if (!n || !n.parentOttId || !byId[n.parentOttId]) { rootOf[ottId] = ottId; return ottId; }
+        rootOf[ottId] = getRoot(n.parentOttId);
+        return rootOf[ottId];
+      }
+      const rootCounts = {};
+      for (const n of allFetchedNodes) {
+        const r = getRoot(n.ottId);
+        rootCounts[r] = (rootCounts[r] || 0) + 1;
+      }
+      availableRoots = rootNodes.map(n => ({
+        ottId: n.ottId,
+        name: n.name || n.ottId,
+        rank: n.rank || "",
+        count: rootCounts[n.ottId] || 0
+      })).sort((a, b) => b.count - a.count);
+
+      // Populate picker if multiple roots
+      if (availableRoots.length > 1) {
+        picker.innerHTML = "";
+        for (const r of availableRoots) {
+          const opt = document.createElement("option");
+          opt.value = r.ottId;
+          opt.textContent = `${r.name} (${r.count.toLocaleString()})`;
+          picker.appendChild(opt);
+        }
+        // Select the one matching OTT_ROOT, or first
+        const match = availableRoots.find(r => r.ottId === OTT_ROOT);
+        picker.value = match ? match.ottId : availableRoots[0].ottId;
+        picker.style.display = "";
+        picker.addEventListener("change", () => buildAndShow(parseInt(picker.value)));
+      }
+
+      const startRoot = availableRoots.find(r => r.ottId === OTT_ROOT)
+        ? OTT_ROOT : availableRoots[0].ottId;
+      tree = flatToTree(allFetchedNodes, startRoot);
     }
   } catch (e) {
     console.warn("ATProto fetch failed, falling back to OToL:", e.message);
@@ -556,7 +634,7 @@ document.addEventListener("click", e => {
   // Fallback to OToL API
   if (!tree) {
     try {
-      status.textContent = "fetching from open tree of life\u2026";
+      status.textContent = "fetching from open tree of life…";
       tree = await fetchSubtree(OTT_ROOT);
       dataSource = "opentreeoflife.org";
     } catch (e) {
@@ -566,16 +644,15 @@ document.addEventListener("click", e => {
   }
 
   const rootName = (tree.taxon || {}).name || "tree";
-  status.textContent = `${rootName} \u00b7 via ${dataSource}`;
+  status.textContent = `${rootName} · via ${dataSource}`;
   const ul = document.createElement("ul");
   ul.appendChild(renderNode(tree));
   treeEl.appendChild(ul);
-  // Auto-expand root
   treeEl.querySelector("li .name").click();
 
-  // Build search index from tree
   buildSearchIndex(tree, []);
   searchInput.placeholder = `search ${searchIndex.length} taxa…`;
+  document.title = `phylo — ${rootName} — text tree — minomobi`;
 
   // Handle ?focus= param: reveal a specific node
   if (FOCUS_OTT) {

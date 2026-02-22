@@ -750,10 +750,15 @@ def main():
     existing = list_existing_records(pds, did, token, collection=COLLECTION)
     print(f"Found {len(existing)} existing records in {COLLECTION}")
 
-    # Delete existing records if --replace
-    if args.replace and existing:
-        print(f"Deleting {len(existing)} existing records (--replace)...")
-        rkey_list = sorted(existing)
+    # Determine which existing records conflict with new clades
+    new_rkeys = {str(c["rootOttId"]) for c in clades}
+    conflicting = existing & new_rkeys  # only records that share an rkey with new data
+
+    # Delete conflicting records (scoped to this tree, not the whole collection)
+    if args.replace and conflicting:
+        print(f"Deleting {len(conflicting)} existing records for this tree "
+              f"(keeping {len(existing) - len(conflicting)} from other trees)...")
+        rkey_list = sorted(conflicting)
         deleted, del_errors = 0, 0
         for i in range(0, len(rkey_list), BATCH_SIZE):
             batch = rkey_list[i:i + BATCH_SIZE]
@@ -763,7 +768,7 @@ def main():
             if i + BATCH_SIZE < len(rkey_list):
                 time.sleep(BATCH_DELAY)
         print(f"Deleted {deleted}, errors {del_errors}")
-        existing = set()
+        existing = existing - conflicting
 
     # Filter out clades that already exist
     to_write = [c for c in clades if str(c["rootOttId"]) not in existing]

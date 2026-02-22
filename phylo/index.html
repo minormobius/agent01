@@ -109,6 +109,7 @@
   <a href="tree.html">&larr; text tree</a>
   <span style="color:#222">|</span>
   <span style="color:#777">phylo zoom</span>
+  <select id="clade-picker" style="background:#1a1a1a;border:1px solid #333;color:#ccc;font:11px monospace;padding:1px 4px;border-radius:3px;display:none"></select>
   <span id="source" style="color:#444;font-size:10px"></span>
   <span id="search-wrap"><input id="search" type="text" placeholder="search taxa…" autocomplete="off"><div id="search-results"></div></span>
   <span id="status">loading&hellip;</span>
@@ -879,27 +880,78 @@ document.addEventListener("click", e => {
 });
 
 // ── Init ────────────────────────────────────────────────────────────
+let allFetchedNodes = []; // cached across clade switches
+let availableRoots = [];  // [{ottId, name, rank, count}]
+
+function buildAndShow(ottRoot) {
+  // Rebuild tree from cached nodes for the given root
+  flat.length = 0;
+  root = null;
+  selectedNode = null;
+
+  const tree = flatToTree(allFetchedNodes, ottRoot);
+  root = tree;
+  layoutTree(root, 0, 0, 1, 0, Math.PI * 2, 0, null);
+  cam.x = 0; cam.y = 0;
+  cam.scale = Math.min(W, H) * 0.38;
+
+  const status = document.getElementById("status");
+  status.textContent = `${flat.length} nodes \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
+  searchInput.placeholder = `search ${flat.length} taxa\u2026`;
+  scheduleDraw();
+
+  // Handle ?focus= param
+  if (FOCUS_OTT) {
+    const target = flat.find(n => n._ottId === FOCUS_OTT);
+    if (target) setTimeout(() => { flyTo(target, 800); selectNode(target); }, 300);
+  }
+}
+
+// Detect distinct top-level roots from flat node list
+function findRoots(nodes) {
+  const byId = {};
+  for (const n of nodes) byId[n.ottId] = n;
+  // A root is any node whose parentOttId doesn't point to another node in the set
+  return nodes.filter(n => !n.parentOttId || !byId[n.parentOttId]);
+}
+
 (async () => {
   const status = document.getElementById("status");
+  const picker = document.getElementById("clade-picker");
   resize();
 
   let tree = null;
-  let nodeCount = 0;
 
   // Try ATProto clade records first (adaptive chunked format)
   try {
     status.textContent = `resolving ${ATPROTO_HANDLE}\u2026`;
     const { did, pds } = await resolveATProto(ATPROTO_HANDLE);
 
-    // Try clade collection first
     status.textContent = `fetching clades from ${pds.replace("https://","")}\u2026`;
     const clades = await fetchATProtoRecords(pds, did, CLADE_COLLECTION);
     if (clades.length > 0) {
-      const allNodes = unpackClades(clades);
-      nodeCount = allNodes.length;
-      status.textContent = `${clades.length} clades \u00b7 ${nodeCount} nodes \u00b7 building tree\u2026`;
-      tree = flatToTree(allNodes, OTT_ROOT);
+      allFetchedNodes = unpackClades(clades);
+      status.textContent = `${clades.length} clades \u00b7 ${allFetchedNodes.length} nodes \u00b7 building tree\u2026`;
+      tree = flatToTree(allFetchedNodes, OTT_ROOT);
       dataSource = "atproto-clade";
+
+      // Detect available roots for the picker
+      const roots = findRoots(allFetchedNodes);
+      if (roots.length > 1 || (roots.length === 1 && roots[0].ottId !== OTT_ROOT)) {
+        availableRoots = roots.map(r => ({
+          ottId: r.ottId, name: r.name || `ott${r.ottId}`,
+          rank: r.rank || "", count: 0
+        }));
+        // Count nodes per root tree
+        for (const ar of availableRoots) {
+          try {
+            const t = flatToTree(allFetchedNodes, ar.ottId);
+            const c = []; const countNodes = (n) => { c.push(n); for (const ch of (n.children||[])) countNodes(ch); };
+            countNodes(t); ar.count = c.length;
+          } catch(e) { ar.count = 0; }
+        }
+        availableRoots.sort((a,b) => b.count - a.count);
+      }
     }
 
     // Fall back to legacy node collection
@@ -907,7 +959,7 @@ document.addEventListener("click", e => {
       status.textContent = `fetching node records from ${pds.replace("https://","")}\u2026`;
       const records = await fetchATProtoRecords(pds, did, NODE_COLLECTION);
       if (records.length > 0) {
-        nodeCount = records.length;
+        allFetchedNodes = records;
         status.textContent = `${records.length} records \u00b7 building tree\u2026`;
         tree = flatToTree(records, OTT_ROOT);
         dataSource = "atproto-node";
@@ -931,15 +983,31 @@ document.addEventListener("click", e => {
 
   status.textContent = "laying out\u2026";
   root = tree;
+  flat.length = 0;
   layoutTree(root, 0, 0, 1, 0, Math.PI * 2, 0, null);
-
-  // Initial camera: fit root
   cam.scale = Math.min(W, H) * 0.38;
+
+  // Populate clade picker if multiple roots available
+  if (availableRoots.length > 1) {
+    for (const ar of availableRoots) {
+      const opt = document.createElement("option");
+      opt.value = ar.ottId;
+      const label = ar.rank && ar.rank !== "no rank" ? `${ar.name} (${ar.rank})` : ar.name;
+      opt.textContent = `${label} \u00b7 ${ar.count}`;
+      if (ar.ottId === OTT_ROOT) opt.selected = true;
+      picker.appendChild(opt);
+    }
+    picker.style.display = "inline-block";
+    picker.addEventListener("change", () => {
+      const newOtt = parseInt(picker.value);
+      buildAndShow(newOtt);
+    });
+  }
 
   const src = dataSource.startsWith("atproto") ? `at://${ATPROTO_HANDLE}` : "opentreeoflife.org";
   document.getElementById("source").textContent = `[${dataSource}]`;
-  const countLabel = dataSource === "atproto-clade" ? `${flat.length} nodes (chunked)` : `${flat.length} nodes`;
-  status.textContent = `${countLabel} via ${src} \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
+  status.textContent = `${flat.length} nodes \u00b7 click \u00b7 double-click to focus \u00b7 scroll to zoom`;
+  searchInput.placeholder = `search ${flat.length} taxa\u2026`;
   scheduleDraw();
 
   // Handle ?focus= param: fly to a specific node after load
