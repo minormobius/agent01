@@ -1,8 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "bakery",
+  "name": "minomobi",
   "compatibility_date": "2026-02-20",
   "assets": {
-    "directory": "./bakery/dist"
+    "directory": "./"
   }
 }
