@@ -804,11 +804,21 @@ const atproto = {
     return { ...(await res.json()), pds };
   },
 
+  async refreshSession(session) {
+    const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.refreshJwt}` },
+    });
+    if (!res.ok) throw new Error('Session expired — please sign in again');
+    const refreshed = await res.json();
+    return { ...refreshed, pds: session.pds };
+  },
+
   async publish(session, record) {
     const res = await fetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.accessJwt}` },
-      body: JSON.stringify({ repo: session.did, collection: 'com.minomobi.music.composition', record }),
+      body: JSON.stringify({ repo: session.did, collection: 'com.minomobi.music.composition', validate: false, record }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -1048,8 +1058,13 @@ document.getElementById('publish-btn').onclick = () => {
       state.name = document.getElementById('pub-name').value.trim();
       state.description = document.getElementById('pub-desc').value.trim();
       document.getElementById('name-input').value = state.name;
-      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Publishing...</div>';
+      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Refreshing session...</div>';
       try {
+        // Refresh token before publishing (stored JWTs expire quickly)
+        const refreshed = await atproto.refreshSession(session);
+        Object.assign(session, refreshed);
+        saveSession(session);
+        statusEl.innerHTML = '<div class="status" style="color:#8b949e">Publishing...</div>';
         const record = toRecord();
         const result = await atproto.publish(session, record);
         statusEl.innerHTML = `<div class="status ok">Published!<br><code style="font-size:10px;word-break:break-all">${escapeHtml(result.uri)}</code></div>`;
