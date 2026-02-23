@@ -718,12 +718,12 @@ function toRecord() {
     $type: 'com.minomobi.music.composition',
     name: state.name || 'Untitled',
     description: state.description || '',
-    bpm: state.bpm,
-    steps: state.steps,
+    bpm: Math.round(state.bpm),
+    steps: Math.round(state.steps),
     tracks: state.tracks.map(t => ({
       name: t.name,
       instrument: t.instrument,
-      volume: Math.round(t.volume * 100) / 100,
+      volume: Math.round(t.volume * 100),  // integer 0–100 (ATProto has no float type)
       notes: t.notes.map(n => `${n.pitch},${n.start},${n.duration},${n.velocity}`),
     })),
     createdAt: new Date().toISOString(),
@@ -736,17 +736,22 @@ function fromRecord(record) {
   state.description = r.description || '';
   state.bpm = r.bpm || 120;
   state.steps = r.steps || 32;
-  state.tracks = (r.tracks || []).map((t, i) => ({
-    name: t.name || `Track ${i + 1}`,
-    instrument: t.instrument || 'square',
-    volume: t.volume != null ? t.volume : 0.7,
-    muted: false,
-    solo: false,
-    notes: (t.notes || []).map(s => {
-      const parts = s.split(',').map(Number);
-      return { pitch: parts[0], start: parts[1], duration: parts[2] || 1, velocity: parts[3] || 100 };
-    }),
-  }));
+  state.tracks = (r.tracks || []).map((t, i) => {
+    // Volume: integer 0–100 in ATProto records, float 0–1 in legacy/demo data
+    let vol = t.volume != null ? t.volume : 70;
+    if (vol > 1) vol = vol / 100;  // integer 0–100 → float 0–1
+    return {
+      name: t.name || `Track ${i + 1}`,
+      instrument: t.instrument || 'square',
+      volume: vol,
+      muted: false,
+      solo: false,
+      notes: (t.notes || []).map(s => {
+        const parts = s.split(',').map(Number);
+        return { pitch: parts[0], start: parts[1], duration: parts[2] || 1, velocity: parts[3] || 100 };
+      }),
+    };
+  });
   state.activeTrack = 0;
 
   // Update UI
@@ -822,7 +827,9 @@ const atproto = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error([err.error, err.message].filter(Boolean).join(': ') || `Publish failed (${res.status})`);
+      const parts = [err.error, err.message];
+      if (err.causes) parts.push(JSON.stringify(err.causes));
+      throw new Error(parts.filter(Boolean).join(': ') || `Publish failed (${res.status})`);
     }
     return res.json();
   },
@@ -1126,7 +1133,7 @@ function loadDemo() {
       {
         name: 'Lead',
         instrument: 'square',
-        volume: 0.6,
+        volume: 60,
         notes: [
           // Melody: C E G A G E C D E F E D C
           '72,0,2,100', '76,2,2,90', '79,4,2,100', '81,6,2,90',
@@ -1138,7 +1145,7 @@ function loadDemo() {
       {
         name: 'Bass',
         instrument: 'triangle',
-        volume: 0.5,
+        volume: 50,
         notes: [
           // Bass line: root notes
           '48,0,4,100', '48,4,4,90', '45,8,4,100', '45,12,4,90',
@@ -1148,7 +1155,7 @@ function loadDemo() {
       {
         name: 'Arp',
         instrument: 'pulse',
-        volume: 0.35,
+        volume: 35,
         notes: [
           // Arpeggiated chords
           '60,0,1,70', '64,1,1,70', '67,2,1,70', '60,3,1,60',
@@ -1164,7 +1171,7 @@ function loadDemo() {
       {
         name: 'Drums',
         instrument: 'noise',
-        volume: 0.4,
+        volume: 40,
         notes: [
           // Simple beat: kick on 1,3 / snare on 2,4 / hats on 8ths
           '60,0,1,100', '60,4,1,70', '60,8,1,100', '60,12,1,70',
