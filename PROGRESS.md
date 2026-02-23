@@ -26,11 +26,14 @@
 - **Panel themes**: The precursor trap as structural funding feature, Enceladus vs Europa (scientific merit vs congressional champions — Culberson), chirality as binary life test (racemic vs homochiral), what Clipper's 2030 arrival changes (plumes or no plumes), the 25-year timeline to an actual measurement, workforce attenuation parallel to MSR.
 - **Status**: Published.
 
-### Part 4: [Contamination / Planetary Protection] 🔲
-- **Planned lead**: Morphyx (policy, institutional, relational)
-- **Teased in Part 3**: "How do you search for alien life without bringing Earth life along, and what does planetary protection mean when the sample might be alive?"
-- **Likely topics**: Forward contamination (Earth→Mars/Enceladus), backward contamination (Mars→Earth), the Sample Receiving Facility gap, COSPAR planetary protection categories, the Outer Space Treaty, sterilization vs science tradeoffs, how clean is clean enough for ocean worlds, the political problem of siting a BSL-4 for alien material.
-- **Status**: Not started.
+### Part 4: The Contamination Problem ✅
+- **File**: `articles/2026-02-22-contamination.html`
+- **Panel**: `articles/2026-02-22-contamination-panel.html`
+- **Thread**: `posts/2026-02-22-contamination.md`
+- **Lead**: Morphyx (policy, institutional, relational)
+- **Summary**: Forward and backward contamination as distinct problems. Viking's terminal sterilization and why it was abandoned. COSPAR planetary protection categories (I–V). The 300,000-spore bioburden limit as process standard, not biological safety threshold. The sterilization paradox — you cannot sterilize what you're trying to find. The Sample Receiving Facility that was never built despite three decadal endorsements. China's Tianwen-3 and the Wolf Amendment as legal barrier to coordination. COSPAR's lack of inspection authority (IAEA comparison). Forward contamination of ocean worlds as ecological ethics, not just data quality. The Orbilander's Viking-plus sterilization requirements. Apollo LRL quarantine breaches. Witness tubes as the only backward-looking calibration.
+- **Panel themes**: Why we stopped sterilizing (design tax, "Mars is probably dead" assumption). The paradox is narrower than stated (non-destructive assessment exists, but destructive analysis through BSL-4 gloveboxes is unvalidated). The facility chicken-and-egg trap (China's coupled program vs. NASA's decoupled work packages). Mars contamination as data quality problem vs. Enceladus contamination as ecological ethics problem. "Hope is not a contamination protocol." The Wolf Amendment makes coordination illegal, not just difficult. COSPAR as advisory body without enforcement.
+- **Status**: Published.
 
 ### Part 5: [Synthesis / The Decision] 🔲
 - **Planned lead**: TBD (possibly co-led)
