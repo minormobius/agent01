@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mino Music — ATProto Composer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;overflow-x:hidden}
+a{color:#58a6ff}
+
+/* Header */
+#header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
+#logo{font-size:15px;font-weight:700;letter-spacing:2px;color:#58a6ff;white-space:nowrap}
+#logo span{color:#c9d1d9;font-weight:400;letter-spacing:0;margin-left:4px;font-size:12px}
+#transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#transport button{width:36px;height:36px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#transport button:hover{background:#30363d}
+#transport button.active{background:#238636;border-color:#238636;color:#fff}
+.ctrl-group{display:flex;align-items:center;gap:4px}
+.ctrl-label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.ctrl-input{width:56px;padding:4px 6px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;text-align:center;font-family:inherit}
+.ctrl-input:focus{border-color:#58a6ff;outline:none}
+#name-input{flex:1;min-width:140px;padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;font-family:inherit}
+#name-input:focus{border-color:#58a6ff;outline:none}
+
+/* Main layout */
+#main{display:flex;flex-direction:column;height:calc(100vh - 52px)}
+#grid-wrapper{flex:1;overflow:auto;position:relative;min-height:200px}
+#piano-roll{display:block;cursor:crosshair}
+
+/* Track panel */
+#track-panel{background:#161b22;border-top:1px solid #30363d;padding:8px 16px;overflow-x:auto}
+#track-list{display:flex;gap:6px;align-items:stretch}
+.track-card{padding:8px 12px;border-radius:6px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:150px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.track-card.active{border-color:var(--track-color,#58a6ff)}
+.track-card:hover{background:#2a3040}
+.track-name{font-weight:600;color:#c9d1d9;font-size:13px}
+.track-card select,.track-card input[type=range]{width:100%;font-size:11px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:2px 4px}
+.track-controls{display:flex;gap:4px;align-items:center}
+.track-btn{padding:2px 6px;font-size:10px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
+.track-btn:hover{background:#30363d}
+.track-btn.muted{background:#da3633;color:#fff;border-color:#da3633}
+.track-btn.solo{background:#d29922;color:#fff;border-color:#d29922}
+#add-track-btn{padding:8px 12px;border:2px dashed #30363d;border-radius:6px;background:transparent;color:#8b949e;cursor:pointer;font-size:20px;min-width:44px;display:flex;align-items:center;justify-content:center}
+#add-track-btn:hover{border-color:#58a6ff;color:#58a6ff}
+
+/* Bottom bar */
+#bottom-bar{display:flex;gap:8px;padding:8px 16px;background:#0d1117;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap}
+.bottom-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;cursor:pointer;white-space:nowrap}
+.bottom-btn:hover{background:#30363d}
+.bottom-btn.primary{background:#238636;border-color:#238636;color:#fff}
+.bottom-btn.primary:hover{background:#2ea043}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;max-width:520px;width:90%;max-height:80vh;overflow:auto}
+.modal h3{font-size:16px;margin-bottom:12px;color:#c9d1d9}
+.modal label{font-size:12px;color:#8b949e;display:block;margin-bottom:4px}
+.modal input,.modal textarea{width:100%;padding:8px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:13px;font-family:inherit;margin-bottom:10px}
+.modal input:focus,.modal textarea:focus{border-color:#58a6ff;outline:none}
+.modal textarea{resize:vertical;min-height:80px;font-family:monospace;font-size:11px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.modal .status{font-size:12px;margin-top:8px;padding:8px;border-radius:4px}
+.modal .status.ok{background:#1b3826;color:#3fb950}
+.modal .status.err{background:#3b1d1d;color:#f85149}
+
+/* Info text */
+.info{font-size:11px;color:#8b949e;padding:0 16px 8px}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="logo">MINO MUSIC <span>ATProto Composer</span></div>
+  <div id="transport">
+    <button id="play-btn" title="Play (Space)">&#9654;</button>
+    <button id="stop-btn" title="Stop">&#9632;</button>
+    <div class="ctrl-group">
+      <span class="ctrl-label">BPM</span>
+      <input id="bpm-input" class="ctrl-input" type="number" value="120" min="20" max="300">
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Steps</span>
+      <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
+    </div>
+    <div class="ctrl-group">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+        <input id="loop-cb" type="checkbox" checked> Loop
+      </label>
+    </div>
+    <div class="ctrl-group">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+        <input id="show-all-cb" type="checkbox" checked> All tracks
+      </label>
+    </div>
+  </div>
+  <input id="name-input" type="text" placeholder="Untitled Composition" value="">
+</div>
+
+<div id="main">
+  <div id="grid-wrapper">
+    <canvas id="piano-roll"></canvas>
+  </div>
+  <div id="track-panel">
+    <div id="track-list"></div>
+  </div>
+  <div id="bottom-bar">
+    <button class="bottom-btn" id="export-btn" title="Export as JSON">Export JSON</button>
+    <button class="bottom-btn" id="import-btn" title="Import from JSON">Import JSON</button>
+    <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch AT URI</button>
+    <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish to PDS</button>
+    <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
+    <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
+    <span style="flex:1"></span>
+    <span class="info" id="status-bar"></span>
+  </div>
+</div>
+
+<!-- Modals rendered by JS -->
+<div id="modal-root"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+
+const KEY_W = 56;
+const CELL_W = 24;
+const CELL_H = 16;
+const PITCH_LOW = 36;   // C2
+const PITCH_HIGH = 84;  // C6
+const PITCH_COUNT = PITCH_HIGH - PITCH_LOW;
+
+const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const TRACK_COLORS = ['#58a6ff','#3fb950','#d29922','#f85149','#bc8cff','#79c0ff','#56d364','#e3b341'];
+const INSTRUMENTS = ['square','triangle','sawtooth','sine','noise','pulse'];
+const INSTRUMENT_LABELS = {square:'Square',triangle:'Triangle',sawtooth:'Sawtooth',sine:'Sine',noise:'Noise',pulse:'Pulse (25%)'};
+
+function isBlack(midi) { return BLACK_KEYS.has(midi % 12); }
+function noteName(midi) { return NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1); }
+function midiFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+const state = {
+  name: '',
+  description: '',
+  bpm: 120,
+  steps: 32,
+  looping: true,
+  showAllTracks: true,
+  activeTrack: 0,
+  playing: false,
+  currentStep: -1,
+  tracks: [
+    { name: 'Lead',    instrument: 'square',   volume: 0.7, muted: false, solo: false, notes: [] },
+    { name: 'Bass',    instrument: 'triangle', volume: 0.6, muted: false, solo: false, notes: [] },
+    { name: 'Harmony', instrument: 'sawtooth', volume: 0.4, muted: false, solo: false, notes: [] },
+    { name: 'Drums',   instrument: 'noise',    volume: 0.5, muted: false, solo: false, notes: [] },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+let audioCtx = null;
+let noiseBuffer = null;
+let schedulerTimer = null;
+let nextStepTime = 0;
+let scheduleStep = 0;
+
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // create noise buffer
+    const sr = audioCtx.sampleRate;
+    const len = sr; // 1 second
+    noiseBuffer = audioCtx.createBuffer(1, len, sr);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function stepDuration() {
+  return 60 / state.bpm / 4; // 16th note
+}
+
+function playNote(instrument, pitch, durSteps, velocity, volume, when) {
+  const dur = durSteps * stepDuration();
+  const gain = (velocity / 127) * volume * 0.25;
+
+  if (instrument === 'noise') {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(gain, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + Math.min(dur, 0.15));
+    src.connect(g);
+    g.connect(audioCtx.destination);
+    src.start(when);
+    src.stop(when + 0.3);
+    return;
+  }
+
+  const osc = audioCtx.createOscillator();
+  if (instrument === 'pulse') {
+    // Approximate 25% pulse with square + slight detune trick
+    osc.type = 'square';
+  } else {
+    osc.type = instrument;
+  }
+  osc.frequency.setValueAtTime(midiFreq(pitch), when);
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(gain, when);
+  // 8-bit style envelope: quick attack, sustain, fast release
+  g.gain.setValueAtTime(gain, when + dur * 0.9);
+  g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start(when);
+  osc.stop(when + dur + 0.02);
+
+  // Pulse: add a second detuned oscillator for width effect
+  if (instrument === 'pulse') {
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(midiFreq(pitch), when);
+    osc2.detune.setValueAtTime(25, when);
+    const g2 = audioCtx.createGain();
+    g2.gain.setValueAtTime(gain * 0.5, when);
+    g2.gain.setValueAtTime(gain * 0.5, when + dur * 0.9);
+    g2.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    osc2.connect(g2);
+    g2.connect(audioCtx.destination);
+    osc2.start(when);
+    osc2.stop(when + dur + 0.02);
+  }
+}
+
+function previewPitch(pitch) {
+  ensureAudio();
+  const track = state.tracks[state.activeTrack];
+  playNote(track.instrument, pitch, 2, 100, track.volume, audioCtx.currentTime);
+}
+
+function isTrackAudible(idx) {
+  const hasSolo = state.tracks.some(t => t.solo);
+  if (hasSolo) return state.tracks[idx].solo;
+  return !state.tracks[idx].muted;
+}
+
+function schedulerLoop() {
+  const ahead = 0.1;
+  while (nextStepTime < audioCtx.currentTime + ahead) {
+    // schedule notes at scheduleStep
+    for (let t = 0; t < state.tracks.length; t++) {
+      if (!isTrackAudible(t)) continue;
+      const track = state.tracks[t];
+      for (const n of track.notes) {
+        if (n.start === scheduleStep) {
+          playNote(track.instrument, n.pitch, n.duration, n.velocity, track.volume, nextStepTime);
+        }
+      }
+    }
+    // visual update
+    const step = scheduleStep;
+    const dt = (nextStepTime - audioCtx.currentTime) * 1000;
+    setTimeout(() => { state.currentStep = step; render(); }, Math.max(0, dt));
+
+    nextStepTime += stepDuration();
+    scheduleStep++;
+    if (state.looping) {
+      scheduleStep = scheduleStep % state.steps;
+    } else if (scheduleStep >= state.steps) {
+      stopPlayback();
+      return;
+    }
+  }
+  schedulerTimer = setTimeout(schedulerLoop, 25);
+}
+
+function startPlayback() {
+  ensureAudio();
+  state.playing = true;
+  scheduleStep = state.currentStep >= 0 ? state.currentStep : 0;
+  nextStepTime = audioCtx.currentTime + 0.05;
+  schedulerLoop();
+  updateTransport();
+}
+
+function stopPlayback() {
+  state.playing = false;
+  state.currentStep = -1;
+  clearTimeout(schedulerTimer);
+  schedulerTimer = null;
+  render();
+  updateTransport();
+}
+
+function togglePlayback() {
+  if (state.playing) stopPlayback(); else startPlayback();
+}
+
+function updateTransport() {
+  document.getElementById('play-btn').classList.toggle('active', state.playing);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTE EDITING
+// ═══════════════════════════════════════════════════════════════
+
+function noteAt(track, pitch, step) {
+  return track.notes.find(n => n.pitch === pitch && step >= n.start && step < n.start + n.duration);
+}
+
+function toggleNote(pitch, step) {
+  const track = state.tracks[state.activeTrack];
+  const existing = noteAt(track, pitch, step);
+  if (existing) {
+    track.notes = track.notes.filter(n => n !== existing);
+  } else {
+    track.notes.push({ pitch, start: step, duration: 1, velocity: 100 });
+  }
+  render();
+}
+
+function removeNote(pitch, step) {
+  const track = state.tracks[state.activeTrack];
+  const existing = noteAt(track, pitch, step);
+  if (existing) {
+    track.notes = track.notes.filter(n => n !== existing);
+    render();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS RENDERING
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('piano-roll');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const w = KEY_W + state.steps * CELL_W;
+  const h = PITCH_COUNT * CELL_H;
+  canvas.width = w;
+  canvas.height = h;
+  render();
+}
+
+function render() {
+  const w = canvas.width, h = canvas.height;
+  const steps = state.steps;
+
+  // Background
+  ctx.fillStyle = '#1c2128';
+  ctx.fillRect(0, 0, w, h);
+
+  // Rows
+  for (let i = 0; i < PITCH_COUNT; i++) {
+    const pitch = PITCH_HIGH - 1 - i;
+    const y = i * CELL_H;
+    ctx.fillStyle = isBlack(pitch) ? '#161b22' : '#1c2128';
+    ctx.fillRect(KEY_W, y, steps * CELL_W, CELL_H);
+
+    // C notes get a stronger line
+    if (pitch % 12 === 0) {
+      ctx.strokeStyle = '#3d444d';
+      ctx.lineWidth = 1;
+    } else {
+      ctx.strokeStyle = '#262c33';
+      ctx.lineWidth = 0.5;
+    }
+    ctx.beginPath();
+    ctx.moveTo(KEY_W, y + CELL_H - 0.5);
+    ctx.lineTo(w, y + CELL_H - 0.5);
+    ctx.stroke();
+  }
+
+  // Columns
+  for (let s = 0; s <= steps; s++) {
+    const x = KEY_W + s * CELL_W;
+    if (s % 16 === 0) {
+      ctx.strokeStyle = '#58636e';
+      ctx.lineWidth = 1.5;
+    } else if (s % 4 === 0) {
+      ctx.strokeStyle = '#3d444d';
+      ctx.lineWidth = 1;
+    } else {
+      ctx.strokeStyle = '#262c33';
+      ctx.lineWidth = 0.5;
+    }
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, h);
+    ctx.stroke();
+  }
+
+  // Beat numbers
+  ctx.font = '9px monospace';
+  ctx.fillStyle = '#484f58';
+  ctx.textAlign = 'center';
+  for (let s = 0; s < steps; s += 4) {
+    ctx.fillText(s / 4 + 1, KEY_W + s * CELL_W + 2 * CELL_W, 10);
+  }
+
+  // Piano keys
+  for (let i = 0; i < PITCH_COUNT; i++) {
+    const pitch = PITCH_HIGH - 1 - i;
+    const y = i * CELL_H;
+    const bk = isBlack(pitch);
+    ctx.fillStyle = bk ? '#0d1117' : '#21262d';
+    ctx.fillRect(0, y, KEY_W, CELL_H);
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(0, y, KEY_W, CELL_H);
+
+    // Label every C, and also E and G# for orientation
+    if (pitch % 12 === 0) {
+      ctx.fillStyle = '#e6edf3';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(noteName(pitch), KEY_W - 4, y + CELL_H - 3);
+    } else if (!bk) {
+      ctx.fillStyle = '#484f58';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(noteName(pitch), KEY_W - 4, y + CELL_H - 3);
+    }
+  }
+
+  // Notes
+  for (let t = 0; t < state.tracks.length; t++) {
+    if (!state.showAllTracks && t !== state.activeTrack) continue;
+    const track = state.tracks[t];
+    const color = TRACK_COLORS[t % TRACK_COLORS.length];
+    const isActive = t === state.activeTrack;
+    ctx.globalAlpha = isActive ? 0.9 : 0.25;
+
+    for (const n of track.notes) {
+      const row = PITCH_HIGH - 1 - n.pitch;
+      if (row < 0 || row >= PITCH_COUNT) continue;
+      const x = KEY_W + n.start * CELL_W + 1;
+      const y = row * CELL_H + 1;
+      const nw = n.duration * CELL_W - 2;
+      const nh = CELL_H - 2;
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, nw, nh, 2);
+      ctx.fill();
+
+      // velocity indicator: brighter = louder
+      if (isActive && nw > 6) {
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = (isActive ? 0.9 : 0.25) * (n.velocity / 127) * 0.3;
+        ctx.beginPath();
+        ctx.roundRect(x, y, nw, nh / 2, [2, 2, 0, 0]);
+        ctx.fill();
+        ctx.globalAlpha = isActive ? 0.9 : 0.25;
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Playback cursor
+  if (state.currentStep >= 0) {
+    const x = KEY_W + state.currentStep * CELL_W;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(x, 0, CELL_W, h);
+    ctx.strokeStyle = 'rgba(88,166,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, h);
+    ctx.stroke();
+  }
+
+  // Hover highlight
+  if (hoverCell) {
+    const row = PITCH_HIGH - 1 - hoverCell.pitch;
+    const x = KEY_W + hoverCell.step * CELL_W;
+    const y = row * CELL_H;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, CELL_W - 1, CELL_H - 1);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS INPUT
+// ═══════════════════════════════════════════════════════════════
+
+let hoverCell = null;
+let isDragging = false;
+let dragStartCell = null;
+let dragCurrentCell = null;
+let dragMode = null; // 'add' or 'remove'
+
+function cellFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const sy = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const step = Math.floor((sx - KEY_W) / CELL_W);
+  const row = Math.floor(sy / CELL_H);
+  const pitch = PITCH_HIGH - 1 - row;
+  if (step < 0 || step >= state.steps || pitch < PITCH_LOW || pitch >= PITCH_HIGH) return null;
+  return { pitch, step };
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const cell = cellFromEvent(e);
+  hoverCell = cell;
+
+  if (isDragging && cell && dragStartCell) {
+    // Drag to create/remove notes in a line
+    const track = state.tracks[state.activeTrack];
+    if (dragMode === 'add') {
+      if (!noteAt(track, cell.pitch, cell.step)) {
+        track.notes.push({ pitch: cell.pitch, start: cell.step, duration: 1, velocity: 100 });
+      }
+    } else if (dragMode === 'remove') {
+      const existing = noteAt(track, cell.pitch, cell.step);
+      if (existing) track.notes = track.notes.filter(n => n !== existing);
+    }
+  }
+  render();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  const cell = cellFromEvent(e);
+  if (!cell) {
+    // Click on piano key area
+    const rect = canvas.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const sy = (e.clientY - rect.top) * (canvas.height / rect.height);
+    if (sx < KEY_W) {
+      const row = Math.floor(sy / CELL_H);
+      const pitch = PITCH_HIGH - 1 - row;
+      if (pitch >= PITCH_LOW && pitch < PITCH_HIGH) previewPitch(pitch);
+    }
+    return;
+  }
+
+  e.preventDefault();
+  isDragging = true;
+  dragStartCell = cell;
+
+  const track = state.tracks[state.activeTrack];
+  const existing = noteAt(track, cell.pitch, cell.step);
+
+  if (e.button === 2 || e.shiftKey) {
+    // Right click or shift: remove
+    dragMode = 'remove';
+    if (existing) track.notes = track.notes.filter(n => n !== existing);
+  } else {
+    if (existing) {
+      dragMode = 'remove';
+      track.notes = track.notes.filter(n => n !== existing);
+    } else {
+      dragMode = 'add';
+      track.notes.push({ pitch: cell.pitch, start: cell.step, duration: 1, velocity: 100 });
+      // Preview sound
+      ensureAudio();
+      playNote(track.instrument, cell.pitch, 1, 100, track.volume, audioCtx.currentTime);
+    }
+  }
+  render();
+});
+
+canvas.addEventListener('mouseup', () => {
+  isDragging = false;
+  dragStartCell = null;
+  dragMode = null;
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverCell = null;
+  isDragging = false;
+  render();
+});
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ═══════════════════════════════════════════════════════════════
+// TRACK PANEL
+// ═══════════════════════════════════════════════════════════════
+
+function renderTracks() {
+  const list = document.getElementById('track-list');
+  list.innerHTML = '';
+
+  state.tracks.forEach((track, i) => {
+    const color = TRACK_COLORS[i % TRACK_COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'track-card' + (i === state.activeTrack ? ' active' : '');
+    card.style.setProperty('--track-color', color);
+    card.onclick = (e) => {
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      state.activeTrack = i;
+      renderTracks();
+      render();
+    };
+
+    const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:4px"></span>`;
+
+    card.innerHTML = `
+      <div class="track-name">${dot}${track.name}</div>
+      <select data-idx="${i}">
+        ${INSTRUMENTS.map(inst => `<option value="${inst}" ${inst === track.instrument ? 'selected' : ''}>${INSTRUMENT_LABELS[inst]}</option>`).join('')}
+      </select>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:10px;color:#8b949e">Vol</span>
+        <input type="range" min="0" max="100" value="${Math.round(track.volume * 100)}" data-idx="${i}" data-role="volume" style="flex:1">
+      </div>
+      <div class="track-controls">
+        <button class="track-btn ${track.muted ? 'muted' : ''}" data-idx="${i}" data-role="mute">M</button>
+        <button class="track-btn ${track.solo ? 'solo' : ''}" data-idx="${i}" data-role="solo">S</button>
+        ${state.tracks.length > 1 ? `<button class="track-btn" data-idx="${i}" data-role="delete" title="Delete track">&times;</button>` : ''}
+        <span style="flex:1"></span>
+        <span style="font-size:10px;color:#484f58">${track.notes.length} notes</span>
+      </div>
+    `;
+
+    // Event delegation
+    card.querySelector('select').onchange = (e) => {
+      state.tracks[i].instrument = e.target.value;
+    };
+    card.querySelector('input[type=range]').oninput = (e) => {
+      state.tracks[i].volume = parseInt(e.target.value) / 100;
+    };
+    card.querySelectorAll('.track-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const role = btn.dataset.role;
+        if (role === 'mute') {
+          state.tracks[i].muted = !state.tracks[i].muted;
+        } else if (role === 'solo') {
+          state.tracks[i].solo = !state.tracks[i].solo;
+        } else if (role === 'delete') {
+          state.tracks.splice(i, 1);
+          if (state.activeTrack >= state.tracks.length) state.activeTrack = state.tracks.length - 1;
+        }
+        renderTracks();
+        render();
+      };
+    });
+
+    list.appendChild(card);
+  });
+
+  // Add track button
+  const addBtn = document.createElement('button');
+  addBtn.id = 'add-track-btn';
+  addBtn.textContent = '+';
+  addBtn.title = 'Add track';
+  addBtn.onclick = () => {
+    if (state.tracks.length >= 8) return;
+    state.tracks.push({
+      name: `Track ${state.tracks.length + 1}`,
+      instrument: INSTRUMENTS[state.tracks.length % INSTRUMENTS.length],
+      volume: 0.6,
+      muted: false,
+      solo: false,
+      notes: [],
+    });
+    state.activeTrack = state.tracks.length - 1;
+    renderTracks();
+    render();
+  };
+  list.appendChild(addBtn);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════════
+
+document.getElementById('play-btn').onclick = togglePlayback;
+document.getElementById('stop-btn').onclick = stopPlayback;
+
+document.getElementById('bpm-input').onchange = (e) => {
+  state.bpm = Math.max(20, Math.min(300, parseInt(e.target.value) || 120));
+  e.target.value = state.bpm;
+};
+
+document.getElementById('steps-input').onchange = (e) => {
+  const newSteps = Math.max(4, Math.min(256, parseInt(e.target.value) || 32));
+  state.steps = newSteps;
+  e.target.value = newSteps;
+  resizeCanvas();
+  renderTracks();
+};
+
+document.getElementById('loop-cb').onchange = (e) => { state.looping = e.target.checked; };
+document.getElementById('show-all-cb').onchange = (e) => { state.showAllTracks = e.target.checked; render(); };
+document.getElementById('name-input').oninput = (e) => { state.name = e.target.value; };
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SERIALIZATION — ATProto Record Format
+// ═══════════════════════════════════════════════════════════════
+
+function toRecord() {
+  return {
+    $type: 'com.minomobi.music.composition',
+    name: state.name || 'Untitled',
+    description: state.description || '',
+    bpm: Math.round(state.bpm),
+    steps: Math.round(state.steps),
+    tracks: state.tracks.map(t => ({
+      name: t.name,
+      instrument: t.instrument,
+      volume: Math.round(t.volume * 100),  // integer 0–100 (ATProto has no float type)
+      notes: t.notes.map(n => `${n.pitch},${n.start},${n.duration},${n.velocity}`),
+    })),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function fromRecord(record) {
+  const r = record.value || record;
+  state.name = r.name || '';
+  state.description = r.description || '';
+  state.bpm = r.bpm || 120;
+  state.steps = r.steps || 32;
+  state.tracks = (r.tracks || []).map((t, i) => {
+    // Volume: integer 0–100 in ATProto records, float 0–1 in legacy/demo data
+    let vol = t.volume != null ? t.volume : 70;
+    if (vol > 1) vol = vol / 100;  // integer 0–100 → float 0–1
+    return {
+      name: t.name || `Track ${i + 1}`,
+      instrument: t.instrument || 'square',
+      volume: vol,
+      muted: false,
+      solo: false,
+      notes: (t.notes || []).map(s => {
+        const parts = s.split(',').map(Number);
+        return { pitch: parts[0], start: parts[1], duration: parts[2] || 1, velocity: parts[3] || 100 };
+      }),
+    };
+  });
+  state.activeTrack = 0;
+
+  // Update UI
+  document.getElementById('name-input').value = state.name;
+  document.getElementById('bpm-input').value = state.bpm;
+  document.getElementById('steps-input').value = state.steps;
+  resizeCanvas();
+  renderTracks();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ATPROTO CLIENT (plain fetch, no SDK)
+// ═══════════════════════════════════════════════════════════════
+
+const PUBLIC_API = 'https://public.api.bsky.app';
+
+const atproto = {
+  async resolveHandle(handle) {
+    const res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    return (await res.json()).did;
+  },
+
+  async resolvePDS(did) {
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      const res = await fetch(`https://${host}/.well-known/did.json`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else {
+      throw new Error(`Unsupported DID method: ${did}`);
+    }
+    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    if (!svc) throw new Error('No PDS endpoint found');
+    return svc.serviceEndpoint;
+  },
+
+  async createSession(handle, appPassword) {
+    const did = await this.resolveHandle(handle);
+    const pds = await this.resolvePDS(did);
+    const res = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password: appPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Auth failed (${res.status})`);
+    }
+    return { ...(await res.json()), pds };
+  },
+
+  async refreshSession(session) {
+    const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.refreshJwt}` },
+    });
+    if (!res.ok) throw new Error('Session expired — please sign in again');
+    const refreshed = await res.json();
+    return { ...refreshed, pds: session.pds };
+  },
+
+  async publish(session, record) {
+    const res = await fetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.accessJwt}` },
+      body: JSON.stringify({ repo: session.did, collection: 'com.minomobi.music.composition', validate: false, record }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const parts = [err.error, err.message];
+      if (err.causes) parts.push(JSON.stringify(err.causes));
+      throw new Error(parts.filter(Boolean).join(': ') || `Publish failed (${res.status})`);
+    }
+    return res.json();
+  },
+
+  async fetchRecord(atUri) {
+    const match = atUri.match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);
+    if (!match) throw new Error(`Invalid AT URI: ${atUri}`);
+    const [, repo, collection, rkey] = match;
+    const params = `repo=${encodeURIComponent(repo)}&collection=${encodeURIComponent(collection)}&rkey=${encodeURIComponent(rkey)}`;
+    let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`);
+    if (!res.ok) {
+      const did = repo.startsWith('did:') ? repo : await this.resolveHandle(repo);
+      const pds = await this.resolvePDS(did);
+      res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+      if (!res.ok) throw new Error(`Record not found (${res.status})`);
+    }
+    return res.json();
+  },
+
+  async listCompositions(handleOrDid, limit = 50) {
+    let did = handleOrDid;
+    if (!did.startsWith('did:') && did.includes('.')) {
+      did = await this.resolveHandle(did);
+    }
+    const params = `repo=${encodeURIComponent(did)}&collection=com.minomobi.music.composition&limit=${limit}`;
+    let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
+    if (!res.ok) {
+      const pds = await this.resolvePDS(did);
+      res = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
+      if (!res.ok) throw new Error(`Could not list compositions (${res.status})`);
+    }
+    return (await res.json()).records || [];
+  },
+};
+
+// Session management
+const SESSION_KEY = 'mino-music-session';
+const HANDLE_KEY = 'mino-music-handle';
+
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+function saveSession(s) {
+  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════
+
+function showModal(html) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-overlay"><div class="modal">${html}</div></div>`;
+  root.querySelector('.modal-overlay').onclick = (e) => {
+    if (e.target.classList.contains('modal-overlay')) closeModal();
+  };
+}
+
+function closeModal() {
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+function setStatus(msg, isError) {
+  document.getElementById('status-bar').textContent = msg;
+  document.getElementById('status-bar').style.color = isError ? '#f85149' : '#8b949e';
+}
+
+// Export
+document.getElementById('export-btn').onclick = () => {
+  const json = JSON.stringify(toRecord(), null, 2);
+  showModal(`
+    <h3>Export Composition</h3>
+    <p style="font-size:12px;color:#8b949e;margin-bottom:8px">This JSON is the ATProto record. Copy it, share it, or publish it to a PDS.</p>
+    <textarea id="export-json" rows="14" readonly>${escapeHtml(json)}</textarea>
+    <div class="modal-actions">
+      <button class="bottom-btn" onclick="closeModal()">Close</button>
+      <button class="bottom-btn primary" id="copy-json-btn">Copy to Clipboard</button>
+    </div>
+  `);
+  document.getElementById('copy-json-btn').onclick = () => {
+    navigator.clipboard.writeText(json).then(() => setStatus('Copied to clipboard'));
+    closeModal();
+  };
+};
+
+// Import
+document.getElementById('import-btn').onclick = () => {
+  showModal(`
+    <h3>Import Composition</h3>
+    <p style="font-size:12px;color:#8b949e;margin-bottom:8px">Paste a composition record JSON.</p>
+    <textarea id="import-json" rows="10" placeholder='{"$type":"com.minomobi.music.composition",...}'></textarea>
+    <div id="import-status"></div>
+    <div class="modal-actions">
+      <button class="bottom-btn" onclick="closeModal()">Cancel</button>
+      <button class="bottom-btn primary" id="do-import-btn">Load</button>
+    </div>
+  `);
+  document.getElementById('do-import-btn').onclick = () => {
+    try {
+      const data = JSON.parse(document.getElementById('import-json').value);
+      fromRecord(data);
+      closeModal();
+      setStatus('Composition loaded');
+    } catch (err) {
+      document.getElementById('import-status').innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+    }
+  };
+};
+
+// Fetch AT URI
+document.getElementById('fetch-btn').onclick = () => {
+  showModal(`
+    <h3>Fetch from AT Protocol</h3>
+    <p style="font-size:12px;color:#8b949e;margin-bottom:8px">Enter an AT URI to load a composition from any PDS.</p>
+    <input id="at-uri-input" type="text" placeholder="at://did:plc:.../com.minomobi.music.composition/...">
+    <p style="font-size:12px;color:#8b949e;margin:4px 0 8px">Or enter a handle to browse their compositions:</p>
+    <input id="browse-handle" type="text" placeholder="handle.bsky.social">
+    <div id="fetch-status"></div>
+    <div id="browse-results"></div>
+    <div class="modal-actions">
+      <button class="bottom-btn" onclick="closeModal()">Cancel</button>
+      <button class="bottom-btn" id="do-browse-btn">Browse</button>
+      <button class="bottom-btn primary" id="do-fetch-btn">Fetch URI</button>
+    </div>
+  `);
+
+  document.getElementById('do-fetch-btn').onclick = async () => {
+    const uri = document.getElementById('at-uri-input').value.trim();
+    if (!uri) return;
+    const statusEl = document.getElementById('fetch-status');
+    statusEl.innerHTML = '<div class="status" style="color:#8b949e">Fetching...</div>';
+    try {
+      const record = await atproto.fetchRecord(uri);
+      fromRecord(record);
+      closeModal();
+      setStatus('Loaded from AT Protocol');
+    } catch (err) {
+      statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+    }
+  };
+
+  document.getElementById('do-browse-btn').onclick = async () => {
+    const handle = document.getElementById('browse-handle').value.trim();
+    if (!handle) return;
+    const statusEl = document.getElementById('fetch-status');
+    const resultsEl = document.getElementById('browse-results');
+    statusEl.innerHTML = '<div class="status" style="color:#8b949e">Looking up...</div>';
+    resultsEl.innerHTML = '';
+    try {
+      const records = await atproto.listCompositions(handle);
+      statusEl.innerHTML = `<div class="status ok">${records.length} composition(s) found</div>`;
+      if (records.length === 0) return;
+      resultsEl.innerHTML = records.map((r, i) => {
+        const v = r.value || r;
+        const trackCount = (v.tracks || []).length;
+        const noteCount = (v.tracks || []).reduce((sum, t) => sum + (t.notes || []).length, 0);
+        return `<div style="padding:8px;margin:4px 0;background:#21262d;border-radius:4px;cursor:pointer;font-size:12px" class="browse-item" data-uri="${escapeHtml(r.uri)}">
+          <strong>${escapeHtml(v.name || 'Untitled')}</strong>
+          <span style="color:#8b949e;margin-left:8px">${v.bpm || '?'} BPM &middot; ${trackCount} tracks &middot; ${noteCount} notes</span>
+        </div>`;
+      }).join('');
+      resultsEl.querySelectorAll('.browse-item').forEach(el => {
+        el.onclick = async () => {
+          try {
+            const record = await atproto.fetchRecord(el.dataset.uri);
+            fromRecord(record);
+            closeModal();
+            setStatus('Loaded from AT Protocol');
+          } catch (err) {
+            statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+          }
+        };
+      });
+    } catch (err) {
+      statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+    }
+  };
+};
+
+// Publish
+document.getElementById('publish-btn').onclick = () => {
+  const session = loadSession();
+  const handle = localStorage.getItem(HANDLE_KEY) || '';
+
+  showModal(`
+    <h3>Publish to AT Protocol</h3>
+    ${session ? `
+      <p style="font-size:12px;color:#3fb950;margin-bottom:8px">Signed in as <strong>${escapeHtml(session.handle)}</strong>
+        <button class="track-btn" id="logout-btn" style="margin-left:8px">Sign out</button>
+      </p>
+      <label>Composition name</label>
+      <input id="pub-name" type="text" value="${escapeHtml(state.name || '')}">
+      <label>Description (optional)</label>
+      <textarea id="pub-desc" rows="2">${escapeHtml(state.description || '')}</textarea>
+      <div id="pub-status"></div>
+      <div class="modal-actions">
+        <button class="bottom-btn" onclick="closeModal()">Cancel</button>
+        <button class="bottom-btn" id="pub-preview-btn">Preview JSON</button>
+        <button class="bottom-btn primary" id="do-publish-btn">Publish</button>
+      </div>
+      <div id="pub-preview" style="display:none;margin-top:8px">
+        <textarea rows="10" readonly style="font-size:10px">${escapeHtml(JSON.stringify(toRecord(), null, 2))}</textarea>
+      </div>
+    ` : `
+      <p style="font-size:12px;color:#8b949e;margin-bottom:8px">Sign in with your Bluesky handle and an
+        <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
+      </p>
+      <label>Handle</label>
+      <input id="auth-handle" type="text" placeholder="handle.bsky.social" value="${escapeHtml(handle)}">
+      <label>App Password</label>
+      <input id="auth-pass" type="password" placeholder="xxxx-xxxx-xxxx-xxxx">
+      <div id="pub-status"></div>
+      <div class="modal-actions">
+        <button class="bottom-btn" onclick="closeModal()">Cancel</button>
+        <button class="bottom-btn primary" id="do-login-btn">Sign In</button>
+      </div>
+    `}
+  `);
+
+  if (session) {
+    document.getElementById('logout-btn').onclick = () => {
+      saveSession(null);
+      closeModal();
+      document.getElementById('publish-btn').click();
+    };
+    document.getElementById('pub-preview-btn').onclick = () => {
+      const el = document.getElementById('pub-preview');
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+    document.getElementById('do-publish-btn').onclick = async () => {
+      const statusEl = document.getElementById('pub-status');
+      state.name = document.getElementById('pub-name').value.trim();
+      state.description = document.getElementById('pub-desc').value.trim();
+      document.getElementById('name-input').value = state.name;
+      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Refreshing session...</div>';
+      try {
+        // Refresh token before publishing (stored JWTs expire quickly)
+        const refreshed = await atproto.refreshSession(session);
+        Object.assign(session, refreshed);
+        saveSession(session);
+        statusEl.innerHTML = '<div class="status" style="color:#8b949e">Publishing...</div>';
+        const record = toRecord();
+        const result = await atproto.publish(session, record);
+        statusEl.innerHTML = `<div class="status ok">Published!<br><code style="font-size:10px;word-break:break-all">${escapeHtml(result.uri)}</code></div>`;
+        setStatus('Published to AT Protocol');
+      } catch (err) {
+        statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+      }
+    };
+  } else {
+    document.getElementById('do-login-btn').onclick = async () => {
+      const statusEl = document.getElementById('pub-status');
+      const handle = document.getElementById('auth-handle').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!handle || !pass) return;
+      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Connecting...</div>';
+      try {
+        const session = await atproto.createSession(handle, pass);
+        localStorage.setItem(HANDLE_KEY, handle);
+        saveSession(session);
+        closeModal();
+        document.getElementById('publish-btn').click(); // Re-open with session
+      } catch (err) {
+        statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
+      }
+    };
+  }
+};
+
+// Clear
+document.getElementById('clear-btn').onclick = () => {
+  if (state.tracks.some(t => t.notes.length > 0)) {
+    if (!confirm('Clear all notes from all tracks?')) return;
+  }
+  state.tracks.forEach(t => t.notes = []);
+  render();
+  renderTracks();
+  setStatus('Cleared');
+};
+
+// Demo
+document.getElementById('demo-btn').onclick = () => {
+  loadDemo();
+  setStatus('Demo loaded');
+};
+
+// ═══════════════════════════════════════════════════════════════
+// DEMO COMPOSITION
+// ═══════════════════════════════════════════════════════════════
+
+function loadDemo() {
+  // A simple 8-bit melody demonstrating the composer
+  const demo = {
+    $type: 'com.minomobi.music.composition',
+    name: '8-Bit Demo',
+    description: 'A simple chiptune demo to show what the composer can do.',
+    bpm: 140,
+    steps: 32,
+    tracks: [
+      {
+        name: 'Lead',
+        instrument: 'square',
+        volume: 60,
+        notes: [
+          // Melody: C E G A G E C D E F E D C
+          '72,0,2,100', '76,2,2,90', '79,4,2,100', '81,6,2,90',
+          '79,8,2,85', '76,10,2,80', '72,12,2,100', '74,14,2,90',
+          '76,16,2,100', '77,18,2,90', '76,20,2,85', '74,22,2,80',
+          '72,24,4,100', '79,28,2,90', '84,30,2,100',
+        ],
+      },
+      {
+        name: 'Bass',
+        instrument: 'triangle',
+        volume: 50,
+        notes: [
+          // Bass line: root notes
+          '48,0,4,100', '48,4,4,90', '45,8,4,100', '45,12,4,90',
+          '43,16,4,100', '43,20,4,90', '48,24,4,100', '48,28,4,90',
+        ],
+      },
+      {
+        name: 'Arp',
+        instrument: 'pulse',
+        volume: 35,
+        notes: [
+          // Arpeggiated chords
+          '60,0,1,70', '64,1,1,70', '67,2,1,70', '60,3,1,60',
+          '60,4,1,70', '64,5,1,70', '67,6,1,70', '60,7,1,60',
+          '57,8,1,70', '60,9,1,70', '64,10,1,70', '57,11,1,60',
+          '57,12,1,70', '60,13,1,70', '64,14,1,70', '57,15,1,60',
+          '55,16,1,70', '59,17,1,70', '62,18,1,70', '55,19,1,60',
+          '55,20,1,70', '59,21,1,70', '62,22,1,70', '55,23,1,60',
+          '60,24,1,70', '64,25,1,70', '67,26,1,70', '60,27,1,60',
+          '60,28,1,70', '64,29,1,70', '67,30,1,70', '72,31,1,80',
+        ],
+      },
+      {
+        name: 'Drums',
+        instrument: 'noise',
+        volume: 40,
+        notes: [
+          // Simple beat: kick on 1,3 / snare on 2,4 / hats on 8ths
+          '60,0,1,100', '60,4,1,70', '60,8,1,100', '60,12,1,70',
+          '60,16,1,100', '60,20,1,70', '60,24,1,100', '60,28,1,70',
+          '48,2,1,50', '48,6,1,50', '48,10,1,50', '48,14,1,50',
+          '48,18,1,50', '48,22,1,50', '48,26,1,50', '48,30,1,50',
+        ],
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  };
+  fromRecord(demo);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════════════════
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// URL parameter: load from AT URI
+function checkUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const uri = params.get('uri');
+  if (uri) {
+    setStatus('Loading from AT URI...');
+    atproto.fetchRecord(uri).then(record => {
+      fromRecord(record);
+      setStatus('Loaded from AT Protocol');
+    }).catch(err => {
+      setStatus(`Failed to load: ${err.message}`, true);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+resizeCanvas();
+renderTracks();
+render();
+checkUrlParams();
+
+// Scroll to middle C area on load
+const wrapper = document.getElementById('grid-wrapper');
+const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
+const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
+wrapper.scrollTop = Math.max(0, targetScroll);
+
+</script>
+</body>
+</html>

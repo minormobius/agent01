@@ -1,0 +1,143 @@
+name: Query OToL Taxonomy
+
+on:
+  push:
+    branches:
+      - claude/atproto-tree-visualization-6QTyy
+    paths:
+      - '.github/workflows/query-otol.yml'
+
+  workflow_dispatch:
+    inputs:
+      ott_id:
+        description: 'OTT ID to query'
+        required: true
+        default: '913935'
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/atproto-tree-visualization-6QTyy
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Query taxonomy around Primates
+        run: |
+          python3 - <<'PYEOF' | tee phylo/taxonomy-query.txt
+          import json, urllib.request
+
+          API = "https://api.opentreeoflife.org/v3"
+
+          def post(endpoint, body):
+              req = urllib.request.Request(
+                  f"{API}/{endpoint}",
+                  data=json.dumps(body).encode(),
+                  headers={"Content-Type": "application/json"}
+              )
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.loads(r.read())
+
+          # 1. Get Primates lineage
+          print("=" * 60)
+          print("PRIMATES LINEAGE")
+          print("=" * 60)
+          info = post("tree_of_life/node_info", {
+              "node_id": "ott913935",
+              "include_lineage": True
+          })
+          lineage = info.get("lineage", [])
+          for i, anc in enumerate(lineage[:8]):
+              tax = anc.get("taxon", {})
+              name = tax.get("name", "unnamed")
+              ott = tax.get("ott_id", "?")
+              rank = tax.get("rank", "no rank")
+              tips = anc.get("num_tips", 0)
+              print(f"  {'  ' * i}{name} (ott{ott}) [{rank}] — {tips} tips")
+
+          # 2. Get parent (Primatomorpha) children
+          if lineage:
+              parent = lineage[0]
+              ptax = parent.get("taxon", {})
+              parent_ott = ptax.get("ott_id")
+              parent_name = ptax.get("name", "?")
+              print(f"\n{'=' * 60}")
+              print(f"PARENT: {parent_name} (ott{parent_ott})")
+              print(f"{'=' * 60}")
+
+              subtree = post("tree_of_life/subtree", {
+                  "node_id": f"ott{parent_ott}",
+                  "format": "arguson",
+                  "height_limit": 1
+              })
+              arg = subtree.get("arguson", {})
+              for child in arg.get("children", []):
+                  ctax = child.get("taxon", {})
+                  print(f"  {ctax.get('name','?')} (ott{ctax.get('ott_id','?')}) [{ctax.get('rank','?')}] — {child.get('num_tips',0)} tips")
+
+          # 3. Get grandparent (Euarchontoglires) children
+          if len(lineage) >= 2:
+              gp = lineage[1]
+              gptax = gp.get("taxon", {})
+              gp_ott = gptax.get("ott_id")
+              gp_name = gptax.get("name", "?")
+              print(f"\n{'=' * 60}")
+              print(f"GRANDPARENT: {gp_name} (ott{gp_ott})")
+              print(f"{'=' * 60}")
+
+              subtree2 = post("tree_of_life/subtree", {
+                  "node_id": f"ott{gp_ott}",
+                  "format": "arguson",
+                  "height_limit": 2
+              })
+              arg2 = subtree2.get("arguson", {})
+
+              def print_children(node, indent=1):
+                  for child in node.get("children", []):
+                      ctax = child.get("taxon", {})
+                      name = ctax.get("name", "unnamed")
+                      ott = ctax.get("ott_id", "?")
+                      rank = ctax.get("rank", "?")
+                      tips = child.get("num_tips", 0)
+                      nkids = len(child.get("children", []))
+                      print(f"  {'  ' * indent}{name} (ott{ott}) [{rank}] — {tips} tips, {nkids} children")
+                      if nkids > 0:
+                          print_children(child, indent + 1)
+
+              print_children(arg2)
+
+          # 4. For reference: query each key clade directly
+          print(f"\n{'=' * 60}")
+          print("KEY CLADES — DIRECT QUERY")
+          print("=" * 60)
+          for name, ott in [
+              ("Euarchontoglires", 392222),
+              ("Glires", 392220),
+              ("Rodentia", 864593),
+              ("Lagomorpha", None),
+              ("Scandentia", 683263),
+              ("Dermoptera", 1040185),
+              ("Primates", 913935),
+          ]:
+              if ott is None:
+                  continue
+              try:
+                  info = post("tree_of_life/node_info", {"node_id": f"ott{ott}"})
+                  tips = info.get("num_tips", "?")
+                  print(f"  {name} (ott{ott}): {tips} tips")
+              except Exception as e:
+                  print(f"  {name} (ott{ott}): ERROR — {e}")
+          PYEOF
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add phylo/taxonomy-query.txt
+          git diff --cached --quiet && echo "No changes" || git commit -m "otol-query: taxonomy around Primates [auto]" && git push origin claude/atproto-tree-visualization-6QTyy

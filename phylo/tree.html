@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>phylo — Mammalia — text tree — minomobi</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font: 14px/1.6 monospace; padding: 1em; background: #111; color: #ccc; }
+  h1 { font-size: 1em; color: #888; margin-bottom: .5em; }
+  #status { color: #666; margin-bottom: 1em; }
+
+  #main { display: flex; gap: 0; }
+  #tree { flex: 1; min-width: 0; overflow-x: auto; }
+
+  ul { list-style: none; padding-left: 1.2em; }
+  li { border-left: 1px solid #333; padding-left: .6em; margin: 2px 0; }
+  .node-row { display: inline-flex; align-items: baseline; gap: .3em; }
+  .name { cursor: pointer; }
+  .name:hover { color: #fff; }
+  .rank { color: #555; font-size: .85em; }
+  .tips { color: #444; font-size: .85em; }
+  .info-btn {
+    cursor: pointer; font-size: .7em; color: #444; border: 1px solid #333;
+    border-radius: 50%; width: 1.4em; height: 1.4em; display: inline-flex;
+    align-items: center; justify-content: center; opacity: 0; transition: opacity .15s;
+    vertical-align: middle; flex-shrink: 0;
+  }
+  .node-row:hover .info-btn { opacity: 1; }
+  .info-btn:hover { color: #adf; border-color: #adf; }
+  .common { color: #9b9; font-size: .9em; }
+  .highlight > .node-row > .name { color: #f92; }
+
+  /* search */
+  #search-bar {
+    margin-bottom: .8em; display: flex; align-items: center; gap: .5em;
+    position: relative;
+  }
+  #search {
+    background: #1a1a1a; border: 1px solid #333; color: #ccc;
+    font: 13px monospace; padding: 3px 8px; width: 260px;
+    border-radius: 3px; outline: none;
+  }
+  #search:focus { border-color: #555; }
+  #search-count { color: #555; font-size: .85em; }
+  #search-results {
+    position: absolute; top: 100%; left: 0; width: 400px;
+    background: #141414; border: 1px solid #333; border-top: none;
+    max-height: 280px; overflow-y: auto; z-index: 30;
+    display: none; border-radius: 0 0 3px 3px;
+  }
+  #search-results.open { display: block; }
+  .sr-item {
+    padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #1a1a1a;
+    font: 12px monospace; color: #aaa; display: flex; gap: .5em; align-items: baseline;
+  }
+  .sr-item:hover, .sr-item.active { background: #222; color: #eee; }
+  .sr-item .sr-common { color: #9b9; }
+  .sr-item .sr-rank { color: #555; font-size: .9em; }
+  .sr-item .sr-links { margin-left: auto; flex-shrink: 0; display: flex; gap: .4em; }
+  .sr-item .sr-links a {
+    color: #555; text-decoration: none; font-size: .85em;
+  }
+  .sr-item .sr-links a:hover { color: #8bf; }
+  .collapsed > ul { display: none; }
+  .collapsed > .node-row > .name::before { content: "▸ "; color: #555; }
+  .expanded > .node-row > .name::before { content: "▾ "; color: #555; }
+  .leaf > .node-row > .name::before { content: "· "; color: #333; }
+
+  /* info panel */
+  #info-panel {
+    width: 0; overflow: hidden; transition: width .2s; border-left: 1px solid #222;
+    flex-shrink: 0; background: #0d0d0d;
+  }
+  #info-panel.open { width: 320px; }
+  #info-inner {
+    width: 320px; padding: 1em; font-size: .9em; overflow-y: auto; max-height: calc(100vh - 4em);
+  }
+  #info-panel h2 { font-size: 1em; color: #ddd; margin-bottom: .2em; font-weight: normal; }
+  #info-panel .info-rank { color: #777; font-size: .85em; margin-bottom: .8em; }
+  #info-panel .info-section { margin-bottom: .8em; }
+  #info-panel .info-label { color: #666; font-size: .8em; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3em; }
+  #info-panel a {
+    color: #8bf; text-decoration: none; display: block; padding: 3px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  #info-panel a:hover { color: #adf; }
+  #info-panel a::before { content: "↗ "; color: #444; }
+  #info-panel .info-loading { color: #555; }
+  #info-panel .info-close {
+    cursor: pointer; color: #555; float: right; font-size: 1.2em; line-height: 1;
+  }
+  #info-panel .info-close:hover { color: #fff; }
+  #info-panel .info-flags { color: #665; font-size: .8em; margin-top: .3em; }
+  #info-panel .info-synonyms { color: #666; font-size: .85em; }
+  #info-panel .info-synonyms span { color: #888; }
+  #info-panel .iucn-badge {
+    display: inline-block; font-size: .75em; padding: 1px 5px; border-radius: 3px;
+    color: #111; font-weight: bold; margin-left: .4em; vertical-align: middle;
+  }
+  .iucn-LC { background: #4caf50; } .iucn-NT { background: #8bc34a; }
+  .iucn-VU { background: #ff9800; } .iucn-EN { background: #f44336; }
+  .iucn-CR { background: #b71c1c; color: #fff; } .iucn-EW { background: #555; color: #fff; }
+  .iucn-EX { background: #000; color: #666; } .iucn-DD { background: #888; }
+  #info-panel .info-img { margin-bottom: .8em; }
+  #info-panel .info-img img {
+    max-width: 100%; border-radius: 4px; border: 1px solid #222;
+  }
+</style>
+</head>
+<body>
+<h1>phylo.minomobi.com <a href="." style="color:#555;font-size:.85em;text-decoration:none;margin-left:.6em" title="zoom navigator">&rarr; zoom view</a>
+  <select id="clade-picker" style="background:#1a1a1a;border:1px solid #333;color:#ccc;font:11px monospace;padding:1px 4px;border-radius:3px;margin-left:.6em;display:none"></select>
+</h1>
+<div id="status">loading…</div>
+<div id="search-bar">
+  <input id="search" type="text" placeholder="search taxa…" autocomplete="off">
+  <span id="search-count"></span>
+  <div id="search-results"></div>
+</div>
+<div id="main">
+  <div id="tree"></div>
+  <div id="info-panel"><div id="info-inner"></div></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const ATPROTO_HANDLE = params.get("repo") || "minomobi.bsky.social";
+const OTT_ROOT = parseInt(params.get("ott") || "244265"); // default: Mammalia
+const FOCUS_OTT = params.get("focus") ? parseInt(params.get("focus")) : null;
+const CLADE_COLLECTION = "com.minomobi.phylo.clade";
+const BSKY_PUBLIC = "https://public.api.bsky.app";
+const API = "https://api.opentreeoflife.org/v3";
+const infoCache = {};
+const ozCache = {};
+const IUCN_LABELS = {
+  LC: "Least Concern", NT: "Near Threatened", VU: "Vulnerable",
+  EN: "Endangered", CR: "Critically Endangered", EW: "Extinct in Wild",
+  EX: "Extinct", DD: "Data Deficient"
+};
+
+async function fetchSubtree(ottId, heightLimit = -1) {
+  const r = await fetch(`${API}/tree_of_life/subtree`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ node_id: `ott${ottId}`, format: "arguson", height_limit: heightLimit })
+  });
+  const d = await r.json();
+  return d.arguson;
+}
+
+async function fetchTaxonInfo(ottId) {
+  if (infoCache[ottId]) return infoCache[ottId];
+  const r = await fetch(`${API}/taxonomy/taxon_info`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ott_id: ottId, include_lineage: false })
+  });
+  const d = await r.json();
+  infoCache[ottId] = d;
+  return d;
+}
+
+async function fetchOneZoom(ottId) {
+  if (ozCache[ottId]) return ozCache[ottId];
+  try {
+    const r = await fetch(`https://www.onezoom.org/API/otts2identifiers?key=0&otts=${ottId}`);
+    const d = await r.json();
+    const row = d && d[0] ? d[0] : {};
+    ozCache[ottId] = row;
+    return row;
+  } catch { ozCache[ottId] = {}; return {}; }
+}
+
+function buildLinks(ottId, name, taxSources, oz) {
+  const links = [];
+  if (oz && oz.wikidata) {
+    links.push({ label: "Wikipedia", url: `https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/${oz.wikidata}`, cat: "reference" });
+    links.push({ label: "Wikidata", url: `https://www.wikidata.org/wiki/${oz.wikidata}`, cat: "reference" });
+  } else {
+    links.push({ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`, cat: "reference" });
+  }
+  // Encyclopedia of Life
+  if (oz && oz.eol) {
+    links.push({ label: "Encyclopedia of Life", url: `https://eol.org/pages/${oz.eol}`, cat: "reference" });
+  }
+  // IUCN Red List
+  if (oz && oz.iucn) {
+    links.push({ label: "IUCN Red List", url: `https://www.iucnredlist.org/species/${oz.iucn}`, cat: "conservation" });
+  }
+  // OneZoom visualization
+  links.push({ label: "OneZoom", url: `https://www.onezoom.org/life/@=${ottId}`, cat: "tree" });
+  // Open Tree of Life
+  links.push({ label: "Open Tree of Life", url: `https://tree.opentreeoflife.org/taxonomy/browse?id=${ottId}`, cat: "tree" });
+  // Parse tax_sources from OTL
+  for (const src of (taxSources || [])) {
+    const [prefix, id] = src.split(":");
+    switch (prefix) {
+      case "ncbi":
+        links.push({ label: "NCBI Taxonomy", url: `https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=${id}`, cat: "database" });
+        break;
+      case "gbif":
+        links.push({ label: "GBIF", url: `https://www.gbif.org/species/${id}`, cat: "database" });
+        break;
+      case "worms":
+        links.push({ label: "WoRMS", url: `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
+        break;
+      case "irmng":
+        links.push({ label: "IRMNG", url: `https://www.irmng.org/aphia.php?p=taxdetails&id=${id}`, cat: "database" });
+        break;
+    }
+  }
+  return links;
+}
+
+function renderPanel(inner, ottId, name, rank, data, oz) {
+  const links = buildLinks(ottId, data.name || name, data.tax_sources, oz);
+  const synonyms = (data.synonyms || []).filter(s => s !== name);
+  const flags = (data.flags || []).filter(f => f);
+  const iucnCode = oz && oz.iucn ? (oz.iucn_code || null) : null;
+
+  let html = `<span class="info-close">&times;</span>`;
+  html += `<h2>${data.unique_name || data.name || name}`;
+  if (iucnCode && IUCN_LABELS[iucnCode]) {
+    html += ` <span class="iucn-badge iucn-${iucnCode}" title="${IUCN_LABELS[iucnCode]}">${iucnCode}</span>`;
+  }
+  html += `</h2>`;
+  html += (data.rank && data.rank !== "no rank") ? `<div class="info-rank">${data.rank} · ott${ottId}</div>` : `<div class="info-rank">ott${ottId}</div>`;
+
+  // Group links by category
+  const cats = [
+    { key: "reference", label: "Reference" },
+    { key: "conservation", label: "Conservation" },
+    { key: "tree", label: "Tree Browsers" },
+    { key: "database", label: "Databases" }
+  ];
+  for (const cat of cats) {
+    const catLinks = links.filter(l => l.cat === cat.key);
+    if (catLinks.length === 0) continue;
+    html += `<div class="info-section"><div class="info-label">${cat.label}</div>`;
+    for (const lnk of catLinks) {
+      html += `<a href="${lnk.url}" target="_blank" rel="noopener">${lnk.label}</a>`;
+    }
+    html += `</div>`;
+  }
+
+  if (synonyms.length > 0) {
+    html += `<div class="info-section"><div class="info-label">Synonyms</div>`;
+    html += `<div class="info-synonyms">${synonyms.map(s => `<span>${s}</span>`).join(", ")}</div></div>`;
+  }
+  if (flags.length > 0) {
+    html += `<div class="info-section"><div class="info-flags">${flags.join(", ")}</div></div>`;
+  }
+  inner.innerHTML = html;
+  inner.querySelector(".info-close").onclick = () => document.getElementById("info-panel").classList.remove("open");
+}
+
+function showInfoPanel(ottId, name, rank) {
+  const panel = document.getElementById("info-panel");
+  const inner = document.getElementById("info-inner");
+  panel.classList.add("open");
+  inner.innerHTML = `<span class="info-close">&times;</span><h2>${name}</h2>` +
+    (rank && rank !== "no rank" ? `<div class="info-rank">${rank}</div>` : "") +
+    `<div class="info-loading">fetching…</div>`;
+  inner.querySelector(".info-close").onclick = () => panel.classList.remove("open");
+
+  // Fetch OTL + OneZoom in parallel
+  const pOtl = fetchTaxonInfo(ottId);
+  const pOz = fetchOneZoom(ottId);
+
+  pOtl.then(data => {
+    // Render immediately with OTL data (OneZoom will enhance when ready)
+    renderPanel(inner, ottId, name, rank, data, {});
+    // Then enhance with OneZoom data
+    pOz.then(oz => renderPanel(inner, ottId, name, rank, data, oz));
+  }).catch(() => {
+    inner.querySelector(".info-loading").textContent = "couldn't load info";
+  });
+}
+
+// ATProto: resolve handle → DID → PDS
+async function resolveATProto(handle) {
+  const res = await fetch(`${BSKY_PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!res.ok) throw new Error(`handle resolution failed: ${res.status}`);
+  const { did } = await res.json();
+  let didUrl;
+  if (did.startsWith("did:plc:")) didUrl = `https://plc.directory/${did}`;
+  else if (did.startsWith("did:web:")) didUrl = `https://${did.split(":").pop()}/.well-known/did.json`;
+  else throw new Error(`unknown DID method: ${did}`);
+  const docRes = await fetch(didUrl);
+  const doc = await docRes.json();
+  const svc = (doc.service || []).find(s => s.type === "AtprotoPersonalDataServer");
+  if (!svc) throw new Error("no PDS in DID document");
+  return { did, pds: svc.serviceEndpoint };
+}
+
+async function fetchATProtoRecords(pds, did, collection) {
+  const records = [];
+  let cursor = null;
+  while (true) {
+    let url = `${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}&limit=100`;
+    if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
+    const page = await res.json();
+    for (const rec of (page.records || [])) records.push(rec.value);
+    cursor = page.cursor;
+    if (!cursor || !page.records || page.records.length === 0) break;
+  }
+  return records;
+}
+
+function flatToTree(records, rootOttId) {
+  const byId = {};
+  for (const rec of records) byId[rec.ottId] = rec;
+  let rootRec = byId[rootOttId];
+  if (!rootRec) rootRec = records.find(r => !r.parentOttId);
+  if (!rootRec) rootRec = records[0];
+  if (!rootRec) throw new Error("no records found");
+  function build(rec) {
+    const node = {
+      taxon: {
+        ott_id: rec.ottId, name: rec.name, rank: rec.rank || "no rank",
+        common_name: rec.commonName || ""
+      },
+      num_tips: rec.numTips || 0,
+      children: []
+    };
+    if (rec.childOttIds) {
+      for (const childId of rec.childOttIds) {
+        const childRec = byId[childId];
+        if (childRec) node.children.push(build(childRec));
+      }
+    }
+    return node;
+  }
+  return build(rootRec);
+}
+
+// DOM element map: ottId → <li> element (populated as nodes render)
+let domMap = {};
+
+function renderNode(node) {
+  const li = document.createElement("li");
+  const tax = node.taxon || {};
+  const name = tax.name || node.node_id || "?";
+  const commonName = tax.common_name || "";
+  const rank = tax.rank || "";
+  const tips = node.num_tips || 0;
+  const kids = node.children || [];
+  const ottId = tax.ott_id;
+  if (ottId) domMap[ottId] = li;
+
+  const row = document.createElement("span");
+  row.className = "node-row";
+
+  const span = document.createElement("span");
+  span.className = "name";
+  span.textContent = name;
+  row.appendChild(span);
+
+  if (commonName) {
+    const cn = document.createElement("span");
+    cn.className = "common";
+    cn.textContent = commonName;
+    row.appendChild(cn);
+  }
+
+  if (rank && rank !== "no rank") {
+    const r = document.createElement("span");
+    r.className = "rank";
+    r.textContent = rank;
+    row.appendChild(r);
+  }
+  if (tips > 0) {
+    const t = document.createElement("span");
+    t.className = "tips";
+    t.textContent = `(${tips})`;
+    row.appendChild(t);
+  }
+
+  if (ottId) {
+    const btn = document.createElement("span");
+    btn.className = "info-btn";
+    btn.textContent = "i";
+    btn.title = "taxon info & links";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showInfoPanel(ottId, name, rank);
+    });
+    row.appendChild(btn);
+  }
+
+  li.appendChild(row);
+
+  if (kids.length > 0) {
+    li.className = "collapsed";
+    let populated = false;
+    span.addEventListener("click", () => {
+      if (!populated) {
+        const ul = document.createElement("ul");
+        for (const child of kids) ul.appendChild(renderNode(child));
+        li.appendChild(ul);
+        populated = true;
+      }
+      li.className = li.className === "collapsed" ? "expanded" : "collapsed";
+    });
+  } else {
+    li.className = "leaf";
+  }
+  return li;
+}
+
+// ── Search index & reveal ────────────────────────────────────────────
+// Built after tree loads. Each entry: { name, common, rank, ottId, path }
+// path = array of ottIds from root to this node (for expanding ancestors)
+const searchIndex = [];
+
+function buildSearchIndex(node, path) {
+  const tax = node.taxon || {};
+  const ottId = tax.ott_id;
+  const entry = {
+    name: tax.name || "",
+    common: tax.common_name || "",
+    rank: tax.rank || "",
+    ottId: ottId,
+    path: ottId ? [...path, ottId] : [...path],
+  };
+  if (entry.name) searchIndex.push(entry);
+  for (const child of (node.children || [])) {
+    buildSearchIndex(child, entry.path);
+  }
+}
+
+// Expand ancestors and scroll to a node by its path of ottIds
+let prevHighlight = null;
+function revealNode(path) {
+  // Remove previous highlight
+  if (prevHighlight) prevHighlight.classList.remove("highlight");
+
+  // Walk path: for each ancestor, ensure it's rendered and expanded
+  for (let i = 0; i < path.length; i++) {
+    const li = domMap[path[i]];
+    if (!li) continue;
+    if (li.className === "collapsed") {
+      // Click the .name to trigger lazy render + expand
+      li.querySelector(".name").click();
+    }
+  }
+
+  // Scroll to the target (last in path)
+  const targetOtt = path[path.length - 1];
+  const targetLi = domMap[targetOtt];
+  if (targetLi) {
+    targetLi.classList.add("highlight");
+    prevHighlight = targetLi;
+    targetLi.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+// Wire up search UI
+const searchInput = document.getElementById("search");
+const searchResults = document.getElementById("search-results");
+const searchCount = document.getElementById("search-count");
+let searchActive = -1;
+
+function doSearch(query) {
+  searchResults.innerHTML = "";
+  searchActive = -1;
+  if (!query || query.length < 2) {
+    searchResults.classList.remove("open");
+    searchCount.textContent = "";
+    return;
+  }
+  const q = query.toLowerCase();
+  const matches = [];
+  for (const e of searchIndex) {
+    if (e.name.toLowerCase().includes(q) ||
+        (e.common && e.common.toLowerCase().includes(q))) {
+      matches.push(e);
+      if (matches.length >= 30) break;
+    }
+  }
+  searchCount.textContent = matches.length >= 30 ? "30+" : `${matches.length}`;
+  if (matches.length === 0) { searchResults.classList.remove("open"); return; }
+
+  for (const m of matches) {
+    const div = document.createElement("div");
+    div.className = "sr-item";
+    let html = `<span>${m.name}</span>`;
+    if (m.common) html += ` <span class="sr-common">${m.common}</span>`;
+    if (m.rank && m.rank !== "no rank") html += ` <span class="sr-rank">${m.rank}</span>`;
+    html += `<span class="sr-links">`;
+    if (m.ottId) html += `<a href="index.html?ott=${OTT_ROOT}&focus=${m.ottId}" title="zoom view">zoom</a>`;
+    html += `</span>`;
+    div.innerHTML = html;
+    div.addEventListener("click", e => {
+      if (e.target.tagName === "A") return;
+      revealNode(m.path);
+      searchResults.classList.remove("open");
+    });
+    searchResults.appendChild(div);
+  }
+  searchResults.classList.add("open");
+}
+
+searchInput.addEventListener("input", () => doSearch(searchInput.value.trim()));
+
+searchInput.addEventListener("keydown", e => {
+  const items = searchResults.querySelectorAll(".sr-item");
+  if (!items.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    searchActive = Math.min(searchActive + 1, items.length - 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    searchActive = Math.max(searchActive - 1, 0);
+  } else if (e.key === "Enter" && searchActive >= 0) {
+    e.preventDefault();
+    items[searchActive].click();
+    return;
+  } else if (e.key === "Escape") {
+    searchResults.classList.remove("open");
+    searchInput.blur();
+    return;
+  } else { return; }
+  items.forEach((el, i) => el.classList.toggle("active", i === searchActive));
+  items[searchActive].scrollIntoView({ block: "nearest" });
+});
+
+document.addEventListener("click", e => {
+  if (!e.target.closest("#search-bar")) searchResults.classList.remove("open");
+});
+
+// ── Init ────────────────────────────────────────────────────────────
+let allFetchedNodes = [];
+let availableRoots = [];
+
+function findRoots(nodes) {
+  const byId = {};
+  for (const n of nodes) byId[n.ottId] = n;
+  return nodes.filter(n => !n.parentOttId || !byId[n.parentOttId]);
+}
+
+function buildAndShow(ottRoot) {
+  const treeEl = document.getElementById("tree");
+  const status = document.getElementById("status");
+  treeEl.innerHTML = "";
+  searchIndex.length = 0;
+  domMap = {};
+
+  const tree = flatToTree(allFetchedNodes, ottRoot);
+  const rootName = (tree.taxon || {}).name || "tree";
+  status.textContent = `${rootName} · ${allFetchedNodes.length} nodes`;
+
+  const ul = document.createElement("ul");
+  ul.appendChild(renderNode(tree));
+  treeEl.appendChild(ul);
+  treeEl.querySelector("li .name").click();
+
+  buildSearchIndex(tree, []);
+  searchInput.placeholder = `search ${searchIndex.length} taxa…`;
+
+  document.title = `phylo — ${rootName} — text tree — minomobi`;
+}
+
+(async () => {
+  const status = document.getElementById("status");
+  const treeEl = document.getElementById("tree");
+  const picker = document.getElementById("clade-picker");
+  let tree = null;
+  let dataSource = "";
+
+  // Try ATProto clade records first
+  try {
+    status.textContent = `resolving ${ATPROTO_HANDLE}\u2026`;
+    const { did, pds } = await resolveATProto(ATPROTO_HANDLE);
+    status.textContent = `fetching clades from ${pds.replace("https://","")}\u2026`;
+    const clades = await fetchATProtoRecords(pds, did, CLADE_COLLECTION);
+    if (clades.length > 0) {
+      for (const clade of clades)
+        for (const node of (clade.nodes || [])) allFetchedNodes.push(node);
+      status.textContent = `${clades.length} clades · ${allFetchedNodes.length} nodes · building tree…`;
+      dataSource = `at://${ATPROTO_HANDLE}`;
+
+      // Detect available roots and count nodes per root
+      const rootNodes = findRoots(allFetchedNodes);
+      const byId = {};
+      for (const n of allFetchedNodes) byId[n.ottId] = n;
+      // Map each node to its root by walking parent chain (using hash lookup)
+      const rootOf = {};
+      function getRoot(ottId) {
+        if (rootOf[ottId] !== undefined) return rootOf[ottId];
+        const n = byId[ottId];
+        if (!n || !n.parentOttId || !byId[n.parentOttId]) { rootOf[ottId] = ottId; return ottId; }
+        rootOf[ottId] = getRoot(n.parentOttId);
+        return rootOf[ottId];
+      }
+      const rootCounts = {};
+      for (const n of allFetchedNodes) {
+        const r = getRoot(n.ottId);
+        rootCounts[r] = (rootCounts[r] || 0) + 1;
+      }
+      availableRoots = rootNodes.map(n => ({
+        ottId: n.ottId,
+        name: n.name || n.ottId,
+        rank: n.rank || "",
+        count: rootCounts[n.ottId] || 0
+      })).sort((a, b) => b.count - a.count);
+
+      // Populate picker if multiple roots
+      if (availableRoots.length > 1) {
+        picker.innerHTML = "";
+        for (const r of availableRoots) {
+          const opt = document.createElement("option");
+          opt.value = r.ottId;
+          opt.textContent = `${r.name} (${r.count.toLocaleString()})`;
+          picker.appendChild(opt);
+        }
+        // Select the one matching OTT_ROOT, or first
+        const match = availableRoots.find(r => r.ottId === OTT_ROOT);
+        picker.value = match ? match.ottId : availableRoots[0].ottId;
+        picker.style.display = "";
+        picker.addEventListener("change", () => buildAndShow(parseInt(picker.value)));
+      }
+
+      const startRoot = availableRoots.find(r => r.ottId === OTT_ROOT)
+        ? OTT_ROOT : availableRoots[0].ottId;
+      tree = flatToTree(allFetchedNodes, startRoot);
+    }
+  } catch (e) {
+    console.warn("ATProto fetch failed, falling back to OToL:", e.message);
+  }
+
+  // Fallback to OToL API
+  if (!tree) {
+    try {
+      status.textContent = "fetching from open tree of life…";
+      tree = await fetchSubtree(OTT_ROOT);
+      dataSource = "opentreeoflife.org";
+    } catch (e) {
+      status.textContent = `error: ${e.message}`;
+      return;
+    }
+  }
+
+  const rootName = (tree.taxon || {}).name || "tree";
+  status.textContent = `${rootName} · via ${dataSource}`;
+  const ul = document.createElement("ul");
+  ul.appendChild(renderNode(tree));
+  treeEl.appendChild(ul);
+  treeEl.querySelector("li .name").click();
+
+  buildSearchIndex(tree, []);
+  searchInput.placeholder = `search ${searchIndex.length} taxa…`;
+  document.title = `phylo — ${rootName} — text tree — minomobi`;
+
+  // Handle ?focus= param: reveal a specific node
+  if (FOCUS_OTT) {
+    const entry = searchIndex.find(e => e.ottId === FOCUS_OTT);
+    if (entry) setTimeout(() => revealNode(entry.path), 100);
+  }
+})();
+</script>
+</body>
+</html>

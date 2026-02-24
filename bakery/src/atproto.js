@@ -58,6 +58,22 @@ export async function createSession(handle, appPassword) {
   return { ...session, pds };
 }
 
+// --- Session refresh ---
+
+export async function refreshSession(session) {
+  const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${session.refreshJwt}` },
+  });
+
+  if (!res.ok) {
+    throw new Error("Session expired — please sign in again");
+  }
+
+  const refreshed = await res.json();
+  return { ...refreshed, pds: session.pds };
+}
+
 // --- Recipe CRUD ---
 
 export async function publishRecipe(session, record) {
