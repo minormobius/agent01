@@ -1,0 +1,83 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.music.composition",
+  "description": "A step-sequencer composition stored as an ATProto record.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "bpm", "steps", "tracks", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Title of the composition."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Optional description or notes."
+          },
+          "bpm": {
+            "type": "integer",
+            "minimum": 20,
+            "maximum": 999,
+            "description": "Tempo in beats per minute."
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256,
+            "description": "Number of 16th-note steps in the pattern."
+          },
+          "tracks": {
+            "type": "array",
+            "maxLength": 16,
+            "items": { "type": "ref", "ref": "#track" },
+            "description": "Ordered list of tracks."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "ISO 8601 timestamp."
+          }
+        }
+      }
+    },
+    "track": {
+      "type": "object",
+      "required": ["name", "instrument", "volume", "notes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Display name for the track."
+        },
+        "instrument": {
+          "type": "string",
+          "maxLength": 32,
+          "knownValues": ["square", "triangle", "sawtooth", "sine", "pulse", "noise"],
+          "description": "Synthesizer voice identifier."
+        },
+        "volume": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Track volume as a percentage (0–100)."
+        },
+        "notes": {
+          "type": "array",
+          "maxLength": 4096,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "Encoded note: 'pitch,start,duration,velocity'."
+          },
+          "description": "Note events as compact strings."
+        }
+      }
+    }
+  }
+}

@@ -173,7 +173,7 @@ function SliderRow({ min = 0, max, step, value, onChange, color, unitLabel }) {
     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ flex: 1, accentColor: color }} />
+        style={{ flex: 1, accentColor: color, touchAction: "pan-y" }} />
       <input type="number" min={min} value={value}
         onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
         style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #d7ccc8", fontSize: 14, textAlign: "center" }} />
@@ -306,7 +306,6 @@ export default function FlourBlendCalculator() {
     const next = [recipe, ...savedRecipes.filter((r) => r.name !== name)];
     setSavedRecipes(next);
     saveRecipes(next);
-    setRecipeName("");
   };
 
   const handleLoadRecipe = (recipe) => {
