@@ -1,0 +1,32 @@
+name: Publish to WhiteWind
+
+on:
+  push:
+    paths:
+      - 'time/entries/**.md'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find new or modified entries
+        id: find-entries
+        run: |
+          ENTRIES=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'time/entries/*.md' || echo "")
+          echo "entries=$ENTRIES" >> $GITHUB_OUTPUT
+          if [ -z "$ENTRIES" ]; then
+            echo "No new entries found"
+          else
+            echo "Found entries: $ENTRIES"
+          fi
+
+      - name: Publish to PDS
+        if: steps.find-entries.outputs.entries != ''
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: python3 scripts/publish-whtwnd.py ${{ steps.find-entries.outputs.entries }}
