@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sweat — minomobi</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sweat">
+<link rel="apple-touch-icon" href="/icon-192.png">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232734;
+  --border: #2e3345;
+  --text: #e2e4eb;
+  --text2: #8b90a0;
+  --accent: #6c8cff;
+  --accent2: #4a6adf;
+  --green: #4caf84;
+  --red: #e05555;
+  --orange: #e09050;
+  --radius: 10px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.app {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.header .handle { font-size: 13px; color: var(--text2); }
+.btn-small {
+  font-size: 12px; padding: 4px 12px;
+  background: var(--surface2); color: var(--text2);
+  border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; font-family: var(--font);
+}
+.btn-small:hover { background: var(--border); color: var(--text); }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.card h2 {
+  font-size: 14px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+}
+
+/* Forms */
+input, select {
+  width: 100%; padding: 10px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 14px; font-family: var(--font);
+  outline: none; transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--accent); }
+input::placeholder { color: var(--text2); }
+
+label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
+
+.form-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.form-row > div { flex: 1; }
+.form-group { margin-bottom: 10px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; font-size: 14px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 8px; cursor: pointer;
+  transition: opacity 0.15s; width: 100%;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent2); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface2); }
+
+/* Toggle */
+.toggle-group { display: flex; background: var(--surface2); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.toggle-group button {
+  flex: 1; padding: 8px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
+}
+.toggle-group button.active { background: var(--accent); color: #fff; }
+
+/* Tabs */
+.tab-bar {
+  display: flex; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 3px; margin-bottom: 16px;
+}
+.tab-bar button {
+  flex: 1; padding: 10px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
+}
+.tab-bar button.active { background: var(--surface2); color: var(--text); }
+
+/* Exercise / set rows */
+.exercise-row {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+}
+.exercise-row .row-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+}
+.exercise-row .row-header span { font-size: 14px; font-weight: 600; }
+.remove-btn {
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px;
+}
+.remove-btn:hover { color: var(--red); }
+
+/* Swim total bar */
+.swim-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: rgba(76,175,132,0.08);
+  border: 1px solid rgba(76,175,132,0.2); border-radius: 8px;
+  margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--green);
+}
+
+/* Suggest banner */
+.suggest-banner {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: rgba(108,140,255,0.08);
+  border: 1px solid rgba(108,140,255,0.2); border-radius: 8px;
+  margin-bottom: 12px; font-size: 13px; color: var(--accent);
+}
+.suggest-banner button {
+  font-size: 12px; padding: 4px 10px; background: var(--accent); color: #fff;
+  border: none; border-radius: 6px; cursor: pointer; font-family: var(--font); font-weight: 600;
+}
+
+/* History entries */
+.history-entry {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.history-entry:hover { border-color: var(--accent); }
+.history-date { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+.history-type {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 4px; margin-bottom: 6px;
+}
+.history-type.lift { background: rgba(108,140,255,0.15); color: var(--accent); }
+.history-type.swim { background: rgba(76,175,132,0.15); color: var(--green); }
+.history-type.weigh-in { background: rgba(224,144,80,0.15); color: var(--orange); }
+
+/* BMI result display */
+.bmi-result {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-radius: 8px; margin-top: 10px;
+  font-size: 14px; font-weight: 600;
+}
+.bmi-result .bmi-value { font-size: 20px; font-weight: 700; }
+.bmi-underweight { background: rgba(108,140,255,0.1); color: var(--accent); }
+.bmi-normal { background: rgba(76,175,132,0.1); color: var(--green); }
+.bmi-overweight { background: rgba(224,144,80,0.1); color: var(--orange); }
+.bmi-obese { background: rgba(224,85,85,0.1); color: var(--red); }
+.history-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.history-summary { font-size: 13px; color: var(--text); line-height: 1.4; }
+.history-detail {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text2);
+}
+
+/* Status messages */
+.msg { font-size: 13px; margin-top: 8px; padding: 8px 12px; border-radius: 6px; }
+.msg-error { background: rgba(224,85,85,0.12); color: var(--red); }
+.msg-success { background: rgba(76,175,132,0.12); color: var(--green); }
+
+/* Chart container */
+.chart-container { position: relative; height: 240px; margin-top: 8px; }
+
+/* Empty states */
+.empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
+
+/* Analytics filters */
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-chip {
+  font-size: 12px; font-weight: 500; padding: 5px 12px;
+  border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2);
+  cursor: pointer; font-family: var(--font); transition: all 0.15s;
+}
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-chip.active-green { background: var(--green); border-color: var(--green); color: #fff; }
+
+.hidden { display: none; }
+
+.detail-actions { display: flex; gap: 8px; margin-top: 10px; }
+.detail-actions .btn { width: auto; padding: 6px 14px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Login view -->
+  <div id="login-view">
+    <div style="padding: 60px 0 20px; text-align: center;">
+      <h1 style="font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px;">Sweat</h1>
+      <p style="color: var(--text2); font-size: 13px;">Log workouts to your AT Protocol PDS</p>
+    </div>
+    <div class="card">
+      <h2>Sign in</h2>
+      <div class="form-group">
+        <label>Handle</label>
+        <input type="text" id="login-handle" placeholder="handle.bsky.social" />
+      </div>
+      <div class="form-group">
+        <label>App password</label>
+        <input type="password" id="login-password" placeholder="xxxx-xxxx-xxxx-xxxx" />
+      </div>
+      <button class="btn btn-primary" id="login-btn">Sign In</button>
+      <div id="login-error" class="msg msg-error hidden"></div>
+      <p style="color: var(--text2); font-size: 12px; margin-top: 10px; text-align: center;">
+        Create an app password at
+        <a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">bsky.app/settings</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Main app view -->
+  <div id="app-view" class="hidden">
+    <div class="header">
+      <h1>Sweat</h1>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="handle" id="display-handle"></span>
+        <button class="btn-small" id="logout-btn">Sign out</button>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="active" data-tab="log">Log</button>
+      <button data-tab="history">History</button>
+      <button data-tab="analytics">Analytics</button>
+    </div>
+
+    <!-- LOG TAB -->
+    <div id="tab-log">
+      <div class="card">
+        <div class="toggle-group" id="workout-toggle">
+          <button data-type="swim" class="active">Swim</button>
+          <button data-type="lift">Lift</button>
+        </div>
+
+        <!-- SWIM FORM -->
+        <div id="swim-form">
+          <div class="form-group">
+            <label>Workout name (optional)</label>
+            <input type="text" id="swim-name" placeholder="e.g. Tuesday AM, Sprint Day" />
+          </div>
+          <div id="swim-intervals"></div>
+          <div id="swim-total" class="swim-total hidden">
+            <span id="swim-total-text">0 yd</span>
+            <span id="swim-total-sets">0 sets</span>
+          </div>
+          <button class="btn btn-ghost" id="add-interval-btn" style="margin-bottom: 12px;">+ Add Set</button>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" id="swim-notes" placeholder="Pool, conditions, etc." />
+          </div>
+          <button class="btn btn-primary" id="log-swim-btn">Log Workout</button>
+        </div>
+
+        <!-- LIFT FORM -->
+        <div id="lift-form" class="hidden">
+          <div id="lift-suggest" class="suggest-banner hidden">
+            <span id="lift-suggest-text"></span>
+            <button id="lift-suggest-btn">Load</button>
+          </div>
+          <div id="lift-exercises"></div>
+          <button class="btn btn-ghost" id="add-exercise-btn" style="margin-bottom: 12px;">+ Add Exercise</button>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" id="lift-notes" placeholder="How it felt, RPE, etc." />
+          </div>
+          <button class="btn btn-primary" id="log-lift-btn">Log Workout</button>
+        </div>
+
+        <div id="log-status" class="msg hidden"></div>
+      </div>
+
+      <!-- WEIGH-IN CARD -->
+      <div class="card">
+        <h2>Weigh-in</h2>
+        <div class="form-row">
+          <div>
+            <label>Weight (lb)</label>
+            <input type="number" id="weighin-weight" placeholder="185" inputmode="decimal" step="0.1" />
+          </div>
+          <div>
+            <label>Height</label>
+            <div class="form-row" style="margin-bottom:0">
+              <div>
+                <input type="number" id="weighin-feet" placeholder="ft" inputmode="numeric" style="padding:10px 8px" />
+              </div>
+              <div>
+                <input type="number" id="weighin-inches" placeholder="in" inputmode="numeric" style="padding:10px 8px" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="bmi-display" class="hidden"></div>
+        <button class="btn btn-primary" id="log-weighin-btn" style="margin-top: 6px;">Log Weight</button>
+        <div id="weighin-status" class="msg hidden"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tab-history" class="hidden">
+      <div id="history-list"></div>
+      <div id="history-empty" class="empty hidden">No workouts logged yet.</div>
+      <div id="history-loading" class="empty">Loading...</div>
+    </div>
+
+    <!-- ANALYTICS TAB -->
+    <div id="tab-analytics" class="hidden">
+      <div class="card">
+        <h2>Progress</h2>
+        <div class="toggle-group" id="analytics-type-toggle">
+          <button class="active" data-type="swim">Swim</button>
+          <button data-type="lift">Lifts</button>
+          <button data-type="body">Body</button>
+        </div>
+        <div id="analytics-swim">
+          <div class="filter-row" id="swim-metric-chips"></div>
+          <div class="chart-container">
+            <canvas id="swim-chart"></canvas>
+          </div>
+        </div>
+        <div id="analytics-lift" class="hidden">
+          <div class="filter-row" id="lift-filter-chips"></div>
+          <div class="chart-container">
+            <canvas id="lift-chart"></canvas>
+          </div>
+        </div>
+        <div id="analytics-body" class="hidden">
+          <div class="filter-row" id="body-metric-chips"></div>
+          <div class="chart-container">
+            <canvas id="body-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="stats-card" style="display:none;">
+        <h2>Stats</h2>
+        <div id="stats-content" style="font-size: 13px; color: var(--text2); line-height: 1.8;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  AT PROTOCOL CLIENT
+// ============================================================
+const PUBLIC_API = "https://public.api.bsky.app";
+const COLLECTION = "com.minomobi.workout";
+const SESSION_KEY = "sweat-session";
+const HANDLE_KEY = "sweat-handle";
+
+async function resolveHandle(handle) {
+  const r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!r.ok) throw new Error(`Could not resolve handle: ${handle}`);
+  return (await r.json()).did;
+}
+
+async function resolvePDS(did) {
+  let doc;
+  if (did.startsWith("did:plc:")) {
+    const r = await fetch(`https://plc.directory/${did}`);
+    if (!r.ok) throw new Error(`Could not resolve DID: ${did}`);
+    doc = await r.json();
+  } else if (did.startsWith("did:web:")) {
+    const host = did.slice("did:web:".length).replaceAll(":", "/");
+    const r = await fetch(`https://${host}/.well-known/did.json`);
+    if (!r.ok) throw new Error(`Could not resolve DID: ${did}`);
+    doc = await r.json();
+  } else {
+    throw new Error(`Unsupported DID method: ${did}`);
+  }
+  const svc = doc.service?.find(s => s.type === "AtprotoPersonalDataServer");
+  if (!svc) throw new Error("No PDS endpoint in DID document");
+  return svc.serviceEndpoint;
+}
+
+async function createSession(handle, appPassword) {
+  const did = await resolveHandle(handle);
+  const pds = await resolvePDS(did);
+  const r = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier: handle, password: appPassword }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || `Auth failed (${r.status})`);
+  }
+  return { ...(await r.json()), pds };
+}
+
+async function createRecord(session, record) {
+  const r = await fetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessJwt}`,
+    },
+    body: JSON.stringify({ repo: session.did, collection: COLLECTION, record }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error([err.error, err.message].filter(Boolean).join(": ") || `Write failed (${r.status})`);
+  }
+  return r.json();
+}
+
+async function listRecords(did, pds, limit = 100) {
+  const params = `repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=${limit}`;
+  let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
+  if (!r.ok && pds) {
+    r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
+  }
+  if (!r.ok) throw new Error(`Could not list records (${r.status})`);
+  return (await r.json()).records || [];
+}
+
+async function deleteRecord(session, rkey) {
+  const r = await fetch(`${session.pds}/xrpc/com.atproto.repo.deleteRecord`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessJwt}`,
+    },
+    body: JSON.stringify({ repo: session.did, collection: COLLECTION, rkey }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || `Delete failed (${r.status})`);
+  }
+}
+
+async function refreshSession(s) {
+  const r = await fetch(`${s.pds}/xrpc/com.atproto.server.refreshSession`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${s.refreshJwt}` },
+  });
+  if (!r.ok) throw new Error("Session expired");
+  return { ...(await r.json()), pds: s.pds };
+}
+
+// ============================================================
+//  SESSION MANAGEMENT
+// ============================================================
+function saveSession(s) {
+  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESSION_KEY);
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+
+let session = loadSession();
+let workouts = [];
+
+// ============================================================
+//  DOM HELPERS
+// ============================================================
+const $ = id => document.getElementById(id);
+const show = el => el.classList.remove("hidden");
+const hide = el => el.classList.add("hidden");
+
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const STROKES = ["Free", "Back", "Breast", "Fly", "IM", "Kick", "Pull", "Drill", "Choice"];
+const SET_CATEGORIES = ["Warmup", "Pre-set", "Main", "Kick", "Pull", "Sprint", "Cooldown"];
+const LIFT_PRESETS = ["Squat", "Bench Press", "Barbell Row", "Overhead Press", "Deadlift"];
+const WORKOUT_A = ["Squat", "Bench Press", "Barbell Row"];
+const WORKOUT_B = ["Squat", "Overhead Press", "Deadlift"];
+const STARTING_WEIGHTS = { "Squat": 45, "Bench Press": 45, "Barbell Row": 65, "Overhead Press": 45, "Deadlift": 95 };
+const HEIGHT_KEY = "sweat-height-inches";
+
+// ============================================================
+//  HEIGHT & BMI (local-only)
+// ============================================================
+function getSavedHeight() {
+  return parseFloat(localStorage.getItem(HEIGHT_KEY)) || 0;
+}
+function saveHeight(inches) {
+  if (inches > 0) localStorage.setItem(HEIGHT_KEY, String(inches));
+}
+function calcBMI(weightLb, heightIn) {
+  if (!weightLb || !heightIn) return null;
+  return (weightLb * 703) / (heightIn * heightIn);
+}
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return { label: "Underweight", cls: "bmi-underweight" };
+  if (bmi < 25) return { label: "Normal", cls: "bmi-normal" };
+  if (bmi < 30) return { label: "Overweight", cls: "bmi-overweight" };
+  return { label: "Obese", cls: "bmi-obese" };
+}
+function formatHeight(inches) {
+  const ft = Math.floor(inches / 12);
+  const inPart = Math.round(inches % 12);
+  return `${ft}'${inPart}"`;
+}
+
+function initWeighIn() {
+  const saved = getSavedHeight();
+  if (saved) {
+    $("weighin-feet").value = Math.floor(saved / 12);
+    $("weighin-inches").value = Math.round(saved % 12);
+  }
+
+  // Live BMI preview
+  const updateBMI = () => {
+    const w = parseFloat($("weighin-weight").value);
+    const ft = parseInt($("weighin-feet").value) || 0;
+    const inVal = parseInt($("weighin-inches").value) || 0;
+    const totalIn = ft * 12 + inVal;
+    const bmi = calcBMI(w, totalIn);
+    const el = $("bmi-display");
+    if (bmi) {
+      const cat = bmiCategory(bmi);
+      el.className = `bmi-result ${cat.cls}`;
+      el.innerHTML = `<span>${cat.label}</span><span class="bmi-value">${bmi.toFixed(1)}</span>`;
+      show(el);
+    } else {
+      hide(el);
+    }
+  };
+  $("weighin-weight").addEventListener("input", updateBMI);
+  $("weighin-feet").addEventListener("input", updateBMI);
+  $("weighin-inches").addEventListener("input", updateBMI);
+
+  $("log-weighin-btn").onclick = async () => {
+    const w = parseFloat($("weighin-weight").value);
+    if (!w) return;
+    const ft = parseInt($("weighin-feet").value) || 0;
+    const inVal = parseInt($("weighin-inches").value) || 0;
+    const totalIn = ft * 12 + inVal;
+    if (totalIn > 0) saveHeight(totalIn);
+
+    const statusEl = $("weighin-status");
+    hide(statusEl);
+    $("log-weighin-btn").disabled = true;
+    $("log-weighin-btn").textContent = "Saving...";
+    try {
+      await createRecord(session, {
+        workoutType: "weigh-in",
+        weight: w,
+        unit: "lb",
+        createdAt: new Date().toISOString(),
+      });
+      statusEl.className = "msg msg-success";
+      statusEl.textContent = "Weight logged!";
+      show(statusEl);
+      setTimeout(() => hide(statusEl), 3000);
+      $("weighin-weight").value = "";
+      hide($("bmi-display"));
+      loadHistory();
+    } catch (e) {
+      statusEl.className = "msg msg-error";
+      statusEl.textContent = e.message;
+      show(statusEl);
+    } finally {
+      $("log-weighin-btn").disabled = false;
+      $("log-weighin-btn").textContent = "Log Weight";
+    }
+  };
+}
+
+// ============================================================
+//  AUTH
+// ============================================================
+function initAuth() {
+  const saved = localStorage.getItem(HANDLE_KEY);
+  if (saved) $("login-handle").value = saved;
+
+  $("login-btn").onclick = async () => {
+    const handle = $("login-handle").value.trim();
+    const pw = $("login-password").value.trim();
+    if (!handle || !pw) return;
+    $("login-btn").disabled = true;
+    $("login-btn").textContent = "Connecting...";
+    hide($("login-error"));
+    try {
+      session = await createSession(handle, pw);
+      localStorage.setItem(HANDLE_KEY, handle);
+      saveSession(session);
+      enterApp();
+    } catch (e) {
+      $("login-error").textContent = e.message;
+      show($("login-error"));
+    } finally {
+      $("login-btn").disabled = false;
+      $("login-btn").textContent = "Sign In";
+    }
+  };
+
+  $("login-password").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("login-btn").click();
+  });
+}
+
+function enterApp() {
+  hide($("login-view"));
+  show($("app-view"));
+  $("display-handle").textContent = `@${session.handle}`;
+  addSwimInterval();
+  addLiftExercise();
+  initWeighIn();
+  loadHistory();
+}
+
+$("logout-btn").onclick = () => {
+  session = null;
+  saveSession(null);
+  show($("login-view"));
+  hide($("app-view"));
+};
+
+// ============================================================
+//  TAB NAVIGATION
+// ============================================================
+document.querySelectorAll(".tab-bar button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab-bar button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    ["log", "history", "analytics"].forEach(t => {
+      const el = $(`tab-${t}`);
+      if (t === btn.dataset.tab) show(el); else hide(el);
+    });
+    if (btn.dataset.tab === "analytics") renderAnalytics();
+  };
+});
+
+// ============================================================
+//  WORKOUT TYPE TOGGLE
+// ============================================================
+$("workout-toggle").onclick = e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  $("workout-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (btn.dataset.type === "swim") { show($("swim-form")); hide($("lift-form")); }
+  else { hide($("swim-form")); show($("lift-form")); }
+};
+
+// ============================================================
+//  SWIM FORM
+// ============================================================
+let swimCount = 0;
+
+function addSwimInterval(distance = "", interval = "", reps = "", stroke = "Free", category = "") {
+  const id = swimCount++;
+  const div = document.createElement("div");
+  div.className = "exercise-row";
+  div.dataset.id = id;
+  div.innerHTML = `
+    <div class="row-header">
+      <span>Set ${id + 1}</span>
+      <button class="remove-btn" data-remove-swim="${id}">&times;</button>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Category</label>
+        <select data-field="category">
+          <option value="">—</option>
+          ${SET_CATEGORIES.map(c => `<option value="${c}" ${c === category ? "selected" : ""}>${c}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label>Stroke</label>
+        <select data-field="stroke">
+          ${STROKES.map(s => `<option value="${s}" ${s === stroke ? "selected" : ""}>${s}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Distance</label>
+        <input type="number" data-field="distance" placeholder="yds" value="${distance}" inputmode="numeric" />
+      </div>
+      <div>
+        <label>Interval</label>
+        <input type="text" data-field="interval" placeholder="1:30" value="${interval}" />
+      </div>
+      <div>
+        <label>Reps</label>
+        <input type="number" data-field="reps" placeholder="1" value="${reps}" inputmode="numeric" />
+      </div>
+    </div>
+  `;
+
+  // Update totals on input change
+  div.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", updateSwimTotal);
+  });
+
+  $("swim-intervals").appendChild(div);
+  updateSwimTotal();
+}
+
+function updateSwimTotal() {
+  let totalDist = 0;
+  let totalSets = 0;
+  $("swim-intervals").querySelectorAll(".exercise-row").forEach(row => {
+    const dist = parseInt(row.querySelector('[data-field="distance"]').value) || 0;
+    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 1;
+    totalDist += dist * reps;
+    totalSets++;
+  });
+  const totalEl = $("swim-total");
+  if (totalDist > 0) {
+    $("swim-total-text").textContent = `${totalDist} yd total`;
+    $("swim-total-sets").textContent = `${totalSets} set${totalSets !== 1 ? "s" : ""}`;
+    show(totalEl);
+  } else {
+    hide(totalEl);
+  }
+}
+
+$("add-interval-btn").onclick = () => addSwimInterval();
+
+$("swim-intervals").addEventListener("click", e => {
+  const btn = e.target.closest("[data-remove-swim]");
+  if (!btn) return;
+  const row = btn.closest(".exercise-row");
+  if ($("swim-intervals").children.length > 1) {
+    row.remove();
+    updateSwimTotal();
+  }
+});
+
+function gatherSwimData() {
+  const intervals = [];
+  $("swim-intervals").querySelectorAll(".exercise-row").forEach(row => {
+    const distance = parseInt(row.querySelector('[data-field="distance"]').value) || 0;
+    const interval = row.querySelector('[data-field="interval"]').value.trim();
+    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 1;
+    const stroke = row.querySelector('[data-field="stroke"]').value;
+    const category = row.querySelector('[data-field="category"]').value;
+    if (distance) {
+      const set = { distance, unit: "yd", reps, stroke };
+      if (interval) set.interval = interval;
+      if (category) set.category = category;
+      intervals.push(set);
+    }
+  });
+  return intervals;
+}
+
+// ============================================================
+//  LIFT FORM
+// ============================================================
+let liftCount = 0;
+
+function addLiftExercise(name = "", weight = "", reps = "5", sets = "5") {
+  const id = liftCount++;
+  const div = document.createElement("div");
+  div.className = "exercise-row";
+  div.dataset.id = id;
+  div.innerHTML = `
+    <div class="row-header">
+      <span>Exercise ${id + 1}</span>
+      <button class="remove-btn" data-remove-lift="${id}">&times;</button>
+    </div>
+    <div class="form-row">
+      <div style="flex:2">
+        <label>Exercise</label>
+        <select data-field="name">
+          <option value="">Select...</option>
+          ${LIFT_PRESETS.map(p => `<option value="${p}" ${p === name ? "selected" : ""}>${p}</option>`).join("")}
+          <option value="_custom" ${name && !LIFT_PRESETS.includes(name) ? "selected" : ""}>Custom...</option>
+        </select>
+      </div>
+      <div>
+        <label>Weight</label>
+        <input type="number" data-field="weight" placeholder="lbs" value="${weight}" inputmode="decimal" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Reps</label>
+        <input type="number" data-field="reps" placeholder="5" value="${reps}" inputmode="numeric" />
+      </div>
+      <div>
+        <label>Sets</label>
+        <input type="number" data-field="sets" placeholder="5" value="${sets}" inputmode="numeric" />
+      </div>
+    </div>
+    <div class="form-group hidden" data-custom-name="${id}">
+      <label>Custom exercise name</label>
+      <input type="text" data-field="customName" placeholder="e.g. Romanian Deadlift" />
+    </div>
+  `;
+
+  const sel = div.querySelector('[data-field="name"]');
+  const customGroup = div.querySelector(`[data-custom-name="${id}"]`);
+  sel.addEventListener("change", () => {
+    if (sel.value === "_custom") show(customGroup); else hide(customGroup);
+  });
+  if (name && !LIFT_PRESETS.includes(name)) {
+    show(customGroup);
+    div.querySelector('[data-field="customName"]').value = name;
+  }
+
+  $("lift-exercises").appendChild(div);
+}
+
+$("add-exercise-btn").onclick = () => addLiftExercise();
+
+$("lift-exercises").addEventListener("click", e => {
+  const btn = e.target.closest("[data-remove-lift]");
+  if (!btn) return;
+  const row = btn.closest(".exercise-row");
+  if ($("lift-exercises").children.length > 1) row.remove();
+});
+
+function gatherLiftData() {
+  const exercises = [];
+  $("lift-exercises").querySelectorAll(".exercise-row").forEach(row => {
+    const sel = row.querySelector('[data-field="name"]');
+    let name = sel.value;
+    if (name === "_custom") name = row.querySelector('[data-field="customName"]').value.trim();
+    const weight = parseFloat(row.querySelector('[data-field="weight"]').value) || 0;
+    const reps = parseInt(row.querySelector('[data-field="reps"]').value) || 0;
+    const sets = parseInt(row.querySelector('[data-field="sets"]').value) || 0;
+    if (name && (weight || reps)) {
+      exercises.push({ name, weight, unit: "lb", reps, sets });
+    }
+  });
+  return exercises;
+}
+
+// ============================================================
+//  STRONGLIFTS AUTO-SUGGEST
+// ============================================================
+function suggestNextLift() {
+  const lifts = workouts
+    .filter(r => r.value?.workoutType === "lift")
+    .sort((a, b) => (b.value?.createdAt || "").localeCompare(a.value?.createdAt || ""));
+
+  if (lifts.length === 0) {
+    // First ever workout: Workout A at starting weights
+    showLiftSuggestion("A", WORKOUT_A.map(name => ({
+      name, weight: STARTING_WEIGHTS[name], reps: 5, sets: name === "Deadlift" ? 1 : 5
+    })));
+    return;
+  }
+
+  const last = lifts[0].value;
+  const lastNames = (last.exercises || []).map(e => e.name);
+
+  // Determine if last was A or B
+  const wasA = lastNames.includes("Bench Press") || lastNames.includes("Barbell Row");
+  const wasB = lastNames.includes("Overhead Press") || lastNames.includes("Deadlift");
+
+  // Next is the opposite
+  const nextIsA = wasB && !wasA;
+  const nextExercises = nextIsA ? WORKOUT_A : WORKOUT_B;
+  const nextLabel = nextIsA ? "A" : "B";
+
+  // Build weight map from last exercise weights, adding 5lb (10lb for deadlift)
+  const lastWeights = {};
+  (last.exercises || []).forEach(ex => { lastWeights[ex.name] = ex.weight; });
+
+  // Also scan history for exercises not in last workout
+  for (const r of lifts) {
+    for (const ex of (r.value.exercises || [])) {
+      if (!(ex.name in lastWeights)) lastWeights[ex.name] = ex.weight;
+    }
+  }
+
+  const suggested = nextExercises.map(name => {
+    const prevWeight = lastWeights[name] || STARTING_WEIGHTS[name];
+    const increment = name === "Deadlift" ? 10 : 5;
+    const weight = lastWeights[name] ? prevWeight + increment : prevWeight;
+    return { name, weight, reps: 5, sets: name === "Deadlift" ? 1 : 5 };
+  });
+
+  showLiftSuggestion(nextLabel, suggested);
+}
+
+function showLiftSuggestion(label, exercises) {
+  const banner = $("lift-suggest");
+  const text = $("lift-suggest-text");
+  const summary = exercises.map(e => `${e.name} ${e.weight}lb`).join(", ");
+  text.innerHTML = `<strong>Workout ${label}</strong>: ${summary}`;
+  show(banner);
+
+  $("lift-suggest-btn").onclick = () => {
+    $("lift-exercises").innerHTML = "";
+    liftCount = 0;
+    exercises.forEach(e => addLiftExercise(e.name, String(e.weight), String(e.reps), String(e.sets)));
+    hide(banner);
+  };
+}
+
+// ============================================================
+//  LOG WORKOUT
+// ============================================================
+async function logWorkout(type) {
+  const btn = type === "lift" ? $("log-lift-btn") : $("log-swim-btn");
+  const notes = $(type === "lift" ? "lift-notes" : "swim-notes").value.trim();
+  const statusEl = $("log-status");
+  hide(statusEl);
+
+  let record;
+  if (type === "lift") {
+    const exercises = gatherLiftData();
+    if (exercises.length === 0) {
+      statusEl.className = "msg msg-error";
+      statusEl.textContent = "Add at least one exercise.";
+      show(statusEl);
+      return;
+    }
+    record = { workoutType: "lift", exercises, createdAt: new Date().toISOString() };
+  } else {
+    const intervals = gatherSwimData();
+    if (intervals.length === 0) {
+      statusEl.className = "msg msg-error";
+      statusEl.textContent = "Add at least one set.";
+      show(statusEl);
+      return;
+    }
+    record = { workoutType: "swim", intervals, createdAt: new Date().toISOString() };
+    const swimName = $("swim-name").value.trim();
+    if (swimName) record.name = swimName;
+  }
+  if (notes) record.notes = notes;
+
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  try {
+    await createRecord(session, record);
+    statusEl.className = "msg msg-success";
+    statusEl.textContent = "Workout logged!";
+    show(statusEl);
+    setTimeout(() => hide(statusEl), 3000);
+    if (type === "lift") {
+      $("lift-exercises").innerHTML = "";
+      liftCount = 0;
+      addLiftExercise();
+      $("lift-notes").value = "";
+    } else {
+      $("swim-intervals").innerHTML = "";
+      swimCount = 0;
+      addSwimInterval();
+      $("swim-notes").value = "";
+      $("swim-name").value = "";
+      updateSwimTotal();
+    }
+    loadHistory();
+  } catch (e) {
+    statusEl.className = "msg msg-error";
+    statusEl.textContent = e.message;
+    show(statusEl);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Log Workout";
+  }
+}
+
+$("log-lift-btn").onclick = () => logWorkout("lift");
+$("log-swim-btn").onclick = () => logWorkout("swim");
+
+// ============================================================
+//  HISTORY
+// ============================================================
+async function loadHistory() {
+  if (!session) return;
+  const listEl = $("history-list");
+  const emptyEl = $("history-empty");
+  const loadingEl = $("history-loading");
+  show(loadingEl);
+  hide(emptyEl);
+  listEl.innerHTML = "";
+  try {
+    const records = await listRecords(session.did, session.pds);
+    workouts = records.sort((a, b) => {
+      const da = a.value?.createdAt || "";
+      const db = b.value?.createdAt || "";
+      return db.localeCompare(da);
+    });
+    hide(loadingEl);
+    if (workouts.length === 0) { show(emptyEl); return; }
+    workouts.forEach(r => listEl.appendChild(makeHistoryEntry(r)));
+    // Now that we have history, compute lift suggestion
+    suggestNextLift();
+  } catch (e) {
+    hide(loadingEl);
+    listEl.innerHTML = `<div class="msg msg-error">${e.message}</div>`;
+  }
+}
+
+function parseInterval(str) {
+  // "1:30" -> 90 seconds, "45" -> 45 seconds
+  if (!str) return 0;
+  const parts = str.split(":").map(Number);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
+}
+
+function formatPace(secondsPer100) {
+  if (!secondsPer100 || !isFinite(secondsPer100)) return "—";
+  const m = Math.floor(secondsPer100 / 60);
+  const s = Math.round(secondsPer100 % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function makeHistoryEntry(record) {
+  const v = record.value;
+  const rkey = record.uri.split("/").pop();
+  const div = document.createElement("div");
+  div.className = "history-entry";
+
+  const date = v.createdAt ? new Date(v.createdAt) : null;
+  const dateStr = date ? date.toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+  }) : "Unknown date";
+
+  let summary = "";
+  let detail = "";
+
+  if (v.workoutType === "lift" && v.exercises) {
+    summary = v.exercises.map(ex => `${ex.name} ${ex.weight}${ex.unit || "lb"} ${ex.sets}x${ex.reps}`).join(" · ");
+    detail = v.exercises.map(ex =>
+      `<div style="margin-bottom:4px"><strong>${ex.name}</strong>: ${ex.sets} sets x ${ex.reps} reps @ ${ex.weight} ${ex.unit || "lb"}</div>`
+    ).join("");
+  } else if (v.workoutType === "swim" && v.intervals) {
+    const totalDist = v.intervals.reduce((s, i) => s + (i.distance * (i.reps || 1)), 0);
+    summary = `${totalDist} ${v.intervals[0]?.unit || "yd"}`;
+    detail = v.intervals.map(i => {
+      const reps = i.reps || 1;
+      const label = i.category ? `<span style="color:var(--green)">${i.category}</span> ` : "";
+      const strokeLabel = i.stroke ? ` ${i.stroke}` : "";
+      const intLabel = i.interval ? ` on ${i.interval}` : "";
+      const dist = reps > 1 ? `${reps}x${i.distance}` : `${i.distance}`;
+      const intSecs = parseInterval(i.interval);
+      let paceStr = "";
+      if (intSecs && i.distance) {
+        const pace100 = (intSecs / i.distance) * 100;
+        paceStr = ` <span style="color:var(--text2)">(${formatPace(pace100)}/100)</span>`;
+      }
+      return `<div style="margin-bottom:4px">${label}${dist} ${i.unit || "yd"}${strokeLabel}${intLabel}${paceStr}</div>`;
+    }).join("");
+  } else if (v.workoutType === "weigh-in") {
+    summary = `${v.weight} ${v.unit || "lb"}`;
+    const heightIn = getSavedHeight();
+    if (heightIn) {
+      const bmi = calcBMI(v.weight, heightIn);
+      const cat = bmiCategory(bmi);
+      detail = `<div>BMI: <strong>${bmi.toFixed(1)}</strong> (${cat.label}) at ${formatHeight(heightIn)}</div>`;
+    }
+  }
+
+  const nameHtml = v.name ? `<div class="history-name">${escapeHtml(v.name)}</div>` : "";
+  if (v.notes) detail += `<div style="margin-top:6px; font-style: italic;">${escapeHtml(v.notes)}</div>`;
+
+  div.innerHTML = `
+    <div class="history-date">${dateStr}</div>
+    <span class="history-type ${v.workoutType || ''}">${v.workoutType || "?"}</span>
+    ${nameHtml}
+    <div class="history-summary">${escapeHtml(summary)}</div>
+    <div class="history-detail hidden">
+      ${detail}
+      <div class="detail-actions">
+        <button class="btn btn-danger btn-delete" data-rkey="${rkey}">Delete</button>
+      </div>
+    </div>
+  `;
+
+  div.addEventListener("click", e => {
+    if (e.target.closest(".btn-delete")) return;
+    div.querySelector(".history-detail").classList.toggle("hidden");
+  });
+
+  div.querySelector(".btn-delete").addEventListener("click", async e => {
+    e.stopPropagation();
+    if (!confirm("Delete this workout?")) return;
+    try {
+      await deleteRecord(session, rkey);
+      div.remove();
+      workouts = workouts.filter(w => w.uri !== record.uri);
+      if (workouts.length === 0) show($("history-empty"));
+    } catch (err) {
+      alert("Delete failed: " + err.message);
+    }
+  });
+
+  return div;
+}
+
+function escapeHtml(s) {
+  if (!s) return "";
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ============================================================
+//  ANALYTICS
+// ============================================================
+let liftChart = null;
+let swimChart = null;
+let selectedLiftExercise = null;
+let selectedSwimMetric = "volume"; // "volume" | "pace"
+
+$("analytics-type-toggle").onclick = e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  $("analytics-type-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const t = btn.dataset.type;
+  ["swim", "lift", "body"].forEach(k => {
+    const el = $(`analytics-${k}`);
+    if (k === t) show(el); else hide(el);
+  });
+  renderAnalytics();
+};
+
+function renderAnalytics() {
+  const activeType = $("analytics-type-toggle").querySelector(".active").dataset.type;
+  if (activeType === "swim") renderSwimAnalytics();
+  else if (activeType === "lift") renderLiftAnalytics();
+  else renderBodyAnalytics();
+}
+
+// --- Swim Analytics ---
+function renderSwimAnalytics() {
+  const swims = workouts
+    .filter(r => r.value?.workoutType === "swim")
+    .sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
+
+  // Metric chips
+  const chipRow = $("swim-metric-chips");
+  chipRow.innerHTML = "";
+  ["volume", "pace"].forEach(metric => {
+    const chip = document.createElement("button");
+    chip.className = `filter-chip ${metric === selectedSwimMetric ? "active-green" : ""}`;
+    chip.textContent = metric === "volume" ? "Total Volume" : "Avg Pace /100";
+    chip.onclick = () => { selectedSwimMetric = metric; renderSwimAnalytics(); };
+    chipRow.appendChild(chip);
+  });
+
+  if (swims.length === 0) {
+    if (swimChart) { swimChart.destroy(); swimChart = null; }
+    $("stats-card").style.display = "none";
+    return;
+  }
+
+  let points, yLabel, yCallback;
+
+  if (selectedSwimMetric === "volume") {
+    points = swims.map(r => {
+      const v = r.value;
+      const total = (v.intervals || []).reduce((s, i) => s + (i.distance * (i.reps || 1)), 0);
+      return { x: new Date(v.createdAt), y: total, name: v.name };
+    });
+    yLabel = "Distance (yd)";
+    yCallback = null;
+  } else {
+    // Average pace per 100 across all timed intervals
+    points = [];
+    swims.forEach(r => {
+      const v = r.value;
+      let totalSecs = 0, totalDist = 0;
+      (v.intervals || []).forEach(i => {
+        const secs = parseInterval(i.interval);
+        if (secs && i.distance) {
+          const reps = i.reps || 1;
+          totalSecs += secs * reps;
+          totalDist += i.distance * reps;
+        }
+      });
+      if (totalDist > 0) {
+        const pace100 = (totalSecs / totalDist) * 100;
+        points.push({ x: new Date(v.createdAt), y: pace100, name: v.name });
+      }
+    });
+    yLabel = "Pace per 100 (sec)";
+    yCallback = val => formatPace(val);
+  }
+
+  if (swimChart) swimChart.destroy();
+  swimChart = new Chart($("swim-chart"), {
+    type: "line",
+    data: {
+      datasets: [{
+        label: selectedSwimMetric === "volume" ? "Volume" : "Pace",
+        data: points,
+        borderColor: "#4caf84",
+        backgroundColor: "rgba(76,175,132,0.1)",
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: "#4caf84",
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: yLabel, color: "#8b90a0", font: { size: 12 } },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: {
+            color: "#8b90a0", font: { size: 11 },
+            callback: yCallback || (v => v),
+          },
+          reverse: selectedSwimMetric === "pace", // Lower pace = faster = better = higher on chart
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = ctx.raw;
+              if (selectedSwimMetric === "pace") return `${formatPace(p.y)} /100`;
+              return `${p.y} yd`;
+            },
+            title: ctx => {
+              const p = ctx[0]?.raw;
+              const dateStr = ctx[0]?.label || "";
+              return p?.name ? `${p.name} — ${dateStr}` : dateStr;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Stats
+  if (points.length >= 1) {
+    const allSwimDist = swims.map(r =>
+      (r.value.intervals || []).reduce((s, i) => s + (i.distance * (i.reps || 1)), 0)
+    );
+    const totalAll = allSwimDist.reduce((a, b) => a + b, 0);
+    const avg = Math.round(totalAll / swims.length);
+    const max = Math.max(...allSwimDist);
+
+    let paceStr = "";
+    if (selectedSwimMetric === "pace" && points.length >= 2) {
+      const first = points[0];
+      const last = points[points.length - 1];
+      paceStr = `<div>First: ${formatPace(first.y)}/100 &rarr; Latest: ${formatPace(last.y)}/100</div>`;
+    }
+
+    $("stats-content").innerHTML = `
+      <div><strong>Swim</strong></div>
+      <div>Sessions: ${swims.length}</div>
+      <div>Total: ${totalAll.toLocaleString()} yd</div>
+      <div>Avg/session: ${avg.toLocaleString()} yd</div>
+      <div>Best session: ${max.toLocaleString()} yd</div>
+      ${paceStr}
+    `;
+    $("stats-card").style.display = "";
+  } else {
+    $("stats-card").style.display = "none";
+  }
+}
+
+// --- Lift Analytics ---
+function renderLiftAnalytics() {
+  const lifts = workouts.filter(r => r.value?.workoutType === "lift");
+  const exerciseNames = new Set();
+  lifts.forEach(r => r.value.exercises?.forEach(ex => exerciseNames.add(ex.name)));
+
+  const names = [...exerciseNames].sort();
+  const chipRow = $("lift-filter-chips");
+  chipRow.innerHTML = "";
+
+  if (names.length === 0) {
+    if (liftChart) { liftChart.destroy(); liftChart = null; }
+    $("stats-card").style.display = "none";
+    return;
+  }
+
+  if (!selectedLiftExercise || !names.includes(selectedLiftExercise)) {
+    selectedLiftExercise = names[0];
+  }
+
+  names.forEach(name => {
+    const chip = document.createElement("button");
+    chip.className = `filter-chip ${name === selectedLiftExercise ? "active" : ""}`;
+    chip.textContent = name;
+    chip.onclick = () => { selectedLiftExercise = name; renderLiftAnalytics(); };
+    chipRow.appendChild(chip);
+  });
+
+  const points = [];
+  lifts.sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
+  lifts.forEach(r => {
+    const date = r.value.createdAt;
+    r.value.exercises?.forEach(ex => {
+      if (ex.name === selectedLiftExercise) {
+        points.push({ x: new Date(date), y: ex.weight, reps: ex.reps, sets: ex.sets });
+      }
+    });
+  });
+
+  if (liftChart) liftChart.destroy();
+  liftChart = new Chart($("lift-chart"), {
+    type: "line",
+    data: {
+      datasets: [{
+        label: selectedLiftExercise,
+        data: points,
+        borderColor: "#6c8cff",
+        backgroundColor: "rgba(108,140,255,0.1)",
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: "#6c8cff",
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: "Weight (lb)", color: "#8b90a0", font: { size: 12 } },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = ctx.raw;
+              return `${p.y} lb — ${p.sets}x${p.reps}`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (points.length >= 2) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    const diff = last.y - first.y;
+    const sign = diff >= 0 ? "+" : "";
+    $("stats-content").innerHTML = `
+      <div><strong>${selectedLiftExercise}</strong></div>
+      <div>Sessions: ${points.length}</div>
+      <div>Starting: ${first.y} lb &rarr; Current: ${last.y} lb (${sign}${diff} lb)</div>
+      <div>Best: ${Math.max(...points.map(p => p.y))} lb</div>
+    `;
+    $("stats-card").style.display = "";
+  } else {
+    $("stats-card").style.display = "none";
+  }
+}
+
+// --- Body Analytics ---
+let bodyChart = null;
+let selectedBodyMetric = "weight"; // "weight" | "bmi"
+
+function renderBodyAnalytics() {
+  const weighIns = workouts
+    .filter(r => r.value?.workoutType === "weigh-in")
+    .sort((a, b) => (a.value.createdAt || "").localeCompare(b.value.createdAt || ""));
+
+  const chipRow = $("body-metric-chips");
+  chipRow.innerHTML = "";
+  const heightIn = getSavedHeight();
+  const metrics = ["weight"];
+  if (heightIn) metrics.push("bmi");
+  metrics.forEach(metric => {
+    const chip = document.createElement("button");
+    chip.className = `filter-chip ${metric === selectedBodyMetric ? "active" : ""}`;
+    chip.textContent = metric === "weight" ? "Weight" : "BMI";
+    chip.onclick = () => { selectedBodyMetric = metric; renderBodyAnalytics(); };
+    chipRow.appendChild(chip);
+  });
+  if (!heightIn) selectedBodyMetric = "weight";
+
+  if (weighIns.length === 0) {
+    if (bodyChart) { bodyChart.destroy(); bodyChart = null; }
+    $("stats-card").style.display = "none";
+    return;
+  }
+
+  let points, yLabel, borderColor, bgColor;
+
+  if (selectedBodyMetric === "weight") {
+    points = weighIns.map(r => ({
+      x: new Date(r.value.createdAt),
+      y: r.value.weight,
+    }));
+    yLabel = "Weight (lb)";
+    borderColor = "#e09050";
+    bgColor = "rgba(224,144,80,0.1)";
+  } else {
+    points = weighIns.map(r => ({
+      x: new Date(r.value.createdAt),
+      y: parseFloat(calcBMI(r.value.weight, heightIn).toFixed(1)),
+    }));
+    yLabel = "BMI";
+    borderColor = "#e09050";
+    bgColor = "rgba(224,144,80,0.1)";
+  }
+
+  if (bodyChart) bodyChart.destroy();
+  bodyChart = new Chart($("body-chart"), {
+    type: "line",
+    data: {
+      datasets: [{
+        label: selectedBodyMetric === "weight" ? "Weight" : "BMI",
+        data: points,
+        borderColor, backgroundColor: bgColor,
+        fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: borderColor,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "MMM d, yyyy" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: yLabel, color: "#8b90a0", font: { size: 12 } },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#8b90a0", font: { size: 11 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = ctx.raw;
+              if (selectedBodyMetric === "bmi") return `BMI: ${p.y}`;
+              return `${p.y} lb`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Stats
+  if (points.length >= 1) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    const diff = last.y - first.y;
+    const sign = diff >= 0 ? "+" : "";
+    let bmiLine = "";
+    if (heightIn && selectedBodyMetric === "weight") {
+      const bmi = calcBMI(last.y, heightIn);
+      const cat = bmiCategory(bmi);
+      bmiLine = `<div>Current BMI: ${bmi.toFixed(1)} (${cat.label}) at ${formatHeight(heightIn)}</div>`;
+    }
+    $("stats-content").innerHTML = `
+      <div><strong>${selectedBodyMetric === "weight" ? "Body Weight" : "BMI"}</strong></div>
+      <div>Entries: ${points.length}</div>
+      <div>First: ${first.y}${selectedBodyMetric === "weight" ? " lb" : ""} &rarr; Latest: ${last.y}${selectedBodyMetric === "weight" ? " lb" : ""} (${sign}${diff.toFixed(1)})</div>
+      ${bmiLine}
+    `;
+    $("stats-card").style.display = "";
+  } else {
+    $("stats-card").style.display = "none";
+  }
+}
+
+// ============================================================
+//  CHART.JS DATE ADAPTER
+// ============================================================
+function loadDateAdapter() {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js";
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+async function init() {
+  await loadDateAdapter();
+  initAuth();
+
+  if (session?.refreshJwt) {
+    try {
+      session = await refreshSession(session);
+      saveSession(session);
+      enterApp();
+    } catch {
+      session = null;
+      saveSession(null);
+    }
+  } else if (session) {
+    enterApp();
+  }
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js");
+  });
+}
+
+init();
+</script>
+</body>
+</html>
