@@ -1,0 +1,143 @@
+name: Verify Phylo ATProto Records
+
+on:
+  push:
+    branches:
+      - claude/atproto-tree-visualization-6QTyy
+    paths:
+      - '.github/workflows/verify-phylo.yml'
+
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/atproto-tree-visualization-6QTyy
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check ATProto phylo records
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+        run: |
+          python3 - <<'PYEOF' | tee phylo/atproto-status.txt
+          import json, urllib.request, sys
+
+          handle = "${{ secrets.BLUESKY_HANDLE }}"
+          if not handle:
+              print("ERROR: BLUESKY_HANDLE secret not set")
+              sys.exit(1)
+
+          # Resolve handle → DID
+          url = f"https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}"
+          with urllib.request.urlopen(url, timeout=15) as r:
+              did = json.loads(r.read())["did"]
+          print(f"Handle: {handle}")
+          print(f"DID: {did}")
+
+          # Resolve DID → PDS
+          with urllib.request.urlopen(f"https://plc.directory/{did}", timeout=15) as r:
+              doc = json.loads(r.read())
+          pds = None
+          for svc in doc.get("service", []):
+              if svc.get("type") == "AtprotoPersonalDataServer":
+                  pds = svc["serviceEndpoint"]
+                  break
+          if not pds:
+              print("ERROR: No PDS found in DID document")
+              sys.exit(1)
+          print(f"PDS: {pds}")
+
+          def list_records(collection):
+              records = []
+              cursor = ""
+              while True:
+                  url = f"{pds}/xrpc/com.atproto.repo.listRecords?repo={did}&collection={collection}&limit=100"
+                  if cursor:
+                      url += f"&cursor={cursor}"
+                  with urllib.request.urlopen(url, timeout=15) as r:
+                      page = json.loads(r.read())
+                  batch = page.get("records", [])
+                  records.extend(batch)
+                  cursor = page.get("cursor", "")
+                  if not cursor or not batch:
+                      break
+              return records
+
+          # Check clade records (new adaptive format)
+          clade_records = list_records("com.minomobi.phylo.clade")
+          # Check legacy node records
+          node_records = list_records("com.minomobi.phylo.node")
+
+          print(f"\n{'='*60}")
+          print(f"CLADE RECORDS: {len(clade_records)}")
+          print(f"LEGACY NODE RECORDS: {len(node_records)}")
+          print(f"{'='*60}")
+
+          # Analyze clade records
+          if clade_records:
+              total_nodes = 0
+              all_nodes = []
+              print(f"\n--- Clade Records (adaptive chunked) ---")
+              for rec in clade_records:
+                  val = rec.get("value", rec)
+                  nodes = val.get("nodes", [])
+                  refs = val.get("refs", [])
+                  total_nodes += len(nodes)
+                  all_nodes.extend(nodes)
+                  root_ott = val.get("rootOttId", "?")
+                  root_node = next((n for n in nodes if n.get("ottId") == root_ott), {})
+                  name = root_node.get("name", f"ott{root_ott}")
+                  rank = root_node.get("rank", "?")
+                  est_kb = len(json.dumps(val).encode()) / 1024
+                  print(f"  {name} ({rank}): {len(nodes)} nodes, {len(refs)} refs (~{est_kb:.1f} KB)")
+
+              print(f"\nTotal nodes across all clades: {total_nodes}")
+              print(f"Compression: {total_nodes} nodes in {len(clade_records)} records ({total_nodes/len(clade_records):.0f}x)")
+
+              # Rank breakdown from all clade nodes
+              ranks = {}
+              roots = []
+              for n in all_nodes:
+                  rank = n.get("rank", "no rank")
+                  ranks[rank] = ranks.get(rank, 0) + 1
+                  if not n.get("parentOttId"):
+                      roots.append(n)
+
+              print(f"\nRoots (no parent): {len(roots)}")
+              for root in roots:
+                  print(f"  ott{root['ottId']}: {root['name']} ({root.get('rank','?')}) — {root.get('numTips',0)} tips")
+
+              print(f"\nRank breakdown:")
+              for rank, count in sorted(ranks.items(), key=lambda x: -x[1]):
+                  print(f"  {rank}: {count}")
+
+          # Legacy node summary
+          if node_records:
+              print(f"\n--- Legacy Node Records ---")
+              ranks = {}
+              for rec in node_records:
+                  val = rec.get("value", rec)
+                  rank = val.get("rank", "no rank")
+                  ranks[rank] = ranks.get(rank, 0) + 1
+              print(f"Rank breakdown:")
+              for rank, count in sorted(ranks.items(), key=lambda x: -x[1]):
+                  print(f"  {rank}: {count}")
+
+          if not clade_records and not node_records:
+              print("\nNo phylo records found. Run sync-phylo workflow first.")
+          PYEOF
+
+      - name: Commit status file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add phylo/atproto-status.txt
+          git diff --cached --quiet && echo "No changes" || git commit -m "verify-phylo: ATProto record status [auto]" && git push origin claude/atproto-tree-visualization-6QTyy

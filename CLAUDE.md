@@ -244,3 +244,30 @@ When Claude is asked to publish:
 4. Update `index.html` with the new article's headline and summary
 5. Commit and push — the Action handles Bluesky posting
 6. (Future) Generate editorial panel transcript and podcast audio
+
+## Phylo Tree Pipeline
+
+### How It Works
+The phylo tree syncs taxonomic data from the Open Tree of Life API into ATProto PDS records, then renders it in two browser-based viewers (`phylo/index.html` zoom view, `phylo/tree.html` text tree).
+
+### Triggering Syncs
+**Pushing is your hand in the outside world.** The `sync-phylo.yml` GitHub Action triggers on push to tracked paths (`scripts/sync-otol-to-atproto.py`, `.github/workflows/sync-phylo.yml`, `phylo/lexicons/**`). On push, it syncs all configured clades in the `ott_ids` default list. To add a new clade:
+1. Add its OTT ID to the `ott_ids` default in `.github/workflows/sync-phylo.yml`
+2. Push — the workflow runs automatically and syncs all listed clades
+3. Check `phylo/sync-log.txt` (auto-committed by the bot) to verify results
+
+Do **not** try to call the OToL API or Wikidata SPARQL directly from the sandbox — they're blocked by the proxy. The GitHub Actions runner has unrestricted network access.
+
+### Currently Synced Clades
+| Clade | OTT ID | ~Nodes | Notes |
+|-------|--------|--------|-------|
+| Mammalia | 244265 | 11,715 | Muridae (1,136 nodes) still exceeds single-record PDS limit |
+| Aves | 81461 | ~11,000 | Birds |
+
+### Key Parameters
+- `MAX_CHUNK_NODES=400`: Target nodes per PDS record. Lowered from 500 to avoid 413 errors.
+- `MIN_CLADE_NODES=50`: Don't split subtrees smaller than this.
+- `--replace`: Scoped — only deletes records whose rkey collides with the new clade being written. Other clades are preserved.
+
+### Viewer Clade Picker
+Both viewers auto-detect multiple roots from the flat PDS node list and show a dropdown to switch between clades. No manual wiring needed — just sync the clade and it appears.

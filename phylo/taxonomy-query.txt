@@ -1,0 +1,37 @@
+============================================================
+PRIMATES LINEAGE
+============================================================
+  Primatomorpha (ott6520519) [no rank] — 755 tips
+    Euarchontoglires (ott392222) [superorder] — 4379 tips
+      Boreoeutheria (ott5334778) [no rank] — 8572 tips
+        unnamed (ott?) [no rank] — 8790 tips
+          unnamed (ott?) [no rank] — 8791 tips
+            unnamed (ott?) [no rank] — 8792 tips
+              unnamed (ott?) [no rank] — 8794 tips
+                Eutheria (ott683263) [no rank] — 8795 tips
+
+============================================================
+PARENT: Primatomorpha (ott6520519)
+============================================================
+  Primates (ott913935) [no rank] — 748 tips
+  Dermoptera (ott987673) [no rank] — 7 tips
+
+============================================================
+GRANDPARENT: Euarchontoglires (ott392222)
+============================================================
+    unnamed (ott?) [?] — 3624 tips, 2 children
+      Glires (ott392220) [no rank] — 3590 tips, 0 children
+      Scandentia (ott574734) [order] — 34 tips, 0 children
+    Primatomorpha (ott6520519) [no rank] — 755 tips, 2 children
+      Primates (ott913935) [no rank] — 748 tips, 0 children
+      Dermoptera (ott987673) [no rank] — 7 tips, 0 children
+
+============================================================
+KEY CLADES — DIRECT QUERY
+============================================================
+  Euarchontoglires (ott392222): 4379 tips
+  Glires (ott392220): 3590 tips
+  Rodentia (ott864593): 3407 tips
+  Scandentia (ott683263): 8795 tips
+  Dermoptera (ott1040185): 11 tips
+  Primates (ott913935): 748 tips

@@ -1,0 +1,23 @@
+Handle: minomobi.bsky.social
+DID: did:plc:oqyev6xmuwgbtpr6jgxh5xg3
+PDS: https://cortinarius.us-west.host.bsky.network
+
+============================================================
+CLADE RECORDS: 0
+LEGACY NODE RECORDS: 1007
+============================================================
+
+--- Legacy Node Records ---
+Rank breakdown:
+  species: 573
+  subspecies: 219
+  no rank: 101
+  genus: 76
+  family: 13
+  subfamily: 11
+  infraorder: 5
+  subgenus: 3
+  parvorder: 2
+  suborder: 2
+  superfamily: 1
+  no rank - terminal: 1
