@@ -273,9 +273,8 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
       - min_clade: floor. A subtree smaller than this is inlined into its
         parent, even if the parent overflows the soft target.
       - hard_max: absolute ceiling. Once a clade reaches this size, ALL
-        remaining children are split off as separate records regardless
-        of their size. This prevents megaclades (e.g. Passeriformes 10k+
-        nodes) from blowing past the PDS payload limit.
+        remaining children are deferred — big ones become their own records,
+        small ones are batched into group records of ~max_nodes each.
 
     Returns a list of clade dicts ready to write as ATProto records.
     """
@@ -306,11 +305,18 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
 
     subtree_size(root_id)
 
+    def collect_subtree(ott_id, acc):
+        """Gather all nodes in a subtree (no splitting)."""
+        acc.append(by_id[ott_id])
+        for kid in children_of.get(ott_id, []):
+            collect_subtree(kid, acc)
+
     clades = []
 
     def make_clade(root_ott_id):
         clade_nodes = []
         child_clade_ids = []
+        overflow = []  # children deferred at hard ceiling
 
         def fill(ott_id):
             clade_nodes.append(by_id[ott_id])
@@ -321,11 +327,9 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
             for child_id in kids:
                 child_size = subtree_size(child_id)
                 remaining = max_nodes - len(clade_nodes)
-                overflowing = len(clade_nodes) >= hard_max
-                if overflowing and child_size > 1:
-                    # Hard ceiling hit — force-split any non-leaf child
-                    child_clade_ids.append(child_id)
-                    make_clade(child_id)
+                if len(clade_nodes) >= hard_max:
+                    # Absolute ceiling — defer everything
+                    overflow.append(child_id)
                 elif child_size <= remaining:
                     fill(child_id)
                 elif child_size < min_clade:
@@ -336,6 +340,45 @@ def partition_into_clades(flat_nodes, max_nodes=MAX_CHUNK_NODES,
                     make_clade(child_id)
 
         fill(root_ott_id)
+
+        # Process deferred overflow children
+        if overflow:
+            small_subtrees = []  # [(nodes_list, first_ott_id), ...]
+            for child_id in overflow:
+                if subtree_size(child_id) >= min_clade:
+                    # Big enough for its own properly-partitioned record
+                    child_clade_ids.append(child_id)
+                    make_clade(child_id)
+                else:
+                    # Collect for batching
+                    nodes = []
+                    collect_subtree(child_id, nodes)
+                    small_subtrees.append(nodes)
+
+            # Pack small subtrees into batch records of ~max_nodes
+            batch = []
+            for subtree_nodes in small_subtrees:
+                if len(batch) + len(subtree_nodes) > max_nodes and batch:
+                    # Flush current batch
+                    batch_root = batch[0]["ottId"]
+                    clades.append({
+                        "rootOttId": batch_root,
+                        "nodes": batch,
+                        "refs": [],
+                    })
+                    child_clade_ids.append(batch_root)
+                    batch = []
+                batch.extend(subtree_nodes)
+
+            if batch:
+                batch_root = batch[0]["ottId"]
+                clades.append({
+                    "rootOttId": batch_root,
+                    "nodes": batch,
+                    "refs": [],
+                })
+                child_clade_ids.append(batch_root)
+
         clades.append({
             "rootOttId": root_ott_id,
             "nodes": clade_nodes,
@@ -407,8 +450,12 @@ def list_existing_records(pds, did, token, collection=COLLECTION, limit=100):
     return existing
 
 
+MAX_RETRIES = 4
+RETRY_BASE_DELAY = 3  # seconds — doubles each retry
+
+
 def write_record(pds, did, token, rkey, record):
-    """Write a single clade record to the PDS."""
+    """Write a single clade record to the PDS, with retry on 429."""
     url = f"{pds}/xrpc/com.atproto.repo.createRecord"
     payload = {
         "repo": did,
@@ -420,23 +467,31 @@ def write_record(pds, did, token, rkey, record):
         },
     }
     data = json.dumps(payload).encode()
-    req = Request(url, data=data, headers={
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
-    })
-    try:
-        with urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read())
-        return result.get("uri")
-    except HTTPError as exc:
-        body = exc.read().decode()
-        print(f"  Error writing clade {rkey}: {exc.code} {body}", file=sys.stderr)
-        return None
+
+    for attempt in range(MAX_RETRIES + 1):
+        req = Request(url, data=data, headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        })
+        try:
+            with urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read())
+            return result.get("uri")
+        except HTTPError as exc:
+            body = exc.read().decode()
+            if exc.code == 429 and attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                print(f"  Rate limited on {rkey}, retry {attempt + 1}/{MAX_RETRIES} in {delay}s",
+                      file=sys.stderr)
+                time.sleep(delay)
+                continue
+            print(f"  Error writing clade {rkey}: {exc.code} {body}", file=sys.stderr)
+            return None
 
 
 def write_batch(pds, did, token, clade_records):
     """Write up to BATCH_SIZE clade records in a single applyWrites call.
-    Returns (success_count, error_count)."""
+    Returns (success_count, error_count). Retries on 429."""
     writes = []
     for clade in clade_records:
         writes.append({
@@ -453,28 +508,40 @@ def write_batch(pds, did, token, clade_records):
         "writes": writes,
     }
     data = json.dumps(payload).encode()
-    req = Request(f"{pds}/xrpc/com.atproto.repo.applyWrites", data=data, headers={
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
-    })
-    try:
-        with urlopen(req, timeout=60) as resp:
-            json.loads(resp.read())
-        return len(clade_records), 0
-    except HTTPError as exc:
-        body = exc.read().decode()
-        print(f"  Batch error ({len(clade_records)} clades): {exc.code} {body}", file=sys.stderr)
-        print(f"  Falling back to individual writes...", file=sys.stderr)
-        ok, err = 0, 0
-        for clade in clade_records:
-            rec_value = build_record_value(clade)
-            uri = write_record(pds, did, token, str(clade["rootOttId"]), rec_value)
-            if uri:
-                ok += 1
-            else:
-                err += 1
-            time.sleep(RATE_DELAY)
-        return ok, err
+
+    for attempt in range(MAX_RETRIES + 1):
+        req = Request(f"{pds}/xrpc/com.atproto.repo.applyWrites", data=data, headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        })
+        try:
+            with urlopen(req, timeout=60) as resp:
+                json.loads(resp.read())
+            return len(clade_records), 0
+        except HTTPError as exc:
+            body = exc.read().decode()
+            if exc.code == 429 and attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                print(f"  Rate limited (batch), retry {attempt + 1}/{MAX_RETRIES} in {delay}s",
+                      file=sys.stderr)
+                time.sleep(delay)
+                continue
+            print(f"  Batch error ({len(clade_records)} clades): {exc.code} {body}",
+                  file=sys.stderr)
+            break
+
+    # Batch failed after retries — fall back to individual writes
+    print(f"  Falling back to individual writes...", file=sys.stderr)
+    ok, err = 0, 0
+    for clade in clade_records:
+        rec_value = build_record_value(clade)
+        uri = write_record(pds, did, token, str(clade["rootOttId"]), rec_value)
+        if uri:
+            ok += 1
+        else:
+            err += 1
+        time.sleep(RATE_DELAY)
+    return ok, err
 
 
 def delete_batch(pds, did, token, rkeys):
