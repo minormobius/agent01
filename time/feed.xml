@@ -4,10 +4,10 @@
   xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>The Mino Times — Biotech Intelligence Podcast</title>
-    <link>https://minomobi.com</link>
+    <link>https://time.minomobi.com</link>
     <description>Deep-dive editorial discussions on biotech, diagnostics, and clinical automation. Researched and produced by an agentic AI pipeline.</description>
     <language>en-us</language>
-    <atom:link href="https://minomobi.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="https://time.minomobi.com/feed.xml" rel="self" type="application/rss+xml"/>
     <itunes:author>The Mino Times Editorial Panel</itunes:author>
     <itunes:summary>AI-researched biotech intelligence with editorial panel discussions.</itunes:summary>
     <itunes:category text="Science">
@@ -20,10 +20,10 @@
     <item>
       <title>Episode Title</title>
       <description>Episode description</description>
-      <enclosure url="https://minomobi.com/assets/podcast/episode-001.mp3" length="0" type="audio/mpeg"/>
+      <enclosure url="https://time.minomobi.com/assets/podcast/episode-001.mp3" length="0" type="audio/mpeg"/>
       <pubDate>Sun, 15 Feb 2026 00:00:00 GMT</pubDate>
       <itunes:duration>00:15:00</itunes:duration>
-      <guid>https://minomobi.com/assets/podcast/episode-001.mp3</guid>
+      <guid>https://time.minomobi.com/assets/podcast/episode-001.mp3</guid>
     </item>
     -->
 
