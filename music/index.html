@@ -141,8 +141,8 @@ a{color:#58a6ff}
 // ═══════════════════════════════════════════════════════════════
 
 const KEY_W = 56;
-const CELL_W = 24;
-const CELL_H = 16;
+let CELL_W = 24;
+let CELL_H = 16;
 const PITCH_LOW = 36;   // C2
 const PITCH_HIGH = 84;  // C6
 const PITCH_COUNT = PITCH_HIGH - PITCH_LOW;
@@ -622,7 +622,20 @@ canvas.addEventListener('mouseleave', () => {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Touch events — mirror mouse behavior for mobile
+// ─── Touch: two-finger pan, double-tap zoom, single-finger notes ───
+const ZOOM_LEVELS = [
+  { cw: 16, ch: 10 },  // zoomed out
+  { cw: 24, ch: 16 },  // default
+  { cw: 36, ch: 24 },  // zoomed in
+  { cw: 48, ch: 32 },  // close-up
+];
+let zoomIdx = 1;  // start at default
+
+function touchXY(e, idx) {
+  const t = (e.touches[idx] || e.changedTouches[idx || 0]);
+  return { x: t.clientX, y: t.clientY };
+}
+
 function touchCell(e) {
   const t = e.touches[0] || e.changedTouches[0];
   const rect = canvas.getBoundingClientRect();
@@ -632,17 +645,61 @@ function touchCell(e) {
   const row = Math.floor(sy / CELL_H);
   const pitch = PITCH_HIGH - 1 - row;
   if (step < 0 || step >= state.steps || pitch < PITCH_LOW || pitch >= PITCH_HIGH) return null;
-  return { pitch, step };
+  return { pitch, step, sx, sy };
 }
 
+let touchMode = null;       // 'note' | 'pan' | null
+let lastTapTime = 0;
+let lastTapXY = null;
+let panStart = null;        // { x, y, scrollLeft, scrollTop }
+const wrapper = document.getElementById('grid-wrapper');
+
 canvas.addEventListener('touchstart', (e) => {
+  // Two-finger → pan mode
+  if (e.touches.length >= 2) {
+    e.preventDefault();
+    touchMode = 'pan';
+    isDragging = false;
+    dragNote = null;
+    const t = touchXY(e, 0);
+    panStart = { x: t.x, y: t.y, scrollLeft: wrapper.scrollLeft, scrollTop: wrapper.scrollTop };
+    return;
+  }
+
+  // Single finger — check for double-tap zoom first
+  const now = Date.now();
+  const t = touchXY(e, 0);
+  if (lastTapXY && now - lastTapTime < 300 &&
+      Math.abs(t.x - lastTapXY.x) < 30 && Math.abs(t.y - lastTapXY.y) < 30) {
+    // Double-tap: cycle zoom
+    e.preventDefault();
+    lastTapTime = 0;
+    lastTapXY = null;
+
+    const rect = canvas.getBoundingClientRect();
+    // Fraction of scroll position to preserve
+    const fracX = (wrapper.scrollLeft + t.x - rect.left) / canvas.width;
+    const fracY = (wrapper.scrollTop + t.y - rect.top) / canvas.height;
+
+    zoomIdx = (zoomIdx + 1) % ZOOM_LEVELS.length;
+    CELL_W = ZOOM_LEVELS[zoomIdx].cw;
+    CELL_H = ZOOM_LEVELS[zoomIdx].ch;
+    resizeCanvas();
+
+    // Restore scroll so the tapped point stays under the finger
+    wrapper.scrollLeft = fracX * canvas.width - (t.x - rect.left);
+    wrapper.scrollTop = fracY * canvas.height - (t.y - rect.top);
+    return;
+  }
+  lastTapTime = now;
+  lastTapXY = { x: t.x, y: t.y };
+
+  // Single tap on piano keys → preview
   const cell = touchCell(e);
   if (!cell) {
-    // Piano key preview
-    const t = e.touches[0];
     const rect = canvas.getBoundingClientRect();
-    const sx = (t.clientX - rect.left) * (canvas.width / rect.width);
-    const sy = (t.clientY - rect.top) * (canvas.height / rect.height);
+    const sx = (t.x - rect.left) * (canvas.width / rect.width);
+    const sy = (t.y - rect.top) * (canvas.height / rect.height);
     if (sx < KEY_W) {
       const row = Math.floor(sy / CELL_H);
       const pitch = PITCH_HIGH - 1 - row;
@@ -651,7 +708,9 @@ canvas.addEventListener('touchstart', (e) => {
     return;
   }
 
+  // Single tap on grid → place/remove note
   e.preventDefault();
+  touchMode = 'note';
   isDragging = true;
   dragStartCell = cell;
   dragNote = null;
@@ -674,10 +733,27 @@ canvas.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', (e) => {
-  const cell = touchCell(e);
-  if (!isDragging || !cell || !dragStartCell) return;
+  // Two-finger pan
+  if (touchMode === 'pan' || e.touches.length >= 2) {
+    e.preventDefault();
+    touchMode = 'pan';
+    if (!panStart) {
+      const t = touchXY(e, 0);
+      panStart = { x: t.x, y: t.y, scrollLeft: wrapper.scrollLeft, scrollTop: wrapper.scrollTop };
+      return;
+    }
+    const t = touchXY(e, 0);
+    wrapper.scrollLeft = panStart.scrollLeft - (t.x - panStart.x);
+    wrapper.scrollTop = panStart.scrollTop - (t.y - panStart.y);
+    return;
+  }
+
+  // Single-finger note drag
+  if (touchMode !== 'note' || !isDragging || !dragStartCell) return;
   e.preventDefault();
 
+  const cell = touchCell(e);
+  if (!cell) return;
   const track = state.tracks[state.activeTrack];
 
   if (dragMode === 'extend' && dragNote) {
@@ -699,6 +775,8 @@ canvas.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('touchend', () => {
+  touchMode = null;
+  panStart = null;
   isDragging = false;
   dragStartCell = null;
   dragMode = null;
@@ -1335,10 +1413,10 @@ render();
 checkUrlParams();
 
 // Scroll to middle C area on load
-const wrapper = document.getElementById('grid-wrapper');
-const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
-const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
-wrapper.scrollTop = Math.max(0, targetScroll);
+{ const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
+  const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
+  wrapper.scrollTop = Math.max(0, targetScroll);
+}
 
 // Service worker
 if ('serviceWorker' in navigator) {
