@@ -49,6 +49,22 @@
         <span id="storage-text">Checking storage...</span>
       </div>
 
+      <!-- Sensors panel -->
+      <div class="sidebar-section">
+        <h3>Sensors</h3>
+        <div id="sensor-buttons">
+          <button class="hw-btn sensor-btn" data-sensor="motion" title="Accelerometer + Gyroscope">Motion</button>
+          <button class="hw-btn sensor-btn" data-sensor="orientation" title="Compass + Tilt">Orient</button>
+          <button class="hw-btn sensor-btn" data-sensor="gps" title="GPS Location">GPS</button>
+          <button class="hw-btn sensor-btn" data-sensor="camera" title="Camera frame analysis">Camera</button>
+          <button class="hw-btn sensor-btn" data-sensor="microphone" title="Mic audio analysis">Mic</button>
+          <button class="hw-btn sensor-btn" data-sensor="magnetometer" title="Magnetometer (Chrome)">Mag</button>
+          <button class="hw-btn sensor-btn" data-sensor="ambientLight" title="Ambient Light (Chrome)">Light</button>
+        </div>
+        <div id="sensor-active"></div>
+        <div id="sensor-preview"></div>
+      </div>
+
       <!-- Hardware panel -->
       <div class="sidebar-section">
         <h3>Hardware</h3>
@@ -128,6 +144,7 @@
   <script src="js/notebook.js"></script>
   <script src="js/webgpu-viz.js"></script>
   <script src="js/collab.js"></script>
+  <script src="js/sensors.js"></script>
   <script src="js/hardware.js"></script>
   <script src="js/capture.js"></script>
   <script src="js/app.js"></script>

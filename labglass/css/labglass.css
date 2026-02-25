@@ -346,6 +346,24 @@ html, body {
   border-color: var(--text-dim);
 }
 
+.sensor-btn.sensor-active {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(63, 185, 80, 0.1);
+}
+
+#sensor-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#sensor-preview video {
+  width: 100%;
+  border-radius: var(--radius);
+  margin-top: 8px;
+}
+
 #hardware-devices, #collab-status, #collab-peers {
   font-size: 12px;
   color: var(--text-dim);

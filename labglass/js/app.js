@@ -41,6 +41,7 @@ window.LabApp = (() => {
     setupSidebar();
     setupDropZone();
     setupToolbar();
+    setupSensorsUI();
     setupCollabUI();
     setupCaptureUI();
     setupShareDialog();
@@ -222,6 +223,111 @@ window.LabApp = (() => {
       toast('Notebook exported', 'success');
     });
   }
+
+  // ── Sensors ──
+  function setupSensorsUI() {
+    const sensorStarters = {
+      motion: () => LabSensors.startMotion(),
+      orientation: () => LabSensors.startOrientation(),
+      gps: () => LabSensors.startGeolocation(),
+      camera: () => LabSensors.startCamera(),
+      microphone: () => LabSensors.startMicrophone(),
+      magnetometer: () => LabSensors.startMagnetometer(),
+      ambientLight: () => LabSensors.startAmbientLight(),
+    };
+
+    const sensorTables = {
+      motion: 'sensor_accel',
+      orientation: 'sensor_orientation',
+      gps: 'sensor_gps',
+      camera: 'sensor_camera',
+      microphone: 'sensor_mic',
+      magnetometer: 'sensor_magnetometer',
+      ambientLight: 'sensor_ambient_light',
+    };
+
+    document.querySelectorAll('.sensor-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sensor = btn.dataset.sensor;
+
+        // Toggle: if active, stop it
+        const activeSensors = LabSensors.getActive();
+        const isActive = activeSensors.some(s => s.name === sensor || s.name === sensorNameMap(sensor));
+
+        if (isActive) {
+          LabSensors.stop(sensorNameMap(sensor));
+          btn.classList.remove('sensor-active');
+          toast(`${sensor} stopped`);
+          updateSensorList();
+          return;
+        }
+
+        // Start sensor
+        try {
+          btn.classList.add('sensor-active');
+          await sensorStarters[sensor]();
+          toast(`${sensor} streaming → ${sensorTables[sensor]}`, 'success');
+
+          // Auto-create a SQL cell to query the sensor data
+          LabNotebook.createCell('sql',
+            `-- Live ${sensor} data (run again to see latest)\nSELECT * FROM "${sensorTables[sensor]}" ORDER BY t DESC LIMIT 20;`,
+            `${sensor}_live`
+          );
+
+          updateSensorList();
+        } catch (err) {
+          btn.classList.remove('sensor-active');
+          toast(`${sensor}: ${err.message}`, 'error');
+        }
+      });
+    });
+
+    // Grey out unavailable sensors
+    const caps = LabSensors.detectCapabilities();
+    const capMap = {
+      motion: caps.motion,
+      orientation: caps.orientation,
+      gps: caps.geolocation,
+      camera: caps.camera,
+      microphone: caps.microphone,
+      magnetometer: caps.magnetometer,
+      ambientLight: caps.ambientLight,
+    };
+
+    document.querySelectorAll('.sensor-btn').forEach(btn => {
+      const sensor = btn.dataset.sensor;
+      if (!capMap[sensor]) {
+        btn.disabled = true;
+        btn.title += ' (not available)';
+        btn.style.opacity = '0.3';
+      }
+    });
+  }
+
+  function sensorNameMap(sensor) {
+    // Map button data-sensor to LabSensors active map key
+    const map = { gps: 'gps', ambientLight: 'ambient_light' };
+    return map[sensor] || sensor;
+  }
+
+  function updateSensorList() {
+    const el = document.getElementById('sensor-active');
+    if (!el) return;
+    const sensors = LabSensors.getActive();
+    if (sensors.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = sensors.map(s =>
+      `<div style="font-family:var(--font-mono);font-size:11px;padding:2px 0;color:var(--green);">` +
+      `${s.name} (${s.points} pts)</div>`
+    ).join('');
+  }
+
+  // Refresh sensor point counts periodically
+  setInterval(() => {
+    if (LabSensors.getActive().length > 0) updateSensorList();
+  }, 2000);
 
   // ── Collaboration ──
   function setupCollabUI() {
