@@ -103,6 +103,17 @@ window.LabApp = (() => {
       refreshFileList();
       updateStorageInfo();
     });
+
+    // Sensors topbar button: open sidebar and scroll to sensors section
+    document.getElementById('btn-sensors').addEventListener('click', () => {
+      if (!sidebar.classList.contains('open')) {
+        sidebar.classList.add('open');
+        btn.classList.add('active');
+        if (!isDesktop()) scrim.classList.toggle('visible', true);
+      }
+      const sensorSection = document.querySelector('#sensor-buttons');
+      if (sensorSection) sensorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   // ── Drag & Drop ──
