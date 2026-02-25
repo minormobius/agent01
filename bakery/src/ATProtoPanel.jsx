@@ -136,7 +136,7 @@ function LoginPanel({ onLogin }) {
 
 // --- Publish Panel ---
 
-function PublishPanel({ session, recipeState, flours, enrichments, starterFlours, nutrition, recipeName }) {
+function PublishPanel({ session, recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onRecipeSourceChange }) {
   const [name, setName] = useState(recipeName || "");
   const [description, setDescription] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -167,6 +167,10 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
       const record = buildRecord();
       const res = await publishRecipe(session, record);
       setResult(res);
+      const publishedRkey = parseAtUri(res.uri)?.rkey;
+      if (onRecipeSourceChange && publishedRkey) {
+        onRecipeSourceChange({ handle: session.handle, rkey: publishedRkey });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -477,7 +481,9 @@ function BrowsePanel({ session, onLoadToBuilder }) {
           authorHandle={loadedHandle}
           canDelete={isOwnRecipes}
           onDelete={handleDelete}
-          onLoadToBuilder={onLoadToBuilder}
+          onLoadToBuilder={onLoadToBuilder
+            ? (record) => onLoadToBuilder(record, loadedHandle)
+            : null}
         />
       ))}
 
@@ -492,7 +498,7 @@ function BrowsePanel({ session, onLoadToBuilder }) {
 
 // --- Main ATProto Panel ---
 
-export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder }) {
+export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder, onRecipeSourceChange }) {
   const [session, setSession] = useState(loadSession);
   const [view, setView] = useState("publish"); // "publish" | "browse"
 
@@ -518,9 +524,11 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
   };
 
   const handleLoadToBuilder = onLoadToBuilder
-    ? (record) => {
+    ? (record, authorHandle) => {
         const { name, state } = recipeToCalculator(record, flours, enrichments, starterFlours);
-        onLoadToBuilder(name, state);
+        const rkey = parseAtUri(record.uri)?.rkey;
+        const source = authorHandle && rkey ? { handle: authorHandle, rkey } : null;
+        onLoadToBuilder(name, state, source);
       }
     : null;
 
@@ -581,6 +589,7 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
           starterFlours={starterFlours}
           nutrition={nutrition}
           recipeName={recipeName}
+          onRecipeSourceChange={onRecipeSourceChange}
         />
       )}
       {view === "browse" && <BrowsePanel session={session} onLoadToBuilder={handleLoadToBuilder} />}

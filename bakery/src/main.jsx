@@ -1,7 +1,6 @@
 import { StrictMode, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import FlourBlendCalculator from "./FlourBlendCalculator";
-import RecipeViewer from "./RecipeViewer";
 
 function parseHash(hash) {
   const m = hash.match(/^#\/recipe\/([^/]+)\/([^/]+)$/);
@@ -17,10 +16,7 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  if (route) {
-    return <RecipeViewer handle={route.handle} rkey={route.rkey} />;
-  }
-  return <FlourBlendCalculator />;
+  return <FlourBlendCalculator loadRecipeFromUrl={route} />;
 }
 
 createRoot(document.getElementById("root")).render(
