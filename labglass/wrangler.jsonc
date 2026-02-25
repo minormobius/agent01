@@ -1,8 +1,9 @@
-// Cloudflare Pages — root directory set to labglass/
+// Cloudflare Workers + static assets — root directory set to labglass/
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "glass",
   "compatibility_date": "2026-02-25",
+  "main": "worker.js",
   "assets": {
     "directory": "."
   }
