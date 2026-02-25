@@ -2,7 +2,5 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "glass",
   "compatibility_date": "2026-02-25",
-  "assets": {
-    "directory": "."
-  }
+  "pages_build_output_dir": "."
 }
