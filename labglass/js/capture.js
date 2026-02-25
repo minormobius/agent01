@@ -13,6 +13,11 @@ window.LabCapture = (() => {
   async function startRecording() {
     if (recording) return;
 
+    // Guard: getDisplayMedia is unavailable on iOS Safari
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+      throw new Error('Screen recording is not supported in this browser (no getDisplayMedia).');
+    }
+
     try {
       // Capture the notebook area (or whole tab)
       stream = await navigator.mediaDevices.getDisplayMedia({
@@ -84,11 +89,13 @@ window.LabCapture = (() => {
   async function finishRecording() {
     if (recordedChunks.length === 0) return;
 
-    const blob = new Blob(recordedChunks, { type: recordedChunks[0].type });
+    const mimeType = recordedChunks[0].type || 'video/webm';
+    const blob = new Blob(recordedChunks, { type: mimeType });
     const duration = Date.now() - startTime;
 
-    // Save to OPFS
-    const filename = `recording-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.webm`;
+    // Save to OPFS — use correct extension based on actual MIME type
+    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const filename = `recording-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.${ext}`;
 
     try {
       await LabStorage.writeFile(filename, blob);
@@ -117,12 +124,14 @@ window.LabCapture = (() => {
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
+      'video/mp4;codecs=h264',
       'video/mp4',
     ];
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) return type;
     }
-    return 'video/webm';
+    // Final fallback — let the browser pick
+    return '';
   }
 
   function isRecording() {

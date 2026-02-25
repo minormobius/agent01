@@ -51,12 +51,14 @@ html, body {
 
 /* ── Top bar ── */
 #topbar {
-  height: var(--topbar-h);
+  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
   gap: 8px;
   z-index: 100;
 }
@@ -166,14 +168,15 @@ html, body {
 /* ── Main layout ── */
 #main {
   display: flex;
-  height: calc(100vh - var(--topbar-h));
+  height: calc(100vh - var(--topbar-h) - env(safe-area-inset-top, 0px));
+  height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top, 0px));
   position: relative;
 }
 
 /* ── Sidebar — overlay drawer on mobile ── */
 #sidebar {
   position: fixed;
-  top: var(--topbar-h);
+  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   left: 0;
   bottom: 0;
   width: var(--sidebar-w);
@@ -195,7 +198,7 @@ html, body {
 .sidebar-scrim {
   display: none;
   position: fixed;
-  top: var(--topbar-h);
+  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
   bottom: 0;
@@ -807,8 +810,8 @@ dialog button:hover { background: var(--accent); }
 /* ── Recording indicator ── */
 #rec-indicator {
   position: fixed;
-  top: 56px;
-  right: 12px;
+  top: calc(56px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
   background: var(--bg-raised);
   border: 1px solid var(--red);
   border-radius: var(--radius);
@@ -847,9 +850,9 @@ dialog button:hover { background: var(--accent); }
 /* ── Toasts ── */
 #toasts {
   position: fixed;
-  bottom: 12px;
-  right: 12px;
-  left: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;

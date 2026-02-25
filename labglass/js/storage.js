@@ -1,15 +1,34 @@
 // ── OPFS Storage Manager ──
 // Manages the Origin Private File System for persistent, high-performance file storage.
 // Files dropped/uploaded land here and are queryable by DuckDB-Wasm.
+//
+// Safari doesn't support createWritable(), so writes go through a Web Worker
+// that uses createSyncAccessHandle() instead.
 
 window.LabStorage = (() => {
   let root = null;
+  let opfsWorker = null;
+  let useWorkerWrite = false;
 
   async function init() {
     if (!('storage' in navigator && 'getDirectory' in navigator.storage)) {
       throw new Error('OPFS not supported in this browser');
     }
     root = await navigator.storage.getDirectory();
+
+    // Feature-detect createWritable — Safari lacks it
+    try {
+      const testHandle = await root.getFileHandle('__probe__', { create: true });
+      if (typeof testHandle.createWritable !== 'function') {
+        throw new Error('no createWritable');
+      }
+      await root.removeEntry('__probe__');
+    } catch {
+      // Fall back to worker-based sync access handle writes
+      useWorkerWrite = true;
+      opfsWorker = new Worker('workers/opfs-worker.js');
+    }
+
     // Request persistent storage so the browser won't evict our data
     if (navigator.storage.persist) {
       await navigator.storage.persist();
@@ -22,9 +41,40 @@ window.LabStorage = (() => {
     return root;
   }
 
+  // Write via Worker (Safari path) — converts File/Blob to ArrayBuffer and posts
+  function workerWrite(name, data) {
+    return new Promise(async (resolve, reject) => {
+      let buf;
+      if (data instanceof ArrayBuffer) {
+        buf = data;
+      } else if (data instanceof Blob || data instanceof File) {
+        buf = await data.arrayBuffer();
+      } else if (ArrayBuffer.isView(data)) {
+        buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      } else {
+        // String or other — encode to UTF-8
+        buf = new TextEncoder().encode(String(data)).buffer;
+      }
+
+      const handler = (e) => {
+        opfsWorker.removeEventListener('message', handler);
+        if (e.data.ok) resolve();
+        else reject(new Error(e.data.error));
+      };
+      opfsWorker.addEventListener('message', handler);
+      opfsWorker.postMessage({ cmd: 'write', name, data: buf }, [buf]);
+    });
+  }
+
   // Write a File/Blob to OPFS
   async function writeFile(name, data) {
     const dir = await getRoot();
+
+    if (useWorkerWrite) {
+      await workerWrite(name, data);
+      return await dir.getFileHandle(name);
+    }
+
     const handle = await dir.getFileHandle(name, { create: true });
     const writable = await handle.createWritable();
     await writable.write(data);
