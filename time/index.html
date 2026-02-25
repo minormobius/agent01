@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Mino Times — Biotech Intelligence</title>
+    <link rel="stylesheet" href="assets/css/newspaper.css">
+    <link rel="alternate" type="application/rss+xml" title="The Mino Times Podcast" href="feed.xml">
+</head>
+<body>
+
+    <!-- Masthead -->
+    <header class="masthead">
+        <div class="masthead-date" id="masthead-date"></div>
+        <h1><a href="./" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <!-- Lead article — filled dynamically -->
+    <main class="lead-article" id="lead" style="display:none;">
+        <div class="kicker" id="lead-kicker"></div>
+        <h2 class="headline-lead" id="lead-headline"></h2>
+        <div class="byline" id="lead-byline"></div>
+        <div class="article-body">
+            <p class="article-lead" id="lead-summary"></p>
+            <p><a id="lead-link" href="#" style="color: var(--accent); font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;">Continue reading &rarr;</a></p>
+        </div>
+    </main>
+
+    <!-- Archive — filled dynamically -->
+    <section class="editorial-section" style="border-top: 2px solid var(--rule);">
+        <div class="archive-list" id="archive">
+            <div class="section-header">Archive</div>
+        </div>
+    </section>
+
+    <!-- Source picker -->
+    <section class="editorial-section" style="border-top: 2px solid var(--rule);">
+        <div style="max-width: 520px; margin: 0 auto; text-align: center; padding: 1rem 0;">
+            <div class="section-header">Read from any ATProto repo</div>
+            <form id="repo-form" style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 0.75rem;">
+                <input type="text" id="repo-input" placeholder="handle (e.g. someone.bsky.social)" style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid var(--light-rule); background: #fff; flex: 1; min-width: 200px; max-width: 300px;">
+                <button type="submit" style="font-family: 'Inter', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.5rem 1.25rem; background: var(--ink); color: var(--paper); border: none; cursor: pointer;">Load</button>
+            </form>
+            <p id="repo-current" style="font-family: 'Inter', sans-serif; font-size: 0.65rem; color: var(--gray); margin-top: 0.5rem;"></p>
+        </div>
+    </section>
+
+    <!-- Subscribe -->
+    <section class="editorial-section" style="border-top: 2px solid var(--rule);">
+        <div style="max-width: 520px; margin: 0 auto; text-align: center; padding: 1rem 0;">
+            <h2 class="headline-secondary" style="font-size: 1.2rem; margin-bottom: 0.5rem;">Get The Mino Times in your inbox</h2>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); margin-bottom: 1rem;">Deep-dive research on niche obsessions. No spam, no hype.</p>
+            <form action="https://buttondown.com/api/emails/embed-subscribe/minotimes" method="post" target="popupwindow" class="embeddable-buttondown-form">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                    <input type="email" name="email" placeholder="your@email.com" required style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid var(--light-rule); background: #fff; flex: 1; min-width: 200px; max-width: 300px;">
+                    <button type="submit" style="font-family: 'Inter', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.5rem 1.25rem; background: var(--ink); color: var(--paper); border: none; cursor: pointer;">Subscribe</button>
+                </div>
+            </form>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.65rem; color: var(--gray); margin-top: 0.5rem;">Or email <a href="mailto:tips@minomobi.com" style="color: var(--accent);">tips@minomobi.com</a> with story leads</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://time.minomobi.com" style="color: var(--gray);">time.minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+    <!-- Loading indicator -->
+    <div id="loading" style="text-align: center; padding: 3rem 0; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--gray);">
+        Loading entries&hellip;
+    </div>
+
+    <script src="js/atproto.js"></script>
+    <script>
+    const DEFAULT_REPO = "minomobi.bsky.social";
+
+    // --- Render helpers ---
+
+    function entryUrl(handle, rkey) {
+      return `entry.html?repo=${encodeURIComponent(handle)}&rkey=${encodeURIComponent(rkey)}`;
+    }
+
+    function renderLead(record, handle) {
+      const v = record.value;
+      const rkey = rkeyFromUri(record.uri);
+      const url = entryUrl(handle, rkey);
+
+      document.getElementById("lead-kicker").textContent = formatDate(v.createdAt);
+      document.getElementById("lead-headline").textContent = v.title || "Untitled";
+      document.getElementById("lead-byline").textContent = v.subtitle || "";
+      document.getElementById("lead-summary").textContent = extractLead(v.content);
+      document.getElementById("lead-link").href = url;
+      document.getElementById("lead").style.display = "";
+    }
+
+    function renderArchiveEntry(record, handle) {
+      const v = record.value;
+      const rkey = rkeyFromUri(record.uri);
+      const url = entryUrl(handle, rkey);
+
+      const entry = document.createElement("div");
+      entry.className = "archive-entry";
+      entry.innerHTML = `
+        <div class="kicker">${formatDate(v.createdAt)}</div>
+        <h3 class="headline-minor"><a href="${url}">${v.title || "Untitled"}</a></h3>
+        <div class="byline">${v.subtitle || ""}</div>
+        <p class="archive-meta">${extractLead(v.content, 200)}</p>
+      `;
+      return entry;
+    }
+
+    // --- Main loader ---
+
+    async function loadEntries(handle) {
+      const loading = document.getElementById("loading");
+      const archive = document.getElementById("archive");
+      const lead = document.getElementById("lead");
+
+      loading.style.display = "";
+      lead.style.display = "none";
+      // Clear previous archive entries but keep the header
+      archive.querySelectorAll(".archive-entry").forEach(el => el.remove());
+
+      document.getElementById("repo-current").textContent = `Reading from @${handle}`;
+
+      try {
+        const { records } = await listEntries(handle);
+
+        // Filter to public entries only
+        const entries = records.filter(r =>
+          !r.value.isDraft && (r.value.visibility || "public") === "public"
+        );
+
+        if (entries.length === 0) {
+          loading.textContent = "No published entries found.";
+          return;
+        }
+
+        // Sort newest first (reverse=true gives us oldest first from the API,
+        // so entries from listRecords with reverse=true are in chronological order;
+        // we want reverse-chronological for the front page)
+        entries.sort((a, b) => {
+          const da = a.value.createdAt || "";
+          const db = b.value.createdAt || "";
+          return db.localeCompare(da);
+        });
+
+        // Lead article = newest
+        renderLead(entries[0], handle);
+
+        // Rest go in archive
+        for (let i = 1; i < entries.length; i++) {
+          archive.appendChild(renderArchiveEntry(entries[i], handle));
+        }
+
+        loading.style.display = "none";
+      } catch (err) {
+        loading.textContent = `Error: ${err.message}`;
+        console.error(err);
+      }
+    }
+
+    // --- Repo picker ---
+
+    document.getElementById("repo-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("repo-input").value.trim();
+      if (input) {
+        const url = new URL(window.location);
+        url.searchParams.set("repo", input);
+        window.history.pushState({}, "", url);
+        loadEntries(input);
+      }
+    });
+
+    // --- Init ---
+
+    const params = new URLSearchParams(window.location.search);
+    const repo = params.get("repo") || DEFAULT_REPO;
+    document.getElementById("masthead-date").textContent = formatDate(new Date().toISOString());
+    if (repo !== DEFAULT_REPO) {
+      document.getElementById("repo-input").value = repo;
+    }
+    loadEntries(repo);
+    </script>
+
+</body>
+</html>

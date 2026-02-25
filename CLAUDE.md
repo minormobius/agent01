@@ -21,41 +21,60 @@ An agentic biotech intelligence publication styled as a newspaper broadsheet. Th
 
 ### Content Pipeline
 ```
-Research → Bluesky Thread → Article → Editorial Panel → Podcast
+Research → Bluesky Thread → Article (ATProto) → Editorial Panel → Podcast
 ```
 
 1. **Research**: Deep investigation of a biotech topic. Sources include academic papers, SEC filings, press releases, funding announcements, and regulatory filings.
-2. **Bluesky Posts**: Incremental research findings posted as a thread. Posts go in `posts/` as markdown files, pushed to trigger the GitHub Action.
-3. **Article**: Full newspaper-style article published to the site. Articles go in `articles/` as HTML files. **Must include inline hyperlinks throughout the text and a numbered bibliography at the end.**
+2. **Bluesky Posts**: Incremental research findings posted as a thread. Posts go in `time/posts/` as markdown files, pushed to trigger the GitHub Action.
+3. **Article**: Written in **markdown**, stored as `com.whtwnd.blog.entry` records on the minomobi PDS (`minomobi.bsky.social`). The `time/` viewer renders them in the newspaper layout. Articles cross-post to WhiteWind automatically. **Must include inline hyperlinks throughout the text and a numbered bibliography at the end.**
 4. **Editorial Panel**: Multi-voice discussion of the article's implications. Written as a transcript.
-5. **Podcast**: The editorial discussion converted to audio via ElevenLabs TTS. Audio goes in `assets/podcast/`. RSS feed updated in `feed.xml`.
+5. **Podcast**: The editorial discussion converted to audio via ElevenLabs TTS. Audio goes in `time/assets/podcast/`. RSS feed updated in `time/feed.xml`.
+
+### ATProto Article Storage
+Articles are stored as `com.whtwnd.blog.entry` records on the minomobi PDS. This gives us:
+- **WhiteWind cross-posting**: Records appear on whtwnd.com automatically
+- **Data ownership**: Articles live on the PDS, not just in this repo
+- **Interop**: The viewer can read any ATProto user's WhiteWind entries
+
+Record schema (WhiteWind lexicon):
+- `content` (string, required, markdown, max 100K chars)
+- `title` (string, max 1K) — headline
+- `subtitle` (string, max 1K) — byline / kicker
+- `createdAt` (datetime)
+- `visibility` ("public" | "url" | "author")
+
+The `time/` viewer is read-only — it fetches records from the PDS and renders them. Records are created by publishing scripts or other agents, not by the viewer itself.
 
 ### Directory Structure
 ```
 /
-├── index.html              # Front page — newspaper layout
-├── feed.xml                # Podcast RSS feed
-├── CLAUDE.md               # This file — pipeline instructions
-├── assets/
-│   ├── css/newspaper.css   # Newspaper styling
-│   └── podcast/            # MP3 episode files
-├── posts/                  # Bluesky thread drafts (triggers GitHub Action)
-├── articles/               # Full HTML articles
+├── CLAUDE.md                    # This file — pipeline instructions
+├── time/                        # The Mino Times — ATProto-backed viewer
+│   ├── index.html               # Front page — reads from PDS, newspaper layout
+│   ├── entry.html               # Single article viewer — renders markdown
+│   ├── feed.xml                 # Podcast RSS feed
+│   ├── js/
+│   │   └── atproto.js           # PDS fetch utilities (handle/DID/PDS resolution)
+│   ├── assets/
+│   │   ├── css/newspaper.css    # Newspaper styling
+│   │   └── podcast/             # MP3 episode files
+│   ├── posts/                   # Bluesky thread drafts (triggers GitHub Action)
+│   └── articles/                # Legacy HTML articles (pre-ATProto)
 ├── modulo/
 │   └── .well-known/
-│       └── atproto-did     # Bluesky handle verification for modulo.minomobi.com
+│       └── atproto-did          # Bluesky handle verification for modulo.minomobi.com
 ├── morphyx/
 │   └── .well-known/
-│       └── atproto-did     # Bluesky handle verification for morphyx.minomobi.com
+│       └── atproto-did          # Bluesky handle verification for morphyx.minomobi.com
 ├── .github/
 │   └── workflows/
 │       └── post-to-bluesky.yml  # Posts threads to Bluesky on push
 └── src/
-    └── post_thread.py      # Multi-account Bluesky posting script
+    └── post_thread.py           # Multi-account Bluesky posting script
 ```
 
 ### Bluesky Post Format
-Posts are markdown files in `posts/`. The format:
+Posts are markdown files in `time/posts/`. The format:
 
 ```markdown
 ---
@@ -112,13 +131,14 @@ Add these as GitHub repository secrets:
 Research threads post from the publication account. Minophim reply as comments using `@modulo` / `@morphyx` section markers (see format above). All three accounts authenticate via the secrets listed here.
 
 ### Article Format
-Articles are full HTML pages in `articles/`. They should:
-- Link back to `newspaper.css` via `../assets/css/newspaper.css`
-- Use the same typographic classes (`.headline-lead`, `.article-body`, etc.)
-- Include proper byline, kicker, and dateline
-- **Include inline hyperlinks** throughout the text — every company name, product, study, or regulatory filing should link to its primary source
-- **Include a numbered bibliography** at the end using `<ol>` with `id="fn1"` etc., linked from inline superscript footnotes with class `fn`
-- Use the article-level `<style>` block for link and bibliography styling (see existing articles for pattern)
+Articles are **markdown** stored as `com.whtwnd.blog.entry` records on the PDS. They should:
+- Use the `title` field for the headline
+- Use the `subtitle` field for byline (e.g., "By Modulo, with Morphyx")
+- Set `createdAt` to the publication datetime
+- Set `visibility` to `"public"`
+- Write the body in markdown with inline links and a numbered bibliography
+
+Legacy HTML articles in `time/articles/` predate the ATProto migration and are kept for reference.
 
 ### Inline Link Standards
 When writing articles:
@@ -126,21 +146,22 @@ When writing articles:
 - FDA clearances link to the press release or FDA database entry
 - Studies link to PubMed Central or the journal
 - Funding/M&A deals link to the reporting outlet (FierceBiotech, STAT, MobiHealthNews, etc.)
-- Superscript footnote numbers `[1]` link to the bibliography entry with `#fn1`
-- Bibliography entries link back to the source URL
+- Use markdown footnote syntax `[^1]` or inline superscript links `[1](#fn1)` for bibliography references
+- Include a numbered bibliography at the end of the markdown
 
 ### RSS / Podcast Feed
-`feed.xml` is a standard RSS 2.0 feed with iTunes podcast extensions. When adding episodes:
+`time/feed.xml` is a standard RSS 2.0 feed with iTunes podcast extensions. When adding episodes:
 - Add a new `<item>` block before the closing `</channel>` tag
-- Audio files go in `assets/podcast/`
+- Audio files go in `time/assets/podcast/`
 - Include `<enclosure>` with the MP3 URL, file size, and MIME type
-- The feed URL assumes deployment at `minomobi.com`
+- The feed URL assumes deployment at `time.minomobi.com`
 
 ### Site Deployment
 - Hosted on **Cloudflare Pages**
 - Auto-deploys from the `main` branch
 - No build step — static files served directly
-- Domain: `minomobi.com`
+- The Mino Times lives at `time.minomobi.com` (subdomain)
+- Root domain `minomobi.com` serves the portal (separate from this project)
 
 ### Email Setup (Cloudflare)
 To activate email addresses:
@@ -239,10 +260,10 @@ The HTTP method is used here (files in repo at `modulo/.well-known/atproto-did` 
 ## Working With This Repo
 When Claude is asked to publish:
 1. Research the topic deeply
-2. Draft Bluesky thread posts in `posts/YYYY-MM-DD-slug.md`
-3. Write the full article in `articles/YYYY-MM-DD-slug.html` — **with inline links and bibliography**
-4. Update `index.html` with the new article's headline and summary
-5. Commit and push — the Action handles Bluesky posting
+2. Draft Bluesky thread posts in `time/posts/YYYY-MM-DD-slug.md`
+3. Write the article in markdown and publish as a `com.whtwnd.blog.entry` record to the minomobi PDS
+4. The `time/` viewer picks up the new record automatically — no index.html update needed
+5. Commit and push thread drafts — the Action handles Bluesky posting
 6. (Future) Generate editorial panel transcript and podcast audio
 
 ## Phylo Tree Pipeline

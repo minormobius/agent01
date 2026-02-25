@@ -3,7 +3,7 @@ name: Post to Bluesky
 on:
   push:
     paths:
-      - 'posts/**.md'
+      - 'time/posts/**.md'
 
 jobs:
   post:
@@ -16,7 +16,7 @@ jobs:
       - name: Find new post files
         id: find-posts
         run: |
-          POSTS=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'posts/*.md' || echo "")
+          POSTS=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'time/posts/*.md' || echo "")
           echo "posts=$POSTS" >> $GITHUB_OUTPUT
           if [ -z "$POSTS" ]; then
             echo "No new posts found"

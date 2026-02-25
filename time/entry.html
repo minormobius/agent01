@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">The Mino Times</title>
+    <link rel="stylesheet" href="assets/css/newspaper.css">
+    <style>
+        /* Markdown-rendered article body */
+        .article-body h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+        .article-body h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; margin: 1.2rem 0 0.4rem; }
+        .article-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+        .article-body a:hover { border-bottom-color: var(--accent); }
+        .article-body blockquote { border-left: 3px solid var(--light-rule); margin: 1rem 0; padding: 0.5rem 1rem; color: var(--gray); font-style: italic; }
+        .article-body ul, .article-body ol { margin: 0.75rem 0 0.75rem 1.5rem; }
+        .article-body li { margin-bottom: 0.3rem; }
+        .article-body code { font-family: monospace; font-size: 0.88em; background: rgba(0,0,0,0.05); padding: 0.15em 0.3em; border-radius: 2px; }
+        .article-body pre { background: rgba(0,0,0,0.05); padding: 1rem; overflow-x: auto; margin: 1rem 0; border-radius: 3px; }
+        .article-body pre code { background: none; padding: 0; }
+        .article-body hr { border: none; border-top: 1px solid var(--light-rule); margin: 1.5rem 0; }
+        .article-body img { max-width: 100%; height: auto; }
+        .article-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.88rem; }
+        .article-body th, .article-body td { border: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
+        .article-body th { background: rgba(0,0,0,0.04); font-family: 'Inter', sans-serif; font-weight: 600; }
+        /* Footnotes */
+        .article-body .footnotes { border-top: 1px solid var(--light-rule); margin-top: 2rem; padding-top: 1rem; font-size: 0.85rem; }
+        .article-body sup a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Masthead -->
+    <header class="masthead">
+        <div class="masthead-date" id="masthead-date"></div>
+        <h1><a href="./" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
+        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <hr class="masthead-rule">
+    </header>
+
+    <!-- Article -->
+    <main style="max-width: 740px; margin: 0 auto; padding: 1.5rem 0;">
+        <div class="kicker" id="entry-date" style="text-align: center;"></div>
+        <h2 class="headline-lead" id="entry-title" style="text-align: center; margin-bottom: 0.3rem;"></h2>
+        <div class="byline" id="entry-subtitle" style="text-align: center; margin-bottom: 1.2rem;"></div>
+        <div class="article-body" id="entry-body"></div>
+    </main>
+
+    <!-- Back link -->
+    <nav style="max-width: 740px; margin: 0 auto; padding: 0 0 2rem;">
+        <a href="./" style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--accent); text-decoration: none; text-transform: uppercase; letter-spacing: 0.1em;">&larr; Back to front page</a>
+        <span id="whtwnd-link" style="float: right;"></span>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="footer">
+        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://time.minomobi.com" style="color: var(--gray);">time.minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
+    </footer>
+
+    <!-- Loading -->
+    <div id="loading" style="text-align: center; padding: 3rem 0; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--gray);">
+        Loading entry&hellip;
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="js/atproto.js"></script>
+    <script>
+    async function loadEntry() {
+      const loading = document.getElementById("loading");
+      const params = new URLSearchParams(window.location.search);
+      const repo = params.get("repo");
+      const rkey = params.get("rkey");
+
+      if (!repo || !rkey) {
+        loading.textContent = "Missing repo or rkey parameter.";
+        return;
+      }
+
+      document.getElementById("masthead-date").textContent = formatDate(new Date().toISOString());
+
+      try {
+        const record = await getEntry(repo, rkey);
+        const v = record.value;
+
+        // Title
+        const title = v.title || "Untitled";
+        document.getElementById("entry-title").textContent = title;
+        document.getElementById("page-title").textContent = `${title} — The Mino Times`;
+
+        // Subtitle / byline
+        document.getElementById("entry-subtitle").textContent = v.subtitle || "";
+
+        // Date
+        document.getElementById("entry-date").textContent = formatDate(v.createdAt);
+
+        // Render markdown
+        document.getElementById("entry-body").innerHTML = marked.parse(v.content, {
+          gfm: true,
+          breaks: false,
+        });
+
+        // WhiteWind cross-link
+        const whtwnd = document.getElementById("whtwnd-link");
+        const encodedTitle = encodeURIComponent(title);
+        whtwnd.innerHTML = `<a href="https://whtwnd.com/${repo}/entries/${encodedTitle}" target="_blank" rel="noopener" style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); text-decoration: none; text-transform: uppercase; letter-spacing: 0.1em;">View on WhiteWind &rarr;</a>`;
+
+        loading.style.display = "none";
+      } catch (err) {
+        loading.textContent = `Error: ${err.message}`;
+        console.error(err);
+      }
+    }
+
+    loadEntry();
+    </script>
+
+</body>
+</html>
