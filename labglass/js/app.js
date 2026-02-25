@@ -24,7 +24,8 @@ window.LabApp = (() => {
         return LabDuckDB.registerAllFiles();
       }).catch(err => {
         console.error('DuckDB failed:', err);
-        toast('DuckDB failed to load — SQL cells disabled', 'error');
+        const coi = self.crossOriginIsolated ? 'COI=yes' : 'COI=no';
+        toast(`DuckDB failed (${coi}): ${err.message}`, 'error');
       }),
 
       LabViz.init().then((ok) => {

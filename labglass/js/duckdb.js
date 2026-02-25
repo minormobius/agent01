@@ -19,6 +19,13 @@ window.LabDuckDB = (() => {
   async function init() {
     const statusEl = document.getElementById('status-duckdb');
     try {
+      // Check cross-origin isolation (required for SharedArrayBuffer → DuckDB Worker)
+      const coi = self.crossOriginIsolated;
+      console.log(`crossOriginIsolated: ${coi}, SharedArrayBuffer: ${'SharedArrayBuffer' in self}`);
+      if (!coi) {
+        console.warn('COOP/COEP headers missing — SharedArrayBuffer unavailable, DuckDB may fail');
+      }
+
       // Dynamically import DuckDB-Wasm
       const module = await import(`${CDN_BASE}/duckdb-browser.mjs`);
       duckdb = module;
@@ -49,7 +56,10 @@ window.LabDuckDB = (() => {
       return true;
     } catch (err) {
       console.error('DuckDB init failed:', err);
-      if (statusEl) statusEl.dataset.status = 'error';
+      if (statusEl) {
+        statusEl.dataset.status = 'error';
+        statusEl.title = `${err.message} (COI=${self.crossOriginIsolated})`;
+      }
       throw err;
     }
   }
