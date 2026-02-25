@@ -2,6 +2,19 @@ import { useState, useEffect } from "react";
 import { createSession, refreshSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
 import { calculatorToRecipe, recipeToCalculator, parseAtUri, formatDuration } from "./recipeTransform";
 
+function buildShareUrl(handle, rkey) {
+  return `${window.location.origin}${window.location.pathname}#/recipe/${encodeURIComponent(handle)}/${encodeURIComponent(rkey)}`;
+}
+
+function shareToBluesky(name, handle, rkey) {
+  const url = buildShareUrl(handle, rkey);
+  const text = name ? `${name}\n\n${url}` : url;
+  window.open(
+    `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`,
+    "_blank"
+  );
+}
+
 const SESSION_KEY = "bakery-atproto-session";
 const HANDLE_KEY = "bakery-atproto-handle";
 
@@ -206,14 +219,36 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
             {JSON.stringify(buildRecord(), null, 2)}
           </pre>
         )}
-        {result && (
-          <div style={{ background: "#e8f5e9", padding: 12, borderRadius: 8, fontSize: 13 }}>
-            <strong style={{ color: "#2e7d32" }}>Published!</strong>
-            <div style={{ marginTop: 4, wordBreak: "break-all", color: "#33691e", fontFamily: "monospace", fontSize: 12 }}>
-              {result.uri}
+        {result && (() => {
+          const publishedRkey = parseAtUri(result.uri)?.rkey;
+          return (
+            <div style={{ background: "#e8f5e9", padding: 12, borderRadius: 8, fontSize: 13 }}>
+              <strong style={{ color: "#2e7d32" }}>Published!</strong>
+              <div style={{ marginTop: 4, wordBreak: "break-all", color: "#33691e", fontFamily: "monospace", fontSize: 12 }}>
+                {result.uri}
+              </div>
+              {publishedRkey && session?.handle && (
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button
+                    onClick={() => shareToBluesky(name, session.handle, publishedRkey)}
+                    style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+                  >
+                    Share on Bluesky
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = buildShareUrl(session.handle, publishedRkey);
+                      navigator.clipboard.writeText(url).catch(() => {});
+                    }}
+                    style={{ ...btnSecondary, fontSize: 12, padding: "6px 14px" }}
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {error && (
           <p style={{ color: "#c62828", fontSize: 13, margin: 0, wordBreak: "break-word" }}>{error}</p>
         )}
@@ -224,7 +259,7 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
 
 // --- Recipe Card (displays a single recipe) ---
 
-function RecipeCard({ record, uri, onDelete, canDelete, onLoadToBuilder }) {
+function RecipeCard({ record, uri, authorHandle, onDelete, canDelete, onLoadToBuilder }) {
   const [expanded, setExpanded] = useState(false);
   const v = record.value || record;
   const rkey = parseAtUri(uri)?.rkey;
@@ -314,10 +349,18 @@ function RecipeCard({ record, uri, onDelete, canDelete, onLoadToBuilder }) {
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {authorHandle && rkey && (
+              <button
+                onClick={() => shareToBluesky(v.name, authorHandle, rkey)}
+                style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+              >
+                Share on Bluesky
+              </button>
+            )}
             {onLoadToBuilder && (
               <button
                 onClick={() => onLoadToBuilder(record)}
-                style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+                style={{ ...btnSecondary, fontSize: 12, padding: "6px 14px" }}
               >
                 Load to Builder
               </button>
@@ -431,6 +474,7 @@ function BrowsePanel({ session, onLoadToBuilder }) {
           key={r.uri}
           record={r}
           uri={r.uri}
+          authorHandle={loadedHandle}
           canDelete={isOwnRecipes}
           onDelete={handleDelete}
           onLoadToBuilder={onLoadToBuilder}

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import ATProtoPanel from "./ATProtoPanel";
 import TernaryChart from "./TernaryChart";
+import { recipeToCalculator } from "./recipeTransform";
 
 const FLOURS = [
   {
@@ -333,7 +334,7 @@ export default function FlourBlendCalculator() {
   };
 
   // Load a recipe from ATProto record into the calculator
-  const handleLoadFromAT = (parsedName, parsedState) => {
+  const handleLoadFromAT = useCallback((parsedName, parsedState) => {
     const s = parsedState;
     setBlendPercents(s.blendPercents);
     setBlendGrams(s.blendGrams);
@@ -350,7 +351,22 @@ export default function FlourBlendCalculator() {
     setRecipeInstructions(s.recipeInstructions ?? "");
     setRecipeName(parsedName);
     setTab("blend");
-  };
+  }, []);
+
+  // Load recipe passed from RecipeViewer via localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem("bakery-load-recipe");
+    if (raw) {
+      localStorage.removeItem("bakery-load-recipe");
+      try {
+        const record = JSON.parse(raw);
+        const { name, state } = recipeToCalculator(record, FLOURS, ENRICHMENTS, STARTER_FLOURS);
+        handleLoadFromAT(name, state);
+      } catch (e) {
+        console.warn("Failed to load shared recipe:", e);
+      }
+    }
+  }, [handleLoadFromAT]);
 
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", maxWidth: 900, margin: "0 auto", padding: "16px", background: "#faf8f5", minHeight: "100vh" }}>
