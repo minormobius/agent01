@@ -1,3 +1,4 @@
+// Cloudflare Pages — root directory set to labglass/
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "glass",
