@@ -54,12 +54,49 @@ window.LabApp = (() => {
   }
 
   // ── Sidebar ──
+  function isDesktop() {
+    return window.matchMedia('(min-width: 900px)').matches;
+  }
+
   function setupSidebar() {
     const btn = document.getElementById('btn-files');
     const sidebar = document.getElementById('sidebar');
-    btn.addEventListener('click', () => {
+    const scrim = document.getElementById('sidebar-scrim');
+
+    // Open sidebar by default on desktop only
+    if (isDesktop()) {
+      sidebar.classList.add('open');
+      btn.classList.add('active');
+    }
+
+    function toggleSidebar() {
+      const opening = !sidebar.classList.contains('open');
       sidebar.classList.toggle('open');
       btn.classList.toggle('active');
+      // Show/hide scrim on mobile
+      if (!isDesktop()) {
+        scrim.classList.toggle('visible', opening);
+      }
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      btn.classList.remove('active');
+      scrim.classList.remove('visible');
+    }
+
+    btn.addEventListener('click', toggleSidebar);
+
+    // Tap scrim to close sidebar on mobile
+    scrim.addEventListener('click', closeSidebar);
+
+    // When resizing from mobile to desktop, clean up scrim state
+    window.matchMedia('(min-width: 900px)').addEventListener('change', (e) => {
+      scrim.classList.remove('visible');
+      if (e.matches && !sidebar.classList.contains('open')) {
+        sidebar.classList.add('open');
+        btn.classList.add('active');
+      }
     });
 
     document.getElementById('btn-refresh-files').addEventListener('click', () => {

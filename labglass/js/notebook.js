@@ -289,7 +289,7 @@ window.LabNotebook = (() => {
   // Render an HTML table from columns and rows
   function renderTable(columns, rows, maxRows = 200) {
     const displayRows = rows.slice(0, maxRows);
-    let html = '<table><thead><tr>';
+    let html = '<div class="table-wrap"><table><thead><tr>';
     for (const col of columns) {
       html += `<th>${escapeHtml(col)}</th>`;
     }
@@ -305,7 +305,7 @@ window.LabNotebook = (() => {
       }
       html += '</tr>';
     }
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     if (rows.length > maxRows) {
       html += `<pre class="info">Showing ${maxRows} of ${rows.length} rows.</pre>`;
     }
