@@ -15,6 +15,15 @@
   <meta name="apple-mobile-web-app-title" content="LABGLASS">
   <link rel="apple-touch-icon" href="icon-192.png">
 
+  <!-- Import map: DuckDB-Wasm's ESM has a bare 'apache-arrow' import -->
+  <script type="importmap">
+  {
+    "imports": {
+      "apache-arrow": "https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"
+    }
+  }
+  </script>
+
   <link rel="stylesheet" href="css/labglass.css">
 </head>
 <body>

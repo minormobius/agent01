@@ -1,9 +1,9 @@
-// Cloudflare Workers + static assets — root directory set to labglass/
+// Cloudflare Workers static assets — root directory set to labglass/
+// COOP/COEP headers set via _headers file (processed by the static assets handler)
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "glass",
   "compatibility_date": "2026-02-25",
-  "main": "worker.js",
   "assets": {
     "directory": "."
   }
