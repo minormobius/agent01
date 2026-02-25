@@ -16,44 +16,53 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFo
 a{color:#58a6ff}
 
 /* Header */
-#header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
-#logo{font-size:15px;font-weight:700;letter-spacing:2px;color:#58a6ff;white-space:nowrap}
-#logo span{color:#c9d1d9;font-weight:400;letter-spacing:0;margin-left:4px;font-size:12px}
-#transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#transport button{width:36px;height:36px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
+#logo{font-size:13px;font-weight:700;letter-spacing:2px;color:#58a6ff;white-space:nowrap}
+#logo span{color:#c9d1d9;font-weight:400;letter-spacing:0;margin-left:4px;font-size:11px}
+#transport{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#transport button{width:32px;height:32px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #transport button:hover{background:#30363d}
 #transport button.active{background:#238636;border-color:#238636;color:#fff}
-.ctrl-group{display:flex;align-items:center;gap:4px}
-.ctrl-label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
-.ctrl-input{width:56px;padding:4px 6px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;text-align:center;font-family:inherit}
+.ctrl-group{display:flex;align-items:center;gap:3px}
+.ctrl-label{font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.ctrl-input{width:48px;padding:3px 4px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;text-align:center;font-family:inherit}
 .ctrl-input:focus{border-color:#58a6ff;outline:none}
-#name-input{flex:1;min-width:140px;padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;font-family:inherit}
+#name-input{flex:1;min-width:100px;padding:4px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;font-family:inherit}
 #name-input:focus{border-color:#58a6ff;outline:none}
 
 /* Main layout */
-#main{display:flex;flex-direction:column;height:calc(100vh - 52px)}
-#grid-wrapper{flex:1;overflow:auto;position:relative;min-height:200px}
+#main{display:flex;flex-direction:column;height:calc(100vh - 44px)}
+#grid-wrapper{flex:1;overflow:auto;position:relative;min-height:0}
 #piano-roll{display:block;cursor:crosshair;touch-action:none}
 
 /* Track panel */
-#track-panel{background:#161b22;border-top:1px solid #30363d;padding:8px 16px;overflow-x:auto}
-#track-list{display:flex;gap:6px;align-items:stretch}
-.track-card{padding:8px 12px;border-radius:6px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:150px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+#track-panel{background:#161b22;border-top:1px solid #30363d;padding:4px 10px;overflow-x:auto}
+#track-list{display:flex;gap:4px;align-items:center}
+.track-card{padding:4px 8px;border-radius:4px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:0;font-size:11px;display:flex;align-items:center;gap:6px;transition:border-color .15s;white-space:nowrap}
 .track-card.active{border-color:var(--track-color,#58a6ff)}
 .track-card:hover{background:#2a3040}
-.track-name{font-weight:600;color:#c9d1d9;font-size:13px}
-.track-card select,.track-card input[type=range]{width:100%;font-size:11px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:2px 4px}
-.track-controls{display:flex;gap:4px;align-items:center}
-.track-btn{padding:2px 6px;font-size:10px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
+.track-name{font-weight:600;color:#c9d1d9;font-size:11px}
+.track-card select{font-size:10px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:1px 2px;width:auto}
+.track-card input[type=range]{width:50px;font-size:10px}
+.track-controls{display:flex;gap:3px;align-items:center}
+.track-btn{padding:1px 5px;font-size:9px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
 .track-btn:hover{background:#30363d}
 .track-btn.muted{background:#da3633;color:#fff;border-color:#da3633}
 .track-btn.solo{background:#d29922;color:#fff;border-color:#d29922}
-#add-track-btn{padding:8px 12px;border:2px dashed #30363d;border-radius:6px;background:transparent;color:#8b949e;cursor:pointer;font-size:20px;min-width:44px;display:flex;align-items:center;justify-content:center}
+#add-track-btn{padding:4px 8px;border:2px dashed #30363d;border-radius:4px;background:transparent;color:#8b949e;cursor:pointer;font-size:16px;min-width:32px;display:flex;align-items:center;justify-content:center}
 #add-track-btn:hover{border-color:#58a6ff;color:#58a6ff}
 
-/* Bottom bar */
-#bottom-bar{display:flex;gap:8px;padding:8px 16px;background:#0d1117;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap}
-.bottom-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;cursor:pointer;white-space:nowrap}
+/* Tab bar */
+#tab-bar{display:flex;background:#0d1117;border-top:1px solid #30363d}
+.tab-btn{flex:1;padding:8px 0;border:none;background:transparent;color:#8b949e;font-size:12px;font-weight:600;cursor:pointer;text-align:center;border-top:2px solid transparent;font-family:inherit}
+.tab-btn:hover{color:#c9d1d9}
+.tab-btn.active{color:#58a6ff;border-top-color:#58a6ff;background:#161b22}
+#tab-compose,#tab-social{display:none}
+#tab-compose.active,#tab-social.active{display:flex}
+
+/* Bottom bar (inside social tab) */
+#bottom-bar{display:flex;gap:6px;padding:6px 10px;background:#0d1117;align-items:center;flex-wrap:wrap}
+.bottom-btn{padding:5px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:11px;cursor:pointer;white-space:nowrap}
 .bottom-btn:hover{background:#30363d}
 .bottom-btn.primary{background:#238636;border-color:#238636;color:#fff}
 .bottom-btn.primary:hover{background:#2ea043}
@@ -92,7 +101,7 @@ a{color:#58a6ff}
     </div>
     <div class="ctrl-group">
       <span class="ctrl-label">Len</span>
-      <select id="note-len" style="padding:4px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px">
+      <select id="note-len" style="padding:3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px">
         <option value="1">1</option>
         <option value="2">2</option>
         <option value="4">4</option>
@@ -100,12 +109,12 @@ a{color:#58a6ff}
       </select>
     </div>
     <div class="ctrl-group">
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
         <input id="loop-cb" type="checkbox" checked> Loop
       </label>
     </div>
     <div class="ctrl-group">
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
         <input id="show-all-cb" type="checkbox" checked> All tracks
       </label>
     </div>
@@ -117,18 +126,26 @@ a{color:#58a6ff}
   <div id="grid-wrapper">
     <canvas id="piano-roll"></canvas>
   </div>
-  <div id="track-panel">
-    <div id="track-list"></div>
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="compose">Compose</button>
+    <button class="tab-btn" data-tab="social">Social</button>
   </div>
-  <div id="bottom-bar">
-    <button class="bottom-btn" id="export-btn" title="Export as JSON">Export JSON</button>
-    <button class="bottom-btn" id="import-btn" title="Import from JSON">Import JSON</button>
-    <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch AT URI</button>
-    <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish to PDS</button>
-    <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
-    <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
-    <span style="flex:1"></span>
-    <span class="info" id="status-bar"></span>
+  <div id="tab-compose" class="active">
+    <div id="track-panel">
+      <div id="track-list"></div>
+    </div>
+  </div>
+  <div id="tab-social">
+    <div id="bottom-bar">
+      <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish</button>
+      <button class="bottom-btn" id="export-btn" title="Export as JSON">Export</button>
+      <button class="bottom-btn" id="import-btn" title="Import from JSON">Import</button>
+      <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch URI</button>
+      <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
+      <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
+      <span style="flex:1"></span>
+      <span class="info" id="status-bar"></span>
+    </div>
   </div>
 </div>
 
@@ -784,6 +801,19 @@ canvas.addEventListener('touchend', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-compose').classList.toggle('active', btn.dataset.tab === 'compose');
+    document.getElementById('tab-social').classList.toggle('active', btn.dataset.tab === 'social');
+  };
+});
+
+// ═══════════════════════════════════════════════════════════════
 // TRACK PANEL
 // ═══════════════════════════════════════════════════════════════
 
@@ -810,16 +840,11 @@ function renderTracks() {
       <select data-idx="${i}">
         ${INSTRUMENTS.map(inst => `<option value="${inst}" ${inst === track.instrument ? 'selected' : ''}>${INSTRUMENT_LABELS[inst]}</option>`).join('')}
       </select>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:10px;color:#8b949e">Vol</span>
-        <input type="range" min="0" max="100" value="${Math.round(track.volume * 100)}" data-idx="${i}" data-role="volume" style="flex:1">
-      </div>
+      <input type="range" min="0" max="100" value="${Math.round(track.volume * 100)}" data-idx="${i}" data-role="volume" style="width:50px">
       <div class="track-controls">
         <button class="track-btn ${track.muted ? 'muted' : ''}" data-idx="${i}" data-role="mute">M</button>
         <button class="track-btn ${track.solo ? 'solo' : ''}" data-idx="${i}" data-role="solo">S</button>
         ${state.tracks.length > 1 ? `<button class="track-btn" data-idx="${i}" data-role="delete" title="Delete track">&times;</button>` : ''}
-        <span style="flex:1"></span>
-        <span style="font-size:10px;color:#484f58">${track.notes.length} notes</span>
       </div>
     `;
 
