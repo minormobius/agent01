@@ -141,6 +141,7 @@ a{color:#58a6ff}
       <button class="bottom-btn" id="export-btn" title="Export as JSON">Export</button>
       <button class="bottom-btn" id="import-btn" title="Import from JSON">Import</button>
       <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch URI</button>
+      <button class="bottom-btn" id="wav-btn" title="Export as WAV audio">WAV</button>
       <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
       <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
       <span style="flex:1"></span>
@@ -160,7 +161,7 @@ a{color:#58a6ff}
 const KEY_W = 56;
 let CELL_W = 24;
 let CELL_H = 16;
-const PITCH_LOW = 36;   // C2
+const PITCH_LOW = 48;   // C3
 const PITCH_HIGH = 84;  // C6
 const PITCH_COUNT = PITCH_HIGH - PITCH_LOW;
 
@@ -224,55 +225,61 @@ function stepDuration() {
   return 60 / state.bpm / 4; // 16th note
 }
 
-function playNote(instrument, pitch, durSteps, velocity, volume, when) {
+function playNote(instrument, pitch, durSteps, velocity, volume, when, ctx, dest) {
+  ctx = ctx || audioCtx;
+  dest = dest || ctx.destination;
   const dur = durSteps * stepDuration();
   const gain = (velocity / 127) * volume * 0.25;
 
   if (instrument === 'noise') {
-    const src = audioCtx.createBufferSource();
-    src.buffer = noiseBuffer;
-    const g = audioCtx.createGain();
+    // For offline contexts we need a fresh noise buffer
+    let nBuf = noiseBuffer;
+    if (ctx !== audioCtx) {
+      nBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = nBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = nBuf;
+    const g = ctx.createGain();
     g.gain.setValueAtTime(gain, when);
     g.gain.exponentialRampToValueAtTime(0.001, when + Math.min(dur, 0.15));
     src.connect(g);
-    g.connect(audioCtx.destination);
+    g.connect(dest);
     src.start(when);
     src.stop(when + 0.3);
     return;
   }
 
-  const osc = audioCtx.createOscillator();
+  const osc = ctx.createOscillator();
   if (instrument === 'pulse') {
-    // Approximate 25% pulse with square + slight detune trick
     osc.type = 'square';
   } else {
     osc.type = instrument;
   }
   osc.frequency.setValueAtTime(midiFreq(pitch), when);
 
-  const g = audioCtx.createGain();
+  const g = ctx.createGain();
   g.gain.setValueAtTime(gain, when);
-  // 8-bit style envelope: quick attack, sustain, fast release
   g.gain.setValueAtTime(gain, when + dur * 0.9);
   g.gain.exponentialRampToValueAtTime(0.001, when + dur);
 
   osc.connect(g);
-  g.connect(audioCtx.destination);
+  g.connect(dest);
   osc.start(when);
   osc.stop(when + dur + 0.02);
 
-  // Pulse: add a second detuned oscillator for width effect
   if (instrument === 'pulse') {
-    const osc2 = audioCtx.createOscillator();
+    const osc2 = ctx.createOscillator();
     osc2.type = 'square';
     osc2.frequency.setValueAtTime(midiFreq(pitch), when);
     osc2.detune.setValueAtTime(25, when);
-    const g2 = audioCtx.createGain();
+    const g2 = ctx.createGain();
     g2.gain.setValueAtTime(gain * 0.5, when);
     g2.gain.setValueAtTime(gain * 0.5, when + dur * 0.9);
     g2.gain.exponentialRampToValueAtTime(0.001, when + dur);
     osc2.connect(g2);
-    g2.connect(audioCtx.destination);
+    g2.connect(dest);
     osc2.start(when);
     osc2.stop(when + dur + 0.02);
   }
@@ -1316,6 +1323,82 @@ document.getElementById('publish-btn').onclick = () => {
         statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
       }
     };
+  }
+};
+
+// WAV Export
+document.getElementById('wav-btn').onclick = async () => {
+  setStatus('Rendering audio...');
+  try {
+    const sd = stepDuration();
+    const totalDur = state.steps * sd + 0.5; // small tail for release
+    const sampleRate = 44100;
+    const offCtx = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
+
+    // Create noise buffer for this context
+    const offNoise = offCtx.createBuffer(1, sampleRate, sampleRate);
+    const nd = offNoise.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+    // Schedule all notes
+    for (let t = 0; t < state.tracks.length; t++) {
+      if (!isTrackAudible(t)) continue;
+      const track = state.tracks[t];
+      for (const n of track.notes) {
+        const when = n.start * sd;
+        playNote(track.instrument, n.pitch, n.duration, n.velocity, track.volume, when, offCtx, offCtx.destination);
+      }
+    }
+
+    const rendered = await offCtx.startRendering();
+
+    // Encode WAV
+    const numCh = rendered.numberOfChannels;
+    const length = rendered.length;
+    const bufSize = 44 + length * numCh * 2;
+    const buf = new ArrayBuffer(bufSize);
+    const view = new DataView(buf);
+
+    function writeStr(offset, str) {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, bufSize - 8, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numCh * 2, true);
+    view.setUint16(32, numCh * 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, length * numCh * 2, true);
+
+    const channels = [];
+    for (let c = 0; c < numCh; c++) channels.push(rendered.getChannelData(c));
+
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let c = 0; c < numCh; c++) {
+        const s = Math.max(-1, Math.min(1, channels[c][i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (state.name || 'composition') + '.wav';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('WAV exported');
+  } catch (err) {
+    setStatus('Export failed: ' + err.message, true);
   }
 };
 
