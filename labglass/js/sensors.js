@@ -352,7 +352,7 @@ window.LabSensors = (() => {
   // ── Microphone ──
 
   function startMicrophone(opts = {}) {
-    const fftSize = opts.fftSize || 256;
+    const fftSize = opts.fftSize || 2048; // higher = better frequency resolution for voice
     const captureInterval = opts.intervalMs || 100;
 
     async function begin() {
@@ -366,21 +366,30 @@ window.LabSensors = (() => {
         dominant_freq DOUBLE
       )`);
 
+      // Full spectrum table — each row holds one FFT frame as CSV string
+      await ensureTable('sensor_mic_spectrum', `(
+        t DOUBLE,
+        sample_rate DOUBLE,
+        fft_size INTEGER,
+        spectrum VARCHAR
+      )`);
+
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = fftSize;
+      analyser.smoothingTimeConstant = 0.3;
       source.connect(analyser);
 
       const timeData = new Uint8Array(analyser.fftSize);
-      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      const freqFloat = new Float32Array(analyser.frequencyBinCount);
       const data = [];
 
       const timer = setInterval(() => {
         analyser.getByteTimeDomainData(timeData);
-        analyser.getByteFrequencyData(freqData);
+        analyser.getFloatFrequencyData(freqFloat);
 
-        // RMS & peak
+        // RMS & peak from time domain
         let sumSq = 0;
         let peak = 0;
         for (let i = 0; i < timeData.length; i++) {
@@ -392,27 +401,32 @@ window.LabSensors = (() => {
         const db = rms > 0 ? 20 * Math.log10(rms) : -100;
 
         // Dominant frequency
-        let maxFreqVal = 0;
+        let maxFreqVal = -Infinity;
         let maxFreqIdx = 0;
-        for (let i = 0; i < freqData.length; i++) {
-          if (freqData[i] > maxFreqVal) {
-            maxFreqVal = freqData[i];
+        for (let i = 0; i < freqFloat.length; i++) {
+          if (freqFloat[i] > maxFreqVal) {
+            maxFreqVal = freqFloat[i];
             maxFreqIdx = i;
           }
         }
         const dominantFreq = maxFreqIdx * audioCtx.sampleRate / analyser.fftSize;
 
-        const entry = {
-          t: performance.now(),
-          rms,
-          peak,
-          db,
-          dominant_freq: dominantFreq,
-        };
+        const now = performance.now();
 
+        // Summary stats
+        const entry = { t: now, rms, peak, db, dominant_freq: dominantFreq };
         data.push(entry);
         if (data.length > SAMPLE_BUFFER) data.shift();
         insertRow('sensor_mic', entry);
+
+        // Full spectrum — dB values clamped, stored as CSV string
+        const spectrum = Array.from(freqFloat, v => Math.max(-100, v).toFixed(1)).join(',');
+        insertRow('sensor_mic_spectrum', {
+          t: now,
+          sample_rate: audioCtx.sampleRate,
+          fft_size: analyser.fftSize,
+          spectrum,
+        });
       }, captureInterval);
 
       active.set('microphone', {

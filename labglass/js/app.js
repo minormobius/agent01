@@ -323,6 +323,73 @@ window.LabApp = (() => {
             `${sensor}_live`
           );
 
+          // Microphone: add spectrum query + spectral analysis Python cell
+          if (sensor === 'microphone') {
+            LabNotebook.createCell('sql',
+              `-- Full spectrum data (run AFTER stopping mic)\nSELECT t, sample_rate, fft_size, spectrum\nFROM sensor_mic_spectrum\nORDER BY t;`,
+              'mic_spectrum'
+            );
+
+            LabNotebook.createCell('python',
+`import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+# mic_spectrum is auto-injected from the SQL cell above
+rows = mic_spectrum['rows']
+if not rows:
+    print("No spectrum data yet!")
+    print("1) Start mic  2) Speak  3) Stop mic  4) Run the SQL cell above  5) Re-run this cell")
+else:
+    sr = rows[0]['sample_rate']
+    fft_size = int(rows[0]['fft_size'])
+    n_bins = fft_size // 2
+    freqs = np.linspace(0, sr / 2, n_bins)
+
+    spectra = []
+    times = []
+    for r in rows:
+        mags = np.array(r['spectrum'].split(','), dtype=np.float64)
+        spectra.append(mags)
+        times.append(r['t'])
+
+    spectra = np.array(spectra)
+    t = (np.array(times) - times[0]) / 1000
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7))
+
+    # Spectrogram
+    im = ax1.pcolormesh(t, freqs, spectra.T, shading='auto', cmap='magma')
+    ax1.set_ylim(50, 4000)
+    ax1.set_ylabel('Frequency (Hz)', color='white')
+    ax1.set_xlabel('Time (s)', color='white')
+    ax1.set_title('Voice Spectrogram', color='white', fontsize=14)
+    ax1.tick_params(colors='white')
+    cb = fig.colorbar(im, ax=ax1)
+    cb.set_label('dB', color='white')
+    cb.ax.tick_params(colors='white')
+
+    # Average power spectrum
+    avg = spectra.mean(axis=0)
+    ax2.fill_between(freqs, avg, -100, alpha=0.3, color='cyan')
+    ax2.plot(freqs, avg, color='cyan', linewidth=0.8)
+    ax2.set_xlim(50, 4000)
+    ax2.set_xlabel('Frequency (Hz)', color='white')
+    ax2.set_ylabel('Magnitude (dB)', color='white')
+    ax2.set_title('Average Power Spectrum', color='white', fontsize=14)
+    ax2.tick_params(colors='white')
+
+    for ax in (ax1, ax2):
+        ax.set_facecolor('#1c2128')
+
+    plt.tight_layout()
+    print(f"Plotted {len(rows)} frames over {t[-1]:.1f}s")
+    print(f"Sample rate: {int(sr)} Hz | FFT: {fft_size} | Bins: {n_bins}")`,
+              'voice_spectrum'
+            );
+          }
+
           updateSensorList();
         } catch (err) {
           btn.classList.remove('sensor-active');
