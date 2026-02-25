@@ -9,6 +9,13 @@ window.LabDuckDB = (() => {
 
   const CDN_BASE = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist';
 
+  // Create a same-origin worker from a cross-origin URL.
+  // new Worker(cdnUrl) is blocked by browsers — wrap via importScripts.
+  async function createWorker(url) {
+    const blob = new Blob([`importScripts("${url}");`], { type: 'text/javascript' });
+    return new Worker(URL.createObjectURL(blob));
+  }
+
   async function init() {
     const statusEl = document.getElementById('status-duckdb');
     try {
@@ -28,7 +35,7 @@ window.LabDuckDB = (() => {
         },
       });
 
-      const worker = new Worker(bundles.mainWorker);
+      const worker = await createWorker(bundles.mainWorker);
       const logger = new duckdb.ConsoleLogger();
       db = new duckdb.AsyncDuckDB(logger, worker);
 
