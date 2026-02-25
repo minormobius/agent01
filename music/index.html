@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Mino Music — ATProto Composer</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1223,6 +1229,11 @@ const wrapper = document.getElementById('grid-wrapper');
 const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
 const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
 wrapper.scrollTop = Math.max(0, targetScroll);
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 
 </script>
 </body>
