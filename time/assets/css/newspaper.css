@@ -1,5 +1,5 @@
 /* ========================================
-   THE BENCH — Biotech Intelligence Broadsheet
+   THE MINO TIMES — Biotech Intelligence Broadsheet
    ======================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap');
@@ -179,6 +179,12 @@ body {
   margin: 0 auto;
 }
 
+.archive-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--col-gap);
+}
+
 .archive-entry {
   border-bottom: 1px solid var(--light-rule);
   padding: 0.8rem 0;
@@ -186,6 +192,24 @@ body {
 
 .archive-entry:last-child {
   border-bottom: none;
+}
+
+/* First archive entry spans full width as secondary lead */
+.archive-grid .archive-entry:first-child {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 1.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.archive-grid .archive-entry:first-child .headline-minor {
+  font-size: 1.15rem;
+}
+
+/* Column divider between grid items */
+.archive-grid .archive-entry:nth-child(even):not(:first-child) {
+  border-left: 1px solid var(--light-rule);
+  padding-left: var(--col-gap);
 }
 
 .archive-entry .headline-minor a {
@@ -214,6 +238,16 @@ body {
 .archive-links a {
   color: var(--accent);
   text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .archive-grid {
+    grid-template-columns: 1fr;
+  }
+  .archive-grid .archive-entry:nth-child(even):not(:first-child) {
+    border-left: none;
+    padding-left: 0;
+  }
 }
 
 /* ---- Editorial / Podcast ---- */

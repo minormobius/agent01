@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
+    <meta property="og:title" content="The Mino Times — Biotech Intelligence">
+    <meta property="og:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://time.minomobi.com">
+    <meta property="og:site_name" content="The Mino Times">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The Mino Times — Biotech Intelligence">
+    <meta name="twitter:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
     <title>The Mino Times — Biotech Intelligence</title>
     <link rel="stylesheet" href="assets/css/newspaper.css">
     <link rel="alternate" type="application/rss+xml" title="The Mino Times Podcast" href="feed.xml">
@@ -32,6 +41,7 @@
     <section class="editorial-section" style="border-top: 2px solid var(--rule);">
         <div class="archive-list" id="archive">
             <div class="section-header">Archive</div>
+            <div class="archive-grid" id="archive-grid"></div>
         </div>
     </section>
 
@@ -118,10 +128,12 @@
       const archive = document.getElementById("archive");
       const lead = document.getElementById("lead");
 
+      const grid = document.getElementById("archive-grid");
+
       loading.style.display = "";
       lead.style.display = "none";
-      // Clear previous archive entries but keep the header
-      archive.querySelectorAll(".archive-entry").forEach(el => el.remove());
+      // Clear previous archive entries
+      grid.innerHTML = "";
 
       document.getElementById("repo-current").textContent = `Reading from @${handle}`;
 
@@ -150,9 +162,9 @@
         // Lead article = newest
         renderLead(entries[0], handle);
 
-        // Rest go in archive
+        // Rest go in archive grid
         for (let i = 1; i < entries.length; i++) {
-          archive.appendChild(renderArchiveEntry(entries[i], handle));
+          grid.appendChild(renderArchiveEntry(entries[i], handle));
         }
 
         loading.style.display = "none";
