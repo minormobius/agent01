@@ -154,7 +154,7 @@ a{color:#58a6ff}
 const KEY_W = 56;
 let CELL_W = 24;
 let CELL_H = 16;
-const PITCH_LOW = 48;   // C3
+const PITCH_LOW = 36;   // C2
 const PITCH_HIGH = 84;  // C6
 const PITCH_COUNT = PITCH_HIGH - PITCH_LOW;
 
@@ -535,11 +535,8 @@ function render() {
 let hoverCell = null;
 let isDragging = false;
 let dragStartCell = null;
-let dragMode = null; // 'remove' or 'extend'
-let dragNote = null;  // the note being extended
-let dwellTimer = null;
-let dwellReady = false;
-const DWELL_MS = 200;
+let dragMode = null; // 'remove' or null
+let dragNote = null;
 
 function cellFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
@@ -556,14 +553,10 @@ canvas.addEventListener('mousemove', (e) => {
   const cell = cellFromEvent(e);
   hoverCell = cell;
 
-  if (isDragging && cell && dragStartCell) {
-    if (dragMode === 'extend' && dragNote && dwellReady) {
-      dragNote.duration = Math.max(1, cell.step - dragNote.start + 1);
-    } else if (dragMode === 'remove') {
-      const track = state.tracks[state.activeTrack];
-      const existing = noteAt(track, cell.pitch, cell.step);
-      if (existing) track.notes = track.notes.filter(n => n !== existing);
-    }
+  if (isDragging && cell && dragMode === 'remove') {
+    const track = state.tracks[state.activeTrack];
+    const existing = noteAt(track, cell.pitch, cell.step);
+    if (existing) track.notes = track.notes.filter(n => n !== existing);
   }
   render();
 });
@@ -587,8 +580,6 @@ canvas.addEventListener('mousedown', (e) => {
   isDragging = true;
   dragStartCell = cell;
   dragNote = null;
-  dwellReady = false;
-  clearTimeout(dwellTimer);
 
   const track = state.tracks[state.activeTrack];
   const existing = noteAt(track, cell.pitch, cell.step);
@@ -598,12 +589,11 @@ canvas.addEventListener('mousedown', (e) => {
     dragMode = 'remove';
     if (existing) track.notes = track.notes.filter(n => n !== existing);
   } else if (existing) {
-    // Click existing note — start dwell timer for extend
-    dragMode = 'extend';
-    dragNote = existing;
-    dwellTimer = setTimeout(() => { dwellReady = true; }, DWELL_MS);
+    // Click existing note — delete it
+    track.notes = track.notes.filter(n => n !== existing);
+    dragMode = null;
   } else {
-    // Click empty cell — place note (no drag behavior)
+    // Click empty cell — place note
     dragMode = null;
     const note = { pitch: cell.pitch, start: cell.step, duration: state.noteLength, velocity: 100 };
     track.notes.push(note);
@@ -618,16 +608,12 @@ canvas.addEventListener('mouseup', () => {
   dragStartCell = null;
   dragMode = null;
   dragNote = null;
-  dwellReady = false;
-  clearTimeout(dwellTimer);
 });
 
 canvas.addEventListener('mouseleave', () => {
   hoverCell = null;
   isDragging = false;
   dragNote = null;
-  dwellReady = false;
-  clearTimeout(dwellTimer);
   render();
 });
 
