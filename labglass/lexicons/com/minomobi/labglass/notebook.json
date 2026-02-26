@@ -1,0 +1,64 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.labglass.notebook",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A LABGLASS data analysis notebook. Contains metadata and an ordered list of cell references. Cells are stored as separate com.minomobi.labglass.cell records to stay within ATProto's per-record size limits.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "cells", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Notebook title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Human-readable description of what this notebook analyzes"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "url", "author"],
+            "default": "public",
+            "description": "Advisory visibility. All PDS data is technically public."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxLength": 20,
+            "description": "Freeform tags for categorization"
+          },
+          "forkedFrom": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "If this notebook was forked, points to the source notebook (AT-URI + CID)"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "at-uri"
+            },
+            "maxLength": 500,
+            "description": "Ordered list of AT-URIs pointing to cell records. Array position determines display order."
+          }
+        }
+      }
+    }
+  }
+}

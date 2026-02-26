@@ -40,9 +40,11 @@
         <span id="status-webgpu" class="status-pill" data-status="off">WebGPU</span>
         <span id="status-collab" class="status-pill" data-status="off">P2P</span>
         <span id="status-hardware" class="status-pill" data-status="off">Hardware</span>
+        <span id="status-atproto" class="status-pill" data-status="off">ATProto</span>
       </div>
     </div>
     <div class="topbar-right">
+      <button id="btn-login" class="topbar-btn" title="Sign in with ATProto">Sign in</button>
       <button id="btn-share" class="topbar-btn" title="Share notebook via WebRTC">Share</button>
       <button id="btn-record" class="topbar-btn" title="Record session (WebCodecs)">Rec</button>
       <button id="btn-sensors" class="topbar-btn" title="Phone sensors &amp; hardware">Sensors</button>
@@ -118,7 +120,9 @@
         <button id="btn-add-viz" class="cell-add-btn" title="Add Visualization cell">+ Viz</button>
         <div class="toolbar-spacer"></div>
         <button id="btn-run-all" class="run-btn" title="Run all cells">Run All</button>
-        <button id="btn-export" class="export-btn" title="Export notebook">Export</button>
+        <button id="btn-save-pds" class="export-btn" title="Save notebook to your PDS" disabled>Save to PDS</button>
+        <button id="btn-open-pds" class="export-btn" title="Open notebook from any PDS">Open from PDS</button>
+        <button id="btn-export" class="export-btn" title="Export notebook as JSON">Export</button>
       </div>
       <div id="cells">
         <!-- Cells injected here by notebook.js -->
@@ -152,6 +156,66 @@
     <button id="btn-close-share" class="dialog-close">Close</button>
   </dialog>
 
+  <!-- Login dialog -->
+  <dialog id="login-dialog">
+    <h2>Sign in with ATProto</h2>
+    <p>Use an <a href="https://bsky.app/settings/app-passwords" target="_blank">app password</a>, not your main password.</p>
+    <div class="dialog-field">
+      <label for="login-handle">Handle</label>
+      <input id="login-handle" type="text" placeholder="alice.bsky.social" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="dialog-field">
+      <label for="login-password">App password</label>
+      <input id="login-password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="dialog-error"></div>
+    <div class="dialog-actions">
+      <button id="btn-do-login">Sign in</button>
+      <button id="btn-close-login" class="dialog-close">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Save to PDS dialog -->
+  <dialog id="save-dialog">
+    <h2>Save to PDS</h2>
+    <p>Your notebook will be saved as ATProto records on your personal data server.</p>
+    <div class="dialog-field">
+      <label for="save-title">Title</label>
+      <input id="save-title" type="text" placeholder="My analysis notebook" spellcheck="false">
+    </div>
+    <div class="dialog-field">
+      <label for="save-description">Description</label>
+      <textarea id="save-description" rows="2" placeholder="What this notebook analyzes..."></textarea>
+    </div>
+    <div class="dialog-field">
+      <label for="save-tags">Tags (comma-separated)</label>
+      <input id="save-tags" type="text" placeholder="biotech, diagnostics, duckdb" spellcheck="false">
+    </div>
+    <div id="save-status" class="dialog-status"></div>
+    <div class="dialog-actions">
+      <button id="btn-do-save">Save</button>
+      <button id="btn-close-save" class="dialog-close">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Browse notebooks dialog -->
+  <dialog id="browse-dialog">
+    <h2>Open from PDS</h2>
+    <p>Load a notebook from any ATProto user's personal data server.</p>
+    <div class="dialog-field">
+      <label for="browse-handle">Handle</label>
+      <div class="browse-input-row">
+        <input id="browse-handle" type="text" placeholder="alice.bsky.social" spellcheck="false">
+        <button id="btn-do-browse">Browse</button>
+      </div>
+    </div>
+    <div id="browse-status" class="dialog-status"></div>
+    <ul id="browse-list" class="notebook-list"></ul>
+    <div class="dialog-actions">
+      <button id="btn-close-browse" class="dialog-close">Close</button>
+    </div>
+  </dialog>
+
   <!-- Recording indicator -->
   <div id="rec-indicator" class="hidden">
     <span class="rec-dot"></span> Recording
@@ -171,6 +235,7 @@
   <script src="js/sensors.js"></script>
   <script src="js/hardware.js"></script>
   <script src="js/capture.js"></script>
+  <script src="js/atproto.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
