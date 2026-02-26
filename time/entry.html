@@ -103,7 +103,14 @@
         const renderer = new marked.Renderer();
         renderer.image = function({ href, title, text }) {
           const alt = text || "";
-          const img = `<img src="${href}" alt="${alt}" loading="lazy">`;
+          // Resolve relative paths: entry markdown lives in entries/,
+          // so "figures/foo.svg" should resolve to "entries/figures/foo.svg"
+          // when served statically. Blob URLs (https://) pass through as-is.
+          let src = href;
+          if (src && !src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("/")) {
+            src = "entries/" + src;
+          }
+          const img = `<img src="${src}" alt="${alt}" loading="lazy">`;
           if (alt) {
             return `<figure>${img}<figcaption>${alt}</figcaption></figure>`;
           }
