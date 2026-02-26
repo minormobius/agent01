@@ -15,54 +15,49 @@
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;overflow-x:hidden}
 a{color:#58a6ff}
 
-/* Header */
-#header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
-#logo{font-size:13px;font-weight:700;letter-spacing:2px;color:#58a6ff;white-space:nowrap}
-#logo span{color:#c9d1d9;font-weight:400;letter-spacing:0;margin-left:4px;font-size:11px}
-#transport{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-#transport button{width:32px;height:32px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-#transport button:hover{background:#30363d}
-#transport button.active{background:#238636;border-color:#238636;color:#fff}
+/* Header — single row transport */
+#header{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#161b22;border-bottom:1px solid #30363d}
+#header button{width:30px;height:30px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#header button:hover{background:#30363d}
+#header button.active{background:#238636;border-color:#238636;color:#fff}
 .ctrl-group{display:flex;align-items:center;gap:3px}
 .ctrl-label{font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
-.ctrl-input{width:48px;padding:3px 4px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;text-align:center;font-family:inherit}
+.ctrl-input{width:44px;padding:2px 3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;text-align:center;font-family:inherit}
 .ctrl-input:focus{border-color:#58a6ff;outline:none}
-#name-input{flex:1;min-width:100px;padding:4px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;font-family:inherit}
+#name-input{padding:4px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;font-family:inherit}
 #name-input:focus{border-color:#58a6ff;outline:none}
 
 /* Main layout */
-#main{display:flex;flex-direction:column;height:calc(100vh - 44px)}
+#main{display:flex;flex-direction:column;height:calc(100vh - 40px)}
 #grid-wrapper{flex:1;overflow:auto;position:relative;min-height:0}
 #piano-roll{display:block;cursor:crosshair;touch-action:none}
 
-/* Track panel */
-#track-panel{background:#161b22;border-top:1px solid #30363d;padding:4px 10px;overflow-x:auto}
+/* Track panel — always visible above grid */
+#track-panel{background:#161b22;border-bottom:1px solid #30363d;padding:3px 8px;overflow-x:auto;flex-shrink:0}
 #track-list{display:flex;gap:4px;align-items:center}
-.track-card{padding:4px 8px;border-radius:4px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:0;font-size:11px;display:flex;align-items:center;gap:6px;transition:border-color .15s;white-space:nowrap}
+.track-card{padding:3px 6px;border-radius:4px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:0;font-size:11px;display:flex;align-items:center;gap:5px;transition:border-color .15s;white-space:nowrap}
 .track-card.active{border-color:var(--track-color,#58a6ff)}
 .track-card:hover{background:#2a3040}
 .track-name{font-weight:600;color:#c9d1d9;font-size:11px}
 .track-card select{font-size:10px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:1px 2px;width:auto}
-.track-card input[type=range]{width:50px;font-size:10px}
+.track-card input[type=range]{width:44px}
 .track-controls{display:flex;gap:3px;align-items:center}
 .track-btn{padding:1px 5px;font-size:9px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
 .track-btn:hover{background:#30363d}
 .track-btn.muted{background:#da3633;color:#fff;border-color:#da3633}
 .track-btn.solo{background:#d29922;color:#fff;border-color:#d29922}
-#add-track-btn{padding:4px 8px;border:2px dashed #30363d;border-radius:4px;background:transparent;color:#8b949e;cursor:pointer;font-size:16px;min-width:32px;display:flex;align-items:center;justify-content:center}
+#add-track-btn{padding:3px 6px;border:2px dashed #30363d;border-radius:4px;background:transparent;color:#8b949e;cursor:pointer;font-size:14px;min-width:28px;display:flex;align-items:center;justify-content:center}
 #add-track-btn:hover{border-color:#58a6ff;color:#58a6ff}
 
-/* Tab bar */
-#tab-bar{display:flex;background:#0d1117;border-top:1px solid #30363d}
-.tab-btn{flex:1;padding:8px 0;border:none;background:transparent;color:#8b949e;font-size:12px;font-weight:600;cursor:pointer;text-align:center;border-top:2px solid transparent;font-family:inherit}
-.tab-btn:hover{color:#c9d1d9}
-.tab-btn.active{color:#58a6ff;border-top-color:#58a6ff;background:#161b22}
-#tab-compose,#tab-social{display:none}
-#tab-compose.active,#tab-social.active{display:flex}
-
-/* Bottom bar (inside social tab) */
-#bottom-bar{display:flex;gap:6px;padding:6px 10px;background:#0d1117;align-items:center;flex-wrap:wrap}
-.bottom-btn{padding:5px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:11px;cursor:pointer;white-space:nowrap}
+/* Bottom bar */
+#tab-bar{display:flex;align-items:center;gap:6px;padding:4px 8px;background:#0d1117;border-top:1px solid #30363d;flex-shrink:0}
+.tab-btn{padding:5px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#8b949e;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab-btn:hover{color:#c9d1d9;background:#30363d}
+.tab-btn.active{color:#58a6ff;border-color:#58a6ff}
+#tab-social{display:none}
+#tab-social.active{display:flex}
+#bottom-bar{display:flex;gap:6px;padding:4px 8px;background:#161b22;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.bottom-btn{padding:4px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:11px;cursor:pointer;white-space:nowrap}
 .bottom-btn:hover{background:#30363d}
 .bottom-btn.primary{background:#238636;border-color:#238636;color:#fff}
 .bottom-btn.primary:hover{background:#2ea043}
@@ -87,65 +82,54 @@ a{color:#58a6ff}
 <body>
 
 <div id="header">
-  <div id="logo">MINO MUSIC <span>ATProto Composer</span></div>
-  <div id="transport">
-    <button id="play-btn" title="Play (Space)">&#9654;</button>
-    <button id="stop-btn" title="Stop">&#9632;</button>
-    <div class="ctrl-group">
-      <span class="ctrl-label">BPM</span>
-      <input id="bpm-input" class="ctrl-input" type="number" value="120" min="20" max="300">
-    </div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">Steps</span>
-      <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
-    </div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">Len</span>
-      <select id="note-len" style="padding:3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="4">4</option>
-        <option value="8">8</option>
-      </select>
-    </div>
-    <div class="ctrl-group">
-      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
-        <input id="loop-cb" type="checkbox" checked> Loop
-      </label>
-    </div>
-    <div class="ctrl-group">
-      <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
-        <input id="show-all-cb" type="checkbox" checked> All tracks
-      </label>
-    </div>
+  <button id="play-btn" title="Play (Space)">&#9654;</button>
+  <button id="stop-btn" title="Stop">&#9632;</button>
+  <div class="ctrl-group">
+    <span class="ctrl-label">BPM</span>
+    <input id="bpm-input" class="ctrl-input" type="number" value="120" min="20" max="300">
   </div>
-  <input id="name-input" type="text" placeholder="Untitled Composition" value="">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Steps</span>
+    <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Len</span>
+    <select id="note-len" style="padding:3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="4">4</option>
+      <option value="8">8</option>
+    </select>
+  </div>
+  <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
+    <input id="loop-cb" type="checkbox" checked> Loop
+  </label>
+  <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
+    <input id="show-all-cb" type="checkbox" checked> All
+  </label>
 </div>
 
 <div id="main">
+  <div id="track-panel">
+    <div id="track-list"></div>
+  </div>
   <div id="grid-wrapper">
     <canvas id="piano-roll"></canvas>
   </div>
   <div id="tab-bar">
-    <button class="tab-btn active" data-tab="compose">Compose</button>
-    <button class="tab-btn" data-tab="social">Social</button>
-  </div>
-  <div id="tab-compose" class="active">
-    <div id="track-panel">
-      <div id="track-list"></div>
-    </div>
+    <button class="tab-btn" data-tab="social">Share</button>
+    <button class="bottom-btn" id="wav-btn" title="Export as WAV audio">WAV</button>
+    <span class="info" id="status-bar"></span>
   </div>
   <div id="tab-social">
     <div id="bottom-bar">
+      <input id="name-input" type="text" placeholder="Untitled Composition" value="" style="flex:1;min-width:0">
       <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish</button>
       <button class="bottom-btn" id="export-btn" title="Export as JSON">Export</button>
       <button class="bottom-btn" id="import-btn" title="Import from JSON">Import</button>
       <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch URI</button>
-      <button class="bottom-btn" id="wav-btn" title="Export as WAV audio">WAV</button>
-      <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
+      <button class="bottom-btn" id="clear-btn" title="Clear">Clear</button>
       <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
-      <span style="flex:1"></span>
-      <span class="info" id="status-bar"></span>
     </div>
   </div>
 </div>
@@ -811,14 +795,10 @@ canvas.addEventListener('touchend', () => {
 // TAB SWITCHING
 // ═══════════════════════════════════════════════════════════════
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-compose').classList.toggle('active', btn.dataset.tab === 'compose');
-    document.getElementById('tab-social').classList.toggle('active', btn.dataset.tab === 'social');
-  };
-});
+document.querySelector('.tab-btn[data-tab="social"]').onclick = (e) => {
+  e.currentTarget.classList.toggle('active');
+  document.getElementById('tab-social').classList.toggle('active');
+};
 
 // ═══════════════════════════════════════════════════════════════
 // TRACK PANEL
@@ -1334,11 +1314,6 @@ document.getElementById('wav-btn').onclick = async () => {
     const totalDur = state.steps * sd + 0.5; // small tail for release
     const sampleRate = 44100;
     const offCtx = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
-
-    // Create noise buffer for this context
-    const offNoise = offCtx.createBuffer(1, sampleRate, sampleRate);
-    const nd = offNoise.getChannelData(0);
-    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
     // Schedule all notes
     for (let t = 0; t < state.tracks.length; t++) {
