@@ -359,17 +359,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No motion data yet!")
     print("1) Start motion  2) Move/toss  3) Stop motion  4) Run SQL cell above  5) Run this cell")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t = (t - t[0]) / 1000
-    x = np.array([r[cols.index('x')] for r in rows])
-    y = np.array([r[cols.index('y')] for r in rows])
-    z = np.array([r[cols.index('z')] for r in rows])
+    x = np.array([r['x'] for r in rows])
+    y = np.array([r['y'] for r in rows])
+    z = np.array([r['z'] for r in rows])
     mag = np.sqrt(x**2 + y**2 + z**2)
 
     print(f"{len(rows)} samples over {t[-1]:.2f}s ({len(rows)/t[-1]:.0f} Hz effective)")
@@ -399,16 +398,15 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t = (t - t[0]) / 1000
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
     mag = np.sqrt(ax_v**2 + ay_v**2 + az_v**2)
 
     print(f"Linear accel — peak: {mag.max():.1f} m/s²")
@@ -437,17 +435,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t_sec = (t - t[0]) / 1000
     dt = np.diff(t) / 1000
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
 
     vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
     vy = np.concatenate([[0], np.cumsum((ay_v[:-1] + ay_v[1:]) / 2 * dt)])
@@ -481,17 +478,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t_sec = (t - t[0]) / 1000
     dt = np.diff(t) / 1000
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
 
     vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
     vy = np.concatenate([[0], np.cumsum((ay_v[:-1] + ay_v[1:]) / 2 * dt)])
@@ -1085,18 +1081,16 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 # accel_data comes from the SQL cell above
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No motion data yet. Start the sensor, toss, stop, run the SQL cell first.")
 else:
-    t_col = cols.index('t')
-    t = np.array([r[t_col] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t = (t - t[0]) / 1000  # ms -> seconds
 
-    x = np.array([r[cols.index('x')] for r in rows])
-    y = np.array([r[cols.index('y')] for r in rows])
-    z = np.array([r[cols.index('z')] for r in rows])
+    x = np.array([r['x'] for r in rows])
+    y = np.array([r['y'] for r in rows])
+    z = np.array([r['z'] for r in rows])
     mag = np.sqrt(x**2 + y**2 + z**2)
 
     print(f"{len(rows)} samples over {t[-1]:.2f}s ({len(rows)/t[-1]:.0f} Hz effective)")
@@ -1128,17 +1122,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t = (t - t[0]) / 1000
 
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
     mag = np.sqrt(ax_v**2 + ay_v**2 + az_v**2)
 
     print(f"Linear accel — peak: {mag.max():.1f} m/s²")
@@ -1169,18 +1162,17 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t_sec = (t - t[0]) / 1000
     dt = np.diff(t) / 1000  # per-sample dt in seconds
 
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
 
     # Cumulative trapezoidal integration
     vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
@@ -1217,18 +1209,17 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-cols = accel_data['columns']
 rows = accel_data['rows']
 if len(rows) < 2:
     print("No data yet.")
 else:
-    t = np.array([r[cols.index('t')] for r in rows])
+    t = np.array([r['t'] for r in rows])
     t_sec = (t - t[0]) / 1000
     dt = np.diff(t) / 1000
 
-    ax_v = np.array([r[cols.index('ax')] for r in rows])
-    ay_v = np.array([r[cols.index('ay')] for r in rows])
-    az_v = np.array([r[cols.index('az')] for r in rows])
+    ax_v = np.array([r['ax'] for r in rows])
+    ay_v = np.array([r['ay'] for r in rows])
+    az_v = np.array([r['az'] for r in rows])
 
     # First integral -> velocity
     vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
