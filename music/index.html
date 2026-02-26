@@ -696,6 +696,9 @@ canvas.addEventListener('touchend', (e) => {
   const sx = (t.clientX - rect.left) * (canvas.width / rect.width);
   const sy = (t.clientY - rect.top) * (canvas.height / rect.height);
 
+  // Suppress synthesized mouse events that follow touch
+  e.preventDefault();
+
   // Piano key preview
   if (sx < KEY_W) {
     const row = Math.floor(sy / CELL_H);
