@@ -186,8 +186,8 @@ def rewrite_images(content, entry_dir, pds, did, token):
     def replace_match(m):
         alt = m.group(1)
         path = m.group(2)
-        # Skip URLs — only process local paths
-        if path.startswith("http://") or path.startswith("https://"):
+        # Skip URLs and data URIs — only process local paths
+        if path.startswith(("http://", "https://", "data:")):
             return m.group(0)
         # Resolve relative to the entry file's directory
         abs_path = os.path.normpath(os.path.join(entry_dir, path))

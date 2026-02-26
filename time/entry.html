@@ -107,7 +107,7 @@
           // so "figures/foo.svg" should resolve to "entries/figures/foo.svg"
           // when served statically. Blob URLs (https://) pass through as-is.
           let src = href;
-          if (src && !src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("/")) {
+          if (src && !src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("data:") && !src.startsWith("/")) {
             src = "entries/" + src;
           }
           const img = `<img src="${src}" alt="${alt}" loading="lazy">`;
