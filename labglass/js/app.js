@@ -333,6 +333,197 @@ window.LabApp = (() => {
             `${sensor}_live`
           );
 
+          // Motion: add config + full analysis pipeline
+          if (sensor === 'motion') {
+            LabNotebook.createCell('config',
+              JSON.stringify({
+                motion: { hz: 60 },
+                microphone: { fftSize: 2048, intervalMs: 100, smoothing: 0.3 },
+                camera: { facing: 'environment', intervalMs: 1000, width: 320, height: 240 },
+                orientation: { hz: 10 },
+                magnetometer: { hz: 10 },
+                ambientLight: { hz: 10 },
+                gps: { continuous: true, highAccuracy: true },
+              }, null, 2),
+              'sensor_config'
+            );
+
+            LabNotebook.createCell('sql',
+              `-- Full accel data (run AFTER stopping motion)\nSELECT t, x, y, z, ax, ay, az, gx, gy, gz\nFROM sensor_accel\nORDER BY t;`,
+              'accel_data'
+            );
+
+            LabNotebook.createCell('python',
+`import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+cols = accel_data['columns']
+rows = accel_data['rows']
+if len(rows) < 2:
+    print("No motion data yet!")
+    print("1) Start motion  2) Move/toss  3) Stop motion  4) Run SQL cell above  5) Run this cell")
+else:
+    t = np.array([r[cols.index('t')] for r in rows])
+    t = (t - t[0]) / 1000
+    x = np.array([r[cols.index('x')] for r in rows])
+    y = np.array([r[cols.index('y')] for r in rows])
+    z = np.array([r[cols.index('z')] for r in rows])
+    mag = np.sqrt(x**2 + y**2 + z**2)
+
+    print(f"{len(rows)} samples over {t[-1]:.2f}s ({len(rows)/t[-1]:.0f} Hz effective)")
+    print(f"Magnitude — min: {mag.min():.1f}, max: {mag.max():.1f}, mean: {mag.mean():.1f} m/s²")
+
+    fig, ax_plt = plt.subplots(figsize=(10, 4))
+    ax_plt.plot(t, x, color='#ff6b6b', linewidth=0.8, label='x')
+    ax_plt.plot(t, y, color='#51cf66', linewidth=0.8, label='y')
+    ax_plt.plot(t, z, color='#339af0', linewidth=0.8, label='z')
+    ax_plt.plot(t, mag, color='#ffd43b', linewidth=1.2, label='|a|')
+    ax_plt.set_xlabel('Time (s)', color='#adbac7')
+    ax_plt.set_ylabel('m/s²', color='#adbac7')
+    ax_plt.set_title('Raw Acceleration (with gravity)', color='#adbac7')
+    ax_plt.legend(loc='upper right')
+    ax_plt.set_facecolor('#1c2128')
+    ax_plt.tick_params(colors='#adbac7')
+    for spine in ax_plt.spines.values():
+        spine.set_color('#444c56')
+    ax_plt.grid(True, alpha=0.2, color='#444c56')
+    plt.tight_layout()`,
+              'plot_raw_accel'
+            );
+
+            LabNotebook.createCell('python',
+`import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+cols = accel_data['columns']
+rows = accel_data['rows']
+if len(rows) < 2:
+    print("No data yet.")
+else:
+    t = np.array([r[cols.index('t')] for r in rows])
+    t = (t - t[0]) / 1000
+    ax_v = np.array([r[cols.index('ax')] for r in rows])
+    ay_v = np.array([r[cols.index('ay')] for r in rows])
+    az_v = np.array([r[cols.index('az')] for r in rows])
+    mag = np.sqrt(ax_v**2 + ay_v**2 + az_v**2)
+
+    print(f"Linear accel — peak: {mag.max():.1f} m/s²")
+
+    fig, ax_plt = plt.subplots(figsize=(10, 4))
+    ax_plt.plot(t, ax_v, color='#ff6b6b', linewidth=0.8, label='ax')
+    ax_plt.plot(t, ay_v, color='#51cf66', linewidth=0.8, label='ay')
+    ax_plt.plot(t, az_v, color='#339af0', linewidth=0.8, label='az')
+    ax_plt.plot(t, mag, color='#ffd43b', linewidth=1.2, label='|a|')
+    ax_plt.set_xlabel('Time (s)', color='#adbac7')
+    ax_plt.set_ylabel('m/s²', color='#adbac7')
+    ax_plt.set_title('Linear Acceleration (gravity subtracted)', color='#adbac7')
+    ax_plt.legend(loc='upper right')
+    ax_plt.set_facecolor('#1c2128')
+    ax_plt.tick_params(colors='#adbac7')
+    for spine in ax_plt.spines.values():
+        spine.set_color('#444c56')
+    ax_plt.grid(True, alpha=0.2, color='#444c56')
+    plt.tight_layout()`,
+              'plot_linear_accel'
+            );
+
+            LabNotebook.createCell('python',
+`import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+cols = accel_data['columns']
+rows = accel_data['rows']
+if len(rows) < 2:
+    print("No data yet.")
+else:
+    t = np.array([r[cols.index('t')] for r in rows])
+    t_sec = (t - t[0]) / 1000
+    dt = np.diff(t) / 1000
+    ax_v = np.array([r[cols.index('ax')] for r in rows])
+    ay_v = np.array([r[cols.index('ay')] for r in rows])
+    az_v = np.array([r[cols.index('az')] for r in rows])
+
+    vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
+    vy = np.concatenate([[0], np.cumsum((ay_v[:-1] + ay_v[1:]) / 2 * dt)])
+    vz = np.concatenate([[0], np.cumsum((az_v[:-1] + az_v[1:]) / 2 * dt)])
+    v_mag = np.sqrt(vx**2 + vy**2 + vz**2)
+
+    print(f"Peak speed: {v_mag.max():.2f} m/s ({v_mag.max() * 3.6:.1f} km/h)")
+    print(f"Final drift: vx={vx[-1]:.3f} vy={vy[-1]:.3f} vz={vz[-1]:.3f} m/s")
+
+    fig, ax_plt = plt.subplots(figsize=(10, 4))
+    ax_plt.plot(t_sec, vx, color='#ff6b6b', linewidth=0.8, label='vx')
+    ax_plt.plot(t_sec, vy, color='#51cf66', linewidth=0.8, label='vy')
+    ax_plt.plot(t_sec, vz, color='#339af0', linewidth=0.8, label='vz')
+    ax_plt.plot(t_sec, v_mag, color='#ffd43b', linewidth=1.2, label='|v|')
+    ax_plt.set_xlabel('Time (s)', color='#adbac7')
+    ax_plt.set_ylabel('m/s', color='#adbac7')
+    ax_plt.set_title('Velocity (integrated from linear accel)', color='#adbac7')
+    ax_plt.legend(loc='upper right')
+    ax_plt.set_facecolor('#1c2128')
+    ax_plt.tick_params(colors='#adbac7')
+    for spine in ax_plt.spines.values():
+        spine.set_color('#444c56')
+    ax_plt.grid(True, alpha=0.2, color='#444c56')
+    plt.tight_layout()`,
+              'velocity'
+            );
+
+            LabNotebook.createCell('python',
+`import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+cols = accel_data['columns']
+rows = accel_data['rows']
+if len(rows) < 2:
+    print("No data yet.")
+else:
+    t = np.array([r[cols.index('t')] for r in rows])
+    t_sec = (t - t[0]) / 1000
+    dt = np.diff(t) / 1000
+    ax_v = np.array([r[cols.index('ax')] for r in rows])
+    ay_v = np.array([r[cols.index('ay')] for r in rows])
+    az_v = np.array([r[cols.index('az')] for r in rows])
+
+    vx = np.concatenate([[0], np.cumsum((ax_v[:-1] + ax_v[1:]) / 2 * dt)])
+    vy = np.concatenate([[0], np.cumsum((ay_v[:-1] + ay_v[1:]) / 2 * dt)])
+    vz = np.concatenate([[0], np.cumsum((az_v[:-1] + az_v[1:]) / 2 * dt)])
+
+    px = np.concatenate([[0], np.cumsum((vx[:-1] + vx[1:]) / 2 * dt)])
+    py = np.concatenate([[0], np.cumsum((vy[:-1] + vy[1:]) / 2 * dt)])
+    pz = np.concatenate([[0], np.cumsum((vz[:-1] + vz[1:]) / 2 * dt)])
+    p_mag = np.sqrt(px**2 + py**2 + pz**2)
+
+    print(f"Max displacement: {p_mag.max():.3f} m ({p_mag.max() * 100:.1f} cm)")
+    print(f"Final drift: x={px[-1]:.3f} y={py[-1]:.3f} z={pz[-1]:.3f} m")
+
+    fig, ax_plt = plt.subplots(figsize=(10, 4))
+    ax_plt.plot(t_sec, px, color='#ff6b6b', linewidth=0.8, label='x')
+    ax_plt.plot(t_sec, py, color='#51cf66', linewidth=0.8, label='y')
+    ax_plt.plot(t_sec, pz, color='#339af0', linewidth=0.8, label='z')
+    ax_plt.plot(t_sec, p_mag, color='#ffd43b', linewidth=1.2, label='|p|')
+    ax_plt.set_xlabel('Time (s)', color='#adbac7')
+    ax_plt.set_ylabel('m', color='#adbac7')
+    ax_plt.set_title('Position (double-integrated from accel)', color='#adbac7')
+    ax_plt.legend(loc='upper right')
+    ax_plt.set_facecolor('#1c2128')
+    ax_plt.tick_params(colors='#adbac7')
+    for spine in ax_plt.spines.values():
+        spine.set_color('#444c56')
+    ax_plt.grid(True, alpha=0.2, color='#444c56')
+    plt.tight_layout()`,
+              'position'
+            );
+          }
+
           // Microphone: add spectrum query + spectral analysis Python cell
           if (sensor === 'microphone') {
             LabNotebook.createCell('sql',
