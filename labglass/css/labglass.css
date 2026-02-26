@@ -998,3 +998,140 @@ dialog button:hover { background: var(--accent); }
     padding: 16px 24px;
   }
 }
+
+/* ========================================================================
+   ATProto Dialogs
+   ======================================================================== */
+
+/* ── Dialog field layout ── */
+.dialog-field {
+  margin-bottom: 12px;
+}
+
+.dialog-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.dialog-field input[type="text"],
+.dialog-field input[type="password"] {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  min-height: 40px;
+}
+
+.dialog-field input:focus {
+  border-color: var(--accent);
+}
+
+.dialog-field textarea {
+  font-size: 13px;
+}
+
+.dialog-error {
+  color: var(--red);
+  font-size: 12px;
+  min-height: 1em;
+  margin-bottom: 8px;
+}
+
+.dialog-status {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-height: 1em;
+  margin-bottom: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* ── Browse dialog ── */
+.browse-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.browse-input-row input {
+  flex: 1;
+}
+
+.browse-input-row button {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+/* ── Notebook list (browse results) ── */
+.notebook-list {
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notebook-list li {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notebook-list li:hover {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.05);
+}
+
+.notebook-list .nb-title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.notebook-list .nb-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.notebook-list .nb-tags {
+  margin-top: 4px;
+}
+
+.notebook-list .nb-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-right: 4px;
+}
+
+/* ── Logged-in state ── */
+.topbar-btn.logged-in {
+  color: var(--green);
+  border-color: var(--green-dim);
+}
+
+.status-pill[data-status="ready"].atproto-pill {
+  border-color: var(--green-dim);
+  color: var(--green);
+}

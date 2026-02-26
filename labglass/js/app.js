@@ -46,6 +46,7 @@ window.LabApp = (() => {
     setupCollabUI();
     setupCaptureUI();
     setupShareDialog();
+    setupATProtoUI();
     setupKeyboardShortcuts();
 
     // ── Create starter cells ──
@@ -557,6 +558,236 @@ else:
     document.getElementById('btn-share').addEventListener('click', () => {
       document.getElementById('btn-collab-host').click();
     });
+  }
+
+  // ── ATProto UI ──
+  function setupATProtoUI() {
+    const loginBtn = document.getElementById('btn-login');
+    const loginDialog = document.getElementById('login-dialog');
+    const saveBtn = document.getElementById('btn-save-pds');
+    const saveDialog = document.getElementById('save-dialog');
+    const browseDialog = document.getElementById('browse-dialog');
+    const openBtn = document.getElementById('btn-open-pds');
+    const statusPill = document.getElementById('status-atproto');
+
+    // Restore session on load
+    const restored = LabATProto.restoreSession();
+    if (restored) {
+      updateATProtoUI(restored);
+    }
+
+    // Login button
+    loginBtn.addEventListener('click', () => {
+      if (LabATProto.isLoggedIn()) {
+        // Already logged in — show menu
+        if (confirm(`Signed in as ${LabATProto.getSession().handle}.\n\nSign out?`)) {
+          LabATProto.logout();
+          updateATProtoUI(null);
+          toast('Signed out');
+        }
+      } else {
+        document.getElementById('login-error').textContent = '';
+        loginDialog.showModal();
+      }
+    });
+
+    // Login form
+    document.getElementById('btn-do-login').addEventListener('click', async () => {
+      const handle = document.getElementById('login-handle').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      const errorEl = document.getElementById('login-error');
+
+      if (!handle || !password) {
+        errorEl.textContent = 'Enter both handle and app password.';
+        return;
+      }
+
+      errorEl.textContent = '';
+      document.getElementById('btn-do-login').disabled = true;
+      document.getElementById('btn-do-login').textContent = 'Signing in...';
+
+      try {
+        const session = await LabATProto.login(handle, password);
+        updateATProtoUI(session);
+        loginDialog.close();
+        document.getElementById('login-password').value = '';
+        toast(`Signed in as ${session.handle}`, 'success');
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        document.getElementById('btn-do-login').disabled = false;
+        document.getElementById('btn-do-login').textContent = 'Sign in';
+      }
+    });
+
+    document.getElementById('btn-close-login').addEventListener('click', () => {
+      loginDialog.close();
+    });
+
+    // Enter key in login dialog submits
+    loginDialog.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('btn-do-login').click();
+      }
+    });
+
+    // Save to PDS
+    saveBtn.addEventListener('click', () => {
+      if (!LabATProto.isLoggedIn()) {
+        toast('Sign in first to save to PDS', 'error');
+        loginDialog.showModal();
+        return;
+      }
+      document.getElementById('save-status').textContent = '';
+      saveDialog.showModal();
+    });
+
+    document.getElementById('btn-do-save').addEventListener('click', async () => {
+      const title = document.getElementById('save-title').value.trim();
+      const description = document.getElementById('save-description').value.trim();
+      const tagsStr = document.getElementById('save-tags').value.trim();
+      const statusEl = document.getElementById('save-status');
+
+      if (!title) {
+        statusEl.textContent = 'Title is required.';
+        return;
+      }
+
+      const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const cells = LabNotebook.getCellsWithOutput();
+
+      if (cells.length === 0) {
+        statusEl.textContent = 'Notebook has no cells to save.';
+        return;
+      }
+
+      document.getElementById('btn-do-save').disabled = true;
+      statusEl.textContent = `Saving ${cells.length} cells...`;
+
+      try {
+        const result = await LabATProto.saveNotebook(title, description, cells, tags);
+        statusEl.textContent = '';
+        saveDialog.close();
+        toast(`Saved to PDS (${cells.length} cells)`, 'success');
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      } finally {
+        document.getElementById('btn-do-save').disabled = false;
+      }
+    });
+
+    document.getElementById('btn-close-save').addEventListener('click', () => {
+      saveDialog.close();
+    });
+
+    // Open from PDS (browse)
+    openBtn.addEventListener('click', () => {
+      document.getElementById('browse-status').textContent = '';
+      document.getElementById('browse-list').innerHTML = '';
+      // Pre-fill with own handle if logged in
+      if (LabATProto.isLoggedIn()) {
+        document.getElementById('browse-handle').value = LabATProto.getSession().handle;
+      }
+      browseDialog.showModal();
+    });
+
+    document.getElementById('btn-do-browse').addEventListener('click', async () => {
+      const handle = document.getElementById('browse-handle').value.trim();
+      const statusEl = document.getElementById('browse-status');
+      const listEl = document.getElementById('browse-list');
+
+      if (!handle) {
+        statusEl.textContent = 'Enter a handle to browse.';
+        return;
+      }
+
+      statusEl.textContent = 'Loading notebooks...';
+      listEl.innerHTML = '';
+
+      try {
+        const { notebooks } = await LabATProto.listNotebooks(handle);
+        if (notebooks.length === 0) {
+          statusEl.textContent = 'No LABGLASS notebooks found for this user.';
+          return;
+        }
+        statusEl.textContent = `${notebooks.length} notebook(s) found.`;
+        renderNotebookList(listEl, notebooks, handle);
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    // Enter key in browse handle input
+    document.getElementById('browse-handle').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btn-do-browse').click();
+      }
+    });
+
+    document.getElementById('btn-close-browse').addEventListener('click', () => {
+      browseDialog.close();
+    });
+
+    function renderNotebookList(container, notebooks, handle) {
+      container.innerHTML = '';
+      for (const nb of notebooks) {
+        const li = document.createElement('li');
+        const date = nb.createdAt ? new Date(nb.createdAt).toLocaleDateString() : '';
+        const cellCount = (nb.cells || []).length;
+        let tagsHtml = '';
+        if (nb.tags && nb.tags.length > 0) {
+          tagsHtml = '<div class="nb-tags">' + nb.tags.map(t => `<span class="nb-tag">${escapeHtml(t)}</span>`).join('') + '</div>';
+        }
+        li.innerHTML = `
+          <div class="nb-title">${escapeHtml(nb.title || 'Untitled')}</div>
+          <div class="nb-meta">${date} &middot; ${cellCount} cells</div>
+          ${nb.description ? `<div class="nb-meta">${escapeHtml(nb.description.slice(0, 120))}</div>` : ''}
+          ${tagsHtml}
+        `;
+        li.addEventListener('click', () => loadNotebookFromPDS(handle, nb.rkey, nb.title));
+        container.appendChild(li);
+      }
+    }
+
+    async function loadNotebookFromPDS(handle, rkey, title) {
+      const browseDialog = document.getElementById('browse-dialog');
+      const statusEl = document.getElementById('browse-status');
+      statusEl.textContent = `Loading "${title}"...`;
+
+      try {
+        const { notebook, cells } = await LabATProto.loadNotebook(handle, rkey);
+        // Import into the editor
+        LabNotebook.importNotebook({
+          cells: cells.map(c => ({
+            type: c.cellType,
+            source: c.source,
+            name: c.name || '',
+          })),
+        });
+        browseDialog.close();
+        toast(`Loaded "${notebook.title}" (${cells.length} cells)`, 'success');
+      } catch (err) {
+        statusEl.textContent = 'Error loading: ' + err.message;
+      }
+    }
+
+    function updateATProtoUI(session) {
+      if (session) {
+        loginBtn.textContent = session.handle;
+        loginBtn.title = `Signed in as ${session.handle}. Click to sign out.`;
+        loginBtn.classList.add('logged-in');
+        statusPill.dataset.status = 'ready';
+        saveBtn.disabled = false;
+      } else {
+        loginBtn.textContent = 'Sign in';
+        loginBtn.title = 'Sign in with ATProto';
+        loginBtn.classList.remove('logged-in');
+        statusPill.dataset.status = 'off';
+        saveBtn.disabled = true;
+      }
+    }
   }
 
   // ── Keyboard Shortcuts ──

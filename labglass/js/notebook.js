@@ -408,6 +408,23 @@ window.LabNotebook = (() => {
     return cells.map(c => ({ type: c.type, name: c.name, source: c.source, id: c.id }));
   }
 
+  // Get cells with text output (for ATProto save)
+  function getCellsWithOutput() {
+    return cells.map(c => {
+      const result = { type: c.type, name: c.name, source: c.source };
+      // Extract text output if available
+      if (c.output) {
+        if (c.type === 'sql' && c.output.columns) {
+          result.textOutput = c.output.columns.join('\t') + '\n' +
+            c.output.rows.slice(0, 50).map(r => c.output.columns.map(col => r[col]).join('\t')).join('\n');
+        } else if (c.type === 'python' && c.output.output) {
+          result.textOutput = c.output.output;
+        }
+      }
+      return result;
+    });
+  }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -423,6 +440,7 @@ window.LabNotebook = (() => {
     exportNotebook,
     importNotebook,
     getCells,
+    getCellsWithOutput,
     cells: () => cells,
   };
 })();
