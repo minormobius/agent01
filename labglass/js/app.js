@@ -251,6 +251,9 @@ window.LabApp = (() => {
     document.getElementById('btn-add-viz').addEventListener('click', () => {
       LabNotebook.createCell('viz');
     });
+    document.getElementById('btn-add-config').addEventListener('click', () => {
+      LabNotebook.createCell('config', '', 'sensor_config');
+    });
     document.getElementById('btn-add-cell-bottom').addEventListener('click', () => {
       LabNotebook.createCell('sql');
     });

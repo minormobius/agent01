@@ -52,24 +52,29 @@ window.LabNotebook = (() => {
     `;
 
     // Wire up events
-    const textarea = el.querySelector('textarea');
     const nameInput = el.querySelector('.cell-name');
 
-    textarea.addEventListener('input', () => {
-      cell.source = textarea.value;
-      autoResize(textarea);
-    });
+    // Config cells get a form editor instead of a textarea
+    if (cell.type === 'config') {
+      renderConfigCell(cell, el.querySelector('.cell-editor'));
+    } else {
+      const textarea = el.querySelector('textarea');
+      textarea.addEventListener('input', () => {
+        cell.source = textarea.value;
+        autoResize(textarea);
+      });
 
-    textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.shiftKey) {
-        e.preventDefault();
-        runCell(cell.id);
-      }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        insertAtCursor(textarea, '  ');
-      }
-    });
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.shiftKey) {
+          e.preventDefault();
+          runCell(cell.id);
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          insertAtCursor(textarea, '  ');
+        }
+      });
+    }
 
     nameInput.addEventListener('input', () => {
       cell.name = nameInput.value;
@@ -99,7 +104,8 @@ window.LabNotebook = (() => {
     });
 
     cellsContainer().appendChild(el);
-    autoResize(textarea);
+    const textarea = el.querySelector('textarea');
+    if (textarea) autoResize(textarea);
     return el;
   }
 
@@ -126,7 +132,141 @@ window.LabNotebook = (() => {
       case 'python': return 'import numpy as np\n\n# Your Python code here...';
       case 'markdown': return '# Title\n\nWrite your notes here...';
       case 'viz': return '// WebGPU visualization code\n// Use labglass.gpu to access WebGPU context';
+      case 'config': return '// Sensor configuration (auto-generated)';
       default: return '';
+    }
+  }
+
+  // ── Config cell: sensor parameter editor ──
+
+  // Schema defines what's editable per sensor
+  const CONFIG_SCHEMA = {
+    microphone: [
+      { key: 'fftSize', label: 'FFT Size', type: 'select', options: [256, 512, 1024, 2048, 4096, 8192, 16384], hint: 'Frequency bins = fftSize/2. Higher = finer resolution, more data' },
+      { key: 'intervalMs', label: 'Capture interval (ms)', type: 'number', min: 20, max: 2000, step: 10, hint: 'Time between FFT frames' },
+      { key: 'smoothing', label: 'Smoothing', type: 'number', min: 0, max: 1, step: 0.05, hint: '0 = no smoothing, 1 = max. Controls temporal averaging' },
+    ],
+    camera: [
+      { key: 'facing', label: 'Camera', type: 'select', options: ['environment', 'user'], hint: 'environment = back, user = front' },
+      { key: 'intervalMs', label: 'Capture interval (ms)', type: 'number', min: 50, max: 5000, step: 50, hint: 'Time between frame captures' },
+      { key: 'width', label: 'Width (px)', type: 'number', min: 64, max: 1920, step: 16 },
+      { key: 'height', label: 'Height (px)', type: 'number', min: 64, max: 1080, step: 16 },
+    ],
+    motion: [
+      { key: 'hz', label: 'Sample rate (Hz)', type: 'number', min: 1, max: 100, step: 1, hint: 'Readings per second for accel + gyro' },
+    ],
+    orientation: [
+      { key: 'hz', label: 'Sample rate (Hz)', type: 'number', min: 1, max: 60, step: 1 },
+    ],
+    magnetometer: [
+      { key: 'hz', label: 'Sample rate (Hz)', type: 'number', min: 1, max: 60, step: 1 },
+    ],
+    ambientLight: [
+      { key: 'hz', label: 'Sample rate (Hz)', type: 'number', min: 1, max: 30, step: 1 },
+    ],
+    gps: [
+      { key: 'continuous', label: 'Continuous tracking', type: 'toggle' },
+      { key: 'highAccuracy', label: 'High accuracy (uses more battery)', type: 'toggle' },
+    ],
+  };
+
+  function renderConfigCell(cell, container) {
+    const currentConfig = LabSensors.getConfig();
+    const el = document.createElement('div');
+    el.className = 'config-editor';
+
+    let html = '';
+    for (const [sensor, fields] of Object.entries(CONFIG_SCHEMA)) {
+      html += `<div class="config-sensor-group" data-sensor="${sensor}">`;
+      html += `<div class="config-sensor-label">${sensor}</div>`;
+      html += '<div class="config-fields">';
+      for (const field of fields) {
+        const val = currentConfig[sensor]?.[field.key] ?? '';
+        const fieldId = `cfg-${sensor}-${field.key}`;
+        html += `<div class="config-field">`;
+        html += `<label for="${fieldId}">${field.label}</label>`;
+        if (field.type === 'select') {
+          html += `<select id="${fieldId}" data-sensor="${sensor}" data-key="${field.key}">`;
+          for (const opt of field.options) {
+            const selected = String(opt) === String(val) ? ' selected' : '';
+            html += `<option value="${opt}"${selected}>${opt}</option>`;
+          }
+          html += '</select>';
+        } else if (field.type === 'toggle') {
+          const checked = val ? ' checked' : '';
+          html += `<input type="checkbox" id="${fieldId}" data-sensor="${sensor}" data-key="${field.key}"${checked}>`;
+        } else {
+          html += `<input type="number" id="${fieldId}" data-sensor="${sensor}" data-key="${field.key}" value="${val}"`;
+          if (field.min !== undefined) html += ` min="${field.min}"`;
+          if (field.max !== undefined) html += ` max="${field.max}"`;
+          if (field.step !== undefined) html += ` step="${field.step}"`;
+          html += '>';
+        }
+        if (field.hint) html += `<span class="config-hint">${field.hint}</span>`;
+        html += '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    el.innerHTML = html;
+    container.innerHTML = '';
+    container.appendChild(el);
+
+    // Sync form state back to cell.source as JSON
+    function syncToSource() {
+      const result = {};
+      el.querySelectorAll('[data-sensor]').forEach(input => {
+        const sensor = input.dataset.sensor;
+        const key = input.dataset.key;
+        if (!result[sensor]) result[sensor] = {};
+        if (input.type === 'checkbox') {
+          result[sensor][key] = input.checked;
+        } else if (input.type === 'number') {
+          result[sensor][key] = parseFloat(input.value);
+        } else {
+          result[sensor][key] = input.value;
+        }
+      });
+      cell.source = JSON.stringify(result, null, 2);
+    }
+
+    el.querySelectorAll('input, select').forEach(input => {
+      input.addEventListener('change', syncToSource);
+      input.addEventListener('input', syncToSource);
+    });
+
+    // If cell already has source JSON, restore it into the form
+    if (cell.source && cell.source.startsWith('{')) {
+      try {
+        const saved = JSON.parse(cell.source);
+        for (const [sensor, opts] of Object.entries(saved)) {
+          for (const [key, val] of Object.entries(opts)) {
+            const input = el.querySelector(`[data-sensor="${sensor}"][data-key="${key}"]`);
+            if (input) {
+              if (input.type === 'checkbox') input.checked = !!val;
+              else input.value = val;
+            }
+          }
+        }
+      } catch {}
+    } else {
+      syncToSource(); // initialize source from current config
+    }
+  }
+
+  function runConfig(cell, outputEl) {
+    try {
+      const configData = JSON.parse(cell.source);
+      let applied = [];
+      for (const [sensor, opts] of Object.entries(configData)) {
+        LabSensors.configure(sensor, opts);
+        const keys = Object.entries(opts).map(([k, v]) => `${k}=${v}`).join(', ');
+        applied.push(`${sensor}: ${keys}`);
+      }
+      outputEl.innerHTML = `<pre>${applied.join('\n')}\n\nConfig applied. Start sensors to use these settings.</pre>`;
+      cell.output = applied.join('\n');
+    } catch (err) {
+      outputEl.innerHTML = `<pre class="error">${escapeHtml(err.message)}</pre>`;
     }
   }
 
@@ -157,6 +297,9 @@ window.LabNotebook = (() => {
           break;
         case 'viz':
           await runViz(cell, outputEl);
+          break;
+        case 'config':
+          runConfig(cell, outputEl);
           break;
       }
     } catch (err) {

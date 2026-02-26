@@ -16,10 +16,48 @@ window.LabSensors = (() => {
   const active = new Map(); // sensorName -> { stop(), data[], streaming }
   const SAMPLE_BUFFER = 500; // keep last N readings in memory per sensor
 
+  // ── Sensor configuration (user-editable via config cells) ──
+  const defaults = {
+    motion:       { hz: 20 },
+    orientation:  { hz: 10 },
+    magnetometer: { hz: 10 },
+    ambientLight: { hz: 10 },
+    gps:          { continuous: true, highAccuracy: true },
+    camera:       { facing: 'environment', intervalMs: 1000, width: 320, height: 240 },
+    microphone:   { fftSize: 2048, intervalMs: 100, smoothing: 0.3 },
+  };
+
+  // Deep-clone defaults as current config
+  const config = JSON.parse(JSON.stringify(defaults));
+
+  function configure(sensor, opts) {
+    if (!config[sensor]) config[sensor] = {};
+    Object.assign(config[sensor], opts);
+  }
+
+  function getConfig(sensor) {
+    if (sensor) return { ...config[sensor] };
+    return JSON.parse(JSON.stringify(config));
+  }
+
+  function getDefaults(sensor) {
+    if (sensor) return { ...defaults[sensor] };
+    return JSON.parse(JSON.stringify(defaults));
+  }
+
+  function resetConfig(sensor) {
+    if (sensor) {
+      config[sensor] = JSON.parse(JSON.stringify(defaults[sensor]));
+    } else {
+      Object.assign(config, JSON.parse(JSON.stringify(defaults)));
+    }
+  }
+
   // ── Accelerometer + Gyroscope via DeviceMotionEvent ──
 
   function startMotion(opts = {}) {
-    const hz = opts.hz || 20;
+    const cfg = { ...config.motion, ...opts };
+    const hz = cfg.hz;
     const interval = 1000 / hz;
     let lastSample = 0;
 
@@ -82,7 +120,8 @@ window.LabSensors = (() => {
   // ── Orientation (compass heading, tilt) ──
 
   function startOrientation(opts = {}) {
-    const hz = opts.hz || 10;
+    const cfg = { ...config.orientation, ...opts };
+    const hz = cfg.hz;
     const interval = 1000 / hz;
     let lastSample = 0;
 
@@ -136,7 +175,8 @@ window.LabSensors = (() => {
   // ── Generic Sensor API (Chrome) — Magnetometer, AmbientLight ──
 
   function startGenericSensor(SensorClass, name, fields, opts = {}) {
-    const hz = opts.hz || 10;
+    const cfg = { ...(config[name] || {}), ...opts };
+    const hz = cfg.hz || 10;
 
     return new Promise((resolve, reject) => {
       if (typeof SensorClass === 'undefined' || !SensorClass) {
@@ -198,7 +238,8 @@ window.LabSensors = (() => {
   // ── Geolocation ──
 
   function startGeolocation(opts = {}) {
-    const continuous = opts.continuous !== false;
+    const cfg = { ...config.gps, ...opts };
+    const continuous = cfg.continuous !== false;
 
     async function begin() {
       await ensureTable('sensor_gps', `(
@@ -217,7 +258,7 @@ window.LabSensors = (() => {
         const watchId = navigator.geolocation.watchPosition(
           (pos) => handlePosition(pos, data),
           (err) => console.error('GPS error:', err),
-          { enableHighAccuracy: true, maximumAge: 0 }
+          { enableHighAccuracy: cfg.highAccuracy, maximumAge: 0 }
         );
 
         active.set('gps', {
@@ -258,10 +299,11 @@ window.LabSensors = (() => {
   // ── Camera ──
 
   function startCamera(opts = {}) {
-    const facing = opts.facing || 'environment'; // 'user' for selfie
-    const captureInterval = opts.intervalMs || 1000; // ms between frame analyses
-    const width = opts.width || 320;
-    const height = opts.height || 240;
+    const cfg = { ...config.camera, ...opts };
+    const facing = cfg.facing;
+    const captureInterval = cfg.intervalMs;
+    const width = cfg.width;
+    const height = cfg.height;
 
     async function begin() {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -352,8 +394,9 @@ window.LabSensors = (() => {
   // ── Microphone ──
 
   function startMicrophone(opts = {}) {
-    const fftSize = opts.fftSize || 2048; // higher = better frequency resolution for voice
-    const captureInterval = opts.intervalMs || 100;
+    const cfg = { ...config.microphone, ...opts };
+    const fftSize = cfg.fftSize;
+    const captureInterval = cfg.intervalMs;
 
     async function begin() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -378,7 +421,7 @@ window.LabSensors = (() => {
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = fftSize;
-      analyser.smoothingTimeConstant = 0.3;
+      analyser.smoothingTimeConstant = cfg.smoothing;
       source.connect(analyser);
 
       const timeData = new Uint8Array(analyser.fftSize);
@@ -555,5 +598,9 @@ window.LabSensors = (() => {
     stopAll,
     getActive,
     detectCapabilities,
+    configure,
+    getConfig,
+    getDefaults,
+    resetConfig,
   };
 })();
