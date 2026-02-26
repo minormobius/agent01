@@ -112,17 +112,16 @@ sys.stderr = _stderr_capture
       result = await pyodide.runPythonAsync(code);
 
       // Check if matplotlib was used and there are open figures
-      // Only import if already loaded — avoids stderr traceback when not installed
       try {
-        const hasFigs = await pyodide.runPythonAsync(`
-import sys
-if 'matplotlib.pyplot' in sys.modules:
-    import matplotlib.pyplot as plt
-    len(plt.get_fignums()) > 0
-else:
-    False
+        const figCount = await pyodide.runPythonAsync(`
+import sys as _sys
+_fig_count = 0
+if 'matplotlib.pyplot' in _sys.modules:
+    import matplotlib.pyplot as _plt
+    _fig_count = len(_plt.get_fignums())
+_fig_count
         `);
-        if (hasFigs) {
+        for (let i = 0; i < figCount; i++) {
           const b64 = await pyodide.runPythonAsync('_fig_to_base64()');
           figures.push(b64);
         }
