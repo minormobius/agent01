@@ -79,6 +79,21 @@ a{color:#58a6ff}
 
 /* Info text */
 .info{font-size:11px;color:#8b949e;padding:0 16px 8px}
+
+/* Selection action bar */
+#sel-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;padding:10px 16px;background:#161b22;border-top:2px solid #58a6ff;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+#sel-bar.active{display:flex}
+#sel-bar .sel-btn{padding:8px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
+#sel-bar .sel-btn:hover{background:#30363d}
+#sel-bar .sel-btn.copy{border-color:#58a6ff;color:#58a6ff}
+#sel-bar .sel-btn.cut{border-color:#d29922;color:#d29922}
+#sel-bar .sel-btn.del{border-color:#da3633;color:#da3633}
+#sel-bar .sel-btn.cancel{color:#8b949e}
+#sel-bar .sel-info{font-size:11px;color:#8b949e}
+#paste-hint{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;padding:10px 16px;background:#161b22;border-top:2px solid #3fb950;gap:8px;align-items:center;justify-content:center}
+#paste-hint.active{display:flex}
+#paste-hint .sel-btn{padding:8px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
+#paste-hint .sel-info{font-size:13px;color:#3fb950;font-weight:600}
 </style>
 </head>
 <body>
@@ -141,6 +156,21 @@ a{color:#58a6ff}
       <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
     </div>
   </div>
+</div>
+
+<!-- Selection action bar (shown when notes are selected) -->
+<div id="sel-bar">
+  <span class="sel-info" id="sel-count"></span>
+  <button class="sel-btn copy" id="sel-copy">Copy</button>
+  <button class="sel-btn cut" id="sel-cut">Cut</button>
+  <button class="sel-btn del" id="sel-del">Delete</button>
+  <button class="sel-btn cancel" id="sel-cancel">Cancel</button>
+</div>
+
+<!-- Paste hint bar (shown when clipboard is ready to paste) -->
+<div id="paste-hint">
+  <span class="sel-info">Tap grid to paste</span>
+  <button class="sel-btn cancel" id="paste-cancel">Cancel</button>
 </div>
 
 <!-- Modals rendered by JS -->
@@ -517,8 +547,66 @@ function render() {
     ctx.stroke();
   }
 
+  // Selection rectangle
+  if (selRect) {
+    const sMin = Math.min(selRect.s0, selRect.s1);
+    const sMax = Math.max(selRect.s0, selRect.s1);
+    const pMin = Math.min(selRect.p0, selRect.p1);
+    const pMax = Math.max(selRect.p0, selRect.p1);
+    const rx = KEY_W + sMin * CELL_W;
+    const ry = (PITCH_HIGH - 1 - pMax) * CELL_H;
+    const rw = (sMax - sMin + 1) * CELL_W;
+    const rh = (pMax - pMin + 1) * CELL_H;
+    ctx.fillStyle = 'rgba(88,166,255,0.12)';
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = 'rgba(88,166,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
+    ctx.setLineDash([]);
+
+    // Highlight selected notes
+    const track = state.tracks[state.activeTrack];
+    const color = TRACK_COLORS[state.activeTrack % TRACK_COLORS.length];
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    for (const n of track.notes) {
+      if (n.pitch >= pMin && n.pitch <= pMax && n.start >= sMin && n.start + n.duration - 1 <= sMax) {
+        const nx = KEY_W + n.start * CELL_W + 1;
+        const ny = (PITCH_HIGH - 1 - n.pitch) * CELL_H + 1;
+        const nw = n.duration * CELL_W - 2;
+        const nh = CELL_H - 2;
+        ctx.strokeRect(nx - 0.5, ny - 0.5, nw + 1, nh + 1);
+      }
+    }
+  }
+
+  // Paste ghost preview
+  if (pasteMode && clipboard && pasteTarget) {
+    ctx.globalAlpha = 0.35;
+    const color = TRACK_COLORS[state.activeTrack % TRACK_COLORS.length];
+    for (const n of clipboard) {
+      const ns = pasteTarget.step + n.start;
+      const np = pasteTarget.pitch + n.pitch;
+      if (ns >= 0 && ns < state.steps && np >= PITCH_LOW && np < PITCH_HIGH) {
+        const gx = KEY_W + ns * CELL_W + 1;
+        const gy = (PITCH_HIGH - 1 - np) * CELL_H + 1;
+        const gw = n.duration * CELL_W - 2;
+        const gh = CELL_H - 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(gx, gy, gw, gh, 2);
+        ctx.fill();
+        ctx.strokeStyle = '#3fb950';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // Hover highlight
-  if (hoverCell) {
+  if (hoverCell && !selRect && !pasteMode) {
     const row = PITCH_HIGH - 1 - hoverCell.pitch;
     const x = KEY_W + hoverCell.step * CELL_W;
     const y = row * CELL_H;
@@ -538,6 +626,16 @@ let dragStartCell = null;
 let dragMode = null; // 'remove' or null
 let dragNote = null;
 
+// ─── Selection / clipboard state ───
+let selRect = null;         // {s0, s1, p0, p1} step/pitch bounds (inclusive)
+let clipboard = null;       // [{pitch, start, duration, velocity}, ...] normalized to 0-origin
+let pasteMode = false;      // waiting for tap to stamp clipboard
+let pasteTarget = null;     // {step, pitch} last hover/tap for ghost preview
+let selectDragging = false; // actively drawing selection rect
+let selectAnchor = null;    // {step, pitch} where long-press started
+let longPressTimer = null;  // timer for detecting long-press
+const LONG_PRESS_MS = 400;
+
 function cellFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
   const sx = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -552,6 +650,11 @@ function cellFromEvent(e) {
 canvas.addEventListener('mousemove', (e) => {
   const cell = cellFromEvent(e);
   hoverCell = cell;
+
+  // Update paste ghost preview position
+  if (pasteMode && cell) {
+    pasteTarget = { step: cell.step, pitch: cell.pitch };
+  }
 
   if (isDragging && cell && dragMode === 'remove') {
     const track = state.tracks[state.activeTrack];
@@ -573,10 +676,23 @@ canvas.addEventListener('mousedown', (e) => {
       const pitch = PITCH_HIGH - 1 - row;
       if (pitch >= PITCH_LOW && pitch < PITCH_HIGH) previewPitch(pitch);
     }
+    // Click outside grid clears selection
+    if (selRect) clearSelection();
+    if (pasteMode) cancelPaste();
     return;
   }
 
   e.preventDefault();
+
+  // If there's an active selection, clicking clears it
+  if (selRect) { clearSelection(); return; }
+
+  // Paste mode — click to stamp
+  if (pasteMode && clipboard) {
+    stampPaste(cell.step, cell.pitch);
+    return;
+  }
+
   isDragging = true;
   dragStartCell = cell;
   dragNote = null;
@@ -619,6 +735,117 @@ canvas.addEventListener('mouseleave', () => {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+// ═══════════════════════════════════════════════════════════════
+// SELECTION / COPY-PASTE
+// ═══════════════════════════════════════════════════════════════
+
+const selBar = document.getElementById('sel-bar');
+const selCount = document.getElementById('sel-count');
+const pasteHint = document.getElementById('paste-hint');
+
+function notesInRect(r) {
+  if (!r) return [];
+  const track = state.tracks[state.activeTrack];
+  const sMin = Math.min(r.s0, r.s1), sMax = Math.max(r.s0, r.s1);
+  const pMin = Math.min(r.p0, r.p1), pMax = Math.max(r.p0, r.p1);
+  return track.notes.filter(n =>
+    n.pitch >= pMin && n.pitch <= pMax && n.start >= sMin && n.start + n.duration - 1 <= sMax
+  );
+}
+
+function showSelBar() {
+  const notes = notesInRect(selRect);
+  selCount.textContent = notes.length + ' note' + (notes.length !== 1 ? 's' : '');
+  selBar.classList.add('active');
+  pasteHint.classList.remove('active');
+}
+
+function hideSelBar() {
+  selBar.classList.remove('active');
+}
+
+function showPasteHint() {
+  pasteHint.classList.add('active');
+  selBar.classList.remove('active');
+}
+
+function hidePasteHint() {
+  pasteHint.classList.remove('active');
+}
+
+function clearSelection() {
+  selRect = null;
+  selectDragging = false;
+  selectAnchor = null;
+  hideSelBar();
+  render();
+}
+
+function cancelPaste() {
+  pasteMode = false;
+  pasteTarget = null;
+  hidePasteHint();
+  render();
+}
+
+function copySelection(cut) {
+  const notes = notesInRect(selRect);
+  if (!notes.length) return;
+  // Normalize to origin (0,0 = lowest step, lowest pitch in selection)
+  const minStep = Math.min(...notes.map(n => n.start));
+  const minPitch = Math.min(...notes.map(n => n.pitch));
+  clipboard = notes.map(n => ({
+    pitch: n.pitch - minPitch,
+    start: n.start - minStep,
+    duration: n.duration,
+    velocity: n.velocity
+  }));
+  if (cut) {
+    const track = state.tracks[state.activeTrack];
+    const toRemove = new Set(notes);
+    track.notes = track.notes.filter(n => !toRemove.has(n));
+  }
+  selRect = null;
+  hideSelBar();
+  pasteMode = true;
+  pasteTarget = null;
+  showPasteHint();
+  render();
+}
+
+function deleteSelection() {
+  const notes = notesInRect(selRect);
+  if (!notes.length) { clearSelection(); return; }
+  const track = state.tracks[state.activeTrack];
+  const toRemove = new Set(notes);
+  track.notes = track.notes.filter(n => !toRemove.has(n));
+  clearSelection();
+}
+
+function stampPaste(step, pitch) {
+  if (!clipboard || !clipboard.length) return;
+  const track = state.tracks[state.activeTrack];
+  for (const n of clipboard) {
+    const ns = step + n.start;
+    const np = pitch + n.pitch;
+    if (ns >= 0 && ns < state.steps && np >= PITCH_LOW && np < PITCH_HIGH) {
+      track.notes.push({ pitch: np, start: ns, duration: n.duration, velocity: n.velocity });
+    }
+  }
+  ensureAudio();
+  pasteMode = false;
+  pasteTarget = null;
+  hidePasteHint();
+  render();
+}
+
+// Action bar buttons
+document.getElementById('sel-copy').addEventListener('click', () => copySelection(false));
+document.getElementById('sel-cut').addEventListener('click', () => copySelection(true));
+document.getElementById('sel-del').addEventListener('click', deleteSelection);
+document.getElementById('sel-cancel').addEventListener('click', clearSelection);
+document.getElementById('paste-cancel').addEventListener('click', cancelPaste);
+
 // ─── Touch: tap to place/remove, native scroll, double-tap zoom ───
 const ZOOM_LEVELS = [
   { cw: 16, ch: 10 },  // zoomed out
@@ -633,11 +860,16 @@ function touchXY(e) {
   return { x: t.clientX, y: t.clientY };
 }
 
-function touchCell(e) {
-  const t = e.touches[0] || e.changedTouches[0];
+let lastTapTime = 0;
+let lastTapXY = null;
+let touchStartXY = null;
+const wrapper = document.getElementById('grid-wrapper');
+const TAP_THRESHOLD = 10; // px — if finger moves more than this, it's a scroll not a tap
+
+function touchCellFromXY(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const sx = (t.clientX - rect.left) * (canvas.width / rect.width);
-  const sy = (t.clientY - rect.top) * (canvas.height / rect.height);
+  const sx = (clientX - rect.left) * (canvas.width / rect.width);
+  const sy = (clientY - rect.top) * (canvas.height / rect.height);
   const step = Math.floor((sx - KEY_W) / CELL_W);
   const row = Math.floor(sy / CELL_H);
   const pitch = PITCH_HIGH - 1 - row;
@@ -645,14 +877,8 @@ function touchCell(e) {
   return { pitch, step, sx, sy };
 }
 
-let lastTapTime = 0;
-let lastTapXY = null;
-let touchStartXY = null;
-const wrapper = document.getElementById('grid-wrapper');
-const TAP_THRESHOLD = 10; // px — if finger moves more than this, it's a scroll not a tap
-
 canvas.addEventListener('touchstart', (e) => {
-  if (e.touches.length >= 2) return; // let browser handle pinch
+  if (e.touches.length >= 2) { clearTimeout(longPressTimer); return; }
   touchStartXY = touchXY(e);
 
   // Check for double-tap zoom
@@ -663,6 +889,7 @@ canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     lastTapTime = 0;
     lastTapXY = null;
+    clearTimeout(longPressTimer);
 
     const rect = canvas.getBoundingClientRect();
     const fracX = (wrapper.scrollLeft + t.x - rect.left) / canvas.width;
@@ -680,9 +907,61 @@ canvas.addEventListener('touchstart', (e) => {
   }
   lastTapTime = now;
   lastTapXY = { x: t.x, y: t.y };
+
+  // Start long-press timer for selection mode
+  clearTimeout(longPressTimer);
+  const startCell = touchCellFromXY(t.x, t.y);
+  if (startCell && !pasteMode) {
+    longPressTimer = setTimeout(() => {
+      // Finger hasn't moved and is still down → start selection
+      selectDragging = true;
+      selectAnchor = startCell;
+      selRect = { s0: startCell.step, s1: startCell.step, p0: startCell.pitch, p1: startCell.pitch };
+      // Clear any existing paste mode
+      cancelPaste();
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(30);
+      render();
+    }, LONG_PRESS_MS);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  if (!touchStartXY) return;
+  const t = e.touches[0];
+  const dx = Math.abs(t.clientX - touchStartXY.x);
+  const dy = Math.abs(t.clientY - touchStartXY.y);
+
+  if (selectDragging) {
+    // In selection mode: update rectangle, prevent scroll
+    e.preventDefault();
+    const cell = touchCellFromXY(t.clientX, t.clientY);
+    if (cell && selRect) {
+      selRect.s1 = cell.step;
+      selRect.p1 = cell.pitch;
+      render();
+    }
+    return;
+  }
+
+  // If finger moved before long-press fired, cancel it (they're scrolling)
+  if (dx > TAP_THRESHOLD || dy > TAP_THRESHOLD) {
+    clearTimeout(longPressTimer);
+  }
 }, { passive: false });
 
 canvas.addEventListener('touchend', (e) => {
+  clearTimeout(longPressTimer);
+
+  // Finishing a selection drag
+  if (selectDragging) {
+    selectDragging = false;
+    e.preventDefault();
+    if (selRect) showSelBar();
+    touchStartXY = null;
+    return;
+  }
+
   if (!touchStartXY) return;
   const t = e.changedTouches[0];
   const dx = Math.abs(t.clientX - touchStartXY.x);
@@ -699,6 +978,12 @@ canvas.addEventListener('touchend', (e) => {
   // Suppress synthesized mouse events that follow touch
   e.preventDefault();
 
+  // If we have an active selection, tapping outside clears it
+  if (selRect) {
+    clearSelection();
+    return;
+  }
+
   // Piano key preview
   if (sx < KEY_W) {
     const row = Math.floor(sy / CELL_H);
@@ -707,12 +992,18 @@ canvas.addEventListener('touchend', (e) => {
     return;
   }
 
-  // Grid tap — place or remove
   const step = Math.floor((sx - KEY_W) / CELL_W);
   const row = Math.floor(sy / CELL_H);
   const pitch = PITCH_HIGH - 1 - row;
   if (step < 0 || step >= state.steps || pitch < PITCH_LOW || pitch >= PITCH_HIGH) return;
 
+  // Paste mode — stamp clipboard at tap position
+  if (pasteMode && clipboard) {
+    stampPaste(step, pitch);
+    return;
+  }
+
+  // Normal mode — place or remove
   const track = state.tracks[state.activeTrack];
   const existing = noteAt(track, pitch, step);
   if (existing) {
@@ -723,6 +1014,12 @@ canvas.addEventListener('touchend', (e) => {
     playNote(track.instrument, pitch, state.noteLength, 100, track.volume, audioCtx.currentTime);
   }
   render();
+});
+
+canvas.addEventListener('touchcancel', () => {
+  clearTimeout(longPressTimer);
+  selectDragging = false;
+  touchStartXY = null;
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -852,6 +1149,22 @@ document.getElementById('name-input').oninput = (e) => { state.name = e.target.v
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
+  if (e.code === 'Escape') {
+    if (pasteMode) cancelPaste();
+    else if (selRect) clearSelection();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC' && selRect) { e.preventDefault(); copySelection(false); }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyX' && selRect) { e.preventDefault(); copySelection(true); }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV' && clipboard && !pasteMode) {
+    e.preventDefault();
+    pasteMode = true;
+    pasteTarget = null;
+    showPasteHint();
+    render();
+  }
+  if (e.code === 'Delete' || e.code === 'Backspace') {
+    if (selRect) { e.preventDefault(); deleteSelection(); }
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
