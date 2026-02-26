@@ -25,6 +25,7 @@ Usage:
 """
 
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -36,6 +37,9 @@ BSKY_PUBLIC_API = "https://public.api.bsky.app"
 COLLECTION = "com.whtwnd.blog.entry"
 MAX_RETRIES = 4
 RETRY_BASE_DELAY = 3
+
+# Markdown image pattern: ![alt](path)
+IMAGE_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 
 
 # --- Frontmatter parsing ---
@@ -144,6 +148,59 @@ def put_record(pds, did, token, rkey, record):
             raise RuntimeError(f"putRecord failed ({exc.code}): {body}") from exc
 
 
+def upload_blob(pds, token, filepath):
+    """Upload a file as a blob and return the CID."""
+    mime, _ = mimetypes.guess_type(filepath)
+    if not mime:
+        mime = "application/octet-stream"
+    with open(filepath, "rb") as f:
+        body = f.read()
+    req = Request(
+        f"{pds}/xrpc/com.atproto.repo.uploadBlob",
+        data=body,
+        headers={
+            "Content-Type": mime,
+            "Authorization": f"Bearer {token}",
+        },
+    )
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            with urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read())
+            cid = data["blob"]["ref"]["$link"]
+            size = data["blob"]["size"]
+            print(f"    Uploaded blob {os.path.basename(filepath)} ({size} bytes) → {cid}")
+            return cid
+        except HTTPError as exc:
+            if exc.code == 429 and attempt < MAX_RETRIES:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                print(f"    Rate limited on blob upload, retrying in {delay}s...")
+                time.sleep(delay)
+                continue
+            body_text = exc.read().decode() if hasattr(exc, 'read') else ""
+            raise RuntimeError(f"uploadBlob failed ({exc.code}): {body_text}") from exc
+
+
+def rewrite_images(content, entry_dir, pds, did, token):
+    """Find local image refs in markdown, upload as blobs, rewrite URLs."""
+    def replace_match(m):
+        alt = m.group(1)
+        path = m.group(2)
+        # Skip URLs — only process local paths
+        if path.startswith("http://") or path.startswith("https://"):
+            return m.group(0)
+        # Resolve relative to the entry file's directory
+        abs_path = os.path.normpath(os.path.join(entry_dir, path))
+        if not os.path.isfile(abs_path):
+            print(f"    WARNING: Image not found: {abs_path}, keeping original ref")
+            return m.group(0)
+        cid = upload_blob(pds, token, abs_path)
+        blob_url = f"{pds}/xrpc/com.atproto.sync.getBlob?did={did}&cid={cid}"
+        return f"![{alt}]({blob_url})"
+
+    return IMAGE_RE.sub(replace_match, content)
+
+
 def create_record(pds, did, token, record):
     """Create a new record (PDS generates TID rkey)."""
     url = f"{pds}/xrpc/com.atproto.repo.createRecord"
@@ -217,8 +274,12 @@ def main():
             print(f"  WARNING: No title in frontmatter, skipping")
             continue
 
+        # Upload local images as blobs, rewrite URLs in markdown
+        entry_dir = os.path.dirname(os.path.abspath(filepath))
+        content = rewrite_images(content.strip(), entry_dir, pds, did, token)
+
         record = {
-            "content": content.strip(),
+            "content": content,
             "title": title,
             "visibility": meta.get("visibility", "public"),
         }
