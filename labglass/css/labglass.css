@@ -39,6 +39,11 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -51,15 +56,15 @@ html, body {
 
 /* ── Top bar ── */
 #topbar {
-  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   padding-left: calc(12px + env(safe-area-inset-left, 0px));
   padding-right: calc(12px + env(safe-area-inset-right, 0px));
-  gap: 8px;
+  gap: 4px 8px;
   z-index: 100;
 }
 
@@ -87,22 +92,18 @@ html, body {
 }
 
 .topbar-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
+  order: 3;
+  width: 100%;
+  padding-bottom: 6px;
 }
 
-/* Status pills: scroll horizontally on mobile if needed */
+/* Status pills: wrap into rows */
 #status-indicators {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  justify-content: center;
 }
-
-#status-indicators::-webkit-scrollbar { display: none; }
 
 .status-pill {
   font-family: var(--font-mono);
@@ -113,7 +114,6 @@ html, body {
   color: var(--text-dim);
   transition: all 0.3s ease;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .status-pill[data-status="ready"] {
@@ -143,8 +143,10 @@ html, body {
 
 .topbar-right {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  flex-shrink: 0;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .topbar-btn {
@@ -168,17 +170,18 @@ html, body {
 /* ── Main layout ── */
 #main {
   display: flex;
-  height: calc(100vh - var(--topbar-h) - env(safe-area-inset-top, 0px));
-  height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top, 0px));
+  flex: 1;
+  min-height: 0;
   position: relative;
 }
 
 /* ── Sidebar — overlay drawer on mobile ── */
 #sidebar {
   position: fixed;
-  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  top: 0;
   left: 0;
   bottom: 0;
+  padding-top: env(safe-area-inset-top, 0px);
   width: var(--sidebar-w);
   background: var(--bg-raised);
   border-right: 1px solid var(--border);
@@ -198,7 +201,7 @@ html, body {
 .sidebar-scrim {
   display: none;
   position: fixed;
-  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -810,7 +813,7 @@ dialog button:hover { background: var(--accent); }
 /* ── Recording indicator ── */
 #rec-indicator {
   position: fixed;
-  top: calc(56px + env(safe-area-inset-top, 0px));
+  top: 8px;
   right: calc(12px + env(safe-area-inset-right, 0px));
   background: var(--bg-raised);
   border: 1px solid var(--red);
@@ -967,7 +970,24 @@ dialog button:hover { background: var(--accent); }
   }
 
   #topbar {
+    flex-wrap: nowrap;
     gap: 16px;
+  }
+
+  .topbar-center {
+    order: 0;
+    width: auto;
+    flex: 1;
+    padding-bottom: 0;
+  }
+
+  #status-indicators {
+    justify-content: center;
+  }
+
+  .topbar-right {
+    flex: 0;
+    flex-wrap: nowrap;
   }
 
   .topbar-btn {
@@ -977,6 +997,7 @@ dialog button:hover { background: var(--accent); }
   /* Sidebar becomes a static panel, not an overlay */
   #sidebar {
     position: static;
+    padding-top: 0;
     transform: none;
     width: 0;
     min-width: 0;
