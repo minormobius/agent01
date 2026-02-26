@@ -33,7 +33,7 @@ window.LabPython = (() => {
         });
 
         // Pre-load core scientific packages
-        await pyodide.loadPackage(['numpy', 'micropip']);
+        await pyodide.loadPackage(['numpy', 'matplotlib', 'micropip']);
 
         // Set up the Python environment with helpers
         await pyodide.runPythonAsync(`
