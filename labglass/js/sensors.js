@@ -75,6 +75,9 @@ window.LabSensors = (() => {
         x DOUBLE,
         y DOUBLE,
         z DOUBLE,
+        ax DOUBLE,
+        ay DOUBLE,
+        az DOUBLE,
         gx DOUBLE,
         gy DOUBLE,
         gz DOUBLE
@@ -87,10 +90,12 @@ window.LabSensors = (() => {
         lastSample = now;
 
         const a = e.accelerationIncludingGravity || {};
+        const lin = e.acceleration || {};
         const r = e.rotationRate || {};
         const entry = {
           t: now,
           x: a.x ?? 0, y: a.y ?? 0, z: a.z ?? 0,
+          ax: lin.x ?? 0, ay: lin.y ?? 0, az: lin.z ?? 0,
           gx: r.alpha ?? 0, gy: r.beta ?? 0, gz: r.gamma ?? 0,
         };
         data.push(entry);

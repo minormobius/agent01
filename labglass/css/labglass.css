@@ -711,6 +711,35 @@ body {
   font-size: 12px;
 }
 
+.cell-output .markdown-rendered blockquote {
+  border-left: 3px solid var(--yellow);
+  padding: 4px 12px;
+  margin: 8px 0;
+  color: var(--text-dim);
+  background: var(--bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.cell-output .markdown-rendered table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+  width: auto;
+}
+
+.cell-output .markdown-rendered th,
+.cell-output .markdown-rendered td {
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  text-align: left;
+}
+
+.cell-output .markdown-rendered th {
+  background: var(--bg);
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
 /* ── Viz canvas ── */
 .cell-output canvas {
   display: block;

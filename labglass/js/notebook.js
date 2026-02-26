@@ -388,12 +388,32 @@ window.LabNotebook = (() => {
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
 
+    // Tables (simple pipe-delimited)
+    html = html.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
+      const rows = block.trim().split('\n').filter(r => r.trim());
+      if (rows.length < 2) return block;
+      // Skip separator row (|---|---|)
+      const dataRows = rows.filter(r => !/^\|[\s\-:|]+\|$/.test(r));
+      const headerCells = dataRows[0].split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
+      const bodyRows = dataRows.slice(1).map(r => {
+        const cells = r.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      return `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+    });
+
+    // Blockquotes
+    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    // Merge adjacent blockquotes
+    html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+
     // Line breaks
     html = html.replace(/\n\n/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     html = '<p>' + html + '</p>';
 
-    // Lists
+    // Lists (numbered and unordered)
+    html = html.replace(/<p>(\d+)\. (.+?)(<br>|<\/p>)/g, '<li>$2</li>');
     html = html.replace(/<p>- (.+?)(<br>|<\/p>)/g, '<li>$1</li>');
 
     outputEl.innerHTML = `<div class="markdown-rendered">${html}</div>`;
