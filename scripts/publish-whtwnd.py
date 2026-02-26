@@ -149,7 +149,7 @@ def put_record(pds, did, token, rkey, record):
 
 
 def upload_blob(pds, token, filepath):
-    """Upload a file as a blob and return the CID."""
+    """Upload a file as a blob and return the full BlobRef object."""
     mime, _ = mimetypes.guess_type(filepath)
     if not mime:
         mime = "application/octet-stream"
@@ -167,10 +167,11 @@ def upload_blob(pds, token, filepath):
         try:
             with urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read())
-            cid = data["blob"]["ref"]["$link"]
-            size = data["blob"]["size"]
+            blobref = data["blob"]
+            cid = blobref["ref"]["$link"]
+            size = blobref.get("size", len(body))
             print(f"    Uploaded blob {os.path.basename(filepath)} ({size} bytes) → {cid}")
-            return cid
+            return blobref
         except HTTPError as exc:
             if exc.code == 429 and attempt < MAX_RETRIES:
                 delay = RETRY_BASE_DELAY * (2 ** attempt)
@@ -182,7 +183,14 @@ def upload_blob(pds, token, filepath):
 
 
 def rewrite_images(content, entry_dir, pds, did, token):
-    """Find local image refs in markdown, upload as blobs, rewrite URLs."""
+    """Find local image refs, upload as blobs, rewrite URLs, return blob metadata.
+
+    Returns (rewritten_content, blobs_array) where blobs_array contains
+    WhiteWind blobMetadata objects that anchor blobs to the record.
+    Without this array, the PDS garbage-collects uploaded blobs.
+    """
+    blobs = []
+
     def replace_match(m):
         alt = m.group(1)
         path = m.group(2)
@@ -194,11 +202,18 @@ def rewrite_images(content, entry_dir, pds, did, token):
         if not os.path.isfile(abs_path):
             print(f"    WARNING: Image not found: {abs_path}, keeping original ref")
             return m.group(0)
-        cid = upload_blob(pds, token, abs_path)
+        blobref = upload_blob(pds, token, abs_path)
+        cid = blobref["ref"]["$link"]
+        # Anchor blob to record via WhiteWind blobMetadata
+        blobs.append({
+            "blobref": blobref,
+            "name": os.path.basename(abs_path),
+        })
         blob_url = f"{pds}/xrpc/com.atproto.sync.getBlob?did={did}&cid={cid}"
         return f"![{alt}]({blob_url})"
 
-    return IMAGE_RE.sub(replace_match, content)
+    rewritten = IMAGE_RE.sub(replace_match, content)
+    return rewritten, blobs
 
 
 def create_record(pds, did, token, record):
@@ -276,13 +291,17 @@ def main():
 
         # Upload local images as blobs, rewrite URLs in markdown
         entry_dir = os.path.dirname(os.path.abspath(filepath))
-        content = rewrite_images(content.strip(), entry_dir, pds, did, token)
+        content, blobs = rewrite_images(content.strip(), entry_dir, pds, did, token)
 
         record = {
             "content": content,
             "title": title,
             "visibility": meta.get("visibility", "public"),
         }
+        # Anchor blobs to the record (WhiteWind blobMetadata schema).
+        # Without this, the PDS garbage-collects uploaded blobs.
+        if blobs:
+            record["blobs"] = blobs
         if meta.get("subtitle"):
             record["subtitle"] = meta["subtitle"]
         if meta.get("createdAt"):
