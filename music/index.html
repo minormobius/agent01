@@ -15,49 +15,51 @@
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;overflow-x:hidden}
 a{color:#58a6ff}
 
-/* Header — single row transport */
-#header{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#161b22;border-bottom:1px solid #30363d}
-#header button{width:30px;height:30px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-#header button:hover{background:#30363d}
-#header button.active{background:#238636;border-color:#238636;color:#fff}
-.ctrl-group{display:flex;align-items:center;gap:3px}
-.ctrl-label{font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
-.ctrl-input{width:44px;padding:2px 3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;text-align:center;font-family:inherit}
+/* Header */
+#header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
+#logo{font-size:15px;font-weight:700;letter-spacing:2px;color:#58a6ff;white-space:nowrap}
+#logo span{color:#c9d1d9;font-weight:400;letter-spacing:0;margin-left:4px;font-size:12px}
+#transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#transport button{width:36px;height:36px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#transport button:hover{background:#30363d}
+#transport button.active{background:#238636;border-color:#238636;color:#fff}
+.ctrl-group{display:flex;align-items:center;gap:4px}
+.ctrl-label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.ctrl-input{width:56px;padding:4px 6px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;text-align:center;font-family:inherit}
 .ctrl-input:focus{border-color:#58a6ff;outline:none}
-#name-input{padding:4px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px;font-family:inherit}
-#name-input:focus{border-color:#58a6ff;outline:none}
 
 /* Main layout */
-#main{display:flex;flex-direction:column;height:calc(100vh - 40px)}
+#main{display:flex;flex-direction:column;height:calc(100vh - 52px)}
 #grid-wrapper{flex:1;overflow:auto;position:relative;min-height:0}
 #piano-roll{display:block;cursor:crosshair;touch-action:none}
 
-/* Track panel — always visible above grid */
-#track-panel{background:#161b22;border-bottom:1px solid #30363d;padding:3px 8px;overflow-x:auto;flex-shrink:0}
-#track-list{display:flex;gap:4px;align-items:center}
-.track-card{padding:3px 6px;border-radius:4px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:0;font-size:11px;display:flex;align-items:center;gap:5px;transition:border-color .15s;white-space:nowrap}
+/* Track panel */
+#track-panel{background:#161b22;border-bottom:1px solid #30363d;padding:8px 16px;overflow-x:auto;flex-shrink:0}
+#track-list{display:flex;gap:6px;align-items:stretch}
+.track-card{padding:8px 12px;border-radius:6px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:150px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
 .track-card.active{border-color:var(--track-color,#58a6ff)}
 .track-card:hover{background:#2a3040}
-.track-name{font-weight:600;color:#c9d1d9;font-size:11px}
-.track-card select{font-size:10px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:1px 2px;width:auto}
-.track-card input[type=range]{width:44px}
-.track-controls{display:flex;gap:3px;align-items:center}
-.track-btn{padding:1px 5px;font-size:9px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
+.track-name{font-weight:600;color:#c9d1d9;font-size:13px}
+.track-card select,.track-card input[type=range]{width:100%;font-size:11px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:3px;padding:2px 4px}
+.track-controls{display:flex;gap:4px;align-items:center}
+.track-btn{padding:2px 6px;font-size:10px;font-weight:700;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#8b949e;cursor:pointer}
 .track-btn:hover{background:#30363d}
 .track-btn.muted{background:#da3633;color:#fff;border-color:#da3633}
 .track-btn.solo{background:#d29922;color:#fff;border-color:#d29922}
-#add-track-btn{padding:3px 6px;border:2px dashed #30363d;border-radius:4px;background:transparent;color:#8b949e;cursor:pointer;font-size:14px;min-width:28px;display:flex;align-items:center;justify-content:center}
+#add-track-btn{padding:8px 12px;border:2px dashed #30363d;border-radius:6px;background:transparent;color:#8b949e;cursor:pointer;font-size:20px;min-width:44px;display:flex;align-items:center;justify-content:center}
 #add-track-btn:hover{border-color:#58a6ff;color:#58a6ff}
 
 /* Bottom bar */
-#tab-bar{display:flex;align-items:center;gap:6px;padding:4px 8px;background:#0d1117;border-top:1px solid #30363d;flex-shrink:0}
-.tab-btn{padding:5px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#8b949e;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
-.tab-btn:hover{color:#c9d1d9;background:#30363d}
+#tab-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#0d1117;border-top:1px solid #30363d;flex-shrink:0}
+.tab-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab-btn:hover{background:#30363d}
 .tab-btn.active{color:#58a6ff;border-color:#58a6ff}
 #tab-social{display:none}
 #tab-social.active{display:flex}
-#bottom-bar{display:flex;gap:6px;padding:4px 8px;background:#161b22;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap;flex-shrink:0}
-.bottom-btn{padding:4px 10px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:11px;cursor:pointer;white-space:nowrap}
+#bottom-bar{display:flex;gap:8px;padding:8px 16px;background:#161b22;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap;flex-shrink:0}
+#name-input{padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;font-family:inherit}
+#name-input:focus{border-color:#58a6ff;outline:none}
+.bottom-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;cursor:pointer;white-space:nowrap}
 .bottom-btn:hover{background:#30363d}
 .bottom-btn.primary{background:#238636;border-color:#238636;color:#fff}
 .bottom-btn.primary:hover{background:#2ea043}
@@ -82,31 +84,38 @@ a{color:#58a6ff}
 <body>
 
 <div id="header">
-  <button id="play-btn" title="Play (Space)">&#9654;</button>
-  <button id="stop-btn" title="Stop">&#9632;</button>
-  <div class="ctrl-group">
-    <span class="ctrl-label">BPM</span>
-    <input id="bpm-input" class="ctrl-input" type="number" value="120" min="20" max="300">
+  <div id="logo">MINO MUSIC <span>ATProto Composer</span></div>
+  <div id="transport">
+    <button id="play-btn" title="Play (Space)">&#9654;</button>
+    <button id="stop-btn" title="Stop">&#9632;</button>
+    <div class="ctrl-group">
+      <span class="ctrl-label">BPM</span>
+      <input id="bpm-input" class="ctrl-input" type="number" value="120" min="20" max="300">
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Steps</span>
+      <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Len</span>
+      <select id="note-len" style="padding:4px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+        <input id="loop-cb" type="checkbox" checked> Loop
+      </label>
+    </div>
+    <div class="ctrl-group">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
+        <input id="show-all-cb" type="checkbox" checked> All tracks
+      </label>
+    </div>
   </div>
-  <div class="ctrl-group">
-    <span class="ctrl-label">Steps</span>
-    <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
-  </div>
-  <div class="ctrl-group">
-    <span class="ctrl-label">Len</span>
-    <select id="note-len" style="padding:3px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:12px">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="4">4</option>
-      <option value="8">8</option>
-    </select>
-  </div>
-  <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
-    <input id="loop-cb" type="checkbox" checked> Loop
-  </label>
-  <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8b949e;cursor:pointer">
-    <input id="show-all-cb" type="checkbox" checked> All
-  </label>
 </div>
 
 <div id="main">
@@ -827,11 +836,16 @@ function renderTracks() {
       <select data-idx="${i}">
         ${INSTRUMENTS.map(inst => `<option value="${inst}" ${inst === track.instrument ? 'selected' : ''}>${INSTRUMENT_LABELS[inst]}</option>`).join('')}
       </select>
-      <input type="range" min="0" max="100" value="${Math.round(track.volume * 100)}" data-idx="${i}" data-role="volume" style="width:50px">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:10px;color:#8b949e">Vol</span>
+        <input type="range" min="0" max="100" value="${Math.round(track.volume * 100)}" data-idx="${i}" data-role="volume" style="flex:1">
+      </div>
       <div class="track-controls">
         <button class="track-btn ${track.muted ? 'muted' : ''}" data-idx="${i}" data-role="mute">M</button>
         <button class="track-btn ${track.solo ? 'solo' : ''}" data-idx="${i}" data-role="solo">S</button>
         ${state.tracks.length > 1 ? `<button class="track-btn" data-idx="${i}" data-role="delete" title="Delete track">&times;</button>` : ''}
+        <span style="flex:1"></span>
+        <span style="font-size:10px;color:#484f58">${track.notes.length} notes</span>
       </div>
     `;
 
