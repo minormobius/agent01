@@ -5,11 +5,11 @@ createdAt: "2026-02-26T12:00:00.000Z"
 visibility: "public"
 ---
 
-For nearly half a century, the most consequential agreement in American clinical diagnostics was never written down. It had no statutory text, no formal regulation, no signature page. It was a posture — the [Food and Drug Administration](https://www.fda.gov/) choosing, year after year, not to exercise authority it already possessed. The agency called it "enforcement discretion." The laboratory industry called it freedom. The patients whose care depended on the tests produced under this arrangement were never asked what to call it.
+For nearly half a century, the most consequential agreement in American clinical diagnostics was never written down. It had no statutory text, no formal regulation, no signature page. It was a posture — the [Food and Drug Administration](https://www.fda.gov/) choosing, year after year, not to exercise authority it claimed to possess. The agency called it "enforcement discretion." The laboratory industry called it freedom. The patients whose care depended on the tests produced under this arrangement were never asked what to call it.
 
-That arrangement is now ending. The [final rule](https://www.fda.gov/medical-devices/in-vitro-diagnostics/laboratory-developed-tests) published in the Federal Register on May 6, 2024, initiates a four-year phaseout of enforcement discretion over laboratory-developed tests. Every clinical laboratory in the United States that designs and runs its own diagnostic assays — and there are thousands — is recalculating. So is every health system, every reference lab, every rare-disease patient whose diagnosis depends on a test that exists nowhere else.
+In May 2024, FDA tried to end it. The agency [published a final rule](https://www.fda.gov/medical-devices/in-vitro-diagnostics/laboratory-developed-tests) initiating a four-year phaseout of enforcement discretion over laboratory-developed tests. Ten months later, a [federal judge in Texas vacated the rule in its entirety](https://documents.cap.org/documents/ldt-courtruling-03-31-2025.pdf), holding that LDTs are not "devices" under the statute and never were. FDA did not appeal. In September 2025, the agency formally rescinded the rule. The handshake survived.
 
-This is Part 1 of *The LDT Reckoning*, a five-part series examining the FDA's final rule on laboratory-developed tests. Before the courtroom arguments, the compliance cost models, and the orphan tests that may vanish, there is a story about how two federal agencies divided a regulatory domain and left a gap that grew for fifty years until something broke.
+This is Part 1 of *The LDT Reckoning*, a five-part series examining the regulatory gap at the center of American diagnostics. The final rule is dead, but the problem it tried to solve is not. Before the courtroom arguments, the compliance cost models, and the orphan tests caught in the crossfire, there is a story about how two federal agencies divided a regulatory domain and left a gap that grew for fifty years until something almost broke.
 
 ## The Origin of the Handshake
 
@@ -73,24 +73,31 @@ The gap was not theoretical. In 2015, [a study in *Genetics in Medicine*](https:
 
 The industry's counterargument was also structural: FDA premarket review takes months to years and costs tens of thousands to hundreds of thousands of dollars. The 510(k) pathway — the most common — averages around five months and $31,000 in user fees alone, not counting the analytical and clinical studies required. A PMA submission can exceed $300,000 in fees and take more than a year. If every LDT required premarket review, many would simply not be offered. The tests most at risk were precisely those serving the smallest patient populations — rare diseases, pharmacogenomics, academic medical center assays with volumes too low to justify the regulatory investment.
 
-This is the tension at the center of the LDT reckoning. The regulatory gap is real. Patient harm from unvalidated tests is documented. And closing the gap will eliminate tests that cannot bear the cost of compliance — tests that, for some patients, are the only diagnostic option.
+This is the tension at the center of the LDT reckoning. The regulatory gap is real. Patient harm from unvalidated tests is documented. And closing the gap would eliminate tests that cannot bear the cost of compliance — tests that, for some patients, are the only diagnostic option.
 
 ## The End of the Handshake
 
-On October 3, 2023, FDA published a [proposed rule](https://www.federalregister.gov/documents/2023/10/03/2023-21662/medical-devices-laboratory-developed-tests) to end enforcement discretion. Seven months and thousands of public comments later, the [final rule](https://www.fda.gov/medical-devices/in-vitro-diagnostics/laboratory-developed-tests) was published on May 6, 2024. The agency had given up on waiting for Congress to pass the VALID Act. It would act under its existing device authority.
+On October 3, 2023, FDA published a [proposed rule](https://www.federalregister.gov/documents/2023/10/03/2023-21662/medical-devices-laboratory-developed-tests) to end enforcement discretion. Seven months and over 6,500 public comments later, the [final rule](https://www.fda.gov/medical-devices/in-vitro-diagnostics/laboratory-developed-tests) was published on May 6, 2024. The agency had given up on waiting for Congress to pass the VALID Act. It would act under its existing device authority.
 
-The rule establishes a four-year phaseout:
+The rule established a five-stage phaseout over four years. Stage 1 imposed adverse event reporting — a requirement that had never existed for LDTs. Stage 2 required labs to register with FDA and list their tests. Stage 3 layered on quality system requirements. Stages 4 and 5 would bring full premarket review — first for high-risk LDTs, then moderate and low risk. FDA estimated the rule would affect over 79,000 existing tests from more than 1,000 laboratories, with 10,000 new LDTs entering the market every year.
 
-- **Stage 1** (Year 1): Medical device reporting and correction/removal requirements take effect. Labs must begin reporting adverse events associated with LDTs — a requirement that never existed under enforcement discretion.
-- **Stage 2** (Year 2): Registration, listing, and labeling requirements. Labs must register with FDA as device manufacturers and list their LDTs.
-- **Stage 3** (Year 3): Quality system requirements apply. Labs must comply with the same manufacturing quality standards as IVD kit manufacturers.
-- **Stage 4** (Year 4): Full premarket review requirements take effect for high-risk LDTs. Existing tests may qualify for abbreviated review pathways.
+The cost estimates diverged spectacularly. FDA projected annualized compliance costs of $1.3 to $1.4 billion over twenty years. The [American Clinical Laboratory Association](https://www.acla.com/) estimated $115 billion in upfront costs and $14.5 billion annually — a nearly hundredfold disagreement that reflected fundamentally different assumptions about how many tests would require review, how complex that review would be, and how many laboratories would exit the market rather than comply.
 
-The cost estimates diverge spectacularly. FDA projects total industry compliance costs of approximately $3 billion over the phaseout period. The [American Clinical Laboratory Association](https://www.acla.com/) estimates the true cost at closer to $100 billion — a 33-fold disagreement that reflects fundamentally different assumptions about how many tests will require review, how complex that review will be, and how many laboratories will exit the market rather than comply.
+ACLA did not wait for the phaseout to begin. On May 29, 2024 — twenty-three days after publication — the association [filed suit](https://www.acla.com/acla-challenges-fdas-final-rule-to-regulate-laboratory-developed-testing-services-as-medical-devices/) in the Eastern District of Texas. The [Association for Molecular Pathology](https://www.amp.org/) filed a parallel challenge. The cases were consolidated before Judge Sean D. Jordan.
 
-The handshake lasted forty-eight years. It ended with a rule that satisfies no one completely: too aggressive for laboratories facing existential compliance costs, too gradual for patient safety advocates who have watched FDA defer for decades, and too legally vulnerable for an agency acting without explicit Congressional authorization in a post-Chevron legal landscape.
+One month later, the Supreme Court [overturned *Chevron* deference](https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf) in *Loper Bright Enterprises v. Raimondo*. Courts would no longer defer to agencies' interpretations of ambiguous statutes. For a rule premised on FDA's reading of a 1976 definition of "device," the timing was devastating.
 
-What happens next — the courtroom, the orphan tests, and the new architecture of American diagnostics — is the subject of Parts 2 through 5 of this series.
+## The Handshake Holds
+
+On March 31, 2025, Judge Jordan issued a [51-page opinion](https://documents.cap.org/documents/ldt-courtruling-03-31-2025.pdf) vacating the final rule in its entirety. The reasoning was blunt: a "device" under the Federal Food, Drug, and Cosmetic Act is a tangible physical object — an instrument, apparatus, implement, machine. A laboratory-developed test is not a thing. It is a service — an assortment of physical components assembled and operated by skilled professionals to produce a clinical result. Congress addressed laboratory testing through CLIA, a "comprehensive but distinct statutory regime" administered by CMS. FDA's claim of jurisdiction was, in the court's view, not a reasonable interpretation of an ambiguous statute. It was wrong.
+
+The court cited *Loper Bright* extensively, noting that "abdication in favor of the agency is least appropriate" when the question is the scope of the agency's own authority. It pointed to Congress's repeated failure to pass the VALID Act as evidence that the legislature did not believe FDA already possessed the power the rule claimed. The major questions doctrine — the argument that agencies need clear Congressional authorization for actions of vast economic and political significance — was raised but not reached. The statute, the court held, was unambiguous. There was nothing to defer to.
+
+The sixty-day appeal window closed on May 30, 2025. FDA did not appeal. On September 19, 2025, the agency [formally rescinded the rule](https://www.fda.gov/medical-devices/in-vitro-diagnostics/laboratory-developed-tests), reverting the regulatory definition to its pre-2024 language. The VALID Act has not been reintroduced in the 119th Congress.
+
+The handshake, it turns out, was not a temporary arrangement awaiting correction. It was the architecture — the way American diagnostics was built, for better and worse. The regulatory gap remains. The 79,000 tests remain. The patients whose care depends on them remain. And no one — not FDA, not CMS, not Congress — has claimed authority to review what those tests actually measure.
+
+What that gap looks like from the inside — the rule that almost was, the courtroom where it died, the orphan tests, and the industry reshaping itself around a void — is the subject of Parts 2 through 5 of this series.
 
 ---
 
@@ -119,6 +126,10 @@ What happens next — the courtroom, the orphan tests, and the new architecture 
 
 [^8]: FDA. "Medical Devices; Laboratory Developed Tests — Proposed Rule." *Federal Register*, October 3, 2023. [federalregister.gov](https://www.federalregister.gov/documents/2023/10/03/2023-21662/medical-devices-laboratory-developed-tests)
 
-[^9]: American Clinical Laboratory Association. "ACLA Analysis of FDA LDT Rule Costs." [acla.com](https://www.acla.com/)
+[^9]: ACLA. "ACLA Challenges FDA's Final Rule to Regulate Laboratory Developed Testing Services as Medical Devices." May 2024. [acla.com](https://www.acla.com/acla-challenges-fdas-final-rule-to-regulate-laboratory-developed-testing-services-as-medical-devices/)
 
 [^10]: Bennet, Michael; DeGette, Diana. "Introduce Legislation to Bring Diagnostic Testing into the 21st Century." March 2020. [bennet.senate.gov](https://www.bennet.senate.gov/public/index.cfm/2020/3/bennet-degette-introduce-legislation-to-bring-diagnostic-testing-into-the-21st-century)
+
+[^11]: ACLA v. FDA, No. 4:24-cv-00479-SDJ (E.D. Tex. Mar. 31, 2025). Memorandum Opinion and Order. [cap.org (PDF)](https://documents.cap.org/documents/ldt-courtruling-03-31-2025.pdf)
+
+[^12]: Supreme Court of the United States. *Loper Bright Enterprises v. Raimondo*, 603 U.S. ___ (2024). [supremecourt.gov](https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf)
