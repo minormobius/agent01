@@ -2,10 +2,10 @@
 """
 Publish markdown files as com.whtwnd.blog.entry records to an ATProto PDS.
 
-Reads markdown files with YAML frontmatter, authenticates to the PDS,
-and creates or updates WhiteWind blog entries. Matches by title to
-avoid duplicates — if an entry with the same title already exists,
-it is updated in place via putRecord.
+Images go straight from your filesystem to the PDS as blobs — they never
+need to live in git. The script uploads blobs, rewrites the markdown with
+permanent getBlob URLs, creates the record, and (with --rewrite) updates
+the source file so the repo version has the final URLs.
 
 Frontmatter format:
     ---
@@ -20,10 +20,17 @@ Usage:
     export BLUESKY_HANDLE=minomobi.bsky.social
     export BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
-    python3 scripts/publish-whtwnd.py time/entries/2026-02-19-cheyava-falls.md
-    python3 scripts/publish-whtwnd.py time/entries/*.md
+    # Images alongside the markdown (resolved from entry dir)
+    python3 scripts/publish-whtwnd.py time/entries/article.md
+
+    # Images from an external directory (never touch git)
+    python3 scripts/publish-whtwnd.py time/entries/article.md -I ~/images/
+
+    # Upload, publish, and rewrite the source file with blob URLs
+    python3 scripts/publish-whtwnd.py time/entries/article.md -I ~/images/ --rewrite
 """
 
+import argparse
 import json
 import mimetypes
 import os
@@ -45,21 +52,29 @@ IMAGE_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 # --- Frontmatter parsing ---
 
 def parse_frontmatter(text):
-    """Parse YAML-like frontmatter from markdown text."""
-    match = re.match(r'^---\n(.*?)\n---\n(.*)', text, re.DOTALL)
+    """Parse YAML-like frontmatter from markdown text.
+
+    Returns (meta_dict, content_string, frontmatter_block_string).
+    The frontmatter block includes the --- delimiters and trailing newline,
+    so it can be prepended verbatim when rewriting the file.
+    """
+    match = re.match(r'^(---\n.*?\n---\n)(.*)', text, re.DOTALL)
     if not match:
-        return {}, text
+        return {}, text, ""
+    frontmatter_block = match.group(1)
     meta = {}
-    for line in match.group(1).split('\n'):
+    # Parse the YAML lines between the --- delimiters
+    inner = frontmatter_block.strip().strip('-').strip()
+    for line in inner.split('\n'):
         line = line.strip()
         if ':' in line:
             key, val = line.split(':', 1)
             val = val.strip().strip('"').strip("'")
             meta[key.strip()] = val
-    return meta, match.group(2)
+    return meta, match.group(2), frontmatter_block
 
 
-# --- ATProto API (same patterns as sync-otol-to-atproto.py) ---
+# --- ATProto API ---
 
 def resolve_handle(handle):
     url = f"{BSKY_PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle={handle}"
@@ -170,7 +185,7 @@ def upload_blob(pds, token, filepath):
             blobref = data["blob"]
             cid = blobref["ref"]["$link"]
             size = blobref.get("size", len(body))
-            print(f"    Uploaded blob {os.path.basename(filepath)} ({size} bytes) → {cid}")
+            print(f"    Uploaded blob {os.path.basename(filepath)} ({size} bytes) -> {cid}")
             return blobref
         except HTTPError as exc:
             if exc.code == 429 and attempt < MAX_RETRIES:
@@ -182,7 +197,30 @@ def upload_blob(pds, token, filepath):
             raise RuntimeError(f"uploadBlob failed ({exc.code}): {body_text}") from exc
 
 
-def rewrite_images(content, entry_dir, pds, did, token):
+def resolve_image_path(ref_path, entry_dir, image_dir=None):
+    """Resolve a markdown image ref to an actual file on disk.
+
+    Search order:
+      1. --image-dir (basename match, then full relative path)
+      2. Entry file's directory (relative path)
+    """
+    if image_dir:
+        # Try basename match (e.g., "figures/photo.jpg" finds "photo.jpg" in image_dir)
+        candidate = os.path.normpath(os.path.join(image_dir, os.path.basename(ref_path)))
+        if os.path.isfile(candidate):
+            return candidate
+        # Try full relative path under image_dir
+        candidate = os.path.normpath(os.path.join(image_dir, ref_path))
+        if os.path.isfile(candidate):
+            return candidate
+    # Fall back to entry directory
+    candidate = os.path.normpath(os.path.join(entry_dir, ref_path))
+    if os.path.isfile(candidate):
+        return candidate
+    return None
+
+
+def rewrite_images(content, entry_dir, pds, did, token, image_dir=None):
     """Find local image refs, upload as blobs, rewrite URLs, return blob metadata.
 
     Returns (rewritten_content, blobs_array) where blobs_array contains
@@ -197,10 +235,14 @@ def rewrite_images(content, entry_dir, pds, did, token):
         # Skip URLs and data URIs — only process local paths
         if path.startswith(("http://", "https://", "data:")):
             return m.group(0)
-        # Resolve relative to the entry file's directory
-        abs_path = os.path.normpath(os.path.join(entry_dir, path))
-        if not os.path.isfile(abs_path):
-            print(f"    WARNING: Image not found: {abs_path}, keeping original ref")
+        abs_path = resolve_image_path(path, entry_dir, image_dir)
+        if not abs_path:
+            print(f"    WARNING: Image not found: {path}")
+            if image_dir:
+                print(f"             Searched: {image_dir} and {entry_dir}")
+            else:
+                print(f"             Searched: {entry_dir}")
+            print(f"             Keeping original ref")
             return m.group(0)
         blobref = upload_blob(pds, token, abs_path)
         cid = blobref["ref"]["$link"]
@@ -250,15 +292,34 @@ def create_record(pds, did, token, record):
 # --- Main ---
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: publish-whtwnd.py <file.md> [file2.md ...]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Publish markdown files as WhiteWind blog entries to an ATProto PDS.",
+        epilog="Images go from your filesystem straight to the PDS. They never need to be in git.",
+    )
+    parser.add_argument("files", nargs="+", metavar="FILE",
+                        help="Markdown files to publish")
+    parser.add_argument("-I", "--image-dir",
+                        help="Directory containing images referenced in markdown. "
+                             "Images are resolved here first, then relative to the entry file.")
+    parser.add_argument("--rewrite", action="store_true",
+                        help="After publish, rewrite the source markdown file with "
+                             "permanent PDS blob URLs. The rewritten file can be committed "
+                             "to git without any local image dependencies.")
+    args = parser.parse_args()
 
     handle = os.environ.get("BLUESKY_HANDLE")
     password = os.environ.get("BLUESKY_APP_PASSWORD")
     if not handle or not password:
         print("Error: BLUESKY_HANDLE and BLUESKY_APP_PASSWORD must be set")
         sys.exit(1)
+
+    image_dir = None
+    if args.image_dir:
+        image_dir = os.path.abspath(args.image_dir)
+        if not os.path.isdir(image_dir):
+            print(f"Error: --image-dir does not exist: {image_dir}")
+            sys.exit(1)
+        print(f"Image directory: {image_dir}")
 
     # Authenticate
     print(f"Resolving {handle}...")
@@ -274,7 +335,7 @@ def main():
     print(f"Found {len(existing)} existing entries")
 
     # Process each file
-    for filepath in sys.argv[1:]:
+    for filepath in args.files:
         if not os.path.isfile(filepath):
             print(f"Skipping {filepath} (not a file)")
             continue
@@ -283,7 +344,7 @@ def main():
         with open(filepath, "r", encoding="utf-8") as f:
             text = f.read()
 
-        meta, content = parse_frontmatter(text)
+        meta, content, frontmatter_block = parse_frontmatter(text)
         title = meta.get("title", "")
         if not title:
             print(f"  WARNING: No title in frontmatter, skipping")
@@ -291,10 +352,13 @@ def main():
 
         # Upload local images as blobs, rewrite URLs in markdown
         entry_dir = os.path.dirname(os.path.abspath(filepath))
-        content, blobs = rewrite_images(content.strip(), entry_dir, pds, did, token)
+        content_stripped = content.strip()
+        rewritten_content, blobs = rewrite_images(
+            content_stripped, entry_dir, pds, did, token, image_dir
+        )
 
         record = {
-            "content": content,
+            "content": rewritten_content,
             "title": title,
             "visibility": meta.get("visibility", "public"),
         }
@@ -316,7 +380,15 @@ def main():
             result = create_record(pds, did, token, record)
 
         uri = result.get("uri", "?")
-        print(f"  Done: {uri}")
+        print(f"  Published: {uri}")
+
+        # Rewrite source file with permanent blob URLs
+        if args.rewrite and rewritten_content != content_stripped:
+            rewritten_file = frontmatter_block + "\n" + rewritten_content + "\n"
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(rewritten_file)
+            print(f"  Rewrote {filepath} with blob URLs")
+
         time.sleep(1)  # gentle rate limiting between writes
 
     print("\nAll done.")

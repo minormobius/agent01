@@ -10,3 +10,6 @@ env/
 # Node
 node_modules/
 dist/
+
+# Images live on the PDS, not in git
+time/entries/figures/
