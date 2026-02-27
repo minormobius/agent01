@@ -1,0 +1,22 @@
+{
+  "name": "LABGLASS — Peer-to-Peer Biotech Data Workbench",
+  "short_name": "LABGLASS",
+  "description": "A peer-to-peer biotech data workbench running entirely in your browser. SQL, Python, sensors, hardware — no server required.",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
