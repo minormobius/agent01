@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>minomobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 3rem;
+}
+
+.manifesto {
+  font-size: 1.15rem;
+  margin-bottom: 3rem;
+}
+
+.manifesto p {
+  margin-bottom: 1.2rem;
+}
+
+.manifesto em {
+  font-style: italic;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 3rem 0;
+}
+
+.projects {
+  list-style: none;
+}
+
+.projects li {
+  margin-bottom: 2rem;
+}
+
+.projects a {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--link);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.projects a:hover {
+  text-decoration: underline;
+}
+
+.projects .desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+footer a:hover {
+  color: var(--text);
+}
+</style>
+</head>
+<body>
+
+<h1>minomobi</h1>
+
+<div class="manifesto">
+  <p>We are all web developers now.</p>
+
+  <p>For thirty years the open internet was <em>technically</em> accessible&mdash;anyone could view source, anyone could write HTML, anyone could register a domain and ship. In practice, the gap between "accessible" and "built" was filled by years of specialized training, mass-produced frameworks, and platform gatekeepers who offered convenience in exchange for ownership.</p>
+
+  <p>That gap closed. Claude Code is the hinge. Not because it writes code <em>for</em> you&mdash;but because it writes code <em>with</em> you, at the speed of intention. The person with the idea and the person with the implementation are now the same person, working in the same session. No handoff. No translation layer. No waiting.</p>
+
+  <p>What follows is what I've built since the gap closed. Static files on Cloudflare Pages. Data on the ATProto personal data server. No backend servers. No SaaS dependencies. Everything you see here was written in conversation&mdash;one human, one model, the open web.</p>
+</div>
+
+<hr>
+
+<ul class="projects">
+  <li>
+    <a href="https://time.minomobi.com">time.minomobi.com</a>
+    <div class="desc">The Mino Times&mdash;agentic biotech intelligence. Research, articles, editorial panels, and podcast. Content stored as ATProto records, rendered in a newspaper broadsheet layout.</div>
+  </li>
+  <li>
+    <a href="https://minomobi.com/phylo/">phylo</a>
+    <div class="desc">Interactive phylogenetic tree explorer. Syncs taxonomic data from the Open Tree of Life into ATProto PDS records. Canvas-based zoom viewer and text tree for Mammalia, Aves, and more.</div>
+  </li>
+  <li>
+    <a href="https://minomobi.com/music/">music</a>
+    <div class="desc">ATProto composer. A browser-based sequencer that stores compositions as records on the personal data server.</div>
+  </li>
+  <li>
+    <a href="https://bakery.minomobi.com">bakery.minomobi.com</a>
+    <div class="desc">Flour blend calculator. A PWA for bakers who mix their own flour blends&mdash;protein math, hydration targets, blend ratios.</div>
+  </li>
+  <li>
+    <a href="https://minomobi.com/sweat/">sweat</a>
+    <div class="desc">Fitness tracker PWA. Workout logging with charts, progressive overload tracking, offline-first.</div>
+  </li>
+</ul>
+
+<hr>
+
+<footer>
+  <a href="https://bsky.app/profile/minomobi.com">@minomobi.com</a> &middot;
+  <a href="mailto:tips@minomobi.com">tips@minomobi.com</a>
+</footer>
+
+</body>
+</html>

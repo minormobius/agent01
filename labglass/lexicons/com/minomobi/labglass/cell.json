@@ -1,0 +1,52 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.labglass.cell",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A single cell in a LABGLASS notebook. Contains source code or markdown, cell type, and optionally the last execution output. Large outputs (images, plots) are stored as blobs referenced by figureBlob.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["cellType", "source", "createdAt"],
+        "properties": {
+          "cellType": {
+            "type": "string",
+            "enum": ["sql", "python", "markdown", "viz"],
+            "description": "Execution environment for this cell"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 100000,
+            "description": "Cell source code or markdown content"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Human-readable cell name (used for cross-cell data references)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Advisory sort order. Canonical order comes from the parent notebook's cells array."
+          },
+          "textOutput": {
+            "type": "string",
+            "maxLength": 100000,
+            "description": "Plain text output from last execution (stdout, query results as text)"
+          },
+          "figureBlob": {
+            "type": "blob",
+            "accept": ["image/png", "image/svg+xml"],
+            "maxSize": 5000000,
+            "description": "Chart or visualization image from last execution"
+          }
+        }
+      }
+    }
+  }
+}

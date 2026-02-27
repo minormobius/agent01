@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>LABGLASS — Peer-to-Peer Biotech Data Workbench</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0d1117">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LABGLASS">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Import map: DuckDB-Wasm's ESM has a bare 'apache-arrow' import -->
+  <script type="importmap">
+  {
+    "imports": {
+      "apache-arrow": "https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="css/labglass.css">
+</head>
+<body>
+  <!-- Top bar -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <h1 class="logo">LABGLASS</h1>
+      <span class="tagline">peer-to-peer data workbench</span>
+    </div>
+    <div class="topbar-center">
+      <div id="status-indicators">
+        <span id="status-duckdb" class="status-pill" data-status="loading">DuckDB</span>
+        <span id="status-pyodide" class="status-pill" data-status="off">Python</span>
+        <span id="status-webgpu" class="status-pill" data-status="off">WebGPU</span>
+        <span id="status-collab" class="status-pill" data-status="off">P2P</span>
+        <span id="status-hardware" class="status-pill" data-status="off">Hardware</span>
+        <span id="status-atproto" class="status-pill" data-status="off">ATProto</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button id="btn-login" class="topbar-btn" title="Sign in with ATProto">Sign in</button>
+      <button id="btn-share" class="topbar-btn" title="Share notebook via WebRTC">Share</button>
+      <button id="btn-record" class="topbar-btn" title="Record session (WebCodecs)">Rec</button>
+      <button id="btn-sensors" class="topbar-btn" title="Phone sensors &amp; hardware">Sensors</button>
+      <button id="btn-files" class="topbar-btn active" title="Toggle file panel">Files</button>
+    </div>
+  </header>
+
+  <!-- Main layout -->
+  <div id="main">
+    <!-- Scrim: closes sidebar when tapped on mobile -->
+    <div id="sidebar-scrim" class="sidebar-scrim"></div>
+
+    <!-- Left sidebar: file manager -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <h2>Files (OPFS)</h2>
+        <button id="btn-refresh-files" title="Refresh file list">&circlearrowright;</button>
+      </div>
+      <div id="drop-zone">
+        <p>Drop files here</p>
+        <p class="drop-sub">CSV, Parquet, JSON, TSV &mdash; stored in OPFS</p>
+        <input type="file" id="file-input" multiple accept=".csv,.parquet,.json,.tsv,.txt,.xlsx" hidden>
+        <button id="btn-browse">Browse</button>
+      </div>
+      <ul id="file-list"></ul>
+      <div id="storage-info">
+        <div id="storage-bar"><div id="storage-fill"></div></div>
+        <span id="storage-text">Checking storage...</span>
+      </div>
+
+      <!-- Sensors panel -->
+      <div class="sidebar-section">
+        <h3>Sensors</h3>
+        <div id="sensor-buttons">
+          <button class="hw-btn sensor-btn" data-sensor="motion" title="Accelerometer + Gyroscope">Motion</button>
+          <button class="hw-btn sensor-btn" data-sensor="orientation" title="Compass + Tilt">Orient</button>
+          <button class="hw-btn sensor-btn" data-sensor="gps" title="GPS Location">GPS</button>
+          <button class="hw-btn sensor-btn" data-sensor="camera" title="Camera frame analysis">Camera</button>
+          <button class="hw-btn sensor-btn" data-sensor="microphone" title="Mic audio analysis">Mic</button>
+          <button class="hw-btn sensor-btn" data-sensor="magnetometer" title="Magnetometer (Chrome)">Mag</button>
+          <button class="hw-btn sensor-btn" data-sensor="ambientLight" title="Ambient Light (Chrome)">Light</button>
+        </div>
+        <div id="sensor-active"></div>
+        <div id="sensor-preview"></div>
+      </div>
+
+      <!-- Hardware panel -->
+      <div class="sidebar-section">
+        <h3>Hardware</h3>
+        <button id="btn-serial" class="hw-btn" title="Connect via Web Serial">Serial Port</button>
+        <button id="btn-bluetooth" class="hw-btn" title="Connect via Web Bluetooth">BLE Device</button>
+        <div id="hardware-devices"></div>
+      </div>
+
+      <!-- Collaboration panel -->
+      <div class="sidebar-section">
+        <h3>Collaboration</h3>
+        <div id="collab-panel">
+          <button id="btn-collab-host" class="collab-btn">Host Session</button>
+          <button id="btn-collab-join" class="collab-btn">Join Session</button>
+          <div id="collab-status"></div>
+          <div id="collab-peers"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: notebook -->
+    <main id="notebook">
+      <div id="notebook-toolbar">
+        <button id="btn-add-sql" class="cell-add-btn" title="Add SQL cell">+ SQL</button>
+        <button id="btn-add-python" class="cell-add-btn" title="Add Python cell">+ Python</button>
+        <button id="btn-add-markdown" class="cell-add-btn" title="Add Markdown cell">+ Markdown</button>
+        <button id="btn-add-viz" class="cell-add-btn" title="Add Visualization cell">+ Viz</button>
+        <button id="btn-add-config" class="cell-add-btn" title="Add Sensor Config cell">+ Config</button>
+        <div class="toolbar-spacer"></div>
+        <button id="btn-run-all" class="run-btn" title="Run all cells">Run All</button>
+        <button id="btn-save-pds" class="export-btn" title="Save notebook to your PDS" disabled>Save to PDS</button>
+        <button id="btn-open-pds" class="export-btn" title="Open notebook from any PDS">Open from PDS</button>
+        <button id="btn-export" class="export-btn" title="Export notebook as JSON">Export</button>
+      </div>
+      <div id="cells">
+        <!-- Cells injected here by notebook.js -->
+      </div>
+      <div id="notebook-footer">
+        <button id="btn-add-cell-bottom" class="cell-add-btn-large">+ Add Cell</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Share modal -->
+  <dialog id="share-dialog">
+    <h2>Share via WebRTC</h2>
+    <p>No server needed. Share this code with your collaborator:</p>
+    <div id="share-offer-section">
+      <textarea id="share-offer" readonly rows="4" placeholder="Generating offer..."></textarea>
+      <button id="btn-copy-offer">Copy</button>
+    </div>
+    <div id="share-answer-section">
+      <p>Paste your collaborator's answer:</p>
+      <textarea id="share-answer" rows="4" placeholder="Paste answer here..."></textarea>
+      <button id="btn-accept-answer">Connect</button>
+    </div>
+    <div id="share-join-section" style="display:none">
+      <p>Paste the host's offer:</p>
+      <textarea id="join-offer" rows="4" placeholder="Paste offer here..."></textarea>
+      <button id="btn-create-answer">Generate Answer</button>
+      <textarea id="join-answer" readonly rows="4" style="display:none" placeholder="Your answer..."></textarea>
+      <button id="btn-copy-answer" style="display:none">Copy Answer</button>
+    </div>
+    <button id="btn-close-share" class="dialog-close">Close</button>
+  </dialog>
+
+  <!-- Login dialog -->
+  <dialog id="login-dialog">
+    <h2>Sign in with ATProto</h2>
+    <p>Use an <a href="https://bsky.app/settings/app-passwords" target="_blank">app password</a>, not your main password.</p>
+    <div class="dialog-field">
+      <label for="login-handle">Handle</label>
+      <input id="login-handle" type="text" placeholder="alice.bsky.social" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="dialog-field">
+      <label for="login-password">App password</label>
+      <input id="login-password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="dialog-error"></div>
+    <div class="dialog-actions">
+      <button id="btn-do-login">Sign in</button>
+      <button id="btn-close-login" class="dialog-close">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Save to PDS dialog -->
+  <dialog id="save-dialog">
+    <h2>Save to PDS</h2>
+    <p>Your notebook will be saved as ATProto records on your personal data server.</p>
+    <div class="dialog-field">
+      <label for="save-title">Title</label>
+      <input id="save-title" type="text" placeholder="My analysis notebook" spellcheck="false">
+    </div>
+    <div class="dialog-field">
+      <label for="save-description">Description</label>
+      <textarea id="save-description" rows="2" placeholder="What this notebook analyzes..."></textarea>
+    </div>
+    <div class="dialog-field">
+      <label for="save-tags">Tags (comma-separated)</label>
+      <input id="save-tags" type="text" placeholder="biotech, diagnostics, duckdb" spellcheck="false">
+    </div>
+    <div id="save-status" class="dialog-status"></div>
+    <div class="dialog-actions">
+      <button id="btn-do-save">Save</button>
+      <button id="btn-close-save" class="dialog-close">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Browse notebooks dialog -->
+  <dialog id="browse-dialog">
+    <h2>Open from PDS</h2>
+    <p>Load a notebook from any ATProto user's personal data server.</p>
+    <div class="dialog-field">
+      <label for="browse-handle">Handle</label>
+      <div class="browse-input-row">
+        <input id="browse-handle" type="text" placeholder="alice.bsky.social" spellcheck="false">
+        <button id="btn-do-browse">Browse</button>
+      </div>
+    </div>
+    <div id="browse-status" class="dialog-status"></div>
+    <ul id="browse-list" class="notebook-list"></ul>
+    <div class="dialog-actions">
+      <button id="btn-close-browse" class="dialog-close">Close</button>
+    </div>
+  </dialog>
+
+  <!-- Recording indicator -->
+  <div id="rec-indicator" class="hidden">
+    <span class="rec-dot"></span> Recording
+    <button id="btn-stop-rec">Stop</button>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toasts"></div>
+
+  <!-- Scripts: order matters -->
+  <script src="js/storage.js"></script>
+  <script src="js/duckdb.js"></script>
+  <script src="js/pyodide-bridge.js"></script>
+  <script src="js/notebook.js"></script>
+  <script src="js/webgpu-viz.js"></script>
+  <script src="js/collab.js"></script>
+  <script src="js/sensors.js"></script>
+  <script src="js/hardware.js"></script>
+  <script src="js/capture.js"></script>
+  <script src="js/atproto.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
