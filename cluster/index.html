@@ -61,7 +61,6 @@ h1 a:hover { color: var(--text); }
   margin-bottom: 2.5rem;
 }
 
-/* Handle form */
 .handle-form {
   display: flex;
   gap: 0.5rem;
@@ -84,7 +83,9 @@ h1 a:hover { color: var(--text); }
   border-color: var(--link);
 }
 
-.handle-form button {
+.handle-form button,
+.auth-form button,
+.rescan-btn {
   font-family: var(--mono);
   font-size: 0.75rem;
   letter-spacing: 0.05em;
@@ -96,17 +97,19 @@ h1 a:hover { color: var(--text); }
   white-space: nowrap;
 }
 
-.handle-form button:hover {
+.handle-form button:hover,
+.auth-form button:hover,
+.rescan-btn:hover {
   border-color: var(--link);
   color: var(--link);
 }
 
-.handle-form button:disabled {
+.handle-form button:disabled,
+.auth-form button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Progress */
 .progress-track {
   width: 100%;
   height: 1px;
@@ -122,7 +125,6 @@ h1 a:hover { color: var(--text); }
   transition: width 0.3s ease;
 }
 
-/* Status */
 .status-line {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -134,7 +136,6 @@ h1 a:hover { color: var(--text); }
   color: var(--link);
 }
 
-/* Graph stats */
 .graph-stats {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -143,7 +144,6 @@ h1 a:hover { color: var(--text); }
   line-height: 1.9;
 }
 
-/* Section headers */
 .section-header {
   font-family: var(--mono);
   font-size: 0.7rem;
@@ -154,7 +154,10 @@ h1 a:hover { color: var(--text); }
   border-bottom: 1px solid var(--rule);
 }
 
-/* Results */
+.shell-section {
+  margin-top: 2.5rem;
+}
+
 .result-row {
   display: flex;
   align-items: center;
@@ -220,12 +223,6 @@ h1 a:hover { color: var(--text); }
   font-style: italic;
 }
 
-/* Expanded circle */
-.expanded-section {
-  margin-top: 2.5rem;
-}
-
-/* Publish section */
 .publish-section {
   margin-top: 3rem;
   padding-top: 2rem;
@@ -278,42 +275,6 @@ h1 a:hover { color: var(--text); }
 .auth-form input[type="text"] { flex: 1; min-width: 140px; }
 .auth-form input[type="password"] { flex: 1; min-width: 140px; }
 
-.auth-form button {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 0.5rem 1.25rem;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.auth-form button:hover {
-  border-color: var(--link);
-  color: var(--link);
-}
-
-.auth-form button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.publish-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.publish-option input[type="checkbox"] {
-  accent-color: var(--link);
-}
-
 .publish-status {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -323,6 +284,13 @@ h1 a:hover { color: var(--text); }
 
 .publish-status.error {
   color: var(--link);
+}
+
+.rescan-offer {
+  margin-top: 2rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 hr {
@@ -360,7 +328,8 @@ footer a:hover {
 <p class="desc">
   Enter your Bluesky handle to find the largest group of your follows
   who all mutually follow each other&mdash;every node connected to every
-  other node.
+  other node. If you&rsquo;ve published a cluster list before, the shells
+  expand from it cheaply.
 </p>
 
 <form class="handle-form" id="handleForm">
@@ -374,15 +343,11 @@ footer a:hover {
 
 <div class="status-line hidden" id="status"></div>
 <div class="graph-stats hidden" id="graphStats"></div>
+<div id="results"></div>
 
-<div id="cliqueSection" class="hidden">
-  <div class="section-header" id="cliqueHeader"></div>
-  <div id="cliqueResults"></div>
-</div>
-
-<div id="expandedSection" class="expanded-section hidden">
-  <div class="section-header" id="expandedHeader"></div>
-  <div id="expandedResults"></div>
+<div id="rescanOffer" class="rescan-offer hidden">
+  <button class="rescan-btn" id="rescanBtn">full rescan</button>
+  &mdash; recompute the clique from scratch (slower)
 </div>
 
 <div id="publishSection" class="publish-section hidden">
@@ -391,10 +356,6 @@ footer a:hover {
     Save this cluster to your Bluesky account as a curated list.
     Requires an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
   </p>
-  <div class="publish-option">
-    <input type="checkbox" id="includeExpanded" checked>
-    <label for="includeExpanded">include expanded circle</label>
-  </div>
   <form class="auth-form" id="publishForm">
     <input type="text" id="authHandle" placeholder="your-handle.bsky.social" autocomplete="username">
     <input type="password" id="authPassword" placeholder="app password" autocomplete="current-password">
@@ -413,8 +374,7 @@ footer a:hover {
   const PUBLIC_API = 'https://public.api.bsky.app';
 
   // --- Module state ---
-  let currentClique = [];
-  let currentExpanded = [];
+  let publishMembers = [];
   let currentProfileMap = new Map();
 
   // --- Identity resolution ---
@@ -477,8 +437,6 @@ footer a:hover {
     return follows;
   }
 
-  // --- Concurrent processing ---
-
   async function mapConcurrent(items, concurrency, fn) {
     let index = 0;
     async function worker() {
@@ -488,6 +446,39 @@ footer a:hover {
       }
     }
     await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  }
+
+  // --- List detection ---
+
+  async function findClusterList(did) {
+    try {
+      const params = new URLSearchParams({
+        repo: did, collection: 'app.bsky.graph.list', limit: '100'
+      });
+      const data = await fetchJSON(
+        `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`
+      );
+      let best = null;
+      for (const r of (data.records || [])) {
+        if (r.value?.description?.includes('mino.mobi/cluster')) best = r.uri;
+      }
+      return best;
+    } catch { return null; }
+  }
+
+  async function getListMembers(listUri) {
+    const members = [];
+    let cursor;
+    do {
+      const params = new URLSearchParams({ list: listUri, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+      const data = await fetchJSON(
+        `${PUBLIC_API}/xrpc/app.bsky.graph.getList?${params}`
+      );
+      for (const item of (data.items || [])) members.push(item.subject);
+      cursor = data.cursor;
+    } while (cursor);
+    return members;
   }
 
   // --- Bron-Kerbosch with pivot and pruning ---
@@ -548,23 +539,6 @@ footer a:hover {
     return { clique: best, exhaustive: ops <= LIMIT };
   }
 
-  // --- Expanded circle: nodes connected to all-but-one clique members ---
-
-  function findExpandedCircle(clique, mutual) {
-    const cliqueSet = new Set(clique);
-    const expanded = [];
-    for (const [node, neighbors] of mutual) {
-      if (cliqueSet.has(node)) continue;
-      const connections = clique.filter(c => neighbors.has(c));
-      if (connections.length >= clique.length - 1) {
-        const missing = clique.filter(c => !neighbors.has(c));
-        expanded.push({ did: node, connections: connections.length, missing });
-      }
-    }
-    expanded.sort((a, b) => b.connections - a.connections);
-    return expanded;
-  }
-
   // --- Rendering ---
 
   function escapeHtml(str) {
@@ -594,45 +568,230 @@ footer a:hover {
     </div>`;
   }
 
-  function renderClique(members, profileMap) {
-    const section = document.getElementById('cliqueSection');
-    const header = document.getElementById('cliqueHeader');
-    const results = document.getElementById('cliqueResults');
+  function renderShells(coreDids, coreSize, shells, profileMap) {
+    const results = document.getElementById('results');
+    let html = '';
 
-    if (members.length === 0) {
-      section.classList.add('hidden');
-      return;
+    // Core
+    html += `<div class="section-header">core \u00b7 ${coreDids.length} people</div>`;
+    html += coreDids.map(did => renderPersonRow(did, profileMap)).join('');
+
+    // Shells
+    for (let i = 0; i < shells.length; i++) {
+      const sh = shells[i];
+      html += `<div class="shell-section">`;
+      html += `<div class="section-header">shell ${i + 1} \u00b7 ${sh.members.length} people \u00b7 ${sh.threshold}/${coreSize} mutual</div>`;
+      html += sh.members.map(m =>
+        renderPersonRow(m.did, profileMap, `${m.count}/${coreSize}`)
+      ).join('');
+      html += `</div>`;
     }
 
-    header.textContent = `largest clique \u00b7 ${members.length} people \u00b7 everyone follows everyone`;
-    results.innerHTML = members.map(did => renderPersonRow(did, profileMap)).join('');
-    section.classList.remove('hidden');
+    if (coreDids.length === 0) {
+      html = '<div class="empty-state">No mutual clique found among your follows.</div>';
+    }
+
+    results.innerHTML = html;
   }
 
-  function renderExpanded(expanded, clique, profileMap) {
-    const section = document.getElementById('expandedSection');
-    const header = document.getElementById('expandedHeader');
-    const results = document.getElementById('expandedResults');
-    const checkbox = document.getElementById('includeExpanded');
+  // --- Fast path: shell peel from existing cluster list ---
 
-    if (expanded.length === 0) {
-      section.classList.add('hidden');
-      checkbox.parentElement.classList.add('hidden');
-      return;
+  async function fastPath(did, status, progressFill, graphStats) {
+    status.textContent = 'checking for cluster list\u2026';
+    const listUri = await findClusterList(did);
+    if (!listUri) return false;
+
+    status.textContent = 'loading cluster list\u2026';
+    const members = await getListMembers(listUri);
+    if (members.length === 0) return false;
+
+    const coreDids = members.map(m => m.did);
+    const coreSet = new Set(coreDids);
+    const coreSize = members.length;
+    currentProfileMap = new Map();
+    for (const m of members) currentProfileMap.set(m.did, m);
+
+    // Phase 1: fetch follows for each core member
+    const memberFollows = new Map();
+    let scanned = 0;
+    await mapConcurrent(members, 5, async (member) => {
+      try {
+        const follows = await getAllFollows(member.did);
+        memberFollows.set(member.did, new Set(follows.map(f => f.did)));
+        for (const f of follows) {
+          if (!currentProfileMap.has(f.did)) currentProfileMap.set(f.did, f);
+        }
+      } catch {
+        memberFollows.set(member.did, new Set());
+      }
+      scanned++;
+      status.textContent = `scanning core follows\u2026 ${scanned}/${coreSize}`;
+      progressFill.style.width = (scanned / coreSize * 50) + '%';
+    });
+
+    // Count: for each non-member, how many core members follow them
+    const followedBy = new Map();
+    for (const [, follows] of memberFollows) {
+      for (const d of follows) {
+        if (coreSet.has(d)) continue;
+        followedBy.set(d, (followedBy.get(d) || 0) + 1);
+      }
     }
 
-    header.textContent = `expanded circle \u00b7 ${expanded.length} people \u00b7 connected to all but one`;
-    results.innerHTML = expanded.map(e => {
-      const missingHandle = e.missing.length > 0
-        ? (profileMap.get(e.missing[0])?.handle || 'one member')
-        : '';
-      const meta = e.missing.length > 0
-        ? `${e.connections}/${clique.length}<br>missing @${escapeHtml(missingHandle)}`
-        : `${e.connections}/${clique.length}`;
-      return renderPersonRow(e.did, profileMap, meta);
-    }).join('');
-    section.classList.remove('hidden');
-    checkbox.parentElement.classList.remove('hidden');
+    // Filter candidates worth verifying
+    const minThreshold = Math.max(5, Math.ceil(coreSize / 2));
+    const candidateDids = [...followedBy.entries()]
+      .filter(([, count]) => count >= minThreshold)
+      .sort((a, b) => b[1] - a[1])
+      .map(([d]) => d);
+
+    // Phase 2: fetch candidates' follows for reciprocity check
+    const candidateFollows = new Map();
+    let verified = 0;
+    if (candidateDids.length > 0) {
+      await mapConcurrent(candidateDids, 5, async (d) => {
+        try {
+          const follows = await getAllFollows(d);
+          candidateFollows.set(d, new Set(follows.map(f => f.did)));
+        } catch {
+          candidateFollows.set(d, new Set());
+        }
+        verified++;
+        status.textContent = `verifying candidates\u2026 ${verified}/${candidateDids.length}`;
+        progressFill.style.width = (50 + verified / candidateDids.length * 50) + '%';
+      });
+    }
+
+    // Compute mutual counts
+    const mutualCounts = new Map();
+    for (const candidateDid of candidateDids) {
+      const theirFollows = candidateFollows.get(candidateDid) || new Set();
+      let count = 0;
+      for (const [memberDid, memberFollowSet] of memberFollows) {
+        if (memberFollowSet.has(candidateDid) && theirFollows.has(memberDid)) count++;
+      }
+      if (count >= minThreshold) mutualCounts.set(candidateDid, count);
+    }
+
+    // Shell peel
+    const shells = [];
+    const assigned = new Set(coreSet);
+    for (let t = coreSize - 1; t >= minThreshold; t--) {
+      const layer = [];
+      for (const [d, count] of mutualCounts) {
+        if (assigned.has(d)) continue;
+        if (count >= t) layer.push({ did: d, count });
+      }
+      if (layer.length === 0) continue;
+      layer.sort((a, b) => b.count - a.count);
+      for (const m of layer) assigned.add(m.did);
+      shells.push({ threshold: t, members: layer });
+    }
+
+    // Stats
+    const totalShell = shells.reduce((s, sh) => s + sh.members.length, 0);
+    graphStats.innerHTML =
+      `cluster list \u00b7 ${coreSize} core \u2192 ${candidateDids.length} candidates \u2192 ${shells.length} shells (${totalShell} people)`;
+    graphStats.classList.remove('hidden');
+    status.textContent = `done \u00b7 ${coreSize} core + ${totalShell} in ${shells.length} shells`;
+    progressFill.style.width = '100%';
+
+    renderShells(coreDids, coreSize, shells, currentProfileMap);
+
+    publishMembers = [...coreDids];
+    for (const sh of shells) for (const m of sh.members) publishMembers.push(m.did);
+
+    document.getElementById('rescanOffer').classList.remove('hidden');
+    return true;
+  }
+
+  // --- Full path: scan all follows, find clique, shell peel ---
+
+  async function fullPath(did, status, progressFill, graphStats) {
+    status.textContent = 'fetching your follows\u2026';
+    const myFollows = await getAllFollows(did, (n) => {
+      status.textContent = `fetching your follows\u2026 ${n}`;
+    });
+
+    const myFollowDids = new Set(myFollows.map(f => f.did));
+    currentProfileMap = new Map();
+    for (const f of myFollows) currentProfileMap.set(f.did, f);
+
+    // Build directed adjacency
+    const directed = new Map();
+    let scanned = 0;
+    await mapConcurrent(myFollows, 5, async (follow) => {
+      try {
+        const theirFollows = await getAllFollows(follow.did);
+        const overlap = new Set();
+        for (const f of theirFollows) {
+          if (myFollowDids.has(f.did) && f.did !== follow.did) overlap.add(f.did);
+        }
+        directed.set(follow.did, overlap);
+      } catch {
+        directed.set(follow.did, new Set());
+      }
+      scanned++;
+      status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
+      progressFill.style.width = (scanned / myFollows.length * 100) + '%';
+    });
+
+    // Build mutual adjacency
+    status.textContent = 'building mutual graph\u2026';
+    const mutual = new Map();
+    let mutualEdges = 0;
+    for (const [a, aFollows] of directed) {
+      const m = new Set();
+      for (const b of aFollows) {
+        if (directed.get(b)?.has(a)) m.add(b);
+      }
+      if (m.size > 0) mutual.set(a, m);
+      mutualEdges += m.size;
+    }
+    mutualEdges /= 2;
+
+    const mutualNodes = [...mutual.keys()];
+    graphStats.innerHTML =
+      `${myFollows.length} follows \u2192 ${mutualNodes.length} with mutual connections \u2192 ${Math.round(mutualEdges)} mutual edges`;
+    graphStats.classList.remove('hidden');
+
+    // Find maximum clique
+    status.textContent = 'computing largest clique\u2026';
+    progressFill.style.width = '100%';
+    await new Promise(r => setTimeout(r, 50));
+
+    const { clique, exhaustive } = findMaxClique(mutual, mutualNodes);
+    const cliqueSet = new Set(clique);
+    const coreSize = clique.length;
+
+    // Shell peel from clique
+    const shells = [];
+    if (coreSize > 0) {
+      const assigned = new Set(clique);
+      const minThreshold = Math.max(5, Math.ceil(coreSize / 2));
+      for (let t = coreSize - 1; t >= minThreshold; t--) {
+        const layer = [];
+        for (const [node, neighbors] of mutual) {
+          if (assigned.has(node)) continue;
+          const count = [...cliqueSet].filter(c => neighbors.has(c)).length;
+          if (count >= t) layer.push({ did: node, count });
+        }
+        if (layer.length === 0) continue;
+        layer.sort((a, b) => b.count - a.count);
+        for (const m of layer) assigned.add(m.did);
+        shells.push({ threshold: t, members: layer });
+      }
+    }
+
+    const totalShell = shells.reduce((s, sh) => s + sh.members.length, 0);
+    status.textContent = exhaustive
+      ? `done \u00b7 clique of ${coreSize}${totalShell > 0 ? ` + ${totalShell} in ${shells.length} shells` : ''}`
+      : `done \u00b7 best clique: ${coreSize} (search limit reached)`;
+
+    renderShells(clique, coreSize, shells, currentProfileMap);
+
+    publishMembers = [...clique];
+    for (const sh of shells) for (const m of sh.members) publishMembers.push(m.did);
   }
 
   // --- Publish as list ---
@@ -643,7 +802,6 @@ footer a:hover {
     const authPassword = document.getElementById('authPassword').value;
     const publishBtn = document.getElementById('publishBtn');
     const publishStatus = document.getElementById('publishStatus');
-    const includeExpanded = document.getElementById('includeExpanded').checked;
 
     if (!authHandle || !authPassword) return;
 
@@ -653,11 +811,9 @@ footer a:hover {
     publishStatus.textContent = 'authenticating\u2026';
 
     try {
-      // Resolve PDS for auth
       const did = await resolveHandle(authHandle);
       const pds = await resolvePDS(did);
 
-      // Create session
       const sessionRes = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -671,16 +827,8 @@ footer a:hover {
       const token = session.accessJwt;
       const repoDid = session.did;
 
-      // Clear password from input
       document.getElementById('authPassword').value = '';
 
-      // Collect members
-      const members = [...currentClique];
-      if (includeExpanded) {
-        for (const e of currentExpanded) members.push(e.did);
-      }
-
-      // Create the list
       publishStatus.textContent = 'creating list\u2026';
       const listRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
         method: 'POST',
@@ -694,8 +842,8 @@ footer a:hover {
           record: {
             $type: 'app.bsky.graph.list',
             purpose: 'app.bsky.graph.defs#curatelist',
-            name: `Cluster (${members.length})`,
-            description: `Largest mutual-follow clique${includeExpanded && currentExpanded.length > 0 ? ' + expanded circle' : ''}, found by mino.mobi/cluster`,
+            name: `Cluster (${publishMembers.length})`,
+            description: `Mutual-follow cluster with shells, found by mino.mobi/cluster`,
             createdAt: new Date().toISOString()
           }
         })
@@ -703,10 +851,9 @@ footer a:hover {
       if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status})`);
       const { uri: listUri } = await listRes.json();
 
-      // Add members
-      for (let i = 0; i < members.length; i++) {
-        publishStatus.textContent = `adding members\u2026 ${i + 1}/${members.length}`;
-        const itemRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
+      for (let i = 0; i < publishMembers.length; i++) {
+        publishStatus.textContent = `adding members\u2026 ${i + 1}/${publishMembers.length}`;
+        await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -717,21 +864,17 @@ footer a:hover {
             collection: 'app.bsky.graph.listitem',
             record: {
               $type: 'app.bsky.graph.listitem',
-              subject: members[i],
+              subject: publishMembers[i],
               list: listUri,
               createdAt: new Date().toISOString()
             }
           })
         });
-        if (!itemRes.ok) {
-          publishStatus.textContent = `warning: failed to add member ${i + 1}, continuing\u2026`;
-        }
       }
 
-      // Build list URL from the at:// URI
       const rkey = listUri.split('/').pop();
       const listUrl = `https://bsky.app/profile/${encodeURIComponent(authHandle)}/lists/${rkey}`;
-      publishStatus.innerHTML = `done \u00b7 ${members.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
+      publishStatus.innerHTML = `done \u00b7 ${publishMembers.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
 
     } catch (err) {
       publishStatus.textContent = `error: ${err.message}`;
@@ -743,6 +886,8 @@ footer a:hover {
   });
 
   // --- Main ---
+
+  let forceFullScan = false;
 
   document.getElementById('handleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -762,9 +907,9 @@ footer a:hover {
     status.classList.remove('hidden', 'error');
     status.textContent = 'resolving handle\u2026';
     graphStats.classList.add('hidden');
-    document.getElementById('cliqueSection').classList.add('hidden');
-    document.getElementById('expandedSection').classList.add('hidden');
+    document.getElementById('results').innerHTML = '';
     document.getElementById('publishSection').classList.add('hidden');
+    document.getElementById('rescanOffer').classList.add('hidden');
 
     const pageUrl = new URL(window.location);
     pageUrl.searchParams.set('handle', raw);
@@ -773,81 +918,17 @@ footer a:hover {
     try {
       const did = await resolveHandle(raw);
 
-      // Get my follows
-      status.textContent = 'fetching your follows\u2026';
-      const myFollows = await getAllFollows(did, (n) => {
-        status.textContent = `fetching your follows\u2026 ${n}`;
-      });
-
-      const myFollowDids = new Set(myFollows.map(f => f.did));
-      currentProfileMap = new Map();
-      for (const f of myFollows) currentProfileMap.set(f.did, f);
-
-      // Build directed adjacency
-      const directed = new Map();
-      let scanned = 0;
-
-      await mapConcurrent(myFollows, 5, async (follow) => {
-        try {
-          const theirFollows = await getAllFollows(follow.did);
-          const overlap = new Set();
-          for (const f of theirFollows) {
-            if (myFollowDids.has(f.did) && f.did !== follow.did) {
-              overlap.add(f.did);
-            }
-          }
-          directed.set(follow.did, overlap);
-        } catch {
-          directed.set(follow.did, new Set());
-        }
-        scanned++;
-        status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
-        progressFill.style.width = (scanned / myFollows.length * 100) + '%';
-      });
-
-      // Build mutual adjacency
-      status.textContent = 'building mutual graph\u2026';
-      const mutual = new Map();
-      let mutualEdges = 0;
-      for (const [a, aFollows] of directed) {
-        const m = new Set();
-        for (const b of aFollows) {
-          if (directed.get(b)?.has(a)) m.add(b);
-        }
-        if (m.size > 0) mutual.set(a, m);
-        mutualEdges += m.size;
+      let usedFast = false;
+      if (!forceFullScan) {
+        usedFast = await fastPath(did, status, progressFill, graphStats);
       }
-      mutualEdges /= 2;
+      forceFullScan = false;
 
-      const mutualNodes = [...mutual.keys()];
+      if (!usedFast) {
+        await fullPath(did, status, progressFill, graphStats);
+      }
 
-      graphStats.innerHTML =
-        `${myFollows.length} follows \u2192 ${mutualNodes.length} with mutual connections \u2192 ${Math.round(mutualEdges)} mutual edges`;
-      graphStats.classList.remove('hidden');
-
-      // Find maximum clique
-      status.textContent = 'computing largest clique\u2026';
-      progressFill.style.width = '100%';
-      await new Promise(r => setTimeout(r, 50));
-
-      const { clique, exhaustive } = findMaxClique(mutual, mutualNodes);
-      currentClique = clique;
-
-      // Find expanded circle
-      currentExpanded = clique.length > 0
-        ? findExpandedCircle(clique, mutual)
-        : [];
-
-      status.textContent = exhaustive
-        ? `done \u00b7 clique of ${clique.length}${currentExpanded.length > 0 ? ` + ${currentExpanded.length} adjacent` : ''}`
-        : `done \u00b7 best clique: ${clique.length} (search limit reached)${currentExpanded.length > 0 ? ` + ${currentExpanded.length} adjacent` : ''}`;
-
-      renderClique(clique, currentProfileMap);
-      renderExpanded(currentExpanded, clique, currentProfileMap);
-
-      // Show publish section if we found something
-      if (clique.length > 0) {
-        // Pre-fill auth handle with the searched handle
+      if (publishMembers.length > 0) {
         document.getElementById('authHandle').value = raw;
         document.getElementById('publishSection').classList.remove('hidden');
         document.getElementById('publishStatus').classList.add('hidden');
@@ -861,6 +942,12 @@ footer a:hover {
       loadBtn.disabled = false;
       loadBtn.textContent = 'cluster';
     }
+  });
+
+  // Rescan button
+  document.getElementById('rescanBtn').addEventListener('click', () => {
+    forceFullScan = true;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
   });
 
   // Auto-load from URL
