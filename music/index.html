@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Mino Music — ATProto Composer</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -19,18 +25,16 @@ a{color:#58a6ff}
 #transport button.active{background:#238636;border-color:#238636;color:#fff}
 .ctrl-group{display:flex;align-items:center;gap:4px}
 .ctrl-label{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
-.ctrl-input{width:56px;padding:4px 6px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;text-align:center;font-family:inherit}
+.ctrl-input{width:60px;padding:4px 6px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;text-align:center;font-family:inherit}
 .ctrl-input:focus{border-color:#58a6ff;outline:none}
-#name-input{flex:1;min-width:140px;padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;font-family:inherit}
-#name-input:focus{border-color:#58a6ff;outline:none}
 
 /* Main layout */
 #main{display:flex;flex-direction:column;height:calc(100vh - 52px)}
-#grid-wrapper{flex:1;overflow:auto;position:relative;min-height:200px}
-#piano-roll{display:block;cursor:crosshair}
+#grid-wrapper{flex:1;overflow:auto;position:relative;min-height:0}
+#piano-roll{display:block;cursor:crosshair;touch-action:pan-x pan-y}
 
 /* Track panel */
-#track-panel{background:#161b22;border-top:1px solid #30363d;padding:8px 16px;overflow-x:auto}
+#track-panel{background:#161b22;border-bottom:1px solid #30363d;padding:8px 16px;overflow-x:auto;flex-shrink:0}
 #track-list{display:flex;gap:6px;align-items:stretch}
 .track-card{padding:8px 12px;border-radius:6px;border:2px solid #30363d;background:#21262d;cursor:pointer;min-width:150px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
 .track-card.active{border-color:var(--track-color,#58a6ff)}
@@ -46,7 +50,15 @@ a{color:#58a6ff}
 #add-track-btn:hover{border-color:#58a6ff;color:#58a6ff}
 
 /* Bottom bar */
-#bottom-bar{display:flex;gap:8px;padding:8px 16px;background:#0d1117;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap}
+#tab-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#0d1117;border-top:1px solid #30363d;flex-shrink:0}
+.tab-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab-btn:hover{background:#30363d}
+.tab-btn.active{color:#58a6ff;border-color:#58a6ff}
+#tab-social{display:none}
+#tab-social.active{display:flex}
+#bottom-bar{display:flex;gap:8px;padding:8px 16px;background:#161b22;border-top:1px solid #30363d;align-items:center;flex-wrap:wrap;flex-shrink:0}
+#name-input{padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;font-family:inherit}
+#name-input:focus{border-color:#58a6ff;outline:none}
 .bottom-btn{padding:6px 12px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:12px;cursor:pointer;white-space:nowrap}
 .bottom-btn:hover{background:#30363d}
 .bottom-btn.primary{background:#238636;border-color:#238636;color:#fff}
@@ -67,6 +79,21 @@ a{color:#58a6ff}
 
 /* Info text */
 .info{font-size:11px;color:#8b949e;padding:0 16px 8px}
+
+/* Selection action bar */
+#sel-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;padding:10px 16px;background:#161b22;border-top:2px solid #58a6ff;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+#sel-bar.active{display:flex}
+#sel-bar .sel-btn{padding:8px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
+#sel-bar .sel-btn:hover{background:#30363d}
+#sel-bar .sel-btn.copy{border-color:#58a6ff;color:#58a6ff}
+#sel-bar .sel-btn.cut{border-color:#d29922;color:#d29922}
+#sel-bar .sel-btn.del{border-color:#da3633;color:#da3633}
+#sel-bar .sel-btn.cancel{color:#8b949e}
+#sel-bar .sel-info{font-size:11px;color:#8b949e}
+#paste-hint{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;padding:10px 16px;background:#161b22;border-top:2px solid #3fb950;gap:8px;align-items:center;justify-content:center}
+#paste-hint.active{display:flex}
+#paste-hint .sel-btn{padding:8px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
+#paste-hint .sel-info{font-size:13px;color:#3fb950;font-weight:600}
 </style>
 </head>
 <body>
@@ -82,7 +109,16 @@ a{color:#58a6ff}
     </div>
     <div class="ctrl-group">
       <span class="ctrl-label">Steps</span>
-      <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="256" step="4">
+      <input id="steps-input" class="ctrl-input" type="number" value="32" min="4" max="999" step="4">
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Len</span>
+      <select id="note-len" style="padding:4px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+      </select>
     </div>
     <div class="ctrl-group">
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#8b949e;cursor:pointer">
@@ -95,26 +131,46 @@ a{color:#58a6ff}
       </label>
     </div>
   </div>
-  <input id="name-input" type="text" placeholder="Untitled Composition" value="">
 </div>
 
 <div id="main">
-  <div id="grid-wrapper">
-    <canvas id="piano-roll"></canvas>
-  </div>
   <div id="track-panel">
     <div id="track-list"></div>
   </div>
-  <div id="bottom-bar">
-    <button class="bottom-btn" id="export-btn" title="Export as JSON">Export JSON</button>
-    <button class="bottom-btn" id="import-btn" title="Import from JSON">Import JSON</button>
-    <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch AT URI</button>
-    <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish to PDS</button>
-    <button class="bottom-btn" id="clear-btn" title="Clear composition">Clear</button>
-    <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
-    <span style="flex:1"></span>
+  <div id="grid-wrapper">
+    <canvas id="piano-roll"></canvas>
+  </div>
+  <div id="tab-bar">
+    <button class="tab-btn" data-tab="social">Share</button>
+    <button class="bottom-btn" id="wav-btn" title="Export as WAV audio">WAV</button>
     <span class="info" id="status-bar"></span>
   </div>
+  <div id="tab-social">
+    <div id="bottom-bar">
+      <input id="name-input" type="text" placeholder="Untitled Composition" value="" style="flex:1;min-width:0">
+      <button class="bottom-btn primary" id="publish-btn" title="Publish to ATProto">Publish</button>
+      <button class="bottom-btn" id="export-btn" title="Export as JSON">Export</button>
+      <button class="bottom-btn" id="import-btn" title="Import from JSON">Import</button>
+      <button class="bottom-btn" id="fetch-btn" title="Fetch from AT URI">Fetch URI</button>
+      <button class="bottom-btn" id="clear-btn" title="Clear">Clear</button>
+      <button class="bottom-btn" id="demo-btn" title="Load demo track">Demo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Selection action bar (shown when notes are selected) -->
+<div id="sel-bar">
+  <span class="sel-info" id="sel-count"></span>
+  <button class="sel-btn copy" id="sel-copy">Copy</button>
+  <button class="sel-btn cut" id="sel-cut">Cut</button>
+  <button class="sel-btn del" id="sel-del">Delete</button>
+  <button class="sel-btn cancel" id="sel-cancel">Cancel</button>
+</div>
+
+<!-- Paste hint bar (shown when clipboard is ready to paste) -->
+<div id="paste-hint">
+  <span class="sel-info">Tap grid to paste</span>
+  <button class="sel-btn cancel" id="paste-cancel">Cancel</button>
 </div>
 
 <!-- Modals rendered by JS -->
@@ -126,8 +182,8 @@ a{color:#58a6ff}
 // ═══════════════════════════════════════════════════════════════
 
 const KEY_W = 56;
-const CELL_W = 24;
-const CELL_H = 16;
+let CELL_W = 24;
+let CELL_H = 16;
 const PITCH_LOW = 36;   // C2
 const PITCH_HIGH = 84;  // C6
 const PITCH_COUNT = PITCH_HIGH - PITCH_LOW;
@@ -156,6 +212,7 @@ const state = {
   activeTrack: 0,
   playing: false,
   currentStep: -1,
+  noteLength: 1,
   tracks: [
     { name: 'Lead',    instrument: 'square',   volume: 0.7, muted: false, solo: false, notes: [] },
     { name: 'Bass',    instrument: 'triangle', volume: 0.6, muted: false, solo: false, notes: [] },
@@ -191,55 +248,61 @@ function stepDuration() {
   return 60 / state.bpm / 4; // 16th note
 }
 
-function playNote(instrument, pitch, durSteps, velocity, volume, when) {
+function playNote(instrument, pitch, durSteps, velocity, volume, when, ctx, dest) {
+  ctx = ctx || audioCtx;
+  dest = dest || ctx.destination;
   const dur = durSteps * stepDuration();
   const gain = (velocity / 127) * volume * 0.25;
 
   if (instrument === 'noise') {
-    const src = audioCtx.createBufferSource();
-    src.buffer = noiseBuffer;
-    const g = audioCtx.createGain();
+    // For offline contexts we need a fresh noise buffer
+    let nBuf = noiseBuffer;
+    if (ctx !== audioCtx) {
+      nBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = nBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = nBuf;
+    const g = ctx.createGain();
     g.gain.setValueAtTime(gain, when);
     g.gain.exponentialRampToValueAtTime(0.001, when + Math.min(dur, 0.15));
     src.connect(g);
-    g.connect(audioCtx.destination);
+    g.connect(dest);
     src.start(when);
     src.stop(when + 0.3);
     return;
   }
 
-  const osc = audioCtx.createOscillator();
+  const osc = ctx.createOscillator();
   if (instrument === 'pulse') {
-    // Approximate 25% pulse with square + slight detune trick
     osc.type = 'square';
   } else {
     osc.type = instrument;
   }
   osc.frequency.setValueAtTime(midiFreq(pitch), when);
 
-  const g = audioCtx.createGain();
+  const g = ctx.createGain();
   g.gain.setValueAtTime(gain, when);
-  // 8-bit style envelope: quick attack, sustain, fast release
   g.gain.setValueAtTime(gain, when + dur * 0.9);
   g.gain.exponentialRampToValueAtTime(0.001, when + dur);
 
   osc.connect(g);
-  g.connect(audioCtx.destination);
+  g.connect(dest);
   osc.start(when);
   osc.stop(when + dur + 0.02);
 
-  // Pulse: add a second detuned oscillator for width effect
   if (instrument === 'pulse') {
-    const osc2 = audioCtx.createOscillator();
+    const osc2 = ctx.createOscillator();
     osc2.type = 'square';
     osc2.frequency.setValueAtTime(midiFreq(pitch), when);
     osc2.detune.setValueAtTime(25, when);
-    const g2 = audioCtx.createGain();
+    const g2 = ctx.createGain();
     g2.gain.setValueAtTime(gain * 0.5, when);
     g2.gain.setValueAtTime(gain * 0.5, when + dur * 0.9);
     g2.gain.exponentialRampToValueAtTime(0.001, when + dur);
     osc2.connect(g2);
-    g2.connect(audioCtx.destination);
+    g2.connect(dest);
     osc2.start(when);
     osc2.stop(when + dur + 0.02);
   }
@@ -327,7 +390,7 @@ function toggleNote(pitch, step) {
   if (existing) {
     track.notes = track.notes.filter(n => n !== existing);
   } else {
-    track.notes.push({ pitch, start: step, duration: 1, velocity: 100 });
+    track.notes.push({ pitch, start: step, duration: state.noteLength, velocity: 100 });
   }
   render();
 }
@@ -484,8 +547,66 @@ function render() {
     ctx.stroke();
   }
 
+  // Selection rectangle
+  if (selRect) {
+    const sMin = Math.min(selRect.s0, selRect.s1);
+    const sMax = Math.max(selRect.s0, selRect.s1);
+    const pMin = Math.min(selRect.p0, selRect.p1);
+    const pMax = Math.max(selRect.p0, selRect.p1);
+    const rx = KEY_W + sMin * CELL_W;
+    const ry = (PITCH_HIGH - 1 - pMax) * CELL_H;
+    const rw = (sMax - sMin + 1) * CELL_W;
+    const rh = (pMax - pMin + 1) * CELL_H;
+    ctx.fillStyle = 'rgba(88,166,255,0.12)';
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = 'rgba(88,166,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
+    ctx.setLineDash([]);
+
+    // Highlight selected notes
+    const track = state.tracks[state.activeTrack];
+    const color = TRACK_COLORS[state.activeTrack % TRACK_COLORS.length];
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    for (const n of track.notes) {
+      if (n.pitch >= pMin && n.pitch <= pMax && n.start >= sMin && n.start + n.duration - 1 <= sMax) {
+        const nx = KEY_W + n.start * CELL_W + 1;
+        const ny = (PITCH_HIGH - 1 - n.pitch) * CELL_H + 1;
+        const nw = n.duration * CELL_W - 2;
+        const nh = CELL_H - 2;
+        ctx.strokeRect(nx - 0.5, ny - 0.5, nw + 1, nh + 1);
+      }
+    }
+  }
+
+  // Paste ghost preview
+  if (pasteMode && clipboard && pasteTarget) {
+    ctx.globalAlpha = 0.35;
+    const color = TRACK_COLORS[state.activeTrack % TRACK_COLORS.length];
+    for (const n of clipboard) {
+      const ns = pasteTarget.step + n.start;
+      const np = pasteTarget.pitch + n.pitch;
+      if (ns >= 0 && ns < state.steps && np >= PITCH_LOW && np < PITCH_HIGH) {
+        const gx = KEY_W + ns * CELL_W + 1;
+        const gy = (PITCH_HIGH - 1 - np) * CELL_H + 1;
+        const gw = n.duration * CELL_W - 2;
+        const gh = CELL_H - 2;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(gx, gy, gw, gh, 2);
+        ctx.fill();
+        ctx.strokeStyle = '#3fb950';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // Hover highlight
-  if (hoverCell) {
+  if (hoverCell && !selRect && !pasteMode) {
     const row = PITCH_HIGH - 1 - hoverCell.pitch;
     const x = KEY_W + hoverCell.step * CELL_W;
     const y = row * CELL_H;
@@ -502,8 +623,18 @@ function render() {
 let hoverCell = null;
 let isDragging = false;
 let dragStartCell = null;
-let dragCurrentCell = null;
-let dragMode = null; // 'add' or 'remove'
+let dragMode = null; // 'remove' or null
+let dragNote = null;
+
+// ─── Selection / clipboard state ───
+let selRect = null;         // {s0, s1, p0, p1} step/pitch bounds (inclusive)
+let clipboard = null;       // [{pitch, start, duration, velocity}, ...] normalized to 0-origin
+let pasteMode = false;      // waiting for tap to stamp clipboard
+let pasteTarget = null;     // {step, pitch} last hover/tap for ghost preview
+let selectDragging = false; // actively drawing selection rect
+let selectAnchor = null;    // {step, pitch} where long-press started
+let longPressTimer = null;  // timer for detecting long-press
+const LONG_PRESS_MS = 400;
 
 function cellFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
@@ -520,17 +651,15 @@ canvas.addEventListener('mousemove', (e) => {
   const cell = cellFromEvent(e);
   hoverCell = cell;
 
-  if (isDragging && cell && dragStartCell) {
-    // Drag to create/remove notes in a line
+  // Update paste ghost preview position
+  if (pasteMode && cell) {
+    pasteTarget = { step: cell.step, pitch: cell.pitch };
+  }
+
+  if (isDragging && cell && dragMode === 'remove') {
     const track = state.tracks[state.activeTrack];
-    if (dragMode === 'add') {
-      if (!noteAt(track, cell.pitch, cell.step)) {
-        track.notes.push({ pitch: cell.pitch, start: cell.step, duration: 1, velocity: 100 });
-      }
-    } else if (dragMode === 'remove') {
-      const existing = noteAt(track, cell.pitch, cell.step);
-      if (existing) track.notes = track.notes.filter(n => n !== existing);
-    }
+    const existing = noteAt(track, cell.pitch, cell.step);
+    if (existing) track.notes = track.notes.filter(n => n !== existing);
   }
   render();
 });
@@ -547,31 +676,45 @@ canvas.addEventListener('mousedown', (e) => {
       const pitch = PITCH_HIGH - 1 - row;
       if (pitch >= PITCH_LOW && pitch < PITCH_HIGH) previewPitch(pitch);
     }
+    // Click outside grid clears selection
+    if (selRect) clearSelection();
+    if (pasteMode) cancelPaste();
     return;
   }
 
   e.preventDefault();
+
+  // If there's an active selection, clicking clears it
+  if (selRect) { clearSelection(); return; }
+
+  // Paste mode — click to stamp
+  if (pasteMode && clipboard) {
+    stampPaste(cell.step, cell.pitch);
+    return;
+  }
+
   isDragging = true;
   dragStartCell = cell;
+  dragNote = null;
 
   const track = state.tracks[state.activeTrack];
   const existing = noteAt(track, cell.pitch, cell.step);
 
   if (e.button === 2 || e.shiftKey) {
-    // Right click or shift: remove
+    // Right click or shift: erase drag
     dragMode = 'remove';
     if (existing) track.notes = track.notes.filter(n => n !== existing);
+  } else if (existing) {
+    // Click existing note — delete it
+    track.notes = track.notes.filter(n => n !== existing);
+    dragMode = null;
   } else {
-    if (existing) {
-      dragMode = 'remove';
-      track.notes = track.notes.filter(n => n !== existing);
-    } else {
-      dragMode = 'add';
-      track.notes.push({ pitch: cell.pitch, start: cell.step, duration: 1, velocity: 100 });
-      // Preview sound
-      ensureAudio();
-      playNote(track.instrument, cell.pitch, 1, 100, track.volume, audioCtx.currentTime);
-    }
+    // Click empty cell — place note
+    dragMode = null;
+    const note = { pitch: cell.pitch, start: cell.step, duration: state.noteLength, velocity: 100 };
+    track.notes.push(note);
+    ensureAudio();
+    playNote(track.instrument, cell.pitch, 1, 100, track.volume, audioCtx.currentTime);
   }
   render();
 });
@@ -580,15 +723,313 @@ canvas.addEventListener('mouseup', () => {
   isDragging = false;
   dragStartCell = null;
   dragMode = null;
+  dragNote = null;
 });
 
 canvas.addEventListener('mouseleave', () => {
   hoverCell = null;
   isDragging = false;
+  dragNote = null;
   render();
 });
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ═══════════════════════════════════════════════════════════════
+// SELECTION / COPY-PASTE
+// ═══════════════════════════════════════════════════════════════
+
+const selBar = document.getElementById('sel-bar');
+const selCount = document.getElementById('sel-count');
+const pasteHint = document.getElementById('paste-hint');
+
+function notesInRect(r) {
+  if (!r) return [];
+  const track = state.tracks[state.activeTrack];
+  const sMin = Math.min(r.s0, r.s1), sMax = Math.max(r.s0, r.s1);
+  const pMin = Math.min(r.p0, r.p1), pMax = Math.max(r.p0, r.p1);
+  return track.notes.filter(n =>
+    n.pitch >= pMin && n.pitch <= pMax && n.start >= sMin && n.start + n.duration - 1 <= sMax
+  );
+}
+
+function showSelBar() {
+  const notes = notesInRect(selRect);
+  selCount.textContent = notes.length + ' note' + (notes.length !== 1 ? 's' : '');
+  selBar.classList.add('active');
+  pasteHint.classList.remove('active');
+}
+
+function hideSelBar() {
+  selBar.classList.remove('active');
+}
+
+function showPasteHint() {
+  pasteHint.classList.add('active');
+  selBar.classList.remove('active');
+}
+
+function hidePasteHint() {
+  pasteHint.classList.remove('active');
+}
+
+function clearSelection() {
+  selRect = null;
+  selectDragging = false;
+  selectAnchor = null;
+  hideSelBar();
+  render();
+}
+
+function cancelPaste() {
+  pasteMode = false;
+  pasteTarget = null;
+  hidePasteHint();
+  render();
+}
+
+function copySelection(cut) {
+  const notes = notesInRect(selRect);
+  if (!notes.length) return;
+  // Normalize to origin (0,0 = lowest step, lowest pitch in selection)
+  const minStep = Math.min(...notes.map(n => n.start));
+  const minPitch = Math.min(...notes.map(n => n.pitch));
+  clipboard = notes.map(n => ({
+    pitch: n.pitch - minPitch,
+    start: n.start - minStep,
+    duration: n.duration,
+    velocity: n.velocity
+  }));
+  if (cut) {
+    const track = state.tracks[state.activeTrack];
+    const toRemove = new Set(notes);
+    track.notes = track.notes.filter(n => !toRemove.has(n));
+  }
+  selRect = null;
+  hideSelBar();
+  pasteMode = true;
+  pasteTarget = null;
+  showPasteHint();
+  render();
+}
+
+function deleteSelection() {
+  const notes = notesInRect(selRect);
+  if (!notes.length) { clearSelection(); return; }
+  const track = state.tracks[state.activeTrack];
+  const toRemove = new Set(notes);
+  track.notes = track.notes.filter(n => !toRemove.has(n));
+  clearSelection();
+}
+
+function stampPaste(step, pitch) {
+  if (!clipboard || !clipboard.length) return;
+  const track = state.tracks[state.activeTrack];
+  for (const n of clipboard) {
+    const ns = step + n.start;
+    const np = pitch + n.pitch;
+    if (ns >= 0 && ns < state.steps && np >= PITCH_LOW && np < PITCH_HIGH) {
+      track.notes.push({ pitch: np, start: ns, duration: n.duration, velocity: n.velocity });
+    }
+  }
+  ensureAudio();
+  pasteMode = false;
+  pasteTarget = null;
+  hidePasteHint();
+  render();
+}
+
+// Action bar buttons
+document.getElementById('sel-copy').addEventListener('click', () => copySelection(false));
+document.getElementById('sel-cut').addEventListener('click', () => copySelection(true));
+document.getElementById('sel-del').addEventListener('click', deleteSelection);
+document.getElementById('sel-cancel').addEventListener('click', clearSelection);
+document.getElementById('paste-cancel').addEventListener('click', cancelPaste);
+
+// ─── Touch: tap to place/remove, native scroll, double-tap zoom ───
+const ZOOM_LEVELS = [
+  { cw: 16, ch: 10 },  // zoomed out
+  { cw: 24, ch: 16 },  // default
+  { cw: 36, ch: 24 },  // zoomed in
+  { cw: 48, ch: 32 },  // close-up
+];
+let zoomIdx = 1;
+
+function touchXY(e) {
+  const t = e.touches[0] || e.changedTouches[0];
+  return { x: t.clientX, y: t.clientY };
+}
+
+let lastTapTime = 0;
+let lastTapXY = null;
+let touchStartXY = null;
+const wrapper = document.getElementById('grid-wrapper');
+const TAP_THRESHOLD = 10; // px — if finger moves more than this, it's a scroll not a tap
+
+function touchCellFromXY(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (clientX - rect.left) * (canvas.width / rect.width);
+  const sy = (clientY - rect.top) * (canvas.height / rect.height);
+  const step = Math.floor((sx - KEY_W) / CELL_W);
+  const row = Math.floor(sy / CELL_H);
+  const pitch = PITCH_HIGH - 1 - row;
+  if (step < 0 || step >= state.steps || pitch < PITCH_LOW || pitch >= PITCH_HIGH) return null;
+  return { pitch, step, sx, sy };
+}
+
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length >= 2) { clearTimeout(longPressTimer); return; }
+  touchStartXY = touchXY(e);
+
+  // Check for double-tap zoom
+  const now = Date.now();
+  const t = touchStartXY;
+  if (lastTapXY && now - lastTapTime < 300 &&
+      Math.abs(t.x - lastTapXY.x) < 30 && Math.abs(t.y - lastTapXY.y) < 30) {
+    e.preventDefault();
+    lastTapTime = 0;
+    lastTapXY = null;
+    clearTimeout(longPressTimer);
+
+    const rect = canvas.getBoundingClientRect();
+    const fracX = (wrapper.scrollLeft + t.x - rect.left) / canvas.width;
+    const fracY = (wrapper.scrollTop + t.y - rect.top) / canvas.height;
+
+    zoomIdx = (zoomIdx + 1) % ZOOM_LEVELS.length;
+    CELL_W = ZOOM_LEVELS[zoomIdx].cw;
+    CELL_H = ZOOM_LEVELS[zoomIdx].ch;
+    resizeCanvas();
+
+    wrapper.scrollLeft = fracX * canvas.width - (t.x - rect.left);
+    wrapper.scrollTop = fracY * canvas.height - (t.y - rect.top);
+    touchStartXY = null;
+    return;
+  }
+  lastTapTime = now;
+  lastTapXY = { x: t.x, y: t.y };
+
+  // Start long-press timer for selection mode
+  clearTimeout(longPressTimer);
+  const startCell = touchCellFromXY(t.x, t.y);
+  if (startCell && !pasteMode) {
+    longPressTimer = setTimeout(() => {
+      // Finger hasn't moved and is still down → start selection
+      selectDragging = true;
+      selectAnchor = startCell;
+      selRect = { s0: startCell.step, s1: startCell.step, p0: startCell.pitch, p1: startCell.pitch };
+      // Clear any existing paste mode
+      cancelPaste();
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(30);
+      render();
+    }, LONG_PRESS_MS);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  if (!touchStartXY) return;
+  const t = e.touches[0];
+  const dx = Math.abs(t.clientX - touchStartXY.x);
+  const dy = Math.abs(t.clientY - touchStartXY.y);
+
+  if (selectDragging) {
+    // In selection mode: update rectangle, prevent scroll
+    e.preventDefault();
+    const cell = touchCellFromXY(t.clientX, t.clientY);
+    if (cell && selRect) {
+      selRect.s1 = cell.step;
+      selRect.p1 = cell.pitch;
+      render();
+    }
+    return;
+  }
+
+  // If finger moved before long-press fired, cancel it (they're scrolling)
+  if (dx > TAP_THRESHOLD || dy > TAP_THRESHOLD) {
+    clearTimeout(longPressTimer);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  clearTimeout(longPressTimer);
+
+  // Finishing a selection drag
+  if (selectDragging) {
+    selectDragging = false;
+    e.preventDefault();
+    if (selRect) showSelBar();
+    touchStartXY = null;
+    return;
+  }
+
+  if (!touchStartXY) return;
+  const t = e.changedTouches[0];
+  const dx = Math.abs(t.clientX - touchStartXY.x);
+  const dy = Math.abs(t.clientY - touchStartXY.y);
+  touchStartXY = null;
+
+  // Only act on taps (finger didn't move much)
+  if (dx > TAP_THRESHOLD || dy > TAP_THRESHOLD) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const sx = (t.clientX - rect.left) * (canvas.width / rect.width);
+  const sy = (t.clientY - rect.top) * (canvas.height / rect.height);
+
+  // Suppress synthesized mouse events that follow touch
+  e.preventDefault();
+
+  // If we have an active selection, tapping outside clears it
+  if (selRect) {
+    clearSelection();
+    return;
+  }
+
+  // Piano key preview
+  if (sx < KEY_W) {
+    const row = Math.floor(sy / CELL_H);
+    const pitch = PITCH_HIGH - 1 - row;
+    if (pitch >= PITCH_LOW && pitch < PITCH_HIGH) previewPitch(pitch);
+    return;
+  }
+
+  const step = Math.floor((sx - KEY_W) / CELL_W);
+  const row = Math.floor(sy / CELL_H);
+  const pitch = PITCH_HIGH - 1 - row;
+  if (step < 0 || step >= state.steps || pitch < PITCH_LOW || pitch >= PITCH_HIGH) return;
+
+  // Paste mode — stamp clipboard at tap position
+  if (pasteMode && clipboard) {
+    stampPaste(step, pitch);
+    return;
+  }
+
+  // Normal mode — place or remove
+  const track = state.tracks[state.activeTrack];
+  const existing = noteAt(track, pitch, step);
+  if (existing) {
+    track.notes = track.notes.filter(n => n !== existing);
+  } else {
+    track.notes.push({ pitch, start: step, duration: state.noteLength, velocity: 100 });
+    ensureAudio();
+    playNote(track.instrument, pitch, state.noteLength, 100, track.volume, audioCtx.currentTime);
+  }
+  render();
+});
+
+canvas.addEventListener('touchcancel', () => {
+  clearTimeout(longPressTimer);
+  selectDragging = false;
+  touchStartXY = null;
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+
+document.querySelector('.tab-btn[data-tab="social"]').onclick = (e) => {
+  e.currentTarget.classList.toggle('active');
+  document.getElementById('tab-social').classList.toggle('active');
+};
 
 // ═══════════════════════════════════════════════════════════════
 // TRACK PANEL
@@ -692,13 +1133,14 @@ document.getElementById('bpm-input').onchange = (e) => {
 };
 
 document.getElementById('steps-input').onchange = (e) => {
-  const newSteps = Math.max(4, Math.min(256, parseInt(e.target.value) || 32));
+  const newSteps = Math.max(4, Math.min(999, parseInt(e.target.value) || 32));
   state.steps = newSteps;
   e.target.value = newSteps;
   resizeCanvas();
   renderTracks();
 };
 
+document.getElementById('note-len').onchange = (e) => { state.noteLength = parseInt(e.target.value) || 1; };
 document.getElementById('loop-cb').onchange = (e) => { state.looping = e.target.checked; };
 document.getElementById('show-all-cb').onchange = (e) => { state.showAllTracks = e.target.checked; render(); };
 document.getElementById('name-input').oninput = (e) => { state.name = e.target.value; };
@@ -707,6 +1149,22 @@ document.getElementById('name-input').oninput = (e) => { state.name = e.target.v
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
+  if (e.code === 'Escape') {
+    if (pasteMode) cancelPaste();
+    else if (selRect) clearSelection();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC' && selRect) { e.preventDefault(); copySelection(false); }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyX' && selRect) { e.preventDefault(); copySelection(true); }
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV' && clipboard && !pasteMode) {
+    e.preventDefault();
+    pasteMode = true;
+    pasteTarget = null;
+    showPasteHint();
+    render();
+  }
+  if (e.code === 'Delete' || e.code === 'Backspace') {
+    if (selRect) { e.preventDefault(); deleteSelection(); }
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -1100,6 +1558,77 @@ document.getElementById('publish-btn').onclick = () => {
   }
 };
 
+// WAV Export
+document.getElementById('wav-btn').onclick = async () => {
+  setStatus('Rendering audio...');
+  try {
+    const sd = stepDuration();
+    const totalDur = state.steps * sd + 0.5; // small tail for release
+    const sampleRate = 44100;
+    const offCtx = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
+
+    // Schedule all notes
+    for (let t = 0; t < state.tracks.length; t++) {
+      if (!isTrackAudible(t)) continue;
+      const track = state.tracks[t];
+      for (const n of track.notes) {
+        const when = n.start * sd;
+        playNote(track.instrument, n.pitch, n.duration, n.velocity, track.volume, when, offCtx, offCtx.destination);
+      }
+    }
+
+    const rendered = await offCtx.startRendering();
+
+    // Encode WAV
+    const numCh = rendered.numberOfChannels;
+    const length = rendered.length;
+    const bufSize = 44 + length * numCh * 2;
+    const buf = new ArrayBuffer(bufSize);
+    const view = new DataView(buf);
+
+    function writeStr(offset, str) {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, bufSize - 8, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numCh * 2, true);
+    view.setUint16(32, numCh * 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, length * numCh * 2, true);
+
+    const channels = [];
+    for (let c = 0; c < numCh; c++) channels.push(rendered.getChannelData(c));
+
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let c = 0; c < numCh; c++) {
+        const s = Math.max(-1, Math.min(1, channels[c][i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (state.name || 'composition') + '.wav';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('WAV exported');
+  } catch (err) {
+    setStatus('Export failed: ' + err.message, true);
+  }
+};
+
 // Clear
 document.getElementById('clear-btn').onclick = () => {
   if (state.tracks.some(t => t.notes.length > 0)) {
@@ -1219,10 +1748,15 @@ render();
 checkUrlParams();
 
 // Scroll to middle C area on load
-const wrapper = document.getElementById('grid-wrapper');
-const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
-const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
-wrapper.scrollTop = Math.max(0, targetScroll);
+{ const middleCRow = PITCH_HIGH - 1 - 60; // MIDI 60 = C4
+  const targetScroll = middleCRow * CELL_H - wrapper.clientHeight / 2;
+  wrapper.scrollTop = Math.max(0, targetScroll);
+}
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 
 </script>
 </body>
