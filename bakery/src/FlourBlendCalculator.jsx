@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import ATProtoPanel from "./ATProtoPanel";
 import TernaryChart from "./TernaryChart";
+import { recipeToCalculator } from "./recipeTransform";
+import { fetchRecipeByHandle } from "./atproto";
 
 const FLOURS = [
   {
@@ -182,7 +184,7 @@ function SliderRow({ min = 0, max, step, value, onChange, color, unitLabel }) {
   );
 }
 
-export default function FlourBlendCalculator() {
+export default function FlourBlendCalculator({ loadRecipeFromUrl }) {
   const [tab, setTab] = useState("blend");
   const [blendGrams, setBlendGrams] = useState(FLOURS.map(() => 0));
   const [totalFlourInLoaf, setTotalFlourInLoaf] = useState(500);
@@ -199,6 +201,9 @@ export default function FlourBlendCalculator() {
   const [recipeInstructions, setRecipeInstructions] = useState("");
   const [savedRecipes, setSavedRecipes] = useState(loadRecipes);
   const [recipeName, setRecipeName] = useState("");
+  const [recipeSource, setRecipeSource] = useState(null); // { handle, rkey }
+  const [loadingShared, setLoadingShared] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const totalBlendPercent = blendPercents.reduce((a, b) => a + b, 0);
 
@@ -333,7 +338,8 @@ export default function FlourBlendCalculator() {
   };
 
   // Load a recipe from ATProto record into the calculator
-  const handleLoadFromAT = (parsedName, parsedState) => {
+  // source is optional: { handle, rkey } for recipes loaded from PDS
+  const handleLoadFromAT = useCallback((parsedName, parsedState, source) => {
     const s = parsedState;
     setBlendPercents(s.blendPercents);
     setBlendGrams(s.blendGrams);
@@ -349,8 +355,27 @@ export default function FlourBlendCalculator() {
     setStarterFlourIdx(s.starterFlourIdx ?? 0);
     setRecipeInstructions(s.recipeInstructions ?? "");
     setRecipeName(parsedName);
+    setRecipeSource(source || null);
     setTab("blend");
-  };
+  }, []);
+
+  // Load recipe from share URL (#/recipe/:handle/:rkey)
+  useEffect(() => {
+    if (!loadRecipeFromUrl) return;
+    const { handle, rkey } = loadRecipeFromUrl;
+    setLoadingShared(true);
+    fetchRecipeByHandle(handle, rkey)
+      .then((record) => {
+        const { name, state } = recipeToCalculator(record, FLOURS, ENRICHMENTS, STARTER_FLOURS);
+        handleLoadFromAT(name, state);
+        setRecipeSource({ handle, rkey });
+      })
+      .catch((e) => console.warn("Failed to load shared recipe:", e))
+      .finally(() => {
+        setLoadingShared(false);
+        window.location.hash = "";
+      });
+  }, [loadRecipeFromUrl?.handle, loadRecipeFromUrl?.rkey, handleLoadFromAT]);
 
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", maxWidth: 900, margin: "0 auto", padding: "16px", background: "#faf8f5", minHeight: "100vh" }}>
@@ -381,11 +406,18 @@ export default function FlourBlendCalculator() {
         ))}
       </div>
 
+      {/* Loading banner for shared recipe */}
+      {loadingShared && (
+        <div style={{ ...card(false, ""), textAlign: "center", padding: 20, color: "#795548", fontSize: 15 }}>
+          Loading shared recipe...
+        </div>
+      )}
+
       {/* ====== RECIPE BUILDER TAB ====== */}
       {tab === "blend" && (
         <div>
           {/* Save / Load bar */}
-          <div style={{ ...card(false, ""), display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <div style={{ ...card(false, ""), display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: recipeSource ? 8 : 16 }}>
             <input
               type="text" placeholder="Recipe name..." value={recipeName}
               onChange={(e) => setRecipeName(e.target.value)}
@@ -417,6 +449,43 @@ export default function FlourBlendCalculator() {
               </div>
             )}
           </div>
+
+          {/* Share bar — visible when recipe has a PDS source */}
+          {recipeSource && (
+            <div style={{ ...card(false, ""), display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}${window.location.pathname}#/recipe/${encodeURIComponent(recipeSource.handle)}/${encodeURIComponent(recipeSource.rkey)}`;
+                  const text = recipeName ? `${recipeName}\n\n${url}` : url;
+                  window.open(`https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                style={{
+                  padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", background: "#1185fe", color: "#fff",
+                }}
+              >
+                Post to Bluesky
+              </button>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}${window.location.pathname}#/recipe/${encodeURIComponent(recipeSource.handle)}/${encodeURIComponent(recipeSource.rkey)}`;
+                  navigator.clipboard.writeText(url).catch(() => {});
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{
+                  padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", background: "#efebe9", color: "#5d4037",
+                  border: "1px solid #d7ccc8",
+                }}
+              >
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
+              <span style={{ fontSize: 11, color: "#a1887f" }}>
+                @{recipeSource.handle}
+              </span>
+            </div>
+          )}
 
           {/* Mode toggle */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
@@ -922,6 +991,7 @@ export default function FlourBlendCalculator() {
           nutrition={blendNutrition}
           recipeName={recipeName}
           onLoadToBuilder={handleLoadFromAT}
+          onRecipeSourceChange={setRecipeSource}
         />
       )}
     </div>
