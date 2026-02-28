@@ -127,6 +127,15 @@ export async function deleteRecipe(session, rkey) {
 
 // --- Reading recipes (no auth needed) ---
 
+export async function fetchRecipeByHandle(handleOrDid, rkey) {
+  const did = handleOrDid.startsWith("did:") ? handleOrDid : await resolveHandle(handleOrDid);
+  const pds = await resolvePDS(did);
+  const params = `repo=${encodeURIComponent(did)}&collection=exchange.recipe.recipe&rkey=${encodeURIComponent(rkey)}`;
+  const res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+  if (!res.ok) throw new Error(`Recipe not found (${res.status})`);
+  return res.json();
+}
+
 export async function fetchRecipe(atUri) {
   // at://did:plc:abc/exchange.recipe.recipe/rkey
   const match = atUri.match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);

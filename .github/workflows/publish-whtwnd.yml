@@ -4,24 +4,34 @@ on:
   push:
     paths:
       - 'time/entries/**.md'
+  workflow_dispatch:
+    inputs:
+      files:
+        description: 'Space-separated entry paths (blank = all entries)'
+        required: false
+        default: ''
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
-      - name: Find new or modified entries
+      - name: Collect entry files
         id: find-entries
         run: |
-          ENTRIES=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'time/entries/*.md' || echo "")
+          if [ -n "${{ inputs.files }}" ]; then
+            # Manual dispatch with explicit file list
+            ENTRIES="${{ inputs.files }}"
+          else
+            # Push trigger: publish all non-panel entries (script dedupes by title)
+            ENTRIES=$(find time/entries -name '*.md' ! -name '*-panel.md' | sort | tr '\n' ' ')
+          fi
           echo "entries=$ENTRIES" >> $GITHUB_OUTPUT
           if [ -z "$ENTRIES" ]; then
-            echo "No new entries found"
+            echo "No entries found"
           else
-            echo "Found entries: $ENTRIES"
+            echo "Publishing: $ENTRIES"
           fi
 
       - name: Publish to PDS

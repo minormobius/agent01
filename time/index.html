@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
+    <meta property="og:title" content="The Mino Times — Biotech Intelligence">
+    <meta property="og:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://time.minomobi.com">
+    <meta property="og:site_name" content="The Mino Times">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The Mino Times — Biotech Intelligence">
+    <meta name="twitter:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
     <title>The Mino Times — Biotech Intelligence</title>
     <link rel="stylesheet" href="assets/css/newspaper.css">
     <link rel="alternate" type="application/rss+xml" title="The Mino Times Podcast" href="feed.xml">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐂</text></svg>">
 </head>
 <body>
 
@@ -32,6 +42,7 @@
     <section class="editorial-section" style="border-top: 2px solid var(--rule);">
         <div class="archive-list" id="archive">
             <div class="section-header">Archive</div>
+            <div class="archive-grid" id="archive-grid"></div>
         </div>
     </section>
 
@@ -47,21 +58,6 @@
         </div>
     </section>
 
-    <!-- Subscribe -->
-    <section class="editorial-section" style="border-top: 2px solid var(--rule);">
-        <div style="max-width: 520px; margin: 0 auto; text-align: center; padding: 1rem 0;">
-            <h2 class="headline-secondary" style="font-size: 1.2rem; margin-bottom: 0.5rem;">Get The Mino Times in your inbox</h2>
-            <p style="font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--gray); margin-bottom: 1rem;">Deep-dive research on niche obsessions. No spam, no hype.</p>
-            <form action="https://buttondown.com/api/emails/embed-subscribe/minotimes" method="post" target="popupwindow" class="embeddable-buttondown-form">
-                <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
-                    <input type="email" name="email" placeholder="your@email.com" required style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid var(--light-rule); background: #fff; flex: 1; min-width: 200px; max-width: 300px;">
-                    <button type="submit" style="font-family: 'Inter', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.5rem 1.25rem; background: var(--ink); color: var(--paper); border: none; cursor: pointer;">Subscribe</button>
-                </div>
-            </form>
-            <p style="font-family: 'Inter', sans-serif; font-size: 0.65rem; color: var(--gray); margin-top: 0.5rem;">Or email <a href="mailto:tips@minomobi.com" style="color: var(--accent);">tips@minomobi.com</a> with story leads</p>
-        </div>
-    </section>
-
     <!-- Footer -->
     <footer class="footer">
         The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://time.minomobi.com" style="color: var(--gray);">time.minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
@@ -71,6 +67,13 @@
     <div id="loading" style="text-align: center; padding: 3rem 0; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--gray);">
         Loading entries&hellip;
     </div>
+
+    <noscript>
+        <div style="text-align: center; padding: 3rem 1rem; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555; max-width: 520px; margin: 0 auto;">
+            <p><strong>The Mino Times</strong> loads articles from the ATProto network and requires JavaScript to render.</p>
+            <p style="margin-top: 0.5rem;">You can also read our articles directly on <a href="https://whtwnd.com/minomobi.bsky.social" style="color: #8b0000;">WhiteWind</a>.</p>
+        </div>
+    </noscript>
 
     <script src="js/atproto.js"></script>
     <script>
@@ -118,10 +121,12 @@
       const archive = document.getElementById("archive");
       const lead = document.getElementById("lead");
 
+      const grid = document.getElementById("archive-grid");
+
       loading.style.display = "";
       lead.style.display = "none";
-      // Clear previous archive entries but keep the header
-      archive.querySelectorAll(".archive-entry").forEach(el => el.remove());
+      // Clear previous archive entries
+      grid.innerHTML = "";
 
       document.getElementById("repo-current").textContent = `Reading from @${handle}`;
 
@@ -150,9 +155,9 @@
         // Lead article = newest
         renderLead(entries[0], handle);
 
-        // Rest go in archive
+        // Rest go in archive grid
         for (let i = 1; i < entries.length; i++) {
-          archive.appendChild(renderArchiveEntry(entries[i], handle));
+          grid.appendChild(renderArchiveEntry(entries[i], handle));
         }
 
         loading.style.display = "none";

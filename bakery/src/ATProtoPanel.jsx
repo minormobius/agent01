@@ -2,6 +2,19 @@ import { useState, useEffect } from "react";
 import { createSession, refreshSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
 import { calculatorToRecipe, recipeToCalculator, parseAtUri, formatDuration } from "./recipeTransform";
 
+function buildShareUrl(handle, rkey) {
+  return `${window.location.origin}${window.location.pathname}#/recipe/${encodeURIComponent(handle)}/${encodeURIComponent(rkey)}`;
+}
+
+function shareToBluesky(name, handle, rkey) {
+  const url = buildShareUrl(handle, rkey);
+  const text = name ? `${name}\n\n${url}` : url;
+  window.open(
+    `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`,
+    "_blank"
+  );
+}
+
 const SESSION_KEY = "bakery-atproto-session";
 const HANDLE_KEY = "bakery-atproto-handle";
 
@@ -123,7 +136,7 @@ function LoginPanel({ onLogin }) {
 
 // --- Publish Panel ---
 
-function PublishPanel({ session, recipeState, flours, enrichments, starterFlours, nutrition, recipeName }) {
+function PublishPanel({ session, recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onRecipeSourceChange }) {
   const [name, setName] = useState(recipeName || "");
   const [description, setDescription] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -154,6 +167,10 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
       const record = buildRecord();
       const res = await publishRecipe(session, record);
       setResult(res);
+      const publishedRkey = parseAtUri(res.uri)?.rkey;
+      if (onRecipeSourceChange && publishedRkey) {
+        onRecipeSourceChange({ handle: session.handle, rkey: publishedRkey });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -206,14 +223,36 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
             {JSON.stringify(buildRecord(), null, 2)}
           </pre>
         )}
-        {result && (
-          <div style={{ background: "#e8f5e9", padding: 12, borderRadius: 8, fontSize: 13 }}>
-            <strong style={{ color: "#2e7d32" }}>Published!</strong>
-            <div style={{ marginTop: 4, wordBreak: "break-all", color: "#33691e", fontFamily: "monospace", fontSize: 12 }}>
-              {result.uri}
+        {result && (() => {
+          const publishedRkey = parseAtUri(result.uri)?.rkey;
+          return (
+            <div style={{ background: "#e8f5e9", padding: 12, borderRadius: 8, fontSize: 13 }}>
+              <strong style={{ color: "#2e7d32" }}>Published!</strong>
+              <div style={{ marginTop: 4, wordBreak: "break-all", color: "#33691e", fontFamily: "monospace", fontSize: 12 }}>
+                {result.uri}
+              </div>
+              {publishedRkey && session?.handle && (
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button
+                    onClick={() => shareToBluesky(name, session.handle, publishedRkey)}
+                    style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+                  >
+                    Share on Bluesky
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = buildShareUrl(session.handle, publishedRkey);
+                      navigator.clipboard.writeText(url).catch(() => {});
+                    }}
+                    style={{ ...btnSecondary, fontSize: 12, padding: "6px 14px" }}
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {error && (
           <p style={{ color: "#c62828", fontSize: 13, margin: 0, wordBreak: "break-word" }}>{error}</p>
         )}
@@ -224,7 +263,7 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
 
 // --- Recipe Card (displays a single recipe) ---
 
-function RecipeCard({ record, uri, onDelete, canDelete, onLoadToBuilder }) {
+function RecipeCard({ record, uri, authorHandle, onDelete, canDelete, onLoadToBuilder }) {
   const [expanded, setExpanded] = useState(false);
   const v = record.value || record;
   const rkey = parseAtUri(uri)?.rkey;
@@ -314,10 +353,18 @@ function RecipeCard({ record, uri, onDelete, canDelete, onLoadToBuilder }) {
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {authorHandle && rkey && (
+              <button
+                onClick={() => shareToBluesky(v.name, authorHandle, rkey)}
+                style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+              >
+                Share on Bluesky
+              </button>
+            )}
             {onLoadToBuilder && (
               <button
                 onClick={() => onLoadToBuilder(record)}
-                style={{ ...btnPrimary, fontSize: 12, padding: "6px 14px" }}
+                style={{ ...btnSecondary, fontSize: 12, padding: "6px 14px" }}
               >
                 Load to Builder
               </button>
@@ -431,9 +478,12 @@ function BrowsePanel({ session, onLoadToBuilder }) {
           key={r.uri}
           record={r}
           uri={r.uri}
+          authorHandle={loadedHandle}
           canDelete={isOwnRecipes}
           onDelete={handleDelete}
-          onLoadToBuilder={onLoadToBuilder}
+          onLoadToBuilder={onLoadToBuilder
+            ? (record) => onLoadToBuilder(record, loadedHandle)
+            : null}
         />
       ))}
 
@@ -448,7 +498,7 @@ function BrowsePanel({ session, onLoadToBuilder }) {
 
 // --- Main ATProto Panel ---
 
-export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder }) {
+export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder, onRecipeSourceChange }) {
   const [session, setSession] = useState(loadSession);
   const [view, setView] = useState("publish"); // "publish" | "browse"
 
@@ -474,9 +524,11 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
   };
 
   const handleLoadToBuilder = onLoadToBuilder
-    ? (record) => {
+    ? (record, authorHandle) => {
         const { name, state } = recipeToCalculator(record, flours, enrichments, starterFlours);
-        onLoadToBuilder(name, state);
+        const rkey = parseAtUri(record.uri)?.rkey;
+        const source = authorHandle && rkey ? { handle: authorHandle, rkey } : null;
+        onLoadToBuilder(name, state, source);
       }
     : null;
 
@@ -537,6 +589,7 @@ export default function ATProtoPanel({ recipeState, flours, enrichments, starter
           starterFlours={starterFlours}
           nutrition={nutrition}
           recipeName={recipeName}
+          onRecipeSourceChange={onRecipeSourceChange}
         />
       )}
       {view === "browse" && <BrowsePanel session={session} onLoadToBuilder={handleLoadToBuilder} />}

@@ -58,8 +58,11 @@ The `time/` viewer is read-only — it fetches records from the PDS and renders 
 │   ├── assets/
 │   │   ├── css/newspaper.css    # Newspaper styling
 │   │   └── podcast/             # MP3 episode files
+│   ├── entries/                 # Article markdown (images live on PDS, not here)
 │   ├── posts/                   # Bluesky thread drafts (triggers GitHub Action)
 │   └── articles/                # Legacy HTML articles (pre-ATProto)
+├── scripts/
+│   └── publish-whtwnd.py        # Publishes entries + images to PDS
 ├── modulo/
 │   └── .well-known/
 │       └── atproto-did          # Bluesky handle verification for modulo.minomobi.com
@@ -137,6 +140,25 @@ Articles are **markdown** stored as `com.whtwnd.blog.entry` records on the PDS. 
 - Set `createdAt` to the publication datetime
 - Set `visibility` to `"public"`
 - Write the body in markdown with inline links and a numbered bibliography
+
+### Images
+Images go straight from the filesystem to the PDS as blobs — they never live in git. The publish script handles the full pipeline in one shot:
+
+1. Upload each image to PDS via `uploadBlob` (returns a CID)
+2. Rewrite markdown `![alt](local/path.jpg)` to `![alt](https://pds/xrpc/com.atproto.sync.getBlob?did=...&cid=...)`
+3. Anchor blobs via the record's `blobs` array (prevents GC)
+4. Create the record with the rewritten markdown
+
+```bash
+# Images from anywhere on disk — never committed to git
+python3 scripts/publish-whtwnd.py time/entries/article.md -I ~/images/ --rewrite
+
+# --rewrite updates the source markdown with permanent blob URLs
+# so the git version references the PDS, not local files
+git add time/entries/article.md && git commit && git push
+```
+
+The `--rewrite` flag is the key: after publishing, the source markdown is updated in place with the permanent `getBlob` URLs. The committed file has no local image dependencies. The CI workflow still triggers on push and re-publishes (idempotent via title matching), but images are already on the PDS.
 
 Legacy HTML articles in `time/articles/` predate the ATProto migration and are kept for reference.
 
@@ -261,10 +283,12 @@ The HTTP method is used here (files in repo at `modulo/.well-known/atproto-did` 
 When Claude is asked to publish:
 1. Research the topic deeply
 2. Draft Bluesky thread posts in `time/posts/YYYY-MM-DD-slug.md`
-3. Write the article in markdown and publish as a `com.whtwnd.blog.entry` record to the minomobi PDS
-4. The `time/` viewer picks up the new record automatically — no index.html update needed
-5. Commit and push thread drafts — the Action handles Bluesky posting
-6. (Future) Generate editorial panel transcript and podcast audio
+3. Write the article markdown in `time/entries/YYYY-MM-DD-slug.md`
+4. Publish with images: `python3 scripts/publish-whtwnd.py time/entries/slug.md -I /path/to/images --rewrite`
+5. The `--rewrite` flag updates the source markdown with PDS blob URLs — commit the rewritten file
+6. The `time/` viewer picks up the new record automatically — no index.html update needed
+7. Push thread drafts — the Action handles Bluesky posting
+8. (Future) Generate editorial panel transcript and podcast audio
 
 ## Phylo Tree Pipeline
 
