@@ -329,6 +329,8 @@ footer a:hover {
     return text
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/https?:\/\/\S+/g, '')
+      .replace(/\b[\w-]+(?:\.[\w-]+)+(?:\/\S*)?/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 
