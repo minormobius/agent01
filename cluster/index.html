@@ -448,6 +448,49 @@ footer a:hover {
   let currentCliques = [];
   let currentProfileMap = new Map();
 
+  // --- Worker acceleration ---
+  // Deploy workers/cluster-batch/ then set this URL.
+  // Falls back to direct browser fetching if unavailable.
+  const WORKER_URL = 'https://cluster-batch.minomobi.workers.dev';
+  const WORKER_BATCH = 50;   // DIDs per worker request (match worker MAX_DIDS)
+  const WORKER_PARALLEL = 5; // concurrent worker requests
+  let useWorker = !!WORKER_URL;
+
+  async function batchFetchFollows(dids, onProgress) {
+    if (!useWorker) return null;
+    const batches = [];
+    for (let i = 0; i < dids.length; i += WORKER_BATCH) {
+      batches.push(dids.slice(i, i + WORKER_BATCH));
+    }
+    const allFollows = new Map();
+    const allProfiles = new Map();
+    let done = 0;
+    try {
+      await mapConcurrent(batches, WORKER_PARALLEL, async (batch) => {
+        const res = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dids: batch })
+        });
+        if (!res.ok) throw new Error(`Worker ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        for (const [did, arr] of Object.entries(data.follows)) {
+          allFollows.set(did, new Set(arr));
+        }
+        for (const [did, profile] of Object.entries(data.profiles)) {
+          if (!allProfiles.has(did)) allProfiles.set(did, profile);
+        }
+        done += batch.length;
+        if (onProgress) onProgress(Math.min(done, dids.length));
+      });
+      return { follows: allFollows, profiles: allProfiles };
+    } catch {
+      useWorker = false;
+      return null;
+    }
+  }
+
   // --- Identity resolution ---
 
   async function resolveHandle(handle) {
@@ -1016,21 +1059,36 @@ footer a:hover {
 
     // Phase 1: fetch follows for each core member
     const allFollows = new Map();
-    let scanned = 0;
-    await mapConcurrent(members, 5, async (member) => {
-      try {
-        const follows = await getAllFollows(member.did);
-        allFollows.set(member.did, new Set(follows.map(f => f.did)));
-        for (const f of follows) {
-          if (!currentProfileMap.has(f.did)) currentProfileMap.set(f.did, f);
-        }
-      } catch {
-        allFollows.set(member.did, new Set());
-      }
-      scanned++;
-      status.textContent = `scanning core follows\u2026 ${scanned}/${coreSize}`;
-      progressFill.style.width = (scanned / coreSize * 50) + '%';
+    const memberDids = members.map(m => m.did);
+    const batch1 = await batchFetchFollows(memberDids, (n) => {
+      status.textContent = `scanning core follows\u2026 ${n}/${coreSize}`;
+      progressFill.style.width = (n / coreSize * 50) + '%';
     });
+
+    if (batch1) {
+      for (const [did, profile] of batch1.profiles) {
+        if (!currentProfileMap.has(did)) currentProfileMap.set(did, profile);
+      }
+      for (const m of members) {
+        allFollows.set(m.did, batch1.follows.get(m.did) || new Set());
+      }
+    } else {
+      let scanned = 0;
+      await mapConcurrent(members, 5, async (member) => {
+        try {
+          const follows = await getAllFollows(member.did);
+          allFollows.set(member.did, new Set(follows.map(f => f.did)));
+          for (const f of follows) {
+            if (!currentProfileMap.has(f.did)) currentProfileMap.set(f.did, f);
+          }
+        } catch {
+          allFollows.set(member.did, new Set());
+        }
+        scanned++;
+        status.textContent = `scanning core follows\u2026 ${scanned}/${coreSize}`;
+        progressFill.style.width = (scanned / coreSize * 50) + '%';
+      });
+    }
 
     // Count: for each non-member, how many core members follow them
     const followedBy = new Map();
@@ -1048,19 +1106,33 @@ footer a:hover {
       .map(([d]) => d);
 
     // Phase 2: fetch candidates' follows for reciprocity
-    let verified = 0;
     if (candidateDids.length > 0) {
-      await mapConcurrent(candidateDids, 5, async (d) => {
-        try {
-          const follows = await getAllFollows(d);
-          allFollows.set(d, new Set(follows.map(f => f.did)));
-        } catch {
-          allFollows.set(d, new Set());
-        }
-        verified++;
-        status.textContent = `verifying candidates\u2026 ${verified}/${candidateDids.length}`;
-        progressFill.style.width = (50 + verified / candidateDids.length * 50) + '%';
+      const batch2 = await batchFetchFollows(candidateDids, (n) => {
+        status.textContent = `verifying candidates\u2026 ${n}/${candidateDids.length}`;
+        progressFill.style.width = (50 + n / candidateDids.length * 50) + '%';
       });
+
+      if (batch2) {
+        for (const [did, profile] of batch2.profiles) {
+          if (!currentProfileMap.has(did)) currentProfileMap.set(did, profile);
+        }
+        for (const d of candidateDids) {
+          allFollows.set(d, batch2.follows.get(d) || new Set());
+        }
+      } else {
+        let verified = 0;
+        await mapConcurrent(candidateDids, 5, async (d) => {
+          try {
+            const follows = await getAllFollows(d);
+            allFollows.set(d, new Set(follows.map(f => f.did)));
+          } catch {
+            allFollows.set(d, new Set());
+          }
+          verified++;
+          status.textContent = `verifying candidates\u2026 ${verified}/${candidateDids.length}`;
+          progressFill.style.width = (50 + verified / candidateDids.length * 50) + '%';
+        });
+      }
     }
 
     // Build mutual adjacency from collected follow data for shell peeling
@@ -1117,22 +1189,42 @@ footer a:hover {
 
     // Build directed adjacency
     const directed = new Map();
-    let scanned = 0;
-    await mapConcurrent(myFollows, 5, async (follow) => {
-      try {
-        const theirFollows = await getAllFollows(follow.did);
+    const followDids = myFollows.map(f => f.did);
+    const batch = await batchFetchFollows(followDids, (n) => {
+      status.textContent = `scanning follows\u2026 ${n}/${myFollows.length}`;
+      progressFill.style.width = (n / myFollows.length * 100) + '%';
+    });
+
+    if (batch) {
+      for (const [did, profile] of batch.profiles) {
+        if (!currentProfileMap.has(did)) currentProfileMap.set(did, profile);
+      }
+      for (const did of followDids) {
+        const theirFollows = batch.follows.get(did) || new Set();
         const overlap = new Set();
         for (const f of theirFollows) {
-          if (myFollowDids.has(f.did) && f.did !== follow.did) overlap.add(f.did);
+          if (myFollowDids.has(f) && f !== did) overlap.add(f);
         }
-        directed.set(follow.did, overlap);
-      } catch {
-        directed.set(follow.did, new Set());
+        directed.set(did, overlap);
       }
-      scanned++;
-      status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
-      progressFill.style.width = (scanned / myFollows.length * 100) + '%';
-    });
+    } else {
+      let scanned = 0;
+      await mapConcurrent(myFollows, 5, async (follow) => {
+        try {
+          const theirFollows = await getAllFollows(follow.did);
+          const overlap = new Set();
+          for (const f of theirFollows) {
+            if (myFollowDids.has(f.did) && f.did !== follow.did) overlap.add(f.did);
+          }
+          directed.set(follow.did, overlap);
+        } catch {
+          directed.set(follow.did, new Set());
+        }
+        scanned++;
+        status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
+        progressFill.style.width = (scanned / myFollows.length * 100) + '%';
+      });
+    }
 
     // Build mutual adjacency
     status.textContent = 'building mutual graph\u2026';
