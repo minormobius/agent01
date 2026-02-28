@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>seek — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+/* Handle form */
+.handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Progress */
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Status */
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+/* Results */
+.results-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.pfp {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--rule);
+  flex-shrink: 0;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-handle {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--link);
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-handle:hover {
+  text-decoration: underline;
+}
+
+.result-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-score {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.result-pct {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.empty-state {
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 3rem 0;
+  font-style: italic;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 3rem 0;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / seek</h1>
+
+<p class="subtitle">Find a friend.</p>
+
+<p class="desc">
+  Enter your Bluesky handle to discover people in your extended network&mdash;follows
+  of your follows you don&rsquo;t yet follow, ranked by what fraction of their audience
+  overlaps with yours.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="loadBtn">seek</button>
+</form>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div class="results-header hidden" id="resultsHeader"></div>
+<div id="results"></div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+(function () {
+  const PUBLIC_API = 'https://public.api.bsky.app';
+
+  // --- Identity resolution ---
+
+  async function resolveHandle(handle) {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+    );
+    if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    return (await res.json()).did;
+  }
+
+  async function resolvePDS(did) {
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      const res = await fetch(`https://${host}/.well-known/did.json`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else {
+      throw new Error(`Unsupported DID method: ${did}`);
+    }
+    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    if (!svc) throw new Error('No PDS endpoint found');
+    return svc.serviceEndpoint;
+  }
+
+  // --- API helpers ---
+
+  async function fetchJSON(url, retries = 3) {
+    for (let i = 0; i <= retries; i++) {
+      const res = await fetch(url);
+      if (res.status === 429) {
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+    throw new Error('Rate limited');
+  }
+
+  async function getAllFollows(actor, onProgress) {
+    const follows = [];
+    let cursor;
+    do {
+      const params = new URLSearchParams({ actor, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+      const data = await fetchJSON(
+        `${PUBLIC_API}/xrpc/app.bsky.graph.getFollows?${params}`
+      );
+      follows.push(...(data.follows || []));
+      cursor = data.cursor;
+      if (onProgress) onProgress(follows.length);
+    } while (cursor);
+    return follows;
+  }
+
+  async function getBlocks(did, pds) {
+    const blocks = new Set();
+    let cursor;
+    try {
+      do {
+        const params = new URLSearchParams({
+          repo: did,
+          collection: 'app.bsky.graph.block',
+          limit: '100'
+        });
+        if (cursor) params.set('cursor', cursor);
+        const data = await fetchJSON(
+          `${pds}/xrpc/com.atproto.repo.listRecords?${params}`
+        );
+        for (const r of data.records || []) {
+          if (r.value?.subject) blocks.add(r.value.subject);
+        }
+        cursor = data.cursor;
+      } while (cursor);
+    } catch { /* blocks may not be publicly readable */ }
+    return blocks;
+  }
+
+  // --- Concurrent processing ---
+
+  async function mapConcurrent(items, concurrency, fn) {
+    let index = 0;
+    async function worker() {
+      while (index < items.length) {
+        const i = index++;
+        await fn(items[i], i);
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  }
+
+  // --- Rendering ---
+
+  function escapeHtml(str) {
+    const el = document.createElement('span');
+    el.textContent = str || '';
+    return el.innerHTML;
+  }
+
+  function renderResults(scored) {
+    const resultsHeader = document.getElementById('resultsHeader');
+    const results = document.getElementById('results');
+
+    if (scored.length === 0) {
+      resultsHeader.classList.add('hidden');
+      results.innerHTML = '<div class="empty-state">No candidates found.</div>';
+      return;
+    }
+
+    resultsHeader.textContent = `${scored.length} people \u00b7 sorted by network density`;
+    resultsHeader.classList.remove('hidden');
+
+    results.innerHTML = scored.slice(0, 200).map(c => {
+      const p = c.profile;
+      const handle = escapeHtml(p.handle);
+      const name = escapeHtml(p.displayName || p.handle);
+      const url = `https://bsky.app/profile/${encodeURIComponent(p.handle)}`;
+      const avatar = p.avatar || '';
+      const pctStr = c.score >= 1
+        ? c.score.toFixed(0) + '%'
+        : c.score.toFixed(1) + '%';
+
+      return `<div class="result-row">
+        ${avatar
+          ? `<img class="pfp" src="${escapeHtml(avatar)}" alt="" loading="lazy">`
+          : `<div class="pfp"></div>`}
+        <div class="result-info">
+          <a class="result-handle" href="${url}" target="_blank" rel="noopener">@${handle}</a>
+          <div class="result-name">${name}</div>
+        </div>
+        <div class="result-score">
+          <div class="result-pct">${pctStr}</div>
+          <div>${c.endorserCount} mutual</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // --- Main ---
+
+  document.getElementById('handleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const raw = document.getElementById('handleInput').value.trim().replace(/^@/, '');
+    if (!raw) return;
+
+    const loadBtn = document.getElementById('loadBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const status = document.getElementById('status');
+    const resultsHeader = document.getElementById('resultsHeader');
+    const results = document.getElementById('results');
+
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'seeking\u2026';
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    status.classList.remove('hidden', 'error');
+    status.textContent = 'resolving handle\u2026';
+    resultsHeader.classList.add('hidden');
+    results.innerHTML = '';
+
+    const pageUrl = new URL(window.location);
+    pageUrl.searchParams.set('handle', raw);
+    window.history.replaceState({}, '', pageUrl);
+
+    try {
+      const did = await resolveHandle(raw);
+      const pds = await resolvePDS(did);
+
+      // Get my follows
+      status.textContent = 'fetching your follows\u2026';
+      const myFollows = await getAllFollows(did, (n) => {
+        status.textContent = `fetching your follows\u2026 ${n}`;
+      });
+
+      const myFollowDids = new Set(myFollows.map(f => f.did));
+      myFollowDids.add(did); // exclude self
+
+      // Get blocks
+      status.textContent = 'checking blocks\u2026';
+      const myBlocks = await getBlocks(did, pds);
+
+      // Scan follows-of-follows
+      const candidates = new Map();
+      let scanned = 0;
+
+      await mapConcurrent(myFollows, 5, async (follow) => {
+        try {
+          const theirFollows = await getAllFollows(follow.did);
+          for (const f of theirFollows) {
+            if (myFollowDids.has(f.did) || myBlocks.has(f.did)) continue;
+            let entry = candidates.get(f.did);
+            if (!entry) {
+              entry = { profile: f, endorsers: new Set() };
+              candidates.set(f.did, entry);
+            }
+            entry.endorsers.add(follow.did);
+          }
+        } catch { /* skip on error */ }
+        scanned++;
+        status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
+        progressFill.style.width = (scanned / myFollows.length * 100) + '%';
+      });
+
+      // Score and sort
+      const scored = [...candidates.values()]
+        .map(c => ({
+          profile: c.profile,
+          endorserCount: c.endorsers.size,
+          score: c.profile.followersCount > 0
+            ? (c.endorsers.size / c.profile.followersCount * 100)
+            : 0
+        }))
+        .filter(c => c.endorserCount >= 2)
+        .sort((a, b) => b.score - a.score);
+
+      status.textContent = `done \u00b7 ${myFollows.length} follows scanned \u00b7 ${scored.length} candidates`;
+      progressFill.style.width = '100%';
+      renderResults(scored);
+
+    } catch (err) {
+      status.textContent = `error: ${err.message}`;
+      status.classList.add('error');
+      progressFill.style.width = '0%';
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = 'seek';
+    }
+  });
+
+  // Auto-load from URL
+  const h = new URLSearchParams(location.search).get('handle');
+  if (h) {
+    document.getElementById('handleInput').value = h;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+</body>
+</html>
