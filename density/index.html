@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>density — minomobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+/* Handle form */
+.handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Progress */
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Status */
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+/* Filter buttons */
+.filter-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.filter-btn {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.filter-btn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.filter-btn.active {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Results */
+.results-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-item {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-item:last-child {
+  border-bottom: none;
+}
+
+.post-text {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.post-meta {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.post-meta a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.post-meta a:hover {
+  text-decoration: underline;
+}
+
+.empty-state {
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 3rem 0;
+  font-style: italic;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 3rem 0;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1><a href="/">minomobi</a> / density</h1>
+
+<p class="subtitle">Post brevity, measured.</p>
+
+<p class="desc">
+  Enter a Bluesky handle to surface their shortest posts&mdash;filtered
+  by exact word count and ranked by character length.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="loadBtn">load</button>
+</form>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div class="filter-bar hidden" id="filterBar">
+  <button class="filter-btn active" data-n="3">3 words</button>
+  <button class="filter-btn" data-n="4">4 words</button>
+  <button class="filter-btn" data-n="5">5 words</button>
+</div>
+
+<div class="results-header hidden" id="resultsHeader"></div>
+<div id="results"></div>
+
+<footer>
+  <a href="/">minomobi.com</a> &middot;
+  <a href="https://bsky.app/profile/minomobi.com">@minomobi.com</a>
+</footer>
+
+<script>
+(function () {
+  // --- ATProto identity resolution (inlined from time/js/atproto.js) ---
+
+  const PUBLIC_API = 'https://public.api.bsky.app';
+  const POST_COLLECTION = 'app.bsky.feed.post';
+  const _cache = {};
+
+  async function resolveHandle(handle) {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+    );
+    if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    return (await res.json()).did;
+  }
+
+  async function resolvePDS(did) {
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      const res = await fetch(`https://${host}/.well-known/did.json`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else {
+      throw new Error(`Unsupported DID method: ${did}`);
+    }
+    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    if (!svc) throw new Error('No PDS endpoint found');
+    return svc.serviceEndpoint;
+  }
+
+  async function resolveIdentity(handle) {
+    if (_cache[handle]) return _cache[handle];
+    const did = await resolveHandle(handle);
+    const pds = await resolvePDS(did);
+    _cache[handle] = { did, pds };
+    return { did, pds };
+  }
+
+  // --- Utilities ---
+
+  function cleanText(text) {
+    return text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/https?:\/\/\S+/g, '')
+      .trim();
+  }
+
+  function countWords(text) {
+    const clean = cleanText(text);
+    if (!clean) return 0;
+    return clean.split(/\s+/).filter(Boolean).length;
+  }
+
+  function charLength(text) {
+    return cleanText(text).length;
+  }
+
+  function escapeHtml(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
+  }
+
+  function shortDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+  }
+
+  // --- Fetch all posts with pagination ---
+
+  async function fetchAllPosts(handle, onProgress) {
+    const { did, pds } = await resolveIdentity(handle);
+    const posts = [];
+    let cursor;
+
+    do {
+      const params = new URLSearchParams({
+        repo: did,
+        collection: POST_COLLECTION,
+        limit: '100'
+      });
+      if (cursor) params.set('cursor', cursor);
+
+      let data;
+      try {
+        const res = await fetch(
+          `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`
+        );
+        if (!res.ok) throw new Error(res.status);
+        data = await res.json();
+      } catch {
+        const res = await fetch(
+          `${pds}/xrpc/com.atproto.repo.listRecords?${params}`
+        );
+        if (!res.ok) throw new Error(`Could not fetch posts (${res.status})`);
+        data = await res.json();
+      }
+
+      if (data.records) posts.push(...data.records);
+      cursor = data.cursor;
+      if (onProgress) onProgress(posts.length);
+    } while (cursor);
+
+    return posts;
+  }
+
+  // --- Filter, sort, render ---
+
+  let allPosts = [];
+  let currentHandle = '';
+  let activeFilter = 3;
+
+  function filterAndSort(posts, n) {
+    return posts
+      .filter(r => countWords(r.value?.text || '') === n)
+      .sort((a, b) => charLength(b.value.text) - charLength(a.value.text));
+  }
+
+  function renderPosts(filtered, handle) {
+    const results = document.getElementById('results');
+    const header = document.getElementById('resultsHeader');
+
+    if (filtered.length === 0) {
+      header.classList.add('hidden');
+      results.innerHTML = '<div class="empty-state">No posts found with this word count.</div>';
+      return;
+    }
+
+    header.textContent = `${filtered.length} post${filtered.length !== 1 ? 's' : ''} · ${activeFilter} words · by character length`;
+    header.classList.remove('hidden');
+
+    results.innerHTML = filtered.map(r => {
+      const text = r.value.text;
+      const rkey = r.uri.split('/').pop();
+      const date = shortDate(r.value.createdAt);
+      const chars = charLength(text);
+      const url = `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${rkey}`;
+      return `<div class="post-item">
+        <div class="post-text">${escapeHtml(text)}</div>
+        <div class="post-meta">
+          <span>${chars} chars</span>
+          <span>${date}</span>
+          <a href="${url}" target="_blank" rel="noopener">bsky ↗</a>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function setFilter(n) {
+    activeFilter = n;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.n) === n);
+    });
+    renderPosts(filterAndSort(allPosts, n), currentHandle);
+  }
+
+  // --- Form handler ---
+
+  document.getElementById('handleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const raw = document.getElementById('handleInput').value.trim().replace(/^@/, '');
+    if (!raw) return;
+
+    currentHandle = raw;
+    const loadBtn = document.getElementById('loadBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const status = document.getElementById('status');
+    const filterBar = document.getElementById('filterBar');
+    const resultsHeader = document.getElementById('resultsHeader');
+    const results = document.getElementById('results');
+
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'loading…';
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    status.classList.remove('hidden', 'error');
+    status.textContent = 'resolving handle…';
+    filterBar.classList.add('hidden');
+    resultsHeader.classList.add('hidden');
+    results.innerHTML = '';
+
+    const url = new URL(window.location);
+    url.searchParams.set('handle', raw);
+    window.history.replaceState({}, '', url);
+
+    try {
+      const posts = await fetchAllPosts(raw, (count) => {
+        status.textContent = `fetched ${count.toLocaleString()} posts…`;
+        progressFill.style.width = Math.min(95, (1 - 1 / (1 + count / 200)) * 100) + '%';
+      });
+
+      allPosts = posts;
+      progressFill.style.width = '100%';
+
+      const c3 = posts.filter(r => countWords(r.value?.text || '') === 3).length;
+      const c4 = posts.filter(r => countWords(r.value?.text || '') === 4).length;
+      const c5 = posts.filter(r => countWords(r.value?.text || '') === 5).length;
+      status.textContent = `${posts.length.toLocaleString()} posts · 3w: ${c3} · 4w: ${c4} · 5w: ${c5}`;
+
+      filterBar.classList.remove('hidden');
+      setFilter(activeFilter);
+    } catch (err) {
+      status.textContent = `error: ${err.message}`;
+      status.classList.add('error');
+      progressFill.style.width = '0%';
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = 'load';
+    }
+  });
+
+  // Filter clicks
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => setFilter(parseInt(btn.dataset.n)));
+  });
+
+  // Auto-load from URL
+  const h = new URLSearchParams(location.search).get('handle');
+  if (h) {
+    document.getElementById('handleInput').value = h;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+</body>
+</html>
