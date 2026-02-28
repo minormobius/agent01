@@ -143,8 +143,8 @@ h1 a:hover { color: var(--text); }
   line-height: 1.9;
 }
 
-/* Results */
-.results-header {
+/* Section headers */
+.section-header {
   font-family: var(--mono);
   font-size: 0.7rem;
   color: var(--muted);
@@ -154,6 +154,7 @@ h1 a:hover { color: var(--text); }
   border-bottom: 1px solid var(--rule);
 }
 
+/* Results */
 .result-row {
   display: flex;
   align-items: center;
@@ -203,12 +204,125 @@ h1 a:hover { color: var(--text); }
   white-space: nowrap;
 }
 
+.result-meta {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  text-align: right;
+}
+
 .empty-state {
   font-size: 0.95rem;
   color: var(--muted);
   text-align: center;
   padding: 3rem 0;
   font-style: italic;
+}
+
+/* Expanded circle */
+.expanded-section {
+  margin-top: 2.5rem;
+}
+
+/* Publish section */
+.publish-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rule);
+}
+
+.publish-section .section-header {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0.5rem;
+}
+
+.publish-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.publish-desc a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.publish-desc a:hover {
+  text-decoration: underline;
+}
+
+.auth-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.auth-form input {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.auth-form input[type="text"] { flex: 1; min-width: 140px; }
+.auth-form input[type="password"] { flex: 1; min-width: 140px; }
+
+.auth-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.auth-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.publish-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.publish-option input[type="checkbox"] {
+  accent-color: var(--link);
+}
+
+.publish-status {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.75rem;
+}
+
+.publish-status.error {
+  color: var(--link);
 }
 
 hr {
@@ -260,8 +374,34 @@ footer a:hover {
 
 <div class="status-line hidden" id="status"></div>
 <div class="graph-stats hidden" id="graphStats"></div>
-<div class="results-header hidden" id="resultsHeader"></div>
-<div id="results"></div>
+
+<div id="cliqueSection" class="hidden">
+  <div class="section-header" id="cliqueHeader"></div>
+  <div id="cliqueResults"></div>
+</div>
+
+<div id="expandedSection" class="expanded-section hidden">
+  <div class="section-header" id="expandedHeader"></div>
+  <div id="expandedResults"></div>
+</div>
+
+<div id="publishSection" class="publish-section hidden">
+  <div class="section-header">publish as list</div>
+  <p class="publish-desc">
+    Save this cluster to your Bluesky account as a curated list.
+    Requires an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
+  </p>
+  <div class="publish-option">
+    <input type="checkbox" id="includeExpanded" checked>
+    <label for="includeExpanded">include expanded circle</label>
+  </div>
+  <form class="auth-form" id="publishForm">
+    <input type="text" id="authHandle" placeholder="your-handle.bsky.social" autocomplete="username">
+    <input type="password" id="authPassword" placeholder="app password" autocomplete="current-password">
+    <button type="submit" id="publishBtn">publish</button>
+  </form>
+  <div class="publish-status hidden" id="publishStatus"></div>
+</div>
 
 <footer>
   <a href="/">mino.mobi</a> &middot;
@@ -272,6 +412,11 @@ footer a:hover {
 (function () {
   const PUBLIC_API = 'https://public.api.bsky.app';
 
+  // --- Module state ---
+  let currentClique = [];
+  let currentExpanded = [];
+  let currentProfileMap = new Map();
+
   // --- Identity resolution ---
 
   async function resolveHandle(handle) {
@@ -280,6 +425,25 @@ footer a:hover {
     );
     if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
     return (await res.json()).did;
+  }
+
+  async function resolvePDS(did) {
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      const res = await fetch(`https://${host}/.well-known/did.json`);
+      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+      doc = await res.json();
+    } else {
+      throw new Error(`Unsupported DID method: ${did}`);
+    }
+    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    if (!svc) throw new Error('No PDS endpoint found');
+    return svc.serviceEndpoint;
   }
 
   // --- API helpers ---
@@ -347,10 +511,8 @@ footer a:hover {
         if (clique.length > best.length) best = [...clique];
         return;
       }
-      // Prune: can't beat current best even adding all of P
       if (clique.length + P.size <= best.length) return;
 
-      // Pivot: vertex in P+X with most neighbors in P
       let pivot = null, maxN = -1;
       for (const v of P) {
         const n = neighborsInSet(v, P);
@@ -386,6 +548,23 @@ footer a:hover {
     return { clique: best, exhaustive: ops <= LIMIT };
   }
 
+  // --- Expanded circle: nodes connected to all-but-one clique members ---
+
+  function findExpandedCircle(clique, mutual) {
+    const cliqueSet = new Set(clique);
+    const expanded = [];
+    for (const [node, neighbors] of mutual) {
+      if (cliqueSet.has(node)) continue;
+      const connections = clique.filter(c => neighbors.has(c));
+      if (connections.length >= clique.length - 1) {
+        const missing = clique.filter(c => !neighbors.has(c));
+        expanded.push({ did: node, connections: connections.length, missing });
+      }
+    }
+    expanded.sort((a, b) => b.connections - a.connections);
+    return expanded;
+  }
+
   // --- Rendering ---
 
   function escapeHtml(str) {
@@ -394,39 +573,174 @@ footer a:hover {
     return el.innerHTML;
   }
 
+  function renderPersonRow(did, profileMap, meta) {
+    const p = profileMap.get(did) || {};
+    const handle = escapeHtml(p.handle || did);
+    const name = escapeHtml(p.displayName || p.handle || did);
+    const url = p.handle
+      ? `https://bsky.app/profile/${encodeURIComponent(p.handle)}`
+      : '#';
+    const avatar = p.avatar || '';
+
+    return `<div class="result-row">
+      ${avatar
+        ? `<img class="pfp" src="${escapeHtml(avatar)}" alt="" loading="lazy">`
+        : `<div class="pfp"></div>`}
+      <div class="result-info">
+        <a class="result-handle" href="${url}" target="_blank" rel="noopener">@${handle}</a>
+        <div class="result-name">${name}</div>
+      </div>
+      ${meta ? `<div class="result-meta">${meta}</div>` : ''}
+    </div>`;
+  }
+
   function renderClique(members, profileMap) {
-    const resultsHeader = document.getElementById('resultsHeader');
-    const results = document.getElementById('results');
+    const section = document.getElementById('cliqueSection');
+    const header = document.getElementById('cliqueHeader');
+    const results = document.getElementById('cliqueResults');
 
     if (members.length === 0) {
-      resultsHeader.classList.add('hidden');
-      results.innerHTML = '<div class="empty-state">No mutual clique found among your follows.</div>';
+      section.classList.add('hidden');
       return;
     }
 
-    resultsHeader.textContent = `largest clique \u00b7 ${members.length} people \u00b7 everyone follows everyone`;
-    resultsHeader.classList.remove('hidden');
-
-    results.innerHTML = members.map(did => {
-      const p = profileMap.get(did) || {};
-      const handle = escapeHtml(p.handle || did);
-      const name = escapeHtml(p.displayName || p.handle || did);
-      const url = p.handle
-        ? `https://bsky.app/profile/${encodeURIComponent(p.handle)}`
-        : '#';
-      const avatar = p.avatar || '';
-
-      return `<div class="result-row">
-        ${avatar
-          ? `<img class="pfp" src="${escapeHtml(avatar)}" alt="" loading="lazy">`
-          : `<div class="pfp"></div>`}
-        <div class="result-info">
-          <a class="result-handle" href="${url}" target="_blank" rel="noopener">@${handle}</a>
-          <div class="result-name">${name}</div>
-        </div>
-      </div>`;
-    }).join('');
+    header.textContent = `largest clique \u00b7 ${members.length} people \u00b7 everyone follows everyone`;
+    results.innerHTML = members.map(did => renderPersonRow(did, profileMap)).join('');
+    section.classList.remove('hidden');
   }
+
+  function renderExpanded(expanded, clique, profileMap) {
+    const section = document.getElementById('expandedSection');
+    const header = document.getElementById('expandedHeader');
+    const results = document.getElementById('expandedResults');
+    const checkbox = document.getElementById('includeExpanded');
+
+    if (expanded.length === 0) {
+      section.classList.add('hidden');
+      checkbox.parentElement.classList.add('hidden');
+      return;
+    }
+
+    header.textContent = `expanded circle \u00b7 ${expanded.length} people \u00b7 connected to all but one`;
+    results.innerHTML = expanded.map(e => {
+      const missingHandle = e.missing.length > 0
+        ? (profileMap.get(e.missing[0])?.handle || 'one member')
+        : '';
+      const meta = e.missing.length > 0
+        ? `${e.connections}/${clique.length}<br>missing @${escapeHtml(missingHandle)}`
+        : `${e.connections}/${clique.length}`;
+      return renderPersonRow(e.did, profileMap, meta);
+    }).join('');
+    section.classList.remove('hidden');
+    checkbox.parentElement.classList.remove('hidden');
+  }
+
+  // --- Publish as list ---
+
+  document.getElementById('publishForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const authHandle = document.getElementById('authHandle').value.trim().replace(/^@/, '');
+    const authPassword = document.getElementById('authPassword').value;
+    const publishBtn = document.getElementById('publishBtn');
+    const publishStatus = document.getElementById('publishStatus');
+    const includeExpanded = document.getElementById('includeExpanded').checked;
+
+    if (!authHandle || !authPassword) return;
+
+    publishBtn.disabled = true;
+    publishBtn.textContent = 'publishing\u2026';
+    publishStatus.classList.remove('hidden', 'error');
+    publishStatus.textContent = 'authenticating\u2026';
+
+    try {
+      // Resolve PDS for auth
+      const did = await resolveHandle(authHandle);
+      const pds = await resolvePDS(did);
+
+      // Create session
+      const sessionRes = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: authHandle, password: authPassword })
+      });
+      if (!sessionRes.ok) {
+        const err = await sessionRes.json().catch(() => ({}));
+        throw new Error(err.message || `Auth failed (${sessionRes.status})`);
+      }
+      const session = await sessionRes.json();
+      const token = session.accessJwt;
+      const repoDid = session.did;
+
+      // Clear password from input
+      document.getElementById('authPassword').value = '';
+
+      // Collect members
+      const members = [...currentClique];
+      if (includeExpanded) {
+        for (const e of currentExpanded) members.push(e.did);
+      }
+
+      // Create the list
+      publishStatus.textContent = 'creating list\u2026';
+      const listRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          repo: repoDid,
+          collection: 'app.bsky.graph.list',
+          record: {
+            $type: 'app.bsky.graph.list',
+            purpose: 'app.bsky.graph.defs#curatelist',
+            name: `Cluster (${members.length})`,
+            description: `Largest mutual-follow clique${includeExpanded && currentExpanded.length > 0 ? ' + expanded circle' : ''}, found by mino.mobi/cluster`,
+            createdAt: new Date().toISOString()
+          }
+        })
+      });
+      if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status})`);
+      const { uri: listUri } = await listRes.json();
+
+      // Add members
+      for (let i = 0; i < members.length; i++) {
+        publishStatus.textContent = `adding members\u2026 ${i + 1}/${members.length}`;
+        const itemRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            repo: repoDid,
+            collection: 'app.bsky.graph.listitem',
+            record: {
+              $type: 'app.bsky.graph.listitem',
+              subject: members[i],
+              list: listUri,
+              createdAt: new Date().toISOString()
+            }
+          })
+        });
+        if (!itemRes.ok) {
+          publishStatus.textContent = `warning: failed to add member ${i + 1}, continuing\u2026`;
+        }
+      }
+
+      // Build list URL from the at:// URI
+      const rkey = listUri.split('/').pop();
+      const listUrl = `https://bsky.app/profile/${encodeURIComponent(authHandle)}/lists/${rkey}`;
+      publishStatus.innerHTML = `done \u00b7 ${members.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
+
+    } catch (err) {
+      publishStatus.textContent = `error: ${err.message}`;
+      publishStatus.classList.add('error');
+    } finally {
+      publishBtn.disabled = false;
+      publishBtn.textContent = 'publish';
+    }
+  });
 
   // --- Main ---
 
@@ -440,8 +754,6 @@ footer a:hover {
     const progressFill = document.getElementById('progressFill');
     const status = document.getElementById('status');
     const graphStats = document.getElementById('graphStats');
-    const resultsHeader = document.getElementById('resultsHeader');
-    const results = document.getElementById('results');
 
     loadBtn.disabled = true;
     loadBtn.textContent = 'scanning\u2026';
@@ -450,8 +762,9 @@ footer a:hover {
     status.classList.remove('hidden', 'error');
     status.textContent = 'resolving handle\u2026';
     graphStats.classList.add('hidden');
-    resultsHeader.classList.add('hidden');
-    results.innerHTML = '';
+    document.getElementById('cliqueSection').classList.add('hidden');
+    document.getElementById('expandedSection').classList.add('hidden');
+    document.getElementById('publishSection').classList.add('hidden');
 
     const pageUrl = new URL(window.location);
     pageUrl.searchParams.set('handle', raw);
@@ -467,10 +780,10 @@ footer a:hover {
       });
 
       const myFollowDids = new Set(myFollows.map(f => f.did));
-      const profileMap = new Map();
-      for (const f of myFollows) profileMap.set(f.did, f);
+      currentProfileMap = new Map();
+      for (const f of myFollows) currentProfileMap.set(f.did, f);
 
-      // Build directed adjacency: for each follow, which of my other follows do they follow?
+      // Build directed adjacency
       const directed = new Map();
       let scanned = 0;
 
@@ -492,7 +805,7 @@ footer a:hover {
         progressFill.style.width = (scanned / myFollows.length * 100) + '%';
       });
 
-      // Build mutual adjacency (edge only if both directions exist)
+      // Build mutual adjacency
       status.textContent = 'building mutual graph\u2026';
       const mutual = new Map();
       let mutualEdges = 0;
@@ -504,11 +817,10 @@ footer a:hover {
         if (m.size > 0) mutual.set(a, m);
         mutualEdges += m.size;
       }
-      mutualEdges /= 2; // each edge counted twice
+      mutualEdges /= 2;
 
       const mutualNodes = [...mutual.keys()];
 
-      // Show graph stats
       graphStats.innerHTML =
         `${myFollows.length} follows \u2192 ${mutualNodes.length} with mutual connections \u2192 ${Math.round(mutualEdges)} mutual edges`;
       graphStats.classList.remove('hidden');
@@ -516,17 +828,30 @@ footer a:hover {
       // Find maximum clique
       status.textContent = 'computing largest clique\u2026';
       progressFill.style.width = '100%';
-
-      // Yield to UI before heavy computation
       await new Promise(r => setTimeout(r, 50));
 
       const { clique, exhaustive } = findMaxClique(mutual, mutualNodes);
+      currentClique = clique;
+
+      // Find expanded circle
+      currentExpanded = clique.length > 0
+        ? findExpandedCircle(clique, mutual)
+        : [];
 
       status.textContent = exhaustive
-        ? `done \u00b7 clique of ${clique.length} found`
-        : `done \u00b7 best clique found: ${clique.length} (search limit reached)`;
+        ? `done \u00b7 clique of ${clique.length}${currentExpanded.length > 0 ? ` + ${currentExpanded.length} adjacent` : ''}`
+        : `done \u00b7 best clique: ${clique.length} (search limit reached)${currentExpanded.length > 0 ? ` + ${currentExpanded.length} adjacent` : ''}`;
 
-      renderClique(clique, profileMap);
+      renderClique(clique, currentProfileMap);
+      renderExpanded(currentExpanded, clique, currentProfileMap);
+
+      // Show publish section if we found something
+      if (clique.length > 0) {
+        // Pre-fill auth handle with the searched handle
+        document.getElementById('authHandle').value = raw;
+        document.getElementById('publishSection').classList.remove('hidden');
+        document.getElementById('publishStatus').classList.add('hidden');
+      }
 
     } catch (err) {
       status.textContent = `error: ${err.message}`;
