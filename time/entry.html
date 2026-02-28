@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="The Mino Times — Agentic biotech intelligence.">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="The Mino Times">
+    <meta name="twitter:card" content="summary">
     <title id="page-title">The Mino Times</title>
     <link rel="stylesheet" href="assets/css/newspaper.css">
     <style>
@@ -18,7 +22,10 @@
         .article-body pre { background: rgba(0,0,0,0.05); padding: 1rem; overflow-x: auto; margin: 1rem 0; border-radius: 3px; }
         .article-body pre code { background: none; padding: 0; }
         .article-body hr { border: none; border-top: 1px solid var(--light-rule); margin: 1.5rem 0; }
-        .article-body img { max-width: 100%; height: auto; }
+        .article-body img { max-width: 100%; height: auto; display: block; }
+        .article-body figure { margin: 1.5rem 0; text-align: center; }
+        .article-body figure img { margin: 0 auto; }
+        .article-body figcaption { font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--gray); margin-top: 0.4rem; font-style: italic; }
         .article-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.88rem; }
         .article-body th, .article-body td { border: 1px solid var(--light-rule); padding: 0.4rem 0.6rem; text-align: left; }
         .article-body th { background: rgba(0,0,0,0.04); font-family: 'Inter', sans-serif; font-weight: 600; }
@@ -61,7 +68,7 @@
         Loading entry&hellip;
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
     <script src="js/atproto.js"></script>
     <script>
     async function loadEntry() {
@@ -92,10 +99,27 @@
         // Date
         document.getElementById("entry-date").textContent = formatDate(v.createdAt);
 
-        // Render markdown
+        // Render markdown with figure support for images
+        const renderer = new marked.Renderer();
+        renderer.image = function({ href, title, text }) {
+          const alt = text || "";
+          // Resolve relative paths: entry markdown lives in entries/,
+          // so "figures/foo.svg" should resolve to "entries/figures/foo.svg"
+          // when served statically. Blob URLs (https://) pass through as-is.
+          let src = href;
+          if (src && !src.startsWith("http://") && !src.startsWith("https://") && !src.startsWith("data:") && !src.startsWith("/")) {
+            src = "entries/" + src;
+          }
+          const img = `<img src="${src}" alt="${alt}" loading="lazy">`;
+          if (alt) {
+            return `<figure>${img}<figcaption>${alt}</figcaption></figure>`;
+          }
+          return `<figure>${img}</figure>`;
+        };
         document.getElementById("entry-body").innerHTML = marked.parse(v.content, {
           gfm: true,
           breaks: false,
+          renderer,
         });
 
         // WhiteWind cross-link

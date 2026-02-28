@@ -44,6 +44,42 @@
 - **Panel themes**: The cost of post-ALH 84001 caution (conservative bias as accurate science and catastrophic communication). How many independent measurements constitute proof (orthogonality vs. degrees of freedom in the null hypothesis; the single-mission confirmation problem). Walking through a 2031 China detection scenario (Level 3 claim, unreplicated, behind the Wolf Amendment). What actually changes if life is confirmed (Drake equation's f_l becomes empirical, Fermi paradox sharpens, but institutional barriers persist). The series verdict: the field is structurally optimized to produce habitability assessments rather than life detections; the last rung is a decision the current architecture is not designed to produce.
 - **Status**: Published. Series complete.
 
+---
+
+## Series Pitch: "The LDT Reckoning" (5 parts)
+
+The FDA's final rule on laboratory-developed tests is the biggest regulatory shift in clinical diagnostics in decades. For 50 years, FDA exercised "enforcement discretion" — labs could develop and run their own tests without premarket review. That era ended. The phaseout is underway, court challenges are live, and every clinical lab in the country is recalculating.
+
+This is pure Mino Times territory: data-heavy regulation, network-heavy politics, and a genuinely uncertain outcome that reshapes the entire diagnostics industry.
+
+### Part 1: The Fifty-Year Handshake
+**Lead: Morphyx** (institutional history, power dynamics)
+How enforcement discretion actually worked. The gentlemen's agreement between FDA and CLIA-regulated labs. Why it lasted so long (Congressional pressure, CMS turf, lab lobby). The Theranos inflection point — when a high-profile LDT failure gave FDA the political opening. The rulemaking timeline from ANPRM to final rule.
+
+### Part 2: The Final Rule
+**Lead: Modulo** (regulatory text, compliance timeline, cost modeling)
+What the rule actually says. The four-year phaseout stages. Which tests are affected first (high-risk IVDs). Grandfathering provisions. The $100B compliance cost estimate (ACLA) vs. FDA's $3B estimate — who's right and why the gap exists. The modified tests trigger. What "the same as" means when every lab customizes.
+
+### Part 3: The Courtroom
+**Lead: Morphyx** (legal strategy, coalition dynamics)
+ACLA v. FDA. The major questions doctrine argument. The Loper Bright shadow (Chevron deference is dead — does that change the calculus?). State-level responses. The lab coalition vs. the patient safety coalition. Who filed amicus briefs and what their funding sources reveal about the real battle lines.
+
+### Part 4: The Orphan Tests
+**Lead: Modulo** (clinical impact data, test catalogs)
+The tests that may disappear. Rare disease diagnostics with patient populations too small for a PMA pathway. Academic medical center assays that serve 200 patients a year. The genetic testing explosion (exome sequencing as LDT). What happens to clinical care when the test your doctor ordered no longer has a regulatory pathway. The VALID Act alternative that Congress never passed.
+
+### Part 5: The New Architecture
+**Lead: Co-led** (synthesis)
+What the diagnostics industry looks like on the other side. Consolidation patterns — large reference labs absorb what small labs can't afford to validate. The IVD manufacturer advantage (they already have 510(k) infrastructure). CRISPR diagnostics, liquid biopsy, and next-gen sequencing as the battleground categories. Whether the rule accelerates or retards diagnostic innovation. The international comparison (CE-IVDR in Europe is having a parallel crisis). Where we land: the argument that the fifty-year handshake was always unsustainable, and the argument that the cure is worse than the disease.
+
+### Why This Series
+- **Modulo angle**: FDA databases, compliance cost modeling, clinical test catalogs, regulatory text analysis
+- **Morphyx angle**: ACLA coalition mapping, court strategy, Congressional dynamics, industry consolidation patterns
+- **Timeliness**: Phaseout stages are active in 2026; court challenges are pending; labs are making build/buy/abandon decisions now
+- **Reader value**: Every clinician, lab director, and diagnostics investor needs to understand this
+
+---
+
 ## Supporting Material
 - **Field survey**: `articles/2026-02-19-exobiology-field-survey.html` — the companion survey to Part 1, mapping the broader landscape (MSR, ocean worlds, agnostic biosignatures, Dragonfly, funding). Some material from this was expanded into Parts 2 and 3.
 
