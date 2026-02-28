@@ -270,6 +270,7 @@ footer a:hover {
   <button class="filter-btn active" data-n="3">3 words</button>
   <button class="filter-btn" data-n="4">4 words</button>
   <button class="filter-btn" data-n="5">5 words</button>
+  <button class="filter-btn" data-n="6">6 words</button>
 </div>
 
 <div class="results-header hidden" id="resultsHeader"></div>
@@ -487,7 +488,8 @@ footer a:hover {
       const c3 = posts.filter(r => countWords(r.value?.text || '') === 3).length;
       const c4 = posts.filter(r => countWords(r.value?.text || '') === 4).length;
       const c5 = posts.filter(r => countWords(r.value?.text || '') === 5).length;
-      status.textContent = `${posts.length.toLocaleString()} posts · 3w: ${c3} · 4w: ${c4} · 5w: ${c5}`;
+      const c6 = posts.filter(r => countWords(r.value?.text || '') === 6).length;
+      status.textContent = `${posts.length.toLocaleString()} posts · 3w: ${c3} · 4w: ${c4} · 5w: ${c5} · 6w: ${c6}`;
 
       filterBar.classList.remove('hidden');
       setFilter(activeFilter);
