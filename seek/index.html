@@ -486,17 +486,42 @@ footer a:hover {
         progressFill.style.width = (scanned / myFollows.length * 100) + '%';
       });
 
+      // Filter to candidates with 2+ endorsers
+      const viable = [...candidates.values()]
+        .filter(c => c.endorsers.size >= 2)
+        .sort((a, b) => b.endorsers.size - a.endorsers.size);
+
+      // Batch-fetch real profiles (getFollows only returns profileView,
+      // which lacks followersCount — we need profileViewDetailed)
+      status.textContent = `fetching profiles\u2026 0/${viable.length}`;
+      const profileMap = new Map();
+      const dids = viable.map(c => c.profile.did);
+      for (let i = 0; i < dids.length; i += 25) {
+        const batch = dids.slice(i, i + 25);
+        const params = new URLSearchParams();
+        batch.forEach(d => params.append('actors', d));
+        try {
+          const data = await fetchJSON(
+            `${PUBLIC_API}/xrpc/app.bsky.actor.getProfiles?${params}`
+          );
+          for (const p of data.profiles || []) profileMap.set(p.did, p);
+        } catch { /* skip batch on error */ }
+        status.textContent = `fetching profiles\u2026 ${Math.min(i + 25, dids.length)}/${dids.length}`;
+      }
+
       // Score and sort
-      const scored = [...candidates.values()]
-        .map(c => ({
-          profile: c.profile,
+      const scored = viable.map(c => {
+        const full = profileMap.get(c.profile.did);
+        const profile = full || c.profile;
+        const followersCount = profile.followersCount || 0;
+        return {
+          profile,
           endorserCount: c.endorsers.size,
-          score: c.profile.followersCount > 0
-            ? (c.endorsers.size / c.profile.followersCount * 100)
+          score: followersCount > 0
+            ? (c.endorsers.size / followersCount * 100)
             : 0
-        }))
-        .filter(c => c.endorserCount >= 2)
-        .sort((a, b) => b.score - a.score);
+        };
+      }).sort((a, b) => b.score - a.score);
 
       status.textContent = `done \u00b7 ${myFollows.length} follows scanned \u00b7 ${scored.length} candidates`;
       progressFill.style.width = '100%';
