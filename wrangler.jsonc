@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "phylo",
+  "name": "minomobi",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."
