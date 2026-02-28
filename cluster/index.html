@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cluster — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+/* Handle form */
+.handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Progress */
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Status */
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+/* Graph stats */
+.graph-stats {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 2rem;
+  line-height: 1.9;
+}
+
+/* Results */
+.results-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.pfp {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--rule);
+  flex-shrink: 0;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-handle {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--link);
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-handle:hover {
+  text-decoration: underline;
+}
+
+.result-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-state {
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 3rem 0;
+  font-style: italic;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 3rem 0;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / cluster</h1>
+
+<p class="subtitle">Find your tightest circle.</p>
+
+<p class="desc">
+  Enter your Bluesky handle to find the largest group of your follows
+  who all mutually follow each other&mdash;every node connected to every
+  other node.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="loadBtn">cluster</button>
+</form>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+<div class="graph-stats hidden" id="graphStats"></div>
+<div class="results-header hidden" id="resultsHeader"></div>
+<div id="results"></div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+(function () {
+  const PUBLIC_API = 'https://public.api.bsky.app';
+
+  // --- Identity resolution ---
+
+  async function resolveHandle(handle) {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+    );
+    if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    return (await res.json()).did;
+  }
+
+  // --- API helpers ---
+
+  async function fetchJSON(url, retries = 3) {
+    for (let i = 0; i <= retries; i++) {
+      const res = await fetch(url);
+      if (res.status === 429) {
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+    throw new Error('Rate limited');
+  }
+
+  async function getAllFollows(actor, onProgress) {
+    const follows = [];
+    let cursor;
+    do {
+      const params = new URLSearchParams({ actor, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+      const data = await fetchJSON(
+        `${PUBLIC_API}/xrpc/app.bsky.graph.getFollows?${params}`
+      );
+      follows.push(...(data.follows || []));
+      cursor = data.cursor;
+      if (onProgress) onProgress(follows.length);
+    } while (cursor);
+    return follows;
+  }
+
+  // --- Concurrent processing ---
+
+  async function mapConcurrent(items, concurrency, fn) {
+    let index = 0;
+    async function worker() {
+      while (index < items.length) {
+        const i = index++;
+        await fn(items[i], i);
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  }
+
+  // --- Bron-Kerbosch with pivot and pruning ---
+
+  function findMaxClique(adj, nodeList) {
+    let best = [];
+    let ops = 0;
+    const LIMIT = 5_000_000;
+
+    function neighborsInSet(v, s) {
+      let c = 0;
+      const n = adj.get(v);
+      if (!n) return 0;
+      for (const u of n) if (s.has(u)) c++;
+      return c;
+    }
+
+    function bk(clique, P, X) {
+      if (ops++ > LIMIT) return;
+      if (P.size === 0 && X.size === 0) {
+        if (clique.length > best.length) best = [...clique];
+        return;
+      }
+      // Prune: can't beat current best even adding all of P
+      if (clique.length + P.size <= best.length) return;
+
+      // Pivot: vertex in P+X with most neighbors in P
+      let pivot = null, maxN = -1;
+      for (const v of P) {
+        const n = neighborsInSet(v, P);
+        if (n > maxN) { pivot = v; maxN = n; }
+      }
+      for (const v of X) {
+        const n = neighborsInSet(v, P);
+        if (n > maxN) { pivot = v; maxN = n; }
+      }
+
+      const pivotN = adj.get(pivot) || new Set();
+      const candidates = [];
+      for (const v of P) if (!pivotN.has(v)) candidates.push(v);
+
+      for (const v of candidates) {
+        if (ops > LIMIT) return;
+        const vN = adj.get(v) || new Set();
+        const newP = new Set();
+        const newX = new Set();
+        for (const u of P) if (vN.has(u)) newP.add(u);
+        for (const u of X) if (vN.has(u)) newX.add(u);
+
+        clique.push(v);
+        bk(clique, newP, newX);
+        clique.pop();
+
+        P.delete(v);
+        X.add(v);
+      }
+    }
+
+    bk([], new Set(nodeList), new Set());
+    return { clique: best, exhaustive: ops <= LIMIT };
+  }
+
+  // --- Rendering ---
+
+  function escapeHtml(str) {
+    const el = document.createElement('span');
+    el.textContent = str || '';
+    return el.innerHTML;
+  }
+
+  function renderClique(members, profileMap) {
+    const resultsHeader = document.getElementById('resultsHeader');
+    const results = document.getElementById('results');
+
+    if (members.length === 0) {
+      resultsHeader.classList.add('hidden');
+      results.innerHTML = '<div class="empty-state">No mutual clique found among your follows.</div>';
+      return;
+    }
+
+    resultsHeader.textContent = `largest clique \u00b7 ${members.length} people \u00b7 everyone follows everyone`;
+    resultsHeader.classList.remove('hidden');
+
+    results.innerHTML = members.map(did => {
+      const p = profileMap.get(did) || {};
+      const handle = escapeHtml(p.handle || did);
+      const name = escapeHtml(p.displayName || p.handle || did);
+      const url = p.handle
+        ? `https://bsky.app/profile/${encodeURIComponent(p.handle)}`
+        : '#';
+      const avatar = p.avatar || '';
+
+      return `<div class="result-row">
+        ${avatar
+          ? `<img class="pfp" src="${escapeHtml(avatar)}" alt="" loading="lazy">`
+          : `<div class="pfp"></div>`}
+        <div class="result-info">
+          <a class="result-handle" href="${url}" target="_blank" rel="noopener">@${handle}</a>
+          <div class="result-name">${name}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // --- Main ---
+
+  document.getElementById('handleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const raw = document.getElementById('handleInput').value.trim().replace(/^@/, '');
+    if (!raw) return;
+
+    const loadBtn = document.getElementById('loadBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const status = document.getElementById('status');
+    const graphStats = document.getElementById('graphStats');
+    const resultsHeader = document.getElementById('resultsHeader');
+    const results = document.getElementById('results');
+
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'scanning\u2026';
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    status.classList.remove('hidden', 'error');
+    status.textContent = 'resolving handle\u2026';
+    graphStats.classList.add('hidden');
+    resultsHeader.classList.add('hidden');
+    results.innerHTML = '';
+
+    const pageUrl = new URL(window.location);
+    pageUrl.searchParams.set('handle', raw);
+    window.history.replaceState({}, '', pageUrl);
+
+    try {
+      const did = await resolveHandle(raw);
+
+      // Get my follows
+      status.textContent = 'fetching your follows\u2026';
+      const myFollows = await getAllFollows(did, (n) => {
+        status.textContent = `fetching your follows\u2026 ${n}`;
+      });
+
+      const myFollowDids = new Set(myFollows.map(f => f.did));
+      const profileMap = new Map();
+      for (const f of myFollows) profileMap.set(f.did, f);
+
+      // Build directed adjacency: for each follow, which of my other follows do they follow?
+      const directed = new Map();
+      let scanned = 0;
+
+      await mapConcurrent(myFollows, 5, async (follow) => {
+        try {
+          const theirFollows = await getAllFollows(follow.did);
+          const overlap = new Set();
+          for (const f of theirFollows) {
+            if (myFollowDids.has(f.did) && f.did !== follow.did) {
+              overlap.add(f.did);
+            }
+          }
+          directed.set(follow.did, overlap);
+        } catch {
+          directed.set(follow.did, new Set());
+        }
+        scanned++;
+        status.textContent = `scanning follows\u2026 ${scanned}/${myFollows.length}`;
+        progressFill.style.width = (scanned / myFollows.length * 100) + '%';
+      });
+
+      // Build mutual adjacency (edge only if both directions exist)
+      status.textContent = 'building mutual graph\u2026';
+      const mutual = new Map();
+      let mutualEdges = 0;
+      for (const [a, aFollows] of directed) {
+        const m = new Set();
+        for (const b of aFollows) {
+          if (directed.get(b)?.has(a)) m.add(b);
+        }
+        if (m.size > 0) mutual.set(a, m);
+        mutualEdges += m.size;
+      }
+      mutualEdges /= 2; // each edge counted twice
+
+      const mutualNodes = [...mutual.keys()];
+
+      // Show graph stats
+      graphStats.innerHTML =
+        `${myFollows.length} follows \u2192 ${mutualNodes.length} with mutual connections \u2192 ${Math.round(mutualEdges)} mutual edges`;
+      graphStats.classList.remove('hidden');
+
+      // Find maximum clique
+      status.textContent = 'computing largest clique\u2026';
+      progressFill.style.width = '100%';
+
+      // Yield to UI before heavy computation
+      await new Promise(r => setTimeout(r, 50));
+
+      const { clique, exhaustive } = findMaxClique(mutual, mutualNodes);
+
+      status.textContent = exhaustive
+        ? `done \u00b7 clique of ${clique.length} found`
+        : `done \u00b7 best clique found: ${clique.length} (search limit reached)`;
+
+      renderClique(clique, profileMap);
+
+    } catch (err) {
+      status.textContent = `error: ${err.message}`;
+      status.classList.add('error');
+      progressFill.style.width = '0%';
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = 'cluster';
+    }
+  });
+
+  // Auto-load from URL
+  const h = new URLSearchParams(location.search).get('handle');
+  if (h) {
+    document.getElementById('handleInput').value = h;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+</body>
+</html>
