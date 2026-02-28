@@ -265,7 +265,7 @@ h1 a:hover { color: var(--text); }
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .auth-form input {
@@ -286,14 +286,75 @@ h1 a:hover { color: var(--text); }
 .auth-form input[type="text"] { flex: 1; min-width: 140px; }
 .auth-form input[type="password"] { flex: 1; min-width: 140px; }
 
-.publish-status {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-top: 0.75rem;
+.publish-card {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
 }
 
-.publish-status.error {
+.publish-card:last-child { border-bottom: none; }
+
+.publish-card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.publish-card-label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  min-width: 5rem;
+}
+
+.publish-select {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  flex: 1;
+  min-width: 120px;
+}
+
+.publish-select:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.publish-card-btn {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 1rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.publish-card-btn:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.publish-card-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.publish-card-status {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+
+.publish-card-status.error {
   color: var(--link);
 }
 
@@ -358,17 +419,17 @@ footer a:hover {
 </div>
 
 <div id="publishSection" class="publish-section hidden">
-  <div class="section-header">publish as list</div>
+  <div class="section-header">publish as lists</div>
   <p class="publish-desc">
-    Save this cluster to your Bluesky account as a curated list.
+    Save clusters to your Bluesky account as curated lists.
+    Control shell depth per cluster&mdash;tight core or wide orbit.
     Requires an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
   </p>
-  <form class="auth-form" id="publishForm">
+  <div class="auth-form" id="authForm">
     <input type="text" id="authHandle" placeholder="your-handle.bsky.social" autocomplete="username">
     <input type="password" id="authPassword" placeholder="app password" autocomplete="current-password">
-    <button type="submit" id="publishBtn">publish</button>
-  </form>
-  <div class="publish-status hidden" id="publishStatus"></div>
+  </div>
+  <div id="publishCards"></div>
 </div>
 
 <footer>
@@ -384,7 +445,7 @@ footer a:hover {
   const MAX_GRAPH_NODES = 150;
 
   // --- State ---
-  let publishMembers = [];
+  let currentCliques = [];
   let currentProfileMap = new Map();
 
   // --- Identity resolution ---
@@ -1036,8 +1097,7 @@ footer a:hover {
     createForceGraph(document.getElementById('graphContainer'),
       cliques, bridges, hasEdge, currentProfileMap);
 
-    publishMembers = [...coreDids];
-    for (const sh of shells) for (const m of sh.members) publishMembers.push(m.did);
+    currentCliques = cliques;
 
     document.getElementById('rescanOffer').classList.remove('hidden');
     return true;
@@ -1163,31 +1223,160 @@ footer a:hover {
     createForceGraph(document.getElementById('graphContainer'),
       cliques, bridges, hasEdge, currentProfileMap);
 
-    // Publish members: gold core + gold shells (primary cluster)
-    publishMembers = [];
-    for (const c of cliques) {
-      for (const did of c.core) publishMembers.push(did);
-      for (const sh of c.shells) for (const m of sh.members) publishMembers.push(m.did);
-    }
-    // Deduplicate (bridges may appear in multiple shells)
-    publishMembers = [...new Set(publishMembers)];
+    currentCliques = cliques;
   }
 
-  // --- Publish as list ---
+  // --- Publish UI builder ---
 
-  document.getElementById('publishForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // Precompute cumulative DID lists at each shell depth for a clique
+  function cliqueSlices(c) {
+    const slices = []; // [{label, count, dids}]
+    let dids = [...c.core];
+    slices.push({ label: `core only \u00b7 ${dids.length}`, count: dids.length, dids: [...dids] });
+    for (let i = 0; i < c.shells.length; i++) {
+      for (const m of c.shells[i].members) dids.push(m.did);
+      const shellLabel = c.shells.length === 1
+        ? `+ shell \u00b7 ${dids.length}`
+        : `+ shells 1\u2013${i + 1} \u00b7 ${dids.length}`;
+      slices.push({ label: shellLabel, count: dids.length, dids: [...dids] });
+    }
+    return slices;
+  }
+
+  function buildPublishUI(cliques) {
+    const container = document.getElementById('publishCards');
+    container.innerHTML = '';
+    const active = cliques.filter(c => c.core.length > 0);
+    if (active.length === 0) return;
+    const multi = active.length > 1;
+
+    // Per-clique cards
+    for (const c of active) {
+      const slices = cliqueSlices(c);
+      const card = document.createElement('div');
+      card.className = 'publish-card';
+
+      const row = document.createElement('div');
+      row.className = 'publish-card-row';
+
+      const label = document.createElement('span');
+      label.className = 'publish-card-label';
+      label.textContent = multi ? c.label : 'cluster';
+
+      const select = document.createElement('select');
+      select.className = 'publish-select';
+      for (let si = 0; si < slices.length; si++) {
+        const opt = document.createElement('option');
+        opt.value = si;
+        opt.textContent = slices[si].label;
+        if (si === slices.length - 1) opt.selected = true;
+        select.appendChild(opt);
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'publish-card-btn';
+      btn.textContent = 'publish';
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'publish-card-status hidden';
+
+      row.append(label, select, btn);
+      card.append(row, statusEl);
+      container.appendChild(card);
+
+      btn.addEventListener('click', () => {
+        const idx = parseInt(select.value);
+        const dids = slices[idx].dids;
+        const name = multi
+          ? `${c.label[0].toUpperCase() + c.label.slice(1)} Cluster (${dids.length})`
+          : `Cluster (${dids.length})`;
+        publishList(dids, name, btn, statusEl);
+      });
+    }
+
+    // "All clusters" card if multiple cliques
+    if (multi) {
+      const maxDepth = Math.max(...active.map(c => c.shells.length));
+      const allSlices = [];
+
+      // Depth 0 = cores only
+      let coreAll = [];
+      for (const c of active) coreAll.push(...c.core);
+      coreAll = [...new Set(coreAll)];
+      allSlices.push({ label: `cores only \u00b7 ${coreAll.length}`, dids: coreAll });
+
+      // Depth 1..maxDepth
+      for (let d = 0; d < maxDepth; d++) {
+        let dids = [];
+        for (const c of active) {
+          dids.push(...c.core);
+          for (let si = 0; si <= d && si < c.shells.length; si++) {
+            for (const m of c.shells[si].members) dids.push(m.did);
+          }
+        }
+        dids = [...new Set(dids)];
+        const shellLabel = maxDepth === 1
+          ? `+ all shells \u00b7 ${dids.length}`
+          : `+ shells 1\u2013${d + 1} \u00b7 ${dids.length}`;
+        allSlices.push({ label: shellLabel, dids });
+      }
+
+      const card = document.createElement('div');
+      card.className = 'publish-card';
+
+      const row = document.createElement('div');
+      row.className = 'publish-card-row';
+
+      const label = document.createElement('span');
+      label.className = 'publish-card-label';
+      label.textContent = 'all';
+
+      const select = document.createElement('select');
+      select.className = 'publish-select';
+      for (let si = 0; si < allSlices.length; si++) {
+        const opt = document.createElement('option');
+        opt.value = si;
+        opt.textContent = allSlices[si].label;
+        if (si === allSlices.length - 1) opt.selected = true;
+        select.appendChild(opt);
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'publish-card-btn';
+      btn.textContent = 'publish';
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'publish-card-status hidden';
+
+      row.append(label, select, btn);
+      card.append(row, statusEl);
+      container.appendChild(card);
+
+      btn.addEventListener('click', () => {
+        const idx = parseInt(select.value);
+        const dids = allSlices[idx].dids;
+        publishList(dids, `All Clusters (${dids.length})`, btn, statusEl);
+      });
+    }
+  }
+
+  // --- Publish a list ---
+
+  async function publishList(dids, listName, btn, statusEl) {
     const authHandle = document.getElementById('authHandle').value.trim().replace(/^@/, '');
     const authPassword = document.getElementById('authPassword').value;
-    const publishBtn = document.getElementById('publishBtn');
-    const publishStatus = document.getElementById('publishStatus');
 
-    if (!authHandle || !authPassword) return;
+    if (!authHandle || !authPassword) {
+      statusEl.textContent = 'enter handle + app password above';
+      statusEl.classList.remove('hidden');
+      statusEl.classList.add('error');
+      return;
+    }
 
-    publishBtn.disabled = true;
-    publishBtn.textContent = 'publishing\u2026';
-    publishStatus.classList.remove('hidden', 'error');
-    publishStatus.textContent = 'authenticating\u2026';
+    btn.disabled = true;
+    btn.textContent = 'publishing\u2026';
+    statusEl.classList.remove('hidden', 'error');
+    statusEl.textContent = 'authenticating\u2026';
 
     try {
       const did = await resolveHandle(authHandle);
@@ -1206,9 +1395,7 @@ footer a:hover {
       const token = session.accessJwt;
       const repoDid = session.did;
 
-      document.getElementById('authPassword').value = '';
-
-      publishStatus.textContent = 'creating list\u2026';
+      statusEl.textContent = 'creating list\u2026';
       const listRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
         method: 'POST',
         headers: {
@@ -1221,7 +1408,7 @@ footer a:hover {
           record: {
             $type: 'app.bsky.graph.list',
             purpose: 'app.bsky.graph.defs#curatelist',
-            name: `Cluster (${publishMembers.length})`,
+            name: listName,
             description: `Mutual-follow cluster with shells, found by mino.mobi/cluster`,
             createdAt: new Date().toISOString()
           }
@@ -1230,8 +1417,8 @@ footer a:hover {
       if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status})`);
       const { uri: listUri } = await listRes.json();
 
-      for (let i = 0; i < publishMembers.length; i++) {
-        publishStatus.textContent = `adding members\u2026 ${i + 1}/${publishMembers.length}`;
+      for (let i = 0; i < dids.length; i++) {
+        statusEl.textContent = `adding members\u2026 ${i + 1}/${dids.length}`;
         await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
           method: 'POST',
           headers: {
@@ -1243,7 +1430,7 @@ footer a:hover {
             collection: 'app.bsky.graph.listitem',
             record: {
               $type: 'app.bsky.graph.listitem',
-              subject: publishMembers[i],
+              subject: dids[i],
               list: listUri,
               createdAt: new Date().toISOString()
             }
@@ -1253,16 +1440,16 @@ footer a:hover {
 
       const rkey = listUri.split('/').pop();
       const listUrl = `https://bsky.app/profile/${encodeURIComponent(authHandle)}/lists/${rkey}`;
-      publishStatus.innerHTML = `done \u00b7 ${publishMembers.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
+      statusEl.innerHTML = `done \u00b7 ${dids.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
 
     } catch (err) {
-      publishStatus.textContent = `error: ${err.message}`;
-      publishStatus.classList.add('error');
+      statusEl.textContent = `error: ${err.message}`;
+      statusEl.classList.add('error');
     } finally {
-      publishBtn.disabled = false;
-      publishBtn.textContent = 'publish';
+      btn.disabled = false;
+      btn.textContent = 'publish';
     }
-  });
+  }
 
   // --- Main ---
 
@@ -1309,10 +1496,10 @@ footer a:hover {
         await fullPath(did, status, progressFill, graphStats);
       }
 
-      if (publishMembers.length > 0) {
+      if (currentCliques.some(c => c.core.length > 0)) {
         document.getElementById('authHandle').value = raw;
         document.getElementById('publishSection').classList.remove('hidden');
-        document.getElementById('publishStatus').classList.add('hidden');
+        buildPublishUI(currentCliques);
       }
 
     } catch (err) {
