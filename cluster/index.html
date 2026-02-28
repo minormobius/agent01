@@ -223,6 +223,17 @@ h1 a:hover { color: var(--text); }
   font-style: italic;
 }
 
+#graphContainer {
+  margin-top: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#graphContainer canvas {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--rule);
+}
+
 .publish-section {
   margin-top: 3rem;
   padding-top: 2rem;
@@ -293,12 +304,6 @@ h1 a:hover { color: var(--text); }
   color: var(--muted);
 }
 
-hr {
-  border: none;
-  border-top: 1px solid var(--rule);
-  margin: 3rem 0;
-}
-
 footer {
   margin-top: 4rem;
   font-family: var(--mono);
@@ -323,13 +328,12 @@ footer a:hover {
 
 <h1><a href="/">mino.mobi</a> / cluster</h1>
 
-<p class="subtitle">Find your tightest circle.</p>
+<p class="subtitle">Find your tightest circles.</p>
 
 <p class="desc">
-  Enter your Bluesky handle to find the largest group of your follows
-  who all mutually follow each other&mdash;every node connected to every
-  other node. If you&rsquo;ve published a cluster list before, the shells
-  expand from it cheaply.
+  Enter your Bluesky handle to find the largest groups of your follows
+  who all mutually follow each other. Gold, silver, bronze&mdash;then
+  shells peeling outward from each until they meld.
 </p>
 
 <form class="handle-form" id="handleForm">
@@ -343,11 +347,14 @@ footer a:hover {
 
 <div class="status-line hidden" id="status"></div>
 <div class="graph-stats hidden" id="graphStats"></div>
+
+<div id="graphContainer" class="hidden"></div>
+
 <div id="results"></div>
 
 <div id="rescanOffer" class="rescan-offer hidden">
   <button class="rescan-btn" id="rescanBtn">full rescan</button>
-  &mdash; recompute the clique from scratch (slower)
+  &mdash; recompute cliques from scratch (slower)
 </div>
 
 <div id="publishSection" class="publish-section hidden">
@@ -372,8 +379,11 @@ footer a:hover {
 <script>
 (function () {
   const PUBLIC_API = 'https://public.api.bsky.app';
+  const COLORS = { gold: '#daa520', silver: '#8898a8', bronze: '#b87333' };
+  const MIN_CLIQUE = 5;
+  const MAX_GRAPH_NODES = 150;
 
-  // --- Module state ---
+  // --- State ---
   let publishMembers = [];
   let currentProfileMap = new Map();
 
@@ -448,20 +458,22 @@ footer a:hover {
     await Promise.all(Array.from({ length: concurrency }, () => worker()));
   }
 
-  // --- List detection ---
+  // --- List detection (uses AppView endpoint, not com.atproto) ---
 
-  async function findClusterList(did) {
+  async function findClusterList(actor) {
     try {
-      const params = new URLSearchParams({
-        repo: did, collection: 'app.bsky.graph.list', limit: '100'
-      });
-      const data = await fetchJSON(
-        `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`
-      );
-      let best = null;
-      for (const r of (data.records || [])) {
-        if (r.value?.description?.includes('mino.mobi/cluster')) best = r.uri;
-      }
+      let cursor, best = null;
+      do {
+        const params = new URLSearchParams({ actor, limit: '100' });
+        if (cursor) params.set('cursor', cursor);
+        const data = await fetchJSON(
+          `${PUBLIC_API}/xrpc/app.bsky.graph.getLists?${params}`
+        );
+        for (const list of (data.lists || [])) {
+          if (list.description?.includes('mino.mobi/cluster')) best = list.uri;
+        }
+        cursor = data.cursor;
+      } while (cursor);
       return best;
     } catch { return null; }
   }
@@ -539,6 +551,58 @@ footer a:hover {
     return { clique: best, exhaustive: ops <= LIMIT };
   }
 
+  // --- Shell peeling from a clique using a mutual adjacency map ---
+
+  function shellPeel(coreDids, mutual, minThreshold) {
+    const coreSet = new Set(coreDids);
+    const coreSize = coreDids.length;
+    const shells = [];
+    const assigned = new Set(coreDids);
+    const floor = Math.max(minThreshold, Math.ceil(coreSize / 2));
+
+    for (let t = coreSize - 1; t >= floor; t--) {
+      const layer = [];
+      for (const [node, neighbors] of mutual) {
+        if (assigned.has(node)) continue;
+        let count = 0;
+        for (const c of coreDids) if (neighbors.has(c)) count++;
+        if (count >= t) layer.push({ did: node, count });
+      }
+      if (layer.length === 0) continue;
+      layer.sort((a, b) => b.count - a.count);
+      for (const m of layer) assigned.add(m.did);
+      shells.push({ threshold: t, members: layer });
+    }
+    return shells;
+  }
+
+  // --- Bridge detection: nodes appearing in multiple cliques' shells ---
+
+  function detectBridges(cliques) {
+    const seen = new Map(); // did → first clique label
+    const bridges = new Map(); // did → Set of clique labels
+    for (const c of cliques) {
+      const label = c.label;
+      for (const did of c.core) {
+        if (seen.has(did) && seen.get(did) !== label) {
+          if (!bridges.has(did)) bridges.set(did, new Set([seen.get(did)]));
+          bridges.get(did).add(label);
+        }
+        if (!seen.has(did)) seen.set(did, label);
+      }
+      for (const sh of c.shells) {
+        for (const m of sh.members) {
+          if (seen.has(m.did) && seen.get(m.did) !== label) {
+            if (!bridges.has(m.did)) bridges.set(m.did, new Set([seen.get(m.did)]));
+            bridges.get(m.did).add(label);
+          }
+          if (!seen.has(m.did)) seen.set(m.did, label);
+        }
+      }
+    }
+    return bridges;
+  }
+
   // --- Rendering ---
 
   function escapeHtml(str) {
@@ -568,37 +632,315 @@ footer a:hover {
     </div>`;
   }
 
-  function renderShells(coreDids, coreSize, shells, profileMap) {
+  function renderResults(cliques, bridges, profileMap) {
     const results = document.getElementById('results');
+    const multi = cliques.filter(c => c.core.length > 0).length > 1;
     let html = '';
 
-    // Core
-    html += `<div class="section-header">core \u00b7 ${coreDids.length} people</div>`;
-    html += coreDids.map(did => renderPersonRow(did, profileMap)).join('');
+    for (const c of cliques) {
+      if (c.core.length === 0) continue;
+      const prefix = multi ? `${c.label} ` : '';
+      const coreSize = c.core.length;
 
-    // Shells
-    for (let i = 0; i < shells.length; i++) {
-      const sh = shells[i];
+      // Core
       html += `<div class="shell-section">`;
-      html += `<div class="section-header">shell ${i + 1} \u00b7 ${sh.members.length} people \u00b7 ${sh.threshold}/${coreSize} mutual</div>`;
-      html += sh.members.map(m =>
-        renderPersonRow(m.did, profileMap, `${m.count}/${coreSize}`)
-      ).join('');
+      html += `<div class="section-header">${prefix}core \u00b7 ${coreSize} people</div>`;
+      html += c.core.map(did => {
+        const b = bridges.get(did);
+        const tag = b ? ` \u00b7 also ${[...b].filter(l => l !== c.label).join(', ')}` : '';
+        return renderPersonRow(did, profileMap, tag || '');
+      }).join('');
       html += `</div>`;
+
+      // Shells
+      for (let i = 0; i < c.shells.length; i++) {
+        const sh = c.shells[i];
+        const shellLabel = multi ? `${c.label} shell ${i + 1}` : `shell ${i + 1}`;
+        html += `<div class="shell-section">`;
+        html += `<div class="section-header">${shellLabel} \u00b7 ${sh.members.length} people \u00b7 ${sh.threshold}/${coreSize} mutual</div>`;
+        html += sh.members.map(m => {
+          const b = bridges.get(m.did);
+          const tag = b ? `also ${[...b].filter(l => l !== c.label).join(', ')}` : '';
+          const meta = `${m.count}/${coreSize}${tag ? '<br>' + tag : ''}`;
+          return renderPersonRow(m.did, profileMap, meta);
+        }).join('');
+        html += `</div>`;
+      }
     }
 
-    if (coreDids.length === 0) {
+    if (html === '') {
       html = '<div class="empty-state">No mutual clique found among your follows.</div>';
     }
 
     results.innerHTML = html;
   }
 
+  // --- Force-directed graph ---
+
+  function createForceGraph(container, cliques, bridges, hasEdge, profileMap) {
+    container.innerHTML = '';
+    container.classList.remove('hidden');
+
+    // Collect displayed nodes
+    const nodes = [];
+    const nodeIndex = new Map();
+    const addedDids = new Set();
+
+    for (const c of cliques) {
+      if (c.core.length === 0) continue;
+      for (const did of c.core) {
+        if (addedDids.has(did)) continue;
+        addedDids.add(did);
+        nodeIndex.set(did, nodes.length);
+        nodes.push({ id: did, clique: c.label, layer: 0 });
+      }
+      for (let si = 0; si < c.shells.length; si++) {
+        for (const m of c.shells[si].members) {
+          if (addedDids.has(m.did)) continue;
+          addedDids.add(m.did);
+          nodeIndex.set(m.did, nodes.length);
+          nodes.push({ id: m.did, clique: c.label, layer: si + 1 });
+        }
+        if (nodes.length >= MAX_GRAPH_NODES) break;
+      }
+      if (nodes.length >= MAX_GRAPH_NODES) break;
+    }
+
+    if (nodes.length < 3) { container.classList.add('hidden'); return; }
+
+    // Build edges
+    const edges = [];
+    const dids = nodes.map(n => n.id);
+    for (let i = 0; i < dids.length; i++) {
+      for (let j = i + 1; j < dids.length; j++) {
+        if (hasEdge(dids[i], dids[j])) edges.push([i, j]);
+      }
+    }
+
+    // Canvas setup
+    const canvas = document.createElement('canvas');
+    const w = container.clientWidth || 720;
+    const h = Math.round(w * 0.6);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    container.appendChild(canvas);
+
+    // Read theme colors
+    const cs = getComputedStyle(document.documentElement);
+    const bgColor = cs.getPropertyValue('--bg').trim();
+    const textColor = cs.getPropertyValue('--text').trim();
+    const ruleColor = cs.getPropertyValue('--rule').trim();
+    const monoFont = cs.getPropertyValue('--mono').trim();
+
+    // Assign node visual properties
+    const activeCliques = [...new Set(cliques.filter(c => c.core.length > 0).map(c => c.label))];
+    const offsets = {};
+    if (activeCliques.length === 1) {
+      offsets[activeCliques[0]] = { x: 0, y: 0 };
+    } else {
+      const step = (Math.PI * 2) / activeCliques.length;
+      activeCliques.forEach((label, i) => {
+        offsets[label] = {
+          x: Math.cos(i * step - Math.PI / 2) * 0.2,
+          y: Math.sin(i * step - Math.PI / 2) * 0.2
+        };
+      });
+    }
+
+    for (const node of nodes) {
+      const off = offsets[node.clique] || { x: 0, y: 0 };
+      node.x = w * (0.5 + off.x) + (Math.random() - 0.5) * 80;
+      node.y = h * (0.5 + off.y) + (Math.random() - 0.5) * 80;
+      node.vx = 0;
+      node.vy = 0;
+      node.radius = Math.max(3, 5.5 - node.layer * 0.7);
+      const base = COLORS[node.clique] || COLORS.gold;
+      const alpha = Math.max(0.45, 0.9 - node.layer * 0.15);
+      node.color = base;
+      node.alpha = alpha;
+      node.isBridge = bridges.has(node.id);
+    }
+
+    // Precompute edge lookup for same-clique attraction boost
+    const edgeSet = new Set();
+    for (const [i, j] of edges) edgeSet.add(`${i}:${j}`);
+
+    // Simulation
+    let hoveredNode = null;
+    let running = true;
+    let ticks = 0;
+
+    function tick() {
+      // Center gravity
+      for (const node of nodes) {
+        node.vx += (w / 2 - node.x) * 0.0008;
+        node.vy += (h / 2 - node.y) * 0.0008;
+      }
+
+      // Repulsion
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          let dx = b.x - a.x, dy = b.y - a.y;
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+          const force = 600 / (dist * dist);
+          const fx = force * dx / dist, fy = force * dy / dist;
+          a.vx -= fx; a.vy -= fy;
+          b.vx += fx; b.vy += fy;
+        }
+      }
+
+      // Edge attraction
+      for (const [i, j] of edges) {
+        const s = nodes[i], t = nodes[j];
+        const dx = t.x - s.x, dy = t.y - s.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1) continue;
+        const force = (dist - 50) * 0.004;
+        const fx = force * dx / dist, fy = force * dy / dist;
+        s.vx += fx; s.vy += fy;
+        t.vx -= fx; t.vy -= fy;
+      }
+
+      // Same-clique cohesion (gentle)
+      if (activeCliques.length > 1) {
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            if (nodes[i].clique !== nodes[j].clique) continue;
+            const dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 1) continue;
+            const force = dist * 0.0003;
+            const fx = force * dx / dist, fy = force * dy / dist;
+            nodes[i].vx += fx; nodes[i].vy += fy;
+            nodes[j].vx -= fx; nodes[j].vy -= fy;
+          }
+        }
+      }
+
+      // Update positions
+      let energy = 0;
+      for (const node of nodes) {
+        node.vx *= 0.85;
+        node.vy *= 0.85;
+        node.x += node.vx;
+        node.y += node.vy;
+        node.x = Math.max(16, Math.min(w - 16, node.x));
+        node.y = Math.max(16, Math.min(h - 16, node.y));
+        energy += node.vx * node.vx + node.vy * node.vy;
+      }
+
+      ticks++;
+      return energy;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+
+      // Edges
+      ctx.strokeStyle = ruleColor;
+      ctx.lineWidth = 0.5;
+      ctx.globalAlpha = 0.1;
+      for (const [i, j] of edges) {
+        ctx.beginPath();
+        ctx.moveTo(nodes[i].x, nodes[i].y);
+        ctx.lineTo(nodes[j].x, nodes[j].y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Nodes
+      for (const node of nodes) {
+        // Bridge ring
+        if (node.isBridge) {
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.radius + 2.5, 0, Math.PI * 2);
+          ctx.strokeStyle = textColor;
+          ctx.globalAlpha = 0.4;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.fillStyle = node.color;
+        ctx.globalAlpha = node === hoveredNode ? 1 : node.alpha;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Hovered label
+      if (hoveredNode) {
+        const p = profileMap.get(hoveredNode.id);
+        const label = '@' + (p?.handle || hoveredNode.id.slice(0, 16));
+        ctx.font = `11px ${monoFont}`;
+        ctx.textAlign = 'center';
+        const tw = ctx.measureText(label).width;
+        const lx = hoveredNode.x, ly = hoveredNode.y - hoveredNode.radius - 10;
+
+        ctx.fillStyle = bgColor;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(lx - tw / 2 - 4, ly - 10, tw + 8, 16);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = textColor;
+        ctx.fillText(label, lx, ly + 2);
+      }
+    }
+
+    function animate() {
+      const energy = tick();
+      draw();
+      if (energy > 0.05 && ticks < 600) {
+        requestAnimationFrame(animate);
+      } else {
+        running = false;
+        draw();
+      }
+    }
+
+    // Interaction
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (w / rect.width);
+      const my = (e.clientY - rect.top) * (h / rect.height);
+      hoveredNode = null;
+      for (const node of nodes) {
+        const dx = mx - node.x, dy = my - node.y;
+        if (dx * dx + dy * dy < (node.radius + 5) * (node.radius + 5)) {
+          hoveredNode = node;
+          break;
+        }
+      }
+      canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+      if (!running) draw();
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      hoveredNode = null;
+      if (!running) draw();
+    });
+
+    canvas.addEventListener('click', () => {
+      if (hoveredNode) {
+        const p = profileMap.get(hoveredNode.id);
+        if (p?.handle) window.open(`https://bsky.app/profile/${p.handle}`, '_blank');
+      }
+    });
+
+    animate();
+  }
+
   // --- Fast path: shell peel from existing cluster list ---
 
-  async function fastPath(did, status, progressFill, graphStats) {
+  async function fastPath(did, raw, status, progressFill, graphStats) {
     status.textContent = 'checking for cluster list\u2026';
-    const listUri = await findClusterList(did);
+    const listUri = await findClusterList(raw);
     if (!listUri) return false;
 
     status.textContent = 'loading cluster list\u2026';
@@ -612,17 +954,17 @@ footer a:hover {
     for (const m of members) currentProfileMap.set(m.did, m);
 
     // Phase 1: fetch follows for each core member
-    const memberFollows = new Map();
+    const allFollows = new Map();
     let scanned = 0;
     await mapConcurrent(members, 5, async (member) => {
       try {
         const follows = await getAllFollows(member.did);
-        memberFollows.set(member.did, new Set(follows.map(f => f.did)));
+        allFollows.set(member.did, new Set(follows.map(f => f.did)));
         for (const f of follows) {
           if (!currentProfileMap.has(f.did)) currentProfileMap.set(f.did, f);
         }
       } catch {
-        memberFollows.set(member.did, new Set());
+        allFollows.set(member.did, new Set());
       }
       scanned++;
       status.textContent = `scanning core follows\u2026 ${scanned}/${coreSize}`;
@@ -631,30 +973,28 @@ footer a:hover {
 
     // Count: for each non-member, how many core members follow them
     const followedBy = new Map();
-    for (const [, follows] of memberFollows) {
+    for (const [, follows] of allFollows) {
       for (const d of follows) {
         if (coreSet.has(d)) continue;
         followedBy.set(d, (followedBy.get(d) || 0) + 1);
       }
     }
 
-    // Filter candidates worth verifying
-    const minThreshold = Math.max(5, Math.ceil(coreSize / 2));
+    const minThreshold = Math.max(MIN_CLIQUE, Math.ceil(coreSize / 2));
     const candidateDids = [...followedBy.entries()]
       .filter(([, count]) => count >= minThreshold)
       .sort((a, b) => b[1] - a[1])
       .map(([d]) => d);
 
-    // Phase 2: fetch candidates' follows for reciprocity check
-    const candidateFollows = new Map();
+    // Phase 2: fetch candidates' follows for reciprocity
     let verified = 0;
     if (candidateDids.length > 0) {
       await mapConcurrent(candidateDids, 5, async (d) => {
         try {
           const follows = await getAllFollows(d);
-          candidateFollows.set(d, new Set(follows.map(f => f.did)));
+          allFollows.set(d, new Set(follows.map(f => f.did)));
         } catch {
-          candidateFollows.set(d, new Set());
+          allFollows.set(d, new Set());
         }
         verified++;
         status.textContent = `verifying candidates\u2026 ${verified}/${candidateDids.length}`;
@@ -662,31 +1002,24 @@ footer a:hover {
       });
     }
 
-    // Compute mutual counts
-    const mutualCounts = new Map();
-    for (const candidateDid of candidateDids) {
-      const theirFollows = candidateFollows.get(candidateDid) || new Set();
-      let count = 0;
-      for (const [memberDid, memberFollowSet] of memberFollows) {
-        if (memberFollowSet.has(candidateDid) && theirFollows.has(memberDid)) count++;
+    // Build mutual adjacency from collected follow data for shell peeling
+    const displayPool = new Set([...coreDids, ...candidateDids]);
+    const mutual = new Map();
+    for (const a of displayPool) {
+      const aF = allFollows.get(a);
+      if (!aF) continue;
+      const m = new Set();
+      for (const b of displayPool) {
+        if (b === a) continue;
+        if (aF.has(b) && allFollows.get(b)?.has(a)) m.add(b);
       }
-      if (count >= minThreshold) mutualCounts.set(candidateDid, count);
+      if (m.size > 0) mutual.set(a, m);
     }
 
-    // Shell peel
-    const shells = [];
-    const assigned = new Set(coreSet);
-    for (let t = coreSize - 1; t >= minThreshold; t--) {
-      const layer = [];
-      for (const [d, count] of mutualCounts) {
-        if (assigned.has(d)) continue;
-        if (count >= t) layer.push({ did: d, count });
-      }
-      if (layer.length === 0) continue;
-      layer.sort((a, b) => b.count - a.count);
-      for (const m of layer) assigned.add(m.did);
-      shells.push({ threshold: t, members: layer });
-    }
+    const shells = shellPeel(coreDids, mutual, MIN_CLIQUE);
+
+    const cliques = [{ label: 'gold', core: coreDids, shells }];
+    const bridges = detectBridges(cliques);
 
     // Stats
     const totalShell = shells.reduce((s, sh) => s + sh.members.length, 0);
@@ -696,7 +1029,12 @@ footer a:hover {
     status.textContent = `done \u00b7 ${coreSize} core + ${totalShell} in ${shells.length} shells`;
     progressFill.style.width = '100%';
 
-    renderShells(coreDids, coreSize, shells, currentProfileMap);
+    // Render
+    renderResults(cliques, bridges, currentProfileMap);
+
+    const hasEdge = (a, b) => mutual.get(a)?.has(b) || false;
+    createForceGraph(document.getElementById('graphContainer'),
+      cliques, bridges, hasEdge, currentProfileMap);
 
     publishMembers = [...coreDids];
     for (const sh of shells) for (const m of sh.members) publishMembers.push(m.did);
@@ -705,7 +1043,7 @@ footer a:hover {
     return true;
   }
 
-  // --- Full path: scan all follows, find clique, shell peel ---
+  // --- Full path: scan all follows, multi-clique, shell peel ---
 
   async function fullPath(did, status, progressFill, graphStats) {
     status.textContent = 'fetching your follows\u2026';
@@ -755,43 +1093,84 @@ footer a:hover {
       `${myFollows.length} follows \u2192 ${mutualNodes.length} with mutual connections \u2192 ${Math.round(mutualEdges)} mutual edges`;
     graphStats.classList.remove('hidden');
 
-    // Find maximum clique
-    status.textContent = 'computing largest clique\u2026';
+    // --- Find gold / silver / bronze cliques ---
+    status.textContent = 'computing gold clique\u2026';
     progressFill.style.width = '100%';
     await new Promise(r => setTimeout(r, 50));
 
-    const { clique, exhaustive } = findMaxClique(mutual, mutualNodes);
-    const cliqueSet = new Set(clique);
-    const coreSize = clique.length;
+    const gold = findMaxClique(mutual, mutualNodes);
+    const goldSet = new Set(gold.clique);
 
-    // Shell peel from clique
-    const shells = [];
-    if (coreSize > 0) {
-      const assigned = new Set(clique);
-      const minThreshold = Math.max(5, Math.ceil(coreSize / 2));
-      for (let t = coreSize - 1; t >= minThreshold; t--) {
-        const layer = [];
-        for (const [node, neighbors] of mutual) {
-          if (assigned.has(node)) continue;
-          const count = [...cliqueSet].filter(c => neighbors.has(c)).length;
-          if (count >= t) layer.push({ did: node, count });
-        }
-        if (layer.length === 0) continue;
-        layer.sort((a, b) => b.count - a.count);
-        for (const m of layer) assigned.add(m.did);
-        shells.push({ threshold: t, members: layer });
-      }
+    let silver = { clique: [], exhaustive: true };
+    let silverSet = new Set();
+    if (gold.clique.length >= MIN_CLIQUE) {
+      status.textContent = 'computing silver clique\u2026';
+      await new Promise(r => setTimeout(r, 20));
+      const silverPool = mutualNodes.filter(n => !goldSet.has(n));
+      silver = findMaxClique(mutual, silverPool);
+      silverSet = new Set(silver.clique);
     }
 
-    const totalShell = shells.reduce((s, sh) => s + sh.members.length, 0);
-    status.textContent = exhaustive
-      ? `done \u00b7 clique of ${coreSize}${totalShell > 0 ? ` + ${totalShell} in ${shells.length} shells` : ''}`
-      : `done \u00b7 best clique: ${coreSize} (search limit reached)`;
+    let bronze = { clique: [], exhaustive: true };
+    if (silver.clique.length >= MIN_CLIQUE) {
+      status.textContent = 'computing bronze clique\u2026';
+      await new Promise(r => setTimeout(r, 20));
+      const bronzePool = mutualNodes.filter(n => !goldSet.has(n) && !silverSet.has(n));
+      bronze = findMaxClique(mutual, bronzePool);
+    }
 
-    renderShells(clique, coreSize, shells, currentProfileMap);
+    // Shell peel each clique
+    status.textContent = 'peeling shells\u2026';
+    const cliques = [];
 
-    publishMembers = [...clique];
-    for (const sh of shells) for (const m of sh.members) publishMembers.push(m.did);
+    if (gold.clique.length > 0) {
+      cliques.push({
+        label: 'gold',
+        core: gold.clique,
+        shells: shellPeel(gold.clique, mutual, MIN_CLIQUE)
+      });
+    }
+    if (silver.clique.length >= MIN_CLIQUE) {
+      cliques.push({
+        label: 'silver',
+        core: silver.clique,
+        shells: shellPeel(silver.clique, mutual, MIN_CLIQUE)
+      });
+    }
+    if (bronze.clique.length >= MIN_CLIQUE) {
+      cliques.push({
+        label: 'bronze',
+        core: bronze.clique,
+        shells: shellPeel(bronze.clique, mutual, MIN_CLIQUE)
+      });
+    }
+
+    const bridges = detectBridges(cliques);
+
+    // Status summary
+    const parts = [];
+    for (const c of cliques) {
+      const shellCount = c.shells.reduce((s, sh) => s + sh.members.length, 0);
+      parts.push(`${c.label} ${c.core.length}${shellCount > 0 ? `+${shellCount}` : ''}`);
+    }
+    const bridgeCount = bridges.size;
+    status.textContent = `done \u00b7 ${parts.join(' \u00b7 ')}${bridgeCount > 0 ? ` \u00b7 ${bridgeCount} bridges` : ''}`;
+
+    // Render
+    renderResults(cliques, bridges, currentProfileMap);
+
+    const hasEdge = (a, b) => mutual.get(a)?.has(b) || false;
+    createForceGraph(document.getElementById('graphContainer'),
+      cliques, bridges, hasEdge, currentProfileMap);
+
+    // Publish members: gold core + gold shells (primary cluster)
+    publishMembers = [];
+    for (const c of cliques) {
+      for (const did of c.core) publishMembers.push(did);
+      for (const sh of c.shells) for (const m of sh.members) publishMembers.push(m.did);
+    }
+    // Deduplicate (bridges may appear in multiple shells)
+    publishMembers = [...new Set(publishMembers)];
   }
 
   // --- Publish as list ---
@@ -908,6 +1287,8 @@ footer a:hover {
     status.textContent = 'resolving handle\u2026';
     graphStats.classList.add('hidden');
     document.getElementById('results').innerHTML = '';
+    document.getElementById('graphContainer').innerHTML = '';
+    document.getElementById('graphContainer').classList.add('hidden');
     document.getElementById('publishSection').classList.add('hidden');
     document.getElementById('rescanOffer').classList.add('hidden');
 
@@ -920,7 +1301,7 @@ footer a:hover {
 
       let usedFast = false;
       if (!forceFullScan) {
-        usedFast = await fastPath(did, status, progressFill, graphStats);
+        usedFast = await fastPath(did, raw, status, progressFill, graphStats);
       }
       forceFullScan = false;
 
