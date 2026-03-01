@@ -382,6 +382,146 @@ footer a:hover {
   color: var(--text);
 }
 
+/* --- Seek --- */
+.seek-offer {
+  margin-top: 1rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.seek-btn {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.seek-btn:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.seek-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.seek-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rule);
+}
+
+.seek-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.seek-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.seek-control > label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.seek-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seek-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1px;
+  background: var(--rule);
+  outline: none;
+}
+
+.seek-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text);
+  cursor: pointer;
+}
+
+.seek-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: var(--text);
+  cursor: pointer;
+}
+
+.seek-val {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text);
+  min-width: 3rem;
+  text-align: right;
+}
+
+.seek-select {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  width: 100%;
+}
+
+.seek-select:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.seek-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text);
+  cursor: pointer;
+  padding-top: 0.5rem;
+}
+
+.seek-toggle input[type="checkbox"] {
+  accent-color: var(--link);
+}
+
+.seek-meta-stats {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 480px) {
+  .seek-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .hidden { display: none !important; }
 </style>
 </head>
@@ -418,6 +558,54 @@ footer a:hover {
   &mdash; recompute cliques from scratch (slower)
 </div>
 
+<div id="seekOffer" class="seek-offer hidden">
+  <button class="seek-btn" id="seekBtn">seek</button>
+  &mdash; discover accounts your cluster follows that you don't
+</div>
+
+<div id="seekSection" class="seek-section hidden">
+  <div class="section-header">seek &middot; <span id="seekCount">0</span> accounts</div>
+  <div class="seek-controls">
+    <div class="seek-control">
+      <label>min core following</label>
+      <div class="seek-row">
+        <input type="range" class="seek-slider" id="seekMinCore" min="2" max="20" value="2">
+        <span class="seek-val" id="seekMinCoreVal">2</span>
+      </div>
+    </div>
+    <div class="seek-control">
+      <label>max follows</label>
+      <div class="seek-row">
+        <input type="range" class="seek-slider" id="seekMaxFollows" min="100" max="5000" value="2000" step="100">
+        <span class="seek-val" id="seekMaxFollowsVal">2K</span>
+      </div>
+    </div>
+    <div class="seek-control">
+      <label>min followers</label>
+      <div class="seek-row">
+        <input type="range" class="seek-slider" id="seekMinFollowers" min="0" max="1000" value="10" step="10">
+        <span class="seek-val" id="seekMinFollowersVal">10</span>
+      </div>
+    </div>
+    <div class="seek-control seek-toggle">
+      <label><input type="checkbox" id="seekActive" checked> active &le; 30d</label>
+    </div>
+    <div class="seek-control">
+      <label>sort by</label>
+      <select class="seek-select" id="seekSort">
+        <option value="core">core members</option>
+        <option value="followers">followers</option>
+        <option value="recent">recent activity</option>
+      </select>
+    </div>
+  </div>
+  <div id="seekStatus" class="status-line hidden"></div>
+  <div id="seekProgress" class="progress-track hidden">
+    <div class="progress-fill" id="seekProgressFill"></div>
+  </div>
+  <div id="seekResults"></div>
+</div>
+
 <div id="publishSection" class="publish-section hidden">
   <div class="section-header">publish as lists</div>
   <p class="publish-desc">
@@ -447,6 +635,8 @@ footer a:hover {
   // --- State ---
   let currentCliques = [];
   let currentProfileMap = new Map();
+  let seekState = null;   // { coreDids, coreFollows, myFollowDids, myDid }
+  let seekCandidates = []; // enriched candidate list
 
   // --- Worker acceleration ---
   // Pages Function at /cluster-batch — auto-deploys from functions/ dir.
@@ -1192,7 +1382,16 @@ footer a:hover {
 
     currentCliques = cliques;
 
+    // Save seek state — fastPath has core follows already
+    seekState = {
+      coreDids,
+      coreFollows: allFollows,
+      myFollowDids: null, // fetched lazily when seek activates
+      myDid: did,
+    };
+
     document.getElementById('rescanOffer').classList.remove('hidden');
+    document.getElementById('seekOffer').classList.remove('hidden');
     return true;
   }
 
@@ -1337,6 +1536,232 @@ footer a:hover {
       cliques, bridges, hasEdge, currentProfileMap);
 
     currentCliques = cliques;
+
+    // Save seek state — extract core follows from batch if available
+    const seekCoreDids = cliques.flatMap(c => c.core);
+    let seekCoreFollows = null;
+    if (batch) {
+      seekCoreFollows = new Map();
+      for (const d of seekCoreDids) {
+        seekCoreFollows.set(d, batch.follows.get(d) || new Set());
+      }
+    }
+    seekState = {
+      coreDids: seekCoreDids,
+      coreFollows: seekCoreFollows,
+      myFollowDids,
+      myDid: did,
+    };
+    document.getElementById('seekOffer').classList.remove('hidden');
+  }
+
+  // --- Seek: discover accounts your cluster follows that you don't ---
+
+  const SEEK_URL = '/seek-profiles';
+  const SEEK_BATCH = 25;
+  const SEEK_PARALLEL = 4;
+  const SEEK_MAX = 200;
+
+  function timeAgo(iso) {
+    if (!iso) return null;
+    const ms = Date.now() - new Date(iso).getTime();
+    const d = Math.floor(ms / 86400000);
+    if (d < 1) return 'today';
+    if (d === 1) return '1d';
+    if (d < 30) return d + 'd';
+    if (d < 365) return Math.floor(d / 30) + 'mo';
+    return Math.floor(d / 365) + 'y';
+  }
+
+  function fmtNum(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 10000) return Math.round(n / 1000) + 'K';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  async function runSeek() {
+    const status = document.getElementById('seekStatus');
+    const progressBar = document.getElementById('seekProgress');
+    const progressFill = document.getElementById('seekProgressFill');
+    status.classList.remove('hidden');
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '0%';
+
+    // Ensure we have the user's full follow set (fastPath doesn't have it)
+    if (!seekState.myFollowDids) {
+      status.textContent = 'fetching your follows\u2026';
+      const myFollows = await getAllFollows(seekState.myDid, (n) => {
+        status.textContent = 'fetching your follows\u2026 ' + n;
+      });
+      seekState.myFollowDids = new Set(myFollows.map(f => f.did));
+    }
+
+    // Ensure we have core members' follow sets
+    if (!seekState.coreFollows) {
+      status.textContent = 'fetching core follows\u2026';
+      const coreBatch = await batchFetchFollows(seekState.coreDids, (n) => {
+        status.textContent = 'fetching core follows\u2026 ' + n + '/' + seekState.coreDids.length;
+      });
+      seekState.coreFollows = new Map();
+      if (coreBatch) {
+        for (const did of seekState.coreDids) {
+          seekState.coreFollows.set(did, coreBatch.follows.get(did) || new Set());
+        }
+      } else {
+        await mapConcurrent(seekState.coreDids, 5, async (did) => {
+          try {
+            const follows = await getAllFollows(did);
+            seekState.coreFollows.set(did, new Set(follows.map(f => f.did)));
+          } catch {
+            seekState.coreFollows.set(did, new Set());
+          }
+        });
+      }
+    }
+
+    // Compute candidate counts: how many core members follow each non-followed account
+    status.textContent = 'computing candidates\u2026';
+    const coreSet = new Set(seekState.coreDids);
+    const candidateCounts = new Map();
+    for (const [, follows] of seekState.coreFollows) {
+      for (const d of follows) {
+        if (coreSet.has(d) || seekState.myFollowDids.has(d) || d === seekState.myDid) continue;
+        candidateCounts.set(d, (candidateCounts.get(d) || 0) + 1);
+      }
+    }
+
+    const sorted = [...candidateCounts.entries()]
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, SEEK_MAX);
+
+    if (sorted.length === 0) {
+      status.textContent = 'no candidates found';
+      progressBar.classList.add('hidden');
+      return;
+    }
+
+    // Enrich with profile + activity data via seek-profiles function
+    const enrichDids = sorted.map(([did]) => did);
+    status.textContent = 'enriching ' + enrichDids.length + ' profiles\u2026';
+
+    const enriched = new Map();
+    const batches = [];
+    for (let i = 0; i < enrichDids.length; i += SEEK_BATCH) {
+      batches.push(enrichDids.slice(i, i + SEEK_BATCH));
+    }
+    let done = 0;
+    await mapConcurrent(batches, SEEK_PARALLEL, async (batch) => {
+      try {
+        const res = await fetch(SEEK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dids: batch })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          for (const [did, profile] of Object.entries(data.profiles || {})) {
+            enriched.set(did, profile);
+          }
+        }
+      } catch { /* fall back to basic profile data */ }
+      done += batch.length;
+      progressFill.style.width = (Math.min(done, enrichDids.length) / enrichDids.length * 100) + '%';
+      status.textContent = 'enriching profiles\u2026 ' + Math.min(done, enrichDids.length) + '/' + enrichDids.length;
+    });
+
+    // Build enriched candidate list
+    const coreTotal = seekState.coreDids.length;
+    seekCandidates = sorted.map(([did, count]) => {
+      const profile = enriched.get(did) || currentProfileMap.get(did) || {};
+      return {
+        did,
+        handle: profile.handle || did,
+        displayName: profile.displayName || '',
+        avatar: profile.avatar || '',
+        coreCount: count,
+        coreTotal,
+        followersCount: profile.followersCount || 0,
+        followsCount: profile.followsCount || 0,
+        postsCount: profile.postsCount || 0,
+        lastPost: profile.lastPost || null,
+      };
+    });
+
+    status.textContent = 'done \u00b7 ' + seekCandidates.length + ' candidates enriched';
+    progressFill.style.width = '100%';
+
+    // Set slider max for core count
+    document.getElementById('seekMinCore').max = coreTotal;
+    applySeekFilters();
+  }
+
+  function applySeekFilters() {
+    const minCore = parseInt(document.getElementById('seekMinCore').value);
+    const maxFollows = parseInt(document.getElementById('seekMaxFollows').value);
+    const minFollowers = parseInt(document.getElementById('seekMinFollowers').value);
+    const activeOnly = document.getElementById('seekActive').checked;
+    const sortBy = document.getElementById('seekSort').value;
+
+    const now = Date.now();
+    const thirtyDays = 30 * 86400000;
+
+    let filtered = seekCandidates.filter(c => {
+      if (c.coreCount < minCore) return false;
+      if (c.followsCount > maxFollows) return false;
+      if (c.followersCount < minFollowers) return false;
+      if (activeOnly) {
+        if (c.lastPost) {
+          if (now - new Date(c.lastPost).getTime() > thirtyDays) return false;
+        } else if (c.postsCount === 0) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (sortBy === 'core') {
+      filtered.sort((a, b) => b.coreCount - a.coreCount || b.followersCount - a.followersCount);
+    } else if (sortBy === 'followers') {
+      filtered.sort((a, b) => b.followersCount - a.followersCount);
+    } else if (sortBy === 'recent') {
+      filtered.sort((a, b) => {
+        const aT = a.lastPost ? new Date(a.lastPost).getTime() : 0;
+        const bT = b.lastPost ? new Date(b.lastPost).getTime() : 0;
+        return bT - aT;
+      });
+    }
+
+    document.getElementById('seekCount').textContent = filtered.length;
+    renderSeekResults(filtered);
+  }
+
+  function renderSeekResults(candidates) {
+    const container = document.getElementById('seekResults');
+    if (candidates.length === 0) {
+      container.innerHTML = '<div class="empty-state">No accounts match these filters. Try adjusting the sliders.</div>';
+      return;
+    }
+    let html = '';
+    for (const c of candidates) {
+      const ago = timeAgo(c.lastPost);
+      const stats = [
+        fmtNum(c.followersCount) + ' followers',
+        fmtNum(c.followsCount) + ' follows',
+        ago,
+      ].filter(Boolean).join(' \u00b7 ');
+      html += '<div class="result-row">';
+      html += '<img class="pfp" src="' + escapeHtml(c.avatar) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+      html += '<div class="result-info">';
+      html += '<a class="result-handle" href="https://bsky.app/profile/' + escapeHtml(c.handle) + '" target="_blank" rel="noopener">@' + escapeHtml(c.handle) + '</a>';
+      html += '<div class="result-name">' + escapeHtml(c.displayName) + '</div>';
+      html += '<div class="seek-meta-stats">' + stats + '</div>';
+      html += '</div>';
+      html += '<div class="result-meta">' + c.coreCount + '/' + c.coreTotal + '</div>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
   }
 
   // --- Publish UI builder ---
@@ -1591,6 +2016,10 @@ footer a:hover {
     document.getElementById('graphContainer').classList.add('hidden');
     document.getElementById('publishSection').classList.add('hidden');
     document.getElementById('rescanOffer').classList.add('hidden');
+    document.getElementById('seekOffer').classList.add('hidden');
+    document.getElementById('seekSection').classList.add('hidden');
+    seekState = null;
+    seekCandidates = [];
 
     const pageUrl = new URL(window.location);
     pageUrl.searchParams.set('handle', raw);
@@ -1630,6 +2059,36 @@ footer a:hover {
     forceFullScan = true;
     document.getElementById('handleForm').dispatchEvent(new Event('submit'));
   });
+
+  // Seek button
+  document.getElementById('seekBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('seekBtn');
+    btn.disabled = true;
+    btn.textContent = 'seeking\u2026';
+    document.getElementById('seekSection').classList.remove('hidden');
+    try {
+      await runSeek();
+    } catch (err) {
+      const ss = document.getElementById('seekStatus');
+      ss.classList.remove('hidden');
+      ss.textContent = 'error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'seek';
+    }
+  });
+
+  // Seek filter controls
+  for (const id of ['seekMinCore', 'seekMaxFollows', 'seekMinFollowers', 'seekActive', 'seekSort']) {
+    document.getElementById(id).addEventListener('input', () => {
+      document.getElementById('seekMinCoreVal').textContent = document.getElementById('seekMinCore').value;
+      const mf = parseInt(document.getElementById('seekMaxFollows').value);
+      document.getElementById('seekMaxFollowsVal').textContent = fmtNum(mf);
+      const fr = parseInt(document.getElementById('seekMinFollowers').value);
+      document.getElementById('seekMinFollowersVal').textContent = fmtNum(fr);
+      if (seekCandidates.length > 0) applySeekFilters();
+    });
+  }
 
   // Auto-load from URL
   const h = new URLSearchParams(location.search).get('handle');
