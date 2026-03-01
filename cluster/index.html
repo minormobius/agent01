@@ -449,11 +449,11 @@ footer a:hover {
   let currentProfileMap = new Map();
 
   // --- Worker acceleration ---
-  // Deploy workers/cluster-batch/ then set this URL.
+  // Pages Function at /cluster-batch — auto-deploys from functions/ dir.
   // Falls back to direct browser fetching if unavailable.
-  const WORKER_URL = 'https://cluster-batch.minomobi.workers.dev';
-  const WORKER_BATCH = 50;   // DIDs per worker request (match worker MAX_DIDS)
-  const WORKER_PARALLEL = 5; // concurrent worker requests
+  const WORKER_URL = '/cluster-batch';
+  const WORKER_BATCH = 10;    // DIDs per request (free tier: 50 subrequest limit)
+  const WORKER_PARALLEL = 8;  // concurrent requests (more parallel, smaller batches)
   let useWorker = !!WORKER_URL;
 
   async function batchFetchFollows(dids, onProgress) {
