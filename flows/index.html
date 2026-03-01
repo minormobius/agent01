@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commodity Flow Maps — The Mino Times</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --border: #1e1e2e;
+  --text: #c8c8d0;
+  --text-dim: #6a6a7a;
+  --accent: #ff8c00;
+  --accent2: #00c8ff;
+  --danger: #ff4466;
+  --success: #44cc88;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow: hidden; }
+
+/* ── Layout ────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr 340px;
+  height: 100vh;
+}
+#header {
+  grid-column: 1 / -1;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--surface);
+}
+#map-container {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+}
+#map { width: 100%; height: 100%; }
+#sidebar {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px;
+}
+#status-bar {
+  grid-column: 1;
+  grid-row: 3;
+  padding: 6px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Header Controls ───────────────────────────────────── */
+#masthead {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+#masthead a {
+  color: var(--accent);
+  text-decoration: none;
+}
+#masthead span {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  margin-left: 8px;
+}
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ctrl-group label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+select, input[type="text"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+select:hover, input[type="text"]:hover { border-color: var(--accent); }
+select:focus, input[type="text"]:focus { outline: none; border-color: var(--accent); }
+button {
+  background: var(--border);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover { background: var(--accent); color: var(--bg); }
+button.active { background: var(--accent); color: var(--bg); }
+
+/* ── Sidebar ───────────────────────────────────────────── */
+.sidebar-section { margin-bottom: 20px; }
+.sidebar-section h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.stat-label { color: var(--text-dim); font-size: 12px; }
+.stat-value { font-family: var(--font-mono); font-weight: 600; }
+.flow-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.flow-item:hover { background: rgba(255, 140, 0, 0.05); }
+.flow-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.flow-arrow { color: var(--accent); font-size: 11px; }
+.flow-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent2);
+}
+.flow-commodity {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Legend ─────────────────────────────────────────────── */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.legend-item:hover { color: #fff; }
+.legend-item.dimmed { opacity: 0.3; }
+.legend-swatch {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Tooltip ───────────────────────────────────────────── */
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  max-width: 280px;
+  display: none;
+  z-index: 999;
+  backdrop-filter: blur(8px);
+}
+#tooltip .tt-route {
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+#tooltip .tt-value {
+  font-family: var(--font-mono);
+  color: var(--accent2);
+  font-size: 14px;
+}
+#tooltip .tt-commodity {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ── Loading Overlay ───────────────────────────────────── */
+#loading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: 14px;
+  z-index: 10;
+}
+#loading .spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Country highlight ─────────────────────────────────── */
+.country-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--border);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.country-tag .clear {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.country-tag .clear:hover { color: var(--danger); }
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr 260px auto;
+  }
+  #sidebar {
+    grid-column: 1;
+    grid-row: 3;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  #status-bar { grid-row: 4; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <div id="masthead">
+      <a href="../time/">Commodity Flow Maps</a>
+      <span>The Mino Times</span>
+    </div>
+    <div class="ctrl-group">
+      <label>Commodity</label>
+      <select id="sel-commodity">
+        <option value="all">All Biotech</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Year</label>
+      <select id="sel-year"></select>
+    </div>
+    <div class="ctrl-group">
+      <label>Reporter</label>
+      <select id="sel-reporter">
+        <option value="all">World</option>
+      </select>
+    </div>
+    <div class="ctrl-group" id="country-filter" style="display:none">
+      <span class="country-tag">
+        <span id="filter-country-name"></span>
+        <span class="clear" onclick="clearCountryFilter()">&times;</span>
+      </span>
+    </div>
+    <div style="flex:1"></div>
+    <div class="ctrl-group">
+      <button id="btn-animate" onclick="toggleAnimation()">Animate</button>
+      <button id="btn-api" onclick="showApiPanel()">Live Data</button>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="loading"><span class="spinner"></span>Initializing map...</div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-section" id="sec-overview">
+      <h3>Overview</h3>
+      <div class="stat-row">
+        <span class="stat-label">Total flows</span>
+        <span class="stat-value" id="stat-flows">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Total value</span>
+        <span class="stat-value" id="stat-value">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Countries</span>
+        <span class="stat-value" id="stat-countries">—</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3>Commodities</h3>
+      <div id="legend"></div>
+    </div>
+    <div class="sidebar-section">
+      <h3>Top Flows</h3>
+      <div id="top-flows"></div>
+    </div>
+    <div class="sidebar-section" id="sec-country" style="display:none">
+      <h3 id="country-title">Country</h3>
+      <div id="country-stats"></div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <span id="status-left">Ready</span>
+    <span id="status-right">Demo data — HS chapters 30, 38, 84, 90</span>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- API Panel Modal -->
+<div id="api-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; z-index:1000; width:420px; max-width:90vw;">
+  <h3 style="font-family:var(--font-mono); font-size:13px; color:var(--accent); margin-bottom:12px;">UN Comtrade API</h3>
+  <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">
+    Enter your UN Comtrade API subscription key to fetch live trade data.
+    <a href="https://comtradeplus.un.org/" target="_blank" style="color:var(--accent2);">Get a free key</a>
+  </p>
+  <div style="margin-bottom:12px;">
+    <input type="text" id="api-key" placeholder="Subscription key" style="width:100%;">
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button onclick="fetchLiveData()">Fetch Data</button>
+    <button onclick="closeApiPanel()">Cancel</button>
+  </div>
+  <div id="api-status" style="margin-top:10px; font-size:11px; font-family:var(--font-mono); color:var(--text-dim);"></div>
+</div>
+<div id="api-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999;" onclick="closeApiPanel()"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.1.7/dist.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  COMMODITY FLOW MAPS — The Mino Times
+//  Global biotech trade flow visualization
+// ═══════════════════════════════════════════════════════════
+
+// ── Commodity Definitions ──────────────────────────────────
+const COMMODITIES = {
+  '3822': { name: 'Diagnostic Reagents',       color: [255, 140, 0],   hs: '3822', ch: 38 },
+  '9018': { name: 'Medical Instruments',        color: [0, 200, 255],   hs: '9018', ch: 90 },
+  '9027': { name: 'Analytical Instruments',     color: [140, 100, 255], hs: '9027', ch: 90 },
+  '3002': { name: 'Vaccines & Blood Products',  color: [255, 68, 102],  hs: '3002', ch: 30 },
+  '8421': { name: 'Centrifuges',                color: [68, 204, 136],  hs: '8421', ch: 84 },
+};
+
+// ── Country Centroids (ISO 3166-1 alpha-3) ─────────────────
+const COUNTRIES = {
+  USA: { name: 'United States',  lat: 39.8,  lon: -98.5 },
+  CHN: { name: 'China',          lat: 35.9,  lon: 104.2 },
+  DEU: { name: 'Germany',        lat: 51.2,  lon: 10.5 },
+  JPN: { name: 'Japan',          lat: 36.2,  lon: 138.3 },
+  GBR: { name: 'United Kingdom', lat: 55.4,  lon: -3.4 },
+  FRA: { name: 'France',         lat: 46.2,  lon: 2.2 },
+  CHE: { name: 'Switzerland',    lat: 46.8,  lon: 8.2 },
+  IRL: { name: 'Ireland',        lat: 53.1,  lon: -7.7 },
+  NLD: { name: 'Netherlands',    lat: 52.1,  lon: 5.3 },
+  BEL: { name: 'Belgium',        lat: 50.5,  lon: 4.5 },
+  ITA: { name: 'Italy',          lat: 41.9,  lon: 12.6 },
+  ESP: { name: 'Spain',          lat: 40.5,  lon: -3.7 },
+  CAN: { name: 'Canada',         lat: 56.1,  lon: -106.3 },
+  AUS: { name: 'Australia',      lat: -25.3, lon: 133.8 },
+  KOR: { name: 'South Korea',    lat: 35.9,  lon: 127.8 },
+  IND: { name: 'India',          lat: 20.6,  lon: 79.0 },
+  BRA: { name: 'Brazil',         lat: -14.2, lon: -51.9 },
+  MEX: { name: 'Mexico',         lat: 23.6,  lon: -102.6 },
+  SGP: { name: 'Singapore',      lat: 1.4,   lon: 103.8 },
+  DNK: { name: 'Denmark',        lat: 56.3,  lon: 9.5 },
+  SWE: { name: 'Sweden',         lat: 60.1,  lon: 18.6 },
+  NOR: { name: 'Norway',         lat: 60.5,  lon: 8.5 },
+  FIN: { name: 'Finland',        lat: 61.9,  lon: 25.7 },
+  ISR: { name: 'Israel',         lat: 31.0,  lon: 34.9 },
+  THA: { name: 'Thailand',       lat: 15.9,  lon: 100.5 },
+  MYS: { name: 'Malaysia',       lat: 4.2,   lon: 101.9 },
+  IDN: { name: 'Indonesia',      lat: -0.8,  lon: 113.9 },
+  TWN: { name: 'Taiwan',         lat: 23.7,  lon: 120.9 },
+  ZAF: { name: 'South Africa',   lat: -30.6, lon: 22.9 },
+  SAU: { name: 'Saudi Arabia',   lat: 23.9,  lon: 45.1 },
+  ARE: { name: 'UAE',             lat: 23.4,  lon: 53.8 },
+  RUS: { name: 'Russia',         lat: 61.5,  lon: 105.3 },
+  POL: { name: 'Poland',         lat: 51.9,  lon: 19.1 },
+  CZE: { name: 'Czech Republic', lat: 49.8,  lon: 15.5 },
+  AUT: { name: 'Austria',        lat: 47.5,  lon: 14.6 },
+  TUR: { name: 'Turkey',         lat: 39.0,  lon: 35.2 },
+  EGY: { name: 'Egypt',          lat: 26.8,  lon: 30.8 },
+  NGA: { name: 'Nigeria',        lat: 9.1,   lon: 8.7 },
+  KEN: { name: 'Kenya',          lat: -0.0,  lon: 37.9 },
+  ARG: { name: 'Argentina',      lat: -38.4, lon: -63.6 },
+  CHL: { name: 'Chile',          lat: -35.7, lon: -71.5 },
+  COL: { name: 'Colombia',       lat: 4.6,   lon: -74.3 },
+  PHL: { name: 'Philippines',    lat: 12.9,  lon: 121.8 },
+  VNM: { name: 'Vietnam',        lat: 14.1,  lon: 108.3 },
+  NZL: { name: 'New Zealand',    lat: -40.9, lon: 174.9 },
+  PRT: { name: 'Portugal',       lat: 39.4,  lon: -8.2 },
+  GRC: { name: 'Greece',         lat: 39.1,  lon: 21.8 },
+  HUN: { name: 'Hungary',        lat: 47.2,  lon: 19.5 },
+  ROU: { name: 'Romania',        lat: 45.9,  lon: 25.0 },
+  PER: { name: 'Peru',           lat: -9.2,  lon: -75.0 },
+  BGD: { name: 'Bangladesh',     lat: 23.7,  lon: 90.4 },
+  PAK: { name: 'Pakistan',       lat: 30.4,  lon: 69.3 },
+  GHA: { name: 'Ghana',          lat: 7.9,   lon: -1.0 },
+  ETH: { name: 'Ethiopia',       lat: 9.1,   lon: 40.5 },
+  TZA: { name: 'Tanzania',       lat: -6.4,  lon: 34.9 },
+};
+
+// ── Demo Trade Flow Data ───────────────────────────────────
+// Realistic bilateral flows loosely based on actual trade patterns
+// Values in USD (approximate, for visualization purposes)
+function generateDemoData() {
+  const flows = [];
+  const yrs = [2019, 2020, 2021, 2022, 2023];
+
+  // HS 3822 — Diagnostic Reagents
+  const dx = [
+    ['USA','CHN',2.3e9],['USA','JPN',1.1e9],['USA','GBR',0.9e9],['USA','CAN',0.8e9],['USA','DEU',0.7e9],
+    ['USA','BRA',0.6e9],['USA','KOR',0.5e9],['USA','AUS',0.4e9],['USA','IND',0.4e9],['USA','MEX',0.4e9],
+    ['DEU','USA',1.8e9],['DEU','FRA',0.9e9],['DEU','CHN',0.8e9],['DEU','GBR',0.7e9],['DEU','ITA',0.5e9],
+    ['DEU','ESP',0.4e9],['DEU','POL',0.3e9],['DEU','BRA',0.3e9],
+    ['IRL','USA',1.4e9],['IRL','DEU',0.6e9],['IRL','GBR',0.5e9],['IRL','JPN',0.3e9],
+    ['CHE','USA',1.2e9],['CHE','DEU',0.8e9],['CHE','CHN',0.5e9],['CHE','JPN',0.4e9],
+    ['JPN','CHN',0.7e9],['JPN','USA',0.6e9],['JPN','KOR',0.4e9],['JPN','TWN',0.3e9],
+    ['CHN','IND',0.5e9],['CHN','BRA',0.3e9],['CHN','THA',0.3e9],['CHN','IDN',0.2e9],['CHN','VNM',0.2e9],
+    ['GBR','IRL',0.3e9],['GBR','FRA',0.2e9],
+    ['SGP','MYS',0.2e9],['SGP','THA',0.2e9],['SGP','IDN',0.2e9],
+  ];
+  // HS 9018 — Medical Instruments
+  const mi = [
+    ['USA','CHN',3.1e9],['USA','JPN',1.4e9],['USA','DEU',1.2e9],['USA','GBR',1.0e9],['USA','CAN',0.9e9],
+    ['USA','NLD',0.7e9],['USA','BRA',0.6e9],['USA','AUS',0.5e9],['USA','MEX',0.5e9],['USA','KOR',0.5e9],
+    ['DEU','USA',2.1e9],['DEU','FRA',0.9e9],['DEU','CHN',0.8e9],['DEU','GBR',0.6e9],['DEU','ITA',0.5e9],
+    ['DEU','ESP',0.4e9],['DEU','RUS',0.3e9],
+    ['JPN','USA',1.3e9],['JPN','CHN',0.9e9],['JPN','DEU',0.4e9],['JPN','KOR',0.4e9],['JPN','THA',0.3e9],
+    ['NLD','DEU',0.7e9],['NLD','GBR',0.5e9],['NLD','FRA',0.4e9],['NLD','BEL',0.3e9],
+    ['CHN','USA',1.5e9],['CHN','IND',0.6e9],['CHN','DEU',0.4e9],['CHN','BRA',0.3e9],['CHN','IDN',0.3e9],
+    ['CHN','NGA',0.2e9],['CHN','PAK',0.2e9],['CHN','BGD',0.2e9],
+    ['IRL','USA',0.8e9],['IRL','GBR',0.3e9],
+    ['MEX','USA',0.7e9],
+    ['SGP','MYS',0.2e9],['SGP','IDN',0.2e9],
+  ];
+  // HS 9027 — Analytical Instruments
+  const ai = [
+    ['USA','CHN',1.8e9],['USA','DEU',0.8e9],['USA','JPN',0.7e9],['USA','GBR',0.6e9],['USA','CAN',0.5e9],
+    ['USA','KOR',0.4e9],['USA','IND',0.3e9],['USA','BRA',0.3e9],['USA','SGP',0.2e9],
+    ['DEU','USA',1.1e9],['DEU','CHN',0.7e9],['DEU','FRA',0.4e9],['DEU','GBR',0.3e9],['DEU','ITA',0.3e9],
+    ['JPN','CHN',0.8e9],['JPN','USA',0.7e9],['JPN','KOR',0.4e9],['JPN','TWN',0.3e9],['JPN','DEU',0.2e9],
+    ['GBR','USA',0.4e9],['GBR','DEU',0.2e9],['GBR','FRA',0.2e9],
+    ['CHN','IND',0.3e9],['CHN','VNM',0.2e9],['CHN','THA',0.2e9],['CHN','KOR',0.2e9],
+    ['CHE','USA',0.5e9],['CHE','DEU',0.3e9],['CHE','CHN',0.3e9],
+    ['SGP','MYS',0.15e9],['NLD','DEU',0.2e9],
+  ];
+  // HS 3002 — Vaccines & Blood Products
+  const vx = [
+    ['BEL','USA',2.4e9],['BEL','DEU',1.1e9],['BEL','FRA',0.8e9],['BEL','GBR',0.7e9],['BEL','JPN',0.6e9],
+    ['BEL','ITA',0.4e9],['BEL','BRA',0.4e9],
+    ['IRL','USA',1.8e9],['IRL','DEU',0.6e9],['IRL','GBR',0.5e9],['IRL','JPN',0.4e9],
+    ['USA','CAN',0.7e9],['USA','JPN',0.6e9],['USA','GBR',0.5e9],['USA','BRA',0.4e9],
+    ['USA','CHN',0.4e9],['USA','MEX',0.3e9],['USA','AUS',0.3e9],
+    ['DEU','USA',0.9e9],['DEU','FRA',0.5e9],['DEU','GBR',0.4e9],['DEU','CHN',0.3e9],
+    ['IND','ZAF',0.4e9],['IND','NGA',0.3e9],['IND','BRA',0.3e9],['IND','BGD',0.2e9],
+    ['IND','IDN',0.2e9],['IND','KEN',0.2e9],['IND','ETH',0.2e9],['IND','GHA',0.1e9],
+    ['CHN','IDN',0.2e9],['CHN','THA',0.2e9],['CHN','PHL',0.2e9],
+    ['FRA','USA',0.4e9],['FRA','DEU',0.3e9],
+    ['CHE','USA',0.5e9],
+    ['GBR','IRL',0.2e9],
+  ];
+  // HS 8421 — Centrifuges
+  const cf = [
+    ['DEU','USA',1.2e9],['DEU','CHN',0.8e9],['DEU','FRA',0.4e9],['DEU','GBR',0.3e9],['DEU','ITA',0.3e9],
+    ['DEU','JPN',0.3e9],['DEU','KOR',0.2e9],['DEU','IND',0.2e9],['DEU','BRA',0.2e9],
+    ['USA','CHN',0.6e9],['USA','CAN',0.4e9],['USA','MEX',0.3e9],['USA','JPN',0.3e9],['USA','GBR',0.2e9],
+    ['JPN','CHN',0.5e9],['JPN','KOR',0.3e9],['JPN','USA',0.3e9],['JPN','TWN',0.2e9],
+    ['ITA','DEU',0.3e9],['ITA','FRA',0.2e9],['ITA','USA',0.2e9],
+    ['CHN','IND',0.2e9],['CHN','VNM',0.15e9],['CHN','THA',0.15e9],
+    ['NLD','DEU',0.2e9],['NLD','GBR',0.15e9],
+    ['SWE','DEU',0.15e9],['SWE','USA',0.15e9],
+    ['CHE','DEU',0.2e9],['CHE','USA',0.2e9],
+  ];
+
+  const datasets = { '3822': dx, '9018': mi, '9027': ai, '3002': vx, '8421': cf };
+
+  for (const [hs, pairs] of Object.entries(datasets)) {
+    for (const [from, to, baseVal] of pairs) {
+      for (const yr of yrs) {
+        // Simulate year-over-year variation
+        let mult = 1;
+        if (yr === 2019) mult = 0.88;
+        else if (yr === 2020) mult = hs === '3822' || hs === '3002' ? 1.25 : 0.82; // COVID effect
+        else if (yr === 2021) mult = hs === '3822' || hs === '3002' ? 1.35 : 0.95;
+        else if (yr === 2022) mult = 1.0;
+        else if (yr === 2023) mult = 1.05;
+        // Add some noise
+        const noise = 0.85 + Math.random() * 0.3;
+        flows.push({
+          from, to, hs,
+          year: yr,
+          value: Math.round(baseVal * mult * noise),
+        });
+      }
+    }
+  }
+  return flows;
+}
+
+// ── Application State ──────────────────────────────────────
+const state = {
+  flows: [],
+  filtered: [],
+  commodity: 'all',
+  year: 2023,
+  reporter: 'all',
+  focusCountry: null,
+  animate: false,
+  animTime: 0,
+  hiddenCommodities: new Set(),
+};
+
+let map, deckOverlay;
+
+// ── Format Helpers ─────────────────────────────────────────
+function fmtValue(v) {
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(0) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+  return '$' + v;
+}
+
+function countryName(code) {
+  return COUNTRIES[code]?.name || code;
+}
+
+// ── Filter Logic ───────────────────────────────────────────
+function applyFilters() {
+  let f = state.flows.filter(d => d.year === state.year);
+  if (state.commodity !== 'all') {
+    f = f.filter(d => d.hs === state.commodity);
+  }
+  if (state.reporter !== 'all') {
+    f = f.filter(d => d.from === state.reporter);
+  }
+  if (state.focusCountry) {
+    f = f.filter(d => d.from === state.focusCountry || d.to === state.focusCountry);
+  }
+  // Filter hidden commodities
+  if (state.hiddenCommodities.size > 0) {
+    f = f.filter(d => !state.hiddenCommodities.has(d.hs));
+  }
+  state.filtered = f;
+  updateDeckLayer();
+  updateSidebar();
+  updateStatus();
+}
+
+// ── deck.gl Layer ──────────────────────────────────────────
+function updateDeckLayer() {
+  if (!deckOverlay) return;
+  const maxVal = Math.max(...state.filtered.map(d => d.value), 1);
+
+  const arcLayer = new deck.ArcLayer({
+    id: 'trade-arcs',
+    data: state.filtered,
+    getSourcePosition: d => [COUNTRIES[d.from]?.lon || 0, COUNTRIES[d.from]?.lat || 0],
+    getTargetPosition: d => [COUNTRIES[d.to]?.lon || 0, COUNTRIES[d.to]?.lat || 0],
+    getSourceColor: d => {
+      const c = COMMODITIES[d.hs]?.color || [255, 140, 0];
+      return [...c, 200];
+    },
+    getTargetColor: d => {
+      const c = COMMODITIES[d.hs]?.color || [255, 140, 0];
+      return [...c, 120];
+    },
+    getWidth: d => 1 + Math.sqrt(d.value / maxVal) * 6,
+    getHeight: 0.4,
+    greatCircle: true,
+    pickable: true,
+    autoHighlight: true,
+    highlightColor: [255, 255, 255, 80],
+    onHover: onArcHover,
+    onClick: onArcClick,
+    parameters: { depthTest: false },
+  });
+
+  // Country dots
+  const countryCodes = new Set();
+  state.filtered.forEach(d => { countryCodes.add(d.from); countryCodes.add(d.to); });
+  const countryData = [...countryCodes]
+    .filter(c => COUNTRIES[c])
+    .map(c => ({
+      code: c,
+      position: [COUNTRIES[c].lon, COUNTRIES[c].lat],
+      // Size based on total trade volume
+      volume: state.filtered
+        .filter(d => d.from === c || d.to === c)
+        .reduce((s, d) => s + d.value, 0),
+    }));
+
+  const maxVol = Math.max(...countryData.map(d => d.volume), 1);
+
+  const scatterLayer = new deck.ScatterplotLayer({
+    id: 'country-dots',
+    data: countryData,
+    getPosition: d => d.position,
+    getFillColor: d => {
+      if (state.focusCountry === d.code) return [255, 140, 0, 255];
+      return [200, 200, 210, 160];
+    },
+    getRadius: d => 30000 + Math.sqrt(d.volume / maxVol) * 200000,
+    radiusMinPixels: 3,
+    radiusMaxPixels: 18,
+    pickable: true,
+    onHover: onCountryHover,
+    onClick: onCountryClick,
+  });
+
+  const textLayer = new deck.TextLayer({
+    id: 'country-labels',
+    data: countryData.filter(d => d.volume / maxVol > 0.05),
+    getPosition: d => d.position,
+    getText: d => d.code,
+    getColor: [200, 200, 210, 180],
+    getSize: 11,
+    getPixelOffset: [0, -16],
+    fontFamily: 'SF Mono, Consolas, monospace',
+    fontWeight: 600,
+    outlineWidth: 2,
+    outlineColor: [10, 10, 15, 200],
+    pickable: false,
+  });
+
+  deckOverlay.setProps({ layers: [arcLayer, scatterLayer, textLayer] });
+}
+
+// ── Tooltip ────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+function onArcHover(info) {
+  if (info.object) {
+    const d = info.object;
+    tooltip.innerHTML = `
+      <div class="tt-route">${countryName(d.from)} → ${countryName(d.to)}</div>
+      <div class="tt-value">${fmtValue(d.value)}</div>
+      <div class="tt-commodity">${COMMODITIES[d.hs]?.name || d.hs} (HS ${d.hs})</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = info.x + 12 + 'px';
+    tooltip.style.top = info.y + 12 + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+}
+
+function onCountryHover(info) {
+  if (info.object) {
+    const d = info.object;
+    const exp = state.filtered.filter(f => f.from === d.code).reduce((s, f) => s + f.value, 0);
+    const imp = state.filtered.filter(f => f.to === d.code).reduce((s, f) => s + f.value, 0);
+    tooltip.innerHTML = `
+      <div class="tt-route">${countryName(d.code)}</div>
+      <div class="tt-value">Exports: ${fmtValue(exp)}</div>
+      <div class="tt-value" style="color:var(--accent)">Imports: ${fmtValue(imp)}</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = info.x + 12 + 'px';
+    tooltip.style.top = info.y + 12 + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+}
+
+function onArcClick(info) {
+  if (info.object) {
+    const d = info.object;
+    setCountryFocus(d.from);
+  }
+}
+
+function onCountryClick(info) {
+  if (info.object) {
+    setCountryFocus(info.object.code);
+  }
+}
+
+function setCountryFocus(code) {
+  if (state.focusCountry === code) {
+    clearCountryFilter();
+    return;
+  }
+  state.focusCountry = code;
+  document.getElementById('filter-country-name').textContent = countryName(code);
+  document.getElementById('country-filter').style.display = '';
+  applyFilters();
+  showCountryDetail(code);
+}
+
+function clearCountryFilter() {
+  state.focusCountry = null;
+  document.getElementById('country-filter').style.display = 'none';
+  document.getElementById('sec-country').style.display = 'none';
+  applyFilters();
+}
+
+// ── Sidebar Updates ────────────────────────────────────────
+function updateSidebar() {
+  const f = state.filtered;
+  const totalVal = f.reduce((s, d) => s + d.value, 0);
+  const countries = new Set();
+  f.forEach(d => { countries.add(d.from); countries.add(d.to); });
+
+  document.getElementById('stat-flows').textContent = f.length.toLocaleString();
+  document.getElementById('stat-value').textContent = fmtValue(totalVal);
+  document.getElementById('stat-countries').textContent = countries.size;
+
+  // Top flows
+  const sorted = [...f].sort((a, b) => b.value - a.value).slice(0, 12);
+  const topEl = document.getElementById('top-flows');
+  topEl.innerHTML = sorted.map(d => `
+    <div class="flow-item" onclick="setCountryFocus('${d.from}')">
+      <div class="flow-route">
+        <span>${countryName(d.from)}</span>
+        <span class="flow-arrow">→</span>
+        <span>${countryName(d.to)}</span>
+        <span style="flex:1"></span>
+        <span class="flow-value">${fmtValue(d.value)}</span>
+      </div>
+      <div class="flow-commodity">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:rgb(${(COMMODITIES[d.hs]?.color||[128,128,128]).join(',')});vertical-align:middle;margin-right:4px;"></span>
+        ${COMMODITIES[d.hs]?.name || d.hs}
+      </div>
+    </div>
+  `).join('');
+}
+
+function showCountryDetail(code) {
+  const sec = document.getElementById('sec-country');
+  sec.style.display = '';
+  document.getElementById('country-title').textContent = countryName(code);
+
+  const f = state.filtered;
+  const exports = f.filter(d => d.from === code);
+  const imports = f.filter(d => d.to === code);
+  const totalExport = exports.reduce((s, d) => s + d.value, 0);
+  const totalImport = imports.reduce((s, d) => s + d.value, 0);
+
+  // Top export partners
+  const expPartners = {};
+  exports.forEach(d => { expPartners[d.to] = (expPartners[d.to] || 0) + d.value; });
+  const topExp = Object.entries(expPartners).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Top import sources
+  const impPartners = {};
+  imports.forEach(d => { impPartners[d.from] = (impPartners[d.from] || 0) + d.value; });
+  const topImp = Object.entries(impPartners).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Commodity breakdown
+  const byCommodity = {};
+  [...exports, ...imports].forEach(d => {
+    byCommodity[d.hs] = (byCommodity[d.hs] || 0) + d.value;
+  });
+
+  const statsEl = document.getElementById('country-stats');
+  statsEl.innerHTML = `
+    <div class="stat-row">
+      <span class="stat-label">Total exports</span>
+      <span class="stat-value" style="color:var(--accent2)">${fmtValue(totalExport)}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Total imports</span>
+      <span class="stat-value" style="color:var(--accent)">${fmtValue(totalImport)}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Balance</span>
+      <span class="stat-value" style="color:${totalExport >= totalImport ? 'var(--success)' : 'var(--danger)'}">
+        ${totalExport >= totalImport ? '+' : ''}${fmtValue(totalExport - totalImport)}
+      </span>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="stat-label" style="margin-bottom:6px;">Top export destinations</div>
+      ${topExp.map(([c, v]) => `
+        <div class="stat-row" style="padding-left:8px;">
+          <span>${countryName(c)}</span>
+          <span class="stat-value" style="font-size:11px;">${fmtValue(v)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:12px;">
+      <div class="stat-label" style="margin-bottom:6px;">Top import sources</div>
+      ${topImp.map(([c, v]) => `
+        <div class="stat-row" style="padding-left:8px;">
+          <span>${countryName(c)}</span>
+          <span class="stat-value" style="font-size:11px;">${fmtValue(v)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:12px;">
+      <div class="stat-label" style="margin-bottom:6px;">By commodity</div>
+      ${Object.entries(byCommodity).sort((a, b) => b[1] - a[1]).map(([hs, v]) => `
+        <div class="stat-row" style="padding-left:8px;">
+          <span>
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:rgb(${(COMMODITIES[hs]?.color||[128,128,128]).join(',')});vertical-align:middle;margin-right:4px;"></span>
+            ${COMMODITIES[hs]?.name || hs}
+          </span>
+          <span class="stat-value" style="font-size:11px;">${fmtValue(v)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updateStatus() {
+  const left = document.getElementById('status-left');
+  const f = state.filtered;
+  const comName = state.commodity === 'all' ? 'All biotech' : COMMODITIES[state.commodity]?.name;
+  left.textContent = `${comName} · ${state.year} · ${f.length} flows`;
+}
+
+// ── Legend ──────────────────────────────────────────────────
+function buildLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = Object.entries(COMMODITIES).map(([hs, c]) => `
+    <div class="legend-item${state.hiddenCommodities.has(hs) ? ' dimmed' : ''}" data-hs="${hs}" onclick="toggleCommodity('${hs}')">
+      <span class="legend-swatch" style="background:rgb(${c.color.join(',')})"></span>
+      <span>${c.name}</span>
+      <span style="flex:1"></span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">HS ${hs}</span>
+    </div>
+  `).join('');
+}
+
+function toggleCommodity(hs) {
+  if (state.hiddenCommodities.has(hs)) {
+    state.hiddenCommodities.delete(hs);
+  } else {
+    state.hiddenCommodities.add(hs);
+  }
+  buildLegend();
+  applyFilters();
+}
+
+// ── Controls ───────────────────────────────────────────────
+function buildControls() {
+  // Commodity selector
+  const comSel = document.getElementById('sel-commodity');
+  for (const [hs, c] of Object.entries(COMMODITIES)) {
+    const opt = document.createElement('option');
+    opt.value = hs;
+    opt.textContent = `${c.name} (HS ${hs})`;
+    comSel.appendChild(opt);
+  }
+  comSel.addEventListener('change', () => {
+    state.commodity = comSel.value;
+    applyFilters();
+  });
+
+  // Year selector
+  const yearSel = document.getElementById('sel-year');
+  for (const yr of [2023, 2022, 2021, 2020, 2019]) {
+    const opt = document.createElement('option');
+    opt.value = yr;
+    opt.textContent = yr;
+    if (yr === state.year) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+  yearSel.addEventListener('change', () => {
+    state.year = parseInt(yearSel.value);
+    applyFilters();
+  });
+
+  // Reporter selector
+  const repSel = document.getElementById('sel-reporter');
+  const sorted = Object.entries(COUNTRIES).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  for (const [code, c] of sorted) {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = c.name;
+    repSel.appendChild(opt);
+  }
+  repSel.addEventListener('change', () => {
+    state.reporter = repSel.value;
+    applyFilters();
+  });
+}
+
+// ── Animation ──────────────────────────────────────────────
+let animFrame = null;
+function toggleAnimation() {
+  state.animate = !state.animate;
+  document.getElementById('btn-animate').classList.toggle('active', state.animate);
+  if (state.animate) {
+    animateLoop();
+  } else if (animFrame) {
+    cancelAnimationFrame(animFrame);
+    animFrame = null;
+    updateDeckLayer(); // Reset to static
+  }
+}
+
+function animateLoop() {
+  if (!state.animate) return;
+  state.animTime = (state.animTime + 0.005) % 1;
+  // Rebuild arcs with getTilt animation
+  if (deckOverlay) {
+    const maxVal = Math.max(...state.filtered.map(d => d.value), 1);
+    const arcLayer = new deck.ArcLayer({
+      id: 'trade-arcs',
+      data: state.filtered,
+      getSourcePosition: d => [COUNTRIES[d.from]?.lon || 0, COUNTRIES[d.from]?.lat || 0],
+      getTargetPosition: d => [COUNTRIES[d.to]?.lon || 0, COUNTRIES[d.to]?.lat || 0],
+      getSourceColor: d => [...(COMMODITIES[d.hs]?.color || [255, 140, 0]), 200],
+      getTargetColor: d => [...(COMMODITIES[d.hs]?.color || [255, 140, 0]), 120],
+      getWidth: d => 1 + Math.sqrt(d.value / maxVal) * 6,
+      getHeight: 0.3 + Math.sin(state.animTime * Math.PI * 2) * 0.15,
+      getTilt: Math.sin(state.animTime * Math.PI * 2 + 1) * 5,
+      greatCircle: true,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [255, 255, 255, 80],
+      onHover: onArcHover,
+      onClick: onArcClick,
+      parameters: { depthTest: false },
+    });
+    // Keep existing scatter + text layers
+    const layers = deckOverlay.props.layers;
+    deckOverlay.setProps({ layers: [arcLayer, ...layers.slice(1)] });
+  }
+  animFrame = requestAnimationFrame(animateLoop);
+}
+
+// ── Live Data (UN Comtrade) ────────────────────────────────
+function showApiPanel() {
+  document.getElementById('api-panel').style.display = '';
+  document.getElementById('api-backdrop').style.display = '';
+  // Restore saved key
+  const saved = localStorage.getItem('comtrade_key');
+  if (saved) document.getElementById('api-key').value = saved;
+}
+
+function closeApiPanel() {
+  document.getElementById('api-panel').style.display = 'none';
+  document.getElementById('api-backdrop').style.display = 'none';
+}
+
+async function fetchLiveData() {
+  const key = document.getElementById('api-key').value.trim();
+  const statusEl = document.getElementById('api-status');
+  if (!key) {
+    statusEl.textContent = 'Please enter your API subscription key.';
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  localStorage.setItem('comtrade_key', key);
+
+  statusEl.textContent = 'Fetching from UN Comtrade...';
+  statusEl.style.color = 'var(--text-dim)';
+
+  const hs = state.commodity === 'all' ? Object.keys(COMMODITIES).join(',') : state.commodity;
+  const yr = state.year;
+
+  // UN Comtrade API v1 — get all reporter flows for selected commodities
+  const url = `https://comtradeapi.un.org/data/v1/get/C/A/HS?cmdCode=${hs}&period=${yr}&motCode=0&partnerCode=0&partner2Code=0&customsCode=C00&includeDesc=true&subscription-key=${encodeURIComponent(key)}`;
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const txt = await resp.text();
+      statusEl.textContent = `API error ${resp.status}: ${txt.slice(0, 120)}`;
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+    const json = await resp.json();
+    if (!json.data || json.data.length === 0) {
+      statusEl.textContent = 'No data returned. Try a different year or commodity.';
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
+
+    // Convert Comtrade records to our flow format
+    const isoMap = buildComtradeIsoMap();
+    const liveFlows = [];
+    for (const rec of json.data) {
+      if (rec.partnerCode === 0) continue; // Skip world aggregates
+      const from3 = isoMap[rec.reporterCode];
+      const to3 = isoMap[rec.partnerCode];
+      if (!from3 || !to3 || !COUNTRIES[from3] || !COUNTRIES[to3]) continue;
+      if (rec.primaryValue && rec.primaryValue > 0) {
+        liveFlows.push({
+          from: from3, to: to3,
+          hs: String(rec.cmdCode).slice(0, 4),
+          year: parseInt(rec.period),
+          value: rec.primaryValue,
+        });
+      }
+    }
+
+    if (liveFlows.length === 0) {
+      statusEl.textContent = 'Data received but no matching country pairs found.';
+      statusEl.style.color = 'var(--accent)';
+      return;
+    }
+
+    // Merge with existing data (replace matching year/hs combos)
+    const existingKey = d => `${d.from}-${d.to}-${d.hs}-${d.year}`;
+    const liveKeys = new Set(liveFlows.map(existingKey));
+    state.flows = [
+      ...state.flows.filter(d => !liveKeys.has(existingKey(d))),
+      ...liveFlows,
+    ];
+
+    statusEl.textContent = `Loaded ${liveFlows.length} flows from Comtrade.`;
+    statusEl.style.color = 'var(--success)';
+    document.getElementById('status-right').textContent = `Live data — UN Comtrade ${yr}`;
+
+    applyFilters();
+    setTimeout(closeApiPanel, 1500);
+  } catch (err) {
+    statusEl.textContent = `Network error: ${err.message}`;
+    statusEl.style.color = 'var(--danger)';
+  }
+}
+
+// Comtrade numeric country codes → ISO 3166-1 alpha-3
+function buildComtradeIsoMap() {
+  return {
+    36:'AUS',40:'AUT',56:'BEL',76:'BRA',124:'CAN',152:'CHL',156:'CHN',170:'COL',
+    203:'CZE',208:'DNK',818:'EGY',231:'ETH',246:'FIN',250:'FRA',276:'DEU',288:'GHA',
+    300:'GRC',348:'HUN',356:'IND',360:'IDN',372:'IRL',376:'ISR',380:'ITA',392:'JPN',
+    404:'KEN',410:'KOR',458:'MYS',484:'MEX',528:'NLD',554:'NZL',566:'NGA',578:'NOR',
+    586:'PAK',604:'PER',608:'PHL',616:'POL',620:'PRT',642:'ROU',643:'RUS',682:'SAU',
+    702:'SGP',710:'ZAF',724:'ESP',752:'SWE',756:'CHE',158:'TWN',764:'THA',792:'TUR',
+    784:'ARE',826:'GBR',840:'USA',704:'VNM',50:'BGD',32:'ARG',834:'TZA',
+  };
+}
+
+// ── Initialization ─────────────────────────────────────────
+async function init() {
+  // Generate demo data
+  state.flows = generateDemoData();
+
+  // Build UI
+  buildControls();
+  buildLegend();
+
+  // Initialize MapLibre
+  map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        'carto-dark': {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+          ],
+          tileSize: 256,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+          maxzoom: 18,
+        },
+      },
+      layers: [{
+        id: 'carto-dark-layer',
+        type: 'raster',
+        source: 'carto-dark',
+        paint: { 'raster-opacity': 0.65 },
+      }],
+    },
+    center: [15, 25],
+    zoom: 1.8,
+    minZoom: 1,
+    maxZoom: 8,
+    attributionControl: false,
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
+
+  map.on('load', () => {
+    // Initialize deck.gl overlay
+    deckOverlay = new deck.MapboxOverlay({
+      interleaved: false,
+      layers: [],
+    });
+    map.addControl(deckOverlay);
+
+    document.getElementById('loading').style.display = 'none';
+    applyFilters();
+  });
+}
+
+// ── Boot ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
