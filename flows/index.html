@@ -370,6 +370,11 @@ button.active { background: var(--accent); color: var(--bg); }
   <div style="margin-bottom:12px;">
     <input type="text" id="api-key" placeholder="Subscription key" style="width:100%;">
   </div>
+  <div style="margin-bottom:12px;">
+    <label style="font-size:11px;font-family:var(--font-mono);color:var(--text-dim);display:block;margin-bottom:4px;">HS CODE (optional — leave blank to use selected commodity)</label>
+    <input type="text" id="api-hs" placeholder="e.g. 3507, 2937, 9012" style="width:100%;">
+    <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">Any valid 2-6 digit HS code. Comma-separate for multiple.</div>
+  </div>
   <div style="display:flex; gap:8px;">
     <button onclick="fetchLiveData()">Fetch Data</button>
     <button onclick="closeApiPanel()">Cancel</button>
@@ -394,6 +399,21 @@ const COMMODITIES = {
   '3002': { name: 'Vaccines & Blood Products',  color: [255, 68, 102],  hs: '3002', ch: 30 },
   '8421': { name: 'Centrifuges',                color: [68, 204, 136],  hs: '8421', ch: 84 },
 };
+
+// Palette for auto-assigning colors to new HS codes
+const EXTRA_COLORS = [
+  [255,200,60],[60,180,255],[200,80,220],[80,220,180],[255,120,180],
+  [180,220,60],[100,160,255],[255,160,100],[160,255,200],[220,140,255],
+];
+let extraColorIdx = 0;
+
+// Register a new commodity code at runtime
+function ensureCommodity(hs, name) {
+  if (COMMODITIES[hs]) return;
+  const color = EXTRA_COLORS[extraColorIdx % EXTRA_COLORS.length];
+  extraColorIdx++;
+  COMMODITIES[hs] = { name: name || `HS ${hs}`, color, hs, ch: parseInt(hs.slice(0, 2)) };
+}
 
 // ── Country Centroids (ISO 3166-1 alpha-3) ─────────────────
 const COUNTRIES = {
@@ -930,6 +950,21 @@ function buildControls() {
   });
 }
 
+// Rebuild commodity selector with any newly discovered codes
+function rebuildCommoditySelector() {
+  const comSel = document.getElementById('sel-commodity');
+  const current = comSel.value;
+  // Keep the "All" option, replace the rest
+  comSel.innerHTML = '<option value="all">All Biotech</option>';
+  for (const [hs, c] of Object.entries(COMMODITIES)) {
+    const opt = document.createElement('option');
+    opt.value = hs;
+    opt.textContent = `${c.name} (HS ${hs})`;
+    comSel.appendChild(opt);
+  }
+  comSel.value = current;
+}
+
 // ── Animation ──────────────────────────────────────────────
 let animFrame = null;
 function toggleAnimation() {
@@ -1002,7 +1037,9 @@ async function fetchLiveData() {
   statusEl.textContent = 'Fetching from UN Comtrade...';
   statusEl.style.color = 'var(--text-dim)';
 
-  const hs = state.commodity === 'all' ? Object.keys(COMMODITIES).join(',') : state.commodity;
+  // Custom HS code overrides the selector
+  const customHs = document.getElementById('api-hs').value.trim();
+  const hs = customHs || (state.commodity === 'all' ? Object.keys(COMMODITIES).join(',') : state.commodity);
   const yr = state.year;
 
   // UN Comtrade API v1 — get all reporter flows for selected commodities
@@ -1026,15 +1063,25 @@ async function fetchLiveData() {
     // Convert Comtrade records to our flow format
     const isoMap = buildComtradeIsoMap();
     const liveFlows = [];
+    let newCodes = 0;
     for (const rec of json.data) {
       if (rec.partnerCode === 0) continue; // Skip world aggregates
       const from3 = isoMap[rec.reporterCode];
       const to3 = isoMap[rec.partnerCode];
       if (!from3 || !to3 || !COUNTRIES[from3] || !COUNTRIES[to3]) continue;
+      const code = String(rec.cmdCode).slice(0, 4);
+      // Auto-register unknown HS codes with name from API
+      if (!COMMODITIES[code]) {
+        const desc = rec.cmdDesc || rec.cmdDescE || `HS ${code}`;
+        // Truncate long descriptions
+        const shortDesc = desc.length > 40 ? desc.slice(0, 37) + '...' : desc;
+        ensureCommodity(code, shortDesc);
+        newCodes++;
+      }
       if (rec.primaryValue && rec.primaryValue > 0) {
         liveFlows.push({
           from: from3, to: to3,
-          hs: String(rec.cmdCode).slice(0, 4),
+          hs: code,
           year: parseInt(rec.period),
           value: rec.primaryValue,
         });
@@ -1055,9 +1102,15 @@ async function fetchLiveData() {
       ...liveFlows,
     ];
 
-    statusEl.textContent = `Loaded ${liveFlows.length} flows from Comtrade.`;
+    statusEl.textContent = `Loaded ${liveFlows.length} flows` + (newCodes ? ` (${newCodes} new commodity codes)` : '') + ' from Comtrade.';
     statusEl.style.color = 'var(--success)';
     document.getElementById('status-right').textContent = `Live data — UN Comtrade ${yr}`;
+
+    // Rebuild UI if new commodity codes were discovered
+    if (newCodes > 0) {
+      rebuildCommoditySelector();
+      buildLegend();
+    }
 
     applyFilters();
     setTimeout(closeApiPanel, 1500);
