@@ -6,7 +6,7 @@
 // Free-tier safe: MAX_DIDS=10, ~3-5 pages each ≈ 30-50 subrequests (limit: 50).
 
 const BSKY = 'https://public.api.bsky.app';
-const MAX_CONCURRENT = 10;
+const MAX_CONCURRENT = 3;
 const MAX_DIDS = 10;
 
 const CORS = {
@@ -73,6 +73,7 @@ export async function onRequestPost({ request }) {
 
     const follows = {};
     const profiles = {};
+    const failed = [];
 
     await mapConcurrent(dids, MAX_CONCURRENT, async (did) => {
       try {
@@ -88,11 +89,11 @@ export async function onRequestPost({ request }) {
           }
         }
       } catch {
-        follows[did] = [];
+        failed.push(did);
       }
     });
 
-    return Response.json({ follows, profiles }, { headers: CORS });
+    return Response.json({ follows, profiles, failed }, { headers: CORS });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500, headers: CORS });
   }

@@ -453,7 +453,7 @@ footer a:hover {
   // Falls back to direct browser fetching if unavailable.
   const WORKER_URL = '/cluster-batch';
   const WORKER_BATCH = 10;    // DIDs per request (free tier: 50 subrequest limit)
-  const WORKER_PARALLEL = 8;  // concurrent requests (more parallel, smaller batches)
+  const WORKER_PARALLEL = 4;  // concurrent requests
   let useWorker = !!WORKER_URL;
 
   async function batchFetchFollows(dids, onProgress) {
@@ -466,6 +466,7 @@ footer a:hover {
     const allProfiles = new Map();
     let done = 0;
     try {
+      const retryDids = [];
       await mapConcurrent(batches, WORKER_PARALLEL, async (batch) => {
         const res = await fetch(WORKER_URL, {
           method: 'POST',
@@ -481,9 +482,29 @@ footer a:hover {
         for (const [did, profile] of Object.entries(data.profiles)) {
           if (!allProfiles.has(did)) allProfiles.set(did, profile);
         }
+        if (data.failed) retryDids.push(...data.failed);
         done += batch.length;
         if (onProgress) onProgress(Math.min(done, dids.length));
       });
+      // Retry rate-limited DIDs via direct browser fetch (different IP)
+      if (retryDids.length > 0) {
+        console.log(`Retrying ${retryDids.length} rate-limited DIDs via browser`);
+        await mapConcurrent(retryDids, 3, async (did) => {
+          try {
+            const follows = await getAllFollows(did);
+            allFollows.set(did, new Set(follows.map(f => f.did)));
+            for (const f of follows) {
+              if (!allProfiles.has(f.did)) allProfiles.set(f.did, {
+                handle: f.handle,
+                displayName: f.displayName || '',
+                avatar: f.avatar || '',
+              });
+            }
+          } catch {
+            allFollows.set(did, new Set());
+          }
+        });
+      }
       return { follows: allFollows, profiles: allProfiles };
     } catch {
       useWorker = false;
