@@ -1,20 +1,24 @@
 // Cloudflare Pages Function — semantic novelty analysis for mino.mobi/novelty
 //
-// POST /novelty { handle: "someone.bsky.social", limit: 2000 }
-// → { posts: [{text, date, novelty, uri}, ...], stats: {mean, volume, circuitousness, count, fetched, sampled} }
+// POST /novelty { handle, limit, mode, stride, offset }
+// → { posts: [{text, date, novelty, uri}, ...], stats: {...} }
 //
 // Uses Cloudflare Workers AI (bge-base-en-v1.5) for embeddings.
 // Requires AI binding in Pages project settings.
 //
-// For large accounts: fetches up to MAX_FETCH posts, then samples evenly
-// down to MAX_EMBED for embedding. This keeps compute within free tier
-// limits while covering a broad timeline.
+// Sampling modes:
+//   "recent" — fetch the most recent `limit` posts, embed all
+//   "even"   — fetch `limit` posts, sample evenly if over embed budget
+//   "stride" — fetch `limit` posts, take every `stride`th from `offset`
+//
+// Respects Cloudflare free tier: ≤50 subrequests per invocation.
+// Dynamically allocates embed budget from remaining subrequest headroom.
 
 const BSKY = 'https://public.api.bsky.app';
-const MAX_FETCH = 5000;  // max posts to retrieve from API
-const MAX_EMBED = 2000;  // max posts to embed (sample if fetched > this)
-const EMBED_BATCH = 50;  // Workers AI batch size
+const MAX_FETCH = 2500;   // max posts to retrieve from API
+const EMBED_BATCH = 100;  // Workers AI batch size
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
+const SUBREQ_BUDGET = 48; // headroom under 50 limit
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -37,10 +41,13 @@ async function fetchJSON(url) {
 }
 
 // Fetch author's posts in reverse chronological order
+// Returns { posts, pages } where pages = number of API calls made
 async function getAuthorPosts(actor, limit) {
   const posts = [];
   let cursor;
+  let pages = 0;
   do {
+    pages++;
     const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_no_replies' });
     if (cursor) params.set('cursor', cursor);
     const data = await fetchJSON(`${BSKY}/xrpc/app.bsky.feed.getAuthorFeed?${params}`);
@@ -59,7 +66,7 @@ async function getAuthorPosts(actor, limit) {
     }
     cursor = data.cursor;
   } while (cursor && posts.length < limit);
-  return posts;
+  return { posts, pages };
 }
 
 // Cosine similarity between two vectors
@@ -100,7 +107,13 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    const { handle, limit = 200 } = await request.json();
+    const body = await request.json();
+    const handle = body.handle;
+    const limit = body.limit || 2000;
+    const mode = body.mode || 'even';
+    const stride = body.stride || 3;
+    const offset = body.offset || 0;
+
     if (!handle) {
       return Response.json({ error: 'handle required' }, { status: 400, headers: CORS });
     }
@@ -108,7 +121,7 @@ export async function onRequestPost({ request, env }) {
     const fetchLimit = Math.min(Math.max(limit, 20), MAX_FETCH);
 
     // Fetch posts (reverse chronological)
-    const rawPosts = await getAuthorPosts(handle, fetchLimit);
+    const { posts: rawPosts, pages: fetchPages } = await getAuthorPosts(handle, fetchLimit);
     if (rawPosts.length < 5) {
       return Response.json({ error: 'Not enough posts (need at least 5)' }, { status: 400, headers: CORS });
     }
@@ -116,16 +129,54 @@ export async function onRequestPost({ request, env }) {
     // Reverse to chronological order (oldest first) for running centroid
     rawPosts.reverse();
 
-    // Sample evenly if we have more posts than MAX_EMBED
-    let posts = rawPosts;
+    // Compute embed budget from remaining subrequest allowance
+    const embedBudget = Math.max(1, SUBREQ_BUDGET - fetchPages);
+    const maxEmbed = embedBudget * EMBED_BATCH;
+
+    // Apply sampling based on mode
+    let posts;
+    let sampleMethod = 'none';
     let sampleRate = 1;
-    if (rawPosts.length > MAX_EMBED) {
-      const step = rawPosts.length / MAX_EMBED;
+
+    if (mode === 'stride' && stride >= 2) {
+      // Take every `stride` posts starting at `offset`
       posts = [];
-      for (let i = 0; i < MAX_EMBED; i++) {
+      const off = Math.max(0, Math.min(offset, rawPosts.length - 1));
+      for (let i = off; i < rawPosts.length; i += stride) {
+        posts.push(rawPosts[i]);
+      }
+      sampleMethod = 'stride';
+      sampleRate = stride;
+    } else if (rawPosts.length > maxEmbed) {
+      // Even sampling down to maxEmbed
+      const step = rawPosts.length / maxEmbed;
+      posts = [];
+      for (let i = 0; i < maxEmbed; i++) {
         posts.push(rawPosts[Math.floor(i * step)]);
       }
+      sampleMethod = 'even';
       sampleRate = Math.round(step * 10) / 10;
+    } else {
+      posts = rawPosts;
+    }
+
+    // Cap at maxEmbed if stride produced too many
+    if (posts.length > maxEmbed) {
+      const step = posts.length / maxEmbed;
+      const capped = [];
+      for (let i = 0; i < maxEmbed; i++) {
+        capped.push(posts[Math.floor(i * step)]);
+      }
+      posts = capped;
+      sampleMethod = sampleMethod === 'stride' ? 'stride+capped' : 'even';
+      sampleRate = Math.round((rawPosts.length / posts.length) * 10) / 10;
+    }
+
+    if (posts.length < 5) {
+      return Response.json(
+        { error: 'Not enough posts after sampling (need at least 5)' },
+        { status: 400, headers: CORS }
+      );
     }
 
     // Batch embed sampled posts
@@ -194,7 +245,8 @@ export async function onRequestPost({ request, env }) {
       stats: {
         count: n,
         fetched: rawPosts.length,
-        sampled: sampleRate > 1,
+        sampled: sampleMethod !== 'none',
+        sampleMethod,
         sampleRate,
         mean: Math.round(mean * 1000) / 1000,
         volume: Math.round(volume * 1000) / 1000,

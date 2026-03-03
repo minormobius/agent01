@@ -291,28 +291,41 @@ h1 a:hover { color: var(--text); }
 
 .hidden { display: none !important; }
 
-.limit-control {
+.sampling-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem 1rem;
   margin-bottom: 2rem;
 }
 
-.limit-control label {
+.ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ctrl label {
   font-family: var(--mono);
   font-size: 0.65rem;
   color: var(--muted);
   letter-spacing: 0.05em;
 }
 
-.limit-control select {
+.ctrl select, .ctrl input {
   font-family: var(--mono);
   font-size: 0.7rem;
   padding: 0.25rem 0.4rem;
   border: 1px solid var(--rule);
   background: var(--bg);
   color: var(--text);
-  cursor: pointer;
+}
+
+.ctrl select { cursor: pointer; }
+
+.ctrl input[type="number"] {
+  width: 3.5rem;
+  text-align: center;
 }
 
 footer {
@@ -351,15 +364,42 @@ footer a:hover {
   <button type="submit" id="loadBtn">analyze</button>
 </form>
 
-<div class="limit-control hidden" id="limitControl">
-  <label>posts</label>
-  <select id="limitSelect">
-    <option value="200">200</option>
-    <option value="500">500</option>
-    <option value="1000">1,000</option>
-    <option value="2000" selected>2,000</option>
-    <option value="5000">5,000</option>
-  </select>
+<div class="sampling-controls hidden" id="samplingControls">
+  <div class="ctrl">
+    <label>mode</label>
+    <select id="modeSelect">
+      <option value="recent">recent</option>
+      <option value="even" selected>even sample</option>
+      <option value="stride">every Nth</option>
+    </select>
+  </div>
+  <div class="ctrl" id="fetchCtrl">
+    <label>fetch</label>
+    <select id="limitSelect">
+      <option value="200">200</option>
+      <option value="500">500</option>
+      <option value="1000">1k</option>
+      <option value="1500">1.5k</option>
+      <option value="2000" selected>2k</option>
+      <option value="2500">2.5k</option>
+    </select>
+  </div>
+  <div class="ctrl hidden" id="strideCtrl">
+    <label>every</label>
+    <input type="number" id="strideInput" value="3" min="2" max="100">
+    <label>offset</label>
+    <input type="number" id="offsetInput" value="0" min="0" max="2500">
+  </div>
+  <div class="ctrl hidden" id="recentCtrl">
+    <label>posts</label>
+    <select id="recentSelect">
+      <option value="100">100</option>
+      <option value="200">200</option>
+      <option value="500" selected>500</option>
+      <option value="1000">1k</option>
+      <option value="2000">2k</option>
+    </select>
+  </div>
 </div>
 
 <div class="progress-track hidden" id="progressBar">
@@ -374,7 +414,7 @@ footer a:hover {
   <div class="charts-row">
     <div class="chart-container">
       <div class="section-header">trajectory</div>
-      <canvas id="trajectoryChart" height="200"></canvas>
+      <canvas id="trajectoryChart" height="320"></canvas>
     </div>
     <div class="chart-container">
       <div class="section-header">distribution</div>
@@ -666,20 +706,30 @@ footer a:hover {
     progressFill.style.width = '30%';
 
     document.getElementById('results').classList.add('hidden');
-    document.getElementById('limitControl').classList.remove('hidden');
+    document.getElementById('samplingControls').classList.remove('hidden');
 
     const pageUrl = new URL(window.location);
     pageUrl.searchParams.set('handle', raw);
     window.history.replaceState({}, '', pageUrl);
 
     try {
-      const limit = parseInt(document.getElementById('limitSelect').value);
+      const mode = document.getElementById('modeSelect').value;
+      let reqBody = { handle: raw, mode };
+      if (mode === 'recent') {
+        reqBody.limit = parseInt(document.getElementById('recentSelect').value);
+      } else {
+        reqBody.limit = parseInt(document.getElementById('limitSelect').value);
+        if (mode === 'stride') {
+          reqBody.stride = parseInt(document.getElementById('strideInput').value) || 3;
+          reqBody.offset = parseInt(document.getElementById('offsetInput').value) || 0;
+        }
+      }
       progressFill.style.width = '50%';
 
       const res = await fetch('/novelty', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: raw, limit }),
+        body: JSON.stringify(reqBody),
       });
 
       progressFill.style.width = '80%';
@@ -708,9 +758,14 @@ footer a:hover {
 
       // Show results
       document.getElementById('results').classList.remove('hidden');
-      const sampleNote = data.stats.sampled
-        ? ' (sampled 1:' + data.stats.sampleRate + ' from ' + data.stats.fetched + ')'
-        : '';
+      let sampleNote = '';
+      if (data.stats.sampled) {
+        if (data.stats.sampleMethod === 'stride' || data.stats.sampleMethod === 'stride+capped') {
+          sampleNote = ' (every ' + data.stats.sampleRate + 'th from ' + data.stats.fetched + ')';
+        } else {
+          sampleNote = ' (sampled 1:' + data.stats.sampleRate + ' from ' + data.stats.fetched + ')';
+        }
+      }
       status.textContent = 'done \u00b7 ' + data.stats.count + ' posts' + sampleNote +
         ' \u00b7 mean ' + data.stats.mean.toFixed(3) +
         ' \u00b7 volume ' + data.stats.volume.toFixed(3) +
@@ -733,6 +788,14 @@ footer a:hover {
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
       renderPosts(currentPosts, currentTab);
     });
+  });
+
+  // Sampling mode switching
+  document.getElementById('modeSelect').addEventListener('change', function () {
+    const mode = this.value;
+    document.getElementById('fetchCtrl').classList.toggle('hidden', mode === 'recent');
+    document.getElementById('strideCtrl').classList.toggle('hidden', mode !== 'stride');
+    document.getElementById('recentCtrl').classList.toggle('hidden', mode !== 'recent');
   });
 
   // Redraw charts on resize
