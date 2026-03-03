@@ -354,10 +354,11 @@ footer a:hover {
 <div class="limit-control hidden" id="limitControl">
   <label>posts</label>
   <select id="limitSelect">
-    <option value="50">50</option>
-    <option value="100">100</option>
-    <option value="200" selected>200</option>
+    <option value="200">200</option>
     <option value="500">500</option>
+    <option value="1000">1,000</option>
+    <option value="2000" selected>2,000</option>
+    <option value="5000">5,000</option>
   </select>
 </div>
 
@@ -628,8 +629,11 @@ footer a:hover {
 
   function renderStats(stats) {
     const grid = document.getElementById('statsGrid');
+    const postLabel = stats.sampled
+      ? stats.count + ' / ' + stats.fetched
+      : String(stats.count);
     grid.innerHTML = [
-      { value: stats.count, label: 'posts' },
+      { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
       { value: stats.mean.toFixed(3), label: 'mean novelty' },
       { value: stats.volume.toFixed(3), label: 'volume' },
       { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
@@ -704,8 +708,13 @@ footer a:hover {
 
       // Show results
       document.getElementById('results').classList.remove('hidden');
-      status.textContent = 'done \u00b7 ' + data.stats.count + ' posts \u00b7 mean ' + data.stats.mean.toFixed(3) +
-        ' \u00b7 volume ' + data.stats.volume.toFixed(3) + ' \u00b7 circ ' + data.stats.circuitousness.toFixed(1);
+      const sampleNote = data.stats.sampled
+        ? ' (sampled 1:' + data.stats.sampleRate + ' from ' + data.stats.fetched + ')'
+        : '';
+      status.textContent = 'done \u00b7 ' + data.stats.count + ' posts' + sampleNote +
+        ' \u00b7 mean ' + data.stats.mean.toFixed(3) +
+        ' \u00b7 volume ' + data.stats.volume.toFixed(3) +
+        ' \u00b7 circ ' + data.stats.circuitousness.toFixed(1);
 
     } catch (err) {
       status.textContent = 'error: ' + err.message;

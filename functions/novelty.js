@@ -1,14 +1,19 @@
 // Cloudflare Pages Function — semantic novelty analysis for mino.mobi/novelty
 //
-// POST /novelty { handle: "someone.bsky.social", limit: 200 }
-// → { posts: [{text, date, novelty, uri}, ...], stats: {mean, volume, circuitousness, count} }
+// POST /novelty { handle: "someone.bsky.social", limit: 2000 }
+// → { posts: [{text, date, novelty, uri}, ...], stats: {mean, volume, circuitousness, count, fetched, sampled} }
 //
 // Uses Cloudflare Workers AI (bge-base-en-v1.5) for embeddings.
 // Requires AI binding in Pages project settings.
+//
+// For large accounts: fetches up to MAX_FETCH posts, then samples evenly
+// down to MAX_EMBED for embedding. This keeps compute within free tier
+// limits while covering a broad timeline.
 
 const BSKY = 'https://public.api.bsky.app';
-const MAX_POSTS = 500;
-const EMBED_BATCH = 50; // Workers AI batch size
+const MAX_FETCH = 5000;  // max posts to retrieve from API
+const MAX_EMBED = 2000;  // max posts to embed (sample if fetched > this)
+const EMBED_BATCH = 50;  // Workers AI batch size
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 
 const CORS = {
@@ -100,10 +105,10 @@ export async function onRequestPost({ request, env }) {
       return Response.json({ error: 'handle required' }, { status: 400, headers: CORS });
     }
 
-    const postLimit = Math.min(Math.max(limit, 20), MAX_POSTS);
+    const fetchLimit = Math.min(Math.max(limit, 20), MAX_FETCH);
 
     // Fetch posts (reverse chronological)
-    const rawPosts = await getAuthorPosts(handle, postLimit);
+    const rawPosts = await getAuthorPosts(handle, fetchLimit);
     if (rawPosts.length < 5) {
       return Response.json({ error: 'Not enough posts (need at least 5)' }, { status: 400, headers: CORS });
     }
@@ -111,8 +116,20 @@ export async function onRequestPost({ request, env }) {
     // Reverse to chronological order (oldest first) for running centroid
     rawPosts.reverse();
 
-    // Batch embed all posts
-    const texts = rawPosts.map(p => p.text);
+    // Sample evenly if we have more posts than MAX_EMBED
+    let posts = rawPosts;
+    let sampleRate = 1;
+    if (rawPosts.length > MAX_EMBED) {
+      const step = rawPosts.length / MAX_EMBED;
+      posts = [];
+      for (let i = 0; i < MAX_EMBED; i++) {
+        posts.push(rawPosts[Math.floor(i * step)]);
+      }
+      sampleRate = Math.round(step * 10) / 10;
+    }
+
+    // Batch embed sampled posts
+    const texts = posts.map(p => p.text);
     const embeddings = [];
     for (let i = 0; i < texts.length; i += EMBED_BATCH) {
       const batch = texts.slice(i, i + EMBED_BATCH);
@@ -164,7 +181,7 @@ export async function onRequestPost({ request, env }) {
     const circuitousness = netDisplacement > 0 ? cumulativePathLength / netDisplacement : 0;
 
     // Build response (chronological order)
-    const posts = rawPosts.map((p, i) => ({
+    const resultPosts = posts.map((p, i) => ({
       text: p.text,
       date: p.date,
       novelty: Math.round(novelties[i] * 1000) / 1000,
@@ -173,9 +190,12 @@ export async function onRequestPost({ request, env }) {
 
     return Response.json({
       handle,
-      posts,
+      posts: resultPosts,
       stats: {
         count: n,
+        fetched: rawPosts.length,
+        sampled: sampleRate > 1,
+        sampleRate,
         mean: Math.round(mean * 1000) / 1000,
         volume: Math.round(volume * 1000) / 1000,
         circuitousness: Math.round(circuitousness * 10) / 10,
