@@ -87,9 +87,10 @@ export async function onRequestOptions() {
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.AI) {
+    const ai = env.SemanticNovelty || env.AI;
+    if (!ai) {
       return Response.json(
-        { error: 'Workers AI not configured. Enable AI binding in Pages settings.' },
+        { error: 'Workers AI not configured. Add an AI binding in Pages settings.' },
         { status: 503, headers: CORS }
       );
     }
@@ -115,7 +116,7 @@ export async function onRequestPost({ request, env }) {
     const embeddings = [];
     for (let i = 0; i < texts.length; i += EMBED_BATCH) {
       const batch = texts.slice(i, i + EMBED_BATCH);
-      const result = await env.AI.run(EMBED_MODEL, { text: batch });
+      const result = await ai.run(EMBED_MODEL, { text: batch });
       embeddings.push(...result.data);
     }
 
