@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>novelty — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --accent: #daa520;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --accent: #daa520;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.desc a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.desc a:hover {
+  text-decoration: underline;
+}
+
+.handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  color: var(--text);
+  display: block;
+}
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.chart-container {
+  margin-bottom: 2.5rem;
+}
+
+.chart-container canvas {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--rule);
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 560px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.post-list {
+  margin-top: 2.5rem;
+}
+
+.post-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-row:last-child {
+  border-bottom: none;
+}
+
+.post-novelty {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  min-width: 3rem;
+  text-align: right;
+  padding-top: 0.15rem;
+}
+
+.post-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.post-text a {
+  color: var(--link);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.post-text a:hover {
+  text-decoration: underline;
+}
+
+.post-date {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--link);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+.limit-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.limit-control label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.limit-control select {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / novelty</h1>
+
+<p class="subtitle">Semantic novelty trajectory.</p>
+
+<p class="desc">
+  How much does a poster explore their semantic space? Each post is embedded
+  and measured against the running centroid of everything they've said before.
+  High novelty = departing from the usual. Low = on-brand.
+  Based on <a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a>.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="loadBtn">analyze</button>
+</form>
+
+<div class="limit-control hidden" id="limitControl">
+  <label>posts</label>
+  <select id="limitSelect">
+    <option value="50">50</option>
+    <option value="100">100</option>
+    <option value="200" selected>200</option>
+    <option value="500">500</option>
+  </select>
+</div>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div id="results" class="hidden">
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="charts-row">
+    <div class="chart-container">
+      <div class="section-header">trajectory</div>
+      <canvas id="trajectoryChart" height="200"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="section-header">distribution</div>
+      <canvas id="histogramChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="post-list">
+    <div class="tabs">
+      <button class="tab active" data-tab="outliers">most novel</button>
+      <button class="tab" data-tab="onbrand">most on-brand</button>
+      <button class="tab" data-tab="all">all posts</button>
+    </div>
+    <div id="postList"></div>
+  </div>
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="/cluster">cluster</a> &middot;
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+(function () {
+
+  let currentPosts = [];
+  let currentTab = 'outliers';
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const ms = Date.now() - new Date(iso).getTime();
+    const d = Math.floor(ms / 86400000);
+    if (d < 1) return 'today';
+    if (d === 1) return '1d';
+    if (d < 30) return d + 'd';
+    if (d < 365) return Math.floor(d / 30) + 'mo';
+    return Math.floor(d / 365) + 'y';
+  }
+
+  function postUrl(uri) {
+    // at://did:plc:xxx/app.bsky.feed.post/yyy → bsky.app link
+    const parts = uri.split('/');
+    const did = parts[2];
+    const rkey = parts[4];
+    return 'https://bsky.app/profile/' + did + '/post/' + rkey;
+  }
+
+  // --- Chart rendering ---
+
+  function getColors() {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      bg: style.getPropertyValue('--bg').trim(),
+      text: style.getPropertyValue('--text').trim(),
+      muted: style.getPropertyValue('--muted').trim(),
+      rule: style.getPropertyValue('--rule').trim(),
+      link: style.getPropertyValue('--link').trim(),
+      accent: style.getPropertyValue('--accent').trim(),
+    };
+  }
+
+  function drawTrajectory(canvas, posts) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const c = getColors();
+    const pad = { top: 15, right: 10, bottom: 25, left: 35 };
+    const pw = w - pad.left - pad.right;
+    const ph = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const novelties = posts.map(p => p.novelty);
+    const maxN = Math.max(...novelties, 0.1);
+
+    // Grid lines
+    ctx.strokeStyle = c.rule;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (ph * i / 4);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(w - pad.right, y);
+      ctx.stroke();
+    }
+
+    // Y-axis labels
+    ctx.fillStyle = c.muted;
+    ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const val = maxN * (1 - i / 4);
+      const y = pad.top + (ph * i / 4);
+      ctx.fillText(val.toFixed(2), pad.left - 5, y + 3);
+    }
+
+    // X-axis labels (first and last date)
+    ctx.textAlign = 'center';
+    ctx.fillText(timeAgo(posts[0].date), pad.left + 10, h - 5);
+    ctx.fillText(timeAgo(posts[posts.length - 1].date), w - pad.right - 10, h - 5);
+
+    // Compute moving average (window = 5% of posts, min 3)
+    const windowSize = Math.max(3, Math.floor(novelties.length * 0.05));
+    const smoothed = [];
+    for (let i = 0; i < novelties.length; i++) {
+      let sum = 0, count = 0;
+      for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(novelties.length - 1, i + Math.floor(windowSize / 2)); j++) {
+        sum += novelties[j];
+        count++;
+      }
+      smoothed.push(sum / count);
+    }
+
+    // Raw data points (dots)
+    ctx.fillStyle = c.accent + '40';
+    for (let i = 0; i < novelties.length; i++) {
+      const x = pad.left + (i / (novelties.length - 1)) * pw;
+      const y = pad.top + (1 - novelties[i] / maxN) * ph;
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Smoothed line
+    ctx.strokeStyle = c.accent;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < smoothed.length; i++) {
+      const x = pad.left + (i / (smoothed.length - 1)) * pw;
+      const y = pad.top + (1 - smoothed[i] / maxN) * ph;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Mean line
+    const mean = novelties.reduce((s, v) => s + v, 0) / novelties.length;
+    const meanY = pad.top + (1 - mean / maxN) * ph;
+    ctx.strokeStyle = c.link;
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, meanY);
+    ctx.lineTo(w - pad.right, meanY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Mean label
+    ctx.fillStyle = c.link;
+    ctx.textAlign = 'left';
+    ctx.fillText('mean', w - pad.right + 2, meanY + 3);
+  }
+
+  function drawHistogram(canvas, posts) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const c = getColors();
+    const pad = { top: 15, right: 10, bottom: 25, left: 25 };
+    const pw = w - pad.left - pad.right;
+    const ph = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const novelties = posts.map(p => p.novelty);
+    const bins = 20;
+    const maxN = Math.max(...novelties, 0.1);
+    const binWidth = maxN / bins;
+    const counts = new Array(bins).fill(0);
+
+    for (const n of novelties) {
+      const bin = Math.min(Math.floor(n / binWidth), bins - 1);
+      counts[bin]++;
+    }
+
+    const maxCount = Math.max(...counts, 1);
+    const barWidth = pw / bins;
+
+    // Bars
+    ctx.fillStyle = c.accent + '80';
+    for (let i = 0; i < bins; i++) {
+      const barHeight = (counts[i] / maxCount) * ph;
+      const x = pad.left + i * barWidth;
+      const y = pad.top + ph - barHeight;
+      ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+    }
+
+    // X-axis labels
+    ctx.fillStyle = c.muted;
+    ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'center';
+    ctx.fillText('0', pad.left, h - 5);
+    ctx.fillText(maxN.toFixed(2), w - pad.right, h - 5);
+    ctx.fillText((maxN / 2).toFixed(2), pad.left + pw / 2, h - 5);
+
+    // Bottom line
+    ctx.strokeStyle = c.rule;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + ph);
+    ctx.lineTo(w - pad.right, pad.top + ph);
+    ctx.stroke();
+  }
+
+  // --- Post list rendering ---
+
+  function renderPosts(posts, tab) {
+    let sorted;
+    if (tab === 'outliers') {
+      sorted = [...posts].sort((a, b) => b.novelty - a.novelty).slice(0, 20);
+    } else if (tab === 'onbrand') {
+      // Skip first post (novelty=0 by definition)
+      sorted = [...posts].filter(p => p.novelty > 0).sort((a, b) => a.novelty - b.novelty).slice(0, 20);
+    } else {
+      sorted = [...posts].reverse(); // most recent first
+    }
+
+    const container = document.getElementById('postList');
+    let html = '';
+    for (const p of sorted) {
+      const url = postUrl(p.uri);
+      html += '<div class="post-row">';
+      html += '<div class="post-novelty">' + p.novelty.toFixed(3) + '</div>';
+      html += '<div class="post-text">' + escapeHtml(p.text) +
+              ' <a href="' + url + '" target="_blank" rel="noopener">&rarr;</a></div>';
+      html += '<div class="post-date">' + timeAgo(p.date) + '</div>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // --- Stats rendering ---
+
+  function renderStats(stats) {
+    const grid = document.getElementById('statsGrid');
+    grid.innerHTML = [
+      { value: stats.count, label: 'posts' },
+      { value: stats.mean.toFixed(3), label: 'mean novelty' },
+      { value: stats.volume.toFixed(3), label: 'volume' },
+      { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
+    ].map(s =>
+      '<div class="stat-card">' +
+      '<span class="stat-value">' + s.value + '</span>' +
+      '<span class="stat-label">' + s.label + '</span>' +
+      '</div>'
+    ).join('');
+  }
+
+  // --- Main ---
+
+  document.getElementById('handleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const raw = (document.getElementById('handleInput').value || '').trim().replace(/^@/, '');
+    if (!raw) return;
+
+    const loadBtn = document.getElementById('loadBtn');
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'analyzing\u2026';
+
+    const status = document.getElementById('status');
+    status.classList.remove('error', 'hidden');
+    status.textContent = 'fetching and embedding posts\u2026';
+
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '30%';
+
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('limitControl').classList.remove('hidden');
+
+    const pageUrl = new URL(window.location);
+    pageUrl.searchParams.set('handle', raw);
+    window.history.replaceState({}, '', pageUrl);
+
+    try {
+      const limit = parseInt(document.getElementById('limitSelect').value);
+      progressFill.style.width = '50%';
+
+      const res = await fetch('/novelty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: raw, limit }),
+      });
+
+      progressFill.style.width = '80%';
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Request failed (' + res.status + ')');
+      }
+
+      const data = await res.json();
+      progressFill.style.width = '100%';
+
+      currentPosts = data.posts;
+
+      // Render stats
+      renderStats(data.stats);
+
+      // Render charts
+      drawTrajectory(document.getElementById('trajectoryChart'), data.posts);
+      drawHistogram(document.getElementById('histogramChart'), data.posts);
+
+      // Render post list
+      currentTab = 'outliers';
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'outliers'));
+      renderPosts(data.posts, 'outliers');
+
+      // Show results
+      document.getElementById('results').classList.remove('hidden');
+      status.textContent = 'done \u00b7 ' + data.stats.count + ' posts \u00b7 mean ' + data.stats.mean.toFixed(3) +
+        ' \u00b7 volume ' + data.stats.volume.toFixed(3) + ' \u00b7 circ ' + data.stats.circuitousness.toFixed(1);
+
+    } catch (err) {
+      status.textContent = 'error: ' + err.message;
+      status.classList.add('error');
+      progressFill.style.width = '0%';
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = 'analyze';
+    }
+  });
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      currentTab = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
+      renderPosts(currentPosts, currentTab);
+    });
+  });
+
+  // Redraw charts on resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (currentPosts.length > 0) {
+        drawTrajectory(document.getElementById('trajectoryChart'), currentPosts);
+        drawHistogram(document.getElementById('histogramChart'), currentPosts);
+      }
+    }, 200);
+  });
+
+  // Auto-load from URL
+  const h = new URLSearchParams(location.search).get('handle');
+  if (h) {
+    document.getElementById('handleInput').value = h;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+</body>
+</html>
