@@ -12,6 +12,7 @@
   --rule: #ccc;
   --link: #8b0000;
   --accent: #daa520;
+  --accent2: #6a9fb5;
   --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 }
@@ -23,6 +24,7 @@
     --rule: #333;
     --link: #c45;
     --accent: #daa520;
+    --accent2: #7ec8e3;
   }
 }
 
@@ -74,12 +76,14 @@ h1 a:hover { color: var(--text); }
 
 .handle-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 2rem;
 }
 
 .handle-form input {
-  flex: 1;
+  flex: 1 1 35%;
+  min-width: 120px;
   font-family: var(--mono);
   font-size: 0.85rem;
   padding: 0.5rem 0.75rem;
@@ -92,6 +96,14 @@ h1 a:hover { color: var(--text); }
 .handle-form input:focus {
   outline: none;
   border-color: var(--link);
+}
+
+.vs-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .handle-form button {
@@ -178,6 +190,44 @@ h1 a:hover { color: var(--text); }
   text-transform: uppercase;
 }
 
+.compare-table {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  margin-bottom: 2.5rem;
+}
+
+.compare-table th, .compare-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--rule);
+}
+
+.compare-table th {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.compare-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compare-table .swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
 .chart-container {
   margin-bottom: 2.5rem;
 }
@@ -186,10 +236,6 @@ h1 a:hover { color: var(--text); }
   width: 100%;
   display: block;
   border: 1px solid var(--rule);
-}
-
-.charts-row {
-  margin-bottom: 2.5rem;
 }
 
 @media (max-width: 560px) {
@@ -217,7 +263,6 @@ h1 a:hover { color: var(--text); }
 .post-novelty {
   font-family: var(--mono);
   font-size: 0.75rem;
-  color: var(--accent);
   flex-shrink: 0;
   min-width: 3rem;
   text-align: right;
@@ -229,6 +274,12 @@ h1 a:hover { color: var(--text); }
   color: var(--text);
   flex: 1;
   min-width: 0;
+}
+
+.post-handle {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
 }
 
 .post-text a {
@@ -351,6 +402,8 @@ footer a:hover {
 
 <form class="handle-form" id="handleForm">
   <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <span class="vs-label">vs</span>
+  <input type="text" id="handleInput2" placeholder="compare (optional)" autocomplete="off" spellcheck="false">
   <button type="submit" id="loadBtn">analyze</button>
 </form>
 
@@ -399,17 +452,15 @@ footer a:hover {
 <div class="status-line hidden" id="status"></div>
 
 <div id="results" class="hidden">
-  <div class="stats-grid" id="statsGrid"></div>
+  <div id="statsGrid"></div>
 
-  <div class="charts-row">
-    <div class="chart-container">
-      <div class="section-header">trajectory</div>
-      <canvas id="trajectoryChart" height="600"></canvas>
-    </div>
-    <div class="chart-container">
-      <div class="section-header">distribution</div>
-      <canvas id="histogramChart" height="300"></canvas>
-    </div>
+  <div class="chart-container">
+    <div class="section-header">trajectory</div>
+    <canvas id="trajectoryChart" height="600"></canvas>
+  </div>
+  <div class="chart-container">
+    <div class="section-header">distribution</div>
+    <canvas id="histogramChart" height="300"></canvas>
   </div>
 
   <div class="post-list">
@@ -431,8 +482,9 @@ footer a:hover {
 <script>
 (function () {
 
-  let currentPosts = [];
+  let analyses = [];  // [{ handle, posts, stats }, ...]
   let currentTab = 'outliers';
+  const PALETTE = ['#daa520', '#6a9fb5'];
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -452,7 +504,6 @@ footer a:hover {
   }
 
   function postUrl(uri) {
-    // at://did:plc:xxx/app.bsky.feed.post/yyy → bsky.app link
     const parts = uri.split('/');
     const did = parts[2];
     const rkey = parts[4];
@@ -470,28 +521,39 @@ footer a:hover {
       rule: style.getPropertyValue('--rule').trim(),
       link: style.getPropertyValue('--link').trim(),
       accent: style.getPropertyValue('--accent').trim(),
+      accent2: style.getPropertyValue('--accent2').trim(),
     };
   }
 
-  function drawTrajectory(canvas, posts) {
+  function initCanvas(canvas) {
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
+    return { ctx, w: rect.width, h: rect.height, dpr };
+  }
 
-    const w = rect.width;
-    const h = rect.height;
+  function drawTrajectory(canvas, analysesArr) {
+    const init = initCanvas(canvas);
+    if (!init) return;
+    const { ctx, w, h } = init;
     const c = getColors();
-    const pad = { top: 15, right: 10, bottom: 25, left: 35 };
+    const pad = { top: 25, right: 15, bottom: 30, left: 45 };
     const pw = w - pad.left - pad.right;
     const ph = h - pad.top - pad.bottom;
 
     ctx.clearRect(0, 0, w, h);
 
-    const novelties = posts.map(p => p.novelty);
-    const maxN = Math.max(...novelties, 0.1);
+    // Global max novelty across all analyses
+    let globalMax = 0.1;
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        if (p.novelty > globalMax) globalMax = p.novelty;
+      }
+    }
 
     // Grid lines
     ctx.strokeStyle = c.rule;
@@ -505,119 +567,155 @@ footer a:hover {
     }
 
     // Y-axis labels
+    const font = '10px ' + getComputedStyle(document.body).fontFamily;
     ctx.fillStyle = c.muted;
-    ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+    ctx.font = font;
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
-      const val = maxN * (1 - i / 4);
+      const val = globalMax * (1 - i / 4);
       const y = pad.top + (ph * i / 4);
-      ctx.fillText(val.toFixed(2), pad.left - 5, y + 3);
+      ctx.fillText(val.toFixed(2), pad.left - 6, y + 4);
     }
 
-    // X-axis labels (first and last date)
-    ctx.textAlign = 'center';
-    ctx.fillText(timeAgo(posts[0].date), pad.left + 10, h - 5);
-    ctx.fillText(timeAgo(posts[posts.length - 1].date), w - pad.right - 10, h - 5);
+    // Draw each analysis
+    for (let ai = 0; ai < analysesArr.length; ai++) {
+      const a = analysesArr[ai];
+      const color = PALETTE[ai % PALETTE.length];
+      const novelties = a.posts.map(p => p.novelty);
+      const n = novelties.length;
+      if (n < 2) continue;
 
-    // Compute moving average (window = 5% of posts, min 3)
-    const windowSize = Math.max(3, Math.floor(novelties.length * 0.05));
-    const smoothed = [];
-    for (let i = 0; i < novelties.length; i++) {
-      let sum = 0, count = 0;
-      for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(novelties.length - 1, i + Math.floor(windowSize / 2)); j++) {
-        sum += novelties[j];
-        count++;
+      // X-axis date labels (first analysis only)
+      if (ai === 0) {
+        ctx.fillStyle = c.muted;
+        ctx.font = font;
+        ctx.textAlign = 'center';
+        ctx.fillText(timeAgo(a.posts[0].date), pad.left + 20, h - 6);
+        ctx.fillText(timeAgo(a.posts[n - 1].date), w - pad.right - 20, h - 6);
       }
-      smoothed.push(sum / count);
-    }
 
-    // Raw data points (dots)
-    ctx.fillStyle = c.accent + '40';
-    for (let i = 0; i < novelties.length; i++) {
-      const x = pad.left + (i / (novelties.length - 1)) * pw;
-      const y = pad.top + (1 - novelties[i] / maxN) * ph;
+      // Moving average
+      const windowSize = Math.max(3, Math.floor(n * 0.05));
+      const smoothed = [];
+      for (let i = 0; i < n; i++) {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(n - 1, i + Math.floor(windowSize / 2)); j++) {
+          sum += novelties[j]; count++;
+        }
+        smoothed.push(sum / count);
+      }
+
+      // Raw dots
+      ctx.fillStyle = color + '25';
+      for (let i = 0; i < n; i++) {
+        const x = pad.left + (i / (n - 1)) * pw;
+        const y = pad.top + (1 - novelties[i] / globalMax) * ph;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Smoothed line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
-      ctx.fill();
+      for (let i = 0; i < smoothed.length; i++) {
+        const x = pad.left + (i / (smoothed.length - 1)) * pw;
+        const y = pad.top + (1 - smoothed[i] / globalMax) * ph;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Mean dashed line
+      const mean = novelties.reduce((s, v) => s + v, 0) / n;
+      const meanY = pad.top + (1 - mean / globalMax) * ph;
+      ctx.strokeStyle = color + '80';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, meanY);
+      ctx.lineTo(w - pad.right, meanY);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    // Smoothed line
-    ctx.strokeStyle = c.accent;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < smoothed.length; i++) {
-      const x = pad.left + (i / (smoothed.length - 1)) * pw;
-      const y = pad.top + (1 - smoothed[i] / maxN) * ph;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    // Legend
+    if (analysesArr.length > 1) {
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      let lx = pad.left + 5;
+      const ly = pad.top + 14;
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        ctx.fillStyle = color;
+        ctx.fillRect(lx, ly - 7, 14, 3);
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'left';
+        const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
+        ctx.fillText(label, lx + 18, ly);
+        lx += ctx.measureText(label).width + 36;
+      }
     }
-    ctx.stroke();
-
-    // Mean line
-    const mean = novelties.reduce((s, v) => s + v, 0) / novelties.length;
-    const meanY = pad.top + (1 - mean / maxN) * ph;
-    ctx.strokeStyle = c.link;
-    ctx.lineWidth = 0.8;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, meanY);
-    ctx.lineTo(w - pad.right, meanY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Mean label
-    ctx.fillStyle = c.link;
-    ctx.textAlign = 'left';
-    ctx.fillText('mean', w - pad.right + 2, meanY + 3);
   }
 
-  function drawHistogram(canvas, posts) {
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const w = rect.width;
-    const h = rect.height;
+  function drawHistogram(canvas, analysesArr) {
+    const init = initCanvas(canvas);
+    if (!init) return;
+    const { ctx, w, h } = init;
     const c = getColors();
-    const pad = { top: 15, right: 10, bottom: 25, left: 25 };
+    const pad = { top: 15, right: 15, bottom: 30, left: 30 };
     const pw = w - pad.left - pad.right;
     const ph = h - pad.top - pad.bottom;
 
     ctx.clearRect(0, 0, w, h);
 
-    const novelties = posts.map(p => p.novelty);
-    const bins = 20;
-    const maxN = Math.max(...novelties, 0.1);
-    const binWidth = maxN / bins;
-    const counts = new Array(bins).fill(0);
-
-    for (const n of novelties) {
-      const bin = Math.min(Math.floor(n / binWidth), bins - 1);
-      counts[bin]++;
+    // Global max novelty
+    let globalMax = 0.1;
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        if (p.novelty > globalMax) globalMax = p.novelty;
+      }
     }
 
-    const maxCount = Math.max(...counts, 1);
+    const bins = 30;
+    const binWidth = globalMax / bins;
     const barWidth = pw / bins;
 
-    // Bars
-    ctx.fillStyle = c.accent + '80';
-    for (let i = 0; i < bins; i++) {
-      const barHeight = (counts[i] / maxCount) * ph;
-      const x = pad.left + i * barWidth;
-      const y = pad.top + ph - barHeight;
-      ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+    // Compute bin counts for each analysis
+    const allCounts = [];
+    let maxCount = 1;
+    for (const a of analysesArr) {
+      const counts = new Array(bins).fill(0);
+      for (const p of a.posts) {
+        const bin = Math.min(Math.floor(p.novelty / binWidth), bins - 1);
+        counts[bin]++;
+      }
+      const mc = Math.max(...counts);
+      if (mc > maxCount) maxCount = mc;
+      allCounts.push(counts);
+    }
+
+    // Draw bars for each analysis
+    for (let ai = 0; ai < allCounts.length; ai++) {
+      const counts = allCounts[ai];
+      const color = PALETTE[ai % PALETTE.length];
+      ctx.fillStyle = color + (allCounts.length > 1 ? '50' : '80');
+      for (let i = 0; i < bins; i++) {
+        const barHeight = (counts[i] / maxCount) * ph;
+        const x = pad.left + i * barWidth;
+        const y = pad.top + ph - barHeight;
+        ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+      }
     }
 
     // X-axis labels
+    const font = '10px ' + getComputedStyle(document.body).fontFamily;
     ctx.fillStyle = c.muted;
-    ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+    ctx.font = font;
     ctx.textAlign = 'center';
-    ctx.fillText('0', pad.left, h - 5);
-    ctx.fillText(maxN.toFixed(2), w - pad.right, h - 5);
-    ctx.fillText((maxN / 2).toFixed(2), pad.left + pw / 2, h - 5);
+    ctx.fillText('0', pad.left, h - 6);
+    ctx.fillText(globalMax.toFixed(2), w - pad.right, h - 6);
+    ctx.fillText((globalMax / 2).toFixed(2), pad.left + pw / 2, h - 6);
 
     // Bottom line
     ctx.strokeStyle = c.rule;
@@ -626,28 +724,103 @@ footer a:hover {
     ctx.moveTo(pad.left, pad.top + ph);
     ctx.lineTo(w - pad.right, pad.top + ph);
     ctx.stroke();
+
+    // Legend if comparing
+    if (allCounts.length > 1) {
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      let lx = pad.left + 5;
+      const ly = pad.top + 14;
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        ctx.fillStyle = color + '80';
+        ctx.fillRect(lx, ly - 8, 10, 10);
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'left';
+        const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
+        ctx.fillText(label, lx + 14, ly);
+        lx += ctx.measureText(label).width + 30;
+      }
+    }
+  }
+
+  // --- Stats rendering ---
+
+  function renderStats(analysesArr) {
+    const grid = document.getElementById('statsGrid');
+
+    if (analysesArr.length === 1) {
+      const stats = analysesArr[0].stats;
+      const postLabel = stats.sampled
+        ? stats.count + ' / ' + stats.fetched
+        : String(stats.count);
+      grid.className = 'stats-grid';
+      grid.innerHTML = [
+        { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
+        { value: stats.mean.toFixed(3), label: 'mean novelty' },
+        { value: stats.volume.toFixed(3), label: 'volume' },
+        { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
+      ].map(s =>
+        '<div class="stat-card">' +
+        '<span class="stat-value">' + s.value + '</span>' +
+        '<span class="stat-label">' + s.label + '</span>' +
+        '</div>'
+      ).join('');
+    } else {
+      grid.className = '';
+      let html = '<table class="compare-table"><thead><tr><th></th>';
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        html += '<th><span class="swatch" style="background:' + color + '"></span>' +
+                escapeHtml(analysesArr[ai].handle) + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+      const rows = [
+        { label: 'posts', fn: a => a.stats.sampled ? a.stats.count + ' / ' + a.stats.fetched : String(a.stats.count) },
+        { label: 'mean novelty', fn: a => a.stats.mean.toFixed(3) },
+        { label: 'volume', fn: a => a.stats.volume.toFixed(3) },
+        { label: 'circuitousness', fn: a => a.stats.circuitousness.toFixed(1) },
+      ];
+      for (const row of rows) {
+        html += '<tr><td>' + row.label + '</td>';
+        for (const a of analysesArr) html += '<td>' + row.fn(a) + '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      grid.innerHTML = html;
+    }
   }
 
   // --- Post list rendering ---
 
-  function renderPosts(posts, tab) {
+  function renderPosts(analysesArr, tab) {
+    const comparing = analysesArr.length > 1;
+    let allPosts = [];
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        allPosts.push({ ...p, handle: a.handle });
+      }
+    }
+
     let sorted;
     if (tab === 'outliers') {
-      sorted = [...posts].sort((a, b) => b.novelty - a.novelty).slice(0, 20);
+      sorted = [...allPosts].sort((a, b) => b.novelty - a.novelty).slice(0, 30);
     } else if (tab === 'onbrand') {
-      // Skip first post (novelty=0 by definition)
-      sorted = [...posts].filter(p => p.novelty > 0).sort((a, b) => a.novelty - b.novelty).slice(0, 20);
+      sorted = [...allPosts].filter(p => p.novelty > 0).sort((a, b) => a.novelty - b.novelty).slice(0, 30);
     } else {
-      sorted = [...posts].reverse(); // most recent first
+      sorted = [...allPosts].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 100);
     }
 
     const container = document.getElementById('postList');
     let html = '';
     for (const p of sorted) {
       const url = postUrl(p.uri);
+      const colorIdx = analysesArr.findIndex(a => a.handle === p.handle);
+      const color = PALETTE[colorIdx >= 0 ? colorIdx : 0];
       html += '<div class="post-row">';
-      html += '<div class="post-novelty">' + p.novelty.toFixed(3) + '</div>';
-      html += '<div class="post-text">' + escapeHtml(p.text) +
+      html += '<div class="post-novelty" style="color:' + color + '">' + p.novelty.toFixed(3) + '</div>';
+      html += '<div class="post-text">';
+      if (comparing) html += '<span class="post-handle">@' + escapeHtml(p.handle) + '</span> ';
+      html += escapeHtml(p.text) +
               ' <a href="' + url + '" target="_blank" rel="noopener">&rarr;</a></div>';
       html += '<div class="post-date">' + timeAgo(p.date) + '</div>';
       html += '</div>';
@@ -655,32 +828,44 @@ footer a:hover {
     container.innerHTML = html;
   }
 
-  // --- Stats rendering ---
+  // --- Sampling params ---
 
-  function renderStats(stats) {
-    const grid = document.getElementById('statsGrid');
-    const postLabel = stats.sampled
-      ? stats.count + ' / ' + stats.fetched
-      : String(stats.count);
-    grid.innerHTML = [
-      { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
-      { value: stats.mean.toFixed(3), label: 'mean novelty' },
-      { value: stats.volume.toFixed(3), label: 'volume' },
-      { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
-    ].map(s =>
-      '<div class="stat-card">' +
-      '<span class="stat-value">' + s.value + '</span>' +
-      '<span class="stat-label">' + s.label + '</span>' +
-      '</div>'
-    ).join('');
+  function getSamplingParams() {
+    const mode = document.getElementById('modeSelect').value;
+    const params = { mode };
+    if (mode === 'recent') {
+      params.limit = parseInt(document.getElementById('recentSelect').value);
+    } else {
+      params.limit = parseInt(document.getElementById('limitSelect').value);
+      if (mode === 'stride') {
+        params.stride = parseInt(document.getElementById('strideInput').value) || 3;
+        params.offset = parseInt(document.getElementById('offsetInput').value) || 0;
+      }
+    }
+    return params;
+  }
+
+  async function fetchNovelty(handle, samplingParams) {
+    const body = { handle, ...samplingParams };
+    const res = await fetch('/novelty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Request failed (' + res.status + ')');
+    }
+    return res.json();
   }
 
   // --- Main ---
 
   document.getElementById('handleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const raw = (document.getElementById('handleInput').value || '').trim().replace(/^@/, '');
-    if (!raw) return;
+    const handle1 = (document.getElementById('handleInput').value || '').trim().replace(/^@/, '');
+    const handle2 = (document.getElementById('handleInput2').value || '').trim().replace(/^@/, '');
+    if (!handle1) return;
 
     const loadBtn = document.getElementById('loadBtn');
     loadBtn.disabled = true;
@@ -688,7 +873,9 @@ footer a:hover {
 
     const status = document.getElementById('status');
     status.classList.remove('error', 'hidden');
-    status.textContent = 'fetching and embedding posts\u2026';
+    status.textContent = handle2
+      ? 'fetching and embedding posts for both handles\u2026'
+      : 'fetching and embedding posts\u2026';
 
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
@@ -698,68 +885,59 @@ footer a:hover {
     document.getElementById('results').classList.add('hidden');
     document.getElementById('samplingControls').classList.remove('hidden');
 
+    // Update URL
     const pageUrl = new URL(window.location);
-    pageUrl.searchParams.set('handle', raw);
+    pageUrl.searchParams.set('handle', handle1);
+    if (handle2) pageUrl.searchParams.set('vs', handle2);
+    else pageUrl.searchParams.delete('vs');
     window.history.replaceState({}, '', pageUrl);
 
     try {
-      const mode = document.getElementById('modeSelect').value;
-      let reqBody = { handle: raw, mode };
-      if (mode === 'recent') {
-        reqBody.limit = parseInt(document.getElementById('recentSelect').value);
-      } else {
-        reqBody.limit = parseInt(document.getElementById('limitSelect').value);
-        if (mode === 'stride') {
-          reqBody.stride = parseInt(document.getElementById('strideInput').value) || 3;
-          reqBody.offset = parseInt(document.getElementById('offsetInput').value) || 0;
-        }
-      }
+      const sampling = getSamplingParams();
       progressFill.style.width = '50%';
 
-      const res = await fetch('/novelty', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reqBody),
-      });
+      // Fetch in parallel if comparing
+      const handles = [handle1];
+      if (handle2) handles.push(handle2);
 
-      progressFill.style.width = '80%';
+      const results = await Promise.all(handles.map(h => fetchNovelty(h, sampling)));
+      progressFill.style.width = '90%';
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Request failed (' + res.status + ')');
-      }
+      analyses = results.map(data => ({
+        handle: data.handle,
+        posts: data.posts,
+        stats: data.stats,
+      }));
 
-      const data = await res.json();
-      progressFill.style.width = '100%';
+      // Show results BEFORE drawing charts (getBoundingClientRect needs visible element)
+      document.getElementById('results').classList.remove('hidden');
 
-      currentPosts = data.posts;
+      // Render everything
+      renderStats(analyses);
+      drawTrajectory(document.getElementById('trajectoryChart'), analyses);
+      drawHistogram(document.getElementById('histogramChart'), analyses);
 
-      // Render stats
-      renderStats(data.stats);
-
-      // Render charts
-      drawTrajectory(document.getElementById('trajectoryChart'), data.posts);
-      drawHistogram(document.getElementById('histogramChart'), data.posts);
-
-      // Render post list
       currentTab = 'outliers';
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'outliers'));
-      renderPosts(data.posts, 'outliers');
+      renderPosts(analyses, 'outliers');
 
-      // Show results
-      document.getElementById('results').classList.remove('hidden');
-      let sampleNote = '';
-      if (data.stats.sampled) {
-        if (data.stats.sampleMethod === 'stride' || data.stats.sampleMethod === 'stride+capped') {
-          sampleNote = ' (every ' + data.stats.sampleRate + 'th from ' + data.stats.fetched + ')';
-        } else {
-          sampleNote = ' (sampled 1:' + data.stats.sampleRate + ' from ' + data.stats.fetched + ')';
+      progressFill.style.width = '100%';
+
+      // Status line
+      const parts = [];
+      for (const a of analyses) {
+        let note = a.handle + ': ' + a.stats.count + ' posts';
+        if (a.stats.sampled) {
+          if (a.stats.sampleMethod === 'stride' || a.stats.sampleMethod === 'stride+capped') {
+            note += ' (every ' + a.stats.sampleRate + 'th)';
+          } else {
+            note += ' (1:' + a.stats.sampleRate + ')';
+          }
         }
+        note += ', mean ' + a.stats.mean.toFixed(3);
+        parts.push(note);
       }
-      status.textContent = 'done \u00b7 ' + data.stats.count + ' posts' + sampleNote +
-        ' \u00b7 mean ' + data.stats.mean.toFixed(3) +
-        ' \u00b7 volume ' + data.stats.volume.toFixed(3) +
-        ' \u00b7 circ ' + data.stats.circuitousness.toFixed(1);
+      status.textContent = 'done \u00b7 ' + parts.join(' \u00b7 ');
 
     } catch (err) {
       status.textContent = 'error: ' + err.message;
@@ -776,7 +954,7 @@ footer a:hover {
     tab.addEventListener('click', () => {
       currentTab = tab.dataset.tab;
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
-      renderPosts(currentPosts, currentTab);
+      renderPosts(analyses, currentTab);
     });
   });
 
@@ -793,17 +971,20 @@ footer a:hover {
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (currentPosts.length > 0) {
-        drawTrajectory(document.getElementById('trajectoryChart'), currentPosts);
-        drawHistogram(document.getElementById('histogramChart'), currentPosts);
+      if (analyses.length > 0) {
+        drawTrajectory(document.getElementById('trajectoryChart'), analyses);
+        drawHistogram(document.getElementById('histogramChart'), analyses);
       }
     }, 200);
   });
 
   // Auto-load from URL
-  const h = new URLSearchParams(location.search).get('handle');
+  const params = new URLSearchParams(location.search);
+  const h = params.get('handle');
+  const vs = params.get('vs');
   if (h) {
     document.getElementById('handleInput').value = h;
+    if (vs) document.getElementById('handleInput2').value = vs;
     document.getElementById('handleForm').dispatchEvent(new Event('submit'));
   }
 })();
