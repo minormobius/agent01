@@ -925,10 +925,9 @@ footer a:hover {
       url.searchParams.set('days', days);
       history.replaceState(null, '', url);
 
-      // Render everything
+      // Render everything — show results first so canvas gets layout dimensions
       renderStats(data);
       renderPersonality(data.personality);
-      drawValenceChart($('valenceChart'), data.posts);
       renderTopics(data.topics);
       currentTab = 'positive';
       document.querySelectorAll('.tab').forEach(function (t) {
@@ -938,6 +937,7 @@ footer a:hover {
       show($('postList'));
       hide($('docsPanel'));
       show($('results'));
+      drawValenceChart($('valenceChart'), data.posts);
 
     } catch (err) {
       setStatus(err.message, true);
