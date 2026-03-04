@@ -21,7 +21,7 @@ const BSKY = 'https://public.api.bsky.app';
 const MAX_FETCH = 50000;  // safety net; subrequest budget is the real constraint
 const EMBED_BATCH = 100;  // Workers AI batch size
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
-const SUBREQ_BUDGET = 48; // headroom under 50 limit
+const SUBREQ_BUDGET = 40; // conservative headroom under 50 limit
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,14 +33,14 @@ const CORS = {
 async function fetchJSON(url) {
   for (let i = 0; i < 4; i++) {
     const res = await fetch(url);
-    if (res.status === 429) {
-      await new Promise(r => setTimeout(r, (1 << i) * 500));
+    if (res.status === 429 || res.status === 503) {
+      await new Promise(r => setTimeout(r, (1 << i) * 1000));
       continue;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
-  throw new Error('Rate limited');
+  throw new Error('Rate limited (429/503 after 4 retries)');
 }
 
 // Fetch author's posts in reverse chronological order
