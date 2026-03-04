@@ -17,11 +17,21 @@
 // Respects Cloudflare free tier: ≤50 subrequests per invocation.
 // Dynamically allocates embed budget from remaining subrequest headroom.
 
-const BSKY = 'https://public.api.bsky.app';
+const BSKY_PUBLIC = 'https://public.api.bsky.app';
+const BSKY_AUTH = 'https://bsky.social';
 const MAX_FETCH = 50000;  // safety net; subrequest budget is the real constraint
 const EMBED_BATCH = 100;  // Workers AI batch size
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 const SUBREQ_BUDGET = 40; // conservative headroom under 50 limit
+
+// Bluesky accounts for authenticated API access (higher rate limits).
+// Randomly picks one per invocation to spread load across 3 accounts.
+// Set these as Cloudflare Pages environment variables (same values as GitHub secrets).
+const AUTH_ACCOUNTS = [
+  { handleKey: 'BLUESKY_HANDLE', passwordKey: 'BLUESKY_APP_PASSWORD' },
+  { handleKey: 'BLUESKY_MODULO_HANDLE', passwordKey: 'BLUESKY_MODULO_APP_PASSWORD' },
+  { handleKey: 'BLUESKY_MORPHYX_HANDLE', passwordKey: 'BLUESKY_MORPHYX_APP_PASSWORD' },
+];
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -30,9 +40,9 @@ const CORS = {
   'Access-Control-Max-Age': '86400',
 };
 
-async function fetchJSON(url) {
+async function fetchJSON(url, headers = {}) {
   for (let i = 0; i < 4; i++) {
-    const res = await fetch(url);
+    const res = await fetch(url, Object.keys(headers).length ? { headers } : undefined);
     if (res.status === 429 || res.status === 503) {
       await new Promise(r => setTimeout(r, (1 << i) * 1000));
       continue;
@@ -43,9 +53,37 @@ async function fetchJSON(url) {
   throw new Error('Rate limited (429/503 after 4 retries)');
 }
 
+// Authenticate with Bluesky using one of the configured accounts.
+// Returns { token, baseUrl } or null if no credentials are available.
+// Costs 1 subrequest.
+async function authenticate(env) {
+  const available = AUTH_ACCOUNTS.filter(a => env[a.handleKey] && env[a.passwordKey]);
+  if (available.length === 0) return null;
+
+  const account = available[Math.floor(Math.random() * available.length)];
+  try {
+    const res = await fetch(`${BSKY_AUTH}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: env[account.handleKey],
+        password: env[account.passwordKey],
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { token: data.accessJwt, baseUrl: BSKY_AUTH };
+  } catch {
+    return null;
+  }
+}
+
 // Fetch author's posts in reverse chronological order
 // Returns { posts, pages } where pages = number of API calls made
-async function getAuthorPosts(actor, limit) {
+// auth: { token, baseUrl } from authenticate(), or null for public API
+async function getAuthorPosts(actor, limit, auth) {
+  const baseUrl = auth ? auth.baseUrl : BSKY_PUBLIC;
+  const headers = auth ? { Authorization: `Bearer ${auth.token}` } : {};
   const posts = [];
   let cursor;
   let pages = 0;
@@ -53,7 +91,7 @@ async function getAuthorPosts(actor, limit) {
     pages++;
     const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_no_replies' });
     if (cursor) params.set('cursor', cursor);
-    const data = await fetchJSON(`${BSKY}/xrpc/app.bsky.feed.getAuthorFeed?${params}`);
+    const data = await fetchJSON(`${baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?${params}`, headers);
     for (const item of (data.feed || [])) {
       const post = item.post;
       if (!post?.record?.text) continue;
@@ -158,6 +196,10 @@ export async function onRequestPost({ request, env }) {
       return Response.json({ error: 'handle or handles[] required' }, { status: 400, headers: CORS });
     }
 
+    // Authenticate with Bluesky (1 subrequest, falls back to public API)
+    const auth = await authenticate(env);
+    const budget = auth ? SUBREQ_BUDGET - 1 : SUBREQ_BUDGET;
+
     // ── MERGED MODE ─────────────────────────────────────────────
     if (handles && handles.length >= 2) {
       const perHandle = Math.floor(limit / handles.length);
@@ -167,7 +209,7 @@ export async function onRequestPost({ request, env }) {
       for (const h of handles) {
         let fetchLim;
         if (mode === 'stride' && stride >= 2) {
-          const budgetPerHandle = Math.floor(SUBREQ_BUDGET / handles.length);
+          const budgetPerHandle = Math.floor(budget / handles.length);
           const maxTarget = Math.floor((budgetPerHandle * EMBED_BATCH) / (stride + 1));
           const target = Math.min(perHandle, maxTarget);
           fetchLim = target * stride;
@@ -175,7 +217,7 @@ export async function onRequestPost({ request, env }) {
           fetchLim = Math.min(perHandle, MAX_FETCH);
         }
 
-        const { posts, pages } = await getAuthorPosts(h, fetchLim);
+        const { posts, pages } = await getAuthorPosts(h, fetchLim, auth);
         totalPages += pages;
         posts.reverse(); // chronological
 
@@ -193,7 +235,7 @@ export async function onRequestPost({ request, env }) {
       taggedPosts.sort((a, b) => new Date(a.date) - new Date(b.date));
 
       // Cap at embed budget
-      const embedBudget = Math.max(1, SUBREQ_BUDGET - totalPages);
+      const embedBudget = Math.max(1, budget - totalPages);
       const maxEmbed = embedBudget * EMBED_BATCH;
       let posts = taggedPosts;
       if (posts.length > maxEmbed) {
@@ -256,7 +298,7 @@ export async function onRequestPost({ request, env }) {
     // In stride mode, limit = target analyzed posts; fetch limit*stride
     let fetchLimit;
     if (mode === 'stride' && stride >= 2) {
-      const maxTarget = Math.floor((SUBREQ_BUDGET * EMBED_BATCH) / (stride + 1));
+      const maxTarget = Math.floor((budget * EMBED_BATCH) / (stride + 1));
       const target = Math.min(limit, maxTarget);
       fetchLimit = Math.min(target * stride, MAX_FETCH);
     } else {
@@ -264,7 +306,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     // Fetch posts (reverse chronological)
-    const { posts: rawPosts, pages: fetchPages } = await getAuthorPosts(handle, fetchLimit);
+    const { posts: rawPosts, pages: fetchPages } = await getAuthorPosts(handle, fetchLimit, auth);
     if (rawPosts.length < 5) {
       return Response.json({ error: 'Not enough posts (need at least 5)' }, { status: 400, headers: CORS });
     }
@@ -273,7 +315,7 @@ export async function onRequestPost({ request, env }) {
     rawPosts.reverse();
 
     // Compute embed budget from remaining subrequest allowance
-    const embedBudget = Math.max(1, SUBREQ_BUDGET - fetchPages);
+    const embedBudget = Math.max(1, budget - fetchPages);
     const maxEmbed = embedBudget * EMBED_BATCH;
 
     // Apply sampling based on mode
