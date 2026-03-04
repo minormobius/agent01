@@ -88,6 +88,7 @@ async function getAuthorPosts(actor, limit, auth) {
   let cursor;
   let pages = 0;
   do {
+    if (pages > 0) await new Promise(r => setTimeout(r, 200));
     pages++;
     const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_no_replies' });
     if (cursor) params.set('cursor', cursor);

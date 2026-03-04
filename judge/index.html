@@ -596,6 +596,12 @@ footer a:hover {
     return 'var(--muted)';
   }
 
+  // Display scores as ×1000 integers (e.g., 0.023 → "+23")
+  function fmtScore(v) {
+    var n = Math.round(v * 1000);
+    return (n >= 0 ? '+' : '') + n;
+  }
+
   function fmtDate(iso) {
     var d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -614,7 +620,7 @@ footer a:hover {
       { value: data.stats.analyzed, label: 'posts' },
       { value: data.stats.days + 'd', label: 'window' },
       { value: data.stats.topicCount, label: 'topics' },
-      { value: (data.valence.mean >= 0 ? '+' : '') + data.valence.mean.toFixed(3), label: 'valence' },
+      { value: fmtScore(data.valence.mean), label: 'valence' },
     ];
     grid.innerHTML = items.map(function (s) {
       return '<div class="stat-card"><span class="stat-value">' + s.value +
@@ -655,7 +661,7 @@ footer a:hover {
           '<div class="trait-center"></div>' +
           '<div class="trait-fill ' + cls + '" style="' + fillStyle + '"></div>' +
         '</div>' +
-        '<span class="trait-score">' + (val >= 0 ? '+' : '') + val.toFixed(3) + '</span>' +
+        '<span class="trait-score">' + fmtScore(val) + '</span>' +
       '</div>' +
       '<div style="display:flex;margin-left:calc(110px + 0.75rem);margin-right:calc(48px + 0.75rem);margin-bottom:0.5rem;" class="trait-poles">' +
         '<span class="trait-pole">' + TRAITS[trait].low + '</span>' +
@@ -824,10 +830,9 @@ footer a:hover {
         if (dist < bestDist) { bestDist = dist; best = rollingPts[i]; }
       }
       ctx.putImageData(baseImage, 0, 0);
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (!best || bestDist > 60) {
         readout.innerHTML = '';
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         return;
       }
 
@@ -846,14 +851,12 @@ footer a:hover {
       ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
       ctx.fillStyle = accentColor;
       ctx.fill();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // Readout below chart
-      var vSign = best.avg >= 0 ? '+' : '';
       var vClass = best.avg >= 0.02 ? 'pos' : (best.avg <= -0.02 ? 'neg' : 'val');
       readout.innerHTML =
         fmtDate(new Date(best.date).toISOString()) +
-        ' &nbsp; valence <span class="' + vClass + '">' + vSign + best.avg.toFixed(3) + '</span>' +
+        ' &nbsp; valence <span class="' + vClass + '">' + fmtScore(best.avg) + '</span>' +
         ' &nbsp; ' + best.posts + ' posts / ' + WINDOW + 'd';
     }
 
@@ -884,7 +887,6 @@ footer a:hover {
     var container = $('topicsList');
     container.innerHTML = topics.map(function (t) {
       var vColor = valenceColor(t.valence);
-      var vSign = t.valence >= 0 ? '+' : '';
       return '<div class="topic-card">' +
         '<div class="topic-header">' +
           '<span class="topic-keywords">' + t.keywords.join(' / ') + '</span>' +
@@ -892,7 +894,7 @@ footer a:hover {
         '</div>' +
         '<div class="topic-representative">"' + escHtml(truncate(t.representative.text, 200)) + '"</div>' +
         '<span class="topic-valence-bar" style="color:' + vColor + ';border:1px solid ' + vColor + '">' +
-          'valence ' + vSign + t.valence.toFixed(3) +
+          'valence ' + fmtScore(t.valence) +
         '</span>' +
       '</div>';
     }).join('');
@@ -913,7 +915,6 @@ footer a:hover {
 
     container.innerHTML = shown.map(function (p) {
       var vColor = valenceColor(p.valence);
-      var vSign = p.valence >= 0 ? '+' : '';
       var topicLabel = profileData.topics.find(function (t) { return t.id === p.topic; });
       var topicText = topicLabel ? topicLabel.keywords.slice(0, 2).join('/') : '?';
 
@@ -922,7 +923,7 @@ footer a:hover {
           '<span class="post-date">' + fmtDate(p.date) + '</span>' +
           '<div class="post-badges">' +
             '<span class="post-badge" style="color:' + vColor + ';border:1px solid ' + vColor + '">' +
-              vSign + p.valence.toFixed(3) +
+              fmtScore(p.valence) +
             '</span>' +
             '<span class="post-badge" style="color:var(--accent);border:1px solid var(--accent)">' +
               topicText +

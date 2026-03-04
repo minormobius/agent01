@@ -561,6 +561,10 @@ footer a:hover {
   let currentTab = 'outliers';
   const PALETTE = ['#daa520', '#6a9fb5'];
 
+  // Display scores as ×1000 integers
+  function k(v) { return Math.round(v * 1000); }
+  function kSigned(v) { var n = k(v); return (n >= 0 ? '+' : '') + n; }
+
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -755,10 +759,9 @@ footer a:hover {
         if (dist < bestDist) { bestDist = dist; best = pt; }
       }
       ctx.putImageData(baseImage, 0, 0);
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (!best || bestDist > 60) {
         readout.innerHTML = '';
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         return;
       }
 
@@ -777,12 +780,11 @@ footer a:hover {
       ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
       ctx.fillStyle = best.color;
       ctx.fill();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // DOM readout
       const parts = [timeAgo(best.date)];
-      parts.push('novelty <span class="val">' + best.novelty.toFixed(3) + '</span>');
-      parts.push('avg <span class="val">' + best.smoothed.toFixed(3) + '</span>');
+      parts.push('novelty <span class="val">' + k(best.novelty) + '</span>');
+      parts.push('avg <span class="val">' + k(best.smoothed) + '</span>');
       if (analysesArr.length > 1) parts.push('@' + best.handle.replace(/\.bsky\.social$/, ''));
       readout.innerHTML = parts.join(' &nbsp; ');
     }
@@ -898,12 +900,11 @@ footer a:hover {
         : String(stats.count);
       grid.className = 'stats-grid';
       const intVal = stats.meanInterestingness || 0;
-      const intSign = intVal >= 0 ? '+' : '';
       grid.innerHTML = [
         { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
-        { value: stats.mean.toFixed(3), label: 'mean novelty' },
-        { value: intSign + intVal.toFixed(4), label: 'interestingness' },
-        { value: stats.volume.toFixed(3), label: 'volume' },
+        { value: k(stats.mean), label: 'mean novelty' },
+        { value: kSigned(intVal), label: 'interestingness' },
+        { value: k(stats.volume), label: 'volume' },
         { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
       ].map(s =>
         '<div class="stat-card">' +
@@ -923,9 +924,9 @@ footer a:hover {
       html += '</tr></thead><tbody>';
       const rows = [
         { label: 'posts', fn: a => a.stats.sampled ? a.stats.count + ' / ' + a.stats.fetched : String(a.stats.count) },
-        { label: 'mean novelty', fn: a => a.stats.mean.toFixed(3) },
-        { label: 'interestingness', fn: a => { const v = a.stats.meanInterestingness || 0; return (v >= 0 ? '+' : '') + v.toFixed(4); } },
-        { label: 'volume', fn: a => a.stats.volume.toFixed(3) },
+        { label: 'mean novelty', fn: a => k(a.stats.mean) },
+        { label: 'interestingness', fn: a => kSigned(a.stats.meanInterestingness || 0) },
+        { label: 'volume', fn: a => k(a.stats.volume) },
         { label: 'circuitousness', fn: a => a.stats.circuitousness.toFixed(1) },
       ];
       for (const row of rows) {
@@ -938,9 +939,9 @@ footer a:hover {
       if (merged && merged.byHandle) {
         html += '<tr><td colspan="' + colSpan + '" style="text-align:center;padding-top:1.2rem;padding-bottom:0.3rem;color:var(--muted);font-size:0.6rem;letter-spacing:0.08em;border-bottom:none;">SHARED CENTROID</td></tr>';
         var mRows = [
-          { label: 'mean (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].mean.toFixed(3) : '\u2014'; } },
-          { label: 'interest. (shared)', fn: function (h) { if (!merged.byHandle[h]) return '\u2014'; var v = merged.byHandle[h].meanInterestingness || 0; return (v >= 0 ? '+' : '') + v.toFixed(4); } },
-          { label: 'volume (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].volume.toFixed(3) : '\u2014'; } },
+          { label: 'mean (shared)', fn: function (h) { return merged.byHandle[h] ? k(merged.byHandle[h].mean) : '\u2014'; } },
+          { label: 'interest. (shared)', fn: function (h) { if (!merged.byHandle[h]) return '\u2014'; return kSigned(merged.byHandle[h].meanInterestingness || 0); } },
+          { label: 'volume (shared)', fn: function (h) { return merged.byHandle[h] ? k(merged.byHandle[h].volume) : '\u2014'; } },
         ];
         for (var mi = 0; mi < mRows.length; mi++) {
           html += '<tr><td>' + mRows[mi].label + '</td>';
@@ -986,9 +987,9 @@ footer a:hover {
       if (tab === 'interesting') {
         const v = p.interestingness || 0;
         const sign = v >= 0 ? '+' : '';
-        html += '<div class="post-novelty" style="color:' + color + '">' + sign + v.toFixed(4) + '</div>';
+        html += '<div class="post-novelty" style="color:' + color + '">' + kSigned(v) + '</div>';
       } else {
-        html += '<div class="post-novelty" style="color:' + color + '">' + p.novelty.toFixed(3) + '</div>';
+        html += '<div class="post-novelty" style="color:' + color + '">' + k(p.novelty) + '</div>';
       }
       html += '<div class="post-text">';
       if (comparing) html += '<span class="post-handle">@' + escapeHtml(p.handle) + '</span> ';
@@ -1125,7 +1126,7 @@ footer a:hover {
             note += ' (1:' + a.stats.sampleRate + ')';
           }
         }
-        note += ', mean ' + a.stats.mean.toFixed(3);
+        note += ', mean ' + k(a.stats.mean);
         parts.push(note);
       }
       const authTag = analyses[0]?.stats?.authenticated ? 'authed' : 'public';
