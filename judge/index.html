@@ -684,6 +684,13 @@ footer a:hover {
     minV -= rangeV * 0.1;
     maxV += rangeV * 0.1;
 
+    // asinh compression: linear near zero, log-like in tails
+    // k controls the knee — higher k = more compression
+    var absMax = Math.max(Math.abs(minV), Math.abs(maxV));
+    var k = 8 / (absMax || 0.1); // knee at ~1/8 of range
+    var normA = Math.asinh(k * absMax); // normalizer so edges map to ±1
+    function compress(v) { return Math.asinh(k * v) / normA; }
+
     // CSS vars
     var cs = getComputedStyle(document.documentElement);
     var mutedColor = cs.getPropertyValue('--muted').trim();
@@ -693,7 +700,11 @@ footer a:hover {
     var accentColor = cs.getPropertyValue('--accent').trim();
 
     function xPos(t) { return pad.left + plotW * ((t - tMin) / tRange); }
-    function yPos(v) { return pad.top + plotH * (1 - (v - minV) / (maxV - minV)); }
+    function yPos(v) {
+      var cMin = compress(minV), cMax = compress(maxV);
+      var cv = compress(v);
+      return pad.top + plotH * (1 - (cv - cMin) / (cMax - cMin));
+    }
 
     // Zero line
     var zeroY = yPos(0);
