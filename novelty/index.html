@@ -239,9 +239,11 @@ h1 a:hover { color: var(--text); }
 }
 
 @media (max-width: 560px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  body { padding: 1.5rem 0.75rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container canvas { height: 180px; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
+  .sampling-controls { gap: 0.3rem 0.5rem; }
 }
 
 .post-list {
@@ -1045,7 +1047,8 @@ footer a:hover {
         note += ', mean ' + a.stats.mean.toFixed(3);
         parts.push(note);
       }
-      status.textContent = 'done \u00b7 ' + parts.join(' \u00b7 ');
+      const authTag = analyses[0]?.stats?.authenticated ? 'authed' : 'public';
+      status.textContent = 'done \u00b7 ' + parts.join(' \u00b7 ') + ' \u00b7 ' + authTag;
 
     } catch (err) {
       status.textContent = 'error: ' + err.message;

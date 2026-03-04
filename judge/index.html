@@ -455,10 +455,13 @@ footer a:hover {
 }
 
 @media (max-width: 480px) {
-  body { padding: 2rem 1rem; }
+  body { padding: 1.5rem 0.75rem; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .trait-label { width: 80px; font-size: 0.6rem; }
   .trait-score { width: 40px; font-size: 0.65rem; }
+  canvas { height: 150px; }
+  .topic-card { padding: 0.75rem; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
 }
 </style>
 </head>
@@ -987,7 +990,8 @@ footer a:hover {
       profileData = data;
 
       setProgress(100);
-      setStatus(data.stats.analyzed + ' posts analyzed over ' + data.stats.days + ' days');
+      var authTag = data.stats.authenticated ? 'authed' : 'public';
+      setStatus(data.stats.analyzed + ' posts analyzed over ' + data.stats.days + 'd · ' + authTag);
 
       // Update URL
       var url = new URL(location);
