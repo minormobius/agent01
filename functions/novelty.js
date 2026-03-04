@@ -90,7 +90,7 @@ async function getAuthorPosts(actor, limit, auth) {
   do {
     if (pages > 0) await new Promise(r => setTimeout(r, 200));
     pages++;
-    const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_no_replies' });
+    const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_with_replies' });
     if (cursor) params.set('cursor', cursor);
     const data = await fetchJSON(`${baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?${params}`, headers);
     for (const item of (data.feed || [])) {
