@@ -236,7 +236,19 @@ h1 a:hover { color: var(--text); }
   width: 100%;
   display: block;
   border: 1px solid var(--rule);
+  touch-action: none;
 }
+
+.chart-readout {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-height: 1.6em;
+  margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-readout .val { color: var(--text); }
 
 @media (max-width: 560px) {
   body { padding: 1.5rem 0.75rem; }
@@ -515,6 +527,7 @@ footer a:hover {
   <div class="chart-container">
     <div class="section-header">trajectory</div>
     <canvas id="trajectoryChart" height="300"></canvas>
+    <div class="chart-readout" id="trajectoryReadout"></div>
   </div>
   <div class="chart-container">
     <div class="section-header">distribution</div>
@@ -601,9 +614,12 @@ footer a:hover {
   function drawTrajectory(canvas, analysesArr) {
     const init = initCanvas(canvas);
     if (!init) return;
-    const { ctx, w, h } = init;
+    const { ctx, w, h, dpr } = init;
     const c = getColors();
-    const pad = { top: 25, right: 15, bottom: 30, left: 45 };
+    const mobile = w < 480;
+    const fontSize = mobile ? 8 : 10;
+    const font = fontSize + 'px monospace';
+    const pad = { top: mobile ? 14 : 25, right: mobile ? 8 : 15, bottom: mobile ? 20 : 30, left: mobile ? 30 : 45 };
     const pw = w - pad.left - pad.right;
     const ph = h - pad.top - pad.bottom;
 
@@ -620,8 +636,9 @@ footer a:hover {
     // Grid lines
     ctx.strokeStyle = c.rule;
     ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
-      const y = pad.top + (ph * i / 4);
+    const gridSteps = mobile ? 3 : 4;
+    for (let i = 0; i <= gridSteps; i++) {
+      const y = pad.top + (ph * i / gridSteps);
       ctx.beginPath();
       ctx.moveTo(pad.left, y);
       ctx.lineTo(w - pad.right, y);
@@ -629,15 +646,17 @@ footer a:hover {
     }
 
     // Y-axis labels
-    const font = '10px ' + getComputedStyle(document.body).fontFamily;
     ctx.fillStyle = c.muted;
     ctx.font = font;
     ctx.textAlign = 'right';
-    for (let i = 0; i <= 4; i++) {
-      const val = globalMax * (1 - i / 4);
-      const y = pad.top + (ph * i / 4);
-      ctx.fillText(val.toFixed(2), pad.left - 6, y + 4);
+    for (let i = 0; i <= gridSteps; i++) {
+      const val = globalMax * (1 - i / gridSteps);
+      const y = pad.top + (ph * i / gridSteps);
+      ctx.fillText(val.toFixed(2), pad.left - 4, y + 4);
     }
+
+    // Build scan points for interaction (per-analysis)
+    const scanPoints = []; // {x, y, novelty, date, handle, smoothed}
 
     // Draw each analysis
     for (let ai = 0; ai < analysesArr.length; ai++) {
@@ -652,8 +671,8 @@ footer a:hover {
         ctx.fillStyle = c.muted;
         ctx.font = font;
         ctx.textAlign = 'center';
-        ctx.fillText(timeAgo(a.posts[0].date), pad.left + 20, h - 6);
-        ctx.fillText(timeAgo(a.posts[n - 1].date), w - pad.right - 20, h - 6);
+        ctx.fillText(timeAgo(a.posts[0].date), pad.left + 15, h - 4);
+        ctx.fillText(timeAgo(a.posts[n - 1].date), w - pad.right - 15, h - 4);
       }
 
       // Moving average
@@ -673,19 +692,23 @@ footer a:hover {
         const x = pad.left + (i / (n - 1)) * pw;
         const y = pad.top + (1 - novelties[i] / globalMax) * ph;
         ctx.beginPath();
-        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.arc(x, y, mobile ? 1 : 1.5, 0, Math.PI * 2);
         ctx.fill();
       }
 
       // Smoothed line
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = mobile ? 1.5 : 2;
       ctx.beginPath();
       for (let i = 0; i < smoothed.length; i++) {
         const x = pad.left + (i / (smoothed.length - 1)) * pw;
         const y = pad.top + (1 - smoothed[i] / globalMax) * ph;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
+        // Store scan points (subsample for performance)
+        if (i % Math.max(1, Math.floor(n / 200)) === 0 || i === n - 1) {
+          scanPoints.push({ x, y, novelty: novelties[i], smoothed: smoothed[i], date: a.posts[i].date, handle: a.handle, color });
+        }
       }
       ctx.stroke();
 
@@ -704,20 +727,76 @@ footer a:hover {
 
     // Legend
     if (analysesArr.length > 1) {
-      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      ctx.font = (mobile ? 9 : 11) + 'px monospace';
       let lx = pad.left + 5;
-      const ly = pad.top + 14;
+      const ly = pad.top + 12;
       for (let ai = 0; ai < analysesArr.length; ai++) {
         const color = PALETTE[ai % PALETTE.length];
         ctx.fillStyle = color;
-        ctx.fillRect(lx, ly - 7, 14, 3);
+        ctx.fillRect(lx, ly - 7, 10, 3);
         ctx.fillStyle = c.text;
         ctx.textAlign = 'left';
         const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
-        ctx.fillText(label, lx + 18, ly);
-        lx += ctx.measureText(label).width + 36;
+        ctx.fillText(label, lx + 14, ly);
+        lx += ctx.measureText(label).width + 28;
       }
     }
+
+    // Save base for interaction overlay
+    const baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const readout = document.getElementById('trajectoryReadout');
+
+    function handleScan(clientX) {
+      const r = canvas.getBoundingClientRect();
+      const mx = clientX - r.left;
+      let best = null, bestDist = Infinity;
+      for (const pt of scanPoints) {
+        const dist = Math.abs(pt.x - mx);
+        if (dist < bestDist) { bestDist = dist; best = pt; }
+      }
+      ctx.putImageData(baseImage, 0, 0);
+      ctx.scale(dpr, dpr);
+      if (!best || bestDist > 60) {
+        readout.innerHTML = '';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return;
+      }
+
+      // Crosshair
+      ctx.strokeStyle = c.muted;
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(best.x, pad.top);
+      ctx.lineTo(best.x, pad.top + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = best.color;
+      ctx.fill();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // DOM readout
+      const parts = [timeAgo(best.date)];
+      parts.push('novelty <span class="val">' + best.novelty.toFixed(3) + '</span>');
+      parts.push('avg <span class="val">' + best.smoothed.toFixed(3) + '</span>');
+      if (analysesArr.length > 1) parts.push('@' + best.handle.replace(/\.bsky\.social$/, ''));
+      readout.innerHTML = parts.join(' &nbsp; ');
+    }
+
+    function clearScan() {
+      ctx.putImageData(baseImage, 0, 0);
+      readout.innerHTML = '';
+    }
+
+    canvas.onmousemove = function (e) { handleScan(e.clientX); };
+    canvas.onmouseleave = clearScan;
+    canvas.ontouchstart = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+    canvas.ontouchmove = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+    canvas.ontouchend = function () { /* keep last readout visible */ };
   }
 
   function drawHistogram(canvas, analysesArr) {
@@ -725,7 +804,10 @@ footer a:hover {
     if (!init) return;
     const { ctx, w, h } = init;
     const c = getColors();
-    const pad = { top: 15, right: 15, bottom: 30, left: 30 };
+    const mobile = w < 480;
+    const fontSize = mobile ? 8 : 10;
+    const font = fontSize + 'px monospace';
+    const pad = { top: 10, right: mobile ? 8 : 15, bottom: mobile ? 20 : 30, left: mobile ? 20 : 30 };
     const pw = w - pad.left - pad.right;
     const ph = h - pad.top - pad.bottom;
 
@@ -739,7 +821,7 @@ footer a:hover {
       }
     }
 
-    const bins = 30;
+    const bins = mobile ? 20 : 30;
     const binWidth = globalMax / bins;
     const barWidth = pw / bins;
 
@@ -771,13 +853,12 @@ footer a:hover {
     }
 
     // X-axis labels
-    const font = '10px ' + getComputedStyle(document.body).fontFamily;
     ctx.fillStyle = c.muted;
     ctx.font = font;
     ctx.textAlign = 'center';
-    ctx.fillText('0', pad.left, h - 6);
-    ctx.fillText(globalMax.toFixed(2), w - pad.right, h - 6);
-    ctx.fillText((globalMax / 2).toFixed(2), pad.left + pw / 2, h - 6);
+    ctx.fillText('0', pad.left, h - 4);
+    ctx.fillText(globalMax.toFixed(2), w - pad.right, h - 4);
+    if (!mobile) ctx.fillText((globalMax / 2).toFixed(2), pad.left + pw / 2, h - 4);
 
     // Bottom line
     ctx.strokeStyle = c.rule;
@@ -789,9 +870,9 @@ footer a:hover {
 
     // Legend if comparing
     if (allCounts.length > 1) {
-      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      ctx.font = (mobile ? 9 : 11) + 'px monospace';
       let lx = pad.left + 5;
-      const ly = pad.top + 14;
+      const ly = pad.top + 12;
       for (let ai = 0; ai < analysesArr.length; ai++) {
         const color = PALETTE[ai % PALETTE.length];
         ctx.fillStyle = color + '80';
@@ -800,7 +881,7 @@ footer a:hover {
         ctx.textAlign = 'left';
         const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
         ctx.fillText(label, lx + 14, ly);
-        lx += ctx.measureText(label).width + 30;
+        lx += ctx.measureText(label).width + 24;
       }
     }
   }

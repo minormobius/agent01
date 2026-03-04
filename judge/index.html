@@ -279,6 +279,7 @@ h1 a:hover { color: var(--text); }
 canvas {
   width: 100%;
   display: block;
+  touch-action: none;
 }
 
 /* ── Topics ───────────────────────────────────── */
@@ -433,6 +434,21 @@ canvas {
   color: var(--accent);
 }
 
+/* ── Chart readout ────────────────────────────── */
+
+.chart-readout {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-height: 1.6em;
+  margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-readout .val { color: var(--text); }
+.chart-readout .pos { color: var(--pos); }
+.chart-readout .neg { color: var(--neg); }
+
 /* ── Footer ───────────────────────────────────── */
 
 footer {
@@ -512,6 +528,7 @@ footer a:hover {
   <div class="chart-container">
     <div class="section-header">valence · 30d rolling avg</div>
     <canvas id="valenceChart" height="200"></canvas>
+    <div class="chart-readout" id="chartReadout"></div>
   </div>
 
   <!-- Topics -->
@@ -658,6 +675,9 @@ footer a:hover {
     ctx.scale(dpr, dpr);
     var W = rect.width;
     var H = rect.height;
+    var mobile = W < 480;
+    var fontSize = mobile ? 8 : 10;
+    var fontStr = fontSize + 'px monospace';
 
     ctx.clearRect(0, 0, W, H);
 
@@ -673,7 +693,7 @@ footer a:hover {
     });
     var tRange = tMax - tMin || 1;
 
-    var pad = { top: 20, right: 20, bottom: 30, left: 40 };
+    var pad = { top: 12, right: mobile ? 8 : 20, bottom: 22, left: mobile ? 30 : 40 };
     var plotW = W - pad.left - pad.right;
     var plotH = H - pad.top - pad.bottom;
 
@@ -688,10 +708,9 @@ footer a:hover {
     maxV += rangeV * 0.1;
 
     // asinh compression: linear near zero, log-like in tails
-    // k controls the knee — higher k = more compression
     var absMax = Math.max(Math.abs(minV), Math.abs(maxV));
-    var k = 8 / (absMax || 0.1); // knee at ~1/8 of range
-    var normA = Math.asinh(k * absMax); // normalizer so edges map to ±1
+    var k = 8 / (absMax || 0.1);
+    var normA = Math.asinh(k * absMax);
     function compress(v) { return Math.asinh(k * v) / normA; }
 
     // CSS vars
@@ -721,39 +740,40 @@ footer a:hover {
     ctx.setLineDash([]);
 
     // Y axis labels
-    ctx.font = '10px monospace';
+    ctx.font = fontStr;
     ctx.fillStyle = mutedColor;
     ctx.textAlign = 'right';
     ctx.fillText('+' + maxV.toFixed(2), pad.left - 4, pad.top + 4);
     ctx.fillText(minV.toFixed(2), pad.left - 4, pad.top + plotH + 4);
     ctx.fillText('0', pad.left - 4, zeroY + 3);
 
-    // X axis: evenly spaced date ticks (3-5 ticks)
+    // X axis: fewer ticks on mobile
     ctx.textAlign = 'center';
-    var tickCount = Math.min(5, Math.max(2, Math.floor(plotW / 100)));
+    var tickCount = mobile
+      ? Math.min(3, Math.max(2, Math.floor(plotW / 80)))
+      : Math.min(5, Math.max(2, Math.floor(plotW / 100)));
     for (var ti = 0; ti < tickCount; ti++) {
       var frac = ti / (tickCount - 1);
       var tickT = tMin + frac * tRange;
       var tickX = xPos(tickT);
-      ctx.fillText(fmtDate(new Date(tickT).toISOString()), tickX, pad.top + plotH + 18);
+      ctx.fillText(fmtDate(new Date(tickT).toISOString()), tickX, pad.top + plotH + 14);
     }
 
-    // Plot dots on date axis
+    // Plot dots
     parsed.forEach(function (p) {
       var x = xPos(p.t);
       var y = yPos(p.v);
       ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.arc(x, y, mobile ? 1.5 : 2, 0, Math.PI * 2);
       ctx.fillStyle = p.v >= 0 ? posColor : negColor;
       ctx.globalAlpha = 0.35;
       ctx.fill();
     });
     ctx.globalAlpha = 1;
 
-    // 30-day rolling average line (computed on daily buckets)
+    // 30-day rolling average
     var DAY_MS = 86400000;
     var WINDOW = 30;
-    // Bucket posts by day offset
     var dayMap = {};
     parsed.forEach(function (p) {
       var dayKey = Math.floor((p.t - tMin) / DAY_MS);
@@ -763,31 +783,25 @@ footer a:hover {
     });
     var totalDays = Math.floor(tRange / DAY_MS) + 1;
 
-    // Build daily averages (null for days with no posts)
     var dailyAvg = [];
     for (var d = 0; d < totalDays; d++) {
       if (dayMap[d]) dailyAvg.push(dayMap[d].sum / dayMap[d].n);
       else dailyAvg.push(null);
     }
 
-    // Compute rolling average at each day, store points for hover
     var rollingPts = [];
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     var rollingStarted = false;
     for (var d = 0; d < totalDays; d++) {
-      // Collect values in [d - WINDOW + 1, d]
       var wSum = 0, wN = 0, wPosts = 0;
       var lo = Math.max(0, d - WINDOW + 1);
       for (var w = lo; w <= d; w++) {
-        if (dailyAvg[w] !== null) {
-          wSum += dailyAvg[w];
-          wN++;
-        }
+        if (dailyAvg[w] !== null) { wSum += dailyAvg[w]; wN++; }
         if (dayMap[w]) wPosts += dayMap[w].n;
       }
-      if (wN < 2) continue; // need at least 2 days with data
+      if (wN < 2) continue;
       var avg = wSum / wN;
       var x = xPos(tMin + d * DAY_MS);
       var y = yPos(avg);
@@ -797,14 +811,13 @@ footer a:hover {
     }
     ctx.stroke();
 
-    // Save base chart for hover overlay
+    // Save base chart for interaction overlay
     var baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var readout = $('chartReadout');
 
-    // Hover interaction
-    canvas.onmousemove = function (e) {
+    function handleScan(clientX) {
       var r = canvas.getBoundingClientRect();
-      var mx = e.clientX - r.left;
-      // Find nearest rolling avg point by x
+      var mx = clientX - r.left;
       var best = null, bestDist = Infinity;
       for (var i = 0; i < rollingPts.length; i++) {
         var dist = Math.abs(rollingPts[i].x - mx);
@@ -812,7 +825,11 @@ footer a:hover {
       }
       ctx.putImageData(baseImage, 0, 0);
       ctx.scale(dpr, dpr);
-      if (!best || bestDist > 40) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return; }
+      if (!best || bestDist > 60) {
+        readout.innerHTML = '';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return;
+      }
 
       // Vertical crosshair
       ctx.strokeStyle = mutedColor;
@@ -824,33 +841,42 @@ footer a:hover {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Dot on the line
+      // Dot on line
       ctx.beginPath();
       ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
       ctx.fillStyle = accentColor;
       ctx.fill();
-
-      // Tooltip
-      var label = fmtDate(new Date(best.date).toISOString()) +
-        '  val ' + (best.avg >= 0 ? '+' : '') + best.avg.toFixed(3) +
-        '  ' + best.posts + 'p/' + WINDOW + 'd';
-      ctx.font = '10px monospace';
-      var tw = ctx.measureText(label).width + 8;
-      var tx = best.x - tw / 2;
-      if (tx < pad.left) tx = pad.left;
-      if (tx + tw > W - pad.right) tx = W - pad.right - tw;
-      var ty = pad.top - 14;
-      ctx.fillStyle = 'rgba(0,0,0,0.75)';
-      ctx.fillRect(tx, ty, tw, 14);
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'left';
-      ctx.fillText(label, tx + 4, ty + 11);
-
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
 
-    canvas.onmouseleave = function () {
+      // Readout below chart
+      var vSign = best.avg >= 0 ? '+' : '';
+      var vClass = best.avg >= 0.02 ? 'pos' : (best.avg <= -0.02 ? 'neg' : 'val');
+      readout.innerHTML =
+        fmtDate(new Date(best.date).toISOString()) +
+        ' &nbsp; valence <span class="' + vClass + '">' + vSign + best.avg.toFixed(3) + '</span>' +
+        ' &nbsp; ' + best.posts + ' posts / ' + WINDOW + 'd';
+    }
+
+    function clearScan() {
       ctx.putImageData(baseImage, 0, 0);
+      readout.innerHTML = '';
+    }
+
+    // Mouse
+    canvas.onmousemove = function (e) { handleScan(e.clientX); };
+    canvas.onmouseleave = clearScan;
+
+    // Touch — drag to scan, prevent scroll while on canvas
+    canvas.ontouchstart = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleScan(e.touches[0].clientX);
+    };
+    canvas.ontouchmove = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleScan(e.touches[0].clientX);
+    };
+    canvas.ontouchend = function () {
+      // keep last readout visible on touch (don't clear)
     };
   }
 
