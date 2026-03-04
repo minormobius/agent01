@@ -3,19 +3,22 @@
 // POST /novelty { handle, limit, mode, stride, offset }
 // → { posts: [{text, date, novelty, uri}, ...], stats: {...} }
 //
+// POST /novelty { handles: [h1, h2], limit, mode, stride, offset }
+// → { merged: true, stats: { byHandle: {...}, ... } }
+//
 // Uses Cloudflare Workers AI (bge-base-en-v1.5) for embeddings.
 // Requires AI binding in Pages project settings.
 //
 // Sampling modes:
 //   "recent" — fetch the most recent `limit` posts, embed all
 //   "even"   — fetch `limit` posts, sample evenly if over embed budget
-//   "stride" — fetch `limit` posts, take every `stride`th from `offset`
+//   "stride" — target `limit` analyzed posts, fetch limit*stride from API
 //
 // Respects Cloudflare free tier: ≤50 subrequests per invocation.
 // Dynamically allocates embed budget from remaining subrequest headroom.
 
 const BSKY = 'https://public.api.bsky.app';
-const MAX_FETCH = 2500;   // max posts to retrieve from API
+const MAX_FETCH = 50000;  // safety net; subrequest budget is the real constraint
 const EMBED_BATCH = 100;  // Workers AI batch size
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 const SUBREQ_BUDGET = 48; // headroom under 50 limit
@@ -93,6 +96,42 @@ function euclideanDist(a, b) {
   return Math.sqrt(sum);
 }
 
+// Compute running centroid novelty and trajectory stats from embeddings
+function computeNovelty(embeddings) {
+  const dim = embeddings[0].length;
+  const centroid = new Float64Array(dim);
+  const novelties = [];
+  let cumulativePathLength = 0;
+  let prevEmbedding = null;
+
+  for (let i = 0; i < embeddings.length; i++) {
+    const emb = embeddings[i];
+    if (i === 0) {
+      novelties.push(0);
+      for (let d = 0; d < dim; d++) centroid[d] = emb[d];
+    } else {
+      const sim = cosineSim(emb, centroid);
+      novelties.push(1 - sim);
+      for (let d = 0; d < dim; d++) {
+        centroid[d] = (centroid[d] * i + emb[d]) / (i + 1);
+      }
+    }
+    if (prevEmbedding) {
+      cumulativePathLength += euclideanDist(emb, prevEmbedding);
+    }
+    prevEmbedding = emb;
+  }
+
+  const netDisplacement = euclideanDist(embeddings[0], embeddings[embeddings.length - 1]);
+  const n = novelties.length;
+  const mean = novelties.reduce((s, v) => s + v, 0) / n;
+  const variance = novelties.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
+  const volume = Math.sqrt(variance);
+  const circuitousness = netDisplacement > 0 ? cumulativePathLength / netDisplacement : 0;
+
+  return { novelties, mean, volume, circuitousness };
+}
+
 export async function onRequestOptions() {
   return new Response(null, { headers: CORS });
 }
@@ -108,17 +147,121 @@ export async function onRequestPost({ request, env }) {
     }
 
     const body = await request.json();
+    const handles = body.handles;
     const handle = body.handle;
     const limit = body.limit || 2000;
     const mode = body.mode || 'even';
     const stride = body.stride || 3;
     const offset = body.offset || 0;
 
-    if (!handle) {
-      return Response.json({ error: 'handle required' }, { status: 400, headers: CORS });
+    if (!handle && (!handles || handles.length < 2)) {
+      return Response.json({ error: 'handle or handles[] required' }, { status: 400, headers: CORS });
     }
 
-    const fetchLimit = Math.min(Math.max(limit, 20), MAX_FETCH);
+    // ── MERGED MODE ─────────────────────────────────────────────
+    if (handles && handles.length >= 2) {
+      const perHandle = Math.floor(limit / handles.length);
+      let totalPages = 0;
+      const taggedPosts = [];
+
+      for (const h of handles) {
+        let fetchLim;
+        if (mode === 'stride' && stride >= 2) {
+          const budgetPerHandle = Math.floor(SUBREQ_BUDGET / handles.length);
+          const maxTarget = Math.floor((budgetPerHandle * EMBED_BATCH) / (stride + 1));
+          const target = Math.min(perHandle, maxTarget);
+          fetchLim = target * stride;
+        } else {
+          fetchLim = Math.min(perHandle, MAX_FETCH);
+        }
+
+        const { posts, pages } = await getAuthorPosts(h, fetchLim);
+        totalPages += pages;
+        posts.reverse(); // chronological
+
+        let sampled;
+        if (mode === 'stride' && stride >= 2) {
+          sampled = [];
+          for (let i = 0; i < posts.length; i += stride) sampled.push(posts[i]);
+        } else {
+          sampled = posts;
+        }
+        for (const p of sampled) taggedPosts.push({ ...p, handle: h });
+      }
+
+      // Sort combined posts chronologically
+      taggedPosts.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Cap at embed budget
+      const embedBudget = Math.max(1, SUBREQ_BUDGET - totalPages);
+      const maxEmbed = embedBudget * EMBED_BATCH;
+      let posts = taggedPosts;
+      if (posts.length > maxEmbed) {
+        const step = posts.length / maxEmbed;
+        const capped = [];
+        for (let i = 0; i < maxEmbed; i++) capped.push(posts[Math.floor(i * step)]);
+        posts = capped;
+      }
+
+      if (posts.length < 5) {
+        return Response.json(
+          { error: 'Not enough posts for merged analysis (need at least 5)' },
+          { status: 400, headers: CORS }
+        );
+      }
+
+      // Embed
+      const texts = posts.map(p => p.text);
+      const embeddings = [];
+      for (let i = 0; i < texts.length; i += EMBED_BATCH) {
+        const batch = texts.slice(i, i + EMBED_BATCH);
+        const result = await ai.run(EMBED_MODEL, { text: batch });
+        embeddings.push(...result.data);
+      }
+
+      // Shared centroid novelty
+      const { novelties, mean, volume, circuitousness } = computeNovelty(embeddings);
+
+      // Per-handle breakdown
+      const byHandle = {};
+      for (const h of handles) {
+        const hNovelties = posts
+          .map((p, i) => p.handle === h ? novelties[i] : null)
+          .filter(v => v !== null);
+        const n = hNovelties.length;
+        const hMean = n > 0 ? hNovelties.reduce((s, v) => s + v, 0) / n : 0;
+        const hVar = n > 0 ? hNovelties.reduce((s, v) => s + (v - hMean) ** 2, 0) / n : 0;
+        byHandle[h] = {
+          count: n,
+          mean: Math.round(hMean * 1000) / 1000,
+          volume: Math.round(Math.sqrt(hVar) * 1000) / 1000,
+        };
+      }
+
+      return Response.json({
+        merged: true,
+        handles,
+        stats: {
+          count: posts.length,
+          mean: Math.round(mean * 1000) / 1000,
+          volume: Math.round(volume * 1000) / 1000,
+          circuitousness: Math.round(circuitousness * 10) / 10,
+          byHandle,
+        },
+      }, { headers: CORS });
+    }
+
+    // ── SINGLE HANDLE MODE ──────────────────────────────────────
+
+    // In stride mode, limit = target analyzed posts; fetch limit*stride
+    let fetchLimit;
+    if (mode === 'stride' && stride >= 2) {
+      const maxTarget = Math.floor((SUBREQ_BUDGET * EMBED_BATCH) / (stride + 1));
+      const target = Math.min(limit, maxTarget);
+      fetchLimit = Math.min(target * stride, MAX_FETCH);
+    } else {
+      fetchLimit = Math.min(Math.max(limit, 20), MAX_FETCH);
+    }
 
     // Fetch posts (reverse chronological)
     const { posts: rawPosts, pages: fetchPages } = await getAuthorPosts(handle, fetchLimit);
@@ -189,47 +332,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     // Compute running centroid novelty (Zimmerman method)
-    const dim = embeddings[0].length;
-    const centroid = new Float64Array(dim);
-    const novelties = [];
-    let cumulativePathLength = 0;
-    let prevEmbedding = null;
-
-    for (let i = 0; i < embeddings.length; i++) {
-      const emb = embeddings[i];
-
-      if (i === 0) {
-        // First post: no centroid yet, novelty = 0
-        novelties.push(0);
-        for (let d = 0; d < dim; d++) centroid[d] = emb[d];
-      } else {
-        // Cosine distance from running centroid
-        const sim = cosineSim(emb, centroid);
-        const novelty = 1 - sim; // cosine distance in [0, 1]
-        novelties.push(novelty);
-
-        // Update running centroid (incremental mean)
-        for (let d = 0; d < dim; d++) {
-          centroid[d] = (centroid[d] * i + emb[d]) / (i + 1);
-        }
-      }
-
-      // Cumulative path length in embedding space
-      if (prevEmbedding) {
-        cumulativePathLength += euclideanDist(emb, prevEmbedding);
-      }
-      prevEmbedding = emb;
-    }
-
-    // Net displacement: distance from first embedding to last
-    const netDisplacement = euclideanDist(embeddings[0], embeddings[embeddings.length - 1]);
-
-    // Summary statistics
-    const n = novelties.length;
-    const mean = novelties.reduce((s, v) => s + v, 0) / n;
-    const variance = novelties.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
-    const volume = Math.sqrt(variance); // std dev = "volume" of semantic exploration
-    const circuitousness = netDisplacement > 0 ? cumulativePathLength / netDisplacement : 0;
+    const { novelties, mean, volume, circuitousness } = computeNovelty(embeddings);
 
     // Build response (chronological order)
     const resultPosts = posts.map((p, i) => ({
@@ -243,7 +346,7 @@ export async function onRequestPost({ request, env }) {
       handle,
       posts: resultPosts,
       stats: {
-        count: n,
+        count: novelties.length,
         fetched: rawPosts.length,
         sampled: sampleMethod !== 'none',
         sampleMethod,

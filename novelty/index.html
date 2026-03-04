@@ -473,7 +473,7 @@ footer a:hover {
     </select>
   </div>
   <div class="ctrl" id="fetchCtrl">
-    <label>fetch</label>
+    <label id="fetchLabel">fetch</label>
     <select id="limitSelect">
       <option value="200">200</option>
       <option value="500">500</option>
@@ -541,6 +541,7 @@ footer a:hover {
 (function () {
 
   let analyses = [];  // [{ handle, posts, stats }, ...]
+  let mergedStats = null; // stats from shared-centroid analysis
   let currentTab = 'outliers';
   const PALETTE = ['#daa520', '#6a9fb5'];
 
@@ -803,7 +804,7 @@ footer a:hover {
 
   // --- Stats rendering ---
 
-  function renderStats(analysesArr) {
+  function renderStats(analysesArr, merged) {
     const grid = document.getElementById('statsGrid');
 
     if (analysesArr.length === 1) {
@@ -825,6 +826,7 @@ footer a:hover {
       ).join('');
     } else {
       grid.className = '';
+      var colSpan = analysesArr.length + 1;
       let html = '<table class="compare-table"><thead><tr><th></th>';
       for (let ai = 0; ai < analysesArr.length; ai++) {
         const color = PALETTE[ai % PALETTE.length];
@@ -843,6 +845,21 @@ footer a:hover {
         for (const a of analysesArr) html += '<td>' + row.fn(a) + '</td>';
         html += '</tr>';
       }
+
+      // Shared centroid section (merged analysis)
+      if (merged && merged.byHandle) {
+        html += '<tr><td colspan="' + colSpan + '" style="text-align:center;padding-top:1.2rem;padding-bottom:0.3rem;color:var(--muted);font-size:0.6rem;letter-spacing:0.08em;border-bottom:none;">SHARED CENTROID</td></tr>';
+        var mRows = [
+          { label: 'mean (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].mean.toFixed(3) : '\u2014'; } },
+          { label: 'volume (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].volume.toFixed(3) : '\u2014'; } },
+        ];
+        for (var mi = 0; mi < mRows.length; mi++) {
+          html += '<tr><td>' + mRows[mi].label + '</td>';
+          for (var aj = 0; aj < analysesArr.length; aj++) html += '<td>' + mRows[mi].fn(analysesArr[aj].handle) + '</td>';
+          html += '</tr>';
+        }
+      }
+
       html += '</tbody></table>';
       grid.innerHTML = html;
     }
@@ -917,6 +934,20 @@ footer a:hover {
     return res.json();
   }
 
+  async function fetchMerged(h1, h2, samplingParams) {
+    const body = { handles: [h1, h2], ...samplingParams };
+    const res = await fetch('/novelty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Merged analysis failed (' + res.status + ')');
+    }
+    return res.json();
+  }
+
   // --- Main ---
 
   document.getElementById('handleForm').addEventListener('submit', async (e) => {
@@ -958,20 +989,25 @@ footer a:hover {
       const handles = [handle1];
       if (handle2) handles.push(handle2);
 
-      const results = await Promise.all(handles.map(h => fetchNovelty(h, sampling)));
+      // Fetch independent analyses (+ merged if comparing)
+      const fetches = handles.map(h => fetchNovelty(h, sampling));
+      if (handle2) fetches.push(fetchMerged(handle1, handle2, sampling));
+
+      const results = await Promise.all(fetches);
       progressFill.style.width = '90%';
 
-      analyses = results.map(data => ({
+      analyses = results.slice(0, handles.length).map(data => ({
         handle: data.handle,
         posts: data.posts,
         stats: data.stats,
       }));
+      mergedStats = handle2 ? (results[results.length - 1].stats || null) : null;
 
       // Show results BEFORE drawing charts (getBoundingClientRect needs visible element)
       document.getElementById('results').classList.remove('hidden');
 
       // Render everything
-      renderStats(analyses);
+      renderStats(analyses, mergedStats);
       drawTrajectory(document.getElementById('trajectoryChart'), analyses);
       drawHistogram(document.getElementById('histogramChart'), analyses);
 
@@ -1066,15 +1102,22 @@ footer a:hover {
     '<dd>Takes only the most recent N posts. Useful for seeing current behavior without historical context.</dd>' +
 
     '<dt>every Nth</dt>' +
-    '<dd>Takes every Nth post with an optional offset. Useful for systematic sampling or ' +
-    'checking sensitivity to sampling strategy.</dd>' +
+    '<dd>Takes every Nth post with an optional offset. The &ldquo;analyze&rdquo; count is the ' +
+    'target number of posts to embed &mdash; the system fetches analyze&times;stride posts from the API ' +
+    'and takes every Nth. Budget-aware: the Cloudflare subrequest limit (50 per invocation) ' +
+    'constrains how many posts can be fetched and embedded in one call. At stride=20, expect ' +
+    '~200&ndash;230 analyzed posts per run.</dd>' +
     '</dl>' +
 
     '<h3>comparison</h3>' +
     '<p>Enter two handles to overlay trajectories and distributions on the same axes. ' +
     'Stats display as a side-by-side table. The post list merges both accounts, color-coded ' +
-    'by handle. Useful for comparing posting styles: does one account explore more? ' +
-    'Is one more volatile? Do they have similar distributions but different trajectories?</p>';
+    'by handle.</p>' +
+    '<p>The <strong>independent</strong> metrics (top rows) measure each account against its own ' +
+    'centroid &mdash; useful for gauging internal diversity and volatility. ' +
+    'The <strong>shared centroid</strong> metrics (bottom rows) pool both accounts\' posts into ' +
+    'one timeline and compute novelty against the combined center of gravity. This tells you ' +
+    'who departs more from the shared semantic space &mdash; the meaningful comparison of averages.</p>';
 
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
@@ -1101,6 +1144,7 @@ footer a:hover {
     document.getElementById('fetchCtrl').classList.toggle('hidden', mode === 'recent');
     document.getElementById('strideCtrl').classList.toggle('hidden', mode !== 'stride');
     document.getElementById('recentCtrl').classList.toggle('hidden', mode !== 'recent');
+    document.getElementById('fetchLabel').textContent = mode === 'stride' ? 'analyze' : 'fetch';
   });
 
   // Redraw charts on resize
