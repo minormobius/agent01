@@ -767,29 +767,88 @@ footer a:hover {
       else dailyAvg.push(null);
     }
 
-    // Compute rolling average at each day
+    // Compute rolling average at each day, store points for hover
+    var rollingPts = [];
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     var rollingStarted = false;
     for (var d = 0; d < totalDays; d++) {
       // Collect values in [d - WINDOW + 1, d]
-      var wSum = 0, wN = 0;
+      var wSum = 0, wN = 0, wPosts = 0;
       var lo = Math.max(0, d - WINDOW + 1);
       for (var w = lo; w <= d; w++) {
         if (dailyAvg[w] !== null) {
           wSum += dailyAvg[w];
           wN++;
         }
+        if (dayMap[w]) wPosts += dayMap[w].n;
       }
       if (wN < 2) continue; // need at least 2 days with data
       var avg = wSum / wN;
       var x = xPos(tMin + d * DAY_MS);
       var y = yPos(avg);
+      rollingPts.push({ x: x, y: y, avg: avg, posts: wPosts, date: tMin + d * DAY_MS });
       if (!rollingStarted) { ctx.moveTo(x, y); rollingStarted = true; }
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
+
+    // Save base chart for hover overlay
+    var baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // Hover interaction
+    canvas.onmousemove = function (e) {
+      var r = canvas.getBoundingClientRect();
+      var mx = e.clientX - r.left;
+      // Find nearest rolling avg point by x
+      var best = null, bestDist = Infinity;
+      for (var i = 0; i < rollingPts.length; i++) {
+        var dist = Math.abs(rollingPts[i].x - mx);
+        if (dist < bestDist) { bestDist = dist; best = rollingPts[i]; }
+      }
+      ctx.putImageData(baseImage, 0, 0);
+      ctx.scale(dpr, dpr);
+      if (!best || bestDist > 40) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return; }
+
+      // Vertical crosshair
+      ctx.strokeStyle = mutedColor;
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(best.x, pad.top);
+      ctx.lineTo(best.x, pad.top + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dot on the line
+      ctx.beginPath();
+      ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = accentColor;
+      ctx.fill();
+
+      // Tooltip
+      var label = fmtDate(new Date(best.date).toISOString()) +
+        '  val ' + (best.avg >= 0 ? '+' : '') + best.avg.toFixed(3) +
+        '  ' + best.posts + 'p/' + WINDOW + 'd';
+      ctx.font = '10px monospace';
+      var tw = ctx.measureText(label).width + 8;
+      var tx = best.x - tw / 2;
+      if (tx < pad.left) tx = pad.left;
+      if (tx + tw > W - pad.right) tx = W - pad.right - tw;
+      var ty = pad.top - 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(tx, ty, tw, 14);
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, tx + 4, ty + 11);
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    canvas.onmouseleave = function () {
+      ctx.putImageData(baseImage, 0, 0);
+    };
   }
 
   function renderTopics(topics) {
