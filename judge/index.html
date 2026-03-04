@@ -471,7 +471,7 @@ footer a:hover {
 <p class="desc">
   Topics, emotional valence, and Big Five personality traits — extracted from
   embedding geometry. One model, no LLM, just cosine distances to anchor texts
-  and k-means clustering. What 30 days of posting reveals.
+  and k-means clustering. What your posting reveals.
 </p>
 
 <form class="handle-form" id="handleForm">
@@ -482,6 +482,9 @@ footer a:hover {
     <option value="30" selected>30d</option>
     <option value="60">60d</option>
     <option value="90">90d</option>
+    <option value="180">180d</option>
+    <option value="365">1Y</option>
+    <option value="730">2Y</option>
   </select>
   <button type="submit" id="loadBtn">judge</button>
 </form>
@@ -504,7 +507,7 @@ footer a:hover {
 
   <!-- Valence timeline -->
   <div class="chart-container">
-    <div class="section-header">valence</div>
+    <div class="section-header">valence · 30d rolling avg</div>
     <canvas id="valenceChart" height="200"></canvas>
   </div>
 
@@ -657,30 +660,43 @@ footer a:hover {
 
     if (posts.length === 0) return;
 
+    // Parse dates, compute date range
+    var tMin = Infinity, tMax = -Infinity;
+    var parsed = posts.map(function (p) {
+      var t = new Date(p.date).getTime();
+      if (t < tMin) tMin = t;
+      if (t > tMax) tMax = t;
+      return { t: t, v: p.valence };
+    });
+    var tRange = tMax - tMin || 1;
+
     var pad = { top: 20, right: 20, bottom: 30, left: 40 };
     var plotW = W - pad.left - pad.right;
     var plotH = H - pad.top - pad.bottom;
 
     // Y axis: valence range
     var minV = -0.15, maxV = 0.15;
-    posts.forEach(function (p) {
-      if (p.valence < minV) minV = p.valence;
-      if (p.valence > maxV) maxV = p.valence;
+    parsed.forEach(function (p) {
+      if (p.v < minV) minV = p.v;
+      if (p.v > maxV) maxV = p.v;
     });
     var rangeV = maxV - minV || 0.1;
     minV -= rangeV * 0.1;
     maxV += rangeV * 0.1;
 
-    // Get CSS variable values
-    var style = getComputedStyle(document.documentElement);
-    var mutedColor = style.getPropertyValue('--muted').trim();
-    var ruleColor = style.getPropertyValue('--rule').trim();
-    var posColor = style.getPropertyValue('--pos').trim();
-    var negColor = style.getPropertyValue('--neg').trim();
-    var accentColor = style.getPropertyValue('--accent').trim();
+    // CSS vars
+    var cs = getComputedStyle(document.documentElement);
+    var mutedColor = cs.getPropertyValue('--muted').trim();
+    var ruleColor = cs.getPropertyValue('--rule').trim();
+    var posColor = cs.getPropertyValue('--pos').trim();
+    var negColor = cs.getPropertyValue('--neg').trim();
+    var accentColor = cs.getPropertyValue('--accent').trim();
+
+    function xPos(t) { return pad.left + plotW * ((t - tMin) / tRange); }
+    function yPos(v) { return pad.top + plotH * (1 - (v - minV) / (maxV - minV)); }
 
     // Zero line
-    var zeroY = pad.top + plotH * (1 - (0 - minV) / (maxV - minV));
+    var zeroY = yPos(0);
     ctx.strokeStyle = ruleColor;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([4, 4]);
@@ -698,40 +714,68 @@ footer a:hover {
     ctx.fillText(minV.toFixed(2), pad.left - 4, pad.top + plotH + 4);
     ctx.fillText('0', pad.left - 4, zeroY + 3);
 
-    // X axis date labels
+    // X axis: evenly spaced date ticks (3-5 ticks)
     ctx.textAlign = 'center';
-    if (posts.length > 1) {
-      ctx.fillText(fmtDate(posts[0].date), pad.left, pad.top + plotH + 18);
-      ctx.fillText(fmtDate(posts[posts.length - 1].date), pad.left + plotW, pad.top + plotH + 18);
+    var tickCount = Math.min(5, Math.max(2, Math.floor(plotW / 100)));
+    for (var ti = 0; ti < tickCount; ti++) {
+      var frac = ti / (tickCount - 1);
+      var tickT = tMin + frac * tRange;
+      var tickX = xPos(tickT);
+      ctx.fillText(fmtDate(new Date(tickT).toISOString()), tickX, pad.top + plotH + 18);
     }
 
-    // Plot dots
-    posts.forEach(function (p, i) {
-      var x = pad.left + (plotW * i) / (posts.length - 1 || 1);
-      var y = pad.top + plotH * (1 - (p.valence - minV) / (maxV - minV));
+    // Plot dots on date axis
+    parsed.forEach(function (p) {
+      var x = xPos(p.t);
+      var y = yPos(p.v);
       ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = p.valence >= 0 ? posColor : negColor;
-      ctx.globalAlpha = 0.5;
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = p.v >= 0 ? posColor : negColor;
+      ctx.globalAlpha = 0.35;
       ctx.fill();
     });
-
-    // Moving average (window of ~10% of posts, min 3)
     ctx.globalAlpha = 1;
-    var windowSize = Math.max(3, Math.floor(posts.length * 0.1));
+
+    // 30-day rolling average line (computed on daily buckets)
+    var DAY_MS = 86400000;
+    var WINDOW = 30;
+    // Bucket posts by day offset
+    var dayMap = {};
+    parsed.forEach(function (p) {
+      var dayKey = Math.floor((p.t - tMin) / DAY_MS);
+      if (!dayMap[dayKey]) dayMap[dayKey] = { sum: 0, n: 0 };
+      dayMap[dayKey].sum += p.v;
+      dayMap[dayKey].n++;
+    });
+    var totalDays = Math.floor(tRange / DAY_MS) + 1;
+
+    // Build daily averages (null for days with no posts)
+    var dailyAvg = [];
+    for (var d = 0; d < totalDays; d++) {
+      if (dayMap[d]) dailyAvg.push(dayMap[d].sum / dayMap[d].n);
+      else dailyAvg.push(null);
+    }
+
+    // Compute rolling average at each day
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    var started = false;
-    for (var i = 0; i < posts.length; i++) {
-      var start = Math.max(0, i - Math.floor(windowSize / 2));
-      var end = Math.min(posts.length, start + windowSize);
-      var sum = 0;
-      for (var j = start; j < end; j++) sum += posts[j].valence;
-      var avg = sum / (end - start);
-      var x = pad.left + (plotW * i) / (posts.length - 1 || 1);
-      var y = pad.top + plotH * (1 - (avg - minV) / (maxV - minV));
-      if (!started) { ctx.moveTo(x, y); started = true; }
+    var rollingStarted = false;
+    for (var d = 0; d < totalDays; d++) {
+      // Collect values in [d - WINDOW + 1, d]
+      var wSum = 0, wN = 0;
+      var lo = Math.max(0, d - WINDOW + 1);
+      for (var w = lo; w <= d; w++) {
+        if (dailyAvg[w] !== null) {
+          wSum += dailyAvg[w];
+          wN++;
+        }
+      }
+      if (wN < 2) continue; // need at least 2 days with data
+      var avg = wSum / wN;
+      var x = xPos(tMin + d * DAY_MS);
+      var y = yPos(avg);
+      if (!rollingStarted) { ctx.moveTo(x, y); rollingStarted = true; }
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
