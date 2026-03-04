@@ -457,9 +457,9 @@ footer a:hover {
 </p>
 
 <form class="handle-form" id="handleForm">
-  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" data-bsky-typeahead>
   <span class="vs-label">vs</span>
-  <input type="text" id="handleInput2" placeholder="compare (optional)" autocomplete="off" spellcheck="false">
+  <input type="text" id="handleInput2" placeholder="compare (optional)" autocomplete="off" spellcheck="false" data-bsky-typeahead>
   <button type="submit" id="loadBtn">analyze</button>
 </form>
 
@@ -1226,5 +1226,6 @@ footer a:hover {
 })();
 </script>
 
+<script src="/js/typeahead.js"></script>
 </body>
 </html>
