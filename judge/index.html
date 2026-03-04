@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>judge — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --accent: #daa520;
+  --accent2: #6a9fb5;
+  --pos: #3a7d44;
+  --neg: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --accent: #daa520;
+    --accent2: #7ec8e3;
+    --pos: #5aad60;
+    --neg: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.handle-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1 1 50%;
+  min-width: 120px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.handle-form select {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.5rem 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.hidden { display: none !important; }
+
+/* ── Personality bars ─────────────────────────── */
+
+.personality-section {
+  margin-bottom: 2.5rem;
+}
+
+.trait-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.trait-label {
+  width: 110px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.trait-track {
+  flex: 1;
+  height: 14px;
+  position: relative;
+  background: color-mix(in srgb, var(--rule) 40%, transparent);
+  border-radius: 1px;
+}
+
+.trait-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--rule);
+}
+
+.trait-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.4s ease, left 0.4s ease;
+}
+
+.trait-fill.positive {
+  background: var(--pos);
+  opacity: 0.7;
+}
+
+.trait-fill.negative {
+  background: var(--neg);
+  opacity: 0.7;
+}
+
+.trait-score {
+  width: 48px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.trait-poles {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.15rem;
+}
+
+.trait-pole {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── Stats grid ───────────────────────────────── */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  color: var(--text);
+  display: block;
+}
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Valence chart ────────────────────────────── */
+
+.chart-container {
+  margin-bottom: 2.5rem;
+}
+
+canvas {
+  width: 100%;
+  display: block;
+}
+
+/* ── Topics ───────────────────────────────────── */
+
+.topic-card {
+  border: 1px solid var(--rule);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.topic-keywords {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.topic-meta {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.topic-representative {
+  font-size: 0.88rem;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.topic-valence-bar {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 1px;
+}
+
+/* ── Post list ────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--link);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.post-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.post-date {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.post-badges {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.post-badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 1px;
+}
+
+.post-text {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.post-link {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-decoration: none;
+  margin-top: 0.2rem;
+  display: inline-block;
+}
+
+.post-link:hover {
+  color: var(--link);
+}
+
+/* ── Docs panel ───────────────────────────────── */
+
+.docs-panel {
+  font-size: 0.88rem;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+.docs-panel h3 {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.docs-panel p {
+  margin-bottom: 1rem;
+}
+
+.docs-panel code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+/* ── Footer ───────────────────────────────────── */
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 480px) {
+  body { padding: 2rem 1rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .trait-label { width: 80px; font-size: 0.6rem; }
+  .trait-score { width: 40px; font-size: 0.65rem; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / judge</h1>
+
+<p class="subtitle">Posting profile.</p>
+
+<p class="desc">
+  Topics, emotional valence, and Big Five personality traits — extracted from
+  embedding geometry. One model, no LLM, just cosine distances to anchor texts
+  and k-means clustering. What 30 days of posting reveals.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <select id="daysSelect">
+    <option value="7">7d</option>
+    <option value="14">14d</option>
+    <option value="30" selected>30d</option>
+    <option value="60">60d</option>
+    <option value="90">90d</option>
+  </select>
+  <button type="submit" id="loadBtn">judge</button>
+</form>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div id="results" class="hidden">
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Personality -->
+  <div class="personality-section">
+    <div class="section-header">personality</div>
+    <div id="personalityBars"></div>
+  </div>
+
+  <!-- Valence timeline -->
+  <div class="chart-container">
+    <div class="section-header">valence</div>
+    <canvas id="valenceChart" height="200"></canvas>
+  </div>
+
+  <!-- Topics -->
+  <div class="chart-container">
+    <div class="section-header">topics</div>
+    <div id="topicsList"></div>
+  </div>
+
+  <!-- Posts -->
+  <div class="section-header">posts</div>
+  <div class="tabs">
+    <button class="tab active" data-tab="positive">most positive</button>
+    <button class="tab" data-tab="negative">most negative</button>
+    <button class="tab" data-tab="all">all</button>
+    <button class="tab" data-tab="docs">method</button>
+  </div>
+  <div id="postList"></div>
+  <div id="docsPanel" class="docs-panel hidden"></div>
+
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> · <a href="/novelty">novelty</a> · <a href="/seek">seek</a> · <a href="/cluster">cluster</a> · <a href="/density">density</a>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var profileData = null;
+  var currentTab = 'positive';
+
+  // ── Trait metadata ──────────────────────────────────────
+  var TRAITS = {
+    openness:          { low: 'practical',   high: 'creative' },
+    conscientiousness: { low: 'spontaneous', high: 'systematic' },
+    extraversion:      { low: 'reserved',    high: 'outgoing' },
+    agreeableness:     { low: 'skeptical',   high: 'cooperative' },
+    neuroticism:       { low: 'calm',        high: 'reactive' },
+  };
+
+  // ── Helpers ─────────────────────────────────────────────
+
+  function $(id) { return document.getElementById(id); }
+
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function setStatus(msg, isError) {
+    var el = $('status');
+    show(el);
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+  }
+
+  function setProgress(pct) {
+    var bar = $('progressBar');
+    show(bar);
+    $('progressFill').style.width = pct + '%';
+  }
+
+  function valenceColor(v) {
+    if (v > 0.02) return 'var(--pos)';
+    if (v < -0.02) return 'var(--neg)';
+    return 'var(--muted)';
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function bskyUrl(uri) {
+    var parts = uri.replace('at://', '').split('/');
+    return 'https://bsky.app/profile/' + parts[0] + '/post/' + parts[2];
+  }
+
+  // ── Render functions ────────────────────────────────────
+
+  function renderStats(data) {
+    var grid = $('statsGrid');
+    var items = [
+      { value: data.stats.analyzed, label: 'posts' },
+      { value: data.stats.days + 'd', label: 'window' },
+      { value: data.stats.topicCount, label: 'topics' },
+      { value: (data.valence.mean >= 0 ? '+' : '') + data.valence.mean.toFixed(3), label: 'valence' },
+    ];
+    grid.innerHTML = items.map(function (s) {
+      return '<div class="stat-card"><span class="stat-value">' + s.value +
+             '</span><span class="stat-label">' + s.label + '</span></div>';
+    }).join('');
+  }
+
+  function renderPersonality(personality) {
+    var container = $('personalityBars');
+    var html = '';
+    var maxAbs = 0;
+    var traits = Object.keys(TRAITS);
+
+    // Find max absolute value for scaling
+    traits.forEach(function (t) {
+      var abs = Math.abs(personality[t] || 0);
+      if (abs > maxAbs) maxAbs = abs;
+    });
+    if (maxAbs === 0) maxAbs = 0.1;
+    // Scale so the largest bar fills ~80% of half the track
+    var scale = 0.4 / maxAbs;
+
+    traits.forEach(function (trait) {
+      var val = personality[trait] || 0;
+      var pct = Math.abs(val) * scale * 100;
+      var isPos = val >= 0;
+      var fillStyle;
+      if (isPos) {
+        fillStyle = 'left:50%;width:' + pct + '%;';
+      } else {
+        fillStyle = 'right:50%;width:' + pct + '%;';
+      }
+      var cls = isPos ? 'positive' : 'negative';
+
+      html += '<div class="trait-row">' +
+        '<span class="trait-label">' + trait + '</span>' +
+        '<div class="trait-track">' +
+          '<div class="trait-center"></div>' +
+          '<div class="trait-fill ' + cls + '" style="' + fillStyle + '"></div>' +
+        '</div>' +
+        '<span class="trait-score">' + (val >= 0 ? '+' : '') + val.toFixed(3) + '</span>' +
+      '</div>' +
+      '<div style="display:flex;margin-left:calc(110px + 0.75rem);margin-right:calc(48px + 0.75rem);margin-bottom:0.5rem;" class="trait-poles">' +
+        '<span class="trait-pole">' + TRAITS[trait].low + '</span>' +
+        '<span class="trait-pole">' + TRAITS[trait].high + '</span>' +
+      '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  function drawValenceChart(canvas, posts) {
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    var W = rect.width;
+    var H = rect.height;
+
+    ctx.clearRect(0, 0, W, H);
+
+    if (posts.length === 0) return;
+
+    var pad = { top: 20, right: 20, bottom: 30, left: 40 };
+    var plotW = W - pad.left - pad.right;
+    var plotH = H - pad.top - pad.bottom;
+
+    // Y axis: valence range
+    var minV = -0.15, maxV = 0.15;
+    posts.forEach(function (p) {
+      if (p.valence < minV) minV = p.valence;
+      if (p.valence > maxV) maxV = p.valence;
+    });
+    var rangeV = maxV - minV || 0.1;
+    minV -= rangeV * 0.1;
+    maxV += rangeV * 0.1;
+
+    // Get CSS variable values
+    var style = getComputedStyle(document.documentElement);
+    var mutedColor = style.getPropertyValue('--muted').trim();
+    var ruleColor = style.getPropertyValue('--rule').trim();
+    var posColor = style.getPropertyValue('--pos').trim();
+    var negColor = style.getPropertyValue('--neg').trim();
+    var accentColor = style.getPropertyValue('--accent').trim();
+
+    // Zero line
+    var zeroY = pad.top + plotH * (1 - (0 - minV) / (maxV - minV));
+    ctx.strokeStyle = ruleColor;
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, zeroY);
+    ctx.lineTo(pad.left + plotW, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Y axis labels
+    ctx.font = '10px monospace';
+    ctx.fillStyle = mutedColor;
+    ctx.textAlign = 'right';
+    ctx.fillText('+' + maxV.toFixed(2), pad.left - 4, pad.top + 4);
+    ctx.fillText(minV.toFixed(2), pad.left - 4, pad.top + plotH + 4);
+    ctx.fillText('0', pad.left - 4, zeroY + 3);
+
+    // X axis date labels
+    ctx.textAlign = 'center';
+    if (posts.length > 1) {
+      ctx.fillText(fmtDate(posts[0].date), pad.left, pad.top + plotH + 18);
+      ctx.fillText(fmtDate(posts[posts.length - 1].date), pad.left + plotW, pad.top + plotH + 18);
+    }
+
+    // Plot dots
+    posts.forEach(function (p, i) {
+      var x = pad.left + (plotW * i) / (posts.length - 1 || 1);
+      var y = pad.top + plotH * (1 - (p.valence - minV) / (maxV - minV));
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = p.valence >= 0 ? posColor : negColor;
+      ctx.globalAlpha = 0.5;
+      ctx.fill();
+    });
+
+    // Moving average (window of ~10% of posts, min 3)
+    ctx.globalAlpha = 1;
+    var windowSize = Math.max(3, Math.floor(posts.length * 0.1));
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    var started = false;
+    for (var i = 0; i < posts.length; i++) {
+      var start = Math.max(0, i - Math.floor(windowSize / 2));
+      var end = Math.min(posts.length, start + windowSize);
+      var sum = 0;
+      for (var j = start; j < end; j++) sum += posts[j].valence;
+      var avg = sum / (end - start);
+      var x = pad.left + (plotW * i) / (posts.length - 1 || 1);
+      var y = pad.top + plotH * (1 - (avg - minV) / (maxV - minV));
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function renderTopics(topics) {
+    var container = $('topicsList');
+    container.innerHTML = topics.map(function (t) {
+      var vColor = valenceColor(t.valence);
+      var vSign = t.valence >= 0 ? '+' : '';
+      return '<div class="topic-card">' +
+        '<div class="topic-header">' +
+          '<span class="topic-keywords">' + t.keywords.join(' / ') + '</span>' +
+          '<span class="topic-meta">' + t.size + ' posts</span>' +
+        '</div>' +
+        '<div class="topic-representative">"' + escHtml(truncate(t.representative.text, 200)) + '"</div>' +
+        '<span class="topic-valence-bar" style="color:' + vColor + ';border:1px solid ' + vColor + '">' +
+          'valence ' + vSign + t.valence.toFixed(3) +
+        '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderPosts(posts, tab) {
+    var sorted;
+    if (tab === 'positive') {
+      sorted = posts.slice().sort(function (a, b) { return b.valence - a.valence; });
+    } else if (tab === 'negative') {
+      sorted = posts.slice().sort(function (a, b) { return a.valence - b.valence; });
+    } else {
+      sorted = posts; // chronological
+    }
+
+    var shown = sorted.slice(0, 50);
+    var container = $('postList');
+
+    container.innerHTML = shown.map(function (p) {
+      var vColor = valenceColor(p.valence);
+      var vSign = p.valence >= 0 ? '+' : '';
+      var topicLabel = profileData.topics.find(function (t) { return t.id === p.topic; });
+      var topicText = topicLabel ? topicLabel.keywords.slice(0, 2).join('/') : '?';
+
+      return '<div class="post-item">' +
+        '<div class="post-meta">' +
+          '<span class="post-date">' + fmtDate(p.date) + '</span>' +
+          '<div class="post-badges">' +
+            '<span class="post-badge" style="color:' + vColor + ';border:1px solid ' + vColor + '">' +
+              vSign + p.valence.toFixed(3) +
+            '</span>' +
+            '<span class="post-badge" style="color:var(--accent);border:1px solid var(--accent)">' +
+              topicText +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="post-text">' + escHtml(p.text) + '</div>' +
+        '<a class="post-link" href="' + bskyUrl(p.uri) + '" target="_blank" rel="noopener">open on bsky</a>' +
+      '</div>';
+    }).join('');
+
+    if (sorted.length > 50) {
+      container.innerHTML += '<div class="status-line" style="margin-top:1rem">showing 50 of ' + sorted.length + '</div>';
+    }
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function truncate(s, n) {
+    return s.length > n ? s.substring(0, n) + '...' : s;
+  }
+
+  // ── Docs ────────────────────────────────────────────────
+
+  var DOCS_HTML =
+    '<h3>how it works</h3>' +
+    '<p>Every post is embedded using <code>bge-base-en-v1.5</code> on Cloudflare Workers AI. ' +
+    'The same embedding pass includes 16 anchor texts for valence and personality scoring.</p>' +
+
+    '<h3>valence</h3>' +
+    '<p>Three positive and three negative anchor sentences are embedded alongside the posts. ' +
+    'Each post\'s valence is the cosine similarity to the positive centroid minus cosine similarity ' +
+    'to the negative centroid. Positive values = semantically closer to good news; negative = closer ' +
+    'to bad news. This is not traditional sentiment analysis — it\'s geometric distance in embedding space.</p>' +
+
+    '<h3>personality (Big Five)</h3>' +
+    '<p>Each OCEAN trait has a high and low anchor text — structurally parallel, semantically opposed. ' +
+    'The per-post score is <code>cos(post, high) - cos(post, low)</code>, aggregated to a mean across ' +
+    'all posts. The result reflects the semantic texture of the posts, not a clinical assessment. ' +
+    'A high openness score means the posts are semantically closer to "creative, curious, exploring ' +
+    'novel ideas" than to "practical, conventional, focused on proven methods."</p>' +
+
+    '<h3>topics</h3>' +
+    '<p>K-means++ clustering on the post embeddings. The number of clusters is auto-selected from ' +
+    '<code>sqrt(n)/2</code>, capped at 2–8. Each cluster gets TF-IDF keyword extraction — terms that ' +
+    'are frequent within the cluster but rare across all posts. The representative post is the one ' +
+    'closest to the cluster centroid.</p>' +
+
+    '<h3>what this isn\'t</h3>' +
+    '<p>This is embedding geometry, not psychology. The personality scores reflect word-level semantic ' +
+    'proximity to anchor phrases, not validated psychometric instruments. Treat them as descriptive ' +
+    'texture, not diagnosis. The valence scores reflect semantic proximity to positive/negative ' +
+    'language, which can diverge from actual emotional content (irony, sarcasm, and clinical language ' +
+    'will be misread).</p>';
+
+  // ── Main submit ─────────────────────────────────────────
+
+  $('handleForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var handle = $('handleInput').value.trim().replace(/^@/, '');
+    if (!handle) return;
+    var days = parseInt($('daysSelect').value, 10);
+
+    var btn = $('loadBtn');
+    btn.disabled = true;
+    hide($('results'));
+    setProgress(10);
+    setStatus('fetching posts...');
+
+    try {
+      setProgress(30);
+      setStatus('embedding & analyzing...');
+
+      var res = await fetch('/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: handle, days: days }),
+      });
+
+      setProgress(80);
+
+      if (!res.ok) {
+        var err = await res.json().catch(function () { return { error: 'HTTP ' + res.status }; });
+        throw new Error(err.error || 'Request failed');
+      }
+
+      var data = await res.json();
+      profileData = data;
+
+      setProgress(100);
+      setStatus(data.stats.analyzed + ' posts analyzed over ' + data.stats.days + ' days');
+
+      // Update URL
+      var url = new URL(location);
+      url.searchParams.set('handle', handle);
+      url.searchParams.set('days', days);
+      history.replaceState(null, '', url);
+
+      // Render everything
+      renderStats(data);
+      renderPersonality(data.personality);
+      drawValenceChart($('valenceChart'), data.posts);
+      renderTopics(data.topics);
+      currentTab = 'positive';
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === 'positive');
+      });
+      renderPosts(data.posts, 'positive');
+      show($('postList'));
+      hide($('docsPanel'));
+      show($('results'));
+
+    } catch (err) {
+      setStatus(err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── Tab switching ───────────────────────────────────────
+
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      if (!profileData) return;
+      currentTab = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === currentTab);
+      });
+      if (currentTab === 'docs') {
+        hide($('postList'));
+        show($('docsPanel'));
+        $('docsPanel').innerHTML = DOCS_HTML;
+      } else {
+        show($('postList'));
+        hide($('docsPanel'));
+        renderPosts(profileData.posts, currentTab);
+      }
+    });
+  });
+
+  // ── Resize ──────────────────────────────────────────────
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (profileData) {
+        drawValenceChart($('valenceChart'), profileData.posts);
+      }
+    }, 200);
+  });
+
+  // ── Auto-load from URL ─────────────────────────────────
+
+  var params = new URLSearchParams(location.search);
+  var h = params.get('handle');
+  if (h) {
+    $('handleInput').value = h;
+    var d = params.get('days');
+    if (d) $('daysSelect').value = d;
+    $('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+</body>
+</html>
