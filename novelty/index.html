@@ -369,6 +369,62 @@ h1 a:hover { color: var(--text); }
   text-align: center;
 }
 
+.docs-panel {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.docs-panel h3 {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.docs-panel h3:first-child {
+  margin-top: 0;
+}
+
+.docs-panel p {
+  margin-bottom: 0.8rem;
+}
+
+.docs-panel code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.docs-panel a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.docs-panel a:hover {
+  text-decoration: underline;
+}
+
+.docs-panel dt {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-top: 0.8rem;
+}
+
+.docs-panel dd {
+  color: var(--muted);
+  margin-left: 0;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
 footer {
   margin-top: 4rem;
   font-family: var(--mono);
@@ -456,11 +512,11 @@ footer a:hover {
 
   <div class="chart-container">
     <div class="section-header">trajectory</div>
-    <canvas id="trajectoryChart" height="600"></canvas>
+    <canvas id="trajectoryChart" height="300"></canvas>
   </div>
   <div class="chart-container">
     <div class="section-header">distribution</div>
-    <canvas id="histogramChart" height="300"></canvas>
+    <canvas id="histogramChart" height="150"></canvas>
   </div>
 
   <div class="post-list">
@@ -468,8 +524,10 @@ footer a:hover {
       <button class="tab active" data-tab="outliers">most novel</button>
       <button class="tab" data-tab="onbrand">most on-brand</button>
       <button class="tab" data-tab="all">all posts</button>
+      <button class="tab" data-tab="docs">docs</button>
     </div>
     <div id="postList"></div>
+    <div id="docsPanel" class="hidden docs-panel"></div>
   </div>
 </div>
 
@@ -949,12 +1007,91 @@ footer a:hover {
     }
   });
 
+  // Docs content
+  var DOCS_HTML =
+    '<h3>method</h3>' +
+    '<p>Each post is converted to a 1536-dimensional vector using OpenAI\'s ' +
+    '<code>text-embedding-3-small</code> model. We maintain a running centroid ' +
+    '(mean vector) of all posts seen so far. Novelty for post <em>n</em> is the ' +
+    'cosine distance between its embedding and the centroid of posts 1 through <em>n&minus;1</em>. ' +
+    'The centroid updates after each measurement, so the baseline drifts as the account\'s ' +
+    'semantic center of gravity shifts over time.</p>' +
+    '<p>The first post always has novelty 0 (no prior centroid to compare against). ' +
+    'Replies, quote-posts, and original posts are all included. Reposts (pure boosts ' +
+    'with no added text) are excluded.</p>' +
+    '<p>Grounded in the framework described in ' +
+    '<a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a>, ' +
+    'which applies similar trajectory analysis to measure ideological drift in online discourse.</p>' +
+
+    '<h3>metrics</h3>' +
+    '<dl>' +
+    '<dt>mean novelty</dt>' +
+    '<dd>Average cosine distance across all measured posts. Higher means the account ' +
+    'routinely departs from its own center &mdash; a topically diverse or unpredictable poster. ' +
+    'Lower means the account stays close to its themes. Typical range: 0.15&ndash;0.40.</dd>' +
+
+    '<dt>volume</dt>' +
+    '<dd>Standard deviation of novelty scores. High volume means the account alternates ' +
+    'between very on-brand and very off-brand posts &mdash; a bursty, exploratory pattern. ' +
+    'Low volume means consistent distance from center, whether high or low.</dd>' +
+
+    '<dt>circuitousness</dt>' +
+    '<dd>Ratio of total path length (sum of consecutive novelty deltas) to net displacement ' +
+    '(difference between first and last novelty). A straight line from A to B scores ~1. ' +
+    'A wandering path that ends near where it started scores high. Measures how much ' +
+    'the account\'s novelty trajectory zigs and zags versus trending in one direction.</dd>' +
+    '</dl>' +
+
+    '<h3>charts</h3>' +
+    '<dl>' +
+    '<dt>trajectory</dt>' +
+    '<dd>Novelty over time, oldest to newest (left to right). Faint dots are individual posts. ' +
+    'The solid line is a moving average (window = 5% of posts, minimum 3). ' +
+    'The dashed line is the mean. Look for regime changes: a sustained rise means the account ' +
+    'is exploring new territory; a drop means it\'s settling into a groove.</dd>' +
+
+    '<dt>distribution</dt>' +
+    '<dd>Histogram of novelty values. A tight bell curve means consistent behavior. ' +
+    'A long right tail means occasional big departures. Bimodal distributions suggest ' +
+    'two distinct posting modes (e.g., niche expertise + general commentary).</dd>' +
+    '</dl>' +
+
+    '<h3>sampling</h3>' +
+    '<dl>' +
+    '<dt>even sample</dt>' +
+    '<dd>Fetches up to N posts, then samples evenly across the timeline to keep 500 for embedding. ' +
+    'Good default &mdash; captures the full arc without excessive API cost.</dd>' +
+
+    '<dt>recent</dt>' +
+    '<dd>Takes only the most recent N posts. Useful for seeing current behavior without historical context.</dd>' +
+
+    '<dt>every Nth</dt>' +
+    '<dd>Takes every Nth post with an optional offset. Useful for systematic sampling or ' +
+    'checking sensitivity to sampling strategy.</dd>' +
+    '</dl>' +
+
+    '<h3>comparison</h3>' +
+    '<p>Enter two handles to overlay trajectories and distributions on the same axes. ' +
+    'Stats display as a side-by-side table. The post list merges both accounts, color-coded ' +
+    'by handle. Useful for comparing posting styles: does one account explore more? ' +
+    'Is one more volatile? Do they have similar distributions but different trajectories?</p>';
+
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       currentTab = tab.dataset.tab;
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
-      renderPosts(analyses, currentTab);
+      var postList = document.getElementById('postList');
+      var docsPanel = document.getElementById('docsPanel');
+      if (currentTab === 'docs') {
+        postList.classList.add('hidden');
+        docsPanel.classList.remove('hidden');
+        docsPanel.innerHTML = DOCS_HTML;
+      } else {
+        postList.classList.remove('hidden');
+        docsPanel.classList.add('hidden');
+        renderPosts(analyses, currentTab);
+      }
     });
   });
 
