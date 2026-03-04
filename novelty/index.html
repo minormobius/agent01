@@ -166,7 +166,7 @@ h1 a:hover { color: var(--text); }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   margin-bottom: 2.5rem;
 }
@@ -522,6 +522,7 @@ footer a:hover {
   <div class="post-list">
     <div class="tabs">
       <button class="tab active" data-tab="outliers">most novel</button>
+      <button class="tab" data-tab="interesting">most interesting</button>
       <button class="tab" data-tab="onbrand">most on-brand</button>
       <button class="tab" data-tab="all">all posts</button>
       <button class="tab" data-tab="docs">docs</button>
@@ -813,9 +814,12 @@ footer a:hover {
         ? stats.count + ' / ' + stats.fetched
         : String(stats.count);
       grid.className = 'stats-grid';
+      const intVal = stats.meanInterestingness || 0;
+      const intSign = intVal >= 0 ? '+' : '';
       grid.innerHTML = [
         { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
         { value: stats.mean.toFixed(3), label: 'mean novelty' },
+        { value: intSign + intVal.toFixed(4), label: 'interestingness' },
         { value: stats.volume.toFixed(3), label: 'volume' },
         { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
       ].map(s =>
@@ -837,6 +841,7 @@ footer a:hover {
       const rows = [
         { label: 'posts', fn: a => a.stats.sampled ? a.stats.count + ' / ' + a.stats.fetched : String(a.stats.count) },
         { label: 'mean novelty', fn: a => a.stats.mean.toFixed(3) },
+        { label: 'interestingness', fn: a => { const v = a.stats.meanInterestingness || 0; return (v >= 0 ? '+' : '') + v.toFixed(4); } },
         { label: 'volume', fn: a => a.stats.volume.toFixed(3) },
         { label: 'circuitousness', fn: a => a.stats.circuitousness.toFixed(1) },
       ];
@@ -851,6 +856,7 @@ footer a:hover {
         html += '<tr><td colspan="' + colSpan + '" style="text-align:center;padding-top:1.2rem;padding-bottom:0.3rem;color:var(--muted);font-size:0.6rem;letter-spacing:0.08em;border-bottom:none;">SHARED CENTROID</td></tr>';
         var mRows = [
           { label: 'mean (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].mean.toFixed(3) : '\u2014'; } },
+          { label: 'interest. (shared)', fn: function (h) { if (!merged.byHandle[h]) return '\u2014'; var v = merged.byHandle[h].meanInterestingness || 0; return (v >= 0 ? '+' : '') + v.toFixed(4); } },
           { label: 'volume (shared)', fn: function (h) { return merged.byHandle[h] ? merged.byHandle[h].volume.toFixed(3) : '\u2014'; } },
         ];
         for (var mi = 0; mi < mRows.length; mi++) {
@@ -879,6 +885,8 @@ footer a:hover {
     let sorted;
     if (tab === 'outliers') {
       sorted = [...allPosts].sort((a, b) => b.novelty - a.novelty).slice(0, 30);
+    } else if (tab === 'interesting') {
+      sorted = [...allPosts].sort((a, b) => b.interestingness - a.interestingness).slice(0, 30);
     } else if (tab === 'onbrand') {
       sorted = [...allPosts].filter(p => p.novelty > 0).sort((a, b) => a.novelty - b.novelty).slice(0, 30);
     } else {
@@ -892,7 +900,13 @@ footer a:hover {
       const colorIdx = analysesArr.findIndex(a => a.handle === p.handle);
       const color = PALETTE[colorIdx >= 0 ? colorIdx : 0];
       html += '<div class="post-row">';
-      html += '<div class="post-novelty" style="color:' + color + '">' + p.novelty.toFixed(3) + '</div>';
+      if (tab === 'interesting') {
+        const v = p.interestingness || 0;
+        const sign = v >= 0 ? '+' : '';
+        html += '<div class="post-novelty" style="color:' + color + '">' + sign + v.toFixed(4) + '</div>';
+      } else {
+        html += '<div class="post-novelty" style="color:' + color + '">' + p.novelty.toFixed(3) + '</div>';
+      }
       html += '<div class="post-text">';
       if (comparing) html += '<span class="post-handle">@' + escapeHtml(p.handle) + '</span> ';
       html += escapeHtml(p.text) +
@@ -1059,12 +1073,38 @@ footer a:hover {
     '<a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a>, ' +
     'which applies similar trajectory analysis to measure ideological drift in online discourse.</p>' +
 
+    '<h3>interestingness</h3>' +
+    '<p>Interestingness is <strong>compression progress</strong> &mdash; how much absorbing a post ' +
+    'improves the centroid\'s ability to predict what comes next. This is the first derivative of ' +
+    'beauty (compressibility) in ' +
+    '<a href="https://arxiv.org/abs/0812.4360" target="_blank" rel="noopener">Schmidhuber 2009</a>\'s ' +
+    'framework.</p>' +
+    '<p>For each post <em>i</em>, we snapshot the centroid before and after the update, then measure:</p>' +
+    '<p><code>interestingness[i] = cos(post[i+1], centroid_after) &minus; cos(post[i+1], centroid_before)</code></p>' +
+    '<p>Positive values mean this post taught the centroid something useful &mdash; a productive departure ' +
+    'that moves toward where the poster is heading. Negative values mean the post pulled the centroid ' +
+    'away from where things were going &mdash; a one-off tangent. Near zero means the post didn\'t change ' +
+    'predictions either way.</p>' +
+    '<p>The key insight: random noise is maximally surprising but <em>not</em> interesting, because ' +
+    'there\'s nothing to learn from it. A novel post that reveals a new regularity <em>is</em> interesting ' +
+    'because after absorbing it, the model predicts future posts better. Interestingness = productive novelty.</p>' +
+    '<p>Implementation follows ' +
+    '<a href="https://link.springer.com/chapter/10.1007/978-3-642-22887-2_3" target="_blank" rel="noopener">Schaul et al. 2011</a> ' +
+    '(coherence progress for fixed compressors), where the running centroid serves as ' +
+    'the compressor and cosine similarity as the compression measure.</p>' +
+
     '<h3>metrics</h3>' +
     '<dl>' +
     '<dt>mean novelty</dt>' +
     '<dd>Average cosine distance across all measured posts. Higher means the account ' +
     'routinely departs from its own center &mdash; a topically diverse or unpredictable poster. ' +
     'Lower means the account stays close to its themes. Typical range: 0.15&ndash;0.40.</dd>' +
+
+    '<dt>interestingness</dt>' +
+    '<dd>Mean compression progress across all posts. Positive means the account\'s posts generally ' +
+    'build on each other &mdash; each post teaches the model something useful for predicting what ' +
+    'comes next. Near zero means posts are independent or cancel out. The first and last posts ' +
+    'score 0 (no prior update / no next post to predict).</dd>' +
 
     '<dt>volume</dt>' +
     '<dd>Standard deviation of novelty scores. High volume means the account alternates ' +
@@ -1117,7 +1157,22 @@ footer a:hover {
     'centroid &mdash; useful for gauging internal diversity and volatility. ' +
     'The <strong>shared centroid</strong> metrics (bottom rows) pool both accounts\' posts into ' +
     'one timeline and compute novelty against the combined center of gravity. This tells you ' +
-    'who departs more from the shared semantic space &mdash; the meaningful comparison of averages.</p>';
+    'who departs more from the shared semantic space &mdash; the meaningful comparison of averages.</p>' +
+
+    '<h3>references</h3>' +
+    '<dl>' +
+    '<dt><a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a></dt>' +
+    '<dd>Semantic novelty trajectories in 80,000 books. Provides the running-centroid framework ' +
+    'for measuring novelty as cosine distance from an evolving baseline.</dd>' +
+    '<dt><a href="https://arxiv.org/abs/0812.4360" target="_blank" rel="noopener">Schmidhuber 2009</a></dt>' +
+    '<dd>&ldquo;Driven by Compression Progress.&rdquo; Defines interestingness as the first derivative ' +
+    'of subjective beauty (compressibility) &mdash; data is interesting when it enables compression progress, ' +
+    'not merely when it\'s surprising. The theoretical basis for our interestingness metric.</dd>' +
+    '<dt><a href="https://link.springer.com/chapter/10.1007/978-3-642-22887-2_3" target="_blank" rel="noopener">Schaul, Pape, Glasmachers, Graziano &amp; Schmidhuber 2011</a></dt>' +
+    '<dd>&ldquo;Coherence Progress: A Measure of Interestingness Based on Fixed Compressors.&rdquo; ' +
+    'Operationalizes Schmidhuber\'s compression progress for any fixed compressor. Our implementation ' +
+    'uses the running centroid as the compressor and cosine similarity as the coherence measure.</dd>' +
+    '</dl>';
 
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {

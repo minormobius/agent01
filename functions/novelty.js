@@ -134,11 +134,13 @@ function euclideanDist(a, b) {
   return Math.sqrt(sum);
 }
 
-// Compute running centroid novelty and trajectory stats from embeddings
+// Compute running centroid novelty, interestingness, and trajectory stats
 function computeNovelty(embeddings) {
   const dim = embeddings[0].length;
   const centroid = new Float64Array(dim);
+  const centroidSnapshot = new Float64Array(dim);
   const novelties = [];
+  const interestingnesses = [];
   let cumulativePathLength = 0;
   let prevEmbedding = null;
 
@@ -146,12 +148,26 @@ function computeNovelty(embeddings) {
     const emb = embeddings[i];
     if (i === 0) {
       novelties.push(0);
+      interestingnesses.push(0);
       for (let d = 0; d < dim; d++) centroid[d] = emb[d];
     } else {
       const sim = cosineSim(emb, centroid);
       novelties.push(1 - sim);
+
+      // Snapshot centroid before update
+      centroidSnapshot.set(centroid);
+
       for (let d = 0; d < dim; d++) {
         centroid[d] = (centroid[d] * i + emb[d]) / (i + 1);
+      }
+
+      // Interestingness = compression progress (Schmidhuber 2009)
+      // Did absorbing this post improve prediction of the next?
+      if (i < embeddings.length - 1) {
+        const next = embeddings[i + 1];
+        interestingnesses.push(cosineSim(next, centroid) - cosineSim(next, centroidSnapshot));
+      } else {
+        interestingnesses.push(0);
       }
     }
     if (prevEmbedding) {
@@ -166,8 +182,9 @@ function computeNovelty(embeddings) {
   const variance = novelties.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
   const volume = Math.sqrt(variance);
   const circuitousness = netDisplacement > 0 ? cumulativePathLength / netDisplacement : 0;
+  const meanInterestingness = interestingnesses.reduce((s, v) => s + v, 0) / n;
 
-  return { novelties, mean, volume, circuitousness };
+  return { novelties, interestingnesses, mean, volume, circuitousness, meanInterestingness };
 }
 
 export async function onRequestOptions() {
@@ -261,22 +278,24 @@ export async function onRequestPost({ request, env }) {
         embeddings.push(...result.data);
       }
 
-      // Shared centroid novelty
-      const { novelties, mean, volume, circuitousness } = computeNovelty(embeddings);
+      // Shared centroid novelty + interestingness
+      const { novelties, interestingnesses, mean, volume, circuitousness, meanInterestingness } = computeNovelty(embeddings);
 
       // Per-handle breakdown
       const byHandle = {};
       for (const h of handles) {
-        const hNovelties = posts
-          .map((p, i) => p.handle === h ? novelties[i] : null)
-          .filter(v => v !== null);
+        const indices = posts.map((p, i) => p.handle === h ? i : -1).filter(i => i >= 0);
+        const hNovelties = indices.map(i => novelties[i]);
+        const hInterestingnesses = indices.map(i => interestingnesses[i]);
         const n = hNovelties.length;
         const hMean = n > 0 ? hNovelties.reduce((s, v) => s + v, 0) / n : 0;
         const hVar = n > 0 ? hNovelties.reduce((s, v) => s + (v - hMean) ** 2, 0) / n : 0;
+        const hMeanInt = n > 0 ? hInterestingnesses.reduce((s, v) => s + v, 0) / n : 0;
         byHandle[h] = {
           count: n,
           mean: Math.round(hMean * 1000) / 1000,
           volume: Math.round(Math.sqrt(hVar) * 1000) / 1000,
+          meanInterestingness: Math.round(hMeanInt * 10000) / 10000,
         };
       }
 
@@ -373,14 +392,15 @@ export async function onRequestPost({ request, env }) {
       embeddings.push(...result.data);
     }
 
-    // Compute running centroid novelty (Zimmerman method)
-    const { novelties, mean, volume, circuitousness } = computeNovelty(embeddings);
+    // Compute running centroid novelty + interestingness (Zimmerman / Schmidhuber)
+    const { novelties, interestingnesses, mean, volume, circuitousness, meanInterestingness } = computeNovelty(embeddings);
 
     // Build response (chronological order)
     const resultPosts = posts.map((p, i) => ({
       text: p.text,
       date: p.date,
       novelty: Math.round(novelties[i] * 1000) / 1000,
+      interestingness: Math.round(interestingnesses[i] * 10000) / 10000,
       uri: p.uri,
     }));
 
@@ -396,6 +416,7 @@ export async function onRequestPost({ request, env }) {
         mean: Math.round(mean * 1000) / 1000,
         volume: Math.round(volume * 1000) / 1000,
         circuitousness: Math.round(circuitousness * 10) / 10,
+        meanInterestingness: Math.round(meanInterestingness * 10000) / 10000,
       },
     }, { headers: CORS });
 
