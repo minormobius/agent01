@@ -464,6 +464,7 @@ export async function onRequestPost({ request, env }) {
         analyzed: posts.length,
         days,
         topicCount: topics.length,
+        authenticated: !!auth,
       },
     }, { headers: CORS });
 

@@ -308,6 +308,7 @@ export async function onRequestPost({ request, env }) {
           volume: Math.round(volume * 1000) / 1000,
           circuitousness: Math.round(circuitousness * 10) / 10,
           byHandle,
+          authenticated: !!auth,
         },
       }, { headers: CORS });
     }
@@ -417,6 +418,7 @@ export async function onRequestPost({ request, env }) {
         volume: Math.round(volume * 1000) / 1000,
         circuitousness: Math.round(circuitousness * 10) / 10,
         meanInterestingness: Math.round(meanInterestingness * 10000) / 10000,
+        authenticated: !!auth,
       },
     }, { headers: CORS });
 
