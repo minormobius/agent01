@@ -54,9 +54,9 @@ const AXES = [
       'Critique, rebuttal, polemic, challenging ideas, dunking on opponents',
     ],
     low: [
-      'Harmony, agreement, celebrating others, wholesome supportive positivity',
-      'Consensus building, diplomatic hedging, avoiding conflict at all costs',
-      'Gentle encouragement, no friction, everything is fine and lovely',
+      'Sharing my day, here is my cat, what I made for dinner tonight',
+      'Quietly posting creative work, art, photos, no opinions attached',
+      'Simple life updates, no takes, no discourse, just here and present',
     ],
   },
 ];
