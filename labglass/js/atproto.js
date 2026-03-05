@@ -153,6 +153,29 @@ window.LabATProto = (() => {
     return res;
   }
 
+  // ── Blob upload ──
+
+  async function uploadBlob(blob) {
+    if (!session) throw new Error('Not logged in');
+    const res = await authFetch(`${session.pds}/xrpc/com.atproto.repo.uploadBlob`, {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+      body: blob,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Blob upload failed (${res.status})`);
+    }
+    const data = await res.json();
+    return data.blob; // BlobRef: { ref: { $link: cid }, mimeType, size }
+  }
+
+  function getBlobUrl(did, cid, pds) {
+    const endpoint = pds || session?.pds;
+    if (!endpoint) throw new Error('No PDS endpoint');
+    return `${endpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+  }
+
   // ── Record CRUD ──
 
   async function createRecord(collection, record) {
@@ -266,6 +289,11 @@ window.LabATProto = (() => {
       if (cell.textOutput && cell.textOutput.length < 100000) {
         cellRecord.textOutput = cell.textOutput;
       }
+      // Upload figure blob if present (Blob or File object from canvas capture)
+      if (cell.figureBlob instanceof Blob) {
+        const blobRef = await uploadBlob(cell.figureBlob);
+        cellRecord.figureBlob = blobRef;
+      }
       const result = await createRecord(CELL_COLLECTION, cellRecord);
       cellUris.push(result.uri);
     }
@@ -376,7 +404,10 @@ window.LabATProto = (() => {
     loadNotebook,
     listNotebooks,
     deleteNotebook,
-    // Low-level (for future use)
+    // Blobs
+    uploadBlob,
+    getBlobUrl,
+    // Low-level
     createRecord,
     putRecord,
     deleteRecord,

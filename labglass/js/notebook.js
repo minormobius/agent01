@@ -444,6 +444,13 @@ window.LabNotebook = (() => {
       // Execute viz code with canvas and data in scope
       const vizFn = new Function('canvas', 'data', 'gpu', cell.source);
       await vizFn(canvas, cellData, LabViz);
+      // Capture canvas as PNG blob for PDS storage
+      await new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          if (blob) cell.figureBlob = blob;
+          resolve();
+        }, 'image/png');
+      });
     } catch (err) {
       outputEl.innerHTML += `<pre class="error">${escapeHtml(err.message)}</pre>`;
     }
@@ -571,7 +578,7 @@ window.LabNotebook = (() => {
     return cells.map(c => ({ type: c.type, name: c.name, source: c.source, id: c.id }));
   }
 
-  // Get cells with text output (for ATProto save)
+  // Get cells with text output and figure blobs (for ATProto save)
   function getCellsWithOutput() {
     return cells.map(c => {
       const result = { type: c.type, name: c.name, source: c.source };
@@ -583,6 +590,10 @@ window.LabNotebook = (() => {
         } else if (c.type === 'python' && c.output.output) {
           result.textOutput = c.output.output;
         }
+      }
+      // Pass through captured figure blob (Blob object from canvas)
+      if (c.figureBlob instanceof Blob) {
+        result.figureBlob = c.figureBlob;
       }
       return result;
     });
