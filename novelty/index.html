@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>novelty — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --accent: #daa520;
+  --accent2: #6a9fb5;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --accent: #daa520;
+    --accent2: #7ec8e3;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.desc a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.desc a:hover {
+  text-decoration: underline;
+}
+
+.handle-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1 1 35%;
+  min-width: 120px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.vs-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  color: var(--text);
+  display: block;
+}
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compare-table {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  margin-bottom: 2.5rem;
+}
+
+.compare-table th, .compare-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--rule);
+}
+
+.compare-table th {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.compare-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compare-table .swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.chart-container {
+  margin-bottom: 2.5rem;
+}
+
+.chart-container canvas {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--rule);
+  touch-action: none;
+}
+
+.chart-readout {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-height: 1.6em;
+  margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-readout .val { color: var(--text); }
+
+@media (max-width: 560px) {
+  body { padding: 1.5rem 0.75rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container canvas { height: 180px; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
+  .sampling-controls { gap: 0.3rem 0.5rem; }
+}
+
+.post-list {
+  margin-top: 2.5rem;
+}
+
+.post-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-row:last-child {
+  border-bottom: none;
+}
+
+.post-novelty {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  min-width: 3rem;
+  text-align: right;
+  padding-top: 0.15rem;
+}
+
+.post-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.post-handle {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.post-text a {
+  color: var(--link);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.post-text a:hover {
+  text-decoration: underline;
+}
+
+.post-date {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--link);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+.sampling-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-bottom: 2rem;
+}
+
+.ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ctrl label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.ctrl select, .ctrl input {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.ctrl select { cursor: pointer; }
+
+.ctrl input[type="number"] {
+  width: 3.5rem;
+  text-align: center;
+}
+
+.docs-panel {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.docs-panel h3 {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.docs-panel h3:first-child {
+  margin-top: 0;
+}
+
+.docs-panel p {
+  margin-bottom: 0.8rem;
+}
+
+.docs-panel code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.docs-panel a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.docs-panel a:hover {
+  text-decoration: underline;
+}
+
+.docs-panel dt {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-top: 0.8rem;
+}
+
+.docs-panel dd {
+  color: var(--muted);
+  margin-left: 0;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+footer {
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / novelty</h1>
+
+<p class="subtitle">Semantic novelty trajectory.</p>
+
+<p class="desc">
+  How much does a poster explore their semantic space? Each post is embedded
+  and measured against the running centroid of everything they've said before.
+  High novelty = departing from the usual. Low = on-brand.
+  Based on <a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a>.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleInput" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+  <span class="vs-label">vs</span>
+  <input type="text" id="handleInput2" placeholder="compare (optional)" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+  <button type="submit" id="loadBtn">analyze</button>
+</form>
+
+<div class="sampling-controls hidden" id="samplingControls">
+  <div class="ctrl">
+    <label>mode</label>
+    <select id="modeSelect">
+      <option value="recent">recent</option>
+      <option value="even" selected>even sample</option>
+      <option value="stride">every Nth</option>
+    </select>
+  </div>
+  <div class="ctrl" id="fetchCtrl">
+    <label id="fetchLabel">fetch</label>
+    <select id="limitSelect">
+      <option value="200">200</option>
+      <option value="500">500</option>
+      <option value="1000">1k</option>
+      <option value="1500">1.5k</option>
+      <option value="2000" selected>2k</option>
+      <option value="2500">2.5k</option>
+    </select>
+  </div>
+  <div class="ctrl hidden" id="strideCtrl">
+    <label>every</label>
+    <input type="number" id="strideInput" value="3" min="2" max="100">
+    <label>offset</label>
+    <input type="number" id="offsetInput" value="0" min="0" max="2500">
+  </div>
+  <div class="ctrl hidden" id="recentCtrl">
+    <label>posts</label>
+    <select id="recentSelect">
+      <option value="100">100</option>
+      <option value="200">200</option>
+      <option value="500" selected>500</option>
+      <option value="1000">1k</option>
+      <option value="2000">2k</option>
+    </select>
+  </div>
+</div>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div id="results" class="hidden">
+  <div id="statsGrid"></div>
+
+  <div class="chart-container">
+    <div class="section-header">trajectory</div>
+    <canvas id="trajectoryChart" height="300"></canvas>
+    <div class="chart-readout" id="trajectoryReadout"></div>
+  </div>
+  <div class="chart-container">
+    <div class="section-header">distribution</div>
+    <canvas id="histogramChart" height="150"></canvas>
+  </div>
+
+  <div class="post-list">
+    <div class="tabs">
+      <button class="tab active" data-tab="outliers">most novel</button>
+      <button class="tab" data-tab="interesting">most interesting</button>
+      <button class="tab" data-tab="onbrand">most on-brand</button>
+      <button class="tab" data-tab="all">all posts</button>
+      <button class="tab" data-tab="docs">docs</button>
+    </div>
+    <div id="postList"></div>
+    <div id="docsPanel" class="hidden docs-panel"></div>
+  </div>
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="/cluster">cluster</a> &middot;
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+(function () {
+
+  let analyses = [];  // [{ handle, posts, stats }, ...]
+  let mergedStats = null; // stats from shared-centroid analysis
+  let currentTab = 'outliers';
+  const PALETTE = ['#daa520', '#6a9fb5'];
+
+  // Display scores as ×1000 integers
+  function k(v) { return Math.round(v * 1000); }
+  function kSigned(v) { var n = k(v); return (n >= 0 ? '+' : '') + n; }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const ms = Date.now() - new Date(iso).getTime();
+    const d = Math.floor(ms / 86400000);
+    if (d < 1) return 'today';
+    if (d === 1) return '1d';
+    if (d < 30) return d + 'd';
+    if (d < 365) return Math.floor(d / 30) + 'mo';
+    return Math.floor(d / 365) + 'y';
+  }
+
+  function postUrl(uri) {
+    const parts = uri.split('/');
+    const did = parts[2];
+    const rkey = parts[4];
+    return 'https://bsky.app/profile/' + did + '/post/' + rkey;
+  }
+
+  // --- Chart rendering ---
+
+  function getColors() {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      bg: style.getPropertyValue('--bg').trim(),
+      text: style.getPropertyValue('--text').trim(),
+      muted: style.getPropertyValue('--muted').trim(),
+      rule: style.getPropertyValue('--rule').trim(),
+      link: style.getPropertyValue('--link').trim(),
+      accent: style.getPropertyValue('--accent').trim(),
+      accent2: style.getPropertyValue('--accent2').trim(),
+    };
+  }
+
+  function initCanvas(canvas) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    return { ctx, w: rect.width, h: rect.height, dpr };
+  }
+
+  function drawTrajectory(canvas, analysesArr) {
+    const init = initCanvas(canvas);
+    if (!init) return;
+    const { ctx, w, h, dpr } = init;
+    const c = getColors();
+    const mobile = w < 480;
+    const fontSize = mobile ? 8 : 10;
+    const font = fontSize + 'px monospace';
+    const pad = { top: mobile ? 14 : 25, right: mobile ? 8 : 15, bottom: mobile ? 20 : 30, left: mobile ? 30 : 45 };
+    const pw = w - pad.left - pad.right;
+    const ph = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Global max novelty across all analyses
+    let globalMax = 0.1;
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        if (p.novelty > globalMax) globalMax = p.novelty;
+      }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = c.rule;
+    ctx.lineWidth = 0.5;
+    const gridSteps = mobile ? 3 : 4;
+    for (let i = 0; i <= gridSteps; i++) {
+      const y = pad.top + (ph * i / gridSteps);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(w - pad.right, y);
+      ctx.stroke();
+    }
+
+    // Y-axis labels
+    ctx.fillStyle = c.muted;
+    ctx.font = font;
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= gridSteps; i++) {
+      const val = globalMax * (1 - i / gridSteps);
+      const y = pad.top + (ph * i / gridSteps);
+      ctx.fillText(val.toFixed(2), pad.left - 4, y + 4);
+    }
+
+    // Build scan points for interaction (per-analysis)
+    const scanPoints = []; // {x, y, novelty, date, handle, smoothed}
+
+    // Draw each analysis
+    for (let ai = 0; ai < analysesArr.length; ai++) {
+      const a = analysesArr[ai];
+      const color = PALETTE[ai % PALETTE.length];
+      const novelties = a.posts.map(p => p.novelty);
+      const n = novelties.length;
+      if (n < 2) continue;
+
+      // X-axis date labels (first analysis only)
+      if (ai === 0) {
+        ctx.fillStyle = c.muted;
+        ctx.font = font;
+        ctx.textAlign = 'center';
+        ctx.fillText(timeAgo(a.posts[0].date), pad.left + 15, h - 4);
+        ctx.fillText(timeAgo(a.posts[n - 1].date), w - pad.right - 15, h - 4);
+      }
+
+      // Moving average
+      const windowSize = Math.max(3, Math.floor(n * 0.05));
+      const smoothed = [];
+      for (let i = 0; i < n; i++) {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - Math.floor(windowSize / 2)); j <= Math.min(n - 1, i + Math.floor(windowSize / 2)); j++) {
+          sum += novelties[j]; count++;
+        }
+        smoothed.push(sum / count);
+      }
+
+      // Raw dots
+      ctx.fillStyle = color + '25';
+      for (let i = 0; i < n; i++) {
+        const x = pad.left + (i / (n - 1)) * pw;
+        const y = pad.top + (1 - novelties[i] / globalMax) * ph;
+        ctx.beginPath();
+        ctx.arc(x, y, mobile ? 1 : 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Smoothed line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = mobile ? 1.5 : 2;
+      ctx.beginPath();
+      for (let i = 0; i < smoothed.length; i++) {
+        const x = pad.left + (i / (smoothed.length - 1)) * pw;
+        const y = pad.top + (1 - smoothed[i] / globalMax) * ph;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        // Store scan points (subsample for performance)
+        if (i % Math.max(1, Math.floor(n / 200)) === 0 || i === n - 1) {
+          scanPoints.push({ x, y, novelty: novelties[i], smoothed: smoothed[i], date: a.posts[i].date, handle: a.handle, color });
+        }
+      }
+      ctx.stroke();
+
+      // Mean dashed line
+      const mean = novelties.reduce((s, v) => s + v, 0) / n;
+      const meanY = pad.top + (1 - mean / globalMax) * ph;
+      ctx.strokeStyle = color + '80';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, meanY);
+      ctx.lineTo(w - pad.right, meanY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Legend
+    if (analysesArr.length > 1) {
+      ctx.font = (mobile ? 9 : 11) + 'px monospace';
+      let lx = pad.left + 5;
+      const ly = pad.top + 12;
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        ctx.fillStyle = color;
+        ctx.fillRect(lx, ly - 7, 10, 3);
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'left';
+        const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
+        ctx.fillText(label, lx + 14, ly);
+        lx += ctx.measureText(label).width + 28;
+      }
+    }
+
+    // Save base for interaction overlay
+    const baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const readout = document.getElementById('trajectoryReadout');
+
+    function handleScan(clientX) {
+      const r = canvas.getBoundingClientRect();
+      const mx = clientX - r.left;
+      let best = null, bestDist = Infinity;
+      for (const pt of scanPoints) {
+        const dist = Math.abs(pt.x - mx);
+        if (dist < bestDist) { bestDist = dist; best = pt; }
+      }
+      ctx.putImageData(baseImage, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!best || bestDist > 60) {
+        readout.innerHTML = '';
+        return;
+      }
+
+      // Crosshair
+      ctx.strokeStyle = c.muted;
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(best.x, pad.top);
+      ctx.lineTo(best.x, pad.top + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(best.x, best.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = best.color;
+      ctx.fill();
+
+      // DOM readout
+      const parts = [timeAgo(best.date)];
+      parts.push('novelty <span class="val">' + k(best.novelty) + '</span>');
+      parts.push('avg <span class="val">' + k(best.smoothed) + '</span>');
+      if (analysesArr.length > 1) parts.push('@' + best.handle.replace(/\.bsky\.social$/, ''));
+      readout.innerHTML = parts.join(' &nbsp; ');
+    }
+
+    function clearScan() {
+      ctx.putImageData(baseImage, 0, 0);
+      readout.innerHTML = '';
+    }
+
+    canvas.onmousemove = function (e) { handleScan(e.clientX); };
+    canvas.onmouseleave = clearScan;
+    canvas.ontouchstart = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+    canvas.ontouchmove = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+    canvas.ontouchend = function () { /* keep last readout visible */ };
+  }
+
+  function drawHistogram(canvas, analysesArr) {
+    const init = initCanvas(canvas);
+    if (!init) return;
+    const { ctx, w, h } = init;
+    const c = getColors();
+    const mobile = w < 480;
+    const fontSize = mobile ? 8 : 10;
+    const font = fontSize + 'px monospace';
+    const pad = { top: 10, right: mobile ? 8 : 15, bottom: mobile ? 20 : 30, left: mobile ? 20 : 30 };
+    const pw = w - pad.left - pad.right;
+    const ph = h - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Global max novelty
+    let globalMax = 0.1;
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        if (p.novelty > globalMax) globalMax = p.novelty;
+      }
+    }
+
+    const bins = mobile ? 20 : 30;
+    const binWidth = globalMax / bins;
+    const barWidth = pw / bins;
+
+    // Compute bin counts for each analysis
+    const allCounts = [];
+    let maxCount = 1;
+    for (const a of analysesArr) {
+      const counts = new Array(bins).fill(0);
+      for (const p of a.posts) {
+        const bin = Math.min(Math.floor(p.novelty / binWidth), bins - 1);
+        counts[bin]++;
+      }
+      const mc = Math.max(...counts);
+      if (mc > maxCount) maxCount = mc;
+      allCounts.push(counts);
+    }
+
+    // Draw bars for each analysis
+    for (let ai = 0; ai < allCounts.length; ai++) {
+      const counts = allCounts[ai];
+      const color = PALETTE[ai % PALETTE.length];
+      ctx.fillStyle = color + (allCounts.length > 1 ? '50' : '80');
+      for (let i = 0; i < bins; i++) {
+        const barHeight = (counts[i] / maxCount) * ph;
+        const x = pad.left + i * barWidth;
+        const y = pad.top + ph - barHeight;
+        ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+      }
+    }
+
+    // X-axis labels
+    ctx.fillStyle = c.muted;
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.fillText('0', pad.left, h - 4);
+    ctx.fillText(globalMax.toFixed(2), w - pad.right, h - 4);
+    if (!mobile) ctx.fillText((globalMax / 2).toFixed(2), pad.left + pw / 2, h - 4);
+
+    // Bottom line
+    ctx.strokeStyle = c.rule;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + ph);
+    ctx.lineTo(w - pad.right, pad.top + ph);
+    ctx.stroke();
+
+    // Legend if comparing
+    if (allCounts.length > 1) {
+      ctx.font = (mobile ? 9 : 11) + 'px monospace';
+      let lx = pad.left + 5;
+      const ly = pad.top + 12;
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        ctx.fillStyle = color + '80';
+        ctx.fillRect(lx, ly - 8, 10, 10);
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'left';
+        const label = '@' + analysesArr[ai].handle.replace(/\.bsky\.social$/, '');
+        ctx.fillText(label, lx + 14, ly);
+        lx += ctx.measureText(label).width + 24;
+      }
+    }
+  }
+
+  // --- Stats rendering ---
+
+  function renderStats(analysesArr, merged) {
+    const grid = document.getElementById('statsGrid');
+
+    if (analysesArr.length === 1) {
+      const stats = analysesArr[0].stats;
+      const postLabel = stats.sampled
+        ? stats.count + ' / ' + stats.fetched
+        : String(stats.count);
+      grid.className = 'stats-grid';
+      const intVal = stats.meanInterestingness || 0;
+      grid.innerHTML = [
+        { value: postLabel, label: stats.sampled ? 'sampled / fetched' : 'posts' },
+        { value: k(stats.mean), label: 'mean novelty' },
+        { value: kSigned(intVal), label: 'interestingness' },
+        { value: k(stats.volume), label: 'volume' },
+        { value: stats.circuitousness.toFixed(1), label: 'circuitousness' },
+      ].map(s =>
+        '<div class="stat-card">' +
+        '<span class="stat-value">' + s.value + '</span>' +
+        '<span class="stat-label">' + s.label + '</span>' +
+        '</div>'
+      ).join('');
+    } else {
+      grid.className = '';
+      var colSpan = analysesArr.length + 1;
+      let html = '<table class="compare-table"><thead><tr><th></th>';
+      for (let ai = 0; ai < analysesArr.length; ai++) {
+        const color = PALETTE[ai % PALETTE.length];
+        html += '<th><span class="swatch" style="background:' + color + '"></span>' +
+                escapeHtml(analysesArr[ai].handle) + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+      const rows = [
+        { label: 'posts', fn: a => a.stats.sampled ? a.stats.count + ' / ' + a.stats.fetched : String(a.stats.count) },
+        { label: 'mean novelty', fn: a => k(a.stats.mean) },
+        { label: 'interestingness', fn: a => kSigned(a.stats.meanInterestingness || 0) },
+        { label: 'volume', fn: a => k(a.stats.volume) },
+        { label: 'circuitousness', fn: a => a.stats.circuitousness.toFixed(1) },
+      ];
+      for (const row of rows) {
+        html += '<tr><td>' + row.label + '</td>';
+        for (const a of analysesArr) html += '<td>' + row.fn(a) + '</td>';
+        html += '</tr>';
+      }
+
+      // Shared centroid section (merged analysis)
+      if (merged && merged.byHandle) {
+        html += '<tr><td colspan="' + colSpan + '" style="text-align:center;padding-top:1.2rem;padding-bottom:0.3rem;color:var(--muted);font-size:0.6rem;letter-spacing:0.08em;border-bottom:none;">SHARED CENTROID</td></tr>';
+        var mRows = [
+          { label: 'mean (shared)', fn: function (h) { return merged.byHandle[h] ? k(merged.byHandle[h].mean) : '\u2014'; } },
+          { label: 'interest. (shared)', fn: function (h) { if (!merged.byHandle[h]) return '\u2014'; return kSigned(merged.byHandle[h].meanInterestingness || 0); } },
+          { label: 'volume (shared)', fn: function (h) { return merged.byHandle[h] ? k(merged.byHandle[h].volume) : '\u2014'; } },
+        ];
+        for (var mi = 0; mi < mRows.length; mi++) {
+          html += '<tr><td>' + mRows[mi].label + '</td>';
+          for (var aj = 0; aj < analysesArr.length; aj++) html += '<td>' + mRows[mi].fn(analysesArr[aj].handle) + '</td>';
+          html += '</tr>';
+        }
+      }
+
+      html += '</tbody></table>';
+      grid.innerHTML = html;
+    }
+  }
+
+  // --- Post list rendering ---
+
+  function renderPosts(analysesArr, tab) {
+    const comparing = analysesArr.length > 1;
+    let allPosts = [];
+    for (const a of analysesArr) {
+      for (const p of a.posts) {
+        allPosts.push({ ...p, handle: a.handle });
+      }
+    }
+
+    let sorted;
+    if (tab === 'outliers') {
+      sorted = [...allPosts].sort((a, b) => b.novelty - a.novelty).slice(0, 30);
+    } else if (tab === 'interesting') {
+      sorted = [...allPosts].sort((a, b) => b.interestingness - a.interestingness).slice(0, 30);
+    } else if (tab === 'onbrand') {
+      sorted = [...allPosts].filter(p => p.novelty > 0).sort((a, b) => a.novelty - b.novelty).slice(0, 30);
+    } else {
+      sorted = [...allPosts].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 100);
+    }
+
+    const container = document.getElementById('postList');
+    let html = '';
+    for (const p of sorted) {
+      const url = postUrl(p.uri);
+      const colorIdx = analysesArr.findIndex(a => a.handle === p.handle);
+      const color = PALETTE[colorIdx >= 0 ? colorIdx : 0];
+      html += '<div class="post-row">';
+      if (tab === 'interesting') {
+        const v = p.interestingness || 0;
+        const sign = v >= 0 ? '+' : '';
+        html += '<div class="post-novelty" style="color:' + color + '">' + kSigned(v) + '</div>';
+      } else {
+        html += '<div class="post-novelty" style="color:' + color + '">' + k(p.novelty) + '</div>';
+      }
+      html += '<div class="post-text">';
+      if (comparing) html += '<span class="post-handle">@' + escapeHtml(p.handle) + '</span> ';
+      html += escapeHtml(p.text) +
+              ' <a href="' + url + '" target="_blank" rel="noopener">&rarr;</a></div>';
+      html += '<div class="post-date">' + timeAgo(p.date) + '</div>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // --- Sampling params ---
+
+  function getSamplingParams() {
+    const mode = document.getElementById('modeSelect').value;
+    const params = { mode };
+    if (mode === 'recent') {
+      params.limit = parseInt(document.getElementById('recentSelect').value);
+    } else {
+      params.limit = parseInt(document.getElementById('limitSelect').value);
+      if (mode === 'stride') {
+        params.stride = parseInt(document.getElementById('strideInput').value) || 3;
+        params.offset = parseInt(document.getElementById('offsetInput').value) || 0;
+      }
+    }
+    return params;
+  }
+
+  async function fetchNovelty(handle, samplingParams) {
+    const body = { handle, ...samplingParams };
+    const res = await fetch('/novelty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Request failed (' + res.status + ')');
+    }
+    return res.json();
+  }
+
+  async function fetchMerged(h1, h2, samplingParams) {
+    const body = { handles: [h1, h2], ...samplingParams };
+    const res = await fetch('/novelty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Merged analysis failed (' + res.status + ')');
+    }
+    return res.json();
+  }
+
+  // --- Main ---
+
+  document.getElementById('handleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const handle1 = (document.getElementById('handleInput').value || '').trim().replace(/^@/, '');
+    const handle2 = (document.getElementById('handleInput2').value || '').trim().replace(/^@/, '');
+    if (!handle1) return;
+
+    const loadBtn = document.getElementById('loadBtn');
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'analyzing\u2026';
+
+    const status = document.getElementById('status');
+    status.classList.remove('error', 'hidden');
+    status.textContent = handle2
+      ? 'fetching and embedding posts for both handles\u2026'
+      : 'fetching and embedding posts\u2026';
+
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    progressBar.classList.remove('hidden');
+    progressFill.style.width = '30%';
+
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('samplingControls').classList.remove('hidden');
+
+    // Update URL
+    const pageUrl = new URL(window.location);
+    pageUrl.searchParams.set('handle', handle1);
+    if (handle2) pageUrl.searchParams.set('vs', handle2);
+    else pageUrl.searchParams.delete('vs');
+    window.history.replaceState({}, '', pageUrl);
+
+    try {
+      const sampling = getSamplingParams();
+      progressFill.style.width = '50%';
+
+      // Fetch in parallel if comparing
+      const handles = [handle1];
+      if (handle2) handles.push(handle2);
+
+      // Fetch independent analyses (+ merged if comparing)
+      const fetches = handles.map(h => fetchNovelty(h, sampling));
+      if (handle2) fetches.push(fetchMerged(handle1, handle2, sampling));
+
+      const results = await Promise.all(fetches);
+      progressFill.style.width = '90%';
+
+      analyses = results.slice(0, handles.length).map(data => ({
+        handle: data.handle,
+        posts: data.posts,
+        stats: data.stats,
+      }));
+      mergedStats = handle2 ? (results[results.length - 1].stats || null) : null;
+
+      // Show results BEFORE drawing charts (getBoundingClientRect needs visible element)
+      document.getElementById('results').classList.remove('hidden');
+
+      // Render everything
+      renderStats(analyses, mergedStats);
+      drawTrajectory(document.getElementById('trajectoryChart'), analyses);
+      drawHistogram(document.getElementById('histogramChart'), analyses);
+
+      currentTab = 'outliers';
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'outliers'));
+      renderPosts(analyses, 'outliers');
+
+      progressFill.style.width = '100%';
+
+      // Status line
+      const parts = [];
+      for (const a of analyses) {
+        let note = a.handle + ': ' + a.stats.count + ' posts';
+        if (a.stats.sampled) {
+          if (a.stats.sampleMethod === 'stride' || a.stats.sampleMethod === 'stride+capped') {
+            note += ' (every ' + a.stats.sampleRate + 'th)';
+          } else {
+            note += ' (1:' + a.stats.sampleRate + ')';
+          }
+        }
+        note += ', mean ' + k(a.stats.mean);
+        parts.push(note);
+      }
+      const authTag = analyses[0]?.stats?.authenticated ? 'authed' : 'public';
+      status.textContent = 'done \u00b7 ' + parts.join(' \u00b7 ') + ' \u00b7 ' + authTag;
+
+    } catch (err) {
+      status.textContent = 'error: ' + err.message;
+      status.classList.add('error');
+      progressFill.style.width = '0%';
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = 'analyze';
+    }
+  });
+
+  // Docs content
+  var DOCS_HTML =
+    '<h3>method</h3>' +
+    '<p>Each post is converted to a 1536-dimensional vector using OpenAI\'s ' +
+    '<code>text-embedding-3-small</code> model. We maintain a running centroid ' +
+    '(mean vector) of all posts seen so far. Novelty for post <em>n</em> is the ' +
+    'cosine distance between its embedding and the centroid of posts 1 through <em>n&minus;1</em>. ' +
+    'The centroid updates after each measurement, so the baseline drifts as the account\'s ' +
+    'semantic center of gravity shifts over time.</p>' +
+    '<p>The first post always has novelty 0 (no prior centroid to compare against). ' +
+    'Replies, quote-posts, and original posts are all included. Reposts (pure boosts ' +
+    'with no added text) are excluded.</p>' +
+    '<p>Grounded in the framework described in ' +
+    '<a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a>, ' +
+    'which applies similar trajectory analysis to measure ideological drift in online discourse.</p>' +
+
+    '<h3>interestingness</h3>' +
+    '<p>Interestingness is <strong>compression progress</strong> &mdash; how much absorbing a post ' +
+    'improves the centroid\'s ability to predict what comes next. This is the first derivative of ' +
+    'beauty (compressibility) in ' +
+    '<a href="https://arxiv.org/abs/0812.4360" target="_blank" rel="noopener">Schmidhuber 2009</a>\'s ' +
+    'framework.</p>' +
+    '<p>For each post <em>i</em>, we snapshot the centroid before and after the update, then measure:</p>' +
+    '<p><code>interestingness[i] = cos(post[i+1], centroid_after) &minus; cos(post[i+1], centroid_before)</code></p>' +
+    '<p>Positive values mean this post taught the centroid something useful &mdash; a productive departure ' +
+    'that moves toward where the poster is heading. Negative values mean the post pulled the centroid ' +
+    'away from where things were going &mdash; a one-off tangent. Near zero means the post didn\'t change ' +
+    'predictions either way.</p>' +
+    '<p>The key insight: random noise is maximally surprising but <em>not</em> interesting, because ' +
+    'there\'s nothing to learn from it. A novel post that reveals a new regularity <em>is</em> interesting ' +
+    'because after absorbing it, the model predicts future posts better. Interestingness = productive novelty.</p>' +
+    '<p>Implementation follows ' +
+    '<a href="https://link.springer.com/chapter/10.1007/978-3-642-22887-2_3" target="_blank" rel="noopener">Schaul et al. 2011</a> ' +
+    '(coherence progress for fixed compressors), where the running centroid serves as ' +
+    'the compressor and cosine similarity as the compression measure.</p>' +
+
+    '<h3>metrics</h3>' +
+    '<dl>' +
+    '<dt>mean novelty</dt>' +
+    '<dd>Average cosine distance across all measured posts. Higher means the account ' +
+    'routinely departs from its own center &mdash; a topically diverse or unpredictable poster. ' +
+    'Lower means the account stays close to its themes. Typical range: 0.15&ndash;0.40.</dd>' +
+
+    '<dt>interestingness</dt>' +
+    '<dd>Mean compression progress across all posts. Positive means the account\'s posts generally ' +
+    'build on each other &mdash; each post teaches the model something useful for predicting what ' +
+    'comes next. Near zero means posts are independent or cancel out. The first and last posts ' +
+    'score 0 (no prior update / no next post to predict).</dd>' +
+
+    '<dt>volume</dt>' +
+    '<dd>Standard deviation of novelty scores. High volume means the account alternates ' +
+    'between very on-brand and very off-brand posts &mdash; a bursty, exploratory pattern. ' +
+    'Low volume means consistent distance from center, whether high or low.</dd>' +
+
+    '<dt>circuitousness</dt>' +
+    '<dd>Ratio of total path length (sum of consecutive novelty deltas) to net displacement ' +
+    '(difference between first and last novelty). A straight line from A to B scores ~1. ' +
+    'A wandering path that ends near where it started scores high. Measures how much ' +
+    'the account\'s novelty trajectory zigs and zags versus trending in one direction.</dd>' +
+    '</dl>' +
+
+    '<h3>charts</h3>' +
+    '<dl>' +
+    '<dt>trajectory</dt>' +
+    '<dd>Novelty over time, oldest to newest (left to right). Faint dots are individual posts. ' +
+    'The solid line is a moving average (window = 5% of posts, minimum 3). ' +
+    'The dashed line is the mean. Look for regime changes: a sustained rise means the account ' +
+    'is exploring new territory; a drop means it\'s settling into a groove.</dd>' +
+
+    '<dt>distribution</dt>' +
+    '<dd>Histogram of novelty values. A tight bell curve means consistent behavior. ' +
+    'A long right tail means occasional big departures. Bimodal distributions suggest ' +
+    'two distinct posting modes (e.g., niche expertise + general commentary).</dd>' +
+    '</dl>' +
+
+    '<h3>sampling</h3>' +
+    '<dl>' +
+    '<dt>even sample</dt>' +
+    '<dd>Fetches up to N posts, then samples evenly across the timeline to keep 500 for embedding. ' +
+    'Good default &mdash; captures the full arc without excessive API cost.</dd>' +
+
+    '<dt>recent</dt>' +
+    '<dd>Takes only the most recent N posts. Useful for seeing current behavior without historical context.</dd>' +
+
+    '<dt>every Nth</dt>' +
+    '<dd>Takes every Nth post with an optional offset. The &ldquo;analyze&rdquo; count is the ' +
+    'target number of posts to embed &mdash; the system fetches analyze&times;stride posts from the API ' +
+    'and takes every Nth. Budget-aware: the Cloudflare subrequest limit (50 per invocation) ' +
+    'constrains how many posts can be fetched and embedded in one call. At stride=20, expect ' +
+    '~200&ndash;230 analyzed posts per run.</dd>' +
+    '</dl>' +
+
+    '<h3>comparison</h3>' +
+    '<p>Enter two handles to overlay trajectories and distributions on the same axes. ' +
+    'Stats display as a side-by-side table. The post list merges both accounts, color-coded ' +
+    'by handle.</p>' +
+    '<p>The <strong>independent</strong> metrics (top rows) measure each account against its own ' +
+    'centroid &mdash; useful for gauging internal diversity and volatility. ' +
+    'The <strong>shared centroid</strong> metrics (bottom rows) pool both accounts\' posts into ' +
+    'one timeline and compute novelty against the combined center of gravity. This tells you ' +
+    'who departs more from the shared semantic space &mdash; the meaningful comparison of averages.</p>' +
+
+    '<h3>references</h3>' +
+    '<dl>' +
+    '<dt><a href="https://arxiv.org/abs/2603.01791" target="_blank" rel="noopener">Zimmerman 2026</a></dt>' +
+    '<dd>Semantic novelty trajectories in 80,000 books. Provides the running-centroid framework ' +
+    'for measuring novelty as cosine distance from an evolving baseline.</dd>' +
+    '<dt><a href="https://arxiv.org/abs/0812.4360" target="_blank" rel="noopener">Schmidhuber 2009</a></dt>' +
+    '<dd>&ldquo;Driven by Compression Progress.&rdquo; Defines interestingness as the first derivative ' +
+    'of subjective beauty (compressibility) &mdash; data is interesting when it enables compression progress, ' +
+    'not merely when it\'s surprising. The theoretical basis for our interestingness metric.</dd>' +
+    '<dt><a href="https://link.springer.com/chapter/10.1007/978-3-642-22887-2_3" target="_blank" rel="noopener">Schaul, Pape, Glasmachers, Graziano &amp; Schmidhuber 2011</a></dt>' +
+    '<dd>&ldquo;Coherence Progress: A Measure of Interestingness Based on Fixed Compressors.&rdquo; ' +
+    'Operationalizes Schmidhuber\'s compression progress for any fixed compressor. Our implementation ' +
+    'uses the running centroid as the compressor and cosine similarity as the coherence measure.</dd>' +
+    '</dl>';
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      currentTab = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
+      var postList = document.getElementById('postList');
+      var docsPanel = document.getElementById('docsPanel');
+      if (currentTab === 'docs') {
+        postList.classList.add('hidden');
+        docsPanel.classList.remove('hidden');
+        docsPanel.innerHTML = DOCS_HTML;
+      } else {
+        postList.classList.remove('hidden');
+        docsPanel.classList.add('hidden');
+        renderPosts(analyses, currentTab);
+      }
+    });
+  });
+
+  // Sampling mode switching
+  document.getElementById('modeSelect').addEventListener('change', function () {
+    const mode = this.value;
+    document.getElementById('fetchCtrl').classList.toggle('hidden', mode === 'recent');
+    document.getElementById('strideCtrl').classList.toggle('hidden', mode !== 'stride');
+    document.getElementById('recentCtrl').classList.toggle('hidden', mode !== 'recent');
+    document.getElementById('fetchLabel').textContent = mode === 'stride' ? 'analyze' : 'fetch';
+  });
+
+  // Redraw charts on resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (analyses.length > 0) {
+        drawTrajectory(document.getElementById('trajectoryChart'), analyses);
+        drawHistogram(document.getElementById('histogramChart'), analyses);
+      }
+    }, 200);
+  });
+
+  // Auto-load from URL
+  const params = new URLSearchParams(location.search);
+  const h = params.get('handle');
+  const vs = params.get('vs');
+  if (h) {
+    document.getElementById('handleInput').value = h;
+    if (vs) document.getElementById('handleInput2').value = vs;
+    document.getElementById('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+
+<script src="/js/typeahead.js"></script>
+</body>
+</html>
