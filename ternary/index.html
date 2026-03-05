@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ternary — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --flesh: #c45;
+  --knowledge: #daa520;
+  --argument: #6a9fb5;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --flesh: #e06070;
+    --knowledge: #daa520;
+    --argument: #7ec8e3;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.hidden { display: none !important; }
+
+/* ── Input section ──────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--link);
+}
+
+.tab:hover { color: var(--text); }
+
+textarea {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  margin-bottom: 0.75rem;
+}
+
+textarea:focus { outline: none; border-color: var(--link); }
+
+.follows-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.follows-row input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.follows-row input:focus { outline: none; border-color: var(--link); }
+
+button, .btn {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover { border-color: var(--link); color: var(--link); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.handle-count {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* ── Progress / status ──────────────────────── */
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error { color: var(--link); }
+
+/* ── Chart ──────────────────────────────────── */
+
+.chart-wrap {
+  position: relative;
+  margin-bottom: 2.5rem;
+}
+
+.chart-wrap canvas {
+  width: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.6rem;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 10;
+  line-height: 1.4;
+}
+
+/* ── Results list ───────────────────────────── */
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row:last-child { border-bottom: none; }
+
+.result-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.result-handle {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-scores {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.result-score {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 1px;
+}
+
+/* ── Footer ─────────────────────────────────── */
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
+
+@media (max-width: 560px) {
+  body { padding: 1.5rem 0.75rem; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
+  .result-scores { gap: 0.3rem; }
+  .result-score { font-size: 0.6rem; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / ternary</h1>
+
+<p class="subtitle">Three lusts, one chart.</p>
+
+<p class="desc">
+  Paste handles or load someone's follows. Each poster placed by posting
+  temperament&mdash;flesh, knowledge, argument&mdash;scored from embeddings,
+  normalized against their peers.
+</p>
+
+<!-- Input modes -->
+<div class="tabs" id="inputTabs">
+  <button class="tab active" data-tab="paste">paste handles</button>
+  <button class="tab" data-tab="follows">load follows</button>
+</div>
+
+<div id="pastePanel">
+  <textarea id="handleList" rows="6" placeholder="one handle per line&#10;alice.bsky.social&#10;bob.bsky.social" spellcheck="false"></textarea>
+</div>
+
+<div id="followsPanel" class="hidden">
+  <div class="follows-row">
+    <input type="text" id="seedHandle" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+    <button id="loadFollowsBtn">load follows</button>
+  </div>
+</div>
+
+<div class="action-row">
+  <button id="mapBtn" disabled>map</button>
+  <span class="handle-count" id="handleCount">0 handles</span>
+</div>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<!-- Results -->
+<div id="results" class="hidden">
+  <div class="chart-wrap">
+    <canvas id="ternaryChart" height="600"></canvas>
+    <div class="tooltip hidden" id="tooltip"></div>
+  </div>
+
+  <div class="section-header">rankings</div>
+  <div class="tabs" id="sortTabs">
+    <button class="tab active" data-sort="flesh">flesh</button>
+    <button class="tab" data-sort="knowledge">knowledge</button>
+    <button class="tab" data-sort="argument">argument</button>
+  </div>
+  <div id="resultsList"></div>
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="/novelty">novelty</a> &middot;
+  <a href="/judge">judge</a> &middot;
+  <a href="/density">density</a> &middot;
+  <a href="/cluster">cluster</a> &middot;
+  <a href="/echo">echo</a>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var BSKY = 'https://public.api.bsky.app';
+  var POSTS_PER_USER = 25;
+  var MAX_HANDLES = 80;
+  var AVATAR_SIZE = 24;
+
+  // State
+  var chartData = null; // { results: [{ handle, flesh, knowledge, argument, avatar, did }] }
+  var avatarImages = {}; // handle → Image
+  var currentSort = 'flesh';
+
+  // ── Helpers ─────────────────────────────────────────
+
+  function $(id) { return document.getElementById(id); }
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function setStatus(msg, isError) {
+    var el = $('status');
+    show(el);
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+  }
+
+  function setProgress(pct) {
+    show($('progressBar'));
+    $('progressFill').style.width = pct + '%';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function getHandles() {
+    var raw = $('handleList').value.trim();
+    if (!raw) return [];
+    return raw.split(/[\n,]+/)
+      .map(function (h) { return h.trim().replace(/^@/, ''); })
+      .filter(function (h) { return h.length > 0; });
+  }
+
+  function updateCount() {
+    var n = getHandles().length;
+    $('handleCount').textContent = n + ' handle' + (n !== 1 ? 's' : '');
+    $('mapBtn').disabled = n < 2;
+  }
+
+  $('handleList').addEventListener('input', updateCount);
+
+  // ── Bluesky API ────────────────────────────────────
+
+  async function resolveHandle(handle) {
+    if (handle.startsWith('did:')) return handle;
+    var res = await fetch(BSKY + '/xrpc/com.atproto.identity.resolveHandle?handle=' + encodeURIComponent(handle));
+    if (!res.ok) throw new Error('Could not resolve: ' + handle);
+    return (await res.json()).did;
+  }
+
+  async function fetchProfile(did) {
+    var res = await fetch(BSKY + '/xrpc/app.bsky.actor.getProfile?actor=' + encodeURIComponent(did));
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async function fetchRecentPosts(did, max) {
+    var url = BSKY + '/xrpc/app.bsky.feed.getAuthorFeed?actor=' + encodeURIComponent(did) +
+              '&limit=' + Math.min(100, max) + '&filter=posts_and_author_threads';
+    var res = await fetch(url);
+    if (!res.ok) return [];
+    var data = await res.json();
+    var texts = [];
+    for (var i = 0; i < (data.feed || []).length && texts.length < max; i++) {
+      var item = data.feed[i];
+      if (item.reason) continue;
+      var text = item.post && item.post.record && item.post.record.text;
+      if (text && text.length > 5) texts.push(text);
+    }
+    return texts;
+  }
+
+  async function fetchFollows(handle, max) {
+    var did = await resolveHandle(handle);
+    var follows = [];
+    var cursor;
+    while (follows.length < max) {
+      var url = BSKY + '/xrpc/app.bsky.graph.getFollows?actor=' + encodeURIComponent(did) + '&limit=100';
+      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+      var res = await fetch(url);
+      if (!res.ok) break;
+      var data = await res.json();
+      var items = data.follows || [];
+      if (items.length === 0) break;
+      for (var i = 0; i < items.length; i++) {
+        follows.push(items[i].handle);
+      }
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    return follows.slice(0, max);
+  }
+
+  // ── Data loading ───────────────────────────────────
+
+  async function loadUserData(handle) {
+    var did = await resolveHandle(handle);
+    var profile = await fetchProfile(did);
+    var texts = await fetchRecentPosts(did, POSTS_PER_USER);
+    return {
+      handle: profile ? profile.handle : handle,
+      did: did,
+      avatar: profile ? profile.avatar : null,
+      texts: texts,
+    };
+  }
+
+  // Batch with concurrency limit
+  async function batchLoad(handles, concurrency, onProgress) {
+    var results = [];
+    var idx = 0;
+    var completed = 0;
+
+    async function worker() {
+      while (idx < handles.length) {
+        var i = idx++;
+        try {
+          var data = await loadUserData(handles[i]);
+          results.push(data);
+        } catch (e) {
+          // skip failed handles silently
+        }
+        completed++;
+        if (onProgress) onProgress(completed, handles.length);
+      }
+    }
+
+    var workers = [];
+    for (var w = 0; w < Math.min(concurrency, handles.length); w++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+    return results;
+  }
+
+  // ── Ternary chart drawing ──────────────────────────
+
+  function drawTernaryChart(canvas, data) {
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
+
+    var W = rect.width;
+    var H = rect.height;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    var cs = getComputedStyle(document.documentElement);
+    var textColor = cs.getPropertyValue('--text').trim();
+    var mutedColor = cs.getPropertyValue('--muted').trim();
+    var ruleColor = cs.getPropertyValue('--rule').trim();
+    var bgColor = cs.getPropertyValue('--bg').trim();
+    var fleshColor = cs.getPropertyValue('--flesh').trim();
+    var knowledgeColor = cs.getPropertyValue('--knowledge').trim();
+    var argumentColor = cs.getPropertyValue('--argument').trim();
+
+    ctx.clearRect(0, 0, W, H);
+
+    var mobile = W < 480;
+    var pad = mobile ? 30 : 50;
+    var labelPad = mobile ? 12 : 20;
+
+    // Triangle geometry
+    var triW = W - pad * 2;
+    var triH = triW * Math.sqrt(3) / 2;
+    if (triH + pad * 2 + labelPad > H) {
+      triH = H - pad * 2 - labelPad;
+      triW = triH * 2 / Math.sqrt(3);
+    }
+
+    var cx = W / 2;
+    // Vertices: A=flesh (bottom-left), B=argument (bottom-right), C=knowledge (top)
+    var Ax = cx - triW / 2, Ay = pad + triH;
+    var Bx = cx + triW / 2, By = pad + triH;
+    var Cx = cx,            Cy = pad;
+
+    // Convert ternary (f,k,a) normalized to 1 → canvas (x,y)
+    function ternaryToXY(f, k, a) {
+      var total = f + k + a || 1;
+      var fn = f / total, kn = k / total, an = a / total;
+      return {
+        x: fn * Ax + kn * Cx + an * Bx,
+        y: fn * Ay + kn * Cy + an * By,
+      };
+    }
+
+    // Grid lines every 10%
+    ctx.strokeStyle = ruleColor;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.5;
+    for (var i = 1; i < 10; i++) {
+      var t = i / 10;
+
+      // Lines of constant knowledge (parallel to AB)
+      var lkL = ternaryToXY(1 - t, t, 0);
+      var lkR = ternaryToXY(0, t, 1 - t);
+      ctx.beginPath(); ctx.moveTo(lkL.x, lkL.y); ctx.lineTo(lkR.x, lkR.y); ctx.stroke();
+
+      // Lines of constant flesh (parallel to BC)
+      var lfL = ternaryToXY(t, 1 - t, 0);
+      var lfR = ternaryToXY(t, 0, 1 - t);
+      ctx.beginPath(); ctx.moveTo(lfL.x, lfL.y); ctx.lineTo(lfR.x, lfR.y); ctx.stroke();
+
+      // Lines of constant argument (parallel to AC)
+      var laL = ternaryToXY(1 - t, 0, t);
+      var laR = ternaryToXY(0, 1 - t, t);
+      ctx.beginPath(); ctx.moveTo(laL.x, laL.y); ctx.lineTo(laR.x, laR.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Triangle outline
+    ctx.strokeStyle = textColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(Ax, Ay);
+    ctx.lineTo(Bx, By);
+    ctx.lineTo(Cx, Cy);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Axis labels
+    var fontSize = mobile ? 9 : 11;
+    ctx.font = 'bold ' + fontSize + 'px monospace';
+    ctx.textAlign = 'center';
+
+    // Bottom: FLESH
+    ctx.fillStyle = fleshColor;
+    ctx.fillText('FLESH', cx, Ay + labelPad + (mobile ? 8 : 14));
+
+    // Left: KNOWLEDGE (rotated)
+    ctx.save();
+    ctx.fillStyle = knowledgeColor;
+    var kMidX = (Ax + Cx) / 2 - labelPad;
+    var kMidY = (Ay + Cy) / 2;
+    ctx.translate(kMidX, kMidY);
+    ctx.rotate(-Math.PI / 3);
+    ctx.fillText('KNOWLEDGE', 0, 0);
+    ctx.restore();
+
+    // Right: ARGUMENT (rotated)
+    ctx.save();
+    ctx.fillStyle = argumentColor;
+    var aMidX = (Bx + Cx) / 2 + labelPad;
+    var aMidY = (By + Cy) / 2;
+    ctx.translate(aMidX, aMidY);
+    ctx.rotate(Math.PI / 3);
+    ctx.fillText('ARGUMENT', 0, 0);
+    ctx.restore();
+
+    // Tick labels along each axis
+    ctx.font = (mobile ? 7 : 9) + 'px monospace';
+    ctx.fillStyle = mutedColor;
+    var step = mobile ? 20 : 10;
+    for (var v = 0; v <= 100; v += step) {
+      var t10 = v / 100;
+
+      // Bottom axis (flesh): A to B, label below
+      var bp = ternaryToXY(1 - t10, 0, t10);
+      ctx.textAlign = 'center';
+      ctx.fillText((100 - v) + '', bp.x, bp.y + (mobile ? 10 : 14));
+
+      // Left axis (knowledge): A to C
+      if (v > 0 && v < 100) {
+        var lp = ternaryToXY(1 - t10, t10, 0);
+        ctx.textAlign = 'right';
+        ctx.fillText(v + '', lp.x - 5, lp.y + 3);
+      }
+
+      // Right axis (argument): B to C
+      if (v > 0 && v < 100) {
+        var rp = ternaryToXY(0, 1 - t10, t10);
+        ctx.textAlign = 'left';
+        ctx.fillText(v + '', rp.x + 5, rp.y + 3);
+      }
+    }
+
+    // Draw avatars at ternary positions
+    var positions = []; // for hit-testing
+    var half = AVATAR_SIZE / 2;
+
+    for (var d = 0; d < data.length; d++) {
+      var item = data[d];
+      var pt = ternaryToXY(item.flesh, item.knowledge, item.argument);
+      positions.push({ x: pt.x, y: pt.y, item: item });
+
+      var img = avatarImages[item.handle];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, half, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, pt.x - half, pt.y - half, AVATAR_SIZE, AVATAR_SIZE);
+        ctx.restore();
+
+        // Border
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, half, 0, Math.PI * 2);
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        // Fallback dot
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, half * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = mutedColor;
+        ctx.fill();
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+
+    // Store positions and base image for interaction
+    canvas._positions = positions;
+    canvas._baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    canvas._dpr = dpr;
+    canvas._triCoords = { Ax: Ax, Ay: Ay, Bx: Bx, By: By, Cx: Cx, Cy: Cy };
+  }
+
+  // ── Chart interaction (hover/touch) ────────────────
+
+  function setupChartInteraction(canvas) {
+    var tooltip = $('tooltip');
+
+    function findNearest(mx, my) {
+      var positions = canvas._positions || [];
+      var best = null, bestDist = AVATAR_SIZE * 1.5;
+      for (var i = 0; i < positions.length; i++) {
+        var dx = positions[i].x - mx;
+        var dy = positions[i].y - my;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) { bestDist = dist; best = positions[i]; }
+      }
+      return best;
+    }
+
+    function handleHover(clientX, clientY) {
+      var rect = canvas.getBoundingClientRect();
+      var mx = clientX - rect.left;
+      var my = clientY - rect.top;
+      var hit = findNearest(mx, my);
+
+      var ctx = canvas.getContext('2d');
+      var dpr = canvas._dpr || 1;
+      if (canvas._baseImage) {
+        ctx.putImageData(canvas._baseImage, 0, 0);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      if (!hit) {
+        hide(tooltip);
+        return;
+      }
+
+      // Highlight ring
+      ctx.beginPath();
+      ctx.arc(hit.x, hit.y, AVATAR_SIZE / 2 + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--link').trim();
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Show tooltip
+      var r = hit.item;
+      tooltip.innerHTML =
+        '<strong>' + escHtml(r.handle) + '</strong><br>' +
+        '<span style="color:var(--flesh)">flesh ' + r.flesh + '</span> · ' +
+        '<span style="color:var(--knowledge)">knowledge ' + r.knowledge + '</span> · ' +
+        '<span style="color:var(--argument)">argument ' + r.argument + '</span>';
+      show(tooltip);
+
+      var tx = mx + 12;
+      var ty = my - 40;
+      if (tx + 200 > rect.width) tx = mx - 200;
+      if (ty < 0) ty = my + 20;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+    }
+
+    canvas.onmousemove = function (e) { handleHover(e.clientX, e.clientY); };
+    canvas.onmouseleave = function () {
+      hide(tooltip);
+      var ctx = canvas.getContext('2d');
+      if (canvas._baseImage) {
+        ctx.putImageData(canvas._baseImage, 0, 0);
+      }
+    };
+    canvas.ontouchstart = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleHover(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    canvas.ontouchmove = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleHover(e.touches[0].clientX, e.touches[0].clientY);
+    };
+  }
+
+  // ── Results list ───────────────────────────────────
+
+  function renderResults(data, sortBy) {
+    var sorted = data.slice().sort(function (a, b) { return b[sortBy] - a[sortBy]; });
+    var container = $('resultsList');
+    var html = '';
+
+    for (var i = 0; i < sorted.length; i++) {
+      var r = sorted[i];
+      var avatarSrc = r.avatar || '';
+      var imgTag = avatarSrc
+        ? '<img class="result-avatar" src="' + escHtml(avatarSrc) + '" alt="" crossorigin="anonymous">'
+        : '<div class="result-avatar" style="background:var(--rule)"></div>';
+
+      html += '<div class="result-row">' +
+        imgTag +
+        '<span class="result-handle">' + escHtml(r.handle) + '</span>' +
+        '<div class="result-scores">' +
+          '<span class="result-score" style="color:var(--flesh);border:1px solid var(--flesh)">' + r.flesh + ' F</span>' +
+          '<span class="result-score" style="color:var(--knowledge);border:1px solid var(--knowledge)">' + r.knowledge + ' K</span>' +
+          '<span class="result-score" style="color:var(--argument);border:1px solid var(--argument)">' + r.argument + ' A</span>' +
+        '</div>' +
+      '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── Avatar preloading ──────────────────────────────
+
+  function preloadAvatars(data) {
+    var loaded = 0;
+    var total = data.filter(function (d) { return d.avatar; }).length;
+
+    return new Promise(function (resolve) {
+      if (total === 0) { resolve(); return; }
+
+      function checkDone() {
+        loaded++;
+        if (loaded >= total) resolve();
+      }
+
+      for (var i = 0; i < data.length; i++) {
+        if (!data[i].avatar) continue;
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = checkDone;
+        img.onerror = checkDone;
+        img.src = data[i].avatar;
+        avatarImages[data[i].handle] = img;
+      }
+
+      // Timeout fallback
+      setTimeout(resolve, 5000);
+    });
+  }
+
+  // ── Input tab switching ────────────────────────────
+
+  document.querySelectorAll('#inputTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('#inputTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+      if (tab.dataset.tab === 'paste') {
+        show($('pastePanel'));
+        hide($('followsPanel'));
+      } else {
+        hide($('pastePanel'));
+        show($('followsPanel'));
+      }
+    });
+  });
+
+  // ── Load follows ───────────────────────────────────
+
+  $('loadFollowsBtn').addEventListener('click', async function () {
+    var seed = $('seedHandle').value.trim().replace(/^@/, '');
+    if (!seed) return;
+
+    var btn = $('loadFollowsBtn');
+    btn.disabled = true;
+    btn.textContent = 'loading\u2026';
+    setStatus('fetching follows\u2026');
+    setProgress(20);
+
+    try {
+      var follows = await fetchFollows(seed, MAX_HANDLES);
+      if (follows.length === 0) {
+        setStatus('no follows found for ' + seed, true);
+        return;
+      }
+
+      // Populate textarea and switch to paste tab
+      $('handleList').value = follows.join('\n');
+      show($('pastePanel'));
+      hide($('followsPanel'));
+      document.querySelectorAll('#inputTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === 'paste');
+      });
+      updateCount();
+      setStatus(follows.length + ' follows loaded from @' + seed);
+      setProgress(100);
+    } catch (err) {
+      setStatus('error: ' + err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'load follows';
+    }
+  });
+
+  // ── Sort tab switching ─────────────────────────────
+
+  document.querySelectorAll('#sortTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      currentSort = tab.dataset.sort;
+      document.querySelectorAll('#sortTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.sort === currentSort);
+      });
+      if (chartData) renderResults(chartData.results, currentSort);
+    });
+  });
+
+  // ── Main: map button ──────────────────────────────
+
+  $('mapBtn').addEventListener('click', async function () {
+    var handles = getHandles();
+    if (handles.length < 2) {
+      setStatus('need at least 2 handles', true);
+      return;
+    }
+    if (handles.length > MAX_HANDLES) {
+      handles = handles.slice(0, MAX_HANDLES);
+      setStatus('capped at ' + MAX_HANDLES + ' handles');
+    }
+
+    var btn = $('mapBtn');
+    btn.disabled = true;
+    btn.textContent = 'mapping\u2026';
+    hide($('results'));
+    setProgress(5);
+    setStatus('fetching posts\u2026');
+
+    try {
+      // Phase 1: fetch posts for all handles
+      var userData = await batchLoad(handles, 6, function (done, total) {
+        var pct = 5 + (done / total) * 55;
+        setProgress(pct);
+        setStatus('fetching posts\u2026 ' + done + '/' + total);
+      });
+
+      // Filter to users with enough posts
+      userData = userData.filter(function (u) { return u.texts.length >= 3; });
+      if (userData.length < 2) {
+        setStatus('not enough users with posts (need at least 2 with 3+ posts)', true);
+        setProgress(0);
+        btn.disabled = false;
+        btn.textContent = 'map';
+        return;
+      }
+
+      setProgress(65);
+      setStatus('scoring via embeddings\u2026');
+
+      // Phase 2: send to backend for ternary scoring
+      var payload = {
+        users: userData.map(function (u) {
+          return { handle: u.handle, texts: u.texts };
+        }),
+      };
+
+      var res = await fetch('/ternary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        var err = await res.json().catch(function () { return { error: 'HTTP ' + res.status }; });
+        throw new Error(err.error || 'scoring failed');
+      }
+
+      var scores = await res.json();
+
+      setProgress(85);
+      setStatus('loading avatars\u2026');
+
+      // Merge avatar/did info into scores
+      var userMap = {};
+      for (var i = 0; i < userData.length; i++) {
+        userMap[userData[i].handle] = userData[i];
+      }
+      for (var j = 0; j < scores.results.length; j++) {
+        var r = scores.results[j];
+        var u = userMap[r.handle];
+        if (u) {
+          r.avatar = u.avatar;
+          r.did = u.did;
+        }
+      }
+
+      chartData = scores;
+
+      // Phase 3: preload avatars then render
+      await preloadAvatars(scores.results);
+
+      setProgress(100);
+      show($('results'));
+
+      drawTernaryChart($('ternaryChart'), scores.results);
+      setupChartInteraction($('ternaryChart'));
+
+      currentSort = 'flesh';
+      document.querySelectorAll('#sortTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.sort === 'flesh');
+      });
+      renderResults(scores.results, 'flesh');
+
+      setStatus(scores.results.length + ' posters mapped');
+
+    } catch (err) {
+      setStatus('error: ' + err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'map';
+    }
+  });
+
+  // ── Resize ─────────────────────────────────────────
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (chartData && !$('results').classList.contains('hidden')) {
+        drawTernaryChart($('ternaryChart'), chartData.results);
+        setupChartInteraction($('ternaryChart'));
+      }
+    }, 300);
+  });
+
+  // ── Auto-load from URL params ──────────────────────
+
+  var params = new URLSearchParams(location.search);
+  var ph = params.get('handles');
+  if (ph) {
+    $('handleList').value = ph.split(',').join('\n');
+    updateCount();
+  }
+  var seed = params.get('seed');
+  if (seed) {
+    $('seedHandle').value = seed;
+    // Auto-trigger follows load
+    $('loadFollowsBtn').click();
+  }
+
+})();
+</script>
+<script src="/js/typeahead.js"></script>
+
+</body>
+</html>
