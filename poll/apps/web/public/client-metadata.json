@@ -1,0 +1,15 @@
+{
+  "client_id": "https://polls.example.com/client-metadata.json",
+  "client_name": "Anonymous Polls",
+  "client_uri": "https://polls.example.com",
+  "logo_uri": "https://polls.example.com/logo.png",
+  "tos_uri": "https://polls.example.com/tos",
+  "policy_uri": "https://polls.example.com/privacy",
+  "redirect_uris": ["https://polls.example.com/auth/callback"],
+  "scope": "atproto",
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "application_type": "web",
+  "dpop_bound_access_tokens": true
+}

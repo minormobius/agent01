@@ -1,0 +1,23 @@
+{
+  "name": "@anon-polls/api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "migrate:local": "wrangler d1 execute anon-polls-db --local --file=migrations/0001_init.sql",
+    "migrate:remote": "wrangler d1 execute anon-polls-db --file=migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "@anon-polls/shared": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240718.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "wrangler": "^3.65.0"
+  }
+}
