@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "mkdir -p dist/docs && cp evaluation.html dist/ && cp PROTOCOL.md README.md dist/ && cp docs/*.md dist/docs/ 2>/dev/null; true",
+    "build": "mkdir -p dist/docs && cp evaluation.html dist/ && cp evaluation.html dist/index.html && cp PROTOCOL.md README.md dist/ && cp docs/*.md dist/docs/ 2>/dev/null; true",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build:web": "npm run build -w apps/web",
