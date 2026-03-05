@@ -3,8 +3,8 @@
 // POST /ternary { users: [{ handle, texts }] }
 // → { results: [{ handle, flesh, knowledge, argument }] }
 //
-// Each user's posts are embedded alongside 9 anchor texts (3 per axis).
-// Cosine similarity to each axis centroid gives raw scores.
+// Each user's posts are embedded alongside 18 anchor texts (3 high + 3 low per axis).
+// Bipolar scoring: score = cos(post, high_centroid) - cos(post, low_centroid).
 // Scores are min-max normalized across the peer group, then rescaled to sum to 100.
 
 const EMBED_BATCH = 100;
@@ -17,25 +17,51 @@ const CORS = {
   'Access-Control-Max-Age': '86400',
 };
 
-const FLESH_ANCHORS = [
-  'Physical attraction, beauty, desire, sensual experience, bodies, lust',
-  'Thirst, seduction, intimacy, visual pleasure, aesthetic admiration of people',
-  'Romance, passion, flirtation, hotness, physical connection and touch',
+// Bipolar anchor pairs — score = cos(post, high) - cos(post, low)
+// Gives much better separation than raw similarity to one pole.
+const AXES = [
+  {
+    axis: 'flesh',
+    high: [
+      'Physical attraction, beauty, desire, sensual experience, bodies, lust',
+      'Music, drugs, food, physical sensation, pleasure, the body alive',
+      'Romance, passion, seduction, aesthetic rapture, visceral delight',
+    ],
+    low: [
+      'Abstract reasoning, pure logic, disembodied thought, cerebral analysis',
+      'Formal systems, mathematical proof, theoretical frameworks without sensation',
+      'Detached observation, clinical neutrality, no feeling, no body',
+    ],
+  },
+  {
+    axis: 'knowledge',
+    high: [
+      'Research, data analysis, scientific discovery, deep investigation',
+      'Books, poetry, literary arts, intellectual curiosity, understanding systems',
+      'Technical expertise, teaching, sharing knowledge, citing sources and evidence',
+    ],
+    low: [
+      'Gut feeling, vibes, no sources, pure emotional reaction, unexamined opinion',
+      'Shitposting, memes, content-free jokes, zero information density',
+      'Small talk, idle chatter, saying nothing with many words',
+    ],
+  },
+  {
+    axis: 'argument',
+    high: [
+      'Heated debate, strong disagreement, calling out bad takes, fighting online',
+      'Political argument, ideological confrontation, taking sides publicly',
+      'Critique, rebuttal, polemic, challenging ideas, dunking on opponents',
+    ],
+    low: [
+      'Harmony, agreement, celebrating others, wholesome supportive positivity',
+      'Consensus building, diplomatic hedging, avoiding conflict at all costs',
+      'Gentle encouragement, no friction, everything is fine and lovely',
+    ],
+  },
 ];
 
-const KNOWLEDGE_ANCHORS = [
-  'Research, data analysis, scientific discovery, deep learning about topics',
-  'Books, papers, intellectual curiosity, understanding complex systems',
-  'Technical explanation, expertise, teaching, sharing knowledge and facts',
-];
-
-const ARGUMENT_ANCHORS = [
-  'Heated debate, strong disagreement, calling out bad takes, fighting online',
-  'Political argument, ideological confrontation, taking sides publicly',
-  'Critique, rebuttal, polemic, challenging ideas, dunking on opponents',
-];
-
-const ANCHOR_COUNT = FLESH_ANCHORS.length + KNOWLEDGE_ANCHORS.length + ARGUMENT_ANCHORS.length;
+const ANCHOR_COUNT = AXES.length * 6; // 3 high + 3 low per axis
 
 function cosineSim(a, b) {
   let dot = 0, magA = 0, magB = 0;
@@ -97,10 +123,11 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Append anchor texts
-    const anchors = [...FLESH_ANCHORS, ...KNOWLEDGE_ANCHORS, ...ARGUMENT_ANCHORS];
+    // Append anchor texts: [high_0, high_1, high_2, low_0, low_1, low_2] per axis
     const anchorStart = allTexts.length;
-    allTexts.push(...anchors);
+    for (const axis of AXES) {
+      allTexts.push(...axis.high, ...axis.low);
+    }
 
     // Embed everything in batches
     const embeddings = [];
@@ -110,22 +137,28 @@ export async function onRequestPost({ request, env }) {
       embeddings.push(...result.data);
     }
 
-    // Extract anchor centroids
-    const fleshCenter = centroid(embeddings.slice(anchorStart, anchorStart + 3));
-    const knowledgeCenter = centroid(embeddings.slice(anchorStart + 3, anchorStart + 6));
-    const argumentCenter = centroid(embeddings.slice(anchorStart + 6, anchorStart + 9));
+    // Extract bipolar centroids per axis
+    const axisCentroids = [];
+    let offset = anchorStart;
+    for (const axis of AXES) {
+      const highCenter = centroid(embeddings.slice(offset, offset + 3));
+      const lowCenter = centroid(embeddings.slice(offset + 3, offset + 6));
+      axisCentroids.push({ axis: axis.axis, highCenter, lowCenter });
+      offset += 6;
+    }
 
-    // Score each user: mean cosine similarity to each axis centroid
+    // Score each user: mean differential (cos_high - cos_low) per axis
     const rawScores = userBounds.map(({ handle, start, end }) => {
       const userEmbeds = embeddings.slice(start, end);
-      let fSum = 0, kSum = 0, aSum = 0;
-      for (const emb of userEmbeds) {
-        fSum += cosineSim(emb, fleshCenter);
-        kSum += cosineSim(emb, knowledgeCenter);
-        aSum += cosineSim(emb, argumentCenter);
+      const scores = {};
+      for (const { axis, highCenter, lowCenter } of axisCentroids) {
+        let sum = 0;
+        for (const emb of userEmbeds) {
+          sum += cosineSim(emb, highCenter) - cosineSim(emb, lowCenter);
+        }
+        scores[axis] = sum / userEmbeds.length;
       }
-      const n = userEmbeds.length;
-      return { handle, flesh: fSum / n, knowledge: kSum / n, argument: aSum / n };
+      return { handle, ...scores };
     });
 
     // Peer-relative normalization: min-max per axis
