@@ -17,7 +17,7 @@
     {
       "binding": "DB",
       "database_name": "anon-polls-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d",
       "migrations_dir": "apps/api/migrations"
     }
   ],
