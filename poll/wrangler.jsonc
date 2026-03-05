@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "anon-polls",
+  "name": "poll",
   "main": "apps/api/src/index.ts",
   "compatibility_date": "2026-02-20",
   "compatibility_flags": ["nodejs_compat"],
@@ -30,7 +30,7 @@
   },
 
   "migrations": [
-    { "tag": "v1", "new_classes": ["PollCoordinator"] }
+    { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] }
   ],
 
   // Dev vars — override in Cloudflare dashboard for production
