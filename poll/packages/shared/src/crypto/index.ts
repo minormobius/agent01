@@ -225,7 +225,7 @@ export class StubBlindSignatureProvider implements BlindSignatureProvider {
   async blindSign(blindedMessage: Uint8Array, _privateKey: CryptoKey): Promise<Uint8Array> {
     // Stub: hash-based signature
     const { subtle } = getCrypto();
-    const hash = await subtle.digest('SHA-256', blindedMessage);
+    const hash = await subtle.digest('SHA-256', blindedMessage.buffer as ArrayBuffer);
     return new Uint8Array(hash);
   }
 
@@ -236,7 +236,7 @@ export class StubBlindSignatureProvider implements BlindSignatureProvider {
 
   async verify(message: Uint8Array, signature: Uint8Array, _publicKey: CryptoKey): Promise<boolean> {
     const { subtle } = getCrypto();
-    const hash = await subtle.digest('SHA-256', message);
+    const hash = await subtle.digest('SHA-256', message.buffer as ArrayBuffer);
     const expected = new Uint8Array(hash);
     if (expected.length !== signature.length) return false;
     let diff = 0;

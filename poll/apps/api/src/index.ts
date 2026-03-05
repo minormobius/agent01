@@ -14,6 +14,7 @@ export { PollCoordinator };
 export interface Env {
   DB: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
+  ASSETS: Fetcher;
   FRONTEND_URL: string;
   ATPROTO_MOCK_MODE: string;
   // ATProto service account credentials (secrets)
@@ -42,11 +43,16 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // Non-API routes: let the static asset handler serve them (SPA fallback)
+    if (!url.pathname.startsWith('/api/')) {
+      return env.ASSETS.fetch(request);
+    }
+
     try {
       let response: Response | null = null;
 
       // Route to appropriate handler
-      if (url.pathname.startsWith('/api/auth/')) {
+      if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/me') {
         response = await handleAuthRoutes(request, env, url);
       } else if (url.pathname.match(/^\/api\/polls\/[^/]+\/ballots/)) {
         response = await handleBallotRoutes(request, env, url);

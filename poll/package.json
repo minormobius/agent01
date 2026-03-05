@@ -6,11 +6,14 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "mkdir -p dist/docs && cp evaluation.html dist/ && cp evaluation.html dist/index.html && cp PROTOCOL.md README.md dist/ && cp docs/*.md dist/docs/ 2>/dev/null; true",
+    "build": "npm run build:shared && npm run build:web",
+    "dev": "npm run dev:api & npm run dev:web",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build:web": "npm run build -w apps/web",
     "build:shared": "npm run build -w packages/shared",
+    "deploy": "npx wrangler deploy",
+    "deploy:migrate": "npx wrangler d1 execute anon-polls-db --file=apps/api/migrations/0001_init.sql",
     "test": "npm run test -w packages/shared && npm run test -w apps/api",
     "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web"
   }

@@ -1,8 +1,41 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "anon-polls",
+  "main": "apps/api/src/index.ts",
   "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets — Vite build output
+  // Worker handles /api/* routes; unmatched paths serve index.html (SPA)
   "assets": {
-    "directory": "dist"
+    "directory": "dist",
+    "not_found_handling": "single-page-application"
+  },
+
+  // D1 database
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "anon-polls-db",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "apps/api/migrations"
+    }
+  ],
+
+  // Durable Objects
+  "durable_objects": {
+    "bindings": [
+      { "name": "POLL_COORDINATOR", "class_name": "PollCoordinator" }
+    ]
+  },
+
+  "migrations": [
+    { "tag": "v1", "new_classes": ["PollCoordinator"] }
+  ],
+
+  // Dev vars — override in Cloudflare dashboard for production
+  "vars": {
+    "FRONTEND_URL": "https://poll.mino.mobi",
+    "ATPROTO_MOCK_MODE": "true"
   }
 }
