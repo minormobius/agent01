@@ -44,6 +44,11 @@ export async function handlePollRoutes(
     return closePoll(request, env, closeMatch[1]);
   }
 
+  const reopenMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/reopen$/);
+  if (reopenMatch && request.method === 'POST') {
+    return reopenPoll(request, env, reopenMatch[1]);
+  }
+
   const tallyMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/tally$/);
   if (tallyMatch && request.method === 'GET') {
     return getTally(env, tallyMatch[1]);
@@ -163,6 +168,19 @@ async function closePoll(request: Request, env: Env, pollId: string): Promise<Re
 
   const doStub = getPollDO(env, pollId);
   const res = await doStub.fetch(new Request('https://do/close', { method: 'POST' }));
+  return new Response(res.body, { status: res.status, headers: res.headers });
+}
+
+async function reopenPoll(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT host_did FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+
+  const doStub = getPollDO(env, pollId);
+  const res = await doStub.fetch(new Request('https://do/reopen', { method: 'POST' }));
   return new Response(res.body, { status: res.status, headers: res.headers });
 }
 

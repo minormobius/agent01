@@ -50,6 +50,9 @@ export const openPoll = (id: string) =>
 export const closePoll = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/close`, { method: 'POST' });
 
+export const reopenPoll = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}/reopen`, { method: 'POST' });
+
 export const publishPoll = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/publish`, { method: 'POST' });
 

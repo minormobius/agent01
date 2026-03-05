@@ -43,9 +43,21 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
-    // Non-API routes: let the static asset handler serve them (SPA fallback)
+    // Non-API routes: serve static assets with SPA fallback
     if (!url.pathname.startsWith('/api/')) {
-      return env.ASSETS.fetch(request);
+      try {
+        const assetResponse = await env.ASSETS.fetch(request);
+        // If the asset handler returns 404, serve index.html for SPA routing
+        if (assetResponse.status === 404) {
+          const indexRequest = new Request(new URL('/', request.url).toString(), request);
+          return env.ASSETS.fetch(indexRequest);
+        }
+        return assetResponse;
+      } catch {
+        // Asset handler threw — serve index.html as fallback
+        const indexRequest = new Request(new URL('/', request.url).toString(), request);
+        return env.ASSETS.fetch(indexRequest);
+      }
     }
 
     try {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, getTally, publishPoll, publishTally } from '../lib/api';
+import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +48,14 @@ export function AdminPage() {
         <>
           <div className="card">
             <h3>Poll Controls</h3>
+            <div className="poll-lifecycle mb-12">
+              {['draft', 'open', 'closed'].map((s, i) => (
+                <span key={s}>
+                  <span className={`lifecycle-step${poll.status === s ? ' active' : ''}`}>{s}</span>
+                  {i < 2 && <span className="lifecycle-arrow">&rarr;</span>}
+                </span>
+              ))}
+            </div>
             <div className="flex gap-8">
               {poll.status === 'draft' && (
                 <button className="btn btn-success" onClick={() => action(() => openPoll(id!), 'Poll opened')}>
@@ -57,6 +65,11 @@ export function AdminPage() {
               {poll.status === 'open' && (
                 <button className="btn btn-danger" onClick={() => action(() => closePoll(id!), 'Poll closed')}>
                   Close Poll
+                </button>
+              )}
+              {poll.status === 'closed' && (
+                <button className="btn btn-success" onClick={() => action(() => reopenPoll(id!), 'Poll reopened')}>
+                  Reopen Poll
                 </button>
               )}
             </div>
@@ -95,10 +108,16 @@ export function AdminPage() {
           <div className="card">
             <h3>Share</h3>
             <p className="muted">
-              Vote link: <code>{window.location.origin}/poll/{id}/vote</code>
+              Vote link:{' '}
+              <a href={`/poll/${id}/vote`} target="_blank" rel="noopener noreferrer">
+                {window.location.origin}/poll/{id}/vote
+              </a>
             </p>
             <p className="muted">
-              Results: <code>{window.location.origin}/poll/{id}</code>
+              Results:{' '}
+              <a href={`/poll/${id}`} target="_blank" rel="noopener noreferrer">
+                {window.location.origin}/poll/{id}
+              </a>
             </p>
           </div>
         </>

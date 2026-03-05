@@ -255,3 +255,28 @@ button, .btn {
 }
 
 .login-form input { margin-bottom: 0; }
+
+.poll-lifecycle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.lifecycle-step {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: var(--muted);
+}
+
+.lifecycle-step.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.lifecycle-arrow {
+  color: var(--muted);
+  margin: 0 2px;
+}
