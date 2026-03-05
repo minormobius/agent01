@@ -189,6 +189,63 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   line-height: 1.4;
 }
 
+.chart-readout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.chart-readout.empty {
+  justify-content: center;
+  align-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.readout-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.readout-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.readout-handle {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.readout-handle a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.readout-handle a:hover { text-decoration: underline; }
+
+.readout-scores {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.readout-score {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 1px;
+}
+
 .section-header {
   font-family: var(--mono);
   font-size: 0.7rem;
@@ -305,6 +362,7 @@ footer a:hover { color: var(--text); }
     <canvas id="ternaryChart" height="620"></canvas>
     <div class="tooltip hidden" id="tooltip"></div>
   </div>
+  <div class="chart-readout empty" id="chartReadout">hover a hex to inspect</div>
 
   <div class="section-header">rankings</div>
   <div class="tabs" id="sortTabs">
@@ -752,6 +810,40 @@ footer a:hover { color: var(--text); }
 
   // ── Chart interaction ──────────────────────────────
 
+  function updateReadout(user) {
+    var el = $('chartReadout');
+    if (!user) {
+      el.className = 'chart-readout empty';
+      el.innerHTML = 'hover a hex to inspect';
+      return;
+    }
+
+    el.className = 'chart-readout';
+    var imgTag = user.avatar
+      ? '<img class="readout-avatar" src="' + escHtml(user.avatar) + '" alt="">'
+      : '<div class="readout-avatar" style="background:var(--rule)"></div>';
+
+    var bskyUrl = 'https://bsky.app/profile/' + escHtml(user.handle);
+    var postsHtml = '';
+    var texts = user.texts || [];
+    for (var i = 0; i < Math.min(texts.length, 3); i++) {
+      var snippet = texts[i].length > 140 ? texts[i].slice(0, 140) + '\u2026' : texts[i];
+      postsHtml += '<div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem;line-height:1.4">' +
+        escHtml(snippet) + '</div>';
+    }
+
+    el.innerHTML = imgTag +
+      '<div class="readout-info">' +
+        '<div class="readout-handle"><a href="' + bskyUrl + '" target="_blank" rel="noopener">@' + escHtml(user.handle) + '</a></div>' +
+        '<div class="readout-scores">' +
+          '<span class="readout-score" style="color:var(--flesh);border:1px solid var(--flesh)">' + user.flesh + ' F</span>' +
+          '<span class="readout-score" style="color:var(--knowledge);border:1px solid var(--knowledge)">' + user.knowledge + ' K</span>' +
+          '<span class="readout-score" style="color:var(--argument);border:1px solid var(--argument)">' + user.argument + ' A</span>' +
+        '</div>' +
+        postsHtml +
+      '</div>';
+  }
+
   function setupChartInteraction(canvas) {
     var tooltip = $('tooltip');
 
@@ -777,6 +869,7 @@ footer a:hover { color: var(--text); }
         if (canvas._lastHighlight) {
           canvas._lastHighlight = null;
           drawTernaryChart(canvas, chartState.results, null);
+          updateReadout(null);
         }
         hide(tooltip);
         return;
@@ -786,19 +879,17 @@ footer a:hover { color: var(--text); }
       if (canvas._lastHighlight !== r.handle) {
         canvas._lastHighlight = r.handle;
         drawTernaryChart(canvas, chartState.results, r.handle);
+        updateReadout(r);
       }
 
-      tooltip.innerHTML =
-        '<strong>' + escHtml(r.handle) + '</strong><br>' +
-        '<span style="color:var(--flesh)">flesh ' + r.flesh + '</span> &middot; ' +
-        '<span style="color:var(--knowledge)">knowledge ' + r.knowledge + '</span> &middot; ' +
-        '<span style="color:var(--argument)">argument ' + r.argument + '</span>';
+      // Lightweight canvas tooltip for handle name
+      tooltip.textContent = '@' + r.handle;
       show(tooltip);
 
       var tx = mx + 14;
-      var ty = my - 44;
-      if (tx + 220 > rect.width) tx = mx - 220;
-      if (ty < 0) ty = my + 20;
+      var ty = my - 28;
+      if (tx + 180 > rect.width) tx = mx - 180;
+      if (ty < 0) ty = my + 16;
       tooltip.style.left = tx + 'px';
       tooltip.style.top = ty + 'px';
     }
@@ -806,10 +897,7 @@ footer a:hover { color: var(--text); }
     canvas.onmousemove = function (e) { handleHover(e.clientX, e.clientY); };
     canvas.onmouseleave = function () {
       hide(tooltip);
-      if (canvas._lastHighlight) {
-        canvas._lastHighlight = null;
-        drawTernaryChart(canvas, chartState.results, null);
-      }
+      // Don't clear readout on mouseleave — keep last selection visible
     };
     canvas.ontouchstart = function (e) {
       e.preventDefault();
@@ -852,7 +940,6 @@ footer a:hover { color: var(--text); }
         if (!data[i].avatar) continue;
         remaining++;
         var img = new Image();
-        img.crossOrigin = 'anonymous';
         img.onload = img.onerror = function () { if (--remaining <= 0) resolve(); };
         img.src = data[i].avatar;
         avatarImages[data[i].handle] = img;
@@ -993,7 +1080,7 @@ footer a:hover { color: var(--text); }
       for (var j = 0; j < scores.results.length; j++) {
         var r = scores.results[j];
         var u = userMap[r.handle];
-        if (u) { r.avatar = u.avatar; r.did = u.did; }
+        if (u) { r.avatar = u.avatar; r.did = u.did; r.texts = u.texts; }
       }
 
       chartState = scores;
