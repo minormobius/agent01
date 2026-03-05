@@ -388,7 +388,8 @@ footer a:hover { color: var(--text); }
 
   var BSKY = 'https://public.api.bsky.app';
   var POSTS_PER_USER = 25;
-  var HEX_RADIUS = 22;
+  var HEX_RADIUS_MAX = 26;
+  var HEX_RADIUS_MIN = 8;
 
   // State
   var chartState = null;
@@ -747,14 +748,27 @@ footer a:hover { color: var(--text); }
       }
     }
 
-    // Generate hex grid and assign users
-    var hexR = HEX_RADIUS;
+    // Dynamic hex sizing: shrink tiles when many users, enlarge when few
+    var nUsers = data.length;
+    var triSide = triW;
+    // Approximate hex count for equilateral triangle ≈ side² / (2.6 · r²)
+    var hexR = HEX_RADIUS_MAX;
+    if (nUsers > 0) {
+      var ideal = Math.sqrt((triSide * triSide) / (2.6 * nUsers * 1.4));
+      hexR = Math.max(HEX_RADIUS_MIN, Math.min(HEX_RADIUS_MAX, ideal));
+    }
     var cells = generateHexCells(Ax, Ay, Bx, By, Cx, Cy, hexR);
+    // If not enough cells, shrink further until we fit
+    while (cells.length < nUsers && hexR > HEX_RADIUS_MIN) {
+      hexR = Math.max(HEX_RADIUS_MIN, hexR * 0.85);
+      cells = generateHexCells(Ax, Ay, Bx, By, Cx, Cy, hexR);
+    }
     var assignments = assignUsersToCells(cells, data, ternaryToXY);
 
     // Store for interaction
     canvas._cells = cells;
     canvas._dpr = dpr;
+    canvas._hexR = hexR;
 
     // Draw empty hex outlines
     ctx.strokeStyle = col.rule;
@@ -849,7 +863,7 @@ footer a:hover { color: var(--text); }
 
     function findHoveredCell(mx, my) {
       var cells = canvas._cells || [];
-      var hexR = HEX_RADIUS * 0.92;
+      var hexR = (canvas._hexR || 22) * 0.92;
       for (var i = 0; i < cells.length; i++) {
         if (!cells[i].occupant) continue;
         var dx = cells[i].x - mx;
