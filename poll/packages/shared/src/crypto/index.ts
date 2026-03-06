@@ -1,37 +1,37 @@
 /**
  * Credential abstraction for anonymous poll system.
  *
- * This module implements the credential lifecycle:
- * - issueCredential: host issues a poll-scoped one-time token
- * - verifyCredential: host verifies token + signature on ballot submission
- * - deriveTokenMessage: compute m = H(version || poll_id || s || expiry)
- * - deriveNullifier: compute nullifier = H("nullifier" || s || poll_id)
- * - makeReceipt: compute a receipt hash for the responder
+ * v1 (trusted_host): HMAC-based credential. Host sees everything during issuance.
+ * v2 (anon_credential): RSA Blind Signatures (RFC 9474). Host cannot link voter to ballot.
  *
- * UPGRADE PATH TO BLIND SIGNATURES:
- * In v2, the issuance flow changes:
- * 1. Responder generates s locally, computes m, BLINDS m -> m'
- * 2. Responder sends m' to host (host cannot see m)
- * 3. Host signs m' -> sig(m'), returns to responder
- * 4. Responder unblinds sig(m') -> sig(m)
- * 5. Now responder holds {s, m, sig(m)} without host knowing m
- *
- * To implement this:
- * - Replace `issueCredential` with `blindSign(blindedMessage, hostPrivateKey)`
- * - Add `blindMessage(m, blindingFactor)` on client side
- * - Add `unblindSignature(blindedSig, blindingFactor)` on client side
- * - `verifyCredential` stays the same (checks sig(m) against host public key)
- * - `deriveNullifier` stays the same (derived from s, which host never sees)
- *
- * The interfaces below are designed so that ONLY `issueCredential` needs to
- * change for the blind-signature upgrade. All other functions remain identical.
+ * The v2 flow:
+ * 1. Responder generates secret locally, computes tokenMessage, BLINDS it
+ * 2. Responder sends blindedMsg to host (host cannot see tokenMessage)
+ * 3. Host blind-signs blindedMsg, returns blindSig
+ * 4. Responder unblinds (finalize) blindSig -> real RSA-PSS signature
+ * 5. Responder now holds {secret, tokenMessage, signature} — host never learned tokenMessage
+ * 6. Ballot submission: verifier checks RSA-PSS signature. Standard RSA verify, no blind awareness.
  */
+
+import { RSABSSA } from '@cloudflare/blindrsa-ts';
+import type { BlindRSA } from '@cloudflare/blindrsa-ts';
 
 const BALLOT_VERSION = 1;
 const encoder = new TextEncoder();
 
-// Use globalThis.crypto directly — CF Workers requires method calls
-// to preserve the receiver (destructuring loses `this` binding).
+// --- Suite singleton ---
+// RFC 9474: RSABSSA-SHA384-PSS-Randomized
+// On CF Workers, pass supportsRSARAW: true for the optimized path.
+let _suite: BlindRSA | null = null;
+
+export function getBlindRSASuite(supportsRSARAW = false): BlindRSA {
+  if (!_suite) {
+    _suite = RSABSSA.SHA384.PSS.Randomized({ supportsRSARAW });
+  }
+  return _suite;
+}
+
+// --- Hashing & randomness ---
 
 async function sha256(data: string): Promise<string> {
   const hash = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(data));
@@ -43,6 +43,28 @@ function randomHex(bytes: number): string {
   globalThis.crypto.getRandomValues(buf);
   return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+// --- Base64url encoding for transport ---
+
+export function toBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function fromBase64Url(str: string): Uint8Array {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// --- Core credential functions (unchanged between v1/v2) ---
 
 export function generateSecret(): string {
   return randomHex(32);
@@ -63,43 +85,6 @@ export async function deriveNullifier(
   return sha256(`nullifier||${secret}||${pollId}`);
 }
 
-/**
- * Issue a credential (Mode A: trusted-host).
- *
- * The host knows both the responder DID and the token message in this mode.
- * In Mode B (blind signatures), the host would sign a blinded message instead,
- * never learning the actual token message.
- *
- * @param signingKey - HMAC key material (host's private key)
- * @param tokenMessage - m = H(version || poll_id || s || expiry)
- * @returns HMAC signature over the token message
- */
-export async function issueCredential(
-  signingKey: string,
-  tokenMessage: string
-): Promise<string> {
-  // In v1: HMAC-SHA256 signature. Host sees tokenMessage.
-  // In v2: this would be replaced with RSA blind signature over a blinded message.
-  // The host would call blindSign(blindedMessage, rsaPrivateKey) instead.
-  return hmacSign(signingKey, tokenMessage);
-}
-
-/**
- * Verify a credential's signature.
- *
- * This function is UNCHANGED between v1 and v2.
- * In v2, the unblinded signature is a standard RSA signature that verifies
- * against the host's public key — same interface, different algorithm underneath.
- */
-export async function verifyCredential(
-  signingKey: string,
-  tokenMessage: string,
-  signature: string
-): Promise<boolean> {
-  const expected = await hmacSign(signingKey, tokenMessage);
-  return timingSafeEqual(expected, signature);
-}
-
 export async function makeReceipt(
   pollId: string,
   tokenMessage: string,
@@ -108,7 +93,6 @@ export async function makeReceipt(
   return sha256(`receipt||${pollId}||${tokenMessage}||${nullifier}`);
 }
 
-/** Compute a rolling audit hash */
 export async function computeAuditHash(
   previousHash: string,
   eventType: string,
@@ -117,7 +101,6 @@ export async function computeAuditHash(
   return sha256(`${previousHash}||${eventType}||${eventPayload}`);
 }
 
-/** Verify that a tally matches a set of public ballots */
 export function recomputeTally(
   ballots: Array<{ option: number; accepted: boolean }>,
   optionCount: number
@@ -132,6 +115,129 @@ export function recomputeTally(
     }
   }
   return counts;
+}
+
+// --- v1: HMAC credential issuance ---
+
+export async function issueCredential(
+  signingKey: string,
+  tokenMessage: string
+): Promise<string> {
+  return hmacSign(signingKey, tokenMessage);
+}
+
+export async function verifyCredential(
+  signingKey: string,
+  tokenMessage: string,
+  signature: string
+): Promise<boolean> {
+  const expected = await hmacSign(signingKey, tokenMessage);
+  return timingSafeEqual(expected, signature);
+}
+
+// --- v2: RSA Blind Signature operations ---
+
+/**
+ * Import an RSA public key from JWK format.
+ * Used by both client (for blinding) and server (for verification).
+ */
+export async function importRSAPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
+  return globalThis.crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSA-PSS', hash: 'SHA-384' },
+    true,
+    ['verify']
+  );
+}
+
+/**
+ * Import an RSA private key from JWK format.
+ * Used by the server for blind signing.
+ */
+export async function importRSAPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
+  return globalThis.crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSA-PSS', hash: 'SHA-384' },
+    true,
+    ['sign']
+  );
+}
+
+/**
+ * Export an RSA public key as JWK.
+ */
+export async function exportRSAPublicKeyJWK(key: CryptoKey): Promise<JsonWebKey> {
+  return globalThis.crypto.subtle.exportKey('jwk', key);
+}
+
+/**
+ * Client-side: blind a token message before sending to the host.
+ * Returns the blinded message and the inverse (blinding factor) needed for finalization.
+ */
+export async function blindMessage(
+  tokenMessage: string,
+  publicKey: CryptoKey,
+  supportsRSARAW = false
+): Promise<{ blindedMsg: string; inv: string }> {
+  const suite = getBlindRSASuite(supportsRSARAW);
+  const msgBytes = encoder.encode(tokenMessage);
+  const { blindedMsg, inv } = await suite.blind(publicKey, msgBytes);
+  return {
+    blindedMsg: toBase64Url(blindedMsg),
+    inv: toBase64Url(inv),
+  };
+}
+
+/**
+ * Server-side: blind-sign a blinded message.
+ * The server never sees the original token message.
+ */
+export async function blindSign(
+  blindedMsgB64: string,
+  privateKey: CryptoKey,
+  supportsRSARAW = false
+): Promise<string> {
+  const suite = getBlindRSASuite(supportsRSARAW);
+  const blindedMsg = fromBase64Url(blindedMsgB64);
+  const blindSig = await suite.blindSign(privateKey, blindedMsg);
+  return toBase64Url(blindSig);
+}
+
+/**
+ * Client-side: finalize (unblind) the blind signature.
+ * The result is a standard RSA-PSS signature over the original token message.
+ */
+export async function finalizeBlindSignature(
+  tokenMessage: string,
+  blindSigB64: string,
+  invB64: string,
+  publicKey: CryptoKey,
+  supportsRSARAW = false
+): Promise<string> {
+  const suite = getBlindRSASuite(supportsRSARAW);
+  const msgBytes = encoder.encode(tokenMessage);
+  const blindSig = fromBase64Url(blindSigB64);
+  const inv = fromBase64Url(invB64);
+  const signature = await suite.finalize(publicKey, msgBytes, blindSig, inv);
+  return toBase64Url(signature);
+}
+
+/**
+ * Verify an RSA-PSS signature over a token message.
+ * Works for both blind-signed (v2) and directly-signed credentials.
+ */
+export async function verifyRSACredential(
+  tokenMessage: string,
+  signatureB64: string,
+  publicKey: CryptoKey,
+  supportsRSARAW = false
+): Promise<boolean> {
+  const suite = getBlindRSASuite(supportsRSARAW);
+  const msgBytes = encoder.encode(tokenMessage);
+  const signature = fromBase64Url(signatureB64);
+  return suite.verify(publicKey, signature, msgBytes);
 }
 
 // --- Internal helpers ---
@@ -155,90 +261,4 @@ function timingSafeEqual(a: string, b: string): boolean {
     diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return diff === 0;
-}
-
-// --- Blind signature scaffold (Mode B / v2) ---
-
-/**
- * BLIND SIGNATURE INTERFACES
- *
- * These interfaces define the contract for a future blind-signature implementation.
- * In v2, a real RSA blind signature library (e.g., @nicolo-ribaudo/blind-rsa-signatures
- * or a WASM-compiled implementation) would provide these functions.
- */
-
-export interface BlindSignatureProvider {
-  /**
-   * Client-side: blind a message before sending to the host.
-   * The host cannot recover the original message from the blinded version.
-   */
-  blind(message: Uint8Array, publicKey: CryptoKey): Promise<{
-    blindedMessage: Uint8Array;
-    blindingFactor: Uint8Array;
-  }>;
-
-  /**
-   * Host-side: sign a blinded message.
-   * The host never sees the original message.
-   */
-  blindSign(blindedMessage: Uint8Array, privateKey: CryptoKey): Promise<Uint8Array>;
-
-  /**
-   * Client-side: unblind the signature.
-   * The resulting signature is valid against the original (unblinded) message
-   * and the host's public key.
-   */
-  unblind(
-    blindedSignature: Uint8Array,
-    blindingFactor: Uint8Array,
-    publicKey: CryptoKey
-  ): Promise<Uint8Array>;
-
-  /**
-   * Anyone: verify an unblinded signature against the original message.
-   * This is a standard RSA-PSS verify — no blind-signature awareness needed.
-   */
-  verify(message: Uint8Array, signature: Uint8Array, publicKey: CryptoKey): Promise<boolean>;
-
-  /** Generate a new RSA key pair for the host. */
-  generateKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey }>;
-}
-
-/**
- * Stub implementation for development/testing.
- * Falls back to HMAC-based signing (same as v1) but through the v2 interface.
- */
-export class StubBlindSignatureProvider implements BlindSignatureProvider {
-  async blind(message: Uint8Array): Promise<{ blindedMessage: Uint8Array; blindingFactor: Uint8Array }> {
-    // Stub: no actual blinding; message passes through
-    return { blindedMessage: message, blindingFactor: new Uint8Array(0) };
-  }
-
-  async blindSign(blindedMessage: Uint8Array, _privateKey: CryptoKey): Promise<Uint8Array> {
-    // Stub: hash-based signature
-    const hash = await globalThis.crypto.subtle.digest('SHA-256', blindedMessage.buffer as ArrayBuffer);
-    return new Uint8Array(hash);
-  }
-
-  async unblind(blindedSignature: Uint8Array): Promise<Uint8Array> {
-    // Stub: no unblinding needed
-    return blindedSignature;
-  }
-
-  async verify(message: Uint8Array, signature: Uint8Array, _publicKey: CryptoKey): Promise<boolean> {
-    const hash = await globalThis.crypto.subtle.digest('SHA-256', message.buffer as ArrayBuffer);
-    const expected = new Uint8Array(hash);
-    if (expected.length !== signature.length) return false;
-    let diff = 0;
-    for (let i = 0; i < expected.length; i++) {
-      diff |= expected[i] ^ signature[i];
-    }
-    return diff === 0;
-  }
-
-  async generateKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey }> {
-    // Stub: generate an HMAC key and return it as both public/private
-    const key = await globalThis.crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);
-    return { publicKey: key, privateKey: key };
-  }
 }

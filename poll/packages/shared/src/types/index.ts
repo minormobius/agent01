@@ -17,6 +17,7 @@ export interface Poll {
   eligibilityMode: EligibilityMode;
   eligibilitySource: string | null;
   hostKeyFingerprint: string;
+  hostPublicKey: string | null;
   atprotoRecordUri: string | null;
   createdAt: string;
 }
@@ -116,13 +117,16 @@ export interface EligibilityRequest {
 
 export interface EligibilityResponse {
   eligible: boolean;
+  /** v1: full credential returned by host */
   credential?: {
     tokenMessage: string;
     issuerSignature: string;
     secret: string;
     nullifier: string;
   };
-  receiptHash: string;
+  /** v2: blind signature returned by host (client unblinds locally) */
+  blindedSignature?: string;
+  receiptHash?: string;
 }
 
 export interface BallotSubmission {

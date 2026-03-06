@@ -136,9 +136,12 @@ export function CreatePollPage() {
           <label>Mode</label>
           <select value={mode} onChange={e => setMode(e.target.value)}>
             <option value="trusted_host_v1">Trusted Host (v1)</option>
+            <option value="anon_credential_v2">Anonymous Credential (v2)</option>
           </select>
           <p className="muted">
-            Host issues credentials. Anonymous credential mode (v2) is coming soon.
+            {mode === 'anon_credential_v2'
+              ? 'RSA Blind Signatures (RFC 9474). The server cannot link your identity to your ballot — cryptographic guarantee.'
+              : 'Host issues credentials and separates identity from votes in storage. Trust assumption: host doesn\'t log the brief correlation window.'}
           </p>
         </div>
 

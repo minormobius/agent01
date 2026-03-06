@@ -114,21 +114,34 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
 
   const data = parsed.data;
 
-  if (data.mode === 'anon_credential_v2') {
+  // v2 requires RSA key pair to be configured
+  if (data.mode === 'anon_credential_v2' && !env.RSA_PUBLIC_KEY_JWK) {
     return jsonResponse({
-      error: 'anon_credential_v2 mode is not yet implemented. Use trusted_host_v1.',
-    }, 400);
+      error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
+    }, 500);
   }
 
   const pollId = crypto.randomUUID();
   const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();
 
-  // SHA-256 fingerprint of the HMAC signing key. NOT a public key — nobody can verify sigs with this alone.
-  // In v2, this field will hold the actual RSA public key for external ballot verification.
-  const encoder = new TextEncoder();
-  const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
-  const hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
+  let hostKeyFingerprint: string;
+  let hostPublicKey: string | null = null;
+
+  if (data.mode === 'anon_credential_v2') {
+    // v2: store the RSA public key JWK so clients can blind messages against it
+    hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
+    // Fingerprint is SHA-256 of the public key JWK for quick identification
+    const encoder = new TextEncoder();
+    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
+    hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  } else {
+    // v1: SHA-256 fingerprint of the HMAC signing key
+    const encoder = new TextEncoder();
+    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
+    hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   const now = new Date().toISOString();
   const eligibilityMode = data.eligibilityMode || 'open';
@@ -147,6 +160,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     eligibilityMode,
     eligibilitySource,
     hostKeyFingerprint,
+    hostPublicKey,
     atprotoRecordUri: null,
     createdAt: now,
   };
@@ -154,13 +168,13 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
   // Insert into D1
   await env.DB.prepare(
     `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
-      status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     poll.id, poll.hostDid, poll.askerDid, poll.question,
     JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
     poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
-    poll.hostKeyFingerprint, poll.createdAt
+    poll.hostKeyFingerprint, poll.hostPublicKey, poll.createdAt
   ).run();
 
   // Populate eligible DIDs based on eligibility mode
@@ -331,6 +345,7 @@ async function publishPoll(request: Request, env: Env, pollId: string): Promise<
     closesAt: poll.closes_at as string,
     mode: poll.mode as 'trusted_host_v1' | 'anon_credential_v2',
     hostKeyFingerprint: poll.host_key_fingerprint as string,
+    hostPublicKey: (poll.host_public_key as string) || null,
     createdAt: poll.created_at as string,
   };
 

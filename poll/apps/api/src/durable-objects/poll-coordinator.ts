@@ -17,6 +17,10 @@ import {
   makeReceipt,
   computeAuditHash,
   recomputeTally,
+  blindSign,
+  verifyRSACredential,
+  importRSAPrivateKey,
+  importRSAPublicKey,
 } from '@anon-polls/shared';
 
 import type {
@@ -44,10 +48,29 @@ export class PollCoordinator implements DurableObject {
   private state: DurableObjectState;
   private env: any;
   private pollState: PollState | null = null;
+  private rsaPrivateKey: CryptoKey | null = null;
+  private rsaPublicKey: CryptoKey | null = null;
 
   constructor(state: DurableObjectState, env: any) {
     this.state = state;
     this.env = env;
+  }
+
+  /** Lazily import and cache the RSA key pair from env secrets */
+  private async getRSAPrivateKey(): Promise<CryptoKey> {
+    if (this.rsaPrivateKey) return this.rsaPrivateKey;
+    const jwkStr = this.env.RSA_PRIVATE_KEY_JWK;
+    if (!jwkStr) throw new Error('RSA_PRIVATE_KEY_JWK not configured');
+    this.rsaPrivateKey = await importRSAPrivateKey(JSON.parse(jwkStr));
+    return this.rsaPrivateKey;
+  }
+
+  private async getRSAPublicKey(): Promise<CryptoKey> {
+    if (this.rsaPublicKey) return this.rsaPublicKey;
+    const jwkStr = this.env.RSA_PUBLIC_KEY_JWK;
+    if (!jwkStr) throw new Error('RSA_PUBLIC_KEY_JWK not configured');
+    this.rsaPublicKey = await importRSAPublicKey(JSON.parse(jwkStr));
+    return this.rsaPublicKey;
   }
 
   private async loadState(): Promise<PollState> {
@@ -254,11 +277,25 @@ export class PollCoordinator implements DurableObject {
     let response: EligibilityResponse;
 
     if (state.poll.mode === 'anon_credential_v2') {
-      // v2 blind signatures are not yet implemented — reject cleanly
-      state.consumedDids.delete(responderDid); // rollback consumption
-      return jsonResponse({ eligible: false, error: 'anon_credential_v2 mode is not yet implemented' }, 400);
+      // v2: RSA Blind Signature — host signs blinded message without seeing the original
+      if (!blindedMessage) {
+        state.consumedDids.delete(responderDid);
+        return jsonResponse({ eligible: false, error: 'Blinded message required for v2 mode' }, 400);
+      }
+      try {
+        const privateKey = await this.getRSAPrivateKey();
+        // CF Workers support supportsRSARAW for optimized blind signing
+        const blindedSig = await blindSign(blindedMessage, privateKey, true);
+        response = {
+          eligible: true,
+          blindedSignature: blindedSig,
+        };
+      } catch (err: any) {
+        state.consumedDids.delete(responderDid);
+        return jsonResponse({ eligible: false, error: `Blind signing failed: ${err.message}` }, 500);
+      }
     } else {
-      // Mode A: trusted host issues full credential
+      // v1: trusted host issues full credential (host sees everything)
       const secret = generateSecret();
       const tokenMessage = await deriveTokenMessage(state.poll.id, secret, state.poll.closesAt);
       const sig = await issueCredential(state.signingKey, tokenMessage);
@@ -285,8 +322,7 @@ export class PollCoordinator implements DurableObject {
 
     await this.appendAudit('eligibility_consumed', JSON.stringify({
       pollId: state.poll.id,
-      receiptHash: response.receiptHash,
-      // NOTE: responderDid is logged privately in audit, NOT in public ballots
+      receiptHash: response.receiptHash || null,
     }));
     await this.saveState();
 
@@ -313,12 +349,23 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid choice' }, 400);
     }
 
-    // Verify credential signature
-    const sigValid = await verifyCredential(
-      state.signingKey,
-      submission.tokenMessage,
-      submission.issuerSignature
-    );
+    // Verify credential signature (v1: HMAC, v2: RSA-PSS)
+    let sigValid: boolean;
+    if (state.poll.mode === 'anon_credential_v2') {
+      const publicKey = await this.getRSAPublicKey();
+      sigValid = await verifyRSACredential(
+        submission.tokenMessage,
+        submission.issuerSignature,
+        publicKey,
+        true // supportsRSARAW on CF Workers
+      );
+    } else {
+      sigValid = await verifyCredential(
+        state.signingKey,
+        submission.tokenMessage,
+        submission.issuerSignature
+      );
+    }
     if (!sigValid) {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid credential signature' }, 403);
     }

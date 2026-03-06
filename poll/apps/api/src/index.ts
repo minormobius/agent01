@@ -22,8 +22,12 @@ export interface Env {
   ATPROTO_SERVICE_HANDLE?: string;
   ATPROTO_SERVICE_PASSWORD?: string;
   ATPROTO_SERVICE_PDS?: string;
-  // HMAC signing key for credentials
+  // HMAC signing key for credentials (v1)
   CREDENTIAL_SIGNING_KEY?: string;
+  // RSA private key as JWK JSON string (v2 blind signatures)
+  RSA_PRIVATE_KEY_JWK?: string;
+  // RSA public key as JWK JSON string (v2 blind signatures)
+  RSA_PUBLIC_KEY_JWK?: string;
   // ATProto OAuth
   ATPROTO_CLIENT_ID?: string;
   ATPROTO_CLIENT_SECRET?: string;

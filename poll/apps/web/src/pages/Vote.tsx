@@ -2,16 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getPoll, requestEligibility, submitBallot } from '../lib/api';
+import {
+  generateSecret,
+  deriveTokenMessage,
+  deriveNullifier,
+  blindMessage,
+  finalizeBlindSignature,
+  importRSAPublicKey,
+} from '@anon-polls/shared';
 
 /**
  * Vote page — implements the full credential lifecycle:
- * 1. Fetch poll
- * 2. Request eligibility (get credential)
- * 3. Select option
- * 4. Submit anonymous ballot using credential
  *
- * The credential (tokenMessage, issuerSignature, nullifier) is held
- * in component state — it never goes to the responder's ATProto repo.
+ * v1 (trusted_host): Server generates everything, returns full credential.
+ * v2 (anon_credential): Client generates secret, blinds token, server blind-signs,
+ *     client unblinds. Server never learns the token message.
  */
 
 interface Credential {
@@ -60,17 +65,52 @@ export function VotePage() {
       .catch(e => { setError(e.message); setStep('error'); });
   }, [id, did]);
 
+  const handleRequestCredentialV1 = async () => {
+    if (!id) return;
+    const resp = await requestEligibility(id);
+    if (!resp.eligible) {
+      throw new Error(resp.error || 'Not eligible');
+    }
+    return resp.credential as Credential;
+  };
+
+  const handleRequestCredentialV2 = async () => {
+    if (!id || !poll) return;
+    // 1. Generate secret locally
+    const secret = generateSecret();
+    // 2. Derive token message
+    const tokenMessage = await deriveTokenMessage(id, secret, poll.closes_at);
+    // 3. Import the host's RSA public key from the poll definition
+    const hostPublicKeyJWK = JSON.parse(poll.host_public_key);
+    const publicKey = await importRSAPublicKey(hostPublicKeyJWK);
+    // 4. Blind the token message
+    const { blindedMsg, inv } = await blindMessage(tokenMessage, publicKey);
+    // 5. Send only the blinded message to the server
+    const resp = await requestEligibility(id, blindedMsg);
+    if (!resp.eligible) {
+      throw new Error(resp.error || 'Not eligible');
+    }
+    // 6. Unblind the signature
+    const issuerSignature = await finalizeBlindSignature(
+      tokenMessage,
+      resp.blindedSignature,
+      inv,
+      publicKey
+    );
+    // 7. Derive nullifier locally
+    const nullifier = await deriveNullifier(secret, id);
+    return { tokenMessage, issuerSignature, secret, nullifier } as Credential;
+  };
+
   const handleRequestCredential = async () => {
     if (!id) return;
     setError('');
     try {
-      const resp = await requestEligibility(id);
-      if (!resp.eligible) {
-        setError(resp.error || 'Not eligible');
-        setStep('error');
-        return;
-      }
-      const cred: Credential = resp.credential;
+      const isV2 = poll?.mode === 'anon_credential_v2';
+      const cred = isV2
+        ? await handleRequestCredentialV2()
+        : await handleRequestCredentialV1();
+      if (!cred) return;
       // Store credential locally — this is the responder's ballot right
       localStorage.setItem(`credential:${id}`, JSON.stringify(cred));
       setCredential(cred);
@@ -112,12 +152,18 @@ export function VotePage() {
     return <div className="card"><p className="muted">Loading poll...</p></div>;
   }
 
+  const isV2 = poll?.mode === 'anon_credential_v2';
+
   return (
     <div>
       {poll && (
         <div className="card">
           <h2>{poll.question}</h2>
-          <p className="muted">Mode: {poll.mode}</p>
+          <p className="muted">
+            {isV2
+              ? 'Anonymous credential (v2) — cryptographic unlinkability'
+              : 'Trusted host (v1) — host-separated identity'}
+          </p>
         </div>
       )}
 
@@ -131,8 +177,9 @@ export function VotePage() {
         <div className="card">
           <h3>Step 1: Request Ballot Credential</h3>
           <p className="muted mb-12">
-            This will privately verify your eligibility and issue a one-time ballot credential.
-            {' '}Your vote choice is separated from your identity in persistent storage.
+            {isV2
+              ? 'Your browser will generate a secret and blind it before sending to the server. The server signs it without seeing your ballot token — cryptographic anonymity.'
+              : 'This will privately verify your eligibility and issue a one-time ballot credential. Your vote choice is separated from your identity in persistent storage.'}
           </p>
           <button className="btn btn-primary" onClick={handleRequestCredential}>
             Request Credential
