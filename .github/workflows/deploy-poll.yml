@@ -2,7 +2,7 @@ name: Deploy Anonymous Polls
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/bluesky-anonymous-polls-*']
     paths:
       - 'poll/**'
       - '.github/workflows/deploy-poll.yml'

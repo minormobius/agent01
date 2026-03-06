@@ -147,6 +147,60 @@ Add these in Cloudflare Pages → Settings → Environment variables (encrypt):
 - `POLL_OAUTH_CLIENT_SECRET` — OAuth client secret (if using confidential client)
 - `POLL_ENCRYPTION_KEY` — for encrypting any session tokens (generate a random 256-bit key)
 
+## Deployment & Operations
+
+### How Deployment Works
+
+The poll app deploys via **Cloudflare Pages** (auto-deploy from git) + **GitHub Actions** (for D1 migrations and wrangler deploy).
+
+- **Code + static assets**: Cloudflare Pages watches the branch and auto-deploys on push. The `wrangler.jsonc` at `poll/` root configures the Worker, D1 binding, and DO binding.
+- **D1 schema changes**: NOT auto-applied. Migrations in `poll/apps/api/migrations/` must be run explicitly via GitHub Actions or the Cloudflare D1 console.
+
+### GitHub Secrets Required
+
+These are set in the GitHub repo settings → Secrets and variables → Actions:
+
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token with Workers + D1 permissions
+- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID
+
+### Running D1 Migrations
+
+**Option A — GitHub Actions (preferred):**
+
+Trigger the `d1-migrate.yml` workflow manually:
+1. GitHub repo → Actions → "Run D1 Migrations" → Run workflow
+2. Leave `migration_file` blank to run all migrations, or enter a specific filename (e.g., `0002_eligibility_mode.sql`)
+
+The workflow runs each `.sql` file in `poll/apps/api/migrations/` in alphabetical order against the remote D1 database.
+
+**Option B — Cloudflare Dashboard:**
+
+1. Cloudflare dashboard → D1 → `anon-polls-db` → Console
+2. Paste the SQL from the migration file and execute
+
+**Option C — wrangler CLI (local):**
+
+```bash
+cd poll
+npx wrangler d1 execute anon-polls-db --file=apps/api/migrations/0002_eligibility_mode.sql --remote
+```
+
+### Full Deploy Workflow
+
+The `deploy-poll.yml` workflow triggers on push to `main` or `claude/bluesky-anonymous-polls-*` branches (paths: `poll/**`), or manually via workflow_dispatch. It:
+1. Installs dependencies
+2. Builds shared package + frontend
+3. Runs ALL D1 migrations (idempotent — uses `CREATE TABLE IF NOT EXISTS` and `ALTER TABLE ADD COLUMN` which are safe to re-run)
+4. Deploys the Worker + static assets via `wrangler deploy`
+
+### Migration File Conventions
+
+- Filenames: `NNNN_description.sql` (e.g., `0001_init.sql`, `0002_eligibility_mode.sql`)
+- Use `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` for idempotency
+- `ALTER TABLE ADD COLUMN` is idempotent in SQLite (errors silently if column exists) — the workflow ignores these errors
+- New migrations go in `poll/apps/api/migrations/`
+- After adding a migration, trigger the workflow or run it manually before deploying code that depends on the new schema
+
 These are accessible in Functions as `context.env.POLL_HANDLE`, etc.
 
 ### Scheduled Worker (Cron Trigger)
