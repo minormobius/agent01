@@ -54,8 +54,10 @@ function jsonResponseWithCookie(data: any, status: number, cookie: string): Resp
   });
 }
 
-function sessionCookie(sessionId: string): string {
-  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL_HOURS * 3600}`;
+function sessionCookie(sessionId: string, request: Request): string {
+  const isSecure = new URL(request.url).protocol === 'https:';
+  const secure = isSecure ? ' Secure;' : '';
+  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly;${secure} SameSite=Lax; Max-Age=${SESSION_TTL_HOURS * 3600}`;
 }
 
 async function startAuth(request: Request, env: Env): Promise<Response> {
@@ -69,7 +71,7 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     return jsonResponseWithCookie(
       { success: true, session: { did, handle } },
       200,
-      sessionCookie(session.sessionId)
+      sessionCookie(session.sessionId, request)
     );
   }
 
@@ -110,7 +112,7 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     return jsonResponseWithCookie(
       { success: true, session: { did: verified.did, handle: verified.handle } },
       200,
-      sessionCookie(session.sessionId)
+      sessionCookie(session.sessionId, request)
     );
   } catch (err: any) {
     console.error('Auth error:', err.message);
