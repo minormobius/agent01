@@ -1,6 +1,6 @@
 {
   "client_id": "https://polls.example.com/client-metadata.json",
-  "client_name": "Anonymous Polls",
+  "client_name": "ATPolls",
   "client_uri": "https://polls.example.com",
   "logo_uri": "https://polls.example.com/logo.png",
   "tos_uri": "https://polls.example.com/tos",

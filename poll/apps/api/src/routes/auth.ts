@@ -21,7 +21,7 @@ export interface Session {
   handle: string;
 }
 
-const SESSION_COOKIE = 'anon_polls_session';
+const SESSION_COOKIE = 'atpolls_session';
 const SESSION_TTL_HOURS = 24;
 const REFRESH_TTL_DAYS = 90;
 
@@ -111,8 +111,8 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     }
 
     // Step 4: Create local session with the verified DID
-    // We discard the PDS access token — we only needed identity proof
-    const session = await createSession(env, verified.did, verified.handle);
+    // Store PDS refresh token so we can post on the user's behalf later
+    const session = await createSession(env, verified.did, verified.handle, pdsUrl, verified.refreshJwt);
     const refreshToken = await createRefreshToken(env, verified.did, verified.handle);
 
     return jsonResponseWithCookie(
@@ -185,12 +185,15 @@ async function lookupSession(env: Env, sessionId: string): Promise<Session | nul
   };
 }
 
-async function createSession(env: Env, did: string, handle: string): Promise<Session> {
+async function createSession(
+  env: Env, did: string, handle: string,
+  pdsUrl?: string, pdsRefreshToken?: string
+): Promise<Session> {
   const sessionId = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT INTO sessions (session_id, did, handle, created_at, expires_at)
-     VALUES (?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
-  ).bind(sessionId, did, handle).run();
+    `INSERT INTO sessions (session_id, did, handle, pds_url, refresh_token, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
+  ).bind(sessionId, did, handle, pdsUrl || null, pdsRefreshToken || null).run();
 
   return { sessionId, did, handle };
 }
@@ -233,6 +236,48 @@ async function refreshSession(request: Request, env: Env): Promise<Response> {
     200,
     sessionCookie(session.sessionId, request)
   );
+}
+
+/**
+ * Get a fresh PDS access token for the session's user.
+ * Uses the stored PDS refresh token to get a short-lived access token on demand.
+ */
+export async function getPdsAccessToken(
+  request: Request, env: Env
+): Promise<{ accessJwt: string; did: string; pdsUrl: string } | null> {
+  const sessionId = getSessionId(request) ||
+    request.headers.get('Authorization')?.replace('Bearer ', '') || null;
+  if (!sessionId) return null;
+
+  const row = await env.DB.prepare(
+    `SELECT did, pds_url, refresh_token FROM sessions
+     WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
+  ).bind(sessionId).first();
+
+  if (!row || !row.pds_url || !row.refresh_token) return null;
+
+  const pdsUrl = row.pds_url as string;
+  const refreshJwt = row.refresh_token as string;
+
+  // Refresh to get a fresh access token
+  const res = await fetch(`${pdsUrl}/xrpc/com.atproto.server.refreshSession`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${refreshJwt}` },
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json() as { accessJwt?: string; did?: string; refreshJwt?: string };
+  if (!data.accessJwt || !data.did) return null;
+
+  // Store the new refresh token if rotated
+  if (data.refreshJwt && data.refreshJwt !== refreshJwt) {
+    await env.DB.prepare(
+      'UPDATE sessions SET refresh_token = ? WHERE session_id = ?'
+    ).bind(data.refreshJwt, sessionId).run();
+  }
+
+  return { accessJwt: data.accessJwt, did: data.did, pdsUrl };
 }
 
 // --- ATProto identity resolution ---
@@ -287,7 +332,7 @@ async function verifyCredentials(
   pdsUrl: string,
   handle: string,
   appPassword: string
-): Promise<{ did: string; handle: string } | null> {
+): Promise<{ did: string; handle: string; refreshJwt: string } | null> {
   try {
     const res = await fetch(`${pdsUrl}/xrpc/com.atproto.server.createSession`, {
       method: 'POST',
@@ -301,12 +346,15 @@ async function verifyCredentials(
       did?: string;
       handle?: string;
       accessJwt?: string;
+      refreshJwt?: string;
     };
 
-    if (!data.did) return null;
+    if (!data.did || !data.refreshJwt) return null;
 
-    // We have a verified DID. Discard the access token — we don't need it.
-    return { did: data.did, handle: data.handle || handle };
+    // Store the PDS refresh token (long-lived, ~90 days) for features
+    // like posting polls to Bluesky. Access token is discarded — we
+    // refresh on demand when write access is needed.
+    return { did: data.did, handle: data.handle || handle, refreshJwt: data.refreshJwt };
   } catch {
     return null;
   }

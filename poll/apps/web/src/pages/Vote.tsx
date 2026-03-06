@@ -9,7 +9,7 @@ import {
   blindMessage,
   finalizeBlindSignature,
   importRSAPublicKey,
-} from '@anon-polls/shared';
+} from '@atpolls/shared';
 
 /**
  * Vote page — implements the full credential lifecycle:

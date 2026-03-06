@@ -1,5 +1,5 @@
 /**
- * API client for the anonymous polls backend.
+ * API client for ATPolls backend.
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -84,10 +84,9 @@ export const publishTally = (id: string) =>
 export const publishBallots = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/ballots/publish`, { method: 'POST' });
 
-export const postToBluesky = (id: string, appPassword: string) =>
+export const postToBluesky = (id: string) =>
   apiFetch<{ uri: string; cid: string }>(`/api/polls/${id}/post-to-bluesky`, {
     method: 'POST',
-    body: JSON.stringify({ appPassword }),
   });
 
 // Eligibility & voting

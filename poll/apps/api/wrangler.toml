@@ -1,4 +1,4 @@
-name = "anon-polls-api"
+name = "atpolls-api"
 main = "src/index.ts"
 compatibility_date = "2024-07-18"
 compatibility_flags = ["nodejs_compat"]
@@ -10,7 +10,7 @@ ATPROTO_MOCK_MODE = "true"
 # D1 database binding
 [[d1_databases]]
 binding = "DB"
-database_name = "anon-polls-db"
+database_name = "atpolls-db"
 database_id = "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
 migrations_dir = "migrations"
 
@@ -30,5 +30,5 @@ vars = { FRONTEND_URL = "https://polls.example.com", ATPROTO_MOCK_MODE = "false"
 
 [env.production.d1_databases]
 binding = "DB"
-database_name = "anon-polls-db"
+database_name = "atpolls-db"
 database_id = "fee2f25a-8b4a-4d46-b245-9d5da93c117d"

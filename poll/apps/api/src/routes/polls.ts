@@ -14,11 +14,11 @@
  * POST /api/polls/:id/tally/publish — publish tally to ATProto
  */
 
-import { CreatePollSchema } from '@anon-polls/shared';
-import { MockPublisher, PdsPublisher } from '@anon-polls/shared';
+import { CreatePollSchema } from '@atpolls/shared';
+import { MockPublisher, PdsPublisher } from '@atpolls/shared';
 import type { Env } from '../index.js';
 import { jsonResponse, getPollDO } from '../index.js';
-import { getSession } from './auth.js';
+import { getSession, getPdsAccessToken } from './auth.js';
 
 export async function handlePollRoutes(
   request: Request,
@@ -601,27 +601,11 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
   if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
 
-  const body = await request.json() as { appPassword?: string };
-  if (!body.appPassword) {
-    return jsonResponse({ error: 'appPassword is required to post on your behalf' }, 400);
+  // Use stored PDS refresh token from login session
+  const pdsAuth = await getPdsAccessToken(request, env);
+  if (!pdsAuth) {
+    return jsonResponse({ error: 'PDS session expired. Please log out and log back in.' }, 401);
   }
-
-  // Resolve DID → PDS
-  const pdsUrl = await resolveDidToPds(session.did);
-  if (!pdsUrl) {
-    return jsonResponse({ error: 'Could not resolve your PDS' }, 400);
-  }
-
-  // Authenticate to the user's PDS
-  const authRes = await fetch(`${pdsUrl}/xrpc/com.atproto.server.createSession`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: session.handle, password: body.appPassword }),
-  });
-  if (!authRes.ok) {
-    return jsonResponse({ error: 'Invalid app password' }, 401);
-  }
-  const authData = await authRes.json() as { did: string; accessJwt: string };
 
   // Build the post text and facets
   const options = JSON.parse(poll.options as string) as string[];
@@ -634,12 +618,13 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   // Format:
   // {question}
   //
-  // Option 1 · Option 2 · Option 3
+  // Option 1
+  // Option 2
+  // Option 3
   //
-  // View poll · Anonymous & verifiable · 24h left
-  const optionTexts = options.map(o => o);
-  const optionLine = optionTexts.join(' · ');
-  const footerParts = ['View poll', 'Anonymous & verifiable'];
+  // View poll · Verifiable & anonymous · 24h left
+  const optionLine = options.join('\n');
+  const footerParts = ['View poll', 'Verifiable & anonymous'];
   if (timeLeft) footerParts.push(timeLeft);
   const footer = footerParts.join(' · ');
 
@@ -647,7 +632,7 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
 
   // Compute facets (UTF-8 byte offsets)
   const facets: any[] = [];
-  // Option facets — each option name in the joined line
+  // Option facets — each option name on its own line
   let searchStart = encoder.encode(`${question}\n\n`).byteLength;
   for (let i = 0; i < options.length; i++) {
     const optBytes = encoder.encode(options[i]);
@@ -660,10 +645,10 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
         uri: `${origin}/v/${pollId}?c=${i}`,
       }],
     });
-    // Skip past this option + " · " separator (or nothing for last)
+    // Skip past this option + newline separator (or nothing for last)
     searchStart = byteEnd;
     if (i < options.length - 1) {
-      searchStart += encoder.encode(' · ').byteLength;
+      searchStart += encoder.encode('\n').byteLength;
     }
   }
 
@@ -686,14 +671,14 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
     createdAt: new Date().toISOString(),
   };
 
-  const createRes = await fetch(`${pdsUrl}/xrpc/com.atproto.repo.createRecord`, {
+  const createRes = await fetch(`${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.createRecord`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${authData.accessJwt}`,
+      Authorization: `Bearer ${pdsAuth.accessJwt}`,
     },
     body: JSON.stringify({
-      repo: authData.did,
+      repo: pdsAuth.did,
       collection: 'app.bsky.feed.post',
       record,
     }),
@@ -708,30 +693,6 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   return jsonResponse({ uri: result.uri, cid: result.cid });
 }
 
-async function resolveDidToPds(did: string): Promise<string | null> {
-  try {
-    if (did.startsWith('did:plc:')) {
-      const res = await fetch(`https://plc.directory/${did}`);
-      if (res.ok) {
-        const doc = await res.json() as any;
-        const pds = (doc.service || []).find((s: any) => s.id === '#atproto_pds');
-        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
-      }
-    }
-    if (did.startsWith('did:web:')) {
-      const domain = did.replace('did:web:', '');
-      const res = await fetch(`https://${domain}/.well-known/did.json`);
-      if (res.ok) {
-        const doc = await res.json() as any;
-        const pds = (doc.service || []).find((s: any) => s.id === '#atproto_pds');
-        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 function formatTimeLeftServer(closesAt: string): string {
   const diff = new Date(closesAt).getTime() - Date.now();

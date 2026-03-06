@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPoll, getBallots, getTally, getAudit } from '../lib/api';
-import { recomputeTally } from '@anon-polls/shared';
+import { recomputeTally } from '@atpolls/shared';
 
 /**
  * Audit page — public verification interface.

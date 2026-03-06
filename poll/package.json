@@ -1,5 +1,5 @@
 {
-  "name": "anon-polls",
+  "name": "atpolls",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -13,7 +13,7 @@
     "build:web": "npm run build -w apps/web",
     "build:shared": "npm run build -w packages/shared",
     "deploy": "npx wrangler deploy",
-    "deploy:migrate": "npx wrangler d1 execute anon-polls-db --file=apps/api/migrations/0001_init.sql",
+    "deploy:migrate": "npx wrangler d1 execute atpolls-db --file=apps/api/migrations/0001_init.sql",
     "test": "npm run test -w packages/shared && npm run test -w apps/api",
     "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web"
   }

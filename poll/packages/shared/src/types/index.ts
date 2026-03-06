@@ -1,4 +1,4 @@
-/** Core domain types for the anonymous poll system */
+/** Core domain types for ATPolls */
 
 export type PollMode = 'anon_credential_v2';
 export type PollStatus = 'draft' | 'open' | 'closed' | 'finalized';

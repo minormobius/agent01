@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anon-polls-v1';
+const CACHE_NAME = 'atpolls-v1';
 const SHELL_ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', (event) => {

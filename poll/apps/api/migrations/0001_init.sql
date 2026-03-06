@@ -1,4 +1,4 @@
--- Anonymous Polls D1 Schema
+-- ATPolls D1 Schema
 
 CREATE TABLE IF NOT EXISTS polls (
   id TEXT PRIMARY KEY,

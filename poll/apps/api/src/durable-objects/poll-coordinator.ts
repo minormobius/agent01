@@ -17,7 +17,7 @@ import {
   importRSAPublicKey,
   parseTokenMessage,
   deriveNullifier,
-} from '@anon-polls/shared';
+} from '@atpolls/shared';
 
 import type {
   Poll,
@@ -26,7 +26,7 @@ import type {
   EligibilityResponse,
   BallotSubmission,
   BallotResponse,
-} from '@anon-polls/shared';
+} from '@atpolls/shared';
 
 interface PollState {
   poll: Poll | null;

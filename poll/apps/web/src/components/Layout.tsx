@@ -66,7 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="container">
       {pwa.canShow && (
         <div className="install-banner">
-          <span>Install for one-tap anonymous voting</span>
+          <span>Install ATPolls for one-tap voting</span>
           <div className="flex gap-8">
             <button className="btn" onClick={pwa.install}>Install</button>
             <button className="dismiss-btn" onClick={pwa.dismiss}>&times;</button>
@@ -74,7 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <header>
-        <h1><Link to="/">Anonymous Polls</Link></h1>
+        <h1><Link to="/">ATPolls</Link></h1>
         <nav>
           <button className="theme-toggle" onClick={theme.toggle} title={theme.dark ? 'Light mode' : 'Dark mode'}>
             {theme.dark ? (

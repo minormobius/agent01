@@ -167,7 +167,6 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
-  const [appPassword, setAppPassword] = useState('');
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -177,8 +176,8 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
   const timeLeft = poll.closes_at ? formatTimeLeft(poll.closes_at) : '';
 
   // Preview text (what it looks like on Bluesky — option names become links)
-  const optionLine = options.join(' · ');
-  const footerParts = ['View poll', 'Anonymous & verifiable'];
+  const optionLine = options.join('\n');
+  const footerParts = ['View poll', 'Verifiable & anonymous'];
   if (timeLeft) footerParts.push(timeLeft);
   const previewText = `${poll.question}\n\n${optionLine}\n\n${footerParts.join(' · ')}`;
 
@@ -186,16 +185,14 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
   const fallbackOptionLines = options.map((opt: string, i: number) =>
     `${opt}: ${baseUrl}/v/${pollId}?c=${i}`
   ).join('\n');
-  const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nAnonymous & verifiable · ${timeLeft}` : ''}`;
+  const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nVerifiable & anonymous · ${timeLeft}` : ''}`;
 
   const handlePost = async () => {
-    if (!appPassword.trim()) return;
     setPosting(true);
     setPostResult(null);
     try {
-      const result = await postToBluesky(pollId, appPassword.trim());
+      const result = await postToBluesky(pollId);
       setPostResult({ uri: result.uri });
-      setAppPassword('');
     } catch (err: any) {
       setPostResult({ error: err.message });
     } finally {
@@ -224,24 +221,13 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
       </div>
 
       <div style={{ marginTop: '12px' }}>
-        <label style={{ fontSize: '14px' }}>App password (used once to post, not stored)</label>
-        <div className="flex gap-8" style={{ marginTop: '4px' }}>
-          <input
-            type="password"
-            value={appPassword}
-            onChange={e => setAppPassword(e.target.value)}
-            placeholder="xxxx-xxxx-xxxx-xxxx"
-            style={{ marginBottom: 0, flex: 1 }}
-            onKeyDown={e => { if (e.key === 'Enter') handlePost(); }}
-          />
-          <button
-            className="btn btn-primary"
-            disabled={posting || !appPassword.trim()}
-            onClick={handlePost}
-          >
-            {posting ? 'Posting...' : 'Post to Bluesky'}
-          </button>
-        </div>
+        <button
+          className="btn btn-primary"
+          disabled={posting}
+          onClick={handlePost}
+        >
+          {posting ? 'Posting...' : 'Post to Bluesky'}
+        </button>
       </div>
 
       {postResult?.uri && (

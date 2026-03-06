@@ -1,7 +1,7 @@
 {
-  "name": "Anonymous Polls",
-  "short_name": "AnonPolls",
-  "description": "Anonymous, verifiable polling on Bluesky",
+  "name": "ATPolls",
+  "short_name": "ATPolls",
+  "description": "Verifiable polling on Bluesky",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

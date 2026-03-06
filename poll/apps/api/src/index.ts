@@ -1,5 +1,5 @@
 /**
- * Anonymous Polls API — Cloudflare Worker entry point.
+ * ATPolls API — Cloudflare Worker entry point.
  *
  * Routes requests to handlers, manages CORS, and binds to D1 + Durable Objects.
  * v1.0.0 — RSA blind signatures only.

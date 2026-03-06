@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 // --- IndexedDB helpers for refresh token persistence ---
 
-const DB_NAME = 'anon-polls-auth';
+const DB_NAME = 'atpolls-auth';
 const STORE_NAME = 'tokens';
 
 function openTokenDB(): Promise<IDBDatabase> {

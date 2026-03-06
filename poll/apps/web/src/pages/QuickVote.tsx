@@ -9,7 +9,7 @@ import {
   blindMessage,
   finalizeBlindSignature,
   importRSAPublicKey,
-} from '@anon-polls/shared';
+} from '@atpolls/shared';
 import { AuthCard } from '../components/Layout';
 
 /**

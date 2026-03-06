@@ -43,7 +43,7 @@ export function DocsPage() {
 function Overview() {
   return (
     <div className="docs-content">
-      <h3>Anonymous polls on ATProto</h3>
+      <h3>ATPolls on ATProto</h3>
       <p>
         This system lets any Bluesky user create and vote in polls where votes are
         <strong> anonymous</strong> and <strong>auditable</strong>. The system knows

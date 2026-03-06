@@ -10,7 +10,7 @@
  * auth, not identity-based auth, preserving responder anonymity.
  */
 
-import { BallotSubmissionSchema } from '@anon-polls/shared';
+import { BallotSubmissionSchema } from '@atpolls/shared';
 import type { Env } from '../index.js';
 import { jsonResponse, getPollDO } from '../index.js';
 

@@ -1,5 +1,5 @@
 {
-  "name": "@anon-polls/api",
+  "name": "@atpolls/api",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -7,11 +7,11 @@
     "deploy": "wrangler deploy",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "migrate:local": "wrangler d1 execute anon-polls-db --local --file=migrations/0001_init.sql",
-    "migrate:remote": "wrangler d1 execute anon-polls-db --file=migrations/0001_init.sql"
+    "migrate:local": "wrangler d1 execute atpolls-db --local --file=migrations/0001_init.sql",
+    "migrate:remote": "wrangler d1 execute atpolls-db --file=migrations/0001_init.sql"
   },
   "dependencies": {
-    "@anon-polls/shared": "*",
+    "@atpolls/shared": "*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

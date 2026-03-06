@@ -1,5 +1,5 @@
 {
-  "name": "@anon-polls/web",
+  "name": "@atpolls/web",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anon-polls/shared": "*",
+    "@atpolls/shared": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"

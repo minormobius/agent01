@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPoll, getTally, getBallots } from '../lib/api';
-import { recomputeTally } from '@anon-polls/shared';
+import { recomputeTally } from '@atpolls/shared';
 
 export function PollPage() {
   const { id } = useParams<{ id: string }>();

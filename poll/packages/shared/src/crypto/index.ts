@@ -1,5 +1,5 @@
 /**
- * Credential system for anonymous polls — RSA Blind Signatures (RFC 9474).
+ * Credential system for ATPolls — RSA Blind Signatures (RFC 9474).
  *
  * Flow:
  * 1. Responder generates secret locally, computes tokenMessage, BLINDS it
