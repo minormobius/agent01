@@ -3,11 +3,6 @@ main = "src/index.ts"
 compatibility_date = "2024-07-18"
 compatibility_flags = ["nodejs_compat"]
 
-# Static assets (Vite build output)
-[assets]
-directory = "../../dist"
-not_found_handling = "single-page-application"
-
 [vars]
 FRONTEND_URL = "https://polls.example.com"
 ATPROTO_MOCK_MODE = "true"

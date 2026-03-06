@@ -88,25 +88,11 @@ export default {
       return addCorsHeaders(jsonResponse(diag), env);
     }
 
-    // Non-API routes: SPA fallback
-    // The platform serves matching static files (/, /assets/*, etc.) directly.
-    // The Worker only receives requests for paths with no static file match
-    // (e.g. /poll/:id/vote). Fetch /index.html from origin — platform serves
-    // it from static assets without re-entering the Worker.
+    // Non-API routes should not reach the Worker.
+    // _routes.json restricts the Worker to /api/* only.
+    // Pages handles SPA fallback for everything else.
     if (!url.pathname.startsWith('/api/')) {
-      try {
-        const indexUrl = new URL('/index.html', request.url).toString();
-        const indexRes = await fetch(indexUrl);
-        return new Response(indexRes.body, {
-          status: 200,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
-      } catch {
-        return new Response('<!DOCTYPE html><html><body>SPA fallback error</body></html>', {
-          status: 500,
-          headers: { 'Content-Type': 'text/html' },
-        });
-      }
+      return jsonResponse({ error: 'Not found', hint: '_routes.json should prevent this' }, 404);
     }
 
     try {
