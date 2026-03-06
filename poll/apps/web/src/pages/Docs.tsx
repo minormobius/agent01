@@ -68,7 +68,28 @@ function Overview() {
         <li><strong>Anonymous</strong> — Ballots contain no voter identity.</li>
         <li><strong>Auditable</strong> — All ballot records are public on ATProto.</li>
         <li><strong>Shuffled publication</strong> — Ballots publish in random order at poll close, not as they arrive.</li>
+        <li><strong>Voter restrictions</strong> — Polls can be limited to followers, mutuals, ATProto list members, or a specific DID set.</li>
       </ul>
+
+      <h3>Voter eligibility modes</h3>
+      <table className="audit-table">
+        <thead>
+          <tr><th>Mode</th><th>Who can vote</th><th>How it works</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Open</td><td>Any Bluesky user</td><td>Default. No whitelist check.</td></tr>
+          <tr><td>Followers</td><td>Creator's followers</td><td>Follower list snapshotted at poll creation. Re-syncable before opening.</td></tr>
+          <tr><td>Mutuals</td><td>Creator's mutuals</td><td>Intersection of followers and following, snapshotted at creation.</td></tr>
+          <tr><td>ATProto list</td><td>List members</td><td>Members of a specified <code>app.bsky.graph.list</code>, snapshotted at creation.</td></tr>
+          <tr><td>DID list</td><td>Specific DIDs</td><td>Creator provides exact DIDs at poll creation.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        For graph-based modes (followers, mutuals, list), the eligible DID set is
+        <strong> frozen at creation</strong>. The creator can re-sync before opening the poll,
+        but once the poll is open the set is immutable. This ensures auditability — the
+        eligibility rules don't change mid-vote.
+      </p>
     </div>
   );
 }
@@ -262,6 +283,13 @@ function FAQ() {
         protocol that Bluesky is built on. Poll definitions, ballot records, and
         tally records are stored as ATProto records, making them publicly
         verifiable and replicated across the relay network.
+      </p>
+
+      <h4>Can I restrict who votes in my poll?</h4>
+      <p>
+        Yes. When creating a poll, choose an eligibility mode: followers only, mutuals
+        only, ATProto list members, or a specific set of DIDs. The eligible voter set
+        is snapshotted at creation and frozen when the poll opens.
       </p>
 
       <h4>Is this open source?</h4>

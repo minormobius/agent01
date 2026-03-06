@@ -2,6 +2,7 @@
 
 export type PollMode = 'trusted_host_v1' | 'anon_credential_v2';
 export type PollStatus = 'draft' | 'open' | 'closed' | 'finalized';
+export type EligibilityMode = 'open' | 'did_list' | 'followers' | 'mutuals' | 'at_list';
 
 export interface Poll {
   id: string;
@@ -13,6 +14,8 @@ export interface Poll {
   closesAt: string;
   status: PollStatus;
   mode: PollMode;
+  eligibilityMode: EligibilityMode;
+  eligibilitySource: string | null;
   publicVerificationKey: string;
   atprotoRecordUri: string | null;
   createdAt: string;
@@ -101,6 +104,9 @@ export interface CreatePollRequest {
   opensAt: string;
   closesAt: string;
   mode: PollMode;
+  eligibilityMode?: EligibilityMode;
+  eligibilitySource?: string;
+  whitelistedDids?: string[];
 }
 
 export interface EligibilityRequest {

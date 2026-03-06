@@ -228,6 +228,16 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ error: 'Poll is not open' }, 403);
     }
 
+    // Check eligibility whitelist (if not open mode)
+    if (state.poll.eligibilityMode && state.poll.eligibilityMode !== 'open') {
+      const eligible = await this.env.DB.prepare(
+        'SELECT 1 FROM poll_eligible_dids WHERE poll_id = ? AND did = ?'
+      ).bind(state.poll.id, responderDid).first();
+      if (!eligible) {
+        return jsonResponse({ eligible: false, error: 'Not in eligible voter list' }, 403);
+      }
+    }
+
     // Check if DID has already consumed eligibility
     if (state.consumedDids.has(responderDid)) {
       return jsonResponse({ eligible: false, error: 'Already voted' }, 403);

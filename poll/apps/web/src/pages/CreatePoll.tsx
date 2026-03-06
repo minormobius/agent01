@@ -3,13 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createPoll } from '../lib/api';
 
+const ELIGIBILITY_DESCRIPTIONS: Record<string, string> = {
+  open: 'Any Bluesky user can vote.',
+  did_list: 'Only specific DIDs you provide can vote.',
+  followers: 'Only your followers can vote (snapshot at creation).',
+  mutuals: 'Only your mutuals can vote (snapshot at creation).',
+  at_list: 'Only members of an ATProto list can vote (snapshot at creation).',
+};
+
 export function CreatePollPage() {
   const { did } = useAuth();
   const navigate = useNavigate();
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
-  const [closesIn, setClosesIn] = useState('24'); // hours
+  const [closesIn, setClosesIn] = useState('24');
   const [mode, setMode] = useState('trusted_host_v1');
+  const [eligibilityMode, setEligibilityMode] = useState('open');
+  const [didListText, setDidListText] = useState('');
+  const [listUri, setListUri] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,6 +46,23 @@ export function CreatePollPage() {
       return;
     }
 
+    if (eligibilityMode === 'at_list' && !listUri.trim()) {
+      setError('Please provide an ATProto list URI');
+      return;
+    }
+
+    let whitelistedDids: string[] | undefined;
+    if (eligibilityMode === 'did_list') {
+      whitelistedDids = didListText
+        .split(/[\n,]+/)
+        .map(d => d.trim())
+        .filter(d => d.startsWith('did:'));
+      if (whitelistedDids.length === 0) {
+        setError('Please provide at least one valid DID (starting with did:)');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const now = new Date();
@@ -45,6 +73,9 @@ export function CreatePollPage() {
         opensAt: now.toISOString(),
         closesAt: close.toISOString(),
         mode,
+        eligibilityMode,
+        eligibilitySource: eligibilityMode === 'at_list' ? listUri.trim() : undefined,
+        whitelistedDids,
       });
       navigate(`/poll/${poll.id}/admin`);
     } catch (err: any) {
@@ -113,6 +144,53 @@ export function CreatePollPage() {
               : 'Credential-based anonymity with blind signature upgrade path.'}
           </p>
         </div>
+
+        <div className="mt-12">
+          <label>Who can vote?</label>
+          <select value={eligibilityMode} onChange={e => setEligibilityMode(e.target.value)}>
+            <option value="open">Anyone on Bluesky</option>
+            <option value="followers">My followers</option>
+            <option value="mutuals">My mutuals</option>
+            <option value="at_list">ATProto list members</option>
+            <option value="did_list">Specific DIDs</option>
+          </select>
+          <p className="muted">{ELIGIBILITY_DESCRIPTIONS[eligibilityMode]}</p>
+        </div>
+
+        {eligibilityMode === 'did_list' && (
+          <div className="mt-12">
+            <label>Eligible DIDs (one per line or comma-separated)</label>
+            <textarea
+              value={didListText}
+              onChange={e => setDidListText(e.target.value)}
+              placeholder="did:plc:abc123...&#10;did:plc:def456..."
+              rows={4}
+            />
+            {didListText && (
+              <p className="muted">
+                {didListText.split(/[\n,]+/).map(d => d.trim()).filter(d => d.startsWith('did:')).length} valid DIDs
+              </p>
+            )}
+          </div>
+        )}
+
+        {eligibilityMode === 'at_list' && (
+          <div className="mt-12">
+            <label>ATProto list URI</label>
+            <input
+              type="text"
+              value={listUri}
+              onChange={e => setListUri(e.target.value)}
+              placeholder="at://did:plc:.../app.bsky.graph.list/..."
+            />
+          </div>
+        )}
+
+        {(eligibilityMode === 'followers' || eligibilityMode === 'mutuals') && (
+          <p className="muted mt-12">
+            Your {eligibilityMode} will be snapshotted when you create the poll. You can re-sync from the admin page before opening.
+          </p>
+        )}
 
         {error && <p className="error">{error}</p>}
 

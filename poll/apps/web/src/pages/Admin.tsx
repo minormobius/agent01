@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally, publishBallots } from '../lib/api';
+import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
   const { did } = useAuth();
   const [poll, setPoll] = useState<any>(null);
   const [tally, setTally] = useState<any>(null);
+  const [eligible, setEligible] = useState<any>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -15,6 +16,7 @@ export function AdminPage() {
     if (!id) return;
     getPoll(id).then(setPoll).catch(e => setError(e.message));
     getTally(id).then(setTally).catch(() => {});
+    getEligibleDids(id).then(setEligible).catch(() => {});
   };
 
   useEffect(reload, [id]);
@@ -74,6 +76,24 @@ export function AdminPage() {
               )}
             </div>
           </div>
+
+          {poll.eligibility_mode && poll.eligibility_mode !== 'open' && (
+            <div className="card">
+              <h3>Voter Eligibility</h3>
+              <p style={{ fontSize: '14px', marginBottom: 8 }}>
+                Mode: <strong>{poll.eligibility_mode}</strong>
+                {eligible?.count != null && <> — {eligible.count} eligible DIDs</>}
+              </p>
+              {poll.status === 'draft' && (poll.eligibility_mode === 'followers' || poll.eligibility_mode === 'mutuals' || poll.eligibility_mode === 'at_list') && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => action(() => syncEligibleDids(id!), 'Eligible DIDs re-synced')}
+                >
+                  Re-sync from Bluesky
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="card">
             <h3>ATProto Publishing</h3>

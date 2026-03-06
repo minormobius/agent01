@@ -43,6 +43,9 @@ export function PollPage() {
 
         <p className="muted mb-12">
           Mode: {poll.mode} &middot; {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+          {poll.eligibility_mode && poll.eligibility_mode !== 'open' && (
+            <> &middot; Restricted: {poll.eligibility_mode.replace('_', ' ')}</>
+          )}
           {poll.atproto_record_uri && <> &middot; Published</>}
         </p>
         <div className="poll-id-row">

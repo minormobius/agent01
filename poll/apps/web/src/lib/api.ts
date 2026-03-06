@@ -40,7 +40,16 @@ export const createPoll = (data: {
   opensAt: string;
   closesAt: string;
   mode?: string;
+  eligibilityMode?: string;
+  eligibilitySource?: string;
+  whitelistedDids?: string[];
 }) => apiFetch<any>('/api/polls', { method: 'POST', body: JSON.stringify(data) });
+
+export const syncEligibleDids = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}/eligible/sync`, { method: 'POST' });
+
+export const getEligibleDids = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}/eligible`);
 
 export const listPolls = () => apiFetch<{ polls: any[] }>('/api/polls');
 
