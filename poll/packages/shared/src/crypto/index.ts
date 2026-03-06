@@ -30,24 +30,17 @@
 const BALLOT_VERSION = 1;
 const encoder = new TextEncoder();
 
-/** Platform-agnostic crypto - works in both Node.js and Cloudflare Workers */
-function getCrypto(): { subtle: SubtleCrypto; getRandomValues: (buf: Uint8Array) => Uint8Array } {
-  if (typeof globalThis.crypto !== 'undefined') {
-    return globalThis.crypto as any;
-  }
-  throw new Error('No crypto implementation available');
-}
+// Use globalThis.crypto directly — CF Workers requires method calls
+// to preserve the receiver (destructuring loses `this` binding).
 
 async function sha256(data: string): Promise<string> {
-  const { subtle } = getCrypto();
-  const hash = await subtle.digest('SHA-256', encoder.encode(data));
+  const hash = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(data));
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function randomHex(bytes: number): string {
-  const { getRandomValues } = getCrypto();
   const buf = new Uint8Array(bytes);
-  getRandomValues(buf);
+  globalThis.crypto.getRandomValues(buf);
   return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -144,15 +137,14 @@ export function recomputeTally(
 // --- Internal helpers ---
 
 async function hmacSign(key: string, message: string): Promise<string> {
-  const { subtle } = getCrypto();
-  const cryptoKey = await subtle.importKey(
+  const cryptoKey = await globalThis.crypto.subtle.importKey(
     'raw',
     encoder.encode(key),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
-  const sig = await subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+  const sig = await globalThis.crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
   return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -224,8 +216,7 @@ export class StubBlindSignatureProvider implements BlindSignatureProvider {
 
   async blindSign(blindedMessage: Uint8Array, _privateKey: CryptoKey): Promise<Uint8Array> {
     // Stub: hash-based signature
-    const { subtle } = getCrypto();
-    const hash = await subtle.digest('SHA-256', blindedMessage.buffer as ArrayBuffer);
+    const hash = await globalThis.crypto.subtle.digest('SHA-256', blindedMessage.buffer as ArrayBuffer);
     return new Uint8Array(hash);
   }
 
@@ -235,8 +226,7 @@ export class StubBlindSignatureProvider implements BlindSignatureProvider {
   }
 
   async verify(message: Uint8Array, signature: Uint8Array, _publicKey: CryptoKey): Promise<boolean> {
-    const { subtle } = getCrypto();
-    const hash = await subtle.digest('SHA-256', message.buffer as ArrayBuffer);
+    const hash = await globalThis.crypto.subtle.digest('SHA-256', message.buffer as ArrayBuffer);
     const expected = new Uint8Array(hash);
     if (expected.length !== signature.length) return false;
     let diff = 0;
@@ -248,8 +238,7 @@ export class StubBlindSignatureProvider implements BlindSignatureProvider {
 
   async generateKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey }> {
     // Stub: generate an HMAC key and return it as both public/private
-    const { subtle } = getCrypto();
-    const key = await subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);
+    const key = await globalThis.crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);
     return { publicKey: key, privateKey: key };
   }
 }
