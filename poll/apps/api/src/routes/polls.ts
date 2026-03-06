@@ -23,6 +23,11 @@ export async function handlePollRoutes(
   env: Env,
   url: URL
 ): Promise<Response | null> {
+  // GET /api/polls — list all polls
+  if (url.pathname === '/api/polls' && request.method === 'GET') {
+    return listPolls(env);
+  }
+
   // POST /api/polls
   if (url.pathname === '/api/polls' && request.method === 'POST') {
     return createPoll(request, env);
@@ -132,6 +137,15 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
   }));
 
   return jsonResponse(poll, 201);
+}
+
+async function listPolls(env: Env): Promise<Response> {
+  const result = await env.DB.prepare(
+    'SELECT id, question, status, mode, opens_at, closes_at, created_at FROM polls ORDER BY created_at DESC LIMIT 50'
+  ).all();
+  return jsonResponse({
+    polls: (result.results || []).map((r: any) => ({ ...r, options: undefined })),
+  });
 }
 
 async function getPoll(env: Env, pollId: string): Promise<Response> {

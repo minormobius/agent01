@@ -280,3 +280,32 @@ button, .btn {
   color: var(--muted);
   margin: 0 2px;
 }
+
+.poll-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  text-decoration: none;
+  color: var(--fg);
+  transition: background 0.1s;
+}
+
+.poll-list-item:hover {
+  background: #f9fafb;
+}
+
+.poll-list-question {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.poll-list-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}

@@ -44,6 +44,13 @@ export function PollPage() {
           Mode: {poll.mode} &middot; {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
           {poll.atproto_record_uri && <> &middot; Published</>}
         </p>
+        <p className="muted mb-12" style={{ fontSize: '12px' }}>
+          ID: <code
+            style={{ cursor: 'pointer', userSelect: 'all' }}
+            title="Click to copy"
+            onClick={() => { navigator.clipboard.writeText(id || ''); }}
+          >{id}</code>
+        </p>
 
         {tally && (
           <div className="bar-chart">

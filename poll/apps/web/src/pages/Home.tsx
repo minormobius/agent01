@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { listPolls } from '../lib/api';
 
 export function HomePage() {
   const { did } = useAuth();
+  const [polls, setPolls] = useState<any[]>([]);
+
+  useEffect(() => {
+    listPolls().then(d => setPolls(d.polls || [])).catch(() => {});
+  }, []);
 
   return (
     <div>
@@ -12,7 +18,6 @@ export function HomePage() {
         <p className="muted mb-12">
           Authenticated voting with anonymous ballot publication. Responders prove eligibility
           via ATProto, receive a one-time ballot credential, and submit votes anonymously.
-          Accepted ballots are published to a service-controlled ATProto repo for public verification.
         </p>
         {did ? (
           <Link to="/create" className="btn btn-primary">Create a Poll</Link>
@@ -22,15 +27,22 @@ export function HomePage() {
       </div>
 
       <div className="card">
-        <h3>How It Works</h3>
-        <ol style={{ paddingLeft: '20px', fontSize: '14px', lineHeight: '1.8' }}>
-          <li>Poll host creates a poll with question and options</li>
-          <li>Responders authenticate privately via ATProto</li>
-          <li>Host issues a one-time ballot credential (one per eligible DID)</li>
-          <li>Responder submits ballot anonymously using the credential</li>
-          <li>Host publishes anonymized ballot to the public ATProto repo</li>
-          <li>Anyone can verify the tally from the public ballot artifacts</li>
-        </ol>
+        <h3>Polls ({polls.length})</h3>
+        {polls.length === 0 ? (
+          <p className="muted">No polls yet.</p>
+        ) : (
+          <div className="poll-list">
+            {polls.map((p: any) => (
+              <Link to={`/poll/${p.id}`} key={p.id} className="poll-list-item">
+                <div className="poll-list-question">{p.question}</div>
+                <div className="poll-list-meta">
+                  <span className={`status-badge status-${p.status}`}>{p.status}</span>
+                  <span className="muted">{new Date(p.created_at).toLocaleDateString()}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">

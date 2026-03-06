@@ -42,6 +42,8 @@ export const createPoll = (data: {
   mode?: string;
 }) => apiFetch<any>('/api/polls', { method: 'POST', body: JSON.stringify(data) });
 
+export const listPolls = () => apiFetch<{ polls: any[] }>('/api/polls');
+
 export const getPoll = (id: string) => apiFetch<any>(`/api/polls/${id}`);
 
 export const openPoll = (id: string) =>
