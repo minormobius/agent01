@@ -140,7 +140,7 @@ export function PollPage() {
                 <tr>
                   <th>#</th>
                   <th>Option</th>
-                  <th>Nullifier</th>
+                  <th>Commitment</th>
                   <th>Submitted</th>
                 </tr>
               </thead>
@@ -149,7 +149,7 @@ export function PollPage() {
                   <tr key={b.public_serial}>
                     <td>{b.public_serial}</td>
                     <td>{poll.options[b.option]}</td>
-                    <td className="truncate" title={b.nullifier}>{b.nullifier}</td>
+                    <td className="truncate" title={b.ballot_commitment}>{b.ballot_commitment?.slice(0, 16)}...</td>
                     <td>{new Date(b.submitted_at).toLocaleString()}</td>
                   </tr>
                 ))}

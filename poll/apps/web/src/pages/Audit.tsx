@@ -41,10 +41,10 @@ export function AuditPage() {
     }
   };
 
-  // Check for duplicate nullifiers
-  const nullifiers = ballots.map(b => b.nullifier);
-  const uniqueNullifiers = new Set(nullifiers);
-  const hasDuplicates = nullifiers.length !== uniqueNullifiers.size;
+  // Check for duplicate commitments (would indicate a ballot replay)
+  const commitments = ballots.map(b => b.ballot_commitment);
+  const uniqueCommitments = new Set(commitments);
+  const hasDuplicates = commitments.length !== uniqueCommitments.size;
 
   if (!poll) return <div className="card"><p className="muted">Loading...</p></div>;
 
@@ -54,8 +54,8 @@ export function AuditPage() {
         <h2>Audit: {poll.question}</h2>
         <p className="muted">
           {ballots.length} accepted ballot{ballots.length !== 1 ? 's' : ''} &middot;
-          {uniqueNullifiers.size} unique nullifier{uniqueNullifiers.size !== 1 ? 's' : ''}
-          {hasDuplicates && <span className="error"> DUPLICATE NULLIFIERS DETECTED</span>}
+          {uniqueCommitments.size} unique commitment{uniqueCommitments.size !== 1 ? 's' : ''}
+          {hasDuplicates && <span className="error"> DUPLICATE COMMITMENTS DETECTED</span>}
         </p>
       </div>
 
@@ -91,9 +91,8 @@ export function AuditPage() {
               <tr>
                 <th>#</th>
                 <th>Option</th>
-                <th>Token Message</th>
+                <th>Ballot Commitment</th>
                 <th>Signature</th>
-                <th>Nullifier</th>
                 <th>Time</th>
               </tr>
             </thead>
@@ -102,14 +101,11 @@ export function AuditPage() {
                 <tr key={b.public_serial}>
                   <td>{b.public_serial}</td>
                   <td>{poll.options[b.option]}</td>
-                  <td className="truncate" title={b.token_message}>
-                    {b.token_message?.slice(0, 16)}...
+                  <td className="truncate" title={b.ballot_commitment}>
+                    {b.ballot_commitment?.slice(0, 16)}...
                   </td>
                   <td className="truncate" title={b.issuer_signature}>
                     {b.issuer_signature?.slice(0, 16)}...
-                  </td>
-                  <td className="truncate" title={b.nullifier}>
-                    {b.nullifier?.slice(0, 16)}...
                   </td>
                   <td>{new Date(b.submitted_at).toLocaleString()}</td>
                 </tr>

@@ -10,6 +10,7 @@
 
 import {
   computeAuditHash,
+  computeBallotCommitment,
   blindSign,
   verifyRSACredential,
   importRSAPrivateKey,
@@ -78,7 +79,7 @@ export class PollCoordinator implements DurableObject {
     this.pollState = {
       poll: null,
       ballotCount: 0,
-      lastAuditHash: '0'.repeat(64),
+      lastAuditHash: crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''),
       tally: {},
       nullifiers: new Set(),
       consumedDids: new Set(),
@@ -134,7 +135,9 @@ export class PollCoordinator implements DurableObject {
       }
       return new Response('Not found', { status: 404 });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), {
+      // SECURITY: Never leak internal error details to clients
+      console.error('PollCoordinator error:', err);
+      return new Response(JSON.stringify({ error: 'Internal server error' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -253,7 +256,11 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ eligible: false, error: 'Blinded message required' }, 400);
     }
 
+    // SECURITY: Persist consumedDid BEFORE attempting blind signing to prevent
+    // TOCTOU race condition. If a crash occurs between add and saveState, the DID
+    // stays consumed (correct — fail-safe, prevents double credential issuance).
     state.consumedDids.add(responderDid);
+    await this.saveState();
 
     let response: EligibilityResponse;
     try {
@@ -264,8 +271,11 @@ export class PollCoordinator implements DurableObject {
         blindedSignature: blindedSig,
       };
     } catch (err: any) {
-      state.consumedDids.delete(responderDid);
-      return jsonResponse({ eligible: false, error: `Blind signing failed: ${err.message}` }, 500);
+      // Don't roll back consumedDid — fail-safe. The voter can retry with a
+      // fresh session if blind signing had a transient failure, but we never
+      // risk issuing two credentials for the same DID.
+      console.error('Blind signing failed for poll:', state.poll?.id, err);
+      return jsonResponse({ eligible: false, error: 'Credential issuance failed' }, 500);
     }
 
     await this.env.DB.prepare(
@@ -331,12 +341,16 @@ export class PollCoordinator implements DurableObject {
     const ballotId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // SECURITY: Audit log stores a ballot commitment instead of raw choice/nullifier/tokenMessage.
+    // This prevents the operator from reading individual votes via audit logs while still
+    // allowing integrity verification via the rolling hash chain.
+    const ballotCommitment = await computeBallotCommitment(
+      submission.tokenMessage, submission.choice, submission.nullifier
+    );
     const auditPayload = JSON.stringify({
       ballotId,
       pollId: state.poll.id,
-      choice: submission.choice,
-      nullifier: submission.nullifier,
-      tokenMessage: submission.tokenMessage,
+      ballotCommitment,
     });
     const rollingHash = await this.appendAudit('ballot_accepted', auditPayload);
 
@@ -403,23 +417,30 @@ export class PollCoordinator implements DurableObject {
     const state = await this.loadState();
     if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
 
-    // Fetch from D1 — only public-safe fields
+    // Fetch from D1 — only public-safe fields.
+    // SECURITY: tokenMessage and nullifier are NOT exposed in public ballot records.
+    // They enable rainbow-table deanonymization and cross-poll linkability respectively.
+    // Instead we publish a ballot_commitment = SHA-256(tokenMessage || choice || nullifier)
+    // that voters can open to prove their own ballot.
     const result = await this.env.DB.prepare(
       `SELECT ballot_id, poll_id, public_ballot_serial, nullifier, choice,
               token_message, issuer_signature, accepted, submitted_at, rolling_audit_hash
        FROM ballots WHERE poll_id = ? AND accepted = 1 ORDER BY public_ballot_serial`
     ).bind(state.poll.id).all();
 
-    const ballots: PublicBallot[] = (result.results || []).map((row: any) => ({
-      poll_id: row.poll_id,
-      option: row.choice,
-      token_message: row.token_message,
-      issuer_signature: row.issuer_signature,
-      nullifier: row.nullifier,
-      submitted_at: row.submitted_at,
-      ballot_version: 1,
-      public_serial: row.public_ballot_serial,
-    }));
+    const ballots: PublicBallot[] = await Promise.all(
+      (result.results || []).map(async (row: any) => ({
+        poll_id: row.poll_id,
+        option: row.choice,
+        ballot_commitment: await computeBallotCommitment(
+          row.token_message, row.choice, row.nullifier
+        ),
+        issuer_signature: row.issuer_signature,
+        submitted_at: row.submitted_at,
+        ballot_version: 1,
+        public_serial: row.public_ballot_serial,
+      }))
+    );
 
     return jsonResponse({ ballots });
   }

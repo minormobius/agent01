@@ -116,7 +116,7 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     );
   } catch (err: any) {
     console.error('Auth error:', err.message);
-    return jsonResponse({ error: 'Authentication failed: ' + err.message }, 500);
+    return jsonResponse({ error: 'Authentication failed' }, 500);
   }
 }
 

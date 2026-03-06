@@ -64,13 +64,20 @@ export interface AuditEvent {
   createdAt: string;
 }
 
-/** Public ballot shape — what gets published to ATProto and shown on audit page */
+/** Public ballot shape — what gets published to ATProto and shown on audit page.
+ *
+ * SECURITY: tokenMessage and nullifier are deliberately excluded from public records.
+ * Publishing them would enable rainbow-table deanonymization (tokenMessage) and
+ * cross-poll vote linkability (nullifier). These fields remain in D1 only for
+ * operator-side audit. Public verification uses ballotCommitment instead —
+ * a SHA-256 commitment that voters can open to prove their own ballot without
+ * leaking linkable information to observers.
+ */
 export interface PublicBallot {
   poll_id: string;
   option: number;
-  token_message: string;
+  ballot_commitment: string;
   issuer_signature: string;
-  nullifier: string;
   submitted_at: string;
   ballot_version: number;
   public_serial: number;

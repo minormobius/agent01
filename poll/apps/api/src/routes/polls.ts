@@ -197,7 +197,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ ...poll, eligibleCount }, 201);
   } catch (err: any) {
     console.error(`createPoll failed at step "${step}":`, err);
-    return jsonResponse({ error: `Poll creation failed at step: ${step}`, message: err.message }, 500);
+    return jsonResponse({ error: 'Poll creation failed' }, 500);
   }
 }
 

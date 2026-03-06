@@ -74,7 +74,7 @@ export default {
     } catch (err: any) {
       console.error('Unhandled error:', err);
       return addCorsHeaders(
-        jsonResponse({ error: 'Internal server error', message: err.message }, 500),
+        jsonResponse({ error: 'Internal server error' }, 500),
         env
       );
     }

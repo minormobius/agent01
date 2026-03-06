@@ -51,9 +51,16 @@ export function toBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function fromBase64Url(str: string): Uint8Array {
+/**
+ * Decode base64url to bytes with a size limit to prevent memory exhaustion.
+ * Default max 10KB — sufficient for RSA-4096 signatures (512 bytes) with margin.
+ */
+export function fromBase64Url(str: string, maxDecodedBytes = 10_000): Uint8Array {
   const padded = str.replace(/-/g, '+').replace(/_/g, '/');
   const binary = atob(padded);
+  if (binary.length > maxDecodedBytes) {
+    throw new Error(`Decoded size ${binary.length} exceeds limit ${maxDecodedBytes}`);
+  }
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
@@ -67,19 +74,52 @@ export function generateSecret(): string {
   return randomHex(32);
 }
 
+/**
+ * Derive a token message using HMAC-SHA256 with proper domain separation.
+ *
+ * SECURITY: Uses HMAC-SHA256(key=secret, message="token_v{version}\x00{pollId}\x00{expiry}")
+ * to prevent input boundary confusion and length extension attacks.
+ */
 export async function deriveTokenMessage(
   pollId: string,
   secret: string,
   expiry: string
 ): Promise<string> {
-  return sha256(`${BALLOT_VERSION}||${pollId}||${secret}||${expiry}`);
+  const key = await globalThis.crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const data = encoder.encode(`token_v${BALLOT_VERSION}\x00${pollId}\x00${expiry}`);
+  const sig = await globalThis.crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * Derive a nullifier using HMAC-SHA256 with proper domain separation.
+ *
+ * SECURITY: Uses HMAC-SHA256(key=secret, message="nullifier\x00" + pollId) instead of
+ * plain SHA-256 concatenation. This prevents:
+ * - Input boundary confusion (e.g., secret="a||b" vs secret="a", pollId="b||...")
+ * - Preimage attacks against the nullifier format
+ * - Length extension attacks (SHA-256 is vulnerable, HMAC is not)
+ */
 export async function deriveNullifier(
   secret: string,
   pollId: string
 ): Promise<string> {
-  return sha256(`nullifier||${secret}||${pollId}`);
+  const key = await globalThis.crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const data = encoder.encode(`nullifier\x00${pollId}`);
+  const sig = await globalThis.crypto.subtle.sign('HMAC', key, data);
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function makeReceipt(
@@ -88,6 +128,22 @@ export async function makeReceipt(
   nullifier: string
 ): Promise<string> {
   return sha256(`receipt||${pollId}||${tokenMessage}||${nullifier}`);
+}
+
+/**
+ * Compute a ballot commitment for public records.
+ *
+ * SECURITY: This replaces publishing raw tokenMessage + nullifier in ballot records.
+ * The commitment is binding (can't find two inputs that hash to the same value) but
+ * hiding (observers can't recover tokenMessage or nullifier without the preimage).
+ * Voters can prove their own ballot by opening the commitment with their secret.
+ */
+export async function computeBallotCommitment(
+  tokenMessage: string,
+  choice: number,
+  nullifier: string
+): Promise<string> {
+  return sha256(`ballot_commitment||${tokenMessage}||${choice}||${nullifier}`);
 }
 
 export async function computeAuditHash(
@@ -205,6 +261,8 @@ export async function finalizeBlindSignature(
 
 /**
  * Verify an RSA-PSS signature over a token message.
+ * Validates key algorithm properties before verification to prevent
+ * algorithm substitution attacks.
  */
 export async function verifyRSACredential(
   tokenMessage: string,
@@ -212,6 +270,15 @@ export async function verifyRSACredential(
   publicKey: CryptoKey,
   supportsRSARAW = false
 ): Promise<boolean> {
+  // SECURITY: Validate key properties to prevent algorithm substitution
+  if (publicKey.type !== 'public') {
+    throw new Error('Invalid key: expected public key');
+  }
+  const algo = publicKey.algorithm as RsaHashedKeyAlgorithm;
+  if (algo.name !== 'RSA-PSS' || algo.hash?.name !== 'SHA-384') {
+    throw new Error('Invalid key: must be RSA-PSS with SHA-384');
+  }
+
   const suite = getBlindRSASuite(supportsRSARAW);
   const msgBytes = encoder.encode(tokenMessage);
   const signature = fromBase64Url(signatureB64);

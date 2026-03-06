@@ -18,10 +18,11 @@ import {
  * client unblinds. Server never learns the token message.
  */
 
+/** Credential stored in sessionStorage — secret is NOT persisted.
+ * Only the fields needed for ballot submission are kept. */
 interface Credential {
   tokenMessage: string;
   issuerSignature: string;
-  secret: string;
   nullifier: string;
 }
 
@@ -50,8 +51,8 @@ export function VotePage() {
         } else if (!did) {
           setStep('auth_required');
         } else {
-          // Check localStorage for existing credential
-          const stored = localStorage.getItem(`credential:${id}`);
+          // Check sessionStorage for existing credential (clears on tab close)
+          const stored = sessionStorage.getItem(`credential:${id}`);
           if (stored) {
             const cred = JSON.parse(stored);
             setCredential(cred);
@@ -89,7 +90,10 @@ export function VotePage() {
     );
     // 7. Derive nullifier locally
     const nullifier = await deriveNullifier(secret, id);
-    return { tokenMessage, issuerSignature, secret, nullifier } as Credential;
+    // SECURITY: Do NOT persist secret — only keep fields needed for ballot submission.
+    // This limits XSS exposure to tokenMessage + signature + nullifier (not the secret
+    // that could be used to re-derive nullifiers for cross-poll linkability).
+    return { tokenMessage, issuerSignature, nullifier } as Credential;
   };
 
   const handleRequestCredential = async () => {
@@ -98,8 +102,8 @@ export function VotePage() {
     try {
       const cred = await handleRequestCredentialV2();
       if (!cred) return;
-      // Store credential locally — this is the responder's ballot right
-      localStorage.setItem(`credential:${id}`, JSON.stringify(cred));
+      // Store credential in sessionStorage — clears on tab close, reducing XSS window
+      sessionStorage.setItem(`credential:${id}`, JSON.stringify(cred));
       setCredential(cred);
       setStep('choose');
     } catch (err: any) {
@@ -126,7 +130,7 @@ export function VotePage() {
         return;
       }
       // Clear credential — it's spent
-      localStorage.removeItem(`credential:${id}`);
+      sessionStorage.removeItem(`credential:${id}`);
       setResult(resp);
       setStep('done');
     } catch (err: any) {
