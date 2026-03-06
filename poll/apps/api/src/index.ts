@@ -2,6 +2,7 @@
  * Anonymous Polls API — Cloudflare Worker entry point.
  *
  * Routes requests to handlers, manages CORS, and binds to D1 + Durable Objects.
+ * v0.2.0 — RSA blind signature support.
  */
 
 import { PollCoordinator } from './durable-objects/poll-coordinator.js';
