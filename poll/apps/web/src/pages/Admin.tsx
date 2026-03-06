@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids } from '../lib/api';
+import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -167,23 +167,44 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
+  const [appPassword, setAppPassword] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const options = (poll.options || []) as string[];
 
-  const timeLeft = poll.closes_at
-    ? formatTimeLeft(poll.closes_at)
-    : '';
+  const timeLeft = poll.closes_at ? formatTimeLeft(poll.closes_at) : '';
 
-  // Build the post text: question + option links
-  const optionLines = options.map((opt: string, i: number) =>
+  // Preview text (what it looks like on Bluesky — option names become links)
+  const optionLine = options.join(' · ');
+  const footerParts = ['View poll', 'Anonymous & verifiable'];
+  if (timeLeft) footerParts.push(timeLeft);
+  const previewText = `${poll.question}\n\n${optionLine}\n\n${footerParts.join(' · ')}`;
+
+  // Fallback plain text with URLs (for copy/intent)
+  const fallbackOptionLines = options.map((opt: string, i: number) =>
     `${opt}: ${baseUrl}/v/${pollId}?c=${i}`
   ).join('\n');
+  const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nAnonymous & verifiable · ${timeLeft}` : ''}`;
 
-  const postText = `${poll.question}\n\n${optionLines}${timeLeft ? `\n\nAnonymous & verifiable | ${timeLeft}` : ''}`;
+  const handlePost = async () => {
+    if (!appPassword.trim()) return;
+    setPosting(true);
+    setPostResult(null);
+    try {
+      const result = await postToBluesky(pollId, appPassword.trim());
+      setPostResult({ uri: result.uri });
+      setAppPassword('');
+    } catch (err: any) {
+      setPostResult({ error: err.message });
+    } finally {
+      setPosting(false);
+    }
+  };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(postText).then(() => {
+  const copyFallback = () => {
+    navigator.clipboard.writeText(fallbackText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -193,26 +214,70 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
     <div className="card">
       <h3>Share to Bluesky</h3>
       <p className="muted mb-12">
-        Copy this post to share your poll on Bluesky. Each option is a direct vote link.
+        Post your poll with embedded links — option names become clickable vote buttons.
       </p>
       <div className="share-preview">
-        <pre className="share-post-text">{postText}</pre>
+        <pre className="share-post-text">{previewText}</pre>
+        <p className="muted" style={{ fontSize: '12px', marginTop: '4px' }}>
+          Underlined text becomes clickable links on Bluesky.
+        </p>
       </div>
-      <div className="flex gap-8 mt-12">
-        <button className="btn btn-primary" onClick={copyToClipboard}>
-          {copied ? 'Copied!' : 'Copy Post Text'}
-        </button>
-        <a
-          href={`https://bsky.app/intent/compose?text=${encodeURIComponent(postText)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-secondary"
-        >
-          Open in Bluesky
-        </a>
+
+      <div style={{ marginTop: '12px' }}>
+        <label style={{ fontSize: '14px' }}>App password (used once to post, not stored)</label>
+        <div className="flex gap-8" style={{ marginTop: '4px' }}>
+          <input
+            type="password"
+            value={appPassword}
+            onChange={e => setAppPassword(e.target.value)}
+            placeholder="xxxx-xxxx-xxxx-xxxx"
+            style={{ marginBottom: 0, flex: 1 }}
+            onKeyDown={e => { if (e.key === 'Enter') handlePost(); }}
+          />
+          <button
+            className="btn btn-primary"
+            disabled={posting || !appPassword.trim()}
+            onClick={handlePost}
+          >
+            {posting ? 'Posting...' : 'Post to Bluesky'}
+          </button>
+        </div>
       </div>
+
+      {postResult?.uri && (
+        <p className="success mt-12">
+          Posted! <a href={atUriToBskyUrl(postResult.uri)} target="_blank" rel="noopener noreferrer">View on Bluesky</a>
+        </p>
+      )}
+      {postResult?.error && <p className="error mt-12">{postResult.error}</p>}
+
+      <details style={{ marginTop: '12px' }}>
+        <summary className="muted" style={{ cursor: 'pointer', fontSize: '13px' }}>
+          Or copy plain text / open in compose
+        </summary>
+        <div className="flex gap-8 mt-12">
+          <button className="btn btn-secondary" onClick={copyFallback}>
+            {copied ? 'Copied!' : 'Copy Text'}
+          </button>
+          <a
+            href={`https://bsky.app/intent/compose?text=${encodeURIComponent(fallbackText)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+          >
+            Open in Bluesky
+          </a>
+        </div>
+      </details>
     </div>
   );
+}
+
+function atUriToBskyUrl(uri: string): string {
+  // at://did:plc:xxx/app.bsky.feed.post/yyy → https://bsky.app/profile/did:plc:xxx/post/yyy
+  const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+  if (match) return `https://bsky.app/profile/${match[1]}/post/${match[2]}`;
+  return uri;
 }
 
 function formatTimeLeft(closesAt: string): string {

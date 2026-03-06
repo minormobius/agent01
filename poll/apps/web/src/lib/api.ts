@@ -84,6 +84,12 @@ export const publishTally = (id: string) =>
 export const publishBallots = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/ballots/publish`, { method: 'POST' });
 
+export const postToBluesky = (id: string, appPassword: string) =>
+  apiFetch<{ uri: string; cid: string }>(`/api/polls/${id}/post-to-bluesky`, {
+    method: 'POST',
+    body: JSON.stringify({ appPassword }),
+  });
+
 // Eligibility & voting
 export const requestEligibility = (pollId: string, blindedMessage?: string) =>
   apiFetch<any>(`/api/polls/${pollId}/eligibility/request`, {

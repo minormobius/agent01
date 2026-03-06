@@ -89,6 +89,11 @@ export async function handlePollRoutes(
     return publishBallots(request, env, ballotsPublishMatch[1]);
   }
 
+  const postBskyMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/post-to-bluesky$/);
+  if (postBskyMatch && request.method === 'POST') {
+    return postToBluesky(request, env, postBskyMatch[1]);
+  }
+
   const syncEligibleMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/eligible\/sync$/);
   if (syncEligibleMatch && request.method === 'POST') {
     return syncEligibleDids(request, env, syncEligibleMatch[1]);
@@ -586,6 +591,154 @@ async function fetchAtprotoList(listUri: string): Promise<string[]> {
   }
 
   return dids;
+}
+
+async function postToBluesky(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+
+  const body = await request.json() as { appPassword?: string };
+  if (!body.appPassword) {
+    return jsonResponse({ error: 'appPassword is required to post on your behalf' }, 400);
+  }
+
+  // Resolve DID → PDS
+  const pdsUrl = await resolveDidToPds(session.did);
+  if (!pdsUrl) {
+    return jsonResponse({ error: 'Could not resolve your PDS' }, 400);
+  }
+
+  // Authenticate to the user's PDS
+  const authRes = await fetch(`${pdsUrl}/xrpc/com.atproto.server.createSession`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: session.handle, password: body.appPassword }),
+  });
+  if (!authRes.ok) {
+    return jsonResponse({ error: 'Invalid app password' }, 401);
+  }
+  const authData = await authRes.json() as { did: string; accessJwt: string };
+
+  // Build the post text and facets
+  const options = JSON.parse(poll.options as string) as string[];
+  const origin = new URL(request.url).origin;
+  const encoder = new TextEncoder();
+
+  const timeLeft = formatTimeLeftServer(poll.closes_at as string);
+  const question = poll.question as string;
+
+  // Format:
+  // {question}
+  //
+  // Option 1 · Option 2 · Option 3
+  //
+  // View poll · Anonymous & verifiable · 24h left
+  const optionTexts = options.map(o => o);
+  const optionLine = optionTexts.join(' · ');
+  const footerParts = ['View poll', 'Anonymous & verifiable'];
+  if (timeLeft) footerParts.push(timeLeft);
+  const footer = footerParts.join(' · ');
+
+  const postText = `${question}\n\n${optionLine}\n\n${footer}`;
+
+  // Compute facets (UTF-8 byte offsets)
+  const facets: any[] = [];
+  // Option facets — each option name in the joined line
+  let searchStart = encoder.encode(`${question}\n\n`).byteLength;
+  for (let i = 0; i < options.length; i++) {
+    const optBytes = encoder.encode(options[i]);
+    const byteStart = searchStart;
+    const byteEnd = byteStart + optBytes.byteLength;
+    facets.push({
+      index: { byteStart, byteEnd },
+      features: [{
+        $type: 'app.bsky.richtext.facet#link',
+        uri: `${origin}/v/${pollId}?c=${i}`,
+      }],
+    });
+    // Skip past this option + " · " separator (or nothing for last)
+    searchStart = byteEnd;
+    if (i < options.length - 1) {
+      searchStart += encoder.encode(' · ').byteLength;
+    }
+  }
+
+  // "View poll" facet in footer
+  const footerStart = encoder.encode(`${question}\n\n${optionLine}\n\n`).byteLength;
+  const viewPollBytes = encoder.encode('View poll');
+  facets.push({
+    index: { byteStart: footerStart, byteEnd: footerStart + viewPollBytes.byteLength },
+    features: [{
+      $type: 'app.bsky.richtext.facet#link',
+      uri: `${origin}/poll/${pollId}`,
+    }],
+  });
+
+  // Create the post
+  const record = {
+    $type: 'app.bsky.feed.post',
+    text: postText,
+    facets,
+    createdAt: new Date().toISOString(),
+  };
+
+  const createRes = await fetch(`${pdsUrl}/xrpc/com.atproto.repo.createRecord`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authData.accessJwt}`,
+    },
+    body: JSON.stringify({
+      repo: authData.did,
+      collection: 'app.bsky.feed.post',
+      record,
+    }),
+  });
+
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    return jsonResponse({ error: `Failed to post: ${err}` }, 500);
+  }
+
+  const result = await createRes.json() as { uri: string; cid: string };
+  return jsonResponse({ uri: result.uri, cid: result.cid });
+}
+
+async function resolveDidToPds(did: string): Promise<string | null> {
+  try {
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (res.ok) {
+        const doc = await res.json() as any;
+        const pds = (doc.service || []).find((s: any) => s.id === '#atproto_pds');
+        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
+      }
+    }
+    if (did.startsWith('did:web:')) {
+      const domain = did.replace('did:web:', '');
+      const res = await fetch(`https://${domain}/.well-known/did.json`);
+      if (res.ok) {
+        const doc = await res.json() as any;
+        const pds = (doc.service || []).find((s: any) => s.id === '#atproto_pds');
+        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function formatTimeLeftServer(closesAt: string): string {
+  const diff = new Date(closesAt).getTime() - Date.now();
+  if (diff <= 0) return 'Closed';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h left`;
+  return `${Math.floor(hours / 24)}d left`;
 }
 
 function getPublisher(env: Env) {
