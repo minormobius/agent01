@@ -278,13 +278,12 @@ export class PollCoordinator implements DurableObject {
     // Persist eligibility to D1
     await this.env.DB.prepare(
       `INSERT INTO eligibility (poll_id, responder_did, eligibility_status, consumed_at, issuance_mode, receipt_hash)
-       VALUES (?, ?, 'consumed', ?, ?, ?)`
+       VALUES (?, ?, 'consumed', ?, ?, NULL)`
     ).bind(
       state.poll.id,
       responderDid,
       now,
-      state.poll.mode,
-      response.receiptHash
+      state.poll.mode
     ).run();
 
     await this.appendAudit('eligibility_consumed', JSON.stringify({

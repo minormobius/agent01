@@ -52,7 +52,7 @@ function jsonResponseWithCookie(data: any, status: number, cookie: string): Resp
 }
 
 function sessionCookie(sessionId: string): string {
-  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_HOURS * 3600}`;
+  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL_HOURS * 3600}`;
 }
 
 async function startAuth(request: Request, env: Env): Promise<Response> {

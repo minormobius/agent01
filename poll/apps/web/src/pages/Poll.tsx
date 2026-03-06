@@ -51,10 +51,35 @@ export function PollPage() {
             className="btn-copy"
             title="Copy poll ID"
             onClick={() => {
-              navigator.clipboard.writeText(id || '').then(() => {
+              const text = id || '';
+              const onSuccess = () => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
-              });
+              };
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(text).then(onSuccess).catch(() => {
+                  // Fallback for non-secure contexts
+                  const ta = document.createElement('textarea');
+                  ta.value = text;
+                  ta.style.position = 'fixed';
+                  ta.style.opacity = '0';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                  onSuccess();
+                });
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                onSuccess();
+              }
             }}
           >
             {copied ? (
