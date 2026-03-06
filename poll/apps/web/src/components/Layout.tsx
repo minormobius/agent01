@@ -19,17 +19,8 @@ function useTheme() {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { did, handle, loading, error, login, logout } = useAuth();
-  const [loginHandle, setLoginHandle] = useState('');
-  const [appPassword, setAppPassword] = useState('');
+  const { did, handle, loading, logout } = useAuth();
   const theme = useTheme();
-
-  const doLogin = () => {
-    if (loginHandle) {
-      login(loginHandle, appPassword || undefined);
-      setAppPassword('');
-    }
-  };
 
   return (
     <div className="container">
@@ -45,46 +36,74 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
           <Link to="/docs">Docs</Link>
           <Link to="/create">Create</Link>
-          {loading ? (
-            <span className="muted">...</span>
-          ) : did ? (
+          {!loading && did && (
             <>
               <span className="muted">{handle}</span>
               <button className="btn btn-secondary" onClick={logout} style={{ padding: '4px 10px', fontSize: '12px' }}>
                 Logout
               </button>
             </>
-          ) : (
-            <div className="login-form">
-              <input
-                type="text"
-                placeholder="handle.bsky.social"
-                value={loginHandle}
-                onChange={e => setLoginHandle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && doLogin()}
-                style={{ width: '160px' }}
-              />
-              <input
-                type="password"
-                placeholder="App password"
-                value={appPassword}
-                onChange={e => setAppPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && doLogin()}
-                style={{ width: '130px' }}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={doLogin}
-                style={{ padding: '4px 10px', fontSize: '12px' }}
-              >
-                Login
-              </button>
-              {error && <span className="error" style={{ fontSize: '11px' }}>{error}</span>}
-            </div>
           )}
         </nav>
       </header>
       <main>{children}</main>
+    </div>
+  );
+}
+
+export function AuthCard() {
+  const { did, handle, loading, error, login, logout } = useAuth();
+  const [loginHandle, setLoginHandle] = useState('');
+  const [appPassword, setAppPassword] = useState('');
+
+  const doLogin = () => {
+    if (loginHandle) {
+      login(loginHandle, appPassword || undefined);
+      setAppPassword('');
+    }
+  };
+
+  if (loading) return null;
+
+  if (did) {
+    return (
+      <div className="card auth-card">
+        <div className="auth-card-inner">
+          <span>Signed in as <strong>{handle}</strong></span>
+          <button className="btn btn-secondary" onClick={logout} style={{ padding: '4px 10px', fontSize: '12px' }}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      <h3>Sign in with Bluesky</h3>
+      <p className="muted mb-12">
+        Enter your handle and an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer">app password</a> to authenticate.
+      </p>
+      <div className="auth-form">
+        <input
+          type="text"
+          placeholder="handle.bsky.social"
+          value={loginHandle}
+          onChange={e => setLoginHandle(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && doLogin()}
+        />
+        <input
+          type="password"
+          placeholder="App password"
+          value={appPassword}
+          onChange={e => setAppPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && doLogin()}
+        />
+        <button className="btn btn-primary" onClick={doLogin}>
+          Sign in
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }
