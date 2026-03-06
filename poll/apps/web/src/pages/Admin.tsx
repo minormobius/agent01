@@ -106,29 +106,18 @@ export function AdminPage() {
           )}
 
           <div className="card">
-            <h3>Share</h3>
-            <p className="muted">
-              Vote link:{' '}
-              <a href={`/poll/${id}/vote`} target="_blank" rel="noopener noreferrer">
-                {window.location.origin}/poll/{id}/vote
-              </a>
-            </p>
-            <p className="muted">
-              Results:{' '}
-              <a href={`/poll/${id}`} target="_blank" rel="noopener noreferrer">
-                {window.location.origin}/poll/{id}
-              </a>
-            </p>
+            <h3>Navigate</h3>
+            <div className="flex gap-8">
+              <Link to={`/poll/${id}/vote`} className="btn btn-primary">Vote Page</Link>
+              <Link to={`/poll/${id}`} className="btn btn-secondary">Results Page</Link>
+              <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit Log</Link>
+            </div>
           </div>
         </>
       )}
 
       {message && <p className="success">{message}</p>}
       {error && <p className="error">{error}</p>}
-
-      <div className="mt-12">
-        <Link to={`/poll/${id}`} className="btn btn-secondary">View Poll</Link>
-      </div>
     </div>
   );
 }

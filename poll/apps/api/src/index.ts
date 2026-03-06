@@ -88,6 +88,55 @@ export default {
       return addCorsHeaders(jsonResponse(diag), env);
     }
 
+    // Debug: test credential crypto + DO in isolation
+    if (url.pathname === '/api/debug/credential') {
+      const results: Record<string, any> = {};
+      // Test 1: raw crypto
+      try {
+        const { generateSecret, deriveTokenMessage, issueCredential, deriveNullifier, verifyCredential, makeReceipt } = await import('@anon-polls/shared');
+        const secret = generateSecret();
+        const tokenMessage = await deriveTokenMessage('test-poll', secret, '2099-01-01T00:00:00Z');
+        const signingKey = 'test-key-123';
+        const sig = await issueCredential(signingKey, tokenMessage);
+        const nullifier = await deriveNullifier(secret, 'test-poll');
+        const valid = await verifyCredential(signingKey, tokenMessage, sig);
+        const receipt = await makeReceipt('test-poll', tokenMessage, nullifier);
+        results.crypto = { ok: true, secret: secret.slice(0, 8) + '...', tokenMessage: tokenMessage.slice(0, 16) + '...', sig: sig.slice(0, 16) + '...', nullifier: nullifier.slice(0, 16) + '...', valid, receipt: receipt.slice(0, 16) + '...' };
+      } catch (e: any) {
+        results.crypto = { ok: false, error: e.message, stack: e.stack?.split('\n').slice(0, 3) };
+      }
+      // Test 2: list polls in D1
+      try {
+        const rows = await env.DB.prepare('SELECT id, status, question, opens_at, closes_at FROM polls LIMIT 5').all();
+        results.polls = { ok: true, count: rows.results.length, rows: rows.results };
+      } catch (e: any) {
+        results.polls = { ok: false, error: e.message };
+      }
+      // Test 3: DO fetch for first poll
+      try {
+        const rows = await env.DB.prepare('SELECT id FROM polls LIMIT 1').all();
+        if (rows.results.length > 0) {
+          const pollId = (rows.results[0] as any).id;
+          const doStub = getPollDO(env, pollId);
+          const doRes = await doStub.fetch(new Request('https://do/poll'));
+          const doData = await doRes.json();
+          results.durableObject = { ok: true, status: doRes.status, data: doData };
+        } else {
+          results.durableObject = { ok: true, note: 'no polls exist yet' };
+        }
+      } catch (e: any) {
+        results.durableObject = { ok: false, error: e.message, stack: e.stack?.split('\n').slice(0, 3) };
+      }
+      // Test 4: sessions in D1
+      try {
+        const rows = await env.DB.prepare('SELECT session_id, did, handle, expires_at FROM sessions LIMIT 5').all();
+        results.sessions = { ok: true, count: rows.results.length, rows: rows.results };
+      } catch (e: any) {
+        results.sessions = { ok: false, error: e.message };
+      }
+      return addCorsHeaders(jsonResponse(results), env);
+    }
+
     // Non-API routes should not reach the Worker.
     // _routes.json restricts the Worker to /api/* only.
     // Pages handles SPA fallback for everything else.
