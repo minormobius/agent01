@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids } from '../lib/api';
+import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
   const { did } = useAuth();
+  const navigate = useNavigate();
   const [poll, setPoll] = useState<any>(null);
   const [tally, setTally] = useState<any>(null);
   const [eligible, setEligible] = useState<any>(null);
@@ -51,10 +52,10 @@ export function AdminPage() {
           <div className="card">
             <h3>Poll Controls</h3>
             <div className="poll-lifecycle mb-12">
-              {['draft', 'open', 'closed'].map((s, i) => (
+              {['draft', 'open', 'closed', 'finalized'].map((s, i) => (
                 <span key={s}>
                   <span className={`lifecycle-step${poll.status === s ? ' active' : ''}`}>{s}</span>
-                  {i < 2 && <span className="lifecycle-arrow">&rarr;</span>}
+                  {i < 3 && <span className="lifecycle-arrow">&rarr;</span>}
                 </span>
               ))}
             </div>
@@ -70,9 +71,12 @@ export function AdminPage() {
                 </button>
               )}
               {poll.status === 'closed' && (
-                <button className="btn btn-success" onClick={() => action(() => reopenPoll(id!), 'Poll reopened')}>
-                  Reopen Poll
+                <button className="btn btn-danger" onClick={() => action(() => finalizePoll(id!), 'Poll finalized — this is permanent')}>
+                  Finalize (irreversible)
                 </button>
+              )}
+              {poll.status === 'finalized' && (
+                <p className="muted">This poll is finalized. No further changes possible.</p>
               )}
             </div>
           </div>
@@ -135,6 +139,21 @@ export function AdminPage() {
               <Link to={`/poll/${id}`} className="btn btn-secondary">Results Page</Link>
               <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit Log</Link>
             </div>
+          </div>
+
+          <div className="card" style={{ borderTop: '2px solid var(--danger, #c00)' }}>
+            <h3>Danger Zone</h3>
+            <p className="muted mb-12">Permanently delete this poll and all its data (ballots, audit log, eligibility records).</p>
+            <button
+              className="btn btn-danger"
+              onClick={() => {
+                if (window.confirm('Delete this poll permanently? This cannot be undone.')) {
+                  action(async () => { await deletePoll(id!); navigate('/'); }, 'Poll deleted');
+                }
+              }}
+            >
+              Delete Poll
+            </button>
           </div>
         </>
       )}

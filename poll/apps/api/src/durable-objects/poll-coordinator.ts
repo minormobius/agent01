@@ -99,8 +99,8 @@ export class PollCoordinator implements DurableObject {
       if (request.method === 'POST' && path === '/close') {
         return this.handleClose();
       }
-      if (request.method === 'POST' && path === '/reopen') {
-        return this.handleReopen();
+      if (request.method === 'POST' && path === '/finalize') {
+        return this.handleFinalize();
       }
       if (request.method === 'POST' && path === '/eligibility') {
         return this.handleEligibility(request);
@@ -187,21 +187,21 @@ export class PollCoordinator implements DurableObject {
     return jsonResponse({ success: true, status: 'closed' });
   }
 
-  private async handleReopen(): Promise<Response> {
+  private async handleFinalize(): Promise<Response> {
     const state = await this.loadState();
     if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
     if (state.poll.status !== 'closed') {
-      return jsonResponse({ error: `Cannot reopen poll in status: ${state.poll.status}` }, 400);
+      return jsonResponse({ error: `Cannot finalize poll in status: ${state.poll.status}. Must be closed first.` }, 400);
     }
 
-    state.poll.status = 'open';
-    await this.appendAudit('poll_reopened', JSON.stringify({ pollId: state.poll.id }));
+    state.poll.status = 'finalized';
+    await this.appendAudit('poll_finalized', JSON.stringify({ pollId: state.poll.id }));
     await this.saveState();
 
     await this.env.DB.prepare('UPDATE polls SET status = ? WHERE id = ?')
-      .bind('open', state.poll.id).run();
+      .bind('finalized', state.poll.id).run();
 
-    return jsonResponse({ success: true, status: 'open' });
+    return jsonResponse({ success: true, status: 'finalized' });
   }
 
   /**
@@ -253,23 +253,10 @@ export class PollCoordinator implements DurableObject {
 
     let response: EligibilityResponse;
 
-    if (state.poll.mode === 'anon_credential_v2' && blindedMessage) {
-      // Mode B: blind signature path
-      // In production, this would be: blindSig = blindSign(blindedMessage, rsaPrivateKey)
-      // For now, we sign the blinded message directly (stub)
-      const sig = await issueCredential(state.signingKey, blindedMessage);
-      const receiptHash = await makeReceipt(state.poll.id, blindedMessage, 'pending');
-
-      response = {
-        eligible: true,
-        credential: {
-          tokenMessage: blindedMessage, // In real v2, responder unblinds the sig
-          issuerSignature: sig,
-          secret: '', // Secret stays client-side in v2
-          nullifier: '', // Derived client-side in v2
-        },
-        receiptHash,
-      };
+    if (state.poll.mode === 'anon_credential_v2') {
+      // v2 blind signatures are not yet implemented — reject cleanly
+      state.consumedDids.delete(responderDid); // rollback consumption
+      return jsonResponse({ eligible: false, error: 'anon_credential_v2 mode is not yet implemented' }, 400);
     } else {
       // Mode A: trusted host issues full credential
       const secret = generateSecret();

@@ -41,7 +41,7 @@ export const PollDefRecordSchema = z.object({
   opensAt: z.string().datetime(),
   closesAt: z.string().datetime(),
   mode: PollModeSchema,
-  publicVerificationKey: z.string(),
+  hostKeyFingerprint: z.string(),
   createdAt: z.string().datetime(),
 });
 

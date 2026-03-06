@@ -132,9 +132,7 @@ export function VotePage() {
           <h3>Step 1: Request Ballot Credential</h3>
           <p className="muted mb-12">
             This will privately verify your eligibility and issue a one-time ballot credential.
-            {poll?.mode === 'anon_credential_v2' && (
-              <> In anonymous mode, the credential is cryptographically unlinkable to your identity.</>
-            )}
+            {' '}Your vote choice is separated from your identity in persistent storage.
           </p>
           <button className="btn btn-primary" onClick={handleRequestCredential}>
             Request Credential

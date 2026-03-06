@@ -51,7 +51,8 @@ export const syncEligibleDids = (id: string) =>
 export const getEligibleDids = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/eligible`);
 
-export const listPolls = () => apiFetch<{ polls: any[] }>('/api/polls');
+export const listPolls = (status?: string) =>
+  apiFetch<{ polls: any[] }>(`/api/polls${status ? `?status=${status}` : ''}`);
 
 export const getPoll = (id: string) => apiFetch<any>(`/api/polls/${id}`);
 
@@ -61,8 +62,11 @@ export const openPoll = (id: string) =>
 export const closePoll = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/close`, { method: 'POST' });
 
-export const reopenPoll = (id: string) =>
-  apiFetch<any>(`/api/polls/${id}/reopen`, { method: 'POST' });
+export const finalizePoll = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}/finalize`, { method: 'POST' });
+
+export const deletePoll = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}`, { method: 'DELETE' });
 
 export const publishPoll = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/publish`, { method: 'POST' });

@@ -136,12 +136,9 @@ export function CreatePollPage() {
           <label>Mode</label>
           <select value={mode} onChange={e => setMode(e.target.value)}>
             <option value="trusted_host_v1">Trusted Host (v1)</option>
-            <option value="anon_credential_v2">Anonymous Credential (v2 scaffold)</option>
           </select>
           <p className="muted">
-            {mode === 'trusted_host_v1'
-              ? 'Host can link DID to vote (simpler, fully functional).'
-              : 'Credential-based anonymity with blind signature upgrade path.'}
+            Host issues credentials. Anonymous credential mode (v2) is coming soon.
           </p>
         </div>
 

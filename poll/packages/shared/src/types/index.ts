@@ -16,7 +16,7 @@ export interface Poll {
   mode: PollMode;
   eligibilityMode: EligibilityMode;
   eligibilitySource: string | null;
-  publicVerificationKey: string;
+  hostKeyFingerprint: string;
   atprotoRecordUri: string | null;
   createdAt: string;
 }

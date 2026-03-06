@@ -5,6 +5,8 @@
  * GET  /api/polls/:id      — get poll
  * POST /api/polls/:id/open — open poll for voting
  * POST /api/polls/:id/close — close poll
+ * POST /api/polls/:id/finalize — finalize poll (irreversible)
+ * DELETE /api/polls/:id   — delete poll (host only)
  * GET  /api/polls/:id/tally — get tally
  * GET  /api/polls/:id/audit — get audit log
  * POST /api/polls/:id/eligibility/request — request ballot credential
@@ -23,9 +25,9 @@ export async function handlePollRoutes(
   env: Env,
   url: URL
 ): Promise<Response | null> {
-  // GET /api/polls — list all polls
+  // GET /api/polls — list polls (default: active only; ?status=all for everything)
   if (url.pathname === '/api/polls' && request.method === 'GET') {
-    return listPolls(env);
+    return listPolls(env, url);
   }
 
   // POST /api/polls
@@ -38,6 +40,9 @@ export async function handlePollRoutes(
   if (pollMatch && request.method === 'GET') {
     return getPoll(env, pollMatch[1]);
   }
+  if (pollMatch && request.method === 'DELETE') {
+    return deletePoll(request, env, pollMatch[1]);
+  }
 
   const openMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/open$/);
   if (openMatch && request.method === 'POST') {
@@ -49,9 +54,9 @@ export async function handlePollRoutes(
     return closePoll(request, env, closeMatch[1]);
   }
 
-  const reopenMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/reopen$/);
-  if (reopenMatch && request.method === 'POST') {
-    return reopenPoll(request, env, reopenMatch[1]);
+  const finalizeMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/finalize$/);
+  if (finalizeMatch && request.method === 'POST') {
+    return finalizePoll(request, env, finalizeMatch[1]);
   }
 
   const tallyMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/tally$/);
@@ -108,13 +113,21 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
   }
 
   const data = parsed.data;
+
+  if (data.mode === 'anon_credential_v2') {
+    return jsonResponse({
+      error: 'anon_credential_v2 mode is not yet implemented. Use trusted_host_v1.',
+    }, 400);
+  }
+
   const pollId = crypto.randomUUID();
   const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();
 
-  // Compute a public verification "key" (in v1, this is just a tag; in v2, it would be a public key)
+  // SHA-256 fingerprint of the HMAC signing key. NOT a public key — nobody can verify sigs with this alone.
+  // In v2, this field will hold the actual RSA public key for external ballot verification.
   const encoder = new TextEncoder();
   const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
-  const publicVerificationKey = Array.from(new Uint8Array(keyHash))
+  const hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
     .map(b => b.toString(16).padStart(2, '0')).join('');
 
   const now = new Date().toISOString();
@@ -133,7 +146,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     mode: data.mode,
     eligibilityMode,
     eligibilitySource,
-    publicVerificationKey,
+    hostKeyFingerprint,
     atprotoRecordUri: null,
     createdAt: now,
   };
@@ -141,13 +154,13 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
   // Insert into D1
   await env.DB.prepare(
     `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
-      status, mode, eligibility_mode, eligibility_source, public_verification_key, created_at)
+      status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     poll.id, poll.hostDid, poll.askerDid, poll.question,
     JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
     poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
-    poll.publicVerificationKey, poll.createdAt
+    poll.hostKeyFingerprint, poll.createdAt
   ).run();
 
   // Populate eligible DIDs based on eligibility mode
@@ -172,10 +185,29 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
   return jsonResponse({ ...poll, eligibleCount }, 201);
 }
 
-async function listPolls(env: Env): Promise<Response> {
-  const result = await env.DB.prepare(
-    'SELECT id, question, status, mode, eligibility_mode, opens_at, closes_at, created_at FROM polls ORDER BY created_at DESC LIMIT 50'
-  ).all();
+async function listPolls(env: Env, url: URL): Promise<Response> {
+  const statusParam = url.searchParams.get('status');
+  const VALID_STATUSES = ['draft', 'open', 'closed', 'finalized'];
+
+  let query: string;
+  let binds: string[] = [];
+
+  if (statusParam === 'all') {
+    query = 'SELECT id, question, status, mode, eligibility_mode, opens_at, closes_at, created_at FROM polls ORDER BY created_at DESC LIMIT 50';
+  } else {
+    // Parse comma-separated statuses, default to active polls
+    const requested = statusParam
+      ? statusParam.split(',').map(s => s.trim()).filter(s => VALID_STATUSES.includes(s))
+      : ['draft', 'open'];
+    if (requested.length === 0) requested.push('draft', 'open');
+    const placeholders = requested.map(() => '?').join(',');
+    query = `SELECT id, question, status, mode, eligibility_mode, opens_at, closes_at, created_at FROM polls WHERE status IN (${placeholders}) ORDER BY created_at DESC LIMIT 50`;
+    binds = requested;
+  }
+
+  const stmt = env.DB.prepare(query);
+  const result = binds.length > 0 ? await stmt.bind(...binds).all() : await stmt.all();
+
   return jsonResponse({
     polls: (result.results || []).map((r: any) => ({ ...r, options: undefined })),
   });
@@ -189,6 +221,27 @@ async function getPoll(env: Env, pollId: string): Promise<Response> {
     ...result,
     options: JSON.parse(result.options as string),
   });
+}
+
+async function deletePoll(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT host_did, status FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+
+  // Delete all associated data
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM ballots WHERE poll_id = ?').bind(pollId),
+    env.DB.prepare('DELETE FROM eligibility WHERE poll_id = ?').bind(pollId),
+    env.DB.prepare('DELETE FROM audit_events WHERE poll_id = ?').bind(pollId),
+    env.DB.prepare('DELETE FROM tally_snapshots WHERE poll_id = ?').bind(pollId),
+    env.DB.prepare('DELETE FROM poll_eligible_dids WHERE poll_id = ?').bind(pollId),
+    env.DB.prepare('DELETE FROM polls WHERE id = ?').bind(pollId),
+  ]);
+
+  return jsonResponse({ deleted: true, pollId });
 }
 
 async function openPoll(request: Request, env: Env, pollId: string): Promise<Response> {
@@ -218,7 +271,7 @@ async function closePoll(request: Request, env: Env, pollId: string): Promise<Re
   return new Response(res.body, { status: res.status, headers: res.headers });
 }
 
-async function reopenPoll(request: Request, env: Env, pollId: string): Promise<Response> {
+async function finalizePoll(request: Request, env: Env, pollId: string): Promise<Response> {
   const session = await getSession(request, env);
   if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
 
@@ -227,7 +280,7 @@ async function reopenPoll(request: Request, env: Env, pollId: string): Promise<R
   if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const doStub = getPollDO(env, pollId);
-  const res = await doStub.fetch(new Request('https://do/reopen', { method: 'POST' }));
+  const res = await doStub.fetch(new Request('https://do/finalize', { method: 'POST' }));
   return new Response(res.body, { status: res.status, headers: res.headers });
 }
 
@@ -277,7 +330,7 @@ async function publishPoll(request: Request, env: Env, pollId: string): Promise<
     opensAt: poll.opens_at as string,
     closesAt: poll.closes_at as string,
     mode: poll.mode as 'trusted_host_v1' | 'anon_credential_v2',
-    publicVerificationKey: poll.public_verification_key as string,
+    hostKeyFingerprint: poll.host_key_fingerprint as string,
     createdAt: poll.created_at as string,
   };
 

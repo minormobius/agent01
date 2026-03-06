@@ -9,10 +9,11 @@ export function HomePage() {
   const navigate = useNavigate();
   const [polls, setPolls] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    listPolls().then(d => setPolls(d.polls || [])).catch(() => {});
-  }, []);
+    listPolls(showAll ? 'all' : undefined).then(d => setPolls(d.polls || [])).catch(() => {});
+  }, [showAll]);
 
   const filtered = search.trim()
     ? polls.filter(p =>
@@ -54,7 +55,13 @@ export function HomePage() {
       </div>
 
       <div className="card">
-        <h3>Polls ({filtered.length})</h3>
+        <div className="flex gap-8" style={{ alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ margin: 0 }}>Polls ({filtered.length})</h3>
+          <label style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
+            Show closed/finalized
+          </label>
+        </div>
         {filtered.length === 0 ? (
           <p className="muted">{search ? 'No matching polls.' : 'No polls yet.'}</p>
         ) : (
