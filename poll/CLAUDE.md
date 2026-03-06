@@ -2,524 +2,289 @@
 
 ## What This Is
 
-An anonymous, sybil-resistant, auditable polling system for Bluesky built on ATProto. Any Bluesky user can create a poll. Any Bluesky user can vote. Votes are anonymous — the system knows WHO voted but not WHAT they voted, and it knows WHAT was voted but not by WHOM. These two halves never meet in persistent storage.
+An anonymous, sybil-resistant, auditable polling system for Bluesky built on ATProto. Any Bluesky user can create a poll. Any eligible Bluesky user can vote. Votes are anonymous — RSA Blind Signatures (RFC 9474) ensure the host cannot link voter identity to ballot choice. Anonymity is cryptographic, not trust-based.
 
-The full protocol design, threat model, and rationale live in `poll/PROTOCOL.md`. Read that first. This file is the implementation guide.
+The protocol design, threat model, and cryptographic rationale live in `poll/PROTOCOL.md`.
 
 ## Core Concept
 
-Two record types on a single sacrificial PDS, separated by design:
+Chaumian blind credentials adapted for ATProto polls:
 
-- **Participation record**: voter's DID + poll reference. No choice. Written immediately at vote time.
-- **Ballot record**: choice + random salt. No voter DID. Published at poll close in shuffled order.
+1. Voter authenticates (proves DID) → host verifies eligibility
+2. Voter blinds a token message → host blind-signs it (never sees the token)
+3. Voter unblinds → now holds a valid RSA-PSS signature the host can verify but never link
+4. Voter submits ballot with credential (no session, no identity) → host verifies signature + nullifier
 
-The website function holds both DID and choice for ~100ms during vote processing, then discards the association. The operator's corruption (logging that ~100ms mapping) is the single trust assumption. Everything else is publicly verifiable.
+The host knows **who** is eligible. The host sees **what** was voted. These two sets never intersect — the blind signature is the cryptographic wall between them.
 
 ## Architecture
 
-### Players
-
-- **OP** — any Bluesky user who creates a poll
-- **Voter** — any Bluesky user who casts a vote
-- **Sacrificial PDS** — a dedicated Bluesky account (`poll.mino.mobi`) that stores poll definitions, participation records, and ballot records. Has no personal identity. Is the ballot box.
-- **Website** (`poll.mino.mobi`) — static pages + Cloudflare Pages Functions. The trust anchor.
-
-### Why a Sacrificial PDS
-
-Early protocol versions placed participation records on the voter's own PDS. Problem: ATProto lets users delete their own records. A voter who deletes their participation record can vote again and corrupts the audit trail. The voter is not a trusted party.
-
-We also considered using the OP's PDS (stashing the OP's auth). Problems: app passwords can't be scoped (gives full account access), the OP has the most incentive to manipulate their own poll, and stashing credentials is a catastrophic liability.
-
-The sacrificial PDS is the right answer. The operator is a neutral party with no stake in any poll's outcome. The data is on ATProto so it's replicated by the relay network and survives even if poll.mino.mobi goes down.
-
-### Data Flow
-
 ```
-POLL CREATION:
-
-  OP (browser) ──▶ POST /api/create-poll ──▶ sacrificial PDS: poll definition record
-                   (OP authenticated)    └──▶ OP's Bluesky: skeet with option links
-                                         └──▶ D1: poll metadata
-
-
-VOTING:
-
-  Voter (browser) ──▶ POST /api/vote ──▶ sacrificial PDS: participation record (DID, no choice)
-                      (voter authenticated) └──▶ D1: pending ballot (choice, no DID)
-                                                      │
-                                                 [at poll close]
-                                                      │
-                                                      ▼
-                                              sacrificial PDS: ballot records
-                                              (all at once, shuffled order)
-
-
-RESULTS:
-
-  Anyone ──▶ GET /api/results/{pollId} ──▶ reads sacrificial PDS
-                                            counts participation records
-                                            counts/tallies ballot records
-                                            verifies counts match
+Cloudflare Pages (React SPA) → Cloudflare Worker (API)
+                                      ├── Durable Objects (per-poll coordinator)
+                                      ├── D1 (persistent storage)
+                                      └── ATProto PDS (public ballot records)
 ```
 
-### Directory Structure
+### Durable Objects
+
+Each poll gets a `PollCoordinator` DO keyed by poll ID. The DO is the **authoritative write path** for all state mutations:
+
+- Eligibility consumption (one credential per DID, atomic)
+- Blind signing (RSA-PSS over blinded message)
+- Ballot acceptance (signature verification + poll binding + nullifier derivation check + nullifier uniqueness)
+- Tally computation
+- Audit event logging (rolling hash chain)
+
+D1 is the durable store. The DO writes to D1 after accepting state changes.
+
+### Service PDS
+
+A dedicated Bluesky account (`poll.mino.mobi`) whose repo is the **canonical public bulletin board**. It holds:
+
+- `com.minomobi.poll.def` — poll definitions
+- `com.minomobi.poll.ballot` — anonymized ballots (published at close, shuffled)
+- `com.minomobi.poll.tally` — final tally snapshots
+
+The service account has no personal identity. It's the ballot box.
+
+## Directory Structure
 
 ```
 poll/
-├── PROTOCOL.md              # Full protocol design, threat model, rationale
+├── PROTOCOL.md              # Protocol design, threat model, cryptographic rationale
 ├── CLAUDE.md                # This file — implementation guide
-├── .well-known/
-│   └── atproto-did          # Bluesky handle verification for poll.mino.mobi
-├── index.html               # Create poll UI
-├── vote.html                # Vote landing page (handles /vote/{pollId}/{option})
-├── results.html             # Results viewer
-└── assets/
-    └── css/
-        └── poll.css         # Styling (match mino.mobi aesthetic)
+├── README.md                # Setup, deployment, API reference
+├── apps/
+│   ├── web/                 # React + Vite frontend (Cloudflare Pages)
+│   │   ├── src/
+│   │   │   ├── pages/       # Home, CreatePoll, Poll, Vote, QuickVote, Audit, Admin
+│   │   │   ├── hooks/       # useAuth (ATProto app-password auth + refresh tokens)
+│   │   │   ├── lib/         # API client
+│   │   │   └── components/  # Layout
+│   │   └── public/
+│   │       └── client-metadata.json  # ATProto OAuth client metadata
+│   └── api/                 # Cloudflare Worker backend
+│       ├── src/
+│       │   ├── index.ts             # Entry point, CORS, routing
+│       │   ├── durable-objects/
+│       │   │   └── poll-coordinator.ts  # Per-poll DO — the core
+│       │   └── routes/
+│       │       ├── polls.ts     # CRUD, eligibility, publishing, share-to-bluesky
+│       │       ├── ballots.ts   # Anonymous ballot submission + public listing
+│       │       └── auth.ts      # App-password verification, sessions, refresh
+│       └── migrations/          # D1 SQL migrations (0001–0004)
+├── packages/
+│   └── shared/              # Shared types, schemas, crypto, ATProto publisher
+│       └── src/
+│           ├── types/       # Domain types (Poll, Ballot, Tally, etc.)
+│           ├── schemas/     # Zod validation (CreatePollSchema, etc.)
+│           ├── crypto/      # Credential lifecycle:
+│           │                #   deriveTokenMessage (structured, poll-bound)
+│           │                #   parseTokenMessage
+│           │                #   deriveNullifier (SHA-256 from tokenMessage)
+│           │                #   blind/sign/finalize/verify (RFC 9474)
+│           │                #   computeBallotCommitment, makeReceipt, audit hash
+│           └── atproto/     # PdsPublisher + MockPublisher
+└── docs/
+    ├── architecture.md      # System architecture summary
+    └── threat-model.md      # Trust boundaries and attack mitigations
 ```
 
-Pages Functions (in repo root, auto-deployed by Cloudflare Pages):
+## Authentication
+
+### App-Password Auth (Current)
+
+Voters and poll creators authenticate via ATProto app passwords:
+
+1. User enters handle + app password
+2. Backend resolves handle → DID → PDS URL
+3. Backend calls `com.atproto.server.createSession` on the user's PDS
+4. If successful, extracts verified DID, **discards the PDS access token**
+5. Creates a local session (cookie + refresh token in D1)
+
+The backend only needs identity verification — it never writes to the user's PDS.
+
+### OAuth (Future)
+
+OAuth callback is stubbed (returns 501). App-password auth is sufficient for v1.
+
+### Posting to Bluesky
+
+The "Post to Bluesky" feature on the admin page asks for the host's app password at share time, authenticates to their PDS, creates a faceted post with option names as clickable links + a "View poll" link, then discards the token. This is ephemeral — no credentials are stored.
+
+## Credential System
+
+### Token Message
 
 ```
-functions/
-├── api/
-│   ├── create-poll.js       # Auth OP → create poll definition on sac PDS + post to OP's feed
-│   ├── vote.js              # Auth voter → write participation record + queue ballot in D1
-│   ├── results/
-│   │   └── [pollId].js      # Tally ballots from sac PDS, verify counts
-│   └── publish.js           # Publish pending ballots at poll close
-└── _middleware.js            # ATProto OAuth session handling
+anonpoll:v1:{pollId}:{expiryISO}:{hmacHex}
 ```
 
-Note: Pages Functions live in the repo root `functions/` directory, NOT in `poll/functions/`. Cloudflare Pages detects `functions/` at the project root. The poll API endpoints coexist with the existing cluster functions (`functions/cluster-batch.js`, `functions/seek-profiles.js`).
+Derived client-side: `deriveTokenMessage(pollId, secret, expiry)`. The HMAC ties it to the voter's random secret. The structured format lets the server parse and enforce poll binding.
 
-## Cloudflare Services Required
+### Nullifier
 
-### D1 (Edge SQLite Database)
-
-**What**: Cloudflare's serverless SQL database. Real SQLite, runs at the edge next to Pages Functions. Free tier: 5M reads/day, 100K writes/day, 5GB storage.
-
-**Why**: Stages pending ballots during the voting window. The ballots sit in D1 (choice + salt, NO voter DID) until the poll closes, then get published to the sacrificial PDS in shuffled order. D1 is not publicly readable — only the Functions can access it.
-
-**Setup**:
-1. Cloudflare dashboard → Workers & Pages → D1 SQL Database → Create database
-2. Name it `poll-db` (or similar)
-3. In the Pages project settings → Functions → D1 database bindings → add binding:
-   - Variable name: `DB`
-   - D1 database: select `poll-db`
-4. Functions access it as `context.env.DB`
-
-**Schema** (run via D1 console or migration):
-
-```sql
-CREATE TABLE polls (
-  id TEXT PRIMARY KEY,           -- random ID (e.g., nanoid)
-  question TEXT NOT NULL,
-  options TEXT NOT NULL,          -- JSON array of strings
-  created_by TEXT NOT NULL,       -- OP's DID
-  post_uri TEXT,                  -- at:// URI of OP's Bluesky post
-  poll_record_uri TEXT,           -- at:// URI on sacrificial PDS
-  closes_at TEXT NOT NULL,        -- ISO 8601 datetime
-  results_posted INTEGER DEFAULT 0
-);
-
-CREATE TABLE pending_ballots (
-  id TEXT PRIMARY KEY,           -- random ID
-  poll_id TEXT NOT NULL,
-  choice INTEGER NOT NULL,       -- index into options array
-  salt TEXT NOT NULL,             -- random string, prevents content dedup
-  queued_at TEXT NOT NULL,        -- ISO 8601
-  published INTEGER DEFAULT 0
-);
--- NO voter DID column in pending_ballots. This is by design.
--- The separation of identity from choice is the core privacy guarantee.
-
-CREATE INDEX idx_pending_poll ON pending_ballots(poll_id, published);
-CREATE INDEX idx_polls_closes ON polls(closes_at, results_posted);
+```
+nullifier = SHA-256("nullifier\0" + tokenMessage)
 ```
 
-### Environment Secrets
+Derived from the token message by both client and server. The server recomputes and enforces the match — prevents arbitrary nullifier injection.
 
-Add these in Cloudflare Pages → Settings → Environment variables (encrypt):
+### Blind Signature Flow
 
-- `POLL_HANDLE` — the sacrificial account's handle (`poll.mino.mobi`)
-- `POLL_APP_PASSWORD` — app password for the sacrificial account
-- `POLL_OAUTH_CLIENT_SECRET` — OAuth client secret (if using confidential client)
-- `POLL_ENCRYPTION_KEY` — for encrypting any session tokens (generate a random 256-bit key)
+1. Client: `secret = randomHex(32)`
+2. Client: `tokenMessage = deriveTokenMessage(pollId, secret, expiry)`
+3. Client: `{blindedMsg, inv} = blind(tokenMessage, hostPublicKey)`
+4. Client → Server: `POST /eligibility/request` with `{blindedMessage}` + session auth
+5. Server: verify DID eligible, consume DID atomically, `blindSig = blindSign(blindedMsg, privateKey)`
+6. Server → Client: `{blindedSignature}`
+7. Client: `issuerSignature = finalize(tokenMessage, blindedSig, inv, publicKey)`
+8. Client: `nullifier = deriveNullifier(tokenMessage)`
+9. Client → Server: `POST /ballots/submit` with `{tokenMessage, issuerSignature, nullifier, choice}` — **no session**
+10. Server: parse tokenMessage → enforce pollId. Verify RSA-PSS signature. Recompute nullifier → enforce match. Check nullifier uniqueness. Accept.
 
-## Deployment & Operations
+### Server-Side Verification (handleBallot)
 
-### How Deployment Works
-
-The poll app deploys via **Cloudflare Pages** (auto-deploy from git) + **GitHub Actions** (for D1 migrations and wrangler deploy).
-
-- **Code + static assets**: Cloudflare Pages watches the branch and auto-deploys on push. The `wrangler.jsonc` at `poll/` root configures the Worker, D1 binding, and DO binding.
-- **D1 schema changes**: NOT auto-applied. Migrations in `poll/apps/api/migrations/` must be run explicitly via GitHub Actions or the Cloudflare D1 console.
-
-### GitHub Secrets Required
-
-These are set in the GitHub repo settings → Secrets and variables → Actions:
-
-- `CLOUDFLARE_API_TOKEN` — Cloudflare API token with Workers + D1 permissions
-- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID
-
-### Running D1 Migrations
-
-**Option A — GitHub Actions (preferred):**
-
-Trigger the `d1-migrate.yml` workflow manually:
-1. GitHub repo → Actions → "Run D1 Migrations" → Run workflow
-2. Leave `migration_file` blank to run all migrations, or enter a specific filename (e.g., `0002_eligibility_mode.sql`)
-
-The workflow runs each `.sql` file in `poll/apps/api/migrations/` in alphabetical order against the remote D1 database.
-
-**Option B — Cloudflare Dashboard:**
-
-1. Cloudflare dashboard → D1 → `anon-polls-db` → Console
-2. Paste the SQL from the migration file and execute
-
-**Option C — wrangler CLI (local):**
-
-```bash
-cd poll
-npx wrangler d1 execute anon-polls-db --file=apps/api/migrations/0002_eligibility_mode.sql --remote
+```
+1. parseTokenMessage(tokenMessage) → {pollId, expiry, hmac}
+2. Reject if pollId !== state.poll.id
+3. verifyRSACredential(tokenMessage, issuerSignature, publicKey)
+4. expectedNullifier = deriveNullifier(tokenMessage)
+5. Reject if nullifier !== expectedNullifier
+6. Reject if nullifier already in spent set
+7. Accept ballot, add nullifier to spent set
 ```
 
-### Full Deploy Workflow
+## Eligibility Modes
 
-The `deploy-poll.yml` workflow triggers on push to `main` or `claude/bluesky-anonymous-polls-*` branches (paths: `poll/**`), or manually via workflow_dispatch. It:
-1. Installs dependencies
-2. Builds shared package + frontend
-3. Runs ALL D1 migrations (idempotent — uses `CREATE TABLE IF NOT EXISTS` and `ALTER TABLE ADD COLUMN` which are safe to re-run)
-4. Deploys the Worker + static assets via `wrangler deploy`
+Polls support multiple eligibility restrictions:
 
-### Migration File Conventions
+| Mode | Description |
+|------|-------------|
+| `open` | Any Bluesky user |
+| `followers` | Host's followers (snapshot at creation, re-syncable in draft) |
+| `mutuals` | Host's mutuals (snapshot at creation, re-syncable in draft) |
+| `at_list` | Members of an ATProto list (snapshot at creation) |
+| `did_list` | Explicit DID whitelist (set at creation) |
 
-- Filenames: `NNNN_description.sql` (e.g., `0001_init.sql`, `0002_eligibility_mode.sql`)
-- Use `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` for idempotency
-- `ALTER TABLE ADD COLUMN` is idempotent in SQLite (errors silently if column exists) — the workflow ignores these errors
-- New migrations go in `poll/apps/api/migrations/`
-- After adding a migration, trigger the workflow or run it manually before deploying code that depends on the new schema
+Eligible DIDs are stored in `poll_eligible_dids` table. The DO checks this table during eligibility requests.
 
-These are accessible in Functions as `context.env.POLL_HANDLE`, etc.
+## Poll Lifecycle
 
-### Scheduled Worker (Cron Trigger)
-
-**What**: A Cloudflare Worker that runs on a schedule. Free tier supports cron triggers at 1-minute minimum intervals.
-
-**Why**: Publishes pending ballots after polls close. The cron worker checks D1 for polls past their `closes_at` that haven't been published yet, reads their pending ballots, shuffles them, and publishes them all to the sacrificial PDS at once.
-
-**Important**: Cron triggers require a separate Workers deployment — Pages Functions don't support cron. You'll need a small Worker (`workers/poll-publish/`) with a `[triggers]` section in `wrangler.toml`:
-
-```toml
-name = "poll-publish"
-main = "src/index.js"
-compatibility_date = "2024-01-01"
-
-[triggers]
-crons = ["* * * * *"]  # every minute
-
-[[d1_databases]]
-binding = "DB"
-database_name = "poll-db"
-database_id = "<your-d1-database-id>"
+```
+draft → open → closed → finalized
 ```
 
-Alternatively, the publish step can be triggered manually via `POST /api/publish` or called by the results page when a closed poll's ballots haven't been published yet.
+- **draft**: Configure poll, sync eligible DIDs, no voting
+- **open**: Voters can request credentials and submit ballots
+- **closed**: No new ballots accepted. Host can publish ballots to PDS.
+- **finalized**: Irreversible. Tally is final.
 
-## Sacrificial Bluesky Account Setup
+## Public Bulletin Board
 
-Same pattern as Modulo and Morphyx:
+**PDS is canonical.** The service PDS publishes full `(tokenMessage, issuerSignature, nullifier, choice)` for every ballot. Anyone can fetch these records and independently verify every signature.
 
-1. **Create account**: Sign up for a new Bluesky account (e.g., `poll-minomobi.bsky.social`)
-2. **Note the DID**: After creation, find the DID (starts with `did:plc:`)
-3. **Create verification file**: Add `poll/.well-known/atproto-did` to the repo containing just the DID string
-4. **DNS**: In Cloudflare DNS, add CNAME record: `poll` → your Pages deployment URL (e.g., `minomobi-com.pages.dev`)
-5. **Custom domain**: In Cloudflare Pages → Custom domains, add `poll.mino.mobi`
-6. **Change handle**: In Bluesky settings, change handle to custom domain → enter `poll.mino.mobi` → it verifies via the `/.well-known/atproto-did` file
-7. **App password**: Generate an app password in Bluesky settings → App Passwords
-8. **Store secret**: Add as Cloudflare Pages environment secret `POLL_APP_PASSWORD`
+**DO endpoint is privacy-minimal.** The `GET /ballots` API returns `ballot_commitment` (SHA-256 of tokenMessage + choice + nullifier) instead of raw credential fields. Voters can verify their own ballot by opening the commitment with their secret.
 
-The account's profile should clearly state its purpose: "Anonymous ballot box for poll.mino.mobi. This account holds poll definitions and ballot records. It does not represent a person."
+## Bluesky Integration
 
-## ATProto OAuth
+### QuickVote
 
-Voters and OPs authenticate via ATProto OAuth to prove they control a DID. The poll app needs:
+Polls are shared on Bluesky as posts with link facets. Each option name is a clickable link pointing to `/v/{pollId}?c={optionIndex}`. Clicking an option from the Bluesky app opens the QuickVote page, which:
 
-- **Identity verification** (who is this user?) — required for both voting and poll creation
-- **Write access to OP's feed** — required only for poll creation (to post the poll as a skeet)
-- **No write access to voter's PDS** — voters don't need to grant any write permissions
+1. Authenticates the voter (or uses existing session)
+2. Requests a credential
+3. Submits the ballot
+4. Shows confirmation
 
-### OAuth Client Registration
+All in one flow — no manual "request credential" or "select option" steps.
 
-ATProto OAuth requires a client metadata document served at a well-known URL. The client metadata declares what scopes the app requests and where callbacks go.
+### Post to Bluesky
 
-Serve `poll/.well-known/oauth-client-metadata.json` (or configure at the OAuth provider level). Key fields:
-- `client_id`: `https://poll.mino.mobi`
-- `redirect_uris`: `["https://poll.mino.mobi/oauth/callback"]`
-- `scope`: `atproto` (or more specific scopes when available)
-- `grant_types`: `["authorization_code"]`
-- `token_endpoint_auth_method`: `none` (public client) or `client_secret_post` (confidential)
+The admin page has a "Post to Bluesky" feature that creates a properly faceted post:
 
-### OAuth Flow
+```
+Which diagnostic platform will dominate POC by 2030?
 
-1. User clicks "sign in" → redirect to their PDS authorization endpoint
-2. User authorizes the poll app
-3. PDS redirects back to `poll.mino.mobi/oauth/callback` with auth code
-4. Pages Function exchanges code for access token
-5. Function uses token to get user's DID
-6. Session established (store in encrypted cookie or short-lived KV entry)
+Cepheid GeneXpert · BioFire FilmArray · Abbott ID NOW · Other
 
-### Important OAuth Considerations
-
-- ATProto OAuth is still evolving. Check the latest spec at `atproto.com/specs/oauth` before implementing.
-- For poll creation, the app needs write access to create a post on the OP's account. This is a broader scope than voting (which needs only identity verification).
-- Consider two OAuth flows: a lightweight "verify identity" for voting and a "post on my behalf" for poll creation. Or use a single flow with the broader scope.
-- The `_middleware.js` should handle session validation on every API request, extracting the authenticated DID from the session cookie.
-
-## Lexicons
-
-Three record types, all living on the sacrificial PDS.
-
-### com.minomobi.poll.definition
-
-Created when a poll is submitted. One per poll.
-
-```json
-{
-  "$type": "com.minomobi.poll.definition",
-  "question": "Which diagnostic platform will dominate POC by 2030?",
-  "options": ["Cepheid GeneXpert", "BioFire FilmArray", "Abbott ID NOW", "Other"],
-  "createdBy": "did:plc:abc123...",
-  "postUri": "at://did:plc:abc123.../app.bsky.feed.post/xyz",
-  "closesAt": "2026-03-08T00:00:00Z"
-}
+View poll · Anonymous & verifiable · 24h left
 ```
 
-### com.minomobi.poll.participation
+Each option name and "View poll" are link facets (blue clickable text on Bluesky).
 
-Written at vote time. One per voter per poll. Carries the voter's DID but NOT their choice.
+## D1 Schema
 
-```json
-{
-  "$type": "com.minomobi.poll.participation",
-  "poll": "at://did:plc:pollaccount/com.minomobi.poll.definition/abc123",
-  "voter": "did:plc:voterxyz...",
-  "votedAt": "2026-03-02T14:30:00Z"
-}
-```
+Key tables (see `apps/api/migrations/` for full schema):
 
-### com.minomobi.poll.ballot
+- **polls**: id, host_did, question, options (JSON), status, mode, eligibility_mode, host_key_fingerprint, host_public_key, opens_at, closes_at
+- **eligibility**: poll_id, responder_did, eligibility_status, consumed_at — tracks credential consumption
+- **ballots**: ballot_id, poll_id, nullifier (UNIQUE), choice, token_message, issuer_signature, accepted, rolling_audit_hash, published_record_uri
+- **poll_eligible_dids**: poll_id, did — whitelist for restricted polls
+- **tally_snapshots**: poll_id, counts_by_option (JSON), ballot_count, final
+- **audit_events**: poll_id, event_type, event_payload, rolling_hash — tamper-evident log
+- **sessions**: session_id, did, handle, expires_at — auth sessions + refresh tokens
 
-Published at poll close. One per vote. Carries the choice but NOT the voter's DID.
+No table stores voter DID alongside choice. The `eligibility` table records that a DID consumed a credential. The `ballots` table records anonymous ballots. These are deliberately separate.
 
-```json
-{
-  "$type": "com.minomobi.poll.ballot",
-  "poll": "at://did:plc:pollaccount/com.minomobi.poll.definition/abc123",
-  "choice": 2,
-  "salt": "a7f3b9c2e1d4..."
-}
-```
+## Deployment
 
-The salt is a random string generated at vote time. It prevents deduplication by content — without it, two votes for option 2 would have identical record content, and ATProto repo internals might deduplicate them.
+See `README.md` for full deployment instructions. Key points:
 
-## User Flows
+- **Frontend**: Cloudflare Pages (React + Vite build)
+- **Backend**: Cloudflare Worker with DO + D1 bindings
+- **Migrations**: Run via GitHub Actions (`d1-migrate.yml`) or wrangler CLI
+- **Deploy**: GitHub Actions (`deploy-poll.yml`) triggers on push to main or `claude/bluesky-anonymous-polls-*` branches
+- **Secrets**: RSA_PRIVATE_KEY_JWK, RSA_PUBLIC_KEY_JWK, ATPROTO_SERVICE_* credentials
 
-### Creating a Poll
+### Service Account Setup
 
-1. OP visits `poll.mino.mobi`
-2. Signs in via ATProto OAuth (needs write scope for posting)
-3. Types question (≤300 chars) and 2–6 options
-4. Sets poll duration (e.g., 1 day, 3 days, 7 days)
-5. Clicks "post poll"
-6. Backend:
-   a. Creates poll definition record on sacrificial PDS
-   b. Creates a Bluesky post on OP's account with the question text and N facet links:
-      - Each option is a clickable link: `[Option text](https://poll.mino.mobi/vote/{pollId}/{optionIdx})`
-      - The post text reads like: "Poll: Which diagnostic platform will dominate POC by 2030?\n\nCepheid GeneXpert | BioFire FilmArray | Abbott ID NOW | Other"
-      - Each option name is a link facet pointing to the vote URL
-   c. Stores poll metadata in D1
-7. OP sees confirmation with link to their post
-
-### Voting
-
-1. Voter sees OP's poll post on Bluesky
-2. Clicks the link for their chosen option (e.g., "BioFire FilmArray")
-3. Lands on `poll.mino.mobi/vote/{pollId}/{optionIdx}`
-4. Page shows the poll question, highlights which option they're voting for
-5. If not signed in → "sign in to vote" button (OAuth, identity-only scope)
-6. If already voted → "you already voted" message + current participation count
-7. If eligible → "confirm vote" button
-8. On confirm:
-   a. Function checks for existing participation record on sacrificial PDS
-   b. If none: writes participation record (DID, no choice) to sacrificial PDS
-   c. Queues ballot (choice, salt, no DID) in D1
-   d. Returns success
-9. Voter sees confirmation: "vote recorded. Results at poll close."
-
-### Viewing Results
-
-1. Anyone visits `poll.mino.mobi/results/{pollId}` (or clicks "results" link)
-2. Page reads poll definition from sacrificial PDS
-3. Before close: shows participation count only ("47 votes cast, closes in 2d 4h")
-4. After close: shows full tally + bar chart + participation count
-5. Verification section: "N participation records, N ballots — counts match ✓"
-
-### Results Reply
-
-After poll close and ballot publication:
-1. The cron worker (or publish function) posts a reply from the sacrificial account to the OP's original post
-2. Reply contains the tally: "Results: Cepheid GeneXpert 42% | BioFire FilmArray 31% | Abbott ID NOW 19% | Other 8% — 47 votes"
-3. This makes results visible in the Bluesky thread without visiting the website
+1. Create Bluesky account for the poll service
+2. Set up custom domain handle via `/.well-known/atproto-did`
+3. Generate app password → set as Worker secret
+4. Set `ATPROTO_MOCK_MODE=false` in production
 
 ## API Endpoints
 
-### POST /api/create-poll
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/auth/atproto/start | - | Authenticate with handle + app password |
+| POST | /api/auth/refresh | refresh token | Refresh session |
+| POST | /api/auth/logout | session | Destroy session |
+| GET | /api/me | session | Current user |
+| POST | /api/polls | session | Create poll |
+| GET | /api/polls | - | List polls |
+| GET | /api/polls/:id | - | Get poll |
+| POST | /api/polls/:id/open | session (host) | Open poll |
+| POST | /api/polls/:id/close | session (host) | Close poll |
+| POST | /api/polls/:id/finalize | session (host) | Finalize poll (irreversible) |
+| DELETE | /api/polls/:id | session (host) | Delete poll |
+| POST | /api/polls/:id/eligibility/request | session | Request blind-signed credential |
+| POST | /api/polls/:id/ballots/submit | **credential** | Submit anonymous ballot |
+| GET | /api/polls/:id/ballots | - | List public ballots (commitment view) |
+| GET | /api/polls/:id/tally | - | Get tally |
+| GET | /api/polls/:id/audit | - | Audit transcript |
+| POST | /api/polls/:id/publish | session (host) | Publish poll def to ATProto |
+| POST | /api/polls/:id/tally/publish | session (host) | Publish tally to ATProto |
+| POST | /api/polls/:id/ballots/publish | session (host) | Publish ballots to ATProto (shuffled) |
+| POST | /api/polls/:id/post-to-bluesky | session (host) | Post poll to Bluesky with faceted links |
+| POST | /api/polls/:id/eligible/sync | session (host) | Re-sync eligible DIDs from Bluesky |
+| GET | /api/polls/:id/eligible | - | Get eligible DID count |
 
-**Auth**: OAuth session (needs write scope)
+Note: `/ballots/submit` uses credential-based auth (tokenMessage + signature + nullifier), not session-based. This is the anonymity boundary.
 
-**Body**:
-```json
-{
-  "question": "string (max 300 chars)",
-  "options": ["string", ...],
-  "duration": "1d" | "3d" | "7d"
-}
-```
+## Working With This Repo
 
-**Steps**:
-1. Validate session → get OP's DID
-2. Validate question length, option count (2–6)
-3. Generate poll ID
-4. Compute `closesAt` from duration
-5. Create `com.minomobi.poll.definition` on sacrificial PDS
-6. Create Bluesky post on OP's account with option links
-7. Store poll in D1
-8. Return `{ pollId, postUri }`
-
-### POST /api/vote
-
-**Auth**: OAuth session (identity-only scope)
-
-**Body**:
-```json
-{
-  "pollId": "string",
-  "choice": 0
-}
-```
-
-**Steps**:
-1. Validate session → get voter's DID
-2. Look up poll in D1 → verify not closed
-3. Check sacrificial PDS for existing participation record for this DID + poll
-4. If exists → return `{ error: "already voted" }`
-5. Write participation record to sacrificial PDS: `{ poll, voter: DID, votedAt }`
-6. Generate random salt
-7. Insert into D1 `pending_ballots`: `{ poll_id, choice, salt }` — **NO DID**
-8. Return `{ success: true }`
-
-**Critical**: Between steps 1 and 7, the function holds both the DID and the choice in memory. After step 7 completes, the DID is not stored anywhere in association with the choice. This is the ~100ms privacy window.
-
-### GET /api/results/[pollId]
-
-**Auth**: None (public)
-
-**Steps**:
-1. Look up poll in D1
-2. Count participation records on sacrificial PDS for this poll
-3. If poll still open → return `{ participationCount, closesAt, status: "open" }`
-4. If poll closed → tally ballot records on sacrificial PDS
-5. Return `{ question, options, tally: [count, ...], participationCount, ballotCount, status: "closed" }`
-
-### POST /api/publish
-
-**Auth**: Cron trigger or admin key
-
-**Steps**:
-1. Query D1 for polls past `closes_at` with `results_posted = 0`
-2. For each poll:
-   a. Read all `pending_ballots` for this poll from D1
-   b. Shuffle the ballot array (Fisher-Yates)
-   c. Write each ballot as a `com.minomobi.poll.ballot` record to sacrificial PDS
-   d. Post results reply to OP's original post from sacrificial account
-   e. Mark poll as `results_posted = 1` in D1
-   f. Delete pending ballots from D1
+When Claude is asked to modify the poll system:
+1. The monorepo root is `poll/`. Run `npm install` there.
+2. Shared code goes in `packages/shared/` — types, schemas, crypto, ATProto publisher.
+3. Build shared first: `npm run build:shared`
+4. Tests: `npm test` (vitest, runs shared crypto tests)
+5. Type check: `npx tsc -p apps/web/tsconfig.json --noEmit` and `npx tsc -p apps/api/tsconfig.json --noEmit`
+6. Local dev: `npm run dev:api` + `npm run dev:web` in two terminals
+7. Mock mode (`ATPROTO_MOCK_MODE=true`) skips real ATProto calls
 
 ## Styling
 
-Match the mino.mobi aesthetic: monospace headers, serif body, dark red accent (`--link: #8b0000`), cream/dark mode responsive. Reference `cluster/index.html` for the CSS variable system and component patterns.
-
-The poll pages should feel like part of the same site — same `<h1>` breadcrumb pattern (`mino.mobi / poll`), same progress bars, same form styling.
-
-## Security Considerations
-
-### Sacrificial PDS Credentials
-- App password in Cloudflare environment secrets ONLY
-- Never in client-side JavaScript, never in HTML, never in the repo
-- Functions are the sole code that authenticates to the sacrificial account
-
-### The ~100ms Window
-- The vote handler function holds DID + choice simultaneously for the duration of the request (~100ms)
-- After writing participation (DID, no choice) and queuing ballot (choice, no DID), the association is garbage collected
-- The operator could add logging to capture this — that's the trust assumption
-- Code is open source and auditable
-
-### D1 Privacy
-- `pending_ballots` table has NO voter DID column
-- Even direct D1 access (by the operator) reveals only aggregate vote counts per option, not who voted for what
-- After ballot publication, pending ballots are deleted from D1
-
-### Request Logging
-- Cloudflare Workers/Pages Functions do not log request bodies by default
-- The operator should NOT enable request body logging on the vote endpoint
-- This is the same trust assumption every HTTPS service makes
-
-### Record Deletion Attack
-- Voters cannot delete participation records (records are on sacrificial PDS, not voter's PDS)
-- The operator can delete records but has no incentive (would break their own polls)
-- ATProto repo history makes deletion detectable by anyone running a relay
-
-## Verification
-
-Any third party can audit a poll:
-
-1. Query sacrificial PDS for `com.minomobi.poll.participation` records matching the poll URI → count unique voter DIDs
-2. Query sacrificial PDS for `com.minomobi.poll.ballot` records matching the poll URI → count ballots and tally choices
-3. Verify: participation count == ballot count
-4. Verify: no DID appears twice in participation records
-
-If counts don't match:
-- More ballots than participation records → ballot stuffing
-- More participation records than ballots → vote suppression (ballots not published)
-
-## Implementation Order
-
-Suggested build sequence:
-
-1. **Sacrificial account setup** — create Bluesky account, domain verification, app password
-2. **D1 database** — create database, run schema migration
-3. **OAuth scaffolding** — `_middleware.js`, client metadata, callback handler, session management
-4. **POST /api/vote** — the core: participation record + ballot queue. Test this thoroughly.
-5. **POST /api/create-poll** — poll definition on sac PDS + post to OP's feed
-6. **GET /api/results/[pollId]** — tally from sac PDS records
-7. **vote.html** — vote landing page (shows poll, auth, confirm button)
-8. **results.html** — results viewer (bar chart, verification section)
-9. **index.html** — poll creation form
-10. **Publish mechanism** — cron worker or manual trigger for batch ballot publication
-11. **Results reply** — post tally as reply to OP's original post
-
-## Dependencies and Prior Art
-
-- **ATProto OAuth**: Check `atproto.com/specs/oauth` for the latest spec. This is the most complex part. Consider using `@atproto/oauth-client-node` if available, or implement the PKCE flow manually.
-- **Bluesky API**: `public.api.bsky.app` for reads, authenticated PDS endpoints for writes. Same patterns used in `src/post_thread.py` and `functions/cluster-batch.js`.
-- **D1**: Cloudflare's documentation at `developers.cloudflare.com/d1/`. Query with `context.env.DB.prepare(sql).bind(...).run()`.
-- **Existing patterns**: The Pages Functions in `functions/cluster-batch.js` and `functions/seek-profiles.js` show the request/response patterns, CORS headers, and error handling conventions used in this project.
-
-## What's NOT in Scope
-
-- **Cryptographic voting** (homomorphic encryption, blind signatures, zero-knowledge proofs) — these would eliminate the trust assumption but are dramatically more complex. The current protocol is a practical system, not an academic exercise.
-- **Multi-sacrificial-PDS** (federation of ballot boxes) — theoretically better for decentralization, but adds coordination complexity for marginal trust improvement. The operator is already neutral.
-- **Voter-PDS participation records** — ruled out because voters can delete their own records. See PROTOCOL.md for full rationale.
-- **Stashing OP credentials** — ruled out because app passwords can't be scoped, creating catastrophic liability. See PROTOCOL.md for full rationale.
+The frontend is a React SPA. Styling is in `apps/web/public/` CSS files. Match the mino.mobi aesthetic: monospace headers, clean cards, dark red accent, cream/dark mode responsive.
