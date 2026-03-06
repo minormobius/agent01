@@ -3,6 +3,7 @@ import {
   generateSecret,
   deriveTokenMessage,
   deriveNullifier,
+  parseTokenMessage,
   makeReceipt,
   computeAuditHash,
   recomputeTally,
@@ -18,12 +19,32 @@ describe('credential crypto', () => {
     expect(s).toMatch(/^[0-9a-f]+$/);
   });
 
-  it('deriveTokenMessage is deterministic', async () => {
+  it('deriveTokenMessage returns structured format with pollId', async () => {
     const secret = 'a'.repeat(64);
     const m1 = await deriveTokenMessage(pollId, secret, expiry);
     const m2 = await deriveTokenMessage(pollId, secret, expiry);
-    expect(m1).toBe(m2);
-    expect(m1).toHaveLength(64);
+    expect(m1).toBe(m2); // deterministic
+
+    // Structured format: anonpoll:v1:{pollId}:{expiry}:{hmac64}
+    expect(m1).toMatch(/^anonpoll:v1:/);
+    expect(m1).toContain(pollId);
+    expect(m1).toContain(expiry);
+  });
+
+  it('parseTokenMessage extracts fields correctly', async () => {
+    const secret = 'a'.repeat(64);
+    const token = await deriveTokenMessage(pollId, secret, expiry);
+    const parsed = parseTokenMessage(token);
+    expect(parsed.version).toBe(1);
+    expect(parsed.pollId).toBe(pollId);
+    expect(parsed.expiry).toBe(expiry);
+    expect(parsed.hmac).toHaveLength(64);
+    expect(parsed.hmac).toMatch(/^[0-9a-f]+$/);
+  });
+
+  it('parseTokenMessage rejects malformed input', () => {
+    expect(() => parseTokenMessage('garbage')).toThrow('Invalid token message format');
+    expect(() => parseTokenMessage('anonpoll:vX:poll:exp:badhex')).toThrow();
   });
 
   it('different secrets produce different token messages', async () => {
@@ -32,14 +53,17 @@ describe('credential crypto', () => {
     expect(m1).not.toBe(m2);
   });
 
-  it('deriveNullifier is deterministic and poll-scoped', async () => {
+  it('deriveNullifier is deterministic and bound to tokenMessage', async () => {
     const secret = 'c'.repeat(64);
-    const n1 = await deriveNullifier(secret, pollId);
-    const n2 = await deriveNullifier(secret, pollId);
+    const token = await deriveTokenMessage(pollId, secret, expiry);
+    const n1 = await deriveNullifier(token);
+    const n2 = await deriveNullifier(token);
     expect(n1).toBe(n2);
+    expect(n1).toHaveLength(64);
 
-    // Different poll => different nullifier
-    const n3 = await deriveNullifier(secret, 'other-poll-id');
+    // Different tokenMessage => different nullifier
+    const token2 = await deriveTokenMessage('other-poll-id', secret, expiry);
+    const n3 = await deriveNullifier(token2);
     expect(n1).not.toBe(n3);
   });
 
@@ -92,4 +116,3 @@ describe('recomputeTally', () => {
     expect(result).toEqual({ '0': 1, '1': 0 });
   });
 });
-

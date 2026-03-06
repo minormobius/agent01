@@ -75,10 +75,13 @@ export function generateSecret(): string {
 }
 
 /**
- * Derive a token message using HMAC-SHA256 with proper domain separation.
+ * Derive a structured, poll-bound token message.
  *
- * SECURITY: Uses HMAC-SHA256(key=secret, message="token_v{version}\x00{pollId}\x00{expiry}")
- * to prevent input boundary confusion and length extension attacks.
+ * Returns: "anonpoll:v1:{pollId}:{expiry}:{hmacHex}"
+ *
+ * The structured format allows the server to parse and enforce poll binding
+ * at ballot submission time, preventing cross-poll credential replay.
+ * The HMAC component ensures the token is tied to the voter's secret.
  */
 export async function deriveTokenMessage(
   pollId: string,
@@ -94,32 +97,58 @@ export async function deriveTokenMessage(
   );
   const data = encoder.encode(`token_v${BALLOT_VERSION}\x00${pollId}\x00${expiry}`);
   const sig = await globalThis.crypto.subtle.sign('HMAC', key, data);
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hmacHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `anonpoll:v${BALLOT_VERSION}:${pollId}:${expiry}:${hmacHex}`;
 }
 
 /**
- * Derive a nullifier using HMAC-SHA256 with proper domain separation.
+ * Parse a structured token message and extract its fields.
+ * Throws if the format is invalid.
+ */
+export function parseTokenMessage(tokenMessage: string): {
+  version: number;
+  pollId: string;
+  expiry: string;
+  hmac: string;
+} {
+  const parts = tokenMessage.split(':');
+  if (parts.length < 5 || parts[0] !== 'anonpoll') {
+    throw new Error('Invalid token message format');
+  }
+  const version = parseInt(parts[1].replace('v', ''), 10);
+  if (isNaN(version)) {
+    throw new Error('Invalid token message version');
+  }
+  // Expiry may contain colons (ISO 8601), so rejoin from part 3 to second-to-last
+  // Format: anonpoll:v1:{pollId}:{expiry}:{hmac64}
+  // HMAC is always 64 hex chars at the end
+  const hmac = parts[parts.length - 1];
+  if (hmac.length !== 64 || !/^[0-9a-f]+$/.test(hmac)) {
+    throw new Error('Invalid token message HMAC');
+  }
+  const pollId = parts[2];
+  // Expiry is everything between pollId and hmac
+  const expiry = parts.slice(3, parts.length - 1).join(':');
+  return { version, pollId, expiry, hmac };
+}
+
+/**
+ * Derive a nullifier deterministically from a token message.
  *
- * SECURITY: Uses HMAC-SHA256(key=secret, message="nullifier\x00" + pollId) instead of
- * plain SHA-256 concatenation. This prevents:
- * - Input boundary confusion (e.g., secret="a||b" vs secret="a", pollId="b||...")
- * - Preimage attacks against the nullifier format
- * - Length extension attacks (SHA-256 is vulnerable, HMAC is not)
+ * nullifier = SHA-256("nullifier\0" + tokenMessage)
+ *
+ * SECURITY: The nullifier is now cryptographically bound to the signed token.
+ * The server can independently recompute it from the submitted tokenMessage,
+ * preventing an attacker from choosing arbitrary nullifiers for the same credential.
+ * One credential = one deterministic nullifier = one vote.
+ *
+ * Both client and server call this function — the client to derive it before
+ * submission, the server to verify it matches.
  */
 export async function deriveNullifier(
-  secret: string,
-  pollId: string
+  tokenMessage: string
 ): Promise<string> {
-  const key = await globalThis.crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const data = encoder.encode(`nullifier\x00${pollId}`);
-  const sig = await globalThis.crypto.subtle.sign('HMAC', key, data);
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return sha256(`nullifier\x00${tokenMessage}`);
 }
 
 export async function makeReceipt(

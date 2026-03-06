@@ -93,11 +93,8 @@ export function VotePage() {
       inv,
       publicKey
     );
-    // 7. Derive nullifier locally
-    const nullifier = await deriveNullifier(secret, id);
-    // SECURITY: Do NOT persist secret — only keep fields needed for ballot submission.
-    // This limits XSS exposure to tokenMessage + signature + nullifier (not the secret
-    // that could be used to re-derive nullifiers for cross-poll linkability).
+    // 7. Derive nullifier from tokenMessage (deterministic, server-verifiable)
+    const nullifier = await deriveNullifier(tokenMessage);
     return { tokenMessage, issuerSignature, nullifier } as Credential;
   };
 

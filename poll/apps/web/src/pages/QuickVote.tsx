@@ -121,7 +121,7 @@ export function QuickVotePage() {
         inv,
         publicKey
       );
-      const nullifier = await deriveNullifier(secret, pollId);
+      const nullifier = await deriveNullifier(tokenMessage);
 
       // Phase 2: Submit ballot
       setPhase('submitting_ballot');

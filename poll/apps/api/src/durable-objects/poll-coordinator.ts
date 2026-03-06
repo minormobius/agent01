@@ -15,6 +15,8 @@ import {
   verifyRSACredential,
   importRSAPrivateKey,
   importRSAPublicKey,
+  parseTokenMessage,
+  deriveNullifier,
 } from '@anon-polls/shared';
 
 import type {
@@ -328,6 +330,19 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid choice' }, 400);
     }
 
+    // SHIP BLOCKER 1: Verify tokenMessage is bound to this poll.
+    // The structured token format includes the pollId in cleartext,
+    // preventing cross-poll credential replay.
+    let parsedToken;
+    try {
+      parsedToken = parseTokenMessage(submission.tokenMessage);
+    } catch {
+      return jsonResponse({ accepted: false, rejectionReason: 'Malformed token message' }, 400);
+    }
+    if (parsedToken.pollId !== state.poll.id) {
+      return jsonResponse({ accepted: false, rejectionReason: 'Token not issued for this poll' }, 403);
+    }
+
     // Verify RSA-PSS credential signature
     const publicKey = await this.getRSAPublicKey();
     const sigValid = await verifyRSACredential(
@@ -338,6 +353,14 @@ export class PollCoordinator implements DurableObject {
     );
     if (!sigValid) {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid credential signature' }, 403);
+    }
+
+    // SHIP BLOCKER 2: Verify nullifier is cryptographically bound to tokenMessage.
+    // The server recomputes the expected nullifier from the submitted tokenMessage.
+    // This prevents an attacker from choosing arbitrary nullifiers for the same credential.
+    const expectedNullifier = await deriveNullifier(submission.tokenMessage);
+    if (submission.nullifier !== expectedNullifier) {
+      return jsonResponse({ accepted: false, rejectionReason: 'Invalid nullifier — must be derived from token' }, 403);
     }
 
     // Check nullifier uniqueness (replay prevention)
@@ -429,11 +452,12 @@ export class PollCoordinator implements DurableObject {
     const state = await this.loadState();
     if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
 
-    // Fetch from D1 — only public-safe fields.
-    // SECURITY: tokenMessage and nullifier are NOT exposed in public ballot records.
-    // They enable rainbow-table deanonymization and cross-poll linkability respectively.
-    // Instead we publish a ballot_commitment = SHA-256(tokenMessage || choice || nullifier)
-    // that voters can open to prove their own ballot.
+    // Privacy-minimal view for the DO API endpoint.
+    // The canonical public bulletin board is the host PDS (ATProto records),
+    // which publishes full (tokenMessage, issuerSignature, nullifier, choice)
+    // for independent verification. This endpoint returns ballot_commitment
+    // instead, so the DO API does not become an additional deanonymization surface.
+    // Voters can verify their own ballot by opening the commitment with their secret.
     const result = await this.env.DB.prepare(
       `SELECT ballot_id, poll_id, public_ballot_serial, nullifier, choice,
               token_message, issuer_signature, accepted, submitted_at, rolling_audit_hash
