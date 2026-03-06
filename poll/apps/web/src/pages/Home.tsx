@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { listPolls } from '../lib/api';
 
 export function HomePage() {
   const { did } = useAuth();
+  const navigate = useNavigate();
   const [polls, setPolls] = useState<any[]>([]);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function HomePage() {
           onSubmit={e => {
             e.preventDefault();
             const input = (e.target as HTMLFormElement).elements.namedItem('pollId') as HTMLInputElement;
-            if (input.value) window.location.href = `/poll/${input.value}`;
+            if (input.value.trim()) navigate(`/poll/${input.value.trim()}`);
           }}
         >
           <div className="flex gap-8">
