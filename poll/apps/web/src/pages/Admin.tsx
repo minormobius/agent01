@@ -132,6 +132,8 @@ export function AdminPage() {
             </div>
           )}
 
+          <ShareToBluesky poll={poll} pollId={id!} />
+
           <div className="card">
             <h3>Navigate</h3>
             <div className="flex gap-8">
@@ -162,4 +164,64 @@ export function AdminPage() {
       {error && <p className="error">{error}</p>}
     </div>
   );
+}
+
+function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
+  const [copied, setCopied] = useState(false);
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const options = (poll.options || []) as string[];
+
+  const timeLeft = poll.closes_at
+    ? formatTimeLeft(poll.closes_at)
+    : '';
+
+  // Build the post text: question + option links
+  const optionLines = options.map((opt: string, i: number) =>
+    `${opt}: ${baseUrl}/v/${pollId}?c=${i}`
+  ).join('\n');
+
+  const postText = `${poll.question}\n\n${optionLines}${timeLeft ? `\n\nAnonymous & verifiable | ${timeLeft}` : ''}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(postText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="card">
+      <h3>Share to Bluesky</h3>
+      <p className="muted mb-12">
+        Copy this post to share your poll on Bluesky. Each option is a direct vote link.
+      </p>
+      <div className="share-preview">
+        <pre className="share-post-text">{postText}</pre>
+      </div>
+      <div className="flex gap-8 mt-12">
+        <button className="btn btn-primary" onClick={copyToClipboard}>
+          {copied ? 'Copied!' : 'Copy Post Text'}
+        </button>
+        <a
+          href={`https://bsky.app/intent/compose?text=${encodeURIComponent(postText)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary"
+        >
+          Open in Bluesky
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function formatTimeLeft(closesAt: string): string {
+  const now = Date.now();
+  const close = new Date(closesAt).getTime();
+  const diff = close - now;
+  if (diff <= 0) return 'Closed';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h left`;
+  const days = Math.floor(hours / 24);
+  return `${days}d left`;
 }

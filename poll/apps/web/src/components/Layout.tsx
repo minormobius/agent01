@@ -18,12 +18,61 @@ function useTheme() {
   return { dark, toggle: () => setDark(d => !d) };
 }
 
+function useInstallPrompt() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [dismissed, setDismissed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('pwa-install-dismissed') === 'true'
+  );
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed as PWA
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const install = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      setIsInstalled(true);
+    }
+    setDeferredPrompt(null);
+  };
+
+  const dismiss = () => {
+    setDismissed(true);
+    localStorage.setItem('pwa-install-dismissed', 'true');
+  };
+
+  return { canShow: !!deferredPrompt && !dismissed && !isInstalled, install, dismiss };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { did, handle, loading, logout } = useAuth();
   const theme = useTheme();
+  const pwa = useInstallPrompt();
 
   return (
     <div className="container">
+      {pwa.canShow && (
+        <div className="install-banner">
+          <span>Install for one-tap anonymous voting</span>
+          <div className="flex gap-8">
+            <button className="btn" onClick={pwa.install}>Install</button>
+            <button className="dismiss-btn" onClick={pwa.dismiss}>&times;</button>
+          </div>
+        </div>
+      )}
       <header>
         <h1><Link to="/">Anonymous Polls</Link></h1>
         <nav>

@@ -23,6 +23,7 @@ export interface Session {
 
 const SESSION_COOKIE = 'anon_polls_session';
 const SESSION_TTL_HOURS = 24;
+const REFRESH_TTL_DAYS = 90;
 
 export async function handleAuthRoutes(
   request: Request,
@@ -34,6 +35,9 @@ export async function handleAuthRoutes(
   }
   if (url.pathname === '/api/auth/atproto/callback' && request.method === 'GET') {
     return handleCallback(request, env, url);
+  }
+  if (url.pathname === '/api/auth/refresh' && request.method === 'POST') {
+    return refreshSession(request, env);
   }
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
     return logout(request, env);
@@ -67,9 +71,10 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     const handle = body.handle || 'test.bsky.social';
     const did = `did:plc:mock${handle.replace(/\./g, '')}`;
     const session = await createSession(env, did, handle);
+    const refreshToken = await createRefreshToken(env, did, handle);
 
     return jsonResponseWithCookie(
-      { success: true, session: { did, handle } },
+      { success: true, session: { did, handle }, refreshToken },
       200,
       sessionCookie(session.sessionId, request)
     );
@@ -108,9 +113,10 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     // Step 4: Create local session with the verified DID
     // We discard the PDS access token — we only needed identity proof
     const session = await createSession(env, verified.did, verified.handle);
+    const refreshToken = await createRefreshToken(env, verified.did, verified.handle);
 
     return jsonResponseWithCookie(
-      { success: true, session: { did: verified.did, handle: verified.handle } },
+      { success: true, session: { did: verified.did, handle: verified.handle }, refreshToken },
       200,
       sessionCookie(session.sessionId, request)
     );
@@ -187,6 +193,46 @@ async function createSession(env: Env, did: string, handle: string): Promise<Ses
   ).bind(sessionId, did, handle).run();
 
   return { sessionId, did, handle };
+}
+
+// --- Refresh tokens (long-lived, for PWA persistent auth) ---
+
+async function createRefreshToken(env: Env, did: string, handle: string): Promise<string> {
+  const token = crypto.randomUUID() + '-' + crypto.randomUUID();
+  await env.DB.prepare(
+    `INSERT INTO sessions (session_id, did, handle, created_at, expires_at)
+     VALUES (?, ?, ?, datetime('now'), datetime('now', '+${REFRESH_TTL_DAYS} days'))`
+  ).bind('refresh:' + token, did, handle).run();
+  return token;
+}
+
+async function refreshSession(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as { refreshToken?: string };
+  const token = body.refreshToken;
+  if (!token) {
+    return jsonResponse({ error: 'refreshToken is required' }, 400);
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT did, handle FROM sessions
+     WHERE session_id = ? AND expires_at > datetime('now')`
+  ).bind('refresh:' + token).first();
+
+  if (!row) {
+    return jsonResponse({ error: 'Invalid or expired refresh token' }, 401);
+  }
+
+  const did = row.did as string;
+  const handle = row.handle as string;
+
+  // Create a fresh short-lived session
+  const session = await createSession(env, did, handle);
+
+  return jsonResponseWithCookie(
+    { success: true, session: { did, handle } },
+    200,
+    sessionCookie(session.sessionId, request)
+  );
 }
 
 // --- ATProto identity resolution ---

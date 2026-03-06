@@ -23,9 +23,15 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 // Auth
 export const authStart = (handle: string, appPassword?: string) =>
-  apiFetch<{ success?: boolean; authUrl?: string; session?: { did: string; handle: string } }>(
+  apiFetch<{ success?: boolean; authUrl?: string; session?: { did: string; handle: string }; refreshToken?: string }>(
     '/api/auth/atproto/start',
     { method: 'POST', body: JSON.stringify({ handle, appPassword }) }
+  );
+
+export const authRefresh = (refreshToken: string) =>
+  apiFetch<{ success: boolean; session: { did: string; handle: string } }>(
+    '/api/auth/refresh',
+    { method: 'POST', body: JSON.stringify({ refreshToken }) }
   );
 
 export const authLogout = () =>
