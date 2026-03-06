@@ -88,20 +88,24 @@ export default {
       return addCorsHeaders(jsonResponse(diag), env);
     }
 
-    // Non-API routes: serve static assets with SPA fallback
+    // Non-API routes: SPA fallback
+    // The platform serves matching static files (/, /assets/*, etc.) directly.
+    // The Worker only receives requests for paths with no static file match
+    // (e.g. /poll/:id/vote). Fetch /index.html from origin — platform serves
+    // it from static assets without re-entering the Worker.
     if (!url.pathname.startsWith('/api/')) {
       try {
-        const assetResponse = await env.ASSETS.fetch(request);
-        // If the asset handler returns 404, serve index.html for SPA routing
-        if (assetResponse.status === 404) {
-          const indexRequest = new Request(new URL('/', request.url).toString(), request);
-          return env.ASSETS.fetch(indexRequest);
-        }
-        return assetResponse;
+        const indexUrl = new URL('/index.html', request.url).toString();
+        const indexRes = await fetch(indexUrl);
+        return new Response(indexRes.body, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
       } catch {
-        // Asset handler threw — serve index.html as fallback
-        const indexRequest = new Request(new URL('/', request.url).toString(), request);
-        return env.ASSETS.fetch(indexRequest);
+        return new Response('<!DOCTYPE html><html><body>SPA fallback error</body></html>', {
+          status: 500,
+          headers: { 'Content-Type': 'text/html' },
+        });
       }
     }
 
