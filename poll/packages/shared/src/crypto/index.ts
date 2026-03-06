@@ -1,10 +1,7 @@
 /**
- * Credential abstraction for anonymous poll system.
+ * Credential system for anonymous polls — RSA Blind Signatures (RFC 9474).
  *
- * v1 (trusted_host): HMAC-based credential. Host sees everything during issuance.
- * v2 (anon_credential): RSA Blind Signatures (RFC 9474). Host cannot link voter to ballot.
- *
- * The v2 flow:
+ * Flow:
  * 1. Responder generates secret locally, computes tokenMessage, BLINDS it
  * 2. Responder sends blindedMsg to host (host cannot see tokenMessage)
  * 3. Host blind-signs blindedMsg, returns blindSig
@@ -64,7 +61,7 @@ export function fromBase64Url(str: string): Uint8Array {
   return bytes;
 }
 
-// --- Core credential functions (unchanged between v1/v2) ---
+// --- Core credential functions ---
 
 export function generateSecret(): string {
   return randomHex(32);
@@ -117,25 +114,7 @@ export function recomputeTally(
   return counts;
 }
 
-// --- v1: HMAC credential issuance ---
-
-export async function issueCredential(
-  signingKey: string,
-  tokenMessage: string
-): Promise<string> {
-  return hmacSign(signingKey, tokenMessage);
-}
-
-export async function verifyCredential(
-  signingKey: string,
-  tokenMessage: string,
-  signature: string
-): Promise<boolean> {
-  const expected = await hmacSign(signingKey, tokenMessage);
-  return timingSafeEqual(expected, signature);
-}
-
-// --- v2: RSA Blind Signature operations ---
+// --- RSA Blind Signature operations ---
 
 /**
  * Import an RSA public key from JWK format.
@@ -226,7 +205,6 @@ export async function finalizeBlindSignature(
 
 /**
  * Verify an RSA-PSS signature over a token message.
- * Works for both blind-signed (v2) and directly-signed credentials.
  */
 export async function verifyRSACredential(
   tokenMessage: string,
@@ -240,25 +218,3 @@ export async function verifyRSACredential(
   return suite.verify(publicKey, signature, msgBytes);
 }
 
-// --- Internal helpers ---
-
-async function hmacSign(key: string, message: string): Promise<string> {
-  const cryptoKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    encoder.encode(key),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const sig = await globalThis.crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}

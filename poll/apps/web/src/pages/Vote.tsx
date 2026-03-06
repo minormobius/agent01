@@ -14,9 +14,8 @@ import {
 /**
  * Vote page — implements the full credential lifecycle:
  *
- * v1 (trusted_host): Server generates everything, returns full credential.
- * v2 (anon_credential): Client generates secret, blinds token, server blind-signs,
- *     client unblinds. Server never learns the token message.
+ * Client generates secret, blinds token, server blind-signs,
+ * client unblinds. Server never learns the token message.
  */
 
 interface Credential {
@@ -65,15 +64,6 @@ export function VotePage() {
       .catch(e => { setError(e.message); setStep('error'); });
   }, [id, did]);
 
-  const handleRequestCredentialV1 = async () => {
-    if (!id) return;
-    const resp = await requestEligibility(id);
-    if (!resp.eligible) {
-      throw new Error(resp.error || 'Not eligible');
-    }
-    return resp.credential as Credential;
-  };
-
   const handleRequestCredentialV2 = async () => {
     if (!id || !poll) return;
     // 1. Generate secret locally
@@ -106,10 +96,7 @@ export function VotePage() {
     if (!id) return;
     setError('');
     try {
-      const isV2 = poll?.mode === 'anon_credential_v2';
-      const cred = isV2
-        ? await handleRequestCredentialV2()
-        : await handleRequestCredentialV1();
+      const cred = await handleRequestCredentialV2();
       if (!cred) return;
       // Store credential locally — this is the responder's ballot right
       localStorage.setItem(`credential:${id}`, JSON.stringify(cred));
@@ -152,17 +139,13 @@ export function VotePage() {
     return <div className="card"><p className="muted">Loading poll...</p></div>;
   }
 
-  const isV2 = poll?.mode === 'anon_credential_v2';
-
   return (
     <div>
       {poll && (
         <div className="card">
           <h2>{poll.question}</h2>
           <p className="muted">
-            {isV2
-              ? 'Anonymous credential (v2) — cryptographic unlinkability'
-              : 'Trusted host (v1) — host-separated identity'}
+            Anonymous credential — cryptographic unlinkability
           </p>
         </div>
       )}
@@ -177,9 +160,7 @@ export function VotePage() {
         <div className="card">
           <h3>Step 1: Request Ballot Credential</h3>
           <p className="muted mb-12">
-            {isV2
-              ? 'Your browser will generate a secret and blind it before sending to the server. The server signs it without seeing your ballot token — cryptographic anonymity.'
-              : 'This will privately verify your eligibility and issue a one-time ballot credential. Your vote choice is separated from your identity in persistent storage.'}
+            Your browser will generate a secret and blind it before sending to the server. The server signs it without seeing your ballot token — cryptographic anonymity.
           </p>
           <button className="btn btn-primary" onClick={handleRequestCredential}>
             Request Credential

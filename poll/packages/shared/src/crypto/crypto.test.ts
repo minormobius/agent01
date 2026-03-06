@@ -3,15 +3,12 @@ import {
   generateSecret,
   deriveTokenMessage,
   deriveNullifier,
-  issueCredential,
-  verifyCredential,
   makeReceipt,
   computeAuditHash,
   recomputeTally,
 } from './index.js';
 
 describe('credential crypto', () => {
-  const signingKey = 'test-signing-key-for-hmac-operations';
   const pollId = '550e8400-e29b-41d4-a716-446655440000';
   const expiry = '2026-12-31T23:59:59Z';
 
@@ -44,33 +41,6 @@ describe('credential crypto', () => {
     // Different poll => different nullifier
     const n3 = await deriveNullifier(secret, 'other-poll-id');
     expect(n1).not.toBe(n3);
-  });
-
-  it('issueCredential + verifyCredential round-trips', async () => {
-    const secret = generateSecret();
-    const m = await deriveTokenMessage(pollId, secret, expiry);
-    const sig = await issueCredential(signingKey, m);
-
-    expect(await verifyCredential(signingKey, m, sig)).toBe(true);
-  });
-
-  it('verifyCredential rejects wrong key', async () => {
-    const m = await deriveTokenMessage(pollId, generateSecret(), expiry);
-    const sig = await issueCredential(signingKey, m);
-    expect(await verifyCredential('wrong-key', m, sig)).toBe(false);
-  });
-
-  it('verifyCredential rejects tampered message', async () => {
-    const m = await deriveTokenMessage(pollId, generateSecret(), expiry);
-    const sig = await issueCredential(signingKey, m);
-    expect(await verifyCredential(signingKey, m + 'tampered', sig)).toBe(false);
-  });
-
-  it('verifyCredential rejects tampered signature', async () => {
-    const m = await deriveTokenMessage(pollId, generateSecret(), expiry);
-    const sig = await issueCredential(signingKey, m);
-    const tampered = sig.slice(0, -2) + 'ff';
-    expect(await verifyCredential(signingKey, m, tampered)).toBe(false);
   });
 
   it('makeReceipt is deterministic', async () => {
@@ -123,44 +93,3 @@ describe('recomputeTally', () => {
   });
 });
 
-describe('full credential lifecycle', () => {
-  it('simulates complete Mode A flow', async () => {
-    const signingKey = 'host-signing-key';
-    const pollId = crypto.randomUUID();
-    const closesAt = '2026-12-31T23:59:59Z';
-
-    // 1. Responder generates secret
-    const secret = generateSecret();
-
-    // 2. Host derives token message and signs it (in Mode A, host sees everything)
-    const tokenMessage = await deriveTokenMessage(pollId, secret, closesAt);
-    const signature = await issueCredential(signingKey, tokenMessage);
-    const nullifier = await deriveNullifier(secret, pollId);
-
-    // 3. Credential issued to responder: {secret, tokenMessage, signature, nullifier}
-    // This lives in the browser only, never in the responder's ATProto repo
-
-    // 4. Responder submits ballot anonymously
-    const ballot = {
-      choice: 1,
-      tokenMessage,
-      issuerSignature: signature,
-      nullifier,
-      ballotVersion: 1,
-    };
-
-    // 5. Host verifies
-    expect(await verifyCredential(signingKey, ballot.tokenMessage, ballot.issuerSignature)).toBe(true);
-
-    // 6. Same nullifier cannot be reused
-    const nullifierSet = new Set<string>();
-    nullifierSet.add(nullifier);
-    expect(nullifierSet.has(nullifier)).toBe(true); // Would reject second submission
-
-    // 7. Different secret => different nullifier (another voter)
-    const secret2 = generateSecret();
-    const nullifier2 = await deriveNullifier(secret2, pollId);
-    expect(nullifier2).not.toBe(nullifier);
-    expect(nullifierSet.has(nullifier2)).toBe(false); // Would accept
-  });
-});

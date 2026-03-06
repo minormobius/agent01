@@ -1,6 +1,6 @@
 /** Core domain types for the anonymous poll system */
 
-export type PollMode = 'trusted_host_v1' | 'anon_credential_v2';
+export type PollMode = 'anon_credential_v2';
 export type PollStatus = 'draft' | 'open' | 'closed' | 'finalized';
 export type EligibilityMode = 'open' | 'did_list' | 'followers' | 'mutuals' | 'at_list';
 
@@ -117,14 +117,7 @@ export interface EligibilityRequest {
 
 export interface EligibilityResponse {
   eligible: boolean;
-  /** v1: full credential returned by host */
-  credential?: {
-    tokenMessage: string;
-    issuerSignature: string;
-    secret: string;
-    nullifier: string;
-  };
-  /** v2: blind signature returned by host (client unblinds locally) */
+  /** Blind signature returned by host (client unblinds locally) */
   blindedSignature?: string;
   receiptHash?: string;
 }

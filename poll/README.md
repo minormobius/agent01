@@ -9,7 +9,7 @@ Privacy-preserving, publicly auditable poll system built on AT Protocol with Clo
 - Ballots are anonymous — submitted with credential, not identity
 - Accepted ballots published to a service-controlled ATProto repo (public)
 - Anyone can recompute the tally from public ballot artifacts
-- Two modes: trusted-host v1 (fully working) and anonymous-credential v2 (scaffold with blind signature upgrade path)
+- RSA Blind Signatures (RFC 9474) for cryptographic ballot anonymity — the host cannot link voter identity to ballot choice
 
 ## Architecture
 
@@ -127,7 +127,6 @@ npm run migrate:remote
 ### 3. Set Worker Secrets
 
 ```bash
-wrangler secret put CREDENTIAL_SIGNING_KEY
 wrangler secret put ATPROTO_SERVICE_DID
 wrangler secret put ATPROTO_SERVICE_HANDLE
 wrangler secret put ATPROTO_SERVICE_PASSWORD
@@ -201,6 +200,6 @@ Note: `/ballots/submit` uses credential-based auth, not session-based. This is t
 
 See [docs/threat-model.md](docs/threat-model.md).
 
-## Upgrade Path
+## Credential System
 
-See [docs/upgrade-blind-signatures.md](docs/upgrade-blind-signatures.md) for the blind signature upgrade plan.
+The system uses RSA Blind Signatures (RFC 9474) for anonymous credentials. See [docs/upgrade-blind-signatures.md](docs/upgrade-blind-signatures.md) for background on the design.

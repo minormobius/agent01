@@ -47,6 +47,6 @@ Cloudflare Pages (frontend)     Cloudflare Worker (API)
 
 3. **Credential-based ballot submission**: The `/ballots/submit` endpoint does NOT require an authenticated session. The credential (tokenMessage + signature + nullifier) IS the authorization. This is essential for anonymity.
 
-4. **Two modes in one codebase**: Mode A (trusted_host_v1) is fully functional. Mode B (anon_credential_v2) uses the same interfaces with a clear upgrade path to blind signatures.
+4. **RSA Blind Signatures for anonymous credentials**: The system uses RSA Blind Signatures (RFC 9474) so the host cannot link voter identity to ballot choice. The client blinds the token message, the host blind-signs it, and the client unblinds to obtain a valid credential the host has never seen.
 
 5. **Service-repo publication**: All public ballot records are written to a service-controlled ATProto repo using `com.minomobi.poll.*` record types. Responder repos are never involved.

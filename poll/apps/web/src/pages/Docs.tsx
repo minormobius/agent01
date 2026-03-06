@@ -97,25 +97,31 @@ function Overview() {
 function Protocol() {
   return (
     <div className="docs-content">
-      <h3>Credential issuance</h3>
+      <h3>Credential issuance (RSA Blind Signatures)</h3>
       <p>
         When a voter requests eligibility, the server checks their DID hasn't already
-        claimed a credential for this poll. If eligible, it generates:
+        claimed a credential for this poll. If eligible, the following blind signing
+        protocol runs:
       </p>
-      <ul>
-        <li><strong>Secret</strong> — A random value known only to the voter.</li>
-        <li><strong>Token message</strong> — <code>H(version || pollId || secret || expiry)</code></li>
-        <li><strong>HMAC signature</strong> — The server signs the token message with the poll's signing key.</li>
-        <li><strong>Nullifier</strong> — <code>H("nullifier" || secret || pollId)</code> — a unique, deterministic value derived from the secret.</li>
-      </ul>
+      <ol>
+        <li>The <strong>client</strong> generates a random secret and computes the token message: <code>H(version || pollId || secret || expiry)</code></li>
+        <li>The <strong>client</strong> blinds the token message using the host's RSA public key and a random blinding factor, then sends the blinded message to the server.</li>
+        <li>The <strong>server</strong> blind-signs the blinded message with its RSA private key — it never sees the actual token message.</li>
+        <li>The <strong>client</strong> unblinds the returned signature to obtain a valid RSA-PSS signature over the original token message.</li>
+        <li>The <strong>client</strong> derives a nullifier: <code>H("nullifier" || secret || pollId)</code> — a unique, deterministic value.</li>
+      </ol>
+      <p>
+        The host never sees the token message or the final signature, so it cannot
+        link the credential back to the voter's DID.
+      </p>
 
       <h3>Ballot submission</h3>
       <p>
-        The voter submits their choice along with the token message, HMAC signature,
+        The voter submits their choice along with the token message, RSA-PSS signature,
         and nullifier. The server verifies:
       </p>
       <ol>
-        <li>The HMAC signature is valid (proves the credential was issued by this poll).</li>
+        <li>The RSA-PSS signature is valid against the poll's public key (proves the credential was blind-signed by this poll's host).</li>
         <li>The nullifier hasn't been seen before (prevents double voting).</li>
         <li>The token hasn't expired.</li>
       </ol>
@@ -140,9 +146,10 @@ function Protocol() {
         </thead>
         <tbody>
           <tr><td>Token message</td><td>SHA-256 hash of version, poll ID, secret, expiry</td></tr>
-          <tr><td>Credential</td><td>HMAC-SHA256 of token message with poll signing key</td></tr>
+          <tr><td>Blinding</td><td>RSA blinding with random factor (RFC 9474)</td></tr>
+          <tr><td>Credential signature</td><td>RSA-PSS blind signature by host, unblinded by client</td></tr>
           <tr><td>Nullifier</td><td>SHA-256 hash of "nullifier" prefix, secret, poll ID</td></tr>
-          <tr><td>Verification</td><td>Constant-time comparison (timing-safe)</td></tr>
+          <tr><td>Verification</td><td>RSA-PSS signature verification with host public key</td></tr>
         </tbody>
       </table>
     </div>
@@ -170,32 +177,31 @@ function TrustModel() {
 
       <h3>What the operator could do (but shouldn't)</h3>
       <ul>
-        <li>Log the DID-to-choice mapping during credential issuance (the ~100ms window).</li>
-        <li>In <code>trusted_host_v1</code> mode, the host generates the secret, so they
-        could theoretically reconstruct the DID-to-nullifier mapping. This is a known
-        tradeoff of the current mode.</li>
+        <li>Log the DID-to-choice mapping during credential issuance (the ~100ms window).
+        However, the blind signature protocol means the host never sees the actual token
+        message or final credential, so it cannot reconstruct the DID-to-nullifier mapping.</li>
       </ul>
 
       <h3>Mitigations</h3>
       <ul>
+        <li>RSA Blind Signatures (RFC 9474) ensure the host blind-signs without seeing the
+        token message — the client blinds before sending and unblinds after receiving.</li>
         <li>Receipt hashes are <strong>not stored</strong> alongside voter DIDs, preventing
         database-level correlation.</li>
         <li>Ballots publish in shuffled order, breaking timing analysis.</li>
         <li>The code is open source and auditable.</li>
-        <li>Future <code>anon_credential_v2</code> mode will have the voter generate their
-        own secret client-side, eliminating the host's ability to reconstruct the mapping.</li>
       </ul>
 
-      <h3>Comparison</h3>
+      <h3>Credential properties</h3>
       <table className="audit-table">
         <thead>
-          <tr><th>Property</th><th>trusted_host_v1</th><th>anon_credential_v2 (planned)</th></tr>
+          <tr><th>Property</th><th>Guarantee</th></tr>
         </thead>
         <tbody>
-          <tr><td>Secret generation</td><td>Server-side</td><td>Client-side</td></tr>
-          <tr><td>Host can de-anonymize?</td><td>Theoretically, during issuance</td><td>No</td></tr>
-          <tr><td>Requires blind signatures?</td><td>No</td><td>Yes</td></tr>
-          <tr><td>Ballot anonymity</td><td>Operational trust</td><td>Cryptographic guarantee</td></tr>
+          <tr><td>Secret generation</td><td>Client-side</td></tr>
+          <tr><td>Host can de-anonymize?</td><td>No — host never sees the token message</td></tr>
+          <tr><td>Blind signatures</td><td>RSA Blind Signatures (RFC 9474)</td></tr>
+          <tr><td>Ballot anonymity</td><td>Cryptographic guarantee</td></tr>
         </tbody>
       </table>
     </div>
@@ -235,7 +241,7 @@ function Verification() {
         <li>Ballot count matches the number of eligibility claims.</li>
         <li>No duplicate nullifiers exist.</li>
         <li>Tally sums match individual ballot choices.</li>
-        <li>All ballots have valid HMAC signatures (proves they were issued by the poll).</li>
+        <li>All ballots have valid RSA-PSS signatures (proves they were blind-signed by the poll host).</li>
       </ul>
     </div>
   );
@@ -255,11 +261,10 @@ function FAQ() {
 
       <h4>Can the poll creator see how I voted?</h4>
       <p>
-        In <code>trusted_host_v1</code> mode, the poll host generates the credential
-        secret server-side. They could theoretically log the mapping, but the system
-        does not persist it. In the planned <code>anon_credential_v2</code> mode, the
-        voter generates the secret client-side, making de-anonymization cryptographically
-        impossible.
+        No. The system uses RSA Blind Signatures (RFC 9474). The voter generates the
+        credential secret client-side, blinds the token message, and sends only the
+        blinded message to the host. The host blind-signs it without ever seeing the
+        actual token. De-anonymization is cryptographically impossible.
       </p>
 
       <h4>What happens if I close my browser mid-vote?</h4>

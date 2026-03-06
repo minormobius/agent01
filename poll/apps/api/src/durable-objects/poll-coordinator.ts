@@ -9,14 +9,7 @@
  */
 
 import {
-  issueCredential,
-  verifyCredential,
-  deriveTokenMessage,
-  deriveNullifier,
-  generateSecret,
-  makeReceipt,
   computeAuditHash,
-  recomputeTally,
   blindSign,
   verifyRSACredential,
   importRSAPrivateKey,
@@ -25,10 +18,8 @@ import {
 
 import type {
   Poll,
-  Ballot,
   PublicBallot,
   TallySnapshot,
-  AuditEvent,
   EligibilityResponse,
   BallotSubmission,
   BallotResponse,
@@ -36,7 +27,6 @@ import type {
 
 interface PollState {
   poll: Poll | null;
-  signingKey: string;
   ballotCount: number;
   lastAuditHash: string;
   tally: Record<string, number>;
@@ -87,7 +77,6 @@ export class PollCoordinator implements DurableObject {
 
     this.pollState = {
       poll: null,
-      signingKey: '',
       ballotCount: 0,
       lastAuditHash: '0'.repeat(64),
       tally: {},
@@ -153,17 +142,14 @@ export class PollCoordinator implements DurableObject {
   }
 
   private async handleInitialize(request: Request): Promise<Response> {
-    const poll = await request.json() as Poll & { signingKey: string };
-    const signingKey = poll.signingKey;
+    const pollData = await request.json() as Poll;
 
     const state = await this.loadState();
     if (state.poll) {
       return jsonResponse({ error: 'Poll already initialized' }, 409);
     }
 
-    const { signingKey: _, ...pollData } = poll;
     state.poll = pollData;
-    state.signingKey = signingKey;
     state.tally = {};
     for (let i = 0; i < pollData.options.length; i++) {
       state.tally[String(i)] = 0;
@@ -228,16 +214,10 @@ export class PollCoordinator implements DurableObject {
   }
 
   /**
-   * Eligibility check and credential issuance.
+   * Eligibility check and credential issuance via RSA Blind Signatures.
    *
-   * Mode A (trusted_host_v1):
-   * - Host generates secret, tokenMessage, signature, and nullifier
-   * - Host knows the link between DID and credential (privacy tradeoff)
-   *
-   * Mode B (anon_credential_v2):
-   * - Responder would send a blinded message
-   * - Host signs it blindly (stubbed)
-   * - Host never learns the token message
+   * Responder sends a blinded message. Host signs it blindly — never sees the
+   * original token message. Host cannot link voter identity to ballot.
    */
   private async handleEligibility(request: Request): Promise<Response> {
     const { responderDid, blindedMessage } = await request.json() as {
@@ -251,7 +231,6 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ error: 'Poll is not open' }, 403);
     }
 
-    // Check eligibility whitelist (if not open mode)
     if (state.poll.eligibilityMode && state.poll.eligibilityMode !== 'open') {
       const eligible = await this.env.DB.prepare(
         'SELECT 1 FROM poll_eligible_dids WHERE poll_id = ? AND did = ?'
@@ -261,7 +240,6 @@ export class PollCoordinator implements DurableObject {
       }
     }
 
-    // Check if DID has already consumed eligibility
     if (state.consumedDids.has(responderDid)) {
       return jsonResponse({ eligible: false, error: 'Already voted' }, 403);
     }
@@ -271,45 +249,25 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ eligible: false, error: 'Outside voting window' }, 403);
     }
 
-    // Mark DID as consumed BEFORE issuing credential (atomic within DO)
+    if (!blindedMessage) {
+      return jsonResponse({ eligible: false, error: 'Blinded message required' }, 400);
+    }
+
     state.consumedDids.add(responderDid);
 
     let response: EligibilityResponse;
-
-    if (state.poll.mode === 'anon_credential_v2') {
-      // v2: RSA Blind Signature — host signs blinded message without seeing the original
-      if (!blindedMessage) {
-        state.consumedDids.delete(responderDid);
-        return jsonResponse({ eligible: false, error: 'Blinded message required for v2 mode' }, 400);
-      }
-      try {
-        const privateKey = await this.getRSAPrivateKey();
-        // CF Workers support supportsRSARAW for optimized blind signing
-        const blindedSig = await blindSign(blindedMessage, privateKey, true);
-        response = {
-          eligible: true,
-          blindedSignature: blindedSig,
-        };
-      } catch (err: any) {
-        state.consumedDids.delete(responderDid);
-        return jsonResponse({ eligible: false, error: `Blind signing failed: ${err.message}` }, 500);
-      }
-    } else {
-      // v1: trusted host issues full credential (host sees everything)
-      const secret = generateSecret();
-      const tokenMessage = await deriveTokenMessage(state.poll.id, secret, state.poll.closesAt);
-      const sig = await issueCredential(state.signingKey, tokenMessage);
-      const nullifier = await deriveNullifier(secret, state.poll.id);
-      const receiptHash = await makeReceipt(state.poll.id, tokenMessage, nullifier);
-
+    try {
+      const privateKey = await this.getRSAPrivateKey();
+      const blindedSig = await blindSign(blindedMessage, privateKey, true);
       response = {
         eligible: true,
-        credential: { tokenMessage, issuerSignature: sig, secret, nullifier },
-        receiptHash,
+        blindedSignature: blindedSig,
       };
+    } catch (err: any) {
+      state.consumedDids.delete(responderDid);
+      return jsonResponse({ eligible: false, error: `Blind signing failed: ${err.message}` }, 500);
     }
 
-    // Persist eligibility to D1
     await this.env.DB.prepare(
       `INSERT INTO eligibility (poll_id, responder_did, eligibility_status, consumed_at, issuance_mode, receipt_hash)
        VALUES (?, ?, 'consumed', ?, ?, NULL)`
@@ -322,7 +280,6 @@ export class PollCoordinator implements DurableObject {
 
     await this.appendAudit('eligibility_consumed', JSON.stringify({
       pollId: state.poll.id,
-      receiptHash: response.receiptHash || null,
     }));
     await this.saveState();
 
@@ -349,23 +306,14 @@ export class PollCoordinator implements DurableObject {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid choice' }, 400);
     }
 
-    // Verify credential signature (v1: HMAC, v2: RSA-PSS)
-    let sigValid: boolean;
-    if (state.poll.mode === 'anon_credential_v2') {
-      const publicKey = await this.getRSAPublicKey();
-      sigValid = await verifyRSACredential(
-        submission.tokenMessage,
-        submission.issuerSignature,
-        publicKey,
-        true // supportsRSARAW on CF Workers
-      );
-    } else {
-      sigValid = await verifyCredential(
-        state.signingKey,
-        submission.tokenMessage,
-        submission.issuerSignature
-      );
-    }
+    // Verify RSA-PSS credential signature
+    const publicKey = await this.getRSAPublicKey();
+    const sigValid = await verifyRSACredential(
+      submission.tokenMessage,
+      submission.issuerSignature,
+      publicKey,
+      true
+    );
     if (!sigValid) {
       return jsonResponse({ accepted: false, rejectionReason: 'Invalid credential signature' }, 403);
     }

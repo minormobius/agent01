@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const PollModeSchema = z.enum(['trusted_host_v1', 'anon_credential_v2']);
+export const PollModeSchema = z.enum(['anon_credential_v2']);
 export const PollStatusSchema = z.enum(['draft', 'open', 'closed', 'finalized']);
 export const EligibilityModeSchema = z.enum(['open', 'did_list', 'followers', 'mutuals', 'at_list']);
 
@@ -9,7 +9,7 @@ export const CreatePollSchema = z.object({
   options: z.array(z.string().min(1).max(200)).min(2).max(20),
   opensAt: z.string().datetime(),
   closesAt: z.string().datetime(),
-  mode: PollModeSchema.default('trusted_host_v1'),
+  mode: PollModeSchema.default('anon_credential_v2'),
   eligibilityMode: EligibilityModeSchema.default('open'),
   eligibilitySource: z.string().max(2000).optional(),
   whitelistedDids: z.array(z.string().min(1).max(100)).max(10000).optional(),

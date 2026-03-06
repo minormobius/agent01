@@ -117,8 +117,8 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
 
     const data = parsed.data;
 
-    // v2 requires RSA key pair to be configured
-    if (data.mode === 'anon_credential_v2' && !env.RSA_PUBLIC_KEY_JWK) {
+    // RSA key pair is required for blind signatures
+    if (!env.RSA_PUBLIC_KEY_JWK) {
       return jsonResponse({
         error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
       }, 500);
@@ -126,23 +126,12 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
 
     step = 'computeKeys';
     const pollId = crypto.randomUUID();
-    const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();
 
-    let hostKeyFingerprint: string;
-    let hostPublicKey: string | null = null;
-
-    if (data.mode === 'anon_credential_v2') {
-      hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
-      const encoder = new TextEncoder();
-      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
-      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-    } else {
-      const encoder = new TextEncoder();
-      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
-      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-    }
+    const hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
+    const encoder = new TextEncoder();
+    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
+    const hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
 
     const now = new Date().toISOString();
     const eligibilityMode = data.eligibilityMode || 'open';
@@ -197,7 +186,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     const doStub = getPollDO(env, pollId);
     const doRes = await doStub.fetch(new Request('https://do/initialize', {
       method: 'POST',
-      body: JSON.stringify({ ...poll, signingKey }),
+      body: JSON.stringify(poll),
     }));
     if (!doRes.ok) {
       const doErr = await doRes.text();
@@ -356,7 +345,7 @@ async function publishPoll(request: Request, env: Env, pollId: string): Promise<
     options: JSON.parse(poll.options as string),
     opensAt: poll.opens_at as string,
     closesAt: poll.closes_at as string,
-    mode: poll.mode as 'trusted_host_v1' | 'anon_credential_v2',
+    mode: poll.mode as 'anon_credential_v2',
     hostKeyFingerprint: poll.host_key_fingerprint as string,
     hostPublicKey: (poll.host_public_key as string) || null,
     createdAt: poll.created_at as string,

@@ -4,23 +4,14 @@
 
 ### What the Host Knows
 
-**Mode A (trusted_host_v1)**:
-- Host sees the responder's DID during eligibility check
-- Host generates the credential (secret, tokenMessage, signature)
-- Host CAN link DID → credential → ballot
-- Privacy relies on host not abusing this linkage
-- This is analogous to a trusted election official
-
-**Mode B (anon_credential_v2)**:
 - Host sees the responder's DID during eligibility check
 - Host signs a blinded message (cannot see the actual tokenMessage)
-- Host CANNOT link DID → credential → ballot (when blind signatures are real)
-- Privacy is cryptographic, not trust-based
-- The stub implementation currently falls back to Mode A behavior
+- Host CANNOT link DID → credential → ballot
+- Privacy is cryptographic, not trust-based (RSA Blind Signatures, RFC 9474)
 
 ### What the Public Sees
 
-In both modes, the public sees ONLY:
+The public sees ONLY:
 - Poll definition (question, options, timing)
 - Anonymized ballots (choice, tokenMessage, signature, nullifier)
 - Tally snapshots
@@ -39,11 +30,11 @@ The public NEVER sees:
 
 ### Ballot Stuffing (by host)
 - **Attack**: Malicious host creates fake ballots
-- **Mitigation**: Every accepted ballot has a valid credential signature and unique nullifier. In v2 with real blind signatures, the host cannot forge credentials without signing them through the issuance flow. The audit log with rolling hashes provides tamper evidence.
+- **Mitigation**: Every accepted ballot has a valid credential signature and unique nullifier. The host cannot forge credentials without signing them through the blind issuance flow. The audit log with rolling hashes provides tamper evidence.
 
 ### Vote Buying / Coercion
 - **Attack**: Responder sells or is coerced into revealing their vote
-- **Mitigation**: In v1, the host could provide a receipt. In v2, the credential is unlinkable, making coercion verification harder. Full receipt-freeness would require additional protocol complexity.
+- **Mitigation**: The credential is unlinkable, making coercion verification harder. Full receipt-freeness would require additional protocol complexity.
 
 ### Credential Theft
 - **Attack**: Attacker steals a responder's credential from localStorage
@@ -55,7 +46,7 @@ The public NEVER sees:
 
 ### Timing Analysis
 - **Attack**: Host correlates eligibility request time with ballot submission time
-- **Mitigation**: In v1, this is a real risk (host can correlate). In v2, the responder could add random delay between credential issuance and ballot submission. The protocol does not enforce timing separation.
+- **Mitigation**: The responder could add random delay between credential issuance and ballot submission. The protocol does not enforce timing separation, but the blind signature ensures the host cannot link the credential to the ballot even with timing data.
 
 ### Audit Log Tampering
 - **Attack**: Host modifies the audit log after the fact
@@ -63,15 +54,15 @@ The public NEVER sees:
 
 ## Trust Summary
 
-| Property | Mode A (v1) | Mode B (v2 with real blind sigs) |
-|----------|-------------|----------------------------------|
-| One vote per DID | Enforced (DO) | Enforced (DO) |
-| Ballot anonymity | Trust-based | Cryptographic |
-| Tally correctness | Publicly verifiable | Publicly verifiable |
-| Ballot authenticity | Signature verified | Signature verified |
-| Host cannot stuff | Audit trail | Audit trail + unforgeable credentials |
-| Coercion resistance | Weak | Moderate |
-| Timing correlation | Vulnerable | Mitigatable with delay |
+| Property | Guarantee |
+|----------|-----------|
+| One vote per DID | Enforced (DO) |
+| Ballot anonymity | Cryptographic (RSA Blind Signatures) |
+| Tally correctness | Publicly verifiable |
+| Ballot authenticity | RSA-PSS signature verified |
+| Host cannot stuff | Audit trail + unforgeable credentials |
+| Coercion resistance | Moderate (credential unlinkable) |
+| Timing correlation | Mitigatable with delay |
 
 ## Residual Risks
 

@@ -17,7 +17,7 @@ export function CreatePollPage() {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [closesIn, setClosesIn] = useState('24');
-  const [mode, setMode] = useState('trusted_host_v1');
+  const [mode] = useState('anon_credential_v2');
   const [eligibilityMode, setEligibilityMode] = useState('open');
   const [didListText, setDidListText] = useState('');
   const [listUri, setListUri] = useState('');
@@ -130,19 +130,6 @@ export function CreatePollPage() {
             <option value="72">3 days</option>
             <option value="168">1 week</option>
           </select>
-        </div>
-
-        <div className="mt-12">
-          <label>Mode</label>
-          <select value={mode} onChange={e => setMode(e.target.value)}>
-            <option value="trusted_host_v1">Trusted Host (v1)</option>
-            <option value="anon_credential_v2">Anonymous Credential (v2)</option>
-          </select>
-          <p className="muted">
-            {mode === 'anon_credential_v2'
-              ? 'RSA Blind Signatures (RFC 9474). The server cannot link your identity to your ballot — cryptographic guarantee.'
-              : 'Host issues credentials and separates identity from votes in storage. Trust assumption: host doesn\'t log the brief correlation window.'}
-          </p>
         </div>
 
         <div className="mt-12">

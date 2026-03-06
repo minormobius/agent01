@@ -6,9 +6,6 @@ ATPROTO_MOCK_MODE=true
 # Frontend URL for CORS
 FRONTEND_URL=http://localhost:3000
 
-# Credential signing key (generate a strong random string for production)
-CREDENTIAL_SIGNING_KEY=dev-signing-key-change-in-production
-
 # ATProto service account (required when ATPROTO_MOCK_MODE=false)
 # ATPROTO_SERVICE_DID=did:plc:xxxxx
 # ATPROTO_SERVICE_HANDLE=polls.example.com
