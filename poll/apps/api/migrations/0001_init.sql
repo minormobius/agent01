@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS polls (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_polls_status ON polls(status);
-CREATE INDEX idx_polls_host_did ON polls(host_did);
+CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
+CREATE INDEX IF NOT EXISTS idx_polls_host_did ON polls(host_did);
 
 CREATE TABLE IF NOT EXISTS eligibility (
   poll_id TEXT NOT NULL,
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS eligibility (
   FOREIGN KEY (poll_id) REFERENCES polls(id)
 );
 
-CREATE INDEX idx_eligibility_poll ON eligibility(poll_id);
-CREATE INDEX idx_eligibility_did ON eligibility(responder_did);
+CREATE INDEX IF NOT EXISTS idx_eligibility_poll ON eligibility(poll_id);
+CREATE INDEX IF NOT EXISTS idx_eligibility_did ON eligibility(responder_did);
 
 CREATE TABLE IF NOT EXISTS ballots (
   ballot_id TEXT PRIMARY KEY,
@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS ballots (
   FOREIGN KEY (poll_id) REFERENCES polls(id)
 );
 
-CREATE INDEX idx_ballots_poll ON ballots(poll_id);
-CREATE INDEX idx_ballots_nullifier ON ballots(nullifier);
-CREATE INDEX idx_ballots_submitted ON ballots(submitted_at);
+CREATE INDEX IF NOT EXISTS idx_ballots_poll ON ballots(poll_id);
+CREATE INDEX IF NOT EXISTS idx_ballots_nullifier ON ballots(nullifier);
+CREATE INDEX IF NOT EXISTS idx_ballots_submitted ON ballots(submitted_at);
 
 CREATE TABLE IF NOT EXISTS tally_snapshots (
   poll_id TEXT NOT NULL,
@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS audit_events (
   FOREIGN KEY (poll_id) REFERENCES polls(id)
 );
 
-CREATE INDEX idx_audit_poll ON audit_events(poll_id);
-CREATE INDEX idx_audit_created ON audit_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_poll ON audit_events(poll_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
 
 -- Sessions table for ATProto OAuth
 CREATE TABLE IF NOT EXISTS sessions (
@@ -88,4 +88,4 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at TEXT NOT NULL
 );
 
-CREATE INDEX idx_sessions_did ON sessions(did);
+CREATE INDEX IF NOT EXISTS idx_sessions_did ON sessions(did);
