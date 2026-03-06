@@ -21,10 +21,10 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 // Auth
-export const authStart = (handle: string) =>
+export const authStart = (handle: string, appPassword?: string) =>
   apiFetch<{ success?: boolean; authUrl?: string; session?: { did: string; handle: string } }>(
     '/api/auth/atproto/start',
-    { method: 'POST', body: JSON.stringify({ handle }) }
+    { method: 'POST', body: JSON.stringify({ handle, appPassword }) }
   );
 
 export const authLogout = () =>

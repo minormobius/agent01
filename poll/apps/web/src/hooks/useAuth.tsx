@@ -9,7 +9,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (handle: string) => Promise<void>;
+  login: (handle: string, appPassword?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -29,10 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setState({ did: null, handle: null, loading: false, error: null }));
   }, []);
 
-  const login = useCallback(async (handle: string) => {
+  const login = useCallback(async (handle: string, appPassword?: string) => {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
-      const result = await authStart(handle);
+      const result = await authStart(handle, appPassword);
       if (result.session) {
         setState({ did: result.session.did, handle: result.session.handle, loading: false, error: null });
       } else if (result.authUrl) {

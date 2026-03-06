@@ -19,9 +19,17 @@ function useTheme() {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { did, handle, loading, login, logout } = useAuth();
+  const { did, handle, loading, error, login, logout } = useAuth();
   const [loginHandle, setLoginHandle] = useState('');
+  const [appPassword, setAppPassword] = useState('');
   const theme = useTheme();
+
+  const doLogin = () => {
+    if (loginHandle) {
+      login(loginHandle, appPassword || undefined);
+      setAppPassword('');
+    }
+  };
 
   return (
     <div className="container">
@@ -53,16 +61,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 placeholder="handle.bsky.social"
                 value={loginHandle}
                 onChange={e => setLoginHandle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && loginHandle && login(loginHandle)}
-                style={{ width: '180px' }}
+                onKeyDown={e => e.key === 'Enter' && doLogin()}
+                style={{ width: '160px' }}
+              />
+              <input
+                type="password"
+                placeholder="App password"
+                value={appPassword}
+                onChange={e => setAppPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && doLogin()}
+                style={{ width: '130px' }}
               />
               <button
                 className="btn btn-primary"
-                onClick={() => loginHandle && login(loginHandle)}
+                onClick={doLogin}
                 style={{ padding: '4px 10px', fontSize: '12px' }}
               >
                 Login
               </button>
+              {error && <span className="error" style={{ fontSize: '11px' }}>{error}</span>}
             </div>
           )}
         </nav>

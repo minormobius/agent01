@@ -1,12 +1,15 @@
 /**
- * ATProto OAuth authentication routes.
+ * ATProto authentication routes.
  *
- * POST /api/auth/atproto/start    — initiate OAuth flow
- * GET  /api/auth/atproto/callback — handle OAuth callback
+ * POST /api/auth/atproto/start    — authenticate with handle + app password
+ * GET  /api/auth/atproto/callback — handle OAuth callback (future)
  * POST /api/auth/logout           — destroy session
  * GET  /api/me                    — get current user
  *
- * In mock mode, provides a simplified auth flow for local development.
+ * Auth strategy: app password verification via the user's PDS.
+ * The backend resolves the user's handle → DID → PDS, calls createSession
+ * to verify credentials, extracts the verified DID, then discards the
+ * PDS access token. We only need identity verification, not ongoing access.
  */
 
 import type { Env } from '../index.js';
@@ -56,7 +59,7 @@ function sessionCookie(sessionId: string): string {
 }
 
 async function startAuth(request: Request, env: Env): Promise<Response> {
-  const body = await request.json() as { handle?: string };
+  const body = await request.json() as { handle?: string; appPassword?: string };
 
   if (env.ATPROTO_MOCK_MODE === 'true') {
     const handle = body.handle || 'test.bsky.social';
@@ -70,54 +73,54 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  // Real auth: verify identity via app password on user's PDS
   const handle = body.handle;
+  const appPassword = body.appPassword;
+
   if (!handle) {
     return jsonResponse({ error: 'handle is required' }, 400);
   }
+  if (!appPassword) {
+    return jsonResponse({ error: 'appPassword is required' }, 400);
+  }
 
-  const state = crypto.randomUUID();
-  const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
+  try {
+    // Step 1: Resolve handle → DID
+    const did = await resolveHandle(handle);
+    if (!did) {
+      return jsonResponse({ error: 'Could not resolve handle' }, 400);
+    }
 
-  await env.DB.prepare(
-    `INSERT INTO sessions (session_id, did, handle, access_token, pds_url, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 hour'))`
-  ).bind(state, 'pending', handle, codeVerifier, '').run();
+    // Step 2: Resolve DID → PDS URL
+    const pdsUrl = await resolvePds(did);
+    if (!pdsUrl) {
+      return jsonResponse({ error: 'Could not resolve PDS for this account' }, 400);
+    }
 
-  const authUrl = `https://bsky.social/oauth/authorize?client_id=${env.ATPROTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(env.FRONTEND_URL + '/auth/callback')}&state=${state}&code_challenge=${codeVerifier}&response_type=code&scope=atproto`;
+    // Step 3: Verify credentials via createSession on the user's PDS
+    const verified = await verifyCredentials(pdsUrl, handle, appPassword);
+    if (!verified) {
+      return jsonResponse({ error: 'Invalid handle or app password' }, 401);
+    }
 
-  return jsonResponse({ authUrl, state });
+    // Step 4: Create local session with the verified DID
+    // We discard the PDS access token — we only needed identity proof
+    const session = await createSession(env, verified.did, verified.handle);
+
+    return jsonResponseWithCookie(
+      { success: true, session: { did: verified.did, handle: verified.handle } },
+      200,
+      sessionCookie(session.sessionId)
+    );
+  } catch (err: any) {
+    console.error('Auth error:', err.message);
+    return jsonResponse({ error: 'Authentication failed: ' + err.message }, 500);
+  }
 }
 
 async function handleCallback(request: Request, env: Env, url: URL): Promise<Response> {
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-
-  if (!code || !state) {
-    return jsonResponse({ error: 'Missing code or state' }, 400);
-  }
-
-  if (env.ATPROTO_MOCK_MODE === 'true') {
-    const pending = await env.DB.prepare(
-      'SELECT * FROM sessions WHERE session_id = ?'
-    ).bind(state).first();
-
-    if (!pending) {
-      return jsonResponse({ error: 'Invalid state' }, 400);
-    }
-
-    const did = `did:plc:mock${(pending.handle as string).replace(/\./g, '')}`;
-    const session = await createSession(env, did, pending.handle as string);
-
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${env.FRONTEND_URL}/?auth=success`,
-        'Set-Cookie': sessionCookie(session.sessionId),
-      },
-    });
-  }
-
-  return jsonResponse({ error: 'Real OAuth not yet configured' }, 501);
+  // Reserved for future OAuth flow
+  return jsonResponse({ error: 'OAuth callback not yet implemented. Use app password auth.' }, 501);
 }
 
 async function logout(request: Request, env: Env): Promise<Response> {
@@ -139,6 +142,8 @@ async function getMe(request: Request, env: Env): Promise<Response> {
   }
   return jsonResponse({ did: session.did, handle: session.handle });
 }
+
+// --- Session management ---
 
 export async function getSession(request: Request, env: Env): Promise<Session | null> {
   const authHeader = request.headers.get('Authorization');
@@ -180,4 +185,81 @@ async function createSession(env: Env, did: string, handle: string): Promise<Ses
   ).bind(sessionId, did, handle).run();
 
   return { sessionId, did, handle };
+}
+
+// --- ATProto identity resolution ---
+
+const BSKY_PUBLIC_API = 'https://public.api.bsky.app';
+
+async function resolveHandle(handle: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { did?: string };
+    return data.did || null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePds(did: string): Promise<string | null> {
+  try {
+    // Try PLC directory first (did:plc:...)
+    if (did.startsWith('did:plc:')) {
+      const res = await fetch(`https://plc.directory/${did}`);
+      if (res.ok) {
+        const doc = await res.json() as any;
+        const services = doc.service || [];
+        const pds = services.find((s: any) => s.id === '#atproto_pds');
+        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
+      }
+    }
+
+    // Fallback: try did:web resolution
+    if (did.startsWith('did:web:')) {
+      const domain = did.replace('did:web:', '');
+      const res = await fetch(`https://${domain}/.well-known/did.json`);
+      if (res.ok) {
+        const doc = await res.json() as any;
+        const services = doc.service || [];
+        const pds = services.find((s: any) => s.id === '#atproto_pds');
+        if (pds?.serviceEndpoint) return pds.serviceEndpoint;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyCredentials(
+  pdsUrl: string,
+  handle: string,
+  appPassword: string
+): Promise<{ did: string; handle: string } | null> {
+  try {
+    const res = await fetch(`${pdsUrl}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password: appPassword }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json() as {
+      did?: string;
+      handle?: string;
+      accessJwt?: string;
+    };
+
+    if (!data.did) return null;
+
+    // We have a verified DID. Discard the access token — we don't need it.
+    return { did: data.did, handle: data.handle || handle };
+  } catch {
+    return null;
+  }
 }
