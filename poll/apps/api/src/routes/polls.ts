@@ -124,6 +124,22 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
       }, 500);
     }
 
+    // Validate that RSA_PUBLIC_KEY_JWK is valid JSON (catches truncated/malformed secrets)
+    step = 'validateKeys';
+    let hostPublicKeyParsed: any;
+    try {
+      hostPublicKeyParsed = JSON.parse(env.RSA_PUBLIC_KEY_JWK);
+    } catch {
+      return jsonResponse({
+        error: 'RSA_PUBLIC_KEY_JWK is not valid JSON. Re-set the secret with a complete JWK string.',
+      }, 500);
+    }
+    if (!hostPublicKeyParsed?.kty || !hostPublicKeyParsed?.n || !hostPublicKeyParsed?.e) {
+      return jsonResponse({
+        error: 'RSA_PUBLIC_KEY_JWK is missing required JWK fields (kty, n, e).',
+      }, 500);
+    }
+
     step = 'computeKeys';
     const pollId = crypto.randomUUID();
 

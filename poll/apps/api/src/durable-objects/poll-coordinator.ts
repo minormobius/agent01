@@ -52,7 +52,13 @@ export class PollCoordinator implements DurableObject {
     if (this.rsaPrivateKey) return this.rsaPrivateKey;
     const jwkStr = this.env.RSA_PRIVATE_KEY_JWK;
     if (!jwkStr) throw new Error('RSA_PRIVATE_KEY_JWK not configured');
-    this.rsaPrivateKey = await importRSAPrivateKey(JSON.parse(jwkStr));
+    let jwk: JsonWebKey;
+    try {
+      jwk = JSON.parse(jwkStr);
+    } catch {
+      throw new Error('RSA_PRIVATE_KEY_JWK is not valid JSON — re-set the secret with a complete JWK');
+    }
+    this.rsaPrivateKey = await importRSAPrivateKey(jwk);
     return this.rsaPrivateKey;
   }
 
@@ -60,7 +66,13 @@ export class PollCoordinator implements DurableObject {
     if (this.rsaPublicKey) return this.rsaPublicKey;
     const jwkStr = this.env.RSA_PUBLIC_KEY_JWK;
     if (!jwkStr) throw new Error('RSA_PUBLIC_KEY_JWK not configured');
-    this.rsaPublicKey = await importRSAPublicKey(JSON.parse(jwkStr));
+    let jwk: JsonWebKey;
+    try {
+      jwk = JSON.parse(jwkStr);
+    } catch {
+      throw new Error('RSA_PUBLIC_KEY_JWK is not valid JSON — re-set the secret with a complete JWK');
+    }
+    this.rsaPublicKey = await importRSAPublicKey(jwk);
     return this.rsaPublicKey;
   }
 

@@ -72,7 +72,12 @@ export function VotePage() {
     // 2. Derive token message
     const tokenMessage = await deriveTokenMessage(id, secret, poll.closes_at);
     // 3. Import the host's RSA public key from the poll definition
-    const hostPublicKeyJWK = JSON.parse(poll.host_public_key);
+    let hostPublicKeyJWK: JsonWebKey;
+    try {
+      hostPublicKeyJWK = JSON.parse(poll.host_public_key);
+    } catch {
+      throw new Error('Poll has an invalid RSA public key. The poll host needs to re-create this poll with a valid key.');
+    }
     const publicKey = await importRSAPublicKey(hostPublicKeyJWK);
     // 4. Blind the token message
     const { blindedMsg, inv } = await blindMessage(tokenMessage, publicKey);
