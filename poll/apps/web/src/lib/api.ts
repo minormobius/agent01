@@ -15,7 +15,8 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || `API error: ${res.status}`);
+    const detail = [data.error, data.message, data.step].filter(Boolean).join(' — ');
+    throw new Error(detail || `API error: ${res.status}`);
   }
   return data as T;
 }

@@ -103,100 +103,113 @@ export async function handlePollRoutes(
 }
 
 async function createPoll(request: Request, env: Env): Promise<Response> {
-  const session = await getSession(request, env);
-  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+  let step = 'getSession';
+  try {
+    const session = await getSession(request, env);
+    if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-  const body = await request.json();
-  const parsed = CreatePollSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonResponse({ error: 'Validation error', details: parsed.error.issues }, 400);
+    step = 'parseBody';
+    const body = await request.json();
+    const parsed = CreatePollSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonResponse({ error: 'Validation error', details: parsed.error.issues }, 400);
+    }
+
+    const data = parsed.data;
+
+    // v2 requires RSA key pair to be configured
+    if (data.mode === 'anon_credential_v2' && !env.RSA_PUBLIC_KEY_JWK) {
+      return jsonResponse({
+        error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
+      }, 500);
+    }
+
+    step = 'computeKeys';
+    const pollId = crypto.randomUUID();
+    const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();
+
+    let hostKeyFingerprint: string;
+    let hostPublicKey: string | null = null;
+
+    if (data.mode === 'anon_credential_v2') {
+      hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
+      const encoder = new TextEncoder();
+      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
+      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+    } else {
+      const encoder = new TextEncoder();
+      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
+      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    const now = new Date().toISOString();
+    const eligibilityMode = data.eligibilityMode || 'open';
+    const eligibilitySource = data.eligibilitySource || null;
+
+    const poll = {
+      id: pollId,
+      hostDid: session.did,
+      askerDid: null,
+      question: data.question,
+      options: data.options,
+      opensAt: data.opensAt,
+      closesAt: data.closesAt,
+      status: 'draft' as const,
+      mode: data.mode,
+      eligibilityMode,
+      eligibilitySource,
+      hostKeyFingerprint,
+      hostPublicKey,
+      atprotoRecordUri: null,
+      createdAt: now,
+    };
+
+    // Insert into D1
+    step = 'D1 insert';
+    await env.DB.prepare(
+      `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
+        status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      poll.id, poll.hostDid, poll.askerDid, poll.question,
+      JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
+      poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
+      poll.hostKeyFingerprint, poll.hostPublicKey, poll.createdAt
+    ).run();
+
+    // Populate eligible DIDs based on eligibility mode
+    step = 'eligibility';
+    let eligibleCount = 0;
+    if (eligibilityMode === 'did_list' && data.whitelistedDids?.length) {
+      eligibleCount = await insertEligibleDids(env, pollId, data.whitelistedDids);
+    } else if (eligibilityMode === 'followers' || eligibilityMode === 'mutuals') {
+      const dids = await fetchAtprotoGraph(session.did, eligibilityMode);
+      eligibleCount = await insertEligibleDids(env, pollId, dids);
+    } else if (eligibilityMode === 'at_list' && eligibilitySource) {
+      const dids = await fetchAtprotoList(eligibilitySource);
+      eligibleCount = await insertEligibleDids(env, pollId, dids);
+    }
+
+    // Initialize the Durable Object
+    step = 'DO initialize';
+    const doStub = getPollDO(env, pollId);
+    const doRes = await doStub.fetch(new Request('https://do/initialize', {
+      method: 'POST',
+      body: JSON.stringify({ ...poll, signingKey }),
+    }));
+    if (!doRes.ok) {
+      const doErr = await doRes.text();
+      console.error('DO init failed:', doErr);
+      return jsonResponse({ error: `DO initialization failed`, step, detail: doErr }, 500);
+    }
+
+    return jsonResponse({ ...poll, eligibleCount }, 201);
+  } catch (err: any) {
+    console.error(`createPoll failed at step "${step}":`, err);
+    return jsonResponse({ error: `Poll creation failed at step: ${step}`, message: err.message }, 500);
   }
-
-  const data = parsed.data;
-
-  // v2 requires RSA key pair to be configured
-  if (data.mode === 'anon_credential_v2' && !env.RSA_PUBLIC_KEY_JWK) {
-    return jsonResponse({
-      error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
-    }, 500);
-  }
-
-  const pollId = crypto.randomUUID();
-  const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();
-
-  let hostKeyFingerprint: string;
-  let hostPublicKey: string | null = null;
-
-  if (data.mode === 'anon_credential_v2') {
-    // v2: store the RSA public key JWK so clients can blind messages against it
-    hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
-    // Fingerprint is SHA-256 of the public key JWK for quick identification
-    const encoder = new TextEncoder();
-    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
-    hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-  } else {
-    // v1: SHA-256 fingerprint of the HMAC signing key
-    const encoder = new TextEncoder();
-    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(signingKey));
-    hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  const now = new Date().toISOString();
-  const eligibilityMode = data.eligibilityMode || 'open';
-  const eligibilitySource = data.eligibilitySource || null;
-
-  const poll = {
-    id: pollId,
-    hostDid: session.did,
-    askerDid: null,
-    question: data.question,
-    options: data.options,
-    opensAt: data.opensAt,
-    closesAt: data.closesAt,
-    status: 'draft' as const,
-    mode: data.mode,
-    eligibilityMode,
-    eligibilitySource,
-    hostKeyFingerprint,
-    hostPublicKey,
-    atprotoRecordUri: null,
-    createdAt: now,
-  };
-
-  // Insert into D1
-  await env.DB.prepare(
-    `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
-      status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    poll.id, poll.hostDid, poll.askerDid, poll.question,
-    JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
-    poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
-    poll.hostKeyFingerprint, poll.hostPublicKey, poll.createdAt
-  ).run();
-
-  // Populate eligible DIDs based on eligibility mode
-  let eligibleCount = 0;
-  if (eligibilityMode === 'did_list' && data.whitelistedDids?.length) {
-    eligibleCount = await insertEligibleDids(env, pollId, data.whitelistedDids);
-  } else if (eligibilityMode === 'followers' || eligibilityMode === 'mutuals') {
-    const dids = await fetchAtprotoGraph(session.did, eligibilityMode);
-    eligibleCount = await insertEligibleDids(env, pollId, dids);
-  } else if (eligibilityMode === 'at_list' && eligibilitySource) {
-    const dids = await fetchAtprotoList(eligibilitySource);
-    eligibleCount = await insertEligibleDids(env, pollId, dids);
-  }
-
-  // Initialize the Durable Object
-  const doStub = getPollDO(env, pollId);
-  await doStub.fetch(new Request('https://do/initialize', {
-    method: 'POST',
-    body: JSON.stringify({ ...poll, signingKey }),
-  }));
-
-  return jsonResponse({ ...poll, eligibleCount }, 201);
 }
 
 async function listPolls(env: Env, url: URL): Promise<Response> {

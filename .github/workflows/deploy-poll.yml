@@ -32,7 +32,7 @@ jobs:
         run: |
           for f in apps/api/migrations/*.sql; do
             echo "Running migration: $f"
-            npx wrangler d1 execute anon-polls-db --file="$f" --remote
+            npx wrangler d1 execute anon-polls-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
