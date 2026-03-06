@@ -9,6 +9,7 @@ import { PollPage } from './pages/Poll';
 import { VotePage } from './pages/Vote';
 import { AuditPage } from './pages/Audit';
 import { AdminPage } from './pages/Admin';
+import { DocsPage } from './pages/Docs';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/poll/:id/vote" element={<VotePage />} />
             <Route path="/poll/:id/audit" element={<AuditPage />} />
             <Route path="/poll/:id/admin" element={<AdminPage />} />
+            <Route path="/docs" element={<DocsPage />} />
           </Routes>
         </Layout>
       </AuthProvider>

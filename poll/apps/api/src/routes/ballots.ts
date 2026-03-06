@@ -11,7 +11,6 @@
  */
 
 import { BallotSubmissionSchema } from '@anon-polls/shared';
-import { MockPublisher, PdsPublisher } from '@anon-polls/shared';
 import type { Env } from '../index.js';
 import { jsonResponse, getPollDO } from '../index.js';
 
@@ -49,42 +48,6 @@ async function submitBallot(request: Request, env: Env, pollId: string): Promise
   }));
 
   const result = await doRes.json() as any;
-
-  // If ballot was accepted, publish to ATProto
-  if (result.accepted && result.ballotId) {
-    try {
-      const publisher = getPublisher(env);
-      const record = {
-        $type: 'com.minomobi.poll.ballot' as const,
-        pollId,
-        option: parsed.data.choice,
-        tokenMessage: parsed.data.tokenMessage,
-        issuerSignature: parsed.data.issuerSignature,
-        nullifier: parsed.data.nullifier,
-        submittedAt: new Date().toISOString(),
-        ballotVersion: parsed.data.ballotVersion || 1,
-        publicSerial: result.publicSerial,
-      };
-
-      const pubResult = await publisher.createRecord(
-        'com.minomobi.poll.ballot',
-        `ballot-${result.ballotId.replace(/-/g, '')}`,
-        record
-      );
-
-      // Update D1 with published URI
-      await env.DB.prepare(
-        'UPDATE ballots SET published_record_uri = ? WHERE ballot_id = ?'
-      ).bind(pubResult.uri, result.ballotId).run();
-
-      result.publishedUri = pubResult.uri;
-    } catch (err: any) {
-      // Publishing failure shouldn't reject the ballot — it's already accepted
-      console.error('Failed to publish ballot to ATProto:', err.message);
-      result.publishWarning = 'Ballot accepted but ATProto publish deferred';
-    }
-  }
-
   return jsonResponse(result, doRes.status);
 }
 
@@ -93,16 +56,4 @@ async function listBallots(env: Env, pollId: string): Promise<Response> {
   const doStub = getPollDO(env, pollId);
   const res = await doStub.fetch(new Request('https://do/ballots'));
   return new Response(res.body, { status: res.status, headers: res.headers });
-}
-
-function getPublisher(env: Env) {
-  if (env.ATPROTO_MOCK_MODE === 'true' || !env.ATPROTO_SERVICE_HANDLE) {
-    return new MockPublisher();
-  }
-  return new PdsPublisher({
-    serviceUrl: env.ATPROTO_SERVICE_PDS || 'https://bsky.social',
-    handle: env.ATPROTO_SERVICE_HANDLE,
-    password: env.ATPROTO_SERVICE_PASSWORD || '',
-    did: env.ATPROTO_SERVICE_DID || '',
-  });
 }

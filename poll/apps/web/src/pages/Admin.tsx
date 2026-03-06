@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally } from '../lib/api';
+import { getPoll, openPoll, closePoll, reopenPoll, getTally, publishPoll, publishTally, publishBallots } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +80,9 @@ export function AdminPage() {
             <div className="flex gap-8">
               <button className="btn btn-primary" onClick={() => action(() => publishPoll(id!), 'Poll published to ATProto')}>
                 Publish Poll Definition
+              </button>
+              <button className="btn btn-primary" onClick={() => action(() => publishBallots(id!), 'Ballots published to ATProto (shuffled)')}>
+                Publish Ballots
               </button>
               <button className="btn btn-primary" onClick={() => action(() => publishTally(id!), 'Tally published to ATProto')}>
                 Publish Tally

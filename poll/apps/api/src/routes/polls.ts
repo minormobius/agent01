@@ -79,6 +79,11 @@ export async function handlePollRoutes(
     return publishTally(request, env, tallyPublishMatch[1]);
   }
 
+  const ballotsPublishMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/ballots\/publish$/);
+  if (ballotsPublishMatch && request.method === 'POST') {
+    return publishBallots(request, env, ballotsPublishMatch[1]);
+  }
+
   return null;
 }
 
@@ -290,6 +295,63 @@ async function publishTally(request: Request, env: Env, pollId: string): Promise
   );
 
   return jsonResponse({ uri: result.uri, cid: result.cid });
+}
+
+async function publishBallots(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (poll.status !== 'closed') return jsonResponse({ error: 'Poll must be closed before publishing ballots' }, 400);
+
+  const rows = await env.DB.prepare(
+    'SELECT ballot_id, choice, token_message, issuer_signature, nullifier, ballot_version, public_ballot_serial FROM ballots WHERE poll_id = ? AND published_record_uri IS NULL'
+  ).bind(pollId).all();
+
+  const ballots = rows.results as any[];
+  if (ballots.length === 0) return jsonResponse({ published: 0, message: 'No unpublished ballots' });
+
+  // Fisher-Yates shuffle to break submission ordering
+  for (let i = ballots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ballots[i], ballots[j]] = [ballots[j], ballots[i]];
+  }
+
+  const publisher = getPublisher(env);
+  let published = 0;
+
+  for (const b of ballots) {
+    try {
+      const record = {
+        $type: 'com.minomobi.poll.ballot' as const,
+        pollId,
+        option: b.choice,
+        tokenMessage: b.token_message,
+        issuerSignature: b.issuer_signature,
+        nullifier: b.nullifier,
+        ballotVersion: b.ballot_version || 1,
+        publicSerial: b.public_ballot_serial,
+      };
+
+      const result = await publisher.createRecord(
+        'com.minomobi.poll.ballot',
+        `ballot-${b.ballot_id.replace(/-/g, '')}`,
+        record
+      );
+
+      await env.DB.prepare(
+        'UPDATE ballots SET published_record_uri = ? WHERE ballot_id = ?'
+      ).bind(result.uri, b.ballot_id).run();
+
+      published++;
+    } catch (err: any) {
+      console.error(`Failed to publish ballot ${b.ballot_id}:`, err.message);
+    }
+  }
+
+  return jsonResponse({ published, total: ballots.length });
 }
 
 function getPublisher(env: Env) {

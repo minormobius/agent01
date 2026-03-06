@@ -394,3 +394,67 @@ button, .btn {
   color: var(--fg);
   background: var(--bar-track);
 }
+
+.docs-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.docs-tab {
+  all: unset;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.docs-tab:hover {
+  color: var(--fg);
+}
+
+.docs-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.docs-content h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+
+.docs-content h3:first-child {
+  margin-top: 0;
+}
+
+.docs-content h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 4px;
+}
+
+.docs-content p {
+  font-size: 14px;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.docs-content ul, .docs-content ol {
+  font-size: 14px;
+  margin: 0 0 12px 20px;
+  line-height: 1.6;
+}
+
+.docs-content code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bar-track);
+  padding: 1px 5px;
+  border-radius: 3px;
+}

@@ -61,6 +61,9 @@ export const publishPoll = (id: string) =>
 export const publishTally = (id: string) =>
   apiFetch<any>(`/api/polls/${id}/tally/publish`, { method: 'POST' });
 
+export const publishBallots = (id: string) =>
+  apiFetch<any>(`/api/polls/${id}/ballots/publish`, { method: 'POST' });
+
 // Eligibility & voting
 export const requestEligibility = (pollId: string, blindedMessage?: string) =>
   apiFetch<any>(`/api/polls/${pollId}/eligibility/request`, {
