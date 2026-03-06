@@ -43,6 +43,51 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // Debug endpoint — reports runtime binding and routing state
+    if (url.pathname === '/api/debug') {
+      const diag: Record<string, any> = {
+        timestamp: new Date().toISOString(),
+        requestUrl: request.url,
+        bindings: {
+          DB: typeof env.DB,
+          POLL_COORDINATOR: typeof env.POLL_COORDINATOR,
+          ASSETS: typeof env.ASSETS,
+          FRONTEND_URL: env.FRONTEND_URL,
+          ATPROTO_MOCK_MODE: env.ATPROTO_MOCK_MODE,
+        },
+      };
+      // Test D1
+      try {
+        const result = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+        diag.d1 = { ok: true, tables: result.results.map((r: any) => r.name) };
+      } catch (e: any) {
+        diag.d1 = { ok: false, error: e.message };
+      }
+      // Test ASSETS
+      try {
+        if (env.ASSETS) {
+          const testReq = new Request(new URL('/', request.url).toString());
+          const assetRes = await env.ASSETS.fetch(testReq);
+          diag.assets = { ok: true, status: assetRes.status, contentType: assetRes.headers.get('content-type') };
+        } else {
+          diag.assets = { ok: false, error: 'ASSETS binding is falsy' };
+        }
+      } catch (e: any) {
+        diag.assets = { ok: false, error: e.message };
+      }
+      // Test ASSETS on a non-existent SPA path
+      try {
+        if (env.ASSETS) {
+          const spaReq = new Request(new URL('/poll/test-debug/vote', request.url).toString());
+          const spaRes = await env.ASSETS.fetch(spaReq);
+          diag.spaFallback = { ok: true, status: spaRes.status, contentType: spaRes.headers.get('content-type') };
+        }
+      } catch (e: any) {
+        diag.spaFallback = { ok: false, error: e.message };
+      }
+      return addCorsHeaders(jsonResponse(diag), env);
+    }
+
     // Non-API routes: serve static assets with SPA fallback
     if (!url.pathname.startsWith('/api/')) {
       try {
