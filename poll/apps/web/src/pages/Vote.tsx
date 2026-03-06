@@ -154,7 +154,7 @@ export function VotePage() {
         <div className="card">
           <h2>{poll.question}</h2>
           <p className="muted">
-            Anonymous credential — cryptographic unlinkability
+            Anonymous credential &mdash; cryptographic unlinkability
           </p>
         </div>
       )}
