@@ -133,8 +133,9 @@ export async function startOAuth(
   const clientPrivateKey = await getClientPrivateKey(env);
   const clientPublicJWK = await getClientPublicJWK(env);
 
+  // aud for client_assertion must be the authorization server's issuer (not the endpoint URL)
   const clientAssertion = await createClientAssertion(
-    clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
+    clientPrivateKey, clientPublicJWK, clientId, metadata.issuer
   );
 
   // DPoP proof for PAR endpoint
@@ -170,7 +171,7 @@ export async function startOAuth(
       const retryProof = await createDPoPProof(dpop, 'POST', metadata.pushed_authorization_request_endpoint, nonce);
       // Need fresh client assertion too (jti must be unique)
       const retryAssertion = await createClientAssertion(
-        clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
+        clientPrivateKey, clientPublicJWK, clientId, metadata.issuer
       );
       parBody.set('client_assertion', retryAssertion);
       parRes = await fetch(metadata.pushed_authorization_request_endpoint, {
@@ -262,8 +263,10 @@ export async function handleOAuthCallback(
   const clientPrivateKey = await getClientPrivateKey(env);
   const clientPublicJWK = await getClientPublicJWK(env);
 
+  // Discover auth server to get issuer for aud claim
+  const { metadata: callbackMeta } = await discoverAuthServer(pdsUrl);
   const clientAssertion = await createClientAssertion(
-    clientPrivateKey, clientPublicJWK, clientId, tokenEndpoint
+    clientPrivateKey, clientPublicJWK, clientId, callbackMeta.issuer
   );
 
   const dpopProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, dpopNonce || undefined);
@@ -294,7 +297,7 @@ export async function handleOAuthCallback(
     if (newNonce) {
       const retryProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, newNonce);
       const retryAssertion = await createClientAssertion(
-        clientPrivateKey, clientPublicJWK, clientId, tokenEndpoint
+        clientPrivateKey, clientPublicJWK, clientId, callbackMeta.issuer
       );
       tokenBody.set('client_assertion', retryAssertion);
       tokenRes = await fetch(tokenEndpoint, {
@@ -397,7 +400,7 @@ export async function refreshOAuthToken(
   const clientPublicJWK = await getClientPublicJWK(env);
 
   const clientAssertion = await createClientAssertion(
-    clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
+    clientPrivateKey, clientPublicJWK, clientId, metadata.issuer
   );
 
   const dpopProof = await createDPoPProof(dpop, 'POST', metadata.token_endpoint, dpopNonce);
@@ -425,7 +428,7 @@ export async function refreshOAuthToken(
     if (newNonce) {
       const retryProof = await createDPoPProof(dpop, 'POST', metadata.token_endpoint, newNonce);
       const retryAssertion = await createClientAssertion(
-        clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
+        clientPrivateKey, clientPublicJWK, clientId, metadata.issuer
       );
       body.set('client_assertion', retryAssertion);
       res = await fetch(metadata.token_endpoint, {
