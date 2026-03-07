@@ -44,7 +44,7 @@ export const authLogout = () =>
   apiFetch<{ success: boolean }>('/api/auth/logout', { method: 'POST' });
 
 export const getMe = () =>
-  apiFetch<{ did: string; handle: string }>('/api/me');
+  apiFetch<{ did: string; handle: string; canPost?: boolean }>('/api/me');
 
 // Polls
 export const createPoll = (data: {

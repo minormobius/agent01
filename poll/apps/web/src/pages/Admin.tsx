@@ -167,7 +167,7 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
-  const { handle } = useAuth();
+  const { handle, canPost } = useAuth();
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -188,6 +188,22 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
   ).join('\n');
   const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nVerifiable & anonymous · ${timeLeft}` : ''}`;
 
+  const handleReauth = async () => {
+    if (!handle) return;
+    setPosting(true);
+    try {
+      const authResult = await authOAuthStart(
+        handle,
+        `/admin/${pollId}`,
+        'atproto transition:generic'
+      );
+      window.location.href = authResult.authUrl;
+    } catch (err: any) {
+      setPostResult({ error: err.message });
+      setPosting(false);
+    }
+  };
+
   const handlePost = async () => {
     setPosting(true);
     setPostResult(null);
@@ -195,20 +211,6 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
       const result = await postToBluesky(pollId);
       setPostResult({ uri: result.uri });
     } catch (err: any) {
-      // If insufficient scope, re-auth with write permission
-      if (err.message?.includes('insufficient_scope') && handle) {
-        try {
-          const authResult = await authOAuthStart(
-            handle,
-            `/admin/${pollId}`,
-            'atproto transition:generic'
-          );
-          window.location.href = authResult.authUrl;
-          return;
-        } catch {
-          // fall through to show original error
-        }
-      }
       setPostResult({ error: err.message });
     } finally {
       setPosting(false);
@@ -236,13 +238,23 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
       </div>
 
       <div style={{ marginTop: '12px' }}>
-        <button
-          className="btn btn-primary"
-          disabled={posting}
-          onClick={handlePost}
-        >
-          {posting ? 'Posting...' : 'Post to Bluesky'}
-        </button>
+        {canPost ? (
+          <button
+            className="btn btn-primary"
+            disabled={posting}
+            onClick={handlePost}
+          >
+            {posting ? 'Posting...' : 'Post to Bluesky'}
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            disabled={posting}
+            onClick={handleReauth}
+          >
+            {posting ? 'Redirecting...' : 'Authorize & Post to Bluesky'}
+          </button>
+        )}
       </div>
 
       {postResult?.uri && (

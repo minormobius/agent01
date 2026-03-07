@@ -4,6 +4,7 @@ import { getMe, authStart, authOAuthStart, authLogout, authRefresh } from '../li
 interface AuthState {
   did: string | null;
   handle: string | null;
+  canPost: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     did: null,
     handle: null,
+    canPost: false,
     loading: true,
     error: null,
   });
@@ -84,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Try session cookie first, then fall back to refresh token
     getMe()
-      .then(user => setState({ did: user.did, handle: user.handle, loading: false, error: null }))
+      .then(user => setState({ did: user.did, handle: user.handle, canPost: !!user.canPost, loading: false, error: null }))
       .catch(async () => {
         // Session expired — try refresh token from IndexedDB
         try {
@@ -92,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (token) {
             const result = await authRefresh(token);
             if (result.session) {
-              setState({ did: result.session.did, handle: result.session.handle, loading: false, error: null });
+              setState({ did: result.session.did, handle: result.session.handle, canPost: false, loading: false, error: null });
               return;
             }
           }
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Refresh failed — token expired or revoked
           await clearRefreshToken().catch(() => {});
         }
-        setState({ did: null, handle: null, loading: false, error: null });
+        setState({ did: null, handle: null, canPost: false, loading: false, error: null });
       });
   }, []);
 
@@ -113,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (result.refreshToken) {
           await saveRefreshToken(result.refreshToken).catch(() => {});
         }
-        setState({ did: result.session.did, handle: result.session.handle, loading: false, error: null });
+        setState({ did: result.session.did, handle: result.session.handle, canPost: false, loading: false, error: null });
       } else if (result.authUrl) {
         window.location.href = result.authUrl;
       }
@@ -136,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await authLogout().catch(() => {});
     await clearRefreshToken().catch(() => {});
-    setState({ did: null, handle: null, loading: false, error: null });
+    setState({ did: null, handle: null, canPost: false, loading: false, error: null });
   }, []);
 
   return (
