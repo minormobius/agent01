@@ -35,10 +35,14 @@
     { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] }
   ],
 
-  // Observability — invocation logs to see if Worker is being called
+  // Observability — full invocation + console logs
   "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
     "logs": {
-      "enabled": false,
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
       "invocation_logs": true
     }
   },

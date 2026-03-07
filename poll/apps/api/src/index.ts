@@ -37,6 +37,26 @@ export interface Env {
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Top-level try/catch — if ANYTHING throws (even imports/bindings), we see it
+    try {
+      return await handleRequest(request, env, ctx);
+    } catch (e: any) {
+      console.error('TOP-LEVEL WORKER CRASH:', e);
+      return new Response(JSON.stringify({
+        error: 'Worker top-level crash',
+        message: e.message,
+        stack: e.stack,
+        hasAssets: !!env.ASSETS,
+        hasDB: !!env.DB,
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  },
+};
+
+async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     // CORS
@@ -51,7 +71,7 @@ export default {
 
     // Simple ping — absolute minimum to verify Worker routing works
     if (url.pathname === '/api/debug/ping') {
-      return jsonResponse({ pong: true, ts: Date.now(), worker: true });
+      return jsonResponse({ pong: true, ts: Date.now(), worker: true, hasAssets: !!env.ASSETS });
     }
 
     // Serve client-metadata.json dynamically so we can inject the OAuth public key
@@ -114,8 +134,7 @@ export default {
         env
       );
     }
-  },
-};
+}
 
 function corsResponse(env: Env): Response {
   return new Response(null, {
