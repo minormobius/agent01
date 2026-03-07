@@ -35,6 +35,14 @@
     { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] }
   ],
 
+  // Observability — invocation logs to see if Worker is being called
+  "observability": {
+    "logs": {
+      "enabled": false,
+      "invocation_logs": true
+    }
+  },
+
   // Dev vars — override in Cloudflare dashboard for production
   "vars": {
     "FRONTEND_URL": "https://poll.mino.mobi",
