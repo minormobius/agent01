@@ -92,18 +92,18 @@ function getRedirectUri(env: Env): string {
 }
 
 async function getClientPrivateKey(env: Env): Promise<CryptoKey> {
-  if (!env.OAUTH_CLIENT_PRIVATE_KEY_JWK) {
-    throw new Error('OAUTH_CLIENT_PRIVATE_KEY_JWK secret not configured');
+  if (!env.OAUTH_SIGNING_PRIVATE_KEY_JWK) {
+    throw new Error('OAUTH_SIGNING_PRIVATE_KEY_JWK secret not configured');
   }
-  const jwk = JSON.parse(env.OAUTH_CLIENT_PRIVATE_KEY_JWK);
+  const jwk = JSON.parse(env.OAUTH_SIGNING_PRIVATE_KEY_JWK);
   return importPrivateKeyJWK(jwk);
 }
 
 function getClientPublicJWK(env: Env): JsonWebKey {
-  if (!env.OAUTH_CLIENT_PUBLIC_KEY_JWK) {
-    throw new Error('OAUTH_CLIENT_PUBLIC_KEY_JWK secret not configured');
+  if (!env.OAUTH_SIGNING_PUBLIC_KEY_JWK) {
+    throw new Error('OAUTH_SIGNING_PUBLIC_KEY_JWK secret not configured');
   }
-  return JSON.parse(env.OAUTH_CLIENT_PUBLIC_KEY_JWK);
+  return JSON.parse(env.OAUTH_SIGNING_PUBLIC_KEY_JWK);
 }
 
 // --- Start flow ---

@@ -120,8 +120,8 @@ Users authenticate via the standard ATProto OAuth flow (OAuth 2.1 profile with P
 
 **Secrets required**:
 - `OAUTH_CLIENT_ID` — must match `client_id` in `client-metadata.json`
-- `OAUTH_CLIENT_PRIVATE_KEY_JWK` — ES256 private key for client_assertion
-- `OAUTH_CLIENT_PUBLIC_KEY_JWK` — ES256 public key (also in client-metadata.json `jwks`)
+- `OAUTH_SIGNING_PRIVATE_KEY_JWK` — ES256 private key for client_assertion
+- `OAUTH_SIGNING_PUBLIC_KEY_JWK` — ES256 public key (also in client-metadata.json `jwks`)
 
 Generate with: `node scripts/generate-rsa-keypair.js` (generates both RSA + OAuth keys in one run)
 

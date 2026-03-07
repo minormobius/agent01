@@ -9,7 +9,7 @@
  *
  * Output:
  *   - RSA_PRIVATE_KEY_JWK / RSA_PUBLIC_KEY_JWK: blind signatures (RSA-PSS SHA-384)
- *   - OAUTH_CLIENT_PRIVATE_KEY_JWK / OAUTH_CLIENT_PUBLIC_KEY_JWK: OAuth client auth (ES256)
+ *   - OAUTH_SIGNING_PRIVATE_KEY_JWK / OAUTH_SIGNING_PUBLIC_KEY_JWK: OAuth client auth (ES256)
  *
  * These are different algorithms — RSA-PSS for blind credentials, ECDSA P-256 for OAuth.
  * Both are needed for a production deployment.
@@ -75,11 +75,11 @@ async function generateOAuthKeys() {
 
   console.log('=== OAuth Client Key Pair (ES256, private_key_jwt) ===\n');
 
-  console.log('--- OAUTH_CLIENT_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---');
+  console.log('--- OAUTH_SIGNING_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---');
   console.log(JSON.stringify(privateJWK));
   console.log();
 
-  console.log('--- OAUTH_CLIENT_PUBLIC_KEY_JWK (Cloudflare Worker secret + client-metadata.json jwks) ---');
+  console.log('--- OAUTH_SIGNING_PUBLIC_KEY_JWK (Cloudflare Worker secret + client-metadata.json jwks) ---');
   console.log(JSON.stringify(publicJWK));
   console.log();
 
@@ -88,8 +88,8 @@ async function generateOAuthKeys() {
   console.log();
 
   console.log('To set as Cloudflare secrets:');
-  console.log('  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK');
-  console.log('  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK');
+  console.log('  npx wrangler secret put OAUTH_SIGNING_PRIVATE_KEY_JWK');
+  console.log('  npx wrangler secret put OAUTH_SIGNING_PUBLIC_KEY_JWK');
   console.log('Then paste the JSON when prompted.\n');
 }
 
@@ -104,8 +104,8 @@ async function main() {
     console.log('=== Summary: 5 secrets to set ===');
     console.log('  npx wrangler secret put RSA_PRIVATE_KEY_JWK');
     console.log('  npx wrangler secret put RSA_PUBLIC_KEY_JWK');
-    console.log('  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK');
-    console.log('  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK');
+    console.log('  npx wrangler secret put OAUTH_SIGNING_PRIVATE_KEY_JWK');
+    console.log('  npx wrangler secret put OAUTH_SIGNING_PUBLIC_KEY_JWK');
     console.log('  npx wrangler secret put OAUTH_CLIENT_ID');
     console.log('    (value: https://poll.mino.mobi/client-metadata.json)\n');
   }

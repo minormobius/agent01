@@ -15,5 +15,5 @@ FRONTEND_URL=http://localhost:3000
 # ATProto OAuth (required when ATPROTO_MOCK_MODE=false)
 # Generate keys with: node scripts/generate-rsa-keypair.js --oauth
 # OAUTH_CLIENT_ID=https://poll.mino.mobi/client-metadata.json
-# OAUTH_CLIENT_PRIVATE_KEY_JWK={"kty":"EC","crv":"P-256",...}
-# OAUTH_CLIENT_PUBLIC_KEY_JWK={"kty":"EC","crv":"P-256",...}
+# OAUTH_SIGNING_PRIVATE_KEY_JWK={"kty":"EC","crv":"P-256",...}
+# OAUTH_SIGNING_PUBLIC_KEY_JWK={"kty":"EC","crv":"P-256",...}

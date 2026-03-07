@@ -9,7 +9,7 @@ Usage:
 
 Output:
     - RSA_PRIVATE_KEY_JWK / RSA_PUBLIC_KEY_JWK: blind signatures (RSA-PSS SHA-384)
-    - OAUTH_CLIENT_PRIVATE_KEY_JWK / OAUTH_CLIENT_PUBLIC_KEY_JWK: OAuth client auth (ES256)
+    - OAUTH_SIGNING_PRIVATE_KEY_JWK / OAUTH_SIGNING_PUBLIC_KEY_JWK: OAuth client auth (ES256)
 
 No pip dependencies — uses openssl CLI (available on macOS/Linux).
 """
@@ -211,11 +211,11 @@ def generate_oauth_keys():
 
     print("=== OAuth Client Key Pair (ES256, private_key_jwt) ===\n")
 
-    print("--- OAUTH_CLIENT_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---")
+    print("--- OAUTH_SIGNING_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---")
     print(json.dumps(private_jwk))
     print()
 
-    print("--- OAUTH_CLIENT_PUBLIC_KEY_JWK (Cloudflare Worker secret + client-metadata.json jwks) ---")
+    print("--- OAUTH_SIGNING_PUBLIC_KEY_JWK (Cloudflare Worker secret + client-metadata.json jwks) ---")
     print(json.dumps(public_jwk))
     print()
 
@@ -224,8 +224,8 @@ def generate_oauth_keys():
     print()
 
     print("To set as Cloudflare secrets:")
-    print("  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK")
-    print("  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK")
+    print("  npx wrangler secret put OAUTH_SIGNING_PRIVATE_KEY_JWK")
+    print("  npx wrangler secret put OAUTH_SIGNING_PUBLIC_KEY_JWK")
     print("Then paste the JSON when prompted.\n")
 
 
@@ -254,8 +254,8 @@ def main():
         print("=== Summary: 5 secrets to set ===")
         print("  npx wrangler secret put RSA_PRIVATE_KEY_JWK")
         print("  npx wrangler secret put RSA_PUBLIC_KEY_JWK")
-        print("  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK")
-        print("  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK")
+        print("  npx wrangler secret put OAUTH_SIGNING_PRIVATE_KEY_JWK")
+        print("  npx wrangler secret put OAUTH_SIGNING_PUBLIC_KEY_JWK")
         print("  npx wrangler secret put OAUTH_CLIENT_ID")
         print("    (value: https://poll.mino.mobi/client-metadata.json)")
 
