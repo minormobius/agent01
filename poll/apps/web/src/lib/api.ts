@@ -28,10 +28,10 @@ export const authStart = (handle: string, appPassword?: string) =>
     { method: 'POST', body: JSON.stringify({ handle, appPassword }) }
   );
 
-export const authOAuthStart = (handle: string, returnTo?: string) =>
+export const authOAuthStart = (handle: string, returnTo?: string, scope?: string) =>
   apiFetch<{ authUrl: string }>(
     '/api/auth/oauth/start',
-    { method: 'POST', body: JSON.stringify({ handle, returnTo }) }
+    { method: 'POST', body: JSON.stringify({ handle, returnTo, scope }) }
   );
 
 export const authRefresh = (refreshToken: string) =>

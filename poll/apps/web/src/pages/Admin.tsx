@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky } from '../lib/api';
+import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky, authOAuthStart } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -167,6 +167,7 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
+  const { handle } = useAuth();
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -194,6 +195,20 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
       const result = await postToBluesky(pollId);
       setPostResult({ uri: result.uri });
     } catch (err: any) {
+      // If insufficient scope, re-auth with write permission
+      if (err.message?.includes('insufficient_scope') && handle) {
+        try {
+          const authResult = await authOAuthStart(
+            handle,
+            `/admin/${pollId}`,
+            'atproto transition:generic'
+          );
+          window.location.href = authResult.authUrl;
+          return;
+        } catch {
+          // fall through to show original error
+        }
+      }
       setPostResult({ error: err.message });
     } finally {
       setPosting(false);

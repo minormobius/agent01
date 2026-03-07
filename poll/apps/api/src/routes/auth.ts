@@ -19,6 +19,7 @@ import { createDPoPProof, type DPoPKeyPair } from '../oauth/jwt.js';
 
 export interface Session {
   sessionId: string;
+  oauthScope?: string;
   did: string;
   handle: string;
 }
@@ -134,7 +135,7 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
 // --- OAuth routes ---
 
 async function startOAuthRoute(request: Request, env: Env): Promise<Response> {
-  const body = await request.json() as { handle?: string; returnTo?: string };
+  const body = await request.json() as { handle?: string; returnTo?: string; scope?: string };
 
   if (env.ATPROTO_MOCK_MODE === 'true') {
     // In mock mode, skip OAuth and create session directly
@@ -154,7 +155,7 @@ async function startOAuthRoute(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const result = await startOAuth(env, body.handle, body.returnTo);
+    const result = await startOAuth(env, body.handle, body.returnTo, body.scope);
     return jsonResponse({ authUrl: result.authUrl });
   } catch (err: any) {
     console.error('OAuth start error:', err.message);
@@ -188,7 +189,8 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     // Create session with OAuth tokens
     const session = await createSession(
       env, result.did, result.handle, result.pdsUrl,
-      result.oauthRefreshToken, result.dpopKeySerialized, 'oauth'
+      result.oauthRefreshToken, result.dpopKeySerialized, 'oauth',
+      result.scope
     );
 
     // Also create a long-lived refresh token for PWA persistence
@@ -233,7 +235,11 @@ async function getMe(request: Request, env: Env): Promise<Response> {
   if (!session) {
     return jsonResponse({ error: 'Not authenticated' }, 401);
   }
-  return jsonResponse({ did: session.did, handle: session.handle });
+  return jsonResponse({
+    did: session.did,
+    handle: session.handle,
+    canPost: session.oauthScope?.includes('transition:generic') ?? false,
+  });
 }
 
 // --- Session management ---
@@ -258,7 +264,7 @@ function getSessionId(request: Request): string | null {
 
 async function lookupSession(env: Env, sessionId: string): Promise<Session | null> {
   const row = await env.DB.prepare(
-    `SELECT session_id, did, handle FROM sessions
+    `SELECT session_id, did, handle, oauth_scope FROM sessions
      WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
   ).bind(sessionId).first();
 
@@ -267,6 +273,7 @@ async function lookupSession(env: Env, sessionId: string): Promise<Session | nul
     sessionId: row.session_id as string,
     did: row.did as string,
     handle: row.handle as string,
+    oauthScope: (row.oauth_scope as string) || undefined,
   };
 }
 
@@ -274,15 +281,17 @@ async function createSession(
   env: Env, did: string, handle: string,
   pdsUrl?: string, refreshToken?: string,
   dpopKeyJwk?: string, authMethod?: string,
+  oauthScope?: string,
 ): Promise<Session> {
   const sessionId = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT INTO sessions (session_id, did, handle, pds_url, refresh_token, dpop_key_jwk, auth_method, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
+    `INSERT INTO sessions (session_id, did, handle, pds_url, refresh_token, dpop_key_jwk, auth_method, oauth_scope, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
   ).bind(
     sessionId, did, handle,
     pdsUrl || null, refreshToken || null,
     dpopKeyJwk || null, authMethod || 'app_password',
+    oauthScope || null,
   ).run();
 
   return { sessionId, did, handle };

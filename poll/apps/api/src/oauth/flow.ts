@@ -105,6 +105,7 @@ export async function startOAuth(
   env: Env,
   handle: string,
   returnTo?: string,
+  scope?: string,
 ): Promise<OAuthStartResult> {
   // 1. Resolve identity
   const did = await resolveHandle(handle);
@@ -148,7 +149,7 @@ export async function startOAuth(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state,
-    scope: 'atproto transition:generic',
+    scope: scope || 'atproto',
     client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
     client_assertion: clientAssertion,
     login_hint: handle,
@@ -394,6 +395,7 @@ export async function handleOAuthCallback(
     oauthRefreshToken: tokens.refresh_token,
     dpopKeySerialized: dpopKeyForStorage,
     returnTo,
+    scope: tokens.scope || 'atproto',
   };
 }
 

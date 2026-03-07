@@ -602,6 +602,14 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
   if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
 
+  // Check OAuth scope — posting requires transition:generic
+  if (session.oauthScope && !session.oauthScope.includes('transition:generic')) {
+    return jsonResponse({
+      error: 'insufficient_scope',
+      message: 'Posting to Bluesky requires write permission. Please re-authorize.',
+    }, 403);
+  }
+
   // Use stored PDS refresh token from login session
   const pdsAuth = await getPdsAccessToken(request, env);
   if (!pdsAuth) {
