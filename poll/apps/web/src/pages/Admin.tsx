@@ -195,7 +195,7 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
     try {
       const authResult = await authOAuthStart(
         identifier,
-        `/admin/${pollId}`,
+        `/poll/${pollId}/admin`,
         'atproto transition:generic'
       );
       window.location.href = authResult.authUrl;
