@@ -104,9 +104,14 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
     }
 
-    // Non-API routes: serve static assets (SPA fallback handled by ASSETS binding)
+    // Non-API routes: serve static assets, with manual SPA fallback
     if (!url.pathname.startsWith('/api/')) {
-      return env.ASSETS.fetch(request);
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (assetResponse.status === 404) {
+        // SPA fallback — serve index.html for client-side routing
+        return env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+      }
+      return assetResponse;
     }
 
     try {

@@ -6,11 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // Static assets — Vite build output
-  // Worker gets ALL requests via ASSETS binding, serves static files itself.
-  // This replaces _routes.json routing which doesn't work with Workers Static Assets.
+  // Worker gets ALL requests via ASSETS binding, handles SPA fallback itself.
+  // Do NOT set not_found_handling — it causes the asset layer to intercept all requests.
   "assets": {
     "directory": "dist",
-    "not_found_handling": "single-page-application",
     "binding": "ASSETS"
   },
 
