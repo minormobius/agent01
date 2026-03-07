@@ -17,7 +17,7 @@ export { PollCoordinator };
 export interface Env {
   DB: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
-  ASSETS: Fetcher;
+  ASSETS: { fetch: typeof fetch };
   FRONTEND_URL: string;
   ATPROTO_MOCK_MODE: string;
   // ATProto service account credentials (secrets)
@@ -84,11 +84,9 @@ export default {
       }
     }
 
-    // Non-API routes should not reach the Worker.
-    // _routes.json restricts the Worker to /api/* and /client-metadata.json.
-    // Pages handles SPA fallback for everything else.
+    // Non-API routes: serve static assets (SPA fallback handled by ASSETS binding)
     if (!url.pathname.startsWith('/api/')) {
-      return jsonResponse({ error: 'Not found', hint: '_routes.json should prevent this' }, 404);
+      return env.ASSETS.fetch(request);
     }
 
     try {

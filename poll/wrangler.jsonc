@@ -6,10 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // Static assets — Vite build output
-  // Worker handles /api/* routes; unmatched paths serve index.html (SPA)
+  // Worker gets ALL requests via ASSETS binding, serves static files itself.
+  // This replaces _routes.json routing which doesn't work with Workers Static Assets.
   "assets": {
     "directory": "dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
   },
 
   // D1 database
