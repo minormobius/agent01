@@ -2,7 +2,7 @@
  * ATPolls API — Cloudflare Worker entry point
  *
  * Routes requests to handlers, manages CORS, and binds to D1 + Durable Objects.
- * v1.0.0 — RSA blind signatures only.
+ * v1.0.1 — RSA blind signatures + ATProto OAuth.
  */
 
 import { PollCoordinator } from './durable-objects/poll-coordinator.js';
