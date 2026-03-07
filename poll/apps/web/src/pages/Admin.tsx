@@ -167,7 +167,7 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
-  const { handle, canPost } = useAuth();
+  const { handle, did, canPost } = useAuth();
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -189,11 +189,12 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
   const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nVerifiable & anonymous · ${timeLeft}` : ''}`;
 
   const handleReauth = async () => {
-    if (!handle) return;
+    const identifier = handle || did;
+    if (!identifier) return;
     setPosting(true);
     try {
       const authResult = await authOAuthStart(
-        handle,
+        identifier,
         `/admin/${pollId}`,
         'atproto transition:generic'
       );

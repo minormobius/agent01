@@ -107,8 +107,13 @@ export async function startOAuth(
   returnTo?: string,
   scope?: string,
 ): Promise<OAuthStartResult> {
-  // 1. Resolve identity
-  const did = await resolveHandle(handle);
+  // 1. Resolve identity (accept handle or DID)
+  let did: string | null;
+  if (handle.startsWith('did:')) {
+    did = handle;
+  } else {
+    did = await resolveHandle(handle);
+  }
   if (!did) throw new Error('Could not resolve handle');
 
   const pdsUrl = await resolvePds(did);
@@ -377,15 +382,15 @@ export async function handleOAuthCallback(
   });
 
   // Resolve handle from DID for display
-  let handle = '';
+  let handle = tokens.sub; // fallback to DID
   try {
     const res = await fetch(`${BSKY_PUBLIC_API}/xrpc/com.atproto.repo.describeRepo?repo=${encodeURIComponent(tokens.sub)}`);
     if (res.ok) {
       const data = await res.json() as { handle?: string };
-      handle = data.handle || tokens.sub;
+      if (data.handle) handle = data.handle;
     }
   } catch {
-    handle = tokens.sub;
+    // keep DID as handle
   }
 
   return {
