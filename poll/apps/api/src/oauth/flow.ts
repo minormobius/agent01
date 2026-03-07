@@ -237,14 +237,25 @@ export async function handleOAuthCallback(
   returnTo: string | null;
 }> {
   // 1. Look up state
+  console.log('[oauth:callback] Looking up state...');
   const row = await env.DB.prepare(
     `SELECT * FROM oauth_states WHERE state = ? AND expires_at > datetime('now')`
   ).bind(state).first();
 
-  if (!row) throw new Error('Invalid or expired OAuth state');
+  if (!row) {
+    // Check if it exists but expired
+    const expired = await env.DB.prepare(
+      `SELECT state, expires_at FROM oauth_states WHERE state = ?`
+    ).bind(state).first();
+    if (expired) {
+      throw new Error(`OAuth state expired at ${expired.expires_at}`);
+    }
+    throw new Error('OAuth state not found (already consumed or never created)');
+  }
 
   // Delete state (single-use)
   await env.DB.prepare('DELETE FROM oauth_states WHERE state = ?').bind(state).run();
+  console.log('[oauth:callback] State found and consumed');
 
   const codeVerifier = row.code_verifier as string;
   const dpopKeySerialized = JSON.parse(row.dpop_key_jwk as string);
@@ -256,20 +267,30 @@ export async function handleOAuthCallback(
   // Per OAuth spec, issuer === auth_server_url (stored during PAR)
   const issuerUrl = row.auth_server_url as string;
 
+  console.log('[oauth:callback] tokenEndpoint:', tokenEndpoint);
+  console.log('[oauth:callback] issuerUrl (aud):', issuerUrl);
+  console.log('[oauth:callback] expectedDid:', expectedDid);
+
   // 2. Restore DPoP keypair
   const dpop = await deserializeDPoPKeyPair(dpopKeySerialized);
+  console.log('[oauth:callback] DPoP keypair restored');
 
   // 3. Build token request
   const clientId = getClientId(env);
   const redirectUri = getRedirectUri(env);
+  console.log('[oauth:callback] clientId:', clientId);
+  console.log('[oauth:callback] redirectUri:', redirectUri);
+
   const clientPrivateKey = await getClientPrivateKey(env);
   const clientPublicJWK = await getClientPublicJWK(env);
+  console.log('[oauth:callback] Signing key loaded, kid:', (clientPublicJWK as any).kid);
 
   const clientAssertion = await createClientAssertion(
     clientPrivateKey, clientPublicJWK, clientId, issuerUrl
   );
 
   const dpopProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, dpopNonce || undefined);
+  console.log('[oauth:callback] Assertion + DPoP proof built, sending token request to:', tokenEndpoint);
 
   const tokenBody = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -290,11 +311,17 @@ export async function handleOAuthCallback(
     },
     body: tokenBody.toString(),
   });
+  console.log('[oauth:callback] Token response:', tokenRes.status);
 
   // Handle DPoP nonce rotation
   if (tokenRes.status === 400) {
+    const errPreview = await tokenRes.clone().text();
     const newNonce = tokenRes.headers.get('DPoP-Nonce');
+    console.log('[oauth:callback] 400 body:', errPreview);
+    console.log('[oauth:callback] DPoP-Nonce header:', newNonce || '(none)');
+
     if (newNonce) {
+      console.log('[oauth:callback] Retrying with DPoP nonce...');
       const retryProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, newNonce);
       const retryAssertion = await createClientAssertion(
         clientPrivateKey, clientPublicJWK, clientId, issuerUrl
@@ -308,14 +335,17 @@ export async function handleOAuthCallback(
         },
         body: tokenBody.toString(),
       });
+      console.log('[oauth:callback] Retry response:', tokenRes.status);
     }
   }
 
   if (!tokenRes.ok) {
     const errBody = await tokenRes.text();
+    console.error('[oauth:callback] TOKEN EXCHANGE FAILED:', tokenRes.status, errBody);
     throw new Error(`Token exchange failed (${tokenRes.status}): ${errBody}`);
   }
 
+  console.log('[oauth:callback] Token exchange succeeded');
   const tokens = await tokenRes.json() as {
     access_token: string;
     refresh_token: string;
@@ -327,13 +357,16 @@ export async function handleOAuthCallback(
 
   // 5. Verify sub matches expected DID
   if (tokens.sub !== expectedDid) {
+    console.error('[oauth:callback] DID mismatch:', tokens.sub, '!==', expectedDid);
     throw new Error(`DID mismatch: expected ${expectedDid}, got ${tokens.sub}`);
   }
 
   // 6. Verify atproto scope was granted
   if (!tokens.scope?.includes('atproto')) {
+    console.error('[oauth:callback] Missing atproto scope. Got:', tokens.scope);
     throw new Error('Authorization server did not grant atproto scope');
   }
+  console.log('[oauth:callback] Verified: sub matches, atproto scope present');
 
   // Get the final DPoP nonce for future requests
   const finalNonce = tokenRes.headers.get('DPoP-Nonce');

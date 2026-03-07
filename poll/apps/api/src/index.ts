@@ -9,7 +9,8 @@ import { PollCoordinator } from './durable-objects/poll-coordinator.js';
 import { handlePollRoutes } from './routes/polls.js';
 import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
-import { getClientPublicJWK } from './oauth/keypair.js';
+import { getClientPublicJWK, getClientSigningKey } from './oauth/keypair.js';
+import { discoverAuthServer } from './oauth/discovery.js';
 
 export { PollCoordinator };
 
@@ -53,7 +54,12 @@ export default {
       return handleClientMetadata(env);
     }
 
-    // Debug endpoint to check if the keypair exists (no secrets exposed)
+    // Debug endpoint: comprehensive OAuth diagnostic
+    if (url.pathname === '/api/debug/oauth') {
+      return handleOAuthDebug(env, url);
+    }
+
+    // Legacy debug endpoint (kept for compat)
     if (url.pathname === '/api/debug/oauth-keypair') {
       try {
         const jwk = await getClientPublicJWK(env.DB);
@@ -177,6 +183,182 @@ async function handleClientMetadata(env: Env): Promise<Response> {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=600',
       'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
+/**
+ * Comprehensive OAuth debug endpoint.
+ * GET /api/debug/oauth — check all prerequisites
+ * GET /api/debug/oauth?handle=foo.bsky.social — dry-run discovery for a handle
+ */
+async function handleOAuthDebug(env: Env, url: URL): Promise<Response> {
+  const steps: { step: string; ok: boolean; detail?: any; error?: string }[] = [];
+
+  // 1. Check OAUTH_CLIENT_ID
+  const clientId = env.OAUTH_CLIENT_ID || '';
+  steps.push({
+    step: 'OAUTH_CLIENT_ID env var',
+    ok: !!clientId,
+    detail: clientId ? clientId : '(not set)',
+  });
+
+  // 2. Check D1 keypair
+  try {
+    const publicJwk = await getClientPublicJWK(env.DB);
+    steps.push({
+      step: 'D1 keypair (oauth_client_keypair table)',
+      ok: true,
+      detail: { kty: publicJwk.kty, crv: publicJwk.crv, kid: (publicJwk as any).kid },
+    });
+  } catch (e: any) {
+    steps.push({ step: 'D1 keypair (oauth_client_keypair table)', ok: false, error: e.message });
+  }
+
+  // 3. Check signing key can be imported
+  try {
+    const key = await getClientSigningKey(env.DB);
+    steps.push({
+      step: 'Import signing key (CryptoKey)',
+      ok: true,
+      detail: { type: key.type, algorithm: key.algorithm },
+    });
+  } catch (e: any) {
+    steps.push({ step: 'Import signing key (CryptoKey)', ok: false, error: e.message });
+  }
+
+  // 4. Check client-metadata.json serves jwks
+  try {
+    const metaRes = await handleClientMetadata(env);
+    const meta = await metaRes.json() as any;
+    const hasJwks = !!meta.jwks?.keys?.length;
+    steps.push({
+      step: 'client-metadata.json includes jwks',
+      ok: hasJwks,
+      detail: hasJwks
+        ? { keyCount: meta.jwks.keys.length, kid: meta.jwks.keys[0]?.kid }
+        : 'jwks missing or empty',
+    });
+  } catch (e: any) {
+    steps.push({ step: 'client-metadata.json includes jwks', ok: false, error: e.message });
+  }
+
+  // 5. Check FRONTEND_URL
+  steps.push({
+    step: 'FRONTEND_URL env var',
+    ok: !!env.FRONTEND_URL,
+    detail: env.FRONTEND_URL || '(not set)',
+  });
+
+  // 6. Check redirect_uri matches
+  const expectedRedirect = `${env.FRONTEND_URL || ''}/api/auth/oauth/callback`;
+  steps.push({
+    step: 'redirect_uri',
+    ok: !!env.FRONTEND_URL,
+    detail: expectedRedirect,
+  });
+
+  // 7. If handle provided, do a dry-run discovery
+  const handle = url.searchParams.get('handle');
+  if (handle) {
+    try {
+      const resolveRes = await fetch(
+        `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+      );
+      if (!resolveRes.ok) {
+        steps.push({ step: `Resolve handle "${handle}"`, ok: false, error: `HTTP ${resolveRes.status}` });
+      } else {
+        const { did } = await resolveRes.json() as { did: string };
+        steps.push({ step: `Resolve handle "${handle}"`, ok: true, detail: { did } });
+
+        // Resolve PDS
+        const plcRes = await fetch(`https://plc.directory/${did}`);
+        if (plcRes.ok) {
+          const doc = await plcRes.json() as any;
+          const pds = doc.service?.find((s: any) => s.id === '#atproto_pds');
+          const pdsUrl = pds?.serviceEndpoint;
+          steps.push({ step: 'Resolve PDS', ok: !!pdsUrl, detail: { pdsUrl } });
+
+          if (pdsUrl) {
+            // Discover auth server
+            try {
+              const { authServerUrl, metadata } = await discoverAuthServer(pdsUrl);
+              steps.push({
+                step: 'Discover auth server',
+                ok: true,
+                detail: {
+                  issuer: metadata.issuer,
+                  authServerUrl,
+                  token_endpoint: metadata.token_endpoint,
+                  par_endpoint: metadata.pushed_authorization_request_endpoint,
+                  issuer_matches_url: metadata.issuer === authServerUrl,
+                },
+              });
+            } catch (e: any) {
+              steps.push({ step: 'Discover auth server', ok: false, error: e.message });
+            }
+          }
+        } else {
+          steps.push({ step: 'Resolve PDS', ok: false, error: `PLC directory returned ${plcRes.status}` });
+        }
+      }
+    } catch (e: any) {
+      steps.push({ step: `Resolve handle "${handle}"`, ok: false, error: e.message });
+    }
+  }
+
+  // 8. Check recent oauth_states (for debugging callback issues)
+  try {
+    const states = await env.DB.prepare(
+      `SELECT state, did, auth_server_url, token_endpoint, created_at, expires_at,
+              CASE WHEN expires_at > datetime('now') THEN 'active' ELSE 'expired' END as status
+       FROM oauth_states ORDER BY created_at DESC LIMIT 5`
+    ).all();
+    steps.push({
+      step: 'Recent oauth_states',
+      ok: true,
+      detail: (states.results || []).map((r: any) => ({
+        state: (r.state as string).slice(0, 8) + '...',
+        did: r.did,
+        auth_server_url: r.auth_server_url,
+        token_endpoint: r.token_endpoint,
+        status: r.status,
+        created_at: r.created_at,
+      })),
+    });
+  } catch (e: any) {
+    steps.push({ step: 'Recent oauth_states', ok: false, error: e.message });
+  }
+
+  // 9. Check recent sessions
+  try {
+    const sessions = await env.DB.prepare(
+      `SELECT session_id, did, handle, auth_method, pds_url, created_at, expires_at,
+              CASE WHEN expires_at > datetime('now') THEN 'active' ELSE 'expired' END as status
+       FROM sessions WHERE did != 'pending' ORDER BY created_at DESC LIMIT 5`
+    ).all();
+    steps.push({
+      step: 'Recent sessions',
+      ok: true,
+      detail: (sessions.results || []).map((r: any) => ({
+        id: (r.session_id as string).slice(0, 8) + '...',
+        did: r.did,
+        handle: r.handle,
+        auth_method: r.auth_method,
+        status: r.status,
+        created_at: r.created_at,
+      })),
+    });
+  } catch (e: any) {
+    steps.push({ step: 'Recent sessions', ok: false, error: e.message });
+  }
+
+  const allOk = steps.every(s => s.ok);
+  return new Response(JSON.stringify({ allOk, steps }, null, 2), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-store',
     },
   });
 }

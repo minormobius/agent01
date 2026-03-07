@@ -73,11 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const params = new URLSearchParams(window.location.search);
     const oauthError = params.get('error');
     if (oauthError) {
-      setState(s => ({ ...s, error: oauthError }));
+      setState(s => ({ ...s, error: oauthError, loading: false }));
       // Clean up the URL
       const url = new URL(window.location.href);
       url.searchParams.delete('error');
       window.history.replaceState({}, '', url.pathname + (url.search || ''));
+      // Don't attempt session restore — we know auth failed
+      return;
     }
 
     // Try session cookie first, then fall back to refresh token
