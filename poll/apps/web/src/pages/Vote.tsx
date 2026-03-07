@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getPoll, requestEligibility, submitBallot } from '../lib/api';
+import { AuthCard } from '../components/Layout';
 import {
   generateSecret,
   deriveTokenMessage,
@@ -157,8 +158,16 @@ export function VotePage() {
       )}
 
       {step === 'auth_required' && (
-        <div className="card">
-          <p>Please log in with your ATProto handle to vote.</p>
+        <div>
+          <div className="card">
+            <p style={{ fontSize: '14px', marginBottom: 12 }}>
+              Sign in with your Bluesky account to cast your anonymous vote.
+            </p>
+            <p className="muted">
+              Your identity verifies eligibility only — it is never linked to your ballot.
+            </p>
+          </div>
+          <AuthCard />
         </div>
       )}
 
