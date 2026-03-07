@@ -49,14 +49,29 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
-    // Serve client-metadata.json dynamically so we can inject the OAuth public key
-    if (url.pathname === '/client-metadata.json') {
-      return handleClientMetadata(env);
+    // Simple ping — absolute minimum to verify Worker routing works
+    if (url.pathname === '/api/debug/ping') {
+      return jsonResponse({ pong: true, ts: Date.now(), worker: true });
     }
 
-    // Debug endpoint: comprehensive OAuth diagnostic
+    // Serve client-metadata.json dynamically so we can inject the OAuth public key
+    if (url.pathname === '/client-metadata.json') {
+      try {
+        return await handleClientMetadata(env);
+      } catch (e: any) {
+        console.error('handleClientMetadata crashed:', e);
+        return jsonResponse({ error: 'client-metadata generation failed', detail: e.message }, 500);
+      }
+    }
+
+    // Debug endpoint: comprehensive OAuth diagnostic (wrapped in try/catch)
     if (url.pathname === '/api/debug/oauth') {
-      return handleOAuthDebug(env, url);
+      try {
+        return await handleOAuthDebug(env, url);
+      } catch (e: any) {
+        console.error('handleOAuthDebug crashed:', e);
+        return jsonResponse({ error: 'Debug endpoint crashed', detail: e.message, stack: e.stack }, 500);
+      }
     }
 
     // Legacy debug endpoint (kept for compat)
