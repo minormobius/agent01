@@ -146,9 +146,11 @@ function handleClientMetadata(env: Env): Response {
       publicJwk.use = publicJwk.use || 'sig';
       publicJwk.alg = publicJwk.alg || 'ES256';
       metadata.jwks = { keys: [publicJwk] };
-    } catch {
-      // If the key can't be parsed, serve without jwks
+    } catch (e) {
+      console.error('Failed to parse OAUTH_SIGNING_PUBLIC_KEY_JWK:', e);
     }
+  } else {
+    console.warn('OAUTH_SIGNING_PUBLIC_KEY_JWK not set — client metadata will lack jwks (private_key_jwt will fail)');
   }
 
   return new Response(JSON.stringify(metadata, null, 2), {
