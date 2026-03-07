@@ -1,23 +1,28 @@
 #!/usr/bin/env node
 /**
- * Generate an RSA-PSS key pair for blind signature polls (v2).
+ * Generate all ATPolls key pairs.
  *
  * Usage:
- *   node scripts/generate-rsa-keypair.js
+ *   node scripts/generate-rsa-keypair.js          # generates both RSA + OAuth keys
+ *   node scripts/generate-rsa-keypair.js --rsa     # RSA blind signature keys only
+ *   node scripts/generate-rsa-keypair.js --oauth   # OAuth client keys only
  *
  * Output:
- *   - RSA_PRIVATE_KEY_JWK: paste into Cloudflare Worker secret
- *   - RSA_PUBLIC_KEY_JWK: paste into Cloudflare Worker secret
+ *   - RSA_PRIVATE_KEY_JWK / RSA_PUBLIC_KEY_JWK: blind signatures (RSA-PSS SHA-384)
+ *   - OAUTH_CLIENT_PRIVATE_KEY_JWK / OAUTH_CLIENT_PUBLIC_KEY_JWK: OAuth client auth (ES256)
  *
- * The key pair uses RSA-PSS with SHA-384 (matching @cloudflare/blindrsa-ts RSABSSA.SHA384).
- * 2048-bit modulus is the minimum for security; 4096 is safer but slower.
+ * These are different algorithms — RSA-PSS for blind credentials, ECDSA P-256 for OAuth.
+ * Both are needed for a production deployment.
  */
 
 import { webcrypto } from 'node:crypto';
 
 const modulusLength = 2048;
+const rsaOnly = process.argv.includes('--rsa');
+const oauthOnly = process.argv.includes('--oauth');
+const generateBoth = !rsaOnly && !oauthOnly;
 
-async function main() {
+async function generateRSAKeys() {
   const keyPair = await webcrypto.subtle.generateKey(
     {
       name: 'RSA-PSS',
@@ -51,14 +56,7 @@ async function main() {
   console.log('Then paste the JSON when prompted.\n');
 }
 
-main().catch(err => {
-  console.error('Failed to generate key pair:', err);
-  process.exit(1);
-});
-
-// --- OAuth client key generation ---
-
-async function generateOAuthClientKey() {
+async function generateOAuthKeys() {
   const keyPair = await webcrypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     true,
@@ -75,7 +73,7 @@ async function generateOAuthClientKey() {
   publicJWK.kid = kid;
   privateJWK.kid = kid;
 
-  console.log('\n=== OAuth Client Key Pair (ES256, private_key_jwt) ===\n');
+  console.log('=== OAuth Client Key Pair (ES256, private_key_jwt) ===\n');
 
   console.log('--- OAUTH_CLIENT_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---');
   console.log(JSON.stringify(privateJWK));
@@ -95,10 +93,25 @@ async function generateOAuthClientKey() {
   console.log('Then paste the JSON when prompted.\n');
 }
 
-// Run OAuth key gen if --oauth flag is passed
-if (process.argv.includes('--oauth')) {
-  generateOAuthClientKey().catch(err => {
-    console.error('Failed to generate OAuth client key:', err);
-    process.exit(1);
-  });
+async function main() {
+  if (generateBoth || rsaOnly) {
+    await generateRSAKeys();
+  }
+  if (generateBoth || oauthOnly) {
+    await generateOAuthKeys();
+  }
+  if (generateBoth) {
+    console.log('=== Summary: 5 secrets to set ===');
+    console.log('  npx wrangler secret put RSA_PRIVATE_KEY_JWK');
+    console.log('  npx wrangler secret put RSA_PUBLIC_KEY_JWK');
+    console.log('  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK');
+    console.log('  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK');
+    console.log('  npx wrangler secret put OAUTH_CLIENT_ID');
+    console.log('    (value: https://poll.mino.mobi/client-metadata.json)\n');
+  }
 }
+
+main().catch(err => {
+  console.error('Failed to generate keys:', err);
+  process.exit(1);
+});

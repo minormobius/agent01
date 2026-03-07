@@ -123,7 +123,7 @@ Users authenticate via the standard ATProto OAuth flow (OAuth 2.1 profile with P
 - `OAUTH_CLIENT_PRIVATE_KEY_JWK` — ES256 private key for client_assertion
 - `OAUTH_CLIENT_PUBLIC_KEY_JWK` — ES256 public key (also in client-metadata.json `jwks`)
 
-Generate with: `node scripts/generate-rsa-keypair.js --oauth`
+Generate with: `node scripts/generate-rsa-keypair.js` (generates both RSA + OAuth keys in one run)
 
 ### App-Password Auth (Fallback)
 
