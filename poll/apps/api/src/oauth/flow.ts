@@ -253,6 +253,8 @@ export async function handleOAuthCallback(
   const pdsUrl = row.pds_url as string;
   const dpopNonce = row.dpop_nonce as string | null;
   const returnTo = row.return_to as string | null;
+  // Per OAuth spec, issuer === auth_server_url (stored during PAR)
+  const issuerUrl = row.auth_server_url as string;
 
   // 2. Restore DPoP keypair
   const dpop = await deserializeDPoPKeyPair(dpopKeySerialized);
@@ -263,10 +265,8 @@ export async function handleOAuthCallback(
   const clientPrivateKey = await getClientPrivateKey(env);
   const clientPublicJWK = await getClientPublicJWK(env);
 
-  // Discover auth server to get issuer for aud claim
-  const { metadata: callbackMeta } = await discoverAuthServer(pdsUrl);
   const clientAssertion = await createClientAssertion(
-    clientPrivateKey, clientPublicJWK, clientId, callbackMeta.issuer
+    clientPrivateKey, clientPublicJWK, clientId, issuerUrl
   );
 
   const dpopProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, dpopNonce || undefined);
@@ -297,7 +297,7 @@ export async function handleOAuthCallback(
     if (newNonce) {
       const retryProof = await createDPoPProof(dpop, 'POST', tokenEndpoint, newNonce);
       const retryAssertion = await createClientAssertion(
-        clientPrivateKey, clientPublicJWK, clientId, callbackMeta.issuer
+        clientPrivateKey, clientPublicJWK, clientId, issuerUrl
       );
       tokenBody.set('client_assertion', retryAssertion);
       tokenRes = await fetch(tokenEndpoint, {
