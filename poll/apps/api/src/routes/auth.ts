@@ -1,19 +1,20 @@
 /**
  * ATProto authentication routes.
  *
- * POST /api/auth/atproto/start    — authenticate with handle + app password
- * GET  /api/auth/atproto/callback — handle OAuth callback (future)
- * POST /api/auth/logout           — destroy session
- * GET  /api/me                    — get current user
+ * POST /api/auth/atproto/start      — authenticate with handle + app password (legacy)
+ * POST /api/auth/oauth/start        — start OAuth flow (preferred)
+ * GET  /api/auth/oauth/callback     — handle OAuth callback
+ * GET  /api/auth/atproto/callback   — (redirects to oauth/callback for compat)
+ * POST /api/auth/refresh            — refresh session
+ * POST /api/auth/logout             — destroy session
+ * GET  /api/me                      — get current user
  *
- * Auth strategy: app password verification via the user's PDS.
- * The backend resolves the user's handle → DID → PDS, calls createSession
- * to verify credentials, extracts the verified DID, then discards the
- * PDS access token. We only need identity verification, not ongoing access.
+ * OAuth is the primary auth method. App passwords are kept for dev/fallback.
  */
 
 import type { Env } from '../index.js';
 import { jsonResponse } from '../index.js';
+import { startOAuth, handleOAuthCallback, refreshOAuthToken } from '../oauth/flow.js';
 
 export interface Session {
   sessionId: string;
@@ -33,8 +34,11 @@ export async function handleAuthRoutes(
   if (url.pathname === '/api/auth/atproto/start' && request.method === 'POST') {
     return startAuth(request, env);
   }
-  if (url.pathname === '/api/auth/atproto/callback' && request.method === 'GET') {
-    return handleCallback(request, env, url);
+  if (url.pathname === '/api/auth/oauth/start' && request.method === 'POST') {
+    return startOAuthRoute(request, env);
+  }
+  if ((url.pathname === '/api/auth/oauth/callback' || url.pathname === '/api/auth/atproto/callback') && request.method === 'GET') {
+    return handleOAuthCallbackRoute(request, env, url);
   }
   if (url.pathname === '/api/auth/refresh' && request.method === 'POST') {
     return refreshSession(request, env);
@@ -126,9 +130,89 @@ async function startAuth(request: Request, env: Env): Promise<Response> {
   }
 }
 
-async function handleCallback(request: Request, env: Env, url: URL): Promise<Response> {
-  // Reserved for future OAuth flow
-  return jsonResponse({ error: 'OAuth callback not yet implemented. Use app password auth.' }, 501);
+// --- OAuth routes ---
+
+async function startOAuthRoute(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as { handle?: string; returnTo?: string };
+
+  if (env.ATPROTO_MOCK_MODE === 'true') {
+    // In mock mode, skip OAuth and create session directly
+    const handle = body.handle || 'test.bsky.social';
+    const did = `did:plc:mock${handle.replace(/\./g, '')}`;
+    const session = await createSession(env, did, handle, undefined, undefined, undefined, 'oauth');
+    const refreshToken = await createRefreshToken(env, did, handle);
+    return jsonResponseWithCookie(
+      { success: true, session: { did, handle }, refreshToken },
+      200,
+      sessionCookie(session.sessionId, request)
+    );
+  }
+
+  if (!body.handle) {
+    return jsonResponse({ error: 'handle is required' }, 400);
+  }
+
+  try {
+    const result = await startOAuth(env, body.handle, body.returnTo);
+    return jsonResponse({ authUrl: result.authUrl });
+  } catch (err: any) {
+    console.error('OAuth start error:', err.message);
+    return jsonResponse({ error: err.message }, 400);
+  }
+}
+
+async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): Promise<Response> {
+  if (env.ATPROTO_MOCK_MODE === 'true') {
+    return jsonResponse({ error: 'OAuth callback not available in mock mode' }, 501);
+  }
+
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const iss = url.searchParams.get('iss');
+  const error = url.searchParams.get('error');
+
+  if (error) {
+    const description = url.searchParams.get('error_description') || error;
+    const frontendUrl = env.FRONTEND_URL || '';
+    return Response.redirect(`${frontendUrl}/?error=${encodeURIComponent(description)}`, 302);
+  }
+
+  if (!code || !state) {
+    return jsonResponse({ error: 'Missing code or state parameter' }, 400);
+  }
+
+  try {
+    const result = await handleOAuthCallback(env, code, state, iss, request);
+
+    // Create session with OAuth tokens
+    const session = await createSession(
+      env, result.did, result.handle, result.pdsUrl,
+      result.oauthRefreshToken, result.dpopKeySerialized, 'oauth'
+    );
+
+    // Also create a long-lived refresh token for PWA persistence
+    const appRefreshToken = await createRefreshToken(env, result.did, result.handle);
+
+    // Redirect to frontend with session cookie
+    const frontendUrl = env.FRONTEND_URL || '';
+    const returnTo = result.returnTo || '/';
+
+    // Set cookie and redirect
+    const redirectUrl = `${frontendUrl}${returnTo}`;
+    const response = new Response(null, {
+      status: 302,
+      headers: {
+        Location: redirectUrl,
+        'Set-Cookie': sessionCookie(session.sessionId, request),
+      },
+    });
+
+    return response;
+  } catch (err: any) {
+    console.error('OAuth callback error:', err.message);
+    const frontendUrl = env.FRONTEND_URL || '';
+    return Response.redirect(`${frontendUrl}/?error=${encodeURIComponent(err.message)}`, 302);
+  }
 }
 
 async function logout(request: Request, env: Env): Promise<Response> {
@@ -187,13 +271,18 @@ async function lookupSession(env: Env, sessionId: string): Promise<Session | nul
 
 async function createSession(
   env: Env, did: string, handle: string,
-  pdsUrl?: string, pdsRefreshToken?: string
+  pdsUrl?: string, refreshToken?: string,
+  dpopKeyJwk?: string, authMethod?: string,
 ): Promise<Session> {
   const sessionId = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT INTO sessions (session_id, did, handle, pds_url, refresh_token, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
-  ).bind(sessionId, did, handle, pdsUrl || null, pdsRefreshToken || null).run();
+    `INSERT INTO sessions (session_id, did, handle, pds_url, refresh_token, dpop_key_jwk, auth_method, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+24 hours'))`
+  ).bind(
+    sessionId, did, handle,
+    pdsUrl || null, refreshToken || null,
+    dpopKeyJwk || null, authMethod || 'app_password',
+  ).run();
 
   return { sessionId, did, handle };
 }
@@ -240,7 +329,7 @@ async function refreshSession(request: Request, env: Env): Promise<Response> {
 
 /**
  * Get a fresh PDS access token for the session's user.
- * Uses the stored PDS refresh token to get a short-lived access token on demand.
+ * Handles both app-password sessions (PDS refresh) and OAuth sessions (DPoP token refresh).
  */
 export async function getPdsAccessToken(
   request: Request, env: Env
@@ -250,16 +339,25 @@ export async function getPdsAccessToken(
   if (!sessionId) return null;
 
   const row = await env.DB.prepare(
-    `SELECT did, pds_url, refresh_token FROM sessions
+    `SELECT did, pds_url, refresh_token, auth_method FROM sessions
      WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
   ).bind(sessionId).first();
 
   if (!row || !row.pds_url || !row.refresh_token) return null;
 
+  const authMethod = row.auth_method as string | null;
+
+  // OAuth sessions: refresh via OAuth token endpoint with DPoP
+  if (authMethod === 'oauth') {
+    const result = await refreshOAuthToken(env, sessionId);
+    if (!result) return null;
+    return { accessJwt: result.accessToken, did: result.did, pdsUrl: result.pdsUrl };
+  }
+
+  // App-password sessions: refresh via PDS directly
   const pdsUrl = row.pds_url as string;
   const refreshJwt = row.refresh_token as string;
 
-  // Refresh to get a fresh access token
   const res = await fetch(`${pdsUrl}/xrpc/com.atproto.server.refreshSession`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${refreshJwt}` },

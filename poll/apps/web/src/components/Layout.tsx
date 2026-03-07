@@ -100,14 +100,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AuthCard() {
-  const { did, handle, loading, error, login, logout } = useAuth();
+export function AuthCard({ returnTo }: { returnTo?: string } = {}) {
+  const { did, handle, loading, error, login, loginOAuth, logout } = useAuth();
   const [loginHandle, setLoginHandle] = useState('');
+  const [showAppPassword, setShowAppPassword] = useState(false);
   const [appPassword, setAppPassword] = useState('');
 
-  const doLogin = () => {
-    if (loginHandle) {
-      login(loginHandle, appPassword || undefined);
+  const doOAuth = () => {
+    if (loginHandle) loginOAuth(loginHandle, returnTo);
+  };
+
+  const doAppPasswordLogin = () => {
+    if (loginHandle && appPassword) {
+      login(loginHandle, appPassword);
       setAppPassword('');
     }
   };
@@ -131,7 +136,7 @@ export function AuthCard() {
     <div className="card">
       <h3>Sign in with Bluesky</h3>
       <p className="muted mb-12">
-        Enter your handle and an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer">app password</a> to authenticate.
+        Enter your Bluesky handle to sign in securely via OAuth.
       </p>
       <div className="auth-form">
         <input
@@ -139,19 +144,39 @@ export function AuthCard() {
           placeholder="handle.bsky.social"
           value={loginHandle}
           onChange={e => setLoginHandle(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doLogin()}
+          onKeyDown={e => e.key === 'Enter' && doOAuth()}
         />
-        <input
-          type="password"
-          placeholder="App password"
-          value={appPassword}
-          onChange={e => setAppPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doLogin()}
-        />
-        <button className="btn btn-primary" onClick={doLogin}>
-          Sign in
+        <button className="btn btn-primary" onClick={doOAuth}>
+          Sign in with Bluesky
         </button>
       </div>
+      {!showAppPassword && (
+        <p className="muted" style={{ marginTop: 8, fontSize: '12px' }}>
+          <button
+            onClick={() => setShowAppPassword(true)}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '12px' }}
+          >
+            Use app password instead
+          </button>
+        </p>
+      )}
+      {showAppPassword && (
+        <div className="auth-form" style={{ marginTop: 8 }}>
+          <input
+            type="password"
+            placeholder="App password"
+            value={appPassword}
+            onChange={e => setAppPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && doAppPasswordLogin()}
+          />
+          <button className="btn btn-secondary" onClick={doAppPasswordLogin}>
+            Sign in with app password
+          </button>
+          <p className="muted" style={{ fontSize: '11px', marginTop: 4 }}>
+            Generate one at <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer">bsky.app/settings/app-passwords</a>
+          </p>
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
     </div>
   );

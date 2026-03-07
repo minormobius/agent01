@@ -27,9 +27,10 @@ export interface Env {
   RSA_PRIVATE_KEY_JWK?: string;
   // RSA public key as JWK JSON string (blind signatures)
   RSA_PUBLIC_KEY_JWK?: string;
-  // ATProto OAuth
-  ATPROTO_CLIENT_ID?: string;
-  ATPROTO_CLIENT_SECRET?: string;
+  // ATProto OAuth (confidential client, private_key_jwt)
+  OAUTH_CLIENT_ID?: string;
+  OAUTH_CLIENT_PRIVATE_KEY_JWK?: string;
+  OAUTH_CLIENT_PUBLIC_KEY_JWK?: string;
 }
 
 export default {

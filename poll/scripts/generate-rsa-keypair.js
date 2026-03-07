@@ -55,3 +55,50 @@ main().catch(err => {
   console.error('Failed to generate key pair:', err);
   process.exit(1);
 });
+
+// --- OAuth client key generation ---
+
+async function generateOAuthClientKey() {
+  const keyPair = await webcrypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify']
+  );
+
+  const privateJWK = await webcrypto.subtle.exportKey('jwk', keyPair.privateKey);
+  const publicJWK = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+
+  // Compute JWK thumbprint for kid
+  const canonical = JSON.stringify({ crv: publicJWK.crv, kty: publicJWK.kty, x: publicJWK.x, y: publicJWK.y });
+  const hash = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+  const kid = Buffer.from(hash).toString('base64url');
+  publicJWK.kid = kid;
+  privateJWK.kid = kid;
+
+  console.log('\n=== OAuth Client Key Pair (ES256, private_key_jwt) ===\n');
+
+  console.log('--- OAUTH_CLIENT_PRIVATE_KEY_JWK (Cloudflare Worker secret — KEEP SECRET) ---');
+  console.log(JSON.stringify(privateJWK));
+  console.log();
+
+  console.log('--- OAUTH_CLIENT_PUBLIC_KEY_JWK (Cloudflare Worker secret + client-metadata.json jwks) ---');
+  console.log(JSON.stringify(publicJWK));
+  console.log();
+
+  console.log('Add the public key to client-metadata.json:');
+  console.log(JSON.stringify({ jwks: { keys: [publicJWK] } }, null, 2));
+  console.log();
+
+  console.log('To set as Cloudflare secrets:');
+  console.log('  npx wrangler secret put OAUTH_CLIENT_PRIVATE_KEY_JWK');
+  console.log('  npx wrangler secret put OAUTH_CLIENT_PUBLIC_KEY_JWK');
+  console.log('Then paste the JSON when prompted.\n');
+}
+
+// Run OAuth key gen if --oauth flag is passed
+if (process.argv.includes('--oauth')) {
+  generateOAuthClientKey().catch(err => {
+    console.error('Failed to generate OAuth client key:', err);
+    process.exit(1);
+  });
+}

@@ -184,7 +184,7 @@ export function QuickVotePage() {
               Your identity verifies eligibility only — it is never linked to your ballot.
             </p>
           </div>
-          <AuthCard />
+          <AuthCard returnTo={`/v/${id}?c=${choice}`} />
         </div>
       )}
 

@@ -1,162 +1,198 @@
-# Plan: Anonymous Credential v2 — RSA Blind Signatures
+# Plan: ATProto OAuth Sign-In
 
-## What Changes
+## Goal
+Replace app-password authentication with ATProto OAuth. Users click "Sign in with Bluesky" → redirect to Bluesky's authorization page → redirect back with session. No more pasting app passwords.
 
-Replace HMAC-based credential issuance (host sees everything) with RSA Blind Signatures (RFC 9474). After this, the host **cannot** link a voter's DID to their ballot. The trust assumption ("host doesn't log the ~100ms mapping") becomes a cryptographic guarantee.
+## Architecture: BFF (Backend-for-Frontend)
 
-## Library
-
-**`@cloudflare/blindrsa-ts`** — Cloudflare's own RFC 9474 implementation. Uses WebCrypto natively, has a Workers-specific `supportRSARAW` optimization for the blind signing step. No Node.js dependencies.
-
-## Key Management
-
-Workers' WebCrypto can't *generate* RSA-PSS keys — only import them. So:
-
-1. Generate a 2048-bit RSA key pair offline (OpenSSL or Node.js script)
-2. Store the private key as a Cloudflare Worker secret (`RSA_PRIVATE_KEY_JWK`)
-3. Store the public key in the poll definition (so clients can blind/verify)
-4. Per-poll keys can come later; start with a single host key pair
-
-We'll add a small script (`scripts/generate-rsa-keypair.js`) to do this once.
-
-## Steps
-
-### Step 1: Add `@cloudflare/blindrsa-ts` dependency
-
-- `npm install @cloudflare/blindrsa-ts -w packages/shared`
-- This gives both client-side (blind/unblind) and server-side (blindSign) functions
-
-### Step 2: Implement `RealBlindSignatureProvider` in crypto module
-
-**File**: `packages/shared/src/crypto/index.ts`
-
-Replace the `StubBlindSignatureProvider` with a real implementation that wraps `@cloudflare/blindrsa-ts`:
-
-- `blind(message, publicKey)` → calls the library's `Blind` function
-- `blindSign(blindedMessage, privateKey)` → calls `BlindSign` (with `supportRSARAW` on Workers)
-- `unblind(blindedSignature, blindingFactor, publicKey)` → calls `Finalize`
-- `verify(message, signature, publicKey)` → calls `Verify` (standard RSA-PSS)
-
-Also update `issueCredential` / `verifyCredential` to branch on mode:
-- v1: HMAC path (unchanged)
-- v2: RSA blind signature path
-
-Export client-side helpers: `blindMessage()`, `unblindSignature()` for the Vote page.
-
-### Step 3: Update the Durable Object eligibility handler
-
-**File**: `apps/api/src/durable-objects/poll-coordinator.ts` — `handleEligibility()`
-
-Replace the current v2 rejection block with real blind signing:
+The Cloudflare Worker handles all OAuth complexity. The frontend is just a redirect target.
 
 ```
-if (poll.mode === 'anon_credential_v2') {
-  if (!blindedMessage) return error('Blinded message required for v2')
-  blindedSig = blindSign(decode(blindedMessage), rsaPrivateKey)
-  return { eligible: true, blindedSignature: encode(blindedSig) }
+Browser                          Worker (BFF)                     Bluesky Auth Server
+  |                                  |                                    |
+  |-- POST /api/auth/oauth/start --> |                                    |
+  |   (handle)                       |-- resolve handle → DID → PDS ---> |
+  |                                  |-- GET /.well-known/oauth-protected-resource
+  |                                  |-- GET /.well-known/oauth-authorization-server
+  |                                  |-- POST PAR endpoint (PKCE + DPoP) |
+  |                                  |   (returns request_uri)           |
+  |                                  |-- store state in D1 ------------> |
+  | <-- 200 {authUrl} -------------- |                                    |
+  |                                  |                                    |
+  |-- redirect to authUrl ---------> |                                    |
+  |                                  |                    (user approves) |
+  | <-- redirect to callback with code --------------------------------- |
+  |                                  |                                    |
+  |-- GET /api/auth/oauth/callback ->|                                    |
+  |   (?code=...&state=...)          |-- POST token endpoint ----------> |
+  |                                  |   (code + PKCE verifier + DPoP)   |
+  |                                  |<-- {access_token, refresh_token} - |
+  |                                  |-- verify sub DID matches -------> |
+  |                                  |-- create session in D1            |
+  | <-- redirect to / with cookie -- |                                    |
+```
+
+## Key Design Decisions
+
+1. **Confidential client** (private_key_jwt) — we have a backend, so we get longer sessions and stronger auth
+2. **DPoP mandatory** — required by ATProto OAuth spec, prevents token theft
+3. **PAR mandatory** — required by spec, no query-string leakage of auth params
+4. **PKCE S256** — required, prevents authorization code interception
+5. **BFF pattern** — all crypto happens server-side, browser never sees tokens
+6. **Scope: `atproto transition:generic`** — needed for "Post to Bluesky" feature
+
+## Implementation Steps
+
+### Phase 1: Crypto & Client Identity
+
+**1. Generate client keypair (ES256)**
+- Generate ES256 keypair for `private_key_jwt` client authentication
+- Store as Worker secrets: `OAUTH_CLIENT_PRIVATE_KEY_JWK`, `OAUTH_CLIENT_PUBLIC_KEY_JWK`
+- Add key generation to `scripts/generate-rsa-keypair.js` (rename to `scripts/generate-keys.js`)
+
+**2. Update client-metadata.json**
+```json
+{
+  "client_id": "https://poll.mino.mobi/client-metadata.json",
+  "client_name": "ATPolls",
+  "client_uri": "https://poll.mino.mobi",
+  "redirect_uris": ["https://poll.mino.mobi/api/auth/oauth/callback"],
+  "scope": "atproto transition:generic",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "private_key_jwt",
+  "token_endpoint_auth_signing_alg": "ES256",
+  "jwks": { "keys": [<public key from step 1>] },
+  "dpop_bound_access_tokens": true,
+  "application_type": "web"
 }
 ```
 
-The DO needs access to the RSA private key. Add it as an env binding (`RSA_PRIVATE_KEY_JWK`) and import it as a CryptoKey on first use.
+### Phase 2: OAuth Backend (Worker)
 
-The `handleBallot()` method needs its verification path updated:
-- v1 polls: verify with HMAC (existing)
-- v2 polls: verify with RSA-PSS public key
+**3. Auth server discovery** (`apps/api/src/oauth/discovery.ts`)
+- `fetchProtectedResourceMeta(pdsUrl)` → `GET {pdsUrl}/.well-known/oauth-protected-resource`
+- `fetchAuthServerMeta(authServerUrl)` → `GET {authServerUrl}/.well-known/oauth-authorization-server`
+- Reuse existing `resolveHandleToDid()` and PDS resolution
 
-Store the poll's `mode` in the DO state (already there) and branch accordingly.
+**4. DPoP module** (`apps/api/src/oauth/dpop.ts`)
+- Generate ES256 DPoP keypair per auth flow (ephemeral, not the client key)
+- `createDpopProof(privateKey, method, url, nonce?, accessToken?)` → signed JWT
+- Handle nonce rotation (retry on 400 with new `DPoP-Nonce` header)
+- Store DPoP private key in D1 session (needed for token refresh)
 
-### Step 4: Update poll creation to store RSA public key
+**5. Client assertion** (`apps/api/src/oauth/client-assertion.ts`)
+- `createClientAssertion(clientPrivateKey, clientId, tokenEndpoint)` → signed JWT
+- Standard `private_key_jwt` auth per RFC 7523
 
-**File**: `apps/api/src/routes/polls.ts` — `createPoll()`
+**6. Start endpoint** (wire into `apps/api/src/routes/auth.ts`)
+- `POST /api/auth/oauth/start` handler:
+  1. Accept `{ handle }` from frontend
+  2. Resolve handle → DID → PDS → auth server metadata
+  3. Generate PKCE code_verifier + code_challenge (S256)
+  4. Generate state (random)
+  5. Generate DPoP keypair (ephemeral)
+  6. POST PAR endpoint with client_assertion + DPoP proof
+  7. Store in D1 `oauth_states`: state → code_verifier, dpop_key, auth_server_meta, DID
+  8. Return `{ authUrl }`
 
-For v2 polls:
-- Import the RSA public key from env
-- Export it as JWK and store as `hostKeyFingerprint` (or add a new `hostPublicKey` field)
-- The public key goes into the poll definition so clients can blind messages against it
+**7. Callback handler** (wire into `apps/api/src/routes/auth.ts`)
+- `GET /api/auth/oauth/callback?code=...&state=...&iss=...`:
+  1. Look up state in D1 → get code_verifier, dpop_key, token_endpoint
+  2. Delete state row (single-use)
+  3. Exchange code for tokens (client_assertion + DPoP proof)
+  4. Verify `sub` matches expected DID
+  5. Create session in D1 (store OAuth refresh_token + dpop_key)
+  6. Redirect to frontend with session cookie
 
-Add a new D1 column `host_public_key TEXT` (nullable, only set for v2 polls). Migration 0004.
+**8. Token refresh update**
+- Update `getPdsAccessToken()` for OAuth sessions:
+  - Use stored OAuth refresh_token + DPoP key
+  - Handle single-use refresh token rotation
+  - Handle DPoP nonce rotation
 
-### Step 5: Update the frontend Vote page
+### Phase 3: D1 Schema
 
-**File**: `apps/web/src/pages/Vote.tsx` — `handleRequestCredential()`
+**9. Migration `0005_oauth.sql`**
+```sql
+CREATE TABLE oauth_states (
+  state TEXT PRIMARY KEY,
+  code_verifier TEXT NOT NULL,
+  dpop_private_key_jwk TEXT NOT NULL,
+  did TEXT,
+  auth_server_url TEXT NOT NULL,
+  token_endpoint TEXT NOT NULL,
+  pds_url TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
 
-For v2 polls, the client does more work:
+ALTER TABLE sessions ADD COLUMN dpop_private_key_jwk TEXT;
+ALTER TABLE sessions ADD COLUMN auth_method TEXT DEFAULT 'app_password';
+```
 
-1. Generate `secret` locally (using `generateSecret()` from shared crypto)
-2. Compute `tokenMessage = deriveTokenMessage(pollId, secret, closesAt)`
-3. Blind: `{blindedMessage, blindingFactor} = blind(tokenMessage, hostPublicKey)`
-4. Send only `blindedMessage` to `/eligibility/request`
-5. Receive `blindedSignature` back
-6. Unblind: `issuerSignature = unblind(blindedSignature, blindingFactor, hostPublicKey)`
-7. Derive `nullifier = deriveNullifier(secret, pollId)` locally
-8. Store credential in localStorage (same shape as v1)
-9. Ballot submission is identical — `{choice, tokenMessage, issuerSignature, nullifier}`
+### Phase 4: Frontend
 
-The shared crypto functions (`generateSecret`, `deriveTokenMessage`, `deriveNullifier`) are already exported and work in the browser.
+**10. Login UI**
+- Replace handle + app password form with:
+  - Handle input field
+  - "Sign in with Bluesky" button
+- Button calls `/api/auth/oauth/start` → redirects to Bluesky
+- On callback, session cookie is set → `GET /api/me` succeeds
 
-### Step 6: Re-enable v2 in the UI
+**11. QuickVote redirect preservation**
+- Before redirect, store `{pollId, choice}` in sessionStorage
+- After OAuth callback redirect to `/`, check sessionStorage
+- If pending vote exists, redirect to `/v/{pollId}?c={choice}` to continue
 
-**File**: `apps/web/src/pages/CreatePoll.tsx`
+**12. Update useAuth hook**
+- Add `loginWithOAuth(handle)` — calls start endpoint, redirects
+- Keep `loginWithAppPassword` behind env flag for local dev
+- Handle post-callback initialization (detect fresh session)
 
-- Add back the `anon_credential_v2` option in the mode dropdown
-- Remove the "coming soon" text
-- Remove the rejection guard in `createPoll()` route handler
+### Phase 5: Mock Mode
 
-### Step 7: Update schemas and types
+**13. Update mock mode**
+- When `ATPROTO_MOCK_MODE=true`, skip OAuth and create session directly from handle
+- Mock the start endpoint to return a fake authUrl that immediately callbacks
+- No network calls needed for local dev
 
-- `EligibilityResponse` type: add `blindedSignature?: string` field
-- `Poll` type: add `hostPublicKey?: string` field
-- `PollDefRecordSchema`: add `hostPublicKey` field
-- `CreatePollSchema`: allow `anon_credential_v2` again (already in enum, just ungated)
-- Migration 0004: `ALTER TABLE polls ADD COLUMN host_public_key TEXT`
+### Phase 6: Cleanup & Docs
 
-### Step 8: Key generation script
+**14. Update docs**
+- CLAUDE.md: Document OAuth flow, new secrets
+- README.md: Update deployment secrets list
+- PROTOCOL.md: Note OAuth as auth method
 
-**File**: `scripts/generate-rsa-keypair.js`
+## Files Changed
 
-Simple Node.js script that:
-1. Generates 2048-bit RSA-PSS key pair
-2. Exports private key as JWK (paste into CF secret)
-3. Exports public key as JWK (stored per-poll)
+### New files
+- `apps/api/src/oauth/discovery.ts`
+- `apps/api/src/oauth/dpop.ts`
+- `apps/api/src/oauth/client-assertion.ts`
+- `apps/api/migrations/0005_oauth.sql`
 
-### Step 9: Update docs and threat model
+### Modified files
+- `apps/api/src/routes/auth.ts` — add OAuth routes
+- `apps/api/src/index.ts` — add OAuth env vars
+- `apps/web/src/hooks/useAuth.tsx` — OAuth login flow
+- `apps/web/src/components/Layout.tsx` — "Sign in with Bluesky" button
+- `apps/web/src/pages/QuickVote.tsx` — redirect preservation
+- `apps/web/public/client-metadata.json` — real metadata
+- `scripts/generate-rsa-keypair.js` → `scripts/generate-keys.js` — add ES256
 
-- `docs/threat-model.md`: update Mode B to reflect real cryptographic guarantee
-- `docs/upgrade-blind-signatures.md`: mark as implemented
-- `PROTOCOL.md`: update the trust assumption section
-
-## What Does NOT Change
-
-- Nullifier derivation (`H("nullifier" || secret || pollId)`)
-- Ballot submission flow and schema
-- Ballot verification logic (signature check, nullifier uniqueness)
-- D1 tables: `ballots`, `eligibility`, `audit_events`, `tally_snapshots`
-- Poll lifecycle (draft → open → closed → finalized)
-- ATProto record shapes for published ballots
-- Audit hash chain
-- Fisher-Yates shuffle at publish time
+## New Secrets
+- `OAUTH_CLIENT_PRIVATE_KEY_JWK` — ES256 private key for client_assertion
+- `OAUTH_CLIENT_PUBLIC_KEY_JWK` — ES256 public key (embedded in client-metadata.json)
 
 ## Risks & Mitigations
 
-1. **Bundle size**: `@cloudflare/blindrsa-ts` depends on `sjcl` for big-integer math. Should be fine for Workers (no bundle limit) and frontend (tree-shakeable). Verify build size doesn't blow up.
+1. **DPoP key storage in D1**: Sensitive, but same risk profile as existing refresh tokens. D1 is encrypted at rest on Cloudflare.
 
-2. **Key rotation**: Starting with a single host key pair. If it's compromised, all v2 polls are compromised. Future: per-poll key pairs (generate on poll creation, store private key in DO storage).
+2. **QuickVote UX**: The redirect breaks the inline voting flow. Mitigated by sessionStorage preservation of intent. First-time voters see one redirect; returning voters (existing session) vote instantly.
 
-3. **Browser compatibility**: The library uses WebCrypto which is available in all modern browsers. The `blind`/`unblind` operations use sjcl's big-integer math, not WebCrypto RSA directly, so no browser RSA restrictions apply.
+3. **Auth server availability**: If Bluesky's auth server is down, no one can log in. Same risk as current PDS dependency, but now through a different endpoint.
 
-4. **Backward compatibility**: v1 polls continue working unchanged. Mode is per-poll. Both can coexist.
+4. **Scope breadth**: `transition:generic` is broad. Could split into voter scope (`atproto` only) and host scope (`transition:generic`) later. For v1, single scope is simpler.
 
-## Estimated Scope
-
-| File | Change Size |
-|------|------------|
-| `packages/shared/src/crypto/index.ts` | ~80 lines (new provider + helpers) |
-| `apps/api/src/durable-objects/poll-coordinator.ts` | ~30 lines (eligibility + ballot verify) |
-| `apps/api/src/routes/polls.ts` | ~15 lines (store public key) |
-| `apps/web/src/pages/Vote.tsx` | ~40 lines (client-side blinding) |
-| `apps/web/src/pages/CreatePoll.tsx` | ~5 lines (re-enable v2) |
-| `packages/shared/src/types/index.ts` | ~5 lines (new fields) |
-| `packages/shared/src/schemas/index.ts` | ~5 lines (new fields) |
-| `scripts/generate-rsa-keypair.js` | ~30 lines (new file) |
-| Migration 0004 | ~3 lines |
-| Docs updates | ~20 lines |
+5. **Fallback**: Keep app-password auth behind `ATPROTO_MOCK_MODE` or a feature flag. Remove from production UI but keep the endpoint for emergencies.

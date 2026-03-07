@@ -12,6 +12,8 @@ FRONTEND_URL=http://localhost:3000
 # ATPROTO_SERVICE_PASSWORD=app-password-here
 # ATPROTO_SERVICE_PDS=https://bsky.social
 
-# ATProto OAuth (required for real OAuth flow)
-# ATPROTO_CLIENT_ID=https://polls.example.com/client-metadata.json
-# ATPROTO_CLIENT_SECRET=
+# ATProto OAuth (required when ATPROTO_MOCK_MODE=false)
+# Generate keys with: node scripts/generate-rsa-keypair.js --oauth
+# OAUTH_CLIENT_ID=https://poll.mino.mobi/client-metadata.json
+# OAUTH_CLIENT_PRIVATE_KEY_JWK={"kty":"EC","crv":"P-256",...}
+# OAUTH_CLIENT_PUBLIC_KEY_JWK={"kty":"EC","crv":"P-256",...}

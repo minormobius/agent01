@@ -93,24 +93,54 @@ poll/
 
 ## Authentication
 
-### App-Password Auth (Current)
+### ATProto OAuth (Primary)
 
-Voters and poll creators authenticate via ATProto app passwords:
+Users authenticate via the standard ATProto OAuth flow (OAuth 2.1 profile with PKCE + DPoP + PAR). The Worker acts as a BFF (Backend-for-Frontend) confidential client.
+
+**Flow**:
+1. User enters their Bluesky handle
+2. Backend resolves handle → DID → PDS → authorization server (via `.well-known/oauth-protected-resource` + `.well-known/oauth-authorization-server`)
+3. Backend makes a PAR (Pushed Authorization Request) with PKCE + DPoP + client_assertion
+4. User is redirected to Bluesky's authorization page
+5. User approves, redirected back to `/api/auth/oauth/callback`
+6. Backend exchanges code for tokens (DPoP-bound), verifies `sub` matches DID
+7. Creates session in D1 (stores OAuth refresh token + DPoP key for token refresh)
+
+**Key design**:
+- **Confidential client** (`private_key_jwt`): ES256 keypair authenticates the client at the token endpoint
+- **DPoP mandatory**: Ephemeral ES256 keypair per flow, DPoP proofs on all token requests
+- **PAR mandatory**: Authorization parameters sent server-to-server, not in URL
+- **PKCE S256**: Prevents authorization code interception
+- **Scope**: `atproto transition:generic` (needed for "Post to Bluesky" feature)
+
+**OAuth modules**: `apps/api/src/oauth/`
+- `jwt.ts` — DPoP proofs, client assertions, PKCE, ES256 key management
+- `discovery.ts` — auth server discovery from PDS
+- `flow.ts` — PAR, callback, token refresh
+
+**Secrets required**:
+- `OAUTH_CLIENT_ID` — must match `client_id` in `client-metadata.json`
+- `OAUTH_CLIENT_PRIVATE_KEY_JWK` — ES256 private key for client_assertion
+- `OAUTH_CLIENT_PUBLIC_KEY_JWK` — ES256 public key (also in client-metadata.json `jwks`)
+
+Generate with: `node scripts/generate-rsa-keypair.js --oauth`
+
+### App-Password Auth (Fallback)
+
+App-password auth is kept for local development and as a fallback. Users can expand "Use app password instead" in the login form.
 
 1. User enters handle + app password
-2. Backend resolves handle → DID → PDS URL
-3. Backend calls `com.atproto.server.createSession` on the user's PDS
-4. If successful, extracts verified DID
-5. **Stores PDS refresh token** in D1 session for later use (e.g., posting to Bluesky)
-6. Creates a local session (cookie + refresh token in D1)
-
-### OAuth (Future)
-
-OAuth callback is stubbed (returns 501). App-password auth is sufficient for v1.
+2. Backend verifies via `com.atproto.server.createSession` on user's PDS
+3. Stores PDS refresh token in D1 for later use (posting to Bluesky)
+4. Creates local session
 
 ### Posting to Bluesky
 
-The "Post to Bluesky" button on the admin page uses the **stored PDS refresh token** from the host's login session. No separate app password entry required. The backend calls `com.atproto.server.refreshSession` to get a fresh access token, creates a faceted post with option names as clickable vote links + a "View poll" link, then discards the access token. The refresh token is rotated if the PDS issues a new one.
+The "Post to Bluesky" button uses the session's stored credentials:
+- **OAuth sessions**: Refreshes the DPoP-bound OAuth token to get a PDS access token
+- **App-password sessions**: Uses the stored PDS refresh token directly
+
+Both paths call `getPdsAccessToken()` which dispatches based on `auth_method` in the sessions table.
 
 ## Credential System
 

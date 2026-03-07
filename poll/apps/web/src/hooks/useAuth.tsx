@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getMe, authStart, authLogout, authRefresh } from '../lib/api';
+import { getMe, authStart, authOAuthStart, authLogout, authRefresh } from '../lib/api';
 
 interface AuthState {
   did: string | null;
@@ -10,6 +10,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (handle: string, appPassword?: string) => Promise<void>;
+  loginOAuth: (handle: string, returnTo?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -68,6 +69,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // Check for OAuth error in URL (redirect from failed callback)
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get('error');
+    if (oauthError) {
+      setState(s => ({ ...s, error: oauthError }));
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    }
+
     // Try session cookie first, then fall back to refresh token
     getMe()
       .then(user => setState({ did: user.did, handle: user.handle, loading: false, error: null }))
@@ -108,6 +120,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // OAuth login (preferred)
+  const loginOAuth = useCallback(async (handle: string, returnTo?: string) => {
+    setState(s => ({ ...s, loading: true, error: null }));
+    try {
+      const result = await authOAuthStart(handle, returnTo || window.location.pathname);
+      window.location.href = result.authUrl;
+    } catch (err: any) {
+      setState(s => ({ ...s, loading: false, error: err.message }));
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await authLogout().catch(() => {});
     await clearRefreshToken().catch(() => {});
@@ -115,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, loginOAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
