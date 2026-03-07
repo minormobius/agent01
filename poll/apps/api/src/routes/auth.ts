@@ -15,6 +15,7 @@
 import type { Env } from '../index.js';
 import { jsonResponse } from '../index.js';
 import { startOAuth, handleOAuthCallback, refreshOAuthToken } from '../oauth/flow.js';
+import { createDPoPProof, type DPoPKeyPair } from '../oauth/jwt.js';
 
 export interface Session {
   sessionId: string;
@@ -328,12 +329,23 @@ async function refreshSession(request: Request, env: Env): Promise<Response> {
 }
 
 /**
+ * PDS auth result. For OAuth sessions, includes DPoP key for creating proofs.
+ */
+export interface PdsAuth {
+  accessJwt: string;
+  did: string;
+  pdsUrl: string;
+  authMethod: 'oauth' | 'app-password';
+  dpopKeyPair?: DPoPKeyPair;
+}
+
+/**
  * Get a fresh PDS access token for the session's user.
  * Handles both app-password sessions (PDS refresh) and OAuth sessions (DPoP token refresh).
  */
 export async function getPdsAccessToken(
   request: Request, env: Env
-): Promise<{ accessJwt: string; did: string; pdsUrl: string } | null> {
+): Promise<PdsAuth | null> {
   const sessionId = getSessionId(request) ||
     request.headers.get('Authorization')?.replace('Bearer ', '') || null;
   if (!sessionId) return null;
@@ -351,7 +363,13 @@ export async function getPdsAccessToken(
   if (authMethod === 'oauth') {
     const result = await refreshOAuthToken(env, sessionId);
     if (!result) return null;
-    return { accessJwt: result.accessToken, did: result.did, pdsUrl: result.pdsUrl };
+    return {
+      accessJwt: result.accessToken,
+      did: result.did,
+      pdsUrl: result.pdsUrl,
+      authMethod: 'oauth',
+      dpopKeyPair: result.dpopKeyPair,
+    };
   }
 
   // App-password sessions: refresh via PDS directly
@@ -375,7 +393,7 @@ export async function getPdsAccessToken(
     ).bind(data.refreshJwt, sessionId).run();
   }
 
-  return { accessJwt: data.accessJwt, did: data.did, pdsUrl };
+  return { accessJwt: data.accessJwt, did: data.did, pdsUrl, authMethod: 'app-password' };
 }
 
 // --- ATProto identity resolution ---

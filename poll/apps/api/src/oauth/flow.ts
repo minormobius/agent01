@@ -402,7 +402,7 @@ export async function handleOAuthCallback(
 export async function refreshOAuthToken(
   env: Env,
   sessionId: string,
-): Promise<{ accessToken: string; did: string; pdsUrl: string } | null> {
+): Promise<{ accessToken: string; did: string; pdsUrl: string; dpopKeyPair: DPoPKeyPair } | null> {
   const row = await env.DB.prepare(
     `SELECT did, pds_url, refresh_token, dpop_key_jwk, auth_method
      FROM sessions WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
@@ -504,5 +504,6 @@ export async function refreshOAuthToken(
     accessToken: tokens.access_token,
     did: tokens.sub,
     pdsUrl,
+    dpopKeyPair: dpop,
   };
 }
