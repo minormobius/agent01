@@ -674,29 +674,57 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
 
   // Build auth headers — OAuth tokens are DPoP-bound, app-password tokens use Bearer
   const createRecordUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.createRecord`;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const requestBody = JSON.stringify({
+    repo: pdsAuth.did,
+    collection: 'app.bsky.feed.post',
+    record,
+  });
+
+  let createRes: Response;
 
   if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
-    const dpopProof = await createDPoPProof(
+    // First attempt without nonce
+    let dpopProof = await createDPoPProof(
       pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt
     );
-    headers['Authorization'] = `DPoP ${pdsAuth.accessJwt}`;
-    headers['DPoP'] = dpopProof;
-  } else {
-    headers['Authorization'] = `Bearer ${pdsAuth.accessJwt}`;
-  }
+    createRes = await fetch(createRecordUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `DPoP ${pdsAuth.accessJwt}`,
+        'DPoP': dpopProof,
+      },
+      body: requestBody,
+    });
 
-  const createRes = await fetch(createRecordUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      repo: pdsAuth.did,
-      collection: 'app.bsky.feed.post',
-      record,
-    }),
-  });
+    // Retry with nonce if required
+    if (createRes.status === 401 || createRes.status === 400) {
+      const nonce = createRes.headers.get('DPoP-Nonce');
+      if (nonce) {
+        dpopProof = await createDPoPProof(
+          pdsAuth.dpopKeyPair, 'POST', createRecordUrl, nonce, pdsAuth.accessJwt
+        );
+        createRes = await fetch(createRecordUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `DPoP ${pdsAuth.accessJwt}`,
+            'DPoP': dpopProof,
+          },
+          body: requestBody,
+        });
+      }
+    }
+  } else {
+    createRes = await fetch(createRecordUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${pdsAuth.accessJwt}`,
+      },
+      body: requestBody,
+    });
+  }
 
   if (!createRes.ok) {
     const err = await createRes.text();
