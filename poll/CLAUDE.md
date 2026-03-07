@@ -1,8 +1,8 @@
-# poll.mino.mobi — Anonymous Polls on ATProto
+# poll.mino.mobi — ATPolls
 
 ## What This Is
 
-An anonymous, sybil-resistant, auditable polling system for Bluesky built on ATProto. Any Bluesky user can create a poll. Any eligible Bluesky user can vote. Votes are anonymous — RSA Blind Signatures (RFC 9474) ensure the host cannot link voter identity to ballot choice. Anonymity is cryptographic, not trust-based.
+ATPolls — verifiable, anonymous polling on Bluesky. Any Bluesky user can create a poll. Any eligible Bluesky user can vote. RSA Blind Signatures (RFC 9474) ensure the host cannot link voter identity to ballot choice. Anonymity is cryptographic, not trust-based.
 
 The protocol design, threat model, and cryptographic rationale live in `poll/PROTOCOL.md`.
 
@@ -100,10 +100,9 @@ Voters and poll creators authenticate via ATProto app passwords:
 1. User enters handle + app password
 2. Backend resolves handle → DID → PDS URL
 3. Backend calls `com.atproto.server.createSession` on the user's PDS
-4. If successful, extracts verified DID, **discards the PDS access token**
-5. Creates a local session (cookie + refresh token in D1)
-
-The backend only needs identity verification — it never writes to the user's PDS.
+4. If successful, extracts verified DID
+5. **Stores PDS refresh token** in D1 session for later use (e.g., posting to Bluesky)
+6. Creates a local session (cookie + refresh token in D1)
 
 ### OAuth (Future)
 
@@ -111,7 +110,7 @@ OAuth callback is stubbed (returns 501). App-password auth is sufficient for v1.
 
 ### Posting to Bluesky
 
-The "Post to Bluesky" feature on the admin page asks for the host's app password at share time, authenticates to their PDS, creates a faceted post with option names as clickable links + a "View poll" link, then discards the token. This is ephemeral — no credentials are stored.
+The "Post to Bluesky" button on the admin page uses the **stored PDS refresh token** from the host's login session. No separate app password entry required. The backend calls `com.atproto.server.refreshSession` to get a fresh access token, creates a faceted post with option names as clickable vote links + a "View poll" link, then discards the access token. The refresh token is rotated if the PDS issues a new one.
 
 ## Credential System
 
@@ -202,17 +201,20 @@ All in one flow — no manual "request credential" or "select option" steps.
 
 ### Post to Bluesky
 
-The admin page has a "Post to Bluesky" feature that creates a properly faceted post:
+The admin page has a "Post to Bluesky" button that creates a properly faceted post using the host's stored PDS session:
 
 ```
 Which diagnostic platform will dominate POC by 2030?
 
-Cepheid GeneXpert · BioFire FilmArray · Abbott ID NOW · Other
+Cepheid GeneXpert
+BioFire FilmArray
+Abbott ID NOW
+Other
 
-View poll · Anonymous & verifiable · 24h left
+View poll · Verifiable & anonymous · 24h left
 ```
 
-Each option name and "View poll" are link facets (blue clickable text on Bluesky).
+Each option name is on its own line and is a link facet (blue clickable text on Bluesky) pointing to `/v/{pollId}?c={index}`. "View poll" links to the results page at `/poll/{pollId}`.
 
 ## D1 Schema
 
@@ -224,7 +226,7 @@ Key tables (see `apps/api/migrations/` for full schema):
 - **poll_eligible_dids**: poll_id, did — whitelist for restricted polls
 - **tally_snapshots**: poll_id, counts_by_option (JSON), ballot_count, final
 - **audit_events**: poll_id, event_type, event_payload, rolling_hash — tamper-evident log
-- **sessions**: session_id, did, handle, expires_at — auth sessions + refresh tokens
+- **sessions**: session_id, did, handle, pds_url, refresh_token, expires_at — auth sessions with PDS refresh tokens for posting
 
 No table stores voter DID alongside choice. The `eligibility` table records that a DID consumed a credential. The `ballots` table records anonymous ballots. These are deliberately separate.
 

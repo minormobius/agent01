@@ -1,4 +1,4 @@
-# Anonymous Polls on ATProto — Protocol Design
+# ATPolls — Protocol Design
 
 ## The Problem
 
@@ -223,9 +223,60 @@ Final tally snapshot. One per poll, on the service PDS.
 }
 ```
 
+## Observable Surface — Live Monitoring Analysis
+
+An attacker with no authentication can continuously poll the following public endpoints. This is a deliberate transparency trade-off — the system is designed for auditability, not secrecy — but the real-time nature of some endpoints creates timing correlation risks.
+
+### Unauthenticated Endpoints (what changes over time)
+
+| Endpoint | What it reveals | Update frequency |
+|---|---|---|
+| `GET /api/polls` | Poll existence, metadata, status transitions | On creation, status change |
+| `GET /api/polls/:id` | Full poll definition including options, timing, status | On status change |
+| `GET /api/polls/:id/tally` | **Live vote distribution** (counts per option) | On every ballot acceptance |
+| `GET /api/polls/:id/ballots` | Ballot commitment list (grows with each vote) | On every ballot acceptance |
+| `GET /api/polls/:id/audit` | Timestamped event stream (`ballot_accepted`, etc.) | On every state mutation |
+| `GET /api/polls/:id/eligible` | Eligible voter count (for restricted polls) | On sync |
+
+### The Core Timing Attack
+
+The blind signature provides cryptographic unlinkability between credential and ballot. But the network layer leaks timing:
+
+```
+T+0s   Alice authenticates (session endpoint — server sees DID)
+T+1s   Eligibility request (server issues blind credential to Alice)
+T+3s   Ballot submission (no session — but arrives seconds later)
+T+3s   GET /tally shows option B incremented by 1 (publicly visible)
+```
+
+An attacker polling `/tally` every second can observe vote-by-vote arrival and correlate with social signals (who just authenticated, who was online, etc.).
+
+The Fisher-Yates shuffle only protects **publication order to ATProto** at poll close. It does not protect the live tally endpoint, which leaks the temporal distribution of votes.
+
+### Mitigations (current)
+
+- **Blind signatures** ensure the host cannot link DID → credential → ballot even with timing data
+- **Credential-based ballot submission** (no session) means the ballot itself carries no identity
+- **Batch publication** (shuffle at close) breaks ordering in the permanent ATProto record
+
+### Mitigations (recommended, not yet implemented)
+
+- **Gate tally behind poll status**: Return live counts only after `status === 'closed'`. This is the single largest timing leak.
+- **Gate ballot list behind poll status**: Don't return commitments until close.
+- **Batch audit visibility**: Suppress `ballot_accepted` event timestamps until close. During voting, return only `poll_opened` and eligibility events.
+- **Filter draft polls from public list**: `GET /api/polls` should only return `open` or later status polls to unauthenticated callers.
+
+### What remains observable even with mitigations
+
+- Poll existence and definition (intentional — voters need to find the poll)
+- Eligible voter count for restricted polls (intentional — voters need to know scope)
+- Final ballot set on the service PDS (intentional — auditability requires this)
+- That *a* ballot was submitted (the server processes it) — but not *which* choice or *whose*
+
 ## Residual Risks
 
 1. **Cloudflare as infrastructure provider**: CF has access to Worker memory. For nation-state threat models, this matters. For community polls, it's acceptable.
 2. **D1 durability**: D1 is eventually consistent. The DO is the authoritative write path; D1 is for recovery and queries.
 3. **ATProto public repo**: Published records are permanent on the AT Protocol network. Anonymized ballots cannot be un-published.
 4. **Single RSA key**: All polls on the same instance share one RSA key pair. Cross-poll replay is prevented by poll binding in the tokenMessage, not by key separation.
+5. **Live tally endpoint**: Real-time vote counts leak temporal voting patterns to any observer. See "Observable Surface" above.
