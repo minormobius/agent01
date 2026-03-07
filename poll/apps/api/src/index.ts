@@ -47,8 +47,13 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // Serve client-metadata.json dynamically so we can inject the OAuth public key
+    if (url.pathname === '/client-metadata.json') {
+      return handleClientMetadata(env);
+    }
+
     // Non-API routes should not reach the Worker.
-    // _routes.json restricts the Worker to /api/* only.
+    // _routes.json restricts the Worker to /api/* and /client-metadata.json.
     // Pages handles SPA fallback for everything else.
     if (!url.pathname.startsWith('/api/')) {
       return jsonResponse({ error: 'Not found', hint: '_routes.json should prevent this' }, 404);
@@ -115,6 +120,43 @@ export function jsonResponse(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+/** Serve client-metadata.json with the OAuth public key injected from env */
+function handleClientMetadata(env: Env): Response {
+  const metadata: Record<string, unknown> = {
+    client_id: 'https://poll.mino.mobi/client-metadata.json',
+    client_name: 'ATPolls',
+    client_uri: 'https://poll.mino.mobi',
+    redirect_uris: ['https://poll.mino.mobi/api/auth/oauth/callback'],
+    scope: 'atproto transition:generic',
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'private_key_jwt',
+    token_endpoint_auth_signing_alg: 'ES256',
+    dpop_bound_access_tokens: true,
+    application_type: 'web',
+  };
+
+  if (env.OAUTH_SIGNING_PUBLIC_KEY_JWK) {
+    try {
+      const publicJwk = JSON.parse(env.OAUTH_SIGNING_PUBLIC_KEY_JWK);
+      // Ensure required JWK fields for ATProto OAuth
+      publicJwk.use = publicJwk.use || 'sig';
+      publicJwk.alg = publicJwk.alg || 'ES256';
+      metadata.jwks = { keys: [publicJwk] };
+    } catch {
+      // If the key can't be parsed, serve without jwks
+    }
+  }
+
+  return new Response(JSON.stringify(metadata, null, 2), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+    },
   });
 }
 
