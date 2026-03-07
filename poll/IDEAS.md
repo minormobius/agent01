@@ -14,21 +14,33 @@ Anonymous posting where every poster is provably a unique real ATProto user, but
 
 **What's already built**: OAuth flow, blind signature issuance/verification, token scoping, Cloudflare Worker backend. The imageboard is mostly a frontend problem.
 
-## 2. Reputation-Staked Prediction Markets
+## 2. Prediction Markets — Fit Analysis
 
-Prediction markets where participants stake **reputation** (not money) on outcomes. Positions are anonymous; resolution outcomes flow back to the user's DID as a public accuracy score without revealing individual bets.
+### What the blind signature stack gives you: nothing useful here
 
-**Key mechanism**: One-way reputation bridge.
-- Blind-signed token scoped to a market → anonymous position
-- Market resolves → worker computes outcome per token
-- Token holder redeems reputation delta via ZK proof ("I hold a winning token" without revealing which)
-- DID's public reputation record increments
+Prediction markets want **persistent, scored identity** — the opposite of anonymity. A pseudonym making public predictions and being graded on accuracy is just a leaderboard. No cryptography required. The blind signature primitive solves identity-hiding, but predictions need identity-accumulation.
 
-**Why it matters**: No money = no gambling regulation. Pure epistemic skin in the game. Track records are worth more than money to analysts, researchers, VCs, and policy experts.
+### The ZK reputation bridge is real but expensive
 
-**Biotech application**: "Will this Phase III read out positive?" — weighted by predictor accuracy, resolved against reality. The Mino Times runs it as an editorial product.
+Connecting anonymous bets to public scores without revealing which bet was yours requires ZK proofs (Semaphore-style Merkle membership proofs). This is shipping code in Ethereum's ecosystem but porting it to ATProto is a real cryptographic engineering project, not a weekend integration. And you'd be importing the same complexity class as blockchain development.
 
-**New primitive needed**: Zero-knowledge reputation redemption — proving you hold a resolved token without revealing which one. This is the main unsolved piece.
+### The "reputation token" problem
+
+A reputation score stored on your PDS is structurally a self-attested token — worthless. Third-party attested = centralized token issuer. Consensus-attested = blockchain. There is no door number four. You'd be reinventing cryptocurrency from first principles.
+
+### What actually works with the existing stack
+
+The poll system can run **prediction polls** without any new primitives:
+1. Create a poll: "Will Cepheid's GI panel hit $X revenue by Q3?" with time-bound resolution
+2. Anonymous, sybil-resistant voting (already built)
+3. Track poll outcomes vs reality on a public scorecard page
+4. Editorial product: "Our readers predicted X at Y% confidence — here's what happened"
+
+This is **crowd wisdom aggregation**, not individual reputation tracking. Different product, but it ships today with zero new crypto. The blind signatures still do their job (anonymous votes), and the resolution layer is just a static page comparing predictions to outcomes.
+
+### If you really wanted individual reputation
+
+For pseudonymous users (not anonymous), the answer is simpler: make predictions publicly from your handle, get scored publicly. That's Metaculus/Manifold. ATProto adds Bluesky distribution and the existing eligibility gating (followers, mutuals, lists) for quality control, but no novel crypto. The pseudonym IS the reputation container.
 
 ## 3. Anonymous Tipping / Whistleblowing
 
