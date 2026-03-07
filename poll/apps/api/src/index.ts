@@ -9,6 +9,7 @@ import { PollCoordinator } from './durable-objects/poll-coordinator.js';
 import { handlePollRoutes } from './routes/polls.js';
 import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
+import { getClientPublicJWK } from './oauth/keypair.js';
 
 export { PollCoordinator };
 
@@ -50,6 +51,16 @@ export default {
     // Serve client-metadata.json dynamically so we can inject the OAuth public key
     if (url.pathname === '/client-metadata.json') {
       return handleClientMetadata(env);
+    }
+
+    // Debug endpoint to check if the keypair exists (no secrets exposed)
+    if (url.pathname === '/api/debug/oauth-keypair') {
+      try {
+        const jwk = await getClientPublicJWK(env.DB);
+        return jsonResponse({ ok: true, kid: (jwk as any).kid, kty: jwk.kty, crv: jwk.crv });
+      } catch (e: any) {
+        return jsonResponse({ ok: false, error: e.message }, 500);
+      }
     }
 
     // Non-API routes should not reach the Worker.
@@ -123,8 +134,11 @@ export function jsonResponse(data: any, status = 200): Response {
   });
 }
 
-/** Serve client-metadata.json with the OAuth public key injected from env */
-function handleClientMetadata(env: Env): Response {
+/**
+ * Serve client-metadata.json with the OAuth public key from D1.
+ * The keypair is auto-generated on first request — no secrets to configure.
+ */
+async function handleClientMetadata(env: Env): Promise<Response> {
   const metadata: Record<string, unknown> = {
     client_id: 'https://poll.mino.mobi/client-metadata.json',
     client_name: 'ATPolls',
@@ -139,24 +153,29 @@ function handleClientMetadata(env: Env): Response {
     application_type: 'web',
   };
 
-  if (env.OAUTH_SIGNING_PUBLIC_KEY_JWK) {
-    try {
-      const publicJwk = JSON.parse(env.OAUTH_SIGNING_PUBLIC_KEY_JWK);
-      // Ensure required JWK fields for ATProto OAuth
-      publicJwk.use = publicJwk.use || 'sig';
-      publicJwk.alg = publicJwk.alg || 'ES256';
-      metadata.jwks = { keys: [publicJwk] };
-    } catch (e) {
-      console.error('Failed to parse OAUTH_SIGNING_PUBLIC_KEY_JWK:', e);
+  try {
+    const publicJwk = await getClientPublicJWK(env.DB);
+    metadata.jwks = { keys: [{ ...publicJwk }] };
+  } catch (e) {
+    console.error('Failed to get OAuth client public key from D1:', e);
+    // On the very first deploy, the migration might not have run yet.
+    // Fall back to env secret if available (legacy path).
+    if (env.OAUTH_SIGNING_PUBLIC_KEY_JWK) {
+      try {
+        const publicJwk = JSON.parse(env.OAUTH_SIGNING_PUBLIC_KEY_JWK);
+        publicJwk.use = publicJwk.use || 'sig';
+        publicJwk.alg = publicJwk.alg || 'ES256';
+        metadata.jwks = { keys: [publicJwk] };
+      } catch {
+        console.error('Legacy OAUTH_SIGNING_PUBLIC_KEY_JWK also failed to parse');
+      }
     }
-  } else {
-    console.warn('OAUTH_SIGNING_PUBLIC_KEY_JWK not set — client metadata will lack jwks (private_key_jwt will fail)');
   }
 
   return new Response(JSON.stringify(metadata, null, 2), {
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=600',
       'Access-Control-Allow-Origin': '*',
     },
   });

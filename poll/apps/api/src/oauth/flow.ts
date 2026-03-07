@@ -19,9 +19,9 @@ import {
   generateCodeVerifier,
   computeCodeChallenge,
   generateState,
-  importPrivateKeyJWK,
   type DPoPKeyPair,
 } from './jwt.js';
+import { getClientSigningKey, getClientPublicJWK as getClientPublicJWKFromD1 } from './keypair.js';
 
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app';
 const STATE_TTL_SECONDS = 300; // 5 minutes
@@ -92,18 +92,11 @@ function getRedirectUri(env: Env): string {
 }
 
 async function getClientPrivateKey(env: Env): Promise<CryptoKey> {
-  if (!env.OAUTH_SIGNING_PRIVATE_KEY_JWK) {
-    throw new Error('OAUTH_SIGNING_PRIVATE_KEY_JWK secret not configured');
-  }
-  const jwk = JSON.parse(env.OAUTH_SIGNING_PRIVATE_KEY_JWK);
-  return importPrivateKeyJWK(jwk);
+  return getClientSigningKey(env.DB);
 }
 
-function getClientPublicJWK(env: Env): JsonWebKey {
-  if (!env.OAUTH_SIGNING_PUBLIC_KEY_JWK) {
-    throw new Error('OAUTH_SIGNING_PUBLIC_KEY_JWK secret not configured');
-  }
-  return JSON.parse(env.OAUTH_SIGNING_PUBLIC_KEY_JWK);
+async function getClientPublicJWK(env: Env): Promise<JsonWebKey> {
+  return getClientPublicJWKFromD1(env.DB);
 }
 
 // --- Start flow ---
@@ -138,7 +131,7 @@ export async function startOAuth(
   const clientId = getClientId(env);
   const redirectUri = getRedirectUri(env);
   const clientPrivateKey = await getClientPrivateKey(env);
-  const clientPublicJWK = getClientPublicJWK(env);
+  const clientPublicJWK = await getClientPublicJWK(env);
 
   const clientAssertion = await createClientAssertion(
     clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
@@ -267,7 +260,7 @@ export async function handleOAuthCallback(
   const clientId = getClientId(env);
   const redirectUri = getRedirectUri(env);
   const clientPrivateKey = await getClientPrivateKey(env);
-  const clientPublicJWK = getClientPublicJWK(env);
+  const clientPublicJWK = await getClientPublicJWK(env);
 
   const clientAssertion = await createClientAssertion(
     clientPrivateKey, clientPublicJWK, clientId, tokenEndpoint
@@ -401,7 +394,7 @@ export async function refreshOAuthToken(
 
   const clientId = getClientId(env);
   const clientPrivateKey = await getClientPrivateKey(env);
-  const clientPublicJWK = getClientPublicJWK(env);
+  const clientPublicJWK = await getClientPublicJWK(env);
 
   const clientAssertion = await createClientAssertion(
     clientPrivateKey, clientPublicJWK, clientId, metadata.token_endpoint
