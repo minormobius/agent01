@@ -412,11 +412,11 @@ def compute_card_stats(article):
     revisions = article.get("revisions_count", 0)
     length = article["length"]
 
-    # All stats use log2 for spread: log2(1)=0, log2(100)≈6.6, log2(500)≈9
-    atk = min(99, max(1, round(math.log2(max(1, links)) * 7)))
-    defense = min(99, max(1, round(math.log2(max(1, linkshere)) * 7)))
-    spc = min(99, max(1, round(math.log2(max(1, extlinks)) * 9)))
-    spd = min(99, max(1, round(math.log2(max(1, revisions)) * 10)))
+    # All stats use log2 for spread; floor 0 = no data fetched
+    atk = min(99, round(math.log2(max(1, links)) * 7))
+    defense = min(99, round(math.log2(max(1, linkshere)) * 7))
+    spc = min(99, round(math.log2(max(1, extlinks)) * 9))
+    spd = min(99, round(math.log2(max(1, revisions)) * 10))
     hp = min(999, max(100, round(math.log2(max(1, length)) * 38)))
 
     power = atk + defense + spc + spd + hp / 10

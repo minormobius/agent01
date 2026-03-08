@@ -142,10 +142,11 @@ function deriveStats(page) {
   const revisions = page.revisions?.length || 0;
   const len = page.length || 5000;
 
-  const atk = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, links)) * 7)));
-  const def = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, linkshere)) * 7)));
-  const spc = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, extlinks)) * 9)));
-  const spd = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, revisions)) * 10)));
+  // Floor 0 = no data fetched (distinguishes from real low values)
+  const atk = Math.min(99, Math.round(Math.log2(Math.max(1, links)) * 7));
+  const def = Math.min(99, Math.round(Math.log2(Math.max(1, linkshere)) * 7));
+  const spc = Math.min(99, Math.round(Math.log2(Math.max(1, extlinks)) * 9));
+  const spd = Math.min(99, Math.round(Math.log2(Math.max(1, revisions)) * 10));
   const hp = Math.min(999, Math.max(100, Math.round(Math.log2(Math.max(1, len)) * 38)));
 
   return { atk, def, spc, spd, hp };
