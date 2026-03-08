@@ -39,78 +39,30 @@ function pickPack(seed, count = 5) {
   return picks;
 }
 
-// ── Wikipedia API ─────────────────────────────────────────────
+// ── Wikipedia API (light data only — stats are pre-computed) ──
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 
-async function wikiQuery(params) {
-  const qs = new URLSearchParams({ ...params, format: "json", origin: "*" });
-  const res = await fetch(`${WIKI_API}?${qs}`);
-  if (!res.ok) return {};
-  const data = await res.json();
-  return data.query?.pages || {};
-}
-
-// Light data: extract, thumbnail, byte length (shared batch is fine)
 async function fetchArticleData(titles) {
-  return wikiQuery({
+  const params = new URLSearchParams({
     action: "query",
     titles: titles.join("|"),
-    prop: "extracts|pageimages|info|langlinks",
+    prop: "extracts|pageimages",
     exintro: "1",
     explaintext: "1",
     exsentences: "4",
     piprop: "thumbnail",
     pithumbsize: "400",
-    inprop: "length",
-    lllimit: "500",
+    format: "json",
+    origin: "*",
   });
+
+  const res = await fetch(`${WIKI_API}?${params}`);
+  if (!res.ok) throw new Error("Wikipedia API request failed");
+  const data = await res.json();
+  return data.query?.pages || {};
 }
 
-// Heavy stat props — fetched per-card (1 title) to avoid starvation
-async function fetchStatsForTitle(title) {
-  const now = new Date().toISOString();
-  const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
-
-  const [linkPages, elPages, lhPages, rvPages] = await Promise.all([
-    wikiQuery({ action: "query", titles: title, prop: "links", pllimit: "500" }),
-    wikiQuery({ action: "query", titles: title, prop: "extlinks", ellimit: "500" }),
-    wikiQuery({ action: "query", titles: title, prop: "linkshere", lhlimit: "500", lhnamespace: "0" }),
-    wikiQuery({ action: "query", titles: title, prop: "revisions", rvlimit: "500", rvprop: "ids", rvstart: now, rvend: oneYearAgo }),
-  ]);
-
-  // Merge all props onto a single page object
-  const page = {};
-  for (const d of Object.values(linkPages)) { page.links = d.links; }
-  for (const d of Object.values(elPages)) { page.extlinks = d.extlinks; }
-  for (const d of Object.values(lhPages)) { page.linkshere = d.linkshere; }
-  for (const d of Object.values(rvPages)) { page.revisions = d.revisions; }
-  return page;
-}
-
-// ── Stat derivation ──────────────────────────────────────────
-function deriveStats(page) {
-  const links = page.links?.length || 0;
-  const linkshere = page.linkshere?.length || 0;
-  const extlinks = page.extlinks?.length || 0;
-  const revisions = page.revisions?.length || 0;
-  const len = page.length || 5000;
-
-  const atk = Math.min(99, Math.round(Math.log2(Math.max(1, links)) * 7));
-  const def = Math.min(99, Math.round(Math.log2(Math.max(1, linkshere)) * 7));
-  const spc = Math.min(99, Math.round(Math.log2(Math.max(1, extlinks)) * 9));
-  const spd = Math.min(99, Math.round(Math.log2(Math.max(1, revisions)) * 10));
-  const hp = Math.min(999, Math.max(100, Math.round(Math.log2(Math.max(1, len)) * 38)));
-
-  return { atk, def, spc, spd, hp };
-}
-
-function deriveRarity(stats) {
-  const power = stats.atk + stats.def + stats.spc + stats.spd + stats.hp / 10;
-  if (power >= 300) return "legendary";
-  if (power >= 240) return "rare";
-  if (power >= 180) return "uncommon";
-  return "common";
-}
+// ── Rarity ───────────────────────────────────────────────────
 
 const RARITY_LABELS = {
   common: "Common",
@@ -122,11 +74,8 @@ const RARITY_LABELS = {
 // ── Card rendering ────────────────────────────────────────────
 
 function createCardElement(cardData, index) {
-  const { title, category, extract, thumbnail } = cardData;
+  const { title, category, extract, thumbnail, stats, rarity } = cardData;
   const cat = CATEGORIES[category];
-
-  // Before stats load, show placeholder rarity
-  const rarity = cardData.rarity || "common";
 
   const container = document.createElement("div");
   container.className = `card-container rarity-${rarity}`;
@@ -147,69 +96,38 @@ function createCardElement(cardData, index) {
         </div>
         <div class="card-body">
           <div class="card-title">${title}</div>
-          <div class="card-extract">${extract || "Loading..."}</div>
+          <div class="card-extract">${extract || ""}</div>
         </div>
         <div class="card-stats">
           <div class="stat">
             <div class="stat-label">ATK</div>
-            <div class="stat-value">${cardData.stats ? cardData.stats.atk : '<span class="stat-loading">···</span>'}</div>
+            <div class="stat-value">${stats.atk}</div>
           </div>
           <div class="stat">
             <div class="stat-label">DEF</div>
-            <div class="stat-value">${cardData.stats ? cardData.stats.def : '<span class="stat-loading">···</span>'}</div>
+            <div class="stat-value">${stats.def}</div>
           </div>
           <div class="stat">
             <div class="stat-label">SPC</div>
-            <div class="stat-value">${cardData.stats ? cardData.stats.spc : '<span class="stat-loading">···</span>'}</div>
+            <div class="stat-value">${stats.spc}</div>
           </div>
           <div class="stat">
             <div class="stat-label">SPD</div>
-            <div class="stat-value">${cardData.stats ? cardData.stats.spd : '<span class="stat-loading">···</span>'}</div>
+            <div class="stat-value">${stats.spd}</div>
           </div>
           <div class="stat">
             <div class="stat-label">HP</div>
-            <div class="stat-value">${cardData.stats ? cardData.stats.hp : '<span class="stat-loading">···</span>'}</div>
+            <div class="stat-value">${stats.hp}</div>
           </div>
         </div>
       </div>
     </div>
   `;
 
-  let statsLoading = false;
-
-  container.addEventListener("click", async () => {
+  container.addEventListener("click", () => {
     if (!container.classList.contains("revealed")) {
       container.classList.add("revealed");
       checkAllRevealed();
-
-      // Fetch stats on reveal if not already loaded
-      if (!cardData.stats && !statsLoading) {
-        statsLoading = true;
-        try {
-          const statPage = await fetchStatsForTitle(cardData.title);
-          statPage.length = cardData._pageLength || 5000;
-          const stats = deriveStats(statPage);
-          const rarity = deriveRarity(stats);
-          cardData.stats = stats;
-          cardData.rarity = rarity;
-
-          // Update DOM
-          container.className = `card-container revealed rarity-${rarity}`;
-          const statValues = container.querySelectorAll(".stat-value");
-          const vals = [stats.atk, stats.def, stats.spc, stats.spd, stats.hp];
-          statValues.forEach((el, i) => { el.textContent = vals[i]; });
-          container.querySelector(".card-rarity").textContent = RARITY_LABELS[rarity];
-        } catch (err) {
-          console.error("Stats fetch failed for", cardData.title, err);
-          // Show fallback
-          const fallback = { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 };
-          cardData.stats = fallback;
-          cardData.rarity = "common";
-          const statValues = container.querySelectorAll(".stat-value");
-          const vals = [10, 10, 10, 10, 200];
-          statValues.forEach((el, i) => { el.textContent = vals[i]; });
-        }
-      }
     } else {
       showDetail(cardData);
     }
@@ -226,33 +144,31 @@ function showDetail(cardData) {
 
   const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
-  const s = stats || { atk: "···", def: "···", spc: "···", spd: "···", hp: "···" };
-
   content.innerHTML = `
     ${thumbnail ? `<img class="detail-image" src="${thumbnail}" alt="${title}">` : ""}
-    <div class="detail-category" style="color:${cat.color}">${cat.name} — ${RARITY_LABELS[rarity || "common"]}</div>
+    <div class="detail-category" style="color:${cat.color}">${cat.name} — ${RARITY_LABELS[rarity]}</div>
     <div class="detail-title">${title}</div>
     <div class="detail-extract">${extract || ""}</div>
     <div class="detail-stats">
       <div class="stat">
         <div class="detail-stat-label">ATK</div>
-        <div class="detail-stat-value">${s.atk}</div>
+        <div class="detail-stat-value">${stats.atk}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">DEF</div>
-        <div class="detail-stat-value">${s.def}</div>
+        <div class="detail-stat-value">${stats.def}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">SPC</div>
-        <div class="detail-stat-value">${s.spc}</div>
+        <div class="detail-stat-value">${stats.spc}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">SPD</div>
-        <div class="detail-stat-value">${s.spd}</div>
+        <div class="detail-stat-value">${stats.spd}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">HP</div>
-        <div class="detail-stat-value">${s.hp}</div>
+        <div class="detail-stat-value">${stats.hp}</div>
       </div>
     </div>
     <a class="detail-link" href="${wikiUrl}" target="_blank">Read on Wikipedia &rarr;</a>
@@ -292,39 +208,28 @@ async function openPack(seed) {
   grid.innerHTML = `<div class="loading"><div class="spinner"></div><span>Fetching articles from Wikipedia...</span></div>`;
 
   try {
+    // Pool entries: [title, category, {atk, def, spc, spd, hp, rarity}]
     const titles = picks.map(([t]) => t);
 
-    // Only fetch light data up front (extract, image, length)
+    // Only fetch extracts + thumbnails from Wikipedia (stats are pre-computed)
     const articlePages = await fetchArticleData(titles);
 
     packCards = [];
-    for (const [title, category] of picks) {
+    for (const [title, category, stats] of picks) {
       const page = Object.values(articlePages).find(
         (p) =>
           p.title === title ||
           p.title?.replace(/ /g, "_") === title.replace(/ /g, "_")
       );
 
-      if (page && page.pageid) {
-        packCards.push({
-          title: page.title,
-          category,
-          extract: page.extract || "",
-          thumbnail: page.thumbnail?.source || null,
-          stats: null, // fetched on reveal
-          rarity: null,
-          _pageLength: page.length,
-        });
-      } else {
-        packCards.push({
-          title,
-          category,
-          extract: "Article data unavailable.",
-          thumbnail: null,
-          stats: { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 },
-          rarity: "common",
-        });
-      }
+      packCards.push({
+        title: page?.title || title,
+        category,
+        extract: page?.extract || "",
+        thumbnail: page?.thumbnail?.source || null,
+        stats: stats || { atk: 50, def: 50, spc: 50, spd: 50, hp: 500 },
+        rarity: stats?.rarity || "common",
+      });
     }
 
     grid.innerHTML = "";
@@ -387,7 +292,7 @@ function shuffleDeck() {
 function drawFromDeck() {
   if (luckyDeck.length === 0) shuffleDeck();
   const pick = luckyDeck.pop();
-  return { title: pick[0], category: pick[1] };
+  return { title: pick[0], category: pick[1], stats: pick[2] };
 }
 
 // Initialize deck
@@ -404,20 +309,13 @@ async function doLucky() {
   result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from the pool... (${luckyDeck.length} remaining)</span></div>`;
 
   try {
-    const { title, category } = drawFromDeck();
+    const { title, category, stats } = drawFromDeck();
+    const rarity = stats?.rarity || "common";
 
-    // Fetch everything for single card (no starvation with 1 title)
-    const [articlePages, statData] = await Promise.all([
-      fetchArticleData([title]),
-      fetchStatsForTitle(title),
-    ]);
-
+    const articlePages = await fetchArticleData([title]);
     const page = Object.values(articlePages).find((p) => p.pageid);
 
     if (page) {
-      statData.length = page.length;
-      const stats = deriveStats(statData);
-      const rarity = deriveRarity(stats);
       const cat = CATEGORIES[category];
       const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, "_"))}`;
 
@@ -524,6 +422,14 @@ function renderDocs() {
     `;
   }).join("");
 
+  // Count pool rarity distribution
+  const poolRarity = {};
+  for (const [, , stats] of POOL) {
+    const r = stats?.rarity || "common";
+    poolRarity[r] = (poolRarity[r] || 0) + 1;
+  }
+  const poolTotal = POOL.length;
+
   container.innerHTML = `
     <div class="doc-section">
       <h2 class="doc-title">The Wikinatomy</h2>
@@ -576,7 +482,7 @@ function renderDocs() {
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">The Distribution Problem</div>
-          <p>The distribution is inherently lumpy. Society &amp; Politics, Geography, and Life Sciences have 3–6× more articles than Space or Visual Arts. This is real — it reflects what humans collectively consider important enough to document extensively. For the card game, we use the curated pool (20 articles per bin) so every category shows up equally in daily packs.</p>
+          <p>The distribution is inherently lumpy. Society &amp; Politics, Geography, and Life Sciences have 3–6× more articles than Space or Visual Arts. This is real — it reflects what humans collectively consider important enough to document extensively. For the card game, we use the curated pool (${poolTotal} articles, 30 per bin) so every category shows up equally in daily packs.</p>
         </div>
       </div>
     </div>
@@ -585,78 +491,32 @@ function renderDocs() {
       <h3 class="doc-section-title">Card Stats</h3>
       <div class="doc-explainer">
         <div class="doc-explain-block">
+          <div class="doc-explain-heading">Percentile Normalization</div>
+          <p>Stats are computed by ranking each article against the full pool of ~6,800 Featured Articles. An ATK of 75 means this article has more outgoing links than 75% of all Featured Articles. This guarantees the full 1–99 range and natural spread — no more clustering.</p>
+        </div>
+        <div class="doc-explain-block">
           <div class="doc-explain-heading">ATK — Links Out</div>
-          <p>Outgoing wikilinks from the article. Measures how much this article reaches into the rest of Wikipedia. High ATK = the article connects to many other topics.</p>
-          <p class="doc-formula"><code>min(99, max(1, round(log2(links) × 7)))</code></p>
-          <p class="doc-source">Source: <code>prop=links</code> (pllimit=500)</p>
+          <p>Outgoing wikilinks from the article, percentile-ranked. How much this article reaches into the rest of Wikipedia.</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">DEF — Links Here</div>
-          <p>Incoming wikilinks from other articles. Measures how many articles reference this one. High DEF = the topic is well-cited across Wikipedia.</p>
-          <p class="doc-formula"><code>min(99, max(1, round(log2(linkshere) × 7)))</code></p>
-          <p class="doc-source">Source: <code>prop=linkshere</code> (lhlimit=500, namespace=0)</p>
+          <p>Incoming wikilinks from other articles, percentile-ranked. How central and well-cited this topic is.</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">SPC — External References</div>
-          <p>External links (citations, sources, references). Measures how well-sourced the article is. High SPC = heavily cited from outside Wikipedia.</p>
-          <p class="doc-formula"><code>min(99, max(1, round(log2(extlinks) × 9)))</code></p>
-          <p class="doc-source">Source: <code>prop=extlinks</code> (ellimit=500)</p>
+          <p>External citations and references, percentile-ranked. How well-sourced from outside Wikipedia.</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">SPD — Recent Edits</div>
-          <p>Number of edits in the last 12 months. Measures how actively maintained the article is. High SPD = the topic is alive and evolving.</p>
-          <p class="doc-formula"><code>min(99, max(1, round(log2(revisions_12mo) × 10)))</code></p>
-          <p class="doc-source">Source: <code>prop=revisions</code> (rvlimit=500, last 365 days)</p>
+          <p>Edits in the last 12 months, percentile-ranked. How actively maintained and alive the topic is.</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">HP — Depth</div>
-          <p>Article length in bytes (log-scaled). Measures how much there is to say. High HP = the topic has been extensively documented.</p>
-          <p class="doc-formula"><code>min(999, max(100, round(log2(length) × 38)))</code></p>
-          <p class="doc-source">Source: <code>prop=info</code> (inprop=length)</p>
+          <p>Article length, percentile-ranked (100–999 scale). How extensively documented the topic is.</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">Rarity</div>
-          <p>Derived from ATK + DEF + SPC + SPD + HP/10. Common (&lt;180), Uncommon (180–239), Rare (240–299), Legendary (300+). All stats are fetched live from Wikipedia — rarity is earned, not assigned.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="doc-section">
-      <h3 class="doc-section-title">Wikipedia API Metadata</h3>
-      <p class="doc-intro">Every card is built from live Wikipedia API data. Here's what we fetch now and what's available for future stats.</p>
-      <div class="doc-explainer">
-        <div class="doc-explain-block">
-          <div class="doc-explain-heading">Currently Fetched</div>
-          <table class="doc-table">
-            <tr><th>Prop</th><th>Fields</th><th>Used for</th></tr>
-            <tr><td><code>extracts</code></td><td>Intro text (4 sentences, plaintext)</td><td>Card body text</td></tr>
-            <tr><td><code>pageimages</code></td><td>Thumbnail URL (400px)</td><td>Card image</td></tr>
-            <tr><td><code>info</code></td><td>Article byte length</td><td>HP stat</td></tr>
-            <tr><td><code>links</code></td><td>Outgoing wikilinks (up to 500)</td><td>ATK stat</td></tr>
-            <tr><td><code>linkshere</code></td><td>Incoming wikilinks (up to 500)</td><td>DEF stat</td></tr>
-            <tr><td><code>extlinks</code></td><td>External references (up to 500)</td><td>SPC stat</td></tr>
-            <tr><td><code>revisions</code></td><td>Edits in last 12 months (up to 500)</td><td>SPD stat</td></tr>
-          </table>
-        </div>
-        <div class="doc-explain-block">
-          <div class="doc-explain-heading">Available — Not Yet Used</div>
-          <table class="doc-table">
-            <tr><th>Prop</th><th>What it returns</th><th>Stat potential</th></tr>
-            <tr><td><code>pageviews</code></td><td>Daily views (last 1–60 days)</td><td>Fame / popularity</td></tr>
-            <tr><td><code>linkshere</code></td><td>Pages linking TO this article</td><td>Influence (backlink count)</td></tr>
-            <tr><td><code>contributors</code></td><td>Registered editors + anon count</td><td>Community effort</td></tr>
-            <tr><td><code>revisions</code></td><td>Edit timestamps, sizes, users</td><td>Edit velocity, article age</td></tr>
-            <tr><td><code>extlinks</code></td><td>External URLs referenced</td><td>Real-world source density</td></tr>
-            <tr><td><code>categories</code></td><td>Category memberships</td><td>Taxonomic breadth</td></tr>
-            <tr><td><code>images</code></td><td>Images used on page</td><td>Visual richness</td></tr>
-            <tr><td><code>templates</code></td><td>Templates used</td><td>Structural complexity</td></tr>
-            <tr><td><code>pageprops</code></td><td>Wikidata ID, disambig flag</td><td>Classification</td></tr>
-            <tr><td><code>pageterms</code></td><td>Wikidata short description</td><td>Subtitle text</td></tr>
-          </table>
-        </div>
-        <div class="doc-explain-block">
-          <div class="doc-explain-heading">Wikimedia REST API (separate endpoint)</div>
-          <p>Per-article pageview time series with daily/monthly granularity, available since July 2015. Endpoint: <code>wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{project}/{access}/{agent}/{article}/{granularity}/{start}/{end}</code></p>
+          <p>Assigned by total power percentile across the pool. Common (bottom 45%), Uncommon (next 30%), Rare (next 15%), Legendary (top 10%). Current pool: ${poolRarity.common || 0} Common, ${poolRarity.uncommon || 0} Uncommon, ${poolRarity.rare || 0} Rare, ${poolRarity.legendary || 0} Legendary.</p>
         </div>
       </div>
     </div>
@@ -694,10 +554,10 @@ document.getElementById("card-detail").addEventListener("click", (e) => {
   }
 });
 
-// Reveal all button — triggers stats fetch for each unrevealed card
+// Reveal all button
 document.getElementById("flip-all-btn").addEventListener("click", () => {
   document.querySelectorAll(".card-container:not(.revealed)").forEach((c) => {
-    c.click(); // triggers the reveal + stats fetch handler
+    c.classList.add("revealed");
   });
   checkAllRevealed();
 });

@@ -350,15 +350,6 @@ main {
   margin-top: 1px;
 }
 
-.stat-loading {
-  opacity: 0.4;
-  animation: stat-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes stat-pulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.6; }
-}
 
 /* ── Rarity glow effects ──────────────────────────────────── */
 .card-container.rarity-common .card-front { border-color: #555; }

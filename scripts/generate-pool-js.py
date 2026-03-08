@@ -82,11 +82,13 @@ def main():
     lines.append("")
     lines.append(CATEGORIES_JS)
     lines.append("")
-    lines.append("// Each entry: [title, category_key]")
-    lines.append("// Ranked by deep score (most specialist first)")
+    lines.append("// Each entry: [title, category_key, {atk, def, spc, spd, hp, rarity}]")
+    lines.append("// Stats are pre-computed by percentile normalization (1-99 for ATK/DEF/SPC/SPD, 100-999 for HP)")
+    lines.append("// Rarity: 45% common, 30% uncommon, 15% rare, 10% legendary")
     lines.append("const POOL = [")
 
     total = 0
+    rarity_counts = {}
     for bin_key in BIN_ORDER:
         articles = bins.get(bin_key, [])
         if not articles:
@@ -95,13 +97,29 @@ def main():
         lines.append(f"  // ── {label} ({len(articles)} articles) ──")
         for a in articles:
             title = a["title"].replace('"', '\\"')
-            lines.append(f'  ["{title}", "{bin_key}"],')
+            s = a.get("stats", {})
+            atk = s.get("atk", 50)
+            dfn = s.get("def", 50)
+            spc = s.get("spc", 50)
+            spd = s.get("spd", 50)
+            hp = s.get("hp", 500)
+            rarity = s.get("rarity", "common")
+            rarity_counts[rarity] = rarity_counts.get(rarity, 0) + 1
+            stats_obj = (f'{{atk:{atk},def:{dfn},spc:{spc},spd:{spd},'
+                         f'hp:{hp},rarity:"{rarity}"}}')
+            lines.append(f'  ["{title}", "{bin_key}", {stats_obj}],')
             total += 1
 
     lines.append("];")
     lines.append("")
     lines.append("export { CATEGORIES, POOL };")
     lines.append("")
+
+    # Log rarity distribution
+    for r in ("common", "uncommon", "rare", "legendary"):
+        n = rarity_counts.get(r, 0)
+        pct = 100 * n / max(1, total)
+        print(f"  {r:12s}: {n:4d} ({pct:.1f}%)", file=sys.stderr)
 
     with open(args.output, "w") as f:
         f.write("\n".join(lines))

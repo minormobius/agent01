@@ -287,11 +287,10 @@ def fetch_pageviews_rest(title, days=30):
 
 
 def fetch_metadata_batch(titles):
-    """Fetch extlinks, langlinks, info, categories for a batch of titles.
+    """Fetch light props (info, categories, images, extracts, langlinks) for a batch.
 
-    Split into focused queries to avoid Wikipedia API truncation when too many
-    props are requested together. Each query follows continuation to get
-    complete results.
+    Only scalar/light props here — list props (links, extlinks, linkshere,
+    revisions) are fetched in smaller heavy batches to avoid starvation.
     """
     if not titles:
         return {}
@@ -321,43 +320,10 @@ def fetch_metadata_batch(titles):
         "lllimit": "500",
     })
 
-    # Query 3: extlinks (with continuation)
-    pages3 = wiki_query_props({
-        "action": "query",
-        "titles": titles_str,
-        "prop": "extlinks",
-        "ellimit": "500",
-    })
-
-    # Query 4: links (with continuation)
-    pages4 = wiki_query_props({
-        "action": "query",
-        "titles": titles_str,
-        "prop": "links",
-        "pllimit": "500",
-    })
-
-    # Query 5: pageviews (with continuation)
-    pages5 = wiki_query_props({
-        "action": "query",
-        "titles": titles_str,
-        "prop": "pageviews",
-        "pvipdays": "30",
-    })
-
-    # Merge light props into pages dict
+    # Merge langlinks into pages dict
     for pid, pdata in pages2.items():
         if pid in pages:
             pages[pid]["langlinks"] = pdata.get("langlinks", [])
-    for pid, pdata in pages3.items():
-        if pid in pages:
-            pages[pid]["extlinks"] = pdata.get("extlinks", [])
-    for pid, pdata in pages4.items():
-        if pid in pages:
-            pages[pid]["links"] = pdata.get("links", [])
-    for pid, pdata in pages5.items():
-        if pid in pages:
-            pages[pid]["pageviews"] = pdata.get("pageviews", {})
 
     return pages
 
@@ -367,32 +333,21 @@ def fetch_metadata_batch(titles):
 HEAVY_BATCH = 10
 
 
-def fetch_linkshere_batch(titles):
-    """Fetch linkshere (backlinks) for a small batch of titles."""
-    pages = wiki_query_props({
+def fetch_heavy_prop_batch(titles, prop, prop_key, extra_params=None):
+    """Fetch a single heavy list prop for a small batch of titles.
+
+    Heavy props (links, extlinks, linkshere, revisions) share their 500-item
+    limit across all titles in the batch. Smaller batches = more items per title.
+    """
+    params = {
         "action": "query",
         "titles": "|".join(titles),
-        "prop": "linkshere",
-        "lhlimit": "500",
-        "lhnamespace": "0",
-    })
-    return {pid: p.get("linkshere", []) for pid, p in pages.items()}
-
-
-def fetch_revisions_batch(titles):
-    """Fetch recent revisions for a small batch of titles."""
-    one_year_ago = time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                                 time.gmtime(time.time() - 365 * 86400))
-    pages = wiki_query_props({
-        "action": "query",
-        "titles": "|".join(titles),
-        "prop": "revisions",
-        "rvlimit": "500",
-        "rvprop": "ids",
-        "rvstart": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "rvend": one_year_ago,
-    })
-    return {pid: p.get("revisions", []) for pid, p in pages.items()}
+        "prop": prop,
+    }
+    if extra_params:
+        params.update(extra_params)
+    pages = wiki_query_props(params)
+    return {pid: p.get(prop_key, []) for pid, p in pages.items()}
 
 
 def classify_article(page):
@@ -435,39 +390,67 @@ def compute_deep_score(article):
     return numerator / denominator
 
 
-def compute_card_stats(article):
-    """Derive card stats from article metadata (same formula as app.js).
+def compute_percentile_stats(articles):
+    """Compute card stats using percentile normalization.
 
-    ATK  = outgoing wikilinks (links out) — log2 scaled
-    DEF  = incoming wikilinks (linkshere) — log2 scaled
-    SPC  = external references (extlinks) — log2 scaled
-    SPD  = edits in last 12 months — log2 scaled
-    HP   = article length — log2 scaled
+    Instead of absolute log2 values (which cluster for Featured Articles),
+    rank each stat within the pool and map to 1-99. This guarantees full
+    spread regardless of the underlying distribution.
+
+    Also assigns rarity by power percentile:
+      Common:    bottom 45%
+      Uncommon:  next 30%
+      Rare:      next 15%
+      Legendary: top 10%
     """
-    links = article["links_count"]
-    linkshere = article.get("linkshere_count", 0)
-    extlinks = article["extlinks_count"]
-    revisions = article.get("revisions_count", 0)
-    length = article["length"]
+    stat_fields = [
+        ("links_count", "atk"),
+        ("linkshere_count", "def"),
+        ("extlinks_count", "spc"),
+        ("revisions_count", "spd"),
+    ]
 
-    # All stats use log2 for spread; floor 0 = no data fetched
-    atk = min(99, round(math.log2(max(1, links)) * 7))
-    defense = min(99, round(math.log2(max(1, linkshere)) * 7))
-    spc = min(99, round(math.log2(max(1, extlinks)) * 9))
-    spd = min(99, round(math.log2(max(1, revisions)) * 10))
-    hp = min(999, max(100, round(math.log2(max(1, length)) * 38)))
+    # Step 1: For each stat, rank articles and assign 1-99
+    for raw_key, stat_key in stat_fields:
+        values = [(i, a.get(raw_key, 0)) for i, a in enumerate(articles)]
+        values.sort(key=lambda x: x[1])
+        n = len(values)
+        for rank, (idx, _) in enumerate(values):
+            percentile = max(1, round((rank + 1) / n * 99))
+            if "stats" not in articles[idx]:
+                articles[idx]["stats"] = {}
+            articles[idx]["stats"][stat_key] = percentile
 
-    power = atk + defense + spc + spd + hp / 10
-    if power >= 300:
-        rarity = "legendary"
-    elif power >= 240:
-        rarity = "rare"
-    elif power >= 180:
-        rarity = "uncommon"
-    else:
-        rarity = "common"
+    # HP: percentile on article length
+    lengths = [(i, a.get("length", 0)) for i, a in enumerate(articles)]
+    lengths.sort(key=lambda x: x[1])
+    n = len(lengths)
+    for rank, (idx, _) in enumerate(lengths):
+        # HP scales 100-999 based on percentile
+        pct = (rank + 1) / n
+        articles[idx]["stats"]["hp"] = max(100, round(pct * 999))
 
-    return {"atk": atk, "def": defense, "spc": spc, "spd": spd, "hp": hp, "rarity": rarity}
+    # Step 2: Compute power and assign rarity by percentile
+    for a in articles:
+        s = a["stats"]
+        s["power"] = s["atk"] + s["def"] + s["spc"] + s["spd"] + s["hp"] / 10
+
+    # Sort by power, assign rarity by rank
+    by_power = sorted(range(len(articles)), key=lambda i: articles[i]["stats"]["power"])
+    n = len(by_power)
+    for rank, idx in enumerate(by_power):
+        pct = (rank + 1) / n
+        if pct <= 0.45:
+            rarity = "common"
+        elif pct <= 0.75:
+            rarity = "uncommon"
+        elif pct <= 0.90:
+            rarity = "rare"
+        else:
+            rarity = "legendary"
+        articles[idx]["stats"]["rarity"] = rarity
+
+    return articles
 
 
 def main():
@@ -542,17 +525,31 @@ def main():
             pv_nonzero += 1
     print(f"  Pageviews: {len(raw_pages)} total, {pv_nonzero} nonzero", file=sys.stderr)
 
-    # Step 2c: Fetch heavy props in smaller batches (linkshere, revisions)
+    # Step 2c: Fetch ALL heavy list props in smaller batches
     # 500-item limit is shared across all titles in a batch, so fewer titles
     # = more items per title = fewer zeros from starvation
     all_page_titles = list(raw_pages.keys())
     heavy_total = math.ceil(len(all_page_titles) / HEAVY_BATCH)
-    print(f"\nFetching linkshere + revisions in batches of {HEAVY_BATCH} ({heavy_total} batches)...", file=sys.stderr)
 
     # Build pageid → title lookup for merging
     pid_to_title = {}
     for title, page in raw_pages.items():
         pid_to_title[str(page["pageid"])] = title
+
+    one_year_ago = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                                 time.gmtime(time.time() - 365 * 86400))
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    heavy_props = [
+        ("links", "links", {"pllimit": "500"}),
+        ("extlinks", "extlinks", {"ellimit": "500"}),
+        ("linkshere", "linkshere", {"lhlimit": "500", "lhnamespace": "0"}),
+        ("revisions", "revisions", {"rvlimit": "500", "rvprop": "ids",
+                                     "rvstart": now_iso, "rvend": one_year_ago}),
+    ]
+
+    print(f"\nFetching {len(heavy_props)} heavy props in batches of {HEAVY_BATCH} "
+          f"({heavy_total} batches × {len(heavy_props)} props)...", file=sys.stderr)
 
     for i in range(0, len(all_page_titles), HEAVY_BATCH):
         hbatch = all_page_titles[i:i + HEAVY_BATCH]
@@ -560,28 +557,20 @@ def main():
         if hnum % 50 == 1 or hnum == heavy_total:
             print(f"  Heavy batch {hnum}/{heavy_total}", file=sys.stderr)
 
-        try:
-            lh_data = fetch_linkshere_batch(hbatch)
-            for pid, lh_list in lh_data.items():
-                t = pid_to_title.get(pid)
-                if t and t in raw_pages:
-                    raw_pages[t]["linkshere"] = lh_list
-        except Exception as e:
-            print(f"  ERROR linkshere batch {hnum}: {e}", file=sys.stderr)
-
-        try:
-            rv_data = fetch_revisions_batch(hbatch)
-            for pid, rv_list in rv_data.items():
-                t = pid_to_title.get(pid)
-                if t and t in raw_pages:
-                    raw_pages[t]["revisions"] = rv_list
-        except Exception as e:
-            print(f"  ERROR revisions batch {hnum}: {e}", file=sys.stderr)
+        for prop_name, prop_key, extra in heavy_props:
+            try:
+                data = fetch_heavy_prop_batch(hbatch, prop_name, prop_key, extra)
+                for pid, items in data.items():
+                    t = pid_to_title.get(pid)
+                    if t and t in raw_pages:
+                        raw_pages[t][prop_key] = items
+            except Exception as e:
+                print(f"  ERROR {prop_name} batch {hnum}: {e}", file=sys.stderr)
 
         time.sleep(RATE_DELAY * 2)
 
-    # Debug: sample one article's full metadata
-    for title, page in list(raw_pages.items())[:1]:
+    # Debug: sample articles' metadata
+    for title, page in list(raw_pages.items())[:3]:
         print(f"  SAMPLE {title[:40]}: "
               f"pv={page.get('_avg_pageviews', 0)} "
               f"ll={len(page.get('langlinks', []))} "
@@ -590,7 +579,7 @@ def main():
               f"lh={len(page.get('linkshere', []))} "
               f"rv={len(page.get('revisions', []))}", file=sys.stderr)
 
-    # Step 2d: Assemble article records (initial score without pageviews)
+    # Step 2e: Assemble article records
     articles = []
     for title, page in raw_pages.items():
         article = {
@@ -612,15 +601,33 @@ def main():
 
         article["bin"] = classify_article(page)
         article["deep_score"] = round(compute_deep_score(article), 4)
-        article["stats"] = compute_card_stats(article)
 
         articles.append(article)
 
-    # Step 3: Sort by initial deep score
+    # Step 3: Percentile normalization for card stats
+    # Rank each stat within the full article population → 1-99 range
+    # Rarity assigned by power percentile: 45% common, 30% uncommon, 15% rare, 10% legendary
+    print(f"\nComputing percentile stats for {len(articles)} articles...", file=sys.stderr)
+    articles = compute_percentile_stats(articles)
+
+    # Log stat distribution
+    for stat_key in ("atk", "def", "spc", "spd"):
+        vals = [a["stats"][stat_key] for a in articles]
+        print(f"  {stat_key.upper():3s}: min={min(vals):2d} max={max(vals):2d} "
+              f"mean={sum(vals)/len(vals):.1f} median={sorted(vals)[len(vals)//2]}",
+              file=sys.stderr)
+    rarity_counts = {}
+    for a in articles:
+        r = a["stats"]["rarity"]
+        rarity_counts[r] = rarity_counts.get(r, 0) + 1
+    for r in ("common", "uncommon", "rare", "legendary"):
+        print(f"  {r:12s}: {rarity_counts.get(r, 0):5d} "
+              f"({100*rarity_counts.get(r,0)/len(articles):.1f}%)", file=sys.stderr)
+
+    # Step 3b: Sort by deep score
     articles.sort(key=lambda a: a["deep_score"], reverse=True)
 
-    # Step 3b: Two-pass pageviews — fetch REST API views for top candidates only
-    # Collect top N per bin as candidates (enough to re-rank after pageviews)
+    # Step 3c: Two-pass pageviews — fetch REST API views for top candidates only
     candidates_per_bin = args.per_bin * 3  # 3× oversampling
     bin_counts = {}
     candidate_titles = set()
