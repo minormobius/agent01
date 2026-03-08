@@ -1,4 +1,4 @@
-import { CATEGORIES, POOL } from "./pool.js";
+import { CATEGORIES, POOL, BINS } from "./pool.js";
 
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────
 function mulberry32(seed) {
@@ -27,14 +27,34 @@ function todaySeed() {
   return hashString(dateStr);
 }
 
-// ── Pick 5 articles from pool ─────────────────────────────────
+// ── Pick 5 articles — category-balanced ───────────────────────
+// Pick a random bin first, then a random article from that bin.
+// Ensures category diversity even though bins have wildly different sizes.
+const BIN_KEYS = Object.keys(BINS);
+
 function pickPack(seed, count = 5) {
   const rng = mulberry32(seed);
-  const pool = [...POOL];
+  const used = new Set();
   const picks = [];
-  for (let i = 0; i < count && pool.length > 0; i++) {
-    const idx = Math.floor(rng() * pool.length);
-    picks.push(pool.splice(idx, 1)[0]);
+  for (let i = 0; i < count; i++) {
+    // Pick a random bin (avoid repeating bins if possible)
+    let binKey;
+    let attempts = 0;
+    do {
+      binKey = BIN_KEYS[Math.floor(rng() * BIN_KEYS.length)];
+      attempts++;
+    } while (picks.some((p) => p[1] === binKey) && attempts < 30);
+
+    const [start, binCount] = BINS[binKey];
+    // Pick a random article from that bin (avoid duplicates)
+    let idx;
+    attempts = 0;
+    do {
+      idx = start + Math.floor(rng() * binCount);
+      attempts++;
+    } while (used.has(idx) && attempts < 50);
+    used.add(idx);
+    picks.push(POOL[idx]);
   }
   return picks;
 }
@@ -276,28 +296,10 @@ function initTabs() {
 
 let luckyLoading = false;
 const luckyHistory = [];
-
-// Full pool: lazy-loaded on first Lucky click (all ~6,800+ articles)
-let fullPool = null;
 let luckyDeck = [];
 
-async function loadFullPool() {
-  if (fullPool) return fullPool;
-  const res = await fetch("data/full-pool.json");
-  if (!res.ok) {
-    // Fallback to the curated pool if full pool isn't generated yet
-    console.warn("full-pool.json not found, using curated pool");
-    fullPool = [...POOL];
-    return fullPool;
-  }
-  const data = await res.json();
-  fullPool = data.pool; // [[title, bin, {stats}], ...]
-  return fullPool;
-}
-
-function shuffleDeck(pool) {
-  luckyDeck = [...pool];
-  // Fisher-Yates
+function shuffleDeck() {
+  luckyDeck = [...POOL];
   for (let i = luckyDeck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [luckyDeck[i], luckyDeck[j]] = [luckyDeck[j], luckyDeck[i]];
@@ -305,10 +307,12 @@ function shuffleDeck(pool) {
 }
 
 function drawFromDeck() {
-  if (luckyDeck.length === 0) shuffleDeck(fullPool || POOL);
+  if (luckyDeck.length === 0) shuffleDeck();
   const pick = luckyDeck.pop();
   return { title: pick[0], category: pick[1], stats: pick[2] };
 }
+
+shuffleDeck();
 
 async function doLucky() {
   if (luckyLoading) return;
@@ -320,14 +324,7 @@ async function doLucky() {
   btn.classList.add("spinning");
 
   try {
-    // Lazy-load the full catalog on first click
-    if (!fullPool) {
-      result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading full catalog...</span></div>`;
-      const pool = await loadFullPool();
-      shuffleDeck(pool);
-    }
-
-    result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from ${(fullPool || POOL).length.toLocaleString()} articles... (${luckyDeck.length} remaining in deck)</span></div>`;
+    result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from ${POOL.length.toLocaleString()} articles... (${luckyDeck.length} remaining in deck)</span></div>`;
 
     const { title, category, stats } = drawFromDeck();
     const rarity = stats?.rarity || "common";
@@ -554,10 +551,244 @@ function renderDocs() {
   `;
 }
 
+// ══════════════════════════════════════════════════════════════
+// ALCHEMY TAB — embedding-space combination
+// ══════════════════════════════════════════════════════════════
+
+let alchemyEmbeddings = null; // Float32Array, shape (N, dim)
+let alchemyIndex = null; // {titles, bins, dim, count}
+let alchemyLoaded = false;
+let alchemyLoading = false;
+let slotA = null; // {idx, title, category, stats}
+let slotB = null;
+const alchemyHistoryList = [];
+
+async function loadAlchemy() {
+  if (alchemyLoaded || alchemyLoading) return;
+  alchemyLoading = true;
+  const status = document.getElementById("alchemy-status");
+  status.textContent = "Loading embeddings...";
+
+  try {
+    const [indexRes, binRes] = await Promise.all([
+      fetch("data/embeddings.json"),
+      fetch("data/embeddings.bin"),
+    ]);
+
+    if (!indexRes.ok || !binRes.ok) {
+      status.textContent = "Embeddings not yet generated. Run the scoring workflow first.";
+      alchemyLoading = false;
+      return;
+    }
+
+    alchemyIndex = await indexRes.json();
+    const buf = await binRes.arrayBuffer();
+    alchemyEmbeddings = new Float32Array(buf);
+    alchemyLoaded = true;
+    status.textContent = `${alchemyIndex.count.toLocaleString()} articles loaded (${alchemyIndex.dim}d embeddings)`;
+  } catch (err) {
+    console.error("Failed to load embeddings:", err);
+    status.textContent = "Failed to load embeddings.";
+  }
+  alchemyLoading = false;
+}
+
+function alchemyDrawRandom() {
+  if (!alchemyLoaded) return null;
+  const idx = Math.floor(Math.random() * alchemyIndex.count);
+  const title = alchemyIndex.titles[idx];
+  const bin = alchemyIndex.bins[idx];
+  // Find stats from POOL if available
+  const poolEntry = POOL.find((p) => p[0] === title);
+  const stats = poolEntry ? poolEntry[2] : { atk: 50, def: 50, spc: 50, spd: 50, hp: 500, rarity: "common" };
+  return { idx, title, category: bin, stats };
+}
+
+function renderSlot(slotId, data) {
+  const content = document.getElementById(`${slotId}-content`);
+  if (!data) {
+    content.innerHTML = `<div class="alchemy-empty">?</div>`;
+    return;
+  }
+  const cat = CATEGORIES[data.category];
+  const rarity = data.stats?.rarity || "common";
+  content.innerHTML = `
+    <div class="alchemy-filled rarity-${rarity}">
+      <div class="alchemy-card-cat" style="color:${cat?.color || '#888'}">${cat?.icon || ''} ${cat?.name || data.category}</div>
+      <div class="alchemy-card-title">${data.title}</div>
+      <div class="alchemy-card-rarity">${RARITY_LABELS[rarity]}</div>
+    </div>
+  `;
+}
+
+function updateCombineButton() {
+  const btn = document.getElementById("combine-btn");
+  if (slotA && slotB) {
+    btn.classList.remove("hidden");
+  } else {
+    btn.classList.add("hidden");
+  }
+}
+
+function alchemyCombine() {
+  if (!slotA || !slotB || !alchemyLoaded) return;
+
+  const dim = alchemyIndex.dim;
+  const vecA = alchemyEmbeddings.subarray(slotA.idx * dim, (slotA.idx + 1) * dim);
+  const vecB = alchemyEmbeddings.subarray(slotB.idx * dim, (slotB.idx + 1) * dim);
+
+  // Centroid = normalize(A + B)
+  const centroid = new Float32Array(dim);
+  let norm = 0;
+  for (let i = 0; i < dim; i++) {
+    centroid[i] = vecA[i] + vecB[i];
+    norm += centroid[i] * centroid[i];
+  }
+  norm = Math.sqrt(norm);
+  if (norm > 0) {
+    for (let i = 0; i < dim; i++) centroid[i] /= norm;
+  }
+
+  // Find nearest neighbor via dot product (embeddings are L2-normalized)
+  let bestIdx = -1;
+  let bestSim = -Infinity;
+  const n = alchemyIndex.count;
+  for (let i = 0; i < n; i++) {
+    if (i === slotA.idx || i === slotB.idx) continue;
+    let dot = 0;
+    const offset = i * dim;
+    for (let j = 0; j < dim; j++) {
+      dot += alchemyEmbeddings[offset + j] * centroid[j];
+    }
+    if (dot > bestSim) {
+      bestSim = dot;
+      bestIdx = i;
+    }
+  }
+
+  if (bestIdx < 0) return;
+
+  const resultTitle = alchemyIndex.titles[bestIdx];
+  const resultBin = alchemyIndex.bins[bestIdx];
+  const poolEntry = POOL.find((p) => p[0] === resultTitle);
+  const resultStats = poolEntry ? poolEntry[2] : { atk: 50, def: 50, spc: 50, spd: 50, hp: 500, rarity: "common" };
+  const resultRarity = resultStats?.rarity || "common";
+  const cat = CATEGORIES[resultBin];
+
+  // Fetch extract + thumbnail for the result
+  showAlchemyResult(resultTitle, resultBin, resultStats, resultRarity, bestSim);
+
+  // Add to history
+  alchemyHistoryList.unshift({
+    a: slotA.title,
+    b: slotB.title,
+    result: resultTitle,
+    sim: bestSim,
+    category: resultBin,
+    rarity: resultRarity,
+  });
+  renderAlchemyHistory();
+}
+
+async function showAlchemyResult(title, bin, stats, rarity, similarity) {
+  const result = document.getElementById("alchemy-result");
+  const cat = CATEGORIES[bin];
+  const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+
+  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Fetching result...</span></div>`;
+
+  try {
+    const pages = await fetchArticleData([title]);
+    const page = Object.values(pages).find((p) => p.pageid);
+
+    result.innerHTML = `
+      <div class="alchemy-result-card rarity-${rarity}">
+        <div class="alchemy-result-eq">
+          <span class="alchemy-eq-term">${slotA.title}</span>
+          <span class="alchemy-eq-op">+</span>
+          <span class="alchemy-eq-term">${slotB.title}</span>
+          <span class="alchemy-eq-op">=</span>
+        </div>
+        <div class="alchemy-result-inner">
+          ${page?.thumbnail ? `<img class="alchemy-result-img" src="${page.thumbnail.source}" alt="${title}">` : `<div class="alchemy-result-no-img">${cat?.icon || '?'}</div>`}
+          <div class="alchemy-result-cat" style="color:${cat?.color || '#888'}">${cat?.name || bin} — ${RARITY_LABELS[rarity]}</div>
+          <div class="alchemy-result-title">${title}</div>
+          <div class="alchemy-result-extract">${page?.extract || ""}</div>
+          <div class="alchemy-result-sim">Similarity: ${(similarity * 100).toFixed(1)}%</div>
+          <div class="alchemy-result-stats">
+            <div class="stat"><div class="stat-label">ATK</div><div class="stat-value">${stats.atk}</div></div>
+            <div class="stat"><div class="stat-label">DEF</div><div class="stat-value">${stats.def}</div></div>
+            <div class="stat"><div class="stat-label">SPC</div><div class="stat-value">${stats.spc}</div></div>
+            <div class="stat"><div class="stat-label">SPD</div><div class="stat-value">${stats.spd}</div></div>
+            <div class="stat"><div class="stat-label">HP</div><div class="stat-value">${stats.hp}</div></div>
+          </div>
+          <a class="alchemy-result-link" href="${wikiUrl}" target="_blank">Read on Wikipedia &rarr;</a>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    result.innerHTML = `<div class="alchemy-result-card rarity-${rarity}">
+      <div class="alchemy-result-eq">
+        <span class="alchemy-eq-term">${slotA.title}</span>
+        <span class="alchemy-eq-op">+</span>
+        <span class="alchemy-eq-term">${slotB.title}</span>
+        <span class="alchemy-eq-op">=</span>
+      </div>
+      <div class="alchemy-result-inner">
+        <div class="alchemy-result-cat" style="color:${cat?.color || '#888'}">${cat?.name || bin}</div>
+        <div class="alchemy-result-title">${title}</div>
+        <div class="alchemy-result-sim">Similarity: ${(similarity * 100).toFixed(1)}%</div>
+        <a class="alchemy-result-link" href="${wikiUrl}" target="_blank">Read on Wikipedia &rarr;</a>
+      </div>
+    </div>`;
+  }
+}
+
+function renderAlchemyHistory() {
+  const container = document.getElementById("alchemy-history");
+  if (alchemyHistoryList.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const items = alchemyHistoryList.slice(0, 10).map((h) => {
+    const cat = CATEGORIES[h.category];
+    return `<div class="alchemy-history-item">
+      <span class="alchemy-hist-formula">${h.a} + ${h.b}</span>
+      <span class="alchemy-hist-arrow">=</span>
+      <span class="alchemy-hist-result">${h.result}</span>
+      <span class="alchemy-hist-dot" style="background:${cat?.color || '#888'}"></span>
+    </div>`;
+  }).join("");
+
+  container.innerHTML = `<div class="alchemy-history-label">Previous combinations</div>${items}`;
+}
+
+function initAlchemy() {
+  document.getElementById("draw-a").addEventListener("click", async () => {
+    if (!alchemyLoaded) await loadAlchemy();
+    if (!alchemyLoaded) return;
+    slotA = alchemyDrawRandom();
+    renderSlot("slot-a", slotA);
+    updateCombineButton();
+  });
+
+  document.getElementById("draw-b").addEventListener("click", async () => {
+    if (!alchemyLoaded) await loadAlchemy();
+    if (!alchemyLoaded) return;
+    slotB = alchemyDrawRandom();
+    renderSlot("slot-b", slotB);
+    updateCombineButton();
+  });
+
+  document.getElementById("combine-btn").addEventListener("click", alchemyCombine);
+}
+
 // ── Init ──────────────────────────────────────────────────────
 function init() {
   initTabs();
   renderDocs();
+  initAlchemy();
   todaySeed(); // set date display
 
   document.getElementById("open-btn").addEventListener("click", () => openPack());

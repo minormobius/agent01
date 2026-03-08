@@ -967,6 +967,325 @@ main {
   color: var(--gold-dim);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ALCHEMY TAB
+   ══════════════════════════════════════════════════════════════ */
+
+.alchemy-wrap {
+  max-width: 700px;
+  width: 100%;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.alchemy-header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.alchemy-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.alchemy-subtitle {
+  font-style: italic;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.alchemy-status {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.alchemy-slots {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.alchemy-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.alchemy-slot-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+.alchemy-slot-content {
+  width: 100%;
+  min-height: 120px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  transition: border-color 0.3s;
+}
+
+.alchemy-empty {
+  font-size: 2.5rem;
+  color: var(--gold-dim);
+  opacity: 0.4;
+  font-weight: 700;
+}
+
+.alchemy-filled {
+  text-align: center;
+  animation: luckyReveal 0.4s ease-out;
+}
+
+.alchemy-card-cat {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.3rem;
+}
+
+.alchemy-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 0.3rem;
+}
+
+.alchemy-card-rarity {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.alchemy-filled.rarity-uncommon { }
+.alchemy-filled.rarity-rare .alchemy-card-title { color: #64b5f6; }
+.alchemy-filled.rarity-legendary .alchemy-card-title { color: var(--gold); }
+
+.alchemy-plus {
+  font-size: 2rem;
+  color: var(--gold-dim);
+  font-weight: 300;
+  flex-shrink: 0;
+  padding-top: 1.5rem;
+}
+
+.alchemy-arrow {
+  font-size: 1.5rem;
+  color: var(--gold-dim);
+  margin: 1rem 0 0.5rem;
+  opacity: 0.5;
+}
+
+.alchemy-draw-btn {
+  padding: 0.5rem 1.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.alchemy-draw-btn:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: var(--gold);
+}
+
+.alchemy-combine-btn {
+  padding: 0.8rem 2.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--gold);
+  border: 2px solid var(--gold-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 1rem;
+}
+
+.alchemy-combine-btn:hover {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: var(--gold);
+  box-shadow: 0 0 30px rgba(201, 168, 76, 0.25);
+  transform: scale(1.02);
+}
+
+.alchemy-combine-btn.hidden { display: none; }
+
+/* Alchemy result card */
+.alchemy-result {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.alchemy-result-card {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg);
+  animation: luckyReveal 0.6s ease-out;
+}
+
+.alchemy-result-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 12px rgba(46, 125, 50, 0.3); }
+.alchemy-result-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 16px rgba(21, 101, 192, 0.4); }
+.alchemy-result-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 24px rgba(201, 168, 76, 0.5); }
+
+.alchemy-result-eq {
+  padding: 0.8rem 1.2rem;
+  background: rgba(201, 168, 76, 0.05);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.alchemy-eq-term {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.alchemy-eq-op {
+  color: var(--gold-dim);
+  margin: 0 0.5rem;
+}
+
+.alchemy-result-inner {
+  padding: 1.5rem;
+}
+
+.alchemy-result-img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.alchemy-result-no-img {
+  font-size: 3rem;
+  text-align: center;
+  padding: 1.5rem;
+  opacity: 0.3;
+}
+
+.alchemy-result-cat {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.3rem;
+}
+
+.alchemy-result-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  line-height: 1.2;
+}
+
+.alchemy-result-extract {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin-bottom: 0.8rem;
+}
+
+.alchemy-result-sim {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: var(--gold-dim);
+  margin-bottom: 1rem;
+}
+
+.alchemy-result-stats {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+}
+
+.alchemy-result-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Alchemy history */
+.alchemy-history {
+  width: 100%;
+  margin-top: 2rem;
+}
+
+.alchemy-history-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.alchemy-history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.alchemy-hist-formula {
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.alchemy-hist-arrow {
+  color: var(--gold-dim);
+  flex-shrink: 0;
+}
+
+.alchemy-hist-result {
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+  text-align: right;
+}
+
+.alchemy-hist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* ── Footer ────────────────────────────────────────────────── */
 footer {
   padding: 1.5rem;
@@ -1023,4 +1342,10 @@ footer {
 
   .lucky-title { font-size: 1.2rem; }
   .lucky-btn { padding: 0.8rem 2rem; font-size: 1rem; }
+
+  .alchemy-slots { flex-direction: column; }
+  .alchemy-plus { padding-top: 0; }
+  .alchemy-card-title { font-size: 0.85rem; }
+  .alchemy-result-title { font-size: 1.2rem; }
+  .alchemy-result-stats { gap: 1rem; }
 }

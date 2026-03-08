@@ -8,6 +8,7 @@ on:
     paths:
       - 'scripts/score-deep-wikipedia.py'
       - 'scripts/generate-pool-js.py'
+      - 'scripts/compute-embeddings.py'
       - '.github/workflows/score-deep-wiki.yml'
 
   workflow_dispatch:
@@ -54,6 +55,15 @@ jobs:
 
       - name: Generate pool.js from scored data
         run: python3 scripts/generate-pool-js.py
+
+      - name: Compute embeddings for Alchemy
+        timeout-minutes: 30
+        run: |
+          pip install sentence-transformers
+          python3 scripts/compute-embeddings.py \
+            --pool cards/data/full-pool.json \
+            --articles cards/data/deep-wikipedia.json \
+            --output-dir cards/data/
 
       - name: Commit results
         if: always()

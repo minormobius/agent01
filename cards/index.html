@@ -12,6 +12,7 @@
     <nav class="tabs" id="tabs">
       <button class="tab active" data-tab="cards">Daily Pack</button>
       <button class="tab" data-tab="lucky">I'm Feeling Lucky</button>
+      <button class="tab" data-tab="alchemy">Alchemy</button>
       <button class="tab" data-tab="docs">Wikinatomy</button>
     </nav>
   </header>
@@ -58,6 +59,38 @@
         </button>
         <div id="lucky-result" class="lucky-result"></div>
         <div id="lucky-history" class="lucky-history"></div>
+      </div>
+    </div>
+
+    <!-- ── ALCHEMY TAB ────────────────────────────────────── -->
+    <div id="tab-alchemy" class="tab-panel">
+      <div class="alchemy-wrap">
+        <div class="alchemy-header">
+          <div class="alchemy-icon">⚗️</div>
+          <p class="alchemy-subtitle">Combine two articles in embedding space. What emerges?</p>
+        </div>
+        <div id="alchemy-status" class="alchemy-status"></div>
+        <div class="alchemy-slots">
+          <div class="alchemy-slot" id="slot-a">
+            <div class="alchemy-slot-label">Article A</div>
+            <div class="alchemy-slot-content" id="slot-a-content">
+              <div class="alchemy-empty">?</div>
+            </div>
+            <button class="alchemy-draw-btn" id="draw-a">Draw</button>
+          </div>
+          <div class="alchemy-plus">+</div>
+          <div class="alchemy-slot" id="slot-b">
+            <div class="alchemy-slot-label">Article B</div>
+            <div class="alchemy-slot-content" id="slot-b-content">
+              <div class="alchemy-empty">?</div>
+            </div>
+            <button class="alchemy-draw-btn" id="draw-b">Draw</button>
+          </div>
+        </div>
+        <div class="alchemy-arrow">⬇</div>
+        <button class="alchemy-combine-btn hidden" id="combine-btn">Combine</button>
+        <div id="alchemy-result" class="alchemy-result"></div>
+        <div id="alchemy-history" class="alchemy-history"></div>
       </div>
     </div>
 
