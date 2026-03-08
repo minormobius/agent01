@@ -105,6 +105,11 @@ export async function handlePollRoutes(
     return getEligibleDids(env, getEligibleMatch[1]);
   }
 
+  const syncLikesMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/likes\/sync$/);
+  if (syncLikesMatch && request.method === 'POST') {
+    return syncLikes(request, env, syncLikesMatch[1]);
+  }
+
   return null;
 }
 
@@ -123,37 +128,45 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
 
     const data = parsed.data;
 
-    // RSA key pair is required for blind signatures
-    if (!env.RSA_PUBLIC_KEY_JWK) {
-      return jsonResponse({
-        error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
-      }, 500);
-    }
-
-    // Validate that RSA_PUBLIC_KEY_JWK is valid JSON (catches truncated/malformed secrets)
     step = 'validateKeys';
-    let hostPublicKeyParsed: any;
-    try {
-      hostPublicKeyParsed = JSON.parse(env.RSA_PUBLIC_KEY_JWK);
-    } catch {
-      return jsonResponse({
-        error: 'RSA_PUBLIC_KEY_JWK is not valid JSON. Re-set the secret with a complete JWK string.',
-      }, 500);
-    }
-    if (!hostPublicKeyParsed?.kty || !hostPublicKeyParsed?.n || !hostPublicKeyParsed?.e) {
-      return jsonResponse({
-        error: 'RSA_PUBLIC_KEY_JWK is missing required JWK fields (kty, n, e).',
-      }, 500);
+    const pollId = crypto.randomUUID();
+    const encoder = new TextEncoder();
+
+    let hostPublicKey: string | null = null;
+    let hostKeyFingerprint = '';
+
+    if (data.mode === 'public_like') {
+      // Public like-based polls don't need RSA keys
+      hostKeyFingerprint = 'public_like';
+    } else {
+      // RSA key pair is required for blind signatures
+      if (!env.RSA_PUBLIC_KEY_JWK) {
+        return jsonResponse({
+          error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
+        }, 500);
+      }
+
+      let hostPublicKeyParsed: any;
+      try {
+        hostPublicKeyParsed = JSON.parse(env.RSA_PUBLIC_KEY_JWK);
+      } catch {
+        return jsonResponse({
+          error: 'RSA_PUBLIC_KEY_JWK is not valid JSON. Re-set the secret with a complete JWK string.',
+        }, 500);
+      }
+      if (!hostPublicKeyParsed?.kty || !hostPublicKeyParsed?.n || !hostPublicKeyParsed?.e) {
+        return jsonResponse({
+          error: 'RSA_PUBLIC_KEY_JWK is missing required JWK fields (kty, n, e).',
+        }, 500);
+      }
+
+      hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
+      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
+      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     step = 'computeKeys';
-    const pollId = crypto.randomUUID();
-
-    const hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
-    const encoder = new TextEncoder();
-    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
-    const hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
 
     const now = new Date().toISOString();
     const eligibilityMode = data.eligibilityMode || 'open';
@@ -174,6 +187,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
       hostKeyFingerprint,
       hostPublicKey,
       atprotoRecordUri: null,
+      blueskyOptionPosts: null,
       createdAt: now,
     };
 
@@ -181,13 +195,13 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     step = 'D1 insert';
     await env.DB.prepare(
       `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
-        status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, bluesky_option_posts, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       poll.id, poll.hostDid, poll.askerDid, poll.question,
       JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
       poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
-      poll.hostKeyFingerprint, poll.hostPublicKey, poll.createdAt
+      poll.hostKeyFingerprint, poll.hostPublicKey, null, poll.createdAt
     ).run();
 
     // Populate eligible DIDs based on eligibility mode
@@ -258,6 +272,9 @@ async function getPoll(env: Env, pollId: string): Promise<Response> {
   return jsonResponse({
     ...result,
     options: JSON.parse(result.options as string),
+    bluesky_option_posts: result.bluesky_option_posts
+      ? JSON.parse(result.bluesky_option_posts as string)
+      : null,
   });
 }
 
@@ -367,7 +384,7 @@ async function publishPoll(request: Request, env: Env, pollId: string): Promise<
     options: JSON.parse(poll.options as string),
     opensAt: poll.opens_at as string,
     closesAt: poll.closes_at as string,
-    mode: poll.mode as 'anon_credential_v2',
+    mode: poll.mode as 'anon_credential_v2' | 'public_like',
     hostKeyFingerprint: poll.host_key_fingerprint as string,
     hostPublicKey: (poll.host_public_key as string) || null,
     createdAt: poll.created_at as string,
@@ -623,54 +640,66 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
 
   const timeLeft = formatTimeLeftServer(poll.closes_at as string);
   const question = poll.question as string;
+  const isPublicLike = poll.mode === 'public_like';
 
-  // Format:
-  // {question}
-  //
-  // Option 1
-  // Option 2
-  // Option 3
-  //
-  // View poll · Verifiable & anonymous · 24h left
-  const optionLine = options.join('\n');
-  const footerParts = ['View poll', 'Verifiable & anonymous'];
-  if (timeLeft) footerParts.push(timeLeft);
-  const footer = footerParts.join(' · ');
-
-  const postText = `${question}\n\n${optionLine}\n\n${footer}`;
-
-  // Compute facets (UTF-8 byte offsets)
+  let postText: string;
   const facets: any[] = [];
-  // Option facets — each option name on its own line
-  let searchStart = encoder.encode(`${question}\n\n`).byteLength;
-  for (let i = 0; i < options.length; i++) {
-    const optBytes = encoder.encode(options[i]);
-    const byteStart = searchStart;
-    const byteEnd = byteStart + optBytes.byteLength;
+
+  if (isPublicLike) {
+    // Public like mode: main post is the question + instructions
+    const footerParts = ['View results', 'Public poll'];
+    if (timeLeft) footerParts.push(timeLeft);
+    const footer = footerParts.join(' · ');
+    postText = `${question}\n\nLike a reply to vote:\n\n${footer}`;
+
+    // "View results" facet in footer
+    const footerStart = encoder.encode(`${question}\n\nLike a reply to vote:\n\n`).byteLength;
+    const viewResultsBytes = encoder.encode('View results');
     facets.push({
-      index: { byteStart, byteEnd },
+      index: { byteStart: footerStart, byteEnd: footerStart + viewResultsBytes.byteLength },
       features: [{
         $type: 'app.bsky.richtext.facet#link',
-        uri: `${origin}/v/${pollId}?c=${i}`,
+        uri: `${origin}/poll/${pollId}`,
       }],
     });
-    // Skip past this option + newline separator (or nothing for last)
-    searchStart = byteEnd;
-    if (i < options.length - 1) {
-      searchStart += encoder.encode('\n').byteLength;
-    }
-  }
+  } else {
+    // Anonymous mode: option names are link facets to QuickVote
+    const optionLine = options.join('\n');
+    const footerParts = ['View poll', 'Verifiable & anonymous'];
+    if (timeLeft) footerParts.push(timeLeft);
+    const footer = footerParts.join(' · ');
+    postText = `${question}\n\n${optionLine}\n\n${footer}`;
 
-  // "View poll" facet in footer
-  const footerStart = encoder.encode(`${question}\n\n${optionLine}\n\n`).byteLength;
-  const viewPollBytes = encoder.encode('View poll');
-  facets.push({
-    index: { byteStart: footerStart, byteEnd: footerStart + viewPollBytes.byteLength },
-    features: [{
-      $type: 'app.bsky.richtext.facet#link',
-      uri: `${origin}/poll/${pollId}`,
-    }],
-  });
+    // Option facets — each option name on its own line
+    let searchStart = encoder.encode(`${question}\n\n`).byteLength;
+    for (let i = 0; i < options.length; i++) {
+      const optBytes = encoder.encode(options[i]);
+      const byteStart = searchStart;
+      const byteEnd = byteStart + optBytes.byteLength;
+      facets.push({
+        index: { byteStart, byteEnd },
+        features: [{
+          $type: 'app.bsky.richtext.facet#link',
+          uri: `${origin}/v/${pollId}?c=${i}`,
+        }],
+      });
+      searchStart = byteEnd;
+      if (i < options.length - 1) {
+        searchStart += encoder.encode('\n').byteLength;
+      }
+    }
+
+    // "View poll" facet in footer
+    const footerStart = encoder.encode(`${question}\n\n${optionLine}\n\n`).byteLength;
+    const viewPollBytes = encoder.encode('View poll');
+    facets.push({
+      index: { byteStart: footerStart, byteEnd: footerStart + viewPollBytes.byteLength },
+      features: [{
+        $type: 'app.bsky.richtext.facet#link',
+        uri: `${origin}/poll/${pollId}`,
+      }],
+    });
+  }
 
   // Create the post
   const record = {
@@ -740,9 +769,174 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   }
 
   const result = await createRes.json() as { uri: string; cid: string };
+
+  // For public_like mode, post each option as a reply to the main post
+  if (isPublicLike) {
+    const optionPosts: { uri: string; cid: string }[] = [];
+
+    for (let i = 0; i < options.length; i++) {
+      const replyText = options[i];
+      const replyRecord = {
+        $type: 'app.bsky.feed.post',
+        text: replyText,
+        reply: {
+          root: { uri: result.uri, cid: result.cid },
+          parent: { uri: result.uri, cid: result.cid },
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      const replyBody = JSON.stringify({
+        repo: pdsAuth.did,
+        collection: 'app.bsky.feed.post',
+        record: replyRecord,
+      });
+
+      let replyRes: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let dpopProof = await createDPoPProof(
+          pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt
+        );
+        replyRes = await fetch(createRecordUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `DPoP ${pdsAuth.accessJwt}`,
+            'DPoP': dpopProof,
+          },
+          body: replyBody,
+        });
+        if (replyRes.status === 401 || replyRes.status === 400) {
+          const nonce = replyRes.headers.get('DPoP-Nonce');
+          if (nonce) {
+            dpopProof = await createDPoPProof(
+              pdsAuth.dpopKeyPair, 'POST', createRecordUrl, nonce, pdsAuth.accessJwt
+            );
+            replyRes = await fetch(createRecordUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `DPoP ${pdsAuth.accessJwt}`,
+                'DPoP': dpopProof,
+              },
+              body: replyBody,
+            });
+          }
+        }
+      } else {
+        replyRes = await fetch(createRecordUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${pdsAuth.accessJwt}`,
+          },
+          body: replyBody,
+        });
+      }
+
+      if (replyRes.ok) {
+        const replyResult = await replyRes.json() as { uri: string; cid: string };
+        optionPosts.push({ uri: replyResult.uri, cid: replyResult.cid });
+      } else {
+        console.error(`Failed to post option reply ${i}:`, await replyRes.text());
+        optionPosts.push({ uri: '', cid: '' });
+      }
+    }
+
+    // Store option post URIs in D1 for later like-syncing
+    await env.DB.prepare('UPDATE polls SET bluesky_option_posts = ? WHERE id = ?')
+      .bind(JSON.stringify(optionPosts), pollId).run();
+
+    return jsonResponse({ uri: result.uri, cid: result.cid, optionPosts });
+  }
+
   return jsonResponse({ uri: result.uri, cid: result.cid });
 }
 
+
+async function syncLikes(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (poll.mode !== 'public_like') return jsonResponse({ error: 'Only public_like polls support like syncing' }, 400);
+
+  const optionPosts = poll.bluesky_option_posts
+    ? JSON.parse(poll.bluesky_option_posts as string) as { uri: string; cid: string }[]
+    : null;
+  if (!optionPosts || optionPosts.length === 0) {
+    return jsonResponse({ error: 'No Bluesky option posts found. Post to Bluesky first.' }, 400);
+  }
+
+  // Fetch likes for each option post from Bluesky public API
+  const countsByOption: Record<string, number> = {};
+  const allVoterDids = new Set<string>();
+  const optionVoters: Map<number, Set<string>> = new Map();
+  let totalVotes = 0;
+
+  for (let i = 0; i < optionPosts.length; i++) {
+    const post = optionPosts[i];
+    if (!post.uri) {
+      countsByOption[String(i)] = 0;
+      continue;
+    }
+
+    const voters = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 100; page++) {
+      const params = new URLSearchParams({ uri: post.uri, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+
+      const res = await fetch(`${BSKY_PUBLIC_API}/xrpc/app.bsky.feed.getLikes?${params}`);
+      if (!res.ok) break;
+
+      const data = await res.json() as any;
+      const likes = data.likes || [];
+      for (const like of likes) {
+        if (like.actor?.did) {
+          voters.add(like.actor.did);
+        }
+      }
+
+      cursor = data.cursor;
+      if (!cursor || likes.length === 0) break;
+    }
+
+    optionVoters.set(i, voters);
+    // Deduplicate: if a user liked multiple options, count only their first
+    let count = 0;
+    for (const did of voters) {
+      if (!allVoterDids.has(did)) {
+        allVoterDids.add(did);
+        count++;
+      }
+    }
+    countsByOption[String(i)] = count;
+    totalVotes += count;
+  }
+
+  // Update tally via DO
+  const doStub = getPollDO(env, pollId);
+  const doRes = await doStub.fetch(new Request('https://do/sync-likes', {
+    method: 'POST',
+    body: JSON.stringify({ countsByOption, ballotCount: totalVotes }),
+  }));
+
+  if (!doRes.ok) {
+    const errText = await doRes.text();
+    return jsonResponse({ error: `Failed to update tally: ${errText}` }, 500);
+  }
+
+  return jsonResponse({
+    synced: true,
+    totalVotes,
+    countsByOption,
+    uniqueVoters: allVoterDids.size,
+  });
+}
 
 function formatTimeLeftServer(closesAt: string): string {
   const diff = new Date(closesAt).getTime() - Date.now();

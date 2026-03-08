@@ -113,6 +113,12 @@ export const submitBallot = (pollId: string, ballot: {
   body: JSON.stringify(ballot),
 });
 
+// Like-based polls
+export const syncLikes = (id: string) =>
+  apiFetch<{ synced: boolean; totalVotes: number; countsByOption: Record<string, number>; uniqueVoters: number }>(
+    `/api/polls/${id}/likes/sync`, { method: 'POST' }
+  );
+
 // Public data
 export const getBallots = (pollId: string) =>
   apiFetch<{ ballots: any[] }>(`/api/polls/${pollId}/ballots`);

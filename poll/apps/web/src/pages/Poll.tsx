@@ -42,7 +42,8 @@ export function PollPage() {
         </div>
 
         <p className="muted mb-12">
-          Mode: {poll.mode} &middot; {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+          {poll.mode === 'public_like' ? 'Public (Bluesky likes)' : 'Anonymous (blind signatures)'}
+          {' '}&middot; {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
           {poll.eligibility_mode && poll.eligibility_mode !== 'open' && (
             <> &middot; Restricted: {poll.eligibility_mode.replace('_', ' ')}</>
           )}
@@ -112,15 +113,18 @@ export function PollPage() {
         )}
 
         <div className="flex gap-8 mt-12">
-          {poll.status === 'open' && (
+          {poll.status === 'open' && poll.mode !== 'public_like' && (
             <Link to={`/poll/${id}/vote`} className="btn btn-primary">Vote</Link>
+          )}
+          {poll.status === 'open' && poll.mode === 'public_like' && (
+            <span className="muted" style={{ fontSize: '13px', alignSelf: 'center' }}>Vote by liking on Bluesky</span>
           )}
           <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit</Link>
           <Link to={`/poll/${id}/admin`} className="btn btn-secondary">Admin</Link>
         </div>
       </div>
 
-      {ballots.length > 0 && (
+      {ballots.length > 0 && poll.mode !== 'public_like' && (
         <div className="card">
           <h3>Public Ballots ({ballots.length})</h3>
           <button className="btn btn-secondary mb-12" onClick={handleRecompute}>
