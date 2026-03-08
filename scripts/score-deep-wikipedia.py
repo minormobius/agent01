@@ -335,7 +335,8 @@ def compute_card_stats(article):
     link_density = links / max(1, length / 1000)
     atk = min(99, max(20, round(link_density * 8 + 30)))
     defense = min(99, max(20, round(langlinks * 0.5 + 25)))
-    hp = min(999, max(100, round(length / 80)))
+    # log2 scaling: 10K→505, 30K→566, 80K→619, 200K→669, 500K→719
+    hp = min(999, max(100, round(math.log2(max(1, length)) * 38)))
 
     power = atk + defense + hp / 10
     if power >= 160:

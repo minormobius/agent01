@@ -89,7 +89,8 @@ function deriveStats(page) {
   const linkDensity = links / Math.max(1, len / 1000);
   const atk = Math.min(99, Math.max(20, Math.round(linkDensity * 8 + 30)));
   const def = Math.min(99, Math.max(20, Math.round(langlinks * 0.5 + 25)));
-  const hp = Math.min(999, Math.max(100, Math.round(len / 80)));
+  // log2 scaling: 10K→505, 30K→566, 80K→619, 200K→669, 500K→719
+  const hp = Math.min(999, Math.max(100, Math.round(Math.log2(Math.max(1, len)) * 38)));
 
   return { atk, def, hp };
 }
@@ -532,7 +533,7 @@ function renderDocs() {
         <div class="doc-explain-block">
           <div class="doc-explain-heading">HP — Depth</div>
           <p>Article length in bytes (scaled). Measures how much there is to say. High HP = the topic has been extensively documented by Wikipedia's editors.</p>
-          <p class="doc-formula"><code>min(999, max(100, round(length / 80)))</code></p>
+          <p class="doc-formula"><code>min(999, max(100, round(log2(length) × 38)))</code></p>
           <p class="doc-source">Source: <code>prop=info</code> (inprop=length)</p>
         </div>
         <div class="doc-explain-block">
