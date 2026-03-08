@@ -209,11 +209,13 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
     ? `${poll.question}\n\nLike a reply to vote:\n\n${footerParts.join(' · ')}`
     : `${poll.question}\n\n${optionLine}\n\n${footerParts.join(' · ')}`;
 
-  // Fallback plain text with URLs (for copy/intent)
-  const fallbackOptionLines = options.map((opt: string, i: number) =>
-    `${opt}: ${baseUrl}/v/${pollId}?c=${i}`
-  ).join('\n');
-  const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nVerifiable & anonymous · ${timeLeft}` : ''}`;
+  // Fallback plain text (for copy/intent) — no raw URLs, just clean text
+  // The intent/compose path can't carry facets, so keep it readable.
+  // "Post to Bluesky" button uses the API with proper link facets.
+  const fallbackFooter = isPublicLike
+    ? `View results: ${baseUrl}/poll/${pollId}`
+    : `View poll: ${baseUrl}/poll/${pollId}`;
+  const fallbackText = `${poll.question}\n\n${optionLine}\n\n${fallbackFooter}${timeLeft ? ` · ${timeLeft}` : ''}`;
 
   const handleReauth = async () => {
     const identifier = handle || did;
