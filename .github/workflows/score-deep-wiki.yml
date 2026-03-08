@@ -1,0 +1,61 @@
+name: Score Deep Wikipedia
+
+on:
+  push:
+    branches:
+      - main
+      - claude/wiki-card-game-oJbLE
+    paths:
+      - 'scripts/score-deep-wikipedia.py'
+      - '.github/workflows/score-deep-wiki.yml'
+
+  workflow_dispatch:
+    inputs:
+      include_ga:
+        description: 'Include Good Articles (~43K, much slower)'
+        required: false
+        default: false
+        type: boolean
+      limit:
+        description: 'Limit to N articles (0 = all, use 100 for testing)'
+        required: false
+        default: '0'
+      per_bin:
+        description: 'Top articles per Wikinatomy bin'
+        required: false
+        default: '30'
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Score Featured Articles
+        run: |
+          mkdir -p cards/data
+          python3 scripts/score-deep-wikipedia.py \
+            ${{ inputs.include_ga == 'true' && '--include-ga' || '' }} \
+            ${{ inputs.limit != '0' && inputs.limit && format('--limit {0}', inputs.limit) || '' }} \
+            --per-bin ${{ inputs.per_bin || '30' }} \
+            -o cards/data/deep-wikipedia.json \
+            --pool-output cards/data/deep-pool.json \
+            2>&1 | tee cards/data/score-log.txt
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cards/data/
+          git diff --cached --quiet && echo "No changes" || \
+            (git commit -m "deep-wiki: score $(jq -r '.meta.total_scored' cards/data/deep-wikipedia.json 2>/dev/null || echo '?') articles [auto]" && \
+             git push origin ${{ github.ref_name }})
