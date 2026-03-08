@@ -291,44 +291,160 @@ function initTabs() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// I'M FEELING LUCKY — full catalog, shuffle-through
+// I'M FEELING LUCKY — full catalog, shuffle-through with filters
 // ══════════════════════════════════════════════════════════════
 
 let luckyLoading = false;
 const luckyHistory = [];
 let luckyDeck = [];
 
+// ── Filter state ────────────────────────────────────────────
+const activeCats = new Set(Object.keys(CATEGORIES));
+const activeRarities = new Set(["common", "uncommon", "rare", "legendary"]);
+
+function getFilteredPool() {
+  return POOL.filter(([, cat, stats]) =>
+    activeCats.has(cat) && activeRarities.has(stats?.rarity || "common")
+  );
+}
+
 function shuffleDeck() {
-  luckyDeck = [...POOL];
+  luckyDeck = getFilteredPool();
   for (let i = luckyDeck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [luckyDeck[i], luckyDeck[j]] = [luckyDeck[j], luckyDeck[i]];
   }
 }
 
+function updatePoolCount() {
+  const filtered = getFilteredPool().length;
+  const el = document.getElementById("filter-pool-count");
+  el.textContent = `${filtered} of ${POOL.length}`;
+}
+
+function renderFilterChips() {
+  const catContainer = document.getElementById("cat-chips");
+  const rarityContainer = document.getElementById("rarity-chips");
+
+  // Category chips
+  catContainer.innerHTML = Object.entries(CATEGORIES).map(([key, cat]) => {
+    const count = POOL.filter(([, c]) => c === key).length;
+    const isActive = activeCats.has(key);
+    return `<button class="filter-chip${isActive ? " active" : ""}" data-cat="${key}"
+      style="--chip-color:${cat.color}">
+      <span class="filter-chip-icon">${cat.icon}</span>
+      ${cat.name}<span class="filter-chip-count">${count}</span>
+    </button>`;
+  }).join("");
+
+  // Rarity chips
+  const rarityColors = { common: "", uncommon: "rarity-uncommon", rare: "rarity-rare", legendary: "rarity-legendary" };
+  rarityContainer.innerHTML = Object.entries(RARITY_LABELS).map(([key, label]) => {
+    const count = POOL.filter(([,, s]) => (s?.rarity || "common") === key).length;
+    const isActive = activeRarities.has(key);
+    return `<button class="filter-chip ${rarityColors[key]}${isActive ? " active" : ""}" data-rarity="${key}">
+      ${label}<span class="filter-chip-count">${count}</span>
+    </button>`;
+  }).join("");
+
+  // Bind chip clicks
+  catContainer.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const key = chip.dataset.cat;
+      if (activeCats.has(key)) activeCats.delete(key); else activeCats.add(key);
+      chip.classList.toggle("active");
+      onFilterChange();
+    });
+  });
+
+  rarityContainer.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const key = chip.dataset.rarity;
+      if (activeRarities.has(key)) activeRarities.delete(key); else activeRarities.add(key);
+      chip.classList.toggle("active");
+      onFilterChange();
+    });
+  });
+}
+
+function onFilterChange() {
+  updatePoolCount();
+  luckyDeck = []; // force reshuffle on next draw
+}
+
+function initFilters() {
+  renderFilterChips();
+  updatePoolCount();
+
+  // Toggle panel
+  document.getElementById("filter-toggle").addEventListener("click", () => {
+    const panel = document.getElementById("filter-panel");
+    const chevron = document.getElementById("filter-chevron");
+    panel.classList.toggle("hidden");
+    chevron.classList.toggle("open");
+  });
+
+  // Select all / none for categories
+  document.getElementById("cat-select-all").addEventListener("click", () => {
+    Object.keys(CATEGORIES).forEach(k => activeCats.add(k));
+    document.querySelectorAll("#cat-chips .filter-chip").forEach(c => c.classList.add("active"));
+    onFilterChange();
+  });
+  document.getElementById("cat-select-none").addEventListener("click", () => {
+    activeCats.clear();
+    document.querySelectorAll("#cat-chips .filter-chip").forEach(c => c.classList.remove("active"));
+    onFilterChange();
+  });
+
+  // Select all / none for rarity
+  document.getElementById("rarity-select-all").addEventListener("click", () => {
+    ["common", "uncommon", "rare", "legendary"].forEach(r => activeRarities.add(r));
+    document.querySelectorAll("#rarity-chips .filter-chip").forEach(c => c.classList.add("active"));
+    onFilterChange();
+  });
+  document.getElementById("rarity-select-none").addEventListener("click", () => {
+    activeRarities.clear();
+    document.querySelectorAll("#rarity-chips .filter-chip").forEach(c => c.classList.remove("active"));
+    onFilterChange();
+  });
+}
+
 const DEFAULT_STATS = { atk: 50, def: 50, spc: 50, spd: 50, hp: 500, rarity: "common" };
 
 function drawFromDeck() {
   if (luckyDeck.length === 0) shuffleDeck();
+  if (luckyDeck.length === 0) return null; // empty filter
   const pick = luckyDeck.pop();
   return { title: pick[0], category: pick[1], stats: pick[2] || DEFAULT_STATS };
 }
 
-shuffleDeck();
-
 async function doLucky() {
   if (luckyLoading) return;
-  luckyLoading = true;
 
+  const filtered = getFilteredPool();
+  if (filtered.length === 0) {
+    document.getElementById("lucky-result").innerHTML =
+      `<div class="loading"><span>No articles match your filters. Adjust categories or rarity.</span></div>`;
+    return;
+  }
+
+  luckyLoading = true;
   const btn = document.getElementById("lucky-btn");
   const result = document.getElementById("lucky-result");
 
   btn.classList.add("spinning");
 
   try {
-    result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from ${POOL.length.toLocaleString()} articles... (${luckyDeck.length} remaining in deck)</span></div>`;
+    result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from ${filtered.length.toLocaleString()} articles... (${luckyDeck.length} remaining in deck)</span></div>`;
 
-    const { title, category, stats } = drawFromDeck();
+    const draw = drawFromDeck();
+    if (!draw) {
+      result.innerHTML = `<div class="loading"><span>No articles match your filters.</span></div>`;
+      btn.classList.remove("spinning");
+      luckyLoading = false;
+      return;
+    }
+    const { title, category, stats } = draw;
     const rarity = stats?.rarity || "common";
 
     const articlePages = await fetchArticleData([title]);
@@ -792,6 +908,7 @@ function initAlchemy() {
 // ── Init ──────────────────────────────────────────────────────
 function init() {
   initTabs();
+  initFilters();
   renderDocs();
   initAlchemy();
   todaySeed(); // set date display

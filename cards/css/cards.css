@@ -730,6 +730,160 @@ main {
 .lucky-history-rarity.rarity-rare { color: #1565c0; }
 .lucky-history-rarity.rarity-legendary { color: var(--gold); }
 
+/* ── Lucky Filters ────────────────────────────────────────── */
+.lucky-filters {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 auto;
+  padding: 0.5rem 1.2rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.filter-toggle:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.filter-pool-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.filter-chevron {
+  font-size: 0.65rem;
+  transition: transform 0.25s;
+}
+
+.filter-chevron.open {
+  transform: rotate(180deg);
+}
+
+.filter-panel {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  animation: filterSlide 0.2s ease-out;
+}
+
+.filter-panel.hidden {
+  display: none;
+}
+
+@keyframes filterSlide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.filter-section {
+  margin-bottom: 0.8rem;
+}
+
+.filter-section:last-child {
+  margin-bottom: 0;
+}
+
+.filter-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.filter-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.filter-select-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: color 0.2s;
+}
+
+.filter-select-btn:hover {
+  color: var(--gold);
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.filter-chip.active {
+  border-color: var(--chip-color, var(--text-dim));
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-chip-icon {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.filter-chip-count {
+  opacity: 0.5;
+  font-size: 0.55rem;
+  margin-left: 2px;
+}
+
+/* Rarity chip colors */
+.filter-chip.rarity-common.active { border-color: #888; }
+.filter-chip.rarity-uncommon.active { border-color: #2e7d32; color: #4caf50; }
+.filter-chip.rarity-rare.active { border-color: #1565c0; color: #64b5f6; }
+.filter-chip.rarity-legendary.active { border-color: var(--gold); color: var(--gold); }
+
 /* ══════════════════════════════════════════════════════════════
    WIKINATOMY DOCS TAB
    ══════════════════════════════════════════════════════════════ */
@@ -1348,4 +1502,7 @@ footer {
   .alchemy-card-title { font-size: 0.85rem; }
   .alchemy-result-title { font-size: 1.2rem; }
   .alchemy-result-stats { gap: 1rem; }
+
+  .filter-chip { font-size: 0.58rem; padding: 2px 6px; }
+  .filter-chip-icon { font-size: 0.65rem; }
 }
