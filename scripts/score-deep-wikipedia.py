@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# v3 — fix pageview + langlinks fetching
+# v4 — use action API prop=pageviews in dedicated query (REST API too slow for 6800 articles)
 """
 Score Wikipedia Featured Articles by the deep-Wikipedia triangulation:
     high quality (FA/GA) × low pageviews × high citations × low translations
@@ -206,35 +206,6 @@ def fetch_category_members(category, cmtype="page", limit=500):
     return members
 
 
-def fetch_pageviews_rest(titles, retries=3):
-    """Fetch pageviews via the Wikimedia REST API (much more reliable than action API prop)."""
-    pv_map = {}
-    rest_base = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
-    end = time.strftime("%Y%m%d", time.gmtime())
-    # 30 days ago
-    start_t = time.gmtime(time.time() - 30 * 86400)
-    start = time.strftime("%Y%m%d", start_t)
-
-    for title in titles:
-        encoded = title.replace(" ", "_").replace("/", "%2F")
-        url = f"{rest_base}/en.wikipedia/all-access/all-agents/{encoded}/daily/{start}/{end}"
-        for attempt in range(retries):
-            try:
-                req = Request(url, headers={"User-Agent": "DeepWikipediaScorer/1.0 (minomobi.com)"})
-                with urlopen(req, timeout=15) as resp:
-                    data = json.loads(resp.read())
-                items = data.get("items", [])
-                views = [it["views"] for it in items if "views" in it]
-                pv_map[title] = round(sum(views) / max(1, len(views)), 1) if views else 0
-                break
-            except Exception:
-                if attempt < retries - 1:
-                    time.sleep(1)
-                else:
-                    pv_map[title] = 0
-        time.sleep(0.05)  # light rate limiting for REST API
-    return pv_map
-
 
 def fetch_metadata_batch(titles):
     """Fetch extlinks, langlinks, info, categories for a batch of titles.
@@ -284,12 +255,21 @@ def fetch_metadata_batch(titles):
         "pllimit": "500",
     })
 
+    # Query 5: pageviews (dedicated query — PageViewInfo extension)
+    data5 = wiki_get({
+        "action": "query",
+        "titles": "|".join(titles),
+        "prop": "pageviews",
+        "pvipdays": "30",
+    })
+
     pages = data1.get("query", {}).get("pages", {})
     pages2 = data2.get("query", {}).get("pages", {})
     pages3 = data3.get("query", {}).get("pages", {})
     pages4 = data4.get("query", {}).get("pages", {})
+    pages5 = data5.get("query", {}).get("pages", {})
 
-    # Merge langlinks, extlinks, and links into pages
+    # Merge langlinks, extlinks, links, and pageviews into pages
     for pid, pdata in pages2.items():
         if pid in pages:
             pages[pid]["langlinks"] = pdata.get("langlinks", [])
@@ -299,6 +279,9 @@ def fetch_metadata_batch(titles):
     for pid, pdata in pages4.items():
         if pid in pages:
             pages[pid]["links"] = pdata.get("links", [])
+    for pid, pdata in pages5.items():
+        if pid in pages:
+            pages[pid]["pageviews"] = pdata.get("pageviews", {})
 
     return pages
 
@@ -407,7 +390,7 @@ def main():
             print(f"  ... and {len(all_titles) - 20} more")
         return
 
-    # Step 2: Batch fetch metadata (without pageviews — those come from REST API)
+    # Step 2: Batch fetch metadata (pageviews included via dedicated prop=pageviews query)
     print(f"Fetching metadata for {len(all_titles)} articles in batches of {BATCH_SIZE}...", file=sys.stderr)
     raw_pages = {}  # title → page data
     for i in range(0, len(all_titles), BATCH_SIZE):
@@ -426,24 +409,33 @@ def main():
             if page.get("pageid"):
                 raw_pages[page.get("title", "")] = page
 
+        # Debug: show first batch's pageview data
+        if batch_num == 1:
+            for pid, page in pages.items():
+                pv = page.get("pageviews", {})
+                ll = page.get("langlinks", [])
+                el = page.get("extlinks", [])
+                lk = page.get("links", [])
+                t = page.get("title", "?")[:40]
+                print(f"    SAMPLE {t}: pv_keys={len(pv)} ll={len(ll)} el={len(el)} lk={len(lk)}", file=sys.stderr)
+                if pv:
+                    sample_vals = list(pv.values())[:3]
+                    print(f"      pv_sample={sample_vals}", file=sys.stderr)
+                break  # just one sample
+
         time.sleep(RATE_DELAY * 3)  # extra politeness between batches
 
-    # Step 2b: Fetch pageviews via REST API (in batches of 20 for speed)
-    pv_titles = list(raw_pages.keys())
-    print(f"\nFetching pageviews for {len(pv_titles)} articles via REST API...", file=sys.stderr)
-    all_pvs = {}
-    PV_BATCH = 20
-    for i in range(0, len(pv_titles), PV_BATCH):
-        pv_batch = pv_titles[i:i + PV_BATCH]
-        pv_num = i // PV_BATCH + 1
-        pv_total = math.ceil(len(pv_titles) / PV_BATCH)
-        if pv_num % 50 == 1 or pv_num == pv_total:
-            print(f"  PV batch {pv_num}/{pv_total}", file=sys.stderr)
-        batch_pvs = fetch_pageviews_rest(pv_batch)
-        all_pvs.update(batch_pvs)
-
-    nonzero_pv = sum(1 for v in all_pvs.values() if v > 0)
-    print(f"  Pageviews fetched: {len(all_pvs)} total, {nonzero_pv} nonzero", file=sys.stderr)
+    # Step 2b: Extract pageviews from batched metadata
+    pv_nonzero = 0
+    for title, page in raw_pages.items():
+        pv_dict = page.get("pageviews", {})
+        # pageviews prop returns {date: count_or_null, ...} for the last N days
+        daily = [v for v in pv_dict.values() if v is not None]
+        avg = round(sum(daily) / max(1, len(daily)), 1) if daily else 0
+        page["_avg_pageviews"] = avg
+        if avg > 0:
+            pv_nonzero += 1
+    print(f"  Pageviews: {len(raw_pages)} total, {pv_nonzero} nonzero", file=sys.stderr)
 
     # Step 2c: Assemble article records
     articles = []
@@ -455,7 +447,7 @@ def main():
             "langlinks_count": len(page.get("langlinks", [])),
             "extlinks_count": len(page.get("extlinks", [])),
             "links_count": len(page.get("links", [])),
-            "avg_pageviews": all_pvs.get(title, 0),
+            "avg_pageviews": page.get("_avg_pageviews", 0),
             "quality": "FA" if title in fa_set else "GA",
             "extract": page.get("extract", ""),
             "thumbnail": page.get("thumbnail", {}).get("source"),
