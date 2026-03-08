@@ -42,8 +42,17 @@ function pickPack(seed, count = 5) {
 // ── Wikipedia API ─────────────────────────────────────────────
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 
+async function wikiQuery(params) {
+  const qs = new URLSearchParams({ ...params, format: "json", origin: "*" });
+  const res = await fetch(`${WIKI_API}?${qs}`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.query?.pages || {};
+}
+
+// Light data: extract, thumbnail, byte length (shared batch is fine)
 async function fetchArticleData(titles) {
-  const params = new URLSearchParams({
+  return wikiQuery({
     action: "query",
     titles: titles.join("|"),
     prop: "extracts|pageimages|info|langlinks",
@@ -54,84 +63,28 @@ async function fetchArticleData(titles) {
     pithumbsize: "400",
     inprop: "length",
     lllimit: "500",
-    format: "json",
-    origin: "*",
   });
-
-  const res = await fetch(`${WIKI_API}?${params}`);
-  if (!res.ok) throw new Error("Wikipedia API request failed");
-  const data = await res.json();
-  return data.query?.pages || {};
 }
 
-async function fetchPageLinks(titles) {
-  const params = new URLSearchParams({
-    action: "query",
-    titles: titles.join("|"),
-    prop: "links",
-    pllimit: "500",
-    format: "json",
-    origin: "*",
-  });
-
-  const res = await fetch(`${WIKI_API}?${params}`);
-  if (!res.ok) return {};
-  const data = await res.json();
-  return data.query?.pages || {};
-}
-
-async function fetchExtLinks(titles) {
-  const params = new URLSearchParams({
-    action: "query",
-    titles: titles.join("|"),
-    prop: "extlinks",
-    ellimit: "500",
-    format: "json",
-    origin: "*",
-  });
-
-  const res = await fetch(`${WIKI_API}?${params}`);
-  if (!res.ok) return {};
-  const data = await res.json();
-  return data.query?.pages || {};
-}
-
-async function fetchLinksHere(titles) {
-  const params = new URLSearchParams({
-    action: "query",
-    titles: titles.join("|"),
-    prop: "linkshere",
-    lhlimit: "500",
-    lhnamespace: "0",
-    format: "json",
-    origin: "*",
-  });
-
-  const res = await fetch(`${WIKI_API}?${params}`);
-  if (!res.ok) return {};
-  const data = await res.json();
-  return data.query?.pages || {};
-}
-
-async function fetchRevisions(titles) {
+// Heavy stat props — fetched per-card (1 title) to avoid starvation
+async function fetchStatsForTitle(title) {
   const now = new Date().toISOString();
   const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
-  const params = new URLSearchParams({
-    action: "query",
-    titles: titles.join("|"),
-    prop: "revisions",
-    rvlimit: "500",
-    rvprop: "ids",
-    rvstart: now,
-    rvend: oneYearAgo,
-    format: "json",
-    origin: "*",
-  });
 
-  const res = await fetch(`${WIKI_API}?${params}`);
-  if (!res.ok) return {};
-  const data = await res.json();
-  return data.query?.pages || {};
+  const [linkPages, elPages, lhPages, rvPages] = await Promise.all([
+    wikiQuery({ action: "query", titles: title, prop: "links", pllimit: "500" }),
+    wikiQuery({ action: "query", titles: title, prop: "extlinks", ellimit: "500" }),
+    wikiQuery({ action: "query", titles: title, prop: "linkshere", lhlimit: "500", lhnamespace: "0" }),
+    wikiQuery({ action: "query", titles: title, prop: "revisions", rvlimit: "500", rvprop: "ids", rvstart: now, rvend: oneYearAgo }),
+  ]);
+
+  // Merge all props onto a single page object
+  const page = {};
+  for (const d of Object.values(linkPages)) { page.links = d.links; }
+  for (const d of Object.values(elPages)) { page.extlinks = d.extlinks; }
+  for (const d of Object.values(lhPages)) { page.linkshere = d.linkshere; }
+  for (const d of Object.values(rvPages)) { page.revisions = d.revisions; }
+  return page;
 }
 
 // ── Stat derivation ──────────────────────────────────────────
@@ -142,7 +95,6 @@ function deriveStats(page) {
   const revisions = page.revisions?.length || 0;
   const len = page.length || 5000;
 
-  // Floor 0 = no data fetched (distinguishes from real low values)
   const atk = Math.min(99, Math.round(Math.log2(Math.max(1, links)) * 7));
   const def = Math.min(99, Math.round(Math.log2(Math.max(1, linkshere)) * 7));
   const spc = Math.min(99, Math.round(Math.log2(Math.max(1, extlinks)) * 9));
@@ -168,9 +120,13 @@ const RARITY_LABELS = {
 };
 
 // ── Card rendering ────────────────────────────────────────────
+
 function createCardElement(cardData, index) {
-  const { title, category, extract, thumbnail, stats, rarity } = cardData;
+  const { title, category, extract, thumbnail } = cardData;
   const cat = CATEGORIES[category];
+
+  // Before stats load, show placeholder rarity
+  const rarity = cardData.rarity || "common";
 
   const container = document.createElement("div");
   container.className = `card-container rarity-${rarity}`;
@@ -196,33 +152,64 @@ function createCardElement(cardData, index) {
         <div class="card-stats">
           <div class="stat">
             <div class="stat-label">ATK</div>
-            <div class="stat-value">${stats.atk}</div>
+            <div class="stat-value">${cardData.stats ? cardData.stats.atk : '<span class="stat-loading">···</span>'}</div>
           </div>
           <div class="stat">
             <div class="stat-label">DEF</div>
-            <div class="stat-value">${stats.def}</div>
+            <div class="stat-value">${cardData.stats ? cardData.stats.def : '<span class="stat-loading">···</span>'}</div>
           </div>
           <div class="stat">
             <div class="stat-label">SPC</div>
-            <div class="stat-value">${stats.spc}</div>
+            <div class="stat-value">${cardData.stats ? cardData.stats.spc : '<span class="stat-loading">···</span>'}</div>
           </div>
           <div class="stat">
             <div class="stat-label">SPD</div>
-            <div class="stat-value">${stats.spd}</div>
+            <div class="stat-value">${cardData.stats ? cardData.stats.spd : '<span class="stat-loading">···</span>'}</div>
           </div>
           <div class="stat">
             <div class="stat-label">HP</div>
-            <div class="stat-value">${stats.hp}</div>
+            <div class="stat-value">${cardData.stats ? cardData.stats.hp : '<span class="stat-loading">···</span>'}</div>
           </div>
         </div>
       </div>
     </div>
   `;
 
-  container.addEventListener("click", () => {
+  let statsLoading = false;
+
+  container.addEventListener("click", async () => {
     if (!container.classList.contains("revealed")) {
       container.classList.add("revealed");
       checkAllRevealed();
+
+      // Fetch stats on reveal if not already loaded
+      if (!cardData.stats && !statsLoading) {
+        statsLoading = true;
+        try {
+          const statPage = await fetchStatsForTitle(cardData.title);
+          statPage.length = cardData._pageLength || 5000;
+          const stats = deriveStats(statPage);
+          const rarity = deriveRarity(stats);
+          cardData.stats = stats;
+          cardData.rarity = rarity;
+
+          // Update DOM
+          container.className = `card-container revealed rarity-${rarity}`;
+          const statValues = container.querySelectorAll(".stat-value");
+          const vals = [stats.atk, stats.def, stats.spc, stats.spd, stats.hp];
+          statValues.forEach((el, i) => { el.textContent = vals[i]; });
+          container.querySelector(".card-rarity").textContent = RARITY_LABELS[rarity];
+        } catch (err) {
+          console.error("Stats fetch failed for", cardData.title, err);
+          // Show fallback
+          const fallback = { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 };
+          cardData.stats = fallback;
+          cardData.rarity = "common";
+          const statValues = container.querySelectorAll(".stat-value");
+          const vals = [10, 10, 10, 10, 200];
+          statValues.forEach((el, i) => { el.textContent = vals[i]; });
+        }
+      }
     } else {
       showDetail(cardData);
     }
@@ -239,31 +226,33 @@ function showDetail(cardData) {
 
   const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 
+  const s = stats || { atk: "···", def: "···", spc: "···", spd: "···", hp: "···" };
+
   content.innerHTML = `
     ${thumbnail ? `<img class="detail-image" src="${thumbnail}" alt="${title}">` : ""}
-    <div class="detail-category" style="color:${cat.color}">${cat.name} — ${RARITY_LABELS[rarity]}</div>
+    <div class="detail-category" style="color:${cat.color}">${cat.name} — ${RARITY_LABELS[rarity || "common"]}</div>
     <div class="detail-title">${title}</div>
     <div class="detail-extract">${extract || ""}</div>
     <div class="detail-stats">
       <div class="stat">
         <div class="detail-stat-label">ATK</div>
-        <div class="detail-stat-value">${stats.atk}</div>
+        <div class="detail-stat-value">${s.atk}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">DEF</div>
-        <div class="detail-stat-value">${stats.def}</div>
+        <div class="detail-stat-value">${s.def}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">SPC</div>
-        <div class="detail-stat-value">${stats.spc}</div>
+        <div class="detail-stat-value">${s.spc}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">SPD</div>
-        <div class="detail-stat-value">${stats.spd}</div>
+        <div class="detail-stat-value">${s.spd}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">HP</div>
-        <div class="detail-stat-value">${stats.hp}</div>
+        <div class="detail-stat-value">${s.hp}</div>
       </div>
     </div>
     <a class="detail-link" href="${wikiUrl}" target="_blank">Read on Wikipedia &rarr;</a>
@@ -305,47 +294,34 @@ async function openPack(seed) {
   try {
     const titles = picks.map(([t]) => t);
 
-    const [articlePages, linkPages, elPages, lhPages, rvPages] = await Promise.all([
-      fetchArticleData(titles),
-      fetchPageLinks(titles),
-      fetchExtLinks(titles),
-      fetchLinksHere(titles),
-      fetchRevisions(titles),
-    ]);
-
-    const pages = articlePages;
-    for (const [id, d] of Object.entries(linkPages)) { if (pages[id]) pages[id].links = d.links; }
-    for (const [id, d] of Object.entries(elPages)) { if (pages[id]) pages[id].extlinks = d.extlinks; }
-    for (const [id, d] of Object.entries(lhPages)) { if (pages[id]) pages[id].linkshere = d.linkshere; }
-    for (const [id, d] of Object.entries(rvPages)) { if (pages[id]) pages[id].revisions = d.revisions; }
+    // Only fetch light data up front (extract, image, length)
+    const articlePages = await fetchArticleData(titles);
 
     packCards = [];
     for (const [title, category] of picks) {
-      const page = Object.values(pages).find(
+      const page = Object.values(articlePages).find(
         (p) =>
           p.title === title ||
           p.title?.replace(/ /g, "_") === title.replace(/ /g, "_")
       );
 
       if (page && page.pageid) {
-        const stats = deriveStats(page);
-        const rarity = deriveRarity(stats);
         packCards.push({
           title: page.title,
           category,
           extract: page.extract || "",
           thumbnail: page.thumbnail?.source || null,
-          stats,
-          rarity,
+          stats: null, // fetched on reveal
+          rarity: null,
+          _pageLength: page.length,
         });
       } else {
-        const stats = { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 };
         packCards.push({
           title,
           category,
           extract: "Article data unavailable.",
           thumbnail: null,
-          stats,
+          stats: { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 },
           rarity: "common",
         });
       }
@@ -390,16 +366,32 @@ function initTabs() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// I'M FEELING LUCKY
+// I'M FEELING LUCKY — shuffle-through (no repeats until exhausted)
 // ══════════════════════════════════════════════════════════════
 
 let luckyLoading = false;
 const luckyHistory = [];
 
-function pickRandomFromPool() {
-  const pick = POOL[Math.floor(Math.random() * POOL.length)];
+// Shuffled deck — deals without replacement until empty, then reshuffles
+let luckyDeck = [];
+
+function shuffleDeck() {
+  luckyDeck = [...POOL];
+  // Fisher-Yates
+  for (let i = luckyDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [luckyDeck[i], luckyDeck[j]] = [luckyDeck[j], luckyDeck[i]];
+  }
+}
+
+function drawFromDeck() {
+  if (luckyDeck.length === 0) shuffleDeck();
+  const pick = luckyDeck.pop();
   return { title: pick[0], category: pick[1] };
 }
+
+// Initialize deck
+shuffleDeck();
 
 async function doLucky() {
   if (luckyLoading) return;
@@ -409,29 +401,22 @@ async function doLucky() {
   const result = document.getElementById("lucky-result");
 
   btn.classList.add("spinning");
-  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from the pool...</span></div>`;
+  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from the pool... (${luckyDeck.length} remaining)</span></div>`;
 
   try {
-    const { title, category } = pickRandomFromPool();
+    const { title, category } = drawFromDeck();
 
-    const [articlePages, linkPages, elPages, lhPages, rvPages] = await Promise.all([
+    // Fetch everything for single card (no starvation with 1 title)
+    const [articlePages, statData] = await Promise.all([
       fetchArticleData([title]),
-      fetchPageLinks([title]),
-      fetchExtLinks([title]),
-      fetchLinksHere([title]),
-      fetchRevisions([title]),
+      fetchStatsForTitle(title),
     ]);
 
-    const pages = articlePages;
-    for (const [id, d] of Object.entries(linkPages)) { if (pages[id]) pages[id].links = d.links; }
-    for (const [id, d] of Object.entries(elPages)) { if (pages[id]) pages[id].extlinks = d.extlinks; }
-    for (const [id, d] of Object.entries(lhPages)) { if (pages[id]) pages[id].linkshere = d.linkshere; }
-    for (const [id, d] of Object.entries(rvPages)) { if (pages[id]) pages[id].revisions = d.revisions; }
-
-    const page = Object.values(pages).find((p) => p.pageid);
+    const page = Object.values(articlePages).find((p) => p.pageid);
 
     if (page) {
-      const stats = deriveStats(page);
+      statData.length = page.length;
+      const stats = deriveStats(statData);
       const rarity = deriveRarity(stats);
       const cat = CATEGORIES[category];
       const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, "_"))}`;
@@ -709,10 +694,10 @@ document.getElementById("card-detail").addEventListener("click", (e) => {
   }
 });
 
-// Reveal all button
+// Reveal all button — triggers stats fetch for each unrevealed card
 document.getElementById("flip-all-btn").addEventListener("click", () => {
   document.querySelectorAll(".card-container:not(.revealed)").forEach((c) => {
-    c.classList.add("revealed");
+    c.click(); // triggers the reveal + stats fetch handler
   });
   checkAllRevealed();
 });
