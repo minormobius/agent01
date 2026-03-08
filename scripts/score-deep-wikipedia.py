@@ -225,8 +225,9 @@ def wiki_query_props(params):
             if pid not in merged_pages:
                 merged_pages[pid] = dict(pdata)
             else:
-                # Append list-type props (langlinks, extlinks, links, categories)
-                for key in ("langlinks", "extlinks", "links", "categories"):
+                # Append list-type props
+                for key in ("langlinks", "extlinks", "links", "categories",
+                            "linkshere", "revisions"):
                     if key in pdata:
                         existing = merged_pages[pid].get(key, [])
                         merged_pages[pid][key] = existing + pdata[key]
@@ -311,6 +312,28 @@ def fetch_metadata_batch(titles):
         "pvipdays": "30",
     })
 
+    # Query 6: linkshere — incoming wikilinks (for DEF stat)
+    pages6 = wiki_query_props({
+        "action": "query",
+        "titles": titles_str,
+        "prop": "linkshere",
+        "lhlimit": "500",
+        "lhnamespace": "0",
+    })
+
+    # Query 7: revisions — edit count in last 12 months (for SPD stat)
+    one_year_ago = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                                 time.gmtime(time.time() - 365 * 86400))
+    pages7 = wiki_query_props({
+        "action": "query",
+        "titles": titles_str,
+        "prop": "revisions",
+        "rvlimit": "500",
+        "rvprop": "ids",
+        "rvstart": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "rvend": one_year_ago,
+    })
+
     # Merge all props into pages dict
     for pid, pdata in pages2.items():
         if pid in pages:
@@ -324,6 +347,12 @@ def fetch_metadata_batch(titles):
     for pid, pdata in pages5.items():
         if pid in pages:
             pages[pid]["pageviews"] = pdata.get("pageviews", {})
+    for pid, pdata in pages6.items():
+        if pid in pages:
+            pages[pid]["linkshere"] = pdata.get("linkshere", [])
+    for pid, pdata in pages7.items():
+        if pid in pages:
+            pages[pid]["revisions"] = pdata.get("revisions", [])
 
     return pages
 
@@ -369,28 +398,38 @@ def compute_deep_score(article):
 
 
 def compute_card_stats(article):
-    """Derive card stats from article metadata (same formula as app.js)."""
-    length = article["length"]
-    langlinks = article["langlinks_count"]
-    links = article["links_count"]
+    """Derive card stats from article metadata (same formula as app.js).
 
-    link_density = links / max(1, length / 1000)
-    atk = min(99, max(20, round(link_density * 8 + 30)))
-    defense = min(99, max(20, round(langlinks * 0.5 + 25)))
-    # log2 scaling: 10K→505, 30K→566, 80K→619, 200K→669, 500K→719
+    ATK  = outgoing wikilinks (links out) — log2 scaled
+    DEF  = incoming wikilinks (linkshere) — log2 scaled
+    SPC  = external references (extlinks) — log2 scaled
+    SPD  = edits in last 12 months — log2 scaled
+    HP   = article length — log2 scaled
+    """
+    links = article["links_count"]
+    linkshere = article.get("linkshere_count", 0)
+    extlinks = article["extlinks_count"]
+    revisions = article.get("revisions_count", 0)
+    length = article["length"]
+
+    # All stats use log2 for spread: log2(1)=0, log2(100)≈6.6, log2(500)≈9
+    atk = min(99, max(1, round(math.log2(max(1, links)) * 7)))
+    defense = min(99, max(1, round(math.log2(max(1, linkshere)) * 7)))
+    spc = min(99, max(1, round(math.log2(max(1, extlinks)) * 9)))
+    spd = min(99, max(1, round(math.log2(max(1, revisions)) * 10)))
     hp = min(999, max(100, round(math.log2(max(1, length)) * 38)))
 
-    power = atk + defense + hp / 10
-    if power >= 160:
+    power = atk + defense + spc + spd + hp / 10
+    if power >= 300:
         rarity = "legendary"
-    elif power >= 130:
+    elif power >= 240:
         rarity = "rare"
-    elif power >= 100:
+    elif power >= 180:
         rarity = "uncommon"
     else:
         rarity = "common"
 
-    return {"atk": atk, "def": defense, "hp": hp, "rarity": rarity}
+    return {"atk": atk, "def": defense, "spc": spc, "spd": spd, "hp": hp, "rarity": rarity}
 
 
 def main():
@@ -452,19 +491,18 @@ def main():
             if page.get("pageid"):
                 raw_pages[page.get("title", "")] = page
 
-        # Debug: show first batch's pageview data
+        # Debug: show first batch's data
         if batch_num == 1:
             for pid, page in pages.items():
-                pv = page.get("pageviews", {})
-                ll = page.get("langlinks", [])
-                el = page.get("extlinks", [])
-                lk = page.get("links", [])
                 t = page.get("title", "?")[:40]
-                print(f"    SAMPLE {t}: pv_keys={len(pv)} ll={len(ll)} el={len(el)} lk={len(lk)}", file=sys.stderr)
-                if pv:
-                    sample_vals = list(pv.values())[:3]
-                    print(f"      pv_sample={sample_vals}", file=sys.stderr)
-                break  # just one sample
+                pv = len(page.get("pageviews", {}))
+                ll = len(page.get("langlinks", []))
+                el = len(page.get("extlinks", []))
+                lk = len(page.get("links", []))
+                lh = len(page.get("linkshere", []))
+                rv = len(page.get("revisions", []))
+                print(f"    SAMPLE {t}: pv={pv} ll={ll} el={el} lk={lk} lh={lh} rv={rv}", file=sys.stderr)
+                break
 
         time.sleep(RATE_DELAY * 3)  # extra politeness between batches
 
@@ -490,6 +528,8 @@ def main():
             "langlinks_count": len(page.get("langlinks", [])),
             "extlinks_count": len(page.get("extlinks", [])),
             "links_count": len(page.get("links", [])),
+            "linkshere_count": len(page.get("linkshere", [])),
+            "revisions_count": len(page.get("revisions", [])),
             "avg_pageviews": page.get("_avg_pageviews", 0),
             "quality": "FA" if title in fa_set else "GA",
             "extract": page.get("extract", ""),
@@ -553,11 +593,13 @@ def main():
     # Summary
     print("\n=== DEEP WIKIPEDIA: TOP 20 ===", file=sys.stderr)
     for i, a in enumerate(articles[:20]):
+        s = a.get("stats", {})
         print(
-            f"  {i+1:2d}. [{a['bin']:12s}] {a['title'][:50]:50s} "
-            f"deep={a['deep_score']:8.2f}  pv={a['avg_pageviews']:7.1f}  "
-            f"ext={a['extlinks_count']:3d}  lang={a['langlinks_count']:3d}  "
-            f"len={a['length']:6d}",
+            f"  {i+1:2d}. [{a['bin']:12s}] {a['title'][:45]:45s} "
+            f"deep={a['deep_score']:8.2f}  "
+            f"ATK={s.get('atk',0):2d} DEF={s.get('def',0):2d} "
+            f"SPC={s.get('spc',0):2d} SPD={s.get('spd',0):2d} HP={s.get('hp',0):3d}  "
+            f"{s.get('rarity','?')}",
             file=sys.stderr
         )
 

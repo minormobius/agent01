@@ -80,26 +80,82 @@ async function fetchPageLinks(titles) {
   return data.query?.pages || {};
 }
 
+async function fetchExtLinks(titles) {
+  const params = new URLSearchParams({
+    action: "query",
+    titles: titles.join("|"),
+    prop: "extlinks",
+    ellimit: "500",
+    format: "json",
+    origin: "*",
+  });
+
+  const res = await fetch(`${WIKI_API}?${params}`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.query?.pages || {};
+}
+
+async function fetchLinksHere(titles) {
+  const params = new URLSearchParams({
+    action: "query",
+    titles: titles.join("|"),
+    prop: "linkshere",
+    lhlimit: "500",
+    lhnamespace: "0",
+    format: "json",
+    origin: "*",
+  });
+
+  const res = await fetch(`${WIKI_API}?${params}`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.query?.pages || {};
+}
+
+async function fetchRevisions(titles) {
+  const now = new Date().toISOString();
+  const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
+  const params = new URLSearchParams({
+    action: "query",
+    titles: titles.join("|"),
+    prop: "revisions",
+    rvlimit: "500",
+    rvprop: "ids",
+    rvstart: now,
+    rvend: oneYearAgo,
+    format: "json",
+    origin: "*",
+  });
+
+  const res = await fetch(`${WIKI_API}?${params}`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.query?.pages || {};
+}
+
 // ── Stat derivation ──────────────────────────────────────────
 function deriveStats(page) {
-  const len = page.length || 5000;
-  const langlinks = page.langlinks?.length || 0;
   const links = page.links?.length || 0;
+  const linkshere = page.linkshere?.length || 0;
+  const extlinks = page.extlinks?.length || 0;
+  const revisions = page.revisions?.length || 0;
+  const len = page.length || 5000;
 
-  const linkDensity = links / Math.max(1, len / 1000);
-  const atk = Math.min(99, Math.max(20, Math.round(linkDensity * 8 + 30)));
-  const def = Math.min(99, Math.max(20, Math.round(langlinks * 0.5 + 25)));
-  // log2 scaling: 10K→505, 30K→566, 80K→619, 200K→669, 500K→719
+  const atk = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, links)) * 7)));
+  const def = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, linkshere)) * 7)));
+  const spc = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, extlinks)) * 9)));
+  const spd = Math.min(99, Math.max(1, Math.round(Math.log2(Math.max(1, revisions)) * 10)));
   const hp = Math.min(999, Math.max(100, Math.round(Math.log2(Math.max(1, len)) * 38)));
 
-  return { atk, def, hp };
+  return { atk, def, spc, spd, hp };
 }
 
 function deriveRarity(stats) {
-  const power = stats.atk + stats.def + stats.hp / 10;
-  if (power >= 160) return "legendary";
-  if (power >= 130) return "rare";
-  if (power >= 100) return "uncommon";
+  const power = stats.atk + stats.def + stats.spc + stats.spd + stats.hp / 10;
+  if (power >= 300) return "legendary";
+  if (power >= 240) return "rare";
+  if (power >= 180) return "uncommon";
   return "common";
 }
 
@@ -146,6 +202,14 @@ function createCardElement(cardData, index) {
             <div class="stat-value">${stats.def}</div>
           </div>
           <div class="stat">
+            <div class="stat-label">SPC</div>
+            <div class="stat-value">${stats.spc}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">SPD</div>
+            <div class="stat-value">${stats.spd}</div>
+          </div>
+          <div class="stat">
             <div class="stat-label">HP</div>
             <div class="stat-value">${stats.hp}</div>
           </div>
@@ -187,6 +251,14 @@ function showDetail(cardData) {
       <div class="stat">
         <div class="detail-stat-label">DEF</div>
         <div class="detail-stat-value">${stats.def}</div>
+      </div>
+      <div class="stat">
+        <div class="detail-stat-label">SPC</div>
+        <div class="detail-stat-value">${stats.spc}</div>
+      </div>
+      <div class="stat">
+        <div class="detail-stat-label">SPD</div>
+        <div class="detail-stat-value">${stats.spd}</div>
       </div>
       <div class="stat">
         <div class="detail-stat-label">HP</div>
@@ -232,17 +304,19 @@ async function openPack(seed) {
   try {
     const titles = picks.map(([t]) => t);
 
-    const [articlePages, linkPages] = await Promise.all([
+    const [articlePages, linkPages, elPages, lhPages, rvPages] = await Promise.all([
       fetchArticleData(titles),
       fetchPageLinks(titles),
+      fetchExtLinks(titles),
+      fetchLinksHere(titles),
+      fetchRevisions(titles),
     ]);
 
     const pages = articlePages;
-    for (const [id, linkData] of Object.entries(linkPages)) {
-      if (pages[id]) {
-        pages[id].links = linkData.links;
-      }
-    }
+    for (const [id, d] of Object.entries(linkPages)) { if (pages[id]) pages[id].links = d.links; }
+    for (const [id, d] of Object.entries(elPages)) { if (pages[id]) pages[id].extlinks = d.extlinks; }
+    for (const [id, d] of Object.entries(lhPages)) { if (pages[id]) pages[id].linkshere = d.linkshere; }
+    for (const [id, d] of Object.entries(rvPages)) { if (pages[id]) pages[id].revisions = d.revisions; }
 
     packCards = [];
     for (const [title, category] of picks) {
@@ -264,7 +338,7 @@ async function openPack(seed) {
           rarity,
         });
       } else {
-        const stats = { atk: 40, def: 40, hp: 200 };
+        const stats = { atk: 10, def: 10, spc: 10, spd: 10, hp: 200 };
         packCards.push({
           title,
           category,
@@ -339,15 +413,19 @@ async function doLucky() {
   try {
     const { title, category } = pickRandomFromPool();
 
-    const [articlePages, linkPages] = await Promise.all([
+    const [articlePages, linkPages, elPages, lhPages, rvPages] = await Promise.all([
       fetchArticleData([title]),
       fetchPageLinks([title]),
+      fetchExtLinks([title]),
+      fetchLinksHere([title]),
+      fetchRevisions([title]),
     ]);
 
     const pages = articlePages;
-    for (const [id, linkData] of Object.entries(linkPages)) {
-      if (pages[id]) pages[id].links = linkData.links;
-    }
+    for (const [id, d] of Object.entries(linkPages)) { if (pages[id]) pages[id].links = d.links; }
+    for (const [id, d] of Object.entries(elPages)) { if (pages[id]) pages[id].extlinks = d.extlinks; }
+    for (const [id, d] of Object.entries(lhPages)) { if (pages[id]) pages[id].linkshere = d.linkshere; }
+    for (const [id, d] of Object.entries(rvPages)) { if (pages[id]) pages[id].revisions = d.revisions; }
 
     const page = Object.values(pages).find((p) => p.pageid);
 
@@ -367,6 +445,8 @@ async function doLucky() {
             <div class="lucky-stats">
               <div class="stat"><div class="stat-label">ATK</div><div class="stat-value">${stats.atk}</div></div>
               <div class="stat"><div class="stat-label">DEF</div><div class="stat-value">${stats.def}</div></div>
+              <div class="stat"><div class="stat-label">SPC</div><div class="stat-value">${stats.spc}</div></div>
+              <div class="stat"><div class="stat-label">SPD</div><div class="stat-value">${stats.spd}</div></div>
               <div class="stat"><div class="stat-label">HP</div><div class="stat-value">${stats.hp}</div></div>
             </div>
             <a class="lucky-wiki-link" href="${wikiUrl}" target="_blank">Read on Wikipedia &rarr;</a>
@@ -519,26 +599,38 @@ function renderDocs() {
       <h3 class="doc-section-title">Card Stats</h3>
       <div class="doc-explainer">
         <div class="doc-explain-block">
-          <div class="doc-explain-heading">ATK — Link Density</div>
-          <p>Internal links per 1,000 bytes of article length. Measures how connected an article is to the rest of Wikipedia. High ATK = the article is a nexus point in the knowledge graph.</p>
-          <p class="doc-formula"><code>min(99, max(20, round(links / max(1, length/1000) * 8 + 30)))</code></p>
-          <p class="doc-source">Source: <code>prop=links</code> (pllimit=500) + <code>prop=info</code> (inprop=length)</p>
+          <div class="doc-explain-heading">ATK — Links Out</div>
+          <p>Outgoing wikilinks from the article. Measures how much this article reaches into the rest of Wikipedia. High ATK = the article connects to many other topics.</p>
+          <p class="doc-formula"><code>min(99, max(1, round(log2(links) × 7)))</code></p>
+          <p class="doc-source">Source: <code>prop=links</code> (pllimit=500)</p>
         </div>
         <div class="doc-explain-block">
-          <div class="doc-explain-heading">DEF — Global Reach</div>
-          <p>Number of language versions of the article. Measures how universally recognized the topic is. High DEF = the topic transcends language and culture.</p>
-          <p class="doc-formula"><code>min(99, max(20, round(langlinks * 0.5 + 25)))</code></p>
-          <p class="doc-source">Source: <code>prop=langlinks</code> (lllimit=500)</p>
+          <div class="doc-explain-heading">DEF — Links Here</div>
+          <p>Incoming wikilinks from other articles. Measures how many articles reference this one. High DEF = the topic is well-cited across Wikipedia.</p>
+          <p class="doc-formula"><code>min(99, max(1, round(log2(linkshere) × 7)))</code></p>
+          <p class="doc-source">Source: <code>prop=linkshere</code> (lhlimit=500, namespace=0)</p>
+        </div>
+        <div class="doc-explain-block">
+          <div class="doc-explain-heading">SPC — External References</div>
+          <p>External links (citations, sources, references). Measures how well-sourced the article is. High SPC = heavily cited from outside Wikipedia.</p>
+          <p class="doc-formula"><code>min(99, max(1, round(log2(extlinks) × 9)))</code></p>
+          <p class="doc-source">Source: <code>prop=extlinks</code> (ellimit=500)</p>
+        </div>
+        <div class="doc-explain-block">
+          <div class="doc-explain-heading">SPD — Recent Edits</div>
+          <p>Number of edits in the last 12 months. Measures how actively maintained the article is. High SPD = the topic is alive and evolving.</p>
+          <p class="doc-formula"><code>min(99, max(1, round(log2(revisions_12mo) × 10)))</code></p>
+          <p class="doc-source">Source: <code>prop=revisions</code> (rvlimit=500, last 365 days)</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">HP — Depth</div>
-          <p>Article length in bytes (scaled). Measures how much there is to say. High HP = the topic has been extensively documented by Wikipedia's editors.</p>
+          <p>Article length in bytes (log-scaled). Measures how much there is to say. High HP = the topic has been extensively documented.</p>
           <p class="doc-formula"><code>min(999, max(100, round(log2(length) × 38)))</code></p>
           <p class="doc-source">Source: <code>prop=info</code> (inprop=length)</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">Rarity</div>
-          <p>Derived from ATK + DEF + HP/10. Common (&lt;100), Uncommon (100–129), Rare (130–159), Legendary (160+). All stats are fetched live from Wikipedia — rarity is earned, not assigned.</p>
+          <p>Derived from ATK + DEF + SPC + SPD + HP/10. Common (&lt;180), Uncommon (180–239), Rare (240–299), Legendary (300+). All stats are fetched live from Wikipedia — rarity is earned, not assigned.</p>
         </div>
       </div>
     </div>
@@ -554,8 +646,10 @@ function renderDocs() {
             <tr><td><code>extracts</code></td><td>Intro text (4 sentences, plaintext)</td><td>Card body text</td></tr>
             <tr><td><code>pageimages</code></td><td>Thumbnail URL (400px)</td><td>Card image</td></tr>
             <tr><td><code>info</code></td><td>Article byte length</td><td>HP stat</td></tr>
-            <tr><td><code>langlinks</code></td><td>Count of language editions</td><td>DEF stat</td></tr>
-            <tr><td><code>links</code></td><td>Internal wiki links (up to 500)</td><td>ATK stat</td></tr>
+            <tr><td><code>links</code></td><td>Outgoing wikilinks (up to 500)</td><td>ATK stat</td></tr>
+            <tr><td><code>linkshere</code></td><td>Incoming wikilinks (up to 500)</td><td>DEF stat</td></tr>
+            <tr><td><code>extlinks</code></td><td>External references (up to 500)</td><td>SPC stat</td></tr>
+            <tr><td><code>revisions</code></td><td>Edits in last 12 months (up to 500)</td><td>SPD stat</td></tr>
           </table>
         </div>
         <div class="doc-explain-block">

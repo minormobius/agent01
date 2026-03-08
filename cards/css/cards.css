@@ -1010,8 +1010,8 @@ footer {
 
   .card-title { font-size: 0.75rem; }
   .card-extract { font-size: 0.6rem; -webkit-line-clamp: 3; }
-  .card-stats { font-size: 0.6rem; }
-  .stat-value { font-size: 0.75rem; }
+  .card-stats { font-size: 0.55rem; gap: 2px; }
+  .stat-value { font-size: 0.7rem; }
 
   .card-grid { gap: 0.6rem; }
 
