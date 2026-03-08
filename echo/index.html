@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>echo — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --accent: #daa520;
+  --accent2: #6a9fb5;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --accent: #daa520;
+    --accent2: #7ec8e3;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+.handle-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.handle-form input {
+  flex: 1 1 35%;
+  min-width: 120px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+
+.handle-form input:focus {
+  outline: none;
+  border-color: var(--link);
+}
+
+.vs-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.handle-form button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.handle-form button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.handle-form button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error {
+  color: var(--link);
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.hidden { display: none !important; }
+
+/* ── Compare table ───────────────────────────── */
+
+.compare-table {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  margin-bottom: 2.5rem;
+}
+
+.compare-table th, .compare-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--rule);
+}
+
+.compare-table th {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.compare-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compare-table .swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.compare-table .winner {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Butterfly chart ─────────────────────────── */
+
+.butterfly-section {
+  margin-bottom: 2.5rem;
+}
+
+.butterfly-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.butterfly-label {
+  width: 100px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.butterfly-track {
+  flex: 1;
+  height: 18px;
+  position: relative;
+  display: flex;
+}
+
+.butterfly-left, .butterfly-right {
+  height: 100%;
+  position: relative;
+}
+
+.butterfly-left {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.butterfly-right {
+  flex: 1;
+}
+
+.butterfly-bar {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.4s ease;
+  min-width: 1px;
+}
+
+.butterfly-center {
+  width: 1px;
+  background: var(--rule);
+  flex-shrink: 0;
+}
+
+.butterfly-val {
+  width: 55px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.butterfly-val-left {
+  text-align: right;
+  padding-right: 0.3rem;
+}
+
+.butterfly-val-right {
+  text-align: left;
+  padding-left: 0.3rem;
+}
+
+/* ── Hour chart ──────────────────────────────── */
+
+.chart-container {
+  margin-bottom: 2.5rem;
+}
+
+.chart-container canvas {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--rule);
+  touch-action: none;
+}
+
+.chart-readout {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-height: 1.6em;
+  margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-readout .val { color: var(--text); }
+
+/* ── Verdict ─────────────────────────────────── */
+
+.verdict-box {
+  border-top: 2px solid var(--rule);
+  border-bottom: 2px solid var(--rule);
+  padding: 1.5rem 0;
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+
+.verdict-type {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.verdict-winner {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+
+.verdict-score {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ── Post list ───────────────────────────────── */
+
+.post-list {
+  margin-top: 2.5rem;
+}
+
+.post-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.post-row:last-child {
+  border-bottom: none;
+}
+
+.post-engagement {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  min-width: 3rem;
+  text-align: right;
+  padding-top: 0.15rem;
+}
+
+.post-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.post-handle {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.post-text a {
+  color: var(--link);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.post-text a:hover {
+  text-decoration: underline;
+}
+
+.post-date {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--link);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  body { padding: 1.5rem 0.75rem; }
+  .butterfly-label { width: 70px; font-size: 0.6rem; }
+  .butterfly-val { width: 40px; font-size: 0.6rem; }
+  .chart-container canvas { height: 150px; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / echo</h1>
+
+<p class="subtitle">Post density, head to head.</p>
+
+<p class="desc">
+  Two Bluesky handles. Recent posts pulled, counted, measured.
+  Activity, engagement, timing patterns&mdash;compared round by round.
+  Pure client-side, no backend, no auth.
+</p>
+
+<form class="handle-form" id="handleForm">
+  <input type="text" id="handleA" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+  <span class="vs-label">vs</span>
+  <input type="text" id="handleB" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+  <button type="submit" id="loadBtn">compare</button>
+</form>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div id="results" class="hidden">
+
+  <div id="statsGrid"></div>
+
+  <!-- Butterfly chart -->
+  <div class="butterfly-section">
+    <div class="section-header">rounds</div>
+    <div id="butterflyChart"></div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="verdict-box" id="verdictBox"></div>
+
+  <!-- Hour-of-day chart -->
+  <div class="chart-container">
+    <div class="section-header">posting hours (utc)</div>
+    <canvas id="hourChart" height="180"></canvas>
+    <div class="chart-readout" id="hourReadout"></div>
+  </div>
+
+  <!-- Posts -->
+  <div class="post-list">
+    <div class="tabs">
+      <button class="tab active" data-tab="top">top engaged</button>
+      <button class="tab" data-tab="recent">recent</button>
+    </div>
+    <div id="postList"></div>
+  </div>
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="/novelty">novelty</a> &middot;
+  <a href="/judge">judge</a> &middot;
+  <a href="/density">density</a> &middot;
+  <a href="/cluster">cluster</a>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  const BSKY = 'https://public.api.bsky.app';
+  const PALETTE = ['#daa520', '#6a9fb5'];
+
+  // ── Helpers ───────────────────────────────────────────
+
+  function $(id) { return document.getElementById(id); }
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function setStatus(msg, isError) {
+    var el = $('status');
+    show(el);
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+  }
+
+  function setProgress(pct) {
+    show($('progressBar'));
+    $('progressFill').style.width = pct + '%';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    var ms = Date.now() - new Date(iso).getTime();
+    var d = Math.floor(ms / 86400000);
+    if (d < 1) return 'today';
+    if (d === 1) return '1d';
+    if (d < 30) return d + 'd';
+    if (d < 365) return Math.floor(d / 30) + 'mo';
+    return Math.floor(d / 365) + 'y';
+  }
+
+  function postUrl(did, rkey) {
+    return 'https://bsky.app/profile/' + did + '/post/' + rkey;
+  }
+
+  function fmt(n) {
+    if (n >= 100) return Math.round(n).toLocaleString();
+    if (n >= 10) return n.toFixed(1);
+    return n.toFixed(2);
+  }
+
+  // ── Data fetching ─────────────────────────────────────
+
+  async function resolveHandle(handle) {
+    if (handle.startsWith('did:')) return handle;
+    var res = await fetch(BSKY + '/xrpc/com.atproto.identity.resolveHandle?handle=' + encodeURIComponent(handle));
+    if (!res.ok) throw new Error('Could not resolve handle: ' + handle);
+    return (await res.json()).did;
+  }
+
+  async function fetchProfile(did) {
+    var res = await fetch(BSKY + '/xrpc/app.bsky.actor.getProfile?actor=' + encodeURIComponent(did));
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async function fetchFeed(did, maxPosts) {
+    var posts = [];
+    var cursor;
+    while (posts.length < maxPosts) {
+      var limit = Math.min(100, maxPosts - posts.length);
+      var url = BSKY + '/xrpc/app.bsky.feed.getAuthorFeed?actor=' + encodeURIComponent(did) +
+                '&limit=' + limit + '&filter=posts_and_author_threads';
+      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('Feed fetch failed (' + res.status + ')');
+      var data = await res.json();
+      var items = data.feed || [];
+      if (items.length === 0) break;
+      posts = posts.concat(items);
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    return posts;
+  }
+
+  async function loadHandle(handle, maxPosts) {
+    var did = await resolveHandle(handle);
+    var [profile, feed] = await Promise.all([
+      fetchProfile(did),
+      fetchFeed(did, maxPosts),
+    ]);
+    return { did, profile, feed, handle: profile ? profile.handle : handle };
+  }
+
+  // ── Metrics computation ───────────────────────────────
+
+  function computeMetrics(feed, did) {
+    // Filter to own posts only (no reposts)
+    var ownPosts = feed.filter(function (item) { return !item.reason; });
+    var reposts = feed.length - ownPosts.length;
+
+    if (ownPosts.length === 0) {
+      return {
+        count: 0, reposts: reposts, postsPerDay: 0,
+        originals: 0, replies: 0, originalPct: 0,
+        avgLength: 0, totalLikes: 0, totalReposts: 0, totalReplies: 0,
+        likesPerPost: 0, repostsPerPost: 0, repliesPerPost: 0,
+        engagementPerPost: 0, hourHist: new Array(24).fill(0),
+        peakHour: 0, spanDays: 0,
+      };
+    }
+
+    var timestamps = ownPosts.map(function (item) {
+      return new Date(item.post.record.createdAt).getTime();
+    });
+    var earliest = Math.min.apply(null, timestamps);
+    var latest = Math.max.apply(null, timestamps);
+    var spanDays = Math.max(1, (latest - earliest) / 86400000);
+
+    var originals = 0, replies = 0;
+    var totalLen = 0, totalLikes = 0, totalReposts = 0, totalReplies = 0;
+    var hourHist = new Array(24).fill(0);
+
+    for (var i = 0; i < ownPosts.length; i++) {
+      var post = ownPosts[i].post;
+      var rec = post.record;
+      if (rec.reply) replies++;
+      else originals++;
+      totalLen += (rec.text || '').length;
+      totalLikes += post.likeCount || 0;
+      totalReposts += post.repostCount || 0;
+      totalReplies += post.replyCount || 0;
+      var hour = new Date(rec.createdAt).getUTCHours();
+      hourHist[hour]++;
+    }
+
+    var n = ownPosts.length;
+    var peakHour = hourHist.indexOf(Math.max.apply(null, hourHist));
+
+    return {
+      count: n,
+      reposts: reposts,
+      postsPerDay: n / spanDays,
+      originals: originals,
+      replies: replies,
+      originalPct: originals / n * 100,
+      avgLength: totalLen / n,
+      totalLikes: totalLikes,
+      totalReposts: totalReposts,
+      totalReplies: totalReplies,
+      likesPerPost: totalLikes / n,
+      repostsPerPost: totalReposts / n,
+      repliesPerPost: totalReplies / n,
+      engagementPerPost: (totalLikes + totalReposts + totalReplies) / n,
+      hourHist: hourHist,
+      peakHour: peakHour,
+      spanDays: spanDays,
+    };
+  }
+
+  // ── Rounds / scoring ──────────────────────────────────
+
+  var ROUNDS = [
+    { key: 'postsPerDay',        label: 'posts / day',       scored: true },
+    { key: 'engagementPerPost',  label: 'engagement / post', scored: true },
+    { key: 'likesPerPost',       label: 'likes / post',      scored: true },
+    { key: 'repliesPerPost',     label: 'replies / post',    scored: true },
+    { key: 'repostsPerPost',     label: 'reposts / post',    scored: true },
+    { key: 'originalPct',        label: 'original %',        scored: false },
+    { key: 'avgLength',          label: 'avg length',        scored: false },
+  ];
+
+  function judge(metricsA, metricsB) {
+    var winsA = 0, winsB = 0;
+    var results = [];
+    for (var i = 0; i < ROUNDS.length; i++) {
+      var r = ROUNDS[i];
+      var a = metricsA[r.key];
+      var b = metricsB[r.key];
+      var winner = 0;
+      if (r.scored) {
+        if (a > b * 1.005) winner = -1;  // A wins
+        else if (b > a * 1.005) winner = 1;  // B wins
+        if (winner === -1) winsA++;
+        if (winner === 1) winsB++;
+      }
+      results.push({ round: r, valA: a, valB: b, winner: winner });
+    }
+    return { results: results, winsA: winsA, winsB: winsB };
+  }
+
+  // ── Rendering ─────────────────────────────────────────
+
+  function renderTable(handleA, handleB, metricsA, metricsB, judgment) {
+    var grid = $('statsGrid');
+    var html = '<table class="compare-table"><thead><tr><th></th>';
+    html += '<th><span class="swatch" style="background:' + PALETTE[0] + '"></span>' + escapeHtml(handleA) + '</th>';
+    html += '<th><span class="swatch" style="background:' + PALETTE[1] + '"></span>' + escapeHtml(handleB) + '</th>';
+    html += '</tr></thead><tbody>';
+
+    var rows = judgment.results;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var clsA = r.winner === -1 ? ' class="winner"' : '';
+      var clsB = r.winner === 1 ? ' class="winner"' : '';
+      html += '<tr><td>' + r.round.label + '</td>';
+      html += '<td' + clsA + '>' + fmt(r.valA) + '</td>';
+      html += '<td' + clsB + '>' + fmt(r.valB) + '</td>';
+      html += '</tr>';
+    }
+
+    // Extra info rows
+    html += '<tr><td>posts sampled</td><td>' + metricsA.count + '</td><td>' + metricsB.count + '</td></tr>';
+    html += '<tr><td>span</td><td>' + Math.round(metricsA.spanDays) + 'd</td><td>' + Math.round(metricsB.spanDays) + 'd</td></tr>';
+    html += '<tr><td>peak hour (utc)</td><td>' + metricsA.peakHour + ':00</td><td>' + metricsB.peakHour + ':00</td></tr>';
+
+    html += '</tbody></table>';
+    grid.innerHTML = html;
+  }
+
+  function renderButterfly(judgment) {
+    var container = $('butterflyChart');
+    var html = '';
+    var rows = judgment.results;
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var maxVal = Math.max(r.valA, r.valB) || 1;
+      var pctA = (r.valA / maxVal) * 100;
+      var pctB = (r.valB / maxVal) * 100;
+      var colorA = r.winner === -1 ? PALETTE[0] : (PALETTE[0] + '55');
+      var colorB = r.winner === 1 ? PALETTE[1] : (PALETTE[1] + '55');
+      if (!r.round.scored) {
+        colorA = PALETTE[0] + '55';
+        colorB = PALETTE[1] + '55';
+      }
+      var marker = r.round.scored ? '' : ' *';
+
+      html += '<div class="butterfly-row">' +
+        '<span class="butterfly-val butterfly-val-left" style="color:' + PALETTE[0] + '">' + fmt(r.valA) + '</span>' +
+        '<div class="butterfly-track">' +
+          '<div class="butterfly-left">' +
+            '<div class="butterfly-bar" style="width:' + pctA + '%;background:' + colorA + '"></div>' +
+          '</div>' +
+          '<div class="butterfly-center"></div>' +
+          '<div class="butterfly-right">' +
+            '<div class="butterfly-bar" style="width:' + pctB + '%;background:' + colorB + '"></div>' +
+          '</div>' +
+        '</div>' +
+        '<span class="butterfly-val butterfly-val-right" style="color:' + PALETTE[1] + '">' + fmt(r.valB) + '</span>' +
+      '</div>' +
+      '<div class="butterfly-label" style="width:100%;text-align:center;margin-bottom:0.8rem;">' +
+        r.round.label + marker +
+      '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  function renderVerdict(handleA, handleB, judgment) {
+    var box = $('verdictBox');
+    var wA = judgment.winsA, wB = judgment.winsB;
+    var total = wA + wB;
+    var winner, loser, winColor;
+
+    if (wA === wB) {
+      box.innerHTML =
+        '<div class="verdict-type">split decision</div>' +
+        '<div class="verdict-winner">Draw</div>' +
+        '<div class="verdict-score">' + wA + ' – ' + wB + '</div>';
+      return;
+    }
+
+    if (wA > wB) {
+      winner = handleA; loser = handleB; winColor = PALETTE[0];
+    } else {
+      winner = handleB; loser = handleA; winColor = PALETTE[1];
+      wA = judgment.winsB; wB = judgment.winsA;
+    }
+
+    var margin = wA - wB;
+    var type = margin >= 4 ? 'unanimous decision' :
+               margin >= 2 ? 'majority decision' : 'split decision';
+
+    box.innerHTML =
+      '<div class="verdict-type">' + type + '</div>' +
+      '<div class="verdict-winner" style="color:' + winColor + '">' + escapeHtml(winner) + '</div>' +
+      '<div class="verdict-score">' + wA + ' – ' + wB + '</div>';
+  }
+
+  // ── Hour chart ────────────────────────────────────────
+
+  function getColors() {
+    var s = getComputedStyle(document.documentElement);
+    return {
+      bg: s.getPropertyValue('--bg').trim(),
+      text: s.getPropertyValue('--text').trim(),
+      muted: s.getPropertyValue('--muted').trim(),
+      rule: s.getPropertyValue('--rule').trim(),
+    };
+  }
+
+  function drawHourChart(canvas, histA, histB) {
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    var W = rect.width, H = rect.height;
+    var c = getColors();
+    var mobile = W < 480;
+    var fontSize = mobile ? 8 : 10;
+    var font = fontSize + 'px monospace';
+
+    var pad = { top: 10, right: 10, bottom: 22, left: mobile ? 20 : 28 };
+    var pw = W - pad.left - pad.right;
+    var ph = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    var maxCount = 1;
+    for (var h = 0; h < 24; h++) {
+      if (histA[h] > maxCount) maxCount = histA[h];
+      if (histB[h] > maxCount) maxCount = histB[h];
+    }
+
+    var barW = pw / 24;
+    var halfBar = barW * 0.4;
+
+    // Bars
+    for (var h = 0; h < 24; h++) {
+      var cx = pad.left + (h + 0.5) * barW;
+      var hA = (histA[h] / maxCount) * ph;
+      var hB = (histB[h] / maxCount) * ph;
+
+      ctx.fillStyle = PALETTE[0] + '80';
+      ctx.fillRect(cx - halfBar, pad.top + ph - hA, halfBar - 1, hA);
+
+      ctx.fillStyle = PALETTE[1] + '80';
+      ctx.fillRect(cx + 1, pad.top + ph - hB, halfBar - 1, hB);
+    }
+
+    // Bottom line
+    ctx.strokeStyle = c.rule;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + ph);
+    ctx.lineTo(W - pad.right, pad.top + ph);
+    ctx.stroke();
+
+    // X-axis labels
+    ctx.fillStyle = c.muted;
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    var step = mobile ? 6 : 3;
+    for (var h = 0; h < 24; h += step) {
+      ctx.fillText(h + '', pad.left + (h + 0.5) * barW, H - 4);
+    }
+
+    // Y-axis
+    ctx.textAlign = 'right';
+    ctx.fillText(maxCount + '', pad.left - 4, pad.top + 8);
+    ctx.fillText('0', pad.left - 4, pad.top + ph + 4);
+
+    // Scan interaction
+    var baseImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var readout = $('hourReadout');
+
+    function handleScan(clientX) {
+      var r = canvas.getBoundingClientRect();
+      var mx = clientX - r.left;
+      var hourIdx = Math.floor((mx - pad.left) / barW);
+      if (hourIdx < 0 || hourIdx >= 24) { readout.innerHTML = ''; return; }
+
+      ctx.putImageData(baseImage, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // Highlight column
+      var cx = pad.left + hourIdx * barW;
+      ctx.fillStyle = c.muted + '15';
+      ctx.fillRect(cx, pad.top, barW, ph);
+
+      readout.innerHTML = hourIdx + ':00 UTC &nbsp; ' +
+        '<span class="val" style="color:' + PALETTE[0] + '">' + histA[hourIdx] + '</span> vs ' +
+        '<span class="val" style="color:' + PALETTE[1] + '">' + histB[hourIdx] + '</span>';
+    }
+
+    canvas.onmousemove = function (e) { handleScan(e.clientX); };
+    canvas.onmouseleave = function () {
+      ctx.putImageData(baseImage, 0, 0);
+      readout.innerHTML = '';
+    };
+    canvas.ontouchstart = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+    canvas.ontouchmove = function (e) { e.preventDefault(); if (e.touches.length) handleScan(e.touches[0].clientX); };
+  }
+
+  // ── Post list ─────────────────────────────────────────
+
+  var allPostItems = [];
+  var currentTab = 'top';
+  var storedHists = null;  // { a: hourHist, b: hourHist }
+
+  function renderPosts(tab) {
+    var sorted;
+    if (tab === 'top') {
+      sorted = allPostItems.slice().sort(function (a, b) {
+        return (b.engagement) - (a.engagement);
+      }).slice(0, 40);
+    } else {
+      sorted = allPostItems.slice().sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+      }).slice(0, 60);
+    }
+
+    var container = $('postList');
+    var html = '';
+    for (var i = 0; i < sorted.length; i++) {
+      var p = sorted[i];
+      var url = postUrl(p.did, p.rkey);
+      html += '<div class="post-row">' +
+        '<div class="post-engagement" style="color:' + p.color + '">' + p.engagement + '</div>' +
+        '<div class="post-text">' +
+          '<span class="post-handle">@' + escapeHtml(p.handle) + '</span> ' +
+          escapeHtml(p.text) +
+          ' <a href="' + url + '" target="_blank" rel="noopener">&rarr;</a>' +
+        '</div>' +
+        '<div class="post-date">' + timeAgo(p.date) + '</div>' +
+      '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Main submit ───────────────────────────────────────
+
+  $('handleForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var rawA = ($('handleA').value || '').trim().replace(/^@/, '');
+    var rawB = ($('handleB').value || '').trim().replace(/^@/, '');
+    if (!rawA || !rawB) {
+      setStatus('enter two handles to compare', true);
+      return;
+    }
+
+    var btn = $('loadBtn');
+    btn.disabled = true;
+    btn.textContent = 'loading\u2026';
+    hide($('results'));
+    setProgress(10);
+    setStatus('resolving handles\u2026');
+
+    // Update URL
+    var pageUrl = new URL(window.location);
+    pageUrl.searchParams.set('a', rawA);
+    pageUrl.searchParams.set('b', rawB);
+    history.replaceState({}, '', pageUrl);
+
+    try {
+      setProgress(20);
+      setStatus('fetching feeds\u2026');
+
+      var [dataA, dataB] = await Promise.all([
+        loadHandle(rawA, 200),
+        loadHandle(rawB, 200),
+      ]);
+
+      setProgress(70);
+      setStatus('computing metrics\u2026');
+
+      var metricsA = computeMetrics(dataA.feed, dataA.did);
+      var metricsB = computeMetrics(dataB.feed, dataB.did);
+
+      if (metricsA.count === 0 && metricsB.count === 0) {
+        setStatus('no posts found for either handle', true);
+        setProgress(0);
+        btn.disabled = false;
+        btn.textContent = 'compare';
+        return;
+      }
+
+      var judgment = judge(metricsA, metricsB);
+
+      // Build post items for list
+      allPostItems = [];
+      function addPosts(feed, did, handle, color) {
+        for (var i = 0; i < feed.length; i++) {
+          var item = feed[i];
+          if (item.reason) continue;
+          var post = item.post;
+          var rkey = (post.uri || '').split('/').pop();
+          allPostItems.push({
+            did: did,
+            handle: handle,
+            rkey: rkey,
+            text: (post.record.text || '').slice(0, 200),
+            date: post.record.createdAt,
+            engagement: (post.likeCount || 0) + (post.repostCount || 0) + (post.replyCount || 0),
+            color: color,
+          });
+        }
+      }
+      addPosts(dataA.feed, dataA.did, dataA.handle, PALETTE[0]);
+      addPosts(dataB.feed, dataB.did, dataB.handle, PALETTE[1]);
+
+      // Render — show results first so canvas has dimensions
+      show($('results'));
+
+      renderTable(dataA.handle, dataB.handle, metricsA, metricsB, judgment);
+      renderButterfly(judgment);
+      renderVerdict(dataA.handle, dataB.handle, judgment);
+      storedHists = { a: metricsA.hourHist, b: metricsB.hourHist };
+      drawHourChart($('hourChart'), metricsA.hourHist, metricsB.hourHist);
+
+      currentTab = 'top';
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === 'top');
+      });
+      renderPosts('top');
+
+      setProgress(100);
+
+      var caveat = '';
+      if (metricsA.count < 5 || metricsB.count < 5) caveat = ' \u00b7 small sample, interpret with care';
+      setStatus(
+        dataA.handle + ': ' + metricsA.count + ' posts (' + Math.round(metricsA.spanDays) + 'd) \u00b7 ' +
+        dataB.handle + ': ' + metricsB.count + ' posts (' + Math.round(metricsB.spanDays) + 'd)' + caveat
+      );
+
+    } catch (err) {
+      setStatus('error: ' + err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'compare';
+    }
+  });
+
+  // ── Tab switching ─────────────────────────────────────
+
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      currentTab = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === currentTab);
+      });
+      renderPosts(currentTab);
+    });
+  });
+
+  // ── Resize ────────────────────────────────────────────
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (storedHists && !$('results').classList.contains('hidden')) {
+        drawHourChart($('hourChart'), storedHists.a, storedHists.b);
+      }
+    }, 300);
+  });
+
+  // ── Auto-load from URL ────────────────────────────────
+
+  var params = new URLSearchParams(location.search);
+  var pA = params.get('a');
+  var pB = params.get('b');
+  if (pA && pB) {
+    $('handleA').value = pA;
+    $('handleB').value = pB;
+    $('handleForm').dispatchEvent(new Event('submit'));
+  }
+})();
+</script>
+<script src="/js/typeahead.js"></script>
+
+</body>
+</html>
