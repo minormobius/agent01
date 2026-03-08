@@ -312,29 +312,7 @@ def fetch_metadata_batch(titles):
         "pvipdays": "30",
     })
 
-    # Query 6: linkshere — incoming wikilinks (for DEF stat)
-    pages6 = wiki_query_props({
-        "action": "query",
-        "titles": titles_str,
-        "prop": "linkshere",
-        "lhlimit": "500",
-        "lhnamespace": "0",
-    })
-
-    # Query 7: revisions — edit count in last 12 months (for SPD stat)
-    one_year_ago = time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                                 time.gmtime(time.time() - 365 * 86400))
-    pages7 = wiki_query_props({
-        "action": "query",
-        "titles": titles_str,
-        "prop": "revisions",
-        "rvlimit": "500",
-        "rvprop": "ids",
-        "rvstart": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "rvend": one_year_ago,
-    })
-
-    # Merge all props into pages dict
+    # Merge light props into pages dict
     for pid, pdata in pages2.items():
         if pid in pages:
             pages[pid]["langlinks"] = pdata.get("langlinks", [])
@@ -347,14 +325,41 @@ def fetch_metadata_batch(titles):
     for pid, pdata in pages5.items():
         if pid in pages:
             pages[pid]["pageviews"] = pdata.get("pageviews", {})
-    for pid, pdata in pages6.items():
-        if pid in pages:
-            pages[pid]["linkshere"] = pdata.get("linkshere", [])
-    for pid, pdata in pages7.items():
-        if pid in pages:
-            pages[pid]["revisions"] = pdata.get("revisions", [])
 
     return pages
+
+
+# Smaller batch size for heavy props — 500 items shared across N titles,
+# so fewer titles = more items per title = fewer zeros
+HEAVY_BATCH = 10
+
+
+def fetch_linkshere_batch(titles):
+    """Fetch linkshere (backlinks) for a small batch of titles."""
+    pages = wiki_query_props({
+        "action": "query",
+        "titles": "|".join(titles),
+        "prop": "linkshere",
+        "lhlimit": "500",
+        "lhnamespace": "0",
+    })
+    return {pid: p.get("linkshere", []) for pid, p in pages.items()}
+
+
+def fetch_revisions_batch(titles):
+    """Fetch recent revisions for a small batch of titles."""
+    one_year_ago = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                                 time.gmtime(time.time() - 365 * 86400))
+    pages = wiki_query_props({
+        "action": "query",
+        "titles": "|".join(titles),
+        "prop": "revisions",
+        "rvlimit": "500",
+        "rvprop": "ids",
+        "rvstart": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "rvend": one_year_ago,
+    })
+    return {pid: p.get("revisions", []) for pid, p in pages.items()}
 
 
 def classify_article(page):
@@ -491,32 +496,66 @@ def main():
             if page.get("pageid"):
                 raw_pages[page.get("title", "")] = page
 
-        # Debug: show first batch's data
-        if batch_num == 1:
-            for pid, page in pages.items():
-                t = page.get("title", "?")[:40]
-                pv = len(page.get("pageviews", {}))
-                ll = len(page.get("langlinks", []))
-                el = len(page.get("extlinks", []))
-                lk = len(page.get("links", []))
-                lh = len(page.get("linkshere", []))
-                rv = len(page.get("revisions", []))
-                print(f"    SAMPLE {t}: pv={pv} ll={ll} el={el} lk={lk} lh={lh} rv={rv}", file=sys.stderr)
-                break
-
         time.sleep(RATE_DELAY * 3)  # extra politeness between batches
 
     # Step 2b: Extract pageviews from batched metadata
     pv_nonzero = 0
     for title, page in raw_pages.items():
         pv_dict = page.get("pageviews", {})
-        # pageviews prop returns {date: count_or_null, ...} for the last N days
         daily = [v for v in pv_dict.values() if v is not None]
         avg = round(sum(daily) / max(1, len(daily)), 1) if daily else 0
         page["_avg_pageviews"] = avg
         if avg > 0:
             pv_nonzero += 1
     print(f"  Pageviews: {len(raw_pages)} total, {pv_nonzero} nonzero", file=sys.stderr)
+
+    # Step 2c: Fetch heavy props in smaller batches (linkshere, revisions)
+    # 500-item limit is shared across all titles in a batch, so fewer titles
+    # = more items per title = fewer zeros from starvation
+    all_page_titles = list(raw_pages.keys())
+    heavy_total = math.ceil(len(all_page_titles) / HEAVY_BATCH)
+    print(f"\nFetching linkshere + revisions in batches of {HEAVY_BATCH} ({heavy_total} batches)...", file=sys.stderr)
+
+    # Build pageid → title lookup for merging
+    pid_to_title = {}
+    for title, page in raw_pages.items():
+        pid_to_title[str(page["pageid"])] = title
+
+    for i in range(0, len(all_page_titles), HEAVY_BATCH):
+        hbatch = all_page_titles[i:i + HEAVY_BATCH]
+        hnum = i // HEAVY_BATCH + 1
+        if hnum % 50 == 1 or hnum == heavy_total:
+            print(f"  Heavy batch {hnum}/{heavy_total}", file=sys.stderr)
+
+        try:
+            lh_data = fetch_linkshere_batch(hbatch)
+            for pid, lh_list in lh_data.items():
+                t = pid_to_title.get(pid)
+                if t and t in raw_pages:
+                    raw_pages[t]["linkshere"] = lh_list
+        except Exception as e:
+            print(f"  ERROR linkshere batch {hnum}: {e}", file=sys.stderr)
+
+        try:
+            rv_data = fetch_revisions_batch(hbatch)
+            for pid, rv_list in rv_data.items():
+                t = pid_to_title.get(pid)
+                if t and t in raw_pages:
+                    raw_pages[t]["revisions"] = rv_list
+        except Exception as e:
+            print(f"  ERROR revisions batch {hnum}: {e}", file=sys.stderr)
+
+        time.sleep(RATE_DELAY * 2)
+
+    # Debug: sample one article's full metadata
+    for title, page in list(raw_pages.items())[:1]:
+        print(f"  SAMPLE {title[:40]}: "
+              f"pv={page.get('_avg_pageviews', 0)} "
+              f"ll={len(page.get('langlinks', []))} "
+              f"el={len(page.get('extlinks', []))} "
+              f"lk={len(page.get('links', []))} "
+              f"lh={len(page.get('linkshere', []))} "
+              f"rv={len(page.get('revisions', []))}", file=sys.stderr)
 
     # Step 2c: Assemble article records
     articles = []
