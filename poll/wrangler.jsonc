@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "poll",
+  "main": "apps/api/src/index.ts",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets — Vite build output
+  // Worker gets ALL requests via ASSETS binding, handles SPA fallback itself.
+  // Do NOT set not_found_handling — it causes the asset layer to intercept all requests.
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS"
+  },
+
+  // D1 database
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d",
+      "migrations_dir": "apps/api/migrations"
+    }
+  ],
+
+  // Durable Objects
+  "durable_objects": {
+    "bindings": [
+      { "name": "POLL_COORDINATOR", "class_name": "PollCoordinator" }
+    ]
+  },
+
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] }
+  ],
+
+  // Observability — full invocation + console logs
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    }
+  },
+
+  // Dev vars — override in Cloudflare dashboard for production
+  "vars": {
+    "FRONTEND_URL": "https://poll.mino.mobi",
+    "ATPROTO_MOCK_MODE": "false"
+  }
+}

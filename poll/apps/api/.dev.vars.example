@@ -1,0 +1,19 @@
+# Copy to .dev.vars for local development
+
+# ATProto mock mode (set to "false" for real ATProto integration)
+ATPROTO_MOCK_MODE=true
+
+# Frontend URL for CORS
+FRONTEND_URL=http://localhost:3000
+
+# ATProto service account (required when ATPROTO_MOCK_MODE=false)
+# ATPROTO_SERVICE_DID=did:plc:xxxxx
+# ATPROTO_SERVICE_HANDLE=polls.example.com
+# ATPROTO_SERVICE_PASSWORD=app-password-here
+# ATPROTO_SERVICE_PDS=https://bsky.social
+
+# ATProto OAuth (required when ATPROTO_MOCK_MODE=false)
+# Generate keys with: node scripts/generate-rsa-keypair.js --oauth
+# OAUTH_CLIENT_ID=https://poll.mino.mobi/client-metadata.json
+# OAUTH_SIGNING_PRIVATE_KEY_JWK={"kty":"EC","crv":"P-256",...}
+# OAUTH_SIGNING_PUBLIC_KEY_JWK={"kty":"EC","crv":"P-256",...}

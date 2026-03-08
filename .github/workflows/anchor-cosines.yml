@@ -1,0 +1,38 @@
+name: Anchor Cosine Analysis
+
+on:
+  push:
+    paths:
+      - 'scripts/anchor-cosines.py'
+      - '.github/workflows/anchor-cosines.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install sentence-transformers
+
+      - name: Run anchor cosine analysis
+        run: |
+          python scripts/anchor-cosines.py --local --json ternary/anchor-cosines.json 2>&1 | tee ternary/anchor-cosines.txt
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ternary/anchor-cosines.json ternary/anchor-cosines.txt
+          git diff --cached --quiet || git commit -m "anchor cosine analysis [auto]"
+          git push
