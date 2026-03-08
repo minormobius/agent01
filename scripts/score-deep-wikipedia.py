@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# v2 — trigger scoring run
 """
 Score Wikipedia Featured Articles by the deep-Wikipedia triangulation:
     high quality (FA/GA) × low pageviews × high citations × low translations
