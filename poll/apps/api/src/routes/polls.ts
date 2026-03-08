@@ -770,84 +770,146 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
 
   const result = await createRes.json() as { uri: string; cid: string };
 
-  // For public_like mode, post each option as a reply to the main post
+  // For public_like mode: create hidden option posts via bridge-delete trick.
+  // Option posts are replies to a bridge reply that gets deleted — they become
+  // orphaned (hidden from thread view) but still accessible by direct URI.
+  // The main post links to bsky.app URLs for each option post — user clicks,
+  // sees the post in Bluesky, likes it. Zero auth on our side.
   if (isPublicLike) {
-    const optionPosts: { uri: string; cid: string }[] = [];
-
-    for (let i = 0; i < options.length; i++) {
-      const replyText = options[i];
-      const replyRecord = {
-        $type: 'app.bsky.feed.post',
-        text: replyText,
-        reply: {
-          root: { uri: result.uri, cid: result.cid },
-          parent: { uri: result.uri, cid: result.cid },
-        },
-        createdAt: new Date().toISOString(),
-      };
-
-      const replyBody = JSON.stringify({
-        repo: pdsAuth.did,
-        collection: 'app.bsky.feed.post',
-        record: replyRecord,
-      });
-
-      let replyRes: Response;
+    // Helper: create a record on the host's PDS
+    const pdsCreate = async (rec: any): Promise<{ uri: string; cid: string } | null> => {
+      const body = JSON.stringify({ repo: pdsAuth.did, collection: 'app.bsky.feed.post', record: rec });
+      let res: Response;
       if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
-        let dpopProof = await createDPoPProof(
-          pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt
-        );
-        replyRes = await fetch(createRecordUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `DPoP ${pdsAuth.accessJwt}`,
-            'DPoP': dpopProof,
-          },
-          body: replyBody,
-        });
-        if (replyRes.status === 401 || replyRes.status === 400) {
-          const nonce = replyRes.headers.get('DPoP-Nonce');
-          if (nonce) {
-            dpopProof = await createDPoPProof(
-              pdsAuth.dpopKeyPair, 'POST', createRecordUrl, nonce, pdsAuth.accessJwt
-            );
-            replyRes = await fetch(createRecordUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `DPoP ${pdsAuth.accessJwt}`,
-                'DPoP': dpopProof,
-              },
-              body: replyBody,
-            });
-          }
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt);
+        res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        if ((res.status === 401 || res.status === 400) && res.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, res.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
         }
       } else {
-        replyRes = await fetch(createRecordUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${pdsAuth.accessJwt}`,
-          },
-          body: replyBody,
-        });
+        res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pdsAuth.accessJwt}` }, body });
       }
+      if (!res.ok) { console.error('PDS createRecord failed:', await res.text()); return null; }
+      return await res.json() as { uri: string; cid: string };
+    };
 
-      if (replyRes.ok) {
-        const replyResult = await replyRes.json() as { uri: string; cid: string };
-        optionPosts.push({ uri: replyResult.uri, cid: replyResult.cid });
+    // Helper: delete a record on the host's PDS
+    const pdsDelete = async (uri: string): Promise<boolean> => {
+      const rkey = uri.split('/').pop()!;
+      const deleteUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.deleteRecord`;
+      const body = JSON.stringify({ repo: pdsAuth.did, collection: 'app.bsky.feed.post', rkey });
+      let res: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', deleteUrl, undefined, pdsAuth.accessJwt);
+        res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        if ((res.status === 401 || res.status === 400) && res.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', deleteUrl, res.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        }
       } else {
-        console.error(`Failed to post option reply ${i}:`, await replyRes.text());
-        optionPosts.push({ uri: '', cid: '' });
+        res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pdsAuth.accessJwt}` }, body });
       }
+      return res.ok;
+    };
+
+    // at:// URI → bsky.app URL
+    const atUriToBskyUrl = (uri: string): string => {
+      const m = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+      return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : uri;
+    };
+
+    // Step 1: Post bridge reply (will be deleted to orphan the option posts)
+    const bridge = await pdsCreate({
+      $type: 'app.bsky.feed.post',
+      text: '.',
+      reply: { root: { uri: result.uri, cid: result.cid }, parent: { uri: result.uri, cid: result.cid } },
+      createdAt: new Date().toISOString(),
+    });
+    if (!bridge) return jsonResponse({ error: 'Failed to create bridge post' }, 500);
+
+    // Step 2: Post each option as a reply to the bridge, with "View results" link
+    const optionPosts: { uri: string; cid: string }[] = [];
+    for (let i = 0; i < options.length; i++) {
+      const resultsUrl = `${origin}/poll/${pollId}`;
+      const optText = `${options[i]}\n\nLike this post to vote.\n\nView results`;
+      const optEncoder = new TextEncoder();
+      const viewResultsStart = optEncoder.encode(`${options[i]}\n\nLike this post to vote.\n\n`).byteLength;
+      const viewResultsBytes = optEncoder.encode('View results');
+      const optRecord = {
+        $type: 'app.bsky.feed.post',
+        text: optText,
+        facets: [{
+          index: { byteStart: viewResultsStart, byteEnd: viewResultsStart + viewResultsBytes.byteLength },
+          features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
+        }],
+        reply: { root: { uri: result.uri, cid: result.cid }, parent: { uri: bridge.uri, cid: bridge.cid } },
+        createdAt: new Date().toISOString(),
+      };
+      const optResult = await pdsCreate(optRecord);
+      optionPosts.push(optResult || { uri: '', cid: '' });
     }
 
-    // Store option post URIs in D1 for later like-syncing
+    // Step 3: Delete the bridge → option posts become orphaned/hidden from thread
+    await pdsDelete(bridge.uri);
+
+    // Step 4: Now update the main post's facets to link to bsky.app URLs of hidden posts
+    // (We can't update a post on ATProto, so we store the mapping for the results page.
+    //  The main post already has option names — they link to QuickVote as fallback.
+    //  But the REAL action is: users find the hidden posts via the main post's links.)
+
+    // Actually, we need to re-create the main post with the correct bsky.app links.
+    // ATProto doesn't support post editing. So we delete and re-post with correct facets.
+    await pdsDelete(result.uri);
+
+    // Re-create main post with bsky.app option links
+    const newFacets: any[] = [];
+    let mainSearchStart = encoder.encode(`${question}\n\nLike a reply to vote:\n\n`).byteLength;
+    // We already know postText for public_like starts with question + "\n\nLike a reply to vote:\n\n"
+    // But we need to rebuild with option names listed + linked to bsky.app
+    const optNames = options.join('\n');
+    const footerParts2 = ['View results', 'Public poll'];
+    if (timeLeft) footerParts2.push(timeLeft);
+    const footer2 = footerParts2.join(' · ');
+    const newPostText = `${question}\n\n${optNames}\n\n${footer2}`;
+
+    let optSearchStart = encoder.encode(`${question}\n\n`).byteLength;
+    for (let i = 0; i < options.length; i++) {
+      if (optionPosts[i]?.uri) {
+        const optBytes = encoder.encode(options[i]);
+        newFacets.push({
+          index: { byteStart: optSearchStart, byteEnd: optSearchStart + optBytes.byteLength },
+          features: [{ $type: 'app.bsky.richtext.facet#link', uri: atUriToBskyUrl(optionPosts[i].uri) }],
+        });
+        optSearchStart += optBytes.byteLength;
+      }
+      if (i < options.length - 1) optSearchStart += encoder.encode('\n').byteLength;
+    }
+
+    // "View results" link in footer
+    const footerStart2 = encoder.encode(`${question}\n\n${optNames}\n\n`).byteLength;
+    const viewResultsBytes2 = encoder.encode('View results');
+    newFacets.push({
+      index: { byteStart: footerStart2, byteEnd: footerStart2 + viewResultsBytes2.byteLength },
+      features: [{ $type: 'app.bsky.richtext.facet#link', uri: `${origin}/poll/${pollId}` }],
+    });
+
+    const mainResult = await pdsCreate({
+      $type: 'app.bsky.feed.post',
+      text: newPostText,
+      facets: newFacets,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Store option post URIs in D1 for like-syncing
     await env.DB.prepare('UPDATE polls SET bluesky_option_posts = ? WHERE id = ?')
       .bind(JSON.stringify(optionPosts), pollId).run();
 
-    return jsonResponse({ uri: result.uri, cid: result.cid, optionPosts });
+    return jsonResponse({
+      uri: mainResult?.uri || result.uri,
+      cid: mainResult?.cid || result.cid,
+      optionPosts,
+    });
   }
 
   return jsonResponse({ uri: result.uri, cid: result.cid });
