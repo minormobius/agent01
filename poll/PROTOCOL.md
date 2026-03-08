@@ -1,4 +1,4 @@
-# Anonymous Polls on ATProto
+# ATPolls — Protocol Design
 
 ## The Problem
 
@@ -18,268 +18,265 @@ Existing approaches sacrifice one:
 
 ## The Protocol
 
-Split the vote into two record types on a single sacrificial PDS. Participation records carry the voter's DID but no choice. Ballot records carry the choice but no DID. Decouple them with batch publication at poll close.
+RSA Blind Signatures (RFC 9474) solve the trilemma. The host verifies eligibility and signs a blinded credential — never seeing the credential itself. The voter unblinds it and submits an anonymous ballot that the host can verify is authentic but cannot link back to any identity.
 
-### Design Decision: Why Everything Lives on the Sacrificial PDS
-
-Early versions of this protocol placed participation records on the voter's own PDS. This had an appealing property — the voter's own signing key proved they voted, and the operator couldn't forge participation records.
-
-But ATProto lets users delete their own records. A voter who deletes their participation record can vote again (the re-vote check finds nothing) and corrupts the audit trail (fewer participation records than ballots, indistinguishable from ballot stuffing). The voter is not a trusted party — they have incentive to game the system.
-
-Moving participation records to the sacrificial PDS fixes this. The voter can't delete them. The tradeoff: the operator now controls both record types and could theoretically forge participation records. But the operator was already the trust anchor for anonymity, so this doesn't expand the threat surface. And forging participation records would only be useful to cover ballot stuffing — which requires the operator to be actively malicious, not passively negligent.
-
-The bonus: the voter never grants write access to their PDS. OAuth only needs identity verification scope, not repo write scope. Simpler auth, smaller attack surface.
+This is a Chaumian credential scheme adapted for ATProto polls.
 
 ### Players
 
-- **OP** — the poll creator (any Bluesky user)
-- **Voter** — any Bluesky user casting a vote
-- **Sacrificial PDS** (`poll.mino.mobi`) — a dedicated Bluesky account that holds poll definitions, participation records, and ballot records. "Sacrificial" because its sole purpose is to be the anonymous ballot box. It has no personal identity to protect.
-- **Website** (`poll.mino.mobi`) — the web app that mediates between voters and the sacrificial PDS. This is the trust anchor.
+- **Host** — the poll creator. Runs the poll, signs credentials, publishes results.
+- **Voter** — any eligible Bluesky user.
+- **Service PDS** — a dedicated Bluesky account that stores poll definitions, ballot records, and tally records. Its repo is the public bulletin board.
+- **Durable Object** — per-poll coordinator. Serializes all state mutations (eligibility consumption, credential issuance, ballot acceptance, nullifier enforcement).
 
-### Poll Creation
-
-1. OP visits `poll.mino.mobi`, authenticates via ATProto OAuth
-2. Types poll question (≤300 chars) + defines N options
-3. Submit triggers two writes:
-   - **OP's Bluesky account** posts the poll as a skeet with N clickable links. Each link is `poll.mino.mobi/vote/{pollId}/{optionIdx}`. The links render as the option text.
-   - **Sacrificial PDS** creates the poll definition record: question, options, close time.
-
-The OP's post looks like a normal Bluesky post with clickable options.
-
-### Voting
-
-1. Voter sees OP's poll post on Bluesky, clicks the link for their chosen option
-2. Lands on `poll.mino.mobi/vote/{pollId}/{optionIdx}`
-3. Authenticates via ATProto OAuth (identity verification only — no PDS write access needed)
-4. Website checks: does the sacrificial PDS already have a participation record for this DID on this poll?
-   - **Yes** → "You already voted." Show current results. Done.
-   - **No** → proceed
-5. Website writes a **participation record** to the sacrificial PDS:
-   - `com.minomobi.poll.participation`
-   - Contains: poll URI, voter's DID, timestamp
-   - Contains: **no vote choice**
-   - Public, immutable by the voter (they don't control the sacrificial PDS)
-6. Website queues the **ballot** in D1:
-   - Contains: poll ID, choice, random salt
-   - Contains: **no voter DID**
-   - Staged for publication at poll close
-7. Voter is done. Page returns immediately.
-
-### The Separation
+### Credential Lifecycle
 
 ```
-VOTER (browser)                WEBSITE (function)           SACRIFICIAL PDS
-                                                            (ballot box)
-    │                              │                              │
-    │── authenticate ─────────────▶│                              │
-    │   (proves DID ownership)     │                              │
-    │                              │── check participation ──────▶│
-    │                              │   (query sac PDS records)    │
-    │                              │                              │
-    │                              │── participation record ─────▶│
-    │                              │   (DID, poll, no choice)     │
-    │                              │                              │
-    │                              │── queue ballot in D1         │
-    │                              │   (choice, salt, no DID)     │
-    │                              │                              │
-    │◀── 200 OK ──────────────────│                              │
-    │   [voter is done]            │                              │
-    │                              │                              │
-    │                         [at poll close]                     │
-    │                              │── publish all ballots ──────▶│
-    │                              │   (shuffled, no DIDs)        │
+VOTER (browser)                    HOST (DO)                    SERVICE PDS
+    │                                │                              │
+    │── 1. authenticate ────────────▶│                              │
+    │   (prove DID via app password) │                              │
+    │                                │── check eligibility          │
+    │                                │   (DID not yet consumed?)    │
+    │                                │── consume DID atomically     │
+    │                                │                              │
+    │── 2. blind(tokenMessage) ─────▶│                              │
+    │   (host cannot see             │── blindSign(blindedMsg) ──┐  │
+    │    tokenMessage)               │                           │  │
+    │◀── blindedSignature ──────────│◀──────────────────────────┘  │
+    │                                │                              │
+    │── 3. unblind(blindedSig) ──┐   │                              │
+    │   (now holds valid          │   │                              │
+    │    RSA-PSS signature over   │   │                              │
+    │    tokenMessage)            │   │                              │
+    │◀────────────────────────────┘   │                              │
+    │                                │                              │
+    │── 4. submit ballot ───────────▶│                              │
+    │   {tokenMessage,               │── verify RSA-PSS signature   │
+    │    issuerSignature,            │── parse tokenMessage          │
+    │    nullifier,                  │   (enforce pollId match)      │
+    │    choice}                     │── recompute nullifier         │
+    │   (NO session/identity)        │   (enforce SHA-256 match)    │
+    │                                │── check nullifier uniqueness  │
+    │                                │── accept ballot atomically    │
+    │                                │                              │
+    │                           [at poll close]                     │
+    │                                │── shuffle ballots ──────────▶│
+    │                                │   (Fisher-Yates)             │
+    │                                │   publish to service repo    │
 ```
 
-The website holds both DID and choice for ~100ms during the vote handler execution. After writing the participation record (DID, no choice) and queuing the ballot in D1 (choice, no DID), the association exists only in RAM and is garbage collected.
+### tokenMessage Format
 
-The voter's PDS is never written to. The voter's browser never touches the sacrificial PDS. The function is the only intermediary.
+The token message is structured and self-describing:
 
-### Ballot Publication
+```
+anonpoll:v1:{pollId}:{expiryISO}:{hmacHex}
+```
 
-Two modes, configurable per poll:
+- `pollId` — UUID of the poll (cleartext, so the host can enforce poll binding)
+- `expiryISO` — credential expiry timestamp
+- `hmacHex` — HMAC-SHA256(secret, "token_v1\0{pollId}\0{expiry}") — ties the token to the voter's secret
 
-**Streaming (weaker anonymity):** Ballots published with random delays (5–60 min) during the voting window. Good enough for high-volume polls. Timing correlation possible for low-volume polls.
+The voter generates a random `secret`, derives the token message, blinds it, and sends only the blinded bytes to the host. The host blind-signs without seeing the token. After unblinding, the voter holds a valid RSA-PSS signature over the full structured token message.
 
-**Batch (strongest anonymity):** All ballots held in D1 until the poll closes, then published to the sacrificial PDS all at once in shuffled order. Zero timing signal. This is the default.
+### Nullifier
 
-### Results
+```
+nullifier = SHA-256("nullifier\0" + tokenMessage)
+```
 
-After ballots are published:
-- The sacrificial PDS account replies to the OP's original post with the tally
-- Results are also visible at `poll.mino.mobi/results/{pollId}`
-- Anyone can independently verify by counting participation records and ballots on the sacrificial PDS
+The nullifier is deterministically derived from the token message. The host recomputes it from the submitted `tokenMessage` and rejects mismatches. This prevents:
+- An attacker choosing arbitrary nullifiers for the same credential
+- Replaying a credential with different nullifiers to vote multiple times
 
-### Re-vote Prevention
+One credential → one nullifier → one vote.
 
-The participation record on the sacrificial PDS is the lock. Before accepting a vote:
-1. Website authenticates voter (gets DID from OAuth)
-2. Queries sacrificial PDS for `com.minomobi.poll.participation` records matching this DID + poll
-3. If found → reject
+### Poll Binding
 
-The voter cannot delete participation records because they don't control the sacrificial PDS. The operator controls deletion, but has no incentive to delete participation records (it would only allow double-voting, which corrupts their own poll).
+The host parses `tokenMessage` at ballot submission time and verifies `parsedToken.pollId === poll.id`. This prevents cross-poll credential replay — a credential issued for Poll A cannot be used on Poll B, even though both use the same RSA key.
+
+### Ballot Submission
+
+The `/ballots/submit` endpoint does **not** require an authenticated session. The credential `(tokenMessage, issuerSignature, nullifier)` **is** the authorization. This is essential for anonymity — the host has no identity context when processing a ballot.
+
+### Publication
+
+Accepted ballots are published to the service PDS in Fisher-Yates shuffled order after the poll closes. The shuffle breaks submission-time ordering to prevent timing correlation.
+
+Each ballot record on the PDS contains the full credential:
+```json
+{
+  "$type": "com.minomobi.poll.ballot",
+  "pollId": "uuid",
+  "option": 2,
+  "tokenMessage": "anonpoll:v1:...",
+  "issuerSignature": "base64url...",
+  "nullifier": "hex...",
+  "ballotVersion": 1,
+  "publicSerial": 42
+}
+```
+
+The PDS is the **canonical public bulletin board**. Anyone can fetch these records and independently verify every ballot's signature.
+
+The DO also exposes a privacy-minimal view via its API (`GET /ballots`) that returns `ballot_commitment` (SHA-256 of tokenMessage + choice + nullifier) instead of raw credential fields. This gives voters a way to verify their own ballot without the DO API becoming an additional deanonymization surface.
 
 ## Verification
 
-Anyone can audit a poll by reading the sacrificial PDS:
+Anyone can audit a poll by reading the service PDS:
 
-1. **Count participation records**: Enumerate `com.minomobi.poll.participation` records on the sacrificial PDS, filtered by poll URI → N voters
-2. **Count ballots**: Enumerate `com.minomobi.poll.ballot` records on the sacrificial PDS, filtered by poll URI → N ballots, with tally
-3. **Compare**: If voter count == ballot count, the poll is clean
-4. **Check for duplicates**: Verify no DID appears twice in participation records for the same poll
+1. **Fetch ballots**: Enumerate `com.minomobi.poll.ballot` records for the poll
+2. **Verify each signature**: Check RSA-PSS signature over tokenMessage using the host's public key
+3. **Verify poll binding**: Parse tokenMessage, confirm pollId matches
+4. **Verify nullifier binding**: Recompute SHA-256("nullifier\0" + tokenMessage), confirm it matches
+5. **Check uniqueness**: No duplicate nullifiers
+6. **Recompute tally**: Count choices
 
-Detectable failures:
-- **Ballot stuffing**: More ballots than participation records
-- **Vote suppression**: More participation records than ballots (participation written, ballot never published)
-- **Double voting**: Duplicate DIDs in participation records for the same poll
+Every step is public and requires no trust in the host.
 
 ## Threat Model
 
 | Threat | Possible? | Mitigation |
 |---|---|---|
-| Ballot stuffing | Detectable | participation count ≠ ballot count |
-| Vote suppression | Detectable | participation record exists, no matching ballot |
-| Double voting | Prevented | participation record check on sac PDS (voter can't delete) |
-| Record deletion by voter | Prevented | records are on sac PDS, not voter's PDS |
-| Deanonymization by operator | **Yes** | The function sees DID + choice for ~100ms. Operator could add logging. Code is open source and auditable. |
-| Deanonymization by Cloudflare | Theoretically | Request logs could contain body + auth. Workers don't log bodies by default. Same trust assumption as any HTTPS service. |
-| Timing correlation | Mitigated | Batch mode: zero signal. Streaming mode: random delays break simple correlation. |
-| Operator forges participation records | Theoretically | Operator could create fake participation records to cover stuffed ballots. But this requires active malfeasance + is detectable if anyone tracks participation in real time. |
+| Ballot stuffing (by host) | Detectable | Every ballot requires a valid blind signature. Host cannot forge credentials without going through the blind issuance flow with a real eligible DID. Audit log with rolling hashes provides tamper evidence. |
+| Double voting | Prevented | Nullifier uniqueness enforced atomically in the DO. Nullifier derived from tokenMessage — cannot be chosen arbitrarily. |
+| Cross-poll credential replay | Prevented | tokenMessage contains pollId in cleartext. Host parses and enforces poll binding. |
+| Credential theft (XSS) | Mitigated | Credentials are poll-scoped and time-limited. Once submitted, the nullifier is spent. Window is between issuance and submission. |
+| Deanonymization by host | **No** (cryptographic) | RSA Blind Signatures (RFC 9474). Host signs blinded bytes — never sees tokenMessage. Cannot link DID → credential → ballot. |
+| Deanonymization by Cloudflare | Theoretically | CF has access to Worker memory. Same trust assumption as any HTTPS service. Acceptable for community polls. |
+| Timing correlation | Mitigated | Batch publication with Fisher-Yates shuffle breaks ordering. Voter can add delay between issuance and submission. Blind signature ensures host can't link even with timing data. |
+| Audit log tampering | Detectable | Rolling hash chain. Each event includes previous hash. Published to ATProto for additional tamper evidence. |
 
-**The single trust assumption**: the operator doesn't log the DID↔vote mapping during the ~100ms the vote handler executes. Everything else is publicly verifiable.
+### Trust Summary
 
-This is the Signal model: trust the operator not to be actively malicious, but the protocol limits what even a malicious operator can do to exactly one thing — remembering who voted for what. They cannot stuff ballots without it being detectable, and they cannot allow double-voting.
+| Property | Guarantee |
+|----------|-----------|
+| One vote per DID | Enforced (DO + eligibility consumption) |
+| Ballot anonymity | **Cryptographic** (RSA Blind Signatures, RFC 9474) |
+| One ballot per credential | Enforced (deterministic nullifier + uniqueness check) |
+| Poll-scoped credentials | Enforced (structured tokenMessage, server-side parsing) |
+| Tally correctness | Publicly verifiable (PDS records + RSA-PSS verification) |
+| Ballot authenticity | RSA-PSS signature verified by host and verifiable by anyone |
+| Host cannot stuff | Audit trail + unforgeable credentials |
+| Coercion resistance | Moderate (credential unlinkable) |
+
+### What Changed from the Original Design
+
+The original protocol (pre-blind-signatures) used a trust-based separation:
+- **Participation records** (DID, no choice) on a sacrificial PDS
+- **Ballot records** (choice, no DID) published at close
+- The operator saw both for ~100ms during the vote handler — the single trust assumption
+
+The blind signature upgrade eliminated the trust assumption entirely. Anonymity is now **cryptographic**, not trust-based. There are no participation records. The host never sees the token message it signs.
 
 ## Lexicons
 
-### com.minomobi.poll.definition
+### com.minomobi.poll.def
 
-Lives on the sacrificial PDS. Created when a poll is submitted.
+Poll definition. One per poll, on the service PDS.
 
 ```json
 {
-  "question": "string (max 300 chars)",
-  "options": ["string", "string", ...],
-  "createdBy": "did:plc:... (OP's DID)",
-  "postUri": "at://... (OP's Bluesky post)",
+  "$type": "com.minomobi.poll.def",
+  "pollId": "uuid",
+  "question": "Which diagnostic platform will dominate POC by 2030?",
+  "options": ["Cepheid GeneXpert", "BioFire FilmArray", "Abbott ID NOW", "Other"],
+  "opensAt": "datetime",
   "closesAt": "datetime",
-  "visibility": "public"
+  "mode": "anon_credential_v2",
+  "hostKeyFingerprint": "sha256hex",
+  "hostPublicKey": "JWK JSON string",
+  "createdAt": "datetime"
 }
 ```
-
-### com.minomobi.poll.participation
-
-Lives on the sacrificial PDS. One per poll per voter. Written at vote time.
-
-```json
-{
-  "poll": "at://poll.mino.mobi/com.minomobi.poll.definition/...",
-  "voter": "did:plc:... (voter's DID)",
-  "votedAt": "datetime"
-}
-```
-
-No vote choice. The voter's DID is here for re-vote prevention and auditing. The voter cannot delete this record.
 
 ### com.minomobi.poll.ballot
 
-Lives on the sacrificial PDS. Published at poll close (batch mode) or after random delay (streaming mode).
+Published at poll close. One per accepted vote. On the service PDS.
 
 ```json
 {
-  "poll": "at://poll.mino.mobi/com.minomobi.poll.definition/...",
-  "choice": 0,
-  "salt": "random-string"
+  "$type": "com.minomobi.poll.ballot",
+  "pollId": "uuid",
+  "option": 2,
+  "tokenMessage": "anonpoll:v1:pollId:expiry:hmac",
+  "issuerSignature": "base64url RSA-PSS signature",
+  "nullifier": "sha256hex",
+  "ballotVersion": 1,
+  "publicSerial": 42
 }
 ```
 
-No voter DID. The salt prevents deduplication by content (two votes for the same option look different in the repo).
+### com.minomobi.poll.tally
 
-## Infrastructure
+Final tally snapshot. One per poll, on the service PDS.
 
-### Subdomain
-
-- `poll.mino.mobi` — CNAME to Pages deployment
-- `poll/.well-known/atproto-did` — Bluesky handle verification for the sacrificial account
-
-### Sacrificial Bluesky Account
-
-- Handle: `poll.mino.mobi`
-- Purpose: holds poll definitions, participation records, and ballot records
-- Also posts result replies to OPs
-- Credentials: app password stored as Cloudflare secret (never in client code)
-
-### Storage
-
-**D1** (Cloudflare's edge SQLite — free tier: 5M reads/day, 100K writes/day, 5GB):
-
-```sql
-CREATE TABLE polls (
-  id TEXT PRIMARY KEY,
-  question TEXT NOT NULL,
-  options TEXT NOT NULL,        -- JSON array
-  created_by TEXT NOT NULL,     -- OP's DID
-  post_uri TEXT,                -- OP's Bluesky post
-  poll_record_uri TEXT,         -- at:// URI on sacrificial PDS
-  closes_at TEXT NOT NULL,      -- ISO datetime
-  results_posted INTEGER DEFAULT 0
-);
-
-CREATE TABLE pending_ballots (
-  id TEXT PRIMARY KEY,
-  poll_id TEXT NOT NULL,
-  choice INTEGER NOT NULL,
-  salt TEXT NOT NULL,
-  queued_at TEXT NOT NULL,      -- ISO datetime
-  published INTEGER DEFAULT 0
-);
--- NO voter DID column. By design.
+```json
+{
+  "$type": "com.minomobi.poll.tally",
+  "pollId": "uuid",
+  "countsByOption": {"0": 42, "1": 31, "2": 19, "3": 8},
+  "ballotCount": 100,
+  "computedAt": "datetime",
+  "final": true
+}
 ```
 
-D1 stages ballots during the voting window. At poll close, a worker reads all pending ballots for the poll, shuffles them, publishes to the sacrificial PDS, and marks them as published.
+## Observable Surface — Live Monitoring Analysis
 
-### Pages Functions
+An attacker with no authentication can continuously poll the following public endpoints. This is a deliberate transparency trade-off — the system is designed for auditability, not secrecy — but the real-time nature of some endpoints creates timing correlation risks.
+
+### Unauthenticated Endpoints (what changes over time)
+
+| Endpoint | What it reveals | Update frequency |
+|---|---|---|
+| `GET /api/polls` | Poll existence, metadata, status transitions | On creation, status change |
+| `GET /api/polls/:id` | Full poll definition including options, timing, status | On status change |
+| `GET /api/polls/:id/tally` | **Live vote distribution** (counts per option) | On every ballot acceptance |
+| `GET /api/polls/:id/ballots` | Ballot commitment list (grows with each vote) | On every ballot acceptance |
+| `GET /api/polls/:id/audit` | Timestamped event stream (`ballot_accepted`, etc.) | On every state mutation |
+| `GET /api/polls/:id/eligible` | Eligible voter count (for restricted polls) | On sync |
+
+### The Core Timing Attack
+
+The blind signature provides cryptographic unlinkability between credential and ballot. But the network layer leaks timing:
 
 ```
-functions/
-├── api/
-│   ├── create-poll.js    # OAuth → post to OP's feed + sac PDS + D1
-│   ├── vote.js           # OAuth → participation record on sac PDS + queue ballot in D1
-│   ├── results.js        # tally from sac PDS
-│   └── publish.js        # cron: publish pending ballots at poll close
-└── _middleware.js         # OAuth session handling
+T+0s   Alice authenticates (session endpoint — server sees DID)
+T+1s   Eligibility request (server issues blind credential to Alice)
+T+3s   Ballot submission (no session — but arrives seconds later)
+T+3s   GET /tally shows option B incremented by 1 (publicly visible)
 ```
 
-### Security: Sacrificial PDS Credentials
+An attacker polling `/tally` every second can observe vote-by-vote arrival and correlate with social signals (who just authenticated, who was online, etc.).
 
-The sacrificial PDS app password **must live server-side only** — as a Cloudflare environment secret, accessed by Pages Functions. Never in client JavaScript, never in HTML.
+The Fisher-Yates shuffle only protects **publication order to ATProto** at poll close. It does not protect the live tally endpoint, which leaks the temporal distribution of votes.
 
-The client never touches the sacrificial PDS directly. The Functions are the only code that authenticates to the sacrificial account.
+### Mitigations (current)
 
-```
-CLIENT (browser)                 PAGES FUNCTION              SACRIFICIAL PDS
-    │                              │                              │
-    │── POST /api/vote ───────────▶│                              │
-    │   {pollId, choice}           │── createSession ────────────▶│
-    │   + OAuth token              │   (app password from env)    │
-    │                              │── createRecord ─────────────▶│
-    │                              │   (participation, then       │
-    │◀── 200 OK ──────────────────│    ballot queued in D1)      │
-    │                              │                              │
-    │  [browser never sees         │                              │
-    │   sac PDS credentials]       │                              │
-```
+- **Blind signatures** ensure the host cannot link DID → credential → ballot even with timing data
+- **Credential-based ballot submission** (no session) means the ballot itself carries no identity
+- **Batch publication** (shuffle at close) breaks ordering in the permanent ATProto record
 
-If the app password were in client-side code, any user could extract it and write arbitrary records to the sacrificial PDS — stuffing ballots, deleting polls, posting spam. Server-side only.
+### Mitigations (recommended, not yet implemented)
 
-## What Makes This Different
+- **Gate tally behind poll status**: Return live counts only after `status === 'closed'`. This is the single largest timing leak.
+- **Gate ballot list behind poll status**: Don't return commitments until close.
+- **Batch audit visibility**: Suppress `ballot_accepted` event timestamps until close. During voting, return only `poll_opened` and eligibility events.
+- **Filter draft polls from public list**: `GET /api/polls` should only return `open` or later status polls to unauthenticated callers.
 
-This isn't just "trust the server." The protocol produces **public artifacts** on the sacrificial PDS that constrain what the operator can do:
+### What remains observable even with mitigations
 
-1. **Participation records are public and immutable by voters.** The operator controls them, but forging them is detectable (real-time watchers would see participation records appear without corresponding OAuth auth events).
-2. **Ballots are publicly enumerable.** The operator can't hide votes after publication.
-3. **Count matching is trivial.** Any third party can compare participation count to ballot count on the same PDS.
-4. **The voter's PDS is never touched.** No write access needed, no records to delete, no audit trail to corrupt.
-5. **The only unverifiable claim** is that the operator didn't log the DID↔choice mapping during the ~100ms vote handler window.
+- Poll existence and definition (intentional — voters need to find the poll)
+- Eligible voter count for restricted polls (intentional — voters need to know scope)
+- Final ballot set on the service PDS (intentional — auditability requires this)
+- That *a* ballot was submitted (the server processes it) — but not *which* choice or *whose*
 
-The operator's hands are tied everywhere except on the question of anonymity. And even there, active malfeasance (adding logging code to an open-source repo) is required — not passive access.
+## Residual Risks
+
+1. **Cloudflare as infrastructure provider**: CF has access to Worker memory. For nation-state threat models, this matters. For community polls, it's acceptable.
+2. **D1 durability**: D1 is eventually consistent. The DO is the authoritative write path; D1 is for recovery and queries.
+3. **ATProto public repo**: Published records are permanent on the AT Protocol network. Anonymized ballots cannot be un-published.
+4. **Single RSA key**: All polls on the same instance share one RSA key pair. Cross-poll replay is prevented by poll binding in the tokenMessage, not by key separation.
+5. **Live tally endpoint**: Real-time vote counts leak temporal voting patterns to any observer. See "Observable Surface" above.

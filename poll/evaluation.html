@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Evaluation — ATPolls</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --critical: #991b1b;
+  --high: #c2410c;
+  --medium: #a16207;
+  --low: #4d7c0f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --critical: #fca5a5;
+    --high: #fdba74;
+    --medium: #fcd34d;
+    --low: #86efac;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 3rem 2rem;
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 2rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--link); }
+
+h2 {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 2.5rem 0 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+
+p, li { font-size: 0.95rem; margin-bottom: 0.5rem; }
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+
+.intro {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.finding {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--rule);
+  background: rgba(128, 128, 128, 0.04);
+}
+
+.finding.critical { border-left-color: var(--critical); }
+.finding.high { border-left-color: var(--high); }
+.finding.medium { border-left-color: var(--medium); }
+.finding.low { border-left-color: var(--low); }
+
+.severity {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.severity.critical { color: var(--critical); }
+.severity.high { color: var(--high); }
+.severity.medium { color: var(--medium); }
+.severity.low { color: var(--low); }
+
+.finding h3 { margin-top: 0; }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  background: rgba(128, 128, 128, 0.1);
+  padding: 0.15em 0.35em;
+  border-radius: 2px;
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  background: rgba(128, 128, 128, 0.08);
+  padding: 0.75rem 1rem;
+  border-radius: 3px;
+  overflow-x: auto;
+  margin: 0.5rem 0 1rem;
+}
+
+.ref {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 1rem 0;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--serif);
+}
+
+th {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.toc {
+  margin: 1.5rem 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.toc li { margin-bottom: 0.3rem; }
+.toc a { color: var(--link); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.summary-box {
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.summary-box .count {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: block;
+}
+
+.summary-box .label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+a { color: var(--link); }
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / <a href="/poll/">poll</a> / security evaluation</h1>
+
+<div class="intro">
+This is an independent security evaluation of the ATPolls system built on AT&nbsp;Protocol with Cloudflare Workers, Durable Objects, and D1. The system implements credential-based anonymous voting with two modes: a fully functional trusted-host v1 and an anonymous-credential v2 scaffold with a blind-signature upgrade path. This evaluation covers cryptographic weaknesses, architectural risks, privacy leaks, and missing validation across the full codebase.
+</div>
+
+<div class="summary-grid">
+  <div class="summary-box">
+    <span class="count" style="color: var(--critical)">6</span>
+    <span class="label">Critical</span>
+  </div>
+  <div class="summary-box">
+    <span class="count" style="color: var(--high)">5</span>
+    <span class="label">High</span>
+  </div>
+  <div class="summary-box">
+    <span class="count" style="color: var(--medium)">7</span>
+    <span class="label">Medium</span>
+  </div>
+  <div class="summary-box">
+    <span class="count" style="color: var(--low)">4</span>
+    <span class="label">Low</span>
+  </div>
+</div>
+
+<h2 id="critical">Critical Findings</h2>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>1. Timing Oracle on Credential Verification</h3>
+<p class="ref">packages/shared/src/crypto/index.ts:159–166</p>
+<p>The <code>timingSafeEqual</code> function short-circuits on length mismatch with an early return, leaking information about the expected signature length through response timing. An attacker can measure response times to learn the length of valid HMAC signatures, reducing the search space for brute-force attacks.</p>
+<pre>function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;  // ← timing leak
+  let diff = 0;
+  for (let i = 0; i &lt; a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}</pre>
+<p><strong>Fix:</strong> Pad both strings to equal length before comparison, or use a constant-time comparison that always iterates over the longer of the two strings.</p>
+</div>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>2. DID Impersonation in Mock Mode</h3>
+<p class="ref">apps/api/src/routes/auth.ts:58–70</p>
+<p>In mock mode, the DID is derived deterministically from the user-supplied <code>handle</code> parameter: <code>did:plc:mock${handle.replace(/\./g, '')}</code>. Any caller can forge arbitrary DIDs by choosing the right handle string. This allows impersonating the poll host and gaining admin access to any poll. If mock mode leaks to production (the <code>ATPROTO_MOCK_MODE</code> env var defaults to <code>"true"</code> in wrangler.toml), the entire auth system is bypassed.</p>
+<p><strong>Fix:</strong> Default <code>ATPROTO_MOCK_MODE</code> to <code>"false"</code>. Add a startup check that panics if mock mode is enabled in a production environment. Never derive DIDs from user input.</p>
+</div>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>3. Silent Signing Key Fallback</h3>
+<p class="ref">apps/api/src/routes/polls.ts:86–87</p>
+<p>If the <code>CREDENTIAL_SIGNING_KEY</code> environment variable is not set, the code silently falls back to <code>crypto.randomUUID()</code> as the HMAC key. This means each poll creation generates a different ephemeral key. Credentials issued under one key cannot be verified under another. The signing key is passed to the Durable Object at initialization, so if the DO restarts and the key was ephemeral, all outstanding credentials become unverifiable.</p>
+<pre>const signingKey = env.CREDENTIAL_SIGNING_KEY || crypto.randomUUID();</pre>
+<p><strong>Fix:</strong> Fail loudly if <code>CREDENTIAL_SIGNING_KEY</code> is not set. Never fall back to random keys for cryptographic operations.</p>
+</div>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>4. Durable Object State Loss Breaks All Guarantees</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:53–75</p>
+<p>The DO stores <code>nullifiers</code>, <code>consumedDids</code>, and <code>lastAuditHash</code> in its storage. If the DO's storage is lost or evicted, these sets reinitialize as empty. This means:</p>
+<ul>
+  <li>Previously consumed DIDs can request new credentials (double voting)</li>
+  <li>Previously spent nullifiers are accepted again (ballot replay)</li>
+  <li>The audit hash chain restarts from zeros (tamper evidence broken)</li>
+</ul>
+<p>D1 has the permanent records, but there is no recovery path that rebuilds DO state from D1. The DO simply starts fresh with empty sets.</p>
+<p><strong>Fix:</strong> On cold start, rebuild <code>consumedDids</code> and <code>nullifiers</code> sets from D1's <code>eligibility</code> and <code>ballots</code> tables. Recover <code>lastAuditHash</code> from the most recent <code>audit_events</code> row.</p>
+</div>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>5. No Recovery Path for Serialized State</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:77–83</p>
+<p>Related to finding #4: the <code>saveState</code> method serializes Sets to Durable Object storage, but the <code>loadState</code> method tries to reconstruct Sets from the stored data. However, JavaScript Sets serialize as objects (not arrays) in structured clone, and the restoration code does <code>new Set(stored.nullifiers)</code> which, if <code>stored.nullifiers</code> survived serialization as a Set, would produce a Set containing one Set — not the original values.</p>
+<pre>stored.nullifiers = new Set(stored.nullifiers);
+stored.consumedDids = new Set(stored.consumedDids);</pre>
+<p><strong>Fix:</strong> Convert Sets to arrays before storage (<code>[...set]</code>) and reconstruct from arrays on load. Or use DO's built-in structured clone which handles Sets correctly in newer runtimes — but test explicitly.</p>
+</div>
+
+<div class="finding critical">
+<span class="severity critical">Critical</span>
+<h3>6. No Ballot Submission Time Window Check</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:286–293</p>
+<p>The ballot submission handler checks <code>state.poll.status !== 'open'</code> but does not verify that the current time falls within <code>opensAt...closesAt</code>. The eligibility handler does check the time window, but the ballot endpoint does not — and since ballot submission is credential-based (no session), there is no guarantee the ballot is submitted during the authorized window. A credential issued at T=1 can be submitted at T=∞ as long as the poll status hasn't been manually changed.</p>
+<p><strong>Fix:</strong> Add <code>new Date() > new Date(state.poll.closesAt)</code> check in <code>handleBallot</code>.</p>
+</div>
+
+<h2 id="high">High Severity</h2>
+
+<div class="finding high">
+<span class="severity high">High</span>
+<h3>7. Missing CSRF Protection on State-Changing Endpoints</h3>
+<p class="ref">apps/api/src/index.ts:73–88</p>
+<p>CORS is configured with <code>Access-Control-Allow-Credentials: true</code>, and session cookies are set with <code>HttpOnly</code> and <code>SameSite=Lax</code>. However, <code>SameSite=Lax</code> allows cookies to be sent on top-level GET navigations from cross-origin sites. While POST requests from forms are blocked by Lax, the ballot submission endpoint could be exploited via a cross-origin <code>fetch()</code> with credentials if the attacker's origin somehow matches the CORS allowlist. More practically, there is no CSRF token on any state-changing endpoint.</p>
+<p><strong>Fix:</strong> Add a CSRF token pattern or use <code>SameSite=Strict</code>. For the credential-based ballot endpoint, CSRF is less relevant (the credential itself is the auth), but poll creation and status changes should be protected.</p>
+</div>
+
+<div class="finding high">
+<span class="severity high">High</span>
+<h3>8. Credential Stored in localStorage — XSS Accessible</h3>
+<p class="ref">apps/web/src/pages/Vote.tsx:74–76</p>
+<p>Ballot credentials (secret, tokenMessage, issuerSignature, nullifier) are stored in <code>localStorage</code> as plain JSON. Any XSS vulnerability on the same origin exposes all pending credentials. An attacker could exfiltrate credentials and submit ballots on behalf of other users. Credentials are not cleared on logout — only on successful submission.</p>
+<p><strong>Fix:</strong> Use <code>sessionStorage</code> (clears on tab close) instead of <code>localStorage</code>. Consider encrypting credentials with a key derived from the session. Clear credentials on logout.</p>
+</div>
+
+<div class="finding high">
+<span class="severity high">High</span>
+<h3>9. No Rate Limiting</h3>
+<p class="ref">apps/api/src/routes/polls.ts, apps/api/src/durable-objects/poll-coordinator.ts</p>
+<p>No rate limiting exists on any endpoint. An attacker can:</p>
+<ul>
+  <li>Spam poll creation (each creates a D1 row + DO instance)</li>
+  <li>Spam eligibility requests (each hits the DO + D1)</li>
+  <li>Spam ballot submissions with invalid credentials (each hits the DO for verification)</li>
+  <li>In mock mode, create unlimited sessions with different handles</li>
+</ul>
+<p><strong>Fix:</strong> Add rate limiting via Cloudflare's built-in rate limiting rules, or implement a token bucket in the Worker using KV or DO state.</p>
+</div>
+
+<div class="finding high">
+<span class="severity high">High</span>
+<h3>10. Incomplete Poll Status State Machine</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:152–185</p>
+<p>The state machine allows <code>draft → open</code> and <code>open → closed</code>, but doesn't prevent <code>closed → open</code> (re-opening a closed poll) or <code>finalized → *</code>. The <code>handleOpen</code> only checks <code>status !== 'draft'</code>, and <code>handleClose</code> only checks <code>status !== 'open'</code>. There's no <code>finalized</code> transition at all. A malicious host could close a poll, see unfavorable results, re-open it for more votes (by calling open on a different status, which would fail — but the lack of explicit state machine enforcement is a design gap).</p>
+<p><strong>Fix:</strong> Implement an explicit state machine: <code>draft → open → closed → finalized</code>. Reject all other transitions. Add a <code>finalize</code> action that makes the tally permanent.</p>
+</div>
+
+<div class="finding high">
+<span class="severity high">High</span>
+<h3>11. Public Auditability Is Theoretical, Not Practical</h3>
+<p class="ref">packages/shared/src/crypto/index.ts, apps/api/src/routes/polls.ts:89–93</p>
+<p>The <code>publicVerificationKey</code> stored in the poll definition is a SHA-256 hash of the HMAC signing key — not the signing key itself and not a public key. Since HMAC is a symmetric algorithm, no external party can verify ballot signatures without the secret key. The "public verification" claim is architecturally broken in v1 mode. In v2 mode, the public key field should hold an RSA public key, but the scaffold doesn't generate one.</p>
+<p><strong>Fix:</strong> For v1, acknowledge that public signature verification is impossible (only the host can verify). For v2, generate and publish the RSA public key in the poll definition. The audit page's "recompute tally" feature works (counting ballots), but signature verification doesn't.</p>
+</div>
+
+<h2 id="medium">Medium Severity</h2>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>12. v2 Anonymous Credential Mode Is Non-Functional</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:226–256</p>
+<p>In v2 mode, the eligibility handler returns empty <code>secret</code> and <code>nullifier</code> fields. The ballot submission endpoint then receives an empty nullifier, which passes the uniqueness check (empty string is a valid Set entry but shared by all v2 voters). The blind signature stub signs the blinded message directly without actual blinding. End-to-end, v2 mode silently produces broken credentials.</p>
+<p><strong>Fix:</strong> Either: (a) disable v2 mode with a clear error until blind signatures are implemented, or (b) have the v2 path generate secret and nullifier client-side and only send the blinded message to the host.</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>13. Ballot ATProto Publish Failure Is Silent</h3>
+<p class="ref">apps/api/src/routes/ballots.ts:53–86</p>
+<p>When a ballot is accepted by the DO but the subsequent ATProto publish fails, the ballot is marked as accepted in D1 without a published record URI. The voter sees "ballot accepted" but the ballot is not publicly verifiable on ATProto. There is no retry mechanism. The <code>publishWarning</code> field is returned in the response but there's no background retry or alert system.</p>
+<p><strong>Fix:</strong> Add a background queue or cron job that retries unpublished ballots (rows in D1 where <code>accepted = 1</code> and <code>published_record_uri IS NULL</code>).</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>14. Missing Schema Validation: closesAt Must Be After opensAt</h3>
+<p class="ref">packages/shared/src/schemas/index.ts:6–12</p>
+<p>The <code>CreatePollSchema</code> validates that <code>opensAt</code> and <code>closesAt</code> are valid datetime strings, but doesn't verify that <code>closesAt > opensAt</code>, that <code>opensAt</code> is in the future, or that options are unique. A poll can be created with <code>closesAt</code> before <code>opensAt</code>, or with duplicate options.</p>
+<p><strong>Fix:</strong> Add a Zod <code>.refine()</code> that checks temporal ordering and option uniqueness.</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>15. Audit Hash Chain Not Recoverable</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts:53–75</p>
+<p>The rolling audit hash chain starts at <code>'0'.repeat(64)</code>. If the DO restarts, the chain restarts from zero, diverging from the chain stored in D1. Future events will have hashes that don't chain from the last D1 event. An auditor comparing the DO's claimed chain to D1's recorded chain will see a break — but there's no code that detects or reports this.</p>
+<p><strong>Fix:</strong> On cold start, query <code>SELECT rolling_hash FROM audit_events WHERE poll_id = ? ORDER BY created_at DESC LIMIT 1</code> and resume from there.</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>16. D1 Has No CHECK Constraints on Choice Column</h3>
+<p class="ref">apps/api/migrations/0001_init.sql:35</p>
+<p>The <code>choice</code> column in the <code>ballots</code> table has no CHECK constraint. The DO validates choice range in-memory, but if the poll's option count changes between validation and D1 insert (or if a future code path bypasses the DO), invalid choices can be persisted.</p>
+<p><strong>Fix:</strong> While dynamic CHECK constraints aren't practical in SQLite, add a trigger or application-level post-insert validation.</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>17. Expired Sessions Accumulate</h3>
+<p class="ref">apps/api/src/routes/auth.ts:152–165</p>
+<p>Expired sessions are filtered out by the <code>WHERE expires_at > datetime('now')</code> clause in lookups, but are never deleted. Over time, the sessions table grows unboundedly. There's no cleanup cron or TTL mechanism.</p>
+<p><strong>Fix:</strong> Add a periodic cleanup: <code>DELETE FROM sessions WHERE expires_at < datetime('now', '-1 hour')</code>. Can be triggered opportunistically on auth requests or via a scheduled Worker.</p>
+</div>
+
+<div class="finding medium">
+<span class="severity medium">Medium</span>
+<h3>18. SQL Injection via Template Literal in createSession</h3>
+<p class="ref">apps/api/src/routes/auth.ts:167–170</p>
+<p>The <code>createSession</code> function uses a template literal inside the SQL string: <code>datetime('now', '+${SESSION_TTL_HOURS} hours')</code>. While <code>SESSION_TTL_HOURS</code> is a constant (24), this pattern is dangerous. If the value were ever derived from user input, it would be a direct SQL injection vector. The D1 prepare/bind pattern should be used exclusively.</p>
+<pre>await env.DB.prepare(
+  `INSERT INTO sessions ... VALUES (?, ?, ?, datetime('now'), datetime('now', '+${SESSION_TTL_HOURS} hours'))`
+).bind(sessionId, did, handle).run();</pre>
+<p><strong>Fix:</strong> Use <code>datetime('now', '+24 hours')</code> as a literal string constant, or use <code>datetime('now', ? || ' hours')</code> with a bind parameter.</p>
+</div>
+
+<h2 id="low">Low Severity</h2>
+
+<div class="finding low">
+<span class="severity low">Low</span>
+<h3>19. Credential Lost on Page Navigation</h3>
+<p class="ref">apps/web/src/pages/Vote.tsx:34–36</p>
+<p>Credentials are held in React component state. If a user navigates away from the vote page between credential issuance and ballot submission, the credential is lost. They'd need to request a new one, but the DO has already marked their DID as consumed — they're locked out. The <code>localStorage</code> fallback on page load partially mitigates this, but only if the credential was successfully stored before navigation.</p>
+</div>
+
+<div class="finding low">
+<span class="severity low">Low</span>
+<h3>20. No Response Validation on ATProto Calls</h3>
+<p class="ref">packages/shared/src/atproto/index.ts:81–107</p>
+<p>The <code>PdsPublisher.createRecord</code> method calls <code>res.json()</code> without checking that the response body is valid JSON. A malformed PDS response causes an uncaught promise rejection that propagates as a 500 error with no useful context.</p>
+</div>
+
+<div class="finding low">
+<span class="severity low">Low</span>
+<h3>21. Magic String Event Types</h3>
+<p class="ref">apps/api/src/durable-objects/poll-coordinator.ts (various)</p>
+<p>Audit event types (<code>'poll_initialized'</code>, <code>'eligibility_consumed'</code>, <code>'ballot_accepted'</code>, etc.) are scattered as magic strings. No central enum ensures consistency. A typo in an event type would silently produce an uncategorized audit entry.</p>
+</div>
+
+<div class="finding low">
+<span class="severity low">Low</span>
+<h3>22. No opensAt Future Validation</h3>
+<p class="ref">apps/api/src/routes/polls.ts:75–130</p>
+<p>A poll can be created with <code>opensAt</code> in the past. The frontend sets <code>opensAt</code> to <code>new Date().toISOString()</code>, but the API doesn't enforce it. A crafted API call can backdate a poll's opening time.</p>
+</div>
+
+<h2 id="trust">Trust Model Summary</h2>
+
+<table>
+<thead>
+<tr><th>Property</th><th>v1 (trusted host)</th><th>v2 (with real blind sigs)</th></tr>
+</thead>
+<tbody>
+<tr><td>One vote per DID</td><td>Enforced (DO) — <strong>if DO state survives</strong></td><td>Same</td></tr>
+<tr><td>Ballot anonymity</td><td>Trust-based (host knows link)</td><td>Cryptographic</td></tr>
+<tr><td>Public tally verification</td><td>Ballot counting works; signature verification does not</td><td>Full verification possible</td></tr>
+<tr><td>Nullifier replay prevention</td><td>Enforced (DO) — <strong>if DO state survives</strong></td><td>Same</td></tr>
+<tr><td>Host cannot stuff ballots</td><td>Detectable via audit chain — <strong>if chain is intact</strong></td><td>Same + unforgeable credentials</td></tr>
+<tr><td>Coercion resistance</td><td>Weak</td><td>Moderate</td></tr>
+</tbody>
+</table>
+
+<p>The conditional caveats ("if DO state survives", "if chain is intact") represent the gap between design intent and implementation. The system's security guarantees are only as strong as the Durable Object's state persistence — and there is no recovery path from D1 if that state is lost.</p>
+
+<h2 id="recommendations">Priority Remediation</h2>
+
+<ol>
+  <li><strong>Implement DO state recovery from D1</strong> — rebuild <code>consumedDids</code>, <code>nullifiers</code>, <code>ballotCount</code>, and <code>lastAuditHash</code> from D1 on cold start. This is the single highest-impact fix.</li>
+  <li><strong>Fail on missing signing key</strong> — throw at poll creation if <code>CREDENTIAL_SIGNING_KEY</code> is not configured.</li>
+  <li><strong>Default mock mode to off</strong> — change <code>ATPROTO_MOCK_MODE</code> default to <code>"false"</code> in wrangler.toml.</li>
+  <li><strong>Add time window check to ballot submission</strong> — verify current time is within <code>opensAt...closesAt</code>.</li>
+  <li><strong>Fix timing-safe comparison</strong> — pad to equal length before comparing.</li>
+  <li><strong>Disable v2 mode</strong> — return an explicit error until blind signatures are implemented.</li>
+  <li><strong>Add rate limiting</strong> — use Cloudflare rate limiting rules on <code>/api/polls/*/eligibility/*</code> and <code>/api/polls/*/ballots/*</code>.</li>
+  <li><strong>Implement unpublished ballot retry</strong> — background job to publish accepted-but-unpublished ballots to ATProto.</li>
+</ol>
+
+<h2 id="scope">Evaluation Scope</h2>
+
+<p>Files examined:</p>
+<ul style="font-family: var(--mono); font-size: 0.78rem;">
+  <li>packages/shared/src/crypto/index.ts</li>
+  <li>packages/shared/src/schemas/index.ts</li>
+  <li>packages/shared/src/types/index.ts</li>
+  <li>packages/shared/src/atproto/index.ts</li>
+  <li>apps/api/src/index.ts</li>
+  <li>apps/api/src/durable-objects/poll-coordinator.ts</li>
+  <li>apps/api/src/routes/polls.ts</li>
+  <li>apps/api/src/routes/auth.ts</li>
+  <li>apps/api/src/routes/ballots.ts</li>
+  <li>apps/api/migrations/0001_init.sql</li>
+  <li>apps/web/src/pages/Vote.tsx</li>
+  <li>apps/web/src/pages/Poll.tsx</li>
+  <li>apps/web/src/pages/Audit.tsx</li>
+  <li>apps/web/src/lib/api.ts</li>
+</ul>
+
+<p style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.75rem; color: var(--muted);">
+Evaluation performed March 2026 against commit on branch claude/bluesky-anonymous-polls-DcGuR.
+</p>
+
+</body>
+</html>
