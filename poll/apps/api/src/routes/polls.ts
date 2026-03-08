@@ -934,8 +934,6 @@ async function syncLikes(request: Request, env: Env, pollId: string): Promise<Re
 
   // Fetch likes for each option post from Bluesky public API
   const countsByOption: Record<string, number> = {};
-  const allVoterDids = new Set<string>();
-  const optionVoters: Map<number, Set<string>> = new Map();
   let totalVotes = 0;
 
   for (let i = 0; i < optionPosts.length; i++) {
@@ -967,15 +965,8 @@ async function syncLikes(request: Request, env: Env, pollId: string): Promise<Re
       if (!cursor || likes.length === 0) break;
     }
 
-    optionVoters.set(i, voters);
-    // Deduplicate: if a user liked multiple options, count only their first
-    let count = 0;
-    for (const did of voters) {
-      if (!allVoterDids.has(did)) {
-        allVoterDids.add(did);
-        count++;
-      }
-    }
+    // Count all likes per option — multi-vote is allowed in public polls
+    const count = voters.size;
     countsByOption[String(i)] = count;
     totalVotes += count;
   }
@@ -996,7 +987,7 @@ async function syncLikes(request: Request, env: Env, pollId: string): Promise<Re
     synced: true,
     totalVotes,
     countsByOption,
-    uniqueVoters: allVoterDids.size,
+    uniqueVoters: totalVotes,
   });
 }
 

@@ -5,11 +5,11 @@ import { recomputeTally } from '@atpolls/shared';
 
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app';
 
-/** Fetch like counts for each option post directly from Bluesky public API */
+/** Fetch like counts for each option post directly from Bluesky public API.
+ *  Users can like multiple options — each like counts independently. */
 async function fetchLikeCounts(
   optionPosts: { uri: string; cid: string }[]
 ): Promise<{ countsByOption: Record<string, number>; totalVotes: number }> {
-  const allVoterDids = new Set<string>();
   const countsByOption: Record<string, number> = {};
   let totalVotes = 0;
 
@@ -17,7 +17,7 @@ async function fetchLikeCounts(
     const post = optionPosts[i];
     if (!post.uri) { countsByOption[String(i)] = 0; continue; }
 
-    const voters = new Set<string>();
+    let count = 0;
     let cursor: string | undefined;
 
     for (let page = 0; page < 50; page++) {
@@ -29,22 +29,12 @@ async function fetchLikeCounts(
         if (!res.ok) break;
         const data = await res.json() as any;
         const likes = data.likes || [];
-        for (const like of likes) {
-          if (like.actor?.did) voters.add(like.actor.did);
-        }
+        count += likes.length;
         cursor = data.cursor;
         if (!cursor || likes.length === 0) break;
       } catch { break; }
     }
 
-    // Deduplicate across options: first like wins
-    let count = 0;
-    for (const did of voters) {
-      if (!allVoterDids.has(did)) {
-        allVoterDids.add(did);
-        count++;
-      }
-    }
     countsByOption[String(i)] = count;
     totalVotes += count;
   }
