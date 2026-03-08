@@ -3,12 +3,62 @@ import { useParams, Link } from 'react-router-dom';
 import { getPoll, getTally, getBallots } from '../lib/api';
 import { recomputeTally } from '@atpolls/shared';
 
+const BSKY_PUBLIC_API = 'https://public.api.bsky.app';
+
+/** Fetch like counts for each option post directly from Bluesky public API */
+async function fetchLikeCounts(
+  optionPosts: { uri: string; cid: string }[]
+): Promise<{ countsByOption: Record<string, number>; totalVotes: number }> {
+  const allVoterDids = new Set<string>();
+  const countsByOption: Record<string, number> = {};
+  let totalVotes = 0;
+
+  for (let i = 0; i < optionPosts.length; i++) {
+    const post = optionPosts[i];
+    if (!post.uri) { countsByOption[String(i)] = 0; continue; }
+
+    const voters = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 50; page++) {
+      const params = new URLSearchParams({ uri: post.uri, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+
+      try {
+        const res = await fetch(`${BSKY_PUBLIC_API}/xrpc/app.bsky.feed.getLikes?${params}`);
+        if (!res.ok) break;
+        const data = await res.json() as any;
+        const likes = data.likes || [];
+        for (const like of likes) {
+          if (like.actor?.did) voters.add(like.actor.did);
+        }
+        cursor = data.cursor;
+        if (!cursor || likes.length === 0) break;
+      } catch { break; }
+    }
+
+    // Deduplicate across options: first like wins
+    let count = 0;
+    for (const did of voters) {
+      if (!allVoterDids.has(did)) {
+        allVoterDids.add(did);
+        count++;
+      }
+    }
+    countsByOption[String(i)] = count;
+    totalVotes += count;
+  }
+
+  return { countsByOption, totalVotes };
+}
+
 export function PollPage() {
   const { id } = useParams<{ id: string }>();
   const [poll, setPoll] = useState<any>(null);
   const [tally, setTally] = useState<any>(null);
   const [ballots, setBallots] = useState<any[]>([]);
   const [recomputed, setRecomputed] = useState<Record<string, number> | null>(null);
+  const [likesLoading, setLikesLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -18,6 +68,26 @@ export function PollPage() {
     getTally(id).then(setTally).catch(() => {});
     getBallots(id).then(d => setBallots(d.ballots || [])).catch(() => {});
   }, [id]);
+
+  // Auto-sync likes from Bluesky for public_like polls on page load
+  useEffect(() => {
+    if (!poll || poll.mode !== 'public_like') return;
+    const optionPosts = poll.bluesky_option_posts;
+    if (!optionPosts || optionPosts.length === 0) return;
+    setLikesLoading(true);
+    fetchLikeCounts(optionPosts)
+      .then(({ countsByOption, totalVotes }) => {
+        setTally({
+          pollId: poll.id,
+          countsByOption,
+          ballotCount: totalVotes,
+          computedAt: new Date().toISOString(),
+          final: false,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLikesLoading(false));
+  }, [poll]);
 
   const handleRecompute = () => {
     if (!poll) return;
@@ -116,8 +186,10 @@ export function PollPage() {
           {poll.status === 'open' && poll.mode !== 'public_like' && (
             <Link to={`/poll/${id}/vote`} className="btn btn-primary">Vote</Link>
           )}
-          {poll.status === 'open' && poll.mode === 'public_like' && (
-            <span className="muted" style={{ fontSize: '13px', alignSelf: 'center' }}>Vote by liking on Bluesky</span>
+          {poll.mode === 'public_like' && (
+            <span className="muted" style={{ fontSize: '13px', alignSelf: 'center' }}>
+              {likesLoading ? 'Counting likes...' : 'Vote by liking on Bluesky'}
+            </span>
           )}
           <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit</Link>
           <Link to={`/poll/${id}/admin`} className="btn btn-secondary">Admin</Link>
