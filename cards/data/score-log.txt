@@ -12,9 +12,9 @@ Fetching Featured Articles...
   ... 5500 members so far
   ... 6000 members so far
   ... 6500 members so far
-  ... 6878 members so far
-Found 6878 Featured Articles
-Fetching metadata for 6878 articles in batches of 50...
+  ... 6879 members so far
+Found 6879 Featured Articles
+Fetching metadata for 6879 articles in batches of 50...
   Batch 1/138 (50 articles)
   Batch 2/138 (50 articles)
   Batch 3/138 (50 articles)
@@ -152,37 +152,37 @@ Fetching metadata for 6878 articles in batches of 50...
   Batch 135/138 (50 articles)
   Batch 136/138 (50 articles)
   Batch 137/138 (50 articles)
-  Batch 138/138 (28 articles)
+  Batch 138/138 (29 articles)
 
-Wrote 6878 scored articles to cards/data/deep-wikipedia.json
+Wrote 6879 scored articles to cards/data/deep-wikipedia.json
 Wrote top-30-per-bin pool to cards/data/deep-pool.json
 
 === DEEP WIKIPEDIA: TOP 20 ===
-   1. [HISTORY     ] Palmyra                                            deep= 9237.02  pv=    0.0  ext=191  lang=  0  len=233882
-   2. [GEO         ] Priyanka Chopra                                    deep= 6421.44  pv=    0.0  ext=128  lang=  0  len=251678
-   3. [GEO         ] Winnipeg                                           deep= 6139.96  pv=    0.0  ext=156  lang=  0  len=154911
-   4. [HISTORY     ] Milos Raonic                                       deep= 6010.78  pv=    0.0  ext=124  lang=  0  len=234973
-   5. [GEO         ] Millennium Park                                    deep= 5712.10  pv=    0.0  ext=131  lang=  0  len=190129
-   6. [HISTORY     ] Single Ladies (Put a Ring on It)                   deep= 5522.24  pv=    0.0  ext=126  lang=  0  len=192083
-   7. [HISTORY     ] Anbar campaign (2003–2011)                         deep= 5216.92  pv=    0.0  ext=115  lang=  0  len=205794
-   8. [GEO         ] School Rumble                                      deep= 5050.20  pv=    0.0  ext=158  lang=  0  len=102165
-   9. [HISTORY     ] Dishonored                                         deep= 5042.41  pv=    0.0  ext=121  lang=  0  len=173662
-  10. [HISTORY     ] 4 (Beyoncé album)                                  deep= 5017.63  pv=    0.0  ext=128  lang=  0  len=153666
-  11. [HISTORY     ] St James' Church, Sydney                           deep= 4513.54  pv=    0.0  ext=121  lang=  0  len=139144
-  12. [HISTORY     ] Boston                                             deep= 4477.44  pv=    0.0  ext= 92  lang=  0  len=236856
-  13. [HISTORY     ] The Beatles: Rock Band                             deep= 4391.91  pv=    0.0  ext=132  lang=  0  len=110703
-  14. [FILM        ] Julianne Moore                                     deep= 4180.11  pv=    0.0  ext=105  lang=  0  len=158488
-  15. [HISTORY     ] Persona (series)                                   deep= 4063.53  pv=    0.0  ext= 96  lang=  0  len=179170
-  16. [SPORTS      ] Thierry Henry                                      deep= 3827.00  pv=    0.0  ext= 88  lang=  0  len=189126
-  17. [HISTORY     ] Tales of Monkey Island                             deep= 3720.75  pv=    0.0  ext=109  lang=  0  len=116522
-  18. [GEO         ] Powderfinger                                       deep= 3702.01  pv=    0.0  ext=109  lang=  0  len=115351
-  19. [HISTORY     ] Kent, Ohio                                         deep= 3632.24  pv=    0.0  ext= 95  lang=  0  len=146185
-  20. [HISTORY     ] First inauguration of Barack Obama                 deep= 3580.13  pv=    0.0  ext= 83  lang=  0  len=186055
+   1. [GEO         ] Priyanka Chopra                                    deep= 6421.44  pv=    0.0  ext=128  lang=  0  len=251678
+   2. [GEO         ] School Rumble                                      deep= 5050.20  pv=    0.0  ext=158  lang=  0  len=102165
+   3. [HISTORY     ] Dishonored                                         deep= 5042.41  pv=    0.0  ext=121  lang=  0  len=173662
+   4. [HISTORY     ] 4 (Beyoncé album)                                  deep= 5017.63  pv=    0.0  ext=128  lang=  0  len=153666
+   5. [HISTORY     ] St James' Church, Sydney                           deep= 4513.54  pv=    0.0  ext=121  lang=  0  len=139144
+   6. [HISTORY     ] The Beatles: Rock Band                             deep= 4391.91  pv=    0.0  ext=132  lang=  0  len=110703
+   7. [HISTORY     ] Tales of Monkey Island                             deep= 4096.24  pv=    0.0  ext=120  lang=  0  len=116522
+   8. [SPORTS      ] Thierry Henry                                      deep= 3827.00  pv=    0.0  ext= 88  lang=  0  len=189126
+   9. [GEO         ] Powderfinger                                       deep= 3702.01  pv=    0.0  ext=109  lang=  0  len=115351
+  10. [HISTORY     ] Kent, Ohio                                         deep= 3632.24  pv=    0.0  ext= 95  lang=  0  len=146185
+  11. [HISTORY     ] First inauguration of Barack Obama                 deep= 3580.13  pv=    0.0  ext= 83  lang=  0  len=186055
+  12. [HISTORY     ] Roberto Luongo                                     deep= 3479.86  pv=    0.0  ext= 83  lang=  0  len=175779
+  13. [HISTORY     ] Richard Cordray                                    deep= 3447.72  pv=    0.0  ext=100  lang=  0  len=118868
+  14. [SPORTS      ] The Elder Scrolls III: Morrowind                   deep= 3287.06  pv=    0.0  ext= 97  lang=  0  len=114834
+  15. [HISTORY     ] Paul Collingwood                                   deep= 3276.98  pv=    0.0  ext=105  lang=  0  len= 97402
+  16. [HISTORY     ] Ōkami                                              deep= 3268.88  pv=    0.0  ext= 91  lang=  0  len=129037
+  17. [HISTORY     ] Portal (video game)                                deep= 3268.66  pv=    0.0  ext= 97  lang=  0  len=113552
+  18. [SPORTS      ] Bids for the 2012 Summer Olympics                  deep= 3223.26  pv=    0.0  ext=116  lang=  0  len= 77210
+  19. [HISTORY     ] Sawtooth National Forest                           deep= 3190.87  pv=    0.0  ext= 94  lang=  0  len=115229
+  20. [HISTORY     ] Super Smash Bros. Brawl                            deep= 3113.45  pv=    0.0  ext= 99  lang=  0  len= 98904
 
 === BIN COVERAGE ===
   COSMOS      : 30 articles
   EARTH       : 30 articles
-  EVERYDAY    : 9 articles
+  EVERYDAY    : 8 articles
   FILM        : 30 articles
   GEO         : 30 articles
   HISTORY     : 30 articles
