@@ -306,10 +306,12 @@ function shuffleDeck() {
   }
 }
 
+const DEFAULT_STATS = { atk: 50, def: 50, spc: 50, spd: 50, hp: 500, rarity: "common" };
+
 function drawFromDeck() {
   if (luckyDeck.length === 0) shuffleDeck();
   const pick = luckyDeck.pop();
-  return { title: pick[0], category: pick[1], stats: pick[2] };
+  return { title: pick[0], category: pick[1], stats: pick[2] || DEFAULT_STATS };
 }
 
 shuffleDeck();

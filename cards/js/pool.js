@@ -500,4 +500,11 @@ const UNIQUE_POOL = POOL.filter(([title]) => {
   return true;
 });
 
-export { CATEGORIES, UNIQUE_POOL as POOL };
+// Build BINS index from pool data (auto-generated pool.js will have this pre-built)
+const BINS = {};
+UNIQUE_POOL.forEach(([, cat], i) => {
+  if (!BINS[cat]) BINS[cat] = [i, 0];
+  BINS[cat][1]++;
+});
+
+export { CATEGORIES, UNIQUE_POOL as POOL, BINS };
