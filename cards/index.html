@@ -9,34 +9,61 @@
 <body>
   <header>
     <h1>Wiki Cards</h1>
-    <p class="subtitle">Open your daily pack of knowledge</p>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="cards">Daily Pack</button>
+      <button class="tab" data-tab="lucky">I'm Feeling Lucky</button>
+      <button class="tab" data-tab="docs">Wikinatomy</button>
+    </nav>
   </header>
 
   <main>
-    <!-- Pack state -->
-    <div id="pack-screen" class="screen active">
-      <div id="pack" class="pack">
-        <div class="pack-face pack-front">
-          <div class="pack-emblem">W</div>
-          <div class="pack-label">Daily Pack</div>
-          <div class="pack-date" id="pack-date"></div>
+    <!-- ── CARDS TAB ─────────────────────────────────────── -->
+    <div id="tab-cards" class="tab-panel active">
+      <!-- Pack state -->
+      <div id="pack-screen" class="screen active">
+        <div id="pack" class="pack">
+          <div class="pack-face pack-front">
+            <div class="pack-emblem">W</div>
+            <div class="pack-label">Daily Pack</div>
+            <div class="pack-date" id="pack-date"></div>
+          </div>
+          <div class="pack-face pack-back"></div>
         </div>
-        <div class="pack-face pack-back"></div>
+        <button id="open-btn" class="open-btn">Open Pack</button>
       </div>
-      <button id="open-btn" class="open-btn">Open Pack</button>
+
+      <!-- Cards reveal state -->
+      <div id="cards-screen" class="screen">
+        <div id="card-grid" class="card-grid"></div>
+        <div id="card-detail" class="card-detail hidden">
+          <button id="close-detail" class="close-detail-btn">&times;</button>
+          <div id="detail-content"></div>
+        </div>
+        <div class="controls">
+          <button id="flip-all-btn" class="ctrl-btn hidden">Reveal All</button>
+          <a id="new-pack-btn" class="ctrl-btn hidden" href="#">Tomorrow's pack drops at midnight</a>
+        </div>
+      </div>
     </div>
 
-    <!-- Cards reveal state -->
-    <div id="cards-screen" class="screen">
-      <div id="card-grid" class="card-grid"></div>
-      <div id="card-detail" class="card-detail hidden">
-        <button id="close-detail" class="close-detail-btn">&times;</button>
-        <div id="detail-content"></div>
+    <!-- ── LUCKY TAB ─────────────────────────────────────── -->
+    <div id="tab-lucky" class="tab-panel">
+      <div class="lucky-wrap">
+        <div class="lucky-header">
+          <div class="lucky-globe">🎲</div>
+          <p class="lucky-subtitle">Random draw from Wikipedia's 50,000 most vital articles</p>
+        </div>
+        <button id="lucky-btn" class="lucky-btn">
+          <span class="lucky-btn-text">I'm Feeling Lucky</span>
+        </button>
+        <div id="lucky-result" class="lucky-result"></div>
+        <div id="lucky-history" class="lucky-history"></div>
       </div>
-      <div class="controls">
-        <button id="flip-all-btn" class="ctrl-btn hidden">Reveal All</button>
-        <a id="new-pack-btn" class="ctrl-btn hidden" href="#">Tomorrow's pack drops at midnight</a>
-      </div>
+    </div>
+
+    <!-- ── DOCS TAB ──────────────────────────────────────── -->
+    <div id="tab-docs" class="tab-panel">
+      <div class="docs-wrap" id="docs-content"></div>
     </div>
   </main>
 
