@@ -210,19 +210,13 @@ function checkAllRevealed() {
 // ── Pack opening flow ────────────────────────────────────────
 let packCards = [];
 
-async function openPack() {
-  const seed = todaySeed();
+async function openPack(seed) {
+  if (seed === undefined) seed = todaySeed();
   const picks = pickPack(seed);
   const packScreen = document.getElementById("pack-screen");
   const cardsScreen = document.getElementById("cards-screen");
   const grid = document.getElementById("card-grid");
   const pack = document.getElementById("pack");
-
-  const cacheKey = `wiki-cards-${seed}`;
-  let cached = null;
-  try {
-    cached = JSON.parse(localStorage.getItem(cacheKey));
-  } catch {}
 
   pack.classList.add("opening");
   document.getElementById("open-btn").style.display = "none";
@@ -232,19 +226,10 @@ async function openPack() {
   packScreen.classList.remove("active");
   cardsScreen.classList.add("active");
 
-  if (cached && cached.length === 5) {
-    packCards = cached;
-    grid.innerHTML = "";
-    packCards.forEach((cd, i) => grid.appendChild(createCardElement(cd, i)));
-    document.getElementById("flip-all-btn").classList.remove("hidden");
-    return;
-  }
-
   grid.innerHTML = `<div class="loading"><div class="spinner"></div><span>Fetching articles from Wikipedia...</span></div>`;
 
   try {
     const titles = picks.map(([t]) => t);
-    const categories = Object.fromEntries(picks);
 
     const [articlePages, linkPages] = await Promise.all([
       fetchArticleData(titles),
@@ -290,17 +275,23 @@ async function openPack() {
       }
     }
 
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(packCards));
-    } catch {}
-
     grid.innerHTML = "";
     packCards.forEach((cd, i) => grid.appendChild(createCardElement(cd, i)));
     document.getElementById("flip-all-btn").classList.remove("hidden");
+    document.getElementById("new-pack-btn").classList.add("hidden");
   } catch (err) {
     grid.innerHTML = `<div class="loading"><span>Failed to fetch articles. Try refreshing.</span></div>`;
     console.error(err);
   }
+}
+
+function rerollPack() {
+  const seed = Date.now() ^ (Math.random() * 0xffffffff);
+  const grid = document.getElementById("card-grid");
+  grid.innerHTML = "";
+  document.getElementById("flip-all-btn").classList.add("hidden");
+  document.getElementById("new-pack-btn").classList.add("hidden");
+  openPack(seed);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -326,93 +317,12 @@ function initTabs() {
 // I'M FEELING LUCKY
 // ══════════════════════════════════════════════════════════════
 
-// Wikipedia Level 5 vital article categories — 11 topic areas
-const VITAL_TOPICS = [
-  { label: "People", cat: "Wikipedia level-4 vital articles - People" },
-  { label: "History", cat: "Wikipedia level-4 vital articles - History" },
-  { label: "Geography", cat: "Wikipedia level-4 vital articles - Geography" },
-  { label: "Arts", cat: "Wikipedia level-4 vital articles - Arts" },
-  { label: "Philosophy and religion", cat: "Wikipedia level-4 vital articles - Philosophy and religion" },
-  { label: "Everyday life", cat: "Wikipedia level-4 vital articles - Everyday life" },
-  { label: "Society and social sciences", cat: "Wikipedia level-4 vital articles - Society and social sciences" },
-  { label: "Biology and health sciences", cat: "Wikipedia level-4 vital articles - Biology and health sciences" },
-  { label: "Physical sciences", cat: "Wikipedia level-4 vital articles - Physical sciences" },
-  { label: "Technology", cat: "Wikipedia level-4 vital articles - Technology" },
-  { label: "Mathematics", cat: "Wikipedia level-4 vital articles - Mathematics" },
-];
-
-// Map vital article topic → our 18-bin category (best-fit)
-const TOPIC_TO_CATEGORY = {
-  "People": "HISTORY",
-  "History": "HISTORY",
-  "Geography": "GEO",
-  "Arts": "LITERATURE",
-  "Philosophy and religion": "PHILOSOPHY",
-  "Everyday life": "EVERYDAY",
-  "Society and social sciences": "SOCIETY",
-  "Biology and health sciences": "LIFE_SCI",
-  "Physical sciences": "PHYS_SCI",
-  "Technology": "TECH",
-  "Mathematics": "MATH",
-};
-
 let luckyLoading = false;
 const luckyHistory = [];
 
-async function fetchRandomVitalArticle() {
-  // Pick a random topic area
-  const topic = VITAL_TOPICS[Math.floor(Math.random() * VITAL_TOPICS.length)];
-
-  // Try the vital articles category — use categorymembers with random sort
-  const catNames = [
-    `Category:${topic.cat}`,
-    `Category:Wikipedia vital articles in ${topic.label}`,
-  ];
-
-  for (const catName of catNames) {
-    try {
-      const params = new URLSearchParams({
-        action: "query",
-        list: "categorymembers",
-        cmtitle: catName,
-        cmtype: "page",
-        cmlimit: "500",
-        cmsort: "timestamp",
-        format: "json",
-        origin: "*",
-      });
-
-      const res = await fetch(`${WIKI_API}?${params}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const members = data.query?.categorymembers || [];
-
-      if (members.length > 0) {
-        const pick = members[Math.floor(Math.random() * members.length)];
-        return { title: pick.title, topicLabel: topic.label };
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  // Final fallback — random Wikipedia article
-  const params = new URLSearchParams({
-    action: "query",
-    list: "random",
-    rnnamespace: "0",
-    rnlimit: "1",
-    format: "json",
-    origin: "*",
-  });
-  const res = await fetch(`${WIKI_API}?${params}`);
-  const data = await res.json();
-  const article = data.query?.random?.[0];
-  return { title: article?.title || "Earth", topicLabel: "Random" };
-}
-
-function classifyArticle(topicLabel) {
-  return TOPIC_TO_CATEGORY[topicLabel] || "HISTORY";
+function pickRandomFromPool() {
+  const pick = POOL[Math.floor(Math.random() * POOL.length)];
+  return { title: pick[0], category: pick[1] };
 }
 
 async function doLucky() {
@@ -423,13 +333,11 @@ async function doLucky() {
   const result = document.getElementById("lucky-result");
 
   btn.classList.add("spinning");
-  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Rolling the dice across 50,000 articles...</span></div>`;
+  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from the pool...</span></div>`;
 
   try {
-    const { title, topicLabel } = await fetchRandomVitalArticle();
-    const category = classifyArticle(topicLabel);
+    const { title, category } = pickRandomFromPool();
 
-    // Fetch full article data
     const [articlePages, linkPages] = await Promise.all([
       fetchArticleData([title]),
       fetchPageLinks([title]),
@@ -448,19 +356,9 @@ async function doLucky() {
       const cat = CATEGORIES[category];
       const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, "_"))}`;
 
-      const cardData = {
-        title: page.title,
-        category,
-        extract: page.extract || "",
-        thumbnail: page.thumbnail?.source || null,
-        stats,
-        rarity,
-      };
-
       result.innerHTML = `
         <div class="lucky-card rarity-${rarity}">
           <div class="lucky-card-inner">
-            <div class="lucky-topic-badge">${topicLabel}</div>
             ${page.thumbnail ? `<img class="lucky-image" src="${page.thumbnail.source}" alt="${page.title}">` : `<div class="lucky-no-image">${cat.icon}</div>`}
             <div class="lucky-category" style="color:${cat.color}">${cat.name} — ${RARITY_LABELS[rarity]}</div>
             <div class="lucky-title">${page.title}</div>
@@ -475,7 +373,6 @@ async function doLucky() {
         </div>
       `;
 
-      // Add to history
       luckyHistory.unshift({ title: page.title, category, rarity, thumbnail: page.thumbnail?.source });
       renderLuckyHistory();
     } else {
@@ -623,18 +520,62 @@ function renderDocs() {
         <div class="doc-explain-block">
           <div class="doc-explain-heading">ATK — Link Density</div>
           <p>Internal links per 1,000 bytes of article length. Measures how connected an article is to the rest of Wikipedia. High ATK = the article is a nexus point in the knowledge graph.</p>
+          <p class="doc-formula"><code>min(99, max(20, round(links / max(1, length/1000) * 8 + 30)))</code></p>
+          <p class="doc-source">Source: <code>prop=links</code> (pllimit=500) + <code>prop=info</code> (inprop=length)</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">DEF — Global Reach</div>
           <p>Number of language versions of the article. Measures how universally recognized the topic is. High DEF = the topic transcends language and culture.</p>
+          <p class="doc-formula"><code>min(99, max(20, round(langlinks * 0.5 + 25)))</code></p>
+          <p class="doc-source">Source: <code>prop=langlinks</code> (lllimit=500)</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">HP — Depth</div>
-          <p>Article length in words (scaled). Measures how much there is to say. High HP = the topic has been extensively documented by Wikipedia's editors.</p>
+          <p>Article length in bytes (scaled). Measures how much there is to say. High HP = the topic has been extensively documented by Wikipedia's editors.</p>
+          <p class="doc-formula"><code>min(999, max(100, round(length / 80)))</code></p>
+          <p class="doc-source">Source: <code>prop=info</code> (inprop=length)</p>
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">Rarity</div>
           <p>Derived from ATK + DEF + HP/10. Common (&lt;100), Uncommon (100–129), Rare (130–159), Legendary (160+). All stats are fetched live from Wikipedia — rarity is earned, not assigned.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section">
+      <h3 class="doc-section-title">Wikipedia API Metadata</h3>
+      <p class="doc-intro">Every card is built from live Wikipedia API data. Here's what we fetch now and what's available for future stats.</p>
+      <div class="doc-explainer">
+        <div class="doc-explain-block">
+          <div class="doc-explain-heading">Currently Fetched</div>
+          <table class="doc-table">
+            <tr><th>Prop</th><th>Fields</th><th>Used for</th></tr>
+            <tr><td><code>extracts</code></td><td>Intro text (4 sentences, plaintext)</td><td>Card body text</td></tr>
+            <tr><td><code>pageimages</code></td><td>Thumbnail URL (400px)</td><td>Card image</td></tr>
+            <tr><td><code>info</code></td><td>Article byte length</td><td>HP stat</td></tr>
+            <tr><td><code>langlinks</code></td><td>Count of language editions</td><td>DEF stat</td></tr>
+            <tr><td><code>links</code></td><td>Internal wiki links (up to 500)</td><td>ATK stat</td></tr>
+          </table>
+        </div>
+        <div class="doc-explain-block">
+          <div class="doc-explain-heading">Available — Not Yet Used</div>
+          <table class="doc-table">
+            <tr><th>Prop</th><th>What it returns</th><th>Stat potential</th></tr>
+            <tr><td><code>pageviews</code></td><td>Daily views (last 1–60 days)</td><td>Fame / popularity</td></tr>
+            <tr><td><code>linkshere</code></td><td>Pages linking TO this article</td><td>Influence (backlink count)</td></tr>
+            <tr><td><code>contributors</code></td><td>Registered editors + anon count</td><td>Community effort</td></tr>
+            <tr><td><code>revisions</code></td><td>Edit timestamps, sizes, users</td><td>Edit velocity, article age</td></tr>
+            <tr><td><code>extlinks</code></td><td>External URLs referenced</td><td>Real-world source density</td></tr>
+            <tr><td><code>categories</code></td><td>Category memberships</td><td>Taxonomic breadth</td></tr>
+            <tr><td><code>images</code></td><td>Images used on page</td><td>Visual richness</td></tr>
+            <tr><td><code>templates</code></td><td>Templates used</td><td>Structural complexity</td></tr>
+            <tr><td><code>pageprops</code></td><td>Wikidata ID, disambig flag</td><td>Classification</td></tr>
+            <tr><td><code>pageterms</code></td><td>Wikidata short description</td><td>Subtitle text</td></tr>
+          </table>
+        </div>
+        <div class="doc-explain-block">
+          <div class="doc-explain-heading">Wikimedia REST API (separate endpoint)</div>
+          <p>Per-article pageview time series with daily/monthly granularity, available since July 2015. Endpoint: <code>wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{project}/{access}/{agent}/{article}/{granularity}/{start}/{end}</code></p>
         </div>
       </div>
     </div>
@@ -645,6 +586,8 @@ function renderDocs() {
         <li><a href="https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/4" target="_blank">Vital Articles Level 4</a> — the 10,000-article list</li>
         <li><a href="https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/5" target="_blank">Vital Articles Level 5</a> — the 50,000-article list</li>
         <li><a href="https://en.wikipedia.org/wiki/Wikipedia:Vital_articles" target="_blank">Vital Articles project</a> — overview of the hierarchy</li>
+        <li><a href="https://www.mediawiki.org/wiki/API:Properties" target="_blank">MediaWiki API: Properties</a> — all available prop modules</li>
+        <li><a href="https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/reference/page-views.html" target="_blank">Wikimedia Analytics API</a> — pageview statistics</li>
       </ul>
     </div>
   `;
@@ -654,35 +597,10 @@ function renderDocs() {
 function init() {
   initTabs();
   renderDocs();
+  todaySeed(); // set date display
 
-  const seed = todaySeed();
-  const cacheKey = `wiki-cards-${seed}`;
-  let cached = null;
-  try {
-    cached = JSON.parse(localStorage.getItem(cacheKey));
-  } catch {}
-
-  if (cached && cached.length === 5) {
-    const packScreen = document.getElementById("pack-screen");
-    const cardsScreen = document.getElementById("cards-screen");
-    const grid = document.getElementById("card-grid");
-
-    packScreen.classList.remove("active");
-    cardsScreen.classList.add("active");
-
-    packCards = cached;
-    grid.innerHTML = "";
-    packCards.forEach((cd, i) => {
-      const el = createCardElement(cd, i);
-      el.classList.add("revealed");
-      grid.appendChild(el);
-    });
-    document.getElementById("new-pack-btn").classList.remove("hidden");
-    return;
-  }
-
-  document.getElementById("open-btn").addEventListener("click", openPack);
-  document.getElementById("pack").addEventListener("click", openPack);
+  document.getElementById("open-btn").addEventListener("click", () => openPack());
+  document.getElementById("pack").addEventListener("click", () => openPack());
 }
 
 // Close detail overlay
@@ -702,6 +620,9 @@ document.getElementById("flip-all-btn").addEventListener("click", () => {
   });
   checkAllRevealed();
 });
+
+// New pack / reroll button
+document.getElementById("new-pack-btn").addEventListener("click", rerollPack);
 
 // Lucky button
 document.getElementById("lucky-btn").addEventListener("click", doLucky);

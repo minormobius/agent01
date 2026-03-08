@@ -890,6 +890,65 @@ main {
   color: var(--text-dim);
 }
 
+/* Doc tables */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+
+.doc-table th,
+.doc-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.doc-table th {
+  color: var(--text);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.doc-table code {
+  font-size: 0.72rem;
+  color: var(--gold);
+  background: rgba(201, 168, 76, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Doc formulas */
+.doc-formula {
+  margin-top: 0.4rem !important;
+}
+
+.doc-formula code {
+  font-size: 0.72rem;
+  color: var(--gold);
+  background: rgba(201, 168, 76, 0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.doc-source {
+  font-size: 0.72rem !important;
+  margin-top: 0.3rem !important;
+  font-family: system-ui, sans-serif;
+}
+
+.doc-source code {
+  font-size: 0.68rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 /* Sources */
 .doc-sources ul {
   list-style: none;
