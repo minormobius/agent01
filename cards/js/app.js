@@ -578,7 +578,10 @@ async function loadAlchemy() {
     ]);
 
     if (!indexRes.ok || !binRes.ok) {
-      status.textContent = "Embeddings not yet generated. Run the scoring workflow first.";
+      status.textContent = "Alchemy requires embedding data — coming soon.";
+      status.classList.add("alchemy-unavailable");
+      document.getElementById("draw-a").disabled = true;
+      document.getElementById("draw-b").disabled = true;
       alchemyLoading = false;
       return;
     }
