@@ -39,7 +39,8 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 WIKI_API = "https://en.wikipedia.org/w/api.php"
-BATCH_SIZE = 50  # max titles per query for pageviews
+WIKIMEDIA_REST = "https://en.wikipedia.org/api/rest_v1"
+BATCH_SIZE = 50  # max titles per query
 RATE_DELAY = 0.2  # seconds between API calls (be polite)
 
 # Map WikiProject names → our 18-bin Wikinatomy categories
@@ -251,6 +252,38 @@ def wiki_query_props(params):
         time.sleep(RATE_DELAY)
 
     return merged_pages
+
+
+def fetch_pageviews_rest(title, days=30):
+    """Fetch average daily pageviews via Wikimedia REST API.
+
+    More reliable than prop=pageviews for individual articles.
+    Returns average daily views over the last N days.
+    """
+    from urllib.parse import quote
+    import datetime
+
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=days)
+    # REST API wants YYYYMMDD00 format
+    start_str = start.strftime("%Y%m%d00")
+    end_str = end.strftime("%Y%m%d00")
+    encoded = quote(title.replace(" ", "_"), safe="")
+
+    url = (f"{WIKIMEDIA_REST}/metrics/pageviews/per-article/"
+           f"en.wikipedia/all-access/all-agents/{encoded}/daily/{start_str}/{end_str}")
+
+    try:
+        req = Request(url, headers={"User-Agent": "DeepWikipediaScorer/1.0 (minomobi.com)"})
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        items = data.get("items", [])
+        if not items:
+            return 0
+        total = sum(item.get("views", 0) for item in items)
+        return round(total / max(1, len(items)), 1)
+    except Exception:
+        return 0
 
 
 def fetch_metadata_batch(titles):
@@ -557,7 +590,7 @@ def main():
               f"lh={len(page.get('linkshere', []))} "
               f"rv={len(page.get('revisions', []))}", file=sys.stderr)
 
-    # Step 2c: Assemble article records
+    # Step 2d: Assemble article records (initial score without pageviews)
     articles = []
     for title, page in raw_pages.items():
         article = {
@@ -583,7 +616,40 @@ def main():
 
         articles.append(article)
 
-    # Step 3: Sort by deep score
+    # Step 3: Sort by initial deep score
+    articles.sort(key=lambda a: a["deep_score"], reverse=True)
+
+    # Step 3b: Two-pass pageviews — fetch REST API views for top candidates only
+    # Collect top N per bin as candidates (enough to re-rank after pageviews)
+    candidates_per_bin = args.per_bin * 3  # 3× oversampling
+    bin_counts = {}
+    candidate_titles = set()
+    for a in articles:
+        b = a["bin"]
+        bin_counts[b] = bin_counts.get(b, 0) + 1
+        if bin_counts[b] <= candidates_per_bin:
+            candidate_titles.add(a["title"])
+
+    pv_total = len(candidate_titles)
+    print(f"\nFetching REST API pageviews for {pv_total} top candidates...", file=sys.stderr)
+    pv_fetched = 0
+    pv_nonzero_rest = 0
+    for a in articles:
+        if a["title"] not in candidate_titles:
+            continue
+        pv_fetched += 1
+        if pv_fetched % 100 == 1 or pv_fetched == pv_total:
+            print(f"  Pageviews {pv_fetched}/{pv_total}...", file=sys.stderr)
+        avg_pv = fetch_pageviews_rest(a["title"])
+        if avg_pv > 0:
+            a["avg_pageviews"] = avg_pv
+            a["deep_score"] = round(compute_deep_score(a), 4)
+            pv_nonzero_rest += 1
+        time.sleep(0.05)  # light rate limit for REST API
+
+    print(f"  REST pageviews: {pv_nonzero_rest}/{pv_fetched} nonzero", file=sys.stderr)
+
+    # Re-sort after pageview-adjusted scores
     articles.sort(key=lambda a: a["deep_score"], reverse=True)
 
     # Step 4: Write full scored output
