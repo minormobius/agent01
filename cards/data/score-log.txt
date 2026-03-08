@@ -16,6 +16,8 @@ Fetching Featured Articles...
 Found 6879 Featured Articles
 Fetching metadata for 6879 articles in batches of 50...
   Batch 1/138 (50 articles)
+    SAMPLE 13th Airborne Division (United States): pv_keys=30 ll=12 el=8 lk=359
+      pv_sample=[94, 56, 81]
   Batch 2/138 (50 articles)
   Batch 3/138 (50 articles)
   Batch 4/138 (50 articles)
@@ -44,140 +46,223 @@ Fetching metadata for 6879 articles in batches of 50...
   Batch 27/138 (50 articles)
   Batch 28/138 (50 articles)
   Batch 29/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 30/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 31/138 (50 articles)
   Batch 32/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 33/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 34/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 35/138 (50 articles)
   Batch 36/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 37/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 38/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 39/138 (50 articles)
   Batch 40/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 41/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 42/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 43/138 (50 articles)
   Batch 44/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 45/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 46/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 47/138 (50 articles)
   Batch 48/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 49/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 50/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 51/138 (50 articles)
   Batch 52/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 53/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 54/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 55/138 (50 articles)
   Batch 56/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 57/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 58/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 59/138 (50 articles)
   Batch 60/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 61/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 62/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 63/138 (50 articles)
   Batch 64/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 65/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 66/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 67/138 (50 articles)
   Batch 68/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 69/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 70/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 71/138 (50 articles)
   Batch 72/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 73/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 74/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 75/138 (50 articles)
   Batch 76/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 77/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 78/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 79/138 (50 articles)
   Batch 80/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 81/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 82/138 (50 articles)
   Batch 83/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 84/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 85/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 86/138 (50 articles)
   Batch 87/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 88/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 89/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 90/138 (50 articles)
   Batch 91/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 92/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 93/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 94/138 (50 articles)
   Batch 95/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 96/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 97/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 98/138 (50 articles)
   Batch 99/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 100/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 101/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 102/138 (50 articles)
   Batch 103/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 104/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 105/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 106/138 (50 articles)
   Batch 107/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 108/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 109/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 110/138 (50 articles)
   Batch 111/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 112/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 113/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 114/138 (50 articles)
   Batch 115/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 116/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 117/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 118/138 (50 articles)
   Batch 119/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 120/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 121/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 122/138 (50 articles)
   Batch 123/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 124/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 125/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 126/138 (50 articles)
   Batch 127/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 128/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 129/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 130/138 (50 articles)
   Batch 131/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 132/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 133/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 134/138 (50 articles)
   Batch 135/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 136/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 137/138 (50 articles)
+  Retry 1/3 after 2s: HTTP Error 429: Too many requests (f061ab2)
   Batch 138/138 (29 articles)
+  Pageviews: 6879 total, 815 nonzero
 
 Wrote 6879 scored articles to cards/data/deep-wikipedia.json
 Wrote top-30-per-bin pool to cards/data/deep-pool.json
 
 === DEEP WIKIPEDIA: TOP 20 ===
-   1. [GEO         ] Priyanka Chopra                                    deep= 6421.44  pv=    0.0  ext=128  lang=  0  len=251678
-   2. [GEO         ] School Rumble                                      deep= 5050.20  pv=    0.0  ext=158  lang=  0  len=102165
-   3. [HISTORY     ] Dishonored                                         deep= 5042.41  pv=    0.0  ext=121  lang=  0  len=173662
-   4. [HISTORY     ] 4 (Beyoncé album)                                  deep= 5017.63  pv=    0.0  ext=128  lang=  0  len=153666
-   5. [HISTORY     ] St James' Church, Sydney                           deep= 4513.54  pv=    0.0  ext=121  lang=  0  len=139144
-   6. [HISTORY     ] The Beatles: Rock Band                             deep= 4391.91  pv=    0.0  ext=132  lang=  0  len=110703
-   7. [HISTORY     ] Tales of Monkey Island                             deep= 4096.24  pv=    0.0  ext=120  lang=  0  len=116522
-   8. [SPORTS      ] Thierry Henry                                      deep= 3827.00  pv=    0.0  ext= 88  lang=  0  len=189126
-   9. [GEO         ] Powderfinger                                       deep= 3702.01  pv=    0.0  ext=109  lang=  0  len=115351
-  10. [HISTORY     ] Kent, Ohio                                         deep= 3632.24  pv=    0.0  ext= 95  lang=  0  len=146185
-  11. [HISTORY     ] First inauguration of Barack Obama                 deep= 3580.13  pv=    0.0  ext= 83  lang=  0  len=186055
-  12. [HISTORY     ] Roberto Luongo                                     deep= 3479.86  pv=    0.0  ext= 83  lang=  0  len=175779
-  13. [HISTORY     ] Richard Cordray                                    deep= 3447.72  pv=    0.0  ext=100  lang=  0  len=118868
-  14. [SPORTS      ] The Elder Scrolls III: Morrowind                   deep= 3287.06  pv=    0.0  ext= 97  lang=  0  len=114834
-  15. [HISTORY     ] Paul Collingwood                                   deep= 3276.98  pv=    0.0  ext=105  lang=  0  len= 97402
-  16. [HISTORY     ] Ōkami                                              deep= 3268.88  pv=    0.0  ext= 91  lang=  0  len=129037
-  17. [HISTORY     ] Portal (video game)                                deep= 3268.66  pv=    0.0  ext= 97  lang=  0  len=113552
-  18. [SPORTS      ] Bids for the 2012 Summer Olympics                  deep= 3223.26  pv=    0.0  ext=116  lang=  0  len= 77210
-  19. [HISTORY     ] Sawtooth National Forest                           deep= 3190.87  pv=    0.0  ext= 94  lang=  0  len=115229
-  20. [HISTORY     ] Super Smash Bros. Brawl                            deep= 3113.45  pv=    0.0  ext= 99  lang=  0  len= 98904
+   1. [HISTORY     ] Palmyra                                            deep= 9237.02  pv=    0.0  ext=191  lang=  0  len=233882
+   2. [HISTORY     ] California Chrome                                  deep= 6908.76  pv=    0.0  ext=156  lang=  0  len=196133
+   3. [GEO         ] Priyanka Chopra                                    deep= 6421.44  pv=    0.0  ext=128  lang=  0  len=251678
+   4. [GEO         ] Winnipeg                                           deep= 6139.96  pv=    0.0  ext=156  lang=  0  len=154911
+   5. [HISTORY     ] Milos Raonic                                       deep= 6010.78  pv=    0.0  ext=124  lang=  0  len=234973
+   6. [GEO         ] Millennium Park                                    deep= 5712.10  pv=    0.0  ext=131  lang=  0  len=190129
+   7. [HISTORY     ] Single Ladies (Put a Ring on It)                   deep= 5522.24  pv=    0.0  ext=126  lang=  0  len=192083
+   8. [HISTORY     ] Anbar campaign (2003–2011)                         deep= 5216.92  pv=    0.0  ext=115  lang=  0  len=205794
+   9. [HISTORY     ] Batman: Arkham City                                deep= 5172.56  pv=    0.0  ext=110  lang=  0  len=221119
+  10. [GEO         ] School Rumble                                      deep= 5050.20  pv=    0.0  ext=158  lang=  0  len=102165
+  11. [HISTORY     ] Dishonored                                         deep= 5042.41  pv=    0.0  ext=121  lang=  0  len=173662
+  12. [HISTORY     ] 4 (Beyoncé album)                                  deep= 5017.63  pv=    0.0  ext=128  lang=  0  len=153666
+  13. [HISTORY     ] St James' Church, Sydney                           deep= 4513.54  pv=    0.0  ext=121  lang=  0  len=139144
+  14. [HISTORY     ] Boston                                             deep= 4477.44  pv=    0.0  ext= 92  lang=  0  len=236856
+  15. [HISTORY     ] The Beatles: Rock Band                             deep= 4391.91  pv=    0.0  ext=132  lang=  0  len=110703
+  16. [FILM        ] Julianne Moore                                     deep= 4180.11  pv=    0.0  ext=105  lang=  0  len=158488
+  17. [HISTORY     ] Tales of Monkey Island                             deep= 4096.24  pv=    0.0  ext=120  lang=  0  len=116522
+  18. [HISTORY     ] Persona (series)                                   deep= 4063.41  pv=    0.0  ext= 96  lang=  0  len=179159
+  19. [SPORTS      ] Thierry Henry                                      deep= 3827.00  pv=    0.0  ext= 88  lang=  0  len=189126
+  20. [GEO         ] Powderfinger                                       deep= 3702.01  pv=    0.0  ext=109  lang=  0  len=115351
 
 === BIN COVERAGE ===
   COSMOS      : 30 articles
