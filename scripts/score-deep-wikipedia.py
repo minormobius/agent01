@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# v2 — trigger scoring run
+# v3 — fix pageview + langlinks fetching
 """
 Score Wikipedia Featured Articles by the deep-Wikipedia triangulation:
     high quality (FA/GA) × low pageviews × high citations × low translations
@@ -206,19 +206,51 @@ def fetch_category_members(category, cmtype="page", limit=500):
     return members
 
 
+def fetch_pageviews_rest(titles, retries=3):
+    """Fetch pageviews via the Wikimedia REST API (much more reliable than action API prop)."""
+    pv_map = {}
+    rest_base = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
+    end = time.strftime("%Y%m%d", time.gmtime())
+    # 30 days ago
+    start_t = time.gmtime(time.time() - 30 * 86400)
+    start = time.strftime("%Y%m%d", start_t)
+
+    for title in titles:
+        encoded = title.replace(" ", "_").replace("/", "%2F")
+        url = f"{rest_base}/en.wikipedia/all-access/all-agents/{encoded}/daily/{start}/{end}"
+        for attempt in range(retries):
+            try:
+                req = Request(url, headers={"User-Agent": "DeepWikipediaScorer/1.0 (minomobi.com)"})
+                with urlopen(req, timeout=15) as resp:
+                    data = json.loads(resp.read())
+                items = data.get("items", [])
+                views = [it["views"] for it in items if "views" in it]
+                pv_map[title] = round(sum(views) / max(1, len(views)), 1) if views else 0
+                break
+            except Exception:
+                if attempt < retries - 1:
+                    time.sleep(1)
+                else:
+                    pv_map[title] = 0
+        time.sleep(0.05)  # light rate limiting for REST API
+    return pv_map
+
+
 def fetch_metadata_batch(titles):
-    """Fetch pageviews, extlinks, langlinks, info, categories for a batch of titles."""
+    """Fetch extlinks, langlinks, info, categories for a batch of titles.
+
+    Split into focused queries to avoid Wikipedia API truncation when too many
+    props are requested together.
+    """
     if not titles:
         return {}
 
-    # Query 1: pageviews + info + langlinks
+    # Query 1: info + categories + pageimages + extracts (light props)
     data1 = wiki_get({
         "action": "query",
         "titles": "|".join(titles),
-        "prop": "pageviews|info|langlinks|categories|pageimages|extracts",
-        "pvipdays": "30",
+        "prop": "info|categories|pageimages|extracts",
         "inprop": "length",
-        "lllimit": "500",
         "cllimit": "500",
         "clshow": "!hidden",
         "piprop": "thumbnail",
@@ -228,16 +260,24 @@ def fetch_metadata_batch(titles):
         "exsentences": "3",
     })
 
-    # Query 2: extlinks (separate because it's verbose)
+    # Query 2: langlinks (separate to avoid truncation)
     data2 = wiki_get({
+        "action": "query",
+        "titles": "|".join(titles),
+        "prop": "langlinks",
+        "lllimit": "500",
+    })
+
+    # Query 3: extlinks
+    data3 = wiki_get({
         "action": "query",
         "titles": "|".join(titles),
         "prop": "extlinks",
         "ellimit": "500",
     })
 
-    # Query 3: links (for ATK stat)
-    data3 = wiki_get({
+    # Query 4: links (for ATK stat)
+    data4 = wiki_get({
         "action": "query",
         "titles": "|".join(titles),
         "prop": "links",
@@ -247,12 +287,16 @@ def fetch_metadata_batch(titles):
     pages = data1.get("query", {}).get("pages", {})
     pages2 = data2.get("query", {}).get("pages", {})
     pages3 = data3.get("query", {}).get("pages", {})
+    pages4 = data4.get("query", {}).get("pages", {})
 
-    # Merge extlinks and links into pages
+    # Merge langlinks, extlinks, and links into pages
     for pid, pdata in pages2.items():
         if pid in pages:
-            pages[pid]["extlinks"] = pdata.get("extlinks", [])
+            pages[pid]["langlinks"] = pdata.get("langlinks", [])
     for pid, pdata in pages3.items():
+        if pid in pages:
+            pages[pid]["extlinks"] = pdata.get("extlinks", [])
+    for pid, pdata in pages4.items():
         if pid in pages:
             pages[pid]["links"] = pdata.get("links", [])
 
@@ -363,9 +407,9 @@ def main():
             print(f"  ... and {len(all_titles) - 20} more")
         return
 
-    # Step 2: Batch fetch metadata
+    # Step 2: Batch fetch metadata (without pageviews — those come from REST API)
     print(f"Fetching metadata for {len(all_titles)} articles in batches of {BATCH_SIZE}...", file=sys.stderr)
-    articles = []
+    raw_pages = {}  # title → page data
     for i in range(0, len(all_titles), BATCH_SIZE):
         batch = all_titles[i:i + BATCH_SIZE]
         batch_num = i // BATCH_SIZE + 1
@@ -379,36 +423,51 @@ def main():
             continue
 
         for pid, page in pages.items():
-            if not page.get("pageid"):
-                continue
-
-            # Aggregate pageviews over 30 days
-            pv = page.get("pageviews", {})
-            daily_views = [v for v in pv.values() if v is not None]
-            avg_pv = sum(daily_views) / max(1, len(daily_views)) if daily_views else 0
-
-            article = {
-                "title": page.get("title", ""),
-                "pageid": page["pageid"],
-                "length": page.get("length", 0),
-                "langlinks_count": len(page.get("langlinks", [])),
-                "extlinks_count": len(page.get("extlinks", [])),
-                "links_count": len(page.get("links", [])),
-                "avg_pageviews": round(avg_pv, 1),
-                "quality": "FA" if page.get("title") in fa_set else "GA",
-                "extract": page.get("extract", ""),
-                "thumbnail": page.get("thumbnail", {}).get("source"),
-                "categories": [c.get("title", "").replace("Category:", "")
-                               for c in page.get("categories", [])],
-            }
-
-            article["bin"] = classify_article(page)
-            article["deep_score"] = round(compute_deep_score(article), 4)
-            article["stats"] = compute_card_stats(article)
-
-            articles.append(article)
+            if page.get("pageid"):
+                raw_pages[page.get("title", "")] = page
 
         time.sleep(RATE_DELAY * 3)  # extra politeness between batches
+
+    # Step 2b: Fetch pageviews via REST API (in batches of 20 for speed)
+    pv_titles = list(raw_pages.keys())
+    print(f"\nFetching pageviews for {len(pv_titles)} articles via REST API...", file=sys.stderr)
+    all_pvs = {}
+    PV_BATCH = 20
+    for i in range(0, len(pv_titles), PV_BATCH):
+        pv_batch = pv_titles[i:i + PV_BATCH]
+        pv_num = i // PV_BATCH + 1
+        pv_total = math.ceil(len(pv_titles) / PV_BATCH)
+        if pv_num % 50 == 1 or pv_num == pv_total:
+            print(f"  PV batch {pv_num}/{pv_total}", file=sys.stderr)
+        batch_pvs = fetch_pageviews_rest(pv_batch)
+        all_pvs.update(batch_pvs)
+
+    nonzero_pv = sum(1 for v in all_pvs.values() if v > 0)
+    print(f"  Pageviews fetched: {len(all_pvs)} total, {nonzero_pv} nonzero", file=sys.stderr)
+
+    # Step 2c: Assemble article records
+    articles = []
+    for title, page in raw_pages.items():
+        article = {
+            "title": title,
+            "pageid": page["pageid"],
+            "length": page.get("length", 0),
+            "langlinks_count": len(page.get("langlinks", [])),
+            "extlinks_count": len(page.get("extlinks", [])),
+            "links_count": len(page.get("links", [])),
+            "avg_pageviews": all_pvs.get(title, 0),
+            "quality": "FA" if title in fa_set else "GA",
+            "extract": page.get("extract", ""),
+            "thumbnail": page.get("thumbnail", {}).get("source"),
+            "categories": [c.get("title", "").replace("Category:", "")
+                           for c in page.get("categories", [])],
+        }
+
+        article["bin"] = classify_article(page)
+        article["deep_score"] = round(compute_deep_score(article), 4)
+        article["stats"] = compute_card_stats(article)
+
+        articles.append(article)
 
     # Step 3: Sort by deep score
     articles.sort(key=lambda a: a["deep_score"], reverse=True)
