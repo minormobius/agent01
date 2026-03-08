@@ -828,21 +828,34 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
     });
     if (!bridge) return jsonResponse({ error: 'Failed to create bridge post' }, 500);
 
-    // Step 2: Post each option as a reply to the bridge, with "View results" link
+    // Step 2: Post each option as a reply to the bridge, with poll context + links
     const optionPosts: { uri: string; cid: string }[] = [];
     for (let i = 0; i < options.length; i++) {
       const resultsUrl = `${origin}/poll/${pollId}`;
-      const optText = `${options[i]}\n\nLike this post to vote.\n\nView results`;
+      const optText = `📊 ${question}\n\n→ ${options[i]}\n\nLike this post to vote.\n\nView results`;
       const optEncoder = new TextEncoder();
-      const viewResultsStart = optEncoder.encode(`${options[i]}\n\nLike this post to vote.\n\n`).byteLength;
+      const optFacets: any[] = [];
+
+      // Link "View results" to the poll page
+      const viewResultsStart = optEncoder.encode(`📊 ${question}\n\n→ ${options[i]}\n\nLike this post to vote.\n\n`).byteLength;
       const viewResultsBytes = optEncoder.encode('View results');
+      optFacets.push({
+        index: { byteStart: viewResultsStart, byteEnd: viewResultsStart + viewResultsBytes.byteLength },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
+      });
+
+      // Link the poll question back to the results page too
+      const questionStart = optEncoder.encode('📊 ').byteLength;
+      const questionBytes = optEncoder.encode(question);
+      optFacets.push({
+        index: { byteStart: questionStart, byteEnd: questionStart + questionBytes.byteLength },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
+      });
+
       const optRecord = {
         $type: 'app.bsky.feed.post',
         text: optText,
-        facets: [{
-          index: { byteStart: viewResultsStart, byteEnd: viewResultsStart + viewResultsBytes.byteLength },
-          features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
-        }],
+        facets: optFacets,
         reply: { root: { uri: result.uri, cid: result.cid }, parent: { uri: bridge.uri, cid: bridge.cid } },
         createdAt: new Date().toISOString(),
       };
