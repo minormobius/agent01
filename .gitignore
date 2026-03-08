@@ -13,3 +13,7 @@ dist/
 
 # Images live on the PDS, not in git
 time/entries/figures/
+
+# Full scored output is too large to commit (~6MB+ and growing)
+# Only pool files (deep-pool.json, full-pool.json, pool.js) are committed
+cards/data/deep-wikipedia.json

@@ -41,6 +41,7 @@ jobs:
           python-version: '3.12'
 
       - name: Score Featured Articles
+        timeout-minutes: 120
         run: |
           mkdir -p cards/data
           python3 scripts/score-deep-wikipedia.py \

@@ -702,6 +702,38 @@ def main():
         json.dump(pool_output, f, indent=2, ensure_ascii=False)
     print(f"Wrote top-{args.per_bin}-per-bin pool to {args.pool_output}", file=sys.stderr)
 
+    # Step 6: Generate full pool (ALL articles, compact format for Lucky mode)
+    # Only title + bin + stats — no extract/thumbnail (fetched live from Wikipedia)
+    full_pool = []
+    for a in articles:
+        s = a.get("stats", {})
+        full_pool.append([
+            a["title"],
+            a["bin"],
+            {
+                "atk": s.get("atk", 50),
+                "def": s.get("def", 50),
+                "spc": s.get("spc", 50),
+                "spd": s.get("spd", 50),
+                "hp": s.get("hp", 500),
+                "rarity": s.get("rarity", "common"),
+            }
+        ])
+
+    full_pool_path = args.pool_output.replace("deep-pool", "full-pool")
+    full_pool_output = {
+        "meta": {
+            "total": len(full_pool),
+            "source": output["meta"]["source"],
+            "generated_at": output["meta"]["generated_at"],
+        },
+        "pool": full_pool,
+    }
+    with open(full_pool_path, "w") as f:
+        json.dump(full_pool_output, f, separators=(",", ":"), ensure_ascii=False)
+    size_kb = round(len(json.dumps(full_pool_output, separators=(",", ":"), ensure_ascii=False)) / 1024)
+    print(f"Wrote {len(full_pool)} articles to {full_pool_path} ({size_kb}KB)", file=sys.stderr)
+
     # Summary
     print("\n=== DEEP WIKIPEDIA: TOP 20 ===", file=sys.stderr)
     for i, a in enumerate(articles[:20]):

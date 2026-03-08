@@ -271,17 +271,32 @@ function initTabs() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// I'M FEELING LUCKY — shuffle-through (no repeats until exhausted)
+// I'M FEELING LUCKY — full catalog, shuffle-through
 // ══════════════════════════════════════════════════════════════
 
 let luckyLoading = false;
 const luckyHistory = [];
 
-// Shuffled deck — deals without replacement until empty, then reshuffles
+// Full pool: lazy-loaded on first Lucky click (all ~6,800+ articles)
+let fullPool = null;
 let luckyDeck = [];
 
-function shuffleDeck() {
-  luckyDeck = [...POOL];
+async function loadFullPool() {
+  if (fullPool) return fullPool;
+  const res = await fetch("data/full-pool.json");
+  if (!res.ok) {
+    // Fallback to the curated pool if full pool isn't generated yet
+    console.warn("full-pool.json not found, using curated pool");
+    fullPool = [...POOL];
+    return fullPool;
+  }
+  const data = await res.json();
+  fullPool = data.pool; // [[title, bin, {stats}], ...]
+  return fullPool;
+}
+
+function shuffleDeck(pool) {
+  luckyDeck = [...pool];
   // Fisher-Yates
   for (let i = luckyDeck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -290,13 +305,10 @@ function shuffleDeck() {
 }
 
 function drawFromDeck() {
-  if (luckyDeck.length === 0) shuffleDeck();
+  if (luckyDeck.length === 0) shuffleDeck(fullPool || POOL);
   const pick = luckyDeck.pop();
   return { title: pick[0], category: pick[1], stats: pick[2] };
 }
-
-// Initialize deck
-shuffleDeck();
 
 async function doLucky() {
   if (luckyLoading) return;
@@ -306,9 +318,17 @@ async function doLucky() {
   const result = document.getElementById("lucky-result");
 
   btn.classList.add("spinning");
-  result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from the pool... (${luckyDeck.length} remaining)</span></div>`;
 
   try {
+    // Lazy-load the full catalog on first click
+    if (!fullPool) {
+      result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading full catalog...</span></div>`;
+      const pool = await loadFullPool();
+      shuffleDeck(pool);
+    }
+
+    result.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing from ${(fullPool || POOL).length.toLocaleString()} articles... (${luckyDeck.length} remaining in deck)</span></div>`;
+
     const { title, category, stats } = drawFromDeck();
     const rarity = stats?.rarity || "common";
 
@@ -482,7 +502,7 @@ function renderDocs() {
         </div>
         <div class="doc-explain-block">
           <div class="doc-explain-heading">The Distribution Problem</div>
-          <p>The distribution is inherently lumpy. Society &amp; Politics, Geography, and Life Sciences have 3–6× more articles than Space or Visual Arts. This is real — it reflects what humans collectively consider important enough to document extensively. For the card game, we use the curated pool (${poolTotal} articles, 30 per bin) so every category shows up equally in daily packs.</p>
+          <p>The distribution is inherently lumpy. Society &amp; Politics, Geography, and Life Sciences have 3–6× more articles than Space or Visual Arts. This is real — it reflects what humans collectively consider important enough to document extensively. Daily packs draw from a curated pool (${poolTotal} articles, 30 per bin) for category balance. Lucky mode loads the full catalog — every scored article in the database.</p>
         </div>
       </div>
     </div>
