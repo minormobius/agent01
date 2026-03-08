@@ -207,19 +207,67 @@ def fetch_category_members(category, cmtype="page", limit=500):
 
 
 
+def wiki_query_props(params):
+    """Query Wikipedia API with full continuation handling.
+
+    The API limits like lllimit=500 are TOTAL across all pages in the batch,
+    not per-page. Without following 'continue' tokens, most pages get empty
+    results. This function follows all continue tokens and merges results.
+    """
+    merged_pages = {}
+    query_params = dict(params)
+
+    while True:
+        data = wiki_get(query_params)
+        batch_pages = data.get("query", {}).get("pages", {})
+
+        for pid, pdata in batch_pages.items():
+            if pid not in merged_pages:
+                merged_pages[pid] = dict(pdata)
+            else:
+                # Append list-type props (langlinks, extlinks, links, categories)
+                for key in ("langlinks", "extlinks", "links", "categories"):
+                    if key in pdata:
+                        existing = merged_pages[pid].get(key, [])
+                        merged_pages[pid][key] = existing + pdata[key]
+                # Dict-type props (pageviews) — merge keys
+                for key in ("pageviews",):
+                    if key in pdata:
+                        existing = merged_pages[pid].get(key, {})
+                        existing.update(pdata[key])
+                        merged_pages[pid][key] = existing
+                # Scalar props — overwrite (info, extract, thumbnail)
+                for key in ("length", "extract", "thumbnail", "pageid", "title", "ns"):
+                    if key in pdata:
+                        merged_pages[pid][key] = pdata[key]
+
+        cont = data.get("continue")
+        if not cont:
+            break
+        # Add continue params for next request
+        query_params = dict(params)
+        query_params.update(cont)
+        time.sleep(RATE_DELAY)
+
+    return merged_pages
+
+
 def fetch_metadata_batch(titles):
     """Fetch extlinks, langlinks, info, categories for a batch of titles.
 
     Split into focused queries to avoid Wikipedia API truncation when too many
-    props are requested together.
+    props are requested together. Each query follows continuation to get
+    complete results.
     """
     if not titles:
         return {}
 
+    titles_str = "|".join(titles)
+
     # Query 1: info + categories + pageimages + extracts (light props)
-    data1 = wiki_get({
+    pages = wiki_query_props({
         "action": "query",
-        "titles": "|".join(titles),
+        "titles": titles_str,
         "prop": "info|categories|pageimages|extracts",
         "inprop": "length",
         "cllimit": "500",
@@ -231,45 +279,39 @@ def fetch_metadata_batch(titles):
         "exsentences": "3",
     })
 
-    # Query 2: langlinks (separate to avoid truncation)
-    data2 = wiki_get({
+    # Query 2: langlinks (with continuation)
+    pages2 = wiki_query_props({
         "action": "query",
-        "titles": "|".join(titles),
+        "titles": titles_str,
         "prop": "langlinks",
         "lllimit": "500",
     })
 
-    # Query 3: extlinks
-    data3 = wiki_get({
+    # Query 3: extlinks (with continuation)
+    pages3 = wiki_query_props({
         "action": "query",
-        "titles": "|".join(titles),
+        "titles": titles_str,
         "prop": "extlinks",
         "ellimit": "500",
     })
 
-    # Query 4: links (for ATK stat)
-    data4 = wiki_get({
+    # Query 4: links (with continuation)
+    pages4 = wiki_query_props({
         "action": "query",
-        "titles": "|".join(titles),
+        "titles": titles_str,
         "prop": "links",
         "pllimit": "500",
     })
 
-    # Query 5: pageviews (dedicated query — PageViewInfo extension)
-    data5 = wiki_get({
+    # Query 5: pageviews (with continuation)
+    pages5 = wiki_query_props({
         "action": "query",
-        "titles": "|".join(titles),
+        "titles": titles_str,
         "prop": "pageviews",
         "pvipdays": "30",
     })
 
-    pages = data1.get("query", {}).get("pages", {})
-    pages2 = data2.get("query", {}).get("pages", {})
-    pages3 = data3.get("query", {}).get("pages", {})
-    pages4 = data4.get("query", {}).get("pages", {})
-    pages5 = data5.get("query", {}).get("pages", {})
-
-    # Merge langlinks, extlinks, links, and pageviews into pages
+    # Merge all props into pages dict
     for pid, pdata in pages2.items():
         if pid in pages:
             pages[pid]["langlinks"] = pdata.get("langlinks", [])
