@@ -1,0 +1,200 @@
+Fetching Featured Articles...
+  ... 500 members so far
+  ... 1000 members so far
+  ... 1500 members so far
+  ... 2000 members so far
+  ... 2500 members so far
+  ... 3000 members so far
+  ... 3500 members so far
+  ... 4000 members so far
+  ... 4500 members so far
+  ... 5000 members so far
+  ... 5500 members so far
+  ... 6000 members so far
+  ... 6500 members so far
+  ... 6878 members so far
+Found 6878 Featured Articles
+Fetching metadata for 6878 articles in batches of 50...
+  Batch 1/138 (50 articles)
+  Batch 2/138 (50 articles)
+  Batch 3/138 (50 articles)
+  Batch 4/138 (50 articles)
+  Batch 5/138 (50 articles)
+  Batch 6/138 (50 articles)
+  Batch 7/138 (50 articles)
+  Batch 8/138 (50 articles)
+  Batch 9/138 (50 articles)
+  Batch 10/138 (50 articles)
+  Batch 11/138 (50 articles)
+  Batch 12/138 (50 articles)
+  Batch 13/138 (50 articles)
+  Batch 14/138 (50 articles)
+  Batch 15/138 (50 articles)
+  Batch 16/138 (50 articles)
+  Batch 17/138 (50 articles)
+  Batch 18/138 (50 articles)
+  Batch 19/138 (50 articles)
+  Batch 20/138 (50 articles)
+  Batch 21/138 (50 articles)
+  Batch 22/138 (50 articles)
+  Batch 23/138 (50 articles)
+  Batch 24/138 (50 articles)
+  Batch 25/138 (50 articles)
+  Batch 26/138 (50 articles)
+  Batch 27/138 (50 articles)
+  Batch 28/138 (50 articles)
+  Batch 29/138 (50 articles)
+  Batch 30/138 (50 articles)
+  Batch 31/138 (50 articles)
+  Batch 32/138 (50 articles)
+  Batch 33/138 (50 articles)
+  Batch 34/138 (50 articles)
+  Batch 35/138 (50 articles)
+  Batch 36/138 (50 articles)
+  Batch 37/138 (50 articles)
+  Batch 38/138 (50 articles)
+  Batch 39/138 (50 articles)
+  Batch 40/138 (50 articles)
+  Batch 41/138 (50 articles)
+  Batch 42/138 (50 articles)
+  Batch 43/138 (50 articles)
+  Batch 44/138 (50 articles)
+  Batch 45/138 (50 articles)
+  Batch 46/138 (50 articles)
+  Batch 47/138 (50 articles)
+  Batch 48/138 (50 articles)
+  Batch 49/138 (50 articles)
+  Batch 50/138 (50 articles)
+  Batch 51/138 (50 articles)
+  Batch 52/138 (50 articles)
+  Batch 53/138 (50 articles)
+  Batch 54/138 (50 articles)
+  Batch 55/138 (50 articles)
+  Batch 56/138 (50 articles)
+  Batch 57/138 (50 articles)
+  Batch 58/138 (50 articles)
+  Batch 59/138 (50 articles)
+  Batch 60/138 (50 articles)
+  Batch 61/138 (50 articles)
+  Batch 62/138 (50 articles)
+  Batch 63/138 (50 articles)
+  Batch 64/138 (50 articles)
+  Batch 65/138 (50 articles)
+  Batch 66/138 (50 articles)
+  Batch 67/138 (50 articles)
+  Batch 68/138 (50 articles)
+  Batch 69/138 (50 articles)
+  Batch 70/138 (50 articles)
+  Batch 71/138 (50 articles)
+  Batch 72/138 (50 articles)
+  Batch 73/138 (50 articles)
+  Batch 74/138 (50 articles)
+  Batch 75/138 (50 articles)
+  Batch 76/138 (50 articles)
+  Batch 77/138 (50 articles)
+  Batch 78/138 (50 articles)
+  Batch 79/138 (50 articles)
+  Batch 80/138 (50 articles)
+  Batch 81/138 (50 articles)
+  Batch 82/138 (50 articles)
+  Batch 83/138 (50 articles)
+  Batch 84/138 (50 articles)
+  Batch 85/138 (50 articles)
+  Batch 86/138 (50 articles)
+  Batch 87/138 (50 articles)
+  Batch 88/138 (50 articles)
+  Batch 89/138 (50 articles)
+  Batch 90/138 (50 articles)
+  Batch 91/138 (50 articles)
+  Batch 92/138 (50 articles)
+  Batch 93/138 (50 articles)
+  Batch 94/138 (50 articles)
+  Batch 95/138 (50 articles)
+  Batch 96/138 (50 articles)
+  Batch 97/138 (50 articles)
+  Batch 98/138 (50 articles)
+  Batch 99/138 (50 articles)
+  Batch 100/138 (50 articles)
+  Batch 101/138 (50 articles)
+  Batch 102/138 (50 articles)
+  Batch 103/138 (50 articles)
+  Batch 104/138 (50 articles)
+  Batch 105/138 (50 articles)
+  Batch 106/138 (50 articles)
+  Batch 107/138 (50 articles)
+  Batch 108/138 (50 articles)
+  Batch 109/138 (50 articles)
+  Batch 110/138 (50 articles)
+  Batch 111/138 (50 articles)
+  Batch 112/138 (50 articles)
+  Batch 113/138 (50 articles)
+  Batch 114/138 (50 articles)
+  Batch 115/138 (50 articles)
+  Batch 116/138 (50 articles)
+  Batch 117/138 (50 articles)
+  Batch 118/138 (50 articles)
+  Batch 119/138 (50 articles)
+  Batch 120/138 (50 articles)
+  Batch 121/138 (50 articles)
+  Batch 122/138 (50 articles)
+  Batch 123/138 (50 articles)
+  Batch 124/138 (50 articles)
+  Batch 125/138 (50 articles)
+  Batch 126/138 (50 articles)
+  Batch 127/138 (50 articles)
+  Batch 128/138 (50 articles)
+  Batch 129/138 (50 articles)
+  Batch 130/138 (50 articles)
+  Batch 131/138 (50 articles)
+  Batch 132/138 (50 articles)
+  Batch 133/138 (50 articles)
+  Batch 134/138 (50 articles)
+  Batch 135/138 (50 articles)
+  Batch 136/138 (50 articles)
+  Batch 137/138 (50 articles)
+  Batch 138/138 (28 articles)
+
+Wrote 6878 scored articles to cards/data/deep-wikipedia.json
+Wrote top-30-per-bin pool to cards/data/deep-pool.json
+
+=== DEEP WIKIPEDIA: TOP 20 ===
+   1. [HISTORY     ] Palmyra                                            deep= 9237.02  pv=    0.0  ext=191  lang=  0  len=233882
+   2. [GEO         ] Priyanka Chopra                                    deep= 6421.44  pv=    0.0  ext=128  lang=  0  len=251678
+   3. [GEO         ] Winnipeg                                           deep= 6139.96  pv=    0.0  ext=156  lang=  0  len=154911
+   4. [HISTORY     ] Milos Raonic                                       deep= 6010.78  pv=    0.0  ext=124  lang=  0  len=234973
+   5. [GEO         ] Millennium Park                                    deep= 5712.10  pv=    0.0  ext=131  lang=  0  len=190129
+   6. [HISTORY     ] Single Ladies (Put a Ring on It)                   deep= 5522.24  pv=    0.0  ext=126  lang=  0  len=192083
+   7. [HISTORY     ] Anbar campaign (2003–2011)                         deep= 5216.92  pv=    0.0  ext=115  lang=  0  len=205794
+   8. [GEO         ] School Rumble                                      deep= 5050.20  pv=    0.0  ext=158  lang=  0  len=102165
+   9. [HISTORY     ] Dishonored                                         deep= 5042.41  pv=    0.0  ext=121  lang=  0  len=173662
+  10. [HISTORY     ] 4 (Beyoncé album)                                  deep= 5017.63  pv=    0.0  ext=128  lang=  0  len=153666
+  11. [HISTORY     ] St James' Church, Sydney                           deep= 4513.54  pv=    0.0  ext=121  lang=  0  len=139144
+  12. [HISTORY     ] Boston                                             deep= 4477.44  pv=    0.0  ext= 92  lang=  0  len=236856
+  13. [HISTORY     ] The Beatles: Rock Band                             deep= 4391.91  pv=    0.0  ext=132  lang=  0  len=110703
+  14. [FILM        ] Julianne Moore                                     deep= 4180.11  pv=    0.0  ext=105  lang=  0  len=158488
+  15. [HISTORY     ] Persona (series)                                   deep= 4063.53  pv=    0.0  ext= 96  lang=  0  len=179170
+  16. [SPORTS      ] Thierry Henry                                      deep= 3827.00  pv=    0.0  ext= 88  lang=  0  len=189126
+  17. [HISTORY     ] Tales of Monkey Island                             deep= 3720.75  pv=    0.0  ext=109  lang=  0  len=116522
+  18. [GEO         ] Powderfinger                                       deep= 3702.01  pv=    0.0  ext=109  lang=  0  len=115351
+  19. [HISTORY     ] Kent, Ohio                                         deep= 3632.24  pv=    0.0  ext= 95  lang=  0  len=146185
+  20. [HISTORY     ] First inauguration of Barack Obama                 deep= 3580.13  pv=    0.0  ext= 83  lang=  0  len=186055
+
+=== BIN COVERAGE ===
+  COSMOS      : 30 articles
+  EARTH       : 30 articles
+  EVERYDAY    : 9 articles
+  FILM        : 30 articles
+  GEO         : 30 articles
+  HISTORY     : 30 articles
+  LIFE_SCI    : 30 articles
+  LITERATURE  : 30 articles
+  MATH        : 5 articles
+  MEDICINE    : 30 articles
+  MILITARY    : 30 articles
+  MUSIC       : 30 articles
+  PHILOSOPHY  : 15 articles
+  PHYS_SCI    : 30 articles
+  SOCIETY     : 30 articles
+  SPORTS      : 30 articles
+  TECH        : 30 articles
+  VISUAL_ARTS : 30 articles
