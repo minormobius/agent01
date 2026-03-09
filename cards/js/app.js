@@ -1,6 +1,7 @@
 import { CATEGORIES, POOL, BINS } from "./pool.js";
 import { loadCatalog, getCachedArticle, isCatalogLoaded } from "./pds-catalog.js";
 import { initNexus } from "./nexus.js";
+import { initLibrary } from "./library.js";
 
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────
 function mulberry32(seed) {
@@ -1014,6 +1015,7 @@ function init() {
   renderDocs();
   initAlchemy();
   initNexus();
+  initLibrary();
   todaySeed(); // set date display
 
   // Load PDS catalog in background (non-blocking)
