@@ -1,4 +1,5 @@
 import { CATEGORIES, POOL, BINS } from "./pool.js";
+import { loadCatalog, getCachedArticle, isCatalogLoaded } from "./pds-catalog.js";
 
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────
 function mulberry32(seed) {
@@ -59,10 +60,41 @@ function pickPack(seed, count = 5) {
   return picks;
 }
 
-// ── Wikipedia API (light data only — stats are pre-computed) ──
+// ── Article data: PDS catalog first, Wikipedia API fallback ──
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 
 async function fetchArticleData(titles) {
+  // Check PDS cache first
+  if (isCatalogLoaded()) {
+    const pages = {};
+    const uncached = [];
+    for (const title of titles) {
+      const cached = getCachedArticle(title);
+      if (cached) {
+        // Build a Wikipedia-API-shaped response from cache
+        pages[title] = {
+          pageid: 1,
+          title,
+          extract: cached.extract,
+          thumbnail: cached.thumbnail ? { source: cached.thumbnail } : undefined,
+        };
+      } else {
+        uncached.push(title);
+      }
+    }
+    // Fetch any uncached titles from Wikipedia
+    if (uncached.length > 0) {
+      const wikiPages = await fetchFromWikipedia(uncached);
+      Object.assign(pages, wikiPages);
+    }
+    return pages;
+  }
+
+  // No catalog — full Wikipedia fetch
+  return fetchFromWikipedia(titles);
+}
+
+async function fetchFromWikipedia(titles) {
   const params = new URLSearchParams({
     action: "query",
     titles: titles.join("|"),
@@ -912,6 +944,9 @@ function init() {
   renderDocs();
   initAlchemy();
   todaySeed(); // set date display
+
+  // Load PDS catalog in background (non-blocking)
+  loadCatalog();
 
   document.getElementById("open-btn").addEventListener("click", () => openPack());
   document.getElementById("pack").addEventListener("click", () => openPack());
