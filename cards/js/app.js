@@ -767,12 +767,15 @@ function renderSlot(slotId, data) {
   const cat = CATEGORIES[data.category];
   const rarity = data.stats?.rarity || "common";
   content.innerHTML = `
-    <div class="alchemy-filled rarity-${rarity}">
+    <div class="alchemy-filled rarity-${rarity}" style="cursor:pointer" title="Click to preview">
       <div class="alchemy-card-cat" style="color:${cat?.color || '#888'}">${cat?.icon || ''} ${cat?.name || data.category}</div>
       <div class="alchemy-card-title">${data.title}</div>
       <div class="alchemy-card-rarity">${RARITY_LABELS[rarity]}</div>
     </div>
   `;
+  content.querySelector(".alchemy-filled").onclick = () => {
+    showCardPreview("alchemy-preview", data.title, data.category, data.stats);
+  };
 }
 
 function updateCombineButton() {
@@ -905,9 +908,9 @@ function renderAlchemyHistory() {
     return;
   }
 
-  const items = alchemyHistoryList.slice(0, 10).map((h) => {
+  const items = alchemyHistoryList.slice(0, 10).map((h, i) => {
     const cat = CATEGORIES[h.category];
-    return `<div class="alchemy-history-item">
+    return `<div class="alchemy-history-item" data-hi="${i}" style="cursor:pointer">
       <span class="alchemy-hist-formula">${h.a} + ${h.b}</span>
       <span class="alchemy-hist-arrow">=</span>
       <span class="alchemy-hist-result">${h.result}</span>
@@ -916,6 +919,16 @@ function renderAlchemyHistory() {
   }).join("");
 
   container.innerHTML = `<div class="alchemy-history-label">Previous combinations</div>${items}`;
+
+  // Click history items to preview the result card
+  container.querySelectorAll(".alchemy-history-item").forEach(el => {
+    el.onclick = () => {
+      const h = alchemyHistoryList[parseInt(el.dataset.hi)];
+      const poolEntry = POOL.find(p => p[0] === h.result);
+      const stats = poolEntry ? poolEntry[2] : { atk: 50, def: 50, spc: 50, spd: 50, hp: 500, rarity: h.rarity };
+      showCardPreview("alchemy-preview", h.result, h.category, stats);
+    };
+  });
 }
 
 function initAlchemy() {
@@ -937,6 +950,62 @@ function initAlchemy() {
 
   document.getElementById("combine-btn").addEventListener("click", alchemyCombine);
 }
+
+// ── Card Preview Panel ────────────────────────────────────────
+// Shows a compact card detail in a target container when mini cards are clicked.
+async function showCardPreview(containerId, title, category, stats) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const cat = CATEGORIES[category] || {};
+  const rarity = stats?.rarity || "common";
+  const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="card-preview-inner">
+    <div class="card-preview-no-img">${cat.icon || "?"}</div>
+    <div class="card-preview-body">
+      <button class="card-preview-close">&times;</button>
+      <div class="card-preview-title">${title}</div>
+      <div class="card-preview-cat" style="color:${cat.color || "#888"}">${cat.name || category} — ${RARITY_LABELS[rarity]}</div>
+      <div class="card-preview-extract" style="opacity:0.5">Loading...</div>
+      <div class="card-preview-stats">
+        <div class="stat"><span class="stat-label">ATK</span> <span class="stat-value">${stats.atk}</span></div>
+        <div class="stat"><span class="stat-label">DEF</span> <span class="stat-value">${stats.def}</span></div>
+        <div class="stat"><span class="stat-label">SPC</span> <span class="stat-value">${stats.spc}</span></div>
+        <div class="stat"><span class="stat-label">SPD</span> <span class="stat-value">${stats.spd}</span></div>
+        <div class="stat"><span class="stat-label">HP</span> <span class="stat-value">${stats.hp}</span></div>
+      </div>
+      <a class="card-preview-link" href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a>
+    </div>
+  </div>`;
+
+  el.querySelector(".card-preview-close").onclick = () => el.classList.add("hidden");
+
+  // Fetch thumbnail + extract
+  try {
+    const pages = await fetchArticleData([title]);
+    const page = Object.values(pages).find(p => p.pageid);
+    if (page) {
+      const imgEl = el.querySelector(".card-preview-no-img, .card-preview-img");
+      if (page.thumbnail && imgEl) {
+        const img = document.createElement("img");
+        img.className = "card-preview-img";
+        img.src = page.thumbnail.source;
+        img.alt = title;
+        imgEl.replaceWith(img);
+      }
+      const extEl = el.querySelector(".card-preview-extract");
+      if (extEl) {
+        extEl.style.opacity = "";
+        extEl.textContent = page.extract || "";
+      }
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// Export for nexus
+window._showCardPreview = showCardPreview;
 
 // ── Init ──────────────────────────────────────────────────────
 function init() {

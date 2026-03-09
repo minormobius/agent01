@@ -417,6 +417,36 @@ function render() {
       el.onclick = () => { engine.attack(st, st.selAtk, parseInt(el.dataset.i)); render(); };
     });
   }
+
+  // ── Bind card preview (non-actionable cards show preview on click) ──
+  const previewCard = (card) => {
+    const poolEntry = POOL.find(p => p[0] === card.title);
+    const stats = poolEntry ? poolEntry[2] : { atk: card.atk, def: card.def, spc: card.spc || 50, spd: card.spd || 50, hp: card.maxHp * HP_SCALE, rarity: card.rarity };
+    if (window._showCardPreview) window._showCardPreview("nx-preview", card.title, card.category, stats);
+  };
+
+  // Field cards that aren't clickable for actions → preview on click
+  pEl.querySelectorAll(".nx-card:not(.nx-click)").forEach(el => {
+    el.style.cursor = "pointer";
+    el.onclick = () => previewCard(st.p.field[parseInt(el.dataset.i)]);
+  });
+  oppEl.querySelectorAll(".nx-card:not(.nx-click)").forEach(el => {
+    el.style.cursor = "pointer";
+    el.onclick = () => previewCard(st.a.field[parseInt(el.dataset.i)]);
+  });
+
+  // All field cards (even clickable ones) also preview on right-click
+  [pEl, oppEl].forEach((fEl, fi) => {
+    const field = fi === 0 ? st.p.field : st.a.field;
+    fEl.querySelectorAll(".nx-card").forEach(el => {
+      el.oncontextmenu = (e) => { e.preventDefault(); previewCard(field[parseInt(el.dataset.i)]); };
+    });
+  });
+
+  // Hand cards → right-click to preview (left-click plays them)
+  hEl.querySelectorAll(".nx-hcard").forEach(el => {
+    el.oncontextmenu = (e) => { e.preventDefault(); previewCard(st.p.hand[parseInt(el.dataset.hi)]); };
+  });
 }
 
 async function startGame() {
