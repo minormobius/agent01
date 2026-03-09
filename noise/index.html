@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Binaural beats and noise generator. Keeps playing when your phone sleeps.">
+<title>Noise — binaural beats generator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#0a0a14;
+  --surface:#12121e;
+  --border:#1e1e30;
+  --text:#c8c8d8;
+  --dim:#666680;
+  --accent:#6e56cf;
+  --accent-glow:#6e56cf44;
+  --warm:#cf8856;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+
+/* ---- Header ---- */
+header{
+  text-align:center;
+  padding:2rem 1rem 1rem;
+}
+header h1{
+  font-size:1.4rem;
+  font-weight:300;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+header h1 span{
+  color:var(--accent);
+  font-weight:600;
+}
+
+/* ---- Main Play Button ---- */
+.play-zone{
+  display:flex;
+  justify-content:center;
+  padding:1.5rem 0;
+}
+.play-btn{
+  width:88px;height:88px;
+  border-radius:50%;
+  border:2px solid var(--accent);
+  background:transparent;
+  color:var(--accent);
+  font-size:2rem;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+  box-shadow:0 0 0 0 var(--accent-glow);
+}
+.play-btn:hover,.play-btn:active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 30px 8px var(--accent-glow);
+}
+.play-btn.active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 40px 12px var(--accent-glow);
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 30px 8px var(--accent-glow)}
+  50%{box-shadow:0 0 50px 16px var(--accent-glow)}
+}
+
+/* ---- Controls ---- */
+.controls{
+  flex:1;
+  padding:0 1rem 2rem;
+  max-width:480px;
+  margin:0 auto;
+  width:100%;
+}
+
+.section{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1rem;
+  margin-bottom:1rem;
+}
+.section-title{
+  font-size:.65rem;
+  text-transform:uppercase;
+  letter-spacing:.15em;
+  color:var(--dim);
+  margin-bottom:.75rem;
+}
+
+/* Slider rows */
+.slider-row{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  margin-bottom:.6rem;
+}
+.slider-row:last-child{margin-bottom:0}
+.slider-label{
+  font-size:.8rem;
+  min-width:80px;
+  color:var(--text);
+}
+.slider-value{
+  font-size:.75rem;
+  min-width:48px;
+  text-align:right;
+  color:var(--dim);
+  font-variant-numeric:tabular-nums;
+}
+input[type=range]{
+  -webkit-appearance:none;
+  appearance:none;
+  flex:1;
+  height:6px;
+  border-radius:3px;
+  background:var(--border);
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--accent);
+  border:2px solid var(--bg);
+  cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--accent);
+  border:2px solid var(--bg);
+  cursor:pointer;
+}
+
+/* Preset chips */
+.presets{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+  margin-top:.5rem;
+}
+.preset-chip{
+  padding:.4rem .8rem;
+  font-size:.72rem;
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:all .15s;
+  letter-spacing:.03em;
+}
+.preset-chip:hover,.preset-chip.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-glow);
+}
+
+/* Noise type toggle */
+.noise-types{
+  display:flex;
+  gap:.5rem;
+}
+.noise-type-btn{
+  flex:1;
+  padding:.5rem;
+  font-size:.75rem;
+  font-weight:500;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:all .15s;
+  text-align:center;
+}
+.noise-type-btn:hover{border-color:var(--dim)}
+.noise-type-btn.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-glow);
+}
+
+/* Timer */
+.timer-row{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+}
+.timer-display{
+  font-size:.85rem;
+  font-variant-numeric:tabular-nums;
+  color:var(--dim);
+}
+
+/* Footer */
+footer{
+  text-align:center;
+  padding:1rem;
+  font-size:.6rem;
+  color:var(--dim);
+  letter-spacing:.1em;
+}
+footer a{color:var(--accent);text-decoration:none}
+
+/* Status bar */
+.status{
+  text-align:center;
+  font-size:.65rem;
+  color:var(--dim);
+  padding:.5rem;
+  min-height:1.5rem;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Noise</span></h1>
+</header>
+
+<div class="status" id="status"></div>
+
+<div class="play-zone">
+  <button class="play-btn" id="play-btn" aria-label="Play">
+    <svg id="icon-play" width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><polygon points="7,3 21,12 7,21"/></svg>
+    <svg id="icon-pause" width="36" height="36" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+  </button>
+</div>
+
+<div class="controls">
+
+  <!-- Binaural Beats -->
+  <div class="section">
+    <div class="section-title">Binaural Beats</div>
+    <div class="slider-row">
+      <span class="slider-label">Base freq</span>
+      <input type="range" id="base-freq" min="80" max="500" value="200" step="1">
+      <span class="slider-value" id="base-freq-val">200 Hz</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Beat freq</span>
+      <input type="range" id="beat-freq" min="0.5" max="40" value="10" step="0.5">
+      <span class="slider-value" id="beat-freq-val">10 Hz</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Tone vol</span>
+      <input type="range" id="tone-vol" min="0" max="100" value="30" step="1">
+      <span class="slider-value" id="tone-vol-val">30%</span>
+    </div>
+    <div class="presets">
+      <button class="preset-chip" data-beat="2" data-label="Delta">Delta 2 Hz</button>
+      <button class="preset-chip" data-beat="6" data-label="Theta">Theta 6 Hz</button>
+      <button class="preset-chip active" data-beat="10" data-label="Alpha">Alpha 10 Hz</button>
+      <button class="preset-chip" data-beat="20" data-label="Beta">Beta 20 Hz</button>
+      <button class="preset-chip" data-beat="40" data-label="Gamma">Gamma 40 Hz</button>
+    </div>
+  </div>
+
+  <!-- Noise Layer -->
+  <div class="section">
+    <div class="section-title">Noise</div>
+    <div class="noise-types" id="noise-types">
+      <button class="noise-type-btn" data-type="off">Off</button>
+      <button class="noise-type-btn active" data-type="white">White</button>
+      <button class="noise-type-btn" data-type="pink">Pink</button>
+      <button class="noise-type-btn" data-type="brown">Brown</button>
+    </div>
+    <div class="slider-row" style="margin-top:.75rem">
+      <span class="slider-label">Noise vol</span>
+      <input type="range" id="noise-vol" min="0" max="100" value="20" step="1">
+      <span class="slider-value" id="noise-vol-val">20%</span>
+    </div>
+  </div>
+
+  <!-- Sleep Timer -->
+  <div class="section">
+    <div class="section-title">Sleep Timer</div>
+    <div class="presets" id="timer-presets">
+      <button class="preset-chip active" data-minutes="0">Off</button>
+      <button class="preset-chip" data-minutes="15">15 min</button>
+      <button class="preset-chip" data-minutes="30">30 min</button>
+      <button class="preset-chip" data-minutes="60">1 hr</button>
+      <button class="preset-chip" data-minutes="120">2 hr</button>
+    </div>
+    <div class="timer-row" style="margin-top:.5rem">
+      <span class="timer-display" id="timer-display"></span>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <a href="https://minomobi.com">minomobi.com</a>
+</footer>
+
+<!-- Hidden audio element — the key to background playback -->
+<audio id="bg-audio" playsinline webkit-playsinline></audio>
+
+<script>
+(() => {
+  // ============================================================
+  // BACKGROUND AUDIO TRICK
+  //
+  // Web Audio API oscillators get suspended when the phone sleeps.
+  // But a standard <audio> element playing a MediaStream stays alive.
+  // So we route: Oscillators → MediaStreamDestination → <audio>.src
+  // The OS sees a playing <audio> element and keeps it running.
+  // ============================================================
+
+  let ctx = null;
+  let streamDest = null;
+  const bgAudio = document.getElementById("bg-audio");
+  let playing = false;
+
+  // Nodes
+  let oscL = null, oscR = null;
+  let gainTone = null, gainNoise = null, gainMaster = null;
+  let noiseSource = null, noiseBuffer = null;
+  let merger = null;
+  let panL = null, panR = null;
+
+  // State
+  let baseFreq = 200;
+  let beatFreq = 10;
+  let toneVol = 0.3;
+  let noiseVol = 0.2;
+  let noiseType = "white";
+  let timerMinutes = 0;
+  let timerInterval = null;
+  let timerEnd = null;
+
+  // Elements
+  const playBtn = document.getElementById("play-btn");
+  const iconPlay = document.getElementById("icon-play");
+  const iconPause = document.getElementById("icon-pause");
+  const statusEl = document.getElementById("status");
+
+  // ---- Audio Context Setup ----
+
+  function ensureContext() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Create a MediaStream destination — this is the bridge
+    streamDest = ctx.createMediaStreamDestination();
+
+    // Connect the <audio> element to the stream
+    bgAudio.srcObject = streamDest.stream;
+
+    // Master gain → stream destination
+    gainMaster = ctx.createGain();
+    gainMaster.gain.value = 1;
+    gainMaster.connect(streamDest);
+    // Also connect to speakers for immediate feedback
+    gainMaster.connect(ctx.destination);
+
+    // Tone gain
+    gainTone = ctx.createGain();
+    gainTone.gain.value = toneVol;
+    gainTone.connect(gainMaster);
+
+    // Noise gain
+    gainNoise = ctx.createGain();
+    gainNoise.gain.value = noiseVol;
+    gainNoise.connect(gainMaster);
+
+    // Stereo merger for binaural (L/R channels)
+    merger = ctx.createChannelMerger(2);
+    merger.connect(gainTone);
+
+    // Pan nodes for true stereo separation
+    panL = ctx.createStereoPanner();
+    panL.pan.value = -1;
+    panL.connect(gainTone);
+
+    panR = ctx.createStereoPanner();
+    panR.pan.value = 1;
+    panR.connect(gainTone);
+
+    // Generate noise buffers
+    generateNoiseBuffers();
+  }
+
+  function generateNoiseBuffers() {
+    const sr = ctx.sampleRate;
+    const len = sr * 4; // 4 seconds, looped
+    noiseBuffer = {};
+
+    // White noise
+    const white = ctx.createBuffer(1, len, sr);
+    const wd = white.getChannelData(0);
+    for (let i = 0; i < len; i++) wd[i] = Math.random() * 2 - 1;
+    noiseBuffer.white = white;
+
+    // Pink noise (Voss-McCartney approximation)
+    const pink = ctx.createBuffer(1, len, sr);
+    const pd = pink.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886*b0 + w*0.0555179;
+      b1 = 0.99332*b1 + w*0.0750759;
+      b2 = 0.96900*b2 + w*0.1538520;
+      b3 = 0.86650*b3 + w*0.3104856;
+      b4 = 0.55000*b4 + w*0.5329522;
+      b5 = -0.7616*b5 - w*0.0168980;
+      pd[i] = (b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+      b6 = w*0.115926;
+    }
+    noiseBuffer.pink = pink;
+
+    // Brown noise (integrated white)
+    const brown = ctx.createBuffer(1, len, sr);
+    const bd = brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      last = (last + (0.02 * w)) / 1.02;
+      bd[i] = last * 3.5;
+    }
+    noiseBuffer.brown = brown;
+  }
+
+  // ---- Start / Stop ----
+
+  function start() {
+    ensureContext();
+    if (ctx.state === "suspended") ctx.resume();
+
+    // Binaural oscillators
+    oscL = ctx.createOscillator();
+    oscR = ctx.createOscillator();
+    oscL.type = "sine";
+    oscR.type = "sine";
+    oscL.frequency.value = baseFreq;
+    oscR.frequency.value = baseFreq + beatFreq;
+
+    oscL.connect(panL);
+    oscR.connect(panR);
+
+    oscL.start();
+    oscR.start();
+
+    // Start noise
+    startNoise();
+
+    // Play the <audio> element — this is what keeps the OS from killing us
+    bgAudio.play().catch(() => {});
+
+    playing = true;
+    updateUI();
+    updateMediaSession();
+    statusEl.textContent = "Playing — will continue in background";
+
+    // Start timer if set
+    if (timerMinutes > 0) startTimer(timerMinutes);
+  }
+
+  function stop() {
+    if (oscL) { oscL.stop(); oscL.disconnect(); oscL = null; }
+    if (oscR) { oscR.stop(); oscR.disconnect(); oscR = null; }
+    stopNoise();
+    bgAudio.pause();
+    playing = false;
+    updateUI();
+    stopTimer();
+    statusEl.textContent = "";
+  }
+
+  function startNoise() {
+    stopNoise();
+    if (noiseType === "off" || !noiseBuffer[noiseType]) return;
+    noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer[noiseType];
+    noiseSource.loop = true;
+    noiseSource.connect(gainNoise);
+    noiseSource.start();
+  }
+
+  function stopNoise() {
+    if (noiseSource) {
+      noiseSource.stop();
+      noiseSource.disconnect();
+      noiseSource = null;
+    }
+  }
+
+  // ---- Update running parameters ----
+
+  function updateOscillators() {
+    if (!playing) return;
+    if (oscL) oscL.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    if (oscR) oscR.frequency.setValueAtTime(baseFreq + beatFreq, ctx.currentTime);
+  }
+
+  function updateVolumes() {
+    if (!gainTone || !gainNoise) return;
+    gainTone.gain.setTargetAtTime(toneVol, ctx.currentTime, 0.05);
+    gainNoise.gain.setTargetAtTime(noiseVol, ctx.currentTime, 0.05);
+  }
+
+  // ---- Timer ----
+
+  function startTimer(minutes) {
+    stopTimer();
+    timerEnd = Date.now() + minutes * 60 * 1000;
+    timerInterval = setInterval(() => {
+      const remaining = timerEnd - Date.now();
+      if (remaining <= 0) {
+        stop();
+        document.getElementById("timer-display").textContent = "";
+        return;
+      }
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      document.getElementById("timer-display").textContent =
+        `${m}:${s.toString().padStart(2, "0")} remaining`;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    document.getElementById("timer-display").textContent = "";
+  }
+
+  // ---- Media Session API — lock screen controls ----
+
+  function updateMediaSession() {
+    if (!("mediaSession" in navigator)) return;
+
+    const beatLabel = beatFreq + " Hz binaural";
+    const noiseLabel = noiseType !== "off" ? ` + ${noiseType} noise` : "";
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: `${beatLabel}${noiseLabel}`,
+      artist: "Noise — minomobi.com",
+      album: "Binaural Beats"
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (!playing) start(); else { ctx.resume(); bgAudio.play(); }
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      if (playing) stop();
+    });
+    navigator.mediaSession.setActionHandler("stop", () => {
+      if (playing) stop();
+    });
+    // Use seek buttons to cycle presets
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      cycleBeatPreset(-1);
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      cycleBeatPreset(1);
+    });
+  }
+
+  const presetBeats = [2, 6, 10, 20, 40];
+  function cycleBeatPreset(dir) {
+    let idx = presetBeats.indexOf(beatFreq);
+    if (idx === -1) idx = 2; // default to alpha
+    idx = (idx + dir + presetBeats.length) % presetBeats.length;
+    beatFreq = presetBeats[idx];
+    document.getElementById("beat-freq").value = beatFreq;
+    document.getElementById("beat-freq-val").textContent = beatFreq + " Hz";
+    updateOscillators();
+    updatePresetChips();
+    updateMediaSession();
+  }
+
+  // ---- UI ----
+
+  function updateUI() {
+    iconPlay.style.display = playing ? "none" : "";
+    iconPause.style.display = playing ? "" : "none";
+    playBtn.classList.toggle("active", playing);
+    playBtn.setAttribute("aria-label", playing ? "Stop" : "Play");
+  }
+
+  function updatePresetChips() {
+    document.querySelectorAll(".presets [data-beat]").forEach(chip => {
+      chip.classList.toggle("active", parseFloat(chip.dataset.beat) === beatFreq);
+    });
+  }
+
+  // Play button
+  playBtn.addEventListener("click", () => {
+    if (playing) stop(); else start();
+  });
+
+  // Base frequency slider
+  const baseFreqSlider = document.getElementById("base-freq");
+  const baseFreqVal = document.getElementById("base-freq-val");
+  baseFreqSlider.addEventListener("input", () => {
+    baseFreq = parseFloat(baseFreqSlider.value);
+    baseFreqVal.textContent = baseFreq + " Hz";
+    updateOscillators();
+  });
+
+  // Beat frequency slider
+  const beatFreqSlider = document.getElementById("beat-freq");
+  const beatFreqVal = document.getElementById("beat-freq-val");
+  beatFreqSlider.addEventListener("input", () => {
+    beatFreq = parseFloat(beatFreqSlider.value);
+    beatFreqVal.textContent = beatFreq + " Hz";
+    updateOscillators();
+    updatePresetChips();
+    if (playing) updateMediaSession();
+  });
+
+  // Tone volume
+  const toneVolSlider = document.getElementById("tone-vol");
+  const toneVolVal = document.getElementById("tone-vol-val");
+  toneVolSlider.addEventListener("input", () => {
+    toneVol = parseInt(toneVolSlider.value) / 100;
+    toneVolVal.textContent = toneVolSlider.value + "%";
+    updateVolumes();
+  });
+
+  // Noise volume
+  const noiseVolSlider = document.getElementById("noise-vol");
+  const noiseVolVal = document.getElementById("noise-vol-val");
+  noiseVolSlider.addEventListener("input", () => {
+    noiseVol = parseInt(noiseVolSlider.value) / 100;
+    noiseVolVal.textContent = noiseVolSlider.value + "%";
+    updateVolumes();
+  });
+
+  // Preset chips (binaural)
+  document.querySelectorAll(".presets [data-beat]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      beatFreq = parseFloat(chip.dataset.beat);
+      beatFreqSlider.value = beatFreq;
+      beatFreqVal.textContent = beatFreq + " Hz";
+      updateOscillators();
+      updatePresetChips();
+      if (playing) updateMediaSession();
+    });
+  });
+
+  // Noise type buttons
+  document.querySelectorAll("#noise-types .noise-type-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#noise-types .noise-type-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      noiseType = btn.dataset.type;
+      if (playing) {
+        startNoise();
+        updateMediaSession();
+      }
+    });
+  });
+
+  // Timer presets
+  document.querySelectorAll("#timer-presets .preset-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("#timer-presets .preset-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      timerMinutes = parseInt(chip.dataset.minutes);
+      if (timerMinutes === 0) {
+        stopTimer();
+      } else if (playing) {
+        startTimer(timerMinutes);
+      }
+    });
+  });
+
+  // Prevent screen-lock audio interruption on iOS — resume on visibility change
+  document.addEventListener("visibilitychange", () => {
+    if (playing && ctx && ctx.state === "suspended") {
+      ctx.resume();
+    }
+    if (playing && bgAudio.paused) {
+      bgAudio.play().catch(() => {});
+    }
+  });
+
+  // Wake lock API — keep screen on if the user wants (optional, fails gracefully)
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } catch (e) { /* not critical */ }
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+
+  // Hook wake lock to play state
+  const origStart = start;
+  const origStop = stop;
+  // We already defined start/stop above, so just add wake lock handling
+  // via the visibility handler and play button
+  playBtn.addEventListener("click", () => {
+    // The actual start/stop already happened — just manage wake lock
+    // Actually wake lock is counter to our goal (we WANT the screen to sleep
+    // while audio plays). Skip wake lock entirely.
+  });
+})();
+</script>
+</body>
+</html>
