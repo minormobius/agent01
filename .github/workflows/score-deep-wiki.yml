@@ -82,7 +82,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add cards/data/ cards/js/pool.js
-          git diff --cached --quiet && echo "No changes" || \
-            (git commit -m "deep-wiki: score $(jq -r '.meta.total_scored' cards/data/deep-wikipedia.json 2>/dev/null || echo '?') articles, regenerate pool [auto]" && \
-             git pull --rebase origin ${{ github.ref_name }} && \
-             git push origin ${{ github.ref_name }})
+          git diff --cached --quiet && echo "No changes" && exit 0
+
+          git commit -m "deep-wiki: score $(jq -r '.meta.total_scored' cards/data/deep-wikipedia.json 2>/dev/null || echo '?') articles, regenerate pool [auto]"
+
+          # Rebase on remote; resolve conflicts by keeping workflow output
+          # (workflow generates fresh data that should always win)
+          if ! git pull --rebase origin ${{ github.ref_name }}; then
+            echo "Rebase conflict — keeping workflow-generated files"
+            git checkout --theirs -- cards/data/ cards/js/pool.js 2>/dev/null || true
+            git add cards/data/ cards/js/pool.js
+            GIT_EDITOR=true git rebase --continue
+          fi
+
+          git push origin ${{ github.ref_name }}
