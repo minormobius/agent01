@@ -52,12 +52,13 @@
     <!-- ── LUCKY TAB ─────────────────────────────────────── -->
     <div id="tab-lucky" class="tab-panel">
       <div class="lucky-wrap">
-        <div class="lucky-header">
-          <div class="lucky-globe">🎲</div>
-          <p class="lucky-subtitle">Preview a random card from the pool</p>
-        </div>
+        <button id="lucky-btn" class="lucky-btn">
+          <span class="lucky-btn-text">I'm Feeling Lucky</span>
+        </button>
+        <div id="lucky-result" class="lucky-result"></div>
+        <div id="lucky-history" class="lucky-history"></div>
 
-        <!-- Filter controls -->
+        <!-- Filter controls (below results) -->
         <div class="lucky-filters">
           <button class="filter-toggle" id="filter-toggle">
             <span>Filter</span>
@@ -83,12 +84,6 @@
             </div>
           </div>
         </div>
-
-        <button id="lucky-btn" class="lucky-btn">
-          <span class="lucky-btn-text">I'm Feeling Lucky</span>
-        </button>
-        <div id="lucky-result" class="lucky-result"></div>
-        <div id="lucky-history" class="lucky-history"></div>
       </div>
     </div>
 
