@@ -3,43 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alchemy — Wiki Cards</title>
+  <title>Transmute — Wiki Cards</title>
   <link rel="stylesheet" href="css/cards.css">
 </head>
 <body>
   <header>
     <a href="." class="back-link">&larr; Wiki Cards</a>
-    <h1>Alchemy</h1>
+    <h1>Transmute</h1>
   </header>
 
   <main>
-    <div class="alchemy-wrap">
-      <div class="alchemy-header">
-        <p class="alchemy-subtitle">Combine two articles in embedding space. What emerges?</p>
+    <div class="tx-wrap">
+      <p class="tx-subtitle">Find two cards whose difference equals the target.</p>
+      <div id="tx-status" class="tx-status"></div>
+
+      <!-- Target reagent -->
+      <div class="tx-target-section">
+        <div class="tx-section-label">Target</div>
+        <div id="tx-target-card" class="tx-target-card"></div>
+        <button class="tx-btn" id="tx-new-target">New Target</button>
       </div>
-      <div id="alchemy-status" class="alchemy-status"></div>
-      <div class="alchemy-slots">
-        <div class="alchemy-slot" id="slot-a">
-          <div class="alchemy-slot-label">Article A</div>
-          <div class="alchemy-slot-content" id="slot-a-content">
-            <div class="alchemy-empty">?</div>
-          </div>
-          <button class="alchemy-draw-btn" id="draw-a">Draw</button>
+
+      <!-- Hand -->
+      <div class="tx-hand-section">
+        <div class="tx-section-label">
+          Hand <span class="tx-hint">click to select A then B — right-click to preview</span>
         </div>
-        <div class="alchemy-plus">+</div>
-        <div class="alchemy-slot" id="slot-b">
-          <div class="alchemy-slot-label">Article B</div>
-          <div class="alchemy-slot-content" id="slot-b-content">
-            <div class="alchemy-empty">?</div>
-          </div>
-          <button class="alchemy-draw-btn" id="draw-b">Draw</button>
+        <div id="tx-hand" class="tx-hand"></div>
+        <div class="tx-hand-actions">
+          <button class="tx-btn tx-btn-sm" id="tx-redraw">Redraw Hand</button>
+          <button class="tx-btn tx-btn-sm" id="tx-swap">Swap A/B</button>
         </div>
       </div>
-      <div class="alchemy-arrow">&darr;</div>
-      <button class="alchemy-combine-btn hidden" id="combine-btn">Combine</button>
-      <div id="alchemy-result" class="alchemy-result"></div>
-      <div id="alchemy-preview" class="card-preview hidden"></div>
-      <div id="alchemy-history" class="alchemy-history"></div>
+
+      <!-- Transmute -->
+      <button class="tx-go-btn hidden" id="tx-go">Transmute</button>
+
+      <!-- Result -->
+      <div id="tx-result" class="tx-result"></div>
+
+      <!-- Preview -->
+      <div id="tx-preview" class="card-preview hidden"></div>
+
+      <!-- History -->
+      <div id="tx-history" class="tx-history"></div>
     </div>
   </main>
 

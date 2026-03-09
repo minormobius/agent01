@@ -1109,8 +1109,10 @@ main {
    ALCHEMY TAB
    ══════════════════════════════════════════════════════════════ */
 
-.alchemy-wrap {
-  max-width: 700px;
+/* ── Transmute ──────────────────────────────────────────────── */
+
+.tx-wrap {
+  max-width: 760px;
   width: 100%;
   padding: 2rem 1rem;
   display: flex;
@@ -1118,24 +1120,15 @@ main {
   align-items: center;
 }
 
-.alchemy-header {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.alchemy-icon {
-  font-size: 3rem;
-  line-height: 1;
-  margin-bottom: 0.5rem;
-}
-
-.alchemy-subtitle {
+.tx-subtitle {
   font-style: italic;
   color: var(--text-dim);
   font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
 }
 
-.alchemy-status {
+.tx-status {
   font-family: system-ui, sans-serif;
   font-size: 0.72rem;
   color: var(--text-dim);
@@ -1143,55 +1136,44 @@ main {
   text-align: center;
 }
 
-.alchemy-slots {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-}
-
-.alchemy-slot {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.alchemy-slot-label {
+.tx-section-label {
   font-family: system-ui, sans-serif;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-dim);
+  margin-bottom: 0.6rem;
 }
 
-.alchemy-slot-content {
+.tx-hint {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  opacity: 0.6;
+  margin-left: 0.5rem;
+}
+
+/* Target section */
+.tx-target-section {
   width: 100%;
-  min-height: 120px;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.tx-target-card {
+  margin-bottom: 0.8rem;
+}
+
+.tx-tgt {
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  transition: border-color 0.3s;
-}
-
-.alchemy-empty {
-  font-size: 2.5rem;
-  color: var(--gold-dim);
-  opacity: 0.4;
-  font-weight: 700;
-}
-
-.alchemy-filled {
+  padding: 1.2rem;
   text-align: center;
   animation: luckyReveal 0.4s ease-out;
 }
 
-.alchemy-card-cat {
+.tx-tgt-cat {
   font-family: system-ui, sans-serif;
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -1199,15 +1181,15 @@ main {
   margin-bottom: 0.3rem;
 }
 
-.alchemy-card-title {
-  font-size: 1rem;
+.tx-tgt-title {
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--text);
   line-height: 1.2;
   margin-bottom: 0.3rem;
 }
 
-.alchemy-card-rarity {
+.tx-tgt-rarity {
   font-family: system-ui, sans-serif;
   font-size: 0.65rem;
   text-transform: uppercase;
@@ -1215,26 +1197,11 @@ main {
   color: var(--text-dim);
 }
 
-.alchemy-filled.rarity-uncommon { }
-.alchemy-filled.rarity-rare .alchemy-card-title { color: #64b5f6; }
-.alchemy-filled.rarity-legendary .alchemy-card-title { color: var(--gold); }
+.tx-tgt.rarity-rare .tx-tgt-title { color: #64b5f6; }
+.tx-tgt.rarity-legendary .tx-tgt-title { color: var(--gold); }
 
-.alchemy-plus {
-  font-size: 2rem;
-  color: var(--gold-dim);
-  font-weight: 300;
-  flex-shrink: 0;
-  padding-top: 1.5rem;
-}
-
-.alchemy-arrow {
-  font-size: 1.5rem;
-  color: var(--gold-dim);
-  margin: 1rem 0 0.5rem;
-  opacity: 0.5;
-}
-
-.alchemy-draw-btn {
+/* Buttons */
+.tx-btn {
   padding: 0.5rem 1.5rem;
   font-family: "Georgia", "Times New Roman", serif;
   font-size: 0.85rem;
@@ -1247,12 +1214,115 @@ main {
   transition: all 0.25s;
 }
 
-.alchemy-draw-btn:hover {
+.tx-btn:hover {
   background: rgba(201, 168, 76, 0.1);
   border-color: var(--gold);
 }
 
-.alchemy-combine-btn {
+.tx-btn-sm {
+  padding: 0.35rem 1rem;
+  font-size: 0.75rem;
+}
+
+/* Hand */
+.tx-hand-section {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.tx-hand {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.tx-hcard {
+  position: relative;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem 0.6rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.tx-hcard:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-2px);
+}
+
+.tx-hcard-cat {
+  font-size: 0.7rem;
+}
+
+.tx-hcard-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.tx-hcard-rarity {
+  font-family: system-ui, sans-serif;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.tx-hcard.rarity-rare .tx-hcard-title { color: #64b5f6; }
+.tx-hcard.rarity-legendary .tx-hcard-title { color: var(--gold); }
+
+/* Selection states */
+.tx-sel-a {
+  border-color: #e57373 !important;
+  box-shadow: 0 0 12px rgba(229, 115, 115, 0.3);
+}
+
+.tx-sel-b {
+  border-color: #64b5f6 !important;
+  box-shadow: 0 0 12px rgba(100, 181, 246, 0.3);
+}
+
+.tx-sel-label {
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+}
+
+.tx-sel-a .tx-sel-label { background: #e57373; }
+.tx-sel-b .tx-sel-label { background: #64b5f6; }
+
+.tx-hand-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+/* Transmute button */
+.tx-go-btn {
   padding: 0.8rem 2.5rem;
   font-family: "Georgia", "Times New Roman", serif;
   font-size: 1.1rem;
@@ -1267,22 +1337,22 @@ main {
   margin-bottom: 1rem;
 }
 
-.alchemy-combine-btn:hover {
+.tx-go-btn:hover {
   background: rgba(201, 168, 76, 0.15);
   border-color: var(--gold);
   box-shadow: 0 0 30px rgba(201, 168, 76, 0.25);
   transform: scale(1.02);
 }
 
-.alchemy-combine-btn.hidden { display: none; }
+.tx-go-btn.hidden { display: none; }
 
-/* Alchemy result card */
-.alchemy-result {
+/* Result card */
+.tx-result {
   width: 100%;
   margin-top: 1rem;
 }
 
-.alchemy-result-card {
+.tx-result-card {
   border: 1.5px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -1290,34 +1360,90 @@ main {
   animation: luckyReveal 0.6s ease-out;
 }
 
-.alchemy-result-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 12px rgba(46, 125, 50, 0.3); }
-.alchemy-result-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 16px rgba(21, 101, 192, 0.4); }
-.alchemy-result-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 24px rgba(201, 168, 76, 0.5); }
+.tx-result-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 12px rgba(46, 125, 50, 0.3); }
+.tx-result-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 16px rgba(21, 101, 192, 0.4); }
+.tx-result-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 24px rgba(201, 168, 76, 0.5); }
 
-.alchemy-result-eq {
-  padding: 0.8rem 1.2rem;
+.tx-result-header {
+  padding: 1rem 1.2rem;
   background: rgba(201, 168, 76, 0.05);
   border-bottom: 1px solid var(--border);
+}
+
+.tx-result-eq {
   text-align: center;
   font-size: 0.85rem;
   line-height: 1.6;
+  margin-bottom: 0.6rem;
 }
 
-.alchemy-eq-term {
+.tx-eq-term {
   font-weight: 700;
   color: var(--text);
 }
 
-.alchemy-eq-op {
+.tx-eq-op {
   color: var(--gold-dim);
-  margin: 0 0.5rem;
+  margin: 0 0.4rem;
 }
 
-.alchemy-result-inner {
+.tx-result-scores {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.tx-score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.tx-score-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.tx-score-val {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Grade badges */
+.tx-grade {
+  font-family: system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.tx-grade-s { color: var(--gold); text-shadow: 0 0 12px rgba(201, 168, 76, 0.6); }
+.tx-grade-a { color: #81c784; }
+.tx-grade-b { color: #64b5f6; }
+.tx-grade-c { color: #b0bec5; }
+.tx-grade-d { color: #8d6e63; }
+.tx-grade-f { color: #e57373; }
+
+.tx-result-body {
   padding: 1.5rem;
 }
 
-.alchemy-result-img {
+.tx-phantom-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--gold-dim);
+  margin-bottom: 0.8rem;
+}
+
+.tx-result-img {
   width: 100%;
   max-height: 250px;
   object-fit: cover;
@@ -1325,14 +1451,14 @@ main {
   margin-bottom: 1rem;
 }
 
-.alchemy-result-no-img {
+.tx-result-no-img {
   font-size: 3rem;
   text-align: center;
   padding: 1.5rem;
   opacity: 0.3;
 }
 
-.alchemy-result-cat {
+.tx-result-cat {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -1340,48 +1466,40 @@ main {
   margin-bottom: 0.3rem;
 }
 
-.alchemy-result-title {
+.tx-result-title {
   font-size: 1.6rem;
   font-weight: 700;
   margin-bottom: 0.6rem;
   line-height: 1.2;
 }
 
-.alchemy-result-extract {
+.tx-result-extract {
   font-size: 0.9rem;
   line-height: 1.7;
   color: var(--text-dim);
   margin-bottom: 0.8rem;
 }
 
-.alchemy-result-sim {
+.tx-result-sim {
   font-family: system-ui, sans-serif;
   font-size: 0.72rem;
   color: var(--gold-dim);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
-.alchemy-result-stats {
-  display: flex;
-  gap: 2rem;
-  padding: 1rem 0;
-  border-top: 1px solid var(--border);
-  font-family: system-ui, sans-serif;
-}
-
-.alchemy-result-link {
+.tx-result-link {
   display: inline-block;
   margin-top: 0.5rem;
   font-size: 0.85rem;
 }
 
-/* Alchemy history */
-.alchemy-history {
+/* History */
+.tx-history {
   width: 100%;
   margin-top: 2rem;
 }
 
-.alchemy-history-label {
+.tx-hist-label {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1390,7 +1508,7 @@ main {
   font-family: system-ui, sans-serif;
 }
 
-.alchemy-history-item {
+.tx-hist-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1400,28 +1518,39 @@ main {
   line-height: 1.4;
 }
 
-.alchemy-hist-formula {
+.tx-hist-formula {
   color: var(--text-dim);
   flex: 1;
 }
 
-.alchemy-hist-arrow {
+.tx-hist-arrow {
   color: var(--gold-dim);
   flex-shrink: 0;
 }
 
-.alchemy-hist-result {
+.tx-hist-phantom {
   font-weight: 700;
   color: var(--text);
   flex: 1;
   text-align: right;
 }
 
-.alchemy-hist-dot {
+.tx-hist-grade {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.tx-hist-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .tx-hand {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ── Card Preview Panel ────────────────────────────────────── */
