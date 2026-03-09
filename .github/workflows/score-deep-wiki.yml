@@ -42,7 +42,7 @@ jobs:
           python-version: '3.12'
 
       - name: Score Featured Articles
-        timeout-minutes: 120
+        timeout-minutes: 300
         run: |
           mkdir -p cards/data
           python3 scripts/score-deep-wikipedia.py \
@@ -73,4 +73,5 @@ jobs:
           git add cards/data/ cards/js/pool.js
           git diff --cached --quiet && echo "No changes" || \
             (git commit -m "deep-wiki: score $(jq -r '.meta.total_scored' cards/data/deep-wikipedia.json 2>/dev/null || echo '?') articles, regenerate pool [auto]" && \
+             git pull --rebase origin ${{ github.ref_name }} && \
              git push origin ${{ github.ref_name }})
