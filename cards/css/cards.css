@@ -1506,3 +1506,445 @@ footer {
   .filter-chip { font-size: 0.58rem; padding: 2px 6px; }
   .filter-chip-icon { font-size: 0.65rem; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   NEXUS — Knowledge Graph Battle
+   ══════════════════════════════════════════════════════════════ */
+
+.nexus-wrap {
+  max-width: 800px;
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Lobby ──────────────────────────────────────────────── */
+.nx-lobby {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.nx-lobby-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+
+.nx-lobby-title {
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.nx-lobby-desc {
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
+}
+
+.nx-lobby-rules {
+  text-align: left;
+  max-width: 400px;
+  margin: 0 auto 2rem;
+}
+
+.nx-rule {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.nx-rule strong { color: var(--gold); }
+
+.nx-start-btn {
+  padding: 1rem 3rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--gold);
+  border: 2px solid var(--gold-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.nx-start-btn:hover {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: var(--gold);
+  box-shadow: 0 0 30px rgba(201, 168, 76, 0.2);
+}
+
+.nx-load-status {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+}
+
+/* ── Game board ─────────────────────────────────────────── */
+.nx-game { width: 100%; }
+.nx-game.hidden { display: none; }
+
+.nx-status {
+  text-align: center;
+  padding: 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.nx-turn-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+.nx-phase-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+
+.nx-phase-player { color: #4caf50; font-weight: 700; }
+.nx-phase-ai { color: #f44336; font-weight: 700; }
+.nx-phase-draw { color: var(--gold); font-weight: 700; }
+
+.nx-power-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.8rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+}
+
+.nx-pow {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.nx-pow-you { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.nx-pow-opp { background: rgba(244, 67, 54, 0.15); color: #f44336; }
+.nx-pow-vs { color: var(--text-dim); font-size: 0.6rem; }
+
+/* ── Board ──────────────────────────────────────────────── */
+.nx-board {
+  margin-bottom: 0.5rem;
+}
+
+.nx-field-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin: 0.4rem 0 0.2rem;
+  padding-left: 0.3rem;
+}
+
+.nx-field-label-you { color: #4caf50; }
+
+.nx-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0;
+}
+
+.nx-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 90px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+}
+
+.nx-empty {
+  width: 100%;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: 2rem;
+}
+
+/* ── Edges SVG overlay ──────────────────────────────────── */
+.nx-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Mini card (field) ──────────────────────────────────── */
+.nx-card {
+  width: 120px;
+  padding: 5px 7px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  position: relative;
+  z-index: 2;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.nx-card.rarity-uncommon { border-color: rgba(46, 125, 50, 0.5); }
+.nx-card.rarity-rare { border-color: rgba(21, 101, 192, 0.5); }
+.nx-card.rarity-legendary { border-color: rgba(201, 168, 76, 0.5); }
+
+.nx-card.nx-click {
+  cursor: pointer;
+}
+
+.nx-card.nx-click:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(201, 168, 76, 0.3);
+}
+
+.nx-card.nx-sel {
+  border-color: #4caf50;
+  box-shadow: 0 0 12px rgba(76, 175, 80, 0.5);
+}
+
+.nx-cat {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #fff;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-title {
+  font-weight: 700;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.nx-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-family: system-ui, sans-serif;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  flex-wrap: wrap;
+}
+
+.nx-a { color: #ef5350; }
+.nx-d { color: #42a5f5; }
+
+.nx-syn-badge {
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--gold);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 0.55rem;
+}
+
+.nx-hp-track {
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.nx-hp-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.nx-hp {
+  font-family: system-ui, sans-serif;
+  font-size: 0.52rem;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/* ── Hand cards ─────────────────────────────────────────── */
+.nx-hand-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin: 0.5rem 0 0.2rem;
+  padding-left: 0.3rem;
+}
+
+.nx-hand {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 80px;
+}
+
+.nx-hcard {
+  min-width: 110px;
+  max-width: 130px;
+  padding: 5px 7px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.nx-hcard.rarity-uncommon { border-color: rgba(46, 125, 50, 0.5); }
+.nx-hcard.rarity-rare { border-color: rgba(21, 101, 192, 0.5); }
+.nx-hcard.rarity-legendary { border-color: rgba(201, 168, 76, 0.5); }
+
+.nx-hcard:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.3);
+  transform: translateY(-4px);
+}
+
+.nx-rbadge {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+}
+
+/* ── Actions ────────────────────────────────────────────── */
+.nx-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.nx-btn {
+  padding: 0.5rem 1.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nx-btn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.nx-btn-start {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+.nx-btn-start:hover {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: var(--gold);
+}
+
+.nx-btn-cancel {
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+/* ── Game result ────────────────────────────────────────── */
+.nx-result {
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.nx-result-player { color: #4caf50; }
+.nx-result-ai { color: #f44336; }
+.nx-result-draw { color: var(--gold); }
+
+/* ── Battle log ─────────────────────────────────────────── */
+.nx-log {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.nx-log-l {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  line-height: 1.4;
+}
+
+/* ── Nexus mobile ───────────────────────────────────────── */
+@media (max-width: 600px) {
+  .nexus-wrap { padding: 0.5rem; }
+
+  .nx-card { width: 100px; padding: 4px 5px; }
+  .nx-title { font-size: 0.6rem; }
+  .nx-cat { font-size: 0.45rem; }
+  .nx-row { font-size: 0.5rem; }
+  .nx-hp { font-size: 0.48rem; }
+  .nx-syn-badge { font-size: 0.48rem; }
+
+  .nx-hcard { min-width: 95px; max-width: 110px; padding: 4px 5px; }
+  .nx-hcard .nx-title { font-size: 0.6rem; }
+
+  .nx-field { gap: 4px; padding: 4px; min-height: 75px; }
+  .nx-hand { gap: 4px; padding: 4px; min-height: 70px; }
+
+  .nx-status { padding: 0.4rem; }
+  .nx-phase-text { font-size: 0.75rem; }
+  .nx-log { max-height: 90px; }
+  .nx-log-l { font-size: 0.58rem; }
+
+  .nx-lobby-title { font-size: 1.4rem; }
+  .nx-start-btn { padding: 0.8rem 2rem; font-size: 1rem; }
+}
