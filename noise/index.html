@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.">
 <title>Noise — binaural beats generator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.svg">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 
@@ -1259,6 +1262,10 @@ footer a{color:var(--accent);text-decoration:none}
       bgAudio.play().catch(() => {});
     }
   });
+  // ---- Service Worker ----
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
 })();
 </script>
 </body>
