@@ -374,8 +374,9 @@ footer a{color:var(--accent);text-decoration:none}
     gainMaster = ctx.createGain();
     gainMaster.gain.value = 1;
     gainMaster.connect(streamDest);
-    // Also connect to speakers for immediate feedback
-    gainMaster.connect(ctx.destination);
+    // ALL audio goes through the <audio> element only.
+    // Do NOT also connect to ctx.destination — dual output causes
+    // clipping when the browser throttles the AudioContext on tab switch.
 
     // Tone gain
     gainTone = ctx.createGain();
@@ -406,7 +407,7 @@ footer a{color:var(--accent);text-decoration:none}
 
   function generateNoiseBuffers() {
     const sr = ctx.sampleRate;
-    const len = sr * 4; // 4 seconds, looped
+    const len = sr * 10; // 10 seconds, looped — longer avoids audible seam
     noiseBuffer = {};
 
     // White noise
