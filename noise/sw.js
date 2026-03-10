@@ -1,4 +1,4 @@
-const CACHE = "noise-v1";
+const CACHE = "noise-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -24,11 +24,15 @@ self.addEventListener("activate", e => {
   );
 });
 
-// Fetch — cache-first for same-origin, network-only for cross-origin
+// Fetch — network-first, fall back to cache
 self.addEventListener("fetch", e => {
   if (e.request.url.startsWith(self.location.origin)) {
     e.respondWith(
-      caches.match(e.request).then(cached => cached || fetch(e.request))
+      fetch(e.request).then(resp => {
+        const clone = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return resp;
+      }).catch(() => caches.match(e.request))
     );
   }
 });
