@@ -152,3 +152,4 @@ The core question: how do you load more of a work into the reader per unit time 
 - Benedetto, S. et al. (2015). RSVP comprehension drops 20–40% vs normal reading at equivalent speeds.
 - Grootjen, M. et al. (2024). Pupil dilation correlates with cognitive load during RSVP.
 - Spritz (2014). ORP alignment for RSVP. Pivot letter reduces saccade cost.
+
