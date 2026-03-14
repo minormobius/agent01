@@ -73,15 +73,23 @@ export function QuickVotePage() {
     if (!poll || phase === 'error' || phase === 'done') return;
     if (authLoading) return;
 
-    if (!did) {
+    if (!did && poll.mode !== 'public_like') {
       setPhase('need_auth');
     }
     // Auto-vote triggers in the next effect
   }, [poll, did, authLoading, phase]);
 
+  // For public_like polls, redirect to results (voting happens on Bluesky)
+  useEffect(() => {
+    if (poll?.mode === 'public_like') {
+      setPhase('done');
+    }
+  }, [poll]);
+
   // Auto-vote: once auth'd and poll loaded, run the full flow
   useEffect(() => {
-    if (!poll || !did || !id || choice === null || phase === 'error' || phase === 'done') return;
+    if (!poll || poll.mode === 'public_like') return;
+    if (!did || !id || choice === null || phase === 'error' || phase === 'done') return;
     if (votingRef.current) return;
     if (isNaN(choice) || choice < 0 || choice >= (poll.options?.length || 0)) {
       setError(`Invalid option index: ${choiceParam}`);
@@ -218,8 +226,23 @@ export function QuickVotePage() {
         </div>
       )}
 
+      {/* Public like poll — redirect to results */}
+      {phase === 'done' && poll?.mode === 'public_like' && (
+        <div className="card">
+          <h3>Public Poll</h3>
+          <p style={{ fontSize: '14px', marginTop: 8 }}>
+            Vote by liking the option reply on Bluesky.
+          </p>
+          <div className="flex gap-8 mt-12">
+            <button className="btn btn-primary" onClick={() => navigate(`/poll/${id}`)}>
+              View Results
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Done */}
-      {phase === 'done' && result && (
+      {phase === 'done' && result && poll?.mode !== 'public_like' && (
         <div className="card">
           <h3 style={{ color: 'var(--success)' }}>Vote Recorded</h3>
           <p style={{ fontSize: '14px', marginTop: 8 }}>

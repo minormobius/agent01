@@ -151,13 +151,33 @@ export function VotePage() {
       {poll && (
         <div className="card">
           <h2>{poll.question}</h2>
-          <p className="muted">
-            Anonymous credential &mdash; cryptographic unlinkability
-          </p>
+          {poll.mode === 'public_like' ? (
+            <p className="muted">
+              Public poll &mdash; vote by liking on Bluesky
+            </p>
+          ) : (
+            <p className="muted">
+              Anonymous credential &mdash; cryptographic unlinkability
+            </p>
+          )}
         </div>
       )}
 
-      {step === 'auth_required' && (
+      {poll?.mode === 'public_like' && (
+        <div className="card">
+          <h3>Vote on Bluesky</h3>
+          <p style={{ fontSize: '14px', marginBottom: 12 }}>
+            This is a public poll. Find the poll post on Bluesky and like the reply for the option you want to vote for.
+          </p>
+          <div className="flex gap-8">
+            <button className="btn btn-primary" onClick={() => navigate(`/poll/${id}`)}>
+              View Results
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'auth_required' && poll?.mode !== 'public_like' && (
         <div>
           <div className="card">
             <p style={{ fontSize: '14px', marginBottom: 12 }}>
@@ -171,7 +191,7 @@ export function VotePage() {
         </div>
       )}
 
-      {step === 'request_credential' && (
+      {step === 'request_credential' && poll?.mode !== 'public_like' && (
         <div className="card">
           <h3>Step 1: Request Ballot Credential</h3>
           <p className="muted mb-12">

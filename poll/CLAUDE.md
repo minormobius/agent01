@@ -2,11 +2,31 @@
 
 ## What This Is
 
-ATPolls — verifiable, anonymous polling on Bluesky. Any Bluesky user can create a poll. Any eligible Bluesky user can vote. RSA Blind Signatures (RFC 9474) ensure the host cannot link voter identity to ballot choice. Anonymity is cryptographic, not trust-based.
+ATPolls — polling on Bluesky with two modes: **public** (zero friction, like-based) and **anonymous** (cryptographic, blind signatures). Poll creators choose the mode at creation time.
 
-The protocol design, threat model, and cryptographic rationale live in `poll/PROTOCOL.md`.
+The protocol design, threat model, and cryptographic rationale for anonymous mode live in `poll/PROTOCOL.md`.
 
-## Core Concept
+## Poll Modes
+
+### Public (`public_like`) — Zero Friction
+
+Voters vote by liking a Bluesky post. No authentication on our side. No redirects.
+
+**How it works:**
+1. Host creates poll, posts to Bluesky
+2. Posting creates a main post + hidden option posts (bridge-delete trick — see below)
+3. Each option name in the main post is a bsky.app deep link to the hidden option post
+4. User clicks an option → Bluesky opens the hidden post → user likes it (already logged in)
+5. Hidden post has a "View results" link back to poll.mino.mobi
+6. Results page fetches likes directly from `public.api.bsky.app` on every page load — always fresh
+
+**IMPORTANT: Votes are public.** Likes are visible ATProto records. Anyone can see who liked which option post. There is no ballot secrecy in this mode. This is by design — it's the tradeoff for zero friction.
+
+**Sybil resistance:** One like per Bluesky account per post. Cheap DIDs make this imperfect — a determined attacker can create accounts. For casual polls this is fine.
+
+**Bridge-delete trick:** Option posts are replies to a "bridge" reply that gets deleted after posting. This orphans them from the thread — they don't clutter the main post's replies, but remain accessible via direct URI and likeable. The main post links to their bsky.app URLs.
+
+### Anonymous (`anon_credential_v2`) — Cryptographic Ballot Secrecy
 
 Chaumian blind credentials adapted for ATProto polls:
 
@@ -16,6 +36,8 @@ Chaumian blind credentials adapted for ATProto polls:
 4. Voter submits ballot with credential (no session, no identity) → host verifies signature + nullifier
 
 The host knows **who** is eligible. The host sees **what** was voted. These two sets never intersect — the blind signature is the cryptographic wall between them.
+
+**Votes are secret.** The blind signature makes it cryptographically impossible for the host to link a voter's identity to their ballot.
 
 ## Architecture
 
@@ -218,39 +240,73 @@ draft → open → closed → finalized
 
 ## Bluesky Integration
 
-### QuickVote
+### Public Polls — Like-Based Voting
 
-Polls are shared on Bluesky as posts with link facets. Each option name is a clickable link pointing to `/v/{pollId}?c={optionIndex}`. Clicking an option from the Bluesky app opens the QuickVote page, which:
+The "Post to Bluesky" button creates a Bluesky thread with hidden option posts:
+
+```
+@minomobi.com: "Which GI panel wins?"     ← main post (visible in feed)
+├── [bridge reply]                          ← created then deleted
+│   ├── "GeneXpert"                        ← orphaned, hidden, likeable
+│   ├── "BioFire"                          ← orphaned, hidden, likeable
+│   └── "ID NOW"                           ← orphaned, hidden, likeable
+```
+
+After the bridge is deleted, the option posts are orphaned (hidden from thread, not visible in replies) but still accessible by direct URI and likeable. The main post has each option name as a bsky.app deep link to the corresponding hidden post.
+
+**Voter flow (3 taps, zero auth):**
+1. See poll in Bluesky feed → click an option name
+2. Bluesky opens the hidden option post → like it
+3. Click "View results" → poll.mino.mobi shows live tally
+
+**Results are live.** The results page calls `app.bsky.feed.getLikes` on each option post directly from the browser via Bluesky's public API. No server round-trip. Fresh on every page load.
+
+**Multi-vote is allowed.** Users can like multiple option posts. Each like counts as a separate vote. There's no cross-option deduplication — this is intentional. For casual public polls there's no harm in letting people express multiple preferences.
+
+**Votes are NOT hidden.** Likes are public ATProto records. Anyone can see who voted for what. This is the explicit tradeoff for zero friction — no OAuth, no credentials, no server-side auth. The Bluesky app handles all authentication.
+
+The admin page also has a "Sync Likes" button that fetches likes server-side and persists the tally to D1/DO for durability.
+
+### Anonymous Polls — QuickVote
+
+Anonymous polls are shared on Bluesky as posts with link facets. Each option name links to `/v/{pollId}?c={optionIndex}`. Clicking from Bluesky opens the QuickVote page, which:
 
 1. Authenticates the voter (or uses existing session)
-2. Requests a credential
-3. Submits the ballot
+2. Requests a blind-signed credential
+3. Submits the anonymous ballot
 4. Shows confirmation
 
 All in one flow — no manual "request credential" or "select option" steps.
 
-### Post to Bluesky
+### Post Format
 
-The admin page has a "Post to Bluesky" button that creates a properly faceted post using the host's stored PDS session:
-
+**Public mode:**
 ```
 Which diagnostic platform will dominate POC by 2030?
 
-Cepheid GeneXpert
-BioFire FilmArray
-Abbott ID NOW
-Other
+Cepheid GeneXpert        ← link to bsky.app/.../hidden-post
+BioFire FilmArray        ← link to bsky.app/.../hidden-post
+Abbott ID NOW            ← link to bsky.app/.../hidden-post
+
+View results · Public poll · 24h left
+```
+
+**Anonymous mode:**
+```
+Which diagnostic platform will dominate POC by 2030?
+
+Cepheid GeneXpert        ← link to /v/{pollId}?c=0
+BioFire FilmArray        ← link to /v/{pollId}?c=1
+Abbott ID NOW            ← link to /v/{pollId}?c=2
 
 View poll · Verifiable & anonymous · 24h left
 ```
-
-Each option name is on its own line and is a link facet (blue clickable text on Bluesky) pointing to `/v/{pollId}?c={index}`. "View poll" links to the results page at `/poll/{pollId}`.
 
 ## D1 Schema
 
 Key tables (see `apps/api/migrations/` for full schema):
 
-- **polls**: id, host_did, question, options (JSON), status, mode, eligibility_mode, host_key_fingerprint, host_public_key, opens_at, closes_at
+- **polls**: id, host_did, question, options (JSON), status, mode, eligibility_mode, host_key_fingerprint, host_public_key, bluesky_option_posts (JSON, nullable — stores `{uri, cid}[]` for public_like hidden posts), opens_at, closes_at
 - **eligibility**: poll_id, responder_did, eligibility_status, consumed_at — tracks credential consumption
 - **ballots**: ballot_id, poll_id, nullifier (UNIQUE), choice, token_message, issuer_signature, accepted, rolling_audit_hash, published_record_uri
 - **poll_eligible_dids**: poll_id, did — whitelist for restricted polls
@@ -303,8 +359,9 @@ See `README.md` for full deployment instructions. Key points:
 | POST | /api/polls/:id/post-to-bluesky | session (host) | Post poll to Bluesky with faceted links |
 | POST | /api/polls/:id/eligible/sync | session (host) | Re-sync eligible DIDs from Bluesky |
 | GET | /api/polls/:id/eligible | - | Get eligible DID count |
+| POST | /api/polls/:id/likes/sync | session (host) | Fetch likes from Bluesky, update tally (public_like only) |
 
-Note: `/ballots/submit` uses credential-based auth (tokenMessage + signature + nullifier), not session-based. This is the anonymity boundary.
+Note: `/ballots/submit` uses credential-based auth (tokenMessage + signature + nullifier), not session-based. This is the anonymity boundary. For `public_like` polls, the credential and ballot endpoints reject requests — voting happens via Bluesky likes, not through the API.
 
 ## Working With This Repo
 

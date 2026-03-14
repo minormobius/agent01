@@ -105,6 +105,11 @@ export async function handlePollRoutes(
     return getEligibleDids(env, getEligibleMatch[1]);
   }
 
+  const syncLikesMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/likes\/sync$/);
+  if (syncLikesMatch && request.method === 'POST') {
+    return syncLikes(request, env, syncLikesMatch[1]);
+  }
+
   return null;
 }
 
@@ -123,37 +128,45 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
 
     const data = parsed.data;
 
-    // RSA key pair is required for blind signatures
-    if (!env.RSA_PUBLIC_KEY_JWK) {
-      return jsonResponse({
-        error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
-      }, 500);
-    }
-
-    // Validate that RSA_PUBLIC_KEY_JWK is valid JSON (catches truncated/malformed secrets)
     step = 'validateKeys';
-    let hostPublicKeyParsed: any;
-    try {
-      hostPublicKeyParsed = JSON.parse(env.RSA_PUBLIC_KEY_JWK);
-    } catch {
-      return jsonResponse({
-        error: 'RSA_PUBLIC_KEY_JWK is not valid JSON. Re-set the secret with a complete JWK string.',
-      }, 500);
-    }
-    if (!hostPublicKeyParsed?.kty || !hostPublicKeyParsed?.n || !hostPublicKeyParsed?.e) {
-      return jsonResponse({
-        error: 'RSA_PUBLIC_KEY_JWK is missing required JWK fields (kty, n, e).',
-      }, 500);
+    const pollId = crypto.randomUUID();
+    const encoder = new TextEncoder();
+
+    let hostPublicKey: string | null = null;
+    let hostKeyFingerprint = '';
+
+    if (data.mode === 'public_like') {
+      // Public like-based polls don't need RSA keys
+      hostKeyFingerprint = 'public_like';
+    } else {
+      // RSA key pair is required for blind signatures
+      if (!env.RSA_PUBLIC_KEY_JWK) {
+        return jsonResponse({
+          error: 'RSA key pair not configured. Set RSA_PRIVATE_KEY_JWK and RSA_PUBLIC_KEY_JWK secrets.',
+        }, 500);
+      }
+
+      let hostPublicKeyParsed: any;
+      try {
+        hostPublicKeyParsed = JSON.parse(env.RSA_PUBLIC_KEY_JWK);
+      } catch {
+        return jsonResponse({
+          error: 'RSA_PUBLIC_KEY_JWK is not valid JSON. Re-set the secret with a complete JWK string.',
+        }, 500);
+      }
+      if (!hostPublicKeyParsed?.kty || !hostPublicKeyParsed?.n || !hostPublicKeyParsed?.e) {
+        return jsonResponse({
+          error: 'RSA_PUBLIC_KEY_JWK is missing required JWK fields (kty, n, e).',
+        }, 500);
+      }
+
+      hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
+      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
+      hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     step = 'computeKeys';
-    const pollId = crypto.randomUUID();
-
-    const hostPublicKey = env.RSA_PUBLIC_KEY_JWK!;
-    const encoder = new TextEncoder();
-    const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(hostPublicKey));
-    const hostKeyFingerprint = Array.from(new Uint8Array(keyHash))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
 
     const now = new Date().toISOString();
     const eligibilityMode = data.eligibilityMode || 'open';
@@ -174,6 +187,7 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
       hostKeyFingerprint,
       hostPublicKey,
       atprotoRecordUri: null,
+      blueskyOptionPosts: null,
       createdAt: now,
     };
 
@@ -181,13 +195,13 @@ async function createPoll(request: Request, env: Env): Promise<Response> {
     step = 'D1 insert';
     await env.DB.prepare(
       `INSERT INTO polls (id, host_did, asker_did, question, options, opens_at, closes_at,
-        status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        status, mode, eligibility_mode, eligibility_source, host_key_fingerprint, host_public_key, bluesky_option_posts, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       poll.id, poll.hostDid, poll.askerDid, poll.question,
       JSON.stringify(poll.options), poll.opensAt, poll.closesAt,
       poll.status, poll.mode, poll.eligibilityMode, poll.eligibilitySource,
-      poll.hostKeyFingerprint, poll.hostPublicKey, poll.createdAt
+      poll.hostKeyFingerprint, poll.hostPublicKey, null, poll.createdAt
     ).run();
 
     // Populate eligible DIDs based on eligibility mode
@@ -258,6 +272,9 @@ async function getPoll(env: Env, pollId: string): Promise<Response> {
   return jsonResponse({
     ...result,
     options: JSON.parse(result.options as string),
+    bluesky_option_posts: result.bluesky_option_posts
+      ? JSON.parse(result.bluesky_option_posts as string)
+      : null,
   });
 }
 
@@ -367,7 +384,7 @@ async function publishPoll(request: Request, env: Env, pollId: string): Promise<
     options: JSON.parse(poll.options as string),
     opensAt: poll.opens_at as string,
     closesAt: poll.closes_at as string,
-    mode: poll.mode as 'anon_credential_v2',
+    mode: poll.mode as 'anon_credential_v2' | 'public_like',
     hostKeyFingerprint: poll.host_key_fingerprint as string,
     hostPublicKey: (poll.host_public_key as string) || null,
     createdAt: poll.created_at as string,
@@ -623,54 +640,66 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
 
   const timeLeft = formatTimeLeftServer(poll.closes_at as string);
   const question = poll.question as string;
+  const isPublicLike = poll.mode === 'public_like';
 
-  // Format:
-  // {question}
-  //
-  // Option 1
-  // Option 2
-  // Option 3
-  //
-  // View poll · Verifiable & anonymous · 24h left
-  const optionLine = options.join('\n');
-  const footerParts = ['View poll', 'Verifiable & anonymous'];
-  if (timeLeft) footerParts.push(timeLeft);
-  const footer = footerParts.join(' · ');
-
-  const postText = `${question}\n\n${optionLine}\n\n${footer}`;
-
-  // Compute facets (UTF-8 byte offsets)
+  let postText: string;
   const facets: any[] = [];
-  // Option facets — each option name on its own line
-  let searchStart = encoder.encode(`${question}\n\n`).byteLength;
-  for (let i = 0; i < options.length; i++) {
-    const optBytes = encoder.encode(options[i]);
-    const byteStart = searchStart;
-    const byteEnd = byteStart + optBytes.byteLength;
+
+  if (isPublicLike) {
+    // Public like mode: main post is the question + instructions
+    const footerParts = ['View results', 'Public poll'];
+    if (timeLeft) footerParts.push(timeLeft);
+    const footer = footerParts.join(' · ');
+    postText = `${question}\n\nLike a reply to vote:\n\n${footer}`;
+
+    // "View results" facet in footer
+    const footerStart = encoder.encode(`${question}\n\nLike a reply to vote:\n\n`).byteLength;
+    const viewResultsBytes = encoder.encode('View results');
     facets.push({
-      index: { byteStart, byteEnd },
+      index: { byteStart: footerStart, byteEnd: footerStart + viewResultsBytes.byteLength },
       features: [{
         $type: 'app.bsky.richtext.facet#link',
-        uri: `${origin}/v/${pollId}?c=${i}`,
+        uri: `${origin}/poll/${pollId}`,
       }],
     });
-    // Skip past this option + newline separator (or nothing for last)
-    searchStart = byteEnd;
-    if (i < options.length - 1) {
-      searchStart += encoder.encode('\n').byteLength;
-    }
-  }
+  } else {
+    // Anonymous mode: option names are link facets to QuickVote
+    const optionLine = options.join('\n');
+    const footerParts = ['View poll', 'Verifiable & anonymous'];
+    if (timeLeft) footerParts.push(timeLeft);
+    const footer = footerParts.join(' · ');
+    postText = `${question}\n\n${optionLine}\n\n${footer}`;
 
-  // "View poll" facet in footer
-  const footerStart = encoder.encode(`${question}\n\n${optionLine}\n\n`).byteLength;
-  const viewPollBytes = encoder.encode('View poll');
-  facets.push({
-    index: { byteStart: footerStart, byteEnd: footerStart + viewPollBytes.byteLength },
-    features: [{
-      $type: 'app.bsky.richtext.facet#link',
-      uri: `${origin}/poll/${pollId}`,
-    }],
-  });
+    // Option facets — each option name on its own line
+    let searchStart = encoder.encode(`${question}\n\n`).byteLength;
+    for (let i = 0; i < options.length; i++) {
+      const optBytes = encoder.encode(options[i]);
+      const byteStart = searchStart;
+      const byteEnd = byteStart + optBytes.byteLength;
+      facets.push({
+        index: { byteStart, byteEnd },
+        features: [{
+          $type: 'app.bsky.richtext.facet#link',
+          uri: `${origin}/v/${pollId}?c=${i}`,
+        }],
+      });
+      searchStart = byteEnd;
+      if (i < options.length - 1) {
+        searchStart += encoder.encode('\n').byteLength;
+      }
+    }
+
+    // "View poll" facet in footer
+    const footerStart = encoder.encode(`${question}\n\n${optionLine}\n\n`).byteLength;
+    const viewPollBytes = encoder.encode('View poll');
+    facets.push({
+      index: { byteStart: footerStart, byteEnd: footerStart + viewPollBytes.byteLength },
+      features: [{
+        $type: 'app.bsky.richtext.facet#link',
+        uri: `${origin}/poll/${pollId}`,
+      }],
+    });
+  }
 
   // Create the post
   const record = {
@@ -740,9 +769,240 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
   }
 
   const result = await createRes.json() as { uri: string; cid: string };
+
+  // For public_like mode: create hidden option posts via bridge-delete trick.
+  // Option posts are replies to a bridge reply that gets deleted — they become
+  // orphaned (hidden from thread view) but still accessible by direct URI.
+  // The main post links to bsky.app URLs for each option post — user clicks,
+  // sees the post in Bluesky, likes it. Zero auth on our side.
+  if (isPublicLike) {
+    // Helper: create a record on the host's PDS
+    const pdsCreate = async (rec: any): Promise<{ uri: string; cid: string } | null> => {
+      const body = JSON.stringify({ repo: pdsAuth.did, collection: 'app.bsky.feed.post', record: rec });
+      let res: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt);
+        res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        if ((res.status === 401 || res.status === 400) && res.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, res.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        }
+      } else {
+        res = await fetch(createRecordUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pdsAuth.accessJwt}` }, body });
+      }
+      if (!res.ok) { console.error('PDS createRecord failed:', await res.text()); return null; }
+      return await res.json() as { uri: string; cid: string };
+    };
+
+    // Helper: delete a record on the host's PDS
+    const pdsDelete = async (uri: string): Promise<boolean> => {
+      const rkey = uri.split('/').pop()!;
+      const deleteUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.deleteRecord`;
+      const body = JSON.stringify({ repo: pdsAuth.did, collection: 'app.bsky.feed.post', rkey });
+      let res: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', deleteUrl, undefined, pdsAuth.accessJwt);
+        res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        if ((res.status === 401 || res.status === 400) && res.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', deleteUrl, res.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof }, body });
+        }
+      } else {
+        res = await fetch(deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pdsAuth.accessJwt}` }, body });
+      }
+      return res.ok;
+    };
+
+    // at:// URI → bsky.app URL
+    const atUriToBskyUrl = (uri: string): string => {
+      const m = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+      return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : uri;
+    };
+
+    // Step 1: Post bridge reply (will be deleted to orphan the option posts)
+    const bridge = await pdsCreate({
+      $type: 'app.bsky.feed.post',
+      text: '.',
+      reply: { root: { uri: result.uri, cid: result.cid }, parent: { uri: result.uri, cid: result.cid } },
+      createdAt: new Date().toISOString(),
+    });
+    if (!bridge) return jsonResponse({ error: 'Failed to create bridge post' }, 500);
+
+    // Step 2: Post each option as a reply to the bridge, with poll context + links
+    const optionPosts: { uri: string; cid: string }[] = [];
+    for (let i = 0; i < options.length; i++) {
+      const resultsUrl = `${origin}/poll/${pollId}`;
+      const optText = `📊 ${question}\n\n→ ${options[i]}\n\nLike this post to vote.\n\nView results`;
+      const optEncoder = new TextEncoder();
+      const optFacets: any[] = [];
+
+      // Link "View results" to the poll page
+      const viewResultsStart = optEncoder.encode(`📊 ${question}\n\n→ ${options[i]}\n\nLike this post to vote.\n\n`).byteLength;
+      const viewResultsBytes = optEncoder.encode('View results');
+      optFacets.push({
+        index: { byteStart: viewResultsStart, byteEnd: viewResultsStart + viewResultsBytes.byteLength },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
+      });
+
+      // Link the poll question back to the results page too
+      const questionStart = optEncoder.encode('📊 ').byteLength;
+      const questionBytes = optEncoder.encode(question);
+      optFacets.push({
+        index: { byteStart: questionStart, byteEnd: questionStart + questionBytes.byteLength },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: resultsUrl }],
+      });
+
+      const optRecord = {
+        $type: 'app.bsky.feed.post',
+        text: optText,
+        facets: optFacets,
+        reply: { root: { uri: result.uri, cid: result.cid }, parent: { uri: bridge.uri, cid: bridge.cid } },
+        createdAt: new Date().toISOString(),
+      };
+      const optResult = await pdsCreate(optRecord);
+      optionPosts.push(optResult || { uri: '', cid: '' });
+    }
+
+    // Step 3: Delete the bridge → option posts become orphaned/hidden from thread
+    await pdsDelete(bridge.uri);
+
+    // Step 4: Now update the main post's facets to link to bsky.app URLs of hidden posts
+    // (We can't update a post on ATProto, so we store the mapping for the results page.
+    //  The main post already has option names — they link to QuickVote as fallback.
+    //  But the REAL action is: users find the hidden posts via the main post's links.)
+
+    // Actually, we need to re-create the main post with the correct bsky.app links.
+    // ATProto doesn't support post editing. So we delete and re-post with correct facets.
+    await pdsDelete(result.uri);
+
+    // Re-create main post with bsky.app option links
+    const newFacets: any[] = [];
+    let mainSearchStart = encoder.encode(`${question}\n\nLike a reply to vote:\n\n`).byteLength;
+    // We already know postText for public_like starts with question + "\n\nLike a reply to vote:\n\n"
+    // But we need to rebuild with option names listed + linked to bsky.app
+    const optNames = options.join('\n');
+    const footerParts2 = ['View results', 'Public poll'];
+    if (timeLeft) footerParts2.push(timeLeft);
+    const footer2 = footerParts2.join(' · ');
+    const newPostText = `${question}\n\n${optNames}\n\n${footer2}`;
+
+    let optSearchStart = encoder.encode(`${question}\n\n`).byteLength;
+    for (let i = 0; i < options.length; i++) {
+      if (optionPosts[i]?.uri) {
+        const optBytes = encoder.encode(options[i]);
+        newFacets.push({
+          index: { byteStart: optSearchStart, byteEnd: optSearchStart + optBytes.byteLength },
+          features: [{ $type: 'app.bsky.richtext.facet#link', uri: atUriToBskyUrl(optionPosts[i].uri) }],
+        });
+        optSearchStart += optBytes.byteLength;
+      }
+      if (i < options.length - 1) optSearchStart += encoder.encode('\n').byteLength;
+    }
+
+    // "View results" link in footer
+    const footerStart2 = encoder.encode(`${question}\n\n${optNames}\n\n`).byteLength;
+    const viewResultsBytes2 = encoder.encode('View results');
+    newFacets.push({
+      index: { byteStart: footerStart2, byteEnd: footerStart2 + viewResultsBytes2.byteLength },
+      features: [{ $type: 'app.bsky.richtext.facet#link', uri: `${origin}/poll/${pollId}` }],
+    });
+
+    const mainResult = await pdsCreate({
+      $type: 'app.bsky.feed.post',
+      text: newPostText,
+      facets: newFacets,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Store option post URIs in D1 for like-syncing
+    await env.DB.prepare('UPDATE polls SET bluesky_option_posts = ? WHERE id = ?')
+      .bind(JSON.stringify(optionPosts), pollId).run();
+
+    return jsonResponse({
+      uri: mainResult?.uri || result.uri,
+      cid: mainResult?.cid || result.cid,
+      optionPosts,
+    });
+  }
+
   return jsonResponse({ uri: result.uri, cid: result.cid });
 }
 
+
+async function syncLikes(request: Request, env: Env, pollId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const poll = await env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) return jsonResponse({ error: 'Poll not found' }, 404);
+  if (poll.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (poll.mode !== 'public_like') return jsonResponse({ error: 'Only public_like polls support like syncing' }, 400);
+
+  const optionPosts = poll.bluesky_option_posts
+    ? JSON.parse(poll.bluesky_option_posts as string) as { uri: string; cid: string }[]
+    : null;
+  if (!optionPosts || optionPosts.length === 0) {
+    return jsonResponse({ error: 'No Bluesky option posts found. Post to Bluesky first.' }, 400);
+  }
+
+  // Fetch likes for each option post from Bluesky public API
+  const countsByOption: Record<string, number> = {};
+  let totalVotes = 0;
+
+  for (let i = 0; i < optionPosts.length; i++) {
+    const post = optionPosts[i];
+    if (!post.uri) {
+      countsByOption[String(i)] = 0;
+      continue;
+    }
+
+    const voters = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 100; page++) {
+      const params = new URLSearchParams({ uri: post.uri, limit: '100' });
+      if (cursor) params.set('cursor', cursor);
+
+      const res = await fetch(`${BSKY_PUBLIC_API}/xrpc/app.bsky.feed.getLikes?${params}`);
+      if (!res.ok) break;
+
+      const data = await res.json() as any;
+      const likes = data.likes || [];
+      for (const like of likes) {
+        if (like.actor?.did) {
+          voters.add(like.actor.did);
+        }
+      }
+
+      cursor = data.cursor;
+      if (!cursor || likes.length === 0) break;
+    }
+
+    // Count all likes per option — multi-vote is allowed in public polls
+    const count = voters.size;
+    countsByOption[String(i)] = count;
+    totalVotes += count;
+  }
+
+  // Update tally via DO
+  const doStub = getPollDO(env, pollId);
+  const doRes = await doStub.fetch(new Request('https://do/sync-likes', {
+    method: 'POST',
+    body: JSON.stringify({ countsByOption, ballotCount: totalVotes }),
+  }));
+
+  if (!doRes.ok) {
+    const errText = await doRes.text();
+    return jsonResponse({ error: `Failed to update tally: ${errText}` }, 500);
+  }
+
+  return jsonResponse({
+    synced: true,
+    totalVotes,
+    countsByOption,
+    uniqueVoters: totalVotes,
+  });
+}
 
 function formatTimeLeftServer(closesAt: string): string {
   const diff = new Date(closesAt).getTime() - Date.now();
