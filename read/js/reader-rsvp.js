@@ -23,17 +23,6 @@ const RSVPReader = (() => {
   ];
   let colorIndex = 0;
 
-  // ORP: optimal recognition point index within a string
-  function orpIndex(len) {
-    if (len <= 1) return 0;
-    if (len <= 5) return 1;
-    if (len <= 9) return 2;
-    if (len <= 13) return 3;
-    if (len <= 17) return 4;
-    if (len <= 21) return 5;
-    return Math.floor(len * 0.25);
-  }
-
   // Measure text width in pixels using Canvas (more reliable than DOM offsetWidth)
   function measureText(text) {
     if (!container) return 0;
@@ -132,26 +121,12 @@ const RSVPReader = (() => {
 
   function renderChunk(chunk) {
     if (!container) return;
-    const text = chunk.text;
-    const orp = orpIndex(text.length);
-
-    const pre = text.substring(0, orp);
-    const pivot = text[orp] || '';
-    const post = text.substring(orp + 1);
-
     const display = container.querySelector('.rsvp-word');
-    const preEl = display.querySelector('.rsvp-pre');
-    const pivotEl = display.querySelector('.rsvp-pivot');
-    const postEl = display.querySelector('.rsvp-post');
 
     if (settings.rsvp.bionic) {
-      preEl.innerHTML = bionicPerWord(pre);
-      pivotEl.innerHTML = bionicPivot(pivot, pre, text);
-      postEl.innerHTML = bionicPerWord(post);
+      display.innerHTML = bionicPerWord(chunk.text);
     } else {
-      preEl.textContent = pre;
-      pivotEl.textContent = pivot;
-      postEl.textContent = post;
+      display.textContent = chunk.text;
     }
 
     if (settings.rsvp.colorFrames) {
@@ -172,21 +147,6 @@ const RSVPReader = (() => {
       const mid = Math.ceil(w.length * 0.5);
       return `<b>${esc(w.substring(0, mid))}</b>${esc(w.substring(mid))}`;
     });
-  }
-
-  // The pivot char might be mid-word; bold it if it falls in the front half
-  function bionicPivot(ch, pre, fullText) {
-    if (!ch) return '';
-    // Find which word the pivot belongs to by checking if pre ends mid-word
-    const wordStart = pre.lastIndexOf(' ') + 1;
-    const posInWord = pre.length - wordStart;
-    // Find word end in full text
-    const wordEnd = fullText.indexOf(' ', pre.length + 1);
-    const wordLen = (wordEnd === -1 ? fullText.length : wordEnd) - wordStart;
-    const mid = Math.ceil(wordLen * 0.5);
-    return posInWord < mid
-      ? `<b>${esc(ch)}</b>`
-      : esc(ch);
   }
 
   function tick(timestamp) {
@@ -223,16 +183,6 @@ const RSVPReader = (() => {
     const display = document.createElement('div');
     display.className = 'rsvp-word';
 
-    const preEl = document.createElement('span');
-    preEl.className = 'rsvp-pre';
-    const pivotEl = document.createElement('span');
-    pivotEl.className = 'rsvp-pivot';
-    const postEl = document.createElement('span');
-    postEl.className = 'rsvp-post';
-
-    display.appendChild(preEl);
-    display.appendChild(pivotEl);
-    display.appendChild(postEl);
     frame.appendChild(display);
 
     // WPM indicator

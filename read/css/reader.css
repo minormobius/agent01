@@ -323,18 +323,10 @@ html, body {
   font-size: var(--rsvp-font-size);
   white-space: pre;
   text-align: center;
+  color: var(--text);
   padding: 0.5rem 1rem;
   border-radius: var(--radius);
   transition: background-color 0.05s;
-}
-
-.rsvp-pre,
-.rsvp-post {
-  color: var(--text);
-}
-.rsvp-pivot {
-  color: var(--accent);
-  font-weight: 700;
 }
 
 .rsvp-wpm {
