@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a14">
+<title>How It Works — Noise</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a14;
+  --surface:#12121e;
+  --border:#1e1e30;
+  --text:#c8c8d8;
+  --dim:#666680;
+  --accent:#6e56cf;
+  --accent-glow:#6e56cf44;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.7;
+  padding:2rem 1rem;
+  max-width:640px;
+  margin:0 auto;
+}
+h1{
+  font-size:1.3rem;
+  font-weight:300;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:2rem;
+  text-align:center;
+}
+h1 span{color:var(--accent);font-weight:600}
+h2{
+  font-size:1rem;
+  color:var(--accent);
+  margin:2rem 0 .75rem;
+  letter-spacing:.05em;
+}
+h3{
+  font-size:.85rem;
+  color:var(--text);
+  margin:1.25rem 0 .5rem;
+}
+p{
+  font-size:.85rem;
+  margin-bottom:.75rem;
+  color:var(--text);
+}
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1.25rem;
+  margin-bottom:1rem;
+}
+.card p:last-child{margin-bottom:0}
+.label{
+  font-size:.6rem;
+  text-transform:uppercase;
+  letter-spacing:.15em;
+  color:var(--dim);
+  margin-bottom:.5rem;
+}
+code{
+  font-size:.8rem;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:.1rem .35rem;
+  color:var(--accent);
+}
+.diagram{
+  font-family:'Courier New',monospace;
+  font-size:.7rem;
+  line-height:1.5;
+  color:var(--dim);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:1rem;
+  margin:.75rem 0;
+  overflow-x:auto;
+  white-space:pre;
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.back{
+  display:inline-block;
+  margin-bottom:1.5rem;
+  font-size:.75rem;
+  color:var(--dim);
+}
+.back:hover{color:var(--accent)}
+footer{
+  text-align:center;
+  padding:2rem 0 1rem;
+  font-size:.6rem;
+  color:var(--dim);
+  letter-spacing:.1em;
+}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="back">&larr; back to noise</a>
+
+<h1>How <span>Noise</span> Works</h1>
+
+<h2>Binaural Beats</h2>
+<div class="card">
+  <p>Two sine waves, one per ear, slightly detuned. Your left ear gets <code>200 Hz</code>, your right gets <code>210 Hz</code>. The 10 Hz difference isn't in the audio — your brain synthesizes it as a perceived amplitude wobble at the beat frequency.</p>
+  <p>This is pure acoustic interference. No modulation, no processing. The "beat" is an auditory illusion that only exists inside your head, which is why headphones are required.</p>
+  <div class="diagram">Left ear:   ~~~~~~~~~~~~  200 Hz
+Right ear:  ~~~~~~~~~~~~  210 Hz
+                          ↓
+Brain:      ≈≈≈≈≈≈≈≈≈≈≈≈  10 Hz perceived beat</div>
+  <h3>Frequency bands</h3>
+  <p><strong>Delta (1–4 Hz)</strong> — deep sleep, unconscious processing.<br>
+  <strong>Theta (4–8 Hz)</strong> — drowsy, meditative, hypnagogic.<br>
+  <strong>Alpha (8–13 Hz)</strong> — relaxed, calm focus. The default.<br>
+  <strong>Beta (13–30 Hz)</strong> — active thinking, alertness.<br>
+  <strong>Gamma (30–50 Hz)</strong> — high-level cognition, binding.</p>
+</div>
+
+<h2>Harmonic Overtone</h2>
+<div class="card">
+  <p>Same binaural principle, but each ear also gets an overtone — a second sine wave at a harmonic multiple of the fundamental. The beat still emerges from the fundamental pair. The overtone just makes the tone warmer and more musical.</p>
+  <div class="diagram">Left ear:   200 Hz  +  400 Hz (octave)
+Right ear:  210 Hz  +  420 Hz (octave)
+                        ↓
+Beat:       10 Hz (from fundamentals)
+Timbre:     richer — two partials per ear</div>
+  <h3>Available overtones</h3>
+  <p><strong>Octave (2x)</strong> — one octave up. Clean, open.<br>
+  <strong>Fifth (1.5x)</strong> — a perfect fifth. Warm, slightly complex.<br>
+  <strong>Octave + Fifth (3x)</strong> — the twelfth. Bright and resonant.<br>
+  <strong>Two Octaves (4x)</strong> — two octaves up. Airy, shimmering.</p>
+  <p>The <strong>overtone mix</strong> slider controls the volume of the overtone relative to the fundamental. At 0% it's pure binaural. At 100% the overtone is equal volume.</p>
+</div>
+
+<h2>Shepard Tone</h2>
+<div class="card">
+  <p>The auditory barber pole. Seven sine waves spaced one octave apart, all gliding upward (or downward) simultaneously. A Gaussian spectral envelope fades each tone in as it enters the low end and out as it exits the high end. The result: an endlessly rising pitch that never actually gets higher.</p>
+  <div class="diagram">Frequency
+  ↑
+  │         ·    ←  fading out (high)
+  │       · · ·
+  │     ·   ·   ·
+  │   ·     ·     ·    ←  peak loudness (midrange)
+  │     ·   ·   ·
+  │       · · ·
+  │         ·    ←  fading in (low)
+  └──────────────────→ Time
+
+  7 octave-spaced tones, Gaussian envelope
+  Each tone sweeps up and wraps around</div>
+  <p>It's a real psychoacoustic illusion — the pitch is always moving but never arrives. Works well as a focus texture because it creates constant forward motion without resolution.</p>
+  <p>The <strong>speed</strong> control sets how many seconds each tone takes to traverse one octave. Slower = more meditative. Faster = more tension.</p>
+</div>
+
+<h2>Comb Filter (Harmonic Resonator)</h2>
+<div class="card">
+  <p>White noise fed through a bank of narrow bandpass filters, each tuned to a harmonic of a chosen fundamental frequency. What comes out is noise that has pitch — a breathy, organ-like drone.</p>
+  <div class="diagram">White noise → [BP 100Hz] → ─┐
+             → [BP 200Hz] → ─┤
+             → [BP 300Hz] → ─┤ → Mix → Output
+             → [BP 400Hz] → ─┤
+             → [BP 500Hz] → ─┘
+             ...up to 16 harmonics
+
+Each filter: narrow bandpass (high Q)
+Amplitude:  1/h rolloff (natural timbre)</div>
+  <h3>Controls</h3>
+  <p><strong>Fundamental</strong> — the base pitch. 100 Hz is a low drone. 200 Hz is warmer. Lower = more ominous.</p>
+  <p><strong>Resonance (Q)</strong> — how narrow the filters are. Low Q = more noise bleeds through, breathy and diffuse. High Q = tighter pitch, more tonal, almost organ-like.</p>
+  <p><strong>Harmonics</strong> — how many overtones. 2–3 sounds hollow. 8+ sounds full and rich. 16 starts to approximate a sawtooth timbre filtered through noise.</p>
+  <p>The <code>1/h</code> amplitude rolloff gives each harmonic progressively less energy, mimicking the natural harmonic series of acoustic instruments.</p>
+</div>
+
+<h2>Noise Colors</h2>
+<div class="card">
+  <p>All noise is random, but the spectral distribution makes them sound very different.</p>
+  <p><strong>White</strong> — equal energy at all frequencies. Bright, hissy. Like TV static or a waterfall up close.</p>
+  <p><strong>Pink (1/f)</strong> — energy drops 3 dB per octave. Sounds more balanced to human ears because we perceive octaves logarithmically. Like steady rain.</p>
+  <p><strong>Brown (1/f&sup2;)</strong> — energy drops 6 dB per octave. Deep, rumbly. Like distant thunder or a jet cabin. Named for Brownian motion, not the color.</p>
+</div>
+
+<h2>Background Playback</h2>
+<div class="card">
+  <p>Web Audio API oscillators get suspended when the browser tab is hidden or the phone screen locks. The workaround: all audio is routed through a <code>MediaStreamDestination</code> connected to a hidden <code>&lt;audio&gt;</code> element. The OS treats this as media playback and keeps it alive.</p>
+  <div class="diagram">Oscillators ─→ GainNode ─→ MediaStreamDestination
+                                      ↓
+                              &lt;audio&gt;.srcObject = stream
+                                      ↓
+                              OS media session (stays alive)</div>
+  <p>The audio goes exclusively through the <code>&lt;audio&gt;</code> element — no dual output to <code>ctx.destination</code>. This prevents clipping when the browser throttles the AudioContext on tab switch.</p>
+</div>
+
+<footer>
+  <a href="https://minomobi.com">minomobi.com</a>
+</footer>
+
+</body>
+</html>
