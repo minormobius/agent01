@@ -36,7 +36,23 @@
         </div>
         <div class="controls">
           <button id="flip-all-btn" class="ctrl-btn hidden">Reveal All</button>
+          <button id="mint-btn" class="ctrl-btn hidden">Mint Pack</button>
           <button id="new-pack-btn" class="ctrl-btn hidden">New Pack</button>
+        </div>
+        <div id="mint-status" class="mint-status hidden"></div>
+
+        <!-- DID setup modal (first time) -->
+        <div id="did-modal" class="did-modal hidden">
+          <div class="did-modal-content">
+            <div class="did-modal-title">Link your Bluesky</div>
+            <p>Enter your handle to mint verifiable cards.</p>
+            <input id="did-input" type="text" placeholder="yourname.bsky.social" autocomplete="off" spellcheck="false">
+            <div class="did-modal-buttons">
+              <button id="did-save-btn" class="ctrl-btn">Link</button>
+              <button id="did-skip-btn" class="ctrl-btn">Skip</button>
+            </div>
+            <div id="did-error" class="did-error hidden"></div>
+          </div>
         </div>
       </div>
     </div>
