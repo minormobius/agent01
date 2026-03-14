@@ -1,0 +1,87 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.finance.security",
+  "description": "Metadata record for a tracked financial instrument.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Describes a security, rate series, or commodity tracked in the archive. Record key is the symbol (e.g., 'AAPL', 'DGS10').",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["symbol", "seriesType", "name", "createdAt"],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "seriesType": {
+            "type": "string",
+            "knownValues": ["equity", "etf", "index", "rate", "commodity", "crypto", "spread"]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "exchange": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "sector": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Earliest available data date (YYYY-MM-DD)"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "Most recent data date (YYYY-MM-DD)"
+          },
+          "delisted": {
+            "type": "boolean",
+            "description": "Whether this security has been delisted"
+          },
+          "delistedDate": {
+            "type": "string",
+            "description": "Date of delisting if applicable (YYYY-MM-DD)"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "sourceId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Source-specific identifier (e.g., FRED series ID, Tiingo ticker)"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "description": "Freeform tags (e.g., 'sp500', 'biotech', 'yield-curve', 'energy')"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

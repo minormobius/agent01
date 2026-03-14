@@ -1,0 +1,107 @@
+name: Sync Finance Data
+
+on:
+  # Daily at 9:30 PM UTC (after US market close + settlement)
+  schedule:
+    - cron: '30 21 * * 1-5'
+
+  # Manual trigger with options
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Sync mode'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - full
+      symbols:
+        description: 'Comma-separated symbols (empty = all universe)'
+        required: false
+        default: ''
+      include_sp500:
+        description: 'Include S&P 500 constituents (slow: ~500 extra tickers)'
+        required: false
+        default: false
+        type: boolean
+      account:
+        description: 'Bluesky account to write to'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - modulo
+          - morphyx
+
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sync-finance.py'
+      - 'finance/universe.json'
+      - 'finance/lexicons/**'
+      - '.github/workflows/sync-finance.yml'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests yfinance
+
+      - name: Run finance sync
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          MODE="${{ inputs.mode || 'daily' }}"
+          SYMBOLS="${{ inputs.symbols || '' }}"
+          ACCOUNT="${{ inputs.account || 'main' }}"
+          SP500="${{ inputs.include_sp500 || 'false' }}"
+
+          ARGS=""
+          if [ "$MODE" = "full" ]; then
+            ARGS="--full"
+          else
+            ARGS="--daily"
+          fi
+
+          if [ -n "$SYMBOLS" ]; then
+            ARGS="$ARGS --symbols $SYMBOLS"
+          fi
+
+          if [ "$SP500" = "true" ]; then
+            ARGS="$ARGS --include-sp500"
+          fi
+
+          ARGS="$ARGS --account $ACCOUNT"
+
+          echo "Running: python3 scripts/sync-finance.py $ARGS"
+          python3 scripts/sync-finance.py $ARGS 2>&1 | tee finance/sync-log.txt
+
+      - name: Commit sync log
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add finance/sync-log.txt finance/sp500-constituents.csv 2>/dev/null || true
+          git diff --cached --quiet && echo "No changes" || git commit -m "sync-finance: sync log [auto]" && git push origin ${{ github.ref_name }}
