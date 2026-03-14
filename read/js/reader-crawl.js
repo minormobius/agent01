@@ -6,7 +6,8 @@ const CrawlReader = (() => {
   let viewport = null;
   let rafId = null;
   let scrollPos = 0;
-  let playing = false;
+  let autoPlay = false;   // user intent: should it be auto-scrolling?
+  let animating = false;   // is the rAF loop running?
   let speed = 1.0;
   let crawlHeight = 0;
   let viewHeight = 0;
@@ -14,15 +15,17 @@ const CrawlReader = (() => {
   let onProgress = null;
   let lastTime = 0;
 
-  // Manual override state
+  // Manual override
   let dragging = false;
   let dragStartY = 0;
-  let dragStartPos = 0;
-  let velocity = 0;        // px/ms from drag gesture
-  let coasting = false;     // true while inertia is decelerating after release
-  let wasPlayingBeforeDrag = false;
+  let lastDragY = 0;
+  let lastDragTime = 0;
+  let velocity = 0;
+  let coasting = false;
+  let wheelTimer = null;
 
   function render(chapter, el, opts = {}) {
+    destroy();
     container = el;
     el.innerHTML = '';
     el.className = 'crawl-reader';
@@ -30,7 +33,8 @@ const CrawlReader = (() => {
     onFinished = opts.onFinished || null;
     onProgress = opts.onProgress || null;
     scrollPos = opts.scrollPos || 0;
-    playing = false;
+    autoPlay = false;
+    animating = false;
     dragging = false;
     coasting = false;
     velocity = 0;
@@ -44,18 +48,15 @@ const CrawlReader = (() => {
     crawlEl = document.createElement('div');
     crawlEl.className = 'crawl-content';
 
-    // Title
     const title = document.createElement('h2');
     title.className = 'crawl-title';
     title.textContent = chapter.title;
     crawlEl.appendChild(title);
 
-    // Paragraphs
     const paragraphs = chapter.text.split(/\n\s*\n/);
     for (const p of paragraphs) {
       const trimmed = p.trim();
-      if (!trimmed) continue;
-      if (trimmed === chapter.title) continue;
+      if (!trimmed || trimmed === chapter.title) continue;
       const pEl = document.createElement('p');
       pEl.textContent = trimmed;
       crawlEl.appendChild(pEl);
@@ -65,184 +66,162 @@ const CrawlReader = (() => {
     viewport.appendChild(perspective);
     el.appendChild(viewport);
 
-    // Touch events for manual scroll
-    viewport.addEventListener('touchstart', onDragStart, { passive: false });
-    viewport.addEventListener('touchmove', onDragMove, { passive: false });
-    viewport.addEventListener('touchend', onDragEnd);
-    viewport.addEventListener('touchcancel', onDragEnd);
-
-    // Mouse events for desktop drag
-    viewport.addEventListener('mousedown', onDragStart);
-    viewport.addEventListener('mousemove', onDragMove);
-    viewport.addEventListener('mouseup', onDragEnd);
-    viewport.addEventListener('mouseleave', onDragEnd);
-
-    // Wheel for scroll override
+    // Touch
+    viewport.addEventListener('touchstart', onPointerDown, { passive: false });
+    viewport.addEventListener('touchmove', onPointerMove, { passive: false });
+    viewport.addEventListener('touchend', onPointerUp);
+    viewport.addEventListener('touchcancel', onPointerUp);
+    // Mouse
+    viewport.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    // Wheel
     viewport.addEventListener('wheel', onWheel, { passive: false });
 
-    // Measure after layout
     requestAnimationFrame(() => {
-      crawlHeight = crawlEl.scrollHeight;
-      viewHeight = viewport.clientHeight;
+      measure();
       applyTransform();
     });
   }
 
+  function measure() {
+    if (viewport) viewHeight = viewport.clientHeight;
+    if (crawlEl) crawlHeight = crawlEl.scrollHeight;
+  }
+
   function applyTransform() {
-    if (!crawlEl || !viewport) return;
-    // Re-measure if dimensions are stale
-    if (viewHeight === 0) viewHeight = viewport.clientHeight;
-    if (crawlHeight === 0) crawlHeight = crawlEl.scrollHeight;
-    // Clamp: can't scroll above the start
+    if (!crawlEl) return;
+    if (viewHeight === 0 || crawlHeight === 0) measure();
     scrollPos = Math.max(0, scrollPos);
     crawlEl.style.transform = `translateY(${viewHeight - scrollPos}px)`;
   }
 
-  // ── Drag handling ──
+  // ── Unified animation loop ──
 
-  function getY(e) {
-    if (e.touches && e.touches.length) return e.touches[0].clientY;
-    return e.clientY;
+  function startLoop() {
+    if (animating) return;
+    animating = true;
+    lastTime = 0;
+    rafId = requestAnimationFrame(loop);
   }
 
-  let lastDragY = 0;
-  let lastDragTime = 0;
-
-  function onDragStart(e) {
-    // Don't treat plain clicks as drags — track in dragMoved
-    dragStartY = getY(e);
-    dragStartPos = scrollPos;
-    lastDragY = dragStartY;
-    lastDragTime = performance.now();
-    velocity = 0;
-    dragging = false; // set true on first move
-    coasting = false;
-    wasPlayingBeforeDrag = playing;
-
-    if (e.type === 'mousedown') {
-      e.preventDefault(); // prevent text selection
-    }
+  function stopLoop() {
+    animating = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   }
 
-  function onDragMove(e) {
-    if (dragStartY === 0 && !dragging) return;
+  function loop(timestamp) {
+    if (!animating) return;
+    if (!lastTime) { lastTime = timestamp; rafId = requestAnimationFrame(loop); return; }
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
 
-    const y = getY(e);
-    const dy = y - (dragging ? lastDragY : dragStartY);
-
-    // Start dragging after a small threshold to distinguish from taps
-    if (!dragging) {
-      if (Math.abs(y - dragStartY) < 5) return;
-      dragging = true;
-      if (playing) pause();
-      e.preventDefault();
-    } else {
-      e.preventDefault();
+    if (coasting) {
+      // Inertia
+      scrollPos += velocity * dt;
+      velocity *= Math.pow(0.93, dt / 16);
+      if (Math.abs(velocity) < 0.02) {
+        coasting = false;
+        // If auto-play was on, resume it seamlessly
+        if (!autoPlay) { stopLoop(); reportProgress(); return; }
+      }
+    } else if (autoPlay && !dragging) {
+      // Normal auto-scroll
+      scrollPos += (speed * 50 * dt) / 1000;
     }
 
-    const now = performance.now();
-    const dt = now - lastDragTime;
-
-    // Dragging up (negative dy) = scroll forward; dragging down = scroll back
-    scrollPos -= dy;
     applyTransform();
     reportProgress();
 
-    // Track velocity for inertia (negative = scrolling backward/up on screen)
-    if (dt > 0) {
-      velocity = -dy / dt; // px/ms
+    // Check if finished
+    if (crawlHeight > 0 && scrollPos > crawlHeight + viewHeight) {
+      autoPlay = false;
+      stopLoop();
+      if (onFinished) onFinished();
+      return;
     }
+
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // ── Pointer handling ──
+
+  function getY(e) {
+    return (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
+  }
+
+  function onPointerDown(e) {
+    dragStartY = getY(e);
+    lastDragY = dragStartY;
+    lastDragTime = performance.now();
+    velocity = 0;
+    dragging = false;
+    coasting = false;
+    if (e.type === 'mousedown') e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (dragStartY === 0) return;
+    const y = getY(e);
+
+    if (!dragging) {
+      if (Math.abs(y - dragStartY) < 5) return;
+      dragging = true;
+      coasting = false;
+      // Keep the loop running so we don't need to restart it
+      startLoop();
+    }
+
+    e.preventDefault();
+    const now = performance.now();
+    const dt = now - lastDragTime;
+    const dy = y - lastDragY;
+
+    scrollPos -= dy;
+    if (dt > 0) velocity = -dy / dt;
 
     lastDragY = y;
     lastDragTime = now;
   }
 
-  function onDragEnd() {
+  function onPointerUp() {
     if (!dragging) {
-      // It was a tap, not a drag — toggle play
-      if (playing) pause(); else play();
+      // Tap: toggle auto-play
       dragStartY = 0;
+      toggle();
       return;
     }
 
     dragging = false;
     dragStartY = 0;
 
-    // Start inertia coast if there's meaningful velocity
     if (Math.abs(velocity) > 0.05) {
+      // Coast with inertia, then resume auto-play if it was on
       coasting = true;
-      lastTime = 0;
-      rafId = requestAnimationFrame(coastTick);
+      startLoop();
+    } else if (autoPlay) {
+      // No velocity, just resume
+      startLoop();
     } else {
-      // No velocity — resume auto-play if it was running
-      if (wasPlayingBeforeDrag) play();
+      stopLoop();
+      applyTransform();
     }
   }
 
   function onWheel(e) {
     e.preventDefault();
-    // Scroll: deltaY > 0 = scroll down = move text forward
     scrollPos += e.deltaY * 0.5;
     applyTransform();
     reportProgress();
 
-    // Briefly interrupt auto-play for manual positioning
-    if (playing) {
-      pause();
-      wasPlayingBeforeDrag = true;
-      // Resume after a short idle
-      clearTimeout(wheelResumeTimer);
-      wheelResumeTimer = setTimeout(() => {
-        if (wasPlayingBeforeDrag && !playing && !dragging) play();
-      }, 800);
+    // Temporarily pause auto-scroll, resume after idle
+    clearTimeout(wheelTimer);
+    if (autoPlay) {
+      stopLoop();
+      wheelTimer = setTimeout(() => {
+        if (autoPlay && !dragging) startLoop();
+      }, 600);
     }
-  }
-  let wheelResumeTimer = null;
-
-  // ── Inertia coast ──
-
-  function coastTick(timestamp) {
-    if (!coasting) return;
-    if (!lastTime) lastTime = timestamp;
-    const dt = timestamp - lastTime;
-    lastTime = timestamp;
-
-    // Apply velocity with friction
-    scrollPos += velocity * dt;
-    velocity *= Math.pow(0.95, dt / 16); // friction: ~5% per frame at 60fps
-
-    applyTransform();
-    reportProgress();
-
-    // Stop coasting when velocity is negligible
-    if (Math.abs(velocity) < 0.02) {
-      coasting = false;
-      if (wasPlayingBeforeDrag) play();
-      return;
-    }
-
-    rafId = requestAnimationFrame(coastTick);
-  }
-
-  // ── Auto-play tick ──
-
-  function tick(timestamp) {
-    if (!playing) return;
-    if (!lastTime) lastTime = timestamp;
-    const dt = timestamp - lastTime;
-    lastTime = timestamp;
-
-    scrollPos += (speed * 50 * dt) / 1000;
-    applyTransform();
-    reportProgress();
-
-    if (crawlHeight > 0 && scrollPos > crawlHeight + viewHeight) {
-      playing = false;
-      if (onFinished) onFinished();
-      return;
-    }
-
-    rafId = requestAnimationFrame(tick);
   }
 
   function reportProgress() {
@@ -251,20 +230,22 @@ const CrawlReader = (() => {
     if (total > 0) onProgress(Math.min(Math.max(scrollPos / total, 0), 1));
   }
 
+  // ── Public API ──
+
   function play() {
+    autoPlay = true;
     coasting = false;
-    playing = true;
-    lastTime = 0;
-    rafId = requestAnimationFrame(tick);
+    startLoop();
   }
 
   function pause() {
-    playing = false;
-    if (rafId) cancelAnimationFrame(rafId);
+    autoPlay = false;
+    coasting = false;
+    stopLoop();
   }
 
   function toggle() {
-    if (playing) pause(); else play();
+    if (autoPlay) pause(); else play();
   }
 
   function adjustSpeed(delta) {
@@ -276,13 +257,16 @@ const CrawlReader = (() => {
 
   function getScrollPos() { return scrollPos; }
   function getSpeed() { return speed; }
-  function isPlaying() { return playing; }
+  function isPlaying() { return autoPlay; }
 
   function destroy() {
-    pause();
-    coasting = false;
+    stopLoop();
+    clearTimeout(wheelTimer);
     dragging = false;
-    clearTimeout(wheelResumeTimer);
+    coasting = false;
+    // Remove window-level listeners
+    window.removeEventListener('mousemove', onPointerMove);
+    window.removeEventListener('mouseup', onPointerUp);
     if (container) container.innerHTML = '';
     container = null;
     crawlEl = null;

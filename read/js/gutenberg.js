@@ -130,24 +130,28 @@ const Gutenberg = (() => {
     const proxyUrl = `/gutenberg-proxy?id=${id}`;
     try {
       const resp = await fetch(proxyUrl);
-      if (resp.ok) {
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('text/plain')) {
         const text = await resp.text();
         if (text.length > 100) return stripBoilerplate(text);
+        errors.push('proxy: response too short');
+      } else {
+        errors.push(`proxy: ${resp.status} ${ct}`);
       }
     } catch (e) { errors.push('proxy: ' + e.message); }
 
     // 2. Try Gutenberg URLs directly (works if CORS headers present)
-    const urls = [
+    const directUrls = [
       `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`,
       `https://www.gutenberg.org/files/${id}/${id}-0.txt`,
       `https://www.gutenberg.org/files/${id}/${id}.txt`,
     ];
-    for (const url of urls) {
+    for (const url of directUrls) {
       try {
         const resp = await fetch(url);
         if (resp.ok) {
           const text = await resp.text();
-          if (text.length > 100) return stripBoilerplate(text);
+          if (text.length > 100 && !text.trimStart().startsWith('<')) return stripBoilerplate(text);
         }
       } catch (e) { errors.push('direct: ' + e.message); }
     }
@@ -166,7 +170,7 @@ const Gutenberg = (() => {
             const resp = await fetch(url);
             if (resp.ok) {
               const text = await resp.text();
-              if (text.length > 100) return stripBoilerplate(text);
+              if (text.length > 100 && !text.trimStart().startsWith('<')) return stripBoilerplate(text);
             }
           } catch (e) { errors.push('gutendex-format: ' + e.message); }
         }

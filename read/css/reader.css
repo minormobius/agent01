@@ -229,17 +229,26 @@ html, body {
 /* ─── Reading Area ─── */
 #reading-area {
   flex: 1;
-  overflow: hidden;
+  min-height: 0;
   position: relative;
+  overflow-y: auto;
 }
 
-/* Scroll mode: override the parent's overflow: hidden */
+/* Scroll mode */
 #reading-area.scroll-reader {
-  overflow-y: auto;
   padding: 1.5rem;
-  max-width: var(--reading-width);
-  margin: 0 auto;
   -webkit-overflow-scrolling: touch;
+}
+#reading-area.scroll-reader > * {
+  max-width: var(--reading-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* RSVP and crawl clip their content */
+#reading-area.rsvp-reader,
+#reading-area.crawl-reader {
+  overflow: hidden;
 }
 
 .scroll-reader .chapter-title {
