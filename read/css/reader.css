@@ -403,8 +403,8 @@ html, body {
 .crawl-viewport {
   width: 100%;
   height: 100%;
-  perspective: 400px;
-  perspective-origin: center 15%;
+  perspective: 500px;
+  perspective-origin: center -80%;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -620,8 +620,8 @@ html, body {
   margin-top: 0.2rem;
 }
 
-.rsvp-settings, .crawl-settings, .scroll-crawl-setting, .rsvp-crawl-setting { display: none; }
-.rsvp-settings.visible, .crawl-settings.visible, .scroll-crawl-setting.visible, .rsvp-crawl-setting.visible { display: block; }
+.rsvp-settings, .crawl-settings, .scroll-crawl-setting { display: none; }
+.rsvp-settings.visible, .crawl-settings.visible, .scroll-crawl-setting.visible { display: block; }
 
 /* ─── Desktop adjustments ─── */
 @media (min-width: 768px) {

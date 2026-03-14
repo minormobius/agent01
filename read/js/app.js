@@ -105,11 +105,9 @@ const App = (() => {
     const rsvpSettings = document.querySelector('.rsvp-settings');
     const crawlSettings = document.querySelector('.crawl-settings');
     const scrollCrawlSettings = document.querySelectorAll('.scroll-crawl-setting');
-    const rsvpCrawlSettings = document.querySelectorAll('.rsvp-crawl-setting');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
     scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp'));
-    rsvpCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode === 'rsvp' || activeMode === 'crawl'));
   }
 
   function updateSpeedLabel() {
@@ -218,13 +216,12 @@ const App = (() => {
       Storage.saveSettings(s);
     });
 
-    // Depth trail toggle (shared: RSVP trail + crawl fog)
+    // Depth trail toggle (RSVP receding word trail)
     depthToggle.addEventListener('click', () => {
       const s = Storage.getSettings();
       s.depthTrail = !s.depthTrail;
       depthToggle.classList.toggle('on', s.depthTrail);
       Storage.saveSettings(s);
-      if (activeMode === 'crawl' && chapters.length) renderCurrentChapter();
     });
 
     // Crawl speed
