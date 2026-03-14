@@ -19,7 +19,7 @@ const Storage = (() => {
     mode: 'scroll',
     fontSize: 19,
     theme: 'dark',
-    rsvp: { wpm: 300, bionic: false, colorFrames: false },
+    rsvp: { wpm: 300, bionic: false, colorFrames: false, minChars: 0 },
     crawl: { speed: 1.0 }
   };
 

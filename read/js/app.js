@@ -33,6 +33,11 @@ const App = (() => {
   const colorToggle = $('color-toggle');
   const crawlSpeedSlider = $('crawl-speed-slider');
   const crawlSpeedVal = $('crawl-speed-val');
+  const mincharsSlider = $('minchars-slider');
+  const mincharsVal = $('minchars-val');
+  const speedLabel = $('speed-label');
+  const btnSlower = $('btn-slower');
+  const btnFaster = $('btn-faster');
 
   function init() {
     applySettings();
@@ -60,9 +65,11 @@ const App = (() => {
     if (bionicToggle) bionicToggle.classList.toggle('on', s.rsvp.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
+    if (mincharsSlider) { mincharsSlider.value = s.rsvp.minChars; mincharsVal.textContent = s.rsvp.minChars; }
 
     updateModeButtons();
     updateModeSettings();
+    updateSpeedLabel();
   }
 
   function updateModeButtons() {
@@ -77,6 +84,17 @@ const App = (() => {
     const crawlSettings = document.querySelector('.crawl-settings');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
+  }
+
+  function updateSpeedLabel() {
+    if (!speedLabel) return;
+    if (activeMode === 'rsvp') {
+      speedLabel.textContent = RSVPReader.getWPM() + ' wpm';
+    } else if (activeMode === 'crawl') {
+      speedLabel.textContent = CrawlReader.getSpeed().toFixed(1) + 'x';
+    } else {
+      speedLabel.textContent = '';
+    }
   }
 
   function bindEvents() {
@@ -133,6 +151,7 @@ const App = (() => {
       s.rsvp.wpm = parseInt(wpmSlider.value);
       wpmVal.textContent = s.rsvp.wpm;
       Storage.saveSettings(s);
+      updateSpeedLabel();
     });
 
     // Bionic toggle
@@ -158,6 +177,27 @@ const App = (() => {
       s.crawl.speed = parseInt(crawlSpeedSlider.value) / 10;
       crawlSpeedVal.textContent = s.crawl.speed.toFixed(1);
       Storage.saveSettings(s);
+      updateSpeedLabel();
+    });
+
+    // Min chunk length
+    mincharsSlider.addEventListener('input', () => {
+      const s = Storage.getSettings();
+      s.rsvp.minChars = parseInt(mincharsSlider.value);
+      mincharsVal.textContent = s.rsvp.minChars;
+      Storage.saveSettings(s);
+    });
+
+    // Inline speed +/- buttons
+    btnSlower.addEventListener('click', () => {
+      if (activeMode === 'rsvp') { RSVPReader.adjustWPM(-25); syncWpmSlider(); }
+      else if (activeMode === 'crawl') { CrawlReader.adjustSpeed(-0.2); syncCrawlSlider(); }
+      updateSpeedLabel();
+    });
+    btnFaster.addEventListener('click', () => {
+      if (activeMode === 'rsvp') { RSVPReader.adjustWPM(25); syncWpmSlider(); }
+      else if (activeMode === 'crawl') { CrawlReader.adjustSpeed(0.2); syncCrawlSlider(); }
+      updateSpeedLabel();
     });
 
     // Play button
@@ -269,6 +309,7 @@ const App = (() => {
     Storage.saveSettings(s);
     updateModeButtons();
     updateModeSettings();
+    updateSpeedLabel();
     renderCurrentChapter();
   }
 
@@ -282,6 +323,16 @@ const App = (() => {
 
   function navigateChapter(dir) {
     goToChapter(chapterIndex + dir);
+  }
+
+  function syncWpmSlider() {
+    const wpm = RSVPReader.getWPM();
+    if (wpmSlider) { wpmSlider.value = wpm; wpmVal.textContent = wpm; }
+  }
+
+  function syncCrawlSlider() {
+    const spd = CrawlReader.getSpeed();
+    if (crawlSpeedSlider) { crawlSpeedSlider.value = Math.round(spd * 10); crawlSpeedVal.textContent = spd.toFixed(1); }
   }
 
   function setProgress(frac) {
@@ -318,14 +369,14 @@ const App = (() => {
 
     if (activeMode === 'rsvp') {
       if (e.code === 'Space') { e.preventDefault(); RSVPReader.toggle(); }
-      else if (e.code === 'ArrowUp') { e.preventDefault(); RSVPReader.adjustWPM(25); }
-      else if (e.code === 'ArrowDown') { e.preventDefault(); RSVPReader.adjustWPM(-25); }
+      else if (e.code === 'ArrowUp') { e.preventDefault(); RSVPReader.adjustWPM(25); syncWpmSlider(); updateSpeedLabel(); }
+      else if (e.code === 'ArrowDown') { e.preventDefault(); RSVPReader.adjustWPM(-25); syncWpmSlider(); updateSpeedLabel(); }
       else if (e.code === 'ArrowLeft') { e.preventDefault(); RSVPReader.skipBack(15); }
       else if (e.code === 'ArrowRight') { e.preventDefault(); RSVPReader.skipForward(15); }
     } else if (activeMode === 'crawl') {
       if (e.code === 'Space') { e.preventDefault(); CrawlReader.toggle(); }
-      else if (e.code === 'ArrowUp') { e.preventDefault(); CrawlReader.adjustSpeed(0.2); }
-      else if (e.code === 'ArrowDown') { e.preventDefault(); CrawlReader.adjustSpeed(-0.2); }
+      else if (e.code === 'ArrowUp') { e.preventDefault(); CrawlReader.adjustSpeed(0.2); syncCrawlSlider(); updateSpeedLabel(); }
+      else if (e.code === 'ArrowDown') { e.preventDefault(); CrawlReader.adjustSpeed(-0.2); syncCrawlSlider(); updateSpeedLabel(); }
     }
 
     if (e.code === 'BracketLeft') navigateChapter(-1);

@@ -423,6 +423,14 @@ html, body {
   border-color: var(--accent);
 }
 
+.speed-label {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 4.5em;
+  text-align: center;
+}
+
 .control-sep {
   width: 1px;
   height: 1.2rem;
@@ -536,6 +544,13 @@ html, body {
   transition: transform var(--transition);
 }
 .toggle.on::after { transform: translateX(18px); }
+
+.setting-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
 
 .rsvp-settings, .crawl-settings { display: none; }
 .rsvp-settings.visible, .crawl-settings.visible { display: block; }

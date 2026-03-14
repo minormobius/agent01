@@ -2,8 +2,9 @@
 
 const RSVPReader = (() => {
   let container = null;
-  let words = [];
-  let wordIndex = 0;
+  let words = [];      // raw tokens from Gutenberg.tokenize
+  let chunks = [];     // grouped display chunks
+  let chunkIndex = 0;
   let playing = false;
   let rafId = null;
   let lastFrameTime = 0;
@@ -20,34 +21,78 @@ const RSVPReader = (() => {
   ];
   let colorIndex = 0;
 
-  // ORP: optimal recognition point index within a word
+  // ORP: optimal recognition point index within a string
   function orpIndex(len) {
     if (len <= 1) return 0;
     if (len <= 5) return 1;
     if (len <= 9) return 2;
     if (len <= 13) return 3;
-    return 4;
+    if (len <= 17) return 4;
+    if (len <= 21) return 5;
+    return Math.floor(len * 0.25);
   }
 
-  function computeDelay(token) {
+  // Build chunks from word tokens, grouping short words to meet minChars
+  function buildChunks(tokens, minChars) {
+    if (minChars <= 0) {
+      // No grouping — each word is its own chunk
+      return tokens.map(t => ({
+        text: t.word,
+        words: [t],
+        charLen: t.word.length
+      }));
+    }
+
+    const result = [];
+    let buf = [];
+    let bufLen = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      buf.push(t);
+      bufLen += t.word.length;
+
+      // Flush if we've met the minimum, or if this token ends a sentence/paragraph
+      const metMin = bufLen >= minChars;
+      const boundary = t.isSentenceEnd || t.isParagraph;
+
+      if (metMin || boundary || i === tokens.length - 1) {
+        const text = buf.map(w => w.word).join(' ');
+        result.push({
+          text,
+          words: buf,
+          charLen: text.length
+        });
+        buf = [];
+        bufLen = 0;
+      }
+    }
+    return result;
+  }
+
+  function computeDelay(chunk) {
     const base = 60000 / settings.rsvp.wpm;
+    // Scale by number of words in the chunk
+    let wordTime = base * chunk.words.length;
+    // Apply complexity multiplier from the last word in chunk
+    const last = chunk.words[chunk.words.length - 1];
     let mult = 1;
-    if (token.length > 12) mult = 1.5;
-    else if (token.length > 8) mult = 1.3;
-    if (token.isSentenceEnd) mult *= 2.0;
-    else if (token.isClause) mult *= 1.4;
-    if (token.isParagraph) mult *= 2.5;
-    return base * mult;
+    if (last.isSentenceEnd) mult = 1.6;
+    else if (last.isClause) mult = 1.3;
+    if (last.isParagraph) mult *= 2.0;
+    // Also slow for very long chunks
+    if (chunk.charLen > 20) mult *= 1.2;
+    return wordTime * mult;
   }
 
-  function renderWord(token) {
+  function renderChunk(chunk) {
     if (!container) return;
-    const word = token.word;
-    const orp = orpIndex(word.length);
+    const text = chunk.text;
+    const orp = orpIndex(text.length);
 
-    const pre = word.substring(0, orp);
-    const pivot = word[orp] || '';
-    const post = word.substring(orp + 1);
+    const pre = text.substring(0, orp);
+    const pivot = text[orp] || '';
+    const post = text.substring(orp + 1);
 
     const display = container.querySelector('.rsvp-word');
     const preEl = display.querySelector('.rsvp-pre');
@@ -55,15 +100,14 @@ const RSVPReader = (() => {
     const postEl = display.querySelector('.rsvp-post');
 
     if (settings.rsvp.bionic) {
-      const mid = Math.ceil(word.length * 0.5);
-      // Bionic: bold front half, still show ORP highlight
+      const mid = Math.ceil(text.length * 0.5);
       preEl.innerHTML = orp <= mid
-        ? `<b>${pre}</b>`
-        : `<b>${pre.substring(0, mid)}</b>${pre.substring(mid)}`;
+        ? `<b>${esc(pre)}</b>`
+        : `<b>${esc(pre.substring(0, mid))}</b>${esc(pre.substring(mid))}`;
       pivotEl.textContent = pivot;
       postEl.innerHTML = orp < mid
-        ? `<b>${post.substring(0, mid - orp - 1)}</b>${post.substring(mid - orp - 1)}`
-        : post;
+        ? `<b>${esc(post.substring(0, mid - orp - 1))}</b>${esc(post.substring(mid - orp - 1))}`
+        : esc(post);
     } else {
       preEl.textContent = pre;
       pivotEl.textContent = pivot;
@@ -79,6 +123,10 @@ const RSVPReader = (() => {
     }
   }
 
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function tick(timestamp) {
     if (!playing) return;
     if (timestamp - lastFrameTime < currentDelay) {
@@ -87,18 +135,18 @@ const RSVPReader = (() => {
     }
     lastFrameTime = timestamp;
 
-    if (wordIndex >= words.length) {
+    if (chunkIndex >= chunks.length) {
       playing = false;
       if (onFinished) onFinished();
       return;
     }
 
-    const token = words[wordIndex];
-    renderWord(token);
-    currentDelay = computeDelay(token);
-    wordIndex++;
+    const chunk = chunks[chunkIndex];
+    renderChunk(chunk);
+    currentDelay = computeDelay(chunk);
+    chunkIndex++;
 
-    if (onProgress) onProgress(wordIndex, words.length);
+    if (onProgress) onProgress(chunkIndex, chunks.length);
     rafId = requestAnimationFrame(tick);
   }
 
@@ -107,7 +155,6 @@ const RSVPReader = (() => {
     el.innerHTML = '';
     el.className = 'rsvp-reader';
 
-    // Alignment marker
     const frame = document.createElement('div');
     frame.className = 'rsvp-frame';
 
@@ -147,7 +194,8 @@ const RSVPReader = (() => {
   function init(chapter, el, opts = {}) {
     settings = Storage.getSettings();
     words = Gutenberg.tokenize(chapter.text);
-    wordIndex = opts.wordIndex || 0;
+    chunks = buildChunks(words, settings.rsvp.minChars);
+    chunkIndex = opts.wordIndex || 0;
     onProgress = opts.onProgress || null;
     onFinished = opts.onFinished || null;
     colorIndex = 0;
@@ -155,14 +203,17 @@ const RSVPReader = (() => {
 
     buildUI(el);
 
-    if (words.length > 0 && wordIndex < words.length) {
-      renderWord(words[wordIndex]);
+    if (chunks.length > 0 && chunkIndex < chunks.length) {
+      renderChunk(chunks[chunkIndex]);
     }
   }
 
   function play() {
-    if (wordIndex >= words.length) wordIndex = 0;
+    if (chunkIndex >= chunks.length) chunkIndex = 0;
     settings = Storage.getSettings();
+    // Rebuild chunks if minChars changed
+    chunks = buildChunks(words, settings.rsvp.minChars);
+    chunkIndex = Math.min(chunkIndex, chunks.length - 1);
     playing = true;
     lastFrameTime = 0;
     currentDelay = 0;
@@ -185,6 +236,10 @@ const RSVPReader = (() => {
     updateWPMLabel();
   }
 
+  function getWPM() {
+    return settings ? settings.rsvp.wpm : 300;
+  }
+
   function updateWPMLabel() {
     if (!container) return;
     const label = container.querySelector('.rsvp-wpm');
@@ -192,18 +247,18 @@ const RSVPReader = (() => {
   }
 
   function skipBack(n) {
-    wordIndex = Math.max(0, wordIndex - (n || 10));
-    if (words[wordIndex]) renderWord(words[wordIndex]);
-    if (onProgress) onProgress(wordIndex, words.length);
+    chunkIndex = Math.max(0, chunkIndex - (n || 10));
+    if (chunks[chunkIndex]) renderChunk(chunks[chunkIndex]);
+    if (onProgress) onProgress(chunkIndex, chunks.length);
   }
 
   function skipForward(n) {
-    wordIndex = Math.min(words.length - 1, wordIndex + (n || 10));
-    if (words[wordIndex]) renderWord(words[wordIndex]);
-    if (onProgress) onProgress(wordIndex, words.length);
+    chunkIndex = Math.min(chunks.length - 1, chunkIndex + (n || 10));
+    if (chunks[chunkIndex]) renderChunk(chunks[chunkIndex]);
+    if (onProgress) onProgress(chunkIndex, chunks.length);
   }
 
-  function getWordIndex() { return wordIndex; }
+  function getWordIndex() { return chunkIndex; }
   function isPlaying() { return playing; }
 
   function destroy() {
@@ -211,7 +266,8 @@ const RSVPReader = (() => {
     if (container) container.innerHTML = '';
     container = null;
     words = [];
+    chunks = [];
   }
 
-  return { init, play, pause, toggle, adjustWPM, skipBack, skipForward, getWordIndex, isPlaying, destroy };
+  return { init, play, pause, toggle, adjustWPM, getWPM, skipBack, skipForward, getWordIndex, isPlaying, destroy };
 })();

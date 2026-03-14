@@ -112,6 +112,7 @@ const CrawlReader = (() => {
   }
 
   function getScrollPos() { return scrollPos; }
+  function getSpeed() { return speed; }
   function isPlaying() { return playing; }
 
   function destroy() {
@@ -121,5 +122,5 @@ const CrawlReader = (() => {
     crawlEl = null;
   }
 
-  return { render, play, pause, toggle, adjustSpeed, getScrollPos, isPlaying, destroy };
+  return { render, play, pause, toggle, adjustSpeed, getSpeed, getScrollPos, isPlaying, destroy };
 })();

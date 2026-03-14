@@ -46,6 +46,10 @@
           <button id="mode-rsvp">RSVP</button>
           <button id="mode-crawl">Crawl</button>
           <div class="control-sep"></div>
+          <button id="btn-slower" class="btn-icon" title="Slower" aria-label="Slower">&minus;</button>
+          <span id="speed-label" class="speed-label"></span>
+          <button id="btn-faster" class="btn-icon" title="Faster" aria-label="Faster">+</button>
+          <div class="control-sep"></div>
           <button id="btn-play" class="btn-icon" title="Play/Pause" aria-label="Play/Pause">&#9654;</button>
         </div>
       </footer>
@@ -93,6 +97,15 @@
               <span>Color Frames</span>
               <button id="color-toggle" class="toggle" type="button" aria-label="Toggle color frames"></button>
             </div>
+          </div>
+
+          <div class="setting-group">
+            <label>Min Chunk Length</label>
+            <div class="setting-row">
+              <input id="minchars-slider" type="range" min="0" max="30" step="1" value="0">
+              <span id="minchars-val" class="range-val">0</span>
+            </div>
+            <span class="setting-hint">Group short words (0 = single word)</span>
           </div>
         </div>
 
