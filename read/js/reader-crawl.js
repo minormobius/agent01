@@ -52,12 +52,17 @@ const CrawlReader = (() => {
     title.textContent = chapter.title;
     crawlEl.appendChild(title);
 
+    const bionic = Storage.getSettings().crawl.bionic;
     const paragraphs = chapter.text.split(/\n\s*\n/);
     for (const p of paragraphs) {
       const trimmed = p.trim();
       if (!trimmed || trimmed === chapter.title) continue;
       const pEl = document.createElement('p');
-      pEl.textContent = trimmed;
+      if (bionic) {
+        pEl.innerHTML = bionicFormat(trimmed);
+      } else {
+        pEl.textContent = trimmed;
+      }
       crawlEl.appendChild(pEl);
     }
 
@@ -249,6 +254,13 @@ const CrawlReader = (() => {
     container = null;
     crawlEl = null;
     viewport = null;
+  }
+
+  function bionicFormat(text) {
+    return text.replace(/\S+/g, word => {
+      const mid = Math.ceil(word.length * 0.5);
+      return `<b>${word.substring(0, mid)}</b>${word.substring(mid)}`;
+    });
   }
 
   return { render, play, pause, toggle, adjustSpeed, getSpeed, getScrollPos, isPlaying, remeasure, destroy };

@@ -145,14 +145,9 @@ const RSVPReader = (() => {
     const postEl = display.querySelector('.rsvp-post');
 
     if (settings.rsvp.bionic) {
-      const mid = Math.ceil(text.length * 0.5);
-      preEl.innerHTML = orp <= mid
-        ? `<b>${esc(pre)}</b>`
-        : `<b>${esc(pre.substring(0, mid))}</b>${esc(pre.substring(mid))}`;
-      pivotEl.textContent = pivot;
-      postEl.innerHTML = orp < mid
-        ? `<b>${esc(post.substring(0, mid - orp - 1))}</b>${esc(post.substring(mid - orp - 1))}`
-        : esc(post);
+      preEl.innerHTML = bionicPerWord(pre);
+      pivotEl.innerHTML = bionicPivot(pivot, pre, text);
+      postEl.innerHTML = bionicPerWord(post);
     } else {
       preEl.textContent = pre;
       pivotEl.textContent = pivot;
@@ -169,6 +164,29 @@ const RSVPReader = (() => {
 
   function esc(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Bold the front half of each word (bionic reading), applied per-word
+  function bionicPerWord(s) {
+    return s.replace(/\S+/g, w => {
+      const mid = Math.ceil(w.length * 0.5);
+      return `<b>${esc(w.substring(0, mid))}</b>${esc(w.substring(mid))}`;
+    });
+  }
+
+  // The pivot char might be mid-word; bold it if it falls in the front half
+  function bionicPivot(ch, pre, fullText) {
+    if (!ch) return '';
+    // Find which word the pivot belongs to by checking if pre ends mid-word
+    const wordStart = pre.lastIndexOf(' ') + 1;
+    const posInWord = pre.length - wordStart;
+    // Find word end in full text
+    const wordEnd = fullText.indexOf(' ', pre.length + 1);
+    const wordLen = (wordEnd === -1 ? fullText.length : wordEnd) - wordStart;
+    const mid = Math.ceil(wordLen * 0.5);
+    return posInWord < mid
+      ? `<b>${esc(ch)}</b>`
+      : esc(ch);
   }
 
   function tick(timestamp) {
