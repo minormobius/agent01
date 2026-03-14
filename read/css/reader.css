@@ -311,9 +311,8 @@ html, body {
 
 .rsvp-frame {
   position: relative;
-  width: 90%;
-  max-width: 600px;
-  padding: 2rem 1rem;
+  width: 96%;
+  padding: 2rem 0.5rem;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -355,6 +354,16 @@ html, body {
   color: var(--text);
   text-align: left;
   overflow: hidden;
+}
+
+/* Hidden element for measuring chunk text width — must match rsvp-word font */
+.rsvp-measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font-family: var(--mono);
+  font-size: var(--rsvp-font-size);
+  pointer-events: none;
 }
 
 .rsvp-wpm {
@@ -608,7 +617,7 @@ html, body {
     max-height: 80vh;
   }
 
-  .rsvp-frame { max-width: 700px; }
+  .rsvp-frame { max-width: 900px; margin: 0 auto; }
 }
 
 /* ─── Transitions ─── */

@@ -12,6 +12,8 @@ const RSVPReader = (() => {
   let onProgress = null;
   let onFinished = null;
   let settings = null;
+  let measureEl = null; // hidden element for measuring text width
+  let maxTextWidth = 0; // available px for chunk text
 
   // Color palette for inter-frame flashes
   const COLORS = [
@@ -32,15 +34,17 @@ const RSVPReader = (() => {
     return Math.floor(len * 0.25);
   }
 
+  // Measure text width in pixels using the hidden measurement element
+  function measureText(text) {
+    if (!measureEl) return 0;
+    measureEl.textContent = text;
+    return measureEl.offsetWidth;
+  }
+
   // Build chunks from word tokens, grouping short words to meet minChars
   function buildChunks(tokens, minChars) {
     if (minChars <= 0) {
-      // No grouping — each word is its own chunk
-      return tokens.map(t => ({
-        text: t.word,
-        words: [t],
-        charLen: t.word.length
-      }));
+      return tokens.map(t => makeChunk([t]));
     }
 
     const result = [];
@@ -52,17 +56,11 @@ const RSVPReader = (() => {
       buf.push(t);
       bufLen += t.word.length;
 
-      // Flush if we've met the minimum, or if this token ends a sentence/paragraph
       const metMin = bufLen >= minChars;
       const boundary = t.isSentenceEnd || t.isParagraph;
 
       if (metMin || boundary || i === tokens.length - 1) {
-        const text = buf.map(w => w.word).join(' ');
-        result.push({
-          text,
-          words: buf,
-          charLen: text.length
-        });
+        result.push(makeChunk(buf));
         buf = [];
         bufLen = 0;
       }
@@ -70,17 +68,58 @@ const RSVPReader = (() => {
     return result;
   }
 
+  function makeChunk(wordArray) {
+    const text = wordArray.map(w => w.word).join(' ');
+    return { text, words: [...wordArray], charLen: text.length };
+  }
+
+  // After building chunks, split any that overflow the available width
+  function fitChunksToWidth(rawChunks) {
+    if (maxTextWidth <= 0) return rawChunks;
+
+    const fitted = [];
+    for (let i = 0; i < rawChunks.length; i++) {
+      let chunk = rawChunks[i];
+
+      // Fast path: single word or fits
+      if (chunk.words.length <= 1 || measureText(chunk.text) <= maxTextWidth) {
+        fitted.push(chunk);
+        continue;
+      }
+
+      // Trim words from the end until it fits
+      let words = chunk.words;
+      let overflow = [];
+      while (words.length > 1) {
+        const candidate = words.map(w => w.word).join(' ');
+        if (measureText(candidate) <= maxTextWidth) break;
+        overflow.unshift(words.pop());
+      }
+
+      fitted.push(makeChunk(words));
+
+      // The overflow words get prepended to the next chunk
+      if (overflow.length > 0) {
+        if (i + 1 < rawChunks.length) {
+          // Merge overflow into next chunk (which will be re-checked on next iteration)
+          rawChunks[i + 1] = makeChunk([...overflow, ...rawChunks[i + 1].words]);
+        } else {
+          // Last chunk — just add overflow as a new chunk
+          fitted.push(makeChunk(overflow));
+        }
+      }
+    }
+    return fitted;
+  }
+
   function computeDelay(chunk) {
     const base = 60000 / settings.rsvp.wpm;
-    // Scale by number of words in the chunk
     let wordTime = base * chunk.words.length;
-    // Apply complexity multiplier from the last word in chunk
     const last = chunk.words[chunk.words.length - 1];
     let mult = 1;
     if (last.isSentenceEnd) mult = 1.6;
     else if (last.isClause) mult = 1.3;
     if (last.isParagraph) mult *= 2.0;
-    // Also slow for very long chunks
     if (chunk.charLen > 20) mult *= 1.2;
     return wordTime * mult;
   }
@@ -114,7 +153,6 @@ const RSVPReader = (() => {
       postEl.textContent = post;
     }
 
-    // Color flash between frames
     if (settings.rsvp.colorFrames) {
       display.style.backgroundColor = COLORS[colorIndex % COLORS.length];
       colorIndex++;
@@ -177,6 +215,11 @@ const RSVPReader = (() => {
     display.appendChild(postEl);
     frame.appendChild(display);
 
+    // Hidden measurement element — same font as rsvp-word
+    measureEl = document.createElement('span');
+    measureEl.className = 'rsvp-measure';
+    frame.appendChild(measureEl);
+
     // WPM indicator
     const wpmLabel = document.createElement('div');
     wpmLabel.className = 'rsvp-wpm';
@@ -191,10 +234,21 @@ const RSVPReader = (() => {
     });
   }
 
+  function measureAvailableWidth() {
+    if (!container) return;
+    const frame = container.querySelector('.rsvp-frame');
+    if (frame) {
+      // Available width = frame width minus padding
+      const style = getComputedStyle(frame);
+      maxTextWidth = frame.clientWidth
+        - parseFloat(style.paddingLeft)
+        - parseFloat(style.paddingRight);
+    }
+  }
+
   function init(chapter, el, opts = {}) {
     settings = Storage.getSettings();
     words = Gutenberg.tokenize(chapter.text);
-    chunks = buildChunks(words, settings.rsvp.minChars);
     chunkIndex = opts.wordIndex || 0;
     onProgress = opts.onProgress || null;
     onFinished = opts.onFinished || null;
@@ -203,17 +257,23 @@ const RSVPReader = (() => {
 
     buildUI(el);
 
-    if (chunks.length > 0 && chunkIndex < chunks.length) {
-      renderChunk(chunks[chunkIndex]);
-    }
+    // Measure after layout, then build chunks fitted to width
+    requestAnimationFrame(() => {
+      measureAvailableWidth();
+      chunks = fitChunksToWidth(buildChunks(words, settings.rsvp.minChars));
+      chunkIndex = Math.min(chunkIndex, Math.max(0, chunks.length - 1));
+      if (chunks.length > 0 && chunkIndex < chunks.length) {
+        renderChunk(chunks[chunkIndex]);
+      }
+    });
   }
 
   function play() {
     if (chunkIndex >= chunks.length) chunkIndex = 0;
     settings = Storage.getSettings();
-    // Rebuild chunks if minChars changed
-    chunks = buildChunks(words, settings.rsvp.minChars);
-    chunkIndex = Math.min(chunkIndex, chunks.length - 1);
+    measureAvailableWidth();
+    chunks = fitChunksToWidth(buildChunks(words, settings.rsvp.minChars));
+    chunkIndex = Math.min(chunkIndex, Math.max(0, chunks.length - 1));
     playing = true;
     lastFrameTime = 0;
     currentDelay = 0;
@@ -265,6 +325,7 @@ const RSVPReader = (() => {
     pause();
     if (container) container.innerHTML = '';
     container = null;
+    measureEl = null;
     words = [];
     chunks = [];
   }
