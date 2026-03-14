@@ -1,0 +1,6 @@
+{
+  "algorithm": "Ed25519",
+  "publicKeyHex": "651feccc82efebbee502383852fd91d75920e4bac960ed02c343d755684da58a",
+  "createdAt": "2026-03-14T18:49:46Z",
+  "note": "Wiki Cards mint key v1 — verify with cards/js/mint-verify.js"
+}

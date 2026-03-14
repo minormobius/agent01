@@ -20,7 +20,7 @@
 // The script prints the hex string to paste here.
 //
 const MINT_PUBLIC_KEY_HEX =
-  "0000000000000000000000000000000000000000000000000000000000000000";
+  "651feccc82efebbee502383852fd91d75920e4bac960ed02c343d755684da58a";
 
 // ── Canonical JSON ──────────────────────────────────────────────
 
