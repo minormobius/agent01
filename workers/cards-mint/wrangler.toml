@@ -10,7 +10,7 @@ MINT_DID = "did:plc:placeholder"
 # KV namespace for rate limiting (one daily pack per DID)
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "placeholder-kv-id"
+id = "9c202b12f3754b9aa6b46a11eba03489"
 
 [observability]
 enabled = true
