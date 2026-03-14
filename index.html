@@ -11,6 +11,10 @@
   --muted: #777;
   --rule: #ccc;
   --link: #8b0000;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --tag-bg: rgba(139, 0, 0, 0.08);
+  --tag-text: #8b0000;
   --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 }
@@ -21,6 +25,10 @@
     --muted: #777;
     --rule: #333;
     --link: #c45;
+    --accent: #c45;
+    --accent-faint: rgba(204, 68, 85, 0.08);
+    --tag-bg: rgba(204, 68, 85, 0.12);
+    --tag-text: #e67;
   }
 }
 
@@ -32,7 +40,7 @@ body {
   font-family: var(--serif);
   line-height: 1.7;
   padding: 4rem 2rem;
-  max-width: 640px;
+  max-width: 680px;
   margin: 0 auto;
 }
 
@@ -65,12 +73,43 @@ hr {
   margin: 3rem 0;
 }
 
+/* Section headers */
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Project list */
 .projects {
   list-style: none;
+  margin-bottom: 3rem;
 }
 
 .projects li {
-  margin-bottom: 2rem;
+  margin-bottom: 1.6rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.projects li:hover {
+  border-left-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.projects .name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .projects a {
@@ -84,10 +123,33 @@ hr {
   text-decoration: underline;
 }
 
+.tag {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tag-text);
+  background: var(--tag-bg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
 .projects .desc {
   font-size: 0.95rem;
   color: var(--muted);
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+/* Site count */
+.site-count {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-align: right;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
 }
 
 footer {
@@ -114,87 +176,165 @@ footer a:hover {
 <div class="manifesto">
   <p>We are all web developers now.</p>
 
-  <p>For thirty years the open internet was <em>technically</em> accessible&mdash;anyone could view source, anyone could write HTML, anyone could register a domain and ship. In practice, the gap between "accessible" and "built" was filled by years of specialized training, mass-produced frameworks, and platform gatekeepers who offered convenience in exchange for ownership.</p>
+  <p>For thirty years the open internet was <em>technically</em> accessible&mdash;anyone could view source, anyone could write HTML, anyone could register a domain and ship. In practice, the gap between &ldquo;accessible&rdquo; and &ldquo;built&rdquo; was filled by years of specialized training, mass-produced frameworks, and platform gatekeepers who offered convenience in exchange for ownership.</p>
 
   <p>That gap closed. Claude Code is the hinge. Not because it writes code <em>for</em> you&mdash;but because it writes code <em>with</em> you, at the speed of intention. The person with the idea and the person with the implementation are now the same person, working in the same session. No handoff. No translation layer. No waiting.</p>
 
-  <p>What follows is what I've built since the gap closed. Static files on Cloudflare Pages. Data on the ATProto personal data server. No backend servers. No SaaS dependencies. Everything you see here was written in conversation&mdash;one human, one model, the open web.</p>
+  <p>What follows is what I&rsquo;ve built since the gap closed. Static files on Cloudflare Pages. Data on the ATProto personal data server. No backend servers. No SaaS dependencies. Everything you see here was written in conversation&mdash;one human, one model, the open web.</p>
 </div>
 
 <hr>
 
+<div class="site-count">18 sites</div>
+
+<!-- ——— Publications & Applications ——— -->
+
+<div class="section-label">publications &amp; applications</div>
+
 <ul class="projects">
   <li>
-    <a href="https://time.mino.mobi">time.mino.mobi</a>
+    <div class="name-row">
+      <a href="https://time.mino.mobi">time.mino.mobi</a>
+      <span class="tag">atproto</span>
+      <span class="tag">podcast</span>
+    </div>
     <div class="desc">The Mino Times&mdash;agentic biotech intelligence. Research, articles, editorial panels, and podcast. Content stored as ATProto records, rendered in a newspaper broadsheet layout.</div>
   </li>
   <li>
-    <a href="https://poll.mino.mobi">poll.mino.mobi</a>
-    <div class="desc">Anonymous polling on Bluesky. RSA blind signatures ensure the poll host can&rsquo;t link your identity to your vote. Cloudflare Workers + Durable Objects + D1.</div>
+    <div class="name-row">
+      <a href="https://poll.mino.mobi">poll.mino.mobi</a>
+      <span class="tag">workers</span>
+      <span class="tag">d1</span>
+      <span class="tag">do</span>
+    </div>
+    <div class="desc">Anonymous polling on Bluesky. RSA blind signatures ensure the poll host can&rsquo;t link your identity to your vote.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/labglass/">labglass</a>
-    <div class="desc">Peer-to-peer biotech data workbench. DuckDB and Pyodide running entirely in the browser. Notebooks stored locally, shareable via WebRTC.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/labglass/">labglass</a>
+      <span class="tag">duckdb</span>
+      <span class="tag">pyodide</span>
+    </div>
+    <div class="desc">Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser. Notebooks stored locally, shareable via WebRTC.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/read/">read</a>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/">read</a>
+      <span class="tag">workers</span>
+    </div>
     <div class="desc">Adaptive speed reader for Project Gutenberg texts. Bionic formatting, variable character chunks, color-changing frames, and eye-tracking-driven pacing.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/cards/">cards</a>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/">cards</a>
+      <span class="tag">atproto</span>
+    </div>
     <div class="desc">Wiki Cards. A deep Wikipedia card game&mdash;Lucky, Transmute, Nexus, and Library modes built on scored and embedded articles.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/noise/">noise</a>
-    <div class="desc">Binaural beats, Shepard tones, harmonic overtones, and noise generator. PWA that keeps playing when your phone sleeps.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/noise/">noise</a>
+      <span class="tag">pwa</span>
+    </div>
+    <div class="desc">Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.</div>
   </li>
+</ul>
+
+<!-- ——— ATProto Tools ——— -->
+
+<div class="section-label">atproto tools</div>
+
+<ul class="projects">
   <li>
-    <a href="https://mino.mobi/phylo/">phylo</a>
+    <div class="name-row">
+      <a href="https://mino.mobi/phylo/">phylo</a>
+      <span class="tag">atproto</span>
+      <span class="tag">canvas</span>
+    </div>
     <div class="desc">Interactive phylogenetic tree explorer. Syncs taxonomic data from the Open Tree of Life into ATProto PDS records. Canvas-based zoom viewer and text tree for Mammalia, Aves, and more.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/music/">music</a>
-    <div class="desc">ATProto composer. A browser-based sequencer that stores compositions as records on the personal data server.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/music/">music</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Browser-based sequencer that stores compositions as records on the personal data server.</div>
   </li>
   <li>
-    <a href="https://bakery.mino.mobi">bakery.mino.mobi</a>
-    <div class="desc">Flour blend calculator. A PWA for bakers who mix their own flour blends&mdash;protein math, hydration targets, blend ratios.</div>
+    <div class="name-row">
+      <a href="https://bakery.mino.mobi">bakery.mino.mobi</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Flour blend calculator for bakers who mix their own blends&mdash;protein math, hydration targets, blend ratios.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/sweat/">sweat</a>
-    <div class="desc">Fitness tracker PWA. Workout logging with charts, progressive overload tracking, offline-first.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/sweat/">sweat</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Workout logging with charts, progressive overload tracking, offline-first.</div>
+  </li>
+</ul>
+
+<!-- ——— Bluesky Dashboards ——— -->
+
+<div class="section-label">bluesky dashboards</div>
+
+<ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/flows/">flows</a>
+      <span class="tag">maplibre</span>
+    </div>
+    <div class="desc">Commodity flow maps. Geographic trade and movement data rendered as directional arcs.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/flows/">flows</a>
-    <div class="desc">Commodity flow maps. Network flow visualization with MapLibre&mdash;geographic trade and movement data rendered as directional arcs.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/ternary/">ternary</a>
+      <span class="tag">embeddings</span>
+    </div>
+    <div class="desc">Three lusts, one chart. Ternary plot of posting temperament&mdash;flesh, knowledge, and argument&mdash;from anchor cosine embeddings.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/density/">density</a>
-    <div class="desc">Post brevity, measured. Filter Bluesky posts by exact word count, ranked by character length.</div>
-  </li>
-  <li>
-    <a href="https://mino.mobi/echo/">echo</a>
-    <div class="desc">Post density, head to head. Compare two Bluesky handles side by side on posting volume and patterns.</div>
-  </li>
-  <li>
-    <a href="https://mino.mobi/judge/">judge</a>
+    <div class="name-row">
+      <a href="https://mino.mobi/judge/">judge</a>
+      <span class="tag">embeddings</span>
+    </div>
     <div class="desc">Posting profile. Personality traits and valence from post embeddings, topics via k-means clustering.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/novelty/">novelty</a>
-    <div class="desc">Semantic novelty trajectory. Track how a Bluesky account&rsquo;s posting content drifts or repeats over time.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/novelty/">novelty</a>
+      <span class="tag">embeddings</span>
+    </div>
+    <div class="desc">Semantic novelty trajectory. Track how an account&rsquo;s posting content drifts or repeats over time.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/seek/">seek</a>
+    <div class="name-row">
+      <a href="https://mino.mobi/echo/">echo</a>
+    </div>
+    <div class="desc">Post density, head to head. Compare two handles side by side on posting volume and patterns.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/density/">density</a>
+    </div>
+    <div class="desc">Post brevity, measured. Filter posts by exact word count, ranked by character length.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/seek/">seek</a>
+    </div>
     <div class="desc">Find a friend. Discover follows-of-follows you don&rsquo;t yet follow, ranked by network density.</div>
   </li>
   <li>
-    <a href="https://mino.mobi/cluster/">cluster</a>
-    <div class="desc">Find your tightest circle. Discovers the largest group of your follows who all mutually follow each other.</div>
-  </li>
-  <li>
-    <a href="https://mino.mobi/ternary/">ternary</a>
-    <div class="desc">Three lusts, one chart. Ternary plot of posting temperament&mdash;flesh, knowledge, and argument&mdash;from anchor cosine embeddings.</div>
+    <div class="name-row">
+      <a href="https://mino.mobi/cluster/">cluster</a>
+    </div>
+    <div class="desc">Find your tightest circle. The largest group of your follows who all mutually follow each other.</div>
   </li>
 </ul>
 
