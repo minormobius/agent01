@@ -27,6 +27,7 @@ const App = (() => {
   const fontSlider = $('font-slider');
   const fontVal = $('font-val');
   const themeToggle = $('theme-toggle');
+  const serifToggle = $('serif-toggle');
   const wpmSlider = $('wpm-slider');
   const wpmVal = $('wpm-val');
   const bionicToggle = $('bionic-toggle');
@@ -79,6 +80,8 @@ const App = (() => {
     if (bionicToggle) bionicToggle.classList.toggle('on', activeMode === 'crawl' ? s.crawl.bionic : s.rsvp.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
+    if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
+    document.documentElement.setAttribute('data-font', s.serif !== false ? 'serif' : 'sans');
     if (mincharsSlider) { mincharsSlider.value = s.rsvp.minChars; mincharsVal.textContent = s.rsvp.minChars; }
 
     updateModeButtons();
@@ -96,8 +99,10 @@ const App = (() => {
   function updateModeSettings() {
     const rsvpSettings = document.querySelector('.rsvp-settings');
     const crawlSettings = document.querySelector('.crawl-settings');
+    const scrollCrawlSettings = document.querySelectorAll('.scroll-crawl-setting');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
+    scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp'));
   }
 
   function updateSpeedLabel() {
@@ -159,6 +164,16 @@ const App = (() => {
       themeToggle.classList.toggle('on', s.theme === 'light');
       document.documentElement.setAttribute('data-theme', s.theme);
       Storage.saveSettings(s);
+    });
+
+    // Serif toggle
+    serifToggle.addEventListener('click', () => {
+      const s = Storage.getSettings();
+      s.serif = s.serif === false ? true : false;
+      serifToggle.classList.toggle('on', s.serif);
+      document.documentElement.setAttribute('data-font', s.serif ? 'serif' : 'sans');
+      Storage.saveSettings(s);
+      if ((activeMode === 'scroll' || activeMode === 'crawl') && chapters.length) renderCurrentChapter();
     });
 
     // WPM

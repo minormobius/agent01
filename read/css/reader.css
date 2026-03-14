@@ -30,6 +30,10 @@
   --accent-dim: rgba(187,51,51,0.1);
 }
 
+[data-font="sans"] {
+  --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -289,7 +293,7 @@ html, body {
 }
 
 .scroll-reader p {
-  font-family: var(--serif);
+  font-family: var(--body-font, var(--serif));
   font-size: var(--font-size, 1.1rem);
   line-height: 1.7;
   margin-bottom: 1em;
@@ -365,7 +369,7 @@ html, body {
 
 .crawl-content {
   color: var(--crawl-text);
-  font-family: var(--serif);
+  font-family: var(--body-font, var(--serif));
   font-size: var(--crawl-font-size, clamp(1rem, 3vw, 1.4rem));
   line-height: 1.8;
   text-align: justify;
@@ -564,8 +568,8 @@ html, body {
   margin-top: 0.2rem;
 }
 
-.rsvp-settings, .crawl-settings { display: none; }
-.rsvp-settings.visible, .crawl-settings.visible { display: block; }
+.rsvp-settings, .crawl-settings, .scroll-crawl-setting { display: none; }
+.rsvp-settings.visible, .crawl-settings.visible, .scroll-crawl-setting.visible { display: block; }
 
 /* ─── Desktop adjustments ─── */
 @media (min-width: 768px) {
