@@ -1,0 +1,16 @@
+name = "mino-bsky-bot"
+main = "src/index.ts"
+compatibility_date = "2026-02-20"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+# Poll notifications every 5 minutes
+crons = ["*/5 * * * *"]
+
+[[kv_namespaces]]
+binding = "STATE"
+id = ""          # fill after: wrangler kv namespace create STATE
+# preview_id = ""  # fill after: wrangler kv namespace create STATE --preview
+
+[observability]
+enabled = true
