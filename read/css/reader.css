@@ -403,8 +403,8 @@ html, body {
 .crawl-viewport {
   width: 100%;
   height: 100%;
-  perspective: 350px;
-  perspective-origin: center -30%;
+  perspective: 800px;
+  perspective-origin: center -300%;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -426,7 +426,7 @@ html, body {
   text-align: justify;
   padding: 2rem 1.5rem;
   transform-origin: center bottom;
-  transform: rotateX(25deg) translateY(100%);
+  transform: rotateX(18deg) translateY(100%);
   will-change: transform;
 }
 
