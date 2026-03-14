@@ -23,6 +23,10 @@ const RSVPReader = (() => {
   ];
   let colorIndex = 0;
 
+  // Depth trail: ring buffer of recent chunk texts for the receding trail
+  const TRAIL_COUNT = 5;
+  let trailHistory = [];  // newest first
+
   // Measure text width in pixels using Canvas (more reliable than DOM offsetWidth)
   function measureText(text) {
     if (!container) return 0;
@@ -135,6 +139,35 @@ const RSVPReader = (() => {
     } else {
       display.style.backgroundColor = '';
     }
+
+    // Update depth trail
+    const trailEl = container.querySelector('.rsvp-trail');
+    if (trailEl) {
+      const showTrail = settings.rsvp.depthTrail;
+      trailEl.classList.toggle('active', showTrail);
+      if (showTrail) {
+        // Push current display text onto history before it becomes "previous"
+        trailHistory.unshift(chunk.text);
+        if (trailHistory.length > TRAIL_COUNT) trailHistory.length = TRAIL_COUNT;
+
+        const ghosts = trailEl.querySelectorAll('.rsvp-trail-word');
+        ghosts.forEach(g => {
+          const d = parseInt(g.dataset.depth, 10);
+          // depth 0 = most recent previous, depth 4 = oldest
+          // But history[0] is the current chunk (just pushed), so trail shows history[1..N]
+          const histIdx = d + 1;
+          if (histIdx < trailHistory.length) {
+            if (settings.bionic) {
+              g.innerHTML = bionicPerWord(trailHistory[histIdx]);
+            } else {
+              g.textContent = trailHistory[histIdx];
+            }
+          } else {
+            g.textContent = '';
+          }
+        });
+      }
+    }
   }
 
   function esc(s) {
@@ -181,6 +214,17 @@ const RSVPReader = (() => {
     const frame = document.createElement('div');
     frame.className = 'rsvp-frame';
 
+    // Depth trail container (previous words receding into distance)
+    const trail = document.createElement('div');
+    trail.className = 'rsvp-trail';
+    for (let i = TRAIL_COUNT - 1; i >= 0; i--) {
+      const ghost = document.createElement('div');
+      ghost.className = 'rsvp-trail-word';
+      ghost.dataset.depth = i;
+      trail.appendChild(ghost);
+    }
+    frame.appendChild(trail);
+
     const display = document.createElement('div');
     display.className = 'rsvp-word';
 
@@ -193,6 +237,7 @@ const RSVPReader = (() => {
     frame.appendChild(wpmLabel);
 
     el.appendChild(frame);
+    trailHistory = [];
 
     // Tap to toggle
     frame.addEventListener('click', () => {

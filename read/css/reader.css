@@ -333,6 +333,57 @@ html, body {
   transition: background-color 0.05s;
 }
 
+/* ─── Depth Trail (Star Wars crawl distance) ─── */
+.rsvp-trail {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  perspective: 400px;
+  margin-bottom: 0.3rem;
+}
+.rsvp-trail.active { display: flex; }
+
+.rsvp-trail-word {
+  font-family: var(--mono);
+  white-space: pre;
+  text-align: center;
+  color: var(--text);
+  line-height: 1.2;
+  transition: opacity 0.08s, filter 0.08s;
+}
+
+/* Each depth level: progressively smaller, more transparent, blurrier, vertically compressed */
+.rsvp-trail-word[data-depth="0"] {
+  font-size: calc(var(--rsvp-font-size) * 0.65);
+  opacity: 0.50;
+  filter: blur(0.5px);
+  transform: scaleY(0.92);
+}
+.rsvp-trail-word[data-depth="1"] {
+  font-size: calc(var(--rsvp-font-size) * 0.48);
+  opacity: 0.35;
+  filter: blur(1px);
+  transform: scaleY(0.85);
+}
+.rsvp-trail-word[data-depth="2"] {
+  font-size: calc(var(--rsvp-font-size) * 0.34);
+  opacity: 0.22;
+  filter: blur(1.5px);
+  transform: scaleY(0.78);
+}
+.rsvp-trail-word[data-depth="3"] {
+  font-size: calc(var(--rsvp-font-size) * 0.24);
+  opacity: 0.12;
+  filter: blur(2px);
+  transform: scaleY(0.72);
+}
+.rsvp-trail-word[data-depth="4"] {
+  font-size: calc(var(--rsvp-font-size) * 0.17);
+  opacity: 0.06;
+  filter: blur(2.5px);
+  transform: scaleY(0.65);
+}
+
 .rsvp-wpm {
   position: absolute;
   bottom: -1.5rem;

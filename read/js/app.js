@@ -35,6 +35,7 @@ const App = (() => {
   const colorToggle = $('color-toggle');
   const crawlSpeedSlider = $('crawl-speed-slider');
   const crawlSpeedVal = $('crawl-speed-val');
+  const depthToggle = $('depth-toggle');
   const mincharsSlider = $('minchars-slider');
   const mincharsVal = $('minchars-val');
   const speedLabel = $('speed-label');
@@ -80,6 +81,7 @@ const App = (() => {
     if (crawlSpeedSlider) { crawlSpeedSlider.value = s.crawl.speed * 10; crawlSpeedVal.textContent = s.crawl.speed.toFixed(1); }
     if (bionicToggle) bionicToggle.classList.toggle('on', s.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
+    if (depthToggle) depthToggle.classList.toggle('on', !!s.rsvp.depthTrail);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
     if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
     document.documentElement.setAttribute('data-font', s.serif !== false ? 'serif' : 'sans');
@@ -211,6 +213,14 @@ const App = (() => {
       const s = Storage.getSettings();
       s.rsvp.colorFrames = !s.rsvp.colorFrames;
       colorToggle.classList.toggle('on', s.rsvp.colorFrames);
+      Storage.saveSettings(s);
+    });
+
+    // Depth trail toggle
+    depthToggle.addEventListener('click', () => {
+      const s = Storage.getSettings();
+      s.rsvp.depthTrail = !s.rsvp.depthTrail;
+      depthToggle.classList.toggle('on', s.rsvp.depthTrail);
       Storage.saveSettings(s);
     });
 
