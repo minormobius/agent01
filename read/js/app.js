@@ -28,6 +28,7 @@ const App = (() => {
   const fontVal = $('font-val');
   const themeToggle = $('theme-toggle');
   const serifToggle = $('serif-toggle');
+  const ttsToggle = $('tts-toggle');
   const wpmSlider = $('wpm-slider');
   const wpmVal = $('wpm-val');
   const bionicToggle = $('bionic-toggle');
@@ -83,6 +84,8 @@ const App = (() => {
     if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
     document.documentElement.setAttribute('data-font', s.serif !== false ? 'serif' : 'sans');
     if (mincharsSlider) { mincharsSlider.value = s.rsvp.minChars; mincharsVal.textContent = s.rsvp.minChars; }
+    if (ttsToggle) ttsToggle.classList.toggle('on', s.tts);
+    TTS.setEnabled(!!s.tts);
 
     updateModeButtons();
     updateModeSettings();
@@ -194,6 +197,15 @@ const App = (() => {
       if ((activeMode === 'scroll' || activeMode === 'crawl') && chapters.length) renderCurrentChapter();
     });
 
+    // TTS toggle
+    ttsToggle.addEventListener('click', () => {
+      const s = Storage.getSettings();
+      s.tts = !s.tts;
+      ttsToggle.classList.toggle('on', s.tts);
+      TTS.setEnabled(s.tts);
+      Storage.saveSettings(s);
+    });
+
     // Color frames toggle
     colorToggle.addEventListener('click', () => {
       const s = Storage.getSettings();
@@ -233,12 +245,23 @@ const App = (() => {
 
     // Play button
     $('btn-play').addEventListener('click', () => {
-      if (activeMode === 'rsvp') RSVPReader.toggle();
-      else if (activeMode === 'crawl') CrawlReader.toggle();
-      else if (activeMode === 'scroll') {
+      if (activeMode === 'rsvp') {
+        RSVPReader.toggle();
+      } else if (activeMode === 'crawl') {
+        const wasPlaying = CrawlReader.isPlaying();
+        CrawlReader.toggle();
+        if (TTS.isEnabled()) {
+          if (wasPlaying) TTS.togglePause();
+          else ttsStartChapter();
+        }
+      } else if (activeMode === 'scroll') {
         // In scroll mode, auto-scroll
         const area = readingArea.querySelector('.scroll-reader');
         if (area) area.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+        if (TTS.isEnabled()) {
+          if (TTS.isSpeaking()) TTS.togglePause();
+          else ttsStartChapter();
+        }
       }
     });
 
@@ -321,7 +344,8 @@ const App = (() => {
       RSVPReader.init(chapter, readingArea, {
         wordIndex: wordIdx,
         onProgress: (wi, total) => setProgress(wi / total),
-        onFinished: () => navigateChapter(1)
+        onFinished: () => navigateChapter(1),
+        onChunk: text => { if (TTS.isEnabled()) TTS.speakChunk(text); }
       });
     } else if (activeMode === 'crawl') {
       CrawlReader.render(chapter, readingArea, {
@@ -338,6 +362,12 @@ const App = (() => {
     ScrollReader.destroy();
     RSVPReader.destroy();
     CrawlReader.destroy();
+    TTS.stop();
+  }
+
+  function ttsStartChapter() {
+    const chapter = chapters[chapterIndex];
+    if (chapter) TTS.speakChapter(chapter.text);
   }
 
   function switchMode(mode) {
@@ -413,9 +443,23 @@ const App = (() => {
       else if (e.code === 'ArrowLeft') { e.preventDefault(); RSVPReader.skipBack(15); }
       else if (e.code === 'ArrowRight') { e.preventDefault(); RSVPReader.skipForward(15); }
     } else if (activeMode === 'crawl') {
-      if (e.code === 'Space') { e.preventDefault(); CrawlReader.toggle(); }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        const wasPlaying = CrawlReader.isPlaying();
+        CrawlReader.toggle();
+        if (TTS.isEnabled()) {
+          if (wasPlaying) TTS.togglePause();
+          else ttsStartChapter();
+        }
+      }
       else if (e.code === 'ArrowUp') { e.preventDefault(); CrawlReader.adjustSpeed(0.2); syncCrawlSlider(); updateSpeedLabel(); }
       else if (e.code === 'ArrowDown') { e.preventDefault(); CrawlReader.adjustSpeed(-0.2); syncCrawlSlider(); updateSpeedLabel(); }
+    } else if (activeMode === 'scroll') {
+      if (e.code === 'Space' && TTS.isEnabled()) {
+        e.preventDefault();
+        if (TTS.isSpeaking()) TTS.togglePause();
+        else ttsStartChapter();
+      }
     }
 
     if (e.code === 'BracketLeft') navigateChapter(-1);

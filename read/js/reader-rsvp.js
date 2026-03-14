@@ -168,6 +168,7 @@ const RSVPReader = (() => {
     currentDelay = computeDelay(chunk);
     chunkIndex++;
 
+    if (onChunk) onChunk(chunk.text);
     if (onProgress) onProgress(chunkIndex, chunks.length);
     rafId = requestAnimationFrame(tick);
   }
@@ -212,12 +213,15 @@ const RSVPReader = (() => {
     }
   }
 
+  let onChunk = null;
+
   function init(chapter, el, opts = {}) {
     settings = Storage.getSettings();
     words = Gutenberg.tokenize(chapter.text);
     chunkIndex = opts.wordIndex || 0;
     onProgress = opts.onProgress || null;
     onFinished = opts.onFinished || null;
+    onChunk = opts.onChunk || null;
     colorIndex = 0;
     playing = false;
 

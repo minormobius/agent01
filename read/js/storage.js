@@ -20,6 +20,7 @@ const Storage = (() => {
     fontSize: 19,
     theme: 'dark',
     bionic: false,
+    tts: false,
     rsvp: { wpm: 300, colorFrames: false, minChars: 0 },
     crawl: { speed: 1.0 }
   };
