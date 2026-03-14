@@ -22,7 +22,6 @@ const CrawlReader = (() => {
   let lastDragTime = 0;
   let velocity = 0;
   let coasting = false;
-  let wheelTimer = null;
 
   function render(chapter, el, opts = {}) {
     destroy();
@@ -145,67 +144,49 @@ const CrawlReader = (() => {
   }
 
   // ── Pointer handling ──
+  // Simple model: touching = manual control. Release = auto-play resumes.
 
   function getY(e) {
     return (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
   }
 
   function onPointerDown(e) {
-    dragStartY = getY(e);
-    lastDragY = dragStartY;
+    dragging = true;
+    coasting = false;
+    lastDragY = getY(e);
     lastDragTime = performance.now();
     velocity = 0;
-    dragging = false;
-    coasting = false;
     if (e.type === 'mousedown') e.preventDefault();
   }
 
   function onPointerMove(e) {
-    if (dragStartY === 0) return;
-    const y = getY(e);
-
-    if (!dragging) {
-      if (Math.abs(y - dragStartY) < 5) return;
-      dragging = true;
-      coasting = false;
-      // Keep the loop running so we don't need to restart it
-      startLoop();
-    }
-
+    if (!dragging) return;
     e.preventDefault();
+
+    const y = getY(e);
     const now = performance.now();
     const dt = now - lastDragTime;
     const dy = y - lastDragY;
 
     scrollPos -= dy;
-    if (dt > 0) velocity = -dy / dt;
+    applyTransform();
+    reportProgress();
 
+    if (dt > 0) velocity = -dy / dt;
     lastDragY = y;
     lastDragTime = now;
   }
 
   function onPointerUp() {
-    if (!dragging) {
-      // Tap: toggle auto-play
-      dragStartY = 0;
-      toggle();
-      return;
-    }
-
+    if (!dragging) return;
     dragging = false;
-    dragStartY = 0;
 
+    // Coast if there's velocity, then auto-play resumes via the loop
     if (Math.abs(velocity) > 0.05) {
-      // Coast with inertia, then resume auto-play if it was on
       coasting = true;
-      startLoop();
-    } else if (autoPlay) {
-      // No velocity, just resume
-      startLoop();
-    } else {
-      stopLoop();
-      applyTransform();
     }
+    // Always keep the loop running if auto-play is on
+    if (autoPlay) startLoop();
   }
 
   function onWheel(e) {
@@ -213,15 +194,6 @@ const CrawlReader = (() => {
     scrollPos += e.deltaY * 0.5;
     applyTransform();
     reportProgress();
-
-    // Temporarily pause auto-scroll, resume after idle
-    clearTimeout(wheelTimer);
-    if (autoPlay) {
-      stopLoop();
-      wheelTimer = setTimeout(() => {
-        if (autoPlay && !dragging) startLoop();
-      }, 600);
-    }
   }
 
   function reportProgress() {
@@ -261,7 +233,6 @@ const CrawlReader = (() => {
 
   function destroy() {
     stopLoop();
-    clearTimeout(wheelTimer);
     dragging = false;
     coasting = false;
     // Remove window-level listeners

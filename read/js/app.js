@@ -262,7 +262,11 @@ const App = (() => {
       chapters = [];
       chapterIndex = 0;
       chapterSelect.innerHTML = '';
-      readingArea.innerHTML = `<p class="search-empty">Failed to load book: ${err.message}</p>`;
+      readingArea.innerHTML = `<div class="load-error">
+        <p>Failed to load book.</p>
+        <p class="load-error-detail">${err.message}</p>
+        <button class="load-error-back" onclick="document.getElementById('btn-back').click()">Back to search</button>
+      </div>`;
     }
   }
 

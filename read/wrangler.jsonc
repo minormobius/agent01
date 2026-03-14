@@ -1,8 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "read",
+  "main": "worker.js",
   "compatibility_date": "2026-03-14",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
   }
 }
