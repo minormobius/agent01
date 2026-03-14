@@ -124,27 +124,65 @@ const Gutenberg = (() => {
   }
 
   async function fetchBook(id) {
-    // Try CORS proxy first (Cloudflare Pages Function)
+    const errors = [];
+
+    // 1. Try CORS proxy (Cloudflare Pages Function — works in production)
     const proxyUrl = `/gutenberg-proxy?id=${id}`;
     try {
       const resp = await fetch(proxyUrl);
-      if (resp.ok) return stripBoilerplate(await resp.text());
-    } catch { /* proxy not available, try fallback */ }
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text.length > 100) return stripBoilerplate(text);
+      }
+    } catch (e) { errors.push('proxy: ' + e.message); }
 
-    // Try direct (works if same-origin or CORS allowed)
-    const directUrl = `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`;
-    try {
-      const resp = await fetch(directUrl);
-      if (resp.ok) return stripBoilerplate(await resp.text());
-    } catch { /* blocked by CORS */ }
-
-    // Fallback to bundled text
-    if (id === 2701) {
-      const resp = await fetch('texts/moby-dick.txt');
-      if (resp.ok) return stripBoilerplate(await resp.text());
+    // 2. Try Gutenberg URLs directly (works if CORS headers present)
+    const urls = [
+      `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`,
+      `https://www.gutenberg.org/files/${id}/${id}-0.txt`,
+      `https://www.gutenberg.org/files/${id}/${id}.txt`,
+    ];
+    for (const url of urls) {
+      try {
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const text = await resp.text();
+          if (text.length > 100) return stripBoilerplate(text);
+        }
+      } catch (e) { errors.push('direct: ' + e.message); }
     }
 
-    throw new Error(`Could not load book ${id}`);
+    // 3. Try Gutendex API for format URLs (Gutendex has CORS)
+    try {
+      const meta = await fetch(`https://gutendex.com/books/${id}`);
+      if (meta.ok) {
+        const data = await meta.json();
+        // Find text/plain format URLs and try them
+        const textUrls = Object.entries(data.formats || {})
+          .filter(([mime]) => mime.startsWith('text/plain'))
+          .map(([, url]) => url);
+        for (const url of textUrls) {
+          try {
+            const resp = await fetch(url);
+            if (resp.ok) {
+              const text = await resp.text();
+              if (text.length > 100) return stripBoilerplate(text);
+            }
+          } catch (e) { errors.push('gutendex-format: ' + e.message); }
+        }
+      }
+    } catch (e) { errors.push('gutendex: ' + e.message); }
+
+    // 4. Bundled fallback texts
+    const bundled = { 2701: 'texts/moby-dick.txt' };
+    if (bundled[id]) {
+      try {
+        const resp = await fetch(bundled[id]);
+        if (resp.ok) return stripBoilerplate(await resp.text());
+      } catch (e) { errors.push('bundled: ' + e.message); }
+    }
+
+    throw new Error(`Could not load book ${id}. The CORS proxy may not be deployed yet. (${errors.join('; ')})`);
   }
 
   return { fetchBook, stripBoilerplate, parseChapters, tokenize };

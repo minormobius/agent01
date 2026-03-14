@@ -258,6 +258,10 @@ const App = (() => {
       Storage.addToBookshelf(book);
       renderCurrentChapter(pos);
     } catch (err) {
+      // Clear stale state so old book data doesn't persist
+      chapters = [];
+      chapterIndex = 0;
+      chapterSelect.innerHTML = '';
       readingArea.innerHTML = `<p class="search-empty">Failed to load book: ${err.message}</p>`;
     }
   }
