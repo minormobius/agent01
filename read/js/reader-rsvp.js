@@ -236,13 +236,14 @@ const RSVPReader = (() => {
 
   function measureAvailableWidth() {
     if (!container) return;
-    const frame = container.querySelector('.rsvp-frame');
-    if (frame) {
-      // Available width = frame width minus padding
-      const style = getComputedStyle(frame);
-      maxTextWidth = frame.clientWidth
+    const word = container.querySelector('.rsvp-word');
+    if (word) {
+      // Measure the actual text container, not the outer frame
+      const style = getComputedStyle(word);
+      maxTextWidth = word.clientWidth
         - parseFloat(style.paddingLeft)
-        - parseFloat(style.paddingRight);
+        - parseFloat(style.paddingRight)
+        - 4; // small safety margin for rounding
     }
   }
 

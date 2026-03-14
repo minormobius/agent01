@@ -52,10 +52,20 @@ const App = (() => {
     }
   }
 
+  function applyFontSize(size) {
+    document.documentElement.style.setProperty('--font-size', size + 'px');
+    // Scale RSVP font proportionally (base 19px → clamp(2rem,6vw,3.5rem))
+    const scale = size / 19;
+    document.documentElement.style.setProperty(
+      '--rsvp-font-size',
+      `clamp(${(2 * scale).toFixed(2)}rem, ${(6 * scale).toFixed(1)}vw, ${(3.5 * scale).toFixed(2)}rem)`
+    );
+  }
+
   function applySettings() {
     const s = Storage.getSettings();
     document.documentElement.setAttribute('data-theme', s.theme);
-    document.documentElement.style.setProperty('--font-size', s.fontSize + 'px');
+    applyFontSize(s.fontSize);
     activeMode = s.mode;
 
     // Sync controls
@@ -132,7 +142,7 @@ const App = (() => {
       const s = Storage.getSettings();
       s.fontSize = parseInt(fontSlider.value);
       fontVal.textContent = s.fontSize;
-      document.documentElement.style.setProperty('--font-size', s.fontSize + 'px');
+      applyFontSize(s.fontSize);
       Storage.saveSettings(s);
     });
 
