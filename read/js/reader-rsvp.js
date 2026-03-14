@@ -202,10 +202,6 @@ const RSVPReader = (() => {
     const frame = document.createElement('div');
     frame.className = 'rsvp-frame';
 
-    const marker = document.createElement('div');
-    marker.className = 'rsvp-marker';
-    frame.appendChild(marker);
-
     const display = document.createElement('div');
     display.className = 'rsvp-word';
 
