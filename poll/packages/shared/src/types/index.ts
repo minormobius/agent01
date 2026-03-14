@@ -1,6 +1,6 @@
 /** Core domain types for ATPolls */
 
-export type PollMode = 'anon_credential_v2';
+export type PollMode = 'anon_credential_v2' | 'public_like';
 export type PollStatus = 'draft' | 'open' | 'closed' | 'finalized';
 export type EligibilityMode = 'open' | 'did_list' | 'followers' | 'mutuals' | 'at_list';
 
@@ -19,6 +19,7 @@ export interface Poll {
   hostKeyFingerprint: string;
   hostPublicKey: string | null;
   atprotoRecordUri: string | null;
+  blueskyOptionPosts: { uri: string; cid: string }[] | null;
   createdAt: string;
 }
 

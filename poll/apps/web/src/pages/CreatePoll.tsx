@@ -17,7 +17,7 @@ export function CreatePollPage() {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [closesIn, setClosesIn] = useState('24');
-  const [mode] = useState('anon_credential_v2');
+  const [mode, setMode] = useState('public_like');
   const [eligibilityMode, setEligibilityMode] = useState('open');
   const [didListText, setDidListText] = useState('');
   const [listUri, setListUri] = useState('');
@@ -120,6 +120,19 @@ export function CreatePollPage() {
             + Add Option
           </button>
         )}
+
+        <div className="mt-12">
+          <label>Poll type</label>
+          <select value={mode} onChange={e => setMode(e.target.value)}>
+            <option value="public_like">Public (vote by liking on Bluesky)</option>
+            <option value="anon_credential_v2">Anonymous (cryptographic ballot)</option>
+          </select>
+          <p className="muted">
+            {mode === 'public_like'
+              ? 'Zero friction — voters like a reply on Bluesky. Votes are public.'
+              : 'Voters authenticate once, then cast an anonymous ballot. Cryptographic unlinkability.'}
+          </p>
+        </div>
 
         <div className="mt-12">
           <label>Closes in (hours)</label>

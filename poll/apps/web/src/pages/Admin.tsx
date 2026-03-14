@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky, authOAuthStart } from '../lib/api';
+import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky, syncLikes, authOAuthStart } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +44,10 @@ export function AdminPage() {
       <div className="card">
         <h2>Admin: {poll.question}</h2>
         <span className={`status-badge status-${poll.status}`}>{poll.status}</span>
+        {' '}
+        <span className="status-badge" style={{ background: poll.mode === 'public_like' ? 'var(--success, #0a0)' : 'var(--accent, #900)' }}>
+          {poll.mode === 'public_like' ? 'public' : 'anonymous'}
+        </span>
         {!isHost && <p className="error mt-12">You are not the host of this poll.</p>}
       </div>
 
@@ -132,6 +136,23 @@ export function AdminPage() {
             </div>
           )}
 
+          {poll.mode === 'public_like' && (
+            <div className="card">
+              <h3>Sync Likes from Bluesky</h3>
+              <p className="muted mb-12">
+                Fetch like counts from the Bluesky option posts and update the tally.
+                {!poll.bluesky_option_posts && ' Post to Bluesky first to create option posts.'}
+              </p>
+              <button
+                className="btn btn-primary"
+                disabled={!poll.bluesky_option_posts}
+                onClick={() => action(() => syncLikes(id!), 'Likes synced from Bluesky')}
+              >
+                Sync Likes
+              </button>
+            </div>
+          )}
+
           <ShareToBluesky poll={poll} pollId={id!} />
 
           <div className="card">
@@ -176,17 +197,25 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
 
   const timeLeft = poll.closes_at ? formatTimeLeft(poll.closes_at) : '';
 
-  // Preview text (what it looks like on Bluesky — option names become links)
-  const optionLine = options.join('\n');
-  const footerParts = ['View poll', 'Verifiable & anonymous'];
-  if (timeLeft) footerParts.push(timeLeft);
-  const previewText = `${poll.question}\n\n${optionLine}\n\n${footerParts.join(' · ')}`;
+  const isPublicLike = poll.mode === 'public_like';
 
-  // Fallback plain text with URLs (for copy/intent)
-  const fallbackOptionLines = options.map((opt: string, i: number) =>
-    `${opt}: ${baseUrl}/v/${pollId}?c=${i}`
-  ).join('\n');
-  const fallbackText = `${poll.question}\n\n${fallbackOptionLines}\n\nView poll: ${baseUrl}/poll/${pollId}${timeLeft ? `\nVerifiable & anonymous · ${timeLeft}` : ''}`;
+  // Preview text (what it looks like on Bluesky)
+  const optionLine = options.join('\n');
+  const footerParts = isPublicLike
+    ? ['View results', 'Public poll']
+    : ['View poll', 'Verifiable & anonymous'];
+  if (timeLeft) footerParts.push(timeLeft);
+  const previewText = isPublicLike
+    ? `${poll.question}\n\nLike a reply to vote:\n\n${footerParts.join(' · ')}`
+    : `${poll.question}\n\n${optionLine}\n\n${footerParts.join(' · ')}`;
+
+  // Fallback plain text (for copy/intent) — no raw URLs, just clean text
+  // The intent/compose path can't carry facets, so keep it readable.
+  // "Post to Bluesky" button uses the API with proper link facets.
+  const fallbackFooter = isPublicLike
+    ? `View results: ${baseUrl}/poll/${pollId}`
+    : `View poll: ${baseUrl}/poll/${pollId}`;
+  const fallbackText = `${poll.question}\n\n${optionLine}\n\n${fallbackFooter}${timeLeft ? ` · ${timeLeft}` : ''}`;
 
   const handleReauth = async () => {
     const identifier = handle || did;
@@ -229,7 +258,9 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
     <div className="card">
       <h3>Share to Bluesky</h3>
       <p className="muted mb-12">
-        Post your poll with embedded links — option names become clickable vote buttons.
+        {isPublicLike
+          ? 'Post your poll with option replies — voters like the reply for their choice.'
+          : 'Post your poll with embedded links — option names become clickable vote buttons.'}
       </p>
       <div className="share-preview">
         <pre className="share-post-text">{previewText}</pre>

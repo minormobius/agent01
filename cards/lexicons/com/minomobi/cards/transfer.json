@@ -1,0 +1,46 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.cards.transfer",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A card transfer receipt. Created by the sender on their PDS to prove they authorized the transfer. The receiver also stores a copy. Writing to your own PDS IS your signature — ATProto repo signing handles authorization. No separate player keypair needed.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["cardCid", "cardTitle", "fromDid", "toDid", "transferredAt"],
+        "properties": {
+          "cardCid": {
+            "type": "string",
+            "description": "CID (content hash) of the card record being transferred. Immutably identifies the exact card."
+          },
+          "cardTitle": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Human-readable card title (denormalized for display)"
+          },
+          "fromDid": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the sender"
+          },
+          "toDid": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the receiver"
+          },
+          "transferredAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the transfer was executed"
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Optional note (e.g., what was traded in return)"
+          }
+        }
+      }
+    }
+  }
+}

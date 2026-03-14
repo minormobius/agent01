@@ -1,0 +1,81 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.cards.card",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A minted Wiki Card. Lives on the player's PDS. The mintSig field proves it was issued by minomobi — verification requires only the mint public key, not the mint PDS. Record key is a TID.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "category", "stats", "rarity", "issuedTo", "issuedAt", "source", "nonce", "mintDid", "mintSig"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Card title (Wikipedia article title)"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Wikinatomy bin (LIFE_SCI, MEDICINE, TECH, etc.)"
+          },
+          "stats": {
+            "type": "ref",
+            "ref": "#cardStats",
+            "description": "Combat stats"
+          },
+          "rarity": {
+            "type": "string",
+            "knownValues": ["common", "uncommon", "rare", "legendary"],
+            "description": "Rarity tier"
+          },
+          "embeddingIdx": {
+            "type": "integer",
+            "description": "Index into the embeddings matrix (for alchemy/similarity games)"
+          },
+          "issuedTo": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the player this card was minted for. Part of the signed payload — a card signed for one player cannot be claimed by another."
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the card was minted"
+          },
+          "source": {
+            "type": "string",
+            "knownValues": ["daily_pack", "lucky", "transmute", "trade_reissue"],
+            "description": "How the card was obtained"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Random hex string. Prevents replay — each mint is unique even for the same card/player."
+          },
+          "mintDid": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the minting authority (minomobi). Used to look up the public key for verification."
+          },
+          "mintSig": {
+            "type": "bytes",
+            "description": "Ed25519 signature over the canonical JSON of all fields except mintSig. Proves the card was minted by the authority identified in mintDid."
+          }
+        }
+      }
+    },
+    "cardStats": {
+      "type": "object",
+      "required": ["atk", "def", "spc", "spd", "hp"],
+      "properties": {
+        "atk": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "def": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "spc": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "spd": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "hp":  { "type": "integer", "minimum": 100, "maximum": 999 }
+      }
+    }
+  }
+}

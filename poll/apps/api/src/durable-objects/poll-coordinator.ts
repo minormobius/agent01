@@ -147,6 +147,9 @@ export class PollCoordinator implements DurableObject {
       if (request.method === 'GET' && path === '/audit') {
         return this.handleGetAudit();
       }
+      if (request.method === 'POST' && path === '/sync-likes') {
+        return this.handleSyncLikes(request);
+      }
       return new Response('Not found', { status: 404 });
     } catch (err: any) {
       // SECURITY: Never leak internal error details to clients
@@ -244,6 +247,9 @@ export class PollCoordinator implements DurableObject {
 
     const state = await this.loadState();
     if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
+    if (state.poll.mode === 'public_like') {
+      return jsonResponse({ error: 'Public polls use Bluesky likes — no credential needed' }, 400);
+    }
     if (state.poll.status !== 'open') {
       return jsonResponse({ error: 'Poll is not open' }, 403);
     }
@@ -321,6 +327,9 @@ export class PollCoordinator implements DurableObject {
 
     const state = await this.loadState();
     if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
+    if (state.poll.mode === 'public_like') {
+      return jsonResponse({ accepted: false, rejectionReason: 'Public polls use Bluesky likes — vote by liking the option post' }, 400);
+    }
     if (state.poll.status !== 'open') {
       return jsonResponse({ accepted: false, rejectionReason: 'Poll is not open' }, 403);
     }
@@ -426,6 +435,46 @@ export class PollCoordinator implements DurableObject {
       publicSerial: state.ballotCount,
     };
     return jsonResponse(response);
+  }
+
+  /**
+   * Sync likes from Bluesky — receives pre-computed tally from the API route.
+   * Only valid for public_like mode polls.
+   */
+  private async handleSyncLikes(request: Request): Promise<Response> {
+    const { countsByOption, ballotCount } = await request.json() as {
+      countsByOption: Record<string, number>;
+      ballotCount: number;
+    };
+
+    const state = await this.loadState();
+    if (!state.poll) return jsonResponse({ error: 'Poll not found' }, 404);
+    if (state.poll.mode !== 'public_like') {
+      return jsonResponse({ error: 'Not a public_like poll' }, 400);
+    }
+
+    state.tally = countsByOption;
+    state.ballotCount = ballotCount;
+
+    const now = new Date().toISOString();
+    await this.appendAudit('likes_synced', JSON.stringify({
+      pollId: state.poll.id,
+      ballotCount,
+    }));
+    await this.saveState();
+
+    // Update tally snapshot in D1
+    await this.env.DB.prepare(
+      `INSERT OR REPLACE INTO tally_snapshots (poll_id, counts_by_option, ballot_count, computed_at, final)
+       VALUES (?, ?, ?, ?, 0)`
+    ).bind(
+      state.poll.id,
+      JSON.stringify(countsByOption),
+      ballotCount,
+      now
+    ).run();
+
+    return jsonResponse({ success: true });
   }
 
   private async handleGetPoll(): Promise<Response> {
