@@ -12,8 +12,8 @@ const RSVPReader = (() => {
   let onProgress = null;
   let onFinished = null;
   let settings = null;
-  let measureEl = null; // hidden element for measuring text width
-  let maxTextWidth = 0; // available px for chunk text
+  let measureCtx = null; // canvas 2d context for text measurement
+  let maxTextWidth = 0;  // available px for chunk text
 
   // Color palette for inter-frame flashes
   const COLORS = [
@@ -34,11 +34,17 @@ const RSVPReader = (() => {
     return Math.floor(len * 0.25);
   }
 
-  // Measure text width in pixels using the hidden measurement element
+  // Measure text width in pixels using Canvas (more reliable than DOM offsetWidth)
   function measureText(text) {
-    if (!measureEl) return 0;
-    measureEl.textContent = text;
-    return measureEl.offsetWidth;
+    if (!container) return 0;
+    if (!measureCtx) {
+      measureCtx = document.createElement('canvas').getContext('2d');
+    }
+    const word = container.querySelector('.rsvp-word');
+    if (!word) return 0;
+    const style = getComputedStyle(word);
+    measureCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return measureCtx.measureText(text).width;
   }
 
   // Build chunks from word tokens, grouping short words to meet minChars
@@ -215,11 +221,6 @@ const RSVPReader = (() => {
     display.appendChild(postEl);
     frame.appendChild(display);
 
-    // Hidden measurement element — same font as rsvp-word
-    measureEl = document.createElement('span');
-    measureEl.className = 'rsvp-measure';
-    frame.appendChild(measureEl);
-
     // WPM indicator
     const wpmLabel = document.createElement('div');
     wpmLabel.className = 'rsvp-wpm';
@@ -236,14 +237,14 @@ const RSVPReader = (() => {
 
   function measureAvailableWidth() {
     if (!container) return;
+    measureCtx = null; // reset so next measureText picks up current font
     const word = container.querySelector('.rsvp-word');
     if (word) {
-      // Measure the actual text container, not the outer frame
       const style = getComputedStyle(word);
       maxTextWidth = word.clientWidth
         - parseFloat(style.paddingLeft)
         - parseFloat(style.paddingRight)
-        - 4; // small safety margin for rounding
+        - 4; // safety margin for subpixel rounding
     }
   }
 
@@ -322,14 +323,28 @@ const RSVPReader = (() => {
   function getWordIndex() { return chunkIndex; }
   function isPlaying() { return playing; }
 
+  // Re-measure and refit chunks (e.g. after font size change)
+  function refit() {
+    if (!container || words.length === 0) return;
+    settings = Storage.getSettings();
+    requestAnimationFrame(() => {
+      measureAvailableWidth();
+      chunks = fitChunksToWidth(buildChunks(words, settings.rsvp.minChars));
+      chunkIndex = Math.min(chunkIndex, Math.max(0, chunks.length - 1));
+      if (!playing && chunks.length > 0 && chunkIndex < chunks.length) {
+        renderChunk(chunks[chunkIndex]);
+      }
+    });
+  }
+
   function destroy() {
     pause();
     if (container) container.innerHTML = '';
     container = null;
-    measureEl = null;
+    measureCtx = null;
     words = [];
     chunks = [];
   }
 
-  return { init, play, pause, toggle, adjustWPM, getWPM, skipBack, skipForward, getWordIndex, isPlaying, destroy };
+  return { init, play, pause, toggle, adjustWPM, getWPM, skipBack, skipForward, getWordIndex, isPlaying, refit, destroy };
 })();

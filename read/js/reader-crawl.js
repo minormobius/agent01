@@ -227,6 +227,13 @@ const CrawlReader = (() => {
     Storage.saveSettings(s);
   }
 
+  function remeasure() {
+    requestAnimationFrame(() => {
+      measure();
+      applyTransform();
+    });
+  }
+
   function getScrollPos() { return scrollPos; }
   function getSpeed() { return speed; }
   function isPlaying() { return autoPlay; }
@@ -244,5 +251,5 @@ const CrawlReader = (() => {
     viewport = null;
   }
 
-  return { render, play, pause, toggle, adjustSpeed, getSpeed, getScrollPos, isPlaying, destroy };
+  return { render, play, pause, toggle, adjustSpeed, getSpeed, getScrollPos, isPlaying, remeasure, destroy };
 })();

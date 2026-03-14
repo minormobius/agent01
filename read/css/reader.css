@@ -356,16 +356,6 @@ html, body {
   overflow: hidden;
 }
 
-/* Hidden element for measuring chunk text width — must match rsvp-word font */
-.rsvp-measure {
-  position: absolute;
-  visibility: hidden;
-  white-space: pre;
-  font-family: var(--mono);
-  font-size: var(--rsvp-font-size);
-  pointer-events: none;
-}
-
 .rsvp-wpm {
   position: absolute;
   bottom: -1.5rem;
@@ -403,7 +393,7 @@ html, body {
 .crawl-content {
   color: var(--crawl-text);
   font-family: var(--serif);
-  font-size: clamp(1rem, 3vw, 1.4rem);
+  font-size: var(--crawl-font-size, clamp(1rem, 3vw, 1.4rem));
   line-height: 1.8;
   text-align: justify;
   padding: 2rem 0;

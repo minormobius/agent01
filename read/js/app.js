@@ -54,11 +54,15 @@ const App = (() => {
 
   function applyFontSize(size) {
     document.documentElement.style.setProperty('--font-size', size + 'px');
-    // Scale RSVP font proportionally (base 19px → clamp(2rem,6vw,3.5rem))
+    // Scale RSVP and crawl fonts proportionally (base 19px)
     const scale = size / 19;
     document.documentElement.style.setProperty(
       '--rsvp-font-size',
       `clamp(${(2 * scale).toFixed(2)}rem, ${(6 * scale).toFixed(1)}vw, ${(3.5 * scale).toFixed(2)}rem)`
+    );
+    document.documentElement.style.setProperty(
+      '--crawl-font-size',
+      `clamp(${(1 * scale).toFixed(2)}rem, ${(3 * scale).toFixed(1)}vw, ${(1.4 * scale).toFixed(2)}rem)`
     );
   }
 
@@ -137,13 +141,15 @@ const App = (() => {
     modeRsvp.addEventListener('click', () => switchMode('rsvp'));
     modeCrawl.addEventListener('click', () => switchMode('crawl'));
 
-    // Font size
+    // Font size — live updates across all modes
     fontSlider.addEventListener('input', () => {
       const s = Storage.getSettings();
       s.fontSize = parseInt(fontSlider.value);
       fontVal.textContent = s.fontSize;
       applyFontSize(s.fontSize);
       Storage.saveSettings(s);
+      if (activeMode === 'rsvp') RSVPReader.refit();
+      if (activeMode === 'crawl') CrawlReader.remeasure();
     });
 
     // Theme
