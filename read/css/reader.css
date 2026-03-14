@@ -45,8 +45,8 @@ html, body {
 .app {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* ─── Search View ─── */
@@ -204,8 +204,8 @@ html, body {
 #reader-view {
   display: none;
   flex-direction: column;
-  height: 100dvh;
   height: 100vh;
+  height: 100dvh;
 }
 #reader-view.active { display: flex; }
 
