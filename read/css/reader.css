@@ -403,8 +403,8 @@ html, body {
 .crawl-viewport {
   width: 100%;
   height: 100%;
-  perspective: 500px;
-  perspective-origin: center -80%;
+  perspective: 350px;
+  perspective-origin: center -30%;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -412,8 +412,7 @@ html, body {
 .crawl-viewport:active { cursor: grabbing; }
 
 .crawl-perspective {
-  width: 95%;
-  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   height: 100%;
   transform-style: preserve-3d;
@@ -425,7 +424,7 @@ html, body {
   font-size: var(--crawl-font-size, clamp(1rem, 3vw, 1.4rem));
   line-height: 1.8;
   text-align: justify;
-  padding: 2rem 0;
+  padding: 2rem 1.5rem;
   transform-origin: center bottom;
   transform: rotateX(25deg) translateY(100%);
   will-change: transform;
