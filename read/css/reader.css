@@ -212,19 +212,14 @@ html, body {
 /* ─── Reader Header ─── */
 .reader-header {
   display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid var(--rule);
-  background: var(--bg-surface);
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-.header-row {
-  display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-surface);
   min-height: 44px;
+  flex-shrink: 0;
+  z-index: 10;
 }
 
 .btn-icon {
@@ -418,10 +413,20 @@ html, body {
   margin-bottom: 1.2em;
 }
 
-/* ─── Progress Bar (in header) ─── */
+/* ─── Reader Footer ─── */
+.reader-footer {
+  border-top: 1px solid var(--rule);
+  background: var(--bg-surface);
+  padding: 0.4rem 0.8rem calc(0.4rem + env(safe-area-inset-bottom, 0px)); /* safari bottom nav clearance */
+  flex-shrink: 0;
+  z-index: 10;
+}
+
 .progress-bar {
   height: 3px;
   background: var(--rule);
+  border-radius: 2px;
+  margin-bottom: 0.4rem;
   overflow: hidden;
 }
 .progress-fill {
@@ -437,7 +442,6 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  padding: 0.2rem 0.8rem 0.4rem;
 }
 
 .reader-controls button {
@@ -445,8 +449,8 @@ html, body {
   border: 1px solid var(--rule);
   color: var(--text);
   border-radius: var(--radius);
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
   cursor: pointer;
   font-family: var(--sans);
   transition: border-color var(--transition);

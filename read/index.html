@@ -29,17 +29,19 @@
     <!-- ─── Reader View ─── -->
     <div id="reader-view">
       <header class="reader-header">
-        <div class="header-row">
-          <button id="btn-back" class="btn-icon" title="Back" aria-label="Back">&larr;</button>
-          <span id="reader-title" class="reader-title"></span>
-          <button id="btn-prev" class="btn-icon" title="Previous chapter" aria-label="Previous chapter">&lsaquo;</button>
-          <select id="chapter-select" class="chapter-select" aria-label="Chapter"></select>
-          <button id="btn-next" class="btn-icon" title="Next chapter" aria-label="Next chapter">&rsaquo;</button>
-          <button id="btn-settings" class="btn-icon" title="Settings" aria-label="Settings">&#9881;</button>
-        </div>
+        <button id="btn-back" class="btn-icon" title="Back" aria-label="Back">&larr;</button>
+        <span id="reader-title" class="reader-title"></span>
+        <button id="btn-prev" class="btn-icon" title="Previous chapter" aria-label="Previous chapter">&lsaquo;</button>
+        <select id="chapter-select" class="chapter-select" aria-label="Chapter"></select>
+        <button id="btn-next" class="btn-icon" title="Next chapter" aria-label="Next chapter">&rsaquo;</button>
+        <button id="btn-settings" class="btn-icon" title="Settings" aria-label="Settings">&#9881;</button>
+      </header>
+
+      <div id="reading-area"></div>
+
+      <footer class="reader-footer">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
         <div class="reader-controls">
-          <button id="btn-play" class="btn-icon" title="Play/Pause" aria-label="Play/Pause">&#9654;</button>
-          <div class="control-sep"></div>
           <button id="mode-scroll">Scroll</button>
           <button id="mode-rsvp">RSVP</button>
           <button id="mode-crawl">Crawl</button>
@@ -47,11 +49,10 @@
           <button id="btn-slower" class="btn-icon" title="Slower" aria-label="Slower">&minus;</button>
           <span id="speed-label" class="speed-label"></span>
           <button id="btn-faster" class="btn-icon" title="Faster" aria-label="Faster">+</button>
+          <div class="control-sep"></div>
+          <button id="btn-play" class="btn-icon" title="Play/Pause" aria-label="Play/Pause">&#9654;</button>
         </div>
-        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
-      </header>
-
-      <div id="reading-area"></div>
+      </footer>
     </div>
 
     <!-- ─── Settings Dialog ─── -->
