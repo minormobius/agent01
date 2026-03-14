@@ -68,6 +68,23 @@ const CrawlReader = (() => {
 
     perspective.appendChild(crawlEl);
     viewport.appendChild(perspective);
+
+    // Depth fog overlay — blur strips that intensify toward the top
+    const depthOn = Storage.getSettings().depthTrail;
+    if (depthOn) {
+      viewport.classList.add('crawl-depth');
+      const fog = document.createElement('div');
+      fog.className = 'crawl-fog';
+      // 4 strips: bottom of the fog (mild blur) to top (heavy blur)
+      for (let i = 0; i < 4; i++) {
+        const strip = document.createElement('div');
+        strip.className = 'crawl-fog-strip';
+        strip.dataset.level = i;
+        fog.appendChild(strip);
+      }
+      viewport.appendChild(fog);
+    }
+
     el.appendChild(viewport);
 
     // Touch

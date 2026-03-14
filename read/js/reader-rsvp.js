@@ -143,7 +143,7 @@ const RSVPReader = (() => {
     // Update depth trail
     const trailEl = container.querySelector('.rsvp-trail');
     if (trailEl) {
-      const showTrail = settings.rsvp.depthTrail;
+      const showTrail = settings.depthTrail;
       trailEl.classList.toggle('active', showTrail);
       if (showTrail) {
         // Push current display text onto history before it becomes "previous"

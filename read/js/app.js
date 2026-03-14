@@ -81,7 +81,7 @@ const App = (() => {
     if (crawlSpeedSlider) { crawlSpeedSlider.value = s.crawl.speed * 10; crawlSpeedVal.textContent = s.crawl.speed.toFixed(1); }
     if (bionicToggle) bionicToggle.classList.toggle('on', s.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
-    if (depthToggle) depthToggle.classList.toggle('on', !!s.rsvp.depthTrail);
+    if (depthToggle) depthToggle.classList.toggle('on', !!s.depthTrail);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
     if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
     document.documentElement.setAttribute('data-font', s.serif !== false ? 'serif' : 'sans');
@@ -105,9 +105,11 @@ const App = (() => {
     const rsvpSettings = document.querySelector('.rsvp-settings');
     const crawlSettings = document.querySelector('.crawl-settings');
     const scrollCrawlSettings = document.querySelectorAll('.scroll-crawl-setting');
+    const rsvpCrawlSettings = document.querySelectorAll('.rsvp-crawl-setting');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
     scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp'));
+    rsvpCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode === 'rsvp' || activeMode === 'crawl'));
   }
 
   function updateSpeedLabel() {
@@ -216,12 +218,13 @@ const App = (() => {
       Storage.saveSettings(s);
     });
 
-    // Depth trail toggle
+    // Depth trail toggle (shared: RSVP trail + crawl fog)
     depthToggle.addEventListener('click', () => {
       const s = Storage.getSettings();
-      s.rsvp.depthTrail = !s.rsvp.depthTrail;
-      depthToggle.classList.toggle('on', s.rsvp.depthTrail);
+      s.depthTrail = !s.depthTrail;
+      depthToggle.classList.toggle('on', s.depthTrail);
       Storage.saveSettings(s);
+      if (activeMode === 'crawl' && chapters.length) renderCurrentChapter();
     });
 
     // Crawl speed
