@@ -417,7 +417,7 @@ html, body {
 .reader-footer {
   border-top: 1px solid var(--rule);
   background: var(--bg-surface);
-  padding: 0.4rem 0.8rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.4rem 0.8rem calc(0.4rem + env(safe-area-inset-bottom, 0px)); /* safari bottom nav clearance */
   flex-shrink: 0;
   z-index: 10;
 }
