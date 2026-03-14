@@ -97,7 +97,7 @@ const CrawlReader = (() => {
     if (!crawlEl) return;
     if (viewHeight === 0 || crawlHeight === 0) measure();
     scrollPos = Math.max(0, scrollPos);
-    crawlEl.style.transform = `rotateX(24deg) translateY(${viewHeight - scrollPos}px)`;
+    crawlEl.style.transform = `rotateX(20deg) translateY(${viewHeight - scrollPos}px)`;
   }
 
   // ── Unified animation loop ──
