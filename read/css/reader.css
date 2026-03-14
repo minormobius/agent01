@@ -334,7 +334,7 @@ html, body {
   grid-template-columns: 1fr auto 1fr;
   font-family: var(--mono);
   font-size: var(--rsvp-font-size);
-  white-space: nowrap;
+  white-space: pre;
   padding: 0.5rem 1rem;
   border-radius: var(--radius);
   transition: background-color 0.05s;
@@ -344,6 +344,7 @@ html, body {
 .rsvp-pre {
   color: var(--text);
   text-align: right;
+  overflow: hidden;
 }
 .rsvp-pivot {
   color: var(--accent);
@@ -353,6 +354,7 @@ html, body {
 .rsvp-post {
   color: var(--text);
   text-align: left;
+  overflow: hidden;
 }
 
 .rsvp-wpm {
