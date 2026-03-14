@@ -89,7 +89,10 @@ const CrawlReader = (() => {
   }
 
   function applyTransform() {
-    if (!crawlEl) return;
+    if (!crawlEl || !viewport) return;
+    // Re-measure if dimensions are stale
+    if (viewHeight === 0) viewHeight = viewport.clientHeight;
+    if (crawlHeight === 0) crawlHeight = crawlEl.scrollHeight;
     // Clamp: can't scroll above the start
     scrollPos = Math.max(0, scrollPos);
     crawlEl.style.transform = `translateY(${viewHeight - scrollPos}px)`;
@@ -233,7 +236,7 @@ const CrawlReader = (() => {
     applyTransform();
     reportProgress();
 
-    if (scrollPos > crawlHeight + viewHeight) {
+    if (crawlHeight > 0 && scrollPos > crawlHeight + viewHeight) {
       playing = false;
       if (onFinished) onFinished();
       return;
