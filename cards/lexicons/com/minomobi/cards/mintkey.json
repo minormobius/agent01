@@ -1,0 +1,39 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.cards.mintkey",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Public key for verifying card mint signatures. Published on the mint PDS as a convenience, but also embedded in the game client and git repo. Verification never requires the mint PDS to be online. Record key is 'current'.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["algorithm", "publicKeyMultibase", "createdAt"],
+        "properties": {
+          "algorithm": {
+            "type": "string",
+            "description": "Signing algorithm. Always 'Ed25519'."
+          },
+          "publicKeyMultibase": {
+            "type": "string",
+            "description": "Public key in multibase encoding (base58btc with 'z' prefix, matching DID doc conventions)"
+          },
+          "publicKeyHex": {
+            "type": "string",
+            "description": "Public key as hex string (for easy use in browser crypto)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this key was generated"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Human-readable note about the key (e.g., 'Wiki Cards mint key v1')"
+          }
+        }
+      }
+    }
+  }
+}
