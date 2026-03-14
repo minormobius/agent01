@@ -77,7 +77,7 @@ const App = (() => {
     if (fontSlider) { fontSlider.value = s.fontSize; fontVal.textContent = s.fontSize; }
     if (wpmSlider) { wpmSlider.value = s.rsvp.wpm; wpmVal.textContent = s.rsvp.wpm; }
     if (crawlSpeedSlider) { crawlSpeedSlider.value = s.crawl.speed * 10; crawlSpeedVal.textContent = s.crawl.speed.toFixed(1); }
-    if (bionicToggle) bionicToggle.classList.toggle('on', activeMode === 'crawl' ? s.crawl.bionic : s.rsvp.bionic);
+    if (bionicToggle) bionicToggle.classList.toggle('on', s.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
     if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
@@ -185,19 +185,13 @@ const App = (() => {
       updateSpeedLabel();
     });
 
-    // Bionic toggle — mode-aware
+    // Bionic toggle — shared across all modes
     bionicToggle.addEventListener('click', () => {
       const s = Storage.getSettings();
-      if (activeMode === 'crawl') {
-        s.crawl.bionic = !s.crawl.bionic;
-        bionicToggle.classList.toggle('on', s.crawl.bionic);
-      } else {
-        s.rsvp.bionic = !s.rsvp.bionic;
-        bionicToggle.classList.toggle('on', s.rsvp.bionic);
-      }
+      s.bionic = !s.bionic;
+      bionicToggle.classList.toggle('on', s.bionic);
       Storage.saveSettings(s);
-      if (activeMode === 'scroll' && chapters.length) renderCurrentChapter();
-      if (activeMode === 'crawl' && chapters.length) renderCurrentChapter();
+      if ((activeMode === 'scroll' || activeMode === 'crawl') && chapters.length) renderCurrentChapter();
     });
 
     // Color frames toggle

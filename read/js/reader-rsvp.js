@@ -123,7 +123,7 @@ const RSVPReader = (() => {
     if (!container) return;
     const display = container.querySelector('.rsvp-word');
 
-    if (settings.rsvp.bionic) {
+    if (settings.bionic) {
       display.innerHTML = bionicPerWord(chunk.text);
     } else {
       display.textContent = chunk.text;

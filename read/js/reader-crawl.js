@@ -52,7 +52,7 @@ const CrawlReader = (() => {
     title.textContent = chapter.title;
     crawlEl.appendChild(title);
 
-    const bionic = Storage.getSettings().crawl.bionic;
+    const bionic = Storage.getSettings().bionic;
     const paragraphs = chapter.text.split(/\n\s*\n/);
     for (const p of paragraphs) {
       const trimmed = p.trim();

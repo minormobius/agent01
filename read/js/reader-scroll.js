@@ -29,7 +29,7 @@ const ScrollReader = (() => {
       if (el.children.length === 1 && trimmed === chapter.title) continue;
 
       const pEl = document.createElement('p');
-      if (settings.rsvp.bionic) {
+      if (settings.bionic) {
         pEl.innerHTML = bionicFormat(trimmed);
       } else {
         pEl.textContent = trimmed;
