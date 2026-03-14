@@ -36,7 +36,9 @@ on:
           - morphyx
 
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/finance-ui-exploration-15iCj
     paths:
       - 'scripts/sync-finance.py'
       - 'finance/universe.json'
