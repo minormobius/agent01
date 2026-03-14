@@ -91,7 +91,13 @@ const Gutenberg = (() => {
 
   function tokenize(text) {
     const words = [];
-    const raw = text.split(/\s+/).filter(w => w.length > 0);
+    // Normalize: strip \r, split em-dash-joined words, collapse whitespace
+    const normalized = text
+      .replace(/\r/g, '')
+      .replace(/—/g, ' — ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const raw = normalized.split(' ').filter(w => w.length > 0);
     for (let i = 0; i < raw.length; i++) {
       const w = raw[i];
       const lastChar = w[w.length - 1];

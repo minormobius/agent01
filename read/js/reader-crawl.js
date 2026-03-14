@@ -3,6 +3,7 @@
 const CrawlReader = (() => {
   let container = null;
   let crawlEl = null;
+  let viewport = null;
   let rafId = null;
   let scrollPos = 0;
   let playing = false;
@@ -13,6 +14,14 @@ const CrawlReader = (() => {
   let onProgress = null;
   let lastTime = 0;
 
+  // Manual override state
+  let dragging = false;
+  let dragStartY = 0;
+  let dragStartPos = 0;
+  let velocity = 0;        // px/ms from drag gesture
+  let coasting = false;     // true while inertia is decelerating after release
+  let wasPlayingBeforeDrag = false;
+
   function render(chapter, el, opts = {}) {
     container = el;
     el.innerHTML = '';
@@ -22,8 +31,11 @@ const CrawlReader = (() => {
     onProgress = opts.onProgress || null;
     scrollPos = opts.scrollPos || 0;
     playing = false;
+    dragging = false;
+    coasting = false;
+    velocity = 0;
 
-    const viewport = document.createElement('div');
+    viewport = document.createElement('div');
     viewport.className = 'crawl-viewport';
 
     const perspective = document.createElement('div');
@@ -53,18 +65,163 @@ const CrawlReader = (() => {
     viewport.appendChild(perspective);
     el.appendChild(viewport);
 
-    // Click to play/pause
-    viewport.addEventListener('click', () => {
-      if (playing) pause(); else play();
-    });
+    // Touch events for manual scroll
+    viewport.addEventListener('touchstart', onDragStart, { passive: false });
+    viewport.addEventListener('touchmove', onDragMove, { passive: false });
+    viewport.addEventListener('touchend', onDragEnd);
+    viewport.addEventListener('touchcancel', onDragEnd);
+
+    // Mouse events for desktop drag
+    viewport.addEventListener('mousedown', onDragStart);
+    viewport.addEventListener('mousemove', onDragMove);
+    viewport.addEventListener('mouseup', onDragEnd);
+    viewport.addEventListener('mouseleave', onDragEnd);
+
+    // Wheel for scroll override
+    viewport.addEventListener('wheel', onWheel, { passive: false });
 
     // Measure after layout
     requestAnimationFrame(() => {
       crawlHeight = crawlEl.scrollHeight;
       viewHeight = viewport.clientHeight;
-      crawlEl.style.transform = `translateY(${viewHeight - scrollPos}px)`;
+      applyTransform();
     });
   }
+
+  function applyTransform() {
+    if (!crawlEl) return;
+    // Clamp: can't scroll above the start
+    scrollPos = Math.max(0, scrollPos);
+    crawlEl.style.transform = `translateY(${viewHeight - scrollPos}px)`;
+  }
+
+  // ── Drag handling ──
+
+  function getY(e) {
+    if (e.touches && e.touches.length) return e.touches[0].clientY;
+    return e.clientY;
+  }
+
+  let lastDragY = 0;
+  let lastDragTime = 0;
+
+  function onDragStart(e) {
+    // Don't treat plain clicks as drags — track in dragMoved
+    dragStartY = getY(e);
+    dragStartPos = scrollPos;
+    lastDragY = dragStartY;
+    lastDragTime = performance.now();
+    velocity = 0;
+    dragging = false; // set true on first move
+    coasting = false;
+    wasPlayingBeforeDrag = playing;
+
+    if (e.type === 'mousedown') {
+      e.preventDefault(); // prevent text selection
+    }
+  }
+
+  function onDragMove(e) {
+    if (dragStartY === 0 && !dragging) return;
+
+    const y = getY(e);
+    const dy = y - (dragging ? lastDragY : dragStartY);
+
+    // Start dragging after a small threshold to distinguish from taps
+    if (!dragging) {
+      if (Math.abs(y - dragStartY) < 5) return;
+      dragging = true;
+      if (playing) pause();
+      e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+
+    const now = performance.now();
+    const dt = now - lastDragTime;
+
+    // Dragging up (negative dy) = scroll forward; dragging down = scroll back
+    scrollPos -= dy;
+    applyTransform();
+    reportProgress();
+
+    // Track velocity for inertia (negative = scrolling backward/up on screen)
+    if (dt > 0) {
+      velocity = -dy / dt; // px/ms
+    }
+
+    lastDragY = y;
+    lastDragTime = now;
+  }
+
+  function onDragEnd() {
+    if (!dragging) {
+      // It was a tap, not a drag — toggle play
+      if (playing) pause(); else play();
+      dragStartY = 0;
+      return;
+    }
+
+    dragging = false;
+    dragStartY = 0;
+
+    // Start inertia coast if there's meaningful velocity
+    if (Math.abs(velocity) > 0.05) {
+      coasting = true;
+      lastTime = 0;
+      rafId = requestAnimationFrame(coastTick);
+    } else {
+      // No velocity — resume auto-play if it was running
+      if (wasPlayingBeforeDrag) play();
+    }
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    // Scroll: deltaY > 0 = scroll down = move text forward
+    scrollPos += e.deltaY * 0.5;
+    applyTransform();
+    reportProgress();
+
+    // Briefly interrupt auto-play for manual positioning
+    if (playing) {
+      pause();
+      wasPlayingBeforeDrag = true;
+      // Resume after a short idle
+      clearTimeout(wheelResumeTimer);
+      wheelResumeTimer = setTimeout(() => {
+        if (wasPlayingBeforeDrag && !playing && !dragging) play();
+      }, 800);
+    }
+  }
+  let wheelResumeTimer = null;
+
+  // ── Inertia coast ──
+
+  function coastTick(timestamp) {
+    if (!coasting) return;
+    if (!lastTime) lastTime = timestamp;
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    // Apply velocity with friction
+    scrollPos += velocity * dt;
+    velocity *= Math.pow(0.95, dt / 16); // friction: ~5% per frame at 60fps
+
+    applyTransform();
+    reportProgress();
+
+    // Stop coasting when velocity is negligible
+    if (Math.abs(velocity) < 0.02) {
+      coasting = false;
+      if (wasPlayingBeforeDrag) play();
+      return;
+    }
+
+    rafId = requestAnimationFrame(coastTick);
+  }
+
+  // ── Auto-play tick ──
 
   function tick(timestamp) {
     if (!playing) return;
@@ -72,13 +229,9 @@ const CrawlReader = (() => {
     const dt = timestamp - lastTime;
     lastTime = timestamp;
 
-    scrollPos += (speed * 50 * dt) / 1000; // pixels per second
-    crawlEl.style.transform = `translateY(${viewHeight - scrollPos}px)`;
-
-    if (onProgress) {
-      const total = crawlHeight + viewHeight;
-      onProgress(Math.min(scrollPos / total, 1));
-    }
+    scrollPos += (speed * 50 * dt) / 1000;
+    applyTransform();
+    reportProgress();
 
     if (scrollPos > crawlHeight + viewHeight) {
       playing = false;
@@ -89,7 +242,14 @@ const CrawlReader = (() => {
     rafId = requestAnimationFrame(tick);
   }
 
+  function reportProgress() {
+    if (!onProgress) return;
+    const total = crawlHeight + viewHeight;
+    if (total > 0) onProgress(Math.min(Math.max(scrollPos / total, 0), 1));
+  }
+
   function play() {
+    coasting = false;
     playing = true;
     lastTime = 0;
     rafId = requestAnimationFrame(tick);
@@ -117,9 +277,13 @@ const CrawlReader = (() => {
 
   function destroy() {
     pause();
+    coasting = false;
+    dragging = false;
+    clearTimeout(wheelResumeTimer);
     if (container) container.innerHTML = '';
     container = null;
     crawlEl = null;
+    viewport = null;
   }
 
   return { render, play, pause, toggle, adjustSpeed, getSpeed, getScrollPos, isPlaying, destroy };

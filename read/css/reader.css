@@ -340,8 +340,10 @@ html, body {
   height: 100%;
   perspective: 350px;
   overflow: hidden;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
 }
+.crawl-viewport:active { cursor: grabbing; }
 
 .crawl-perspective {
   width: 80%;
