@@ -441,47 +441,6 @@ html, body {
   margin-bottom: 1.2em;
 }
 
-/* ─── Crawl Depth Fog ─── */
-/* Mask goes on perspective wrapper, not viewport, to avoid flattening preserve-3d */
-.crawl-depth .crawl-perspective {
-  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 45%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 45%);
-}
-
-.crawl-fog {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 55%;
-  pointer-events: none;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-}
-
-.crawl-fog-strip {
-  flex: 1;
-}
-
-/* Level 0 = bottom strip (mildest), level 3 = top strip (heaviest) */
-.crawl-fog-strip[data-level="0"] {
-  backdrop-filter: blur(0.5px);
-  -webkit-backdrop-filter: blur(0.5px);
-}
-.crawl-fog-strip[data-level="1"] {
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
-}
-.crawl-fog-strip[data-level="2"] {
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-}
-.crawl-fog-strip[data-level="3"] {
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-}
-
 /* ─── Reader Footer ─── */
 .reader-footer {
   border-top: 1px solid var(--rule);
