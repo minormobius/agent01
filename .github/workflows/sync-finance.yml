@@ -40,7 +40,7 @@ on:
       - main
       - claude/finance-ui-exploration-15iCj
     paths:
-      - 'scripts/sync-finance.py'
+      - 'scripts/sync-finance-rs/**'
       - 'finance/universe.json'
       - 'finance/lexicons/**'
       - '.github/workflows/sync-finance.yml'
@@ -57,12 +57,22 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
-        run: pip install requests yfinance
+      - name: Cache Cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            scripts/sync-finance-rs/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('scripts/sync-finance-rs/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build sync-finance (release)
+        run: cargo build --release --manifest-path scripts/sync-finance-rs/Cargo.toml
 
       - name: Run finance sync
         env:
@@ -97,8 +107,8 @@ jobs:
 
           ARGS="$ARGS --account $ACCOUNT"
 
-          echo "Running: python3 scripts/sync-finance.py $ARGS"
-          python3 scripts/sync-finance.py $ARGS 2>&1 | tee finance/sync-log.txt
+          echo "Running: sync-finance $ARGS"
+          scripts/sync-finance-rs/target/release/sync-finance $ARGS 2>&1 | tee finance/sync-log.txt
 
       - name: Commit sync log
         if: always()
