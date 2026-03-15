@@ -1,0 +1,3 @@
+name = "finance"
+pages_build_output_dir = "."
+compatibility_date = "2024-07-18"
