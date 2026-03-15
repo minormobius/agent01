@@ -297,6 +297,24 @@ canvas {
   color: var(--bg);
 }
 
+/* Debug output */
+.dbg-output {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 5%, var(--bg));
+  border: 1px solid var(--rule);
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.dbg-output:empty { display: none; }
+
 /* Responsive */
 @media (max-width: 640px) {
   body { padding: 2rem 1rem; }
@@ -315,6 +333,7 @@ canvas {
   <button class="tab active" data-tab="browse">browse</button>
   <button class="tab" data-tab="chart">chart</button>
   <button class="tab" data-tab="pricer">options pricer</button>
+  <button class="tab" data-tab="debug">debug</button>
   <button class="tab" data-tab="sources">data sources</button>
 </div>
 
@@ -399,6 +418,52 @@ canvas {
   <div id="vol-surface">
     <canvas id="vol-canvas"></canvas>
   </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- DEBUG TAB -->
+<!-- ================================================================ -->
+<div class="panel" id="panel-debug">
+
+  <p class="section-hdr">1. resolve identity</p>
+  <div class="form-row">
+    <input id="dbg-handle" type="text" placeholder="handle.bsky.social" value="minomobi.bsky.social" style="flex:1">
+    <button id="btn-dbg-resolve">resolve</button>
+  </div>
+  <pre id="dbg-identity" class="dbg-output"></pre>
+
+  <p class="section-hdr">2. list records</p>
+  <div class="form-row">
+    <input id="dbg-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
+    <input id="dbg-limit" type="number" value="5" style="width:60px">
+    <button id="btn-dbg-list">list</button>
+  </div>
+  <pre id="dbg-records" class="dbg-output"></pre>
+
+  <p class="section-hdr">3. get single record</p>
+  <div class="form-row">
+    <input id="dbg-get-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
+    <input id="dbg-rkey" type="text" placeholder="rkey (e.g. AAPL)" style="width:120px">
+    <button id="btn-dbg-get">get</button>
+  </div>
+  <pre id="dbg-single" class="dbg-output"></pre>
+
+  <p class="section-hdr">4. write test record (requires credentials)</p>
+  <div class="form-row">
+    <input id="dbg-write-handle" type="text" placeholder="your-handle.bsky.social" style="flex:1">
+    <input id="dbg-app-password" type="password" placeholder="app password" style="flex:1">
+  </div>
+  <div class="form-row">
+    <button id="btn-dbg-write-test">write test security record</button>
+    <button id="btn-dbg-delete-test">delete test record</button>
+  </div>
+  <pre id="dbg-write-result" class="dbg-output"></pre>
+
+  <p class="section-hdr">5. describe repo collections</p>
+  <div class="form-row">
+    <button id="btn-dbg-describe">describe repo</button>
+  </div>
+  <pre id="dbg-describe" class="dbg-output"></pre>
 </div>
 
 <!-- ================================================================ -->
@@ -1227,6 +1292,277 @@ function drawVolSurface(S, r, bars, atmVol) {
   ctx.fillText(`${(maxVol * 100).toFixed(0)}%`, barX + barW + 4, pad.top + 8);
   ctx.fillText(`${(minVol * 100).toFixed(0)}%`, barX + barW + 4, H - pad.bottom);
 }
+
+
+// =====================================================================
+// Debug tab
+// =====================================================================
+
+const dbgState = { did: null, pds: null };
+
+document.getElementById('btn-dbg-resolve').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-identity');
+  const handle = document.getElementById('dbg-handle').value.trim();
+  if (!handle) return;
+  out.textContent = 'resolving...';
+  try {
+    // Step 1: resolve handle → DID
+    const resolveUrl = `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`;
+    out.textContent = `GET ${resolveUrl}\n\n`;
+    const r1 = await fetch(resolveUrl);
+    const r1text = await r1.text();
+    out.textContent += `Status: ${r1.status}\nResponse: ${r1text}\n\n`;
+
+    if (!r1.ok) return;
+    const did = JSON.parse(r1text).did;
+    dbgState.did = did;
+
+    // Step 2: resolve DID → PDS
+    let didDocUrl;
+    if (did.startsWith('did:plc:')) {
+      didDocUrl = `https://plc.directory/${did}`;
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      didDocUrl = `https://${host}/.well-known/did.json`;
+    }
+    out.textContent += `GET ${didDocUrl}\n\n`;
+    const r2 = await fetch(didDocUrl);
+    const r2json = await r2.json();
+    out.textContent += `DID Document:\n${JSON.stringify(r2json, null, 2)}\n\n`;
+
+    const svc = r2json.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    dbgState.pds = svc?.serviceEndpoint || '(none found)';
+    out.textContent += `PDS endpoint: ${dbgState.pds}\n`;
+    out.textContent += `DID: ${did}\n`;
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-list').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-records');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  const collection = document.getElementById('dbg-collection').value.trim();
+  const limit = document.getElementById('dbg-limit').value || '5';
+
+  out.textContent = 'querying...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did, collection, limit });
+
+    // Try public API
+    const pubUrl = `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`;
+    out.textContent = `GET ${pubUrl}\n\n`;
+    const r1 = await fetch(pubUrl);
+    const r1text = await r1.text();
+    out.textContent += `Public API — Status: ${r1.status}\n`;
+
+    if (r1.ok) {
+      const data = JSON.parse(r1text);
+      out.textContent += `Records returned: ${data.records?.length || 0}\n`;
+      out.textContent += `Cursor: ${data.cursor || '(none)'}\n\n`;
+      out.textContent += JSON.stringify(data, null, 2);
+    } else {
+      out.textContent += `Response: ${r1text}\n\n`;
+
+      // Try PDS directly
+      if (dbgState.pds && dbgState.pds !== '(none found)') {
+        const pdsUrl = `${dbgState.pds}/xrpc/com.atproto.repo.listRecords?${params}`;
+        out.textContent += `\nFallback: GET ${pdsUrl}\n\n`;
+        const r2 = await fetch(pdsUrl);
+        const r2text = await r2.text();
+        out.textContent += `PDS direct — Status: ${r2.status}\n`;
+        out.textContent += r2text;
+      }
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-get').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-single');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  const collection = document.getElementById('dbg-get-collection').value.trim();
+  const rkey = document.getElementById('dbg-rkey').value.trim();
+  if (!rkey) { out.textContent = 'Enter an rkey'; return; }
+
+  out.textContent = 'fetching...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did, collection, rkey });
+    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`;
+    out.textContent = `GET ${url}\n\n`;
+    const r = await fetch(url);
+    const text = await r.text();
+    out.textContent += `Status: ${r.status}\n\n`;
+    try {
+      out.textContent += JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      out.textContent += text;
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-write-test').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-write-result');
+  const handle = document.getElementById('dbg-write-handle').value.trim();
+  const password = document.getElementById('dbg-app-password').value;
+  if (!handle || !password) { out.textContent = 'Enter handle and app password'; return; }
+
+  out.textContent = 'authenticating...\n';
+  try {
+    // Resolve handle
+    const r1 = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    if (!r1.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    const { did } = await r1.json();
+    out.textContent += `DID: ${did}\n`;
+
+    // Resolve PDS
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${did}`)).json();
+    } else {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    }
+    const pds = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer')?.serviceEndpoint;
+    if (!pds) throw new Error('No PDS found');
+    out.textContent += `PDS: ${pds}\n`;
+
+    // Create session
+    out.textContent += `Creating session...\n`;
+    const sessResp = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password }),
+    });
+    if (!sessResp.ok) {
+      const errText = await sessResp.text();
+      throw new Error(`Auth failed (${sessResp.status}): ${errText}`);
+    }
+    const sess = await sessResp.json();
+    out.textContent += `Authenticated as ${sess.handle} (${sess.did})\n\n`;
+
+    // Write a test security record
+    const testRecord = {
+      $type: 'com.minomobi.finance.security',
+      symbol: 'TEST',
+      seriesType: 'equity',
+      name: 'Debug Test Record',
+      source: 'debug-panel',
+      createdAt: new Date().toISOString(),
+    };
+
+    out.textContent += `Writing test record...\n`;
+    out.textContent += `PUT ${pds}/xrpc/com.atproto.repo.putRecord\n`;
+    out.textContent += `Body: ${JSON.stringify({ repo: did, collection: 'com.minomobi.finance.security', rkey: 'TEST', record: testRecord }, null, 2)}\n\n`;
+
+    const writeResp = await fetch(`${pds}/xrpc/com.atproto.repo.putRecord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sess.accessJwt}`,
+      },
+      body: JSON.stringify({
+        repo: did,
+        collection: 'com.minomobi.finance.security',
+        rkey: 'TEST',
+        record: testRecord,
+      }),
+    });
+
+    const writeText = await writeResp.text();
+    out.textContent += `Status: ${writeResp.status}\n`;
+    try {
+      out.textContent += `Response: ${JSON.stringify(JSON.parse(writeText), null, 2)}\n\n`;
+    } catch {
+      out.textContent += `Response: ${writeText}\n\n`;
+    }
+
+    if (writeResp.ok) {
+      out.textContent += `SUCCESS — test record written. Now try listing com.minomobi.finance.security in step 2.`;
+    } else {
+      out.textContent += `FAILED — this tells us why PDS writes are failing.`;
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-delete-test').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-write-result');
+  const handle = document.getElementById('dbg-write-handle').value.trim();
+  const password = document.getElementById('dbg-app-password').value;
+  if (!handle || !password) { out.textContent = 'Enter handle and app password'; return; }
+
+  out.textContent = 'deleting test record...\n';
+  try {
+    const r1 = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    const { did } = await r1.json();
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${did}`)).json();
+    } else {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    }
+    const pds = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer')?.serviceEndpoint;
+
+    const sessResp = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password }),
+    });
+    const sess = await sessResp.json();
+
+    const delResp = await fetch(`${pds}/xrpc/com.atproto.repo.deleteRecord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sess.accessJwt}`,
+      },
+      body: JSON.stringify({
+        repo: did,
+        collection: 'com.minomobi.finance.security',
+        rkey: 'TEST',
+      }),
+    });
+    out.textContent += `Status: ${delResp.status}\n`;
+    out.textContent += await delResp.text();
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-describe').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-describe');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  out.textContent = 'fetching repo description...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did });
+    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.describeRepo?${params}`;
+    out.textContent = `GET ${url}\n\n`;
+    const r = await fetch(url);
+    const data = await r.json();
+    out.textContent += `Status: ${r.status}\n\n`;
+
+    if (data.collections) {
+      out.textContent += `Collections (${data.collections.length}):\n`;
+      for (const c of data.collections) {
+        const isFinance = c.includes('finance') ? '  ← FINANCE' : '';
+        out.textContent += `  ${c}${isFinance}\n`;
+      }
+      out.textContent += `\n`;
+    }
+    out.textContent += JSON.stringify(data, null, 2);
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
 
 </script>
 </body>
