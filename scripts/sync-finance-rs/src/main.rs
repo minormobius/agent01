@@ -1,3 +1,5 @@
+//! sync-finance: fetch market data from Tiingo/FRED/Yahoo → ATProto PDS
+
 mod fetchers;
 mod pds;
 mod universe;
