@@ -1,0 +1,336 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Shell } from './Shell.js';
+import * as fmt from '../lib/fmt.js';
+
+const BANNER = `\x1b[36m
+ ██████╗ ███████╗   ███╗   ███╗██╗███╗   ██╗ ██████╗
+██╔═══██╗██╔════╝   ████╗ ████║██║████╗  ██║██╔═══██╗
+██║   ██║███████╗   ██╔████╔██║██║██╔██╗ ██║██║   ██║
+██║   ██║╚════██║   ██║╚██╔╝██║██║██║╚██╗██║██║   ██║
+╚██████╔╝███████║██╗██║ ╚═╝ ██║██║██║ ╚████║╚██████╔╝
+ ╚═════╝ ╚══════╝╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+\x1b[0m
+\x1b[2mPDS Shell — your data, your terminal\x1b[0m
+`;
+
+const LOGIN_PROMPT = `\x1b[33mlogin\x1b[0m \x1b[2m(handle + app password)\x1b[0m
+
+`;
+
+export default function Terminal({ session, onLogin, onLogout }) {
+  const containerRef = useRef(null);
+  const termRef = useRef(null);
+  const shellRef = useRef(null);
+  const inputRef = useRef('');
+  const cursorPosRef = useRef(0);
+  const modeRef = useRef(session ? 'shell' : 'login');
+  const loginStateRef = useRef({ step: 'handle', handle: '' });
+
+  useEffect(() => {
+    let term;
+    const init = async () => {
+      const { Terminal: XTerm } = await import('@xterm/xterm');
+      const { FitAddon } = await import('@xterm/addon-fit');
+      const { WebLinksAddon } = await import('@xterm/addon-web-links');
+
+      // Load xterm CSS
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css';
+      document.head.appendChild(link);
+
+      term = new XTerm({
+        theme: {
+          background: '#0a0a0a',
+          foreground: '#c0c0c0',
+          cursor: '#c0c0c0',
+          cyan: '#56b6c2',
+          green: '#98c379',
+          yellow: '#e5c07b',
+          red: '#e06c75',
+          magenta: '#c678dd',
+          blue: '#61afef',
+          white: '#abb2bf',
+        },
+        fontFamily: '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace',
+        fontSize: 14,
+        lineHeight: 1.2,
+        cursorBlink: true,
+        cursorStyle: 'block',
+        scrollback: 10000,
+      });
+
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.loadAddon(new WebLinksAddon());
+
+      term.open(containerRef.current);
+      fitAddon.fit();
+
+      const resizeObs = new ResizeObserver(() => fitAddon.fit());
+      resizeObs.observe(containerRef.current);
+
+      termRef.current = term;
+
+      // Banner
+      term.write(BANNER);
+
+      if (session) {
+        startShell(term, session);
+      } else {
+        term.write(LOGIN_PROMPT);
+        term.write('handle: ');
+      }
+
+      // Input handling
+      term.onData(data => handleInput(data));
+      term.onKey(({ domEvent }) => handleKey(domEvent));
+    };
+
+    init();
+
+    return () => {
+      if (term) term.dispose();
+    };
+  }, []);
+
+  // When session changes (login), start shell
+  useEffect(() => {
+    if (session && termRef.current && modeRef.current === 'login') {
+      startShell(termRef.current, session);
+    }
+  }, [session]);
+
+  function startShell(term, sess) {
+    modeRef.current = 'shell';
+    const shell = new Shell(term, sess, {
+      onLogout: () => {
+        shellRef.current = null;
+        modeRef.current = 'login';
+        loginStateRef.current = { step: 'handle', handle: '' };
+        term.writeln('');
+        term.write(LOGIN_PROMPT);
+        term.write('handle: ');
+        onLogout();
+      }
+    });
+    shellRef.current = shell;
+    term.writeln(`\r\n${fmt.green('authenticated')} as ${fmt.bold(sess.handle)} ${fmt.dim(`(${sess.did})`)}`);
+    term.writeln(`${fmt.dim('PDS:')} ${sess.pdsUrl}`);
+    term.writeln(`${fmt.dim('Type')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    writePrompt(term, shell);
+  }
+
+  function writePrompt(term, shell) {
+    term.write(shell.getPrompt());
+    inputRef.current = '';
+    cursorPosRef.current = 0;
+  }
+
+  function handleInput(data) {
+    const term = termRef.current;
+    if (!term) return;
+
+    // Handle paste (multi-char data that isn't a control sequence)
+    if (data.length > 1 && !data.startsWith('\x1b')) {
+      for (const ch of data) {
+        handleChar(ch);
+      }
+      return;
+    }
+
+    handleChar(data);
+  }
+
+  function handleChar(ch) {
+    const term = termRef.current;
+    const shell = shellRef.current;
+
+    // Enter
+    if (ch === '\r') {
+      term.writeln('');
+      if (modeRef.current === 'login') {
+        handleLoginInput(inputRef.current);
+      } else if (shell) {
+        const input = inputRef.current;
+        inputRef.current = '';
+        cursorPosRef.current = 0;
+        shell.execute(input).then(() => {
+          if (modeRef.current === 'shell' && shellRef.current) {
+            writePrompt(term, shellRef.current);
+          }
+        });
+      }
+      return;
+    }
+
+    // Ctrl+C
+    if (ch === '\x03') {
+      if (shell?.running) {
+        shell.abort();
+      } else {
+        term.writeln('^C');
+        inputRef.current = '';
+        cursorPosRef.current = 0;
+        if (modeRef.current === 'shell' && shell) {
+          writePrompt(term, shell);
+        }
+      }
+      return;
+    }
+
+    // Ctrl+L — clear
+    if (ch === '\x0c') {
+      term.clear();
+      if (modeRef.current === 'shell' && shell) {
+        writePrompt(term, shell);
+      }
+      return;
+    }
+
+    // Backspace
+    if (ch === '\x7f' || ch === '\b') {
+      if (cursorPosRef.current > 0) {
+        const input = inputRef.current;
+        const pos = cursorPosRef.current;
+        inputRef.current = input.slice(0, pos - 1) + input.slice(pos);
+        cursorPosRef.current = pos - 1;
+        // Redraw line from cursor
+        const after = inputRef.current.slice(pos - 1);
+        term.write(`\b${after} ${'\b'.repeat(after.length + 1)}`);
+
+        // Mask password in login mode
+        if (modeRef.current === 'login' && loginStateRef.current.step === 'password') {
+          // Already masked by not echoing
+        }
+      }
+      return;
+    }
+
+    // Tab — completion
+    if (ch === '\t') {
+      if (modeRef.current === 'shell' && shell && !shell.running) {
+        shell.complete(inputRef.current).then(completions => {
+          if (completions.length === 1) {
+            const parts = inputRef.current.split(/\s+/);
+            const prefix = parts.length > 1 ? parts.slice(0, -1).join(' ') + ' ' : '';
+            const completed = prefix + completions[0];
+            // Clear current input and rewrite
+            const clearLen = inputRef.current.length - cursorPosRef.current;
+            term.write('\b'.repeat(cursorPosRef.current) + ' '.repeat(inputRef.current.length) + '\b'.repeat(inputRef.current.length));
+            inputRef.current = completed;
+            cursorPosRef.current = completed.length;
+            term.write(completed);
+          } else if (completions.length > 1) {
+            term.writeln('');
+            term.writeln(completions.join('  '));
+            writePrompt(term, shell);
+            term.write(inputRef.current);
+          }
+        });
+      }
+      return;
+    }
+
+    // Printable character
+    if (ch >= ' ' && ch.length === 1) {
+      const pos = cursorPosRef.current;
+      inputRef.current = inputRef.current.slice(0, pos) + ch + inputRef.current.slice(pos);
+      cursorPosRef.current = pos + 1;
+
+      if (modeRef.current === 'login' && loginStateRef.current.step === 'password') {
+        term.write('*');
+      } else {
+        const after = inputRef.current.slice(pos);
+        term.write(after + '\b'.repeat(after.length - 1));
+      }
+    }
+  }
+
+  function handleKey(ev) {
+    const term = termRef.current;
+    const shell = shellRef.current;
+
+    // Arrow up — history
+    if (ev.key === 'ArrowUp' && modeRef.current === 'shell' && shell && !shell.running) {
+      const prev = shell.historyUp();
+      if (prev !== null) {
+        // Clear current line
+        term.write('\b'.repeat(cursorPosRef.current) + ' '.repeat(inputRef.current.length) + '\b'.repeat(inputRef.current.length));
+        inputRef.current = prev;
+        cursorPosRef.current = prev.length;
+        term.write(prev);
+      }
+      ev.preventDefault();
+    }
+
+    // Arrow down — history
+    if (ev.key === 'ArrowDown' && modeRef.current === 'shell' && shell && !shell.running) {
+      const next = shell.historyDown();
+      if (next !== null) {
+        term.write('\b'.repeat(cursorPosRef.current) + ' '.repeat(inputRef.current.length) + '\b'.repeat(inputRef.current.length));
+        inputRef.current = next;
+        cursorPosRef.current = next.length;
+        term.write(next);
+      }
+      ev.preventDefault();
+    }
+
+    // Arrow left
+    if (ev.key === 'ArrowLeft' && cursorPosRef.current > 0) {
+      cursorPosRef.current--;
+      term.write('\x1b[D');
+    }
+
+    // Arrow right
+    if (ev.key === 'ArrowRight' && cursorPosRef.current < inputRef.current.length) {
+      cursorPosRef.current++;
+      term.write('\x1b[C');
+    }
+  }
+
+  async function handleLoginInput(input) {
+    const term = termRef.current;
+    const state = loginStateRef.current;
+
+    if (state.step === 'handle') {
+      state.handle = input.trim();
+      if (!state.handle) {
+        term.write('handle: ');
+        return;
+      }
+      state.step = 'password';
+      inputRef.current = '';
+      cursorPosRef.current = 0;
+      term.write('app password: ');
+    } else if (state.step === 'password') {
+      const password = input;
+      inputRef.current = '';
+      cursorPosRef.current = 0;
+      term.writeln('');
+      term.write(fmt.dim('authenticating...'));
+      try {
+        await onLogin(state.handle, password);
+      } catch (err) {
+        term.writeln(`\r${' '.repeat(20)}\r`);
+        term.writeln(fmt.red(`auth failed: ${err.message}`));
+        term.writeln('');
+        state.step = 'handle';
+        state.handle = '';
+        term.write('handle: ');
+      }
+    }
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        padding: '4px',
+        background: '#0a0a0a',
+      }}
+    />
+  );
+}
