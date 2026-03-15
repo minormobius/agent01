@@ -267,6 +267,23 @@ fn main() -> Result<()> {
         process::exit(1);
     }
 
+    // ── Diagnostics: print env var status ──
+    println!("=== sync-finance startup diagnostics ===");
+    let check_env = |name: &str| {
+        match env::var(name) {
+            Ok(v) if !v.is_empty() => println!("  {name}: set ({} chars)", v.len()),
+            _ => println!("  {name}: NOT SET"),
+        }
+    };
+    check_env("BLUESKY_HANDLE");
+    check_env("BLUESKY_APP_PASSWORD");
+    check_env("TIINGO_API_KEY");
+    check_env("FRED_API_KEY");
+    println!("  mode: {}", if cli.full { "full" } else { "daily" });
+    println!("  dry_run: {}", cli.dry_run);
+    println!("  account: {}", cli.account);
+    println!("=========================================");
+
     // Resolve account credentials
     let (handle, password) = match cli.account.as_str() {
         "main" => (
@@ -286,6 +303,26 @@ fn main() -> Result<()> {
             process::exit(1);
         }
     };
+
+    // Fail fast if API keys are missing
+    if !cli.dry_run {
+        if handle.as_ref().map_or(true, |h| h.is_empty()) {
+            eprintln!("Error: Bluesky handle not set for account '{}'", cli.account);
+            process::exit(1);
+        }
+        if password.as_ref().map_or(true, |p| p.is_empty()) {
+            eprintln!("Error: Bluesky app password not set for account '{}'", cli.account);
+            process::exit(1);
+        }
+    }
+    let tiingo_key = env::var("TIINGO_API_KEY").unwrap_or_default();
+    let fred_key = env::var("FRED_API_KEY").unwrap_or_default();
+    if tiingo_key.is_empty() {
+        eprintln!("Warning: TIINGO_API_KEY not set — Tiingo symbols will fail");
+    }
+    if fred_key.is_empty() {
+        eprintln!("Warning: FRED_API_KEY not set — FRED symbols will fail");
+    }
 
     // Find repo root relative to the binary's source location.
     // At build time CARGO_MANIFEST_DIR is scripts/sync-finance-rs/,
@@ -374,5 +411,11 @@ fn main() -> Result<()> {
     }
 
     println!("\nDone. Wrote {total_written} records for {total} symbols.");
+
+    if total_written == 0 && !cli.dry_run {
+        eprintln!("Error: wrote 0 records — all data sources likely failed. Check API keys and network.");
+        process::exit(1);
+    }
+
     Ok(())
 }

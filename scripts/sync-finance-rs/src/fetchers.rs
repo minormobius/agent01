@@ -1,6 +1,8 @@
 //! Data fetchers: Tiingo, FRED, Yahoo Finance.
 
-use anyhow::{Context, Result};
+use std::sync::OnceLock;
+
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use serde_json::Value;
 
@@ -11,6 +13,66 @@ const FRED_BASE: &str = "https://api.stlouisfed.org/fred/series/observations";
 
 fn round4(v: f64) -> f64 {
     (v * 10_000.0).round() / 10_000.0
+}
+
+// ---------------------------------------------------------------------------
+// Yahoo Finance crumb/cookie auth
+// ---------------------------------------------------------------------------
+
+static YAHOO_CRUMB: OnceLock<Option<(String, String)>> = OnceLock::new();
+
+/// Fetch a crumb + cookie pair from Yahoo Finance.
+/// Returns (crumb, cookie_header) or None if it fails.
+fn fetch_yahoo_crumb(client: &reqwest::blocking::Client) -> Option<(String, String)> {
+    // Step 1: hit the consent/finance page to get cookies
+    let resp = client
+        .get("https://fc.yahoo.com")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .send()
+        .ok()?;
+
+    // Extract Set-Cookie headers
+    let cookies: Vec<String> = resp
+        .headers()
+        .get_all("set-cookie")
+        .iter()
+        .filter_map(|v| {
+            let s = v.to_str().ok()?;
+            Some(s.split(';').next()?.to_string())
+        })
+        .collect();
+    let cookie_header = cookies.join("; ");
+
+    if cookie_header.is_empty() {
+        println!("    Yahoo: no cookies received");
+        return None;
+    }
+
+    // Step 2: fetch the crumb using the cookies
+    let crumb_resp = client
+        .get("https://query2.finance.yahoo.com/v1/test/getcrumb")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Cookie", &cookie_header)
+        .send()
+        .ok()?;
+
+    if !crumb_resp.status().is_success() {
+        println!("    Yahoo: crumb request returned {}", crumb_resp.status());
+        return None;
+    }
+
+    let crumb = crumb_resp.text().ok()?;
+    if crumb.is_empty() || crumb.contains("<!") {
+        println!("    Yahoo: invalid crumb response");
+        return None;
+    }
+
+    println!("  Yahoo Finance: crumb acquired");
+    Some((crumb, cookie_header))
+}
+
+fn get_yahoo_crumb(client: &reqwest::blocking::Client) -> &'static Option<(String, String)> {
+    YAHOO_CRUMB.get_or_init(|| fetch_yahoo_crumb(client))
 }
 
 // ---------------------------------------------------------------------------
@@ -164,8 +226,6 @@ pub fn fetch_yahoo_daily(
     start_date: Option<&str>,
     end_date: Option<&str>,
 ) -> Result<Vec<Bar>> {
-    // Yahoo Finance v8 chart API — the same endpoint yfinance uses internally.
-    // period1/period2 are Unix timestamps.
     let start_ts = start_date
         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
         .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(1990, 1, 1).unwrap())
@@ -179,27 +239,48 @@ pub fn fetch_yahoo_daily(
         .map(|d| d.and_hms_opt(23, 59, 59).unwrap().and_utc().timestamp())
         .unwrap_or_else(|| Utc::now().timestamp());
 
+    // Acquire crumb + cookies (cached across calls)
+    let crumb_data = get_yahoo_crumb(client);
+    let (crumb, cookie) = match crumb_data {
+        Some((c, k)) => (c.as_str(), k.as_str()),
+        None => bail!("Yahoo Finance: could not acquire crumb/cookie — auth required"),
+    };
+
     let url = format!(
-        "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
     );
 
-    let resp: Value = client
+    let resp = client
         .get(&url)
-        .header("User-Agent", "Mozilla/5.0")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Cookie", cookie)
         .query(&[
             ("period1", &start_ts.to_string()),
             ("period2", &end_ts.to_string()),
             ("interval", &"1d".to_string()),
             ("events", &"history".to_string()),
+            ("crumb", &crumb.to_string()),
         ])
-        .send()?
-        .error_for_status()?
-        .json()?;
+        .send()?;
 
-    let result = &resp["chart"]["result"];
-    let result_arr = result
-        .as_array()
-        .context("missing chart.result in Yahoo response")?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().unwrap_or_default();
+        bail!("Yahoo Finance {symbol}: HTTP {status} — {}", &text[..text.len().min(200)]);
+    }
+
+    let data: Value = resp.json()?;
+    let result = &data["chart"]["result"];
+    let result_arr = match result.as_array() {
+        Some(a) => a,
+        None => {
+            let err = &data["chart"]["error"];
+            if !err.is_null() {
+                bail!("Yahoo Finance {symbol}: API error — {err}");
+            }
+            bail!("Yahoo Finance {symbol}: missing chart.result in response");
+        }
+    };
 
     if result_arr.is_empty() {
         println!("    yfinance: {symbol} returned no data");
@@ -229,7 +310,6 @@ pub fn fetch_yahoo_daily(
             .map(|d| d.format("%Y-%m-%d").to_string())
             .unwrap_or_default();
 
-        // Prefer adjusted close if available
         let close = adj_close
             .and_then(|ac| ac.get(i))
             .and_then(|v| v.as_f64())
@@ -246,7 +326,7 @@ pub fn fetch_yahoo_daily(
             .map(|v| v as i64);
 
         if close == 0.0 && open.is_none() {
-            continue; // skip null rows
+            continue;
         }
 
         bars.push(Bar {
