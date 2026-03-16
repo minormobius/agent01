@@ -45,8 +45,14 @@ body {
   gap: 8px;
 }
 
-.photo-search input {
+/* Typeahead wrapper */
+.bsky-ta-wrap {
+  position: relative;
   width: 300px;
+}
+
+.photo-search input {
+  width: 100%;
   padding: 8px 12px;
   border: 1px solid #d0d0d0;
   border-radius: 6px;
@@ -57,6 +63,71 @@ body {
 
 .photo-search input:focus {
   border-color: #888;
+}
+
+.bsky-ta-drop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.bsky-ta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.bsky-ta-item:hover,
+.bsky-ta-item.active {
+  background: #f0f0f0;
+}
+
+.bsky-ta-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.bsky-ta-av-ph {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  flex-shrink: 0;
+}
+
+.bsky-ta-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bsky-ta-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bsky-ta-handle {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .photo-search button {

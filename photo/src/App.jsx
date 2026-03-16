@@ -3,6 +3,7 @@ import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, filterPostsNdjson } from './lib/duckdb.js';
 import Grid from './components/Grid.jsx';
+import HandleTypeahead from './components/HandleTypeahead.jsx';
 import './App.css';
 
 const STATUS_MESSAGES = {
@@ -108,11 +109,9 @@ export default function App() {
         </div>
 
         <form className="photo-search" onSubmit={handleSubmit}>
-          <input
-            type="text"
+          <HandleTypeahead
             value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Enter a handle (e.g. alice.bsky.social)"
+            onChange={setInput}
             disabled={busy}
             autoFocus
           />
