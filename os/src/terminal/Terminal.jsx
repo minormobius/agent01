@@ -38,6 +38,7 @@ export default function Terminal({ session, onLogin, onLogout }) {
   const cursorPosRef = useRef(0);
   const modeRef = useRef(session ? 'shell' : 'login');
   const loginStateRef = useRef({ step: 'handle', handle: '' });
+  const [mobile, setMobile] = useState(() => isMobile());
 
   useEffect(() => {
     let term;
@@ -92,22 +93,15 @@ export default function Terminal({ session, onLogin, onLogout }) {
         });
       }
 
-      // Mobile paste: listen on the terminal's textarea for paste events
-      const textarea = containerRef.current.querySelector('textarea.xterm-helper-textarea');
-      if (textarea) {
-        textarea.addEventListener('paste', (e) => {
-          e.preventDefault();
-          const text = e.clipboardData?.getData('text');
-          if (text) handleInput(text);
-        });
-      }
-
       // Tap to focus on mobile — ensure keyboard opens
-      if (mobile) {
+      const textarea = containerRef.current.querySelector('textarea.xterm-helper-textarea');
+      if (mobile && textarea) {
         containerRef.current.addEventListener('touchstart', () => {
-          if (textarea) textarea.focus();
+          textarea.focus();
         }, { passive: true });
       }
+
+      setMobile(isMobile());
 
       termRef.current = term;
 
@@ -328,6 +322,18 @@ export default function Terminal({ session, onLogin, onLogout }) {
     }
   }
 
+  async function handlePaste() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) handleInput(text);
+    } catch {
+      // Clipboard API denied — fall back to nothing
+    }
+    // Refocus terminal after button tap
+    const textarea = containerRef.current?.querySelector('textarea.xterm-helper-textarea');
+    if (textarea) textarea.focus();
+  }
+
   async function handleLoginInput(input) {
     const term = termRef.current;
     const state = loginStateRef.current;
@@ -362,14 +368,45 @@ export default function Terminal({ session, onLogin, onLogout }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        padding: '4px',
-        background: '#0a0a0a',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0a0a0a' }}>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          padding: '4px',
+        }}
+      />
+      {mobile && (
+        <button
+          onClick={handlePaste}
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            right: 12,
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            border: '1px solid #333',
+            background: '#1a1a1a',
+            color: '#808080',
+            fontSize: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
+            zIndex: 10,
+          }}
+          aria-label="Paste from clipboard"
+        >
+          {/* clipboard icon (SVG) */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
