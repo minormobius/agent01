@@ -63,6 +63,53 @@ export function filterPostsNdjson(ndjson) {
   return { filtered: kept.join('\n'), totalLines };
 }
 
+// Extract video embeds from synced repos
+export async function extractVideos() {
+  if (!conn) throw new Error('DuckDB not initialized');
+
+  const result = await conn.query(`
+    SELECT
+      did,
+      rkey,
+      json_extract_string(value, '$.text') as text,
+      json_extract_string(value, '$.createdAt') as created_at,
+      CAST(json_extract(value, '$.embed') AS VARCHAR) as embed_json
+    FROM records
+    WHERE collection = 'app.bsky.feed.post'
+      AND json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.video'
+    ORDER BY json_extract_string(value, '$.createdAt') DESC
+  `);
+
+  const rows = result.toArray().map(r => typeof r.toJSON === 'function' ? r.toJSON() : r);
+  const videos = [];
+
+  for (const row of rows) {
+    let embed;
+    try {
+      embed = typeof row.embed_json === 'string' ? JSON.parse(row.embed_json) : row.embed_json;
+    } catch { continue; }
+    if (!embed?.video) continue;
+
+    const ref = embed.video.ref;
+    const cid = ref?.$link ?? ref?.['$link'] ?? ref?.link ?? (typeof ref === 'string' ? ref : null);
+    if (!cid) continue;
+
+    videos.push({
+      type: 'video',
+      did: row.did,
+      rkey: row.rkey,
+      text: row.text || '',
+      createdAt: row.created_at,
+      cid,
+      alt: embed.alt || '',
+      aspectRatio: embed.aspectRatio || null,
+      mimeType: embed.video?.mimeType || 'video/mp4',
+    });
+  }
+
+  return videos;
+}
+
 // Ingest NDJSON for a specific DID — replaces any existing data for that DID
 // totalLines: optional count of total records before filtering (for display)
 export async function ingestNdjson(ndjson, did, totalLines) {

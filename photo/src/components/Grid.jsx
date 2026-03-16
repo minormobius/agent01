@@ -56,7 +56,7 @@ export default function Grid({ images, pdsUrlMap, onSelect }) {
   return (
     <>
       <div className="photo-grid-info">
-        Showing {visible.length} of {images.length} images
+        Showing {visible.length} of {images.length} items
       </div>
       <div className="photo-grid">
         {columns.map((col, ci) => (
@@ -128,20 +128,36 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
   // Hide completely failed images — they're likely deleted/migrated blobs
   if (errored) return null;
 
+  const isVideo = img.type === 'video';
+
   return (
     <div className="photo-card" onClick={() => onSelect(img)} ref={cardRef}>
       <div className="photo-card-img" style={{ paddingBottom }}>
         {nearViewport ? (
-          <img
-            src={src}
-            alt={img.alt}
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={handleError}
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
+          isVideo ? (
+            <video
+              src={imageUrl(img, pdsUrlMap)}
+              preload="metadata"
+              muted
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              onLoadedData={() => setLoaded(true)}
+              onError={handleError}
+            />
+          ) : (
+            <img
+              src={src}
+              alt={img.alt}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              onError={handleError}
+              style={{ opacity: loaded ? 1 : 0 }}
+            />
+          )
         ) : null}
+        {isVideo && (
+          <div className="photo-card-play">&#9654;</div>
+        )}
       </div>
       {img.alt && (
         <div className="photo-card-alt">{img.alt}</div>

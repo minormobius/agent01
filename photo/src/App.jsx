@@ -1,9 +1,11 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
-import { initDuckDB, ingestNdjson, extractImages, filterPostsNdjson } from './lib/duckdb.js';
+import { initDuckDB, ingestNdjson, extractImages, extractVideos, filterPostsNdjson } from './lib/duckdb.js';
 import { fetchEngagement, getEngagement } from './lib/engagement.js';
+import { extractColorsForImages, hasColorData, dominantColorRegion, computeEigenpalette, colorToHex, clearEigenCache } from './lib/colors.js';
 import Grid from './components/Grid.jsx';
+import FilterBar from './components/FilterBar.jsx';
 import HandleTypeahead from './components/HandleTypeahead.jsx';
 import './App.css';
 
@@ -12,6 +14,16 @@ const SORT_OPTIONS = [
   { value: 'oldest', label: 'Oldest' },
   { value: 'most-liked', label: 'Most liked' },
 ];
+
+const DEFAULT_FILTERS = {
+  aspect: 'all',
+  altText: 'all',
+  color: 'all',
+  did: 'all',
+  blobType: 'all',
+  dateFrom: '',
+  dateTo: '',
+};
 
 const STATUS_MESSAGES = {
   resolving: 'Resolving handle...',
@@ -32,6 +44,10 @@ export default function App() {
   const [sortBy, setSortBy] = useState('newest');
   const [engagementLoaded, setEngagementLoaded] = useState(false);
   const [engagementProgress, setEngagementProgress] = useState(null);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [videos, setVideos] = useState([]);
+  const [colorsReady, setColorsReady] = useState(false);
+  const [colorProgress, setColorProgress] = useState(null);
   const pdsUrlMap = useRef({}); // did → pdsUrl for image URLs
 
   const syncUser = useCallback(async (handle) => {
@@ -78,12 +94,14 @@ export default function App() {
       await initDuckDB();
       const recordCount = await ingestNdjson(filtered, identity.did, totalLines);
 
-      // Extract images
+      // Extract images + videos
       setStatus('extracting');
       const allImages = await extractImages();
+      const allVideos = await extractVideos();
 
       // Count images for this user
       const userImageCount = allImages.filter(img => img.did === identity.did).length;
+      const userVideoCount = allVideos.filter(v => v.did === identity.did).length;
 
       setSyncedUsers(prev => [...prev, {
         did: identity.did,
@@ -91,15 +109,31 @@ export default function App() {
         pdsUrl: identity.pdsUrl,
         recordCount,
         imageCount: userImageCount,
+        videoCount: userVideoCount,
       }]);
       setImages(allImages);
+      setVideos(allVideos);
+      setColorsReady(false); // reset colors for new data
+      clearEigenCache();
       setStatus('ready');
       setInput('');
+
+      // Start color extraction in background after render
+      extractColorsInBackground(allImages);
     } catch (err) {
       setError(err.message);
       setStatus(images.length > 0 ? 'ready' : 'idle');
     }
   }, [syncedUsers, images.length]);
+
+  const extractColorsInBackground = useCallback(async (imgs) => {
+    setColorProgress({ done: 0, total: imgs.length });
+    await extractColorsForImages(imgs, thumbUrl, (done, total) => {
+      setColorProgress({ done, total });
+    });
+    setColorsReady(true);
+    setColorProgress(null);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -110,29 +144,83 @@ export default function App() {
 
   const handleSortChange = useCallback(async (newSort) => {
     setSortBy(newSort);
-    if (newSort === 'most-liked' && !engagementLoaded && images.length > 0) {
+    const all = [...images, ...videos];
+    if (newSort === 'most-liked' && !engagementLoaded && all.length > 0) {
       setEngagementProgress({ fetched: 0, total: 0 });
-      await fetchEngagement(images, (fetched, total) => {
+      await fetchEngagement(all, (fetched, total) => {
         setEngagementProgress({ fetched, total });
       });
       setEngagementLoaded(true);
       setEngagementProgress(null);
     }
-  }, [images, engagementLoaded]);
+  }, [images, videos, engagementLoaded]);
 
-  const sortedImages = useMemo(() => {
+  // Merge images + videos into a single list for unified display
+  const allMedia = useMemo(() => {
+    const imgs = images.map(i => ({ ...i, type: 'image' }));
+    const vids = videos.map(v => ({ ...v, type: 'video' }));
+    return [...imgs, ...vids].sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || '')
+    );
+  }, [images, videos]);
+
+  // Date range from data
+  const dateRange = useMemo(() => {
+    if (allMedia.length === 0) return null;
+    let min = allMedia[allMedia.length - 1].createdAt || '';
+    let max = allMedia[0].createdAt || '';
+    return { min: min.slice(0, 10), max: max.slice(0, 10) };
+  }, [allMedia]);
+
+  // Apply filters
+  const filteredMedia = useMemo(() => {
+    return allMedia.filter(item => {
+      // Blob type
+      if (filters.blobType !== 'all' && item.type !== filters.blobType) return false;
+
+      // Per-user
+      if (filters.did !== 'all' && item.did !== filters.did) return false;
+
+      // Alt text
+      if (filters.altText === 'has' && !item.alt) return false;
+      if (filters.altText === 'missing' && item.alt) return false;
+
+      // Aspect ratio (only for images with ratio data)
+      if (filters.aspect !== 'all' && item.aspectRatio) {
+        const ratio = item.aspectRatio.width / item.aspectRatio.height;
+        if (filters.aspect === 'landscape' && ratio <= 1.05) return false;
+        if (filters.aspect === 'portrait' && ratio >= 0.95) return false;
+        if (filters.aspect === 'square' && (ratio < 0.95 || ratio > 1.05)) return false;
+      }
+
+      // Color (only when color data is available)
+      if (filters.color !== 'all' && colorsReady) {
+        const region = dominantColorRegion(item.did, item.rkey, item.cid);
+        if (region !== filters.color) return false;
+      }
+
+      // Date range
+      if (filters.dateFrom && item.createdAt && item.createdAt.slice(0, 10) < filters.dateFrom) return false;
+      if (filters.dateTo && item.createdAt && item.createdAt.slice(0, 10) > filters.dateTo) return false;
+
+      return true;
+    });
+  }, [allMedia, filters, colorsReady]);
+
+  // Apply sort to filtered results
+  const sortedMedia = useMemo(() => {
     if (sortBy === 'oldest') {
-      return [...images].reverse();
+      return [...filteredMedia].reverse();
     }
     if (sortBy === 'most-liked' && engagementLoaded) {
-      return [...images].sort((a, b) => {
+      return [...filteredMedia].sort((a, b) => {
         const ea = getEngagement(a.did, a.rkey);
         const eb = getEngagement(b.did, b.rkey);
         return (eb?.likeCount ?? 0) - (ea?.likeCount ?? 0);
       });
     }
-    return images; // newest (default from DuckDB ORDER BY DESC)
-  }, [images, sortBy, engagementLoaded]);
+    return filteredMedia; // newest (default)
+  }, [filteredMedia, sortBy, engagementLoaded]);
 
   const busy = !['idle', 'ready', 'error'].includes(status);
 
@@ -192,49 +280,86 @@ export default function App() {
       {/* Synced users */}
       {syncedUsers.length > 0 && (
         <div className="photo-users">
-          {syncedUsers.map(u => (
-            <div key={u.did} className="photo-user-chip">
-              <span className="photo-user-handle">@{u.handle}</span>
-              <span className="photo-user-stats">
-                {u.imageCount} images / {u.recordCount.toLocaleString()} records
+          {syncedUsers.map(u => {
+            const eigen = colorsReady ? computeEigenpalette(u.did) : null;
+            return (
+              <div key={u.did} className="photo-user-chip">
+                {eigen && (
+                  <div className="photo-eigen">
+                    {eigen.slice(0, 6).map((c, i) => (
+                      <span key={i} className="photo-eigen-dot" style={{ background: colorToHex(c) }} title={`${Math.round(c.pct * 100)}%`} />
+                    ))}
+                  </div>
+                )}
+                <span className="photo-user-handle">@{u.handle}</span>
+                <span className="photo-user-stats">
+                  {u.imageCount} images{u.videoCount > 0 && ` / ${u.videoCount} videos`} / {u.recordCount.toLocaleString()} records
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sort + filter controls */}
+      {allMedia.length > 0 && (
+        <>
+          <div className="photo-sort">
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`photo-sort-btn${sortBy === opt.value ? ' active' : ''}`}
+                onClick={() => handleSortChange(opt.value)}
+                disabled={busy}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {engagementProgress && (
+              <span className="photo-sort-loading">
+                Fetching likes... {engagementProgress.fetched}/{engagementProgress.total}
               </span>
-            </div>
-          ))}
-        </div>
+            )}
+            {colorProgress && (
+              <span className="photo-sort-loading">
+                Extracting colors... {colorProgress.done}/{colorProgress.total}
+              </span>
+            )}
+          </div>
+          <FilterBar
+            filters={filters}
+            onChange={setFilters}
+            syncedUsers={syncedUsers}
+            hasColors={colorsReady}
+            hasVideos={videos.length > 0}
+            dateRange={dateRange}
+          />
+        </>
       )}
 
-      {/* Sort controls */}
-      {images.length > 0 && (
-        <div className="photo-sort">
-          {SORT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              className={`photo-sort-btn${sortBy === opt.value ? ' active' : ''}`}
-              onClick={() => handleSortChange(opt.value)}
-              disabled={busy}
-            >
-              {opt.label}
-            </button>
-          ))}
-          {engagementProgress && (
-            <span className="photo-sort-loading">
-              Fetching likes... {engagementProgress.fetched}/{engagementProgress.total}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Image grid */}
-      {images.length > 0 && (
+      {/* Media grid */}
+      {sortedMedia.length > 0 && (
         <Grid
-          images={sortedImages}
+          images={sortedMedia}
           pdsUrlMap={pdsUrlMap.current}
           onSelect={setSelectedImage}
         />
       )}
 
+      {/* No results after filtering */}
+      {allMedia.length > 0 && sortedMedia.length === 0 && (
+        <div className="photo-empty">
+          <p>No media matches the current filters.</p>
+          <p className="photo-empty-sub">
+            <button className="photo-filter-clear" onClick={() => setFilters(DEFAULT_FILTERS)}>
+              Clear all filters
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* Empty state */}
-      {status === 'idle' && images.length === 0 && (
+      {status === 'idle' && allMedia.length === 0 && (
         <div className="photo-empty">
           <p>Enter a Bluesky handle to explore their image posts.</p>
           <p className="photo-empty-sub">
@@ -248,10 +373,19 @@ export default function App() {
       {selectedImage && (
         <div className="photo-lightbox" onClick={() => setSelectedImage(null)}>
           <div className="photo-lightbox-inner" onClick={e => e.stopPropagation()}>
-            <img
-              src={imageUrl(selectedImage, pdsUrlMap.current)}
-              alt={selectedImage.alt}
-            />
+            {selectedImage.type === 'video' ? (
+              <video
+                src={imageUrl(selectedImage, pdsUrlMap.current)}
+                controls
+                autoPlay
+                style={{ maxWidth: '100%', maxHeight: '70vh' }}
+              />
+            ) : (
+              <img
+                src={imageUrl(selectedImage, pdsUrlMap.current)}
+                alt={selectedImage.alt}
+              />
+            )}
             <div className="photo-lightbox-meta">
               {selectedImage.alt && <p className="photo-lightbox-alt">{selectedImage.alt}</p>}
               {selectedImage.text && <p className="photo-lightbox-text">{selectedImage.text}</p>}

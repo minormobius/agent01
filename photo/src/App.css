@@ -223,6 +223,19 @@ body {
   color: #888;
 }
 
+/* Eigenpalette dots */
+.photo-eigen {
+  display: flex;
+  gap: 2px;
+}
+
+.photo-eigen-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 /* Sort controls */
 .photo-sort {
   display: flex;
@@ -262,6 +275,90 @@ body {
   font-size: 12px;
   color: #888;
   margin-left: 8px;
+}
+
+/* Filter bar */
+.photo-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 0 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.photo-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.photo-filter-label {
+  font-size: 11px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 2px;
+}
+
+.photo-filter-pills {
+  display: flex;
+  gap: 2px;
+}
+
+.photo-filter-pill {
+  padding: 3px 10px;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.photo-filter-pill:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.photo-filter-pill.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+
+.photo-filter-select {
+  padding: 3px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #666;
+  background: #fff;
+  cursor: pointer;
+}
+
+.photo-filter-date {
+  padding: 3px 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #666;
+}
+
+.photo-filter-clear {
+  padding: 3px 8px;
+  background: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #888;
+  cursor: pointer;
+}
+
+.photo-filter-clear:hover {
+  border-color: #888;
+  color: #1a1a1a;
 }
 
 /* Grid — JS-assigned columns (stable across pagination) */
@@ -349,6 +446,24 @@ body {
   justify-content: center;
   color: #bbb;
   font-size: 11px;
+}
+
+.photo-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .photo-card-alt {
