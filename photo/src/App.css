@@ -223,6 +223,47 @@ body {
   color: #888;
 }
 
+/* Sort controls */
+.photo-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.photo-sort-btn {
+  padding: 4px 12px;
+  background: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 14px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.photo-sort-btn:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.photo-sort-btn.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+
+.photo-sort-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.photo-sort-loading {
+  font-size: 12px;
+  color: #888;
+  margin-left: 8px;
+}
+
 /* Grid — JS-assigned columns (stable across pagination) */
 .photo-grid-info {
   font-size: 12px;
@@ -403,6 +444,10 @@ body {
 
 .photo-lightbox-link:hover {
   text-decoration: underline;
+}
+
+.photo-lightbox-engagement {
+  color: #666;
 }
 
 .photo-lightbox-close {

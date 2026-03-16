@@ -1,10 +1,17 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, filterPostsNdjson } from './lib/duckdb.js';
+import { fetchEngagement, getEngagement } from './lib/engagement.js';
 import Grid from './components/Grid.jsx';
 import HandleTypeahead from './components/HandleTypeahead.jsx';
 import './App.css';
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'most-liked', label: 'Most liked' },
+];
 
 const STATUS_MESSAGES = {
   resolving: 'Resolving handle...',
@@ -22,6 +29,9 @@ export default function App() {
   const [images, setImages] = useState([]);
   const [syncedUsers, setSyncedUsers] = useState([]); // [{ did, handle, pdsUrl, recordCount, imageCount }]
   const [selectedImage, setSelectedImage] = useState(null);
+  const [sortBy, setSortBy] = useState('newest');
+  const [engagementLoaded, setEngagementLoaded] = useState(false);
+  const [engagementProgress, setEngagementProgress] = useState(null);
   const pdsUrlMap = useRef({}); // did → pdsUrl for image URLs
 
   const syncUser = useCallback(async (handle) => {
@@ -98,6 +108,32 @@ export default function App() {
     syncUser(handle);
   };
 
+  const handleSortChange = useCallback(async (newSort) => {
+    setSortBy(newSort);
+    if (newSort === 'most-liked' && !engagementLoaded && images.length > 0) {
+      setEngagementProgress({ fetched: 0, total: 0 });
+      await fetchEngagement(images, (fetched, total) => {
+        setEngagementProgress({ fetched, total });
+      });
+      setEngagementLoaded(true);
+      setEngagementProgress(null);
+    }
+  }, [images, engagementLoaded]);
+
+  const sortedImages = useMemo(() => {
+    if (sortBy === 'oldest') {
+      return [...images].reverse();
+    }
+    if (sortBy === 'most-liked' && engagementLoaded) {
+      return [...images].sort((a, b) => {
+        const ea = getEngagement(a.did, a.rkey);
+        const eb = getEngagement(b.did, b.rkey);
+        return (eb?.likeCount ?? 0) - (ea?.likeCount ?? 0);
+      });
+    }
+    return images; // newest (default from DuckDB ORDER BY DESC)
+  }, [images, sortBy, engagementLoaded]);
+
   const busy = !['idle', 'ready', 'error'].includes(status);
 
   return (
@@ -167,10 +203,31 @@ export default function App() {
         </div>
       )}
 
+      {/* Sort controls */}
+      {images.length > 0 && (
+        <div className="photo-sort">
+          {SORT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`photo-sort-btn${sortBy === opt.value ? ' active' : ''}`}
+              onClick={() => handleSortChange(opt.value)}
+              disabled={busy}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {engagementProgress && (
+            <span className="photo-sort-loading">
+              Fetching likes... {engagementProgress.fetched}/{engagementProgress.total}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Image grid */}
       {images.length > 0 && (
         <Grid
-          images={images}
+          images={sortedImages}
           pdsUrlMap={pdsUrlMap.current}
           onSelect={setSelectedImage}
         />
@@ -202,6 +259,14 @@ export default function App() {
                 {new Date(selectedImage.createdAt).toLocaleDateString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
                 })}
+                {(() => {
+                  const eng = getEngagement(selectedImage.did, selectedImage.rkey);
+                  return eng ? (
+                    <span className="photo-lightbox-engagement">
+                      {eng.likeCount} likes &middot; {eng.repostCount} reposts
+                    </span>
+                  ) : null;
+                })()}
                 <a
                   href={`https://bsky.app/profile/${selectedImage.did}/post/${selectedImage.rkey}`}
                   target="_blank"
