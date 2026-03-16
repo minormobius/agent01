@@ -9,8 +9,8 @@ let conn = null;
 export async function initDuckDB() {
   if (db) return;
 
-  // Dynamic import from CDN
-  const duckdb = await import(/* @vite-ignore */ `${DUCKDB_CDN}/duckdb-eh.js`);
+  // Dynamic import from CDN — must use the browser ESM entry point
+  const duckdb = await import(/* @vite-ignore */ `${DUCKDB_CDN}/duckdb-browser.mjs`);
 
   const DUCKDB_BUNDLES = {
     mvp: {
@@ -24,7 +24,10 @@ export async function initDuckDB() {
   };
 
   const bundle = await duckdb.selectBundle(DUCKDB_BUNDLES);
-  const worker = new Worker(bundle.mainWorker);
+
+  // Create worker via blob URL to avoid CORS restrictions on CDN URLs
+  const workerBlob = new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' });
+  const worker = new Worker(URL.createObjectURL(workerBlob));
   const logger = new duckdb.ConsoleLogger();
 
   db = new duckdb.AsyncDuckDB(logger, worker);
