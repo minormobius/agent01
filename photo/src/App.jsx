@@ -219,15 +219,69 @@ export default function App() {
 function imageUrl(img, pdsUrlMap) {
   const pdsUrl = pdsUrlMap[img.did];
   if (!pdsUrl) return '';
-  return `${pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(img.did)}&cid=${encodeURIComponent(img.cid)}`;
+  const cid = ensureCid(img.cid);
+  return `${pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(img.did)}&cid=${encodeURIComponent(cid)}`;
 }
 
 function thumbUrl(img) {
-  return `https://cdn.bsky.app/img/feed_thumbnail/plain/${img.did}/${img.cid}@jpeg`;
+  const cid = ensureCid(img.cid);
+  return `https://cdn.bsky.app/img/feed_thumbnail/plain/${img.did}/${cid}@jpeg`;
 }
 
 // Expose thumbUrl for Grid
 export { imageUrl, thumbUrl };
+
+// Convert raw SHA-256 hex hash to CIDv1 string (base32lower, raw codec)
+// The WASM CAR parser outputs raw hex hashes from DAG-CBOR $link fields,
+// but CDN and getBlob expect proper CID strings like "bafkrei..."
+function ensureCid(raw) {
+  // Already a proper CID string (starts with 'b' for base32lower or 'Q' for base58)
+  if (/^[bQ]/.test(raw) && raw.length > 40) return raw;
+
+  // Raw hex SHA-256 hash (64 hex chars = 32 bytes)
+  if (/^[0-9a-f]{64}$/i.test(raw)) {
+    return hexToCidV1Raw(raw);
+  }
+
+  // Unknown format — return as-is and hope for the best
+  return raw;
+}
+
+// base32lower alphabet (RFC 4648, lowercase, no padding)
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+
+function base32Encode(bytes) {
+  let bits = 0;
+  let value = 0;
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) {
+    value = (value << 8) | bytes[i];
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out += B32[(value >>> bits) & 0x1f];
+    }
+  }
+  if (bits > 0) {
+    out += B32[(value << (5 - bits)) & 0x1f];
+  }
+  return out;
+}
+
+function hexToCidV1Raw(hex) {
+  const hashBytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    hashBytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  // CIDv1: version(0x01) + codec(raw=0x55) + multihash(sha256=0x12, len=0x20) + digest
+  const cidBytes = new Uint8Array(4 + hashBytes.length);
+  cidBytes[0] = 0x01; // CID version 1
+  cidBytes[1] = 0x55; // raw codec
+  cidBytes[2] = 0x12; // SHA-256
+  cidBytes[3] = 0x20; // 32 bytes digest length
+  cidBytes.set(hashBytes, 4);
+  return 'b' + base32Encode(cidBytes);
+}
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
