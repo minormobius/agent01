@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
-import { initDuckDB, ingestNdjson, extractImages } from './lib/duckdb.js';
+import { initDuckDB, ingestNdjson, extractImages, filterPostsNdjson } from './lib/duckdb.js';
 import Grid from './components/Grid.jsx';
 import './App.css';
 
@@ -44,21 +44,28 @@ export default function App() {
 
       // Download
       setStatus('downloading');
-      const carBytes = await downloadRepo(identity.pdsUrl, identity.did, {
+      let carBytes = await downloadRepo(identity.pdsUrl, identity.did, {
         onProgress: ({ received, total }) => {
           setProgress({ received, total });
         },
       });
       setProgress(null);
 
-      // Parse
+      // Parse CAR → NDJSON, then free CAR bytes immediately
       setStatus('parsing');
-      const ndjson = await parseCar(carBytes, identity.did);
+      let ndjson = await parseCar(carBytes, identity.did);
+      carBytes = null; // free ~100MB
+
+      // Filter to only post records before DuckDB ingest.
+      // For large repos (225K records), this drops ~95% of data,
+      // keeping only app.bsky.feed.post lines for image extraction.
+      const { filtered, totalLines } = filterPostsNdjson(ndjson);
+      ndjson = null; // free full NDJSON
 
       // Load into DuckDB
       setStatus('loading');
       await initDuckDB();
-      const recordCount = await ingestNdjson(ndjson, identity.did);
+      const recordCount = await ingestNdjson(filtered, identity.did, totalLines);
 
       // Extract images
       setStatus('extracting');

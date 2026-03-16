@@ -45,8 +45,27 @@ export async function initDuckDB() {
   `);
 }
 
+// Filter NDJSON to only keep app.bsky.feed.post records.
+// For a 225K-record repo, this drops ~95% of lines (likes, follows, blocks, etc.)
+// reducing memory for DuckDB ingest from ~200MB to ~10MB.
+export function filterPostsNdjson(ndjson) {
+  const lines = ndjson.split('\n');
+  const kept = [];
+  let totalLines = 0;
+  for (const line of lines) {
+    if (!line) continue;
+    totalLines++;
+    // Fast string check before JSON parse
+    if (line.includes('"app.bsky.feed.post"')) {
+      kept.push(line);
+    }
+  }
+  return { filtered: kept.join('\n'), totalLines };
+}
+
 // Ingest NDJSON for a specific DID — replaces any existing data for that DID
-export async function ingestNdjson(ndjson, did) {
+// totalLines: optional count of total records before filtering (for display)
+export async function ingestNdjson(ndjson, did, totalLines) {
   if (!conn) throw new Error('DuckDB not initialized');
 
   // Remove existing records for this DID
@@ -86,7 +105,8 @@ export async function ingestNdjson(ndjson, did) {
 
   const result = await conn.query(`SELECT count(*) as n FROM records WHERE did = '${did.replace(/'/g, "''")}'`);
   const rows = result.toArray();
-  return rows[0]?.n ?? 0;
+  // Return total repo records (for display), ingested count is the post subset
+  return totalLines || (rows[0]?.n ?? 0);
 }
 
 // Extract all images from synced repos
