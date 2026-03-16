@@ -83,10 +83,32 @@ export default function Grid({ images, pdsUrlMap, onSelect }) {
   );
 }
 
+// ImageCard with viewport-aware unloading.
+// When a card scrolls far off-screen (>2000px), the <img> is replaced
+// with an empty placeholder div. This lets the browser release the
+// decoded bitmap (~4MB per image) while keeping layout stable via
+// the aspect-ratio padding. Re-entering the margin re-mounts the <img>.
 function ImageCard({ img, pdsUrlMap, onSelect }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [fallback, setFallback] = useState(false);
+  const [nearViewport, setNearViewport] = useState(false);
+  const cardRef = useRef(null);
+
+  // Observe whether this card is within 2000px of the viewport.
+  // When it leaves that margin, we unmount the <img> to free memory.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setNearViewport(entry.isIntersecting);
+      },
+      { rootMargin: '2000px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const ar = img.aspectRatio;
   const paddingBottom = ar ? `${(ar.height / ar.width) * 100}%` : '75%';
@@ -107,17 +129,19 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
   if (errored) return null;
 
   return (
-    <div className="photo-card" onClick={() => onSelect(img)}>
+    <div className="photo-card" onClick={() => onSelect(img)} ref={cardRef}>
       <div className="photo-card-img" style={{ paddingBottom }}>
-        <img
-          src={src}
-          alt={img.alt}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          onError={handleError}
-          style={{ opacity: loaded ? 1 : 0 }}
-        />
+        {nearViewport ? (
+          <img
+            src={src}
+            alt={img.alt}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoaded(true)}
+            onError={handleError}
+            style={{ opacity: loaded ? 1 : 0 }}
+          />
+        ) : null}
       </div>
       {img.alt && (
         <div className="photo-card-alt">{img.alt}</div>
