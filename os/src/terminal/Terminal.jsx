@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Shell } from './Shell.js';
 import * as fmt from '../lib/fmt.js';
 
-const BANNER = `\x1b[36m
+const BANNER_FULL = `\x1b[36m
  ██████╗ ███████╗   ███╗   ███╗██╗███╗   ██╗ ██████╗
 ██╔═══██╗██╔════╝   ████╗ ████║██║████╗  ██║██╔═══██╗
 ██║   ██║███████╗   ██╔████╔██║██║██╔██╗ ██║██║   ██║
@@ -12,6 +12,19 @@ const BANNER = `\x1b[36m
 \x1b[0m
 \x1b[2mPDS Shell — your data, your terminal\x1b[0m
 `;
+
+const BANNER_COMPACT = `\x1b[36m\x1b[1m
+ OS.MINO
+\x1b[0m\x1b[2mPDS Shell\x1b[0m
+`;
+
+function isMobile() {
+  return window.innerWidth < 600 || ('ontouchstart' in window && window.innerWidth < 768);
+}
+
+function getBanner() {
+  return isMobile() ? BANNER_COMPACT : BANNER_FULL;
+}
 
 const LOGIN_PROMPT = `\x1b[33mlogin\x1b[0m \x1b[2m(handle + app password)\x1b[0m
 
@@ -39,6 +52,7 @@ export default function Terminal({ session, onLogin, onLogout }) {
       link.href = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css';
       document.head.appendChild(link);
 
+      const mobile = isMobile();
       term = new XTerm({
         theme: {
           background: '#0a0a0a',
@@ -53,7 +67,7 @@ export default function Terminal({ session, onLogin, onLogout }) {
           white: '#abb2bf',
         },
         fontFamily: '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace',
-        fontSize: 14,
+        fontSize: mobile ? 12 : 14,
         lineHeight: 1.2,
         cursorBlink: true,
         cursorStyle: 'block',
@@ -70,10 +84,35 @@ export default function Terminal({ session, onLogin, onLogout }) {
       const resizeObs = new ResizeObserver(() => fitAddon.fit());
       resizeObs.observe(containerRef.current);
 
+      // Virtual keyboard: refit terminal when keyboard appears/disappears
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          containerRef.current.style.height = `${window.visualViewport.height}px`;
+          fitAddon.fit();
+        });
+      }
+
+      // Mobile paste: listen on the terminal's textarea for paste events
+      const textarea = containerRef.current.querySelector('textarea.xterm-helper-textarea');
+      if (textarea) {
+        textarea.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const text = e.clipboardData?.getData('text');
+          if (text) handleInput(text);
+        });
+      }
+
+      // Tap to focus on mobile — ensure keyboard opens
+      if (mobile) {
+        containerRef.current.addEventListener('touchstart', () => {
+          if (textarea) textarea.focus();
+        }, { passive: true });
+      }
+
       termRef.current = term;
 
       // Banner
-      term.write(BANNER);
+      term.write(getBanner());
 
       if (session) {
         startShell(term, session);
