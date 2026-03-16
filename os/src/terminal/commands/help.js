@@ -31,6 +31,10 @@ const COMMANDS = [
   ['history --repo', 'Repo commit status'],
   ['clear', 'Clear terminal'],
   ['logout', 'End session'],
+  ['', ''],
+  ['container', 'Launch container shell (bash + claude-code)'],
+  ['container --api-key=KEY', 'Launch with explicit API key'],
+  ['set-key <key>', 'Save Anthropic API key'],
 ];
 
 const PIPES = [

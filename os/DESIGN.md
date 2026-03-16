@@ -57,6 +57,8 @@ No backend. The user's PDS is the backend. Cloudflare serves static files.
 | `sync --stats` | Quick stats without full ingest |
 | `sql <query>` | SQL over synced records |
 | `history` | Command history |
+| `container` | Launch container shell (bash + claude-code) |
+| `set-key <key>` | Save Anthropic API key for container |
 
 ## CAR Parser (`crates/car-parser/`)
 
@@ -115,9 +117,72 @@ WHERE collection = 'app.bsky.feed.post'
 SELECT uri, size_bytes FROM records ORDER BY size_bytes DESC LIMIT 10
 ```
 
+## Container Shell (`api/`)
+
+Real bash shell in the browser via Cloudflare Containers. Run Claude Code, git, node — anything you'd run in a terminal.
+
+### Architecture
+
+```
+Browser (xterm.js)                    Cloudflare Edge
+┌─────────────────┐     WebSocket     ┌──────────────────────┐
+│  Terminal.jsx    │ ←──────────────→  │  Worker (api/)       │
+│                  │                   │  ├── WS upgrade      │
+│  Dual mode:      │                   │  └── route to DO     │
+│  ├── PDS shell   │                   │                      │
+│  │   (XRPC)     │                   │  ContainerShell (DO) │
+│  └── Container   │                   │  └── container.fetch │
+│      (WebSocket) │                   │                      │
+│                  │                   │  Container (Docker)  │
+│  ws-transport.js │                   │  ├── bash + PTY      │
+│                  │                   │  ├── git, node       │
+└─────────────────┘                   │  ├── claude-code     │
+                                      │  └── pty-server.js   │
+                                      └──────────────────────┘
+```
+
+### How it works
+
+1. User types `container` in PDS shell (after `set-key` with Anthropic API key)
+2. Frontend opens WebSocket → Worker → Durable Object → Container
+3. Container runs a Docker image with node-pty, spawns bash
+4. All terminal I/O streams through the WebSocket — real PTY, real bash
+5. Container sleeps after 10 min idle, wakes on reconnect (2-3s cold start)
+6. `exit` or Ctrl+D returns to PDS shell
+
+### Container contents
+
+- **bash** — real shell with full job control
+- **git** — clone, commit, push
+- **node 22** — npm, full Node.js runtime
+- **claude-code** — `@anthropic-ai/claude-code` CLI
+- **python3** — for PDS scripts (publish, sync)
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `container` | Launch container shell |
+| `container --api-key=KEY` | Launch with explicit API key |
+| `set-key <key>` | Save Anthropic API key (localStorage) |
+
+### Deploy
+
+```bash
+cd os/api && npm install && npx wrangler deploy
+```
+
+### Limits
+
+- Ephemeral disk — state lost when container sleeps
+- Cold start ~2-3s depending on image size
+- Container sleeps after 10 min idle
+- Max 10 concurrent instances (configurable)
+
 ## Stack
 
 - **Frontend**: Vite + React + xterm.js
+- **Container Backend**: Cloudflare Workers + Containers + Durable Objects
 - **WASM**: Rust + wasm-bindgen (116KB / 53KB gzipped)
 - **SQL**: DuckDB-Wasm (loaded from CDN on first `sync`)
 - **Hosting**: Cloudflare Pages (static, `wrangler.jsonc`)
@@ -126,5 +191,9 @@ SELECT uri, size_bytes FROM records ORDER BY size_bytes DESC LIMIT 10
 ## Deploy
 
 ```bash
+# Frontend (Pages)
 cd os && npm run build && npx wrangler deploy
+
+# Container API (Worker + Container)
+cd os/api && npm install && npx wrangler deploy
 ```

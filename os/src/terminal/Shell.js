@@ -26,15 +26,18 @@ const COMMANDS = {
   sync: () => import('./commands/sync.js'),
   sql: () => import('./commands/sql.js'),
   index: () => import('./commands/index.js'),
+  container: () => import('./commands/container.js'),
+  'set-key': () => import('./commands/setkey.js'),
 };
 
 export class Shell {
-  constructor(terminal, session, { onLogout } = {}) {
+  constructor(terminal, session, { onLogout, onConnectContainer } = {}) {
     this.terminal = terminal;
     this.session = session;
     this.xrpc = new XRPCClient(session);
     this.fs = new PDSFilesystem(this.xrpc, session.did);
     this.onLogout = onLogout;
+    this.onConnectContainer = onConnectContainer;
     this.commandHistory = [];
     this.historyIndex = -1;
     this.running = false;

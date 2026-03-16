@@ -30,10 +30,11 @@ const LOGIN_PROMPT = `\x1b[33mlogin\x1b[0m \x1b[2m(handle + app password)\x1b[0m
 
 `;
 
-export default function Terminal({ session, onLogin, onLogout }) {
+export default function Terminal({ session, onLogin, onLogout, transport, onConnectContainer, containerStatus }) {
   const containerRef = useRef(null);
   const termRef = useRef(null);
   const shellRef = useRef(null);
+  const fitAddonRef = useRef(null);
   const inputRef = useRef('');
   const cursorPosRef = useRef(0);
   const modeRef = useRef(session ? 'shell' : 'login');
@@ -82,8 +83,15 @@ export default function Terminal({ session, onLogin, onLogout }) {
 
       term.open(containerRef.current);
       fitAddon.fit();
+      fitAddonRef.current = fitAddon;
 
-      const resizeObs = new ResizeObserver(() => fitAddon.fit());
+      const resizeObs = new ResizeObserver(() => {
+        fitAddon.fit();
+        // Notify container transport of resize
+        if (transport?.connected) {
+          transport.resize(term.cols, term.rows);
+        }
+      });
       resizeObs.observe(containerRef.current);
 
       // Virtual keyboard: refit terminal when keyboard appears/disappears
@@ -91,14 +99,14 @@ export default function Terminal({ session, onLogin, onLogout }) {
         const onViewportResize = () => {
           const vv = window.visualViewport;
           const kb = window.innerHeight - vv.height;
-          setKbHeight(kb > 50 ? kb : 0); // ignore small shifts
+          setKbHeight(kb > 50 ? kb : 0);
           containerRef.current.style.height = `${vv.height}px`;
           fitAddon.fit();
         };
         window.visualViewport.addEventListener('resize', onViewportResize);
       }
 
-      // Tap to focus on mobile — ensure keyboard opens
+      // Tap to focus on mobile
       const textarea = containerRef.current.querySelector('textarea.xterm-helper-textarea');
       if (mobile && textarea) {
         containerRef.current.addEventListener('touchstart', () => {
@@ -139,6 +147,54 @@ export default function Terminal({ session, onLogin, onLogout }) {
     }
   }, [session]);
 
+  // Container mode: wire transport output → terminal
+  useEffect(() => {
+    if (!transport || !termRef.current) return;
+
+    transport.onOutput = (data) => {
+      termRef.current?.write(data);
+    };
+
+    transport.onExit = (exitCode) => {
+      const term = termRef.current;
+      if (term) {
+        term.writeln(`\r\n${fmt.dim(`[container exited: ${exitCode}]`)}`);
+        // Fall back to PDS shell
+        modeRef.current = 'shell';
+        if (shellRef.current) {
+          writePrompt(term, shellRef.current);
+        }
+      }
+    };
+
+    transport.onStatus = (status) => {
+      const term = termRef.current;
+      if (!term) return;
+      if (status === 'connected' && modeRef.current === 'container-connecting') {
+        modeRef.current = 'container';
+        term.writeln(`\r\n${fmt.green('connected')} ${fmt.dim('to container shell')}`);
+        term.writeln(`${fmt.dim('bash + git + claude-code available')}`);
+        term.writeln(`${fmt.dim('Type')} ${fmt.cyan('exit')} ${fmt.dim('or Ctrl+D to return to PDS shell')}\r\n`);
+        // Send initial resize
+        transport.resize(term.cols, term.rows);
+      } else if (status === 'disconnected' && modeRef.current === 'container') {
+        modeRef.current = 'shell';
+        term.writeln(`\r\n${fmt.yellow('[container disconnected]')}`);
+        if (shellRef.current) {
+          writePrompt(term, shellRef.current);
+        }
+      } else if (status === 'reconnecting') {
+        term.writeln(`\r\n${fmt.dim('[reconnecting...]')}`);
+      } else if (status === 'failed') {
+        modeRef.current = 'shell';
+        term.writeln(`\r\n${fmt.red('[container connection failed]')}`);
+        if (shellRef.current) {
+          writePrompt(term, shellRef.current);
+        }
+      }
+    };
+  }, [transport]);
+
   function startShell(term, sess) {
     modeRef.current = 'shell';
     const shell = new Shell(term, sess, {
@@ -150,7 +206,8 @@ export default function Terminal({ session, onLogin, onLogout }) {
         term.write(LOGIN_PROMPT);
         term.write('handle: ');
         onLogout();
-      }
+      },
+      onConnectContainer,
     });
     shellRef.current = shell;
     term.writeln(`\r\n${fmt.green('authenticated')} as ${fmt.bold(sess.handle)} ${fmt.dim(`(${sess.did})`)}`);
@@ -169,7 +226,13 @@ export default function Terminal({ session, onLogin, onLogout }) {
     const term = termRef.current;
     if (!term) return;
 
-    // Handle paste (multi-char data that isn't a control sequence)
+    // Container mode: pipe ALL input directly to remote PTY
+    if (modeRef.current === 'container' && transport?.connected) {
+      transport.send(data);
+      return;
+    }
+
+    // PDS shell mode: local input handling
     if (data.length > 1 && !data.startsWith('\x1b')) {
       for (const ch of data) {
         handleChar(ch);
@@ -233,14 +296,8 @@ export default function Terminal({ session, onLogin, onLogout }) {
         const pos = cursorPosRef.current;
         inputRef.current = input.slice(0, pos - 1) + input.slice(pos);
         cursorPosRef.current = pos - 1;
-        // Redraw line from cursor
         const after = inputRef.current.slice(pos - 1);
         term.write(`\b${after} ${'\b'.repeat(after.length + 1)}`);
-
-        // Mask password in login mode
-        if (modeRef.current === 'login' && loginStateRef.current.step === 'password') {
-          // Already masked by not echoing
-        }
       }
       return;
     }
@@ -253,8 +310,6 @@ export default function Terminal({ session, onLogin, onLogout }) {
             const parts = inputRef.current.split(/\s+/);
             const prefix = parts.length > 1 ? parts.slice(0, -1).join(' ') + ' ' : '';
             const completed = prefix + completions[0];
-            // Clear current input and rewrite
-            const clearLen = inputRef.current.length - cursorPosRef.current;
             term.write('\b'.repeat(cursorPosRef.current) + ' '.repeat(inputRef.current.length) + '\b'.repeat(inputRef.current.length));
             inputRef.current = completed;
             cursorPosRef.current = completed.length;
@@ -289,11 +344,13 @@ export default function Terminal({ session, onLogin, onLogout }) {
     const term = termRef.current;
     const shell = shellRef.current;
 
+    // Container mode: arrow keys and special keys go through onData, not here
+    if (modeRef.current === 'container') return;
+
     // Arrow up — history
     if (ev.key === 'ArrowUp' && modeRef.current === 'shell' && shell && !shell.running) {
       const prev = shell.historyUp();
       if (prev !== null) {
-        // Clear current line
         term.write('\b'.repeat(cursorPosRef.current) + ' '.repeat(inputRef.current.length) + '\b'.repeat(inputRef.current.length));
         inputRef.current = prev;
         cursorPosRef.current = prev.length;
@@ -332,9 +389,8 @@ export default function Terminal({ session, onLogin, onLogout }) {
       const text = await navigator.clipboard.readText();
       if (text) handleInput(text);
     } catch {
-      // Clipboard API denied — fall back to nothing
+      // Clipboard API denied
     }
-    // Refocus terminal so cursor reactivates and keyboard reopens
     const textarea = containerRef.current?.querySelector('textarea.xterm-helper-textarea');
     if (textarea) {
       textarea.focus({ preventScroll: true });
@@ -375,6 +431,11 @@ export default function Terminal({ session, onLogin, onLogout }) {
     }
   }
 
+  // Mode indicator color
+  const statusColor = containerStatus === 'connected' ? '#98c379'
+    : containerStatus === 'connecting' || containerStatus === 'reconnecting' ? '#e5c07b'
+    : '#808080';
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0a0a0a' }}>
       <div
@@ -385,6 +446,32 @@ export default function Terminal({ session, onLogin, onLogout }) {
           padding: '4px',
         }}
       />
+      {/* Mode indicator — top right */}
+      {session && (
+        <div style={{
+          position: 'fixed',
+          top: 8,
+          right: 12,
+          display: 'flex',
+          gap: 6,
+          zIndex: 10,
+        }}>
+          {modeRef.current === 'container' || containerStatus === 'connected' ? (
+            <div style={{
+              padding: '2px 8px',
+              borderRadius: 4,
+              border: '1px solid #333',
+              background: '#1a1a1a',
+              color: statusColor,
+              fontSize: 11,
+              fontFamily: 'monospace',
+            }}>
+              CONTAINER
+            </div>
+          ) : null}
+        </div>
+      )}
+      {/* Mobile buttons */}
       {mobile && (
         <button
           onTouchEnd={(e) => { e.preventDefault(); handlePaste(); }}
@@ -408,7 +495,6 @@ export default function Terminal({ session, onLogin, onLogout }) {
           }}
           aria-label="Paste from clipboard"
         >
-          {/* clipboard icon (SVG) */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
