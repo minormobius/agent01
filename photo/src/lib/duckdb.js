@@ -58,7 +58,8 @@ export async function ingestNdjson(ndjson, did) {
   const filename = `repo_${did.replace(/[^a-zA-Z0-9]/g, '_')}.ndjson`;
   await db.registerFileBuffer(filename, bytes);
 
-  // Insert with DID column
+  // Insert with DID column — use explicit columns + json format to avoid
+  // schema inference failures on records with unexpected keys (e.g. "via")
   await conn.query(`
     INSERT INTO records
     SELECT
@@ -69,8 +70,16 @@ export async function ingestNdjson(ndjson, did) {
       cid,
       size_bytes,
       value
-    FROM read_json_auto('${filename}',
+    FROM read_json('${filename}',
       format='newline_delimited',
+      columns={
+        collection: 'VARCHAR',
+        rkey: 'VARCHAR',
+        uri: 'VARCHAR',
+        cid: 'VARCHAR',
+        size_bytes: 'INTEGER',
+        value: 'JSON'
+      },
       maximum_object_size=10485760
     )
   `);
