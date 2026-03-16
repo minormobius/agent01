@@ -67,3 +67,40 @@ export async function refreshSession(pdsUrl, refreshJwt) {
   if (!res.ok) throw new Error('Session refresh failed');
   return res.json();
 }
+
+// Persistent session — localStorage
+const SESSION_KEY = 'pds-shell-session';
+
+export function saveSession(session) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      handle: session.handle,
+      did: session.did,
+      pdsUrl: session.pdsUrl,
+      refreshJwt: session.refreshJwt,
+    }));
+  } catch { /* storage full or unavailable */ }
+}
+
+export function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch {}
+}
+
+export async function restoreSession() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(SESSION_KEY));
+  } catch { return null; }
+  if (!saved?.refreshJwt || !saved?.pdsUrl) return null;
+
+  const data = await refreshSession(saved.pdsUrl, saved.refreshJwt);
+  const session = {
+    accessJwt: data.accessJwt,
+    refreshJwt: data.refreshJwt,
+    did: data.did,
+    handle: data.handle,
+    pdsUrl: saved.pdsUrl,
+  };
+  saveSession(session); // persist the new refresh token
+  return session;
+}

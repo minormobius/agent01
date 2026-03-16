@@ -25,6 +25,7 @@ const COMMANDS = {
   logout: () => import('./commands/logout.js'),
   sync: () => import('./commands/sync.js'),
   sql: () => import('./commands/sql.js'),
+  index: () => import('./commands/index.js'),
 };
 
 export class Shell {

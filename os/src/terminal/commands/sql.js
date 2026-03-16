@@ -22,8 +22,8 @@ export default async function sql(args, flags, ctx) {
     terminal.writeln(fmt.dim(''));
     terminal.writeln(fmt.dim('examples:'));
     terminal.writeln(fmt.cyan('  sql SELECT count(*) as n FROM records'));
-    terminal.writeln(fmt.cyan('  sql SELECT collection, count(*) as n FROM records GROUP BY collection ORDER BY n DESC'));
-    terminal.writeln(fmt.cyan("  sql SELECT rkey, json_extract_string(value, '$.text') as text FROM records WHERE collection = 'app.bsky.feed.post' LIMIT 10"));
+    terminal.writeln(fmt.cyan('  sql SELECT collection, count(*) as n FROM record_index GROUP BY collection ORDER BY n DESC'));
+    terminal.writeln(fmt.cyan("  sql SELECT text, created_at FROM record_index WHERE collection = 'app.bsky.feed.post' ORDER BY created_at DESC LIMIT 10"));
     terminal.writeln(fmt.cyan('  sql .tables'));
     terminal.writeln(fmt.cyan('  sql .schema'));
     return;

@@ -5,7 +5,7 @@
 // After sync, use `sql` command to query your PDS with SQL.
 
 import { syncRepo, downloadRepo, getCarStats } from '../../lib/repo.js';
-import { initDuckDB, ingestNdjson, listCollections } from '../../lib/duckdb.js';
+import { initDuckDB, ingestNdjson, listCollections, buildIndex } from '../../lib/duckdb.js';
 
 export default async function sync(args, flags, ctx) {
   const { session, terminal, fmt, signal } = ctx;
@@ -95,6 +95,15 @@ export default async function sync(args, flags, ctx) {
   } catch (err) {
     terminal.writeln(fmt.red(`ingest failed: ${err.message}`));
     return;
+  }
+
+  // Step 4: Build index
+  terminal.write(fmt.dim('building index... '));
+  try {
+    const indexCount = await buildIndex();
+    terminal.writeln(`${fmt.green('indexed')} ${fmt.cyan(fmt.formatCount(indexCount) + ' records')}`);
+  } catch (err) {
+    terminal.writeln(fmt.yellow(`index skipped: ${err.message}`));
   }
 
   // Summary

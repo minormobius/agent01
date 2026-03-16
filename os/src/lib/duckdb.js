@@ -80,6 +80,38 @@ export async function query(sql) {
   });
 }
 
+// Build the record_index table — materialized metadata for agent-friendly queries
+export async function buildIndex() {
+  if (!conn) throw new Error('DuckDB not initialized');
+
+  await conn.query('DROP TABLE IF EXISTS record_index');
+  await conn.query(`
+    CREATE TABLE record_index AS
+    SELECT
+      collection,
+      rkey,
+      uri,
+      cid,
+      size_bytes,
+      json_extract_string(value, '$.createdAt') as created_at,
+      json_extract_string(value, '$.text') as text,
+      json_extract_string(value, '$.subject.uri') as subject_uri,
+      json_extract_string(value, '$.subject.cid') as subject_cid,
+      json_extract_string(value, '$.reply.root.uri') as reply_root,
+      json_extract_string(value, '$.reply.parent.uri') as reply_parent,
+      CASE WHEN json_extract(value, '$.embed') IS NOT NULL THEN true ELSE false END as has_media,
+      json_extract_string(value, '$.embed.$type') as embed_type,
+      json_extract_string(value, '$.displayName') as display_name,
+      json_extract_string(value, '$.description') as description,
+      json_extract_string(value, '$.name') as name
+    FROM records
+  `);
+
+  const result = await conn.query('SELECT count(*) as n FROM record_index');
+  const rows = result.toArray();
+  return rows[0]?.n ?? 0;
+}
+
 // Convenience queries
 export async function listCollections() {
   return query(`
