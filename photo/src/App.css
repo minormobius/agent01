@@ -11,14 +11,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.arena {
+.photo {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
 /* Header */
-.arena-header {
+.photo-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,24 +28,24 @@ body {
   flex-wrap: wrap;
 }
 
-.arena-title h1 {
+.photo-title h1 {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.arena-subtitle {
+.photo-subtitle {
   font-size: 12px;
   color: #888;
   margin-left: 8px;
 }
 
-.arena-search {
+.photo-search {
   display: flex;
   gap: 8px;
 }
 
-.arena-search input {
+.photo-search input {
   width: 300px;
   padding: 8px 12px;
   border: 1px solid #d0d0d0;
@@ -55,11 +55,11 @@ body {
   transition: border-color 0.15s;
 }
 
-.arena-search input:focus {
+.photo-search input:focus {
   border-color: #888;
 }
 
-.arena-search button {
+.photo-search button {
   padding: 8px 20px;
   background: #1a1a1a;
   color: #fff;
@@ -70,39 +70,39 @@ body {
   transition: opacity 0.15s;
 }
 
-.arena-search button:hover {
+.photo-search button:hover {
   opacity: 0.85;
 }
 
-.arena-search button:disabled {
+.photo-search button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
 /* Status */
-.arena-status {
+.photo-status {
   padding: 16px 0;
 }
 
-.arena-status-text {
+.photo-status-text {
   font-size: 13px;
   color: #666;
   margin-bottom: 8px;
 }
 
-.arena-progress {
+.photo-progress {
   color: #888;
   font-variant-numeric: tabular-nums;
 }
 
-.arena-status-bar {
+.photo-status-bar {
   height: 3px;
   background: #e8e8e8;
   border-radius: 2px;
   overflow: hidden;
 }
 
-.arena-status-fill {
+.photo-status-fill {
   height: 100%;
   background: #1a1a1a;
   border-radius: 2px;
@@ -115,7 +115,7 @@ body {
 }
 
 /* Error */
-.arena-error {
+.photo-error {
   padding: 12px 16px;
   margin: 16px 0;
   background: #fff0f0;
@@ -126,14 +126,14 @@ body {
 }
 
 /* User chips */
-.arena-users {
+.photo-users {
   display: flex;
   gap: 8px;
   padding: 16px 0;
   flex-wrap: wrap;
 }
 
-.arena-user-chip {
+.photo-user-chip {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -144,27 +144,27 @@ body {
   font-size: 13px;
 }
 
-.arena-user-handle {
+.photo-user-handle {
   font-weight: 500;
 }
 
-.arena-user-stats {
+.photo-user-stats {
   color: #888;
 }
 
 /* Grid — CSS columns masonry */
-.arena-grid {
+.photo-grid {
   columns: 4;
   column-gap: 16px;
   padding: 8px 0 48px;
 }
 
-@media (max-width: 1200px) { .arena-grid { columns: 3; } }
-@media (max-width: 800px) { .arena-grid { columns: 2; } }
-@media (max-width: 500px) { .arena-grid { columns: 1; } }
+@media (max-width: 1200px) { .photo-grid { columns: 3; } }
+@media (max-width: 800px) { .photo-grid { columns: 2; } }
+@media (max-width: 500px) { .photo-grid { columns: 1; } }
 
 /* Card */
-.arena-card {
+.photo-card {
   break-inside: avoid;
   margin-bottom: 16px;
   background: #fff;
@@ -175,18 +175,18 @@ body {
   transition: box-shadow 0.15s, transform 0.15s;
 }
 
-.arena-card:hover {
+.photo-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
 
-.arena-card-img {
+.photo-card-img {
   position: relative;
   width: 100%;
   background: #f0f0f0;
 }
 
-.arena-card-img img {
+.photo-card-img img {
   position: absolute;
   top: 0;
   left: 0;
@@ -196,7 +196,7 @@ body {
   transition: opacity 0.3s ease;
 }
 
-.arena-card-alt {
+.photo-card-alt {
   padding: 8px 10px;
   font-size: 12px;
   color: #666;
@@ -207,18 +207,18 @@ body {
 }
 
 /* Empty state */
-.arena-empty {
+.photo-empty {
   text-align: center;
   padding: 120px 24px;
   color: #888;
 }
 
-.arena-empty p {
+.photo-empty p {
   font-size: 16px;
   margin-bottom: 8px;
 }
 
-.arena-empty-sub {
+.photo-empty-sub {
   font-size: 13px;
   color: #aaa;
   max-width: 480px;
@@ -227,7 +227,7 @@ body {
 }
 
 /* Lightbox */
-.arena-lightbox {
+.photo-lightbox {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
@@ -238,7 +238,7 @@ body {
   padding: 40px;
 }
 
-.arena-lightbox-inner {
+.photo-lightbox-inner {
   position: relative;
   max-width: 900px;
   max-height: 90vh;
@@ -249,23 +249,23 @@ body {
   flex-direction: column;
 }
 
-.arena-lightbox-inner img {
+.photo-lightbox-inner img {
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
 }
 
-.arena-lightbox-meta {
+.photo-lightbox-meta {
   padding: 16px 20px;
 }
 
-.arena-lightbox-alt {
+.photo-lightbox-alt {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
-.arena-lightbox-text {
+.photo-lightbox-text {
   font-size: 13px;
   color: #555;
   line-height: 1.5;
@@ -274,7 +274,7 @@ body {
   overflow: hidden;
 }
 
-.arena-lightbox-date {
+.photo-lightbox-date {
   font-size: 12px;
   color: #999;
   display: flex;
@@ -282,16 +282,16 @@ body {
   gap: 12px;
 }
 
-.arena-lightbox-link {
+.photo-lightbox-link {
   color: #1a73e8;
   text-decoration: none;
 }
 
-.arena-lightbox-link:hover {
+.photo-lightbox-link:hover {
   text-decoration: underline;
 }
 
-.arena-lightbox-close {
+.photo-lightbox-close {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -309,6 +309,6 @@ body {
   line-height: 1;
 }
 
-.arena-lightbox-close:hover {
+.photo-lightbox-close:hover {
   background: rgba(0, 0, 0, 0.7);
 }

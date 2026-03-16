@@ -93,14 +93,14 @@ export default function App() {
   const busy = !['idle', 'ready', 'error'].includes(status);
 
   return (
-    <div className="arena">
-      <header className="arena-header">
-        <div className="arena-title">
-          <h1>Arena</h1>
-          <span className="arena-subtitle">ATProto Image Explorer</span>
+    <div className="photo">
+      <header className="photo-header">
+        <div className="photo-title">
+          <h1>ATPhoto</h1>
+          <span className="photo-subtitle">Image Explorer</span>
         </div>
 
-        <form className="arena-search" onSubmit={handleSubmit}>
+        <form className="photo-search" onSubmit={handleSubmit}>
           <input
             type="text"
             value={input}
@@ -117,21 +117,21 @@ export default function App() {
 
       {/* Status bar */}
       {busy && (
-        <div className="arena-status">
-          <div className="arena-status-text">
+        <div className="photo-status">
+          <div className="photo-status-text">
             {STATUS_MESSAGES[status] || status}
             {progress && progress.total ? (
-              <span className="arena-progress">
+              <span className="photo-progress">
                 {' '}{formatBytes(progress.received)} / {formatBytes(progress.total)}
                 {' '}({Math.round(progress.received / progress.total * 100)}%)
               </span>
             ) : progress ? (
-              <span className="arena-progress"> {formatBytes(progress.received)}</span>
+              <span className="photo-progress"> {formatBytes(progress.received)}</span>
             ) : null}
           </div>
-          <div className="arena-status-bar">
+          <div className="photo-status-bar">
             <div
-              className="arena-status-fill"
+              className="photo-status-fill"
               style={{
                 width: progress?.total
                   ? `${Math.round(progress.received / progress.total * 100)}%`
@@ -144,16 +144,16 @@ export default function App() {
       )}
 
       {error && (
-        <div className="arena-error">{error}</div>
+        <div className="photo-error">{error}</div>
       )}
 
       {/* Synced users */}
       {syncedUsers.length > 0 && (
-        <div className="arena-users">
+        <div className="photo-users">
           {syncedUsers.map(u => (
-            <div key={u.did} className="arena-user-chip">
-              <span className="arena-user-handle">@{u.handle}</span>
-              <span className="arena-user-stats">
+            <div key={u.did} className="photo-user-chip">
+              <span className="photo-user-handle">@{u.handle}</span>
+              <span className="photo-user-stats">
                 {u.imageCount} images / {u.recordCount.toLocaleString()} records
               </span>
             </div>
@@ -172,9 +172,9 @@ export default function App() {
 
       {/* Empty state */}
       {status === 'idle' && images.length === 0 && (
-        <div className="arena-empty">
+        <div className="photo-empty">
           <p>Enter a Bluesky handle to explore their image posts.</p>
-          <p className="arena-empty-sub">
+          <p className="photo-empty-sub">
             Downloads their repo, parses the CAR file with Rust/WASM,
             loads into DuckDB, and renders every image embed.
           </p>
@@ -183,16 +183,16 @@ export default function App() {
 
       {/* Lightbox */}
       {selectedImage && (
-        <div className="arena-lightbox" onClick={() => setSelectedImage(null)}>
-          <div className="arena-lightbox-inner" onClick={e => e.stopPropagation()}>
+        <div className="photo-lightbox" onClick={() => setSelectedImage(null)}>
+          <div className="photo-lightbox-inner" onClick={e => e.stopPropagation()}>
             <img
               src={imageUrl(selectedImage, pdsUrlMap.current)}
               alt={selectedImage.alt}
             />
-            <div className="arena-lightbox-meta">
-              {selectedImage.alt && <p className="arena-lightbox-alt">{selectedImage.alt}</p>}
-              {selectedImage.text && <p className="arena-lightbox-text">{selectedImage.text}</p>}
-              <p className="arena-lightbox-date">
+            <div className="photo-lightbox-meta">
+              {selectedImage.alt && <p className="photo-lightbox-alt">{selectedImage.alt}</p>}
+              {selectedImage.text && <p className="photo-lightbox-text">{selectedImage.text}</p>}
+              <p className="photo-lightbox-date">
                 {new Date(selectedImage.createdAt).toLocaleDateString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
                 })}
@@ -200,13 +200,13 @@ export default function App() {
                   href={`https://bsky.app/profile/${selectedImage.did}/post/${selectedImage.rkey}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="arena-lightbox-link"
+                  className="photo-lightbox-link"
                 >
                   View post
                 </a>
               </p>
             </div>
-            <button className="arena-lightbox-close" onClick={() => setSelectedImage(null)}>
+            <button className="photo-lightbox-close" onClick={() => setSelectedImage(null)}>
               &times;
             </button>
           </div>

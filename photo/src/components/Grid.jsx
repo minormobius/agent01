@@ -3,7 +3,7 @@ import { thumbUrl } from '../App.jsx';
 
 export default function Grid({ images, pdsUrlMap, onSelect }) {
   return (
-    <div className="arena-grid">
+    <div className="photo-grid">
       {images.map((img, i) => (
         <ImageCard key={`${img.did}-${img.rkey}-${img.cid}`} img={img} onSelect={onSelect} />
       ))}
@@ -22,8 +22,8 @@ function ImageCard({ img, onSelect }) {
   const paddingBottom = ar ? `${(ar.height / ar.width) * 100}%` : '100%';
 
   return (
-    <div className="arena-card" onClick={() => onSelect(img)}>
-      <div className="arena-card-img" style={{ paddingBottom }}>
+    <div className="photo-card" onClick={() => onSelect(img)}>
+      <div className="photo-card-img" style={{ paddingBottom }}>
         <img
           src={thumbUrl(img)}
           alt={img.alt}
@@ -34,7 +34,7 @@ function ImageCard({ img, onSelect }) {
         />
       </div>
       {img.alt && (
-        <div className="arena-card-alt">{img.alt}</div>
+        <div className="photo-card-alt">{img.alt}</div>
       )}
     </div>
   );

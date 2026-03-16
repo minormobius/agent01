@@ -1,4 +1,4 @@
-# Arena (`arena/`)
+# ATPhoto (`photo/`)
 
 Read-only image explorer for ATProto repos. Enter a Bluesky handle, see every image they've posted — rendered as a masonry grid from their raw repo data.
 
