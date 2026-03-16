@@ -152,7 +152,7 @@ body {
   color: #888;
 }
 
-/* Grid — CSS columns masonry */
+/* Grid — JS-assigned columns (stable across pagination) */
 .photo-grid-info {
   font-size: 12px;
   color: #999;
@@ -160,14 +160,15 @@ body {
 }
 
 .photo-grid {
-  columns: 4;
-  column-gap: 16px;
+  display: flex;
+  gap: 16px;
   padding: 8px 0 16px;
 }
 
-@media (max-width: 1200px) { .photo-grid { columns: 3; } }
-@media (max-width: 800px) { .photo-grid { columns: 2; } }
-@media (max-width: 500px) { .photo-grid { columns: 1; } }
+.photo-grid-col {
+  flex: 1;
+  min-width: 0;
+}
 
 .photo-grid-load-more {
   text-align: center;
@@ -191,7 +192,6 @@ body {
 
 /* Card */
 .photo-card {
-  break-inside: avoid;
   margin-bottom: 16px;
   background: #fff;
   border: 1px solid #e8e8e8;

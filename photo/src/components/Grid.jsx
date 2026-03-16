@@ -1,13 +1,32 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { thumbUrl, imageUrl } from '../App.jsx';
 
 const PAGE_SIZE = 48;
+
+function useColumnCount() {
+  const [cols, setCols] = useState(() => getColumnCount());
+  useEffect(() => {
+    const onResize = () => setCols(getColumnCount());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return cols;
+}
+
+function getColumnCount() {
+  const w = window.innerWidth;
+  if (w <= 500) return 1;
+  if (w <= 800) return 2;
+  if (w <= 1200) return 3;
+  return 4;
+}
 
 export default function Grid({ images, pdsUrlMap, onSelect }) {
   const [page, setPage] = useState(1);
   const visible = images.slice(0, page * PAGE_SIZE);
   const hasMore = visible.length < images.length;
   const sentinelRef = useRef(null);
+  const colCount = useColumnCount();
 
   // Reset page when images change (new sync)
   useEffect(() => setPage(1), [images]);
@@ -23,19 +42,34 @@ export default function Grid({ images, pdsUrlMap, onSelect }) {
     return () => observer.disconnect();
   }, [hasMore, page]);
 
+  // Distribute images into columns by round-robin — stable across page loads.
+  // Unlike CSS columns which reflow everything when items are added,
+  // this assigns each image a fixed column index.
+  const columns = useMemo(() => {
+    const cols = Array.from({ length: colCount }, () => []);
+    for (let i = 0; i < visible.length; i++) {
+      cols[i % colCount].push(visible[i]);
+    }
+    return cols;
+  }, [visible, colCount]);
+
   return (
     <>
       <div className="photo-grid-info">
         Showing {visible.length} of {images.length} images
       </div>
       <div className="photo-grid">
-        {visible.map((img) => (
-          <ImageCard
-            key={`${img.did}-${img.rkey}-${img.cid}`}
-            img={img}
-            pdsUrlMap={pdsUrlMap}
-            onSelect={onSelect}
-          />
+        {columns.map((col, ci) => (
+          <div key={ci} className="photo-grid-col">
+            {col.map((img) => (
+              <ImageCard
+                key={`${img.did}-${img.rkey}-${img.cid}`}
+                img={img}
+                pdsUrlMap={pdsUrlMap}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
         ))}
       </div>
       {hasMore && (
@@ -61,16 +95,13 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
     ? imageUrl(img, pdsUrlMap)
     : thumbUrl(img);
 
-  // Log first few failures to help debug
   const handleError = useCallback(() => {
     if (!fallback) {
-      console.warn('[ATPhoto] CDN thumb failed, trying getBlob:', thumbUrl(img), '→', imageUrl(img, pdsUrlMap));
       setFallback(true);
     } else {
-      console.warn('[ATPhoto] getBlob also failed:', imageUrl(img, pdsUrlMap), 'CID:', img.cid);
       setErrored(true);
     }
-  }, [fallback, img, pdsUrlMap]);
+  }, [fallback]);
 
   return (
     <div className={`photo-card ${errored ? 'photo-card-errored' : ''}`} onClick={() => onSelect(img)}>
