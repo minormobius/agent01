@@ -39,6 +39,7 @@ export default function Terminal({ session, onLogin, onLogout }) {
   const modeRef = useRef(session ? 'shell' : 'login');
   const loginStateRef = useRef({ step: 'handle', handle: '' });
   const [mobile, setMobile] = useState(() => isMobile());
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     let term;
@@ -87,10 +88,14 @@ export default function Terminal({ session, onLogin, onLogout }) {
 
       // Virtual keyboard: refit terminal when keyboard appears/disappears
       if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
-          containerRef.current.style.height = `${window.visualViewport.height}px`;
+        const onViewportResize = () => {
+          const vv = window.visualViewport;
+          const kb = window.innerHeight - vv.height;
+          setKbHeight(kb > 50 ? kb : 0); // ignore small shifts
+          containerRef.current.style.height = `${vv.height}px`;
           fitAddon.fit();
-        });
+        };
+        window.visualViewport.addEventListener('resize', onViewportResize);
       }
 
       // Tap to focus on mobile — ensure keyboard opens
@@ -329,9 +334,12 @@ export default function Terminal({ session, onLogin, onLogout }) {
     } catch {
       // Clipboard API denied — fall back to nothing
     }
-    // Refocus terminal after button tap
+    // Refocus terminal so cursor reactivates and keyboard reopens
     const textarea = containerRef.current?.querySelector('textarea.xterm-helper-textarea');
-    if (textarea) textarea.focus();
+    if (textarea) {
+      textarea.focus({ preventScroll: true });
+    }
+    termRef.current?.focus();
   }
 
   async function handleLoginInput(input) {
@@ -379,10 +387,10 @@ export default function Terminal({ session, onLogin, onLogout }) {
       />
       {mobile && (
         <button
-          onClick={handlePaste}
+          onTouchEnd={(e) => { e.preventDefault(); handlePaste(); }}
           style={{
-            position: 'absolute',
-            bottom: 12,
+            position: 'fixed',
+            bottom: kbHeight + 12,
             right: 12,
             width: 44,
             height: 44,
