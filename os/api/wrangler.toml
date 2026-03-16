@@ -1,7 +1,7 @@
 name = "os-mino-api"
 main = "src/index.js"
 compatibility_date = "2026-02-20"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "containers"]
 
 # Container definition — Docker image for the PTY shell
 [[containers]]
