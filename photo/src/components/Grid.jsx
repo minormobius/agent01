@@ -103,24 +103,21 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
     }
   }, [fallback]);
 
+  // Hide completely failed images — they're likely deleted/migrated blobs
+  if (errored) return null;
+
   return (
-    <div className={`photo-card ${errored ? 'photo-card-errored' : ''}`} onClick={() => onSelect(img)}>
+    <div className="photo-card" onClick={() => onSelect(img)}>
       <div className="photo-card-img" style={{ paddingBottom }}>
-        {!errored ? (
-          <img
-            src={src}
-            alt={img.alt}
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={handleError}
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
-        ) : (
-          <div className="photo-card-broken">
-            <span>Failed to load</span>
-          </div>
-        )}
+        <img
+          src={src}
+          alt={img.alt}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={handleError}
+          style={{ opacity: loaded ? 1 : 0 }}
+        />
       </div>
       {img.alt && (
         <div className="photo-card-alt">{img.alt}</div>
