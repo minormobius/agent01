@@ -5,6 +5,7 @@ const App = (() => {
   let currentBook = null;
   let chapterIndex = 0;
   let activeMode = 'scroll';
+  let activeSource = 'gutenberg'; // 'gutenberg' or 'poetry'
 
   // DOM refs
   const $ = id => document.getElementById(id);
@@ -122,13 +123,46 @@ const App = (() => {
   }
 
   function bindEvents() {
+    // Source tabs
+    const sourceBooks = $('source-books');
+    const sourcePoetry = $('source-poetry');
+    const poetryRandom = $('poetry-random');
+
+    sourceBooks.addEventListener('click', () => {
+      activeSource = 'gutenberg';
+      sourceBooks.classList.add('active');
+      sourcePoetry.classList.remove('active');
+      searchInput.placeholder = 'Search books...';
+      poetryRandom.style.display = 'none';
+      $('demo-btn').style.display = '';
+      searchResults.innerHTML = '';
+    });
+    sourcePoetry.addEventListener('click', () => {
+      activeSource = 'poetry';
+      sourcePoetry.classList.add('active');
+      sourceBooks.classList.remove('active');
+      searchInput.placeholder = 'Search poems or poets...';
+      poetryRandom.style.display = '';
+      $('demo-btn').style.display = 'none';
+      searchResults.innerHTML = '';
+    });
+
     // Search
     searchBtn.addEventListener('click', doSearch);
     searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+    // Random poem
+    $('random-poem-btn').addEventListener('click', async () => {
+      try {
+        const poems = await Poetry.fetchRandom(1);
+        const p = poems[0];
+        loadBook({ id: `poetry:${p.author}:${p.title}`, title: p.title, author: p.author, source: 'poetry' });
+      } catch (_) { /* ignore */ }
+    });
+
     // Demo button
     $('demo-btn').addEventListener('click', () => {
-      loadBook({ id: 2701, title: 'Moby Dick; Or, The Whale', author: 'Herman Melville' });
+      loadBook({ id: 2701, title: 'Moby Dick; Or, The Whale', author: 'Herman Melville', source: 'gutenberg' });
     });
 
     // Reader header
@@ -287,14 +321,21 @@ const App = (() => {
     if (!q) return;
     searchResults.innerHTML = '<p class="search-loading">Searching...</p>';
     try {
-      const data = await Search.search(q);
-      Search.renderResults(data, searchResults);
+      if (activeSource === 'poetry') {
+        const poems = await Search.searchPoetry(q);
+        Search.renderPoetryResults(poems, searchResults);
+      } else {
+        const data = await Search.search(q);
+        Search.renderResults(data, searchResults);
+      }
     } catch (err) {
       searchResults.innerHTML = '<p class="search-empty">Search failed. Try again.</p>';
     }
   }
 
   async function loadBook(book) {
+    // Default source for bookshelf items that predate the source field
+    if (!book.source) book.source = 'gutenberg';
     currentBook = book;
     readerTitle.textContent = book.title;
 
@@ -302,8 +343,14 @@ const App = (() => {
     showReader();
 
     try {
-      const text = await Gutenberg.fetchBook(book.id);
-      chapters = Gutenberg.parseChapters(text);
+      if (book.source === 'poetry') {
+        // Fetch the specific poem (or all poems by author)
+        const poem = await Poetry.fetchPoem(book.title, book.author);
+        chapters = Poetry.toChapters(poem);
+      } else {
+        const text = await Gutenberg.fetchBook(book.id);
+        chapters = Gutenberg.parseChapters(text);
+      }
 
       // Build chapter dropdown
       chapterSelect.innerHTML = '';
@@ -327,7 +374,7 @@ const App = (() => {
       chapterIndex = 0;
       chapterSelect.innerHTML = '';
       readingArea.innerHTML = `<div class="load-error">
-        <p>Failed to load book.</p>
+        <p>Failed to load.</p>
         <p class="load-error-detail">${err.message}</p>
         <button class="load-error-back" onclick="document.getElementById('btn-back').click()">Back to search</button>
       </div>`;

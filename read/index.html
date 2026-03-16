@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Read — Gutenberg Reader</title>
+  <title>Read</title>
   <link rel="stylesheet" href="css/reader.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 </head>
@@ -13,11 +13,20 @@
     <!-- ─── Search View ─── -->
     <div id="search-view">
       <h1>Read</h1>
-      <p class="subtitle">Project Gutenberg, three ways</p>
+      <p class="subtitle">Books &amp; poetry, three ways</p>
+
+      <div class="source-tabs">
+        <button id="source-books" class="source-tab active" type="button">Books</button>
+        <button id="source-poetry" class="source-tab" type="button">Poetry</button>
+      </div>
 
       <div class="search-bar">
         <input id="search-input" type="text" placeholder="Search books..." autocomplete="off">
         <button id="search-btn">Search</button>
+      </div>
+
+      <div id="poetry-random" class="poetry-random" style="display:none">
+        <button id="random-poem-btn" class="demo-link">Surprise me — random poem</button>
       </div>
 
       <div id="search-results"></div>
@@ -147,6 +156,7 @@
 
   <script src="js/storage.js"></script>
   <script src="js/gutenberg.js"></script>
+  <script src="js/poetrydb.js"></script>
   <script src="js/search.js"></script>
   <script src="js/reader-scroll.js"></script>
   <script src="js/reader-rsvp.js"></script>
