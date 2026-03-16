@@ -55,17 +55,20 @@ export default async function ai(args, flags, ctx) {
   const message = args.join(' ').trim();
 
   if (!message) {
-    // Interactive mode — enter a chat REPL
+    // Interactive mode — enter chat REPL on the shell
     terminal.writeln(fmt.cyan('ai chat') + fmt.dim(` (${chatInstance.model})`));
-    terminal.writeln(fmt.dim('Type a message. Empty line or Ctrl+C to exit.'));
+    terminal.writeln(fmt.dim('Empty line or /exit to leave. /reset to clear history.'));
     terminal.writeln('');
-    shell._aiRepl = true;
+    shell.enterChatMode(chatInstance);
     return;
   }
 
   // Single-shot message
   await streamResponse(chatInstance, message, terminal, fmt, signal);
 }
+
+// Exposed for Shell to call during chat mode
+export { streamResponse };
 
 async function resolveAuth(flags, ctx) {
   const { terminal, fmt } = ctx;
