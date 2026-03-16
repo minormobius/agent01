@@ -27,6 +27,7 @@ const COMMANDS = {
   sql: () => import('./commands/sql.js'),
   index: () => import('./commands/index.js'),
   container: () => import('./commands/container.js'),
+  ai: () => import('./commands/ai.js'),
   'set-key': () => import('./commands/setkey.js'),
 };
 
