@@ -23,6 +23,8 @@ const COMMANDS = {
   pwd: () => import('./commands/pwd.js'),
   clear: () => import('./commands/clear.js'),
   logout: () => import('./commands/logout.js'),
+  sync: () => import('./commands/sync.js'),
+  sql: () => import('./commands/sql.js'),
 };
 
 export class Shell {
