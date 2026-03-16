@@ -25,6 +25,7 @@ const App = (() => {
   const modeScroll = $('mode-scroll');
   const modeRsvp = $('mode-rsvp');
   const modeCrawl = $('mode-crawl');
+  const modeMemorize = $('mode-memorize');
   const fontSlider = $('font-slider');
   const fontVal = $('font-val');
   const themeToggle = $('theme-toggle');
@@ -96,19 +97,22 @@ const App = (() => {
   }
 
   function updateModeButtons() {
-    [modeScroll, modeRsvp, modeCrawl].forEach(b => b && b.classList.remove('active'));
+    [modeScroll, modeRsvp, modeCrawl, modeMemorize].forEach(b => b && b.classList.remove('active'));
     if (activeMode === 'scroll' && modeScroll) modeScroll.classList.add('active');
     if (activeMode === 'rsvp' && modeRsvp) modeRsvp.classList.add('active');
     if (activeMode === 'crawl' && modeCrawl) modeCrawl.classList.add('active');
+    if (activeMode === 'memorize' && modeMemorize) modeMemorize.classList.add('active');
   }
 
   function updateModeSettings() {
     const rsvpSettings = document.querySelector('.rsvp-settings');
     const crawlSettings = document.querySelector('.crawl-settings');
+    const memorizeSettings = document.querySelector('.memorize-settings');
     const scrollCrawlSettings = document.querySelectorAll('.scroll-crawl-setting');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
-    scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp'));
+    if (memorizeSettings) memorizeSettings.classList.toggle('visible', activeMode === 'memorize');
+    scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp' && activeMode !== 'memorize'));
   }
 
   function updateSpeedLabel() {
@@ -117,6 +121,8 @@ const App = (() => {
       speedLabel.textContent = RSVPReader.getWPM() + ' wpm';
     } else if (activeMode === 'crawl') {
       speedLabel.textContent = CrawlReader.getSpeed().toFixed(1) + 'x';
+    } else if (activeMode === 'memorize') {
+      speedLabel.textContent = 'memorize';
     } else {
       speedLabel.textContent = '';
     }
@@ -184,6 +190,7 @@ const App = (() => {
     modeScroll.addEventListener('click', () => switchMode('scroll'));
     modeRsvp.addEventListener('click', () => switchMode('rsvp'));
     modeCrawl.addEventListener('click', () => switchMode('crawl'));
+    modeMemorize.addEventListener('click', () => switchMode('memorize'));
 
     // Font size — live updates across all modes
     fontSlider.addEventListener('input', () => {
@@ -289,7 +296,9 @@ const App = (() => {
 
     // Play button
     $('btn-play').addEventListener('click', () => {
-      if (activeMode === 'rsvp') {
+      if (activeMode === 'memorize') {
+        MemorizeReader.nextRound();
+      } else if (activeMode === 'rsvp') {
         RSVPReader.toggle();
       } else if (activeMode === 'crawl') {
         const wasPlaying = CrawlReader.isPlaying();
@@ -410,6 +419,10 @@ const App = (() => {
         onProgress: frac => setProgress(frac),
         onFinished: () => navigateChapter(1)
       });
+    } else if (activeMode === 'memorize') {
+      MemorizeReader.render(chapter, readingArea, {
+        onProgress: frac => setProgress(frac)
+      });
     }
 
     setProgress(0);
@@ -419,6 +432,7 @@ const App = (() => {
     ScrollReader.destroy();
     RSVPReader.destroy();
     CrawlReader.destroy();
+    MemorizeReader.destroy();
     TTS.stop();
   }
 
@@ -493,7 +507,15 @@ const App = (() => {
     if (!readerView.classList.contains('active')) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-    if (activeMode === 'rsvp') {
+    if (activeMode === 'memorize') {
+      if (e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'ArrowUp') { e.preventDefault(); MemorizeReader.nextRound(); }
+      else if (e.code === 'ArrowDown') { e.preventDefault(); MemorizeReader.prevRound(); }
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); MemorizeReader.prevStanza(); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); MemorizeReader.nextStanza(); }
+      else if (e.code === 'Enter') { e.preventDefault(); MemorizeReader.toggleCheck(); }
+      else if (e.code === 'KeyR') { e.preventDefault(); MemorizeReader.reset(); }
+    } else if (activeMode === 'rsvp') {
       if (e.code === 'Space') { e.preventDefault(); RSVPReader.toggle(); }
       else if (e.code === 'ArrowUp') { e.preventDefault(); RSVPReader.adjustWPM(25); syncWpmSlider(); updateSpeedLabel(); }
       else if (e.code === 'ArrowDown') { e.preventDefault(); RSVPReader.adjustWPM(-25); syncWpmSlider(); updateSpeedLabel(); }
