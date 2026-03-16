@@ -61,14 +61,16 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
     ? imageUrl(img, pdsUrlMap)
     : thumbUrl(img);
 
+  // Log first few failures to help debug
   const handleError = useCallback(() => {
     if (!fallback) {
-      // CDN thumbnail failed — try direct PDS getBlob
+      console.warn('[ATPhoto] CDN thumb failed, trying getBlob:', thumbUrl(img), '→', imageUrl(img, pdsUrlMap));
       setFallback(true);
     } else {
+      console.warn('[ATPhoto] getBlob also failed:', imageUrl(img, pdsUrlMap), 'CID:', img.cid);
       setErrored(true);
     }
-  }, [fallback]);
+  }, [fallback, img, pdsUrlMap]);
 
   return (
     <div className={`photo-card ${errored ? 'photo-card-errored' : ''}`} onClick={() => onSelect(img)}>

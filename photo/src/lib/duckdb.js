@@ -90,20 +90,23 @@ export async function ingestNdjson(ndjson, did) {
 }
 
 // Extract all images from synced repos
-// Returns array of { did, rkey, text, createdAt, images: [{cid, alt, aspectRatio}] }
+// Uses UNNEST + json path to pull CIDs directly via SQL rather than
+// relying on JS-side parsing of DuckDB JSON objects
 export async function extractImages() {
   if (!conn) throw new Error('DuckDB not initialized');
 
+  // First, get the raw value JSON as a string so we parse it in JS
+  // DuckDB's JSON type can mangle $ keys — cast to VARCHAR to get raw JSON
   const result = await conn.query(`
     SELECT
       did,
       rkey,
       json_extract_string(value, '$.text') as text,
       json_extract_string(value, '$.createdAt') as created_at,
-      COALESCE(
+      CAST(COALESCE(
         json_extract(value, '$.embed.images'),
         json_extract(value, '$.embed.media.images')
-      ) as images_json
+      ) AS VARCHAR) as images_json
     FROM records
     WHERE collection = 'app.bsky.feed.post'
       AND (
@@ -115,21 +118,26 @@ export async function extractImages() {
 
   const rows = result.toArray().map(r => typeof r.toJSON === 'function' ? r.toJSON() : r);
   const images = [];
+  let parseFailures = 0;
+  let cidMissing = 0;
 
   for (const row of rows) {
     let imageArray;
     try {
-      imageArray = typeof row.images_json === 'string'
-        ? JSON.parse(row.images_json)
-        : row.images_json;
+      const raw = row.images_json;
+      if (!raw) { parseFailures++; continue; }
+      imageArray = typeof raw === 'string' ? JSON.parse(raw) : raw;
     } catch {
+      parseFailures++;
       continue;
     }
-    if (!Array.isArray(imageArray)) continue;
+    if (!Array.isArray(imageArray)) { parseFailures++; continue; }
 
     for (const img of imageArray) {
-      const cid = img.image?.ref?.$link || img.image?.ref?.['$link'];
-      if (!cid) continue;
+      // Try multiple paths to find the CID — the $link key can appear in different forms
+      const ref = img.image?.ref;
+      const cid = ref?.$link ?? ref?.['$link'] ?? ref?.link ?? (typeof ref === 'string' ? ref : null);
+      if (!cid) { cidMissing++; continue; }
 
       images.push({
         did: row.did,
@@ -141,6 +149,14 @@ export async function extractImages() {
         aspectRatio: img.aspectRatio || null,
         mimeType: img.image?.mimeType || 'image/jpeg',
       });
+    }
+  }
+
+  if (parseFailures > 0 || cidMissing > 0) {
+    console.warn(`[ATPhoto] Image extraction: ${images.length} found, ${parseFailures} parse failures, ${cidMissing} missing CIDs`);
+    // Log a sample row for debugging
+    if (rows.length > 0) {
+      console.log('[ATPhoto] Sample images_json:', typeof rows[0].images_json, rows[0].images_json?.substring?.(0, 500) ?? rows[0].images_json);
     }
   }
 
