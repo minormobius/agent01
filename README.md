@@ -1,6 +1,6 @@
 # minomobi
 
-**Personal tooling for the open web.** 24 sites built in conversation — one human, one model, the open web.
+**Personal tooling for the open web.** 23 sites built in conversation — one human, one model, the open web.
 
 Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No SaaS dependencies.
 
@@ -24,7 +24,6 @@ Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No Sa
 | **OS** | [os](https://mino.mobi/os/) | React, Wasm, ATProto | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |
 | **Finance** | [finance](https://mino.mobi/finance/) | ATProto | Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts. |
 | **Wars** | [wars](https://mino.mobi/wars/) | — | War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties. |
-| **Pokemon** | [pokemon](https://mino.mobi/pokemon/) | Canvas | Critter Red — a pixel-art monster RPG with overworld exploration and turn-based battles. |
 
 ### ATProto Tools
 
@@ -90,7 +89,6 @@ Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No Sa
 ├── finance/         Financial dashboard with ATProto sync
 ├── photo/           Bluesky photo explorer (React + DuckDB)
 ├── wars/            Correlates of War data visualization
-├── pokemon/         Pixel-art monster RPG (Canvas)
 ├── workers/         bsky-bot (cron), cluster-batch, cards-mint
 ├── functions/       Serverless functions (profiles, proxy, etc.)
 ├── scripts/         Build and data processing scripts
@@ -118,6 +116,6 @@ cd bakery && npm install && npm run build
 
 ## Stats
 
-~30 days of active development. 400+ commits. 24 sites.
+~30 days of active development. 400+ commits. 23 sites.
 
 Built in conversation — one human, one model, the open web.
