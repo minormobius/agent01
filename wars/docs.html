@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<title>How It Works — War Factor Analysis</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;
+  --surface:#14141f;
+  --border:#2a2a3a;
+  --text:#c8c8d8;
+  --dim:#666680;
+  --accent:#6688ff;
+  --accent-glow:#6688ff44;
+  --warn:#ff6644;
+  --gold:#ffcc44;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.7;
+  padding:2rem 1rem;
+  max-width:640px;
+  margin:0 auto;
+}
+h1{
+  font-size:1.3rem;
+  font-weight:300;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:2rem;
+  text-align:center;
+}
+h1 span{color:var(--accent);font-weight:600}
+h2{
+  font-size:1rem;
+  color:var(--accent);
+  margin:2rem 0 .75rem;
+  letter-spacing:.05em;
+}
+h3{
+  font-size:.85rem;
+  color:var(--text);
+  margin:1.25rem 0 .5rem;
+}
+p{
+  font-size:.85rem;
+  margin-bottom:.75rem;
+  color:var(--text);
+}
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1.25rem;
+  margin-bottom:1rem;
+}
+.card p:last-child{margin-bottom:0}
+.label{
+  font-size:.6rem;
+  text-transform:uppercase;
+  letter-spacing:.15em;
+  color:var(--dim);
+  margin-bottom:.5rem;
+}
+code{
+  font-size:.8rem;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:.1rem .35rem;
+  color:var(--accent);
+}
+.diagram{
+  font-family:'Courier New',monospace;
+  font-size:.7rem;
+  line-height:1.5;
+  color:var(--dim);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:1rem;
+  margin:.75rem 0;
+  overflow-x:auto;
+  white-space:pre;
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.back{
+  display:inline-block;
+  margin-bottom:1.5rem;
+  font-size:.75rem;
+  color:var(--dim);
+}
+.back:hover{color:var(--accent)}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.8rem;
+  margin:.75rem 0;
+}
+th{
+  text-align:left;
+  color:var(--dim);
+  font-weight:600;
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  padding:.4rem .5rem;
+  border-bottom:1px solid var(--border);
+}
+td{
+  padding:.4rem .5rem;
+  border-bottom:1px solid var(--border);
+}
+td:first-child{color:var(--gold);font-family:'Courier New',monospace;font-size:.75rem}
+footer{
+  text-align:center;
+  padding:2rem 0 1rem;
+  font-size:.6rem;
+  color:var(--dim);
+  letter-spacing:.1em;
+}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="back">&larr; back to map</a>
+
+<h1>How <span>War Factor Analysis</span> Works</h1>
+
+<h2>The Question</h2>
+<div class="card">
+  <p>Personality psychology has OCEAN — five latent dimensions (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) that emerged from factor-analyzing thousands of personality questionnaires. They weren't designed; they were <em>discovered</em>.</p>
+  <p>Can we do the same for wars? Take every interstate war in modern history, encode each as a feature vector, and let PCA find the latent dimensions of armed conflict?</p>
+  <p>The answer is: nobody has done it. Rummel (1963–76) factor-analyzed <em>conflict behaviors across nations</em>, not individual wars. The Correlates of War project built the dataset but never ran dimensionality reduction on it. This tool does.</p>
+</div>
+
+<h2>The Data</h2>
+<div class="card">
+  <p>All 95 interstate wars from the <a href="https://correlatesofwar.org/data-sets/COW-war/">Correlates of War v4.0</a> dataset, covering 1823 (Franco-Spanish War) through 2003 (Invasion of Iraq). Each war includes per-state participation records: side, battle deaths, outcome, initiator status.</p>
+  <p>The data lives on an ATProto PDS as <code>com.minomobi.wars.war</code> records — publicly readable, permanently addressable, owned by the publisher. The dashboard fetches directly from the PDS. No API key, no backend, no database. The protocol <em>is</em> the database.</p>
+  <div class="diagram">COW CSV → sync script → ATProto PDS → browser fetch → PCA → scatter plot
+                           ↓
+                    com.minomobi.wars.war
+                    (one record per war)</div>
+</div>
+
+<h2>Feature Engineering</h2>
+<div class="card">
+  <p>Each war is encoded as a 7-dimensional vector. The features were chosen to capture distinct aspects of conflict character:</p>
+  <table>
+    <tr><th>Feature</th><th>What it captures</th><th>Transform</th></tr>
+    <tr><td>log(deaths)</td><td>Scale of violence</td><td>log₁₀(total battle deaths + 1)</td></tr>
+    <tr><td>log(duration)</td><td>Temporal extent</td><td>log₁₀(days + 1)</td></tr>
+    <tr><td>participants</td><td>How many states fought</td><td>Raw count</td></tr>
+    <tr><td>coalition_size</td><td>Largest alliance bloc</td><td>Max states on one side</td></tr>
+    <tr><td>death_asymmetry</td><td>Balance of casualties</td><td>min(side deaths) / max(side deaths), 0–1</td></tr>
+    <tr><td>decisive</td><td>Clear winner/loser?</td><td>Binary: 1 if outcomes include both winner and loser</td></tr>
+    <tr><td>start_year</td><td>Historical era</td><td>(year − 1800) / 200, normalized</td></tr>
+  </table>
+  <p>Deaths and duration use log transforms because they span 4+ orders of magnitude (the Franco-Spanish War killed 1,000; World War II killed 16.6 million).</p>
+</div>
+
+<h2>PCA: Principal Component Analysis</h2>
+<div class="card">
+  <p>PCA finds the axes of maximum variance in the data. It's an eigendecomposition of the covariance matrix of the standardized feature matrix.</p>
+  <div class="diagram">Raw features (95 wars × 7 features)
+        ↓
+Standardize (zero mean, unit variance)
+        ↓
+Covariance matrix (7 × 7)
+        ↓
+Jacobi eigendecomposition
+        ↓
+Eigenvectors = principal components (the "dimensions")
+Eigenvalues  = variance explained by each
+        ↓
+Project wars onto components → scatter coordinates</div>
+
+  <h3>What the components mean</h3>
+  <p>Each PC is a weighted combination of the original 7 features. The weights (loadings) tell you what the dimension means. The dashboard shows loading bars for each axis so you can read the dimensions directly.</p>
+  <p>Typical findings from this dataset:</p>
+  <table>
+    <tr><th>PC</th><th>Typical interpretation</th><th>Key loadings</th></tr>
+    <tr><td>PC1</td><td>Scale &amp; Lethality</td><td>High on deaths, duration, participants</td></tr>
+    <tr><td>PC2</td><td>Coalition Complexity</td><td>High on participants and coalition size, low on others</td></tr>
+    <tr><td>PC3</td><td>Symmetry of Loss</td><td>High on death asymmetry</td></tr>
+    <tr><td>PC4</td><td>Decisiveness</td><td>High on decisive outcome</td></tr>
+    <tr><td>PC5</td><td>Modernity</td><td>High on start year</td></tr>
+  </table>
+  <p>These aren't fixed labels — they emerge from the data. The dashboard auto-suggests names based on the highest-loading features.</p>
+</div>
+
+<h2>Implementation</h2>
+<div class="card">
+  <p>Everything runs in the browser. No server-side computation.</p>
+  <h3>Jacobi eigendecomposition</h3>
+  <p>The covariance matrix is symmetric, so we use iterative Jacobi rotations to find eigenvalues and eigenvectors. Each iteration zeroes the largest off-diagonal element via a Givens rotation. Convergence is fast for a 7×7 matrix — typically under 50 iterations.</p>
+  <div class="diagram">repeat until max|off-diagonal| &lt; 1e-10:
+  find largest off-diagonal element a[p][q]
+  compute rotation angle θ = ½ atan2(2a[p][q], a[p][p] − a[q][q])
+  apply Givens rotation to rows/cols p, q
+  accumulate rotation in eigenvector matrix</div>
+
+  <h3>Rendering</h3>
+  <p>Canvas 2D with device-pixel-ratio scaling. Points sized by war magnitude (deaths, participants, or duration). Color-coded by region, era, decisiveness, or death scale. Hit testing for hover tooltips and click-to-select.</p>
+</div>
+
+<h2>ATProto Storage</h2>
+<div class="card">
+  <p>War records use the <code>com.minomobi.wars.war</code> lexicon. Each record stores the computed features plus the full participant list. The sync script (<code>scripts/sync-wars-to-atproto.py</code>) reads the COW CSV, computes features, and writes to the PDS using <code>com.atproto.repo.applyWrites</code> in batches of 10.</p>
+  <div class="diagram">Record structure:
+{
+  warNum: 4139,
+  warName: "World War II",
+  startYear: 1939,
+  endYear: 1945,
+  durationDays: 2076,
+  totalDeaths: 16634907,
+  numParticipants: 29,
+  maxCoalitionSize: 21,
+  deathAsymmetry: 0.56,
+  decisive: true,
+  region: "Europe & Africa",
+  participants: [
+    { stateName: "Germany", side: 2, batDeath: 3500000, outcome: 2 },
+    { stateName: "USSR", side: 1, batDeath: 7500000, outcome: 1 },
+    ...
+  ],
+  source: "correlatesofwar.org/v4.0"
+}</div>
+  <p>Once synced, anyone can fetch the full dataset via the public ATProto API — no authentication required. The wars are just records in a repo, like any other ATProto content.</p>
+</div>
+
+<h2>What You See in the Plot</h2>
+<div class="card">
+  <p>World Wars I and II dominate PC1 (scale). They're the extreme outliers on every magnitude measure. The Korean War and Iran-Iraq War are the next tier.</p>
+  <p>The Gulf War and Kosovo appear in an interesting region — high coalition complexity (13+ coalition members) but relatively few deaths, producing a unique signature: large multilateral operations with asymmetric lethality.</p>
+  <p>19th-century European wars cluster tightly: bilateral, brief, decisive, moderate casualties. The Central American wars cluster too: small-scale, decisive, two-party.</p>
+  <p>Wars of decolonization and Cold War proxy conflicts spread across the middle — moderate scale, variable duration, less decisive outcomes.</p>
+</div>
+
+<h2>Limitations</h2>
+<div class="card">
+  <p><strong>Interstate only</strong>. The COW dataset separates interstate, intra-state, extra-state, and non-state wars. This tool currently uses only the 95 interstate wars. Civil wars, colonial wars, and non-state conflicts are in the CSV data but not yet included.</p>
+  <p><strong>Battle deaths only</strong>. Civilian casualties are not in the COW war dataset. Total war mortality would shift the picture significantly — WW2 killed ~70M total vs. the 16.6M battle deaths recorded here.</p>
+  <p><strong>COW ends at 2003</strong>. The dataset doesn't include the Syrian Civil War, Yemen, Russia-Ukraine, or other ongoing conflicts. Future versions could incorporate UCDP data for post-2003 coverage.</p>
+  <p><strong>N=95</strong>. Factor analysis works best with large samples. 95 observations on 7 variables is workable but not ideal. The results are suggestive, not definitive. Think of this as exploration, not proof.</p>
+  <p><strong>Feature selection is a choice</strong>. Different features would produce different dimensions. Adding geography, terrain, technology era, regime type, or economic indicators would change the factor structure. The 7 chosen features are what the COW data provides directly.</p>
+</div>
+
+<h2>Prior Art</h2>
+<div class="card">
+  <p><strong>Rummel (1963–76)</strong> — Factor-analyzed conflict behavior across nations. Found three domestic conflict dimensions (Turmoil, Revolution, Subversion) and several foreign conflict dimensions. Applied to national behavior patterns, not individual wars.</p>
+  <p><strong>Rohner, Vanden Eynde & Verhille (2025)</strong> — "Variants of Violence" classifies countries along income, democracy, and security capacity. Algorithm-assigned, not hand-coded. Closest modern analogue, but classifies <em>contexts</em>, not wars.</p>
+  <p><strong>Correlates of War project (1963–present)</strong> — The foundational dataset. 9-type war taxonomy (hand-assigned). No dimensionality reduction applied to the war-level data.</p>
+  <p><strong>UCDP/PRIO Armed Conflict Dataset</strong> — Covers 1946–present with finer granularity. Natural complement for extending this analysis.</p>
+</div>
+
+<h2>Data Source</h2>
+<div class="card">
+  <p>Sarkees, Meredith Reid and Frank Wayman (2010). <em>Resort to War: 1816–2007</em>. Washington DC: CQ Press.</p>
+  <p>Correlates of War Project. Inter-State War Data, v4.0. <a href="https://correlatesofwar.org/data-sets/COW-war/">correlatesofwar.org/data-sets/COW-war/</a></p>
+</div>
+
+<footer>
+  <a href="https://minomobi.com">minomobi.com</a>
+</footer>
+
+</body>
+</html>

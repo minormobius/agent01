@@ -26,6 +26,11 @@ header {
   padding: 1.5rem 2rem 1rem;
   border-bottom: 1px solid var(--border);
 }
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
 header h1 {
   font-size: 1.1rem;
   font-weight: 600;
@@ -36,6 +41,14 @@ header p {
   color: var(--dim);
   margin-top: 0.25rem;
 }
+header a {
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+header a:hover { color: var(--accent); }
 .layout {
   display: grid;
   grid-template-columns: 1fr 320px;
@@ -191,8 +204,11 @@ canvas#scatter {
 </head>
 <body>
 <header>
-  <h1>War Factor Analysis</h1>
-  <p>95 interstate wars (1823–2003) from Correlates of War v4.0 — PCA in browser, data from ATProto PDS</p>
+  <div>
+    <h1>War Factor Analysis</h1>
+    <p>95 interstate wars (1823–2003) from Correlates of War v4.0 — PCA in browser, data from ATProto PDS</p>
+  </div>
+  <a href="docs.html">how it works &rarr;</a>
 </header>
 <div id="status">Loading war data from PDS...</div>
 <div class="layout" style="display:none" id="main">
