@@ -2,6 +2,7 @@
 import { CATEGORIES, POOL, BINS } from "./pool.js";
 import { loadCatalog } from "./pds-catalog.js";
 import { mulberry32, hashString, fetchArticleData, RARITY_LABELS } from "./shared.js";
+import { mintCards, getPlayerDid, setPlayerDid, resolveHandle, checkMintService } from "./mint-client.js";
 
 // ── Daily seed ────────────────────────────────────────────────
 function todaySeed() {
@@ -151,6 +152,10 @@ function checkAllRevealed() {
   if (revealed.length === cards.length) {
     document.getElementById("flip-all-btn").classList.add("hidden");
     document.getElementById("new-pack-btn").classList.remove("hidden");
+    // Show mint button if player has a DID linked
+    if (getPlayerDid() && mintAvailable) {
+      document.getElementById("mint-btn").classList.remove("hidden");
+    }
   }
 }
 
@@ -200,6 +205,7 @@ async function openPack(seed) {
     grid.innerHTML = "";
     packCards.forEach((cd, i) => grid.appendChild(createCardElement(cd, i)));
     document.getElementById("flip-all-btn").classList.remove("hidden");
+    document.getElementById("mint-btn").classList.add("hidden");
     document.getElementById("new-pack-btn").classList.add("hidden");
   } catch (err) {
     grid.innerHTML = `<div class="loading"><span>Failed to fetch articles. Try refreshing.</span></div>`;
@@ -216,10 +222,89 @@ function rerollPack() {
   openPack(seed);
 }
 
+// ── Minting ──────────────────────────────────────────────────
+let mintAvailable = false;
+
+async function handleMint() {
+  const did = getPlayerDid();
+  if (!did) {
+    showDidModal();
+    return;
+  }
+
+  const mintBtn = document.getElementById("mint-btn");
+  const status = document.getElementById("mint-status");
+
+  mintBtn.disabled = true;
+  mintBtn.textContent = "Minting...";
+  status.classList.remove("hidden");
+  status.textContent = "Signing cards...";
+  status.className = "mint-status";
+
+  const cardsToMint = packCards.map((c) => ({
+    title: c.title,
+    category: c.category,
+    stats: c.stats,
+    rarity: c.rarity,
+  }));
+
+  const result = await mintCards(cardsToMint, "daily_pack");
+
+  if (result.error) {
+    status.textContent = result.error;
+    status.className = "mint-status mint-error";
+    mintBtn.disabled = false;
+    mintBtn.textContent = "Mint Pack";
+  } else {
+    const count = result.cards?.length || 0;
+    status.textContent = result.cached
+      ? `${count} cards already minted today`
+      : `${count} cards minted and saved`;
+    status.className = "mint-status mint-success";
+    mintBtn.classList.add("hidden");
+  }
+}
+
+function showDidModal() {
+  document.getElementById("did-modal").classList.remove("hidden");
+  document.getElementById("did-input").focus();
+}
+
+async function handleDidSave() {
+  const input = document.getElementById("did-input");
+  const errorEl = document.getElementById("did-error");
+  const handle = input.value.trim();
+
+  if (!handle) return;
+
+  errorEl.classList.add("hidden");
+  document.getElementById("did-save-btn").disabled = true;
+  document.getElementById("did-save-btn").textContent = "Resolving...";
+
+  try {
+    const did = await resolveHandle(handle);
+    setPlayerDid(did);
+    document.getElementById("did-modal").classList.add("hidden");
+    // Now mint
+    handleMint();
+  } catch (err) {
+    errorEl.textContent = `Could not resolve "${handle}" — check the handle`;
+    errorEl.classList.remove("hidden");
+  } finally {
+    document.getElementById("did-save-btn").disabled = false;
+    document.getElementById("did-save-btn").textContent = "Link";
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────
 function init() {
   todaySeed();
   loadCatalog();
+
+  // Check if mint service is available
+  checkMintService().then((s) => {
+    mintAvailable = s.available;
+  });
 
   document.getElementById("open-btn").addEventListener("click", () => openPack());
   document.getElementById("pack").addEventListener("click", () => openPack());
@@ -245,6 +330,18 @@ document.getElementById("flip-all-btn").addEventListener("click", () => {
 
 // New pack / reroll button
 document.getElementById("new-pack-btn").addEventListener("click", rerollPack);
+
+// Mint button
+document.getElementById("mint-btn").addEventListener("click", handleMint);
+
+// DID modal
+document.getElementById("did-save-btn").addEventListener("click", handleDidSave);
+document.getElementById("did-skip-btn").addEventListener("click", () => {
+  document.getElementById("did-modal").classList.add("hidden");
+});
+document.getElementById("did-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleDidSave();
+});
 
 // Escape to close detail
 document.addEventListener("keydown", (e) => {
