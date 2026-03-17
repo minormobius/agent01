@@ -57,6 +57,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <Layout>
           <Routes>
+            {/* Default site — all poll modes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/create" element={<CreatePollPage />} />
             <Route path="/poll/:id" element={<PollPage />} />
@@ -64,6 +65,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/poll/:id/audit" element={<AuditPage />} />
             <Route path="/poll/:id/admin" element={<AdminPage />} />
             <Route path="/v/:id" element={<QuickVotePage />} />
+
+            {/* Public polls — like-based, zero friction */}
+            <Route path="/public" element={<HomePage />} />
+            <Route path="/public/create" element={<CreatePollPage />} />
+            <Route path="/public/poll/:id" element={<PollPage />} />
+            <Route path="/public/poll/:id/vote" element={<VotePage />} />
+            <Route path="/public/poll/:id/audit" element={<AuditPage />} />
+            <Route path="/public/poll/:id/admin" element={<AdminPage />} />
+            <Route path="/public/v/:id" element={<QuickVotePage />} />
+
             <Route path="/docs" element={<DocsPage />} />
             <Route path="/api/*" element={<ApiDebug />} />
             <Route path="*" element={<NotFound />} />

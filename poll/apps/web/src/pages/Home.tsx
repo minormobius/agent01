@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
 import { AuthCard } from '../components/Layout';
 import { listPolls } from '../lib/api';
 
 export function HomePage() {
   const { did } = useAuth();
   const navigate = useNavigate();
+  const siteMode = useSiteMode();
+  const basePath = useBasePath();
   const [polls, setPolls] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
@@ -15,24 +18,40 @@ export function HomePage() {
     listPolls(showAll ? 'all' : undefined).then(d => setPolls(d.polls || [])).catch(() => {});
   }, [showAll]);
 
+  // Filter by site mode
+  const modeFiltered = siteMode === 'all'
+    ? polls
+    : polls.filter(p => p.mode === siteMode);
+
   const filtered = search.trim()
-    ? polls.filter(p =>
+    ? modeFiltered.filter(p =>
         p.question?.toLowerCase().includes(search.toLowerCase()) ||
         p.id?.includes(search.trim())
       )
-    : polls;
+    : modeFiltered;
 
   return (
     <div>
       <AuthCard />
 
       <div className="card">
-        <h2>Privacy-Preserving Polls on ATProto</h2>
-        <p className="muted mb-12">
-          Authenticated voting with anonymous ballot publication. Responders prove eligibility
-          via ATProto, receive a one-time ballot credential, and submit votes anonymously.
-        </p>
-        {did && <Link to="/create" className="btn btn-primary">Create a Poll</Link>}
+        {siteMode === 'public_like' ? (
+          <>
+            <h2>Public Polls on Bluesky</h2>
+            <p className="muted mb-12">
+              Zero-friction polls — vote by liking a reply on Bluesky. No sign-up, no auth. Votes are public.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2>Privacy-Preserving Polls on ATProto</h2>
+            <p className="muted mb-12">
+              Authenticated voting with anonymous ballot publication. Responders prove eligibility
+              via ATProto, receive a one-time ballot credential, and submit votes anonymously.
+            </p>
+          </>
+        )}
+        {did && <Link to={`${basePath}/create`} className="btn btn-primary">Create a Poll</Link>}
       </div>
 
       <div className="card">
@@ -45,7 +64,7 @@ export function HomePage() {
             onKeyDown={e => {
               if (e.key === 'Enter' && search.trim()) {
                 if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search.trim())) {
-                  navigate(`/poll/${search.trim()}`);
+                  navigate(`${basePath}/poll/${search.trim()}`);
                 }
               }
             }}
@@ -67,7 +86,7 @@ export function HomePage() {
         ) : (
           <div className="poll-list">
             {filtered.map((p: any) => (
-              <Link to={`/poll/${p.id}`} key={p.id} className="poll-list-item">
+              <Link to={`${basePath}/poll/${p.id}`} key={p.id} className="poll-list-item">
                 <div className="poll-list-question">{p.question}</div>
                 <div className="poll-list-meta">
                   {p.eligibility_mode && p.eligibility_mode !== 'open' && (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useBasePath } from '../hooks/useSiteMode';
 import { getPoll, requestEligibility, submitBallot } from '../lib/api';
 import {
   generateSecret,
@@ -39,6 +40,7 @@ export function QuickVotePage() {
   const [searchParams] = useSearchParams();
   const { did, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const choiceParam = searchParams.get('c');
   const choice = choiceParam !== null ? parseInt(choiceParam, 10) : null;
@@ -234,7 +236,7 @@ export function QuickVotePage() {
             Vote by liking the option reply on Bluesky.
           </p>
           <div className="flex gap-8 mt-12">
-            <button className="btn btn-primary" onClick={() => navigate(`/poll/${id}`)}>
+            <button className="btn btn-primary" onClick={() => navigate(`${basePath}/poll/${id}`)}>
               View Results
             </button>
           </div>
@@ -252,10 +254,10 @@ export function QuickVotePage() {
             Ballot #{result.publicSerial}
           </p>
           <div className="flex gap-8 mt-12">
-            <button className="btn btn-primary" onClick={() => navigate(`/poll/${id}`)}>
+            <button className="btn btn-primary" onClick={() => navigate(`${basePath}/poll/${id}`)}>
               View Results
             </button>
-            <button className="btn btn-secondary" onClick={() => navigate(`/poll/${id}/audit`)}>
+            <button className="btn btn-secondary" onClick={() => navigate(`${basePath}/poll/${id}/audit`)}>
               Audit Log
             </button>
           </div>
@@ -266,7 +268,7 @@ export function QuickVotePage() {
       {phase === 'error' && (
         <div className="card">
           <p className="error">{error}</p>
-          <button className="btn btn-secondary mt-12" onClick={() => navigate(`/poll/${id}`)}>
+          <button className="btn btn-secondary mt-12" onClick={() => navigate(`${basePath}/poll/${id}`)}>
             Back to Poll
           </button>
         </div>

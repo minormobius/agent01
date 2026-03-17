@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -61,6 +62,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { did, handle, loading, logout } = useAuth();
   const theme = useTheme();
   const pwa = useInstallPrompt();
+  const siteMode = useSiteMode();
+  const basePath = useBasePath();
 
   return (
     <div className="container">
@@ -74,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <header>
-        <h1><Link to="/">ATPolls</Link></h1>
+        <h1><Link to={basePath || '/'}>{siteMode === 'public_like' ? 'Public Polls' : 'ATPolls'}</Link></h1>
         <nav>
           <button className="theme-toggle" onClick={theme.toggle} title={theme.dark ? 'Light mode' : 'Dark mode'}>
             {theme.dark ? (
@@ -84,7 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
           <Link to="/docs">Docs</Link>
-          <Link to="/create">Create</Link>
+          <Link to={`${basePath}/create`}>Create</Link>
           {!loading && did && (
             <>
               <span className="muted">{handle}</span>

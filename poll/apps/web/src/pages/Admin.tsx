@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useBasePath } from '../hooks/useSiteMode';
 import { getPoll, openPoll, closePoll, finalizePoll, deletePoll, getTally, publishPoll, publishTally, publishBallots, syncEligibleDids, getEligibleDids, postToBluesky, syncLikes, authOAuthStart } from '../lib/api';
 
 export function AdminPage() {
   const { id } = useParams<{ id: string }>();
   const { did } = useAuth();
   const navigate = useNavigate();
+  const basePath = useBasePath();
   const [poll, setPoll] = useState<any>(null);
   const [tally, setTally] = useState<any>(null);
   const [eligible, setEligible] = useState<any>(null);
@@ -158,9 +160,9 @@ export function AdminPage() {
           <div className="card">
             <h3>Navigate</h3>
             <div className="flex gap-8">
-              <Link to={`/poll/${id}/vote`} className="btn btn-primary">Vote Page</Link>
-              <Link to={`/poll/${id}`} className="btn btn-secondary">Results Page</Link>
-              <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit Log</Link>
+              <Link to={`${basePath}/poll/${id}/vote`} className="btn btn-primary">Vote Page</Link>
+              <Link to={`${basePath}/poll/${id}`} className="btn btn-secondary">Results Page</Link>
+              <Link to={`${basePath}/poll/${id}/audit`} className="btn btn-secondary">Audit Log</Link>
             </div>
           </div>
 
@@ -171,7 +173,7 @@ export function AdminPage() {
               className="btn btn-danger"
               onClick={() => {
                 if (window.confirm('Delete this poll permanently? This cannot be undone.')) {
-                  action(async () => { await deletePoll(id!); navigate('/'); }, 'Poll deleted');
+                  action(async () => { await deletePoll(id!); navigate(basePath || '/'); }, 'Poll deleted');
                 }
               }}
             >
@@ -188,6 +190,7 @@ export function AdminPage() {
 }
 
 function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
+  const basePath = useBasePath();
   const { handle, did, canPost } = useAuth();
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
@@ -213,8 +216,8 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
   // The intent/compose path can't carry facets, so keep it readable.
   // "Post to Bluesky" button uses the API with proper link facets.
   const fallbackFooter = isPublicLike
-    ? `View results: ${baseUrl}/poll/${pollId}`
-    : `View poll: ${baseUrl}/poll/${pollId}`;
+    ? `View results: ${baseUrl}${basePath}/poll/${pollId}`
+    : `View poll: ${baseUrl}${basePath}/poll/${pollId}`;
   const fallbackText = `${poll.question}\n\n${optionLine}\n\n${fallbackFooter}${timeLeft ? ` · ${timeLeft}` : ''}`;
 
   const handleReauth = async () => {
@@ -224,7 +227,7 @@ function ShareToBluesky({ poll, pollId }: { poll: any; pollId: string }) {
     try {
       const authResult = await authOAuthStart(
         identifier,
-        `/poll/${pollId}/admin`,
+        `${basePath}/poll/${pollId}/admin`,
         'atproto transition:generic'
       );
       window.location.href = authResult.authUrl;
