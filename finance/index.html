@@ -724,25 +724,47 @@ chartSymbol.addEventListener('keydown', e => { if (e.key === 'Enter') drawChart(
 async function loadBarsForSymbol(symbol) {
   if (state.seriesCache[symbol]) return state.seriesCache[symbol];
   if (!state.did) {
-    // Try loading the PDS first
     await loadArchive();
   }
   if (!state.did) throw new Error('Load a PDS handle first');
 
   chartStatus.textContent = `fetching ${symbol} series...`;
 
-  const records = await listAllRecords(state.did, state.pds, COLLECTION, (n) => {
-    chartStatus.textContent = `fetching series records... ${n}`;
-  });
+  // Fetch by individual year rkeys instead of listing ALL records
+  const sanitized = symbol.replace(/=/g, '-').replace(/\^/g, '').replace(/\//g, '-');
+  const thisYear = new Date().getFullYear();
+  const bars = [];
+  let yearsFound = 0;
+  let consecutiveMisses = 0;
 
-  // Filter to this symbol and merge bars
-  const matching = records
-    .filter(r => r.value.symbol === symbol)
-    .sort((a, b) => a.value.year - b.value.year);
+  // Walk backwards from current year; stop after 5 consecutive misses
+  for (let year = thisYear; year >= 1950 && consecutiveMisses < 5; year--) {
+    const rkey = `${sanitized}:${year}`;
+    try {
+      const params = new URLSearchParams({
+        repo: state.did,
+        collection: COLLECTION,
+        rkey,
+      });
+      const r = await fetch(`${state.pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.value?.bars?.length) {
+          bars.unshift(...data.value.bars);
+          yearsFound++;
+          consecutiveMisses = 0;
+          chartStatus.textContent = `${symbol}: ${yearsFound} years loaded (${bars.length} bars)...`;
+        }
+      } else {
+        consecutiveMisses++;
+      }
+    } catch {
+      consecutiveMisses++;
+    }
+  }
 
-  if (matching.length === 0) throw new Error(`No data for ${symbol}`);
+  if (bars.length === 0) throw new Error(`No dailySeries data for ${symbol}`);
 
-  const bars = matching.flatMap(r => r.value.bars);
   state.seriesCache[symbol] = bars;
   return bars;
 }
