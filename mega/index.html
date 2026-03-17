@@ -38,7 +38,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   display: flex;
   align-items: center;
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--surface);
 }
 #map-container {
@@ -90,6 +92,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 .ctrl-group label {
   font-size: 11px;
@@ -310,8 +313,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #tooltip .tt-cost { color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
 
 /* ── Responsive ───────────────────────────────────────── */
+/* Hide header scrollbar but keep scrollable */
+#header::-webkit-scrollbar { display: none; }
+#header { scrollbar-width: none; }
+
 @media (max-width: 900px) {
   #app { grid-template-columns: 1fr; }
+  #header { gap: 10px; padding: 10px 14px; }
+  #masthead { font-size: 14px; flex-shrink: 0; }
+  #masthead span { display: none; }
+  .filter-btn { flex-shrink: 0; padding: 5px 10px; font-size: 10px; }
   #sidebar { grid-column: 1; grid-row: 3; max-height: 35vh; border-left: none; border-top: 1px solid var(--border); }
   #status-bar { display: none; }
   #detail-panel { width: 100%; }
