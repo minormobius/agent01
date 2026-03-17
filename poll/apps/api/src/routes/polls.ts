@@ -914,16 +914,22 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
       createdAt: new Date().toISOString(),
     });
 
-    // Store option post URIs in D1 for like-syncing
-    await env.DB.prepare('UPDATE polls SET bluesky_option_posts = ? WHERE id = ?')
-      .bind(JSON.stringify(optionPosts), pollId).run();
+    // Store option post URIs in D1 for like-syncing + main post ref for results reply
+    const finalUri = mainResult?.uri || result.uri;
+    const finalCid = mainResult?.cid || result.cid;
+    await env.DB.prepare('UPDATE polls SET bluesky_option_posts = ?, bluesky_post_uri = ?, bluesky_post_cid = ? WHERE id = ?')
+      .bind(JSON.stringify(optionPosts), finalUri, finalCid, pollId).run();
 
     return jsonResponse({
-      uri: mainResult?.uri || result.uri,
-      cid: mainResult?.cid || result.cid,
+      uri: finalUri,
+      cid: finalCid,
       optionPosts,
     });
   }
+
+  // Store the Bluesky post ref so we can reply with results on close
+  await env.DB.prepare('UPDATE polls SET bluesky_post_uri = ?, bluesky_post_cid = ? WHERE id = ?')
+    .bind(result.uri, result.cid, pollId).run();
 
   return jsonResponse({ uri: result.uri, cid: result.cid });
 }
