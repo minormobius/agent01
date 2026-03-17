@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>War Factor Analysis — Correlates of War</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #14141f;
+  --border: #2a2a3a;
+  --text: #e0e0e8;
+  --dim: #8888a0;
+  --accent: #6688ff;
+  --warn: #ff6644;
+  --gold: #ffcc44;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+header {
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+header h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+header p {
+  font-size: 0.75rem;
+  color: var(--dim);
+  margin-top: 0.25rem;
+}
+header a {
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+header a:hover { color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  height: calc(100vh - 80px);
+}
+#scatter-container {
+  position: relative;
+  overflow: hidden;
+}
+canvas#scatter {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+.sidebar {
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 1rem;
+}
+.sidebar h2 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+.controls {
+  margin-bottom: 1.5rem;
+}
+.controls label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--dim);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.controls select, .controls input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  margin-bottom: 0.75rem;
+}
+.loadings {
+  margin-bottom: 1.5rem;
+}
+.loading-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+}
+.loading-bar .var-name {
+  width: 100px;
+  color: var(--dim);
+  text-align: right;
+  padding-right: 0.5rem;
+  flex-shrink: 0;
+}
+.loading-bar .bar-container {
+  flex: 1;
+  height: 10px;
+  background: var(--surface);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.loading-bar .bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.loading-bar .bar.positive { background: var(--accent); }
+.loading-bar .bar.negative { background: var(--warn); }
+.loading-bar .val {
+  width: 45px;
+  text-align: right;
+  padding-left: 0.4rem;
+  color: var(--dim);
+}
+.variance-info {
+  font-size: 0.7rem;
+  color: var(--dim);
+  margin-bottom: 1rem;
+}
+.war-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+}
+.war-detail h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--gold);
+}
+.war-detail .meta {
+  color: var(--dim);
+  line-height: 1.5;
+}
+.war-detail .meta span {
+  color: var(--text);
+}
+.tooltip {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.7rem;
+  pointer-events: none;
+  z-index: 100;
+  max-width: 260px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.tooltip .name { font-weight: 600; color: var(--gold); }
+.tooltip .info { color: var(--dim); margin-top: 0.2rem; }
+#status {
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-align: center;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  color: var(--dim);
+  cursor: pointer;
+}
+.legend-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>War Factor Analysis</h1>
+    <p>95 interstate wars (1823–2003) from Correlates of War v4.0 — PCA in browser, data from ATProto PDS</p>
+  </div>
+  <a href="docs.html">how it works &rarr;</a>
+</header>
+<div id="status">Loading war data from PDS...</div>
+<div class="layout" style="display:none" id="main">
+  <div id="scatter-container">
+    <canvas id="scatter"></canvas>
+    <div class="tooltip" id="tooltip" style="display:none"></div>
+  </div>
+  <div class="sidebar">
+    <h2>Axes</h2>
+    <div class="controls">
+      <label>X Axis</label>
+      <select id="x-axis"></select>
+      <label>Y Axis</label>
+      <select id="y-axis"></select>
+      <label>Color by</label>
+      <select id="color-by">
+        <option value="region">Region</option>
+        <option value="era">Era</option>
+        <option value="decisive">Decisive</option>
+        <option value="deaths">Total Deaths</option>
+      </select>
+      <label>Size by</label>
+      <select id="size-by">
+        <option value="totalDeaths">Total Deaths</option>
+        <option value="numParticipants">Participants</option>
+        <option value="durationDays">Duration</option>
+        <option value="none">Uniform</option>
+      </select>
+    </div>
+
+    <h2>Legend</h2>
+    <div class="legend" id="legend"></div>
+
+    <h2>Factor Loadings</h2>
+    <div class="variance-info" id="variance-info"></div>
+    <div class="loadings" id="x-loadings">
+      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:0.4rem">X axis</div>
+    </div>
+    <div class="loadings" id="y-loadings">
+      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:0.4rem">Y axis</div>
+    </div>
+
+    <h2>Selected War</h2>
+    <div id="war-detail">
+      <div class="war-detail"><p class="meta">Click a point to see details</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// PCA implementation (no dependencies)
+// ============================================================
+
+function standardize(matrix) {
+  const n = matrix.length;
+  const m = matrix[0].length;
+  const means = new Array(m).fill(0);
+  const stds = new Array(m).fill(0);
+
+  for (let j = 0; j < m; j++) {
+    for (let i = 0; i < n; i++) means[j] += matrix[i][j];
+    means[j] /= n;
+    for (let i = 0; i < n; i++) stds[j] += (matrix[i][j] - means[j]) ** 2;
+    stds[j] = Math.sqrt(stds[j] / n) || 1;
+  }
+
+  const result = matrix.map(row =>
+    row.map((v, j) => (v - means[j]) / stds[j])
+  );
+  return { data: result, means, stds };
+}
+
+function covarianceMatrix(data) {
+  const n = data.length, m = data[0].length;
+  const cov = Array.from({ length: m }, () => new Array(m).fill(0));
+  for (let i = 0; i < m; i++) {
+    for (let j = i; j < m; j++) {
+      let s = 0;
+      for (let k = 0; k < n; k++) s += data[k][i] * data[k][j];
+      cov[i][j] = cov[j][i] = s / (n - 1);
+    }
+  }
+  return cov;
+}
+
+// Jacobi eigendecomposition for symmetric matrices
+function jacobiEigen(A, maxIter = 100) {
+  const n = A.length;
+  const a = A.map(r => [...r]);
+  const v = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => i === j ? 1 : 0)
+  );
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    let maxVal = 0, p = 0, q = 1;
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++)
+        if (Math.abs(a[i][j]) > maxVal) { maxVal = Math.abs(a[i][j]); p = i; q = j; }
+    if (maxVal < 1e-10) break;
+
+    const theta = 0.5 * Math.atan2(2 * a[p][q], a[p][p] - a[q][q]);
+    const c = Math.cos(theta), s = Math.sin(theta);
+
+    for (let i = 0; i < n; i++) {
+      const ap = a[i][p], aq = a[i][q];
+      a[i][p] = c * ap + s * aq;
+      a[i][q] = -s * ap + c * aq;
+    }
+    for (let j = 0; j < n; j++) {
+      const ap = a[p][j], aq = a[q][j];
+      a[p][j] = c * ap + s * aq;
+      a[q][j] = -s * ap + c * aq;
+    }
+    for (let i = 0; i < n; i++) {
+      const vp = v[i][p], vq = v[i][q];
+      v[i][p] = c * vp + s * vq;
+      v[i][q] = -s * vp + c * vq;
+    }
+  }
+
+  const eigenvalues = [];
+  for (let i = 0; i < n; i++) eigenvalues.push(a[i][i]);
+
+  // Sort by eigenvalue descending
+  const indices = eigenvalues.map((_, i) => i).sort((a, b) => eigenvalues[b] - eigenvalues[a]);
+  const sortedVals = indices.map(i => eigenvalues[i]);
+  const sortedVecs = indices.map(i => v.map(row => row[i]));
+
+  return { values: sortedVals, vectors: sortedVecs };
+}
+
+function pca(rawMatrix, varNames) {
+  const { data, means, stds } = standardize(rawMatrix);
+  const cov = covarianceMatrix(data);
+  const { values, vectors } = jacobiEigen(cov);
+
+  const totalVariance = values.reduce((a, b) => a + Math.max(0, b), 0);
+  const components = values.map((val, i) => ({
+    eigenvalue: val,
+    varianceExplained: val / totalVariance,
+    loadings: vectors[i], // loadings[j] = loading on variable j
+  }));
+
+  // Project data onto components
+  const scores = data.map(row =>
+    components.map(comp => comp.loadings.reduce((s, l, j) => s + l * row[j], 0))
+  );
+
+  return { components, scores, varNames };
+}
+
+
+// ============================================================
+// Data fetching from ATProto PDS
+// ============================================================
+
+const PDS_HOST = 'https://pds.minomobi.com';
+const HANDLE = 'minomobi.com';
+const COLLECTION = 'com.minomobi.wars.war';
+const PUBLIC_API = 'https://public.api.bsky.app';
+
+async function fetchWarsFromPDS() {
+  // Resolve DID
+  const didRes = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${HANDLE}`);
+  if (!didRes.ok) throw new Error('Could not resolve handle');
+  const { did } = await didRes.json();
+
+  // Fetch all records
+  const records = [];
+  let cursor = null;
+  while (true) {
+    let url = `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?repo=${did}&collection=${COLLECTION}&limit=100`;
+    if (cursor) url += `&cursor=${cursor}`;
+    const res = await fetch(url);
+    if (!res.ok) break;
+    const data = await res.json();
+    for (const rec of data.records || []) {
+      records.push(rec.value);
+    }
+    cursor = data.cursor;
+    if (!cursor || !data.records?.length) break;
+  }
+  return records;
+}
+
+
+// ============================================================
+// Fallback: parse CSV if PDS has no records
+// ============================================================
+
+function parseCSVFallback(csvText) {
+  const lines = csvText.split('\n').filter(l => l.trim());
+  const headers = lines[0].split(',');
+  const raw = {};
+
+  for (let i = 1; i < lines.length; i++) {
+    // Handle quoted fields
+    const row = {};
+    let field = 0, inQuote = false, val = '';
+    for (const ch of lines[i]) {
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === ',' && !inQuote) { row[headers[field]] = val; field++; val = ''; continue; }
+      val += ch;
+    }
+    row[headers[field]] = val;
+
+    const wn = parseInt(row.WarNum);
+    if (!raw[wn]) {
+      raw[wn] = {
+        warNum: wn, warName: row.WarName, warType: parseInt(row.WarType),
+        startYear: parseInt(row.StartYear1), endYear: parseInt(row.EndYear1),
+        whereFought: parseInt(row.WhereFought), participants: [], sides: new Set()
+      };
+    }
+    const deaths = parseInt(row.BatDeath);
+    const side = parseInt(row.Side);
+    raw[wn].participants.push({
+      stateName: row.StateName, ccode: parseInt(row.ccode),
+      side, initiator: parseInt(row.Initiator),
+      batDeath: (deaths > 0 ? deaths : 0), outcome: parseInt(row.Outcome)
+    });
+    raw[wn].sides.add(side);
+  }
+
+  const REGION_MAP = {
+    1:"W Hemisphere",2:"Europe",4:"Africa",6:"Middle East",7:"Asia",
+    11:"Europe & Middle East",12:"Europe & Asia",13:"W Hemisphere & Asia",
+    14:"Europe & Africa",15:"Europe & Asia & Africa",16:"Asia & Oceania",
+    17:"Asia & W Hemisphere",18:"Africa & Middle East",19:"Asia & Africa & W Hemisphere"
+  };
+
+  return Object.values(raw).map(w => {
+    const sideDeaths = {}, sideCount = {};
+    for (const p of w.participants) {
+      sideDeaths[p.side] = (sideDeaths[p.side] || 0) + p.batDeath;
+      sideCount[p.side] = (sideCount[p.side] || 0) + 1;
+    }
+    const vals = Object.values(sideDeaths);
+    const maxD = Math.max(...vals) || 1;
+    const minD = Math.min(...vals);
+    const outcomes = new Set(w.participants.map(p => p.outcome));
+
+    // Duration
+    let durationDays;
+    try {
+      const sm = Math.max(1, parseInt(w.startYear));
+      const start = new Date(w.startYear, 0, 1);
+      const end = new Date(w.endYear, 11, 31);
+      durationDays = Math.max(1, Math.round((end - start) / 86400000));
+    } catch(e) {
+      durationDays = (w.endYear - w.startYear) * 365 + 1;
+    }
+
+    return {
+      warNum: w.warNum, warName: w.warName,
+      startYear: w.startYear, endYear: w.endYear,
+      durationDays,
+      totalDeaths: w.participants.reduce((s, p) => s + p.batDeath, 0),
+      numParticipants: w.participants.length,
+      numSides: w.sides.size,
+      maxCoalitionSize: Math.max(...Object.values(sideCount)),
+      deathAsymmetry: vals.length >= 2 ? Math.round(minD / maxD * 1000) / 1000 : 1,
+      decisive: outcomes.has(1) && outcomes.has(2),
+      region: REGION_MAP[w.whereFought] || 'Unknown',
+      participants: w.participants
+    };
+  }).sort((a, b) => a.warNum - b.warNum);
+}
+
+
+// ============================================================
+// Visualization
+// ============================================================
+
+const REGION_COLORS = {
+  'W Hemisphere': '#4ecdc4',
+  'Europe': '#6688ff',
+  'Africa': '#ff9944',
+  'Middle East': '#ff6666',
+  'Asia': '#bb66ff',
+  'Asia & Oceania': '#cc88ff',
+  'Europe & Middle East': '#7788cc',
+  'Europe & Asia': '#8877dd',
+  'Europe & Africa': '#8899cc',
+  'Europe & Asia & Africa': '#9988bb',
+  'W Hemisphere & Asia': '#55bbcc',
+  'Asia & W Hemisphere': '#55bbcc',
+  'Africa & Middle East': '#ff8855',
+  'Asia & Africa & W Hemisphere': '#99aa88',
+};
+
+const ERA_COLORS = {
+  'Pre-1900': '#88aacc',
+  '1900-1918': '#ccaa44',
+  '1919-1938': '#cc8844',
+  '1939-1945': '#ff4444',
+  '1946-1989': '#6688ff',
+  '1990-present': '#44cc88',
+};
+
+function getEra(year) {
+  if (year < 1900) return 'Pre-1900';
+  if (year <= 1918) return '1900-1918';
+  if (year <= 1938) return '1919-1938';
+  if (year <= 1945) return '1939-1945';
+  if (year <= 1989) return '1946-1989';
+  return '1990-present';
+}
+
+function getColor(war, mode) {
+  switch (mode) {
+    case 'region': return REGION_COLORS[war.region] || '#888';
+    case 'era': return ERA_COLORS[getEra(war.startYear)];
+    case 'decisive': return war.decisive ? '#44cc88' : '#ff6666';
+    case 'deaths': {
+      const t = Math.min(1, Math.log10(war.totalDeaths + 1) / 7);
+      const r = Math.round(68 + t * 187);
+      const g = Math.round(136 - t * 100);
+      const b = Math.round(255 - t * 200);
+      return `rgb(${r},${g},${b})`;
+    }
+    default: return '#6688ff';
+  }
+}
+
+function getSize(war, mode) {
+  const base = 4;
+  switch (mode) {
+    case 'totalDeaths': return base + Math.sqrt(war.totalDeaths) / 200;
+    case 'numParticipants': return base + war.numParticipants * 0.8;
+    case 'durationDays': return base + Math.sqrt(war.durationDays) / 15;
+    case 'none': return 6;
+    default: return 6;
+  }
+}
+
+// Feature names for PCA
+const VAR_NAMES = [
+  'log(deaths)', 'log(duration)', 'participants', 'coalition_size',
+  'death_asymmetry', 'decisive', 'start_year'
+];
+
+function warToFeatureVector(war) {
+  return [
+    Math.log10(war.totalDeaths + 1),
+    Math.log10(war.durationDays + 1),
+    war.numParticipants,
+    war.maxCoalitionSize,
+    war.deathAsymmetry,
+    war.decisive ? 1 : 0,
+    (war.startYear - 1800) / 200,  // normalize
+  ];
+}
+
+// Suggested PC labels based on typical loadings
+function suggestLabel(loadings, varNames) {
+  const sorted = loadings.map((l, i) => ({ name: varNames[i], val: l }))
+    .sort((a, b) => Math.abs(b.val) - Math.abs(a.val));
+  const top = sorted[0];
+  const second = sorted[1];
+
+  // Heuristic labeling
+  if (top.name === 'log(deaths)' && Math.abs(loadings[2]) > 0.3)
+    return top.val > 0 ? 'Scale & Lethality' : 'Scale & Lethality (inv)';
+  if (top.name === 'participants' || top.name === 'coalition_size')
+    return top.val > 0 ? 'Coalition Complexity' : 'Coalition Complexity (inv)';
+  if (top.name === 'death_asymmetry')
+    return top.val > 0 ? 'Symmetry of Loss' : 'Asymmetry of Loss';
+  if (top.name === 'decisive')
+    return top.val > 0 ? 'Decisiveness' : 'Indecisiveness';
+  if (top.name === 'start_year')
+    return top.val > 0 ? 'Modernity' : 'Antiquity';
+  if (top.name === 'log(duration)')
+    return top.val > 0 ? 'Protractedness' : 'Brevity';
+
+  return `${top.name} (${top.val > 0 ? '+' : '-'})`;
+}
+
+
+// ============================================================
+// Main app
+// ============================================================
+
+let wars = [];
+let pcaResult = null;
+let selectedWar = null;
+let hoveredWar = null;
+
+const canvas = document.getElementById('scatter');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+const statusEl = document.getElementById('status');
+const mainEl = document.getElementById('main');
+
+function renderLoadings(containerId, componentIdx) {
+  const container = document.getElementById(containerId);
+  const label = container.querySelector('div');
+  const comp = pcaResult.components[componentIdx];
+  const name = suggestLabel(comp.loadings, VAR_NAMES);
+  label.textContent = `${name} (${(comp.varianceExplained * 100).toFixed(1)}% var)`;
+
+  // Remove old bars
+  container.querySelectorAll('.loading-bar').forEach(el => el.remove());
+
+  comp.loadings.forEach((val, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'loading-bar';
+    const pct = Math.abs(val) * 100;
+    const cls = val >= 0 ? 'positive' : 'negative';
+    bar.innerHTML = `
+      <span class="var-name">${VAR_NAMES[i]}</span>
+      <span class="bar-container">
+        <span class="bar ${cls}" style="width:${pct}%"></span>
+      </span>
+      <span class="val">${val >= 0 ? '+' : ''}${val.toFixed(2)}</span>
+    `;
+    container.appendChild(bar);
+  });
+}
+
+function renderLegend() {
+  const mode = document.getElementById('color-by').value;
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+
+  let items;
+  if (mode === 'region') {
+    items = Object.entries(REGION_COLORS).filter(([r]) =>
+      wars.some(w => w.region === r)
+    );
+  } else if (mode === 'era') {
+    items = Object.entries(ERA_COLORS);
+  } else if (mode === 'decisive') {
+    items = [['Decisive', '#44cc88'], ['Indecisive', '#ff6666']];
+  } else {
+    items = [['Low', '#4488ff'], ['High', '#ff3333']];
+  }
+
+  for (const [label, color] of items) {
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    el.innerHTML = `<span class="dot" style="background:${color}"></span>${label}`;
+    legend.appendChild(el);
+  }
+}
+
+function renderScatter() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const w = rect.width, h = rect.height;
+  const pad = 60;
+  const xIdx = parseInt(document.getElementById('x-axis').value);
+  const yIdx = parseInt(document.getElementById('y-axis').value);
+  const colorMode = document.getElementById('color-by').value;
+  const sizeMode = document.getElementById('size-by').value;
+
+  // Get score ranges
+  const xs = pcaResult.scores.map(s => s[xIdx]);
+  const ys = pcaResult.scores.map(s => s[yIdx]);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const xRange = (xMax - xMin) || 1;
+  const yRange = (yMax - yMin) || 1;
+
+  const toX = v => pad + ((v - xMin) / xRange) * (w - 2 * pad);
+  const toY = v => h - pad - ((v - yMin) / yRange) * (h - 2 * pad);
+
+  // Clear
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a2a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const x = pad + (i / 4) * (w - 2 * pad);
+    const y = pad + (i / 4) * (h - 2 * pad);
+    ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, h - pad); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+  }
+
+  // Zero lines
+  if (xMin < 0 && xMax > 0) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(toX(0), pad); ctx.lineTo(toX(0), h - pad); ctx.stroke();
+  }
+  if (yMin < 0 && yMax > 0) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad, toY(0)); ctx.lineTo(w - pad, toY(0)); ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#666';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  const xLabel = suggestLabel(pcaResult.components[xIdx].loadings, VAR_NAMES);
+  const yLabel = suggestLabel(pcaResult.components[yIdx].loadings, VAR_NAMES);
+  ctx.fillText(`PC${xIdx + 1}: ${xLabel}`, w / 2, h - 12);
+  ctx.save();
+  ctx.translate(14, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(`PC${yIdx + 1}: ${yLabel}`, 0, 0);
+  ctx.restore();
+
+  // Points
+  const points = wars.map((war, i) => ({
+    war, x: toX(xs[i]), y: toY(ys[i]),
+    r: Math.min(30, getSize(war, sizeMode)),
+    color: getColor(war, colorMode)
+  }));
+
+  // Draw in z-order: smaller on top
+  points.sort((a, b) => b.r - a.r);
+
+  for (const pt of points) {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+    ctx.fillStyle = pt.color + '99';
+    ctx.fill();
+    ctx.strokeStyle = pt.color;
+    ctx.lineWidth = pt.war === selectedWar ? 2.5 : pt.war === hoveredWar ? 2 : 0.8;
+    ctx.stroke();
+
+    // Label large/important wars
+    if (pt.r > 12 || pt.war === selectedWar || pt.war === hoveredWar) {
+      ctx.fillStyle = '#ccc';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(pt.war.warName.substring(0, 20), pt.x, pt.y - pt.r - 4);
+    }
+  }
+
+  // Store for hit testing
+  canvas._points = points;
+  canvas._toX = toX;
+  canvas._toY = toY;
+}
+
+function hitTest(mx, my) {
+  if (!canvas._points) return null;
+  let closest = null, minDist = Infinity;
+  for (const pt of canvas._points) {
+    const d = Math.sqrt((mx - pt.x) ** 2 + (my - pt.y) ** 2);
+    if (d < pt.r + 4 && d < minDist) { minDist = d; closest = pt; }
+  }
+  return closest;
+}
+
+function showWarDetail(war) {
+  const el = document.getElementById('war-detail');
+  if (!war) {
+    el.innerHTML = '<div class="war-detail"><p class="meta">Click a point to see details</p></div>';
+    return;
+  }
+  const sides = {};
+  for (const p of war.participants) {
+    if (!sides[p.side]) sides[p.side] = [];
+    sides[p.side].push(p);
+  }
+  let participantHTML = '';
+  for (const [side, parts] of Object.entries(sides)) {
+    participantHTML += `<div style="margin-top:0.3rem"><strong>Side ${side}:</strong> `;
+    participantHTML += parts.map(p =>
+      `${p.stateName} (${p.batDeath.toLocaleString()} dead, ${
+        p.outcome === 1 ? 'won' : p.outcome === 2 ? 'lost' :
+        p.outcome === 3 ? 'compromise' : p.outcome === 6 ? 'stalemate' :
+        p.outcome === 4 ? 'transformed' : 'other'
+      })`
+    ).join(', ');
+    participantHTML += '</div>';
+  }
+
+  el.innerHTML = `<div class="war-detail">
+    <h3>${war.warName}</h3>
+    <div class="meta">
+      <div><span>${war.startYear}–${war.endYear}</span> (${war.durationDays.toLocaleString()} days)</div>
+      <div>Deaths: <span>${war.totalDeaths.toLocaleString()}</span></div>
+      <div>Participants: <span>${war.numParticipants}</span> | Sides: <span>${war.numSides}</span></div>
+      <div>Largest coalition: <span>${war.maxCoalitionSize}</span></div>
+      <div>Death asymmetry: <span>${war.deathAsymmetry.toFixed(2)}</span></div>
+      <div>Decisive: <span>${war.decisive ? 'Yes' : 'No'}</span></div>
+      <div>Region: <span>${war.region}</span></div>
+      ${participantHTML}
+    </div>
+  </div>`;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const hit = hitTest(mx, my);
+
+  if (hit) {
+    hoveredWar = hit.war;
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = `
+      <div class="name">${hit.war.warName}</div>
+      <div class="info">${hit.war.startYear}–${hit.war.endYear} | ${hit.war.totalDeaths.toLocaleString()} deaths | ${hit.war.numParticipants} states</div>
+    `;
+    const tx = Math.min(e.clientX - rect.left + 12, rect.width - 270);
+    const ty = e.clientY - rect.top - 50;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  } else {
+    hoveredWar = null;
+    tooltip.style.display = 'none';
+  }
+  renderScatter();
+});
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  selectedWar = hit ? hit.war : null;
+  showWarDetail(selectedWar);
+  renderScatter();
+});
+
+function setupControls() {
+  const xSel = document.getElementById('x-axis');
+  const ySel = document.getElementById('y-axis');
+
+  for (let i = 0; i < pcaResult.components.length; i++) {
+    const comp = pcaResult.components[i];
+    const label = `PC${i + 1}: ${suggestLabel(comp.loadings, VAR_NAMES)} (${(comp.varianceExplained * 100).toFixed(1)}%)`;
+    xSel.innerHTML += `<option value="${i}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+    ySel.innerHTML += `<option value="${i}" ${i === 1 ? 'selected' : ''}>${label}</option>`;
+  }
+
+  const update = () => {
+    const xi = parseInt(xSel.value);
+    const yi = parseInt(ySel.value);
+    renderLoadings('x-loadings', xi);
+    renderLoadings('y-loadings', yi);
+    renderLegend();
+    renderScatter();
+  };
+
+  xSel.addEventListener('change', update);
+  ySel.addEventListener('change', update);
+  document.getElementById('color-by').addEventListener('change', update);
+  document.getElementById('size-by').addEventListener('change', update);
+
+  // Variance summary
+  const totalVar = pcaResult.components.slice(0, 5)
+    .reduce((s, c) => s + c.varianceExplained, 0);
+  document.getElementById('variance-info').textContent =
+    `Top 5 PCs explain ${(totalVar * 100).toFixed(1)}% of total variance`;
+
+  update();
+}
+
+async function init() {
+  try {
+    // Try PDS first
+    statusEl.textContent = 'Fetching war data from PDS...';
+    wars = await fetchWarsFromPDS();
+
+    if (wars.length === 0) {
+      // Fallback: try loading CSV
+      statusEl.textContent = 'No PDS data found, loading CSV...';
+      const res = await fetch('data/Inter-StateWarData_v4.0.csv');
+      if (res.ok) {
+        wars = parseCSVFallback(await res.text());
+      }
+    }
+
+    if (wars.length === 0) {
+      statusEl.textContent = 'No data available. Run sync-wars-to-atproto.py to populate PDS, or place data/Inter-StateWarData_v4.0.csv.';
+      return;
+    }
+
+    statusEl.textContent = `Loaded ${wars.length} wars. Running PCA...`;
+
+    // Build feature matrix
+    const matrix = wars.map(warToFeatureVector);
+    pcaResult = pca(matrix, VAR_NAMES);
+
+    statusEl.style.display = 'none';
+    mainEl.style.display = 'grid';
+
+    setupControls();
+    window.addEventListener('resize', renderScatter);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = `Error: ${err.message}. Trying CSV fallback...`;
+
+    try {
+      const res = await fetch('data/Inter-StateWarData_v4.0.csv');
+      if (res.ok) {
+        wars = parseCSVFallback(await res.text());
+        const matrix = wars.map(warToFeatureVector);
+        pcaResult = pca(matrix, VAR_NAMES);
+        statusEl.style.display = 'none';
+        mainEl.style.display = 'grid';
+        setupControls();
+        window.addEventListener('resize', renderScatter);
+      } else {
+        statusEl.textContent = 'Could not load data from PDS or CSV.';
+      }
+    } catch (e2) {
+      statusEl.textContent = `Failed: ${e2.message}`;
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>
