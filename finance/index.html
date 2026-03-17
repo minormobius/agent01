@@ -611,34 +611,37 @@ async function loadArchive() {
   typeFilters.innerHTML = '';
 
   try {
+    browseStatus.textContent = `[1/4] resolving handle "${handle}"...`;
     state.did = await resolveHandle(handle);
+    browseStatus.textContent = `[2/4] resolved DID: ${state.did} — resolving PDS...`;
+
     state.pds = await resolvePDS(state.did);
-    browseStatus.textContent = `resolved ${state.did.slice(0, 20)}...`;
+    browseStatus.textContent = `[3/4] PDS: ${state.pds} — loading securities...`;
     browseProgress.style.width = '10%';
 
     // Load security metadata
-    browseStatus.textContent = 'loading security index...';
     state.securities = await listAllRecords(state.did, state.pds, META_COLLECTION, (n) => {
-      browseStatus.textContent = `loaded ${n} securities...`;
+      browseStatus.textContent = `[3/4] PDS: ${state.pds} — loaded ${n} securities...`;
       browseProgress.style.width = `${Math.min(10 + (n / 10), 90)}%`;
     });
 
     browseProgress.style.width = '100%';
 
     if (state.securities.length === 0) {
-      browseStatus.textContent = 'no securities found. sync data first (see data sources tab).';
+      browseStatus.textContent = `[4/4] 0 securities found on PDS ${state.pds} in collection ${META_COLLECTION}. DID: ${state.did}`;
       browseStatus.className = 'status error';
       btnLoad.disabled = false;
       return;
     }
 
-    browseStatus.textContent = `${state.securities.length} securities loaded`;
+    browseStatus.textContent = `${state.securities.length} securities loaded from ${state.pds}`;
     renderSecurityList(state.securities);
     renderTypeFilters(state.securities);
 
   } catch (err) {
-    browseStatus.textContent = err.message;
+    browseStatus.textContent = `Error at DID=${state.did} PDS=${state.pds}: ${err.message}`;
     browseStatus.className = 'status error';
+    console.error('loadArchive failed:', err);
   }
   btnLoad.disabled = false;
 }
