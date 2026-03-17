@@ -21,6 +21,7 @@ const Storage = (() => {
     theme: 'dark',
     bionic: false,
     tts: false,
+    depthTrail: false,
     rsvp: { wpm: 300, colorFrames: false, minChars: 0 },
     crawl: { speed: 1.0 }
   };

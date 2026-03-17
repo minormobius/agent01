@@ -5,6 +5,7 @@ const App = (() => {
   let currentBook = null;
   let chapterIndex = 0;
   let activeMode = 'scroll';
+  let activeSource = 'gutenberg'; // 'gutenberg' or 'poetry'
 
   // DOM refs
   const $ = id => document.getElementById(id);
@@ -24,6 +25,7 @@ const App = (() => {
   const modeScroll = $('mode-scroll');
   const modeRsvp = $('mode-rsvp');
   const modeCrawl = $('mode-crawl');
+  const modeMemorize = $('mode-memorize');
   const fontSlider = $('font-slider');
   const fontVal = $('font-val');
   const themeToggle = $('theme-toggle');
@@ -35,6 +37,7 @@ const App = (() => {
   const colorToggle = $('color-toggle');
   const crawlSpeedSlider = $('crawl-speed-slider');
   const crawlSpeedVal = $('crawl-speed-val');
+  const depthToggle = $('depth-toggle');
   const mincharsSlider = $('minchars-slider');
   const mincharsVal = $('minchars-val');
   const speedLabel = $('speed-label');
@@ -80,6 +83,7 @@ const App = (() => {
     if (crawlSpeedSlider) { crawlSpeedSlider.value = s.crawl.speed * 10; crawlSpeedVal.textContent = s.crawl.speed.toFixed(1); }
     if (bionicToggle) bionicToggle.classList.toggle('on', s.bionic);
     if (colorToggle) colorToggle.classList.toggle('on', s.rsvp.colorFrames);
+    if (depthToggle) depthToggle.classList.toggle('on', !!s.depthTrail);
     if (themeToggle) themeToggle.classList.toggle('on', s.theme === 'light');
     if (serifToggle) serifToggle.classList.toggle('on', s.serif !== false);
     document.documentElement.setAttribute('data-font', s.serif !== false ? 'serif' : 'sans');
@@ -93,19 +97,22 @@ const App = (() => {
   }
 
   function updateModeButtons() {
-    [modeScroll, modeRsvp, modeCrawl].forEach(b => b && b.classList.remove('active'));
+    [modeScroll, modeRsvp, modeCrawl, modeMemorize].forEach(b => b && b.classList.remove('active'));
     if (activeMode === 'scroll' && modeScroll) modeScroll.classList.add('active');
     if (activeMode === 'rsvp' && modeRsvp) modeRsvp.classList.add('active');
     if (activeMode === 'crawl' && modeCrawl) modeCrawl.classList.add('active');
+    if (activeMode === 'memorize' && modeMemorize) modeMemorize.classList.add('active');
   }
 
   function updateModeSettings() {
     const rsvpSettings = document.querySelector('.rsvp-settings');
     const crawlSettings = document.querySelector('.crawl-settings');
+    const memorizeSettings = document.querySelector('.memorize-settings');
     const scrollCrawlSettings = document.querySelectorAll('.scroll-crawl-setting');
     if (rsvpSettings) rsvpSettings.classList.toggle('visible', activeMode === 'rsvp');
     if (crawlSettings) crawlSettings.classList.toggle('visible', activeMode === 'crawl');
-    scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp'));
+    if (memorizeSettings) memorizeSettings.classList.toggle('visible', activeMode === 'memorize');
+    scrollCrawlSettings.forEach(el => el.classList.toggle('visible', activeMode !== 'rsvp' && activeMode !== 'memorize'));
   }
 
   function updateSpeedLabel() {
@@ -114,19 +121,54 @@ const App = (() => {
       speedLabel.textContent = RSVPReader.getWPM() + ' wpm';
     } else if (activeMode === 'crawl') {
       speedLabel.textContent = CrawlReader.getSpeed().toFixed(1) + 'x';
+    } else if (activeMode === 'memorize') {
+      speedLabel.textContent = 'memorize';
     } else {
       speedLabel.textContent = '';
     }
   }
 
   function bindEvents() {
+    // Source tabs
+    const sourceBooks = $('source-books');
+    const sourcePoetry = $('source-poetry');
+    const poetryRandom = $('poetry-random');
+
+    sourceBooks.addEventListener('click', () => {
+      activeSource = 'gutenberg';
+      sourceBooks.classList.add('active');
+      sourcePoetry.classList.remove('active');
+      searchInput.placeholder = 'Search books...';
+      poetryRandom.style.display = 'none';
+      $('demo-btn').style.display = '';
+      searchResults.innerHTML = '';
+    });
+    sourcePoetry.addEventListener('click', () => {
+      activeSource = 'poetry';
+      sourcePoetry.classList.add('active');
+      sourceBooks.classList.remove('active');
+      searchInput.placeholder = 'Search poems or poets...';
+      poetryRandom.style.display = '';
+      $('demo-btn').style.display = 'none';
+      searchResults.innerHTML = '';
+    });
+
     // Search
     searchBtn.addEventListener('click', doSearch);
     searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+    // Random poem
+    $('random-poem-btn').addEventListener('click', async () => {
+      try {
+        const poems = await Poetry.fetchRandom(1);
+        const p = poems[0];
+        loadBook({ id: `poetry:${p.author}:${p.title}`, title: p.title, author: p.author, source: 'poetry' });
+      } catch (_) { /* ignore */ }
+    });
+
     // Demo button
     $('demo-btn').addEventListener('click', () => {
-      loadBook({ id: 2701, title: 'Moby Dick; Or, The Whale', author: 'Herman Melville' });
+      loadBook({ id: 2701, title: 'Moby Dick; Or, The Whale', author: 'Herman Melville', source: 'gutenberg' });
     });
 
     // Reader header
@@ -148,6 +190,7 @@ const App = (() => {
     modeScroll.addEventListener('click', () => switchMode('scroll'));
     modeRsvp.addEventListener('click', () => switchMode('rsvp'));
     modeCrawl.addEventListener('click', () => switchMode('crawl'));
+    modeMemorize.addEventListener('click', () => switchMode('memorize'));
 
     // Font size — live updates across all modes
     fontSlider.addEventListener('input', () => {
@@ -214,6 +257,14 @@ const App = (() => {
       Storage.saveSettings(s);
     });
 
+    // Depth trail toggle (RSVP receding word trail)
+    depthToggle.addEventListener('click', () => {
+      const s = Storage.getSettings();
+      s.depthTrail = !s.depthTrail;
+      depthToggle.classList.toggle('on', s.depthTrail);
+      Storage.saveSettings(s);
+    });
+
     // Crawl speed
     crawlSpeedSlider.addEventListener('input', () => {
       const s = Storage.getSettings();
@@ -245,7 +296,9 @@ const App = (() => {
 
     // Play button
     $('btn-play').addEventListener('click', () => {
-      if (activeMode === 'rsvp') {
+      if (activeMode === 'memorize') {
+        MemorizeReader.nextRound();
+      } else if (activeMode === 'rsvp') {
         RSVPReader.toggle();
       } else if (activeMode === 'crawl') {
         const wasPlaying = CrawlReader.isPlaying();
@@ -277,14 +330,21 @@ const App = (() => {
     if (!q) return;
     searchResults.innerHTML = '<p class="search-loading">Searching...</p>';
     try {
-      const data = await Search.search(q);
-      Search.renderResults(data, searchResults);
+      if (activeSource === 'poetry') {
+        const poems = await Search.searchPoetry(q);
+        Search.renderPoetryResults(poems, searchResults);
+      } else {
+        const data = await Search.search(q);
+        Search.renderResults(data, searchResults);
+      }
     } catch (err) {
       searchResults.innerHTML = '<p class="search-empty">Search failed. Try again.</p>';
     }
   }
 
   async function loadBook(book) {
+    // Default source for bookshelf items that predate the source field
+    if (!book.source) book.source = 'gutenberg';
     currentBook = book;
     readerTitle.textContent = book.title;
 
@@ -292,8 +352,14 @@ const App = (() => {
     showReader();
 
     try {
-      const text = await Gutenberg.fetchBook(book.id);
-      chapters = Gutenberg.parseChapters(text);
+      if (book.source === 'poetry') {
+        // Fetch the specific poem (or all poems by author)
+        const poem = await Poetry.fetchPoem(book.title, book.author);
+        chapters = Poetry.toChapters(poem);
+      } else {
+        const text = await Gutenberg.fetchBook(book.id);
+        chapters = Gutenberg.parseChapters(text);
+      }
 
       // Build chapter dropdown
       chapterSelect.innerHTML = '';
@@ -317,7 +383,7 @@ const App = (() => {
       chapterIndex = 0;
       chapterSelect.innerHTML = '';
       readingArea.innerHTML = `<div class="load-error">
-        <p>Failed to load book.</p>
+        <p>Failed to load.</p>
         <p class="load-error-detail">${err.message}</p>
         <button class="load-error-back" onclick="document.getElementById('btn-back').click()">Back to search</button>
       </div>`;
@@ -353,6 +419,10 @@ const App = (() => {
         onProgress: frac => setProgress(frac),
         onFinished: () => navigateChapter(1)
       });
+    } else if (activeMode === 'memorize') {
+      MemorizeReader.render(chapter, readingArea, {
+        onProgress: frac => setProgress(frac)
+      });
     }
 
     setProgress(0);
@@ -362,6 +432,7 @@ const App = (() => {
     ScrollReader.destroy();
     RSVPReader.destroy();
     CrawlReader.destroy();
+    MemorizeReader.destroy();
     TTS.stop();
   }
 
@@ -436,7 +507,15 @@ const App = (() => {
     if (!readerView.classList.contains('active')) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-    if (activeMode === 'rsvp') {
+    if (activeMode === 'memorize') {
+      if (e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'ArrowUp') { e.preventDefault(); MemorizeReader.nextRound(); }
+      else if (e.code === 'ArrowDown') { e.preventDefault(); MemorizeReader.prevRound(); }
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); MemorizeReader.prevStanza(); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); MemorizeReader.nextStanza(); }
+      else if (e.code === 'Enter') { e.preventDefault(); MemorizeReader.toggleCheck(); }
+      else if (e.code === 'KeyR') { e.preventDefault(); MemorizeReader.reset(); }
+    } else if (activeMode === 'rsvp') {
       if (e.code === 'Space') { e.preventDefault(); RSVPReader.toggle(); }
       else if (e.code === 'ArrowUp') { e.preventDefault(); RSVPReader.adjustWPM(25); syncWpmSlider(); updateSpeedLabel(); }
       else if (e.code === 'ArrowDown') { e.preventDefault(); RSVPReader.adjustWPM(-25); syncWpmSlider(); updateSpeedLabel(); }
