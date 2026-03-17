@@ -3,7 +3,7 @@ import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, extractVideos, filterPostsNdjson } from './lib/duckdb.js';
 import { fetchEngagement, getEngagement } from './lib/engagement.js';
-import { extractColorsForImages, hasColorData, dominantColorRegion, computeEigenpalette, colorToHex, clearEigenCache } from './lib/colors.js';
+import { extractColorsForImages, imageColorRegions, computeEigenpalette, colorToHex, clearEigenCache } from './lib/colors.js';
 import Grid from './components/Grid.jsx';
 import FilterBar from './components/FilterBar.jsx';
 import HandleTypeahead from './components/HandleTypeahead.jsx';
@@ -193,10 +193,11 @@ export default function App() {
         if (filters.aspect === 'square' && (ratio < 0.95 || ratio > 1.05)) return false;
       }
 
-      // Color (only when color data is available)
+      // Color — check all palette colors, not just dominant.
+      // If no color data yet for this item, include it (don't filter on missing data).
       if (filters.color !== 'all' && colorsReady) {
-        const region = dominantColorRegion(item.did, item.rkey, item.cid);
-        if (region !== filters.color) return false;
+        const regions = imageColorRegions(item.did, item.rkey, item.cid);
+        if (regions && !regions.has(filters.color)) return false;
       }
 
       // Date range
