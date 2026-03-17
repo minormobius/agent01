@@ -240,11 +240,15 @@ Polls auto-close when `closes_at` is reached via a Cloudflare Durable Object ala
 1. Sync likes from `public.api.bsky.app` for all option posts — final tally
 2. Publish final tally to ATProto (`com.minomobi.poll.tally`)
 3. Auto-finalize (status → `finalized`)
+4. Reply to the host's Bluesky post with results (bar chart + link)
 
 **Anonymous (`anon_credential_v2`) polls:**
 1. Publish all unpublished ballots to ATProto (Fisher-Yates shuffled)
 2. Publish final tally to ATProto
 3. Auto-finalize
+4. Reply to the host's Bluesky post with results
+
+**Results reply:** If the poll was posted to Bluesky via the "Post to Bluesky" button, the service account replies to the original post with a bar chart of the final tally and a "View full results" link. The reply appears in the thread so followers see the outcome. The Bluesky post URI+CID are stored in D1 (`bluesky_post_uri`, `bluesky_post_cid`) at posting time.
 
 Post-close hooks are best-effort — if publishing fails, the poll is still closed (voting stops) and the failure is logged in the audit chain. The host can manually retry publishing via the API.
 
@@ -322,7 +326,7 @@ View poll · Verifiable & anonymous · 24h left
 
 Key tables (see `apps/api/migrations/` for full schema):
 
-- **polls**: id, host_did, question, options (JSON), status, mode, eligibility_mode, host_key_fingerprint, host_public_key, bluesky_option_posts (JSON, nullable — stores `{uri, cid}[]` for public_like hidden posts), opens_at, closes_at
+- **polls**: id, host_did, question, options (JSON), status, mode, eligibility_mode, host_key_fingerprint, host_public_key, bluesky_option_posts (JSON, nullable — stores `{uri, cid}[]` for public_like hidden posts), bluesky_post_uri, bluesky_post_cid (host's Bluesky post ref for results reply), opens_at, closes_at
 - **eligibility**: poll_id, responder_did, eligibility_status, consumed_at — tracks credential consumption
 - **ballots**: ballot_id, poll_id, nullifier (UNIQUE), choice, token_message, issuer_signature, accepted, rolling_audit_hash, published_record_uri
 - **poll_eligible_dids**: poll_id, did — whitelist for restricted polls

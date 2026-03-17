@@ -270,10 +270,14 @@ export class PollCoordinator implements DurableObject {
     const pollId = state.poll.id;
     const publisher = this.getPublisher();
 
+    // Load poll row for Bluesky post ref and options
+    const pollRow = await this.env.DB.prepare(
+      'SELECT bluesky_option_posts, bluesky_post_uri, bluesky_post_cid, question, options FROM polls WHERE id = ?'
+    ).bind(pollId).first();
+
     if (state.poll.mode === 'public_like') {
       // Sync likes from Bluesky public API
-      const poll = await this.env.DB.prepare('SELECT bluesky_option_posts FROM polls WHERE id = ?')
-        .bind(pollId).first();
+      const poll = pollRow;
       const optionPosts = poll?.bluesky_option_posts
         ? JSON.parse(poll.bluesky_option_posts as string) as { uri: string; cid: string }[]
         : null;
@@ -389,6 +393,74 @@ export class PollCoordinator implements DurableObject {
 
     await this.env.DB.prepare('UPDATE polls SET status = ? WHERE id = ?')
       .bind('finalized', pollId).run();
+
+    // Reply to the host's Bluesky post with the final results
+    await this.postResultsReply(state, pollRow, publisher);
+  }
+
+  /**
+   * Post a results reply to the host's original Bluesky poll post.
+   * Posted from the service account as a reply to the thread root.
+   */
+  private async postResultsReply(
+    state: PollState,
+    pollRow: Record<string, unknown> | null,
+    publisher: PdsPublisher | MockPublisher
+  ): Promise<void> {
+    if (!state.poll || !pollRow) return;
+    const postUri = pollRow.bluesky_post_uri as string | null;
+    const postCid = pollRow.bluesky_post_cid as string | null;
+    if (!postUri || !postCid) return; // Poll wasn't posted to Bluesky
+
+    const options = JSON.parse(pollRow.options as string) as string[];
+    const pollId = state.poll.id;
+    const frontendUrl = this.env.FRONTEND_URL || 'https://poll.mino.mobi';
+
+    // Build results text
+    const lines: string[] = ['Results are in!\n'];
+    let maxVotes = 0;
+    for (const key of Object.keys(state.tally)) {
+      if (state.tally[key] > maxVotes) maxVotes = state.tally[key];
+    }
+    for (let i = 0; i < options.length; i++) {
+      const count = state.tally[String(i)] || 0;
+      const bar = maxVotes > 0 ? '█'.repeat(Math.round((count / maxVotes) * 8)) : '';
+      const winner = count === maxVotes && maxVotes > 0 ? ' ✓' : '';
+      lines.push(`${options[i]}: ${count}${winner} ${bar}`);
+    }
+    lines.push(`\n${state.ballotCount} votes · View full results`);
+
+    const text = lines.join('\n');
+    const encoder = new TextEncoder();
+
+    // Facet for "View full results" link
+    const linkText = 'View full results';
+    const linkStart = encoder.encode(text.slice(0, text.indexOf(linkText))).byteLength;
+    const linkBytes = encoder.encode(linkText);
+
+    const replyRecord = {
+      $type: 'app.bsky.feed.post',
+      text,
+      facets: [{
+        index: { byteStart: linkStart, byteEnd: linkStart + linkBytes.byteLength },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: `${frontendUrl}/poll/${pollId}` }],
+      }],
+      reply: {
+        root: { uri: postUri, cid: postCid },
+        parent: { uri: postUri, cid: postCid },
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const rkey = `results-${pollId.replace(/-/g, '').slice(0, 15)}`;
+      const result = await publisher.createRecord('app.bsky.feed.post', rkey, replyRecord);
+      await this.appendAudit('results_reply_posted', JSON.stringify({ pollId, uri: result.uri }));
+      await this.saveState();
+    } catch (err) {
+      console.error('Failed to post results reply:', err);
+      // Non-fatal — results are still published to ATProto
+    }
   }
 
   private getPublisher() {
