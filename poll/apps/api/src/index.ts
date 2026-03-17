@@ -109,7 +109,9 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status === 404) {
         // SPA fallback — serve index.html for client-side routing
-        const spaResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+        // Always use GET for the SPA fetch (scrapers may send HEAD)
+        const spaRequest = new Request(new URL('/', request.url), { method: 'GET' });
+        const spaResponse = await env.ASSETS.fetch(spaRequest);
 
         // Inject OG meta tags for poll pages so link cards show a preview
         const pollOgMatch = url.pathname.match(/^(?:\/public)?\/poll\/([0-9a-f-]{36})(?:\/|$)/);
@@ -191,8 +193,9 @@ async function injectPollOgTags(spaResponse: Response, pollId: string, url: URL,
     const question = poll.question as string;
     const options = JSON.parse(poll.options as string) as string[];
     const mode = poll.mode === 'public_like' ? 'Public Poll' : 'Anonymous Poll';
+    const status = poll.status as string;
     const description = options.slice(0, 6).join(' · ') + (options.length > 6 ? ' · ...' : '');
-    const ogImageUrl = `${url.origin}/api/polls/${pollId}/og.svg`;
+    const ogImageUrl = `${url.origin}/api/polls/${pollId}/og.png`;
     const pageUrl = `${url.origin}${url.pathname}`;
 
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -201,6 +204,7 @@ async function injectPollOgTags(spaResponse: Response, pollId: string, url: URL,
     <meta property="og:title" content="${esc(question)}" />
     <meta property="og:description" content="${esc(mode + ' — ' + description)}" />
     <meta property="og:image" content="${esc(ogImageUrl)}" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:url" content="${esc(pageUrl)}" />
@@ -213,9 +217,15 @@ async function injectPollOgTags(spaResponse: Response, pollId: string, url: URL,
     const html = await spaResponse.text();
     const injected = html.replace('</head>', ogTags + '\n  </head>');
 
+    // Build new headers — strip Content-Length (body size changed) and Content-Encoding
+    const headers = new Headers(spaResponse.headers);
+    headers.delete('Content-Length');
+    headers.delete('Content-Encoding');
+    headers.set('Content-Type', 'text/html; charset=utf-8');
+
     return new Response(injected, {
-      status: spaResponse.status,
-      headers: spaResponse.headers,
+      status: 200,
+      headers,
     });
   } catch (e) {
     console.error('OG tag injection failed:', e);

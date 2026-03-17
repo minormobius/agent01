@@ -16,5 +16,8 @@
     "deploy:migrate": "npx wrangler d1 execute atpolls-db --file=apps/api/migrations/0001_init.sql",
     "test": "npm run test -w packages/shared && npm run test -w apps/api",
     "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2"
   }
 }

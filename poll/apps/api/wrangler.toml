@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-07-18"
 compatibility_flags = ["nodejs_compat"]
 
+# Handle WASM imports (resvg for OG image generation)
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = false
+
 [vars]
 FRONTEND_URL = "https://polls.example.com"
 ATPROTO_MOCK_MODE = "true"

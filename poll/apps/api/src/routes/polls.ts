@@ -20,6 +20,11 @@ import type { Env } from '../index.js';
 import { jsonResponse, getPollDO } from '../index.js';
 import { getSession, getPdsAccessToken } from './auth.js';
 import { createDPoPProof } from '../oauth/jwt.js';
+// @ts-ignore — WASM import handled by wrangler bundler
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
+import { Resvg, initWasm } from '@resvg/resvg-wasm';
+
+let resvgInitialized = false;
 
 export async function handlePollRoutes(
   request: Request,
@@ -110,8 +115,8 @@ export async function handlePollRoutes(
     return syncLikes(request, env, syncLikesMatch[1]);
   }
 
-  // OG image for link card previews
-  const ogMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/og\.svg$/);
+  // OG image for link card previews (PNG)
+  const ogMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/og\.png$/);
   if (ogMatch && request.method === 'GET') {
     return generateOgImage(env, ogMatch[1]);
   }
@@ -707,11 +712,64 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
     });
   }
 
-  // Create the post
-  const record = {
+  // Build external embed for link card preview
+  const pollUrl = `${origin}${isPublicLike ? '/public' : ''}/poll/${pollId}`;
+  const cardDescription = options.slice(0, 6).join(' · ') + (options.length > 6 ? ' · ...' : '');
+
+  // Try to upload OG image as thumb for the card
+  let thumbBlob: { $type: 'blob'; ref: { $link: string }; mimeType: string; size: number } | undefined;
+  try {
+    // Generate the OG image internally
+    const ogResponse = await generateOgImage(env, pollId);
+    if (ogResponse.ok) {
+      const pngBytes = await ogResponse.arrayBuffer();
+      const uploadUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.uploadBlob`;
+      let uploadRes: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', uploadUrl, undefined, pdsAuth.accessJwt);
+        uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof },
+          body: pngBytes,
+        });
+        if ((uploadRes.status === 401 || uploadRes.status === 400) && uploadRes.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', uploadUrl, uploadRes.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          uploadRes = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'image/png', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof },
+            body: pngBytes,
+          });
+        }
+      } else {
+        uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Authorization': `Bearer ${pdsAuth.accessJwt}` },
+          body: pngBytes,
+        });
+      }
+      if (uploadRes.ok) {
+        const blobResult = await uploadRes.json() as { blob: { ref: { $link: string }; mimeType: string; size: number } };
+        thumbBlob = { $type: 'blob', ref: blobResult.blob.ref, mimeType: blobResult.blob.mimeType, size: blobResult.blob.size };
+      }
+    }
+  } catch (e) {
+    console.error('Failed to upload OG thumb:', e);
+  }
+
+  // Create the post with external embed (link card)
+  const record: Record<string, unknown> = {
     $type: 'app.bsky.feed.post',
     text: postText,
     facets,
+    embed: {
+      $type: 'app.bsky.embed.external',
+      external: {
+        uri: pollUrl,
+        title: question,
+        description: cardDescription,
+        ...(thumbBlob ? { thumb: thumbBlob } : {}),
+      },
+    },
     createdAt: new Date().toISOString(),
   };
 
@@ -917,6 +975,15 @@ async function postToBluesky(request: Request, env: Env, pollId: string): Promis
       $type: 'app.bsky.feed.post',
       text: newPostText,
       facets: newFacets,
+      embed: {
+        $type: 'app.bsky.embed.external',
+        external: {
+          uri: pollUrl,
+          title: question,
+          description: cardDescription,
+          ...(thumbBlob ? { thumb: thumbBlob } : {}),
+        },
+      },
       createdAt: new Date().toISOString(),
     });
 
@@ -1093,12 +1160,34 @@ async function generateOgImage(env: Env, pollId: string): Promise<Response> {
   <text x="${PAD}" y="${footerY}" fill="#555" font-size="14" font-family="monospace">poll.mino.mobi</text>
 </svg>`;
 
-  return new Response(svg, {
-    headers: {
-      'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'public, max-age=60',
-    },
-  });
+  // Convert SVG to PNG via resvg-wasm (scrapers don't support SVG og:image)
+  try {
+    if (!resvgInitialized) {
+      await initWasm(resvgWasm);
+      resvgInitialized = true;
+    }
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: 'width', value: W },
+    });
+    const rendered = resvg.render();
+    const pngBuffer = rendered.asPng();
+
+    return new Response(pngBuffer, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=60',
+      },
+    });
+  } catch (e) {
+    // Fallback: serve SVG if resvg fails (better than nothing)
+    console.error('resvg PNG conversion failed, serving SVG fallback:', e);
+    return new Response(svg, {
+      headers: {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'public, max-age=60',
+      },
+    });
+  }
 }
 
 function formatTimeLeftServer(closesAt: string): string {
