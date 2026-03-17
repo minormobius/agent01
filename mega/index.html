@@ -337,6 +337,199 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #tooltip .tt-cost { color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
 
 /* ── Responsive ───────────────────────────────────────── */
+/* ── Prediction Market Gauge ──────────────────────────── */
+.prediction-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.prediction-section h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.pred-gauge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.pred-ring {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+.pred-ring svg { transform: rotate(-90deg); }
+.pred-ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
+.pred-ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+.pred-pct {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+.pred-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.pred-market-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--accent2);
+  text-decoration: none;
+}
+.pred-market-link:hover { text-decoration: underline; }
+.pred-loading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 8px 0;
+}
+.pred-none {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.pred-markets-list {
+  list-style: none;
+  padding: 0;
+}
+.pred-markets-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(30, 30, 46, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pred-markets-list li a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  flex: 1;
+  margin-right: 10px;
+}
+.pred-markets-list li a:hover { color: #fff; }
+.pred-prob-badge {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar Tabs ─────────────────────────────────────── */
+#sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-tab {
+  flex: 1;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.sidebar-tab:hover { color: var(--text); }
+.sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Bounty Board ─────────────────────────────────────── */
+#bounty-panel { display: none; flex: 1; overflow-y: auto; }
+#bounty-panel.active { display: block; }
+#sidebar-list.active { display: block; }
+.bounty-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bounty-header h4 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.bounty-add-btn {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.bounty-add-btn:hover { opacity: 0.85; }
+.bounty-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.bounty-item:hover { background: rgba(255, 140, 0, 0.05); }
+.bounty-kind {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+.bounty-kind-webcam { background: rgba(255, 68, 102, 0.2); color: var(--danger); }
+.bounty-kind-photo { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.bounty-kind-video { background: rgba(140, 100, 255, 0.2); color: #8c64ff; }
+.bounty-kind-document { background: rgba(200, 160, 0, 0.2); color: #c8a000; }
+.bounty-kind-progress_update { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.bounty-kind-satellite { background: rgba(0, 160, 255, 0.2); color: #00a0ff; }
+.bounty-kind-other { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+.bounty-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.bounty-meta {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.bounty-reward {
+  color: var(--success);
+  font-weight: 600;
+}
+.bounty-project {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.bounty-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* Hide header scrollbar but keep scrollable */
 #header::-webkit-scrollbar { display: none; }
 #header { scrollbar-width: none; }
@@ -371,8 +564,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     </div>
   </div>
   <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="projects">Projects</button>
+      <button class="sidebar-tab" data-tab="bounties">Bounties</button>
+    </div>
     <div id="sidebar-stats"></div>
-    <div id="sidebar-list"></div>
+    <div id="sidebar-list" class="active"></div>
+    <div id="bounty-panel"></div>
   </div>
   <div id="status-bar">
     <span id="status-left"></span>
@@ -1722,6 +1920,11 @@ function init() {
   document.getElementById('detail-close').addEventListener('click', closeDetail);
   document.getElementById('detail-mobile-close').addEventListener('click', closeDetail);
   document.getElementById('detail-backdrop').addEventListener('click', closeDetail);
+
+  // Sidebar tabs
+  document.querySelectorAll('.sidebar-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
 }
 
 // ── Filters ──────────────────────────────────────────────
@@ -1934,10 +2137,18 @@ function openDetail(project) {
       <h3>References</h3>
       ${p.links.map(l => `<a href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a><br>`).join('')}
     </div>
+    <div class="prediction-section" id="pred-section">
+      <h3>Prediction Markets</h3>
+      <div class="pred-loading" id="pred-loading">Searching Manifold Markets...</div>
+      <div id="pred-results" style="display:none"></div>
+    </div>
   `;
 
   panel.classList.add('open');
   document.getElementById('detail-backdrop').classList.add('open');
+
+  // Search Manifold for prediction markets about this project
+  searchManifold(p.name);
 }
 
 // ── Sidebar ──────────────────────────────────────────────
@@ -1978,6 +2189,155 @@ function updateStatus() {
 }
 
 // ── Boot ─────────────────────────────────────────────────
+// ── Manifold Markets Integration ─────────────────────────
+async function searchManifold(projectName) {
+  const loading = document.getElementById('pred-loading');
+  const results = document.getElementById('pred-results');
+  if (!loading || !results) return;
+
+  // Build search terms — use project name, try to find relevant markets
+  const terms = projectName.replace(/[()]/g, '').split(/\s+/).slice(0, 4).join(' ');
+
+  try {
+    const resp = await fetch(
+      `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(terms)}&filter=open&contractType=BINARY&limit=5&sort=most-popular`
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const markets = await resp.json();
+
+    loading.style.display = 'none';
+    results.style.display = 'block';
+
+    if (!markets || markets.length === 0) {
+      results.innerHTML = `
+        <div class="pred-none">
+          No prediction markets found for this project.<br>
+          <a class="pred-market-link" href="https://manifold.markets/create" target="_blank" rel="noopener">Create one on Manifold ↗</a>
+        </div>`;
+      return;
+    }
+
+    // Show top market as a gauge, rest as list
+    const top = markets[0];
+    const pct = Math.round((top.probability || 0) * 100);
+    const color = pct >= 60 ? '#44cc88' : pct >= 35 ? '#ff8c00' : '#ff4466';
+    const circumference = 2 * Math.PI * 22;
+    const offset = circumference - (pct / 100) * circumference;
+
+    let html = `
+      <div class="pred-gauge">
+        <div class="pred-ring">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle class="pred-ring-bg" cx="28" cy="28" r="22"/>
+            <circle class="pred-ring-fill" cx="28" cy="28" r="22"
+              stroke="${color}"
+              stroke-dasharray="${circumference}"
+              stroke-dashoffset="${offset}"/>
+          </svg>
+        </div>
+        <div>
+          <div class="pred-pct" style="color:${color}">${pct}%</div>
+          <div class="pred-label">${top.question.length > 60 ? top.question.slice(0, 58) + '…' : top.question}</div>
+          <a class="pred-market-link" href="${top.url}" target="_blank" rel="noopener">Trade on Manifold ↗</a>
+        </div>
+      </div>`;
+
+    if (markets.length > 1) {
+      html += `<ul class="pred-markets-list">`;
+      for (let i = 1; i < markets.length; i++) {
+        const m = markets[i];
+        const mp = Math.round((m.probability || 0) * 100);
+        const mc = mp >= 60 ? '#44cc88' : mp >= 35 ? '#ff8c00' : '#ff4466';
+        html += `<li>
+          <a href="${m.url}" target="_blank" rel="noopener">${m.question.length > 50 ? m.question.slice(0, 48) + '…' : m.question}</a>
+          <span class="pred-prob-badge" style="background:${mc}22;color:${mc}">${mp}%</span>
+        </li>`;
+      }
+      html += `</ul>`;
+    }
+
+    results.innerHTML = html;
+  } catch (err) {
+    loading.style.display = 'none';
+    results.style.display = 'block';
+    results.innerHTML = `<div class="pred-none">Could not reach Manifold Markets.<br><span style="font-size:11px;color:var(--text-dim)">${err.message}</span></div>`;
+  }
+}
+
+// ── Bounty Board ─────────────────────────────────────────
+// Demo bounties — in production these come from ATProto PDS records
+const BOUNTIES = [
+  { id: 'b1', projectId: 'fehmarn', projectName: 'Fehmarn Belt Fixed Link', kind: 'webcam', title: 'Live webcam feed from Rødbyhavn casting yard', description: 'Looking for a current webcam URL showing the tunnel element production at the casting yard.', reward: '10 REPUTATION', status: 'open', createdAt: '2026-03-15' },
+  { id: 'b2', projectId: 'cahsr', projectName: 'California High-Speed Rail', kind: 'photo', title: 'Recent photos of viaduct construction near Fresno', description: 'Ground-level photos of the elevated guideway sections under construction in the Central Valley.', reward: '15 REPUTATION', status: 'open', createdAt: '2026-03-14' },
+  { id: 'b3', projectId: 'sichuantibet', projectName: 'Sichuan–Tibet Railway', kind: 'progress_update', title: 'Tunneling progress update — Kangding to Nyingchi section', description: 'Any recent reports on TBM progress through the Hengduan Mountains. Official sources or local news.', reward: '25 REPUTATION', status: 'open', createdAt: '2026-03-12' },
+  { id: 'b4', projectId: 'iter', projectName: 'ITER Fusion Reactor', kind: 'video', title: 'Recent drone footage of tokamak assembly', description: 'Looking for recent (2026) drone video showing the current state of the tokamak pit assembly.', reward: '20 REPUTATION', status: 'open', createdAt: '2026-03-10' },
+  { id: 'b5', projectId: 'neom', projectName: 'NEOM / The Line', kind: 'satellite', title: 'Satellite imagery of The Line foundation work', description: 'Recent satellite/aerial imagery showing the extent of earthworks and foundation construction along The Line alignment.', reward: '30 REPUTATION', status: 'open', createdAt: '2026-03-08' },
+  { id: 'b6', projectId: 'brenner', projectName: 'Brenner Base Tunnel', kind: 'document', title: 'Latest tunneling progress report (2026 Q1)', description: 'Official or news summary of meters bored to date and remaining work on the Brenner Base Tunnel.', reward: '10 REPUTATION', status: 'open', createdAt: '2026-03-06' },
+  { id: 'b7', projectId: 'stargate', projectName: 'Stargate AI Infrastructure', kind: 'photo', title: 'Construction photos from Abilene, TX campus', description: 'On-the-ground photos of the Stargate data center campus under construction in Abilene, Texas.', reward: '20 REPUTATION', status: 'open', createdAt: '2026-03-05' },
+  { id: 'b8', projectId: 'yarlungtsangpo', projectName: 'Yarlung Tsangpo Hydropower', kind: 'webcam', title: 'Any visual documentation of dam site preparation', description: 'This project is shrouded in secrecy. Any webcam, photo, or satellite imagery of the construction site on the Yarlung Tsangpo gorge.', reward: '50 REPUTATION', status: 'open', createdAt: '2026-03-01' },
+];
+
+function updateBountyBoard() {
+  const panel = document.getElementById('bounty-panel');
+  const filtered = state.selectedProject
+    ? BOUNTIES.filter(b => b.projectId === state.selectedProject.id)
+    : BOUNTIES;
+  const displayed = filtered.length > 0 ? filtered : BOUNTIES;
+
+  let html = `
+    <div class="bounty-header">
+      <h4>${state.selectedProject ? `Bounties: ${state.selectedProject.name}` : 'All Open Bounties'}</h4>
+    </div>`;
+
+  if (displayed.length === 0) {
+    html += `<div class="bounty-empty">No bounties yet.<br>Be the first to request information about a megaproject.</div>`;
+  } else {
+    html += displayed.map(b => `
+      <div class="bounty-item" data-project="${b.projectId}">
+        <div class="bounty-title">
+          <span class="bounty-kind bounty-kind-${b.kind}">${b.kind.replace('_', ' ')}</span>
+          ${b.title}
+        </div>
+        <div class="bounty-meta">
+          <span class="bounty-reward">${b.reward}</span>
+          <span class="bounty-project">${b.projectName}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  panel.innerHTML = html;
+
+  // Click bounty → select that project
+  panel.querySelectorAll('.bounty-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const proj = state.projects.find(p => p.id === el.dataset.project);
+      if (proj) {
+        switchTab('projects');
+        selectProject(proj);
+      }
+    });
+  });
+}
+
+// ── Sidebar Tabs ─────────────────────────────────────────
+function switchTab(tabName) {
+  document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  const list = document.getElementById('sidebar-list');
+  const bounty = document.getElementById('bounty-panel');
+  const stats = document.getElementById('sidebar-stats');
+  if (tabName === 'projects') {
+    list.style.display = 'block';
+    stats.style.display = 'flex';
+    bounty.style.display = 'none';
+  } else {
+    list.style.display = 'none';
+    stats.style.display = 'none';
+    bounty.style.display = 'block';
+    updateBountyBoard();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
