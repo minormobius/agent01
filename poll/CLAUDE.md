@@ -228,9 +228,25 @@ draft → open → closed → finalized
 ```
 
 - **draft**: Configure poll, sync eligible DIDs, no voting
-- **open**: Voters can request credentials and submit ballots
-- **closed**: No new ballots accepted. Host can publish ballots to PDS.
-- **finalized**: Irreversible. Tally is final.
+- **open**: Voters can request credentials and submit ballots. A Cloudflare DO alarm is set for `closes_at`.
+- **closed**: No new ballots accepted. Post-close hooks fire automatically (see below).
+- **finalized**: Irreversible. Tally is final. Reached automatically after post-close hooks complete.
+
+### Auto-Close & Post-Close Hooks
+
+Polls auto-close when `closes_at` is reached via a Cloudflare Durable Object alarm. Manual close (`POST /api/polls/:id/close`) also works. Both paths trigger the same post-close pipeline:
+
+**Public (`public_like`) polls:**
+1. Sync likes from `public.api.bsky.app` for all option posts — final tally
+2. Publish final tally to ATProto (`com.minomobi.poll.tally`)
+3. Auto-finalize (status → `finalized`)
+
+**Anonymous (`anon_credential_v2`) polls:**
+1. Publish all unpublished ballots to ATProto (Fisher-Yates shuffled)
+2. Publish final tally to ATProto
+3. Auto-finalize
+
+Post-close hooks are best-effort — if publishing fails, the poll is still closed (voting stops) and the failure is logged in the audit chain. The host can manually retry publishing via the API.
 
 ## Public Bulletin Board
 
