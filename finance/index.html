@@ -438,6 +438,10 @@ canvas {
     <input id="dbg-limit" type="number" value="5" style="width:60px">
     <button id="btn-dbg-list">list</button>
   </div>
+  <div class="form-row">
+    <button onclick="document.getElementById('dbg-collection').value='com.minomobi.finance.security'">security</button>
+    <button onclick="document.getElementById('dbg-collection').value='com.minomobi.finance.dailySeries'">dailySeries</button>
+  </div>
   <pre id="dbg-records" class="dbg-output"></pre>
 
   <p class="section-hdr">3. get single record</p>
@@ -738,6 +742,7 @@ async function loadBarsForSymbol(symbol) {
   let consecutiveMisses = 0;
 
   // Walk backwards from current year; stop after 5 consecutive misses
+  let firstError = null;
   for (let year = thisYear; year >= 1950 && consecutiveMisses < 5; year--) {
     const rkey = `${sanitized}:${year}`;
     try {
@@ -746,7 +751,8 @@ async function loadBarsForSymbol(symbol) {
         collection: COLLECTION,
         rkey,
       });
-      const r = await fetch(`${state.pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+      const url = `${state.pds}/xrpc/com.atproto.repo.getRecord?${params}`;
+      const r = await fetch(url);
       if (r.ok) {
         const data = await r.json();
         if (data.value?.bars?.length) {
@@ -757,13 +763,21 @@ async function loadBarsForSymbol(symbol) {
         }
       } else {
         consecutiveMisses++;
+        if (!firstError) {
+          const errText = await r.text().catch(() => '');
+          firstError = `rkey="${rkey}" status=${r.status} ${errText.slice(0, 200)}`;
+          console.warn(`loadBars miss: ${url} → ${r.status}`, errText.slice(0, 300));
+        }
       }
-    } catch {
+    } catch (e) {
       consecutiveMisses++;
+      if (!firstError) firstError = `rkey="${rkey}" fetch error: ${e.message}`;
     }
   }
 
-  if (bars.length === 0) throw new Error(`No dailySeries data for ${symbol}`);
+  if (bars.length === 0) {
+    throw new Error(`No dailySeries data for ${symbol} (tried rkeys like ${sanitized}:${thisYear}). First miss: ${firstError || 'unknown'}`);
+  }
 
   state.seriesCache[symbol] = bars;
   return bars;
