@@ -4,7 +4,7 @@ compatibility_date = "2024-07-18"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-FRONTEND_URL = "https://polls.example.com"
+FRONTEND_URL = "https://poll.mino.mobi"
 ATPROTO_MOCK_MODE = "true"
 
 # D1 database binding
@@ -22,11 +22,11 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["PollCoordinator"]
+new_sqlite_classes = ["PollCoordinator"]
 
 # Environment-specific overrides
 [env.production]
-vars = { FRONTEND_URL = "https://polls.example.com", ATPROTO_MOCK_MODE = "false" }
+vars = { FRONTEND_URL = "https://poll.mino.mobi", ATPROTO_MOCK_MODE = "false" }
 
 [env.production.d1_databases]
 binding = "DB"
