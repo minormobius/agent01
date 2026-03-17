@@ -443,7 +443,7 @@ canvas {
   <p class="section-hdr">3. get single record</p>
   <div class="form-row">
     <input id="dbg-get-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
-    <input id="dbg-rkey" type="text" placeholder="rkey (e.g. AAPL)" style="width:120px">
+    <input id="dbg-rkey" type="text" placeholder="symbol (e.g. AAPL, GC=F)" style="width:160px">
     <button id="btn-dbg-get">get</button>
   </div>
   <pre id="dbg-single" class="dbg-output"></pre>
@@ -1382,17 +1382,20 @@ document.getElementById('btn-dbg-list').addEventListener('click', async () => {
 
 document.getElementById('btn-dbg-get').addEventListener('click', async () => {
   const out = document.getElementById('dbg-single');
-  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+  if (!dbgState.did || !dbgState.pds) { out.textContent = 'Resolve a handle first (step 1)'; return; }
 
   const collection = document.getElementById('dbg-get-collection').value.trim();
-  const rkey = document.getElementById('dbg-rkey').value.trim();
-  if (!rkey) { out.textContent = 'Enter an rkey'; return; }
+  let rkey = document.getElementById('dbg-rkey').value.trim().toUpperCase();
+  // Sanitize symbol → rkey (same as sync does)
+  rkey = rkey.replace(/=/g, '-').replace(/\^/g, '').replace(/\//g, '-');
+  if (!rkey) { out.textContent = 'Enter an rkey (e.g. AAPL, GC-F, DGS10)'; return; }
 
-  out.textContent = 'fetching...\n';
+  out.textContent = `rkey (sanitized): "${rkey}"\n\n`;
   try {
+    // Use PDS directly (public API doesn't serve custom collections reliably)
     const params = new URLSearchParams({ repo: dbgState.did, collection, rkey });
-    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`;
-    out.textContent = `GET ${url}\n\n`;
+    const url = `${dbgState.pds}/xrpc/com.atproto.repo.getRecord?${params}`;
+    out.textContent += `GET ${url}\n\n`;
     const r = await fetch(url);
     const text = await r.text();
     out.textContent += `Status: ${r.status}\n\n`;
