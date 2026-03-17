@@ -1,18 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mega-minomobi",
-  "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "assets": {
-    "directory": ".",
-    "binding": "ASSETS"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "mega-bounty",
-      "database_id": "TODO_REPLACE_WITH_D1_DATABASE_ID",
-      "migrations_dir": "migrations"
-    }
-  ]
+    "directory": "."
+  }
 }
