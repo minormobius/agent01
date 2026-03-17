@@ -1,4 +1,4 @@
-/* search.js — Gutendex API search + book selection */
+/* search.js — Gutendex + PoetryDB search + book/poem selection */
 
 const Search = (() => {
   const API = 'https://gutendex.com/books';
@@ -8,6 +8,10 @@ const Search = (() => {
     const resp = await fetch(`${API}?search=${encodeURIComponent(query)}`);
     if (!resp.ok) throw new Error('Search failed');
     return resp.json();
+  }
+
+  async function searchPoetry(query) {
+    return Poetry.search(query);
   }
 
   function renderResults(data, container) {
@@ -37,7 +41,41 @@ const Search = (() => {
           onBookSelected({
             id: book.id,
             title: book.title,
-            author
+            author,
+            source: 'gutenberg'
+          });
+        }
+      });
+
+      container.appendChild(card);
+    }
+  }
+
+  function renderPoetryResults(poems, container) {
+    container.innerHTML = '';
+    if (!poems || poems.length === 0) {
+      container.innerHTML = '<p class="search-empty">No poems found.</p>';
+      return;
+    }
+
+    for (const poem of poems) {
+      const card = document.createElement('button');
+      card.className = 'book-card';
+      card.setAttribute('type', 'button');
+
+      card.innerHTML = `
+        <span class="book-title">${esc(poem.title)}</span>
+        <span class="book-author">${esc(poem.author)}</span>
+        <span class="book-dl">${poem.linecount || '?'} lines</span>
+      `;
+
+      card.addEventListener('click', () => {
+        if (onBookSelected) {
+          onBookSelected({
+            id: `poetry:${poem.author}:${poem.title}`,
+            title: poem.title,
+            author: poem.author,
+            source: 'poetry'
           });
         }
       });
@@ -79,5 +117,5 @@ const Search = (() => {
 
   function setOnBookSelected(fn) { onBookSelected = fn; }
 
-  return { search, renderResults, renderBookshelf, setOnBookSelected };
+  return { search, searchPoetry, renderResults, renderPoetryResults, renderBookshelf, setOnBookSelected };
 })();

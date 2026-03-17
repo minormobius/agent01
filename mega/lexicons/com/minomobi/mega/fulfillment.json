@@ -1,0 +1,98 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mega.fulfillment",
+  "description": "A fulfillment of an information bounty — someone with access to a megaproject provides the requested information (photos, webcam links, progress reports, documents).",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A response to an information request, providing the requested data. The fulfiller's PDS stores the evidence. The request creator reviews and marks the request as fulfilled if satisfied.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["requestRef", "evidence", "createdAt"],
+        "properties": {
+          "requestRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the com.minomobi.mega.request record being fulfilled"
+          },
+          "evidence": {
+            "type": "array",
+            "maxLength": 20,
+            "items": {
+              "type": "ref",
+              "ref": "#evidenceItem"
+            },
+            "description": "Array of evidence items fulfilling the request"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Free-text notes from the fulfiller — context, observations, details about what they found"
+          },
+          "location": {
+            "type": "ref",
+            "ref": "#geoTag",
+            "description": "Optional geotag of where the evidence was captured"
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the evidence was captured (may differ from createdAt)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this fulfillment record was created"
+          }
+        }
+      }
+    },
+    "evidenceItem": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["photo", "video", "webcam_url", "document_url", "text_report", "satellite_url"],
+          "description": "Type of evidence"
+        },
+        "blob": {
+          "type": "blob",
+          "accept": ["image/jpeg", "image/png", "image/webp", "video/mp4"],
+          "maxSize": 10000000,
+          "description": "Uploaded image or video file (stored on fulfiller's PDS)"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048,
+          "description": "External URL (webcam stream, document, satellite imagery link)"
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Description of this evidence item"
+        }
+      }
+    },
+    "geoTag": {
+      "type": "object",
+      "required": ["lat", "lon"],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "description": "Latitude where evidence was captured"
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitude where evidence was captured"
+        },
+        "accuracy": {
+          "type": "number",
+          "description": "GPS accuracy in meters"
+        }
+      }
+    }
+  }
+}

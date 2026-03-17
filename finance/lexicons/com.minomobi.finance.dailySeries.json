@@ -1,0 +1,114 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.finance.dailySeries",
+  "description": "Daily price/value series for a single instrument over one calendar year.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "One year of daily OHLCV bars or rate observations for a single symbol. Record key is '{symbol}:{year}' (e.g., 'AAPL:2024', 'DGS10:2024', 'CL-F:2024').",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["symbol", "year", "seriesType", "name", "bars", "createdAt"],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "Ticker symbol or series identifier (e.g., AAPL, DGS10, CL-F)"
+          },
+          "year": {
+            "type": "integer",
+            "description": "Calendar year this record covers"
+          },
+          "seriesType": {
+            "type": "string",
+            "description": "Classification of the series",
+            "knownValues": ["equity", "etf", "index", "rate", "commodity", "crypto", "spread"]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Human-readable name (e.g., 'Apple Inc.', '10-Year Treasury Constant Maturity')"
+          },
+          "bars": {
+            "type": "array",
+            "description": "Daily observations, chronologically ordered. Max 366 entries (leap year).",
+            "maxLength": 366,
+            "items": {
+              "type": "ref",
+              "ref": "#bar"
+            }
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Data source identifier (e.g., 'tiingo', 'fred', 'yfinance')"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "description": "ISO 4217 currency code (e.g., USD, EUR)"
+          },
+          "exchange": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "Exchange or market (e.g., NYSE, NASDAQ, COMEX, FRED)"
+          },
+          "sector": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Sector classification for equities"
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Industry classification for equities"
+          },
+          "adjusted": {
+            "type": "boolean",
+            "description": "Whether prices are adjusted for splits and dividends"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "bar": {
+      "type": "object",
+      "required": ["d"],
+      "description": "A single daily observation. For equities/commodities: OHLCV. For rates/spreads: just 'c' (value).",
+      "properties": {
+        "d": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format"
+        },
+        "o": {
+          "type": "number",
+          "description": "Open price"
+        },
+        "h": {
+          "type": "number",
+          "description": "High price"
+        },
+        "l": {
+          "type": "number",
+          "description": "Low price"
+        },
+        "c": {
+          "type": "number",
+          "description": "Close price or rate value"
+        },
+        "v": {
+          "type": "integer",
+          "description": "Volume (omitted for rates/spreads)"
+        }
+      }
+    }
+  }
+}

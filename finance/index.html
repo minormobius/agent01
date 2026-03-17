@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>finance — minomobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --green: #2d6a2e;
+  --red: #8b0000;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --green: #5a5;
+    --red: #c45;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem 6rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-bottom: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  margin-right: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--bg);
+  color: var(--text);
+  border-bottom: 1px solid var(--bg);
+  margin-bottom: -1px;
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Forms */
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+input, select {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--link);
+}
+button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--link); color: var(--link); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Status */
+.status {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.status.error { color: var(--link); }
+
+/* Progress */
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Section headers */
+.section-hdr {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Chart */
+#chart-wrap {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.stat-card {
+  border: 1px solid var(--rule);
+  padding: 0.75rem;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+.stat-value {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+}
+.stat-value.positive { color: var(--green); }
+.stat-value.negative { color: var(--red); }
+
+/* Securities list */
+.sec-list {
+  list-style: none;
+}
+.sec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.sec-item:hover { color: var(--link); }
+.sec-sym {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  min-width: 80px;
+}
+.sec-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding: 0 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sec-type {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+/* Options pricer */
+.pricer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.pricer-field label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+.pricer-field input {
+  width: 100%;
+}
+.pricer-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+/* Vol surface */
+#vol-surface {
+  width: 100%;
+  height: 300px;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+/* Data source panel */
+.source-info {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.source-info a { color: var(--link); }
+
+/* Filter buttons */
+.filter-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filter-btn:hover { border-color: var(--text); color: var(--text); }
+.filter-btn.active {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Debug output */
+.dbg-output {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 5%, var(--bg));
+  border: 1px solid var(--rule);
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.dbg-output:empty { display: none; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  body { padding: 2rem 1rem; }
+  .pricer-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="https://mino.mobi">mino.mobi</a> · finance</h1>
+<p class="subtitle">daily price archive & options reference</p>
+<p class="desc">daily ohlcv on equities, rates, and commodities stored on atproto pds. black-scholes theoretical pricing and vol surface from historical data.</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="browse">browse</button>
+  <button class="tab" data-tab="chart">chart</button>
+  <button class="tab" data-tab="pricer">options pricer</button>
+  <button class="tab" data-tab="debug">debug</button>
+  <button class="tab" data-tab="sources">data sources</button>
+</div>
+
+<!-- ================================================================ -->
+<!-- BROWSE TAB -->
+<!-- ================================================================ -->
+<div class="panel active" id="panel-browse">
+
+  <div class="form-row">
+    <input id="pds-handle" type="text" placeholder="handle.bsky.social" value="minomobi.bsky.social" style="flex:1">
+    <button id="btn-load">load</button>
+  </div>
+
+  <div class="progress-track"><div class="progress-fill" id="browse-progress"></div></div>
+  <div class="status" id="browse-status"></div>
+
+  <div class="filter-bar" id="type-filters"></div>
+
+  <ul class="sec-list" id="sec-list"></ul>
+</div>
+
+<!-- ================================================================ -->
+<!-- CHART TAB -->
+<!-- ================================================================ -->
+<div class="panel" id="panel-chart">
+
+  <div class="form-row">
+    <input id="chart-symbol" type="text" placeholder="AAPL" style="width:120px">
+    <select id="chart-year">
+      <option value="">all years</option>
+    </select>
+    <button id="btn-chart">draw</button>
+  </div>
+
+  <div class="status" id="chart-status"></div>
+
+  <div id="chart-wrap">
+    <canvas id="chart-canvas"></canvas>
+  </div>
+
+  <div class="stats-grid" id="chart-stats"></div>
+</div>
+
+<!-- ================================================================ -->
+<!-- OPTIONS PRICER TAB -->
+<!-- ================================================================ -->
+<div class="panel" id="panel-pricer">
+
+  <p class="section-hdr">black-scholes reference pricer</p>
+
+  <div class="pricer-grid">
+    <div class="pricer-field">
+      <label>underlying symbol</label>
+      <input id="bs-symbol" type="text" placeholder="AAPL" value="AAPL">
+    </div>
+    <div class="pricer-field">
+      <label>strike price (K)</label>
+      <input id="bs-strike" type="number" step="0.01" value="150">
+    </div>
+    <div class="pricer-field">
+      <label>days to expiry</label>
+      <input id="bs-dte" type="number" value="30" min="1">
+    </div>
+    <div class="pricer-field">
+      <label>vol lookback (days)</label>
+      <input id="bs-vol-window" type="number" value="30" min="5" max="252">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <button id="btn-price">compute</button>
+    <span class="status" id="pricer-status"></span>
+  </div>
+
+  <div class="section-hdr" style="margin-top:1.5rem">results</div>
+  <div class="pricer-results" id="pricer-results"></div>
+
+  <div class="section-hdr">greeks</div>
+  <div class="pricer-results" id="pricer-greeks"></div>
+
+  <div class="section-hdr">volatility surface (strike × expiry)</div>
+  <div id="vol-surface">
+    <canvas id="vol-canvas"></canvas>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- DEBUG TAB -->
+<!-- ================================================================ -->
+<div class="panel" id="panel-debug">
+
+  <p class="section-hdr">1. resolve identity</p>
+  <div class="form-row">
+    <input id="dbg-handle" type="text" placeholder="handle.bsky.social" value="minomobi.bsky.social" style="flex:1">
+    <button id="btn-dbg-resolve">resolve</button>
+  </div>
+  <pre id="dbg-identity" class="dbg-output"></pre>
+
+  <p class="section-hdr">2. list records</p>
+  <div class="form-row">
+    <input id="dbg-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
+    <input id="dbg-limit" type="number" value="5" style="width:60px">
+    <button id="btn-dbg-list">list</button>
+  </div>
+  <pre id="dbg-records" class="dbg-output"></pre>
+
+  <p class="section-hdr">3. get single record</p>
+  <div class="form-row">
+    <input id="dbg-get-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
+    <input id="dbg-rkey" type="text" placeholder="rkey (e.g. AAPL)" style="width:120px">
+    <button id="btn-dbg-get">get</button>
+  </div>
+  <pre id="dbg-single" class="dbg-output"></pre>
+
+  <p class="section-hdr">4. write test record (requires credentials)</p>
+  <div class="form-row">
+    <input id="dbg-write-handle" type="text" placeholder="your-handle.bsky.social" style="flex:1">
+    <input id="dbg-app-password" type="password" placeholder="app password" style="flex:1">
+  </div>
+  <div class="form-row">
+    <button id="btn-dbg-write-test">write test security record</button>
+    <button id="btn-dbg-delete-test">delete test record</button>
+  </div>
+  <pre id="dbg-write-result" class="dbg-output"></pre>
+
+  <p class="section-hdr">5. describe repo collections</p>
+  <div class="form-row">
+    <button id="btn-dbg-describe">describe repo</button>
+  </div>
+  <pre id="dbg-describe" class="dbg-output"></pre>
+</div>
+
+<!-- ================================================================ -->
+<!-- DATA SOURCES TAB -->
+<!-- ================================================================ -->
+<div class="panel" id="panel-sources">
+  <p class="section-hdr">data architecture</p>
+  <p class="source-info">
+    daily ohlcv and rate data stored as <code>com.minomobi.finance.dailySeries</code> records on an atproto pds.
+    each record covers one symbol for one calendar year (~252 bars, ~20KB).
+    the full archive (~1,000 symbols × 30 years = ~30,000 records, ~600MB) fits comfortably on a single pds.
+  </p>
+
+  <p class="section-hdr">data sources</p>
+  <p class="source-info">
+    <strong>equities & etfs:</strong> <a href="https://www.tiingo.com/">tiingo</a> — adjusted ohlcv, 30+ year history, includes delisted tickers. free tier: 50 symbols/hour.<br>
+    <strong>treasury yields & rates:</strong> <a href="https://fred.stlouisfed.org/">fred</a> — public domain. daily constant maturity rates back to 1962. fed funds, sofr, tips.<br>
+    <strong>commodities & indices:</strong> <a href="https://pypi.org/project/yfinance/">yfinance</a> — futures front-month contracts (gold, oil, wheat, etc.), market indices, vix.<br>
+    <strong>s&p 500 constituents:</strong> <a href="https://github.com/fja05680/sp500">fja05680/sp500</a> — historical membership changes since 1996 for survivorship-bias-free backtesting.<br>
+    <strong>fundamentals:</strong> <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces">sec edgar xbrl</a> — public domain financial statements.
+  </p>
+
+  <p class="section-hdr">intraday accumulation</p>
+  <p class="source-info">
+    users can optionally pull recent 1-minute bars daily via <a href="https://finnhub.io/">finnhub</a> (60 calls/min free)
+    and accumulate their own intraday history. yfinance provides 1-min data but only retains 7 days — pull it or lose it.
+  </p>
+
+  <p class="section-hdr">options pricing model</p>
+  <p class="source-info">
+    the pricer computes theoretical european option prices via black-scholes-merton.
+    volatility is estimated from historical daily returns using the garman-klass estimator (ohlc-based, more efficient than close-to-close).
+    risk-free rate is interpolated from the treasury yield curve stored in the archive.
+    greeks (delta, gamma, theta, vega, rho) are analytical closed-form solutions.
+    the vol surface shows how theoretical vol varies across strikes and expiries — deviations from market prices reveal implied vol skew.
+  </p>
+</div>
+
+<script>
+// =====================================================================
+// ATProto client
+// =====================================================================
+
+const PUBLIC_API = 'https://public.api.bsky.app';
+const COLLECTION = 'com.minomobi.finance.dailySeries';
+const META_COLLECTION = 'com.minomobi.finance.security';
+
+async function resolveHandle(handle) {
+  const r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!r.ok) throw new Error(`Could not resolve handle: ${handle}`);
+  return (await r.json()).did;
+}
+
+async function resolvePDS(did) {
+  let doc;
+  if (did.startsWith('did:plc:')) {
+    const r = await fetch(`https://plc.directory/${did}`);
+    if (!r.ok) throw new Error('Could not resolve DID');
+    doc = await r.json();
+  } else if (did.startsWith('did:web:')) {
+    const host = did.slice('did:web:'.length).replaceAll(':', '/');
+    const r = await fetch(`https://${host}/.well-known/did.json`);
+    if (!r.ok) throw new Error('Could not resolve DID');
+    doc = await r.json();
+  }
+  const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+  if (!svc) throw new Error('No PDS found');
+  return svc.serviceEndpoint;
+}
+
+async function listRecords(did, pds, collection, limit = 100, cursor = null) {
+  const params = new URLSearchParams({ repo: did, collection, limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+  // Try public API first, fall back to PDS
+  let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
+  if (!r.ok) {
+    r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
+  }
+  if (!r.ok) throw new Error(`listRecords failed (${r.status})`);
+  return r.json();
+}
+
+async function listAllRecords(did, pds, collection, onProgress) {
+  const all = [];
+  let cursor = null;
+  let page = 0;
+  do {
+    const data = await listRecords(did, pds, collection, 100, cursor);
+    all.push(...(data.records || []));
+    cursor = data.cursor;
+    page++;
+    if (onProgress) onProgress(all.length, cursor);
+  } while (cursor);
+  return all;
+}
+
+
+// =====================================================================
+// State
+// =====================================================================
+
+let state = {
+  did: null,
+  pds: null,
+  securities: [],   // security metadata records
+  series: [],       // dailySeries records (loaded on demand)
+  seriesCache: {},  // symbol -> merged bars
+};
+
+
+// =====================================================================
+// Tab switching
+// =====================================================================
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+  });
+});
+
+
+// =====================================================================
+// Browse tab
+// =====================================================================
+
+const btnLoad = document.getElementById('btn-load');
+const handleInput = document.getElementById('pds-handle');
+const browseStatus = document.getElementById('browse-status');
+const browseProgress = document.getElementById('browse-progress');
+const secList = document.getElementById('sec-list');
+const typeFilters = document.getElementById('type-filters');
+
+btnLoad.addEventListener('click', loadArchive);
+handleInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadArchive(); });
+
+async function loadArchive() {
+  const handle = handleInput.value.trim();
+  if (!handle) return;
+
+  btnLoad.disabled = true;
+  browseStatus.textContent = 'resolving identity...';
+  browseStatus.className = 'status';
+  browseProgress.style.width = '0%';
+  secList.innerHTML = '';
+  typeFilters.innerHTML = '';
+
+  try {
+    state.did = await resolveHandle(handle);
+    state.pds = await resolvePDS(state.did);
+    browseStatus.textContent = `resolved ${state.did.slice(0, 20)}...`;
+    browseProgress.style.width = '10%';
+
+    // Load security metadata
+    browseStatus.textContent = 'loading security index...';
+    state.securities = await listAllRecords(state.did, state.pds, META_COLLECTION, (n) => {
+      browseStatus.textContent = `loaded ${n} securities...`;
+      browseProgress.style.width = `${Math.min(10 + (n / 10), 90)}%`;
+    });
+
+    browseProgress.style.width = '100%';
+
+    if (state.securities.length === 0) {
+      browseStatus.textContent = 'no securities found. sync data first (see data sources tab).';
+      browseStatus.className = 'status error';
+      btnLoad.disabled = false;
+      return;
+    }
+
+    browseStatus.textContent = `${state.securities.length} securities loaded`;
+    renderSecurityList(state.securities);
+    renderTypeFilters(state.securities);
+
+  } catch (err) {
+    browseStatus.textContent = err.message;
+    browseStatus.className = 'status error';
+  }
+  btnLoad.disabled = false;
+}
+
+function renderSecurityList(records, filter = null) {
+  secList.innerHTML = '';
+  const filtered = filter
+    ? records.filter(r => r.value.seriesType === filter)
+    : records;
+
+  for (const rec of filtered) {
+    const v = rec.value;
+    const li = document.createElement('li');
+    li.className = 'sec-item';
+    li.innerHTML = `
+      <span class="sec-sym">${v.symbol}</span>
+      <span class="sec-name">${v.name || ''}</span>
+      <span class="sec-type">${v.seriesType}</span>
+    `;
+    li.addEventListener('click', () => {
+      document.getElementById('chart-symbol').value = v.symbol;
+      document.querySelector('[data-tab="chart"]').click();
+      drawChart();
+    });
+    secList.appendChild(li);
+  }
+}
+
+function renderTypeFilters(records) {
+  const types = [...new Set(records.map(r => r.value.seriesType))].sort();
+  typeFilters.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = `all (${records.length})`;
+  allBtn.addEventListener('click', () => {
+    typeFilters.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    allBtn.classList.add('active');
+    renderSecurityList(records);
+  });
+  typeFilters.appendChild(allBtn);
+
+  for (const t of types) {
+    const count = records.filter(r => r.value.seriesType === t).length;
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.textContent = `${t} (${count})`;
+    btn.addEventListener('click', () => {
+      typeFilters.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSecurityList(records, t);
+    });
+    typeFilters.appendChild(btn);
+  }
+}
+
+
+// =====================================================================
+// Chart tab
+// =====================================================================
+
+const chartSymbol = document.getElementById('chart-symbol');
+const chartYear = document.getElementById('chart-year');
+const btnChart = document.getElementById('btn-chart');
+const chartStatus = document.getElementById('chart-status');
+const chartCanvas = document.getElementById('chart-canvas');
+const chartStats = document.getElementById('chart-stats');
+
+// Populate year dropdown
+const curYear = new Date().getFullYear();
+for (let y = curYear; y >= 1960; y--) {
+  const opt = document.createElement('option');
+  opt.value = y; opt.textContent = y;
+  chartYear.appendChild(opt);
+}
+
+btnChart.addEventListener('click', drawChart);
+chartSymbol.addEventListener('keydown', e => { if (e.key === 'Enter') drawChart(); });
+
+async function loadBarsForSymbol(symbol) {
+  if (state.seriesCache[symbol]) return state.seriesCache[symbol];
+  if (!state.did) {
+    // Try loading the PDS first
+    await loadArchive();
+  }
+  if (!state.did) throw new Error('Load a PDS handle first');
+
+  chartStatus.textContent = `fetching ${symbol} series...`;
+
+  const records = await listAllRecords(state.did, state.pds, COLLECTION, (n) => {
+    chartStatus.textContent = `fetching series records... ${n}`;
+  });
+
+  // Filter to this symbol and merge bars
+  const matching = records
+    .filter(r => r.value.symbol === symbol)
+    .sort((a, b) => a.value.year - b.value.year);
+
+  if (matching.length === 0) throw new Error(`No data for ${symbol}`);
+
+  const bars = matching.flatMap(r => r.value.bars);
+  state.seriesCache[symbol] = bars;
+  return bars;
+}
+
+async function drawChart() {
+  const symbol = chartSymbol.value.trim().toUpperCase();
+  if (!symbol) return;
+  chartSymbol.value = symbol;
+
+  try {
+    chartStatus.textContent = 'loading...';
+    let bars = await loadBarsForSymbol(symbol);
+
+    const yearFilter = chartYear.value;
+    if (yearFilter) {
+      bars = bars.filter(b => b.d.startsWith(yearFilter));
+    }
+
+    if (bars.length === 0) {
+      chartStatus.textContent = 'no bars for selected period';
+      return;
+    }
+
+    chartStatus.textContent = `${bars.length} bars loaded`;
+    renderChart(bars, symbol);
+    renderStats(bars, symbol);
+  } catch (err) {
+    chartStatus.textContent = err.message;
+    chartStatus.className = 'status error';
+  }
+}
+
+function renderChart(bars, symbol) {
+  const canvas = chartCanvas;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const colors = {
+    bg: isDark ? '#0f0f0f' : '#faf9f6',
+    text: isDark ? '#d4d4d4' : '#1a1a1a',
+    muted: '#777',
+    rule: isDark ? '#333' : '#ccc',
+    green: isDark ? '#5a5' : '#2d6a2e',
+    red: isDark ? '#c45' : '#8b0000',
+  };
+
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const pad = { top: 20, right: 60, bottom: 30, left: 10 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  const hasOHLC = bars[0].o != null;
+  const closes = bars.map(b => b.c);
+  const allVals = hasOHLC
+    ? bars.flatMap(b => [b.h, b.l])
+    : closes;
+  const minV = Math.min(...allVals);
+  const maxV = Math.max(...allVals);
+  const range = maxV - minV || 1;
+
+  const x = i => pad.left + (i / (bars.length - 1 || 1)) * cW;
+  const y = v => pad.top + (1 - (v - minV) / range) * cH;
+
+  // Grid lines
+  ctx.strokeStyle = colors.rule;
+  ctx.lineWidth = 0.5;
+  const gridLines = 5;
+  for (let i = 0; i <= gridLines; i++) {
+    const gy = pad.top + (i / gridLines) * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+    const val = maxV - (i / gridLines) * range;
+    ctx.fillStyle = colors.muted;
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(val.toFixed(2), W - pad.right + 4, gy + 3);
+  }
+
+  if (hasOHLC && bars.length <= 500) {
+    // Candlestick chart
+    const barW = Math.max(1, (cW / bars.length) * 0.7);
+    for (let i = 0; i < bars.length; i++) {
+      const b = bars[i];
+      const up = b.c >= b.o;
+      ctx.strokeStyle = up ? colors.green : colors.red;
+      ctx.fillStyle = up ? colors.green : colors.red;
+
+      // Wick
+      const cx = x(i);
+      ctx.beginPath();
+      ctx.moveTo(cx, y(b.h));
+      ctx.lineTo(cx, y(b.l));
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Body
+      const top = y(Math.max(b.o, b.c));
+      const bot = y(Math.min(b.o, b.c));
+      const bodyH = Math.max(1, bot - top);
+      if (up) {
+        ctx.strokeRect(cx - barW/2, top, barW, bodyH);
+      } else {
+        ctx.fillRect(cx - barW/2, top, barW, bodyH);
+      }
+    }
+  } else {
+    // Line chart for rates/large datasets
+    ctx.strokeStyle = colors.text;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < bars.length; i++) {
+      const px = x(i);
+      const py = y(bars[i].c);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // Date labels
+  ctx.fillStyle = colors.muted;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  const labelCount = Math.min(6, bars.length);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.floor(i / (labelCount - 1 || 1) * (bars.length - 1));
+    ctx.fillText(bars[idx].d, x(idx), H - 8);
+  }
+}
+
+function renderStats(bars, symbol) {
+  chartStats.innerHTML = '';
+  const first = bars[0];
+  const last = bars[bars.length - 1];
+  const closes = bars.map(b => b.c);
+  const returns = [];
+  for (let i = 1; i < closes.length; i++) {
+    returns.push(Math.log(closes[i] / closes[i-1]));
+  }
+
+  const totalReturn = ((last.c - first.c) / first.c * 100);
+  const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length * 100;
+  const vol = Math.sqrt(returns.reduce((a, r) => a + (r - avgReturn/100) ** 2, 0) / (returns.length - 1)) * Math.sqrt(252) * 100;
+  const maxDD = calcMaxDrawdown(closes);
+
+  const stats = [
+    { label: 'last close', value: last.c.toFixed(2) },
+    { label: 'period', value: `${first.d} → ${last.d}` },
+    { label: 'total return', value: `${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(2)}%`, cls: totalReturn >= 0 ? 'positive' : 'negative' },
+    { label: 'ann. volatility', value: `${vol.toFixed(1)}%` },
+    { label: 'max drawdown', value: `${maxDD.toFixed(1)}%`, cls: 'negative' },
+    { label: 'bars', value: bars.length.toString() },
+  ];
+
+  // Garman-Klass vol if OHLC available
+  if (first.o != null) {
+    const gk = garmanKlass(bars, 30);
+    if (gk != null) {
+      stats.push({ label: 'gk vol (30d)', value: `${(gk * 100).toFixed(1)}%` });
+    }
+  }
+
+  for (const s of stats) {
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.innerHTML = `
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value ${s.cls || ''}">${s.value}</div>
+    `;
+    chartStats.appendChild(card);
+  }
+}
+
+function calcMaxDrawdown(closes) {
+  let peak = closes[0];
+  let maxDD = 0;
+  for (const c of closes) {
+    if (c > peak) peak = c;
+    const dd = (peak - c) / peak * 100;
+    if (dd > maxDD) maxDD = dd;
+  }
+  return maxDD;
+}
+
+
+// =====================================================================
+// Volatility estimators
+// =====================================================================
+
+function garmanKlass(bars, window) {
+  // Garman-Klass volatility estimator using OHLC
+  // More efficient than close-to-close: uses intraday range info
+  if (bars.length < window) return null;
+  const recent = bars.slice(-window);
+  let sum = 0;
+  for (const b of recent) {
+    if (!b.o || !b.h || !b.l || !b.c) continue;
+    const u = Math.log(b.h / b.o);
+    const d = Math.log(b.l / b.o);
+    const c = Math.log(b.c / b.o);
+    sum += 0.5 * (u - d) ** 2 - (2 * Math.LN2 - 1) * c ** 2;
+  }
+  return Math.sqrt((sum / recent.length) * 252);
+}
+
+function closeToCloseVol(bars, window) {
+  if (bars.length < window + 1) return null;
+  const recent = bars.slice(-(window + 1));
+  const returns = [];
+  for (let i = 1; i < recent.length; i++) {
+    returns.push(Math.log(recent[i].c / recent[i-1].c));
+  }
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / (returns.length - 1);
+  return Math.sqrt(variance * 252);
+}
+
+
+// =====================================================================
+// Black-Scholes
+// =====================================================================
+
+function normCDF(x) {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x) / Math.SQRT2;
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1.0 + sign * y);
+}
+
+function normPDF(x) {
+  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+}
+
+function blackScholes(S, K, T, r, sigma) {
+  // Returns { call, put, delta_c, delta_p, gamma, theta_c, theta_p, vega, rho_c, rho_p }
+  if (T <= 0 || sigma <= 0) return null;
+
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT);
+  const d2 = d1 - sigma * sqrtT;
+
+  const Nd1 = normCDF(d1);
+  const Nd2 = normCDF(d2);
+  const Nmd1 = normCDF(-d1);
+  const Nmd2 = normCDF(-d2);
+  const nd1 = normPDF(d1);
+
+  const erT = Math.exp(-r * T);
+
+  const call = S * Nd1 - K * erT * Nd2;
+  const put = K * erT * Nmd2 - S * Nmd1;
+
+  // Greeks
+  const delta_c = Nd1;
+  const delta_p = Nd1 - 1;
+  const gamma = nd1 / (S * sigma * sqrtT);
+  const theta_c = (-(S * nd1 * sigma) / (2 * sqrtT) - r * K * erT * Nd2) / 365;
+  const theta_p = (-(S * nd1 * sigma) / (2 * sqrtT) + r * K * erT * Nmd2) / 365;
+  const vega = S * nd1 * sqrtT / 100;
+  const rho_c = K * T * erT * Nd2 / 100;
+  const rho_p = -K * T * erT * Nmd2 / 100;
+
+  return { call, put, d1, d2, delta_c, delta_p, gamma, theta_c, theta_p, vega, rho_c, rho_p };
+}
+
+
+// =====================================================================
+// Options pricer tab
+// =====================================================================
+
+const btnPrice = document.getElementById('btn-price');
+const pricerStatus = document.getElementById('pricer-status');
+const pricerResults = document.getElementById('pricer-results');
+const pricerGreeks = document.getElementById('pricer-greeks');
+
+btnPrice.addEventListener('click', computeOptions);
+
+async function computeOptions() {
+  const symbol = document.getElementById('bs-symbol').value.trim().toUpperCase();
+  const K = parseFloat(document.getElementById('bs-strike').value);
+  const dte = parseInt(document.getElementById('bs-dte').value);
+  const volWindow = parseInt(document.getElementById('bs-vol-window').value);
+
+  if (!symbol || isNaN(K) || isNaN(dte)) {
+    pricerStatus.textContent = 'fill in all fields';
+    return;
+  }
+
+  try {
+    pricerStatus.textContent = 'loading data...';
+
+    const bars = await loadBarsForSymbol(symbol);
+    if (bars.length < volWindow + 1) {
+      pricerStatus.textContent = `need at least ${volWindow + 1} bars, have ${bars.length}`;
+      return;
+    }
+
+    const S = bars[bars.length - 1].c;
+    const T = dte / 365;
+
+    // Get risk-free rate from yield curve if available
+    let r = 0.045; // fallback
+    try {
+      const rateSymbol = dte <= 30 ? 'DGS1MO' : dte <= 90 ? 'DGS3MO' : dte <= 180 ? 'DGS6MO' : dte <= 365 ? 'DGS1' : dte <= 730 ? 'DGS2' : 'DGS5';
+      const rateBars = await loadBarsForSymbol(rateSymbol);
+      if (rateBars.length > 0) {
+        r = rateBars[rateBars.length - 1].c / 100;
+        pricerStatus.textContent = `using ${rateSymbol} = ${(r * 100).toFixed(2)}%`;
+      }
+    } catch {
+      pricerStatus.textContent = `using fallback rate ${(r * 100).toFixed(1)}%`;
+    }
+
+    // Compute vol
+    const sigma_gk = garmanKlass(bars, volWindow);
+    const sigma_cc = closeToCloseVol(bars, volWindow);
+    const sigma = sigma_gk || sigma_cc;
+
+    if (!sigma) {
+      pricerStatus.textContent = 'could not compute volatility';
+      return;
+    }
+
+    // Price
+    const result = blackScholes(S, K, T, r, sigma);
+    if (!result) {
+      pricerStatus.textContent = 'pricing failed (check inputs)';
+      return;
+    }
+
+    pricerStatus.textContent = `S=${S.toFixed(2)} σ=${(sigma*100).toFixed(1)}% r=${(r*100).toFixed(2)}% T=${dte}d`;
+
+    // Render results
+    pricerResults.innerHTML = '';
+    const results = [
+      { label: 'call price', value: `$${result.call.toFixed(4)}` },
+      { label: 'put price', value: `$${result.put.toFixed(4)}` },
+      { label: 'spot (S)', value: `$${S.toFixed(2)}` },
+      { label: 'strike (K)', value: `$${K.toFixed(2)}` },
+      { label: `hist vol (${volWindow}d gk)`, value: `${(sigma*100).toFixed(1)}%` },
+      { label: 'risk-free rate', value: `${(r*100).toFixed(2)}%` },
+    ];
+    if (sigma_cc) {
+      results.push({ label: `close-close vol (${volWindow}d)`, value: `${(sigma_cc*100).toFixed(1)}%` });
+    }
+
+    for (const s of results) {
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = `<div class="stat-label">${s.label}</div><div class="stat-value">${s.value}</div>`;
+      pricerResults.appendChild(card);
+    }
+
+    // Greeks
+    pricerGreeks.innerHTML = '';
+    const greeks = [
+      { label: 'delta (call)', value: result.delta_c.toFixed(4) },
+      { label: 'delta (put)', value: result.delta_p.toFixed(4) },
+      { label: 'gamma', value: result.gamma.toFixed(6) },
+      { label: 'theta (call)', value: `$${result.theta_c.toFixed(4)}/day` },
+      { label: 'theta (put)', value: `$${result.theta_p.toFixed(4)}/day` },
+      { label: 'vega', value: `$${result.vega.toFixed(4)}/1%` },
+      { label: 'rho (call)', value: `$${result.rho_c.toFixed(4)}/1%` },
+      { label: 'rho (put)', value: `$${result.rho_p.toFixed(4)}/1%` },
+    ];
+    for (const g of greeks) {
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = `<div class="stat-label">${g.label}</div><div class="stat-value">${g.value}</div>`;
+      pricerGreeks.appendChild(card);
+    }
+
+    // Draw vol surface
+    drawVolSurface(S, r, bars, sigma);
+
+  } catch (err) {
+    pricerStatus.textContent = err.message;
+    pricerStatus.className = 'status error';
+  }
+}
+
+
+// =====================================================================
+// Vol surface heatmap
+// =====================================================================
+
+function drawVolSurface(S, r, bars, atmVol) {
+  const canvas = document.getElementById('vol-canvas');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // Strike range: 70% to 130% of spot
+  const strikes = [];
+  for (let pct = 0.70; pct <= 1.30; pct += 0.025) {
+    strikes.push(Math.round(S * pct * 100) / 100);
+  }
+
+  // Expiry range: 7 to 365 days
+  const expiries = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365];
+
+  // Compute theoretical vol for each (strike, expiry) by computing GK vol
+  // at different lookback windows as a proxy
+  const pad = { top: 30, right: 80, bottom: 40, left: 60 };
+  const cellW = (W - pad.left - pad.right) / expiries.length;
+  const cellH = (H - pad.top - pad.bottom) / strikes.length;
+
+  // For each cell, compute BS price using vol estimated at different windows
+  // This is a simplified surface: vol varies by lookback window (proxy for term structure)
+  // and by moneyness (skew approximation using leverage effect)
+  const volGrid = [];
+  let minVol = Infinity, maxVol = 0;
+
+  for (let si = 0; si < strikes.length; si++) {
+    volGrid[si] = [];
+    for (let ei = 0; ei < expiries.length; ei++) {
+      const K = strikes[si];
+      const dte = expiries[ei];
+      const window = Math.min(dte, bars.length - 1, 252);
+
+      // Base vol from GK at window length
+      let vol = garmanKlass(bars, Math.max(5, window)) || atmVol;
+
+      // Simple skew adjustment: OTM puts have higher vol (leverage effect)
+      const moneyness = Math.log(K / S);
+      const skewAdjust = -0.15 * moneyness; // ~15% skew per unit log-moneyness
+      vol = vol * (1 + skewAdjust);
+
+      // Term structure adjustment: short-dated vol is typically higher
+      const termAdjust = 1 + 0.1 * (1 - Math.sqrt(dte / 365));
+      vol = vol * termAdjust;
+
+      vol = Math.max(0.01, vol);
+      volGrid[si][ei] = vol;
+      if (vol < minVol) minVol = vol;
+      if (vol > maxVol) maxVol = vol;
+    }
+  }
+
+  const volRange = maxVol - minVol || 0.01;
+
+  // Draw heatmap
+  for (let si = 0; si < strikes.length; si++) {
+    for (let ei = 0; ei < expiries.length; ei++) {
+      const vol = volGrid[si][ei];
+      const intensity = (vol - minVol) / volRange;
+
+      // Color: blue (low vol) → yellow (mid) → red (high vol)
+      let red, green, blue;
+      if (intensity < 0.5) {
+        const t = intensity * 2;
+        red = Math.round(t * 200);
+        green = Math.round(t * 180);
+        blue = Math.round(180 - t * 100);
+      } else {
+        const t = (intensity - 0.5) * 2;
+        red = Math.round(200 + t * 55);
+        green = Math.round(180 - t * 180);
+        blue = Math.round(80 - t * 80);
+      }
+
+      ctx.fillStyle = `rgb(${red},${green},${blue})`;
+      ctx.fillRect(
+        pad.left + ei * cellW,
+        pad.top + si * cellH,
+        cellW + 0.5,
+        cellH + 0.5
+      );
+    }
+  }
+
+  // Labels
+  ctx.fillStyle = isDark ? '#d4d4d4' : '#1a1a1a';
+  ctx.font = '9px monospace';
+
+  // Expiry labels (bottom)
+  ctx.textAlign = 'center';
+  for (let ei = 0; ei < expiries.length; ei++) {
+    ctx.fillText(`${expiries[ei]}d`, pad.left + ei * cellW + cellW / 2, H - pad.bottom + 15);
+  }
+
+  // Strike labels (left, every 4th)
+  ctx.textAlign = 'right';
+  for (let si = 0; si < strikes.length; si += 4) {
+    ctx.fillText(strikes[si].toFixed(0), pad.left - 5, pad.top + si * cellH + cellH / 2 + 3);
+  }
+
+  // Axis labels
+  ctx.fillStyle = isDark ? '#777' : '#777';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('days to expiry', W / 2, H - 5);
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('strike', 0, 0);
+  ctx.restore();
+
+  // Color bar legend
+  const barX = W - pad.right + 15;
+  const barW = 12;
+  const barH = H - pad.top - pad.bottom;
+  for (let i = 0; i < barH; i++) {
+    const intensity = 1 - i / barH;
+    let red, green, blue;
+    if (intensity < 0.5) {
+      const t = intensity * 2;
+      red = Math.round(t * 200);
+      green = Math.round(t * 180);
+      blue = Math.round(180 - t * 100);
+    } else {
+      const t = (intensity - 0.5) * 2;
+      red = Math.round(200 + t * 55);
+      green = Math.round(180 - t * 180);
+      blue = Math.round(80 - t * 80);
+    }
+    ctx.fillStyle = `rgb(${red},${green},${blue})`;
+    ctx.fillRect(barX, pad.top + i, barW, 1);
+  }
+  ctx.fillStyle = isDark ? '#d4d4d4' : '#1a1a1a';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${(maxVol * 100).toFixed(0)}%`, barX + barW + 4, pad.top + 8);
+  ctx.fillText(`${(minVol * 100).toFixed(0)}%`, barX + barW + 4, H - pad.bottom);
+}
+
+
+// =====================================================================
+// Debug tab
+// =====================================================================
+
+const dbgState = { did: null, pds: null };
+
+document.getElementById('btn-dbg-resolve').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-identity');
+  const handle = document.getElementById('dbg-handle').value.trim();
+  if (!handle) return;
+  out.textContent = 'resolving...';
+  try {
+    // Step 1: resolve handle → DID
+    const resolveUrl = `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`;
+    out.textContent = `GET ${resolveUrl}\n\n`;
+    const r1 = await fetch(resolveUrl);
+    const r1text = await r1.text();
+    out.textContent += `Status: ${r1.status}\nResponse: ${r1text}\n\n`;
+
+    if (!r1.ok) return;
+    const did = JSON.parse(r1text).did;
+    dbgState.did = did;
+
+    // Step 2: resolve DID → PDS
+    let didDocUrl;
+    if (did.startsWith('did:plc:')) {
+      didDocUrl = `https://plc.directory/${did}`;
+    } else if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      didDocUrl = `https://${host}/.well-known/did.json`;
+    }
+    out.textContent += `GET ${didDocUrl}\n\n`;
+    const r2 = await fetch(didDocUrl);
+    const r2json = await r2.json();
+    out.textContent += `DID Document:\n${JSON.stringify(r2json, null, 2)}\n\n`;
+
+    const svc = r2json.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+    dbgState.pds = svc?.serviceEndpoint || '(none found)';
+    out.textContent += `PDS endpoint: ${dbgState.pds}\n`;
+    out.textContent += `DID: ${did}\n`;
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-list').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-records');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  const collection = document.getElementById('dbg-collection').value.trim();
+  const limit = document.getElementById('dbg-limit').value || '5';
+
+  out.textContent = 'querying...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did, collection, limit });
+
+    // Try public API
+    const pubUrl = `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`;
+    out.textContent = `GET ${pubUrl}\n\n`;
+    const r1 = await fetch(pubUrl);
+    const r1text = await r1.text();
+    out.textContent += `Public API — Status: ${r1.status}\n`;
+
+    if (r1.ok) {
+      const data = JSON.parse(r1text);
+      out.textContent += `Records returned: ${data.records?.length || 0}\n`;
+      out.textContent += `Cursor: ${data.cursor || '(none)'}\n\n`;
+      out.textContent += JSON.stringify(data, null, 2);
+    } else {
+      out.textContent += `Response: ${r1text}\n\n`;
+
+      // Try PDS directly
+      if (dbgState.pds && dbgState.pds !== '(none found)') {
+        const pdsUrl = `${dbgState.pds}/xrpc/com.atproto.repo.listRecords?${params}`;
+        out.textContent += `\nFallback: GET ${pdsUrl}\n\n`;
+        const r2 = await fetch(pdsUrl);
+        const r2text = await r2.text();
+        out.textContent += `PDS direct — Status: ${r2.status}\n`;
+        out.textContent += r2text;
+      }
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-get').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-single');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  const collection = document.getElementById('dbg-get-collection').value.trim();
+  const rkey = document.getElementById('dbg-rkey').value.trim();
+  if (!rkey) { out.textContent = 'Enter an rkey'; return; }
+
+  out.textContent = 'fetching...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did, collection, rkey });
+    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`;
+    out.textContent = `GET ${url}\n\n`;
+    const r = await fetch(url);
+    const text = await r.text();
+    out.textContent += `Status: ${r.status}\n\n`;
+    try {
+      out.textContent += JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      out.textContent += text;
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-write-test').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-write-result');
+  const handle = document.getElementById('dbg-write-handle').value.trim();
+  const password = document.getElementById('dbg-app-password').value;
+  if (!handle || !password) { out.textContent = 'Enter handle and app password'; return; }
+
+  out.textContent = 'authenticating...\n';
+  try {
+    // Resolve handle
+    const r1 = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    if (!r1.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    const { did } = await r1.json();
+    out.textContent += `DID: ${did}\n`;
+
+    // Resolve PDS
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${did}`)).json();
+    } else {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    }
+    const pds = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer')?.serviceEndpoint;
+    if (!pds) throw new Error('No PDS found');
+    out.textContent += `PDS: ${pds}\n`;
+
+    // Create session
+    out.textContent += `Creating session...\n`;
+    const sessResp = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password }),
+    });
+    if (!sessResp.ok) {
+      const errText = await sessResp.text();
+      throw new Error(`Auth failed (${sessResp.status}): ${errText}`);
+    }
+    const sess = await sessResp.json();
+    out.textContent += `Authenticated as ${sess.handle} (${sess.did})\n\n`;
+
+    // Write a test security record
+    const testRecord = {
+      $type: 'com.minomobi.finance.security',
+      symbol: 'TEST',
+      seriesType: 'equity',
+      name: 'Debug Test Record',
+      source: 'debug-panel',
+      createdAt: new Date().toISOString(),
+    };
+
+    out.textContent += `Writing test record...\n`;
+    out.textContent += `PUT ${pds}/xrpc/com.atproto.repo.putRecord\n`;
+    out.textContent += `Body: ${JSON.stringify({ repo: did, collection: 'com.minomobi.finance.security', rkey: 'TEST', record: testRecord }, null, 2)}\n\n`;
+
+    const writeResp = await fetch(`${pds}/xrpc/com.atproto.repo.putRecord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sess.accessJwt}`,
+      },
+      body: JSON.stringify({
+        repo: did,
+        collection: 'com.minomobi.finance.security',
+        rkey: 'TEST',
+        record: testRecord,
+      }),
+    });
+
+    const writeText = await writeResp.text();
+    out.textContent += `Status: ${writeResp.status}\n`;
+    try {
+      out.textContent += `Response: ${JSON.stringify(JSON.parse(writeText), null, 2)}\n\n`;
+    } catch {
+      out.textContent += `Response: ${writeText}\n\n`;
+    }
+
+    if (writeResp.ok) {
+      out.textContent += `SUCCESS — test record written. Now try listing com.minomobi.finance.security in step 2.`;
+    } else {
+      out.textContent += `FAILED — this tells us why PDS writes are failing.`;
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-delete-test').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-write-result');
+  const handle = document.getElementById('dbg-write-handle').value.trim();
+  const password = document.getElementById('dbg-app-password').value;
+  if (!handle || !password) { out.textContent = 'Enter handle and app password'; return; }
+
+  out.textContent = 'deleting test record...\n';
+  try {
+    const r1 = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    const { did } = await r1.json();
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${did}`)).json();
+    } else {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    }
+    const pds = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer')?.serviceEndpoint;
+
+    const sessResp = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password }),
+    });
+    const sess = await sessResp.json();
+
+    const delResp = await fetch(`${pds}/xrpc/com.atproto.repo.deleteRecord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sess.accessJwt}`,
+      },
+      body: JSON.stringify({
+        repo: did,
+        collection: 'com.minomobi.finance.security',
+        rkey: 'TEST',
+      }),
+    });
+    out.textContent += `Status: ${delResp.status}\n`;
+    out.textContent += await delResp.text();
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-describe').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-describe');
+  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+
+  out.textContent = 'fetching repo description...\n';
+  try {
+    const params = new URLSearchParams({ repo: dbgState.did });
+    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.describeRepo?${params}`;
+    out.textContent = `GET ${url}\n\n`;
+    const r = await fetch(url);
+    const data = await r.json();
+    out.textContent += `Status: ${r.status}\n\n`;
+
+    if (data.collections) {
+      out.textContent += `Collections (${data.collections.length}):\n`;
+      for (const c of data.collections) {
+        const isFinance = c.includes('finance') ? '  ← FINANCE' : '';
+        out.textContent += `  ${c}${isFinance}\n`;
+      }
+      out.textContent += `\n`;
+    }
+    out.textContent += JSON.stringify(data, null, 2);
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mega.project",
+  "description": "A megaproject — a major infrastructure, energy, urban, industrial, or digital construction project typically costing over $1B.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "User-submitted megaproject record. Anyone with a PDS can submit a project they know about. The dashboard aggregates projects from multiple PDS instances.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "type", "country", "lat", "lon", "cost", "currency", "status", "description", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Project name (e.g., 'Fehmarn Belt Fixed Link')"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["transport", "energy", "urban", "industrial", "water", "aerospace", "digital"],
+            "description": "Project category"
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Country or countries (e.g., 'Denmark / Germany')"
+          },
+          "lat": {
+            "type": "number",
+            "description": "Latitude of project center point"
+          },
+          "lon": {
+            "type": "number",
+            "description": "Longitude of project center point"
+          },
+          "cost": {
+            "type": "number",
+            "description": "Estimated total cost in the specified currency"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP', 'CNY')"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "construction", "partial", "completed"],
+            "description": "Current project status"
+          },
+          "startYear": {
+            "type": "integer",
+            "description": "Year construction started or is planned to start"
+          },
+          "completion": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "Target completion year or range (e.g., '2029', '2030s', 'Ongoing')"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Narrative overview of the project (2-5 sentences)"
+          },
+          "keyFacts": {
+            "type": "array",
+            "maxLength": 12,
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Bullet-point key facts about the project"
+          },
+          "route": {
+            "type": "array",
+            "maxLength": 100,
+            "items": {
+              "type": "ref",
+              "ref": "#coordinate"
+            },
+            "description": "Geographic route as array of [lon, lat] coordinates for linear projects"
+          },
+          "links": {
+            "type": "array",
+            "maxLength": 10,
+            "items": {
+              "type": "ref",
+              "ref": "#link"
+            },
+            "description": "Reference links (official site, Wikipedia, etc.)"
+          },
+          "manifoldSlug": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Manifold Markets market slug for completion prediction, if one exists"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this record was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this record was last updated"
+          }
+        }
+      }
+    },
+    "coordinate": {
+      "type": "object",
+      "required": ["lon", "lat"],
+      "properties": {
+        "lon": {
+          "type": "number",
+          "description": "Longitude"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude"
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": ["label", "url"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Display text for the link"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048,
+          "description": "URL of the reference"
+        }
+      }
+    }
+  }
+}

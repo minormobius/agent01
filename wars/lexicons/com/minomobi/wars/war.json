@@ -1,0 +1,114 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.wars.war",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "An interstate war from the Correlates of War dataset, enriched with computed features for factor analysis.",
+      "record": {
+        "type": "object",
+        "required": ["warNum", "warName", "startYear", "endYear", "durationDays", "totalDeaths", "numParticipants", "numSides", "maxCoalitionSize", "deathAsymmetry", "decisive", "region", "participants", "source", "createdAt"],
+        "properties": {
+          "warNum": {
+            "type": "integer",
+            "description": "COW war number"
+          },
+          "warName": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "War name from COW dataset"
+          },
+          "startYear": {
+            "type": "integer",
+            "description": "Year war began"
+          },
+          "endYear": {
+            "type": "integer",
+            "description": "Year war ended"
+          },
+          "durationDays": {
+            "type": "integer",
+            "description": "Duration in days"
+          },
+          "totalDeaths": {
+            "type": "integer",
+            "description": "Total battle deaths across all participants"
+          },
+          "numParticipants": {
+            "type": "integer",
+            "description": "Number of state participants"
+          },
+          "numSides": {
+            "type": "integer",
+            "description": "Number of distinct sides"
+          },
+          "maxCoalitionSize": {
+            "type": "integer",
+            "description": "Size of the largest coalition (most states on one side)"
+          },
+          "deathAsymmetry": {
+            "type": "number",
+            "description": "Ratio of deaths on winning side to losing side (0-1 = lopsided victory, ~1 = balanced)"
+          },
+          "decisive": {
+            "type": "boolean",
+            "description": "Whether the war had a clear winner and loser"
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Geographic region (W Hemisphere, Europe, Africa, Middle East, Asia, Oceania)"
+          },
+          "participants": {
+            "type": "array",
+            "description": "State-level participation records",
+            "items": {
+              "type": "ref",
+              "ref": "#participant"
+            }
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Data source identifier"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "required": ["stateName", "ccode", "side", "batDeath", "outcome"],
+      "properties": {
+        "stateName": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ccode": {
+          "type": "integer",
+          "description": "COW country code"
+        },
+        "side": {
+          "type": "integer",
+          "description": "Side in the war (1 or 2)"
+        },
+        "initiator": {
+          "type": "integer",
+          "description": "1=initiator, 2=not initiator"
+        },
+        "batDeath": {
+          "type": "integer",
+          "description": "Battle deaths for this state"
+        },
+        "outcome": {
+          "type": "integer",
+          "description": "1=winner, 2=loser, 3=compromise, 4=transformed, 5=ongoing, 6=stalemate, 7=continuing, 8=changed sides"
+        }
+      }
+    }
+  }
+}

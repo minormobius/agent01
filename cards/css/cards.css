@@ -2564,3 +2564,79 @@ main:not(:has(.tab-panel)) {
   .hub-card-title { font-size: 0.75rem; }
   .hub-card-desc { font-size: 0.6rem; }
 }
+
+/* ── Mint UI ─────────────────────────────────────────────────── */
+
+.mint-status {
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.mint-success { color: #4ade80; }
+.mint-error { color: #f87171; }
+
+.did-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.did-modal.hidden { display: none; }
+
+.did-modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+}
+
+.did-modal-title {
+  font-size: 1.1rem;
+  color: var(--gold);
+  margin-bottom: 0.5rem;
+}
+
+.did-modal-content p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.did-modal-content input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.did-modal-content input:focus {
+  outline: none;
+  border-color: var(--gold-dim);
+}
+
+.did-modal-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.did-error {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.did-error.hidden { display: none; }

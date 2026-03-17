@@ -76,6 +76,38 @@ html, body {
   margin-bottom: 1.2rem;
 }
 
+/* Source tabs */
+.source-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  width: fit-content;
+}
+.source-tab {
+  padding: 0.4rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.source-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+.source-tab:not(.active):hover {
+  background: var(--accent-dim);
+}
+
+.poetry-random {
+  margin-bottom: 1rem;
+}
+
 .search-bar {
   display: flex;
   gap: 0.5rem;
@@ -333,6 +365,57 @@ html, body {
   transition: background-color 0.05s;
 }
 
+/* ─── Depth Trail (Star Wars crawl distance) ─── */
+.rsvp-trail {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  perspective: 400px;
+  margin-bottom: 0.3rem;
+}
+.rsvp-trail.active { display: flex; }
+
+.rsvp-trail-word {
+  font-family: var(--mono);
+  white-space: pre;
+  text-align: center;
+  color: var(--text);
+  line-height: 1.2;
+  transition: opacity 0.08s, filter 0.08s;
+}
+
+/* Each depth level: progressively smaller, more transparent, blurrier, vertically compressed */
+.rsvp-trail-word[data-depth="0"] {
+  font-size: calc(var(--rsvp-font-size) * 0.65);
+  opacity: 0.50;
+  filter: blur(0.5px);
+  transform: scaleY(0.92);
+}
+.rsvp-trail-word[data-depth="1"] {
+  font-size: calc(var(--rsvp-font-size) * 0.48);
+  opacity: 0.35;
+  filter: blur(1px);
+  transform: scaleY(0.85);
+}
+.rsvp-trail-word[data-depth="2"] {
+  font-size: calc(var(--rsvp-font-size) * 0.34);
+  opacity: 0.22;
+  filter: blur(1.5px);
+  transform: scaleY(0.78);
+}
+.rsvp-trail-word[data-depth="3"] {
+  font-size: calc(var(--rsvp-font-size) * 0.24);
+  opacity: 0.12;
+  filter: blur(2px);
+  transform: scaleY(0.72);
+}
+.rsvp-trail-word[data-depth="4"] {
+  font-size: calc(var(--rsvp-font-size) * 0.17);
+  opacity: 0.06;
+  filter: blur(2.5px);
+  transform: scaleY(0.65);
+}
+
 .rsvp-wpm {
   position: absolute;
   bottom: -1.5rem;
@@ -352,7 +435,8 @@ html, body {
 .crawl-viewport {
   width: 100%;
   height: 100%;
-  perspective: 350px;
+  perspective: 800px;
+  perspective-origin: center -300%;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -360,8 +444,7 @@ html, body {
 .crawl-viewport:active { cursor: grabbing; }
 
 .crawl-perspective {
-  width: 80%;
-  max-width: 600px;
+  width: 100%;
   margin: 0 auto;
   height: 100%;
   transform-style: preserve-3d;
@@ -373,9 +456,11 @@ html, body {
   font-size: var(--crawl-font-size, clamp(1rem, 3vw, 1.4rem));
   line-height: 1.8;
   text-align: justify;
-  padding: 2rem 0;
+  width: 130%;
+  margin-left: -15%;
+  padding: 2rem 1.5rem;
   transform-origin: center bottom;
-  transform: rotateX(22deg) translateY(100%);
+  transform: rotateX(20deg) translateY(100%);
   will-change: transform;
 }
 
@@ -568,8 +653,214 @@ html, body {
   margin-top: 0.2rem;
 }
 
-.rsvp-settings, .crawl-settings, .scroll-crawl-setting { display: none; }
-.rsvp-settings.visible, .crawl-settings.visible, .scroll-crawl-setting.visible { display: block; }
+.rsvp-settings, .crawl-settings, .memorize-settings, .scroll-crawl-setting { display: none; }
+.rsvp-settings.visible, .crawl-settings.visible, .memorize-settings.visible, .scroll-crawl-setting.visible { display: block; }
+
+/* ─── Memorize Mode ─── */
+.memorize-reader {
+  padding: 1.5rem;
+  max-width: var(--reading-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-height: 100%;
+}
+
+#reading-area.memorize-reader {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mem-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mem-counter {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mem-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.mem-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rule);
+  transition: background 0.2s, transform 0.2s;
+}
+.mem-dot.active { background: var(--accent); }
+.mem-dot.current { transform: scale(1.3); }
+
+.mem-mastered-badge {
+  font-size: 0.72rem;
+  color: #4a4;
+  background: rgba(68, 170, 68, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mem-text-block {
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.8;
+  transition: opacity 0.3s;
+}
+
+.mem-text-block.mem-text-hidden {
+  display: none;
+}
+
+.mem-line {
+  margin-bottom: 0.3em;
+  min-height: 1.5em;
+}
+
+.mem-word {
+  display: inline;
+  transition: opacity 0.3s, color 0.3s;
+}
+
+.mem-word b { font-weight: 700; }
+
+.mem-hidden {
+  color: transparent;
+  border-bottom: 1.5px solid var(--rule);
+  letter-spacing: -0.05em;
+}
+
+.mem-letter {
+  color: var(--accent);
+  border-bottom: 1.5px solid var(--accent-dim);
+  font-style: italic;
+}
+
+.mem-blank {
+  color: transparent;
+  border-bottom: 1.5px solid var(--rule);
+  opacity: 0.4;
+}
+
+/* Controls */
+.mem-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.mem-stanza-nav {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.mem-btn-primary,
+.mem-btn-secondary,
+.mem-btn-accent {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.mem-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.mem-btn-primary:hover { filter: brightness(1.1); }
+
+.mem-btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+.mem-btn-secondary:hover { border-color: var(--accent); }
+
+.mem-btn-accent {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mem-btn-accent:hover { background: var(--accent-dim); }
+
+/* Check / recall mode */
+.mem-check-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.mem-textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+}
+.mem-textarea:focus { border-color: var(--accent); }
+
+.mem-check-btns {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Diff display */
+.mem-diff {
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.8;
+}
+
+.mem-diff-line {
+  margin-bottom: 0.3em;
+}
+
+.mem-diff-correct {
+  color: #4a4;
+}
+.mem-diff-wrong {
+  color: #c44;
+  text-decoration: underline wavy #c44;
+  cursor: help;
+}
+.mem-diff-missing {
+  color: var(--text-muted);
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.mem-score {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-raised);
+  border-radius: var(--radius);
+}
+.mem-score strong {
+  font-size: 1.2em;
+}
 
 /* ─── Desktop adjustments ─── */
 @media (min-width: 768px) {
