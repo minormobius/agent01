@@ -537,11 +537,8 @@ async function resolvePDS(did) {
 async function listRecords(did, pds, collection, limit = 100, cursor = null) {
   const params = new URLSearchParams({ repo: did, collection, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
-  // Try public API first, fall back to PDS
-  let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
-  if (!r.ok) {
-    r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
-  }
+  // Query PDS directly — public API does not serve listRecords for custom collections
+  const r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
   if (!r.ok) throw new Error(`listRecords failed (${r.status})`);
   return r.json();
 }
