@@ -197,6 +197,30 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   z-index: 2;
 }
 #detail-close:hover { color: var(--text); border-color: var(--accent); }
+#detail-backdrop {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+#detail-backdrop.open { display: block; }
+#detail-mobile-close {
+  display: none;
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--bg);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  flex-shrink: 0;
+}
 .detail-header {
   padding: 20px 20px 16px;
   border-bottom: 1px solid var(--border);
@@ -326,6 +350,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   #sidebar { grid-column: 1; grid-row: 3; max-height: 35vh; border-left: none; border-top: 1px solid var(--border); }
   #status-bar { display: none; }
   #detail-panel { width: 100%; }
+  #detail-mobile-close { display: block; }
+  #detail-close { display: none; }
 }
 </style>
 </head>
@@ -337,7 +363,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   </div>
   <div id="map-container">
     <div id="map"></div>
+    <div id="detail-backdrop"></div>
     <div id="detail-panel">
+      <button id="detail-mobile-close">&darr; Close</button>
       <button id="detail-close">&times;</button>
       <div id="detail-content"></div>
     </div>
@@ -1339,6 +1367,8 @@ function init() {
   updateSidebar();
 
   document.getElementById('detail-close').addEventListener('click', closeDetail);
+  document.getElementById('detail-mobile-close').addEventListener('click', closeDetail);
+  document.getElementById('detail-backdrop').addEventListener('click', closeDetail);
 }
 
 // ── Filters ──────────────────────────────────────────────
@@ -1478,6 +1508,7 @@ function selectProject(project) {
 
 function closeDetail() {
   document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-backdrop').classList.remove('open');
   state.selectedProject = null;
   updateDeckLayers();
   updateSidebar();
@@ -1528,6 +1559,7 @@ function openDetail(project) {
   `;
 
   panel.classList.add('open');
+  document.getElementById('detail-backdrop').classList.add('open');
 }
 
 // ── Sidebar ──────────────────────────────────────────────
