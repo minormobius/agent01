@@ -1,0 +1,10 @@
+{
+  "name": "PDS Shell",
+  "short_name": "os.mino",
+  "description": "Terminal interface for your ATProto Personal Data Server",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": []
+}
