@@ -43,16 +43,65 @@ export class Shell {
     this.historyIndex = -1;
     this.running = false;
     this.abortController = null;
+    this._chatMode = null; // active GeminiChat instance when in chat REPL
   }
 
   getPrompt() {
+    if (this._chatMode) {
+      return `${fmt.magenta('ai')}${fmt.dim('>')} `;
+    }
     const handle = this.session.handle;
     const cwd = this.fs.pwd();
     return `${fmt.green(handle)}:${fmt.blue(cwd)}$ `;
   }
 
+  enterChatMode(chatInstance) {
+    this._chatMode = chatInstance;
+  }
+
+  exitChatMode() {
+    this._chatMode = null;
+  }
+
   async execute(input) {
     const trimmed = input.trim();
+
+    // Chat mode — route input to Gemini instead of command parser
+    if (this._chatMode) {
+      // Empty line or /exit leaves chat
+      if (!trimmed || trimmed === '/exit' || trimmed === '/quit') {
+        this.exitChatMode();
+        this.terminal.writeln(fmt.dim('(exited chat)'));
+        return;
+      }
+      // /reset clears conversation
+      if (trimmed === '/reset') {
+        this._chatMode.reset();
+        this.terminal.writeln(fmt.dim('conversation cleared'));
+        return;
+      }
+      // Store in history so up-arrow works
+      this.commandHistory.push(trimmed);
+      this.historyIndex = this.commandHistory.length;
+
+      this.running = true;
+      this.abortController = new AbortController();
+      try {
+        const { streamResponse } = await import('./commands/ai.js');
+        await streamResponse(this._chatMode, trimmed, this.terminal, fmt, this.abortController.signal);
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          this.terminal.writeln(fmt.dim('^C'));
+        } else {
+          this.terminal.writeln(fmt.red(`error: ${err.message}`));
+        }
+      } finally {
+        this.running = false;
+        this.abortController = null;
+      }
+      return;
+    }
+
     if (!trimmed) return;
 
     // Store in history
