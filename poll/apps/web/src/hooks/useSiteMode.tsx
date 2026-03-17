@@ -6,7 +6,7 @@ type SiteMode = 'all' | 'public_like' | 'anon_credential_v2';
 export function useSiteMode(): SiteMode {
   const { pathname } = useLocation();
   if (pathname.startsWith('/public')) return 'public_like';
-  return 'all';
+  return 'anon_credential_v2';
 }
 
 /** Returns the base path for the current site mode */

@@ -109,7 +109,15 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status === 404) {
         // SPA fallback — serve index.html for client-side routing
-        return env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+        const spaResponse = await env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+
+        // Inject OG meta tags for poll pages so link cards show a preview
+        const pollOgMatch = url.pathname.match(/^(?:\/public)?\/poll\/([0-9a-f-]{36})(?:\/|$)/);
+        if (pollOgMatch) {
+          return injectPollOgTags(spaResponse, pollOgMatch[1], url, env);
+        }
+
+        return spaResponse;
       }
       return assetResponse;
     }
@@ -168,6 +176,51 @@ function addCorsHeaders(response: Response, env: Env): Response {
     statusText: response.statusText,
     headers,
   });
+}
+
+/**
+ * Inject Open Graph meta tags into the SPA HTML for poll pages.
+ * This lets link card previews (Bluesky, Twitter, etc.) show the poll question and options.
+ */
+async function injectPollOgTags(spaResponse: Response, pollId: string, url: URL, env: Env): Promise<Response> {
+  try {
+    const poll = await env.DB.prepare('SELECT question, options, mode, status FROM polls WHERE id = ?')
+      .bind(pollId).first();
+    if (!poll) return spaResponse;
+
+    const question = poll.question as string;
+    const options = JSON.parse(poll.options as string) as string[];
+    const mode = poll.mode === 'public_like' ? 'Public Poll' : 'Anonymous Poll';
+    const description = options.slice(0, 6).join(' · ') + (options.length > 6 ? ' · ...' : '');
+    const ogImageUrl = `${url.origin}/api/polls/${pollId}/og.svg`;
+    const pageUrl = `${url.origin}${url.pathname}`;
+
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const ogTags = `
+    <meta property="og:title" content="${esc(question)}" />
+    <meta property="og:description" content="${esc(mode + ' — ' + description)}" />
+    <meta property="og:image" content="${esc(ogImageUrl)}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="${esc(pageUrl)}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${esc(question)}" />
+    <meta name="twitter:description" content="${esc(mode + ' — ' + description)}" />
+    <meta name="twitter:image" content="${esc(ogImageUrl)}" />`;
+
+    const html = await spaResponse.text();
+    const injected = html.replace('</head>', ogTags + '\n  </head>');
+
+    return new Response(injected, {
+      status: spaResponse.status,
+      headers: spaResponse.headers,
+    });
+  } catch (e) {
+    console.error('OG tag injection failed:', e);
+    return spaResponse;
+  }
 }
 
 export function jsonResponse(data: any, status = 200): Response {

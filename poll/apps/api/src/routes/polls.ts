@@ -110,6 +110,12 @@ export async function handlePollRoutes(
     return syncLikes(request, env, syncLikesMatch[1]);
   }
 
+  // OG image for link card previews
+  const ogMatch = url.pathname.match(/^\/api\/polls\/([^/]+)\/og\.svg$/);
+  if (ogMatch && request.method === 'GET') {
+    return generateOgImage(env, ogMatch[1]);
+  }
+
   return null;
 }
 
@@ -1007,6 +1013,91 @@ async function syncLikes(request: Request, env: Env, pollId: string): Promise<Re
     totalVotes,
     countsByOption,
     uniqueVoters: totalVotes,
+  });
+}
+
+/**
+ * Generate an OG image (SVG) for link card previews.
+ * Shows the poll question and options with vote counts if available.
+ */
+async function generateOgImage(env: Env, pollId: string): Promise<Response> {
+  const poll = await env.DB.prepare('SELECT * FROM polls WHERE id = ?').bind(pollId).first();
+  if (!poll) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  const question = poll.question as string;
+  const options = JSON.parse(poll.options as string) as string[];
+  const status = poll.status as string;
+  const mode = poll.mode as string;
+
+  // Try to get tally
+  const tallyRow = await env.DB.prepare(
+    'SELECT counts_by_option, ballot_count FROM tally_snapshots WHERE poll_id = ? ORDER BY computed_at DESC LIMIT 1'
+  ).bind(pollId).first();
+
+  const tally = tallyRow?.counts_by_option
+    ? JSON.parse(tallyRow.counts_by_option as string) as Record<string, number>
+    : null;
+  const totalVotes = (tallyRow?.ballot_count as number) || 0;
+  const maxVotes = tally ? Math.max(...Object.values(tally), 1) : 1;
+
+  // SVG dimensions
+  const W = 1200;
+  const H = 630;
+  const PAD = 60;
+  const optionStartY = 180;
+  const optionH = 52;
+  const barMaxW = W - PAD * 2 - 300;
+
+  // Escape XML
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Truncate question if too long
+  const q = question.length > 80 ? question.slice(0, 77) + '...' : question;
+
+  // Build option rows
+  const optionRows = options.slice(0, 8).map((opt, i) => {
+    const count = tally?.[String(i)] || 0;
+    const pct = totalVotes > 0 ? count / maxVotes : 0;
+    const barW = Math.max(pct * barMaxW, 2);
+    const y = optionStartY + i * optionH;
+    const label = opt.length > 30 ? opt.slice(0, 27) + '...' : opt;
+    const countStr = tally ? `${count}` : '';
+
+    return `
+      <rect x="${PAD}" y="${y}" width="${barW}" height="32" rx="4" fill="#c41230" opacity="0.85"/>
+      <text x="${PAD + 8}" y="${y + 22}" fill="#fff" font-size="18" font-family="monospace" font-weight="bold">${esc(label)}</text>
+      ${countStr ? `<text x="${W - PAD}" y="${y + 22}" fill="#999" font-size="16" font-family="monospace" text-anchor="end">${countStr}</text>` : ''}
+    `;
+  }).join('');
+
+  const modeLabel = mode === 'public_like' ? 'PUBLIC POLL' : 'ANONYMOUS POLL';
+  const statusLabel = status === 'open' ? 'OPEN' : status.toUpperCase();
+  const footerY = H - 40;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="#1a1a1a"/>
+  <rect x="0" y="0" width="${W}" height="4" fill="#c41230"/>
+
+  <!-- Question -->
+  <text x="${PAD}" y="80" fill="#f0f0f0" font-size="32" font-family="monospace" font-weight="bold">${esc(q)}</text>
+
+  <!-- Mode + status badges -->
+  <text x="${PAD}" y="130" fill="#888" font-size="16" font-family="monospace">${modeLabel} · ${statusLabel}${totalVotes > 0 ? ` · ${totalVotes} votes` : ''}</text>
+
+  <!-- Options with bars -->
+  ${optionRows}
+
+  <!-- Footer -->
+  <text x="${PAD}" y="${footerY}" fill="#555" font-size="14" font-family="monospace">poll.mino.mobi</text>
+</svg>`;
+
+  return new Response(svg, {
+    headers: {
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'public, max-age=60',
+    },
   });
 }
 
