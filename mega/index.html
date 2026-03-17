@@ -477,13 +477,30 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   cursor: pointer;
 }
 .bounty-add-btn:hover { opacity: 0.85; }
-.bounty-item {
+a.bounty-item {
+  display: block;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.1s;
+  text-decoration: none;
+  color: inherit;
 }
-.bounty-item:hover { background: rgba(255, 140, 0, 0.05); }
+a.bounty-item:hover { background: rgba(255, 140, 0, 0.05); }
+.bounty-view-all {
+  display: block;
+  text-align: center;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-decoration: none;
+  border-top: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.bounty-view-all:hover { background: rgba(255, 140, 0, 0.08); }
 .bounty-kind {
   display: inline-block;
   padding: 1px 6px;
@@ -2293,7 +2310,7 @@ function updateBountyBoard() {
     html += `<div class="bounty-empty">No bounties yet.<br>Be the first to request information about a megaproject.</div>`;
   } else {
     html += displayed.map(b => `
-      <div class="bounty-item" data-project="${b.projectId}">
+      <a href="/bounty/#${b.id}" class="bounty-item" data-project="${b.projectId}">
         <div class="bounty-title">
           <span class="bounty-kind bounty-kind-${b.kind}">${b.kind.replace('_', ' ')}</span>
           ${b.title}
@@ -2302,22 +2319,13 @@ function updateBountyBoard() {
           <span class="bounty-reward">${b.reward}</span>
           <span class="bounty-project">${b.projectName}</span>
         </div>
-      </div>
+      </a>
     `).join('');
   }
 
-  panel.innerHTML = html;
+  html += `<a href="/bounty/" class="bounty-view-all">View all bounties →</a>`;
 
-  // Click bounty → select that project
-  panel.querySelectorAll('.bounty-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const proj = state.projects.find(p => p.id === el.dataset.project);
-      if (proj) {
-        switchTab('projects');
-        selectProject(proj);
-      }
-    });
-  });
+  panel.innerHTML = html;
 }
 
 // ── Sidebar Tabs ─────────────────────────────────────────
