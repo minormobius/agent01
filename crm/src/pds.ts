@@ -24,7 +24,7 @@ export class PdsClient {
       identifier: handle,
       password: appPassword,
     });
-    this.session = res as Session;
+    this.session = res as unknown as Session;
     return this.session;
   }
 

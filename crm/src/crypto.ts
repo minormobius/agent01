@@ -26,7 +26,7 @@ export async function deriveKek(
     "deriveKey",
   ]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
     baseKey,
     { name: "AES-KW", length: 256 },
     false,
@@ -67,7 +67,7 @@ export async function unwrapPrivateKey(
 ): Promise<CryptoKey> {
   return crypto.subtle.unwrapKey(
     "pkcs8",
-    wrappedKey,
+    wrappedKey.buffer as ArrayBuffer,
     kek,
     "AES-KW",
     { name: "ECDH", namedCurve: "P-256" },
@@ -80,7 +80,7 @@ export async function unwrapPrivateKey(
 export async function importPublicKey(raw: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
-    raw,
+    raw.buffer as ArrayBuffer,
     { name: "ECDH", namedCurve: "P-256" },
     true,
     []
@@ -111,7 +111,7 @@ export async function deriveDek(
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: HKDF_INFO },
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32).buffer as ArrayBuffer, info: HKDF_INFO.buffer as ArrayBuffer },
     hkdfKey,
     { name: "AES-GCM", length: 256 },
     false, // non-extractable
@@ -128,9 +128,9 @@ export async function encrypt(
 ): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
     dek,
-    plaintext
+    plaintext.buffer as ArrayBuffer
   );
   return { iv, ciphertext: new Uint8Array(ct) };
 }
@@ -142,9 +142,9 @@ export async function decrypt(
   dek: CryptoKey
 ): Promise<Uint8Array> {
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
     dek,
-    ciphertext
+    ciphertext.buffer as ArrayBuffer
   );
   return new Uint8Array(pt);
 }
