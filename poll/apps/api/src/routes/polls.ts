@@ -23,6 +23,10 @@ import { createDPoPProof } from '../oauth/jwt.js';
 // @ts-ignore — WASM import handled by wrangler bundler
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
+// @ts-ignore — binary import handled by wrangler bundler
+import fontRegular from '../fonts/roboto-mono-400.ttf';
+// @ts-ignore — binary import handled by wrangler bundler
+import fontBold from '../fonts/roboto-mono-700.ttf';
 
 let resvgInitialized = false;
 
@@ -1134,8 +1138,8 @@ async function generateOgImage(env: Env, pollId: string): Promise<Response> {
 
     return `
       <rect x="${PAD}" y="${y}" width="${barW}" height="32" rx="4" fill="#c41230" opacity="0.85"/>
-      <text x="${PAD + 8}" y="${y + 22}" fill="#fff" font-size="18" font-family="monospace" font-weight="bold">${esc(label)}</text>
-      ${countStr ? `<text x="${W - PAD}" y="${y + 22}" fill="#999" font-size="16" font-family="monospace" text-anchor="end">${countStr}</text>` : ''}
+      <text x="${PAD + 8}" y="${y + 22}" fill="#fff" font-size="18" font-family="Roboto Mono, monospace" font-weight="bold">${esc(label)}</text>
+      ${countStr ? `<text x="${W - PAD}" y="${y + 22}" fill="#999" font-size="16" font-family="Roboto Mono, monospace" text-anchor="end">${countStr}</text>` : ''}
     `;
   }).join('');
 
@@ -1148,16 +1152,16 @@ async function generateOgImage(env: Env, pollId: string): Promise<Response> {
   <rect x="0" y="0" width="${W}" height="4" fill="#c41230"/>
 
   <!-- Question -->
-  <text x="${PAD}" y="80" fill="#f0f0f0" font-size="32" font-family="monospace" font-weight="bold">${esc(q)}</text>
+  <text x="${PAD}" y="80" fill="#f0f0f0" font-size="32" font-family="Roboto Mono, monospace" font-weight="bold">${esc(q)}</text>
 
   <!-- Mode + status badges -->
-  <text x="${PAD}" y="130" fill="#888" font-size="16" font-family="monospace">${modeLabel} · ${statusLabel}${totalVotes > 0 ? ` · ${totalVotes} votes` : ''}</text>
+  <text x="${PAD}" y="130" fill="#888" font-size="16" font-family="Roboto Mono, monospace">${modeLabel} · ${statusLabel}${totalVotes > 0 ? ` · ${totalVotes} votes` : ''}</text>
 
   <!-- Options with bars -->
   ${optionRows}
 
   <!-- Footer -->
-  <text x="${PAD}" y="${footerY}" fill="#555" font-size="14" font-family="monospace">poll.mino.mobi</text>
+  <text x="${PAD}" y="${footerY}" fill="#555" font-size="14" font-family="Roboto Mono, monospace">poll.mino.mobi</text>
 </svg>`;
 
   // Convert SVG to PNG via resvg-wasm (scrapers don't support SVG og:image)
@@ -1167,6 +1171,12 @@ async function generateOgImage(env: Env, pollId: string): Promise<Response> {
       resvgInitialized = true;
     }
     const resvg = new Resvg(svg, {
+      font: {
+        fontBuffers: [new Uint8Array(fontRegular), new Uint8Array(fontBold)],
+        loadSystemFonts: false,
+        defaultFontFamily: 'Roboto Mono',
+        monospaceFamily: 'Roboto Mono',
+      },
       fitTo: { mode: 'width', value: W },
     });
     const rendered = resvg.render();
