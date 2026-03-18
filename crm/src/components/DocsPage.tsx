@@ -372,17 +372,99 @@ export function DocsPage() {
         </section>
 
         <section>
+          <h2>Organizations & Access Tiers</h2>
+          <p>
+            Vault CRM supports <strong>permissionless organizations</strong>.
+            Any ATProto user on any PDS can create an org — no central server
+            needed. The org record lives on the founder's PDS as a standard
+            ATProto record.
+          </p>
+
+          <div className="docs-diagram">
+            <pre>{`
+  ┌──────────────────────────────────────────────────────────┐
+  │  ORGANIZATION (vault.org)                                │
+  │                                                          │
+  │  name: "Acme Corp"                                       │
+  │  founderDid: "did:plc:alice"                             │
+  │  tiers: [                                                │
+  │    { name: "field",    level: 0 },  ◄─ lowest access     │
+  │    { name: "manager",  level: 1 },                       │
+  │    { name: "director", level: 2 },                       │
+  │    { name: "exec",     level: 3 },  ◄─ highest access    │
+  │  ]                                                       │
+  └──────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+  ┌──────────────────────────────────────────────────────────┐
+  │  KEYRINGS (vault.keyring — one per tier)                 │
+  │                                                          │
+  │  Each tier has its own random AES-256 DEK.               │
+  │  The DEK is wrapped individually for each member         │
+  │  via ECDH(inviter_private, member_public) → AES-KW.      │
+  │                                                          │
+  │  keyring "acme:field"    → DEK₀ (wrapped per member)     │
+  │  keyring "acme:manager"  → DEK₁ (wrapped per member)     │
+  │  keyring "acme:director" → DEK₂ (wrapped per member)     │
+  │  keyring "acme:exec"     → DEK₃ (wrapped per member)     │
+  └──────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+  ┌──────────────────────────────────────────────────────────┐
+  │  SEALED RECORDS (vault.sealed)                           │
+  │                                                          │
+  │  Each deal is encrypted with a tier-specific DEK.        │
+  │  keyringRkey: "acme:field" → encrypted with DEK₀         │
+  │  keyringRkey: "acme:exec"  → encrypted with DEK₃         │
+  │                                                          │
+  │  Members at tier N can decrypt tiers 0..N.               │
+  │  A "field" agent sees only field-tier deals.             │
+  │  A "director" sees field + manager + director deals.     │
+  │  An "exec" sees everything.                              │
+  └──────────────────────────────────────────────────────────┘
+`}</pre>
+          </div>
+
+          <dl className="docs-definitions">
+            <dt>Configurable Tiers</dt>
+            <dd>
+              Tiers are defined at org creation time. You can use the defaults
+              (member / manager / admin) or create any hierarchy you need:
+              "intern / analyst / vp / ceo" or "read / write / admin" —
+              whatever fits your org. Each tier gets its own encryption key.
+            </dd>
+
+            <dt>Permissionless Formation</dt>
+            <dd>
+              Creating an org writes a <code>vault.org</code> record to your
+              PDS. No approval, no central registry. The org exists because the
+              record exists. Anyone on any PDS can do this.
+            </dd>
+
+            <dt>Cross-PDS Membership</dt>
+            <dd>
+              Members can be on different PDSes. When loading deals, the client
+              iterates all member DIDs and fetches their sealed records.
+              Discovery is DID-based, not server-based.
+            </dd>
+
+            <dt>Tier-Scoped Encryption</dt>
+            <dd>
+              When creating a deal in an org, you choose which tier to encrypt
+              it at. Only members at that tier or higher can decrypt it.
+              Lower-tier members see it exists (the sealed envelope is public)
+              but cannot read the contents.
+            </dd>
+          </dl>
+        </section>
+
+        <section>
           <h2>Roadmap</h2>
           <ul className="docs-roadmap">
             <li>
               <strong>DAG-CBOR via WASM</strong> — Replace JSON serialization
               inside envelopes with DAG-CBOR using a Rust/WASM codec for
               deterministic, content-addressed inner records.
-            </li>
-            <li>
-              <strong>Group key exchange</strong> — Vault keyrings that allow
-              multiple users to derive a shared DEK via ECDH with each member's
-              public key. Enables team CRM workspaces.
             </li>
             <li>
               <strong>Contacts & Companies</strong> — Additional inner types

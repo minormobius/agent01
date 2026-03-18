@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { STAGES, STAGE_LABELS } from "../types";
-import type { Deal, DealRecord, Stage } from "../types";
+import type { Deal, DealRecord, Stage, TierDef, OrgContext } from "../types";
 import { DealCard } from "./DealCard";
 import { DealForm } from "./DealForm";
 
@@ -8,15 +8,29 @@ type Tab = "deals" | "docs";
 
 interface Props {
   deals: DealRecord[];
-  onSaveDeal: (deal: Deal, existingRkey?: string) => Promise<void>;
+  onSaveDeal: (deal: Deal, existingRkey?: string, tierName?: string) => Promise<void>;
   onDeleteDeal: (rkey: string) => Promise<void>;
   handle: string;
   onLogout: () => void;
   tab: Tab;
   onTabChange: (tab: Tab) => void;
+  orgSwitcher?: ReactNode;
+  activeOrg?: OrgContext | null;
+  availableTiers?: TierDef[] | null;
 }
 
-export function DealsBoard({ deals, onSaveDeal, onDeleteDeal, handle, onLogout, tab, onTabChange }: Props) {
+export function DealsBoard({
+  deals,
+  onSaveDeal,
+  onDeleteDeal,
+  handle,
+  onLogout,
+  tab,
+  onTabChange,
+  orgSwitcher,
+  activeOrg,
+  availableTiers,
+}: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DealRecord | undefined>();
 
@@ -39,6 +53,7 @@ export function DealsBoard({ deals, onSaveDeal, onDeleteDeal, handle, onLogout, 
     <div className="board-container">
       <header className="board-header">
         <div className="header-left">
+          {orgSwitcher}
           <nav className="tab-bar">
             <button
               className={`tab ${tab === "deals" ? "tab-active" : ""}`}
@@ -106,6 +121,8 @@ export function DealsBoard({ deals, onSaveDeal, onDeleteDeal, handle, onLogout, 
           existing={editing}
           onSave={onSaveDeal}
           onCancel={handleClose}
+          availableTiers={availableTiers}
+          activeOrg={activeOrg}
         />
       )}
     </div>

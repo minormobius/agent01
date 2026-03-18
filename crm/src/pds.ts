@@ -124,9 +124,62 @@ export class PdsClient {
     });
   }
 
+  /** List records from a specific repo (can be another user's DID). */
+  async listRecordsFrom(
+    did: string,
+    collection: string,
+    limit = 100,
+    cursor?: string
+  ): Promise<{
+    records: Array<{ uri: string; cid: string; value: Record<string, unknown> }>;
+    cursor?: string;
+  }> {
+    const params = new URLSearchParams({
+      repo: did,
+      collection,
+      limit: String(limit),
+    });
+    if (cursor) params.set("cursor", cursor);
+    const headers: Record<string, string> = {};
+    if (this.session) {
+      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
+    }
+    const res = await fetch(
+      `${this.service}/xrpc/com.atproto.repo.listRecords?${params}`,
+      { headers }
+    );
+    if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
+    return res.json();
+  }
+
+  /** Get a record from a specific repo (can be another user's DID). */
+  async getRecordFrom(
+    did: string,
+    collection: string,
+    rkey: string
+  ): Promise<Record<string, unknown> | null> {
+    const params = new URLSearchParams({ repo: did, collection, rkey });
+    const headers: Record<string, string> = {};
+    if (this.session) {
+      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
+    }
+    const res = await fetch(
+      `${this.service}/xrpc/com.atproto.repo.getRecord?${params}`,
+      { headers }
+    );
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) throw new Error(`getRecord failed: ${res.status}`);
+    return res.json();
+  }
+
   /** Get the current session info. */
   getSession(): Session | null {
     return this.session;
+  }
+
+  /** Get the service URL. */
+  getService(): string {
+    return this.service;
   }
 
   /** Generic XRPC POST call. */

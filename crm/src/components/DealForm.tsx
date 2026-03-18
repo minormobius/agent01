@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { STAGES, STAGE_LABELS } from "../types";
-import type { Deal, Stage, DealRecord } from "../types";
+import type { Deal, Stage, DealRecord, TierDef, OrgContext } from "../types";
 
 interface Props {
   existing?: DealRecord;
-  onSave: (deal: Deal, existingRkey?: string) => Promise<void>;
+  onSave: (deal: Deal, existingRkey?: string, tierName?: string) => Promise<void>;
   onCancel: () => void;
+  availableTiers?: TierDef[] | null;
+  activeOrg?: OrgContext | null;
 }
 
-export function DealForm({ existing, onSave, onCancel }: Props) {
+export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg }: Props) {
   const init = existing?.deal;
   const [title, setTitle] = useState(init?.title ?? "");
   const [stage, setStage] = useState<Stage>(init?.stage ?? "lead");
@@ -18,6 +20,10 @@ export function DealForm({ existing, onSave, onCancel }: Props) {
   const [tags, setTags] = useState(init?.tags?.join(", ") ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Tier selection for org mode
+  const defaultTier = activeOrg?.myTierName ?? availableTiers?.[0]?.name ?? "";
+  const [selectedTier, setSelectedTier] = useState(defaultTier);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +44,8 @@ export function DealForm({ existing, onSave, onCancel }: Props) {
       if (tags.trim()) {
         deal.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
       }
-      await onSave(deal, existing?.rkey);
+      const tierName = activeOrg && selectedTier ? selectedTier : undefined;
+      await onSave(deal, existing?.rkey, tierName);
       onCancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -75,6 +82,26 @@ export function DealForm({ existing, onSave, onCancel }: Props) {
               ))}
             </select>
           </div>
+
+          {availableTiers && availableTiers.length > 0 && (
+            <div className="field">
+              <label htmlFor="deal-tier">Access Tier</label>
+              <select
+                id="deal-tier"
+                value={selectedTier}
+                onChange={(e) => setSelectedTier(e.target.value)}
+              >
+                {availableTiers.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.name} (L{t.level})
+                  </option>
+                ))}
+              </select>
+              <small>
+                Only members at this tier or higher can see this deal.
+              </small>
+            </div>
+          )}
 
           <div className="field-row">
             <div className="field">

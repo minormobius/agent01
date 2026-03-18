@@ -7,8 +7,8 @@
  *     ECDH(identity, identity) → HKDF → DEK (AES-256-GCM)
  *       DEK encrypts/decrypts vault.sealed records
  *
- * For v0.1: single user, so DEK is derived from own identity key
- * via self-ECDH. Group key exchange comes later.
+ * Personal vault: self-ECDH derives a personal DEK.
+ * Org mode: each tier has a random DEK, wrapped per-member via ECDH.
  */
 
 const PBKDF2_ITERATIONS = 600_000;
@@ -162,6 +162,100 @@ export function fromBase64(b64: string): Uint8Array {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
+}
+
+// --- Org Tier Key Management ---
+
+const MEMBER_WRAP_INFO = new TextEncoder().encode("vault-member-wrap-v1");
+
+/** Generate a random AES-256-GCM key for an org tier. Extractable so it can be wrapped for members. */
+export async function generateTierDek(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true, // extractable — we need to wrap it for each member
+    ["encrypt", "decrypt"]
+  );
+}
+
+/** Export a tier DEK as raw bytes (for wrapping). */
+export async function exportDekRaw(dek: CryptoKey): Promise<Uint8Array> {
+  const buf = await crypto.subtle.exportKey("raw", dek);
+  return new Uint8Array(buf);
+}
+
+/** Import raw bytes back into a non-extractable DEK for use. */
+export async function importDekRaw(raw: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    raw.buffer as ArrayBuffer,
+    { name: "AES-GCM", length: 256 },
+    false, // non-extractable after import
+    ["encrypt", "decrypt"]
+  );
+}
+
+/**
+ * Derive a wrapping key from ECDH agreement between two members.
+ * Used to wrap/unwrap a tier DEK for a specific member.
+ */
+async function deriveWrappingKey(
+  privateKey: CryptoKey,
+  publicKey: CryptoKey
+): Promise<CryptoKey> {
+  const bits = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: publicKey },
+    privateKey,
+    256
+  );
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    bits,
+    "HKDF",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32).buffer as ArrayBuffer, info: MEMBER_WRAP_INFO.buffer as ArrayBuffer },
+    hkdfKey,
+    { name: "AES-KW", length: 256 },
+    false,
+    ["wrapKey", "unwrapKey"]
+  );
+}
+
+/**
+ * Wrap a tier DEK for a specific member using ECDH key agreement.
+ * The sender uses their private key + the recipient's public key.
+ */
+export async function wrapDekForMember(
+  tierDek: CryptoKey,
+  senderPrivateKey: CryptoKey,
+  recipientPublicKey: CryptoKey
+): Promise<Uint8Array> {
+  const wrappingKey = await deriveWrappingKey(senderPrivateKey, recipientPublicKey);
+  const buf = await crypto.subtle.wrapKey("raw", tierDek, wrappingKey, "AES-KW");
+  return new Uint8Array(buf);
+}
+
+/**
+ * Unwrap a tier DEK received from another member.
+ * The recipient uses their private key + the sender's public key.
+ */
+export async function unwrapDekFromMember(
+  wrappedDek: Uint8Array,
+  recipientPrivateKey: CryptoKey,
+  senderPublicKey: CryptoKey
+): Promise<CryptoKey> {
+  const wrappingKey = await deriveWrappingKey(recipientPrivateKey, senderPublicKey);
+  return crypto.subtle.unwrapKey(
+    "raw",
+    wrappedDek.buffer as ArrayBuffer,
+    wrappingKey,
+    "AES-KW",
+    { name: "AES-GCM", length: 256 },
+    false, // non-extractable after unwrap
+    ["encrypt", "decrypt"]
+  );
 }
 
 // --- High-level seal/unseal ---

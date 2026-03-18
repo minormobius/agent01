@@ -459,6 +459,221 @@ button[type="submit"]:hover:not(:disabled),
   background: var(--border);
 }
 
+/* --- Org Switcher --- */
+
+.org-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.org-select {
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+}
+
+.org-select:focus {
+  border-color: var(--accent);
+}
+
+.org-tier-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 99px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- Org Manager --- */
+
+.org-modal {
+  max-width: 560px;
+}
+
+.org-section {
+  margin-bottom: 1.5rem;
+}
+
+.org-section h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.org-empty {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.org-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+}
+
+.org-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.org-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.org-item-tiers {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.org-item .btn-secondary {
+  width: auto;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+/* --- Tier List --- */
+
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.tier-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tier-level {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 1.5rem;
+}
+
+.tier-name {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.tier-remove {
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  padding: 0 0.3rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.tier-remove:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.tier-add {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tier-add input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font);
+  outline: none;
+}
+
+.tier-add input:focus {
+  border-color: var(--accent);
+}
+
+.tier-add .btn-secondary {
+  width: auto;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+/* --- Member List --- */
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.member-did {
+  font-size: 0.8rem;
+  font-family: monospace;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.member-tier {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--surface);
+  border-radius: 4px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* --- Success message --- */
+
+.success {
+  background: #22c55e1a;
+  border: 1px solid #22c55e44;
+  color: var(--success);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
 /* --- Docs Page --- */
 
 .docs-page {
