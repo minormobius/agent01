@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
+import { HandleAutocomplete } from './HandleAutocomplete';
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -148,12 +149,11 @@ export function AuthCard({ returnTo }: { returnTo?: string } = {}) {
         Enter your Bluesky handle to sign in securely via OAuth.
       </p>
       <div className="auth-form">
-        <input
-          type="text"
-          placeholder="handle.bsky.social"
+        <HandleAutocomplete
           value={loginHandle}
-          onChange={e => setLoginHandle(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doOAuth()}
+          onChange={setLoginHandle}
+          onSubmit={doOAuth}
+          placeholder="handle.bsky.social"
         />
         <button className="btn btn-primary" onClick={doOAuth}>
           Sign in with Bluesky

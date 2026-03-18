@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useBasePath } from '../hooks/useSiteMode';
 import { getPoll, requestEligibility, submitBallot } from '../lib/api';
+import { HandleAutocomplete } from '../components/HandleAutocomplete';
 import {
   generateSecret,
   deriveTokenMessage,
@@ -249,14 +250,12 @@ export function QuickVotePage() {
             Sign in to cast your vote
           </p>
           <div className="auth-form">
-            <input
-              type="text"
-              placeholder="your-handle.bsky.social"
+            <HandleAutocomplete
               value={handleInput}
-              onChange={e => setHandleInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && startOAuth()}
+              onChange={setHandleInput}
+              onSubmit={startOAuth}
+              placeholder="your-handle.bsky.social"
               autoFocus
-              style={{ flex: 1 }}
             />
             <button
               className="btn btn-primary"
