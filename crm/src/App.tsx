@@ -75,15 +75,21 @@ export function App() {
       appPassword: string,
       passphrase: string
     ) => {
+      // Step 1: Authenticate with PDS
       const client = new PdsClient(service);
-      const session = await client.login(handle, appPassword);
+      let session;
+      try {
+        session = await client.login(handle, appPassword);
+      } catch (err) {
+        throw new Error(`Login failed: ${err instanceof Error ? err.message : err}`);
+      }
       setPds(client);
 
-      // Derive KEK from passphrase
+      // Step 2: Derive KEK from passphrase
       const salt = new TextEncoder().encode(session.did + ":vault-kek");
       const kek = await deriveKek(passphrase, salt);
 
-      // Check if identity exists on PDS
+      // Step 3: Check if identity exists on PDS
       const existing = await client.getRecord(IDENTITY_COLLECTION, "self");
 
       let privateKey: CryptoKey;
@@ -94,11 +100,18 @@ export function App() {
         const val = existing.value as Record<string, unknown>;
         const wrappedField = val.wrappedKey as { $bytes: string };
         const wrappedKey = fromBase64(wrappedField.$bytes);
-        privateKey = await unwrapPrivateKey(wrappedKey, kek);
+        try {
+          privateKey = await unwrapPrivateKey(wrappedKey, kek);
+        } catch {
+          throw new Error("Wrong vault passphrase. The passphrase couldn't decrypt your identity key.");
+        }
 
         // Fetch public key
         const pubRecord = await client.getRecord(PUBKEY_COLLECTION, "self");
-        const pubVal = pubRecord!.value as Record<string, unknown>;
+        if (!pubRecord) {
+          throw new Error("Vault corrupted: identity key exists but public key record is missing.");
+        }
+        const pubVal = pubRecord.value as Record<string, unknown>;
         const pubField = pubVal.publicKey as { $bytes: string };
         publicKey = await importPublicKey(fromBase64(pubField.$bytes));
       } else {
@@ -111,25 +124,33 @@ export function App() {
         const pubKeyRaw = await exportPublicKey(publicKey);
 
         // Store wrapped private key
-        await client.putRecord(IDENTITY_COLLECTION, "self", {
-          $type: IDENTITY_COLLECTION,
-          wrappedKey: { $bytes: toBase64(wrappedKey) },
-          algorithm: "PBKDF2-SHA256",
-          salt: { $bytes: toBase64(salt) },
-          iterations: 600000,
-          createdAt: new Date().toISOString(),
-        });
+        try {
+          await client.putRecord(IDENTITY_COLLECTION, "self", {
+            $type: IDENTITY_COLLECTION,
+            wrappedKey: { $bytes: toBase64(wrappedKey) },
+            algorithm: "PBKDF2-SHA256",
+            salt: { $bytes: toBase64(salt) },
+            iterations: 600000,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          throw new Error(`Failed to store vault identity on PDS: ${err instanceof Error ? err.message : err}`);
+        }
 
         // Store public key
-        await client.putRecord(PUBKEY_COLLECTION, "self", {
-          $type: PUBKEY_COLLECTION,
-          publicKey: { $bytes: toBase64(pubKeyRaw) },
-          algorithm: "ECDH-P256",
-          createdAt: new Date().toISOString(),
-        });
+        try {
+          await client.putRecord(PUBKEY_COLLECTION, "self", {
+            $type: PUBKEY_COLLECTION,
+            publicKey: { $bytes: toBase64(pubKeyRaw) },
+            algorithm: "ECDH-P256",
+            createdAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          throw new Error(`Failed to store public key on PDS: ${err instanceof Error ? err.message : err}`);
+        }
       }
 
-      // Derive personal DEK (v0.1 compatibility: self-ECDH)
+      // Step 4: Derive personal DEK
       const dek = await deriveDek(privateKey, publicKey);
 
       setIdentityKeys({ privateKey, publicKey });

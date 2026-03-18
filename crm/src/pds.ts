@@ -217,8 +217,12 @@ export class PdsClient {
           detail = "Rate limited. Wait a moment and try again.";
         } else if (msg.includes("Invalid identifier or password")) {
           detail = "Invalid handle or app password. Check your credentials.";
+        } else if (code === "InvalidRequest" || code === "InvalidSwap") {
+          // PDS rejected the record write — show exactly what happened
+          detail = `${method.split(".").pop()}: ${code}${msg ? " — " + msg : ""}`;
         } else {
-          detail = msg || code || text;
+          // Always show the error code — the message alone is often useless
+          detail = code ? `${code}: ${msg}` : msg || text;
         }
       } catch {
         detail = text || `HTTP ${res.status}`;
