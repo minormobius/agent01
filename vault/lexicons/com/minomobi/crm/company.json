@@ -1,0 +1,52 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.crm.company",
+  "description": "An organization/company. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Company record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "domain": {
+            "type": "string",
+            "description": "Primary website domain.",
+            "maxLength": 256
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "size": {
+            "type": "string",
+            "knownValues": ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"]
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 64 },
+            "maxLength": 32
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

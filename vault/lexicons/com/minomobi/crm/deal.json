@@ -1,0 +1,67 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.crm.deal",
+  "description": "Sales pipeline deal. Never stored directly on PDS — serialized to DAG-CBOR and encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A deal in the sales pipeline.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "stage", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "stage": {
+            "type": "string",
+            "knownValues": ["lead", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]
+          },
+          "value": {
+            "type": "integer",
+            "description": "Deal value in minor currency units (e.g., cents)."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code.",
+            "maxLength": 3,
+            "minLength": 3
+          },
+          "contactRkey": {
+            "type": "string",
+            "description": "rkey of the associated crm.contact inner record.",
+            "maxLength": 64
+          },
+          "companyRkey": {
+            "type": "string",
+            "description": "rkey of the associated crm.company inner record.",
+            "maxLength": 64
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 64 },
+            "maxLength": 32
+          },
+          "expectedClose": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

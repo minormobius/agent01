@@ -1,0 +1,41 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.tasks.board",
+  "description": "A kanban board definition. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Kanban board.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "columns", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "columns": {
+            "type": "array",
+            "description": "Ordered list of column names.",
+            "items": { "type": "string", "maxLength": 128 },
+            "maxLength": 32
+          },
+          "keyringRkey": {
+            "type": "string",
+            "description": "Workspace keyring this board belongs to.",
+            "maxLength": 64
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

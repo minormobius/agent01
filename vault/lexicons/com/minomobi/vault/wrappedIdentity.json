@@ -1,0 +1,42 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.vault.wrappedIdentity",
+  "description": "User's ECDH identity private key, wrapped (encrypted) by a KEK derived from password or passkey. Singleton record per user.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Wrapped identity key for vault encryption.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["wrappedKey", "algorithm", "salt", "iterations", "createdAt"],
+        "properties": {
+          "wrappedKey": {
+            "type": "bytes",
+            "description": "ECDH P-256 private key wrapped with AES-KW using the KEK.",
+            "maxLength": 1024
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "KDF used to derive the KEK.",
+            "knownValues": ["PBKDF2-SHA256", "passkey-prf"]
+          },
+          "salt": {
+            "type": "bytes",
+            "description": "Random salt used in key derivation.",
+            "maxLength": 64
+          },
+          "iterations": {
+            "type": "integer",
+            "description": "PBKDF2 iteration count. Ignored for passkey-prf.",
+            "minimum": 100000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

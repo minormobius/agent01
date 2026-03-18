@@ -1,0 +1,60 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.tasks.issue",
+  "description": "A task or ticket. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Task/issue record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "status", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "status": {
+            "type": "string",
+            "knownValues": ["open", "in-progress", "review", "done", "cancelled"]
+          },
+          "priority": {
+            "type": "string",
+            "knownValues": ["critical", "high", "medium", "low"]
+          },
+          "assigneeDid": {
+            "type": "string",
+            "format": "did"
+          },
+          "boardRkey": {
+            "type": "string",
+            "description": "rkey of the associated tasks.board inner record.",
+            "maxLength": 64
+          },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 64 },
+            "maxLength": 32
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

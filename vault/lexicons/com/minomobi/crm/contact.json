@@ -1,0 +1,56 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.crm.contact",
+  "description": "A person/contact. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Contact record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "companyRkey": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "description": "Job title.",
+            "maxLength": 256
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 64 },
+            "maxLength": 32
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}
