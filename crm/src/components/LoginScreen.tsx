@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DocsPage } from "./DocsPage";
+import { HandleTypeahead } from "./HandleTypeahead";
 
 interface Props {
   onLogin: (service: string, handle: string, appPassword: string, vaultPassphrase: string) => Promise<void>;
@@ -49,13 +50,11 @@ export function LoginScreen({ onLogin, onShowDocs, showingDocs }: Props) {
 
           <div className="field">
             <label htmlFor="handle">Handle</label>
-            <input
-              id="handle"
-              type="text"
+            <HandleTypeahead
               value={handle}
-              onChange={(e) => setHandle(e.target.value)}
+              onChange={setHandle}
               placeholder="you.bsky.social"
-              required
+              id="handle"
             />
           </div>
 
