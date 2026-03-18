@@ -203,7 +203,27 @@ export class PdsClient {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`XRPC ${method} failed (${res.status}): ${text}`);
+      let detail = "";
+      try {
+        const errBody = JSON.parse(text);
+        // ATProto errors have { error: "ErrorCode", message: "..." }
+        const code = errBody.error || "";
+        const msg = errBody.message || "";
+        if (code === "AuthFactorTokenRequired") {
+          detail = "Two-factor authentication is enabled. App passwords bypass 2FA — generate one in Bluesky Settings > App Passwords.";
+        } else if (code === "AccountTakedown" || code === "AccountDeactivated") {
+          detail = `Account is ${code === "AccountTakedown" ? "taken down" : "deactivated"}.`;
+        } else if (code === "RateLimitExceeded") {
+          detail = "Rate limited. Wait a moment and try again.";
+        } else if (msg.includes("Invalid identifier or password")) {
+          detail = "Invalid handle or app password. Check your credentials.";
+        } else {
+          detail = msg || code || text;
+        }
+      } catch {
+        detail = text || `HTTP ${res.status}`;
+      }
+      throw new Error(detail || `XRPC ${method} failed (${res.status})`);
     }
     return res.json();
   }
