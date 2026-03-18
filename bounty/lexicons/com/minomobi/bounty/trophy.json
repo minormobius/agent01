@@ -1,0 +1,47 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.trophy",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "A blind-signed trophy proving bounty fulfillment. The token was blinded before signing, so the issuer cannot link this trophy to the specific job that earned it. Portable, verifiable, unlinkable.",
+      "record": {
+        "type": "object",
+        "required": ["tokenMessage", "signature", "issuerDid", "tier", "createdAt"],
+        "properties": {
+          "tokenMessage": {
+            "type": "string",
+            "description": "The unblinded token message. Format: bounty-trophy:v1:{bountyBoardId}:{tier}:{expiryISO}:{hmac}"
+          },
+          "signature": {
+            "type": "string",
+            "description": "RSA-PSS blind signature (base64url). Verifiable against the issuer's published trophy public key."
+          },
+          "nullifier": {
+            "type": "string",
+            "description": "SHA-256 hash derived deterministically from the token. Used to prevent double-presentation."
+          },
+          "issuerDid": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the bounty board that issued this trophy."
+          },
+          "tier": {
+            "type": "string",
+            "knownValues": ["bronze", "silver", "gold"],
+            "description": "Trophy tier — determined by the bounty's trophyTier field."
+          },
+          "boardId": {
+            "type": "string",
+            "description": "Identifier of the bounty board instance that issued this trophy."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

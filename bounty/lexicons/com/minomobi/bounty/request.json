@@ -1,0 +1,65 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.request",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "An anonymous information bounty — a request for specific evidence or data.",
+      "record": {
+        "type": "object",
+        "required": ["title", "kind", "description", "status", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "Short description of what is needed."
+          },
+          "kind": {
+            "type": "string",
+            "knownValues": ["webcam", "photo", "video", "document", "progress_update", "satellite", "dataset", "other"],
+            "description": "Type of information requested."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Detailed description of the request and requirements."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 64 },
+            "maxLength": 10,
+            "description": "Freeform tags for categorization."
+          },
+          "reward": {
+            "type": "ref",
+            "ref": "#reward",
+            "description": "What the fulfiller earns."
+          },
+          "status": {
+            "type": "string",
+            "knownValues": ["open", "claimed", "fulfilled", "closed"],
+            "description": "Lifecycle state."
+          },
+          "trophyTier": {
+            "type": "string",
+            "knownValues": ["bronze", "silver", "gold"],
+            "description": "Trophy tier awarded on fulfillment."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "reward": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "string", "description": "Human-readable reward amount." },
+        "currency": { "type": "string", "description": "REPUTATION, BTC, ETH, USD, etc." },
+        "paymentMethod": { "type": "string", "description": "How payment is delivered: reputation, lightning, onchain, etc." }
+      }
+    }
+  }
+}

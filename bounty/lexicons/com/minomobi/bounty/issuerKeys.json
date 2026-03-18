@@ -1,0 +1,54 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.issuerKeys",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "Public keys used by a bounty board to sign trophies. Published on the issuer's PDS so anyone can verify trophy signatures.",
+      "record": {
+        "type": "object",
+        "required": ["boardId", "keys", "createdAt"],
+        "properties": {
+          "boardId": {
+            "type": "string",
+            "description": "Unique identifier for this bounty board instance."
+          },
+          "boardName": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "Human-readable name of the bounty board."
+          },
+          "keys": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#tierKey" },
+            "description": "Public keys for each trophy tier."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "tierKey": {
+      "type": "object",
+      "required": ["tier", "publicKeyJwk"],
+      "properties": {
+        "tier": {
+          "type": "string",
+          "knownValues": ["bronze", "silver", "gold"],
+          "description": "Trophy tier this key signs."
+        },
+        "publicKeyJwk": {
+          "type": "string",
+          "description": "RSA public key in JWK format (JSON stringified)."
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Signature algorithm. Default: RSABSSA-SHA384-PSS-Randomized (RFC 9474)."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.fulfillment",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "Evidence submitted to fulfill a bounty request. Can be submitted from a throwaway DID for anonymity.",
+      "record": {
+        "type": "object",
+        "required": ["requestUri", "evidence", "createdAt"],
+        "properties": {
+          "requestUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the bounty request being fulfilled."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#evidenceItem" },
+            "maxLength": 10,
+            "description": "Evidence items proving fulfillment."
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Freeform notes about the evidence."
+          },
+          "geoTag": {
+            "type": "ref",
+            "ref": "#geoTag",
+            "description": "Optional geolocation of evidence capture."
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the evidence was captured."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "evidenceItem": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri", "description": "URL to evidence (photo, video, document, webcam feed)." },
+        "blob": { "type": "blob", "description": "Direct blob upload (image, PDF)." },
+        "caption": { "type": "string", "maxLength": 1000 },
+        "mimeType": { "type": "string" }
+      }
+    },
+    "geoTag": {
+      "type": "object",
+      "properties": {
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "accuracy": { "type": "number", "description": "Accuracy in meters." }
+      }
+    }
+  }
+}

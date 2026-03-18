@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bounty Board</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --border: #1e1e2e;
+  --text: #c8c8d0;
+  --text-dim: #6a6a7a;
+  --accent: #ff8c00;
+  --accent2: #00c8ff;
+  --danger: #ff4466;
+  --success: #44cc88;
+  --gold: #ffd700;
+  --silver: #c0c0c0;
+  --bronze: #cd7f32;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+
+/* ── Layout ───────────────────────────────────── */
+.container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+header h1 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+header h1 small {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* ── Tabs ─────────────────────────────────────── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 20px;
+}
+.tab {
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .badge {
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+/* ── Buttons ──────────────────────────────────── */
+.btn {
+  background: var(--border);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn-primary:hover { opacity: 0.85; }
+.btn-small { padding: 4px 10px; font-size: 11px; }
+.btn-success { background: var(--success); color: var(--bg); border-color: var(--success); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Panels ───────────────────────────────────── */
+.panel { display: none; padding: 24px 0; }
+.panel.active { display: block; }
+
+/* ── Bounty cards ─────────────────────────────── */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--accent); }
+.card.expanded { border-color: var(--accent); }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+.card-reward {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+}
+.card-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+/* ── Badges ───────────────────────────────────── */
+.badge-kind {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.kind-webcam { background: rgba(255, 68, 102, 0.2); color: var(--danger); }
+.kind-photo { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.kind-video { background: rgba(140, 100, 255, 0.2); color: #8c64ff; }
+.kind-document { background: rgba(200, 160, 0, 0.2); color: #c8a000; }
+.kind-progress_update { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.kind-satellite { background: rgba(0, 160, 255, 0.2); color: #00a0ff; }
+.kind-dataset { background: rgba(160, 200, 0, 0.2); color: #a0c800; }
+.kind-other { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+.badge-status {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+.status-open { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.status-claimed { background: rgba(255, 140, 0, 0.2); color: var(--accent); }
+.status-fulfilled { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.status-closed { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+
+/* ── Detail panel ─────────────────────────────── */
+.card-detail {
+  display: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.card.expanded .card-detail { display: block; }
+.card-detail p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.trace {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 10px;
+}
+.trace-step {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(30, 30, 46, 0.5);
+}
+.trace-step:last-child { border-bottom: none; }
+.trace-step-icon { color: var(--accent); font-weight: 700; flex-shrink: 0; width: 16px; text-align: center; }
+.trace-step-label { color: var(--text-dim); min-width: 70px; }
+.trace-step-value { color: var(--text); font-family: var(--font-mono); font-size: 11px; }
+
+/* ── Forms ────────────────────────────────────── */
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: none;
+}
+.form-section.open { display: block; }
+.form-section h3 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.form-group textarea { min-height: 80px; resize: vertical; font-family: var(--font-sans); }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ── Fulfill form (inline) ────────────────────── */
+.fulfill-inline {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.fulfill-inline h4 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--success);
+  margin-bottom: 10px;
+}
+
+/* ── Trophy wallet ────────────────────────────── */
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.trophy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+.trophy-card:hover { border-color: var(--accent); }
+.trophy-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+.trophy-tier {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.tier-gold .trophy-tier { color: var(--gold); }
+.tier-silver .trophy-tier { color: var(--silver); }
+.tier-bronze .trophy-tier { color: var(--bronze); }
+.tier-gold { border-color: rgba(255, 215, 0, 0.3); }
+.tier-silver { border-color: rgba(192, 192, 192, 0.3); }
+.tier-bronze { border-color: rgba(205, 127, 50, 0.3); }
+.trophy-board {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+.trophy-date {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.trophy-sig {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  word-break: break-all;
+  margin-top: 8px;
+  padding: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  max-height: 40px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.trophy-sig:hover { max-height: none; }
+.trophy-actions { margin-top: 10px; }
+
+.trophy-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.trophy-stat {
+  text-align: center;
+}
+.trophy-stat-count {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 700;
+}
+.trophy-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+/* ── Verify section ───────────────────────────── */
+.verify-result {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.verify-valid { border-color: var(--success); }
+.verify-invalid { border-color: var(--danger); }
+
+/* ── Empty state ──────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.empty-state h3 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+/* ── Status toast ─────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  z-index: 1000;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  max-width: 400px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: var(--success); color: var(--bg); }
+.toast.error { background: var(--danger); color: #fff; }
+.toast.info { background: var(--accent2); color: var(--bg); }
+
+/* ── Footer ───────────────────────────────────── */
+.page-footer {
+  padding: 24px 20px;
+  text-align: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+.page-footer a { color: var(--accent); text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: 1fr; }
+  .card-header { flex-direction: column; }
+  .trophy-grid { grid-template-columns: 1fr; }
+  .trophy-summary { flex-wrap: wrap; }
+  .tabs { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bounty Board <small>anonymous work &middot; portable reputation</small></h1>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-panel="bounties">Bounties</button>
+  <button class="tab" data-panel="wallet">Trophies <span class="badge" id="trophy-count">0</span></button>
+  <button class="tab" data-panel="verify">Verify</button>
+</div>
+
+<div class="container">
+
+  <!-- ═══ BOUNTIES PANEL ═══ -->
+  <div class="panel active" id="panel-bounties">
+    <div class="section-header">
+      <span class="section-title">Open Bounties</span>
+      <button class="btn btn-primary btn-small" id="toggle-create">+ New Bounty</button>
+    </div>
+
+    <!-- Create form -->
+    <div class="form-section" id="create-form">
+      <h3>Post a Bounty</h3>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="f-title" placeholder="What do you need?" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="f-kind">
+            <option value="photo">Photo</option>
+            <option value="webcam">Webcam</option>
+            <option value="video">Video</option>
+            <option value="document">Document</option>
+            <option value="progress_update">Progress Update</option>
+            <option value="satellite">Satellite Imagery</option>
+            <option value="dataset">Dataset</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Trophy Tier</label>
+          <select id="f-tier">
+            <option value="bronze">Bronze</option>
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="f-description" placeholder="Describe exactly what you need and what counts as valid evidence..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Reward</label>
+          <input type="text" id="f-reward" placeholder="e.g., 0.001 BTC or 25 REPUTATION" value="10 REPUTATION" />
+        </div>
+        <div class="form-group">
+          <label>Tags (comma-separated)</label>
+          <input type="text" id="f-tags" placeholder="e.g., infrastructure, china, tunnel" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="f-submit">Post Bounty</button>
+        <button class="btn" id="f-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="bounty-list"></div>
+  </div>
+
+  <!-- ═══ TROPHY WALLET PANEL ═══ -->
+  <div class="panel" id="panel-wallet">
+    <div id="wallet-summary" class="trophy-summary" style="display:none"></div>
+    <div id="wallet-grid"></div>
+  </div>
+
+  <!-- ═══ VERIFY PANEL ═══ -->
+  <div class="panel" id="panel-verify">
+    <div class="section-header">
+      <span class="section-title">Verify a Trophy</span>
+    </div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+      Paste a trophy's token message and signature to verify it was issued by this board.
+      The verification proves the trophy is real without revealing which job earned it.
+    </p>
+    <div class="form-section open" style="display:block">
+      <div class="form-group">
+        <label>Token Message</label>
+        <input type="text" id="v-token" placeholder="bounty-trophy:v1:..." />
+      </div>
+      <div class="form-group">
+        <label>Signature (base64url)</label>
+        <textarea id="v-sig" placeholder="RSA-PSS signature" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tier</label>
+          <select id="v-tier">
+            <option value="bronze">Bronze</option>
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" id="v-submit">Verify Trophy</button>
+        </div>
+      </div>
+      <div id="verify-result"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-footer">
+  Blind-signed trophies &middot; <a href="https://www.rfc-editor.org/rfc/rfc9474" target="_blank" rel="noopener">RFC 9474</a> &middot;
+  Verifiable reputation that doesn't trace to a job &middot;
+  <a href="https://github.com/minormobius/agent01/tree/main/bounty/lexicons">Lexicons</a>
+</div>
+
+<script type="module">
+// ─── Blind RSA from CDN ──────────────────────────────────
+// Import the same library the Worker uses, client-side via esm.sh
+let RSABSSA;
+try {
+  const mod = await import('https://esm.sh/@cloudflare/blindrsa-ts@0.3.0');
+  RSABSSA = mod.RSABSSA;
+} catch {
+  console.warn('Could not load blindrsa-ts from CDN. Trophy claiming will be unavailable.');
+}
+
+const encoder = new TextEncoder();
+
+function toBase64Url(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function sha256(data) {
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomHex(n) {
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── API client ──────────────────────────────────────────
+
+const API = '';  // same origin
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+  return data;
+}
+
+// ─── Trophy wallet (localStorage) ────────────────────────
+
+const WALLET_KEY = 'bounty_trophies';
+
+function loadWallet() {
+  try { return JSON.parse(localStorage.getItem(WALLET_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveWallet(trophies) {
+  localStorage.setItem(WALLET_KEY, JSON.stringify(trophies));
+  updateTrophyCount();
+}
+
+function addTrophy(trophy) {
+  const wallet = loadWallet();
+  wallet.push({ ...trophy, earnedAt: new Date().toISOString() });
+  saveWallet(wallet);
+}
+
+function updateTrophyCount() {
+  document.getElementById('trophy-count').textContent = loadWallet().length;
+}
+
+// ─── Toast ───────────────────────────────────────────────
+
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ─── Tab switching ───────────────────────────────────────
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
+    if (tab.dataset.panel === 'wallet') renderWallet();
+  });
+});
+
+// ─── Create bounty form ─────────────────────────────────
+
+document.getElementById('toggle-create').addEventListener('click', () => {
+  document.getElementById('create-form').classList.toggle('open');
+});
+
+document.getElementById('f-cancel').addEventListener('click', () => {
+  document.getElementById('create-form').classList.remove('open');
+});
+
+document.getElementById('f-submit').addEventListener('click', async () => {
+  const title = document.getElementById('f-title').value.trim();
+  const kind = document.getElementById('f-kind').value;
+  const description = document.getElementById('f-description').value.trim();
+  const trophyTier = document.getElementById('f-tier').value;
+  const rewardText = document.getElementById('f-reward').value.trim();
+  const tagsText = document.getElementById('f-tags').value.trim();
+
+  if (!title || !description) return toast('Title and description required', 'error');
+
+  const tags = tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [];
+  const reward = rewardText ? { amount: rewardText, currency: 'REPUTATION', paymentMethod: 'reputation' } : null;
+
+  const btn = document.getElementById('f-submit');
+  btn.disabled = true;
+  btn.textContent = 'Posting...';
+
+  try {
+    await api('/api/bounties', { method: 'POST', body: { title, kind, description, tags, reward, trophyTier } });
+    toast('Bounty posted!', 'success');
+    document.getElementById('create-form').classList.remove('open');
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-description').value = '';
+    document.getElementById('f-tags').value = '';
+    loadBounties();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Post Bounty';
+});
+
+// ─── Bounty list ─────────────────────────────────────────
+
+async function loadBounties() {
+  const list = document.getElementById('bounty-list');
+
+  try {
+    const data = await api('/api/bounties');
+    if (data.bounties.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <h3>No bounties yet</h3>
+          Post the first bounty — request any information, evidence, or data you need.
+          <br>Fulfillments earn blind-signed trophies: verifiable reputation that doesn't trace to the job.
+        </div>`;
+      return;
+    }
+    renderBounties(data.bounties);
+  } catch {
+    // If API not available, show demo bounties
+    renderBounties(DEMO_BOUNTIES);
+  }
+}
+
+function renderBounties(bounties) {
+  const list = document.getElementById('bounty-list');
+  const targetId = window.location.hash.slice(1);
+
+  list.innerHTML = bounties.map(b => `
+    <div class="card${b.id === targetId ? ' expanded' : ''}" data-id="${b.id}">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="badge-kind kind-${b.kind}">${(b.kind || '').replace('_', ' ')}</span>
+          ${b.title}
+        </div>
+        <div class="card-reward">${b.reward_amount || b.reward || ''}</div>
+      </div>
+      <div class="card-meta">
+        <span class="badge-status status-${b.status}">${b.status}</span>
+        ${b.trophy_tier || b.trophyTier ? `<span style="color:var(--${b.trophy_tier || b.trophyTier})">${b.trophy_tier || b.trophyTier} trophy</span>` : ''}
+        <span>${b.created_at || b.createdAt || ''}</span>
+      </div>
+      <div class="card-detail">
+        <p>${b.description}</p>
+        <div class="trace">
+          <div class="trace-step">
+            <span class="trace-step-icon">1</span>
+            <span class="trace-step-label">Created</span>
+            <span class="trace-step-value">${b.created_at || b.createdAt || ''}</span>
+          </div>
+          <div class="trace-step">
+            <span class="trace-step-icon">2</span>
+            <span class="trace-step-label">Status</span>
+            <span class="trace-step-value">${b.status === 'open' ? 'Awaiting fulfillment' : b.status}</span>
+          </div>
+        </div>
+        ${b.status === 'open' ? `
+        <div class="fulfill-inline">
+          <h4>Submit Fulfillment</h4>
+          <div class="form-group">
+            <label>Evidence URL</label>
+            <input type="text" placeholder="URL to photo, video, document, webcam feed..." class="ful-url" />
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea placeholder="Describe what you found and how it satisfies the bounty..." class="ful-notes"></textarea>
+          </div>
+          <button class="btn btn-success btn-small ful-btn" data-bounty="${b.id}">Submit Evidence</button>
+        </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  // Scroll to target
+  if (targetId) {
+    const target = document.querySelector(`.card[data-id="${targetId}"]`);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Toggle expand
+  list.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT'].includes(e.target.tagName)) return;
+      card.classList.toggle('expanded');
+    });
+  });
+
+  // Fulfill handlers
+  list.querySelectorAll('.ful-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const card = btn.closest('.card');
+      const url = card.querySelector('.ful-url').value.trim();
+      const notes = card.querySelector('.ful-notes').value.trim();
+      if (!url && !notes) return toast('Provide evidence URL or notes', 'error');
+
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      try {
+        const evidence = url ? [{ url, caption: notes || 'Evidence' }] : [];
+        const result = await api(`/api/bounties/${btn.dataset.bounty}/fulfill`, {
+          method: 'POST',
+          body: { evidence, notes },
+        });
+        toast('Fulfillment submitted! Once accepted, you can claim your trophy.', 'success');
+        btn.textContent = 'Submitted!';
+      } catch (e) {
+        toast(e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Submit Evidence';
+      }
+    });
+  });
+}
+
+// ─── Trophy claiming (blind signature flow) ──────────────
+
+async function claimTrophy(fulfillmentId, tier) {
+  if (!RSABSSA) {
+    toast('Blind RSA library not loaded. Cannot claim trophy.', 'error');
+    return;
+  }
+
+  toast('Generating trophy credential...', 'info');
+
+  try {
+    // 1. Fetch the board's public key for this tier
+    const keysData = await api('/api/trophy/public-keys');
+    const publicKeyJWK = keysData.keys[tier];
+    if (!publicKeyJWK) throw new Error(`No public key for tier: ${tier}`);
+
+    const publicKey = await crypto.subtle.importKey(
+      'jwk', publicKeyJWK,
+      { name: 'RSA-PSS', hash: 'SHA-384' },
+      true, ['verify']
+    );
+
+    // 2. Generate secret + token message
+    const secret = randomHex(32);
+    const boardId = window.location.hostname;
+    const expiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    // HMAC to bind token to secret
+    const hmacKey = await crypto.subtle.importKey(
+      'raw', encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false, ['sign']
+    );
+    const hmacData = encoder.encode(`trophy_v1\x00${boardId}\x00${tier}\x00${expiry}`);
+    const hmacSig = await crypto.subtle.sign('HMAC', hmacKey, hmacData);
+    const hmacHex = Array.from(new Uint8Array(hmacSig)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const tokenMessage = `bounty-trophy:v1:${boardId}:${tier}:${expiry}:${hmacHex}`;
+
+    // 3. Blind the token message
+    const suite = RSABSSA.SHA384.PSS.Randomized();
+    const msgBytes = encoder.encode(tokenMessage);
+    const { blindedMsg, inv } = await suite.blind(publicKey, msgBytes);
+    const blindedMsgB64 = toBase64Url(blindedMsg);
+
+    // 4. Send blinded message to server for signing
+    const signResult = await api('/api/trophy/blind-sign', {
+      method: 'POST',
+      body: { fulfillmentId, blindedMessage: blindedMsgB64 },
+    });
+
+    // 5. Unblind the signature
+    const blindSig = fromBase64Url(signResult.blindedSignature);
+    const signature = await suite.finalize(publicKey, msgBytes, blindSig, inv);
+    const signatureB64 = toBase64Url(signature);
+
+    // 6. Derive nullifier
+    const nullifier = await sha256(`nullifier\x00${tokenMessage}`);
+
+    // 7. Verify locally before saving
+    const valid = await suite.verify(publicKey, signature, msgBytes);
+    if (!valid) throw new Error('Trophy signature verification failed locally');
+
+    // 8. Save to wallet
+    addTrophy({
+      tokenMessage,
+      signature: signatureB64,
+      nullifier,
+      tier: signResult.tier,
+      boardId,
+      issuerPublicKey: publicKeyJWK,
+    });
+
+    toast(`${tier.toUpperCase()} trophy claimed! Check your wallet.`, 'success');
+  } catch (e) {
+    toast(`Trophy claim failed: ${e.message}`, 'error');
+  }
+}
+
+// Expose to onclick handlers
+window.claimTrophy = claimTrophy;
+
+// ─── Trophy wallet rendering ─────────────────────────────
+
+function renderWallet() {
+  const trophies = loadWallet();
+  const summary = document.getElementById('wallet-summary');
+  const grid = document.getElementById('wallet-grid');
+
+  if (trophies.length === 0) {
+    summary.style.display = 'none';
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>No trophies yet</h3>
+        Fulfill a bounty and claim your blind-signed trophy.<br>
+        Trophies are cryptographic proofs of work that don't reveal which job earned them.<br>
+        They're stored locally in your browser — portable and verifiable anywhere.
+      </div>`;
+    return;
+  }
+
+  const counts = { gold: 0, silver: 0, bronze: 0 };
+  trophies.forEach(t => { if (counts[t.tier] !== undefined) counts[t.tier]++; });
+
+  summary.style.display = 'flex';
+  summary.innerHTML = `
+    <div class="trophy-stat">
+      <div class="trophy-stat-count" style="color:var(--gold)">${counts.gold}</div>
+      <div class="trophy-stat-label">Gold</div>
+    </div>
+    <div class="trophy-stat">
+      <div class="trophy-stat-count" style="color:var(--silver)">${counts.silver}</div>
+      <div class="trophy-stat-label">Silver</div>
+    </div>
+    <div class="trophy-stat">
+      <div class="trophy-stat-count" style="color:var(--bronze)">${counts.bronze}</div>
+      <div class="trophy-stat-label">Bronze</div>
+    </div>
+    <div class="trophy-stat">
+      <div class="trophy-stat-count">${trophies.length}</div>
+      <div class="trophy-stat-label">Total</div>
+    </div>
+  `;
+
+  grid.innerHTML = '<div class="trophy-grid">' + trophies.map((t, i) => `
+    <div class="trophy-card tier-${t.tier}">
+      <div class="trophy-icon">${t.tier === 'gold' ? '🏆' : t.tier === 'silver' ? '🥈' : '🥉'}</div>
+      <div class="trophy-tier">${t.tier}</div>
+      <div class="trophy-board">${t.boardId || 'bounty board'}</div>
+      <div class="trophy-date">${t.earnedAt ? new Date(t.earnedAt).toLocaleDateString() : ''}</div>
+      <div class="trophy-sig" title="Click to expand signature">${t.signature?.slice(0, 40)}...</div>
+      <div class="trophy-actions">
+        <button class="btn btn-small" onclick="copyTrophy(${i})">Copy</button>
+        <button class="btn btn-small" onclick="exportTrophy(${i})">Export</button>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+
+window.copyTrophy = function(index) {
+  const trophy = loadWallet()[index];
+  if (!trophy) return;
+  const data = JSON.stringify({
+    tokenMessage: trophy.tokenMessage,
+    signature: trophy.signature,
+    nullifier: trophy.nullifier,
+    tier: trophy.tier,
+    boardId: trophy.boardId,
+  }, null, 2);
+  navigator.clipboard.writeText(data).then(() => toast('Trophy copied to clipboard', 'success'));
+};
+
+window.exportTrophy = function(index) {
+  const trophy = loadWallet()[index];
+  if (!trophy) return;
+  const data = JSON.stringify({
+    tokenMessage: trophy.tokenMessage,
+    signature: trophy.signature,
+    nullifier: trophy.nullifier,
+    tier: trophy.tier,
+    boardId: trophy.boardId,
+    issuerPublicKey: trophy.issuerPublicKey,
+  }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trophy-${trophy.tier}-${trophy.nullifier?.slice(0, 8) || index}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Trophy exported as JSON', 'success');
+};
+
+// ─── Verify panel ────────────────────────────────────────
+
+document.getElementById('v-submit').addEventListener('click', async () => {
+  const tokenMessage = document.getElementById('v-token').value.trim();
+  const signature = document.getElementById('v-sig').value.trim();
+  const tier = document.getElementById('v-tier').value;
+  const result = document.getElementById('verify-result');
+
+  if (!tokenMessage || !signature) {
+    result.innerHTML = '<div class="verify-result verify-invalid"><strong>Missing data.</strong> Provide both token message and signature.</div>';
+    return;
+  }
+
+  try {
+    const data = await api('/api/trophy/verify', {
+      method: 'POST',
+      body: { tokenMessage, signature, tier },
+    });
+
+    if (data.valid) {
+      result.innerHTML = `
+        <div class="verify-result verify-valid">
+          <strong style="color:var(--success)">Valid ${tier} trophy.</strong><br>
+          <span style="font-size:12px;color:var(--text-dim)">
+            This trophy was signed by this board's ${tier} key.
+            The signature is cryptographically valid — this person completed real work.
+            But which job? Nobody knows. That's the point.
+          </span>
+        </div>`;
+    } else {
+      result.innerHTML = `<div class="verify-result verify-invalid"><strong style="color:var(--danger)">Invalid.</strong> Signature does not verify.</div>`;
+    }
+  } catch (e) {
+    result.innerHTML = `<div class="verify-result verify-invalid"><strong style="color:var(--danger)">Error:</strong> ${e.message}</div>`;
+  }
+});
+
+// ─── Demo bounties (offline fallback) ────────────────────
+
+const DEMO_BOUNTIES = [
+  { id: 'b1', title: 'Live webcam feed from Rødbyhavn casting yard', kind: 'webcam', description: 'Looking for a current webcam URL showing the Fehmarn Belt tunnel element production at the casting yard.', reward_amount: '10 REPUTATION', trophy_tier: 'bronze', status: 'open', created_at: '2026-03-15' },
+  { id: 'b2', title: 'Recent photos of CAHSR viaduct construction near Fresno', kind: 'photo', description: 'Ground-level photos of the elevated guideway sections under construction in the Central Valley. Last 30 days.', reward_amount: '15 REPUTATION', trophy_tier: 'bronze', status: 'open', created_at: '2026-03-14' },
+  { id: 'b3', title: 'Sichuan-Tibet Railway tunneling progress update', kind: 'progress_update', description: 'Any recent reports on TBM progress through the Hengduan Mountains. Official sources or local news. Tunnels at 3,000m+ elevation through active fault zones.', reward_amount: '25 REPUTATION', trophy_tier: 'silver', status: 'open', created_at: '2026-03-12' },
+  { id: 'b4', title: 'Recent drone footage of ITER tokamak assembly', kind: 'video', description: 'Looking for recent (2026) drone video showing the current state of the ITER tokamak pit assembly in Cadarache, France.', reward_amount: '20 REPUTATION', trophy_tier: 'silver', status: 'open', created_at: '2026-03-10' },
+  { id: 'b5', title: 'Satellite imagery of The Line foundation work', kind: 'satellite', description: 'Recent satellite/aerial imagery showing the extent of NEOM earthworks and foundation construction along The Line alignment.', reward_amount: '30 REPUTATION', trophy_tier: 'gold', status: 'open', created_at: '2026-03-08' },
+  { id: 'b6', title: 'Brenner Base Tunnel 2026 Q1 progress report', kind: 'document', description: 'Official or news summary of meters bored to date and remaining work on the Brenner Base Tunnel.', reward_amount: '10 REPUTATION', trophy_tier: 'bronze', status: 'open', created_at: '2026-03-06' },
+  { id: 'b7', title: 'Stargate data center campus construction photos — Abilene TX', kind: 'photo', description: 'On-the-ground photos of the $500B Stargate AI infrastructure campus under construction in Abilene, Texas.', reward_amount: '20 REPUTATION', trophy_tier: 'silver', status: 'open', created_at: '2026-03-05' },
+  { id: 'b8', title: 'Any visual documentation of Yarlung Tsangpo dam site', kind: 'webcam', description: 'This $167B project is shrouded in secrecy. Any webcam, photo, or satellite imagery of the construction site on the Yarlung Tsangpo gorge.', reward_amount: '50 REPUTATION', trophy_tier: 'gold', status: 'open', created_at: '2026-03-01' },
+];
+
+// ─── Init ────────────────────────────────────────────────
+
+updateTrophyCount();
+loadBounties();
+</script>
+</body>
+</html>
