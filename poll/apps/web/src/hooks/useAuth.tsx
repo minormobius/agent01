@@ -86,7 +86,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Try session cookie first, then fall back to refresh token
     getMe()
-      .then(user => setState({ did: user.did, handle: user.handle, canPost: !!user.canPost, loading: false, error: null }))
+      .then(user => {
+        // Save handle for QuickVote auto-fill
+        if (user.handle) {
+          try { localStorage.setItem('atpolls:last-handle', user.handle); } catch {}
+        }
+        setState({ did: user.did, handle: user.handle, canPost: !!user.canPost, loading: false, error: null });
+      })
       .catch(async () => {
         // Session expired — try refresh token from IndexedDB
         try {

@@ -547,6 +547,65 @@ button, .btn {
   to { transform: rotate(360deg); }
 }
 
+/* QuickVote step indicator */
+
+.quick-vote-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qv-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.qv-step + .qv-step::before {
+  content: '→';
+  margin-right: 4px;
+  color: var(--border);
+}
+
+.qv-step.active {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.qv-step.done {
+  color: var(--success);
+}
+
+.qv-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.qv-step.active .qv-step-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.qv-step.done .qv-step-dot {
+  border-color: var(--success);
+  color: var(--success);
+  font-size: 11px;
+}
+
+.qv-step-label {
+  white-space: nowrap;
+}
+
 /* Share to Bluesky preview */
 
 .share-preview {
