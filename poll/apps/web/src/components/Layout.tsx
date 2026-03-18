@@ -105,16 +105,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export function AuthCard({ returnTo }: { returnTo?: string } = {}) {
   const { did, handle, loading, error, login, loginOAuth, logout } = useAuth();
-  const [loginHandle, setLoginHandle] = useState('');
+  const [loginHandle, setLoginHandle] = useState(() => {
+    try { return localStorage.getItem('atpolls:last-handle') || ''; } catch { return ''; }
+  });
   const [showAppPassword, setShowAppPassword] = useState(false);
   const [appPassword, setAppPassword] = useState('');
 
   const doOAuth = () => {
-    if (loginHandle) loginOAuth(loginHandle, returnTo);
+    if (loginHandle) {
+      try { localStorage.setItem('atpolls:last-handle', loginHandle); } catch {}
+      loginOAuth(loginHandle, returnTo);
+    }
   };
 
   const doAppPasswordLogin = () => {
     if (loginHandle && appPassword) {
+      try { localStorage.setItem('atpolls:last-handle', loginHandle); } catch {}
       login(loginHandle, appPassword);
       setAppPassword('');
     }
