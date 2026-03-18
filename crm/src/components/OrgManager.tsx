@@ -15,7 +15,6 @@ import {
   unwrapDekFromMember,
   exportPublicKey,
   importPublicKey,
-  exportDekRaw,
   toBase64,
   fromBase64,
 } from "../crypto";
@@ -437,19 +436,9 @@ function ManageOrg({
           writerPublicKey
         );
 
-        // To re-wrap for the new member, we need an extractable version
-        const dekRaw = await exportDekRaw(tierDek);
-        const extractableDek = await crypto.subtle.importKey(
-          "raw",
-          dekRaw.buffer as ArrayBuffer,
-          { name: "AES-GCM", length: 256 },
-          true,
-          ["encrypt", "decrypt"]
-        );
-
-        // Wrap for the new member
+        // Wrap for the new member (tierDek is already extractable)
         const wrappedForInvitee = await wrapDekForMember(
-          extractableDek,
+          tierDek,
           myPrivateKey,
           inviteePublicKey
         );

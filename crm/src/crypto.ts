@@ -223,9 +223,9 @@ export async function importDekRaw(raw: Uint8Array): Promise<CryptoKey> {
 
 /**
  * Derive a wrapping key from ECDH agreement between two members.
- * Used to wrap/unwrap a tier DEK for a specific member.
+ * Uses AES-GCM (not AES-KW) to avoid length restrictions.
  */
-async function deriveWrappingKey(
+async function deriveMemberKey(
   privateKey: CryptoKey,
   publicKey: CryptoKey
 ): Promise<CryptoKey> {
@@ -244,43 +244,59 @@ async function deriveWrappingKey(
   return crypto.subtle.deriveKey(
     { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32).buffer as ArrayBuffer, info: MEMBER_WRAP_INFO.buffer as ArrayBuffer },
     hkdfKey,
-    { name: "AES-KW", length: 256 },
+    { name: "AES-GCM", length: 256 },
     false,
-    ["wrapKey", "unwrapKey"]
+    ["encrypt", "decrypt"]
   );
 }
 
 /**
  * Wrap a tier DEK for a specific member using ECDH key agreement.
- * The sender uses their private key + the recipient's public key.
+ * Exports the DEK as raw bytes, encrypts with AES-GCM.
+ * Returns iv (12 bytes) + ciphertext concatenated.
  */
 export async function wrapDekForMember(
   tierDek: CryptoKey,
   senderPrivateKey: CryptoKey,
   recipientPublicKey: CryptoKey
 ): Promise<Uint8Array> {
-  const wrappingKey = await deriveWrappingKey(senderPrivateKey, recipientPublicKey);
-  const buf = await crypto.subtle.wrapKey("raw", tierDek, wrappingKey, "AES-KW");
-  return new Uint8Array(buf);
+  const memberKey = await deriveMemberKey(senderPrivateKey, recipientPublicKey);
+  const dekRaw = await crypto.subtle.exportKey("raw", tierDek);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
+    memberKey,
+    dekRaw
+  );
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
 }
 
 /**
  * Unwrap a tier DEK received from another member.
- * The recipient uses their private key + the sender's public key.
+ * Input is iv (12 bytes) + ciphertext concatenated.
+ * Returns an extractable DEK so it can be re-wrapped for other members.
  */
 export async function unwrapDekFromMember(
   wrappedDek: Uint8Array,
   recipientPrivateKey: CryptoKey,
   senderPublicKey: CryptoKey
 ): Promise<CryptoKey> {
-  const wrappingKey = await deriveWrappingKey(recipientPrivateKey, senderPublicKey);
-  return crypto.subtle.unwrapKey(
+  const memberKey = await deriveMemberKey(recipientPrivateKey, senderPublicKey);
+  const iv = wrappedDek.slice(0, 12);
+  const ct = wrappedDek.slice(12);
+  const dekRaw = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
+    memberKey,
+    ct.buffer as ArrayBuffer
+  );
+  return crypto.subtle.importKey(
     "raw",
-    wrappedDek.buffer as ArrayBuffer,
-    wrappingKey,
-    "AES-KW",
+    dekRaw,
     { name: "AES-GCM", length: 256 },
-    false, // non-extractable after unwrap
+    true, // extractable — may need to re-wrap for other members
     ["encrypt", "decrypt"]
   );
 }
