@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { DocsPage } from "./DocsPage";
 
 interface Props {
   onLogin: (service: string, handle: string, appPassword: string, vaultPassphrase: string) => Promise<void>;
+  onShowDocs: () => void;
+  showingDocs: boolean;
 }
 
-export function LoginScreen({ onLogin }: Props) {
+export function LoginScreen({ onLogin, onShowDocs, showingDocs }: Props) {
   const [service, setService] = useState("https://bsky.social");
   const [handle, setHandle] = useState("");
   const [appPassword, setAppPassword] = useState("");
@@ -93,7 +96,28 @@ export function LoginScreen({ onLogin }: Props) {
             {loading ? "Unlocking..." : "Unlock Vault"}
           </button>
         </form>
+
+        <div className="login-footer">
+          <button
+            type="button"
+            className="link-button"
+            onClick={onShowDocs}
+          >
+            How does the encryption work?
+          </button>
+        </div>
       </div>
+
+      {showingDocs && (
+        <div className="login-docs-overlay" onClick={onShowDocs}>
+          <div className="login-docs-panel" onClick={(e) => e.stopPropagation()}>
+            <button className="login-docs-close" onClick={onShowDocs}>
+              Back to login
+            </button>
+            <DocsPage />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,9 @@ import {
 import type { Deal, DealRecord, VaultState } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { DealsBoard } from "./components/DealsBoard";
+import { DocsPage } from "./components/DocsPage";
+
+type Tab = "deals" | "docs";
 
 const SEALED_COLLECTION = "com.minomobi.vault.sealed";
 const IDENTITY_COLLECTION = "com.minomobi.vault.wrappedIdentity";
@@ -32,6 +35,7 @@ export function App() {
   const [deals, setDeals] = useState<DealRecord[]>([]);
   const [pds, setPds] = useState<PdsClient | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<Tab>("deals");
 
   // --- Login + Unlock ---
 
@@ -193,7 +197,13 @@ export function App() {
   // --- Render ---
 
   if (!vault.session || !vault.dek) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onShowDocs={() => setTab("docs")}
+        showingDocs={tab === "docs"}
+      />
+    );
   }
 
   if (loading) {
@@ -205,12 +215,17 @@ export function App() {
   }
 
   return (
-    <DealsBoard
-      deals={deals}
-      onSaveDeal={handleSaveDeal}
-      onDeleteDeal={handleDeleteDeal}
-      handle={vault.session.handle}
-      onLogout={handleLogout}
-    />
+    <>
+      <DealsBoard
+        deals={deals}
+        onSaveDeal={handleSaveDeal}
+        onDeleteDeal={handleDeleteDeal}
+        handle={vault.session.handle}
+        onLogout={handleLogout}
+        tab={tab}
+        onTabChange={setTab}
+      />
+      {tab === "docs" && <DocsPage />}
+    </>
   );
 }
