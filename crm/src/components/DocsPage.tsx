@@ -82,8 +82,8 @@ export function DocsPage() {
   └───────────────┬─────────────────┘
                   │
                   ▼
-            KEK (AES-KW)
-          wraps/unwraps only
+            KEK (AES-256-GCM)
+          encrypts/decrypts only
                   │
                   ▼
      ┌────────────────────────┐
@@ -110,9 +110,9 @@ export function DocsPage() {
 
             <dt>KEK (Key Encryption Key)</dt>
             <dd>
-              An AES-KW key derived from your passphrase. Its only purpose is to
-              wrap and unwrap your identity private key. It cannot encrypt data
-              directly.
+              An AES-256-GCM key derived from your passphrase. Its only purpose
+              is to encrypt and decrypt your identity private key. It cannot be
+              used for vault records directly.
             </dd>
 
             <dt>Identity Key</dt>
@@ -200,7 +200,7 @@ export function DocsPage() {
             </li>
             <li>
               <strong>Derive KEK</strong> — Your passphrase + DID-based salt →
-              PBKDF2 (600k rounds) → AES-KW key. This happens entirely in your
+              PBKDF2 (600k rounds) → AES-256-GCM key. This happens entirely in your
               browser via the WebCrypto API.
             </li>
             <li>

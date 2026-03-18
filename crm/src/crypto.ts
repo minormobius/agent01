@@ -2,13 +2,17 @@
  * Vault crypto layer — all client-side, all WebCrypto.
  *
  * Key hierarchy:
- *   passphrase → PBKDF2 → KEK (AES-256, wrapping only)
- *     KEK wraps/unwraps identity ECDH private key
+ *   passphrase → PBKDF2 → KEK (AES-256-GCM, encrypts identity key)
+ *     KEK encrypts/decrypts identity ECDH private key (PKCS8)
  *     ECDH(identity, identity) → HKDF → DEK (AES-256-GCM)
  *       DEK encrypts/decrypts vault.sealed records
  *
  * Personal vault: self-ECDH derives a personal DEK.
  * Org mode: each tier has a random DEK, wrapped per-member via ECDH.
+ *
+ * Note: KEK uses AES-GCM (not AES-KW) because AES-KW requires input
+ * to be a multiple of 8 bytes, but PKCS8-encoded ECDH keys can be
+ * 138 bytes depending on the browser — causing failures on some machines.
  */
 
 const PBKDF2_ITERATIONS = 600_000;
@@ -28,9 +32,9 @@ export async function deriveKek(
   return crypto.subtle.deriveKey(
     { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
     baseKey,
-    { name: "AES-KW", length: 256 },
+    { name: "AES-GCM", length: 256 },
     false,
-    ["wrapKey", "unwrapKey"]
+    ["encrypt", "decrypt"]
   );
 }
 
@@ -51,27 +55,50 @@ export async function exportPublicKey(key: CryptoKey): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-/** Wrap (encrypt) the private key with the KEK for PDS storage. */
+/**
+ * Encrypt the private key with the KEK for PDS storage.
+ * Returns iv (12 bytes) + ciphertext concatenated.
+ * Uses AES-GCM instead of AES-KW to avoid the multiple-of-8-bytes
+ * requirement that breaks with some PKCS8 export lengths.
+ */
 export async function wrapPrivateKey(
   privateKey: CryptoKey,
   kek: CryptoKey
 ): Promise<Uint8Array> {
-  const buf = await crypto.subtle.wrapKey("pkcs8", privateKey, kek, "AES-KW");
-  return new Uint8Array(buf);
+  const pkcs8 = await crypto.subtle.exportKey("pkcs8", privateKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
+    kek,
+    pkcs8
+  );
+  // Concatenate: 12-byte IV + ciphertext
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
 }
 
-/** Unwrap (decrypt) the private key from PDS storage using the KEK. */
+/**
+ * Decrypt the private key from PDS storage using the KEK.
+ * Input is iv (12 bytes) + ciphertext concatenated.
+ */
 export async function unwrapPrivateKey(
   wrappedKey: Uint8Array,
   kek: CryptoKey
 ): Promise<CryptoKey> {
-  return crypto.subtle.unwrapKey(
-    "pkcs8",
-    wrappedKey.buffer as ArrayBuffer,
+  const iv = wrappedKey.slice(0, 12);
+  const ct = wrappedKey.slice(12);
+  const pkcs8 = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
     kek,
-    "AES-KW",
+    ct.buffer as ArrayBuffer
+  );
+  return crypto.subtle.importKey(
+    "pkcs8",
+    pkcs8,
     { name: "ECDH", namedCurve: "P-256" },
-    false, // non-extractable after unwrap
+    false, // non-extractable after import
     ["deriveKey", "deriveBits"]
   );
 }
