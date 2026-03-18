@@ -457,6 +457,95 @@ button[type="submit"]:hover:not(:disabled),
   background: var(--border);
 }
 
+/* --- Handle Typeahead --- */
+
+.bsky-ta-wrap {
+  position: relative;
+}
+
+.bsky-ta-wrap input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.bsky-ta-wrap input:focus {
+  border-color: var(--accent);
+}
+
+.bsky-ta-drop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  z-index: 200;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.bsky-ta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.bsky-ta-item:hover,
+.bsky-ta-item.active {
+  background: var(--surface-2);
+}
+
+.bsky-ta-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.bsky-ta-av-ph {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.bsky-ta-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bsky-ta-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bsky-ta-handle {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- Org Switcher --- */
 
 .org-switcher {

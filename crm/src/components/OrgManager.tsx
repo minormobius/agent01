@@ -8,7 +8,7 @@ import type {
   Keyring,
   KeyringMemberEntry,
 } from "../types";
-import { PdsClient } from "../pds";
+import { PdsClient, resolveHandle, resolvePds } from "../pds";
 import {
   generateTierDek,
   wrapDekForMember,
@@ -19,6 +19,7 @@ import {
   toBase64,
   fromBase64,
 } from "../crypto";
+import { HandleTypeahead } from "./HandleTypeahead";
 
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
@@ -381,11 +382,19 @@ function ManageOrg({
     setInviting(true);
 
     try {
-      // Resolve invitee's public key from their PDS
-      // For now, we look up their encryptionKey from our PDS (works if same PDS)
-      // Cross-PDS: would need DID resolution first
-      const inviteeDid = inviteHandle; // Accept DID directly for now
-      const pubRecord = await pds.getRecordFrom(
+      // Resolve handle → DID → PDS → public key
+      let inviteeDid: string;
+      const input = inviteHandle.trim().replace(/^@/, "");
+      if (input.startsWith("did:")) {
+        inviteeDid = input;
+      } else {
+        inviteeDid = await resolveHandle(input);
+      }
+
+      // Resolve the invitee's PDS to fetch their public key
+      const inviteePds = await resolvePds(inviteeDid);
+      const inviteeClient = new PdsClient(inviteePds);
+      const pubRecord = await inviteeClient.getRecordFrom(
         inviteeDid,
         PUBKEY_COLLECTION,
         "self"
@@ -462,19 +471,21 @@ function ManageOrg({
         });
       }
 
-      // Write membership record
+      // Write membership record (store handle for display)
       const membershipRes = await pds.createRecord(MEMBERSHIP_COLLECTION, {
         $type: MEMBERSHIP_COLLECTION,
         orgRkey: org.rkey,
         orgService: pds.getService(),
         orgFounderDid: org.org.founderDid,
         memberDid: inviteeDid,
+        memberHandle: input.startsWith("did:") ? undefined : input,
         tierName: inviteTier,
         invitedBy: myDid,
         createdAt: new Date().toISOString(),
       });
       const membershipRkey = membershipRes.uri.split("/").pop()!;
 
+      const displayName = input.startsWith("did:") ? inviteeDid : `@${input}`;
       onMemberInvited({
         rkey: membershipRkey,
         membership: {
@@ -482,13 +493,14 @@ function ManageOrg({
           orgService: pds.getService(),
           orgFounderDid: org.org.founderDid,
           memberDid: inviteeDid,
+          memberHandle: input.startsWith("did:") ? undefined : input,
           tierName: inviteTier,
           invitedBy: myDid,
           createdAt: new Date().toISOString(),
         },
       });
 
-      setSuccess(`Invited ${inviteeDid} as ${inviteTier}`);
+      setSuccess(`Invited ${displayName} as ${inviteTier}`);
       setInviteHandle("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invite failed");
@@ -521,7 +533,11 @@ function ManageOrg({
           <div className="member-list">
             {memberships.map((m) => (
               <div key={m.rkey} className="member-item">
-                <span className="member-did">{m.membership.memberDid}</span>
+                <span className="member-did">
+                  {m.membership.memberHandle
+                    ? `@${m.membership.memberHandle}`
+                    : m.membership.memberDid}
+                </span>
                 <span className="member-tier">{m.membership.tierName}</span>
               </div>
             ))}
@@ -533,13 +549,12 @@ function ManageOrg({
         <h3>Invite Member</h3>
         <form onSubmit={handleInvite}>
           <div className="field">
-            <label htmlFor="invite-handle">Member DID</label>
-            <input
+            <label htmlFor="invite-handle">Username</label>
+            <HandleTypeahead
               id="invite-handle"
               value={inviteHandle}
-              onChange={(e) => setInviteHandle(e.target.value)}
-              placeholder="did:plc:..."
-              required
+              onChange={setInviteHandle}
+              placeholder="handle.bsky.social"
             />
           </div>
           <div className="field">

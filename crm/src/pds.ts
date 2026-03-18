@@ -6,6 +6,42 @@
 
 import type { Session } from "./types";
 
+const PUBLIC_API = "https://public.api.bsky.app";
+const PLC_DIRECTORY = "https://plc.directory";
+
+/** Resolve a Bluesky handle to a DID. Uses public API, no auth needed. */
+export async function resolveHandle(handle: string): Promise<string> {
+  handle = handle.replace(/^@/, "").trim();
+  const res = await fetch(
+    `${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+  );
+  if (!res.ok) throw new Error(`Could not resolve handle: @${handle}`);
+  const { did } = await res.json();
+  return did;
+}
+
+/** Resolve a DID to a PDS service endpoint. */
+export async function resolvePds(did: string): Promise<string> {
+  let doc: Record<string, unknown>;
+  if (did.startsWith("did:plc:")) {
+    const res = await fetch(`${PLC_DIRECTORY}/${did}`);
+    if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+    doc = await res.json();
+  } else if (did.startsWith("did:web:")) {
+    const domain = did.replace("did:web:", "");
+    const res = await fetch(`https://${domain}/.well-known/did.json`);
+    if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
+    doc = await res.json();
+  } else {
+    throw new Error(`Unsupported DID method: ${did}`);
+  }
+
+  const services = doc.service as Array<{ id: string; serviceEndpoint: string }> | undefined;
+  const svc = services?.find((s) => s.id === "#atproto_pds");
+  if (!svc) throw new Error(`No PDS found for ${did}`);
+  return svc.serviceEndpoint;
+}
+
 export class PdsClient {
   private service: string;
   private session: Session | null = null;
