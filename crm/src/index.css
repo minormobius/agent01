@@ -1478,6 +1478,11 @@ button[type="submit"]:hover:not(:disabled),
   font-weight: 600;
 }
 
+.docs-yes {
+  color: var(--warning) !important;
+  font-weight: 600;
+}
+
 /* Roadmap */
 .docs-roadmap li {
   line-height: 1.6;
