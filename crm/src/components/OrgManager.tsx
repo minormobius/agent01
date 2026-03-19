@@ -42,6 +42,7 @@ interface Props {
   onMemberInvited: (membership: MembershipRecord) => void;
   onOrgUpdated: (org: Org) => void;
   onOrgJoined: (org: OrgRecord, founderService: string, memberships: MembershipRecord[]) => void;
+  onMemberRemoved: (membershipRkey: string, updatedOrg: Org) => void;
   onClose: () => void;
 }
 
@@ -59,6 +60,7 @@ export function OrgManager({
   onMemberInvited,
   onOrgUpdated,
   onOrgJoined,
+  onMemberRemoved,
   onClose,
 }: Props) {
   const [view, setView] = useState<View>("list");
@@ -117,6 +119,10 @@ export function OrgManager({
               (m) => m.membership.orgRkey === selectedOrg.rkey
             )}
             onMemberInvited={onMemberInvited}
+            onMemberRemoved={(membershipRkey, updatedOrg) => {
+              onMemberRemoved(membershipRkey, updatedOrg);
+              setSelectedOrg({ ...selectedOrg, org: updatedOrg });
+            }}
             onOrgUpdated={(updatedOrg) => {
               onOrgUpdated(updatedOrg);
               setSelectedOrg({ ...selectedOrg, org: updatedOrg });
@@ -397,6 +403,7 @@ function ManageOrg({
   myPublicKey,
   memberships,
   onMemberInvited,
+  onMemberRemoved,
   onOrgUpdated,
   onBack,
 }: {
@@ -408,6 +415,7 @@ function ManageOrg({
   myPublicKey: CryptoKey;
   memberships: MembershipRecord[];
   onMemberInvited: (membership: MembershipRecord) => void;
+  onMemberRemoved: (membershipRkey: string, updatedOrg: Org) => void;
   onOrgUpdated: (org: Org) => void;
   onBack: () => void;
 }) {
@@ -415,6 +423,7 @@ function ManageOrg({
   const [inviteHandle, setInviteHandle] = useState("");
   const [inviteTier, setInviteTier] = useState(org.org.tiers[0]?.name ?? "");
   const [inviting, setInviting] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null); // DID of member being removed
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -543,6 +552,143 @@ function ManageOrg({
       setError(err instanceof Error ? err.message : "Invite failed");
     } finally {
       setInviting(false);
+    }
+  };
+
+  // --- Remove member + rotate affected tier DEKs ---
+
+  const handleRemoveMember = async (membership: MembershipRecord) => {
+    const memberDid = membership.membership.memberDid;
+    if (memberDid === myDid) return; // Can't remove yourself
+    if (memberDid === org.org.founderDid) return; // Can't remove founder
+
+    setRemoving(memberDid);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Determine which tiers the removed member had access to
+      const memberTierDef = org.org.tiers.find(
+        (t) => t.name === membership.membership.tierName
+      );
+      if (!memberTierDef) throw new Error("Member tier not found");
+
+      const affectedTiers = org.org.tiers.filter(
+        (t) => t.level <= memberTierDef.level
+      );
+
+      // Collect remaining members (everyone except the removed member)
+      const remainingMemberships = memberships.filter(
+        (m) => m.membership.memberDid !== memberDid
+      );
+
+      // Fetch public keys for all remaining members
+      const memberPublicKeys = new Map<string, CryptoKey>();
+      for (const m of remainingMemberships) {
+        const did = m.membership.memberDid;
+        if (did === myDid) {
+          memberPublicKeys.set(did, myPublicKey);
+          continue;
+        }
+        try {
+          const memberPds = await resolvePds(did);
+          const memberClient = new PdsClient(memberPds);
+          const pubRecord = await memberClient.getRecordFrom(
+            did, PUBKEY_COLLECTION, "self"
+          );
+          if (!pubRecord) continue;
+          const pubVal = (pubRecord as Record<string, unknown>).value as Record<string, unknown>;
+          const pubField = pubVal.publicKey as { $bytes: string };
+          memberPublicKeys.set(did, await importPublicKey(fromBase64(pubField.$bytes)));
+        } catch {
+          console.warn(`Could not fetch public key for ${did}`);
+        }
+      }
+
+      const myPubRaw = await exportPublicKey(myPublicKey);
+      const myPubB64 = toBase64(myPubRaw);
+
+      // Rotate each affected tier
+      const updatedTiers = [...org.org.tiers];
+      for (const tier of affectedTiers) {
+        const tierIdx = updatedTiers.findIndex((t) => t.name === tier.name);
+        const currentEpoch = tier.currentEpoch ?? 0;
+        const newEpoch = currentEpoch + 1;
+
+        // Generate fresh DEK
+        const newDek = await generateTierDek();
+
+        // Wrap for each remaining member who has access to this tier
+        const newMembers: KeyringMemberEntry[] = [];
+        for (const m of remainingMemberships) {
+          const mTierDef = org.org.tiers.find(
+            (t) => t.name === m.membership.tierName
+          );
+          if (!mTierDef || mTierDef.level < tier.level) continue;
+
+          const pubKey = memberPublicKeys.get(m.membership.memberDid);
+          if (!pubKey) continue;
+
+          const wrapped = await wrapDekForMember(newDek, myPrivateKey, pubKey);
+          newMembers.push({
+            did: m.membership.memberDid,
+            wrappedDek: toBase64(wrapped),
+          });
+        }
+
+        // Write new keyring at new epoch
+        const newRkey =
+          newEpoch === 0
+            ? `${org.rkey}:${tier.name}`
+            : `${org.rkey}:${tier.name}:${newEpoch}`;
+
+        await pds.putRecord(KEYRING_COLLECTION, newRkey, {
+          $type: KEYRING_COLLECTION,
+          orgRkey: org.rkey,
+          tierName: tier.name,
+          epoch: newEpoch,
+          writerDid: myDid,
+          writerPublicKey: myPubB64,
+          members: newMembers,
+          rotatedAt: new Date().toISOString(),
+          reason: `member-removal:${memberDid}`,
+        });
+
+        // Update tier epoch
+        updatedTiers[tierIdx] = { ...updatedTiers[tierIdx], currentEpoch: newEpoch };
+      }
+
+      // Remove member from any offices
+      const updatedOffices = (org.org.offices ?? []).map((office) => ({
+        ...office,
+        memberDids: office.memberDids.filter((d) => d !== memberDid),
+      }));
+
+      // Update org record with new epochs + cleaned offices
+      const updatedOrg: Org = {
+        ...org.org,
+        tiers: updatedTiers,
+        offices: updatedOffices,
+      };
+
+      await pds.putRecord(ORG_COLLECTION, org.rkey, {
+        $type: ORG_COLLECTION,
+        ...updatedOrg,
+      });
+
+      // Delete the membership record
+      await pds.deleteRecord(MEMBERSHIP_COLLECTION, membership.rkey);
+
+      const displayName = membership.membership.memberHandle
+        ? `@${membership.membership.memberHandle}`
+        : memberDid.slice(0, 20) + "...";
+
+      onMemberRemoved(membership.rkey, updatedOrg);
+      setSuccess(`Removed ${displayName} and rotated ${affectedTiers.length} tier key(s)`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Remove failed");
+    } finally {
+      setRemoving(null);
     }
   };
 
@@ -683,16 +829,32 @@ function ManageOrg({
               <p className="org-empty">No members yet.</p>
             ) : (
               <div className="member-list">
-                {memberships.map((m) => (
-                  <div key={m.rkey} className="member-item">
-                    <span className="member-did">
-                      {m.membership.memberHandle
-                        ? `@${m.membership.memberHandle}`
-                        : m.membership.memberDid}
-                    </span>
-                    <span className="member-tier">{m.membership.tierName}</span>
-                  </div>
-                ))}
+                {memberships.map((m) => {
+                  const isFounder = m.membership.memberDid === org.org.founderDid;
+                  const isMe = m.membership.memberDid === myDid;
+                  const isRemoving = removing === m.membership.memberDid;
+                  return (
+                    <div key={m.rkey} className="member-item">
+                      <span className="member-did">
+                        {m.membership.memberHandle
+                          ? `@${m.membership.memberHandle}`
+                          : m.membership.memberDid}
+                        {isFounder && <span className="member-badge"> (founder)</span>}
+                      </span>
+                      <span className="member-tier">{m.membership.tierName}</span>
+                      {!isFounder && !isMe && (
+                        <button
+                          className="tier-remove"
+                          onClick={() => handleRemoveMember(m)}
+                          disabled={isRemoving || removing !== null}
+                          title="Remove member and rotate keys"
+                        >
+                          {isRemoving ? "..." : "x"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

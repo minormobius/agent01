@@ -82,8 +82,9 @@ export interface Session {
  * What you can decrypt is what you can read. Period.
  */
 export interface TierDef {
-  name: string;   // e.g. "operator", "manager", "executive"
-  level: number;  // 0 = lowest access, higher = more access
+  name: string;        // e.g. "operator", "manager", "executive"
+  level: number;       // 0 = lowest access, higher = more access
+  currentEpoch?: number; // keyring epoch — 0 (or absent) = initial, incremented on rotation
 }
 
 /** Default tier presets for quick org creation. */
@@ -219,13 +220,23 @@ export interface KeyringMemberEntry {
   wrappedDek: string; // base64
 }
 
-/** Keyring record: one per tier per org. Holds wrapped DEKs for all members at this tier. */
+/**
+ * Keyring record: one per tier per org per epoch.
+ *
+ * Epoch 0 (initial) uses rkey `orgRkey:tierName`.
+ * After rotation, epoch N uses rkey `orgRkey:tierName:N`.
+ * Old keyrings are frozen — they keep the original member list so
+ * remaining members can still decrypt records sealed under that epoch.
+ */
 export interface Keyring {
   orgRkey: string;
   tierName: string;
-  writerDid: string;       // DID of whoever wrote the wraps (their pubkey needed to unwrap)
-  writerPublicKey: string; // base64 — recipient needs this for ECDH unwrap
+  epoch?: number;            // 0 or absent = initial epoch
+  writerDid: string;         // DID of whoever wrote the wraps (their pubkey needed to unwrap)
+  writerPublicKey: string;   // base64 — recipient needs this for ECDH unwrap
   members: KeyringMemberEntry[];
+  rotatedAt?: string;        // ISO timestamp — when this epoch was created (absent for epoch 0)
+  reason?: string;           // why this rotation happened (e.g. "member-removal:did:plc:xyz")
 }
 
 /** Membership record: links a user to an org with a specific tier. */
@@ -266,8 +277,10 @@ export interface OrgContext {
   founderDid: string;
   myTierName: string;
   myTierLevel: number;
-  /** Map of tierName → DEK for all tiers this user can access. */
+  /** Map of tierName → current-epoch DEK (for writing new records). */
   tierDeks: Map<string, CryptoKey>;
+  /** Map of full keyring rkey → DEK across all epochs (for reading old records). */
+  keyringDeks: Map<string, CryptoKey>;
   memberships: MembershipRecord[];
   /** Open proposals in this org. */
   proposals: ProposalRecord[];

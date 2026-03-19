@@ -56,6 +56,11 @@ const DECISION_COLLECTION = "com.minomobi.vault.decision";
 const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 const INNER_TYPE = "com.minomobi.crm.deal";
 
+/** Compute the keyring rkey for a tier at a given epoch. Epoch 0 omits the suffix for backward compat. */
+function keyringRkeyForTier(orgRkey: string, tierName: string, epoch: number): string {
+  return epoch === 0 ? `${orgRkey}:${tierName}` : `${orgRkey}:${tierName}:${epoch}`;
+}
+
 export function App() {
   const [vault, setVault] = useState<VaultState>({
     session: null,
@@ -382,40 +387,53 @@ export function App() {
     );
     if (!myTierDef) throw new Error("Tier not found in org");
 
-    // Unwrap DEKs for accessible tiers
+    // Unwrap DEKs for accessible tiers across all keyring epochs.
+    // tierDeks: tier name → current DEK (for writing new records)
+    // keyringDeks: full rkey → DEK (for decrypting records at any epoch)
     const tierDeks = new Map<string, CryptoKey>();
+    const keyringDeks = new Map<string, CryptoKey>();
     const accessibleTiers = orgRecord.org.tiers.filter(
       (t) => t.level <= myTierDef.level
     );
 
     for (const tier of accessibleTiers) {
-      try {
-        // Fetch keyring from founder's PDS (cross-PDS read for non-founders)
-        const keyringRecord = await controlClient.getRecordFrom(
-          founderDid,
-          KEYRING_COLLECTION,
-          `${orgRecord.rkey}:${tier.name}`
-        );
-        if (!keyringRecord) continue;
+      const currentEpoch = tier.currentEpoch ?? 0;
 
-        const keyringVal = (keyringRecord as Record<string, unknown>)
-          .value as Keyring & { $type: string };
-        const myEntry = keyringVal.members.find(
-          (m: KeyringMemberEntry) => m.did === myDid
-        );
-        if (!myEntry) continue;
+      for (let epoch = 0; epoch <= currentEpoch; epoch++) {
+        const rkey = keyringRkeyForTier(orgRecord.rkey, tier.name, epoch);
+        try {
+          const keyringRecord = await controlClient.getRecordFrom(
+            founderDid,
+            KEYRING_COLLECTION,
+            rkey
+          );
+          if (!keyringRecord) continue;
 
-        const writerPublicKey = await importPublicKey(
-          fromBase64(keyringVal.writerPublicKey)
-        );
-        const tierDek = await unwrapDekFromMember(
-          fromBase64(myEntry.wrappedDek),
-          privateKey,
-          writerPublicKey
-        );
-        tierDeks.set(tier.name, tierDek);
-      } catch (err) {
-        console.warn(`Failed to unwrap DEK for tier ${tier.name}:`, err);
+          const keyringVal = (keyringRecord as Record<string, unknown>)
+            .value as Keyring & { $type: string };
+          const myEntry = keyringVal.members.find(
+            (m: KeyringMemberEntry) => m.did === myDid
+          );
+          if (!myEntry) continue;
+
+          const writerPublicKey = await importPublicKey(
+            fromBase64(keyringVal.writerPublicKey)
+          );
+          const tierDek = await unwrapDekFromMember(
+            fromBase64(myEntry.wrappedDek),
+            privateKey,
+            writerPublicKey
+          );
+
+          keyringDeks.set(rkey, tierDek);
+
+          // Current epoch also populates tierDeks (for writing)
+          if (epoch === currentEpoch) {
+            tierDeks.set(tier.name, tierDek);
+          }
+        } catch (err) {
+          console.warn(`Failed to unwrap DEK for tier ${tier.name} epoch ${epoch}:`, err);
+        }
       }
     }
 
@@ -435,6 +453,7 @@ export function App() {
       myTierName: myMembership.membership.tierName,
       myTierLevel: myTierDef.level,
       tierDeks,
+      keyringDeks,
       memberships: orgMemberships,
       proposals,
       approvals,
@@ -509,8 +528,8 @@ export function App() {
           const recordKey = `${did}:${rkey}`;
           if (superseded.has(recordKey)) continue;
 
-          const tierName = recKeyring.split(":")[1];
-          const dek = orgCtx.tierDeks.get(tierName);
+          // Look up DEK by exact keyring rkey (handles any epoch)
+          const dek = orgCtx.keyringDeks.get(recKeyring);
           if (!dek) continue;
           try {
             const { record } = await unsealRecord<Deal>(val, dek);
@@ -614,7 +633,11 @@ export function App() {
         setVault((prev) => ({
           ...prev,
           activeOrg: ctx,
-          keyringRkey: `${newFilter}:${ctx.myTierName}`,
+          keyringRkey: keyringRkeyForTier(
+            newFilter,
+            ctx.myTierName,
+            ctx.org.org.tiers.find((t) => t.name === ctx.myTierName)?.currentEpoch ?? 0
+          ),
         }));
       }
     } else {
@@ -637,7 +660,9 @@ export function App() {
         const tierDek = activeOrg.tierDeks.get(tierName);
         if (!tierDek) throw new Error(`No access to tier: ${tierName}`);
         dek = tierDek;
-        keyringRkey = `${activeOrg.org.rkey}:${tierName}`;
+        const tierDef = activeOrg.org.org.tiers.find((t) => t.name === tierName);
+        const epoch = tierDef?.currentEpoch ?? 0;
+        keyringRkey = keyringRkeyForTier(activeOrg.org.rkey, tierName, epoch);
         targetOrgRkey = activeOrg.org.rkey;
       } else if (vault.dek) {
         dek = vault.dek;
@@ -724,7 +749,9 @@ export function App() {
       const dek = dealOrgCtx.tierDeks.get(tierName);
       if (!dek) throw new Error("No encryption key for your tier");
 
-      const keyringRkey = `${dealOrgCtx.org.rkey}:${tierName}`;
+      const tierDef = dealOrgCtx.org.org.tiers.find((t) => t.name === tierName);
+      const epoch = tierDef?.currentEpoch ?? 0;
+      const keyringRkey = keyringRkeyForTier(dealOrgCtx.org.rkey, tierName, epoch);
 
       // Encrypt the proposed deal content
       const json = JSON.stringify(proposedDeal);
@@ -995,6 +1022,57 @@ export function App() {
     }
   };
 
+  // --- Handle member removed (after OrgManager rotates keys) ---
+
+  const handleMemberRemoved = async (membershipRkey: string, updatedOrg: Org) => {
+    // Remove the membership from local state
+    setMemberships((prev) => prev.filter((m) => m.rkey !== membershipRkey));
+
+    // Update org record in state
+    const orgRecord = orgs.find((o) => o.org.name === updatedOrg.name);
+    if (orgRecord) {
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.rkey === orgRecord.rkey ? { ...o, org: updatedOrg } : o
+        )
+      );
+    }
+
+    // Rebuild org context to pick up the new keyring epochs
+    if (pds && vault.session && identityKeys && orgRecord) {
+      const myMembership = memberships.find(
+        (m) =>
+          m.membership.orgRkey === orgRecord.rkey &&
+          m.membership.memberDid === vault.session!.did
+      );
+      if (myMembership) {
+        try {
+          const founderService =
+            orgContexts.get(orgRecord.rkey)?.service ?? pds.getService();
+          const allMems = memberships.filter(
+            (m) => m.rkey !== membershipRkey
+          );
+          const ctx = await buildOrgContext(
+            pds,
+            founderService,
+            { rkey: orgRecord.rkey, org: updatedOrg },
+            myMembership,
+            allMems,
+            identityKeys.privateKey,
+            vault.session.did
+          );
+          setOrgContexts((prev) => {
+            const updated = new Map(prev);
+            updated.set(orgRecord.rkey, ctx);
+            return updated;
+          });
+        } catch (err) {
+          console.warn("Failed to rebuild org context after member removal:", err);
+        }
+      }
+    }
+  };
+
   // --- Logout ---
 
   const handleLogout = useCallback(() => {
@@ -1092,6 +1170,7 @@ export function App() {
           }
           onOrgUpdated={handleUpdateOrg}
           onOrgJoined={handleOrgJoined}
+          onMemberRemoved={handleMemberRemoved}
           onClose={() => setShowOrgManager(false)}
         />
       )}
