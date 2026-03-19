@@ -121,109 +121,280 @@ export function DocsPage() {
               and stored on your PDS as a <code>vault.wrappedIdentity</code>{" "}
               record. The public key is stored separately as{" "}
               <code>vault.encryptionKey</code> so other users can find it for
-              future group key exchange.
+              org key exchange.
             </dd>
 
             <dt>DEK (Data Encryption Key)</dt>
             <dd>
               Derived via ECDH key agreement + HKDF. For single-user vaults,
               this is a self-agreement (your private key + your public key).
-              For future group workspaces, each member's public key would
-              produce a shared DEK. The DEK exists only in browser memory —
-              it is never stored or transmitted.
+              For orgs, each tier has a random DEK wrapped per-member via ECDH.
+              The DEK exists only in browser memory — it is never stored or
+              transmitted.
             </dd>
           </dl>
         </section>
 
         <section>
-          <h2>What Gets Stored on the PDS</h2>
-          <p>Three record types are written to your ATProto repository:</p>
+          <h2>Organizations & Tiers</h2>
+          <p>
+            Any ATProto user on any PDS can create an org. The org record
+            lives on the founder's PDS. Members can be on different PDSes —
+            discovery is DID-based, not server-based.
+          </p>
 
-          <div className="docs-records">
-            <div className="docs-record">
-              <h4>vault.wrappedIdentity</h4>
-              <p className="docs-record-rkey">rkey: "self"</p>
-              <pre>{`{
-  "$type": "com.minomobi.vault.wrappedIdentity",
-  "wrappedKey": { "$bytes": "<base64>" },
-  "algorithm": "PBKDF2-SHA256",
-  "salt": { "$bytes": "<base64>" },
-  "iterations": 600000
-}`}</pre>
-              <p>
-                Your ECDH private key, wrapped with the KEK. Useless without
-                your passphrase.
-              </p>
-            </div>
+          <div className="docs-diagram">
+            <pre>{`
+  ┌──────────────────────────────────────────────────────────┐
+  │  ORGANIZATION (vault.org on founder's PDS)               │
+  │                                                          │
+  │  name: "Acme Corp"                                       │
+  │  founderDid: "did:plc:alice"                             │
+  │  tiers: [                                                │
+  │    { name: "field",    level: 0 },  ◄─ lowest access     │
+  │    { name: "manager",  level: 1 },                       │
+  │    { name: "exec",     level: 2 },  ◄─ highest access    │
+  │  ]                                                       │
+  │  offices: [ "Legal", "Finance", "Engineering" ]          │
+  │  workflow: { gates: [...] }                               │
+  └──────────────────────────────────────────────────────────┘
 
-            <div className="docs-record">
-              <h4>vault.encryptionKey</h4>
-              <p className="docs-record-rkey">rkey: "self"</p>
-              <pre>{`{
-  "$type": "com.minomobi.vault.encryptionKey",
-  "publicKey": { "$bytes": "<65 bytes, SEC1>" },
-  "algorithm": "ECDH-P256"
-}`}</pre>
-              <p>
-                Your ECDH public key. Readable by anyone. This is how future
-                collaborators will establish shared DEKs with you.
-              </p>
-            </div>
-
-            <div className="docs-record">
-              <h4>vault.sealed</h4>
-              <p className="docs-record-rkey">rkey: TID (one per record)</p>
-              <pre>{`{
-  "$type": "com.minomobi.vault.sealed",
-  "innerType": "com.minomobi.crm.deal",
-  "keyringRkey": "self",
-  "iv": { "$bytes": "<12 bytes>" },
-  "ciphertext": { "$bytes": "<encrypted>" }
-}`}</pre>
-              <p>
-                Each deal, contact, or company is serialized, encrypted with
-                AES-256-GCM, and stored as a sealed envelope. The{" "}
-                <code>innerType</code> field is visible (so the app knows what
-                to decrypt into), but the actual content is opaque ciphertext.
-              </p>
-            </div>
+  Tiers are PURE ENCRYPTION GATES.
+  Can you decrypt it? Then you can read it. That's it.
+  No fake client-side "permissions" — the math enforces access.
+`}</pre>
           </div>
+
+          <dl className="docs-definitions">
+            <dt>Tier = Encryption Gate</dt>
+            <dd>
+              Each tier gets its own random AES-256-GCM DEK, wrapped individually
+              for each member via ECDH. Members at tier N can decrypt tiers 0..N.
+              There are no "read/write/admin" flags — if you have the key, you
+              have access.
+            </dd>
+
+            <dt>Permissionless Formation</dt>
+            <dd>
+              Creating an org writes a <code>vault.org</code> record to your
+              PDS. No approval, no central registry. The org exists because the
+              record exists.
+            </dd>
+          </dl>
         </section>
 
         <section>
-          <h2>The Unlock Flow</h2>
-          <ol className="docs-steps">
-            <li>
-              <strong>Authenticate with PDS</strong> — Handle + app password →
-              XRPC <code>createSession</code> → access token. Standard ATProto
-              auth.
-            </li>
-            <li>
-              <strong>Derive KEK</strong> — Your passphrase + DID-based salt →
-              PBKDF2 (600k rounds) → AES-256-GCM key. This happens entirely in your
-              browser via the WebCrypto API.
-            </li>
-            <li>
-              <strong>Unwrap identity key</strong> — Fetch{" "}
-              <code>vault.wrappedIdentity/self</code> from PDS → unwrap with
-              KEK → ECDH private key in memory.
-            </li>
-            <li>
-              <strong>Derive DEK</strong> — ECDH(private, public) → HKDF →
-              AES-256-GCM key. Held in memory as a non-extractable CryptoKey.
-            </li>
-            <li>
-              <strong>Decrypt records</strong> — List all{" "}
-              <code>vault.sealed</code> records → filter by innerType → decrypt
-              each with DEK → render in the kanban board.
-            </li>
-          </ol>
+          <h2>Change Control Protocol</h2>
+          <p>
+            Here's the hard constraint: <strong>in ATProto, you can only write
+            to your own PDS</strong>. Alice cannot edit a record on Bob's PDS.
+            Period. So multi-user editing isn't "edit in place" — it's a
+            protocol:
+          </p>
+
+          <div className="docs-diagram">
+            <pre>{`
+  ┌──────────────────────────────────────────────────────────────┐
+  │  THE CHANGE CONTROL CHAIN                                    │
+  │                                                              │
+  │  1. Alice creates a deal ─────────────► Alice's PDS          │
+  │     vault.sealed (rkey: abc123)         (author: Alice)      │
+  │                                                              │
+  │  2. Bob proposes a change ────────────► Bob's PDS            │
+  │     vault.proposal {                    (proposer: Bob)      │
+  │       target: alice:abc123,                                  │
+  │       encrypted new content,                                 │
+  │       requiredOffices: ["Legal"]                              │
+  │     }                                                        │
+  │                                                              │
+  │  3. Carol (in Legal) approves ────────► Carol's PDS          │
+  │     vault.approval {                    (approver: Carol)    │
+  │       proposal: bob:xyz789,                                  │
+  │       office: "Legal"                                        │
+  │     }                                                        │
+  │                                                              │
+  │  4. Bob applies the change ───────────► Bob's PDS            │
+  │     vault.sealed (rkey: def456) {       (new author: Bob)    │
+  │       previousDid: alice,                                    │
+  │       previousRkey: abc123  ◄── chain link                   │
+  │     }                                                        │
+  │     vault.decision {                    (audit trail)        │
+  │       old: alice:abc123,                                     │
+  │       new: bob:def456,                                       │
+  │       outcome: "accepted"                                    │
+  │     }                                                        │
+  └──────────────────────────────────────────────────────────────┘
+
+  The "current version" = follow the decision chain until you find
+  a record with no successor. Records migrate between PDSes as
+  different people edit them. Every hop is traceable.
+`}</pre>
+          </div>
+
+          <dl className="docs-definitions">
+            <dt>Proposal</dt>
+            <dd>
+              A proposed change to an existing record. Written to the proposer's
+              PDS. Contains the encrypted new content and a list of offices that
+              must approve. If no workflow gates apply, it auto-approves.
+            </dd>
+
+            <dt>Approval</dt>
+            <dd>
+              Written to the approver's PDS. Each approval is for one office on
+              one proposal. Deterministic rkeys prevent double-signing. The
+              record exists on the approver's PDS — it's cryptographically
+              attributable to their DID.
+            </dd>
+
+            <dt>Decision</dt>
+            <dd>
+              The audit record linking old version → new version. Written by the
+              proposer when all required approvals are gathered. Contains both
+              the previous and new record locations so any client can
+              reconstruct the full history.
+            </dd>
+
+            <dt>Supersession</dt>
+            <dd>
+              When loading deals, the client builds a supersession set from all
+              decision records. Any record that has been superseded is excluded
+              from the board. Only the latest version in each chain is shown.
+            </dd>
+          </dl>
+        </section>
+
+        <section>
+          <h2>Offices & Workflow Gates</h2>
+          <p>
+            Offices are groups of members who can sign off on changes.
+            Workflow gates define which offices must approve before a deal
+            can move between specific pipeline stages.
+          </p>
+
+          <div className="docs-diagram">
+            <pre>{`
+  Offices:
+    Legal     (2 members, 1 signature required)
+    Finance   (3 members, 2 signatures required)
+
+  Workflow Gates:
+    Negotiation → Won   requires: Legal + Finance
+    Negotiation → Lost  requires: Legal
+
+  What happens:
+    1. Deal is at "Negotiation"
+    2. Someone proposes moving it to "Won"
+    3. Proposal sits in "open" status
+    4. One Legal member approves  → Legal ✓
+    5. Two Finance members approve → Finance ✓
+    6. All gates satisfied → proposer applies the change
+    7. New version written to proposer's PDS with chain link
+`}</pre>
+          </div>
 
           <p>
-            On first run (no <code>wrappedIdentity</code> record exists), step 3
-            generates a fresh ECDH key pair instead and stores both the wrapped
-            private key and the public key on the PDS.
+            This is <strong>real enforcement</strong>, not UI courtesy.
+            Approvals are ATProto records on each approver's PDS. Every client
+            independently verifies: "Do enough approval records exist from
+            members of the required offices?" If not, the change can't be
+            applied.
           </p>
+        </section>
+
+        <section>
+          <h2>What's Enforced by What</h2>
+          <table className="docs-table">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Enforced by</th>
+                <th>Bypassable?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Read encrypted data</td>
+                <td>AES-256-GCM encryption</td>
+                <td>No (need the DEK)</td>
+              </tr>
+              <tr>
+                <td>Tier-scoped access</td>
+                <td>Per-tier DEKs + ECDH wrapping</td>
+                <td>No (need your wrapped key)</td>
+              </tr>
+              <tr>
+                <td>Edit own records</td>
+                <td>ATProto (write to own PDS)</td>
+                <td>No (PDS auth)</td>
+              </tr>
+              <tr>
+                <td>Edit others' records</td>
+                <td>Change control protocol</td>
+                <td>No (must write new record)</td>
+              </tr>
+              <tr>
+                <td>Stage transitions</td>
+                <td>Workflow gates + office approvals</td>
+                <td className="docs-no">No (approval records verifiable)</td>
+              </tr>
+              <tr>
+                <td>Approval attribution</td>
+                <td>ATProto (record on approver's PDS)</td>
+                <td className="docs-no">No (DID-bound)</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>Where Records Live</h2>
+          <table className="docs-table">
+            <thead>
+              <tr>
+                <th>Record</th>
+                <th>Lives on</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>vault.org</code></td>
+                <td>Founder's PDS</td>
+                <td>Org definition, tiers, offices, workflow</td>
+              </tr>
+              <tr>
+                <td><code>vault.keyring</code></td>
+                <td>Founder's PDS</td>
+                <td>Per-tier DEKs wrapped for each member</td>
+              </tr>
+              <tr>
+                <td><code>vault.membership</code></td>
+                <td>Founder's PDS</td>
+                <td>Member → org link with tier assignment</td>
+              </tr>
+              <tr>
+                <td><code>vault.sealed</code></td>
+                <td>Author's PDS</td>
+                <td>Encrypted deal (migrates via chain)</td>
+              </tr>
+              <tr>
+                <td><code>vault.proposal</code></td>
+                <td>Proposer's PDS</td>
+                <td>Encrypted proposed change</td>
+              </tr>
+              <tr>
+                <td><code>vault.approval</code></td>
+                <td>Approver's PDS</td>
+                <td>Office sign-off on a proposal</td>
+              </tr>
+              <tr>
+                <td><code>vault.decision</code></td>
+                <td>Proposer's PDS</td>
+                <td>Audit link: old record → new record</td>
+              </tr>
+            </tbody>
+          </table>
         </section>
 
         <section>
@@ -234,8 +405,7 @@ export function DocsPage() {
               <p>
                 The PDS stores only ciphertext. The server operator, network
                 intermediaries, and anyone with read access to your repo sees
-                encrypted blobs. The <code>innerType</code> field reveals that
-                you have "deals" but not their content.
+                encrypted blobs.
               </p>
             </div>
 
@@ -249,20 +419,21 @@ export function DocsPage() {
             </div>
 
             <div className="docs-property">
-              <h4>Forward secrecy (per-record IVs)</h4>
+              <h4>No fake permissions</h4>
               <p>
-                Each record gets a fresh 12-byte random IV. Compromising one
-                record's IV doesn't help decrypt another, even though they share
-                the same DEK.
+                There are no client-side "permission flags" that a modified
+                client could bypass. Encryption enforces reads. The change
+                control protocol enforces writes. Approvals are verifiable
+                ATProto records.
               </p>
             </div>
 
             <div className="docs-property">
-              <h4>Non-extractable runtime keys</h4>
+              <h4>Traceable change history</h4>
               <p>
-                After unwrapping, the DEK is imported as a non-extractable
-                CryptoKey. Browser JS cannot read the raw key bytes — only the
-                WebCrypto API can use it for encrypt/decrypt operations.
+                Every edit creates a decision record linking old → new. The full
+                history of a deal is reconstructable by walking the chain
+                backwards. Each hop identifies who proposed, who approved, when.
               </p>
             </div>
 
@@ -287,178 +458,6 @@ export function DocsPage() {
         </section>
 
         <section>
-          <h2>What's Visible, What's Not</h2>
-          <table className="docs-table">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Visible to PDS</th>
-                <th>Visible to you</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Your DID / handle</td>
-                <td>Yes</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td>Public key (ECDH P-256)</td>
-                <td>Yes</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td>Wrapped private key</td>
-                <td>Yes (encrypted blob)</td>
-                <td>Yes (after passphrase)</td>
-              </tr>
-              <tr>
-                <td>Number of deals</td>
-                <td>Yes (record count)</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td>innerType of each record</td>
-                <td>Yes</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td>Deal title, value, stage, notes</td>
-                <td className="docs-no">No</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td>Passphrase</td>
-                <td className="docs-no">No</td>
-                <td>Yes (in your head)</td>
-              </tr>
-              <tr>
-                <td>DEK</td>
-                <td className="docs-no">No</td>
-                <td>In memory only</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
-
-        <section>
-          <h2>ATProto Lexicons</h2>
-          <p>
-            Vault CRM defines its schema as ATProto lexicons under the{" "}
-            <code>com.minomobi</code> namespace:
-          </p>
-          <ul>
-            <li>
-              <code>com.minomobi.vault.sealed</code> — The encrypted envelope.
-              Carries ciphertext, IV, innerType, and keyringRkey.
-            </li>
-            <li>
-              <code>com.minomobi.vault.wrappedIdentity</code> — KEK-wrapped
-              ECDH private key with PBKDF2 parameters.
-            </li>
-            <li>
-              <code>com.minomobi.vault.encryptionKey</code> — Public ECDH key
-              for key exchange.
-            </li>
-            <li>
-              <code>com.minomobi.crm.deal</code> — The inner record type for
-              deals (title, stage, value, notes, tags, etc.).
-            </li>
-          </ul>
-          <p>
-            Any ATProto client can read the sealed envelopes. Only clients with
-            the matching passphrase and vault implementation can decrypt them.
-          </p>
-        </section>
-
-        <section>
-          <h2>Organizations & Access Tiers</h2>
-          <p>
-            Vault CRM supports <strong>permissionless organizations</strong>.
-            Any ATProto user on any PDS can create an org — no central server
-            needed. The org record lives on the founder's PDS as a standard
-            ATProto record.
-          </p>
-
-          <div className="docs-diagram">
-            <pre>{`
-  ┌──────────────────────────────────────────────────────────┐
-  │  ORGANIZATION (vault.org)                                │
-  │                                                          │
-  │  name: "Acme Corp"                                       │
-  │  founderDid: "did:plc:alice"                             │
-  │  tiers: [                                                │
-  │    { name: "field",    level: 0 },  ◄─ lowest access     │
-  │    { name: "manager",  level: 1 },                       │
-  │    { name: "director", level: 2 },                       │
-  │    { name: "exec",     level: 3 },  ◄─ highest access    │
-  │  ]                                                       │
-  └──────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-  ┌──────────────────────────────────────────────────────────┐
-  │  KEYRINGS (vault.keyring — one per tier)                 │
-  │                                                          │
-  │  Each tier has its own random AES-256 DEK.               │
-  │  The DEK is wrapped individually for each member         │
-  │  via ECDH(inviter_private, member_public) → AES-KW.      │
-  │                                                          │
-  │  keyring "acme:field"    → DEK₀ (wrapped per member)     │
-  │  keyring "acme:manager"  → DEK₁ (wrapped per member)     │
-  │  keyring "acme:director" → DEK₂ (wrapped per member)     │
-  │  keyring "acme:exec"     → DEK₃ (wrapped per member)     │
-  └──────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-  ┌──────────────────────────────────────────────────────────┐
-  │  SEALED RECORDS (vault.sealed)                           │
-  │                                                          │
-  │  Each deal is encrypted with a tier-specific DEK.        │
-  │  keyringRkey: "acme:field" → encrypted with DEK₀         │
-  │  keyringRkey: "acme:exec"  → encrypted with DEK₃         │
-  │                                                          │
-  │  Members at tier N can decrypt tiers 0..N.               │
-  │  A "field" agent sees only field-tier deals.             │
-  │  A "director" sees field + manager + director deals.     │
-  │  An "exec" sees everything.                              │
-  └──────────────────────────────────────────────────────────┘
-`}</pre>
-          </div>
-
-          <dl className="docs-definitions">
-            <dt>Configurable Tiers</dt>
-            <dd>
-              Tiers are defined at org creation time. You can use the defaults
-              (member / manager / admin) or create any hierarchy you need:
-              "intern / analyst / vp / ceo" or "read / write / admin" —
-              whatever fits your org. Each tier gets its own encryption key.
-            </dd>
-
-            <dt>Permissionless Formation</dt>
-            <dd>
-              Creating an org writes a <code>vault.org</code> record to your
-              PDS. No approval, no central registry. The org exists because the
-              record exists. Anyone on any PDS can do this.
-            </dd>
-
-            <dt>Cross-PDS Membership</dt>
-            <dd>
-              Members can be on different PDSes. When loading deals, the client
-              iterates all member DIDs and fetches their sealed records.
-              Discovery is DID-based, not server-based.
-            </dd>
-
-            <dt>Tier-Scoped Encryption</dt>
-            <dd>
-              When creating a deal in an org, you choose which tier to encrypt
-              it at. Only members at that tier or higher can decrypt it.
-              Lower-tier members see it exists (the sealed envelope is public)
-              but cannot read the contents.
-            </dd>
-          </dl>
-        </section>
-
-        <section>
           <h2>Roadmap</h2>
           <ul className="docs-roadmap">
             <li>
@@ -479,6 +478,10 @@ export function DocsPage() {
               <strong>Key rotation</strong> — Re-encrypt all records under a new
               DEK when a team member is removed or a passphrase is changed.
             </li>
+            <li>
+              <strong>Proposal comments</strong> — Encrypted discussion threads
+              on proposals, each comment on the commenter's PDS.
+            </li>
           </ul>
         </section>
 
@@ -486,7 +489,7 @@ export function DocsPage() {
           <p>
             Built on <a href="https://atproto.com" target="_blank" rel="noopener noreferrer">ATProto</a>.
             Encrypted with <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API" target="_blank" rel="noopener noreferrer">WebCrypto</a>.
-            Your data, your keys.
+            Your data, your keys, your protocol.
           </p>
         </section>
       </article>

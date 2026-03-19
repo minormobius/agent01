@@ -35,10 +35,15 @@ export interface Deal {
   updatedAt?: string;
 }
 
-/** Deal with its PDS rkey for updates/deletes */
+/** Deal with its PDS rkey and author info for updates/deletes */
 export interface DealRecord {
   rkey: string;
   deal: Deal;
+  /** DID of whoever wrote this sealed record */
+  authorDid: string;
+  /** If this deal superseded a previous version, link back */
+  previousDid?: string;
+  previousRkey?: string;
 }
 
 /** vault.sealed envelope as stored on PDS */
@@ -48,6 +53,9 @@ export interface SealedEnvelope {
   keyringRkey: string;
   iv: string;
   ciphertext: string;
+  /** If this record supersedes another, link to it */
+  previousDid?: string;
+  previousRkey?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -62,32 +70,22 @@ export interface Session {
 
 // --- Org & Tier Types ---
 
-/** Permission flags for a tier. */
-export interface TierPermissions {
-  read: boolean;      // can decrypt and view records at this tier
-  edit: boolean;      // can create/modify deal records
-  editMeta: boolean;  // can move deals between pipeline stages
-}
-
-/** Default permissions: all true for backward compat. */
-export const DEFAULT_PERMISSIONS: TierPermissions = {
-  read: true,
-  edit: true,
-  editMeta: true,
-};
-
-/** A configurable access tier within an org. Higher level = more access. */
+/**
+ * A configurable access tier within an org.
+ * Higher level = more access (can decrypt all tiers at or below).
+ * Tiers are PURE encryption gates — no client-side permission flags.
+ * What you can decrypt is what you can read. Period.
+ */
 export interface TierDef {
   name: string;   // e.g. "operator", "manager", "executive"
   level: number;  // 0 = lowest access, higher = more access
-  permissions: TierPermissions;
 }
 
 /** Default tier presets for quick org creation. */
 export const DEFAULT_TIERS: TierDef[] = [
-  { name: "member", level: 0, permissions: { read: true, edit: false, editMeta: false } },
-  { name: "manager", level: 1, permissions: { read: true, edit: true, editMeta: false } },
-  { name: "admin", level: 2, permissions: { read: true, edit: true, editMeta: true } },
+  { name: "member", level: 0 },
+  { name: "manager", level: 1 },
+  { name: "admin", level: 2 },
 ];
 
 // --- Office & Workflow Types ---
@@ -112,20 +110,87 @@ export interface Workflow {
   gates: WorkflowGate[];
 }
 
-/** A signature record: one member of one office signing off on a deal stage transition. */
-export interface Signature {
-  dealRkey: string;
-  fromStage: Stage;
-  toStage: Stage;
-  officeName: string;
-  signerDid: string;
-  signerHandle?: string;
+// --- Change Control Protocol ---
+//
+// ATProto: each user writes to their own PDS only.
+// Nobody can edit someone else's record.
+//
+// So edits become a protocol:
+//   1. Proposer writes vault.proposal to their PDS (encrypted change)
+//   2. Required offices write vault.approval to their PDSes
+//   3. Once all approvals gathered, proposer writes the new version
+//      to their own PDS as vault.sealed with a `previousDid/previousRkey`
+//      link to the old version
+//   4. A vault.decision record ties it together for audit
+//
+// The "current version" of a deal = follow the decision chain from any
+// known version until you find one with no successor.
+
+/** A proposed change to an existing record. Written to proposer's PDS. */
+export interface Proposal {
+  /** Org rkey this proposal belongs to */
+  orgRkey: string;
+  /** The record being changed */
+  targetDid: string;
+  targetRkey: string;
+  /** Encrypted proposed content (same tier DEK as target) */
+  iv: string;          // base64
+  ciphertext: string;  // base64
+  keyringRkey: string;
+  /** What kind of change */
+  changeType: "edit" | "stage" | "edit+stage";
+  /** Plaintext summary visible to anyone (e.g. "move to Qualified") */
+  summary?: string;
+  /** Who needs to approve (office names from workflow gates) */
+  requiredOffices: string[];
+  proposerDid: string;
+  proposerHandle?: string;
+  status: "open" | "approved" | "applied" | "rejected";
   createdAt: string;
 }
 
-export interface SignatureRecord {
+export interface ProposalRecord {
   rkey: string;
-  signature: Signature;
+  proposal: Proposal;
+}
+
+/** An approval of a proposal. Written to approver's PDS. */
+export interface Approval {
+  /** Points to the proposal */
+  proposalDid: string;
+  proposalRkey: string;
+  /** Which office this person is signing for */
+  officeName: string;
+  approverDid: string;
+  approverHandle?: string;
+  createdAt: string;
+}
+
+export interface ApprovalRecord {
+  rkey: string;
+  approval: Approval;
+}
+
+/** Decision record: links old version → new version. Written by proposer when applied. */
+export interface Decision {
+  orgRkey: string;
+  /** The proposal that led to this decision */
+  proposalDid: string;
+  proposalRkey: string;
+  /** The old record */
+  previousDid: string;
+  previousRkey: string;
+  /** The new record (on proposer's PDS) */
+  newDid: string;
+  newRkey: string;
+  /** Outcome */
+  outcome: "accepted" | "rejected";
+  createdAt: string;
+}
+
+export interface DecisionRecord {
+  rkey: string;
+  decision: Decision;
 }
 
 /** Org definition record (public, stored on founder's PDS). */
@@ -182,14 +247,15 @@ export interface OrgContext {
   founderDid: string;
   myTierName: string;
   myTierLevel: number;
-  myPermissions: TierPermissions;
   /** Map of tierName → DEK for all tiers this user can access. */
   tierDeks: Map<string, CryptoKey>;
   memberships: MembershipRecord[];
-  /** Map of tierName → permissions for accessible tiers. */
-  tierPermissions: Map<string, TierPermissions>;
-  /** Signatures on deals in this org. */
-  signatures: SignatureRecord[];
+  /** Open proposals in this org. */
+  proposals: ProposalRecord[];
+  /** Approvals gathered across member PDSes. */
+  approvals: ApprovalRecord[];
+  /** Decision chain (links old → new versions). */
+  decisions: DecisionRecord[];
 }
 
 /** App state */

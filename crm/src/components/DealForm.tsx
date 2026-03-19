@@ -4,27 +4,29 @@ import type { Deal, Stage, DealRecord, TierDef, OrgContext } from "../types";
 
 interface Props {
   existing?: DealRecord;
+  proposingFor?: DealRecord;
   onSave: (deal: Deal, existingRkey?: string, tierName?: string) => Promise<void>;
   onCancel: () => void;
   availableTiers?: TierDef[] | null;
   activeOrg?: OrgContext | null;
-  canEditMeta?: boolean;
 }
 
-export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg, canEditMeta = true }: Props) {
-  const init = existing?.deal;
-  const [title, setTitle] = useState(init?.title ?? "");
-  const [stage, setStage] = useState<Stage>(init?.stage ?? "lead");
-  const [value, setValue] = useState(init?.value != null ? String(init.value / 100) : "");
-  const [currency, setCurrency] = useState(init?.currency ?? "USD");
-  const [notes, setNotes] = useState(init?.notes ?? "");
-  const [tags, setTags] = useState(init?.tags?.join(", ") ?? "");
+export function DealForm({ existing, proposingFor, onSave, onCancel, availableTiers, activeOrg }: Props) {
+  const source = proposingFor?.deal ?? existing?.deal;
+  const [title, setTitle] = useState(source?.title ?? "");
+  const [stage, setStage] = useState<Stage>(source?.stage ?? "lead");
+  const [value, setValue] = useState(source?.value != null ? String(source.value / 100) : "");
+  const [currency, setCurrency] = useState(source?.currency ?? "USD");
+  const [notes, setNotes] = useState(source?.notes ?? "");
+  const [tags, setTags] = useState(source?.tags?.join(", ") ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   // Tier selection for org mode
   const defaultTier = activeOrg?.myTierName ?? availableTiers?.[0]?.name ?? "";
   const [selectedTier, setSelectedTier] = useState(defaultTier);
+
+  const isProposal = !!proposingFor;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +36,7 @@ export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg
       const deal: Deal = {
         title,
         stage,
-        createdAt: init?.createdAt ?? new Date().toISOString(),
+        createdAt: source?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       if (value) {
@@ -58,7 +60,17 @@ export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{existing ? "Edit Deal" : "New Deal"}</h2>
+        <h2>
+          {isProposal ? "Propose Change" : existing ? "Edit Deal" : "New Deal"}
+        </h2>
+        {isProposal && (
+          <p className="proposal-banner">
+            You're proposing a change to <strong>{proposingFor.deal.title}</strong>.
+            {activeOrg?.org.org.workflow?.gates.length
+              ? " Required offices will need to approve before it takes effect."
+              : " This will create a new version linked to the original."}
+          </p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="deal-title">Title</label>
@@ -77,18 +89,14 @@ export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg
               id="deal-stage"
               value={stage}
               onChange={(e) => setStage(e.target.value as Stage)}
-              disabled={!!existing && !canEditMeta}
             >
               {STAGES.map((s) => (
                 <option key={s} value={s}>{STAGE_LABELS[s]}</option>
               ))}
             </select>
-            {!!existing && !canEditMeta && (
-              <small>You don't have permission to change the stage.</small>
-            )}
           </div>
 
-          {availableTiers && availableTiers.length > 0 && (
+          {availableTiers && availableTiers.length > 0 && !isProposal && (
             <div className="field">
               <label htmlFor="deal-tier">Access Tier</label>
               <select
@@ -160,7 +168,11 @@ export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg
               Cancel
             </button>
             <button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving
+                ? "Saving..."
+                : isProposal
+                  ? "Submit Proposal"
+                  : "Save"}
             </button>
           </div>
         </form>

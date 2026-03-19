@@ -2,7 +2,6 @@ import { useState } from "react";
 import { DEFAULT_TIERS, STAGES, STAGE_LABELS } from "../types";
 import type {
   TierDef,
-  TierPermissions,
   Org,
   OrgRecord,
   MembershipRecord,
@@ -218,27 +217,13 @@ function CreateOrg({
     const maxLevel = tiers.reduce((m, t) => Math.max(m, t.level), -1);
     setTiers([
       ...tiers,
-      {
-        name: newTierName.trim().toLowerCase(),
-        level: maxLevel + 1,
-        permissions: { read: true, edit: true, editMeta: true },
-      },
+      { name: newTierName.trim().toLowerCase(), level: maxLevel + 1 },
     ]);
     setNewTierName("");
   };
 
   const removeTier = (idx: number) => {
     setTiers(tiers.filter((_, i) => i !== idx));
-  };
-
-  const togglePerm = (idx: number, perm: keyof TierPermissions) => {
-    setTiers(
-      tiers.map((t, i) =>
-        i === idx
-          ? { ...t, permissions: { ...t.permissions, [perm]: !t.permissions[perm] } }
-          : t
-      )
-    );
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -329,32 +314,6 @@ function CreateOrg({
               <div key={i} className="tier-item">
                 <span className="tier-level">L{i}</span>
                 <span className="tier-name">{tier.name}</span>
-                <div className="tier-perms">
-                  <label className="perm-toggle" title="Can read records">
-                    <input
-                      type="checkbox"
-                      checked={tier.permissions.read}
-                      onChange={() => togglePerm(i, "read")}
-                    />
-                    R
-                  </label>
-                  <label className="perm-toggle" title="Can edit records">
-                    <input
-                      type="checkbox"
-                      checked={tier.permissions.edit}
-                      onChange={() => togglePerm(i, "edit")}
-                    />
-                    E
-                  </label>
-                  <label className="perm-toggle" title="Can move deals between stages">
-                    <input
-                      type="checkbox"
-                      checked={tier.permissions.editMeta}
-                      onChange={() => togglePerm(i, "editMeta")}
-                    />
-                    M
-                  </label>
-                </div>
                 <button
                   type="button"
                   className="tier-remove"
@@ -383,8 +342,9 @@ function CreateOrg({
             </button>
           </div>
           <small>
-            R = Read, E = Edit records, M = Move deals between stages.
-            Higher tiers decrypt all lower-tier data.
+            Each tier gets its own encryption key. Higher tiers can decrypt
+            all lower-tier data. Offices and workflow gates control who can
+            approve changes.
           </small>
         </div>
 
@@ -691,11 +651,6 @@ function ManageOrg({
                 <div key={i} className="tier-item">
                   <span className="tier-level">L{tier.level}</span>
                   <span className="tier-name">{tier.name}</span>
-                  <div className="tier-perms-display">
-                    {tier.permissions?.read && <span className="perm-badge perm-r" title="Read">R</span>}
-                    {tier.permissions?.edit && <span className="perm-badge perm-e" title="Edit">E</span>}
-                    {tier.permissions?.editMeta && <span className="perm-badge perm-m" title="Move stages">M</span>}
-                  </div>
                 </div>
               ))}
             </div>

@@ -1,39 +1,33 @@
 import { useState } from "react";
-import { STAGES, STAGE_LABELS } from "../types";
-import type { DealRecord, Stage } from "../types";
-
-interface GateStatus {
-  gated: boolean;
-  approved: boolean;
-  pending: string[];
-}
+import type { DealRecord, ProposalRecord, ApprovalRecord, Office } from "../types";
 
 interface Props {
   dealRecord: DealRecord;
-  onEdit?: (dr: DealRecord) => void;
+  onEdit: (dr: DealRecord) => void;
   onDelete?: (rkey: string) => void;
-  onSign?: (dealRkey: string, fromStage: string, toStage: string, officeName: string) => Promise<void>;
-  canEditMeta?: boolean;
-  getGateStatus?: (toStage: Stage) => GateStatus;
-  getSignableOffices?: (toStage: Stage) => string[];
-  dealRkey: string;
-  currentStage: Stage;
+  isOwn: boolean;
+  isOrg: boolean;
+  proposals: ProposalRecord[];
+  getApprovals: (proposalDid: string, proposalRkey: string) => ApprovalRecord[];
+  myOffices: Office[];
+  myDid: string;
+  onApprove?: (proposalDid: string, proposalRkey: string, officeName: string) => Promise<void>;
 }
 
 export function DealCard({
   dealRecord,
   onEdit,
   onDelete,
-  onSign,
-  canEditMeta,
-  getGateStatus,
-  getSignableOffices,
-  dealRkey,
-  currentStage,
+  isOwn,
+  isOrg,
+  proposals,
+  getApprovals,
+  myOffices,
+  myDid,
+  onApprove,
 }: Props) {
   const { deal, rkey } = dealRecord;
-  const [showWorkflow, setShowWorkflow] = useState(false);
-  const [signing, setSigning] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const formatValue = () => {
     if (deal.value == null) return null;
@@ -49,25 +43,18 @@ export function DealCard({
     }
   };
 
-  // Get next logical stage
-  const currentIdx = STAGES.indexOf(currentStage);
-  const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
-
-  const gateStatus = nextStage && getGateStatus ? getGateStatus(nextStage) : null;
-  const signableOffices = nextStage && getSignableOffices ? getSignableOffices(nextStage) : [];
-
-  const handleSign = async (officeName: string) => {
-    if (!onSign || !nextStage) return;
-    setSigning(true);
+  const handleApprove = async (proposalDid: string, proposalRkey: string, officeName: string) => {
+    if (!onApprove) return;
+    setApproving(true);
     try {
-      await onSign(dealRkey, currentStage, nextStage, officeName);
+      await onApprove(proposalDid, proposalRkey, officeName);
     } finally {
-      setSigning(false);
+      setApproving(false);
     }
   };
 
   return (
-    <div className="deal-card">
+    <div className={`deal-card ${isOwn ? "" : "deal-card-foreign"}`}>
       <div className="deal-header">
         <span className="deal-title">{deal.title}</span>
         {onDelete && (
@@ -94,58 +81,89 @@ export function DealCard({
         </div>
       )}
 
-      {/* Workflow gate indicator */}
-      {gateStatus?.gated && (
-        <div className={`deal-gate ${gateStatus.approved ? "gate-approved" : "gate-pending"}`}>
-          {gateStatus.approved ? (
-            <span className="gate-status-text">Approved to advance</span>
-          ) : (
-            <button
-              className="gate-status-text gate-clickable"
-              onClick={() => setShowWorkflow(!showWorkflow)}
-            >
-              Awaiting: {gateStatus.pending.join(", ")}
-            </button>
+      {/* Author badge for org mode */}
+      {isOrg && (
+        <div className="deal-author">
+          {isOwn ? "you" : dealRecord.authorDid.slice(0, 16) + "..."}
+          {dealRecord.previousDid && (
+            <span className="deal-chain" title={`Superseded ${dealRecord.previousDid}:${dealRecord.previousRkey}`}>
+              chain
+            </span>
           )}
         </div>
       )}
 
-      {/* Sign-off controls */}
-      {showWorkflow && signableOffices.length > 0 && (
-        <div className="deal-sign-panel">
-          <span className="sign-label">Sign as:</span>
-          {signableOffices.map((office) => (
-            <button
-              key={office}
-              className="btn-sign"
-              disabled={signing}
-              onClick={() => handleSign(office)}
-            >
-              {office}
-            </button>
-          ))}
+      {/* Pending proposals on this deal */}
+      {proposals.length > 0 && (
+        <div className="deal-proposals">
+          {proposals.map((p) => {
+            const approvals = getApprovals(p.proposal.proposerDid, p.rkey);
+            const approvedOffices = new Set(approvals.map((a) => a.approval.officeName));
+
+            // Which offices can I sign for that haven't been satisfied?
+            const signableOffices = myOffices.filter((o) => {
+              if (!p.proposal.requiredOffices.includes(o.name)) return false;
+              // Check if this office has enough signatures
+              const officeSigs = approvals.filter((a) => a.approval.officeName === o.name);
+              if (officeSigs.length >= o.requiredSignatures) return false;
+              // Check if I already signed for this office on this proposal
+              const alreadySigned = approvals.some(
+                (a) => a.approval.officeName === o.name && a.approval.approverDid === myDid
+              );
+              return !alreadySigned;
+            });
+
+            return (
+              <div key={p.rkey} className="proposal-card">
+                <div className="proposal-header">
+                  <span className="proposal-type">{p.proposal.changeType}</span>
+                  <span className="proposal-by">
+                    by {p.proposal.proposerHandle || p.proposal.proposerDid.slice(0, 12) + "..."}
+                  </span>
+                  <span className={`proposal-status proposal-${p.proposal.status}`}>
+                    {p.proposal.status}
+                  </span>
+                </div>
+                {p.proposal.summary && (
+                  <div className="proposal-summary">{p.proposal.summary}</div>
+                )}
+                {p.proposal.requiredOffices.length > 0 && (
+                  <div className="proposal-offices">
+                    {p.proposal.requiredOffices.map((o) => (
+                      <span
+                        key={o}
+                        className={`proposal-office ${approvedOffices.has(o) ? "office-signed" : "office-pending"}`}
+                      >
+                        {o}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {signableOffices.length > 0 && (
+                  <div className="proposal-actions">
+                    <span className="sign-label">Approve as:</span>
+                    {signableOffices.map((o) => (
+                      <button
+                        key={o.name}
+                        className="btn-sign"
+                        disabled={approving}
+                        onClick={() => handleApprove(p.proposal.proposerDid, p.rkey, o.name)}
+                      >
+                        {o.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       <div className="deal-actions">
-        {onEdit && (
-          <button className="deal-edit" onClick={() => onEdit(dealRecord)}>
-            Edit
-          </button>
-        )}
-        {canEditMeta && nextStage && (
-          <button
-            className="deal-advance"
-            disabled={gateStatus?.gated && !gateStatus.approved}
-            title={
-              gateStatus?.gated && !gateStatus.approved
-                ? `Needs approval from: ${gateStatus.pending.join(", ")}`
-                : `Move to ${STAGE_LABELS[nextStage]}`
-            }
-          >
-            &rarr; {STAGE_LABELS[nextStage]}
-          </button>
-        )}
+        <button className="deal-edit" onClick={() => onEdit(dealRecord)}>
+          {isOrg && !isOwn ? "Propose" : "Edit"}
+        </button>
       </div>
     </div>
   );

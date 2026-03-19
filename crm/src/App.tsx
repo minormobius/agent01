@@ -13,6 +13,7 @@ import {
   unwrapDekFromMember,
   toBase64,
   fromBase64,
+  encrypt as aesEncrypt,
 } from "./crypto";
 import type {
   Deal,
@@ -25,11 +26,13 @@ import type {
   Membership,
   Keyring,
   KeyringMemberEntry,
-  SignatureRecord,
-  Signature,
-  TierPermissions,
+  ProposalRecord,
+  Proposal,
+  ApprovalRecord,
+  Approval,
+  DecisionRecord,
+  Decision,
 } from "./types";
-import { DEFAULT_PERMISSIONS } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { DealsBoard } from "./components/DealsBoard";
 import { DocsPage } from "./components/DocsPage";
@@ -44,7 +47,9 @@ const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
 const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
-const SIGNATURE_COLLECTION = "com.minomobi.vault.signature";
+const PROPOSAL_COLLECTION = "com.minomobi.vault.proposal";
+const APPROVAL_COLLECTION = "com.minomobi.vault.approval";
+const DECISION_COLLECTION = "com.minomobi.vault.decision";
 const INNER_TYPE = "com.minomobi.crm.deal";
 
 export function App() {
@@ -171,7 +176,7 @@ export function App() {
       // Load personal deals + discover orgs
       setLoading(true);
       try {
-        await loadDeals(client, dek, "self");
+        await loadDeals(client, dek, "self", session.did);
         await discoverOrgs(client, session.did, privateKey);
       } finally {
         setLoading(false);
@@ -204,7 +209,7 @@ export function App() {
     } while (cursor);
     setOrgs(foundedOrgs);
 
-    // Load memberships (on my PDS — these include both my own and others')
+    // Load memberships
     const allMemberships: MembershipRecord[] = [];
     cursor = undefined;
     do {
@@ -227,7 +232,8 @@ export function App() {
   const loadDeals = async (
     client: PdsClient,
     dek: CryptoKey,
-    keyringPrefix: string
+    keyringPrefix: string,
+    ownerDid: string
   ) => {
     const loaded: DealRecord[] = [];
     let cursor: string | undefined;
@@ -245,7 +251,13 @@ export function App() {
         try {
           const { record } = await unsealRecord<Deal>(val, dek);
           const rkey = rec.uri.split("/").pop()!;
-          loaded.push({ rkey, deal: record });
+          loaded.push({
+            rkey,
+            deal: record,
+            authorDid: ownerDid,
+            previousDid: val.previousDid as string | undefined,
+            previousRkey: val.previousRkey as string | undefined,
+          });
         } catch (err) {
           console.warn("Failed to unseal record:", rec.uri, err);
         }
@@ -256,75 +268,135 @@ export function App() {
     setDeals(loaded);
   };
 
-  // --- Load org deals (across tiers the user has access to) ---
+  // --- Load org deals (across all members, follow decision chains) ---
 
   const loadOrgDeals = async (
     client: PdsClient,
     orgCtx: OrgContext
   ) => {
-    const loaded: DealRecord[] = [];
-    let cursor: string | undefined;
+    const allDeals: DealRecord[] = [];
+    // Track superseded records: key = "did:rkey", value = true if superseded
+    const superseded = new Set<string>();
 
-    // Scan the founder's PDS for sealed records
-    do {
-      const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
-      for (const rec of page.records) {
-        const val = rec.value as Record<string, unknown>;
-        if (val.innerType !== INNER_TYPE) continue;
-        const recKeyring = val.keyringRkey as string;
-        // Check if this record belongs to this org
-        if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
-        // Extract tier name from keyring rkey
-        const tierName = recKeyring.split(":")[1];
-        const dek = orgCtx.tierDeks.get(tierName);
-        if (!dek) continue; // User doesn't have access to this tier
-        try {
-          const { record } = await unsealRecord<Deal>(val, dek);
+    // Collect decisions to build supersession map
+    for (const d of orgCtx.decisions) {
+      superseded.add(`${d.decision.previousDid}:${d.decision.previousRkey}`);
+    }
+
+    // Helper: load sealed records from one DID
+    const loadFrom = async (did: string, useAuth: boolean) => {
+      let cursor: string | undefined;
+      do {
+        const page = useAuth
+          ? await client.listRecords(SEALED_COLLECTION, 100, cursor)
+          : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
+        for (const rec of page.records) {
+          const val = rec.value as Record<string, unknown>;
+          if (val.innerType !== INNER_TYPE) continue;
+          const recKeyring = val.keyringRkey as string;
+          if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
+
           const rkey = rec.uri.split("/").pop()!;
-          loaded.push({ rkey, deal: record });
-        } catch (err) {
-          console.warn("Failed to unseal org record:", rec.uri, err);
-        }
-      }
-      cursor = page.cursor;
-    } while (cursor);
+          const recordKey = `${did}:${rkey}`;
 
-    // Also scan each member's PDS for their sealed records
-    for (const m of orgCtx.memberships) {
-      if (m.membership.memberDid === client.getSession()?.did) continue; // Already scanned own repo
-      try {
-        let memberCursor: string | undefined;
-        do {
-          const page = await client.listRecordsFrom(
-            m.membership.memberDid,
-            SEALED_COLLECTION,
-            100,
-            memberCursor
-          );
-          for (const rec of page.records) {
-            const val = rec.value as Record<string, unknown>;
-            if (val.innerType !== INNER_TYPE) continue;
-            const recKeyring = val.keyringRkey as string;
-            if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
-            const tierName = recKeyring.split(":")[1];
-            const dek = orgCtx.tierDeks.get(tierName);
-            if (!dek) continue;
-            try {
-              const { record } = await unsealRecord<Deal>(val, dek);
-              const rkey = rec.uri.split("/").pop()!;
-              loaded.push({ rkey, deal: record });
-            } catch {
-              // Can't decrypt — wrong tier or corrupted
-            }
+          // Skip superseded records
+          if (superseded.has(recordKey)) continue;
+
+          const tierName = recKeyring.split(":")[1];
+          const dek = orgCtx.tierDeks.get(tierName);
+          if (!dek) continue;
+          try {
+            const { record } = await unsealRecord<Deal>(val, dek);
+            allDeals.push({
+              rkey,
+              deal: record,
+              authorDid: did,
+              previousDid: val.previousDid as string | undefined,
+              previousRkey: val.previousRkey as string | undefined,
+            });
+          } catch {
+            // Can't decrypt
           }
-          memberCursor = page.cursor;
-        } while (memberCursor);
+        }
+        cursor = page.cursor;
+      } while (cursor);
+    };
+
+    // Load from own PDS (authenticated)
+    const myDid = client.getSession()!.did;
+    await loadFrom(myDid, true);
+
+    // Load from each member's PDS
+    for (const m of orgCtx.memberships) {
+      if (m.membership.memberDid === myDid) continue;
+      try {
+        await loadFrom(m.membership.memberDid, false);
       } catch {
-        // Member's PDS might be unreachable
+        // Member's PDS unreachable
       }
     }
 
-    setDeals(loaded);
+    setDeals(allDeals);
+  };
+
+  // --- Load org change control state (proposals, approvals, decisions) ---
+
+  const loadChangeControl = async (
+    client: PdsClient,
+    orgRkey: string,
+    memberDids: string[]
+  ): Promise<{
+    proposals: ProposalRecord[];
+    approvals: ApprovalRecord[];
+    decisions: DecisionRecord[];
+  }> => {
+    const proposals: ProposalRecord[] = [];
+    const approvals: ApprovalRecord[] = [];
+    const decisions: DecisionRecord[] = [];
+    const myDid = client.getSession()!.did;
+
+    // Helper: load records of a given collection from a DID
+    const loadCollection = async <T,>(
+      did: string,
+      collection: string,
+      orgPrefix: string,
+      accumulator: { rkey: string; data: T }[]
+    ) => {
+      let cursor: string | undefined;
+      const isMe = did === myDid;
+      do {
+        const page = isMe
+          ? await client.listRecords(collection, 100, cursor)
+          : await client.listRecordsFrom(did, collection, 100, cursor);
+        for (const rec of page.records) {
+          const val = rec.value as Record<string, unknown>;
+          const rkey = rec.uri.split("/").pop()!;
+          if (val.orgRkey === orgPrefix || rkey.startsWith(orgPrefix + ":")) {
+            accumulator.push({ rkey, data: val as unknown as T });
+          }
+        }
+        cursor = page.cursor;
+      } while (cursor);
+    };
+
+    // Scan all member PDSes for proposals, approvals, decisions
+    for (const did of memberDids) {
+      try {
+        const p: { rkey: string; data: Proposal }[] = [];
+        const a: { rkey: string; data: Approval }[] = [];
+        const d: { rkey: string; data: Decision }[] = [];
+        await loadCollection(did, PROPOSAL_COLLECTION, orgRkey, p);
+        await loadCollection(did, APPROVAL_COLLECTION, orgRkey, a);
+        await loadCollection(did, DECISION_COLLECTION, orgRkey, d);
+        for (const x of p) proposals.push({ rkey: x.rkey, proposal: x.data });
+        for (const x of a) approvals.push({ rkey: x.rkey, approval: x.data });
+        for (const x of d) decisions.push({ rkey: x.rkey, decision: x.data });
+      } catch {
+        // PDS unreachable
+      }
+    }
+
+    return { proposals, approvals, decisions };
   };
 
   // --- Switch to org ---
@@ -385,34 +457,18 @@ export function App() {
           }
         }
 
-        // Build tier permissions map
-        const tierPermissions = new Map<string, TierPermissions>();
-        for (const tier of accessibleTiers) {
-          tierPermissions.set(tier.name, tier.permissions ?? DEFAULT_PERMISSIONS);
-        }
-
-        const myPermissions = myTierDef.permissions ?? DEFAULT_PERMISSIONS;
-
-        // Get org memberships for deal loading
+        // Get org memberships
         const orgMemberships = memberships.filter(
           (m) => m.membership.orgRkey === orgRkey
         );
+        const memberDids = orgMemberships.map((m) => m.membership.memberDid);
 
-        // Load signatures for this org
-        const signatures: SignatureRecord[] = [];
-        let sigCursor: string | undefined;
-        do {
-          const page = await pds.listRecords(SIGNATURE_COLLECTION, 100, sigCursor);
-          for (const rec of page.records) {
-            const val = rec.value as Record<string, unknown>;
-            const rkey = rec.uri.split("/").pop()!;
-            // Filter to this org's signatures (rkey starts with orgRkey)
-            if (rkey.startsWith(orgRkey + ":")) {
-              signatures.push({ rkey, signature: val as unknown as Signature });
-            }
-          }
-          sigCursor = page.cursor;
-        } while (sigCursor);
+        // Load change control state
+        const { proposals, approvals, decisions } = await loadChangeControl(
+          pds,
+          orgRkey,
+          memberDids
+        );
 
         const orgCtx: OrgContext = {
           org: orgRecord,
@@ -420,11 +476,11 @@ export function App() {
           founderDid: orgRecord.org.founderDid,
           myTierName: myMembership.membership.tierName,
           myTierLevel: myTierDef.level,
-          myPermissions,
           tierDeks,
           memberships: orgMemberships,
-          tierPermissions,
-          signatures,
+          proposals,
+          approvals,
+          decisions,
         };
 
         setVault((prev) => ({
@@ -446,17 +502,17 @@ export function App() {
   // --- Switch to personal vault ---
 
   const switchToPersonal = useCallback(async () => {
-    if (!pds || !vault.dek) return;
+    if (!pds || !vault.dek || !vault.session) return;
     setVault((prev) => ({ ...prev, activeOrg: null, keyringRkey: "self" }));
     setLoading(true);
     try {
-      await loadDeals(pds, vault.dek, "self");
+      await loadDeals(pds, vault.dek, "self", vault.session.did);
     } finally {
       setLoading(false);
     }
-  }, [pds, vault.dek]);
+  }, [pds, vault.dek, vault.session]);
 
-  // --- Save deal ---
+  // --- Save deal (personal or org — author writes to their own PDS) ---
 
   const handleSaveDeal = useCallback(
     async (deal: Deal, existingRkey?: string, tierName?: string) => {
@@ -466,13 +522,11 @@ export function App() {
       let keyringRkey: string;
 
       if (vault.activeOrg && tierName) {
-        // Org mode: use tier-specific DEK
         const tierDek = vault.activeOrg.tierDeks.get(tierName);
         if (!tierDek) throw new Error(`No access to tier: ${tierName}`);
         dek = tierDek;
         keyringRkey = `${vault.activeOrg.org.rkey}:${tierName}`;
       } else if (vault.dek) {
-        // Personal vault
         dek = vault.dek;
         keyringRkey = "self";
       } else {
@@ -485,17 +539,218 @@ export function App() {
         await pds.putRecord(SEALED_COLLECTION, existingRkey, sealed);
         setDeals((prev) =>
           prev.map((d) =>
-            d.rkey === existingRkey ? { rkey: existingRkey, deal } : d
+            d.rkey === existingRkey
+              ? { rkey: existingRkey, deal, authorDid: vault.session!.did }
+              : d
           )
         );
       } else {
         const res = await pds.createRecord(SEALED_COLLECTION, sealed);
         const rkey = res.uri.split("/").pop()!;
-        setDeals((prev) => [...prev, { rkey, deal }]);
+        setDeals((prev) => [...prev, { rkey, deal, authorDid: vault.session!.did }]);
       }
     },
     [pds, vault.dek, vault.activeOrg, vault.session]
   );
+
+  // --- Propose a change to someone else's deal ---
+
+  const handlePropose = useCallback(
+    async (
+      targetDeal: DealRecord,
+      proposedDeal: Deal,
+      changeType: "edit" | "stage" | "edit+stage",
+      summary: string
+    ) => {
+      if (!pds || !vault.session || !vault.activeOrg) throw new Error("Not in org mode");
+
+      // Determine which tier DEK to use (same as the target's keyring)
+      // We need to find what tier the target was encrypted at
+      // For now, use the user's current tier
+      const tierName = vault.activeOrg.myTierName;
+      const dek = vault.activeOrg.tierDeks.get(tierName);
+      if (!dek) throw new Error("No encryption key for your tier");
+
+      const keyringRkey = `${vault.activeOrg.org.rkey}:${tierName}`;
+
+      // Encrypt the proposed deal content
+      const json = JSON.stringify(proposedDeal);
+      const plaintext = new TextEncoder().encode(json);
+      const { iv, ciphertext } = await aesEncrypt(plaintext, dek);
+
+      // Determine required offices from workflow gates
+      const workflow = vault.activeOrg.org.org.workflow;
+      let requiredOffices: string[] = [];
+      if (workflow && changeType !== "edit") {
+        const gate = workflow.gates.find(
+          (g) => g.fromStage === targetDeal.deal.stage && g.toStage === proposedDeal.stage
+        );
+        if (gate) {
+          requiredOffices = gate.requiredOffices;
+        }
+      }
+
+      const proposal: Proposal & { $type: string } = {
+        $type: PROPOSAL_COLLECTION,
+        orgRkey: vault.activeOrg.org.rkey,
+        targetDid: targetDeal.authorDid,
+        targetRkey: targetDeal.rkey,
+        iv: toBase64(iv),
+        ciphertext: toBase64(ciphertext),
+        keyringRkey,
+        changeType,
+        summary,
+        requiredOffices,
+        proposerDid: vault.session.did,
+        proposerHandle: vault.session.handle,
+        status: requiredOffices.length === 0 ? "approved" : "open",
+        createdAt: new Date().toISOString(),
+      };
+
+      const res = await pds.createRecord(PROPOSAL_COLLECTION, proposal);
+      const rkey = res.uri.split("/").pop()!;
+
+      // Update local state
+      setVault((prev) => {
+        if (!prev.activeOrg) return prev;
+        return {
+          ...prev,
+          activeOrg: {
+            ...prev.activeOrg,
+            proposals: [
+              ...prev.activeOrg.proposals,
+              { rkey, proposal: proposal as Proposal },
+            ],
+          },
+        };
+      });
+
+      // If no approvals needed, apply immediately
+      if (requiredOffices.length === 0) {
+        await applyProposal(
+          rkey,
+          proposal as Proposal,
+          targetDeal,
+          proposedDeal,
+          dek,
+          keyringRkey
+        );
+      }
+
+      return rkey;
+    },
+    [pds, vault.session, vault.activeOrg]
+  );
+
+  // --- Approve a proposal ---
+
+  const handleApprove = useCallback(
+    async (proposalDid: string, proposalRkey: string, officeName: string) => {
+      if (!pds || !vault.session || !vault.activeOrg) throw new Error("Not in org mode");
+
+      const approval: Approval & { $type: string } = {
+        $type: APPROVAL_COLLECTION,
+        proposalDid,
+        proposalRkey,
+        officeName,
+        approverDid: vault.session.did,
+        approverHandle: vault.session.handle,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Use a deterministic rkey so one person can't double-sign for the same office
+      const approvalRkey = `${vault.activeOrg.org.rkey}:${proposalRkey}:${officeName}:${vault.session.did}`;
+      await pds.putRecord(APPROVAL_COLLECTION, approvalRkey, approval);
+
+      // Update local state
+      setVault((prev) => {
+        if (!prev.activeOrg) return prev;
+        return {
+          ...prev,
+          activeOrg: {
+            ...prev.activeOrg,
+            approvals: [
+              ...prev.activeOrg.approvals,
+              { rkey: approvalRkey, approval: approval as Approval },
+            ],
+          },
+        };
+      });
+    },
+    [pds, vault.session, vault.activeOrg]
+  );
+
+  // --- Apply a proposal (write new version + decision record) ---
+
+  const applyProposal = async (
+    proposalRkey: string,
+    proposal: Proposal,
+    targetDeal: DealRecord,
+    newDeal: Deal,
+    dek: CryptoKey,
+    keyringRkey: string
+  ) => {
+    if (!pds || !vault.session) return;
+
+    // Write the new sealed record to proposer's PDS with supersession link
+    const sealed = await sealRecord(INNER_TYPE, newDeal, keyringRkey, dek);
+    const sealedWithLink = {
+      ...(sealed as Record<string, unknown>),
+      previousDid: targetDeal.authorDid,
+      previousRkey: targetDeal.rkey,
+    };
+
+    const newRes = await pds.createRecord(SEALED_COLLECTION, sealedWithLink);
+    const newRkey = newRes.uri.split("/").pop()!;
+
+    // Write decision record
+    const decision: Decision & { $type: string } = {
+      $type: DECISION_COLLECTION,
+      orgRkey: proposal.orgRkey,
+      proposalDid: vault.session.did,
+      proposalRkey,
+      previousDid: targetDeal.authorDid,
+      previousRkey: targetDeal.rkey,
+      newDid: vault.session.did,
+      newRkey,
+      outcome: "accepted",
+      createdAt: new Date().toISOString(),
+    };
+
+    const decisionRkey = `${proposal.orgRkey}:${proposalRkey}`;
+    await pds.putRecord(DECISION_COLLECTION, decisionRkey, decision);
+
+    // Update proposal status
+    await pds.putRecord(PROPOSAL_COLLECTION, proposalRkey, {
+      $type: PROPOSAL_COLLECTION,
+      ...proposal,
+      status: "applied",
+    });
+
+    // Update local state — replace old deal with new one
+    setDeals((prev) => [
+      ...prev.filter(
+        (d) => !(d.rkey === targetDeal.rkey && d.authorDid === targetDeal.authorDid)
+      ),
+      { rkey: newRkey, deal: newDeal, authorDid: vault.session!.did,
+        previousDid: targetDeal.authorDid, previousRkey: targetDeal.rkey },
+    ]);
+
+    // Update org context
+    setVault((prev) => {
+      if (!prev.activeOrg) return prev;
+      return {
+        ...prev,
+        activeOrg: {
+          ...prev.activeOrg,
+          decisions: [
+            ...prev.activeOrg.decisions,
+            { rkey: decisionRkey, decision: decision as Decision },
+          ],
+        },
+      };
+    });
+  };
 
   // --- Delete deal ---
 
@@ -506,46 +761,6 @@ export function App() {
       setDeals((prev) => prev.filter((d) => d.rkey !== rkey));
     },
     [pds]
-  );
-
-  // --- Sign deal (workflow approval) ---
-
-  const handleSignDeal = useCallback(
-    async (dealRkey: string, fromStage: string, toStage: string, officeName: string) => {
-      if (!pds || !vault.session || !vault.activeOrg) throw new Error("Not in org mode");
-
-      const sig: Signature = {
-        dealRkey,
-        fromStage: fromStage as Deal["stage"],
-        toStage: toStage as Deal["stage"],
-        officeName,
-        signerDid: vault.session.did,
-        signerHandle: vault.session.handle,
-        createdAt: new Date().toISOString(),
-      };
-
-      const sigRkey = `${vault.activeOrg.org.rkey}:${dealRkey}:${officeName}:${vault.session.did}`;
-      await pds.putRecord(SIGNATURE_COLLECTION, sigRkey, {
-        $type: SIGNATURE_COLLECTION,
-        ...sig,
-      });
-
-      // Update local state
-      setVault((prev) => {
-        if (!prev.activeOrg) return prev;
-        return {
-          ...prev,
-          activeOrg: {
-            ...prev.activeOrg,
-            signatures: [
-              ...prev.activeOrg.signatures,
-              { rkey: sigRkey, signature: sig },
-            ],
-          },
-        };
-      });
-    },
-    [pds, vault.session, vault.activeOrg]
   );
 
   // --- Update org (offices/workflow changes) ---
@@ -567,7 +782,6 @@ export function App() {
         )
       );
 
-      // If we're currently viewing this org, update the context
       if (vault.activeOrg?.org.rkey === orgRecord.rkey) {
         setVault((prev) => {
           if (!prev.activeOrg) return prev;
@@ -634,8 +848,10 @@ export function App() {
         deals={deals}
         onSaveDeal={handleSaveDeal}
         onDeleteDeal={handleDeleteDeal}
-        onSignDeal={handleSignDeal}
+        onPropose={handlePropose}
+        onApprove={handleApprove}
         handle={vault.session.handle}
+        myDid={vault.session.did}
         onLogout={handleLogout}
         tab={tab}
         onTabChange={setTab}

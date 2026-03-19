@@ -10,8 +10,15 @@ interface Props {
   deals: DealRecord[];
   onSaveDeal: (deal: Deal, existingRkey?: string, tierName?: string) => Promise<void>;
   onDeleteDeal: (rkey: string) => Promise<void>;
-  onSignDeal?: (dealRkey: string, fromStage: string, toStage: string, officeName: string) => Promise<void>;
+  onPropose?: (
+    targetDeal: DealRecord,
+    proposedDeal: Deal,
+    changeType: "edit" | "stage" | "edit+stage",
+    summary: string
+  ) => Promise<string>;
+  onApprove?: (proposalDid: string, proposalRkey: string, officeName: string) => Promise<void>;
   handle: string;
+  myDid: string;
   onLogout: () => void;
   tab: Tab;
   onTabChange: (tab: Tab) => void;
@@ -24,8 +31,10 @@ export function DealsBoard({
   deals,
   onSaveDeal,
   onDeleteDeal,
-  onSignDeal,
+  onPropose,
+  onApprove,
   handle,
+  myDid,
   onLogout,
   tab,
   onTabChange,
@@ -35,9 +44,7 @@ export function DealsBoard({
 }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DealRecord | undefined>();
-
-  const canEdit = !activeOrg || activeOrg.myPermissions.edit;
-  const canEditMeta = !activeOrg || activeOrg.myPermissions.editMeta;
+  const [proposing, setProposing] = useState<DealRecord | undefined>();
 
   const columnDeals = (stage: Stage) =>
     deals.filter((d) => d.deal.stage === stage);
@@ -45,72 +52,51 @@ export function DealsBoard({
   const totalValue = deals.reduce((sum, d) => sum + (d.deal.value ?? 0), 0);
 
   const handleEdit = (dr: DealRecord) => {
-    setEditing(dr);
-    setShowForm(true);
+    if (activeOrg && dr.authorDid !== myDid) {
+      // Can't directly edit someone else's record — propose instead
+      setProposing(dr);
+      setEditing(undefined);
+      setShowForm(true);
+    } else {
+      setEditing(dr);
+      setProposing(undefined);
+      setShowForm(true);
+    }
   };
 
   const handleClose = () => {
     setShowForm(false);
     setEditing(undefined);
+    setProposing(undefined);
   };
 
-  // Check if a deal has all required approvals for a stage transition
-  const getGateStatus = (dealRkey: string, fromStage: Stage, toStage: Stage) => {
-    if (!activeOrg?.org.org.workflow?.gates) return { gated: false, approved: true, pending: [] as string[] };
-    const gate = activeOrg.org.org.workflow.gates.find(
-      (g) => g.fromStage === fromStage && g.toStage === toStage
+  // Get pending proposals for a deal
+  const getProposals = (dr: DealRecord) => {
+    if (!activeOrg) return [];
+    return activeOrg.proposals.filter(
+      (p) =>
+        p.proposal.targetDid === dr.authorDid &&
+        p.proposal.targetRkey === dr.rkey &&
+        (p.proposal.status === "open" || p.proposal.status === "approved")
     );
-    if (!gate) return { gated: false, approved: true, pending: [] as string[] };
-
-    const offices = activeOrg.org.org.offices ?? [];
-    const sigs = activeOrg.signatures.filter(
-      (s) => s.signature.dealRkey === dealRkey &&
-        s.signature.fromStage === fromStage &&
-        s.signature.toStage === toStage
-    );
-
-    const pending: string[] = [];
-    for (const officeName of gate.requiredOffices) {
-      const office = offices.find((o) => o.name === officeName);
-      if (!office) continue;
-      const officeSigs = sigs.filter((s) => s.signature.officeName === officeName);
-      if (officeSigs.length < office.requiredSignatures) {
-        pending.push(officeName);
-      }
-    }
-
-    return { gated: true, approved: pending.length === 0, pending };
   };
 
-  // Get offices the current user can sign for on a deal
-  const getSignableOffices = (dealRkey: string, fromStage: Stage, toStage: Stage) => {
-    if (!activeOrg?.org.org.workflow?.gates || !activeOrg.org.org.offices) return [];
-    const gate = activeOrg.org.org.workflow.gates.find(
-      (g) => g.fromStage === fromStage && g.toStage === toStage
+  // Get approvals for a proposal
+  const getApprovals = (proposalDid: string, proposalRkey: string) => {
+    if (!activeOrg) return [];
+    return activeOrg.approvals.filter(
+      (a) =>
+        a.approval.proposalDid === proposalDid &&
+        a.approval.proposalRkey === proposalRkey
     );
-    if (!gate) return [];
+  };
 
-    const myDid = activeOrg.memberships.find(
-      (m) => m.membership.tierName === activeOrg.myTierName
-    )?.membership.memberDid;
-    if (!myDid) return [];
-
-    return gate.requiredOffices.filter((officeName) => {
-      const office = activeOrg.org.org.offices?.find((o) => o.name === officeName);
-      if (!office) return false;
-      // Am I in this office?
-      if (!office.memberDids.includes(myDid)) return false;
-      // Have I already signed?
-      const alreadySigned = activeOrg.signatures.some(
-        (s) =>
-          s.signature.dealRkey === dealRkey &&
-          s.signature.fromStage === fromStage &&
-          s.signature.toStage === toStage &&
-          s.signature.officeName === officeName &&
-          s.signature.signerDid === myDid
-      );
-      return !alreadySigned;
-    });
+  // Get offices current user can approve for
+  const getMyOffices = () => {
+    if (!activeOrg) return [];
+    return (activeOrg.org.org.offices ?? []).filter(
+      (o) => o.memberDids.includes(myDid)
+    );
   };
 
   return (
@@ -141,8 +127,8 @@ export function DealsBoard({
         </div>
         <div className="header-right">
           <span className="header-handle">{handle}</span>
-          {tab === "deals" && canEdit && (
-            <button onClick={() => setShowForm(true)} className="btn-primary">
+          {tab === "deals" && (
+            <button onClick={() => { setEditing(undefined); setProposing(undefined); setShowForm(true); }} className="btn-primary">
               + New Deal
             </button>
           )}
@@ -168,18 +154,17 @@ export function DealsBoard({
               <div className="column-cards">
                 {items.map((dr) => (
                   <DealCard
-                    key={dr.rkey}
+                    key={`${dr.authorDid}:${dr.rkey}`}
                     dealRecord={dr}
-                    onEdit={canEdit ? handleEdit : undefined}
-                    onDelete={canEdit ? onDeleteDeal : undefined}
-                    onSign={onSignDeal}
-                    canEditMeta={canEditMeta}
-                    getGateStatus={activeOrg ? (toStage: Stage) =>
-                      getGateStatus(dr.rkey, dr.deal.stage, toStage) : undefined}
-                    getSignableOffices={activeOrg ? (toStage: Stage) =>
-                      getSignableOffices(dr.rkey, dr.deal.stage, toStage) : undefined}
-                    dealRkey={dr.rkey}
-                    currentStage={dr.deal.stage}
+                    onEdit={handleEdit}
+                    onDelete={dr.authorDid === myDid ? onDeleteDeal : undefined}
+                    isOwn={dr.authorDid === myDid}
+                    isOrg={!!activeOrg}
+                    proposals={getProposals(dr)}
+                    getApprovals={getApprovals}
+                    myOffices={getMyOffices()}
+                    myDid={myDid}
+                    onApprove={onApprove}
                   />
                 ))}
               </div>
@@ -191,11 +176,27 @@ export function DealsBoard({
       {showForm && (
         <DealForm
           existing={editing}
-          onSave={onSaveDeal}
+          proposingFor={proposing}
+          onSave={async (deal, existingRkey, tierName) => {
+            if (proposing && onPropose) {
+              // Determine change type
+              const stageChanged = deal.stage !== proposing.deal.stage;
+              const contentChanged = deal.title !== proposing.deal.title ||
+                deal.value !== proposing.deal.value ||
+                deal.notes !== proposing.deal.notes;
+              const changeType = stageChanged && contentChanged ? "edit+stage"
+                : stageChanged ? "stage" : "edit";
+              const summary = stageChanged
+                ? `Move to ${STAGE_LABELS[deal.stage]}`
+                : `Edit: ${deal.title}`;
+              await onPropose(proposing, deal, changeType, summary);
+            } else {
+              await onSaveDeal(deal, existingRkey, tierName);
+            }
+          }}
           onCancel={handleClose}
           availableTiers={availableTiers}
           activeOrg={activeOrg}
-          canEditMeta={canEditMeta}
         />
       )}
     </div>
