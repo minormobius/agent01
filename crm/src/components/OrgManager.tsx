@@ -4,6 +4,7 @@ import type {
   TierDef,
   Org,
   OrgRecord,
+  Membership,
   MembershipRecord,
   Keyring,
   KeyringMemberEntry,
@@ -27,6 +28,7 @@ const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
 const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
 const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
+const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 
 interface Props {
   pds: PdsClient;
@@ -39,10 +41,11 @@ interface Props {
   onOrgCreated: (org: OrgRecord) => void;
   onMemberInvited: (membership: MembershipRecord) => void;
   onOrgUpdated: (org: Org) => void;
+  onOrgJoined: (org: OrgRecord, founderService: string, memberships: MembershipRecord[]) => void;
   onClose: () => void;
 }
 
-type View = "list" | "create" | "manage";
+type View = "list" | "create" | "join" | "manage";
 
 export function OrgManager({
   pds,
@@ -55,6 +58,7 @@ export function OrgManager({
   onOrgCreated,
   onMemberInvited,
   onOrgUpdated,
+  onOrgJoined,
   onClose,
 }: Props) {
   const [view, setView] = useState<View>("list");
@@ -69,11 +73,23 @@ export function OrgManager({
             memberships={memberships}
             myDid={myDid}
             onCreateNew={() => setView("create")}
+            onJoinOrg={() => setView("join")}
             onManage={(org) => {
               setSelectedOrg(org);
               setView("manage");
             }}
             onClose={onClose}
+          />
+        )}
+        {view === "join" && (
+          <JoinOrg
+            pds={pds}
+            myDid={myDid}
+            onJoined={(org, founderService, joinedMemberships) => {
+              onOrgJoined(org, founderService, joinedMemberships);
+              setView("list");
+            }}
+            onBack={() => setView("list")}
           />
         )}
         {view === "create" && (
@@ -120,6 +136,7 @@ function OrgList({
   memberships,
   myDid,
   onCreateNew,
+  onJoinOrg,
   onManage,
   onClose,
 }: {
@@ -127,6 +144,7 @@ function OrgList({
   memberships: MembershipRecord[];
   myDid: string;
   onCreateNew: () => void;
+  onJoinOrg: () => void;
   onManage: (org: OrgRecord) => void;
   onClose: () => void;
 }) {
@@ -180,6 +198,9 @@ function OrgList({
       <div className="form-actions">
         <button className="btn-secondary" onClick={onClose}>
           Close
+        </button>
+        <button type="button" className="btn-secondary" onClick={onJoinOrg}>
+          Join Org
         </button>
         <button type="button" className="btn-primary" onClick={onCreateNew}>
           + New Organization
@@ -926,6 +947,157 @@ function ManageOrg({
           </div>
         </>
       )}
+    </>
+  );
+}
+
+// --- Join Org ---
+//
+// The member enters the founder's handle. We resolve it to a DID + PDS,
+// scan the founder's membership records for the current user's DID,
+// and if found, write a vault.orgBookmark to the member's own PDS.
+// On subsequent logins, discoverOrgs reads these bookmarks and fetches
+// the org + keyrings from the founder's PDS.
+
+function JoinOrg({
+  pds,
+  myDid,
+  onJoined,
+  onBack,
+}: {
+  pds: PdsClient;
+  myDid: string;
+  onJoined: (org: OrgRecord, founderService: string, memberships: MembershipRecord[]) => void;
+  onBack: () => void;
+}) {
+  const [founderHandle, setFounderHandle] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearching(true);
+    setError("");
+
+    try {
+      const input = founderHandle.trim().replace(/^@/, "");
+      if (!input) throw new Error("Enter a handle or DID");
+
+      // Resolve founder
+      const founderDid = input.startsWith("did:") ? input : await resolveHandle(input);
+      const founderService = await resolvePds(founderDid);
+      const founderClient = new PdsClient(founderService);
+
+      // Scan founder's memberships for our DID
+      const myMemberships: MembershipRecord[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await founderClient.listRecordsFrom(
+          founderDid, MEMBERSHIP_COLLECTION, 100, cursor
+        );
+        for (const rec of page.records) {
+          const val = rec.value as Record<string, unknown>;
+          if ((val as { memberDid?: string }).memberDid === myDid) {
+            const rkey = rec.uri.split("/").pop()!;
+            myMemberships.push({ rkey, membership: val as unknown as Membership });
+          }
+        }
+        cursor = page.cursor;
+      } while (cursor);
+
+      if (myMemberships.length === 0) {
+        throw new Error(
+          "No invitations found from this user. Ask them to invite you first."
+        );
+      }
+
+      // For each membership, fetch the org and write a bookmark
+      let joinedCount = 0;
+      for (const m of myMemberships) {
+        const orgRkey = m.membership.orgRkey;
+
+        const orgRec = await founderClient.getRecordFrom(
+          founderDid, ORG_COLLECTION, orgRkey
+        );
+        if (!orgRec) continue;
+
+        const orgVal = (orgRec as Record<string, unknown>).value as unknown as Org;
+
+        // Write bookmark to our PDS (idempotent via putRecord)
+        await pds.putRecord(BOOKMARK_COLLECTION, orgRkey, {
+          $type: BOOKMARK_COLLECTION,
+          founderDid,
+          founderService,
+          orgRkey,
+          orgName: orgVal.name,
+          createdAt: new Date().toISOString(),
+        });
+
+        // Fetch all memberships for this org (not just mine)
+        const allOrgMemberships: MembershipRecord[] = [];
+        let memberCursor: string | undefined;
+        do {
+          const page = await founderClient.listRecordsFrom(
+            founderDid, MEMBERSHIP_COLLECTION, 100, memberCursor
+          );
+          for (const rec of page.records) {
+            const val = rec.value as Record<string, unknown>;
+            if ((val as { orgRkey?: string }).orgRkey === orgRkey) {
+              const rkey = rec.uri.split("/").pop()!;
+              allOrgMemberships.push({ rkey, membership: val as unknown as Membership });
+            }
+          }
+          memberCursor = page.cursor;
+        } while (memberCursor);
+
+        onJoined(
+          { rkey: orgRkey, org: orgVal },
+          founderService,
+          allOrgMemberships
+        );
+        joinedCount++;
+      }
+
+      if (joinedCount === 0) {
+        throw new Error("Found memberships but could not load org records.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Join failed");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <>
+      <h2>Join Organization</h2>
+      <p className="org-hint">
+        Enter the handle of the person who invited you. We'll scan their
+        PDS for your invitation and set up a bookmark so you can find the
+        org on future logins.
+      </p>
+      <form onSubmit={handleJoin}>
+        <div className="field">
+          <label htmlFor="founder-handle">Founder's Handle</label>
+          <HandleTypeahead
+            id="founder-handle"
+            value={founderHandle}
+            onChange={setFounderHandle}
+            placeholder="alice.bsky.social"
+          />
+        </div>
+
+        {error && <div className="error">{error}</div>}
+
+        <div className="form-actions">
+          <button type="button" className="btn-secondary" onClick={onBack}>
+            Back
+          </button>
+          <button type="submit" disabled={searching}>
+            {searching ? "Searching..." : "Find My Invitations"}
+          </button>
+        </div>
+      </form>
     </>
   );
 }

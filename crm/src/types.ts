@@ -245,6 +245,20 @@ export interface MembershipRecord {
   membership: Membership;
 }
 
+/** Bookmark for an org the user has joined (not founded). Written to user's own PDS. */
+export interface OrgBookmark {
+  founderDid: string;
+  founderService: string;
+  orgRkey: string;
+  orgName: string;
+  createdAt: string;
+}
+
+export interface OrgBookmarkRecord {
+  rkey: string;
+  bookmark: OrgBookmark;
+}
+
 /** Active org context when user is working in an org. */
 export interface OrgContext {
   org: OrgRecord;

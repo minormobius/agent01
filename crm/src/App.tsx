@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { PdsClient } from "./pds";
+import { PdsClient, resolvePds } from "./pds";
 import {
   deriveKek,
   generateIdentityKey,
@@ -33,6 +33,8 @@ import type {
   DecisionRecord,
   Decision,
   OrgFilter,
+  OrgBookmark,
+  OrgBookmarkRecord,
 } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { DealsBoard } from "./components/DealsBoard";
@@ -51,6 +53,7 @@ const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
 const PROPOSAL_COLLECTION = "com.minomobi.vault.proposal";
 const APPROVAL_COLLECTION = "com.minomobi.vault.approval";
 const DECISION_COLLECTION = "com.minomobi.vault.decision";
+const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 const INNER_TYPE = "com.minomobi.crm.deal";
 
 export function App() {
@@ -190,12 +193,13 @@ export function App() {
       setLoading(true);
       try {
         const personalDeals = await loadPersonalDeals(client, dek, session.did);
-        const { foundedOrgs, allMemberships } = await discoverOrgs(client);
+        const { foundedOrgs, joinedOrgs, allMemberships } = await discoverOrgs(client, session.did);
 
-        // Load all org contexts and deals in parallel
+        // Load all org contexts and deals
         const allOrgDeals: DealRecord[] = [];
         const loadedContexts = new Map<string, OrgContext>();
 
+        // Process founded orgs (keyrings on my PDS)
         for (const org of foundedOrgs) {
           const myMembership = allMemberships.find(
             (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === session.did
@@ -203,7 +207,9 @@ export function App() {
           if (!myMembership) continue;
 
           try {
-            const ctx = await buildOrgContext(client, org, myMembership, allMemberships, privateKey, session.did);
+            const ctx = await buildOrgContext(
+              client, client.getService(), org, myMembership, allMemberships, privateKey, session.did
+            );
             loadedContexts.set(org.rkey, ctx);
             const orgDeals = await loadOrgDealsForCtx(client, ctx);
             allOrgDeals.push(...orgDeals);
@@ -212,9 +218,33 @@ export function App() {
           }
         }
 
+        // Process joined orgs (keyrings on founder's PDS)
+        for (const { org, founderService } of joinedOrgs) {
+          const myMembership = allMemberships.find(
+            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === session.did
+          );
+          if (!myMembership) continue;
+
+          try {
+            const ctx = await buildOrgContext(
+              client, founderService, org, myMembership, allMemberships, privateKey, session.did
+            );
+            loadedContexts.set(org.rkey, ctx);
+            const orgDeals = await loadOrgDealsForCtx(client, ctx);
+            allOrgDeals.push(...orgDeals);
+          } catch (err) {
+            console.warn(`Failed to load joined org ${org.org.name}:`, err);
+          }
+        }
+
+        const allOrgRecords = [
+          ...foundedOrgs,
+          ...joinedOrgs.map((j) => j.org),
+        ];
+
         setDeals([...personalDeals, ...allOrgDeals]);
         setOrgContexts(loadedContexts);
-        setOrgs(foundedOrgs);
+        setOrgs(allOrgRecords);
         setMemberships(allMemberships);
       } finally {
         setLoading(false);
@@ -224,8 +254,17 @@ export function App() {
   );
 
   // --- Discover orgs (returns data, doesn't set state) ---
+  //
+  // Two sources:
+  //   1. vault.org records on my PDS (orgs I founded)
+  //   2. vault.orgBookmark records on my PDS (orgs I joined via another founder)
+  //
+  // For joined orgs, we fetch the org definition and memberships from
+  // the founder's PDS — that's where the control plane records live.
 
-  const discoverOrgs = async (client: PdsClient) => {
+  const discoverOrgs = async (client: PdsClient, _myDid?: string) => {
+    void _myDid; // available for future use (e.g. filtering remote memberships)
+    // 1. Orgs I founded (on my PDS)
     const foundedOrgs: OrgRecord[] = [];
     let cursor: string | undefined;
     do {
@@ -238,31 +277,106 @@ export function App() {
       cursor = page.cursor;
     } while (cursor);
 
-    const allMemberships: MembershipRecord[] = [];
+    // 2. Memberships on my PDS (for orgs I founded)
+    const localMemberships: MembershipRecord[] = [];
     cursor = undefined;
     do {
       const page = await client.listRecords(MEMBERSHIP_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = rec.value as Record<string, unknown>;
         const rkey = rec.uri.split("/").pop()!;
-        allMemberships.push({ rkey, membership: val as unknown as Membership });
+        localMemberships.push({ rkey, membership: val as unknown as Membership });
       }
       cursor = page.cursor;
     } while (cursor);
 
-    return { foundedOrgs, allMemberships };
+    // 3. Bookmarks (orgs I joined, pointers on my PDS)
+    const bookmarks: OrgBookmarkRecord[] = [];
+    cursor = undefined;
+    do {
+      const page = await client.listRecords(BOOKMARK_COLLECTION, 100, cursor);
+      for (const rec of page.records) {
+        const val = rec.value as Record<string, unknown>;
+        const rkey = rec.uri.split("/").pop()!;
+        bookmarks.push({ rkey, bookmark: val as unknown as OrgBookmark });
+      }
+      cursor = page.cursor;
+    } while (cursor);
+
+    // 4. For each bookmark, fetch org + memberships from founder's PDS
+    const joinedOrgs: Array<{ org: OrgRecord; founderService: string }> = [];
+    const remoteMemberships: MembershipRecord[] = [];
+
+    for (const bm of bookmarks) {
+      try {
+        // Resolve founder's current PDS (may have migrated since bookmark was written)
+        let founderService: string;
+        try {
+          founderService = await resolvePds(bm.bookmark.founderDid);
+        } catch {
+          // Fall back to stored service URL if DID resolution fails
+          founderService = bm.bookmark.founderService;
+        }
+
+        const founderClient = new PdsClient(founderService);
+        const orgRec = await founderClient.getRecordFrom(
+          bm.bookmark.founderDid, ORG_COLLECTION, bm.bookmark.orgRkey
+        );
+        if (!orgRec) continue;
+
+        const val = (orgRec as Record<string, unknown>).value as unknown as Org;
+        joinedOrgs.push({
+          org: { rkey: bm.bookmark.orgRkey, org: val },
+          founderService,
+        });
+
+        // Fetch memberships for this org from founder's PDS
+        let memberCursor: string | undefined;
+        do {
+          const page = await founderClient.listRecordsFrom(
+            bm.bookmark.founderDid, MEMBERSHIP_COLLECTION, 100, memberCursor
+          );
+          for (const rec of page.records) {
+            const mVal = rec.value as Record<string, unknown>;
+            if ((mVal as { orgRkey?: string }).orgRkey === bm.bookmark.orgRkey) {
+              const rkey = rec.uri.split("/").pop()!;
+              remoteMemberships.push({ rkey, membership: mVal as unknown as Membership });
+            }
+          }
+          memberCursor = page.cursor;
+        } while (memberCursor);
+      } catch (err) {
+        console.warn(`Failed to fetch joined org from ${bm.bookmark.founderService}:`, err);
+      }
+    }
+
+    const allMemberships = [...localMemberships, ...remoteMemberships];
+    return { foundedOrgs, joinedOrgs, allMemberships };
   };
 
   // --- Build org context (unwrap DEKs, load change control) ---
+  //
+  // founderService: the PDS URL where org config + keyrings live.
+  //   For founded orgs, this is the logged-in user's PDS.
+  //   For joined orgs, this is the founder's PDS (resolved from bookmark).
 
   const buildOrgContext = async (
     client: PdsClient,
+    founderService: string,
     orgRecord: OrgRecord,
     myMembership: MembershipRecord,
     allMemberships: MembershipRecord[],
     privateKey: CryptoKey,
     myDid: string
   ): Promise<OrgContext> => {
+    const founderDid = orgRecord.org.founderDid;
+    const isFounder = founderDid === myDid;
+
+    // Control plane client: reads keyrings from the founder's PDS.
+    // For founders, reuse the authenticated client. For members, create
+    // an unauthenticated client pointed at the founder's PDS.
+    const controlClient = isFounder ? client : new PdsClient(founderService);
+
     const myTierDef = orgRecord.org.tiers.find(
       (t) => t.name === myMembership.membership.tierName
     );
@@ -276,7 +390,9 @@ export function App() {
 
     for (const tier of accessibleTiers) {
       try {
-        const keyringRecord = await client.getRecord(
+        // Fetch keyring from founder's PDS (cross-PDS read for non-founders)
+        const keyringRecord = await controlClient.getRecordFrom(
+          founderDid,
           KEYRING_COLLECTION,
           `${orgRecord.rkey}:${tier.name}`
         );
@@ -314,8 +430,8 @@ export function App() {
 
     return {
       org: orgRecord,
-      service: client.getService(),
-      founderDid: orgRecord.org.founderDid,
+      service: founderService,
+      founderDid,
       myTierName: myMembership.membership.tierName,
       myTierLevel: myTierDef.level,
       tierDeks,
@@ -844,6 +960,41 @@ export function App() {
     [pds, orgs]
   );
 
+  // --- Handle org joined (after JoinOrg writes bookmark) ---
+
+  const handleOrgJoined = async (
+    org: OrgRecord,
+    founderService: string,
+    newMemberships: MembershipRecord[]
+  ) => {
+    setOrgs((prev) => [...prev, org]);
+    setMemberships((prev) => [...prev, ...newMemberships]);
+
+    if (!pds || !vault.session || !identityKeys) return;
+
+    const myMembership = newMemberships.find(
+      (m) => m.membership.memberDid === vault.session!.did
+    );
+    if (!myMembership) return;
+
+    try {
+      const ctx = await buildOrgContext(
+        pds, founderService, org, myMembership, newMemberships,
+        identityKeys.privateKey, vault.session.did
+      );
+      setOrgContexts((prev) => {
+        const updated = new Map(prev);
+        updated.set(org.rkey, ctx);
+        return updated;
+      });
+
+      const orgDeals = await loadOrgDealsForCtx(pds, ctx);
+      setDeals((prev) => [...prev, ...orgDeals]);
+    } catch (err) {
+      console.warn("Failed to load joined org:", err);
+    }
+  };
+
   // --- Logout ---
 
   const handleLogout = useCallback(() => {
@@ -940,6 +1091,7 @@ export function App() {
             setMemberships((prev) => [...prev, m])
           }
           onOrgUpdated={handleUpdateOrg}
+          onOrgJoined={handleOrgJoined}
           onClose={() => setShowOrgManager(false)}
         />
       )}
