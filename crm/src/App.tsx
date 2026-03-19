@@ -512,7 +512,7 @@ export function App() {
     }
   }, [pds, vault.dek, vault.session]);
 
-  // --- Save deal (personal or org — author writes to their own PDS) ---
+  // --- Save deal (always creates a new record — no overwrites) ---
 
   const handleSaveDeal = useCallback(
     async (deal: Deal, existingRkey?: string, tierName?: string) => {
@@ -533,24 +533,59 @@ export function App() {
         throw new Error("No encryption key available");
       }
 
+      // Find the existing deal if editing (for chain link)
+      const existingDeal = existingRkey
+        ? deals.find((d) => d.rkey === existingRkey && d.authorDid === vault.session!.did)
+        : undefined;
+
       const sealed = await sealRecord(INNER_TYPE, deal, keyringRkey, dek);
 
-      if (existingRkey) {
-        await pds.putRecord(SEALED_COLLECTION, existingRkey, sealed);
-        setDeals((prev) =>
-          prev.map((d) =>
-            d.rkey === existingRkey
-              ? { rkey: existingRkey, deal, authorDid: vault.session!.did }
-              : d
-          )
-        );
+      // Always create a new record
+      const sealedWithLink = existingDeal
+        ? {
+            ...(sealed as Record<string, unknown>),
+            previousDid: existingDeal.authorDid,
+            previousRkey: existingDeal.rkey,
+          }
+        : sealed;
+
+      const res = await pds.createRecord(SEALED_COLLECTION, sealedWithLink);
+      const newRkey = res.uri.split("/").pop()!;
+
+      if (existingDeal) {
+        // Write decision record for audit trail
+        const decisionRkey = `${keyringRkey}:${existingDeal.rkey}:${newRkey}`;
+        const decision: Decision & { $type: string } = {
+          $type: DECISION_COLLECTION,
+          orgRkey: vault.activeOrg?.org.rkey ?? "personal",
+          proposalDid: vault.session.did,
+          proposalRkey: newRkey, // self-edit, no separate proposal
+          previousDid: existingDeal.authorDid,
+          previousRkey: existingDeal.rkey,
+          newDid: vault.session.did,
+          newRkey,
+          outcome: "accepted",
+          createdAt: new Date().toISOString(),
+        };
+        await pds.putRecord(DECISION_COLLECTION, decisionRkey, decision);
+
+        // Replace old deal with new in local state
+        setDeals((prev) => [
+          ...prev.filter((d) => !(d.rkey === existingDeal.rkey && d.authorDid === existingDeal.authorDid)),
+          {
+            rkey: newRkey,
+            deal,
+            authorDid: vault.session!.did,
+            previousDid: existingDeal.authorDid,
+            previousRkey: existingDeal.rkey,
+          },
+        ]);
       } else {
-        const res = await pds.createRecord(SEALED_COLLECTION, sealed);
-        const rkey = res.uri.split("/").pop()!;
-        setDeals((prev) => [...prev, { rkey, deal, authorDid: vault.session!.did }]);
+        // Brand new deal
+        setDeals((prev) => [...prev, { rkey: newRkey, deal, authorDid: vault.session!.did }]);
       }
     },
-    [pds, vault.dek, vault.activeOrg, vault.session]
+    [pds, vault.dek, vault.activeOrg, vault.session, deals]
   );
 
   // --- Propose a change to someone else's deal ---
