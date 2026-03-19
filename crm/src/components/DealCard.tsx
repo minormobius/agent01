@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { DealRecord, ProposalRecord, ApprovalRecord, Office } from "../types";
+import { STAGE_LABELS } from "../types";
+import type { DealRecord, ProposalRecord, ApprovalRecord, Office, WorkflowGate } from "../types";
 
 interface Props {
   dealRecord: DealRecord;
@@ -7,11 +8,14 @@ interface Props {
   onDelete?: (rkey: string) => void;
   isOwn: boolean;
   isOrg: boolean;
+  orgName?: string;
+  showOrgBadge: boolean;
   proposals: ProposalRecord[];
   getApprovals: (proposalDid: string, proposalRkey: string) => ApprovalRecord[];
   myOffices: Office[];
   myDid: string;
   onApprove?: (proposalDid: string, proposalRkey: string, officeName: string) => Promise<void>;
+  workflowGates: WorkflowGate[];
 }
 
 export function DealCard({
@@ -20,11 +24,14 @@ export function DealCard({
   onDelete,
   isOwn,
   isOrg,
+  orgName,
+  showOrgBadge,
   proposals,
   getApprovals,
   myOffices,
   myDid,
   onApprove,
+  workflowGates,
 }: Props) {
   const { deal, rkey } = dealRecord;
   const [approving, setApproving] = useState(false);
@@ -52,6 +59,9 @@ export function DealCard({
       setApproving(false);
     }
   };
+
+  // Relevant workflow gates for this deal's current stage
+  const relevantGates = workflowGates.filter((g) => g.fromStage === deal.stage);
 
   return (
     <div className={`deal-card ${isOwn ? "" : "deal-card-foreign"}`}>
@@ -81,7 +91,14 @@ export function DealCard({
         </div>
       )}
 
-      {/* Author badge for org mode */}
+      {/* Org badge in "all" view */}
+      {showOrgBadge && (
+        <div className="deal-org-badge">
+          {orgName ?? (dealRecord.orgRkey === "personal" ? "Personal" : dealRecord.orgRkey)}
+        </div>
+      )}
+
+      {/* Author badge for org deals */}
       {isOrg && (
         <div className="deal-author">
           {isOwn ? "you" : dealRecord.authorDid.slice(0, 16) + "..."}
@@ -93,6 +110,17 @@ export function DealCard({
         </div>
       )}
 
+      {/* Workflow policy indicator */}
+      {isOrg && relevantGates.length > 0 && (
+        <div className="deal-policy">
+          {relevantGates.map((g) => (
+            <span key={`${g.fromStage}-${g.toStage}`} className="policy-gate">
+              {STAGE_LABELS[g.toStage]}: {g.requiredOffices.join(", ")}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Pending proposals on this deal */}
       {proposals.length > 0 && (
         <div className="deal-proposals">
@@ -100,13 +128,10 @@ export function DealCard({
             const approvals = getApprovals(p.proposal.proposerDid, p.rkey);
             const approvedOffices = new Set(approvals.map((a) => a.approval.officeName));
 
-            // Which offices can I sign for that haven't been satisfied?
             const signableOffices = myOffices.filter((o) => {
               if (!p.proposal.requiredOffices.includes(o.name)) return false;
-              // Check if this office has enough signatures
               const officeSigs = approvals.filter((a) => a.approval.officeName === o.name);
               if (officeSigs.length >= o.requiredSignatures) return false;
-              // Check if I already signed for this office on this proposal
               const alreadySigned = approvals.some(
                 (a) => a.approval.officeName === o.name && a.approval.approverDid === myDid
               );

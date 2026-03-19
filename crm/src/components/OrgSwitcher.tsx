@@ -1,38 +1,33 @@
-import type { OrgRecord, OrgContext } from "../types";
+import type { OrgRecord, OrgContext, OrgFilter } from "../types";
 
 interface Props {
   orgs: OrgRecord[];
-  activeOrg: OrgContext | null;
-  onSwitchToPersonal: () => void;
-  onSwitchToOrg: (orgRkey: string) => void;
+  filterOrg: OrgFilter;
+  onFilterChange: (filter: OrgFilter) => void;
   onManageOrgs: () => void;
+  activeOrg: OrgContext | null;
 }
 
 export function OrgSwitcher({
   orgs,
-  activeOrg,
-  onSwitchToPersonal,
-  onSwitchToOrg,
+  filterOrg,
+  onFilterChange,
   onManageOrgs,
+  activeOrg,
 }: Props) {
-  const currentLabel = activeOrg
-    ? activeOrg.org.org.name
-    : "Personal Vault";
-
   return (
     <div className="org-switcher">
       <select
         className="org-select"
-        value={activeOrg ? activeOrg.org.rkey : "__personal__"}
+        value={filterOrg}
         onChange={(e) => {
           const v = e.target.value;
-          if (v === "__personal__") onSwitchToPersonal();
-          else if (v === "__manage__") onManageOrgs();
-          else onSwitchToOrg(v);
+          if (v === "__manage__") onManageOrgs();
+          else onFilterChange(v as OrgFilter);
         }}
-        title={currentLabel}
       >
-        <option value="__personal__">Personal Vault</option>
+        <option value="all">All Deals</option>
+        <option value="personal">Personal Vault</option>
         {orgs.map((org) => (
           <option key={org.rkey} value={org.rkey}>
             {org.org.name}

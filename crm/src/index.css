@@ -280,6 +280,64 @@ button[type="submit"]:hover:not(:disabled),
 .column-qualified .column-header { border-top: 3px solid #06b6d4; }
 .column-lead .column-header { border-top: 3px solid var(--text-dim); }
 
+/* --- Filter Bar --- */
+
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.filter-group label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-group select,
+.filter-group input[type="date"] {
+  padding: 0.3rem 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: var(--font);
+  outline: none;
+}
+
+.filter-group select:focus,
+.filter-group input[type="date"]:focus {
+  border-color: var(--accent);
+}
+
+.filter-clear {
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.filter-clear:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
 /* --- Deal Card --- */
 
 .deal-card {
@@ -977,6 +1035,60 @@ button[type="submit"]:hover:not(:disabled),
 
 .deal-card-foreign {
   border-left: 2px solid var(--accent);
+}
+
+.deal-org-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  display: inline-block;
+  margin: 0.2rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.deal-policy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.2rem 0;
+}
+
+.policy-gate {
+  font-size: 0.65rem;
+  color: var(--warning);
+  font-weight: 500;
+}
+
+/* --- Policy Banner (in DealForm) --- */
+
+.policy-banner {
+  background: #f59e0b10;
+  border: 1px solid #f59e0b30;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.policy-banner strong {
+  color: var(--warning);
+}
+
+.policy-gate-inline {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.policy-stage-warning {
+  color: var(--warning) !important;
+  font-weight: 600;
 }
 
 .deal-author {

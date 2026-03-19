@@ -9,9 +9,11 @@ interface Props {
   onCancel: () => void;
   availableTiers?: TierDef[] | null;
   activeOrg?: OrgContext | null;
+  /** Org context for the deal being edited (may differ from activeOrg in "all" view) */
+  orgContextForDeal?: OrgContext | null;
 }
 
-export function DealForm({ existing, proposingFor, onSave, onCancel, availableTiers, activeOrg }: Props) {
+export function DealForm({ existing, proposingFor, onSave, onCancel, availableTiers, activeOrg, orgContextForDeal }: Props) {
   const source = proposingFor?.deal ?? existing?.deal;
   const [title, setTitle] = useState(source?.title ?? "");
   const [stage, setStage] = useState<Stage>(source?.stage ?? "lead");
@@ -27,6 +29,23 @@ export function DealForm({ existing, proposingFor, onSave, onCancel, availableTi
   const [selectedTier, setSelectedTier] = useState(defaultTier);
 
   const isProposal = !!proposingFor;
+
+  // Determine org policy context (from the deal's org, or the active org for new deals)
+  const policyOrg = orgContextForDeal ?? activeOrg;
+  const workflow = policyOrg?.org.org.workflow;
+
+  // Find relevant workflow gates when stage changes
+  const getRelevantGates = () => {
+    if (!workflow || !source) return [];
+    return workflow.gates.filter(
+      (g) => g.fromStage === source.stage && g.toStage !== source.stage
+    );
+  };
+
+  const relevantGates = getRelevantGates();
+  const stageGate = workflow?.gates.find(
+    (g) => g.fromStage === (source?.stage ?? "lead") && g.toStage === stage
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +85,25 @@ export function DealForm({ existing, proposingFor, onSave, onCancel, availableTi
         {isProposal && (
           <p className="proposal-banner">
             You're proposing a change to <strong>{proposingFor.deal.title}</strong>.
-            {activeOrg?.org.org.workflow?.gates.length
+            {policyOrg?.org.org.workflow?.gates.length
               ? " Required offices will need to approve before it takes effect."
               : " This will create a new version linked to the original."}
           </p>
         )}
+
+        {/* Org policy notification */}
+        {policyOrg && relevantGates.length > 0 && !isProposal && (
+          <div className="policy-banner">
+            <strong>{policyOrg.org.org.name} policy:</strong>
+            {relevantGates.map((g) => (
+              <span key={`${g.fromStage}-${g.toStage}`} className="policy-gate-inline">
+                Moving to {STAGE_LABELS[g.toStage]} requires approval from{" "}
+                <strong>{g.requiredOffices.join(", ")}</strong>
+              </span>
+            ))}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="deal-title">Title</label>
@@ -94,6 +127,11 @@ export function DealForm({ existing, proposingFor, onSave, onCancel, availableTi
                 <option key={s} value={s}>{STAGE_LABELS[s]}</option>
               ))}
             </select>
+            {stageGate && stage !== source?.stage && (
+              <small className="policy-stage-warning">
+                Requires approval from: {stageGate.requiredOffices.join(", ")}
+              </small>
+            )}
           </div>
 
           {availableTiers && availableTiers.length > 0 && !isProposal && (

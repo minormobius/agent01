@@ -44,7 +44,12 @@ export interface DealRecord {
   /** If this deal superseded a previous version, link back */
   previousDid?: string;
   previousRkey?: string;
+  /** Which org this deal belongs to ("personal" for personal vault, org rkey for org deals) */
+  orgRkey: string;
 }
+
+/** Filter state for the unified deals view */
+export type OrgFilter = "all" | "personal" | string;
 
 /** vault.sealed envelope as stored on PDS */
 export interface SealedEnvelope {
