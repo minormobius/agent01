@@ -62,24 +62,79 @@ export interface Session {
 
 // --- Org & Tier Types ---
 
+/** Permission flags for a tier. */
+export interface TierPermissions {
+  read: boolean;      // can decrypt and view records at this tier
+  edit: boolean;      // can create/modify deal records
+  editMeta: boolean;  // can move deals between pipeline stages
+}
+
+/** Default permissions: all true for backward compat. */
+export const DEFAULT_PERMISSIONS: TierPermissions = {
+  read: true,
+  edit: true,
+  editMeta: true,
+};
+
 /** A configurable access tier within an org. Higher level = more access. */
 export interface TierDef {
   name: string;   // e.g. "operator", "manager", "executive"
   level: number;  // 0 = lowest access, higher = more access
+  permissions: TierPermissions;
 }
 
 /** Default tier presets for quick org creation. */
 export const DEFAULT_TIERS: TierDef[] = [
-  { name: "member", level: 0 },
-  { name: "manager", level: 1 },
-  { name: "admin", level: 2 },
+  { name: "member", level: 0, permissions: { read: true, edit: false, editMeta: false } },
+  { name: "manager", level: 1, permissions: { read: true, edit: true, editMeta: false } },
+  { name: "admin", level: 2, permissions: { read: true, edit: true, editMeta: true } },
 ];
+
+// --- Office & Workflow Types ---
+
+/** An office/department within an org. Members can be assigned to offices. */
+export interface Office {
+  name: string;
+  description?: string;
+  memberDids: string[];           // DIDs of members assigned to this office
+  requiredSignatures: number;     // how many members must sign (1 = any one member)
+}
+
+/** A workflow stage gate — which offices must approve before a deal can advance. */
+export interface WorkflowGate {
+  fromStage: Stage;               // deals at this stage...
+  toStage: Stage;                 // ...need approval to move here
+  requiredOffices: string[];      // office names that must sign off
+}
+
+/** Workflow definition attached to an org. */
+export interface Workflow {
+  gates: WorkflowGate[];
+}
+
+/** A signature record: one member of one office signing off on a deal stage transition. */
+export interface Signature {
+  dealRkey: string;
+  fromStage: Stage;
+  toStage: Stage;
+  officeName: string;
+  signerDid: string;
+  signerHandle?: string;
+  createdAt: string;
+}
+
+export interface SignatureRecord {
+  rkey: string;
+  signature: Signature;
+}
 
 /** Org definition record (public, stored on founder's PDS). */
 export interface Org {
   name: string;
   founderDid: string;
   tiers: TierDef[];
+  offices?: Office[];
+  workflow?: Workflow;
   createdAt: string;
 }
 
@@ -127,9 +182,14 @@ export interface OrgContext {
   founderDid: string;
   myTierName: string;
   myTierLevel: number;
+  myPermissions: TierPermissions;
   /** Map of tierName → DEK for all tiers this user can access. */
   tierDeks: Map<string, CryptoKey>;
   memberships: MembershipRecord[];
+  /** Map of tierName → permissions for accessible tiers. */
+  tierPermissions: Map<string, TierPermissions>;
+  /** Signatures on deals in this org. */
+  signatures: SignatureRecord[];
 }
 
 /** App state */

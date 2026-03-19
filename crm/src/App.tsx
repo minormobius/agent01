@@ -25,7 +25,11 @@ import type {
   Membership,
   Keyring,
   KeyringMemberEntry,
+  SignatureRecord,
+  Signature,
+  TierPermissions,
 } from "./types";
+import { DEFAULT_PERMISSIONS } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { DealsBoard } from "./components/DealsBoard";
 import { DocsPage } from "./components/DocsPage";
@@ -40,6 +44,7 @@ const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
 const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
+const SIGNATURE_COLLECTION = "com.minomobi.vault.signature";
 const INNER_TYPE = "com.minomobi.crm.deal";
 
 export function App() {
@@ -380,10 +385,34 @@ export function App() {
           }
         }
 
+        // Build tier permissions map
+        const tierPermissions = new Map<string, TierPermissions>();
+        for (const tier of accessibleTiers) {
+          tierPermissions.set(tier.name, tier.permissions ?? DEFAULT_PERMISSIONS);
+        }
+
+        const myPermissions = myTierDef.permissions ?? DEFAULT_PERMISSIONS;
+
         // Get org memberships for deal loading
         const orgMemberships = memberships.filter(
           (m) => m.membership.orgRkey === orgRkey
         );
+
+        // Load signatures for this org
+        const signatures: SignatureRecord[] = [];
+        let sigCursor: string | undefined;
+        do {
+          const page = await pds.listRecords(SIGNATURE_COLLECTION, 100, sigCursor);
+          for (const rec of page.records) {
+            const val = rec.value as Record<string, unknown>;
+            const rkey = rec.uri.split("/").pop()!;
+            // Filter to this org's signatures (rkey starts with orgRkey)
+            if (rkey.startsWith(orgRkey + ":")) {
+              signatures.push({ rkey, signature: val as unknown as Signature });
+            }
+          }
+          sigCursor = page.cursor;
+        } while (sigCursor);
 
         const orgCtx: OrgContext = {
           org: orgRecord,
@@ -391,8 +420,11 @@ export function App() {
           founderDid: orgRecord.org.founderDid,
           myTierName: myMembership.membership.tierName,
           myTierLevel: myTierDef.level,
+          myPermissions,
           tierDeks,
           memberships: orgMemberships,
+          tierPermissions,
+          signatures,
         };
 
         setVault((prev) => ({
@@ -476,6 +508,82 @@ export function App() {
     [pds]
   );
 
+  // --- Sign deal (workflow approval) ---
+
+  const handleSignDeal = useCallback(
+    async (dealRkey: string, fromStage: string, toStage: string, officeName: string) => {
+      if (!pds || !vault.session || !vault.activeOrg) throw new Error("Not in org mode");
+
+      const sig: Signature = {
+        dealRkey,
+        fromStage: fromStage as Deal["stage"],
+        toStage: toStage as Deal["stage"],
+        officeName,
+        signerDid: vault.session.did,
+        signerHandle: vault.session.handle,
+        createdAt: new Date().toISOString(),
+      };
+
+      const sigRkey = `${vault.activeOrg.org.rkey}:${dealRkey}:${officeName}:${vault.session.did}`;
+      await pds.putRecord(SIGNATURE_COLLECTION, sigRkey, {
+        $type: SIGNATURE_COLLECTION,
+        ...sig,
+      });
+
+      // Update local state
+      setVault((prev) => {
+        if (!prev.activeOrg) return prev;
+        return {
+          ...prev,
+          activeOrg: {
+            ...prev.activeOrg,
+            signatures: [
+              ...prev.activeOrg.signatures,
+              { rkey: sigRkey, signature: sig },
+            ],
+          },
+        };
+      });
+    },
+    [pds, vault.session, vault.activeOrg]
+  );
+
+  // --- Update org (offices/workflow changes) ---
+
+  const handleUpdateOrg = useCallback(
+    async (updatedOrg: Org) => {
+      if (!pds) return;
+      const orgRecord = orgs.find((o) => o.org.name === updatedOrg.name);
+      if (!orgRecord) return;
+
+      await pds.putRecord(ORG_COLLECTION, orgRecord.rkey, {
+        $type: ORG_COLLECTION,
+        ...updatedOrg,
+      });
+
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.rkey === orgRecord.rkey ? { ...o, org: updatedOrg } : o
+        )
+      );
+
+      // If we're currently viewing this org, update the context
+      if (vault.activeOrg?.org.rkey === orgRecord.rkey) {
+        setVault((prev) => {
+          if (!prev.activeOrg) return prev;
+          return {
+            ...prev,
+            activeOrg: {
+              ...prev.activeOrg,
+              org: { ...prev.activeOrg.org, org: updatedOrg },
+            },
+          };
+        });
+      }
+    },
+    [pds, orgs, vault.activeOrg]
+  );
+
   // --- Logout ---
 
   const handleLogout = useCallback(() => {
@@ -526,6 +634,7 @@ export function App() {
         deals={deals}
         onSaveDeal={handleSaveDeal}
         onDeleteDeal={handleDeleteDeal}
+        onSignDeal={handleSignDeal}
         handle={vault.session.handle}
         onLogout={handleLogout}
         tab={tab}
@@ -547,6 +656,7 @@ export function App() {
         <OrgManager
           pds={pds}
           myDid={vault.session.did}
+          myHandle={vault.session.handle}
           myPrivateKey={identityKeys.privateKey}
           myPublicKey={identityKeys.publicKey}
           orgs={orgs}
@@ -555,6 +665,7 @@ export function App() {
           onMemberInvited={(m) =>
             setMemberships((prev) => [...prev, m])
           }
+          onOrgUpdated={handleUpdateOrg}
           onClose={() => setShowOrgManager(false)}
         />
       )}

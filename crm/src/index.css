@@ -761,6 +761,309 @@ button[type="submit"]:hover:not(:disabled),
   margin-bottom: 1rem;
 }
 
+/* --- Permission Badges --- */
+
+.tier-perms {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.perm-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.perm-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.tier-perms-display {
+  display: flex;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+
+.perm-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.perm-r { background: #22c55e30; color: var(--success); }
+.perm-e { background: #6366f130; color: var(--accent); }
+.perm-m { background: #f59e0b30; color: var(--warning); }
+
+/* --- Manage Tabs --- */
+
+.manage-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.manage-tab {
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.manage-tab:hover { color: var(--text); }
+.manage-tab-active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* --- Org Hint --- */
+
+.org-hint {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+/* --- Office Cards --- */
+
+.office-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.office-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.office-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.office-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.office-sigs {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+.office-desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.office-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.office-members-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.office-member-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  user-select: none;
+}
+
+.office-member-toggle.active {
+  border-color: var(--accent);
+  background: #6366f115;
+}
+
+.office-member-toggle input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* --- Workflow Gates --- */
+
+.gate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gate-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gate-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.gate-stage {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.gate-arrow {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.gate-offices {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.gate-office-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.gate-office-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* --- Deal Card Workflow --- */
+
+.deal-gate {
+  margin: 0.35rem 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.gate-pending {
+  background: #f59e0b15;
+  border: 1px solid #f59e0b33;
+  color: var(--warning);
+}
+
+.gate-approved {
+  background: #22c55e15;
+  border: 1px solid #22c55e33;
+  color: var(--success);
+}
+
+.gate-status-text {
+  font-weight: 500;
+}
+
+.gate-clickable {
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--warning);
+  font-size: 0.75rem;
+  padding: 0;
+  font-family: var(--font);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.deal-sign-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.5rem;
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.sign-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.btn-sign {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.btn-sign:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.deal-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.deal-advance {
+  background: none;
+  color: var(--success);
+  font-size: 0.75rem;
+  padding: 0.2rem 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-left: auto;
+}
+
+.deal-card:hover .deal-advance { opacity: 1; }
+
+.deal-advance:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
 /* --- Docs Page --- */
 
 .docs-page {

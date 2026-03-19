@@ -8,9 +8,10 @@ interface Props {
   onCancel: () => void;
   availableTiers?: TierDef[] | null;
   activeOrg?: OrgContext | null;
+  canEditMeta?: boolean;
 }
 
-export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg }: Props) {
+export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg, canEditMeta = true }: Props) {
   const init = existing?.deal;
   const [title, setTitle] = useState(init?.title ?? "");
   const [stage, setStage] = useState<Stage>(init?.stage ?? "lead");
@@ -76,11 +77,15 @@ export function DealForm({ existing, onSave, onCancel, availableTiers, activeOrg
               id="deal-stage"
               value={stage}
               onChange={(e) => setStage(e.target.value as Stage)}
+              disabled={!!existing && !canEditMeta}
             >
               {STAGES.map((s) => (
                 <option key={s} value={s}>{STAGE_LABELS[s]}</option>
               ))}
             </select>
+            {!!existing && !canEditMeta && (
+              <small>You don't have permission to change the stage.</small>
+            )}
           </div>
 
           {availableTiers && availableTiers.length > 0 && (
