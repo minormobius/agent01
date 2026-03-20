@@ -29,6 +29,7 @@ import {
   fromBase64,
 } from "../crypto";
 import { HandleTypeahead } from "./HandleTypeahead";
+import { checkAuthority, logAuthorityViolation } from "../authority";
 
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
@@ -129,6 +130,7 @@ export function OrgManager({
             memberships={memberships.filter(
               (m) => m.membership.orgRkey === selectedOrg.rkey
             )}
+            allMemberships={memberships}
             relationships={relationships.filter(
               (r) =>
                 (r.relationship.parentRef?.orgRkey === selectedOrg.rkey &&
@@ -422,6 +424,7 @@ function ManageOrg({
   myPrivateKey,
   myPublicKey,
   memberships,
+  allMemberships,
   relationships,
   onMemberInvited,
   onMemberRemoved,
@@ -436,6 +439,7 @@ function ManageOrg({
   myPrivateKey: CryptoKey;
   myPublicKey: CryptoKey;
   memberships: MembershipRecord[];
+  allMemberships: MembershipRecord[];
   relationships: OrgRelationshipRecord[];
   onMemberInvited: (membership: MembershipRecord) => void;
   onMemberRemoved: (membershipRkey: string, updatedOrg: Org) => void;
@@ -465,10 +469,34 @@ function ManageOrg({
   const [newGateOffices, setNewGateOffices] = useState<string[]>([]);
   const [workflowSaving] = useState(false);
 
+  // --- Authority enforcement ---
+  // Returns true if authorized, false if denied (and sets error message).
+  const requireAuthority = (authority: Authority): boolean => {
+    const result = checkAuthority(
+      myDid, authority, org.org.founderDid, org.rkey, org.org.name,
+      relationships, allMemberships
+    );
+    if (result.granted) return true;
+    logAuthorityViolation(myDid, authority, org.rkey, result.denial);
+    setError(result.denial.hint);
+    return false;
+  };
+
+  // Pre-compute which tabs the user can interact with
+  const canManageMembers = checkAuthority(
+    myDid, "manage_members", org.org.founderDid, org.rkey, org.org.name,
+    relationships, allMemberships
+  ).granted;
+  const canManageWorkflow = checkAuthority(
+    myDid, "manage_workflow", org.org.founderDid, org.rkey, org.org.name,
+    relationships, allMemberships
+  ).granted;
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    if (!requireAuthority("manage_members")) return;
     setInviting(true);
 
     try {
@@ -601,6 +629,7 @@ function ManageOrg({
     const memberDid = membership.membership.memberDid;
     if (memberDid === myDid) return; // Can't remove yourself
     if (memberDid === org.org.founderDid) return; // Can't remove founder
+    if (!requireAuthority("manage_members")) return;
 
     setRemoving(memberDid);
     setError("");
@@ -736,6 +765,7 @@ function ManageOrg({
 
   const addOffice = async () => {
     if (!newOfficeName.trim()) return;
+    if (!requireAuthority("manage_workflow")) return;
     setOfficeSaving(true);
     setError("");
     try {
@@ -761,6 +791,7 @@ function ManageOrg({
   };
 
   const removeOffice = (idx: number) => {
+    if (!requireAuthority("manage_workflow")) return;
     const updated = offices.filter((_, i) => i !== idx);
     setOffices(updated);
     // Also remove this office from any workflow gates
@@ -774,6 +805,7 @@ function ManageOrg({
   };
 
   const toggleMemberInOffice = (officeIdx: number, memberDid: string) => {
+    if (!requireAuthority("manage_workflow")) return;
     const updated = offices.map((office, i) => {
       if (i !== officeIdx) return office;
       const hasMember = office.memberDids.includes(memberDid);
@@ -792,6 +824,7 @@ function ManageOrg({
 
   const addGate = () => {
     if (newGateOffices.length === 0) return;
+    if (!requireAuthority("manage_workflow")) return;
     const gate: WorkflowGate = {
       fromStage: newGateFrom,
       toStage: newGateTo,
@@ -804,6 +837,7 @@ function ManageOrg({
   };
 
   const removeGate = (idx: number) => {
+    if (!requireAuthority("manage_workflow")) return;
     const updated = gates.filter((_, i) => i !== idx);
     setGates(updated);
     onOrgUpdated({ ...org.org, offices, workflow: { gates: updated } });
@@ -888,7 +922,7 @@ function ManageOrg({
                         {isFounder && <span className="member-badge"> (founder)</span>}
                       </span>
                       <span className="member-tier">{m.membership.tierName}</span>
-                      {!isFounder && !isMe && (
+                      {!isFounder && !isMe && canManageMembers && (
                         <button
                           className="tier-remove"
                           onClick={() => handleRemoveMember(m)}
@@ -907,49 +941,69 @@ function ManageOrg({
 
           <div className="org-section">
             <h3>Invite Member</h3>
-            <form onSubmit={handleInvite}>
-              <div className="field">
-                <label htmlFor="invite-handle">Username</label>
-                <HandleTypeahead
-                  id="invite-handle"
-                  value={inviteHandle}
-                  onChange={setInviteHandle}
-                  placeholder="handle.bsky.social"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="invite-tier">Tier</label>
-                <select
-                  id="invite-tier"
-                  value={inviteTier}
-                  onChange={(e) => setInviteTier(e.target.value)}
-                >
-                  {org.org.tiers.map((t) => (
-                    <option key={t.name} value={t.name}>
-                      {t.name} (L{t.level})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {canManageMembers ? (
+              <form onSubmit={handleInvite}>
+                <div className="field">
+                  <label htmlFor="invite-handle">Username</label>
+                  <HandleTypeahead
+                    id="invite-handle"
+                    value={inviteHandle}
+                    onChange={setInviteHandle}
+                    placeholder="handle.bsky.social"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="invite-tier">Tier</label>
+                  <select
+                    id="invite-tier"
+                    value={inviteTier}
+                    onChange={(e) => setInviteTier(e.target.value)}
+                  >
+                    {org.org.tiers.map((t) => (
+                      <option key={t.name} value={t.name}>
+                        {t.name} (L{t.level})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              {error && <div className="error">{error}</div>}
-              {success && <div className="success">{success}</div>}
+                {error && <div className="error">{error}</div>}
+                {success && <div className="success">{success}</div>}
 
+                <div className="form-actions">
+                  <button type="button" className="btn-secondary" onClick={onBack}>
+                    Back
+                  </button>
+                  <button type="submit" disabled={inviting}>
+                    {inviting ? "Inviting..." : "Invite"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="org-hint">
+                You don't have permission to invite members. Ask the org founder
+                or someone with manage_members authority.
+              </p>
+            )}
+            {!canManageMembers && error && <div className="error">{error}</div>}
+            {!canManageMembers && (
               <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={onBack}>
                   Back
                 </button>
-                <button type="submit" disabled={inviting}>
-                  {inviting ? "Inviting..." : "Invite"}
-                </button>
               </div>
-            </form>
+            )}
           </div>
         </>
       )}
 
       {manageTab === "offices" && (
         <>
+          {!canManageWorkflow && (
+            <p className="org-hint" style={{ color: "var(--color-warning, #b59f3b)" }}>
+              Read-only — you need manage_workflow authority to modify offices.
+            </p>
+          )}
           <div className="org-section">
             <h3>Offices / Departments</h3>
             <p className="org-hint">
@@ -1055,6 +1109,11 @@ function ManageOrg({
 
       {manageTab === "workflow" && (
         <>
+          {!canManageWorkflow && (
+            <p className="org-hint" style={{ color: "var(--color-warning, #b59f3b)" }}>
+              Read-only — you need manage_workflow authority to modify gates.
+            </p>
+          )}
           <div className="org-section">
             <h3>Approval Gates</h3>
             <p className="org-hint">
