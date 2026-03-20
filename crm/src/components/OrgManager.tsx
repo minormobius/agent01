@@ -289,6 +289,7 @@ function CreateOrg({
           $type: KEYRING_COLLECTION,
           orgRkey,
           tierName: tier.name,
+          epoch: 0,
           writerDid: myDid,
           writerPublicKey: myPubB64,
           members: [{ did: myDid, wrappedDek: toBase64(wrapped) }],
@@ -479,43 +480,59 @@ function ManageOrg({
       const tiersToGrant = org.org.tiers.filter((t) => t.level <= tierDef.level);
 
       for (const tier of tiersToGrant) {
-        const keyringRecord = await pds.getRecord(
-          KEYRING_COLLECTION,
-          `${org.rkey}:${tier.name}`
-        );
-        if (!keyringRecord) continue;
+        const currentEpoch = tier.currentEpoch ?? 0;
 
-        const keyringVal = (keyringRecord as Record<string, unknown>).value as Keyring & { $type: string };
-        const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
-        if (!myEntry) continue;
+        // Add the invitee to every epoch's keyring so they can decrypt
+        // both historical and current records for this tier.
+        for (let epoch = 0; epoch <= currentEpoch; epoch++) {
+          const rkey =
+            epoch === 0
+              ? `${org.rkey}:${tier.name}`
+              : `${org.rkey}:${tier.name}:${epoch}`;
 
-        const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
-        const tierDek = await unwrapDekFromMember(
-          fromBase64(myEntry.wrappedDek),
-          myPrivateKey,
-          writerPublicKey
-        );
+          const keyringRecord = await pds.getRecord(KEYRING_COLLECTION, rkey);
+          if (!keyringRecord) continue;
 
-        const wrappedForInvitee = await wrapDekForMember(
-          tierDek,
-          myPrivateKey,
-          inviteePublicKey
-        );
+          const keyringVal = (keyringRecord as Record<string, unknown>)
+            .value as Keyring & { $type: string };
+          const myEntry = keyringVal.members.find(
+            (m: KeyringMemberEntry) => m.did === myDid
+          );
+          if (!myEntry) continue;
 
-        const myPubRaw = await exportPublicKey(myPublicKey);
-        const updatedMembers = [
-          ...keyringVal.members.filter((m: KeyringMemberEntry) => m.did !== inviteeDid),
-          { did: inviteeDid, wrappedDek: toBase64(wrappedForInvitee) },
-        ];
+          const writerPublicKey = await importPublicKey(
+            fromBase64(keyringVal.writerPublicKey)
+          );
+          const tierDek = await unwrapDekFromMember(
+            fromBase64(myEntry.wrappedDek),
+            myPrivateKey,
+            writerPublicKey
+          );
 
-        await pds.putRecord(KEYRING_COLLECTION, `${org.rkey}:${tier.name}`, {
-          $type: KEYRING_COLLECTION,
-          orgRkey: org.rkey,
-          tierName: tier.name,
-          writerDid: myDid,
-          writerPublicKey: toBase64(myPubRaw),
-          members: updatedMembers,
-        });
+          const wrappedForInvitee = await wrapDekForMember(
+            tierDek,
+            myPrivateKey,
+            inviteePublicKey
+          );
+
+          const myPubRaw = await exportPublicKey(myPublicKey);
+          const updatedMembers = [
+            ...keyringVal.members.filter(
+              (m: KeyringMemberEntry) => m.did !== inviteeDid
+            ),
+            { did: inviteeDid, wrappedDek: toBase64(wrappedForInvitee) },
+          ];
+
+          await pds.putRecord(KEYRING_COLLECTION, rkey, {
+            $type: KEYRING_COLLECTION,
+            orgRkey: org.rkey,
+            tierName: tier.name,
+            epoch,
+            writerDid: myDid,
+            writerPublicKey: toBase64(myPubRaw),
+            members: updatedMembers,
+          });
+        }
       }
 
       const membershipRes = await pds.createRecord(MEMBERSHIP_COLLECTION, {
