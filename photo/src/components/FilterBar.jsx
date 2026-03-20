@@ -28,12 +28,19 @@ const BLOB_TYPE_OPTIONS = [
   { value: 'video', label: 'Videos' },
 ];
 
+const SOURCE_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'posts', label: 'From posts' },
+  { value: 'uploads', label: 'Uploaded' },
+];
+
 export default function FilterBar({
   filters,
   onChange,
   syncedUsers,
   hasColors,
   hasVideos,
+  hasUploads,
   dateRange,
 }) {
   // Date range bounds from the data
@@ -48,6 +55,24 @@ export default function FilterBar({
 
   return (
     <div className="photo-filters">
+      {/* Source filter (only when uploads exist) */}
+      {hasUploads && (
+        <div className="photo-filter-group">
+          <label className="photo-filter-label">Source</label>
+          <div className="photo-filter-pills">
+            {SOURCE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`photo-filter-pill${filters.source === opt.value ? ' active' : ''}`}
+                onClick={() => update('source', opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Blob type filter */}
       {hasVideos && (
         <div className="photo-filter-group">

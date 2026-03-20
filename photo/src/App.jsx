@@ -1,12 +1,17 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { resolveHandle } from './lib/resolve.js';
 import { downloadRepo, parseCar } from './lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, extractVideos, filterPostsNdjson } from './lib/duckdb.js';
 import { fetchEngagement, getEngagement } from './lib/engagement.js';
 import { extractColorsForImages, imageColorRegions, computeEigenpalette, colorToHex, clearEigenCache } from './lib/colors.js';
+import { login as authLogin, logout as authLogout, getSession } from './lib/auth.js';
+import { loadUploadedImages, loadAlbums, saveAlbum, getRecord } from './lib/pds.js';
 import Grid from './components/Grid.jsx';
 import FilterBar from './components/FilterBar.jsx';
 import HandleTypeahead from './components/HandleTypeahead.jsx';
+import LoginButton from './components/LoginButton.jsx';
+import UploadButton from './components/UploadButton.jsx';
+import Albums from './components/Albums.jsx';
 import './App.css';
 
 const SORT_OPTIONS = [
@@ -23,6 +28,7 @@ const DEFAULT_FILTERS = {
   blobType: 'all',
   dateFrom: '',
   dateTo: '',
+  source: 'all', // all | posts | uploads
 };
 
 const STATUS_MESSAGES = {
@@ -50,6 +56,71 @@ export default function App() {
   const [colorProgress, setColorProgress] = useState(null);
   const pdsUrlMap = useRef({}); // did → pdsUrl for image URLs
 
+  // Arena state
+  const [session, setSession] = useState(null);
+  const [uploadedImages, setUploadedImages] = useState([]); // images from arena.image records
+  const [albums, setAlbums] = useState([]);
+  const [selectedAlbum, setSelectedAlbum] = useState(null); // null = all uploads, rkey = specific album
+
+  const handleLogin = useCallback(async (service, identifier, password) => {
+    const sess = await authLogin(service, identifier, password);
+    setSession(sess);
+    // Store PDS URL for the logged-in user
+    pdsUrlMap.current[sess.did] = sess.service;
+    // Load their uploads and albums
+    loadUserData(sess);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    authLogout();
+    setSession(null);
+    setUploadedImages([]);
+    setAlbums([]);
+    setSelectedAlbum(null);
+  }, []);
+
+  const loadUserData = useCallback(async (sess) => {
+    try {
+      const [imgs, albs] = await Promise.all([
+        loadUploadedImages(),
+        loadAlbums(),
+      ]);
+
+      // Convert uploaded images to the same shape as post-extracted images
+      const arenaImages = imgs.map(rec => {
+        const blob = rec.value.image;
+        const cid = blob?.ref?.$link || blob?.ref?.['$link'] || '';
+        return {
+          did: sess.did,
+          rkey: rec.rkey,
+          cid,
+          alt: rec.value.alt || '',
+          text: '',
+          createdAt: rec.value.createdAt,
+          aspectRatio: rec.value.aspectRatio || null,
+          mimeType: blob?.mimeType || 'image/jpeg',
+          source: 'arena', // distinguishes from post-extracted images
+        };
+      });
+
+      setUploadedImages(arenaImages);
+      setAlbums(albs);
+    } catch (err) {
+      console.error('Failed to load user data:', err);
+    }
+  }, []);
+
+  const handleUploaded = useCallback((uploaded) => {
+    // Reload from PDS to get the full record data
+    const sess = getSession();
+    if (sess) loadUserData(sess);
+  }, [loadUserData]);
+
+  const handleAlbumsChanged = useCallback(() => {
+    const sess = getSession();
+    if (sess) loadUserData(sess);
+  }, [loadUserData]);
+
   const syncUser = useCallback(async (handle) => {
     setError(null);
     setProgress(null);
@@ -62,7 +133,7 @@ export default function App() {
       // Check if already synced
       if (syncedUsers.some(u => u.did === identity.did)) {
         setError(`Already synced: @${identity.handle}`);
-        setStatus(images.length > 0 ? 'ready' : 'idle');
+        setStatus(images.length > 0 || uploadedImages.length > 0 ? 'ready' : 'idle');
         return;
       }
 
@@ -84,8 +155,6 @@ export default function App() {
       carBytes = null; // free ~100MB
 
       // Filter to only post records before DuckDB ingest.
-      // For large repos (225K records), this drops ~95% of data,
-      // keeping only app.bsky.feed.post lines for image extraction.
       const { filtered, totalLines } = filterPostsNdjson(ndjson);
       ndjson = null; // free full NDJSON
 
@@ -122,9 +191,9 @@ export default function App() {
       extractColorsInBackground(allImages);
     } catch (err) {
       setError(err.message);
-      setStatus(images.length > 0 ? 'ready' : 'idle');
+      setStatus(images.length > 0 || uploadedImages.length > 0 ? 'ready' : 'idle');
     }
-  }, [syncedUsers, images.length]);
+  }, [syncedUsers, images.length, uploadedImages.length]);
 
   const extractColorsInBackground = useCallback(async (imgs) => {
     setColorProgress({ done: 0, total: imgs.length });
@@ -155,14 +224,39 @@ export default function App() {
     }
   }, [images, videos, engagementLoaded]);
 
-  // Merge images + videos into a single list for unified display
+  // Merge all media: post-extracted images + videos + uploaded arena images
   const allMedia = useMemo(() => {
-    const imgs = images.map(i => ({ ...i, type: 'image' }));
-    const vids = videos.map(v => ({ ...v, type: 'video' }));
-    return [...imgs, ...vids].sort((a, b) =>
+    const postImgs = images.map(i => ({ ...i, type: 'image', source: 'post' }));
+    const vids = videos.map(v => ({ ...v, type: 'video', source: 'post' }));
+    const arenaImgs = uploadedImages.map(i => ({ ...i, type: 'image', source: 'arena' }));
+
+    // When viewing an album, only show album images
+    if (selectedAlbum !== null) {
+      const album = albums.find(a => a.rkey === selectedAlbum);
+      if (album) {
+        return (album.value.images || []).map((entry, i) => {
+          const blob = entry.image;
+          const cid = blob?.ref?.$link || blob?.ref?.['$link'] || '';
+          return {
+            did: session?.did || '',
+            rkey: `album-${selectedAlbum}-${i}`,
+            cid,
+            alt: entry.alt || '',
+            text: '',
+            createdAt: album.value.updatedAt || album.value.createdAt,
+            aspectRatio: null,
+            mimeType: blob?.mimeType || 'image/jpeg',
+            type: 'image',
+            source: 'album',
+          };
+        });
+      }
+    }
+
+    return [...postImgs, ...vids, ...arenaImgs].sort((a, b) =>
       (b.createdAt || '').localeCompare(a.createdAt || '')
     );
-  }, [images, videos]);
+  }, [images, videos, uploadedImages, selectedAlbum, albums, session]);
 
   // Date range from data
   const dateRange = useMemo(() => {
@@ -175,6 +269,10 @@ export default function App() {
   // Apply filters
   const filteredMedia = useMemo(() => {
     return allMedia.filter(item => {
+      // Source filter
+      if (filters.source === 'posts' && item.source !== 'post') return false;
+      if (filters.source === 'uploads' && item.source !== 'arena') return false;
+
       // Blob type
       if (filters.blobType !== 'all' && item.type !== filters.blobType) return false;
 
@@ -193,8 +291,7 @@ export default function App() {
         if (filters.aspect === 'square' && (ratio < 0.95 || ratio > 1.05)) return false;
       }
 
-      // Color — check all palette colors, not just dominant.
-      // If no color data yet for this item, include it (don't filter on missing data).
+      // Color
       if (filters.color !== 'all' && colorsReady) {
         const regions = imageColorRegions(item.did, item.rkey, item.cid);
         if (regions && !regions.has(filters.color)) return false;
@@ -224,27 +321,51 @@ export default function App() {
   }, [filteredMedia, sortBy, engagementLoaded]);
 
   const busy = !['idle', 'ready', 'error'].includes(status);
+  const hasContent = allMedia.length > 0;
 
   return (
     <div className="photo">
       <header className="photo-header">
         <div className="photo-title">
           <h1>ATPhoto</h1>
-          <span className="photo-subtitle">Image Explorer</span>
+          <span className="photo-subtitle">Arena</span>
         </div>
 
-        <form className="photo-search" onSubmit={handleSubmit}>
-          <HandleTypeahead
-            value={input}
-            onChange={setInput}
-            disabled={busy}
-            autoFocus
+        <div className="photo-header-right">
+          <form className="photo-search" onSubmit={handleSubmit}>
+            <HandleTypeahead
+              value={input}
+              onChange={setInput}
+              disabled={busy}
+              autoFocus
+            />
+            <button type="submit" disabled={busy || !input.trim()}>
+              {busy ? 'Syncing...' : 'Sync'}
+            </button>
+          </form>
+
+          <LoginButton
+            session={session}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
           />
-          <button type="submit" disabled={busy || !input.trim()}>
-            {busy ? 'Syncing...' : 'Sync'}
-          </button>
-        </form>
+        </div>
       </header>
+
+      {/* Upload + Albums bar (logged in only) */}
+      {session && (
+        <div className="arena-toolbar">
+          <UploadButton session={session} onUploaded={handleUploaded} />
+          <Albums
+            session={session}
+            albums={albums}
+            onAlbumsChanged={handleAlbumsChanged}
+            uploadedImages={uploadedImages}
+            selectedAlbum={selectedAlbum}
+            onSelectAlbum={setSelectedAlbum}
+          />
+        </div>
+      )}
 
       {/* Status bar */}
       {busy && (
@@ -303,7 +424,7 @@ export default function App() {
       )}
 
       {/* Sort + filter controls */}
-      {allMedia.length > 0 && (
+      {hasContent && (
         <>
           <div className="photo-sort">
             {SORT_OPTIONS.map(opt => (
@@ -333,6 +454,7 @@ export default function App() {
             syncedUsers={syncedUsers}
             hasColors={colorsReady}
             hasVideos={videos.length > 0}
+            hasUploads={uploadedImages.length > 0}
             dateRange={dateRange}
           />
         </>
@@ -348,7 +470,7 @@ export default function App() {
       )}
 
       {/* No results after filtering */}
-      {allMedia.length > 0 && sortedMedia.length === 0 && (
+      {hasContent && sortedMedia.length === 0 && (
         <div className="photo-empty">
           <p>No media matches the current filters.</p>
           <p className="photo-empty-sub">
@@ -360,12 +482,13 @@ export default function App() {
       )}
 
       {/* Empty state */}
-      {status === 'idle' && allMedia.length === 0 && (
+      {status === 'idle' && !hasContent && (
         <div className="photo-empty">
           <p>Enter a Bluesky handle to explore their image posts.</p>
           <p className="photo-empty-sub">
-            Downloads their repo, parses the CAR file with Rust/WASM,
-            loads into DuckDB, and renders every image embed.
+            {session
+              ? 'Or upload images directly to your PDS.'
+              : 'Log in with an app password to upload images and create albums.'}
           </p>
         </div>
       )}
@@ -402,15 +525,56 @@ export default function App() {
                     </span>
                   ) : null;
                 })()}
-                <a
-                  href={`https://bsky.app/profile/${selectedImage.did}/post/${selectedImage.rkey}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="photo-lightbox-link"
-                >
-                  View post
-                </a>
+                {selectedImage.source === 'post' && (
+                  <a
+                    href={`https://bsky.app/profile/${selectedImage.did}/post/${selectedImage.rkey}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="photo-lightbox-link"
+                  >
+                    View post
+                  </a>
+                )}
+                {selectedImage.source === 'arena' && (
+                  <span className="photo-lightbox-source">Uploaded</span>
+                )}
               </p>
+
+              {/* Add to album (logged in + has albums) */}
+              {session && albums.length > 0 && selectedImage.source === 'arena' && (
+                <div className="photo-lightbox-albums">
+                  <span className="photo-lightbox-albums-label">Add to album:</span>
+                  {albums.map(album => (
+                    <button
+                      key={album.rkey}
+                      className="arena-btn-small"
+                      onClick={async () => {
+                        const existing = album.value.images || [];
+                        const imgRec = uploadedImages.find(u =>
+                          u.rkey === selectedImage.rkey && u.did === selectedImage.did
+                        );
+                        if (!imgRec) return;
+                        try {
+                          const rec = await getRecord('com.minomobi.arena.image', imgRec.rkey);
+                          const entry = {
+                            image: rec.value.image,
+                            alt: rec.value.alt || '',
+                          };
+                          await saveAlbum({
+                            ...album.value,
+                            images: [...existing, entry],
+                          }, album.rkey);
+                          handleAlbumsChanged();
+                        } catch (err) {
+                          console.error('Failed to add to album:', err);
+                        }
+                      }}
+                    >
+                      {album.value.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button className="photo-lightbox-close" onClick={() => setSelectedImage(null)}>
               &times;
@@ -429,7 +593,13 @@ function imageUrl(img, pdsUrlMap) {
   return `${pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(img.did)}&cid=${encodeURIComponent(cid)}`;
 }
 
-function thumbUrl(img) {
+function thumbUrl(img, pdsUrlMapOverride) {
+  // Arena uploads don't have CDN thumbnails — use getBlob directly
+  if (img.source === 'arena' || img.source === 'album') {
+    if (pdsUrlMapOverride) return imageUrl(img, pdsUrlMapOverride);
+    // Fallback: can't render without PDS URL
+    return '';
+  }
   const cid = ensureCid(img.cid);
   return `https://cdn.bsky.app/img/feed_thumbnail/plain/${img.did}/${cid}@jpeg`;
 }
@@ -438,18 +608,11 @@ function thumbUrl(img) {
 export { imageUrl, thumbUrl };
 
 // Convert raw SHA-256 hex hash to CIDv1 string (base32lower, raw codec)
-// The WASM CAR parser outputs raw hex hashes from DAG-CBOR $link fields,
-// but CDN and getBlob expect proper CID strings like "bafkrei..."
 function ensureCid(raw) {
-  // Already a proper CID string (starts with 'b' for base32lower or 'Q' for base58)
   if (/^[bQ]/.test(raw) && raw.length > 40) return raw;
-
-  // Raw hex SHA-256 hash (64 hex chars = 32 bytes)
   if (/^[0-9a-f]{64}$/i.test(raw)) {
     return hexToCidV1Raw(raw);
   }
-
-  // Unknown format — return as-is and hope for the best
   return raw;
 }
 
@@ -479,12 +642,11 @@ function hexToCidV1Raw(hex) {
   for (let i = 0; i < hex.length; i += 2) {
     hashBytes[i / 2] = parseInt(hex.substr(i, 2), 16);
   }
-  // CIDv1: version(0x01) + codec(raw=0x55) + multihash(sha256=0x12, len=0x20) + digest
   const cidBytes = new Uint8Array(4 + hashBytes.length);
-  cidBytes[0] = 0x01; // CID version 1
-  cidBytes[1] = 0x55; // raw codec
-  cidBytes[2] = 0x12; // SHA-256
-  cidBytes[3] = 0x20; // 32 bytes digest length
+  cidBytes[0] = 0x01;
+  cidBytes[1] = 0x55;
+  cidBytes[2] = 0x12;
+  cidBytes[3] = 0x20;
   cidBytes.set(hashBytes, 4);
   return 'b' + base32Encode(cidBytes);
 }

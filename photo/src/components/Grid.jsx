@@ -113,7 +113,9 @@ function ImageCard({ img, pdsUrlMap, onSelect }) {
   const ar = img.aspectRatio;
   const paddingBottom = ar ? `${(ar.height / ar.width) * 100}%` : '75%';
 
-  const src = fallback
+  // Arena uploads don't have CDN thumbnails — use getBlob directly
+  const isArena = img.source === 'arena' || img.source === 'album';
+  const src = (fallback || isArena)
     ? imageUrl(img, pdsUrlMap)
     : thumbUrl(img);
 

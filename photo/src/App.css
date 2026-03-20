@@ -586,3 +586,359 @@ body {
 .photo-lightbox-close:hover {
   background: rgba(0, 0, 0, 0.7);
 }
+
+.photo-lightbox-source {
+  color: #888;
+  font-style: italic;
+}
+
+.photo-lightbox-albums {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.photo-lightbox-albums-label {
+  font-size: 12px;
+  color: #999;
+}
+
+/* Header layout */
+.photo-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Arena auth */
+.arena-auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-auth-user {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+}
+
+.arena-auth-btn {
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.arena-auth-btn:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+/* Arena modal */
+.arena-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.arena-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.arena-modal h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.arena-modal-sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.arena-field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.arena-field span {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.arena-field input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.arena-field input:focus {
+  border-color: #888;
+}
+
+.arena-modal-error {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: #fff0f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  color: #cf1322;
+  font-size: 13px;
+}
+
+.arena-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.arena-modal-actions button {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #fff;
+  color: #555;
+  transition: all 0.15s;
+}
+
+.arena-modal-actions button:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.arena-btn-primary {
+  background: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #fff !important;
+}
+
+.arena-btn-primary:hover {
+  opacity: 0.85;
+}
+
+.arena-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Arena toolbar */
+.arena-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+/* Upload */
+.arena-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.arena-upload-btn {
+  padding: 8px 16px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.arena-upload-btn:hover {
+  opacity: 0.85;
+}
+
+.arena-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.arena-upload-progress {
+  width: 120px;
+  height: 3px;
+  background: #e8e8e8;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.arena-upload-fill {
+  height: 100%;
+  background: #1a1a1a;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.arena-drop-active {
+  outline: 2px dashed #1a1a1a;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Albums */
+.arena-albums {
+  flex: 1;
+  min-width: 0;
+}
+
+.arena-albums-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.arena-albums-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.arena-btn-small {
+  padding: 3px 10px;
+  background: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.arena-btn-small:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.arena-album-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.arena-album-form input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.arena-album-form input:focus {
+  border-color: #888;
+}
+
+.arena-album-form button {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.arena-album-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.arena-albums-empty {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.arena-album-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.arena-album-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 14px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.arena-album-chip:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.arena-album-chip.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+
+.arena-album-count {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.arena-album-delete {
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.arena-album-delete:hover {
+  color: #cf1322;
+  background: #fff0f0;
+}
+
+.arena-error {
+  padding: 8px 12px;
+  margin: 8px 0;
+  background: #fff0f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  color: #cf1322;
+  font-size: 12px;
+}

@@ -1,0 +1,66 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.arena.album",
+  "description": "An album grouping multiple images. Each edit creates a new version of the record (same rkey, putRecord). Images are referenced by their blob refs.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A curated collection of images.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "images", "createdAt", "updatedAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Album name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 3000,
+            "description": "Album description"
+          },
+          "images": {
+            "type": "array",
+            "description": "Ordered list of images in this album",
+            "maxLength": 1000,
+            "items": {
+              "type": "ref",
+              "ref": "#imageEntry"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "imageEntry": {
+      "type": "object",
+      "description": "A reference to an image in the album. Points to blob ref + source metadata.",
+      "required": ["image"],
+      "properties": {
+        "image": {
+          "type": "blob",
+          "accept": ["image/*"],
+          "maxSize": 10000000
+        },
+        "alt": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "sourceUri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "AT URI of the source record (arena.image or bsky post)"
+        }
+      }
+    }
+  }
+}
