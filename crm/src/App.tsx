@@ -35,6 +35,8 @@ import type {
   OrgFilter,
   OrgBookmark,
   OrgBookmarkRecord,
+  OrgRelationship,
+  OrgRelationshipRecord,
 } from "./types";
 import { LoginScreen } from "./components/LoginScreen";
 import { DealsBoard } from "./components/DealsBoard";
@@ -54,6 +56,7 @@ const PROPOSAL_COLLECTION = "com.minomobi.vault.proposal";
 const APPROVAL_COLLECTION = "com.minomobi.vault.approval";
 const DECISION_COLLECTION = "com.minomobi.vault.decision";
 const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
+const RELATIONSHIP_COLLECTION = "com.minomobi.vault.orgRelationship";
 const INNER_TYPE = "com.minomobi.crm.deal";
 
 /** Compute the keyring rkey for a tier at a given epoch. Epoch 0 omits the suffix for backward compat. */
@@ -88,6 +91,9 @@ export function App() {
 
   // All loaded org contexts (keyed by org rkey)
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
+
+  // Relationships across all orgs
+  const [relationships, setRelationships] = useState<OrgRelationshipRecord[]>([]);
 
   // Filter: "all" | "personal" | orgRkey
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
@@ -247,10 +253,21 @@ export function App() {
           ...joinedOrgs.map((j) => j.org),
         ];
 
+        // Collect relationships from all loaded contexts
+        const allRelationships: OrgRelationshipRecord[] = [];
+        for (const ctx of loadedContexts.values()) {
+          for (const r of ctx.relationships) {
+            if (!allRelationships.some((ar) => ar.rkey === r.rkey)) {
+              allRelationships.push(r);
+            }
+          }
+        }
+
         setDeals([...personalDeals, ...allOrgDeals]);
         setOrgContexts(loadedContexts);
         setOrgs(allOrgRecords);
         setMemberships(allMemberships);
+        setRelationships(allRelationships);
       } finally {
         setLoading(false);
       }
@@ -446,6 +463,9 @@ export function App() {
       client, orgRecord.rkey, memberDids
     );
 
+    // Load relationships involving this org (stored on founder's PDS)
+    const relationships = await loadRelationships(controlClient, founderDid, orgRecord.rkey);
+
     return {
       org: orgRecord,
       service: founderService,
@@ -458,6 +478,7 @@ export function App() {
       proposals,
       approvals,
       decisions,
+      relationships,
     };
   };
 
@@ -620,6 +641,37 @@ export function App() {
     }
 
     return { proposals, approvals, decisions };
+  };
+
+  // --- Load org relationships ---
+
+  const loadRelationships = async (
+    controlClient: PdsClient,
+    founderDid: string,
+    orgRkey: string
+  ): Promise<OrgRelationshipRecord[]> => {
+    const relationships: OrgRelationshipRecord[] = [];
+    let cursor: string | undefined;
+    const myDid = pds?.getSession()?.did;
+    const isMe = founderDid === myDid;
+    do {
+      const page = isMe
+        ? await controlClient.listRecords(RELATIONSHIP_COLLECTION, 100, cursor)
+        : await controlClient.listRecordsFrom(founderDid, RELATIONSHIP_COLLECTION, 100, cursor);
+      for (const rec of page.records) {
+        const val = rec.value as Record<string, unknown>;
+        const rkey = rec.uri.split("/").pop()!;
+        const rel = val as unknown as OrgRelationship;
+        // Include if this org is either parent or child in the relationship
+        const isParent = rel.parentRef?.orgRkey === orgRkey && rel.parentRef?.did === founderDid;
+        const isChild = rel.childRef.orgRkey === orgRkey && rel.childRef.did === founderDid;
+        if (isParent || isChild) {
+          relationships.push({ rkey, relationship: rel });
+        }
+      }
+      cursor = page.cursor;
+    } while (cursor);
+    return relationships;
   };
 
   // --- Filter change (no data reload, just changes what's displayed) ---
@@ -1089,6 +1141,7 @@ export function App() {
     setOrgs([]);
     setMemberships([]);
     setOrgContexts(new Map());
+    setRelationships([]);
     setFilterOrg("all");
   }, []);
 
@@ -1164,6 +1217,7 @@ export function App() {
           myPublicKey={identityKeys.publicKey}
           orgs={orgs}
           memberships={memberships}
+          relationships={relationships}
           onOrgCreated={(org) => setOrgs((prev) => [...prev, org])}
           onMemberInvited={(m) =>
             setMemberships((prev) => [...prev, m])
@@ -1171,6 +1225,9 @@ export function App() {
           onOrgUpdated={handleUpdateOrg}
           onOrgJoined={handleOrgJoined}
           onMemberRemoved={handleMemberRemoved}
+          onRelationshipCreated={(rel) =>
+            setRelationships((prev) => [...prev, rel])
+          }
           onClose={() => setShowOrgManager(false)}
         />
       )}

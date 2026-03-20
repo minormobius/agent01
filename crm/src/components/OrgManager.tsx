@@ -11,6 +11,12 @@ import type {
   Office,
   WorkflowGate,
   Stage,
+  OrgRelationship,
+  OrgRelationshipRecord,
+  Authority,
+  AuthorityGrant,
+  TierBridge,
+  RelationshipOrigin,
 } from "../types";
 import { PdsClient, resolveHandle, resolvePds } from "../pds";
 import {
@@ -29,6 +35,7 @@ const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
 const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
 const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
 const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
+const RELATIONSHIP_COLLECTION = "com.minomobi.vault.orgRelationship";
 
 interface Props {
   pds: PdsClient;
@@ -38,11 +45,13 @@ interface Props {
   myPublicKey: CryptoKey;
   orgs: OrgRecord[];
   memberships: MembershipRecord[];
+  relationships: OrgRelationshipRecord[];
   onOrgCreated: (org: OrgRecord) => void;
   onMemberInvited: (membership: MembershipRecord) => void;
   onOrgUpdated: (org: Org) => void;
   onOrgJoined: (org: OrgRecord, founderService: string, memberships: MembershipRecord[]) => void;
   onMemberRemoved: (membershipRkey: string, updatedOrg: Org) => void;
+  onRelationshipCreated: (rel: OrgRelationshipRecord) => void;
   onClose: () => void;
 }
 
@@ -56,11 +65,13 @@ export function OrgManager({
   myPublicKey,
   orgs,
   memberships,
+  relationships,
   onOrgCreated,
   onMemberInvited,
   onOrgUpdated,
   onOrgJoined,
   onMemberRemoved,
+  onRelationshipCreated,
   onClose,
 }: Props) {
   const [view, setView] = useState<View>("list");
@@ -118,6 +129,13 @@ export function OrgManager({
             memberships={memberships.filter(
               (m) => m.membership.orgRkey === selectedOrg.rkey
             )}
+            relationships={relationships.filter(
+              (r) =>
+                (r.relationship.parentRef?.orgRkey === selectedOrg.rkey &&
+                  r.relationship.parentRef?.did === myDid) ||
+                (r.relationship.childRef.orgRkey === selectedOrg.rkey &&
+                  r.relationship.childRef.did === myDid)
+            )}
             onMemberInvited={onMemberInvited}
             onMemberRemoved={(membershipRkey, updatedOrg) => {
               onMemberRemoved(membershipRkey, updatedOrg);
@@ -127,6 +145,7 @@ export function OrgManager({
               onOrgUpdated(updatedOrg);
               setSelectedOrg({ ...selectedOrg, org: updatedOrg });
             }}
+            onRelationshipCreated={onRelationshipCreated}
             onBack={() => setView("list")}
           />
         )}
@@ -393,7 +412,7 @@ function CreateOrg({
 
 // --- Manage Org ---
 
-type ManageTab = "members" | "offices" | "workflow";
+type ManageTab = "members" | "offices" | "workflow" | "relationships";
 
 function ManageOrg({
   pds,
@@ -403,9 +422,11 @@ function ManageOrg({
   myPrivateKey,
   myPublicKey,
   memberships,
+  relationships,
   onMemberInvited,
   onMemberRemoved,
   onOrgUpdated,
+  onRelationshipCreated,
   onBack,
 }: {
   pds: PdsClient;
@@ -415,9 +436,11 @@ function ManageOrg({
   myPrivateKey: CryptoKey;
   myPublicKey: CryptoKey;
   memberships: MembershipRecord[];
+  relationships: OrgRelationshipRecord[];
   onMemberInvited: (membership: MembershipRecord) => void;
   onMemberRemoved: (membershipRkey: string, updatedOrg: Org) => void;
   onOrgUpdated: (org: Org) => void;
+  onRelationshipCreated: (rel: OrgRelationshipRecord) => void;
   onBack: () => void;
 }) {
   const [manageTab, setManageTab] = useState<ManageTab>("members");
@@ -824,6 +847,12 @@ function ManageOrg({
         >
           Workflow
         </button>
+        <button
+          className={`manage-tab ${manageTab === "relationships" ? "manage-tab-active" : ""}`}
+          onClick={() => setManageTab("relationships")}
+        >
+          Relationships
+        </button>
       </div>
 
       {manageTab === "members" && (
@@ -1126,7 +1155,455 @@ function ManageOrg({
           </div>
         </>
       )}
+
+      {manageTab === "relationships" && (
+        <RelationshipsTab
+          pds={pds}
+          org={org}
+          myDid={myDid}
+          relationships={relationships}
+          onRelationshipCreated={onRelationshipCreated}
+          onBack={onBack}
+        />
+      )}
     </>
+  );
+}
+
+// --- Relationships Tab ---
+
+const ALL_AUTHORITIES: Authority[] = [
+  "manage_members",
+  "manage_tiers",
+  "manage_workflow",
+  "manage_bridges",
+  "rotate_keys",
+  "dissolve",
+];
+
+const AUTHORITY_LABELS: Record<Authority, string> = {
+  manage_members: "Manage Members",
+  manage_tiers: "Manage Tiers",
+  manage_workflow: "Manage Workflow",
+  manage_bridges: "Manage Bridges",
+  rotate_keys: "Rotate Keys",
+  dissolve: "Dissolve",
+};
+
+const ORIGIN_LABELS: Record<RelationshipOrigin, string> = {
+  founded: "Founded",
+  acquired: "Acquired",
+  merged: "Merged",
+  spawned: "Spawned",
+  peer: "Peer",
+};
+
+function RelationshipsTab({
+  pds,
+  org,
+  myDid,
+  relationships,
+  onRelationshipCreated,
+  onBack,
+}: {
+  pds: PdsClient;
+  org: OrgRecord;
+  myDid: string;
+  relationships: OrgRelationshipRecord[];
+  onRelationshipCreated: (rel: OrgRelationshipRecord) => void;
+  onBack: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [targetHandle, setTargetHandle] = useState("");
+  const [targetOrgRkey, setTargetOrgRkey] = useState("");
+  const [role, setRole] = useState<"parent" | "child" | "peer">("parent");
+  const [origin, setOrigin] = useState<RelationshipOrigin>("acquired");
+  const [selectedAuthorities, setSelectedAuthorities] = useState<Authority[]>([
+    "manage_members",
+    "manage_workflow",
+  ]);
+  const [bridgeParentTier, setBridgeParentTier] = useState("");
+  const [bridgeChildTier, setBridgeChildTier] = useState("");
+  const [bridgeDirection, setBridgeDirection] = useState<"down" | "up" | "mutual">("down");
+  const [bridges, setBridges] = useState<TierBridge[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const toggleAuthority = (auth: Authority) => {
+    setSelectedAuthorities((prev) =>
+      prev.includes(auth) ? prev.filter((a) => a !== auth) : [...prev, auth]
+    );
+  };
+
+  const addBridge = () => {
+    if (!bridgeParentTier || !bridgeChildTier) return;
+    setBridges((prev) => [
+      ...prev,
+      {
+        parentTier: bridgeParentTier,
+        childTier: bridgeChildTier,
+        direction: bridgeDirection,
+        grantedBy: myDid,
+        grantedAt: new Date().toISOString(),
+      },
+    ]);
+    setBridgeParentTier("");
+    setBridgeChildTier("");
+  };
+
+  const removeBridge = (idx: number) => {
+    setBridges((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setSaving(true);
+
+    try {
+      // Resolve the target org's founder
+      const input = targetHandle.trim().replace(/^@/, "");
+      if (!input) throw new Error("Enter the target org founder's handle");
+      if (!targetOrgRkey.trim()) throw new Error("Enter the target org rkey");
+
+      let targetDid: string;
+      if (input.startsWith("did:")) {
+        targetDid = input;
+      } else {
+        targetDid = await resolveHandle(input);
+      }
+
+      // Build authority grants
+      const authorities: AuthorityGrant[] = selectedAuthorities.map((auth) => ({
+        authority: auth,
+        holder: { type: "did" as const, did: myDid },
+        grantedBy: myDid,
+        grantedAt: new Date().toISOString(),
+      }));
+
+      // Build the relationship based on role
+      let relationship: OrgRelationship;
+      if (role === "parent") {
+        // This org is the parent, target is child
+        relationship = {
+          parentRef: { did: myDid, orgRkey: org.rkey },
+          childRef: { did: targetDid, orgRkey: targetOrgRkey.trim() },
+          authorities,
+          bridges,
+          origin,
+          createdAt: new Date().toISOString(),
+        };
+      } else if (role === "child") {
+        // This org is the child, target is parent
+        relationship = {
+          parentRef: { did: targetDid, orgRkey: targetOrgRkey.trim() },
+          childRef: { did: myDid, orgRkey: org.rkey },
+          authorities,
+          bridges,
+          origin,
+          createdAt: new Date().toISOString(),
+        };
+      } else {
+        // Peer — no parent, mutual
+        relationship = {
+          childRef: { did: targetDid, orgRkey: targetOrgRkey.trim() },
+          authorities,
+          bridges,
+          origin: "peer",
+          createdAt: new Date().toISOString(),
+        };
+      }
+
+      const rkey = `${org.rkey}:${targetOrgRkey.trim()}`;
+      await pds.putRecord(RELATIONSHIP_COLLECTION, rkey, {
+        $type: RELATIONSHIP_COLLECTION,
+        ...relationship,
+      });
+
+      onRelationshipCreated({ rkey, relationship });
+      setSuccess(
+        `Relationship created: ${org.org.name} ${role === "parent" ? "→" : role === "child" ? "←" : "↔"} ${input}`
+      );
+      setShowForm(false);
+      setTargetHandle("");
+      setTargetOrgRkey("");
+      setBridges([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create relationship");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Categorize existing relationships
+  const parentOf = relationships.filter(
+    (r) => r.relationship.parentRef?.orgRkey === org.rkey && r.relationship.parentRef?.did === myDid
+  );
+  const childOf = relationships.filter(
+    (r) => r.relationship.childRef.orgRkey === org.rkey && r.relationship.childRef.did === myDid &&
+      r.relationship.parentRef != null
+  );
+  const peers = relationships.filter(
+    (r) => !r.relationship.parentRef
+  );
+
+  return (
+    <>
+      <div className="org-section">
+        <h3>Org Relationships</h3>
+        <p className="org-hint">
+          Relationships define how this org relates to other orgs — as parent
+          (acquisition, oversight), child (subsidiary, skunkworks), or peer
+          (mutual visibility).
+        </p>
+
+        {relationships.length === 0 ? (
+          <p className="org-empty">No relationships defined.</p>
+        ) : (
+          <>
+            {parentOf.length > 0 && (
+              <div className="org-section">
+                <h4>Parent of</h4>
+                {parentOf.map((r) => (
+                  <RelationshipCard key={r.rkey} rel={r} role="parent" />
+                ))}
+              </div>
+            )}
+            {childOf.length > 0 && (
+              <div className="org-section">
+                <h4>Child of</h4>
+                {childOf.map((r) => (
+                  <RelationshipCard key={r.rkey} rel={r} role="child" />
+                ))}
+              </div>
+            )}
+            {peers.length > 0 && (
+              <div className="org-section">
+                <h4>Peers</h4>
+                {peers.map((r) => (
+                  <RelationshipCard key={r.rkey} rel={r} role="peer" />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {!showForm ? (
+        <div className="form-actions">
+          <button type="button" className="btn-secondary" onClick={onBack}>
+            Back
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setShowForm(true)}
+          >
+            + Add Relationship
+          </button>
+        </div>
+      ) : (
+        <div className="org-section">
+          <h3>New Relationship</h3>
+          <form onSubmit={handleCreate}>
+            <div className="field">
+              <label>This org's role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as "parent" | "child" | "peer")}
+              >
+                <option value="parent">Parent (this org dominates)</option>
+                <option value="child">Child (this org is subordinate)</option>
+                <option value="peer">Peer (mutual, no hierarchy)</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label>Target Org Founder</label>
+              <HandleTypeahead
+                id="rel-target-handle"
+                value={targetHandle}
+                onChange={setTargetHandle}
+                placeholder="founder.bsky.social"
+              />
+            </div>
+
+            <div className="field">
+              <label>Target Org rkey</label>
+              <input
+                value={targetOrgRkey}
+                onChange={(e) => setTargetOrgRkey(e.target.value)}
+                placeholder="e.g. 3l5..."
+              />
+              <small>
+                The rkey of the org on the target founder's PDS
+              </small>
+            </div>
+
+            <div className="field">
+              <label>Origin</label>
+              <select
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value as RelationshipOrigin)}
+              >
+                <option value="acquired">Acquired</option>
+                <option value="merged">Merged</option>
+                <option value="spawned">Spawned (skunkworks)</option>
+                <option value="founded">Founded</option>
+                <option value="peer">Peer</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label>Authority Grants</label>
+              <div className="gate-office-selector">
+                {ALL_AUTHORITIES.map((auth) => (
+                  <label
+                    key={auth}
+                    className={`office-member-toggle ${selectedAuthorities.includes(auth) ? "active" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedAuthorities.includes(auth)}
+                      onChange={() => toggleAuthority(auth)}
+                    />
+                    {AUTHORITY_LABELS[auth]}
+                  </label>
+                ))}
+              </div>
+              <small>
+                Which structural powers the {role === "child" ? "parent" : "holder"} gets
+                over the {role === "child" ? "child (this org)" : "child org"}
+              </small>
+            </div>
+
+            <div className="field">
+              <label>Tier Bridges</label>
+              {bridges.length > 0 && (
+                <div className="gate-list">
+                  {bridges.map((b, i) => (
+                    <div key={i} className="gate-item">
+                      <div className="gate-flow">
+                        <span className="gate-stage">{b.parentTier}</span>
+                        <span className="gate-arrow">
+                          {b.direction === "down" ? "↓" : b.direction === "up" ? "↑" : "↕"}
+                        </span>
+                        <span className="gate-stage">{b.childTier}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="tier-remove"
+                        onClick={() => removeBridge(i)}
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="field-row">
+                <input
+                  placeholder="Parent tier"
+                  value={bridgeParentTier}
+                  onChange={(e) => setBridgeParentTier(e.target.value)}
+                />
+                <select
+                  value={bridgeDirection}
+                  onChange={(e) =>
+                    setBridgeDirection(e.target.value as "down" | "up" | "mutual")
+                  }
+                >
+                  <option value="down">↓ Down (parent reads child)</option>
+                  <option value="up">↑ Up (child reads parent)</option>
+                  <option value="mutual">↕ Mutual</option>
+                </select>
+                <input
+                  placeholder="Child tier"
+                  value={bridgeChildTier}
+                  onChange={(e) => setBridgeChildTier(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={addBridge}
+                >
+                  Add
+                </button>
+              </div>
+              <small>
+                Bridges define which tiers can see data across the org boundary
+              </small>
+            </div>
+
+            {error && <div className="error">{error}</div>}
+            {success && <div className="success">{success}</div>}
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowForm(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}>
+                {saving ? "Creating..." : "Create Relationship"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+// --- Relationship Card ---
+
+function RelationshipCard({
+  rel,
+  role,
+}: {
+  rel: OrgRelationshipRecord;
+  role: "parent" | "child" | "peer";
+}) {
+  const r = rel.relationship;
+  const targetRef = role === "parent" ? r.childRef : (r.parentRef ?? r.childRef);
+  const targetDid = targetRef.did;
+
+  return (
+    <div className="office-card">
+      <div className="office-header">
+        <span className="office-name">
+          {ORIGIN_LABELS[r.origin]} — {targetDid.slice(0, 24)}...
+        </span>
+        <span className="office-sigs">
+          {r.origin} | org:{targetRef.orgRkey.slice(0, 8)}...
+        </span>
+      </div>
+      {r.authorities.length > 0 && (
+        <div className="office-members">
+          <span className="office-members-label">Authorities:</span>
+          {r.authorities.map((a, i) => (
+            <span key={i} className="gate-office-badge">
+              {AUTHORITY_LABELS[a.authority]}
+            </span>
+          ))}
+        </div>
+      )}
+      {r.bridges.length > 0 && (
+        <div className="office-members">
+          <span className="office-members-label">Bridges:</span>
+          {r.bridges.map((b, i) => (
+            <span key={i} className="gate-office-badge">
+              {b.parentTier} {b.direction === "down" ? "↓" : b.direction === "up" ? "↑" : "↕"}{" "}
+              {b.childTier}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -270,6 +270,76 @@ export interface OrgBookmarkRecord {
   bookmark: OrgBookmark;
 }
 
+// --- Org Relationship Types ---
+//
+// Every inter-org pattern (co-founder, acquisition, skunkworks, merger)
+// is an OrgRelationship with a set of authority grants and tier bridges.
+// Authority can be held by a specific DID or by anyone in an org tier.
+
+/** Structural powers one party can exercise over an org. */
+export type Authority =
+  | "manage_members"      // can invite/remove members
+  | "manage_tiers"        // can add/modify tier structure
+  | "manage_workflow"     // can set workflow gates
+  | "manage_bridges"      // can create/revoke tier bridges
+  | "rotate_keys"         // can trigger key rotation
+  | "dissolve";           // can shut down the org
+
+/** Who holds a given authority — a specific DID or anyone in an org tier. */
+export type AuthorityHolder =
+  | { type: "did"; did: string }
+  | { type: "org_tier"; orgRkey: string; founderDid: string; tierName: string };
+
+/** A single authority granted to a holder. */
+export interface AuthorityGrant {
+  authority: Authority;
+  holder: AuthorityHolder;
+  grantedBy: string;       // DID that created this grant
+  grantedAt: string;
+}
+
+/** Tier bridge — cross-org encrypted data visibility. */
+export interface TierBridge {
+  parentTier: string;
+  childTier: string;
+  direction: "down" | "up" | "mutual";  // who can read whose data
+  grantedBy: string;       // DID that authorized this bridge
+  grantedAt: string;
+}
+
+/** How this org relationship was established. */
+export type RelationshipOrigin = "founded" | "acquired" | "merged" | "spawned" | "peer";
+
+/**
+ * Org-to-org relationship record.
+ *
+ * This is the core primitive for all inter-org governance:
+ *   - Co-founders: multiple relationships with no parent, same child, split authorities
+ *   - Acquisition: parent holds all authorities over child
+ *   - Skunkworks: parent holds limited visibility (bridge) + dissolve, child retains autonomy
+ *   - Merger: new super-org, both original orgs become children
+ *   - Peer: mutual bridges, no authority — just visibility
+ */
+export interface OrgRelationship {
+  /** Parent org reference (absent = top-level / direct DID authority). */
+  parentRef?: { did: string; orgRkey: string };
+  /** Child org being governed. */
+  childRef: { did: string; orgRkey: string };
+  /** What structural powers the parent/holder has. */
+  authorities: AuthorityGrant[];
+  /** Cross-org tier visibility bridges. */
+  bridges: TierBridge[];
+  /** How was this relationship established? */
+  origin: RelationshipOrigin;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface OrgRelationshipRecord {
+  rkey: string;
+  relationship: OrgRelationship;
+}
+
 /** Active org context when user is working in an org. */
 export interface OrgContext {
   org: OrgRecord;
@@ -288,6 +358,8 @@ export interface OrgContext {
   approvals: ApprovalRecord[];
   /** Decision chain (links old → new versions). */
   decisions: DecisionRecord[];
+  /** Org relationships (parent/child/peer) involving this org. */
+  relationships: OrgRelationshipRecord[];
 }
 
 /** App state */
