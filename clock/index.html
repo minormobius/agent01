@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helix Calendar — clock.mino.mobi</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
+canvas { width: 100%; height: 100%; display: block; }
+#fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; }
+#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; opacity: 0.5; pointer-events: none; letter-spacing: 0.05em; }
+#year-label { position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.1rem; opacity: 0.7; pointer-events: none; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="fallback">WebGPU is not supported in this browser.<br>Try Chrome 113+ or Edge 113+.</div>
+<div id="hud">drag to orbit · scroll to zoom</div>
+<div id="year-label"></div>
+<script type="module">
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
+const MONTH_COLORS = [
+  [0.55, 0.75, 0.95], // Jan - icy blue
+  [0.60, 0.70, 0.90], // Feb - slate blue
+  [0.50, 0.85, 0.55], // Mar - spring green
+  [0.40, 0.90, 0.45], // Apr - bright green
+  [0.35, 0.92, 0.60], // May - emerald
+  [0.95, 0.90, 0.35], // Jun - golden
+  [0.95, 0.70, 0.25], // Jul - amber
+  [0.95, 0.55, 0.25], // Aug - orange
+  [0.90, 0.45, 0.30], // Sep - burnt orange
+  [0.85, 0.40, 0.40], // Oct - russet
+  [0.65, 0.45, 0.60], // Nov - plum
+  [0.45, 0.50, 0.80], // Dec - winter blue
+];
+
+// --- WebGPU init ---
+async function main() {
+  if (!navigator.gpu) {
+    document.getElementById('fallback').style.display = 'flex';
+    return;
+  }
+
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    document.getElementById('fallback').style.display = 'flex';
+    return;
+  }
+  const device = await adapter.requestDevice();
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  // --- Generate helix geometry ---
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const startYear = currentYear - 2;
+  const endYear = currentYear + 2;
+  const totalYears = endYear - startYear + 1;
+
+  document.getElementById('year-label').textContent =
+    `${startYear} — ${endYear}`;
+
+  const helixRadius = 1.0;
+  const pitchPerYear = 1.2; // vertical advance per full revolution
+  const segmentsPerMonth = 16;
+
+  // Build vertex data: position (3) + color (3) + normal (3) = 9 floats per vertex
+  // We'll create a tube around the helix path
+  const tubeRadius = 0.04;
+  const tubeSegments = 8;
+  const vertices = [];
+  const indices = [];
+
+  // Helper: helix point at parameter t (0 = start of startYear, 1 = one year)
+  function helixPoint(yearOffset, monthFrac) {
+    const angle = monthFrac * Math.PI * 2;
+    const y = (yearOffset + monthFrac) * pitchPerYear;
+    return [
+      helixRadius * Math.cos(angle),
+      y - (totalYears * pitchPerYear) / 2, // center vertically
+      helixRadius * Math.sin(angle),
+    ];
+  }
+
+  function helixTangent(yearOffset, monthFrac) {
+    const angle = monthFrac * Math.PI * 2;
+    const dx = -helixRadius * Math.sin(angle) * Math.PI * 2;
+    const dy = pitchPerYear;
+    const dz = helixRadius * Math.cos(angle) * Math.PI * 2;
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    return [dx/len, dy/len, dz/len];
+  }
+
+  // Today marker
+  const dayOfYear = Math.floor((now - new Date(currentYear, 0, 0)) / 86400000);
+  const todayFrac = dayOfYear / 365;
+  const todayYearOffset = currentYear - startYear;
+
+  let pathPoints = [];
+
+  for (let yr = 0; yr < totalYears; yr++) {
+    const year = startYear + yr;
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const daysInYear = isLeap ? 366 : 365;
+    let dayAccum = 0;
+
+    for (let m = 0; m < 12; m++) {
+      const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+      const segs = segmentsPerMonth;
+      for (let s = 0; s <= segs; s++) {
+        const dayInMonth = (s / segs) * daysInMonth;
+        const frac = (dayAccum + dayInMonth) / daysInYear;
+        const pos = helixPoint(yr, frac);
+        const tan = helixTangent(yr, frac);
+        const color = MONTH_COLORS[m];
+
+        // Brightness boost for current day vicinity
+        let brightness = 1.0;
+        if (yr === todayYearOffset) {
+          const dist = Math.abs(frac - todayFrac);
+          if (dist < 0.02) brightness = 1.8;
+        }
+
+        pathPoints.push({ pos, tan, color: color.map(c => Math.min(1, c * brightness)), monthIndex: m, year });
+      }
+      dayAccum += daysInMonth;
+    }
+  }
+
+  // Build tube mesh around path
+  let vertexOffset = 0;
+  for (let i = 0; i < pathPoints.length; i++) {
+    const { pos, tan, color } = pathPoints[i];
+
+    // Build local frame (Frenet-like)
+    let up = [0, 1, 0];
+    if (Math.abs(tan[1]) > 0.99) up = [1, 0, 0];
+    // binormal = tan x up
+    const bx = tan[1]*up[2] - tan[2]*up[1];
+    const by = tan[2]*up[0] - tan[0]*up[2];
+    const bz = tan[0]*up[1] - tan[1]*up[0];
+    const blen = Math.sqrt(bx*bx + by*by + bz*bz);
+    const binormal = [bx/blen, by/blen, bz/blen];
+    // normal = binormal x tan
+    const nx = binormal[1]*tan[2] - binormal[2]*tan[1];
+    const ny = binormal[2]*tan[0] - binormal[0]*tan[2];
+    const nz = binormal[0]*tan[1] - binormal[1]*tan[0];
+    const normal = [nx, ny, nz];
+
+    for (let t = 0; t < tubeSegments; t++) {
+      const theta = (t / tubeSegments) * Math.PI * 2;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+
+      const vx = pos[0] + tubeRadius * (cosT * normal[0] + sinT * binormal[0]);
+      const vy = pos[1] + tubeRadius * (cosT * normal[1] + sinT * binormal[1]);
+      const vz = pos[2] + tubeRadius * (cosT * normal[2] + sinT * binormal[2]);
+
+      const nnx = cosT * normal[0] + sinT * binormal[0];
+      const nny = cosT * normal[1] + sinT * binormal[1];
+      const nnz = cosT * normal[2] + sinT * binormal[2];
+
+      vertices.push(vx, vy, vz, color[0], color[1], color[2], nnx, nny, nnz);
+    }
+
+    if (i > 0) {
+      const curr = vertexOffset;
+      const prev = vertexOffset - tubeSegments;
+      for (let t = 0; t < tubeSegments; t++) {
+        const t1 = (t + 1) % tubeSegments;
+        indices.push(prev + t, curr + t, curr + t1);
+        indices.push(prev + t, curr + t1, prev + t1);
+      }
+    }
+    vertexOffset += tubeSegments;
+  }
+
+  // Today marker - a larger ring at today's position
+  const todayPos = helixPoint(todayYearOffset, todayFrac);
+  const todayTan = helixTangent(todayYearOffset, todayFrac);
+  const markerRadius = 0.09;
+  const markerTube = 0.015;
+  const markerSegs = 24;
+  const markerTubeSegs = 8;
+
+  {
+    let up = [0, 1, 0];
+    if (Math.abs(todayTan[1]) > 0.99) up = [1, 0, 0];
+    const bx = todayTan[1]*up[2] - todayTan[2]*up[1];
+    const by = todayTan[2]*up[0] - todayTan[0]*up[2];
+    const bz = todayTan[0]*up[1] - todayTan[1]*up[0];
+    const blen = Math.sqrt(bx*bx + by*by + bz*bz);
+    const binormal = [bx/blen, by/blen, bz/blen];
+    const nx = binormal[1]*todayTan[2] - binormal[2]*todayTan[1];
+    const ny = binormal[2]*todayTan[0] - binormal[0]*todayTan[2];
+    const nz = binormal[0]*todayTan[1] - binormal[1]*todayTan[0];
+    const normal = [nx, ny, nz];
+
+    const markerBase = vertexOffset;
+    for (let i = 0; i <= markerSegs; i++) {
+      const phi = (i / markerSegs) * Math.PI * 2;
+      const cx = todayPos[0] + markerRadius * (Math.cos(phi) * normal[0] + Math.sin(phi) * binormal[0]);
+      const cy = todayPos[1] + markerRadius * (Math.cos(phi) * normal[1] + Math.sin(phi) * binormal[1]);
+      const cz = todayPos[2] + markerRadius * (Math.cos(phi) * normal[2] + Math.sin(phi) * binormal[2]);
+
+      for (let j = 0; j < markerTubeSegs; j++) {
+        const theta = (j / markerTubeSegs) * Math.PI * 2;
+        const ringNx = Math.cos(phi) * normal[0] + Math.sin(phi) * binormal[0];
+        const ringNy = Math.cos(phi) * normal[1] + Math.sin(phi) * binormal[1];
+        const ringNz = Math.cos(phi) * normal[2] + Math.sin(phi) * binormal[2];
+
+        const vx = cx + markerTube * (Math.cos(theta) * ringNx + Math.sin(theta) * todayTan[0]);
+        const vy = cy + markerTube * (Math.cos(theta) * ringNy + Math.sin(theta) * todayTan[1]);
+        const vz = cz + markerTube * (Math.cos(theta) * ringNz + Math.sin(theta) * todayTan[2]);
+
+        vertices.push(vx, vy, vz, 1.0, 1.0, 1.0, ringNx, ringNy, ringNz);
+      }
+
+      if (i > 0) {
+        const curr = vertexOffset;
+        const prev = vertexOffset - markerTubeSegs;
+        for (let t = 0; t < markerTubeSegs; t++) {
+          const t1 = (t + 1) % markerTubeSegs;
+          indices.push(prev + t, curr + t, curr + t1);
+          indices.push(prev + t, curr + t1, prev + t1);
+        }
+      }
+      vertexOffset += markerTubeSegs;
+    }
+  }
+
+  // Month label tick marks (small radial lines at month boundaries)
+  for (let yr = 0; yr < totalYears; yr++) {
+    const year = startYear + yr;
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const daysInYear = isLeap ? 366 : 365;
+    let dayAccum = 0;
+
+    for (let m = 0; m < 12; m++) {
+      const frac = dayAccum / daysInYear;
+      const pos = helixPoint(yr, frac);
+      const angle = frac * Math.PI * 2;
+
+      // Radial tick outward
+      const rx = Math.cos(angle);
+      const rz = Math.sin(angle);
+      const tickLen = 0.08;
+      const tickR = 0.008;
+
+      const p0 = [pos[0] + tickLen * 0.5 * rx, pos[1], pos[2] + tickLen * 0.5 * rz];
+      const p1 = [pos[0] + tickLen * 1.8 * rx, pos[1], pos[2] + tickLen * 1.8 * rz];
+
+      // Simple line as thin box
+      const baseIdx = vertexOffset;
+      const color = MONTH_COLORS[m];
+      for (let end = 0; end < 2; end++) {
+        const p = end === 0 ? p0 : p1;
+        for (let t = 0; t < 4; t++) {
+          const theta = (t / 4) * Math.PI * 2;
+          const ox = tickR * Math.cos(theta);
+          const oy = tickR * Math.sin(theta);
+          vertices.push(p[0] + ox, p[1] + oy, p[2], color[0]*0.7, color[1]*0.7, color[2]*0.7, Math.cos(theta), Math.sin(theta), 0);
+        }
+        vertexOffset += 4;
+      }
+      for (let t = 0; t < 4; t++) {
+        const t1 = (t + 1) % 4;
+        indices.push(baseIdx + t, baseIdx + 4 + t, baseIdx + 4 + t1);
+        indices.push(baseIdx + t, baseIdx + 4 + t1, baseIdx + t1);
+      }
+
+      const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+      dayAccum += daysInMonth;
+    }
+  }
+
+  // Upload to GPU
+  const vertexData = new Float32Array(vertices);
+  const indexData = new Uint32Array(indices);
+
+  const vertexBuffer = device.createBuffer({
+    size: vertexData.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(vertexBuffer, 0, vertexData);
+
+  const indexBuffer = device.createBuffer({
+    size: indexData.byteLength,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(indexBuffer, 0, indexData);
+
+  const indexCount = indices.length;
+
+  // --- Shader ---
+  const shaderCode = /* wgsl */`
+    struct Uniforms {
+      mvp: mat4x4f,
+      model: mat4x4f,
+      lightDir: vec3f,
+      _pad: f32,
+      eye: vec3f,
+      _pad2: f32,
+    };
+    @group(0) @binding(0) var<uniform> u: Uniforms;
+
+    struct VSOut {
+      @builtin(position) pos: vec4f,
+      @location(0) color: vec3f,
+      @location(1) normal: vec3f,
+      @location(2) worldPos: vec3f,
+    };
+
+    @vertex fn vs(
+      @location(0) position: vec3f,
+      @location(1) color: vec3f,
+      @location(2) normal: vec3f,
+    ) -> VSOut {
+      var out: VSOut;
+      out.pos = u.mvp * vec4f(position, 1.0);
+      out.color = color;
+      out.normal = (u.model * vec4f(normal, 0.0)).xyz;
+      out.worldPos = (u.model * vec4f(position, 1.0)).xyz;
+      return out;
+    }
+
+    @fragment fn fs(in: VSOut) -> @location(0) vec4f {
+      let N = normalize(in.normal);
+      let L = normalize(u.lightDir);
+      let V = normalize(u.eye - in.worldPos);
+      let H = normalize(L + V);
+
+      let ambient = 0.15;
+      let diffuse = max(dot(N, L), 0.0) * 0.7;
+      let spec = pow(max(dot(N, H), 0.0), 32.0) * 0.4;
+
+      // Rim light
+      let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.2;
+
+      let lighting = ambient + diffuse + spec + rim;
+      let col = in.color * lighting;
+
+      return vec4f(pow(col, vec3f(1.0/2.2)), 1.0);
+    }
+  `;
+
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  // Uniform buffer
+  const uniformBuffer = device.createBuffer({
+    size: 256,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+      buffer: { type: 'uniform' },
+    }],
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+  });
+
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+  });
+
+  // Depth texture
+  let depthTexture;
+  function createDepthTexture() {
+    if (depthTexture) depthTexture.destroy();
+    depthTexture = device.createTexture({
+      size: [canvas.width, canvas.height],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+  }
+
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: {
+      module: shaderModule,
+      entryPoint: 'vs',
+      buffers: [{
+        arrayStride: 9 * 4,
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: 'float32x3' },
+          { shaderLocation: 1, offset: 12, format: 'float32x3' },
+          { shaderLocation: 2, offset: 24, format: 'float32x3' },
+        ],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fs',
+      targets: [{ format }],
+    },
+    depthStencil: {
+      format: 'depth24plus',
+      depthWriteEnabled: true,
+      depthCompare: 'less',
+    },
+    primitive: {
+      topology: 'triangle-list',
+      cullMode: 'back',
+    },
+    multisample: { count: 1 },
+  });
+
+  // --- Camera ---
+  let camTheta = 0.4;
+  let camPhi = 0.8;
+  let camDist = 5.0;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    let lastX = e.clientX, lastY = e.clientY;
+    const move = (ev) => {
+      camTheta -= (ev.clientX - lastX) * 0.005;
+      camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi - (ev.clientY - lastY) * 0.005));
+      lastX = ev.clientX; lastY = ev.clientY;
+    };
+    const up = () => {
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+    };
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camDist = Math.max(2, Math.min(15, camDist + e.deltaY * 0.005));
+  }, { passive: false });
+
+  // --- Math helpers ---
+  function mat4Perspective(fov, aspect, near, far) {
+    const f = 1 / Math.tan(fov / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f/aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far+near)*nf, -1,
+      0, 0, 2*far*near*nf, 0,
+    ]);
+  }
+
+  function mat4LookAt(eye, center, up) {
+    const zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+    let len = Math.sqrt(zx*zx+zy*zy+zz*zz);
+    const z = [zx/len, zy/len, zz/len];
+    const xx = up[1]*z[2]-up[2]*z[1], xy = up[2]*z[0]-up[0]*z[2], xz = up[0]*z[1]-up[1]*z[0];
+    len = Math.sqrt(xx*xx+xy*xy+xz*xz);
+    const x = [xx/len, xy/len, xz/len];
+    const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+    return new Float32Array([
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]),
+      -(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]),
+      -(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]),
+      1,
+    ]);
+  }
+
+  function mat4Mul(a, b) {
+    const o = new Float32Array(16);
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 4; j++)
+        o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+    return o;
+  }
+
+  const identity = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+
+  // --- Render loop ---
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    createDepthTexture();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Gentle auto-rotation
+  let autoRotate = true;
+  canvas.addEventListener('pointerdown', () => { autoRotate = false; });
+
+  function frame(t) {
+    if (autoRotate) camTheta += 0.001;
+
+    const eye = [
+      camDist * Math.sin(camPhi) * Math.cos(camTheta),
+      camDist * Math.cos(camPhi),
+      camDist * Math.sin(camPhi) * Math.sin(camTheta),
+    ];
+
+    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
+    const mvp = mat4Mul(proj, view);
+
+    // Light from above-right
+    const lightDir = [0.5, 0.8, 0.3];
+    const llen = Math.sqrt(lightDir[0]**2+lightDir[1]**2+lightDir[2]**2);
+    lightDir[0]/=llen; lightDir[1]/=llen; lightDir[2]/=llen;
+
+    const uniformData = new Float32Array(32);
+    uniformData.set(mvp, 0);       // mvp at offset 0
+    uniformData.set(identity, 16); // model at offset 16
+    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+    // Write lightDir + eye separately (offset 128 = 32 floats * 4 bytes)
+    const lightEyeData = new Float32Array(8);
+    lightEyeData.set(lightDir, 0);
+    lightEyeData[3] = 0;
+    lightEyeData.set(eye, 4);
+    lightEyeData[7] = 0;
+    device.queue.writeBuffer(uniformBuffer, 128, lightEyeData);
+
+    const commandEncoder = device.createCommandEncoder();
+    const pass = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        loadOp: 'clear',
+        storeOp: 'store',
+        clearValue: { r: 0.04, g: 0.04, b: 0.06, a: 1 },
+      }],
+      depthStencilAttachment: {
+        view: depthTexture.createView(),
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+        depthClearValue: 1.0,
+      },
+    });
+
+    pass.setPipeline(pipeline);
+    pass.setVertexBuffer(0, vertexBuffer);
+    pass.setIndexBuffer(indexBuffer, 'uint32');
+    pass.setBindGroup(0, bindGroup);
+    pass.drawIndexed(indexCount);
+    pass.end();
+
+    device.queue.submit([commandEncoder.finish()]);
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+main().catch(err => {
+  console.error(err);
+  document.getElementById('fallback').style.display = 'flex';
+  document.getElementById('fallback').textContent = 'Error: ' + err.message;
+});
+</script>
+</body>
+</html>
