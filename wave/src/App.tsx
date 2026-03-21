@@ -370,20 +370,26 @@ export function App() {
 
   // --- Create channel ---
   const createChannel = useCallback(
-    async (name: string) => {
+    async (name: string, tierName?: string) => {
       if (!pds || !vault.session || !activeOrg) return;
-      const record: WaveChannel = {
-        $type: CHANNEL_COLLECTION,
-        orgRkey: activeOrg.org.rkey,
-        name,
-        tierName: activeOrg.myTierName,
-        createdAt: new Date().toISOString(),
-      };
       // Only org founder can create channels (they go on founder's PDS)
       if (activeOrg.founderDid !== vault.session.did) {
         setError("Only the org founder can create channels");
         return;
       }
+      // Default to lowest tier the founder has access to (most inclusive)
+      const accessibleTiers = activeOrg.org.org.tiers
+        .filter(t => t.level <= activeOrg.myTierLevel)
+        .sort((a, b) => a.level - b.level);
+      const resolvedTier = tierName ?? accessibleTiers[0]?.name ?? activeOrg.myTierName;
+
+      const record: WaveChannel = {
+        $type: CHANNEL_COLLECTION,
+        orgRkey: activeOrg.org.rkey,
+        name,
+        tierName: resolvedTier,
+        createdAt: new Date().toISOString(),
+      };
       await pds.createRecord(CHANNEL_COLLECTION, record);
       const chans = await loadChannels(pds, activeOrg);
       setChannels(chans);
@@ -568,7 +574,13 @@ export function App() {
       try {
         const tierName = activeChannel!.channel.tierName;
         const dek = activeOrg.tierDeks.get(tierName);
-        if (!dek) throw new Error("No DEK for tier " + tierName);
+        if (!dek) {
+          const available = [...activeOrg.tierDeks.keys()].join(", ");
+          throw new Error(
+            `No DEK for tier "${tierName}". Available tiers: [${available}]. ` +
+            `Check that your org has a keyring for this tier.`
+          );
+        }
 
         const keyringRkey = keyringRkeyForTier(
           activeOrg.org.rkey,
@@ -763,7 +775,15 @@ export function App() {
                 title="New channel"
                 onClick={() => {
                   const name = prompt("Channel name:");
-                  if (name) createChannel(name);
+                  if (!name) return;
+                  const tiers = activeOrg.org.org.tiers
+                    .filter(t => t.level <= activeOrg.myTierLevel)
+                    .sort((a, b) => a.level - b.level);
+                  const tierStr = prompt(
+                    `Tier (${tiers.map(t => t.name).join(", ")}):`,
+                    tiers[0]?.name
+                  );
+                  createChannel(name, tierStr || undefined);
                 }}
               >
                 +
