@@ -275,8 +275,39 @@ export async function wrapDekForMember(
 }
 
 /**
+ * Derive a legacy AES-KW wrapping key from ECDH agreement.
+ * Used for keyrings written before the AES-KW → AES-GCM migration.
+ */
+async function deriveLegacyWrappingKey(
+  privateKey: CryptoKey,
+  publicKey: CryptoKey
+): Promise<CryptoKey> {
+  const bits = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: publicKey },
+    privateKey,
+    256
+  );
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    bits,
+    "HKDF",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32).buffer as ArrayBuffer, info: MEMBER_WRAP_INFO.buffer as ArrayBuffer },
+    hkdfKey,
+    { name: "AES-KW", length: 256 },
+    false,
+    ["wrapKey", "unwrapKey"]
+  );
+}
+
+/**
  * Unwrap a tier DEK received from another member.
- * Input is iv (12 bytes) + ciphertext concatenated.
+ * Detects format automatically:
+ *   - 60 bytes: AES-GCM (current) — 12-byte IV + 48-byte ciphertext
+ *   - 40 bytes: AES-KW (legacy) — raw AES-KW output (32-byte key + 8-byte integrity)
  * Returns an extractable DEK so it can be re-wrapped for other members.
  */
 export async function unwrapDekFromMember(
@@ -284,6 +315,21 @@ export async function unwrapDekFromMember(
   recipientPrivateKey: CryptoKey,
   senderPublicKey: CryptoKey
 ): Promise<CryptoKey> {
+  if (wrappedDek.length === 40) {
+    // Legacy AES-KW format
+    const wrappingKey = await deriveLegacyWrappingKey(recipientPrivateKey, senderPublicKey);
+    return crypto.subtle.unwrapKey(
+      "raw",
+      wrappedDek.buffer as ArrayBuffer,
+      wrappingKey,
+      "AES-KW",
+      { name: "AES-GCM", length: 256 },
+      true, // extractable
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  // Current AES-GCM format
   const memberKey = await deriveMemberKey(recipientPrivateKey, senderPublicKey);
   const iv = wrappedDek.slice(0, 12);
   const ct = wrappedDek.slice(12);

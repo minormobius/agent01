@@ -233,7 +233,7 @@ export function App() {
       setLoading(true);
       setError("");
       try {
-        const ctx = await buildOrgContext(pds, orgRecord, identityKeys.privateKey, identityKeys.publicKey, vault.session.did);
+        const ctx = await buildOrgContext(pds, orgRecord, identityKeys.privateKey, vault.session.did);
         setActiveOrg(ctx);
         // Load channels for this org
         const chans = await loadChannels(pds, ctx);
@@ -256,7 +256,6 @@ export function App() {
     client: PdsClient,
     orgRecord: OrgRecord,
     privateKey: CryptoKey,
-    publicKey: CryptoKey,
     myDid: string
   ): Promise<WaveOrgContext> => {
     const founderDid = orgRecord.org.founderDid;
@@ -294,44 +293,32 @@ export function App() {
     const myTierDef = orgRecord.org.tiers.find(t => t.name === myMembership.membership.tierName);
     if (!myTierDef) throw new Error("Tier not found");
 
-    // Unwrap DEKs — collect diagnostics for debugging on mobile
+    // Unwrap DEKs
     const tierDeks = new Map<string, CryptoKey>();
     const keyringDeks = new Map<string, CryptoKey>();
     const accessibleTiers = orgRecord.org.tiers.filter(t => t.level <= myTierDef.level);
     const diagLines: string[] = [];
 
-    diagLines.push(`org tiers: ${orgRecord.org.tiers.map(t => `${t.name}(lvl=${t.level},ep=${t.currentEpoch ?? 0})`).join(", ")}`);
-    diagLines.push(`my tier: ${myTierDef.name} (level ${myTierDef.level})`);
-    diagLines.push(`accessible: ${accessibleTiers.map(t => t.name).join(", ") || "(none)"}`);
-    diagLines.push(`founder: ${founderDid.slice(0, 24)}...`);
-    diagLines.push(`isFounder: ${isFounder}`);
-
     for (const tier of accessibleTiers) {
       const currentEpoch = tier.currentEpoch ?? 0;
       for (let epoch = 0; epoch <= currentEpoch; epoch++) {
         const rkey = keyringRkeyForTier(orgRecord.rkey, tier.name, epoch);
-        diagLines.push(`--- ${tier.name} ep${epoch} rkey=${rkey}`);
         try {
           const keyringRecord = await controlClient.getRecordFrom(
             founderDid, KEYRING_COLLECTION, rkey
           );
           if (!keyringRecord) {
-            diagLines.push(`  → keyring NOT FOUND on PDS`);
+            diagLines.push(`${tier.name}: keyring not found`);
             continue;
           }
           const keyringVal = (keyringRecord as Record<string, unknown>).value as Keyring & { $type: string };
-          const memberDids = keyringVal.members.map((m: KeyringMemberEntry) => m.did.slice(0, 20) + "...");
-          diagLines.push(`  → keyring has ${keyringVal.members.length} members: ${memberDids.join(", ")}`);
           const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
           if (!myEntry) {
-            diagLines.push(`  → MY DID NOT IN KEYRING (${myDid.slice(0, 20)}...)`);
+            diagLines.push(`${tier.name}: not in keyring`);
             continue;
           }
-          diagLines.push(`  → found my wrapped DEK, unwrapping...`);
-          diagLines.push(`  → wrappedDek typeof=${typeof myEntry.wrappedDek} raw=${JSON.stringify(myEntry.wrappedDek).slice(0, 100)}`);
-          diagLines.push(`  → writerPubKey typeof=${typeof keyringVal.writerPublicKey} raw=${JSON.stringify(keyringVal.writerPublicKey).slice(0, 100)}`);
 
-          // ATProto bytes fields may come back as { $bytes: "base64" } or plain string
+          // Handle both plain base64 string and ATProto { $bytes: "..." } format
           const wrappedDekB64 = typeof myEntry.wrappedDek === "string"
             ? myEntry.wrappedDek
             : (myEntry.wrappedDek as unknown as { $bytes: string }).$bytes;
@@ -341,12 +328,6 @@ export function App() {
 
           const writerPubBytes = fromBase64(writerPubB64);
           const wrappedDekBytes = fromBase64(wrappedDekB64);
-          const myPubBytes = await exportPublicKey(publicKey);
-          const pubKeysMatch = writerPubBytes.length === myPubBytes.length &&
-            writerPubBytes.every((b: number, i: number) => b === myPubBytes[i]);
-          diagLines.push(`  → writerPub len=${writerPubBytes.length}, myPub len=${myPubBytes.length}, match=${pubKeysMatch}`);
-          diagLines.push(`  → wrappedDek len=${wrappedDekBytes.length} (expected 60)`);
-          diagLines.push(`  → writerDid same=${keyringVal.writerDid === myDid}`);
 
           const writerPublicKey = await importPublicKey(writerPubBytes);
           const tierDek = await unwrapDekFromMember(
@@ -356,14 +337,12 @@ export function App() {
           if (epoch === currentEpoch) {
             tierDeks.set(tier.name, tierDek);
           }
-          diagLines.push(`  → OK, DEK unwrapped`);
+          diagLines.push(`${tier.name}: OK`);
         } catch (err) {
-          diagLines.push(`  → UNWRAP FAILED: ${err instanceof Error ? err.message : err}`);
+          diagLines.push(`${tier.name}: FAILED ${err instanceof Error ? err.message : err}`);
         }
       }
     }
-
-    diagLines.push(`result: ${tierDeks.size} tier DEKs, ${keyringDeks.size} keyring DEKs`);
 
     return {
       org: orgRecord,
@@ -522,6 +501,46 @@ export function App() {
       return newThread;
     },
     [pds, activeOrg, activeChannel, vault.session]
+  );
+
+  // --- Delete channel (founder only) ---
+  const deleteChannel = useCallback(
+    async (channel: WaveChannelRecord) => {
+      if (!pds || !vault.session || !activeOrg) return;
+      if (activeOrg.founderDid !== vault.session.did) {
+        setError("Only the org founder can delete channels");
+        return;
+      }
+      if (!confirm(`Delete channel #${channel.channel.name}?`)) return;
+      await pds.deleteRecord(CHANNEL_COLLECTION, channel.rkey);
+      setChannels(prev => prev.filter(c => c.rkey !== channel.rkey));
+      if (activeChannel?.rkey === channel.rkey) {
+        setActiveChannel(null);
+        setThreads([]);
+        setActiveThread(null);
+        setOps([]);
+      }
+    },
+    [pds, vault.session, activeOrg, activeChannel]
+  );
+
+  // --- Delete thread (author only — you can only delete your own records) ---
+  const deleteThread = useCallback(
+    async (thread: WaveThreadRecord) => {
+      if (!pds || !vault.session) return;
+      if (thread.authorDid !== vault.session.did) {
+        setError("You can only delete threads you created");
+        return;
+      }
+      if (!confirm(`Delete thread "${thread.thread.title || "Chat"}"?`)) return;
+      await pds.deleteRecord(THREAD_COLLECTION, thread.rkey);
+      setThreads(prev => prev.filter(t => !(t.rkey === thread.rkey && t.authorDid === thread.authorDid)));
+      if (activeThread?.rkey === thread.rkey && activeThread?.authorDid === thread.authorDid) {
+        setActiveThread(null);
+        setOps([]);
+      }
+    },
+    [pds, vault.session, activeThread]
   );
 
   // --- Select thread → load ops ---
@@ -832,13 +851,23 @@ export function App() {
             )}
           </div>
           {channels.map(ch => (
-            <button
-              key={ch.rkey}
-              className={`sidebar-item ${activeChannel?.rkey === ch.rkey ? "active" : ""}`}
-              onClick={() => selectChannel(ch)}
-            >
-              # {ch.channel.name}
-            </button>
+            <div key={ch.rkey} className="sidebar-row">
+              <button
+                className={`sidebar-item ${activeChannel?.rkey === ch.rkey ? "active" : ""}`}
+                onClick={() => selectChannel(ch)}
+              >
+                # {ch.channel.name}
+              </button>
+              {activeOrg.founderDid === vault.session!.did && (
+                <button
+                  className="btn-delete"
+                  title="Delete channel"
+                  onClick={(e) => { e.stopPropagation(); deleteChannel(ch); }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
           ))}
           {channels.length === 0 && (
             <p className="empty-hint">No channels yet</p>
@@ -863,13 +892,23 @@ export function App() {
               </button>
             </div>
             {threads.map(th => (
-              <button
-                key={`${th.authorDid}:${th.rkey}`}
-                className={`sidebar-item ${activeThread?.rkey === th.rkey && activeThread?.authorDid === th.authorDid ? "active" : ""}`}
-                onClick={() => selectThread(th)}
-              >
-                {th.thread.title || "Chat"}
-              </button>
+              <div key={`${th.authorDid}:${th.rkey}`} className="sidebar-row">
+                <button
+                  className={`sidebar-item ${activeThread?.rkey === th.rkey && activeThread?.authorDid === th.authorDid ? "active" : ""}`}
+                  onClick={() => selectThread(th)}
+                >
+                  {th.thread.title || "Chat"}
+                </button>
+                {th.authorDid === vault.session!.did && (
+                  <button
+                    className="btn-delete"
+                    title="Delete thread"
+                    onClick={(e) => { e.stopPropagation(); deleteThread(th); }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             ))}
             {threads.length === 0 && (
               <p className="empty-hint">No threads yet</p>

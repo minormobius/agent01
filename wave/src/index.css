@@ -289,6 +289,36 @@ button[type="submit"]:hover:not(:disabled),
   color: var(--text-dim);
 }
 
+.sidebar-row {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-row .sidebar-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.sidebar-row:hover .btn-delete {
+  opacity: 1;
+}
+
+.btn-delete:hover {
+  color: var(--danger);
+}
+
 .sidebar-item {
   display: block;
   width: 100%;
