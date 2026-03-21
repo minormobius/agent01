@@ -233,7 +233,7 @@ export function App() {
       setLoading(true);
       setError("");
       try {
-        const ctx = await buildOrgContext(pds, orgRecord, identityKeys.privateKey, vault.session.did);
+        const ctx = await buildOrgContext(pds, orgRecord, identityKeys.privateKey, identityKeys.publicKey, vault.session.did);
         setActiveOrg(ctx);
         // Load channels for this org
         const chans = await loadChannels(pds, ctx);
@@ -256,6 +256,7 @@ export function App() {
     client: PdsClient,
     orgRecord: OrgRecord,
     privateKey: CryptoKey,
+    publicKey: CryptoKey,
     myDid: string
   ): Promise<WaveOrgContext> => {
     const founderDid = orgRecord.org.founderDid;
@@ -327,6 +328,13 @@ export function App() {
             continue;
           }
           diagLines.push(`  → found my wrapped DEK, unwrapping...`);
+          const writerPubBytes = fromBase64(keyringVal.writerPublicKey);
+          const myPubBytes = await exportPublicKey(publicKey);
+          const pubKeysMatch = writerPubBytes.length === myPubBytes.length &&
+            writerPubBytes.every((b: number, i: number) => b === myPubBytes[i]);
+          diagLines.push(`  → writerPub len=${writerPubBytes.length}, myPub len=${myPubBytes.length}, match=${pubKeysMatch}`);
+          diagLines.push(`  → wrappedDek len=${fromBase64(myEntry.wrappedDek).length}`);
+          diagLines.push(`  → writerDid=${keyringVal.writerDid?.slice(0, 24)}... myDid=${myDid.slice(0, 24)}... same=${keyringVal.writerDid === myDid}`);
 
           const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
           const tierDek = await unwrapDekFromMember(
