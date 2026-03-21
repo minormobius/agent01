@@ -79,6 +79,9 @@ export function App() {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
 
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Jetstream
   const jetstreamRef = useRef<JetstreamClient | null>(null);
   const [connected, setConnected] = useState(false);
@@ -548,6 +551,7 @@ export function App() {
     async (thread: WaveThreadRecord) => {
       if (!pds || !activeOrg || !activeChannel) return;
       setActiveThread(thread);
+      setSidebarOpen(false);
       setLoading(true);
       try {
         const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
@@ -807,8 +811,10 @@ export function App() {
   // Main chat interface
   return (
     <div className="wave-layout">
+      {/* Sidebar overlay for mobile */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       {/* Sidebar */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <h2>{activeOrg.org.org.name}</h2>
           <button className="btn-icon" title="Back to orgs" onClick={() => {
@@ -925,6 +931,16 @@ export function App() {
 
       {/* Main area */}
       <div className="main-area">
+        <div className="mobile-header">
+          <button className="btn-hamburger" onClick={() => setSidebarOpen(true)}>
+            ☰
+          </button>
+          <span className="mobile-title">
+            {activeChannel ? `# ${activeChannel.channel.name}` : activeOrg.org.org.name}
+            {activeThread?.thread.title ? ` / ${activeThread.thread.title}` : ""}
+          </span>
+          <span className={`status-dot ${connected ? "connected" : ""}`} />
+        </div>
         {error && (
           <div className="error-bar">
             <pre className="error-text">{error}</pre>
