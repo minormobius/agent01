@@ -328,17 +328,29 @@ export function App() {
             continue;
           }
           diagLines.push(`  → found my wrapped DEK, unwrapping...`);
-          const writerPubBytes = fromBase64(keyringVal.writerPublicKey);
+          diagLines.push(`  → wrappedDek typeof=${typeof myEntry.wrappedDek} raw=${JSON.stringify(myEntry.wrappedDek).slice(0, 100)}`);
+          diagLines.push(`  → writerPubKey typeof=${typeof keyringVal.writerPublicKey} raw=${JSON.stringify(keyringVal.writerPublicKey).slice(0, 100)}`);
+
+          // ATProto bytes fields may come back as { $bytes: "base64" } or plain string
+          const wrappedDekB64 = typeof myEntry.wrappedDek === "string"
+            ? myEntry.wrappedDek
+            : (myEntry.wrappedDek as unknown as { $bytes: string }).$bytes;
+          const writerPubB64 = typeof keyringVal.writerPublicKey === "string"
+            ? keyringVal.writerPublicKey
+            : (keyringVal.writerPublicKey as unknown as { $bytes: string }).$bytes;
+
+          const writerPubBytes = fromBase64(writerPubB64);
+          const wrappedDekBytes = fromBase64(wrappedDekB64);
           const myPubBytes = await exportPublicKey(publicKey);
           const pubKeysMatch = writerPubBytes.length === myPubBytes.length &&
             writerPubBytes.every((b: number, i: number) => b === myPubBytes[i]);
           diagLines.push(`  → writerPub len=${writerPubBytes.length}, myPub len=${myPubBytes.length}, match=${pubKeysMatch}`);
-          diagLines.push(`  → wrappedDek len=${fromBase64(myEntry.wrappedDek).length}`);
-          diagLines.push(`  → writerDid=${keyringVal.writerDid?.slice(0, 24)}... myDid=${myDid.slice(0, 24)}... same=${keyringVal.writerDid === myDid}`);
+          diagLines.push(`  → wrappedDek len=${wrappedDekBytes.length} (expected 60)`);
+          diagLines.push(`  → writerDid same=${keyringVal.writerDid === myDid}`);
 
-          const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
+          const writerPublicKey = await importPublicKey(writerPubBytes);
           const tierDek = await unwrapDekFromMember(
-            fromBase64(myEntry.wrappedDek), privateKey, writerPublicKey
+            wrappedDekBytes, privateKey, writerPublicKey
           );
           keyringDeks.set(rkey, tierDek);
           if (epoch === currentEpoch) {
