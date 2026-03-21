@@ -293,35 +293,40 @@ export function App() {
     const myTierDef = orgRecord.org.tiers.find(t => t.name === myMembership.membership.tierName);
     if (!myTierDef) throw new Error("Tier not found");
 
-    // Unwrap DEKs
+    // Unwrap DEKs — collect diagnostics for debugging on mobile
     const tierDeks = new Map<string, CryptoKey>();
     const keyringDeks = new Map<string, CryptoKey>();
     const accessibleTiers = orgRecord.org.tiers.filter(t => t.level <= myTierDef.level);
+    const diagLines: string[] = [];
 
-    console.log("[wave] org tiers:", orgRecord.org.tiers.map(t => `${t.name}(level=${t.level}, epoch=${t.currentEpoch ?? 0})`));
-    console.log("[wave] my tier:", myTierDef.name, "level:", myTierDef.level);
-    console.log("[wave] accessible tiers:", accessibleTiers.map(t => t.name));
+    diagLines.push(`org tiers: ${orgRecord.org.tiers.map(t => `${t.name}(lvl=${t.level},ep=${t.currentEpoch ?? 0})`).join(", ")}`);
+    diagLines.push(`my tier: ${myTierDef.name} (level ${myTierDef.level})`);
+    diagLines.push(`accessible: ${accessibleTiers.map(t => t.name).join(", ") || "(none)"}`);
+    diagLines.push(`founder: ${founderDid.slice(0, 24)}...`);
+    diagLines.push(`isFounder: ${isFounder}`);
 
     for (const tier of accessibleTiers) {
       const currentEpoch = tier.currentEpoch ?? 0;
       for (let epoch = 0; epoch <= currentEpoch; epoch++) {
         const rkey = keyringRkeyForTier(orgRecord.rkey, tier.name, epoch);
-        console.log("[wave] fetching keyring:", rkey, "from", founderDid);
+        diagLines.push(`--- ${tier.name} ep${epoch} rkey=${rkey}`);
         try {
           const keyringRecord = await controlClient.getRecordFrom(
             founderDid, KEYRING_COLLECTION, rkey
           );
           if (!keyringRecord) {
-            console.warn("[wave] keyring not found:", rkey);
+            diagLines.push(`  → keyring NOT FOUND on PDS`);
             continue;
           }
           const keyringVal = (keyringRecord as Record<string, unknown>).value as Keyring & { $type: string };
-          console.log("[wave] keyring members:", keyringVal.members.map((m: KeyringMemberEntry) => m.did.slice(0, 20)));
+          const memberDids = keyringVal.members.map((m: KeyringMemberEntry) => m.did.slice(0, 20) + "...");
+          diagLines.push(`  → keyring has ${keyringVal.members.length} members: ${memberDids.join(", ")}`);
           const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
           if (!myEntry) {
-            console.warn("[wave] my DID not in keyring:", myDid.slice(0, 20));
+            diagLines.push(`  → MY DID NOT IN KEYRING (${myDid.slice(0, 20)}...)`);
             continue;
           }
+          diagLines.push(`  → found my wrapped DEK, unwrapping...`);
 
           const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
           const tierDek = await unwrapDekFromMember(
@@ -331,11 +336,14 @@ export function App() {
           if (epoch === currentEpoch) {
             tierDeks.set(tier.name, tierDek);
           }
+          diagLines.push(`  → OK, DEK unwrapped`);
         } catch (err) {
-          console.warn(`Failed to unwrap DEK for tier ${tier.name} epoch ${epoch}:`, err);
+          diagLines.push(`  → UNWRAP FAILED: ${err instanceof Error ? err.message : err}`);
         }
       }
     }
+
+    diagLines.push(`result: ${tierDeks.size} tier DEKs, ${keyringDeks.size} keyring DEKs`);
 
     return {
       org: orgRecord,
@@ -346,6 +354,7 @@ export function App() {
       tierDeks,
       keyringDeks,
       memberships: allMemberships,
+      diagnostics: diagLines.join("\n"),
     };
   };
 
@@ -589,8 +598,8 @@ export function App() {
         if (!dek) {
           const available = [...activeOrg.tierDeks.keys()].join(", ");
           throw new Error(
-            `No DEK for tier "${tierName}". Available tiers: [${available}]. ` +
-            `Check that your org has a keyring for this tier.`
+            `No DEK for tier "${tierName}". Available: [${available}].\n\n` +
+            `--- Keyring Trace ---\n${activeOrg.diagnostics}`
           );
         }
 
@@ -859,7 +868,7 @@ export function App() {
       <div className="main-area">
         {error && (
           <div className="error-bar">
-            {error}
+            <pre className="error-text">{error}</pre>
             <button onClick={() => setError("")}>×</button>
           </div>
         )}

@@ -132,6 +132,7 @@ export interface WaveOrgContext {
   /** full keyring rkey → DEK (for reading at any epoch) */
   keyringDeks: Map<string, CryptoKey>;
   memberships: MembershipRecord[];
+  diagnostics: string;
 }
 
 /** Top-level app state */

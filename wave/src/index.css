@@ -361,13 +361,24 @@ button[type="submit"]:hover:not(:disabled),
 
 .error-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   background: #ef44441a;
   border-bottom: 1px solid #ef444444;
   color: var(--danger);
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.error-text {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  margin: 0;
+  flex: 1;
 }
 
 .error-bar button {
