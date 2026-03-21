@@ -382,6 +382,61 @@ header h1 small {
 .coin-sig:hover { max-height: none; }
 .coin-actions { margin-top: 8px; }
 
+/* ── Docs panel ──────────────────────────────── */
+.docs-content {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+  max-width: 680px;
+}
+.docs-content h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 28px 0 10px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.docs-content h3:first-child { margin-top: 0; }
+.docs-content p { margin-bottom: 12px; }
+.docs-content code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.docs-content a { color: var(--accent); }
+.docs-content dl { margin: 8px 0 16px 0; }
+.docs-content dt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 8px;
+}
+.docs-content dd {
+  margin: 2px 0 0 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.docs-content .diagram {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 12px 0;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-dim);
+}
+
 /* ── Verify section ───────────────────────────── */
 .verify-result {
   margin-top: 16px;
@@ -461,6 +516,7 @@ header h1 small {
   <button class="tab active" data-panel="bounties">Bounties</button>
   <button class="tab" data-panel="wallet">Rep <span class="badge" id="rep-count">0</span></button>
   <button class="tab" data-panel="verify">Verify</button>
+  <button class="tab" data-panel="docs">Docs</button>
 </div>
 
 <div class="container">
@@ -566,6 +622,9 @@ header h1 small {
     </div>
   </div>
 
+  <!-- ═══ DOCS PANEL ═══ -->
+  <div class="panel" id="panel-docs"></div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -584,7 +643,7 @@ try {
   const mod = await import('https://esm.sh/@cloudflare/blindrsa-ts@0.3.0');
   RSABSSA = mod.RSABSSA;
 } catch {
-  console.warn('Could not load blindrsa-ts from CDN. Trophy claiming will be unavailable.');
+  console.warn('Could not load blindrsa-ts from CDN. Rep minting will be unavailable.');
 }
 
 const encoder = new TextEncoder();
@@ -664,6 +723,119 @@ function toast(msg, type = 'info') {
   setTimeout(() => el.classList.remove('show'), 4000);
 }
 
+// ─── Docs content ────────────────────────────────────────
+
+const DOCS_HTML = `<div class="docs-content">
+  <h3>what this is</h3>
+  <p>
+    A bounty board for megaproject intelligence. Post a bounty for evidence you need —
+    webcam feeds, construction photos, satellite imagery, progress reports — and anyone
+    can fulfill it. Fulfillments are accepted by the poster. Accepted work earns
+    <strong>rep</strong>: anonymous, denomination-based tokens you accumulate and stake.
+  </p>
+  <p>
+    Hosted at <code>bounty.mino.mobi</code>. Data in Cloudflare D1.
+    No accounts, no logins, no tracking. Rep lives in your browser.
+  </p>
+
+  <h3>how rep works</h3>
+  <p>
+    Rep is Chaumian ecash — blind-signed tokens in fixed denominations (1, 5, 10, 25).
+    When your fulfillment is accepted, you mint rep tokens that sum to the bounty's reward.
+    The board signs them without seeing the token content. You unblind them locally.
+    The result: cryptographically valid rep that the board can verify but cannot link
+    back to the job that earned it.
+  </p>
+  <div class="diagram">You: generate token → blind it → send to board
+Board: sign the blinded token → return
+You: unblind signature → store token locally
+Anyone: verify token against board's public key</div>
+  <p>
+    This is the same <a href="https://www.rfc-editor.org/rfc/rfc9474" target="_blank" rel="noopener">RFC 9474</a>
+    RSA blind signature scheme used by the
+    <a href="https://poll.mino.mobi" target="_blank" rel="noopener">ATPolls</a> anonymous voting system,
+    applied to reputation instead of ballots. David Chaum invented it for digital cash in 1982.
+  </p>
+
+  <h3>denominations</h3>
+  <dl>
+    <dt>1 rep</dt><dd>Smallest unit. Easy bounties, micro-contributions.</dd>
+    <dt>5 rep</dt><dd>Standard fulfillment. A solid photo or document find.</dd>
+    <dt>10 rep</dt><dd>Substantial work. Multi-source evidence, detailed reports.</dd>
+    <dt>25 rep</dt><dd>Major contribution. Rare footage, satellite imagery, exclusive access.</dd>
+  </dl>
+  <p>
+    Each denomination has its own RSA keypair. A 10-rep token is signed by the 10-rep key,
+    so you can't forge denominations. Tokens are fungible within denomination — one 10-rep
+    token is indistinguishable from any other.
+  </p>
+
+  <h3>staking</h3>
+  <p>
+    Some bounties require a stake: you lock rep tokens to claim the job. If your fulfillment
+    is accepted, you get the stake back plus the reward. If you abandon or submit junk,
+    the stake is burned (nullifier registered, tokens spent). This is skin in the game —
+    it filters out noise and signals commitment.
+  </p>
+  <div class="diagram">Bounty: "Satellite imagery of The Line" — 50 rep reward, 10 rep stake
+→ Claim: spend 10 rep tokens (nullifiers registered)
+→ Fulfill: submit imagery + sources
+→ Accept: get 10 rep back + 50 rep reward = 60 rep minted</div>
+
+  <h3>verification</h3>
+  <p>
+    Anyone can verify a rep token using the <strong>Verify</strong> tab. Paste the token message
+    and signature, select the denomination, and the board checks the RSA-PSS signature against
+    its public key. Valid means: this token was minted by this board for real work. But which work?
+    The blind signature ensures nobody — not even the board — can tell.
+  </p>
+  <p>
+    Tokens also carry a <code>nullifier</code> — a one-way hash that prevents double-spending.
+    When you spend or stake a token, the nullifier is registered. The token is still verifiable
+    but marked as spent.
+  </p>
+
+  <h3>bounty types</h3>
+  <dl>
+    <dt>webcam</dt><dd>Live camera feed URL showing a project site.</dd>
+    <dt>photo</dt><dd>Ground-level or aerial photography. Recent, with context.</dd>
+    <dt>video</dt><dd>Drone footage, timelapse, or site walkthrough.</dd>
+    <dt>satellite</dt><dd>Satellite or high-altitude aerial imagery.</dd>
+    <dt>document</dt><dd>Reports, filings, permits, official publications.</dd>
+    <dt>progress_update</dt><dd>Status summary from credible sources.</dd>
+    <dt>data</dt><dd>Structured data: coordinates, measurements, timelines.</dd>
+  </dl>
+
+  <h3>threat model</h3>
+  <p>
+    The board operator (this site) is an honest-but-curious adversary. The blind signature
+    scheme means even a malicious board cannot link tokens to fulfillments after issuance.
+    The board <em>can</em> see who submits fulfillments (IP addresses, timing), but it
+    <em>cannot</em> see which tokens those people later present. The unlinkability is
+    mathematical, not policy.
+  </p>
+  <p>
+    Tokens live in <code>localStorage</code>. If you clear your browser data, they're gone.
+    Export tokens you care about. Future: ATProto PDS storage for portability.
+  </p>
+
+  <h3>what this isn't</h3>
+  <p>
+    This is not a cryptocurrency. Rep has no exchange rate, no market, no liquidity.
+    It's proof-of-work reputation — you earned it by doing something real. It's also not
+    a prediction market or a futures contract. It's a bulletin board with cryptographic receipts.
+  </p>
+
+  <h3>stack</h3>
+  <dl>
+    <dt>Frontend</dt><dd>Static HTML/JS, no framework. Served from Cloudflare Pages.</dd>
+    <dt>Worker</dt><dd>Cloudflare Worker handling API routes + static asset serving.</dd>
+    <dt>Database</dt><dd>Cloudflare D1 (SQLite) — bounties, fulfillments, mint keys, nullifiers.</dd>
+    <dt>Crypto</dt><dd><code>@cloudflare/blindrsa-ts</code> — RFC 9474 RSA-PSS blind signatures.</dd>
+    <dt>Verification</dt><dd>Client-side via Web Crypto API + blind RSA library from CDN.</dd>
+  </dl>
+</div>`;
+
 // ─── Tab switching ───────────────────────────────────────
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -673,6 +845,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
     if (tab.dataset.panel === 'wallet') renderWallet();
+    if (tab.dataset.panel === 'docs') document.getElementById('panel-docs').innerHTML = DOCS_HTML;
   });
 });
 
