@@ -20,7 +20,6 @@ canvas { width: 100%; height: 100%; display: block; }
 <div id="year-label"></div>
 <script type="module">
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
 const MONTH_COLORS = [
   [0.55, 0.75, 0.95], // Jan - icy blue
@@ -37,13 +36,22 @@ const MONTH_COLORS = [
   [0.45, 0.50, 0.80], // Dec - winter blue
 ];
 
-// --- WebGPU init ---
+// --- Vector helpers ---
+function v3add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function v3scale(a, s) { return [a[0]*s, a[1]*s, a[2]*s]; }
+function v3normalize(a) {
+  const l = Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
+  return l > 1e-8 ? [a[0]/l, a[1]/l, a[2]/l] : [0,0,0];
+}
+function v3cross(a, b) {
+  return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+}
+
 async function main() {
   if (!navigator.gpu) {
     document.getElementById('fallback').style.display = 'flex';
     return;
   }
-
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
     document.getElementById('fallback').style.display = 'flex';
@@ -55,53 +63,66 @@ async function main() {
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device, format, alphaMode: 'opaque' });
 
-  // --- Generate helix geometry ---
+  // --- Calendar parameters ---
   const now = new Date();
   const currentYear = now.getFullYear();
   const startYear = currentYear - 2;
   const endYear = currentYear + 2;
   const totalYears = endYear - startYear + 1;
 
-  document.getElementById('year-label').textContent =
-    `${startYear} — ${endYear}`;
+  document.getElementById('year-label').textContent = `${startYear} — ${endYear}`;
 
-  const helixRadius = 1.0;
-  const pitchPerYear = 1.2; // vertical advance per full revolution
-  const segmentsPerMonth = 16;
+  // --- Macro helix: one revolution per year ---
+  const macroRadius = 1.2;
+  const pitchPerYear = 1.4;
+  const yCenter = (totalYears * pitchPerYear) / 2;
 
-  // Build vertex data: position (3) + color (3) + normal (3) = 9 floats per vertex
-  // We'll create a tube around the helix path
-  const tubeRadius = 0.04;
-  const tubeSegments = 8;
-  const vertices = [];
-  const indices = [];
-
-  // Helper: helix point at parameter t (0 = start of startYear, 1 = one year)
-  function helixPoint(yearOffset, monthFrac) {
-    const angle = monthFrac * Math.PI * 2;
-    const y = (yearOffset + monthFrac) * pitchPerYear;
+  // Macro helix position & frame at fractional year offset
+  // frac ∈ [0,1) within a year
+  function macroPoint(yearOffset, frac) {
+    const angle = frac * Math.PI * 2;
     return [
-      helixRadius * Math.cos(angle),
-      y - (totalYears * pitchPerYear) / 2, // center vertically
-      helixRadius * Math.sin(angle),
+      macroRadius * Math.cos(angle),
+      (yearOffset + frac) * pitchPerYear - yCenter,
+      macroRadius * Math.sin(angle),
     ];
   }
 
-  function helixTangent(yearOffset, monthFrac) {
-    const angle = monthFrac * Math.PI * 2;
-    const dx = -helixRadius * Math.sin(angle) * Math.PI * 2;
-    const dy = pitchPerYear;
-    const dz = helixRadius * Math.cos(angle) * Math.PI * 2;
-    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
-    return [dx/len, dy/len, dz/len];
+  function macroTangent(yearOffset, frac) {
+    const angle = frac * Math.PI * 2;
+    return v3normalize([
+      -macroRadius * Math.sin(angle) * Math.PI * 2,
+      pitchPerYear,
+      macroRadius * Math.cos(angle) * Math.PI * 2,
+    ]);
   }
 
-  // Today marker
-  const dayOfYear = Math.floor((now - new Date(currentYear, 0, 0)) / 86400000);
-  const todayFrac = dayOfYear / 365;
-  const todayYearOffset = currentYear - startYear;
+  // Build a stable Frenet-like frame along macro helix
+  function macroFrame(yearOffset, frac) {
+    const T = macroTangent(yearOffset, frac);
+    let up = [0, 1, 0];
+    if (Math.abs(T[1]) > 0.95) up = [1, 0, 0];
+    const B = v3normalize(v3cross(T, up));
+    const N = v3normalize(v3cross(B, T));
+    return { T, N, B };
+  }
 
-  let pathPoints = [];
+  // --- Micro helix: days spiral around the macro path ---
+  // Each day = one revolution of the micro helix around the macro tube
+  const microRadius = 0.12; // radius of day-loops around macro path
+  const tubeRadius = 0.018; // thickness of the rendered tube
+
+  // Samples per day (hours resolution)
+  const samplesPerDay = 12; // 12 samples per day-loop (every 2 hours)
+  const tubeSegments = 6;   // cross-section of rendered tube
+
+  const vertices = [];
+  const indices = [];
+  let vertexOffset = 0;
+
+  // Today tracking
+  const dayOfYear = Math.floor((now - new Date(currentYear, 0, 0)) / 86400000);
+  const currentHour = now.getHours() + now.getMinutes() / 60;
 
   for (let yr = 0; yr < totalYears; yr++) {
     const year = startYear + yr;
@@ -111,175 +132,167 @@ async function main() {
 
     for (let m = 0; m < 12; m++) {
       const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-      const segs = segmentsPerMonth;
-      for (let s = 0; s <= segs; s++) {
-        const dayInMonth = (s / segs) * daysInMonth;
-        const frac = (dayAccum + dayInMonth) / daysInYear;
-        const pos = helixPoint(yr, frac);
-        const tan = helixTangent(yr, frac);
-        const color = MONTH_COLORS[m];
+      const baseColor = MONTH_COLORS[m];
 
-        // Brightness boost for current day vicinity
-        let brightness = 1.0;
-        if (yr === todayYearOffset) {
-          const dist = Math.abs(frac - todayFrac);
-          if (dist < 0.02) brightness = 1.8;
+      // For each day in this month, we make one full micro-revolution
+      for (let d = 0; d < daysInMonth; d++) {
+        const globalDay = dayAccum + d;
+
+        for (let s = 0; s <= samplesPerDay; s++) {
+          const hourFrac = s / samplesPerDay; // 0..1 within this day
+          const dayFrac = (globalDay + hourFrac) / daysInYear; // fraction of year
+
+          // Position on macro helix
+          const macroPos = macroPoint(yr, dayFrac);
+          const frame = macroFrame(yr, dayFrac);
+
+          // Micro helix: one revolution per day around the macro path
+          const microAngle = hourFrac * Math.PI * 2;
+          const microOffset = v3add(
+            v3scale(frame.N, microRadius * Math.cos(microAngle)),
+            v3scale(frame.B, microRadius * Math.sin(microAngle))
+          );
+          const pos = v3add(macroPos, microOffset);
+
+          // Micro tangent (for tube normal computation)
+          // Derivative of micro offset w.r.t. hourFrac
+          const microTangentLocal = v3add(
+            v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2),
+            v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2)
+          );
+          // Full tangent = macro tangent (scaled by speed) + micro tangent
+          const macroSpeed = 1.0 / daysInYear; // dayFrac change per day
+          const fullTangent = v3normalize(v3add(
+            v3scale(macroTangent(yr, dayFrac), macroSpeed * pitchPerYear),
+            v3scale(microTangentLocal, 1.0 / samplesPerDay)
+          ));
+
+          // Normal pointing outward from macro center (radial from macro path)
+          const radialNorm = v3normalize(microOffset);
+
+          // Build tube cross-section frame
+          const tubeN = radialNorm;
+          const tubeB = v3normalize(v3cross(fullTangent, tubeN));
+          const tubeNcorrected = v3normalize(v3cross(tubeB, fullTangent));
+
+          // Color: base month color, vary brightness by hour
+          // Dawn/dusk dimmer, midday brighter, midnight darkest
+          const hour = hourFrac * 24;
+          let timeBrightness;
+          if (hour < 6) timeBrightness = 0.3 + 0.1 * (hour / 6);        // night → dawn
+          else if (hour < 12) timeBrightness = 0.4 + 0.6 * ((hour-6)/6); // dawn → noon
+          else if (hour < 18) timeBrightness = 1.0 - 0.3 * ((hour-12)/6);// noon → dusk
+          else timeBrightness = 0.7 - 0.4 * ((hour-18)/6);               // dusk → night
+
+          // Today highlight
+          let todayGlow = 0;
+          if (yr === currentYear - startYear && globalDay === dayOfYear - 1) {
+            todayGlow = 0.3;
+            // Extra glow near current hour
+            const hourDist = Math.abs(hour - currentHour);
+            if (hourDist < 2) todayGlow += 0.5 * (1 - hourDist / 2);
+          }
+
+          const color = baseColor.map(c =>
+            Math.min(1.0, c * timeBrightness + todayGlow)
+          );
+
+          // Generate tube vertices
+          for (let t = 0; t < tubeSegments; t++) {
+            const theta = (t / tubeSegments) * Math.PI * 2;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            const vx = pos[0] + tubeRadius * (cosT * tubeNcorrected[0] + sinT * tubeB[0]);
+            const vy = pos[1] + tubeRadius * (cosT * tubeNcorrected[1] + sinT * tubeB[1]);
+            const vz = pos[2] + tubeRadius * (cosT * tubeNcorrected[2] + sinT * tubeB[2]);
+
+            const nx = cosT * tubeNcorrected[0] + sinT * tubeB[0];
+            const ny = cosT * tubeNcorrected[1] + sinT * tubeB[1];
+            const nz = cosT * tubeNcorrected[2] + sinT * tubeB[2];
+
+            vertices.push(vx, vy, vz, color[0], color[1], color[2], nx, ny, nz);
+          }
+
+          // Connect to previous ring (but not across day boundaries at s=0 of first day)
+          if (s > 0 || d > 0) {
+            // Only connect if this isn't the very first ring of this month
+            if (!(d === 0 && s === 0)) {
+              const curr = vertexOffset;
+              const prev = vertexOffset - tubeSegments;
+              for (let t = 0; t < tubeSegments; t++) {
+                const t1 = (t + 1) % tubeSegments;
+                indices.push(prev + t, curr + t, curr + t1);
+                indices.push(prev + t, curr + t1, prev + t1);
+              }
+            }
+          }
+          vertexOffset += tubeSegments;
         }
-
-        pathPoints.push({ pos, tan, color: color.map(c => Math.min(1, c * brightness)), monthIndex: m, year });
       }
       dayAccum += daysInMonth;
     }
   }
 
-  // Build tube mesh around path
-  let vertexOffset = 0;
-  for (let i = 0; i < pathPoints.length; i++) {
-    const { pos, tan, color } = pathPoints[i];
-
-    // Build local frame (Frenet-like)
-    let up = [0, 1, 0];
-    if (Math.abs(tan[1]) > 0.99) up = [1, 0, 0];
-    // binormal = tan x up
-    const bx = tan[1]*up[2] - tan[2]*up[1];
-    const by = tan[2]*up[0] - tan[0]*up[2];
-    const bz = tan[0]*up[1] - tan[1]*up[0];
-    const blen = Math.sqrt(bx*bx + by*by + bz*bz);
-    const binormal = [bx/blen, by/blen, bz/blen];
-    // normal = binormal x tan
-    const nx = binormal[1]*tan[2] - binormal[2]*tan[1];
-    const ny = binormal[2]*tan[0] - binormal[0]*tan[2];
-    const nz = binormal[0]*tan[1] - binormal[1]*tan[0];
-    const normal = [nx, ny, nz];
-
-    for (let t = 0; t < tubeSegments; t++) {
-      const theta = (t / tubeSegments) * Math.PI * 2;
-      const cosT = Math.cos(theta);
-      const sinT = Math.sin(theta);
-
-      const vx = pos[0] + tubeRadius * (cosT * normal[0] + sinT * binormal[0]);
-      const vy = pos[1] + tubeRadius * (cosT * normal[1] + sinT * binormal[1]);
-      const vz = pos[2] + tubeRadius * (cosT * normal[2] + sinT * binormal[2]);
-
-      const nnx = cosT * normal[0] + sinT * binormal[0];
-      const nny = cosT * normal[1] + sinT * binormal[1];
-      const nnz = cosT * normal[2] + sinT * binormal[2];
-
-      vertices.push(vx, vy, vz, color[0], color[1], color[2], nnx, nny, nnz);
-    }
-
-    if (i > 0) {
-      const curr = vertexOffset;
-      const prev = vertexOffset - tubeSegments;
-      for (let t = 0; t < tubeSegments; t++) {
-        const t1 = (t + 1) % tubeSegments;
-        indices.push(prev + t, curr + t, curr + t1);
-        indices.push(prev + t, curr + t1, prev + t1);
-      }
-    }
-    vertexOffset += tubeSegments;
-  }
-
-  // Today marker - a larger ring at today's position
-  const todayPos = helixPoint(todayYearOffset, todayFrac);
-  const todayTan = helixTangent(todayYearOffset, todayFrac);
-  const markerRadius = 0.09;
-  const markerTube = 0.015;
-  const markerSegs = 24;
-  const markerTubeSegs = 8;
-
+  // --- Today marker: bright ring around the current position ---
   {
-    let up = [0, 1, 0];
-    if (Math.abs(todayTan[1]) > 0.99) up = [1, 0, 0];
-    const bx = todayTan[1]*up[2] - todayTan[2]*up[1];
-    const by = todayTan[2]*up[0] - todayTan[0]*up[2];
-    const bz = todayTan[0]*up[1] - todayTan[1]*up[0];
-    const blen = Math.sqrt(bx*bx + by*by + bz*bz);
-    const binormal = [bx/blen, by/blen, bz/blen];
-    const nx = binormal[1]*todayTan[2] - binormal[2]*todayTan[1];
-    const ny = binormal[2]*todayTan[0] - binormal[0]*todayTan[2];
-    const nz = binormal[0]*todayTan[1] - binormal[1]*todayTan[0];
-    const normal = [nx, ny, nz];
+    const todayDayOfYear = dayOfYear - 1;
+    const todayFrac = (todayDayOfYear + currentHour / 24) / 365;
+    const todayYr = currentYear - startYear;
+    const tPos = macroPoint(todayYr, todayFrac);
+    const tFrame = macroFrame(todayYr, todayFrac);
+    const microAngle = (currentHour / 24) * Math.PI * 2;
+    const todayMicroOffset = v3add(
+      v3scale(tFrame.N, microRadius * Math.cos(microAngle)),
+      v3scale(tFrame.B, microRadius * Math.sin(microAngle))
+    );
+    const todayPos = v3add(tPos, todayMicroOffset);
+    const radial = v3normalize(todayMicroOffset);
 
-    const markerBase = vertexOffset;
-    for (let i = 0; i <= markerSegs; i++) {
-      const phi = (i / markerSegs) * Math.PI * 2;
-      const cx = todayPos[0] + markerRadius * (Math.cos(phi) * normal[0] + Math.sin(phi) * binormal[0]);
-      const cy = todayPos[1] + markerRadius * (Math.cos(phi) * normal[1] + Math.sin(phi) * binormal[1]);
-      const cz = todayPos[2] + markerRadius * (Math.cos(phi) * normal[2] + Math.sin(phi) * binormal[2]);
+    // Small torus marker
+    const mRadius = 0.04;
+    const mTube = 0.008;
+    const mSegs = 20;
+    const mTubeSegs = 6;
 
-      for (let j = 0; j < markerTubeSegs; j++) {
-        const theta = (j / markerTubeSegs) * Math.PI * 2;
-        const ringNx = Math.cos(phi) * normal[0] + Math.sin(phi) * binormal[0];
-        const ringNy = Math.cos(phi) * normal[1] + Math.sin(phi) * binormal[1];
-        const ringNz = Math.cos(phi) * normal[2] + Math.sin(phi) * binormal[2];
+    // Ring lies in the plane perpendicular to the macro tangent
+    const T = macroTangent(todayYr, todayFrac);
+    const rN = v3normalize(v3cross(T, [0, 1, 0]));
+    const rB = v3normalize(v3cross(T, rN));
 
-        const vx = cx + markerTube * (Math.cos(theta) * ringNx + Math.sin(theta) * todayTan[0]);
-        const vy = cy + markerTube * (Math.cos(theta) * ringNy + Math.sin(theta) * todayTan[1]);
-        const vz = cz + markerTube * (Math.cos(theta) * ringNz + Math.sin(theta) * todayTan[2]);
+    for (let i = 0; i <= mSegs; i++) {
+      const phi = (i / mSegs) * Math.PI * 2;
+      const cx = todayPos[0] + mRadius * (Math.cos(phi) * rN[0] + Math.sin(phi) * rB[0]);
+      const cy = todayPos[1] + mRadius * (Math.cos(phi) * rN[1] + Math.sin(phi) * rB[1]);
+      const cz = todayPos[2] + mRadius * (Math.cos(phi) * rN[2] + Math.sin(phi) * rB[2]);
+      const ringDir = v3normalize([
+        Math.cos(phi) * rN[0] + Math.sin(phi) * rB[0],
+        Math.cos(phi) * rN[1] + Math.sin(phi) * rB[1],
+        Math.cos(phi) * rN[2] + Math.sin(phi) * rB[2],
+      ]);
 
-        vertices.push(vx, vy, vz, 1.0, 1.0, 1.0, ringNx, ringNy, ringNz);
+      for (let j = 0; j < mTubeSegs; j++) {
+        const theta = (j / mTubeSegs) * Math.PI * 2;
+        const vx = cx + mTube * (Math.cos(theta) * ringDir[0] + Math.sin(theta) * T[0]);
+        const vy = cy + mTube * (Math.cos(theta) * ringDir[1] + Math.sin(theta) * T[1]);
+        const vz = cz + mTube * (Math.cos(theta) * ringDir[2] + Math.sin(theta) * T[2]);
+        vertices.push(vx, vy, vz, 1.0, 1.0, 1.0, ringDir[0], ringDir[1], ringDir[2]);
       }
 
       if (i > 0) {
         const curr = vertexOffset;
-        const prev = vertexOffset - markerTubeSegs;
-        for (let t = 0; t < markerTubeSegs; t++) {
-          const t1 = (t + 1) % markerTubeSegs;
+        const prev = vertexOffset - mTubeSegs;
+        for (let t = 0; t < mTubeSegs; t++) {
+          const t1 = (t + 1) % mTubeSegs;
           indices.push(prev + t, curr + t, curr + t1);
           indices.push(prev + t, curr + t1, prev + t1);
         }
       }
-      vertexOffset += markerTubeSegs;
+      vertexOffset += mTubeSegs;
     }
   }
 
-  // Month label tick marks (small radial lines at month boundaries)
-  for (let yr = 0; yr < totalYears; yr++) {
-    const year = startYear + yr;
-    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    const daysInYear = isLeap ? 366 : 365;
-    let dayAccum = 0;
-
-    for (let m = 0; m < 12; m++) {
-      const frac = dayAccum / daysInYear;
-      const pos = helixPoint(yr, frac);
-      const angle = frac * Math.PI * 2;
-
-      // Radial tick outward
-      const rx = Math.cos(angle);
-      const rz = Math.sin(angle);
-      const tickLen = 0.08;
-      const tickR = 0.008;
-
-      const p0 = [pos[0] + tickLen * 0.5 * rx, pos[1], pos[2] + tickLen * 0.5 * rz];
-      const p1 = [pos[0] + tickLen * 1.8 * rx, pos[1], pos[2] + tickLen * 1.8 * rz];
-
-      // Simple line as thin box
-      const baseIdx = vertexOffset;
-      const color = MONTH_COLORS[m];
-      for (let end = 0; end < 2; end++) {
-        const p = end === 0 ? p0 : p1;
-        for (let t = 0; t < 4; t++) {
-          const theta = (t / 4) * Math.PI * 2;
-          const ox = tickR * Math.cos(theta);
-          const oy = tickR * Math.sin(theta);
-          vertices.push(p[0] + ox, p[1] + oy, p[2], color[0]*0.7, color[1]*0.7, color[2]*0.7, Math.cos(theta), Math.sin(theta), 0);
-        }
-        vertexOffset += 4;
-      }
-      for (let t = 0; t < 4; t++) {
-        const t1 = (t + 1) % 4;
-        indices.push(baseIdx + t, baseIdx + 4 + t, baseIdx + 4 + t1);
-        indices.push(baseIdx + t, baseIdx + 4 + t1, baseIdx + t1);
-      }
-
-      const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-      dayAccum += daysInMonth;
-    }
-  }
-
-  // Upload to GPU
+  // --- Upload to GPU ---
   const vertexData = new Float32Array(vertices);
   const indexData = new Uint32Array(indices);
 
@@ -296,6 +309,8 @@ async function main() {
   device.queue.writeBuffer(indexBuffer, 0, indexData);
 
   const indexCount = indices.length;
+
+  console.log(`Supercoil: ${(vertexData.byteLength/1024/1024).toFixed(1)}MB vertices, ${(indexData.byteLength/1024/1024).toFixed(1)}MB indices, ${indexCount} triangles`);
 
   // --- Shader ---
   const shaderCode = /* wgsl */`
@@ -335,12 +350,10 @@ async function main() {
       let V = normalize(u.eye - in.worldPos);
       let H = normalize(L + V);
 
-      let ambient = 0.15;
-      let diffuse = max(dot(N, L), 0.0) * 0.7;
-      let spec = pow(max(dot(N, H), 0.0), 32.0) * 0.4;
-
-      // Rim light
-      let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.2;
+      let ambient = 0.12;
+      let diffuse = max(dot(N, L), 0.0) * 0.65;
+      let spec = pow(max(dot(N, H), 0.0), 40.0) * 0.5;
+      let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.15;
 
       let lighting = ambient + diffuse + spec + rim;
       let col = in.color * lighting;
@@ -351,7 +364,6 @@ async function main() {
 
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
-  // Uniform buffer
   const uniformBuffer = device.createBuffer({
     size: 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -374,7 +386,6 @@ async function main() {
     bindGroupLayouts: [bindGroupLayout],
   });
 
-  // Depth texture
   let depthTexture;
   function createDepthTexture() {
     if (depthTexture) depthTexture.destroy();
@@ -413,16 +424,16 @@ async function main() {
       topology: 'triangle-list',
       cullMode: 'back',
     },
-    multisample: { count: 1 },
   });
 
   // --- Camera ---
   let camTheta = 0.4;
   let camPhi = 0.8;
-  let camDist = 5.0;
+  let camDist = 6.0;
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
+    autoRotate = false;
     let lastX = e.clientX, lastY = e.clientY;
     const move = (ev) => {
       camTheta -= (ev.clientX - lastX) * 0.005;
@@ -439,10 +450,10 @@ async function main() {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDist = Math.max(2, Math.min(15, camDist + e.deltaY * 0.005));
+    camDist = Math.max(1.5, Math.min(15, camDist + e.deltaY * 0.005));
   }, { passive: false });
 
-  // --- Math helpers ---
+  // --- Matrix helpers ---
   function mat4Perspective(fov, aspect, near, far) {
     const f = 1 / Math.tan(fov / 2);
     const nf = 1 / (near - far);
@@ -483,7 +494,6 @@ async function main() {
 
   const identity = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
 
-  // --- Render loop ---
   function resize() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvas.clientWidth * dpr;
@@ -493,12 +503,10 @@ async function main() {
   window.addEventListener('resize', resize);
   resize();
 
-  // Gentle auto-rotation
   let autoRotate = true;
-  canvas.addEventListener('pointerdown', () => { autoRotate = false; });
 
   function frame(t) {
-    if (autoRotate) camTheta += 0.001;
+    if (autoRotate) camTheta += 0.0008;
 
     const eye = [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
@@ -510,17 +518,13 @@ async function main() {
     const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
     const mvp = mat4Mul(proj, view);
 
-    // Light from above-right
-    const lightDir = [0.5, 0.8, 0.3];
-    const llen = Math.sqrt(lightDir[0]**2+lightDir[1]**2+lightDir[2]**2);
-    lightDir[0]/=llen; lightDir[1]/=llen; lightDir[2]/=llen;
+    const lightDir = v3normalize([0.5, 0.8, 0.3]);
 
     const uniformData = new Float32Array(32);
-    uniformData.set(mvp, 0);       // mvp at offset 0
-    uniformData.set(identity, 16); // model at offset 16
+    uniformData.set(mvp, 0);
+    uniformData.set(identity, 16);
     device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
-    // Write lightDir + eye separately (offset 128 = 32 floats * 4 bytes)
     const lightEyeData = new Float32Array(8);
     lightEyeData.set(lightDir, 0);
     lightEyeData[3] = 0;
@@ -534,7 +538,7 @@ async function main() {
         view: ctx.getCurrentTexture().createView(),
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: { r: 0.04, g: 0.04, b: 0.06, a: 1 },
+        clearValue: { r: 0.03, g: 0.03, b: 0.05, a: 1 },
       }],
       depthStencilAttachment: {
         view: depthTexture.createView(),
