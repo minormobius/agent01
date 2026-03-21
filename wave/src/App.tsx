@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PdsClient, resolvePds } from "./pds";
+import { PdsClient, resolveHandle, resolvePds } from "./pds";
 import {
   deriveKek,
   generateIdentityKey,
@@ -13,6 +13,8 @@ import {
   toBase64,
   fromBase64,
   unwrapDekFromMember,
+  generateTierDek,
+  wrapDekForMember,
 } from "./crypto";
 import type {
   Org,
@@ -31,6 +33,7 @@ import type {
   WaveOpRecord,
   WaveOp,
   MessagePayload,
+  DocEditPayload,
 } from "./types";
 import { JetstreamClient, type JetstreamEvent } from "./jetstream";
 
@@ -78,6 +81,12 @@ export function App() {
   const [ops, setOps] = useState<WaveOpRecord[]>([]);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Doc state
+  const [docText, setDocText] = useState("");
+  const [docEditing, setDocEditing] = useState(false);
+  const [docHistory, setDocHistory] = useState<Array<{ uri: string; authorDid: string; authorHandle?: string; text: string; createdAt: string }>>([]);
+  const [showDocHistory, setShowDocHistory] = useState(false);
 
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -506,6 +515,93 @@ export function App() {
     [pds, activeOrg, activeChannel, vault.session]
   );
 
+  // --- Create doc thread ---
+  const createDocThread = useCallback(
+    async (title: string) => {
+      if (!pds || !activeOrg || !activeChannel) return;
+      const channelUri = `at://${activeOrg.founderDid}/${CHANNEL_COLLECTION}/${activeChannel.rkey}`;
+      const record: WaveThread = {
+        $type: THREAD_COLLECTION,
+        channelUri,
+        title,
+        threadType: "doc",
+        createdAt: new Date().toISOString(),
+      };
+      const res = await pds.createRecord(THREAD_COLLECTION, record);
+      const rkey = res.uri.split("/").pop()!;
+      const newThread: WaveThreadRecord = {
+        rkey,
+        thread: record,
+        authorDid: vault.session!.did,
+        authorHandle: vault.session!.handle,
+      };
+      setThreads(prev => [...prev, newThread]);
+      return newThread;
+    },
+    [pds, activeOrg, activeChannel, vault.session]
+  );
+
+  // --- Send doc edit ---
+  const sendDocEdit = useCallback(
+    async (text: string) => {
+      if (!pds || !activeOrg || !activeThread || !activeChannel) return;
+      setSending(true);
+      try {
+        const tierName = activeChannel.channel.tierName;
+        const dek = activeOrg.tierDeks.get(tierName);
+        if (!dek) throw new Error(`No DEK for tier "${tierName}"`);
+
+        const keyringRkey = keyringRkeyForTier(
+          activeOrg.org.rkey,
+          tierName,
+          activeOrg.org.org.tiers.find(t => t.name === tierName)?.currentEpoch ?? 0
+        );
+
+        // Level 2: include baseOpUri pointing to the last known op
+        const lastOp = ops.length > 0 ? ops[ops.length - 1] : null;
+        const baseOpUri = lastOp
+          ? `at://${lastOp.authorDid}/${OP_COLLECTION}/${lastOp.rkey}`
+          : undefined;
+
+        const payload: DocEditPayload = { text, baseOpUri };
+        const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+        const { iv, ciphertext } = await encrypt(plaintext, dek);
+
+        const threadUri = `at://${activeThread.authorDid}/${THREAD_COLLECTION}/${activeThread.rkey}`;
+
+        // Set parentOps for causal ordering (Level 2)
+        const parentOps = baseOpUri ? [baseOpUri] : undefined;
+
+        const record: WaveOp = {
+          $type: OP_COLLECTION,
+          threadUri,
+          parentOps,
+          opType: "doc_edit",
+          keyringRkey,
+          iv: { $bytes: toBase64(iv) },
+          ciphertext: { $bytes: toBase64(ciphertext) },
+          createdAt: new Date().toISOString(),
+        };
+
+        const res = await pds.createRecord(OP_COLLECTION, record);
+        const rkey = res.uri.split("/").pop()!;
+
+        setOps(prev => [...prev, {
+          rkey,
+          op: record,
+          authorDid: vault.session!.did,
+          authorHandle: vault.session!.handle,
+        }]);
+        setDocEditing(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Save failed");
+      } finally {
+        setSending(false);
+      }
+    },
+    [pds, activeOrg, activeThread, activeChannel, ops, vault.session]
+  );
+
   // --- Delete channel (founder only) ---
   const deleteChannel = useCallback(
     async (channel: WaveChannelRecord) => {
@@ -544,6 +640,230 @@ export function App() {
       }
     },
     [pds, vault.session, activeThread]
+  );
+
+  // --- Create org ---
+  const createOrg = useCallback(
+    async (name: string, tierNames: string[]) => {
+      if (!pds || !vault.session || !identityKeys) return;
+      const tiers = tierNames.map((n, i) => ({ name: n, level: i }));
+      const org: Org = {
+        name,
+        founderDid: vault.session.did,
+        tiers,
+        createdAt: new Date().toISOString(),
+      };
+      const orgRes = await pds.createRecord(ORG_COLLECTION, { $type: ORG_COLLECTION, ...org });
+      const orgRkey = orgRes.uri.split("/").pop()!;
+
+      // Create membership for the founder
+      const membership: Membership = {
+        orgRkey,
+        orgService: pds.getService(),
+        orgFounderDid: vault.session.did,
+        memberDid: vault.session.did,
+        memberHandle: vault.session.handle,
+        tierName: tiers[tiers.length - 1].name, // founder gets highest tier
+        invitedBy: vault.session.did,
+        createdAt: new Date().toISOString(),
+      };
+      await pds.createRecord(MEMBERSHIP_COLLECTION, { $type: MEMBERSHIP_COLLECTION, ...membership });
+
+      // Create keyring for each tier with founder as sole member
+      const pubKeyRaw = await exportPublicKey(identityKeys.publicKey);
+      for (const tier of tiers) {
+        const tierDek = await generateTierDek();
+        const wrappedDek = await wrapDekForMember(tierDek, identityKeys.privateKey, identityKeys.publicKey);
+        const keyring: Keyring & { $type: string } = {
+          $type: KEYRING_COLLECTION,
+          orgRkey,
+          tierName: tier.name,
+          epoch: 0,
+          writerDid: vault.session.did,
+          writerPublicKey: { $bytes: toBase64(pubKeyRaw) } as unknown as string,
+          members: [{ did: vault.session.did, wrappedDek: { $bytes: toBase64(wrappedDek) } as unknown as string }],
+        };
+        const rkey = `${orgRkey}:${tier.name}`;
+        await pds.putRecord(KEYRING_COLLECTION, rkey, keyring);
+      }
+
+      // Refresh org list
+      const discovered = await discoverOrgs(pds, vault.session.did, identityKeys.privateKey);
+      setOrgs(discovered);
+    },
+    [pds, vault.session, identityKeys]
+  );
+
+  // --- Invite member to org ---
+  const inviteMember = useCallback(
+    async (handleOrDid: string, tierName: string) => {
+      if (!pds || !vault.session || !activeOrg || !identityKeys) return;
+      if (activeOrg.founderDid !== vault.session.did) {
+        setError("Only the org founder can invite members");
+        return;
+      }
+
+      // Resolve handle → DID
+      const memberDid = handleOrDid.startsWith("did:")
+        ? handleOrDid
+        : await resolveHandle(handleOrDid);
+      const memberHandle = handleOrDid.startsWith("did:") ? undefined : handleOrDid.replace(/^@/, "");
+
+      // Get the member's public key from their PDS
+      const memberService = await resolvePds(memberDid);
+      const memberClient = new PdsClient(memberService);
+      const pubRecord = await memberClient.getRecordFrom(memberDid, PUBKEY_COLLECTION, "self");
+      if (!pubRecord) throw new Error("Invitee has no vault encryption key. They must log into Wave first.");
+      const pubVal = (pubRecord as Record<string, unknown>).value as Record<string, unknown>;
+      const pubField = pubVal.publicKey as { $bytes: string };
+      const memberPubKey = await importPublicKey(fromBase64(pubField.$bytes));
+
+      // Create membership record
+      const membership: Membership = {
+        orgRkey: activeOrg.org.rkey,
+        orgService: pds.getService(),
+        orgFounderDid: vault.session.did,
+        memberDid,
+        memberHandle,
+        tierName,
+        invitedBy: vault.session.did,
+        createdAt: new Date().toISOString(),
+      };
+      await pds.createRecord(MEMBERSHIP_COLLECTION, { $type: MEMBERSHIP_COLLECTION, ...membership });
+
+      // Add member to keyrings for all tiers at their level and below
+      const memberTierDef = activeOrg.org.org.tiers.find(t => t.name === tierName);
+      if (!memberTierDef) throw new Error("Tier not found");
+      const accessibleTiers = activeOrg.org.org.tiers.filter(t => t.level <= memberTierDef.level);
+
+      const pubKeyRaw = await exportPublicKey(identityKeys.publicKey);
+      for (const tier of accessibleTiers) {
+        const epoch = tier.currentEpoch ?? 0;
+        const rkey = keyringRkeyForTier(activeOrg.org.rkey, tier.name, epoch);
+        const existing = await pds.getRecord(KEYRING_COLLECTION, rkey);
+
+        if (existing) {
+          const keyringVal = (existing as Record<string, unknown>).value as Keyring & { $type: string };
+          // Get existing DEK from our own entry
+          const myDek = activeOrg.tierDeks.get(tier.name);
+          if (!myDek) continue;
+
+          // Wrap DEK for the new member
+          const wrappedDek = await wrapDekForMember(myDek, identityKeys.privateKey, memberPubKey);
+
+          keyringVal.members.push({
+            did: memberDid,
+            wrappedDek: { $bytes: toBase64(wrappedDek) } as unknown as string,
+          });
+          keyringVal.writerDid = vault.session.did;
+          keyringVal.writerPublicKey = { $bytes: toBase64(pubKeyRaw) } as unknown as string;
+          await pds.putRecord(KEYRING_COLLECTION, rkey, keyringVal);
+        }
+      }
+
+      // Create a bookmark on the invitee's PDS (they'll discover the org next login)
+      // Note: Can't write to their PDS directly — they'll discover via bookmark on next login
+      // The founder stores a "pending invite" that the member resolves client-side
+
+      // Refresh context
+      const ctx = await buildOrgContext(pds, activeOrg.org, identityKeys.privateKey, vault.session.did);
+      setActiveOrg(ctx);
+    },
+    [pds, vault.session, activeOrg, identityKeys]
+  );
+
+  // --- Remove member from org ---
+  const removeMember = useCallback(
+    async (membershipRecord: MembershipRecord) => {
+      if (!pds || !vault.session || !activeOrg) return;
+      if (activeOrg.founderDid !== vault.session.did) {
+        setError("Only the org founder can remove members");
+        return;
+      }
+      if (membershipRecord.membership.memberDid === vault.session.did) {
+        setError("Cannot remove yourself (the founder) from the org");
+        return;
+      }
+      if (!confirm(`Remove @${membershipRecord.membership.memberHandle || membershipRecord.membership.memberDid} from ${activeOrg.org.org.name}?`)) return;
+
+      await pds.deleteRecord(MEMBERSHIP_COLLECTION, membershipRecord.rkey);
+
+      // TODO: Rotate tier keyrings (epoch bump) to revoke access to future messages
+      // For now, removed members lose access to new messages but could still decrypt old ones
+
+      // Refresh context
+      const ctx = await buildOrgContext(pds, activeOrg.org, identityKeys!.privateKey, vault.session.did);
+      setActiveOrg(ctx);
+    },
+    [pds, vault.session, activeOrg, identityKeys]
+  );
+
+  // --- Delete org ---
+  const deleteOrg = useCallback(
+    async (orgRecord: OrgRecord) => {
+      if (!pds || !vault.session) return;
+      if (orgRecord.org.founderDid !== vault.session.did) {
+        setError("Only the org founder can delete an org");
+        return;
+      }
+      if (!confirm(`Delete org "${orgRecord.org.name}"? This removes all memberships, keyrings, and channels.`)) return;
+
+      // Delete memberships
+      let cursor: string | undefined;
+      do {
+        const page = await pds.listRecords(MEMBERSHIP_COLLECTION, 100, cursor);
+        for (const rec of page.records) {
+          const val = rec.value as unknown as Membership;
+          if (val.orgRkey === orgRecord.rkey) {
+            const rkey = rec.uri.split("/").pop()!;
+            await pds.deleteRecord(MEMBERSHIP_COLLECTION, rkey);
+          }
+        }
+        cursor = page.cursor;
+      } while (cursor);
+
+      // Delete keyrings
+      cursor = undefined;
+      do {
+        const page = await pds.listRecords(KEYRING_COLLECTION, 100, cursor);
+        for (const rec of page.records) {
+          const val = rec.value as unknown as Keyring;
+          if (val.orgRkey === orgRecord.rkey) {
+            const rkey = rec.uri.split("/").pop()!;
+            await pds.deleteRecord(KEYRING_COLLECTION, rkey);
+          }
+        }
+        cursor = page.cursor;
+      } while (cursor);
+
+      // Delete channels
+      cursor = undefined;
+      do {
+        const page = await pds.listRecords(CHANNEL_COLLECTION, 100, cursor);
+        for (const rec of page.records) {
+          const val = rec.value as unknown as WaveChannel;
+          if (val.orgRkey === orgRecord.rkey) {
+            const rkey = rec.uri.split("/").pop()!;
+            await pds.deleteRecord(CHANNEL_COLLECTION, rkey);
+          }
+        }
+        cursor = page.cursor;
+      } while (cursor);
+
+      // Delete the org record itself
+      await pds.deleteRecord(ORG_COLLECTION, orgRecord.rkey);
+
+      // Refresh
+      const discovered = await discoverOrgs(pds, vault.session.did, identityKeys!.privateKey);
+      setOrgs(discovered);
+      setActiveOrg(null);
+      setChannels([]);
+      setActiveChannel(null);
+      setThreads([]);
+      setActiveThread(null);
+      setOps([]);
+    },
+    [pds, vault.session, identityKeys]
   );
 
   // --- Select thread → load ops ---
@@ -737,7 +1057,7 @@ export function App() {
   }, []);
 
   // --- Decrypted messages cache ---
-  const [decryptedMessages, setDecryptedMessages] = useState<Map<string, MessagePayload>>(new Map());
+  const [decryptedMessages, setDecryptedMessages] = useState<Map<string, MessagePayload | DocEditPayload>>(new Map());
 
   useEffect(() => {
     if (!activeOrg || ops.length === 0) return;
@@ -756,11 +1076,36 @@ export function App() {
           changed = true;
         }
       }
-      if (changed) setDecryptedMessages(newDecrypted);
+      if (changed) {
+        setDecryptedMessages(newDecrypted);
+
+        // Build doc state if this is a doc thread
+        if (activeThread?.thread.threadType === "doc") {
+          const history: typeof docHistory = [];
+          let latestText = "";
+          for (const opRec of ops) {
+            const key = `${opRec.authorDid}:${opRec.rkey}`;
+            const p = newDecrypted.get(key);
+            if (p && "text" in p && opRec.op.opType === "doc_edit") {
+              const docPayload = p as DocEditPayload;
+              latestText = docPayload.text;
+              history.push({
+                uri: `at://${opRec.authorDid}/${OP_COLLECTION}/${opRec.rkey}`,
+                authorDid: opRec.authorDid,
+                authorHandle: opRec.authorHandle,
+                text: docPayload.text,
+                createdAt: opRec.op.createdAt,
+              });
+            }
+          }
+          setDocHistory(history);
+          if (!docEditing) setDocText(latestText);
+        }
+      }
     })();
 
     return () => { cancelled = true; };
-  }, [ops, activeOrg, decryptOp]);
+  }, [ops, activeOrg, decryptOp, activeThread]);
 
   // --- Render ---
 
@@ -780,23 +1125,51 @@ export function App() {
           <h1>Wave</h1>
           <p className="subtitle">Choose an organization</p>
           {orgs.length === 0 ? (
-            <p className="empty">No orgs found. Create one in the CRM first.</p>
+            <p className="empty">No orgs yet.</p>
           ) : (
             <div className="org-list">
               {orgs.map(o => (
-                <button
-                  key={o.rkey}
-                  className="org-item"
-                  onClick={() => selectOrg(o)}
-                >
-                  <span className="org-name">{o.org.name}</span>
-                  <span className="org-tiers">
-                    {o.org.tiers.map(t => t.name).join(", ")}
-                  </span>
-                </button>
+                <div key={o.rkey} className="sidebar-row">
+                  <button
+                    className="org-item"
+                    onClick={() => selectOrg(o)}
+                  >
+                    <span className="org-name">{o.org.name}</span>
+                    <span className="org-tiers">
+                      {o.org.tiers.map(t => t.name).join(", ")}
+                    </span>
+                  </button>
+                  {o.org.founderDid === vault.session!.did && (
+                    <button
+                      className="btn-delete"
+                      title="Delete org"
+                      onClick={(e) => { e.stopPropagation(); deleteOrg(o); }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
+          <button className="btn-secondary" onClick={async () => {
+            const name = prompt("Organization name:");
+            if (!name) return;
+            const tiersStr = prompt("Tier names (comma-separated, lowest to highest):", "member, admin");
+            if (!tiersStr) return;
+            const tierNames = tiersStr.split(",").map(s => s.trim()).filter(Boolean);
+            if (tierNames.length === 0) return;
+            setLoading(true);
+            try {
+              await createOrg(name, tierNames);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Failed to create org");
+            } finally {
+              setLoading(false);
+            }
+          }}>
+            + New Organization
+          </button>
           <button className="btn-secondary logout-btn" onClick={() => {
             setVault({ session: null, dek: null, initialized: false, keyringRkey: null });
             setPds(null);
@@ -885,17 +1258,31 @@ export function App() {
           <div className="sidebar-section">
             <div className="section-header">
               <span>Threads</span>
-              <button
-                className="btn-icon"
-                title="New thread"
-                onClick={async () => {
-                  const title = prompt("Thread title (optional):");
-                  const t = await createThread(title || undefined);
-                  if (t) selectThread(t);
-                }}
-              >
-                +
-              </button>
+              <span>
+                <button
+                  className="btn-icon"
+                  title="New chat thread"
+                  onClick={async () => {
+                    const title = prompt("Thread title (optional):");
+                    const t = await createThread(title || undefined);
+                    if (t) selectThread(t);
+                  }}
+                >
+                  +
+                </button>
+                <button
+                  className="btn-icon"
+                  title="New doc"
+                  onClick={async () => {
+                    const title = prompt("Document title:");
+                    if (!title) return;
+                    const t = await createDocThread(title);
+                    if (t) selectThread(t);
+                  }}
+                >
+                  D
+                </button>
+              </span>
             </div>
             {threads.map(th => (
               <div key={`${th.authorDid}:${th.rkey}`} className="sidebar-row">
@@ -903,7 +1290,7 @@ export function App() {
                   className={`sidebar-item ${activeThread?.rkey === th.rkey && activeThread?.authorDid === th.authorDid ? "active" : ""}`}
                   onClick={() => selectThread(th)}
                 >
-                  {th.thread.title || "Chat"}
+                  {th.thread.threadType === "doc" ? "[doc] " : ""}{th.thread.title || "Chat"}
                 </button>
                 {th.authorDid === vault.session!.did && (
                   <button
@@ -921,6 +1308,56 @@ export function App() {
             )}
           </div>
         )}
+
+        {/* Members */}
+        <div className="sidebar-section">
+          <div className="section-header">
+            <span>Members</span>
+            {activeOrg.founderDid === vault.session.did && (
+              <button
+                className="btn-icon"
+                title="Invite member"
+                onClick={async () => {
+                  const handle = prompt("Handle or DID to invite:");
+                  if (!handle) return;
+                  const tiers = activeOrg.org.org.tiers.sort((a, b) => a.level - b.level);
+                  const tierStr = prompt(
+                    `Tier (${tiers.map(t => t.name).join(", ")}):`,
+                    tiers[0]?.name
+                  );
+                  if (!tierStr) return;
+                  setLoading(true);
+                  try {
+                    await inviteMember(handle, tierStr);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Invite failed");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                +
+              </button>
+            )}
+          </div>
+          {activeOrg.memberships.map(m => (
+            <div key={m.rkey} className="sidebar-row">
+              <span className="sidebar-item member-item">
+                @{m.membership.memberHandle || m.membership.memberDid.slice(0, 16) + "..."}
+                <span className="tier-badge">{m.membership.tierName}</span>
+              </span>
+              {activeOrg.founderDid === vault.session!.did && m.membership.memberDid !== vault.session!.did && (
+                <button
+                  className="btn-delete"
+                  title="Remove member"
+                  onClick={() => removeMember(m)}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* Footer */}
         <div className="sidebar-footer">
@@ -954,7 +1391,135 @@ export function App() {
               ? "Select a channel to get started"
               : "Select or create a thread"}
           </div>
+        ) : activeThread.thread.threadType === "doc" ? (
+          /* --- Doc view --- */
+          <>
+            <div className="thread-header">
+              <h3>{activeThread.thread.title || "Untitled Document"}</h3>
+              <span className="thread-meta">
+                {docHistory.length} edits
+                {connected && " · live"}
+                <button className="btn-icon" title="History" onClick={() => setShowDocHistory(!showDocHistory)}>
+                  {showDocHistory ? "Close" : "History"}
+                </button>
+              </span>
+            </div>
+
+            {showDocHistory ? (
+              <div className="messages doc-history">
+                <div className="doc-history-header">Edit History ({docHistory.length} versions)</div>
+                {docHistory.map((entry, i) => (
+                  <div key={entry.uri} className="message">
+                    <div className="message-author">
+                      v{i + 1} by @{entry.authorHandle || entry.authorDid.slice(0, 16) + "..."}
+                    </div>
+                    <div className="message-text doc-history-text">
+                      {entry.text.slice(0, 200)}{entry.text.length > 200 ? "..." : ""}
+                    </div>
+                    <div className="message-time">
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </div>
+                    <button className="btn-secondary" onClick={() => {
+                      setDocText(entry.text);
+                      setDocEditing(true);
+                      setShowDocHistory(false);
+                    }}>
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : docEditing ? (
+              <div className="doc-editor">
+                <textarea
+                  className="doc-textarea"
+                  value={docText}
+                  onChange={e => setDocText(e.target.value)}
+                  placeholder="Write your document in markdown..."
+                />
+                <div className="doc-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={() => sendDocEdit(docText)}
+                    disabled={sending}
+                  >
+                    {sending ? "Saving..." : "Save"}
+                  </button>
+                  <button className="btn-secondary" onClick={() => {
+                    setDocEditing(false);
+                    // Restore to latest version
+                    if (docHistory.length > 0) {
+                      setDocText(docHistory[docHistory.length - 1].text);
+                    }
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="doc-viewer">
+                {loading && <div className="loading-inline">Loading document...</div>}
+                <div className="doc-content">
+                  {docText ? (
+                    <pre className="doc-rendered">{docText}</pre>
+                  ) : (
+                    <p className="empty-hint">Empty document. Click Edit to start writing.</p>
+                  )}
+                </div>
+                <div className="doc-actions">
+                  <button className="btn-primary" onClick={() => setDocEditing(true)}>
+                    Edit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Chat comments on the doc */}
+            <div className="doc-comments">
+              <div className="section-header"><span>Comments</span></div>
+              <div className="messages compact">
+                {ops.filter(o => o.op.opType === "message").map(opRec => {
+                  const key = `${opRec.authorDid}:${opRec.rkey}`;
+                  const payload = decryptedMessages.get(key);
+                  return (
+                    <div key={key} className="message compact">
+                      <span className="message-author">
+                        @{opRec.authorHandle || opRec.authorDid.slice(0, 16) + "..."}
+                      </span>
+                      <span className="message-text">
+                        {payload ? payload.text : "Decrypting..."}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="compose">
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Add a comment..."
+                  disabled={sending}
+                />
+                <button
+                  className="btn-primary send-btn"
+                  onClick={sendMessage}
+                  disabled={sending || !messageText.trim()}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
+          /* --- Chat view --- */
           <>
             <div className="thread-header">
               <h3>{activeThread.thread.title || `# ${activeChannel!.channel.name}`}</h3>
@@ -978,7 +1543,7 @@ export function App() {
                         : opRec.authorDid.slice(0, 20) + "..."}
                     </div>
                     <div className="message-text">
-                      {payload ? payload.text : "🔒 Decrypting..."}
+                      {payload ? payload.text : "Decrypting..."}
                     </div>
                     <div className="message-time">
                       {new Date(opRec.op.createdAt).toLocaleTimeString()}
@@ -1098,7 +1663,7 @@ function LoginView({ onLogin }: { onLogin: (s: string, h: string, p: string, v: 
               minLength={8}
             />
             <small>
-              Same passphrase as the CRM. Never leaves your browser.
+              Encrypts your vault keys. Never leaves your browser.
             </small>
           </div>
 

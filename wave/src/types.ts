@@ -1,4 +1,4 @@
-// --- Shared types (from vault/CRM) ---
+// --- Shared types (from vault) ---
 
 export interface Session {
   did: string;
@@ -120,7 +120,19 @@ export interface MessagePayload {
   text: string;
 }
 
-/** Active org context for Wave — simplified from CRM */
+/**
+ * Decrypted doc edit payload (inside ciphertext for opType: "doc_edit").
+ *
+ * Level 2: full snapshot + causal base for history/diff.
+ * Level 3 (future): replace `text` with CRDT ops (Yjs/Automerge update bytes).
+ */
+export interface DocEditPayload {
+  text: string;           // full markdown content (Level 1+2: snapshot)
+  baseOpUri?: string;     // at:// URI of the op this edit is based on (Level 2: history DAG)
+  // Future Level 3: crdtUpdate?: string; // base64-encoded CRDT delta
+}
+
+/** Active org context for Wave */
 export interface WaveOrgContext {
   org: OrgRecord;
   service: string;
