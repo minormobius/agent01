@@ -298,18 +298,30 @@ export function App() {
     const keyringDeks = new Map<string, CryptoKey>();
     const accessibleTiers = orgRecord.org.tiers.filter(t => t.level <= myTierDef.level);
 
+    console.log("[wave] org tiers:", orgRecord.org.tiers.map(t => `${t.name}(level=${t.level}, epoch=${t.currentEpoch ?? 0})`));
+    console.log("[wave] my tier:", myTierDef.name, "level:", myTierDef.level);
+    console.log("[wave] accessible tiers:", accessibleTiers.map(t => t.name));
+
     for (const tier of accessibleTiers) {
       const currentEpoch = tier.currentEpoch ?? 0;
       for (let epoch = 0; epoch <= currentEpoch; epoch++) {
         const rkey = keyringRkeyForTier(orgRecord.rkey, tier.name, epoch);
+        console.log("[wave] fetching keyring:", rkey, "from", founderDid);
         try {
           const keyringRecord = await controlClient.getRecordFrom(
             founderDid, KEYRING_COLLECTION, rkey
           );
-          if (!keyringRecord) continue;
+          if (!keyringRecord) {
+            console.warn("[wave] keyring not found:", rkey);
+            continue;
+          }
           const keyringVal = (keyringRecord as Record<string, unknown>).value as Keyring & { $type: string };
+          console.log("[wave] keyring members:", keyringVal.members.map((m: KeyringMemberEntry) => m.did.slice(0, 20)));
           const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
-          if (!myEntry) continue;
+          if (!myEntry) {
+            console.warn("[wave] my DID not in keyring:", myDid.slice(0, 20));
+            continue;
+          }
 
           const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
           const tierDek = await unwrapDekFromMember(
