@@ -1,24 +1,34 @@
 /**
- * Bounty Board Worker
+ * Bounty Board Worker — Chaumian Ecash Reputation
  *
- * Anonymous bounty marketplace with blind-signed trophies.
- * Blind signatures (RFC 9474) make trophies verifiable but unlinkable
- * to the specific job that earned them.
+ * Anonymous bounty marketplace where reputation is denomination-based
+ * blind-signed tokens (1, 5, 10, 25 rep). Like coins — fungible,
+ * stakeable, anonymous. You earn rep by fulfilling bounties. You stake
+ * rep to claim bounties (skin in the game). Nobody knows your balance
+ * or which jobs earned which coins.
+ *
+ * Crypto: RFC 9474 RSA blind signatures via @cloudflare/blindrsa-ts
+ * Same scheme as poll/ but applied to ecash denominations.
  *
  * Routes:
  *   GET  /api/bounties              — list bounties
  *   POST /api/bounties              — create bounty
- *   GET  /api/bounties/:id          — get bounty
- *   POST /api/bounties/:id/fulfill  — submit fulfillment
- *   POST /api/bounties/:id/accept/:fid — accept fulfillment (bounty creator)
- *   POST /api/trophy/blind-sign     — blind-sign a trophy token
- *   GET  /api/trophy/public-keys    — get trophy signing public keys
- *   POST /api/trophy/verify         — verify a trophy
- *   POST /api/trophy/present        — present a trophy (registers nullifier)
- *   *    /                           — static assets
+ *   GET  /api/bounties/:id          — get bounty + fulfillments
+ *   POST /api/bounties/:id/fulfill  — submit fulfillment evidence
+ *   POST /api/bounties/:id/accept/:fid — accept fulfillment → enables minting
+ *   POST /api/bounties/:id/stake    — stake rep to claim a bounty
+ *   POST /api/rep/mint              — blind-sign a rep token (after accepted fulfillment)
+ *   GET  /api/rep/keys              — get mint public keys per denomination
+ *   POST /api/rep/verify            — verify a rep token signature
+ *   POST /api/rep/spend             — spend a rep token (registers nullifier)
+ *   *    /                          — static assets
  */
 
 import { RSABSSA } from '@cloudflare/blindrsa-ts';
+
+// ─── Constants ───────────────────────────────────────────
+
+const DENOMINATIONS = [1, 5, 10, 25];
 
 // ─── Crypto helpers ──────────────────────────────────────
 
@@ -68,21 +78,19 @@ async function importRSAPublicKey(jwk) {
 
 let _cachedKeys = null;
 
-async function getTrophyKeys(env) {
+async function getMintKeys(env) {
   if (_cachedKeys) return _cachedKeys;
 
-  // Try Worker secret first
-  if (env.TROPHY_KEYS_JSON) {
-    _cachedKeys = JSON.parse(env.TROPHY_KEYS_JSON);
+  if (env.MINT_KEYS_JSON) {
+    _cachedKeys = JSON.parse(env.MINT_KEYS_JSON);
     return _cachedKeys;
   }
 
-  // Fall back to D1
-  const rows = await env.DB.prepare('SELECT tier, private_key_jwk, public_key_jwk FROM trophy_keys').all();
-  if (rows.results.length === 0) throw new Error('No trophy keys configured');
+  const rows = await env.DB.prepare('SELECT denomination, private_key_jwk, public_key_jwk FROM mint_keys').all();
+  if (rows.results.length === 0) throw new Error('No mint keys configured');
   _cachedKeys = {};
   for (const row of rows.results) {
-    _cachedKeys[row.tier] = {
+    _cachedKeys[row.denomination] = {
       privateJWK: JSON.parse(row.private_key_jwk),
       publicJWK: JSON.parse(row.public_key_jwk),
     };
@@ -90,13 +98,13 @@ async function getTrophyKeys(env) {
   return _cachedKeys;
 }
 
-// ─── CORS ────────────────────────────────────────────────
+// ─── HTTP helpers ────────────────────────────────────────
 
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type',
   };
 }
 
@@ -111,7 +119,7 @@ function err(message, status = 400) {
   return json({ error: message }, status);
 }
 
-// ─── Route handlers ──────────────────────────────────────
+// ─── Bounty CRUD ─────────────────────────────────────────
 
 async function listBounties(env, url) {
   const status = url.searchParams.get('status') || 'open';
@@ -131,7 +139,7 @@ async function listBounties(env, url) {
   params.push(limit, offset);
 
   const rows = await env.DB.prepare(query).bind(...params).all();
-  return json({ bounties: rows.results, count: rows.results.length });
+  return json({ bounties: rows.results });
 }
 
 async function getBounty(env, id) {
@@ -142,49 +150,42 @@ async function getBounty(env, id) {
     'SELECT * FROM fulfillments WHERE bounty_id = ? ORDER BY created_at DESC'
   ).bind(id).all();
 
-  return json({ bounty, fulfillments: fulfillments.results });
+  const stakes = await env.DB.prepare(
+    "SELECT id, total_rep, status, created_at FROM stakes WHERE bounty_id = ? AND status = 'active'"
+  ).bind(id).all();
+
+  return json({ bounty, fulfillments: fulfillments.results, stakes: stakes.results });
 }
 
 async function createBounty(env, body) {
-  const { title, kind, description, tags, reward, trophyTier } = body;
+  const { title, kind, description, tags, rewardRep, stakeReq } = body;
   if (!title || !kind || !description) return err('title, kind, description required');
 
+  const reward = Math.max(1, parseInt(rewardRep) || 10);
+  const stake = Math.max(0, parseInt(stakeReq) || 0);
   const id = randomId();
-  await env.DB.prepare(
-    `INSERT INTO bounties (id, title, kind, description, tags, reward_amount, reward_currency, reward_method, trophy_tier, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')`
-  ).bind(
-    id, title, kind, description,
-    tags ? JSON.stringify(tags) : null,
-    reward?.amount || null,
-    reward?.currency || 'REPUTATION',
-    reward?.paymentMethod || 'reputation',
-    trophyTier || 'bronze'
-  ).run();
 
-  return json({ id, status: 'open' }, 201);
+  await env.DB.prepare(
+    `INSERT INTO bounties (id, title, kind, description, tags, reward_rep, stake_req, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'open')`
+  ).bind(id, title, kind, description, tags ? JSON.stringify(tags) : null, reward, stake).run();
+
+  return json({ id, status: 'open', rewardRep: reward, stakeReq: stake }, 201);
 }
 
 async function submitFulfillment(env, bountyId, body) {
   const bounty = await env.DB.prepare('SELECT * FROM bounties WHERE id = ?').bind(bountyId).first();
   if (!bounty) return err('Bounty not found', 404);
-  if (bounty.status !== 'open') return err('Bounty is not open');
+  if (bounty.status !== 'open' && bounty.status !== 'claimed') return err('Bounty is not accepting fulfillments');
 
-  const { evidence, notes, geoTag, capturedAt } = body;
+  const { evidence, notes } = body;
   if (!evidence || evidence.length === 0) return err('Evidence required');
 
   const id = randomId();
   await env.DB.prepare(
-    `INSERT INTO fulfillments (id, bounty_id, evidence_json, notes, geo_lat, geo_lon, captured_at, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`
-  ).bind(
-    id, bountyId,
-    JSON.stringify(evidence),
-    notes || null,
-    geoTag?.latitude || null,
-    geoTag?.longitude || null,
-    capturedAt || null
-  ).run();
+    `INSERT INTO fulfillments (id, bounty_id, evidence_json, notes, status)
+     VALUES (?, ?, ?, ?, 'pending')`
+  ).bind(id, bountyId, JSON.stringify(evidence), notes || null).run();
 
   return json({ id, status: 'pending' }, 201);
 }
@@ -196,127 +197,232 @@ async function acceptFulfillment(env, bountyId, fulfillmentId) {
   if (!fulfillment) return err('Fulfillment not found', 404);
   if (fulfillment.status !== 'pending') return err('Fulfillment already processed');
 
-  // Mark fulfillment as accepted
+  const bounty = await env.DB.prepare('SELECT * FROM bounties WHERE id = ?').bind(bountyId).first();
+  if (!bounty) return err('Bounty not found', 404);
+
+  // Accept fulfillment
   await env.DB.prepare(
     "UPDATE fulfillments SET status = 'accepted', accepted_at = datetime('now') WHERE id = ?"
   ).bind(fulfillmentId).run();
 
-  // Mark bounty as fulfilled
+  // Mark bounty fulfilled
   await env.DB.prepare(
     "UPDATE bounties SET status = 'fulfilled', closed_at = datetime('now') WHERE id = ?"
   ).bind(bountyId).run();
 
-  return json({ fulfillmentId, status: 'accepted', message: 'Fulfillment accepted. Fulfiller can now claim their trophy via blind signing.' });
+  // Return any active stakes (the claimer gets their stake back)
+  await env.DB.prepare(
+    "UPDATE stakes SET status = 'returned', resolved_at = datetime('now') WHERE bounty_id = ? AND status = 'active'"
+  ).bind(bountyId).run();
+
+  return json({
+    fulfillmentId,
+    status: 'accepted',
+    rewardRep: bounty.reward_rep,
+    message: `Fulfillment accepted. ${bounty.reward_rep} rep available to mint.`,
+  });
 }
 
-// ─── Trophy blind signing ────────────────────────────────
+// ─── Staking ─────────────────────────────────────────────
 
-async function blindSignTrophy(env, body) {
-  const { fulfillmentId, blindedMessage } = body;
-  if (!fulfillmentId || !blindedMessage) return err('fulfillmentId and blindedMessage required');
+async function stakeToClaim(env, bountyId, body) {
+  const bounty = await env.DB.prepare('SELECT * FROM bounties WHERE id = ?').bind(bountyId).first();
+  if (!bounty) return err('Bounty not found', 404);
+  if (bounty.status !== 'open') return err('Bounty is not open for claims');
+  if (bounty.stake_req <= 0) return err('This bounty requires no stake');
+
+  const { tokens } = body;
+  if (!tokens || !Array.isArray(tokens)) return err('tokens array required');
+
+  // Verify each token and check total denomination >= stake requirement
+  const keys = await getMintKeys(env);
+  const suite = getBlindRSASuite();
+  let totalStaked = 0;
+  const nullifiers = [];
+
+  for (const token of tokens) {
+    const { tokenMessage, signature, nullifier, denomination } = token;
+    if (!tokenMessage || !signature || !nullifier || !denomination) {
+      return err('Each token needs tokenMessage, signature, nullifier, denomination');
+    }
+
+    if (!DENOMINATIONS.includes(denomination)) return err(`Invalid denomination: ${denomination}`);
+    if (!keys[denomination]) return err(`No key for denomination ${denomination}`);
+
+    // Verify signature
+    const publicKey = await importRSAPublicKey(keys[denomination].publicJWK);
+    const msgBytes = encoder.encode(tokenMessage);
+    const sigBytes = fromBase64Url(signature);
+
+    try {
+      const valid = await suite.verify(publicKey, sigBytes, msgBytes);
+      if (!valid) return err('Invalid rep token signature');
+    } catch {
+      return err('Invalid rep token signature');
+    }
+
+    // Verify nullifier derivation
+    const expectedNullifier = await sha256(`nullifier\x00${tokenMessage}`);
+    if (nullifier !== expectedNullifier) return err('Invalid nullifier');
+
+    // Check not already spent
+    const existing = await env.DB.prepare(
+      'SELECT nullifier FROM spent_nullifiers WHERE nullifier = ?'
+    ).bind(nullifier).first();
+    if (existing) return err('Rep token already spent');
+
+    totalStaked += denomination;
+    nullifiers.push(nullifier);
+  }
+
+  if (totalStaked < bounty.stake_req) {
+    return err(`Insufficient stake: need ${bounty.stake_req} rep, provided ${totalStaked}`);
+  }
+
+  // Spend the nullifiers (lock the tokens)
+  const stakeId = randomId();
+  for (const nullifier of nullifiers) {
+    await env.DB.prepare(
+      'INSERT INTO spent_nullifiers (nullifier, denomination, context) VALUES (?, ?, ?)'
+    ).bind(nullifier, tokens.find(t => t.nullifier === nullifier).denomination, `stake:${stakeId}`).run();
+  }
+
+  // Record the stake
+  await env.DB.prepare(
+    `INSERT INTO stakes (id, bounty_id, nullifiers_json, total_rep, status)
+     VALUES (?, ?, ?, ?, 'active')`
+  ).bind(stakeId, bountyId, JSON.stringify(nullifiers), totalStaked).run();
+
+  // Mark bounty as claimed
+  await env.DB.prepare("UPDATE bounties SET status = 'claimed' WHERE id = ?").bind(bountyId).run();
+
+  return json({
+    stakeId,
+    totalStaked,
+    message: `Staked ${totalStaked} rep on bounty. Deliver to earn ${bounty.reward_rep} rep + get your stake back.`,
+  });
+}
+
+// ─── Rep minting (blind signatures) ─────────────────────
+
+async function mintRep(env, body) {
+  const { fulfillmentId, denomination, blindedMessage } = body;
+  if (!fulfillmentId || !denomination || !blindedMessage) {
+    return err('fulfillmentId, denomination, blindedMessage required');
+  }
+
+  if (!DENOMINATIONS.includes(denomination)) return err(`Invalid denomination: ${denomination}`);
 
   // Verify fulfillment is accepted
   const fulfillment = await env.DB.prepare(
-    "SELECT f.*, b.trophy_tier FROM fulfillments f JOIN bounties b ON f.bounty_id = b.id WHERE f.id = ? AND f.status = 'accepted'"
+    "SELECT f.*, b.reward_rep FROM fulfillments f JOIN bounties b ON f.bounty_id = b.id WHERE f.id = ? AND f.status = 'accepted'"
   ).bind(fulfillmentId).first();
-  if (!fulfillment) return err('No accepted fulfillment found with this ID', 404);
+  if (!fulfillment) return err('No accepted fulfillment found', 404);
 
-  // Check if trophy already issued for this fulfillment
-  const existing = await env.DB.prepare(
-    'SELECT * FROM trophy_issuances WHERE fulfillment_id = ?'
+  // Check how much rep has already been minted for this fulfillment
+  const minted = await env.DB.prepare(
+    'SELECT SUM(denomination) as total FROM mint_issuances WHERE fulfillment_id = ?'
   ).bind(fulfillmentId).first();
-  if (existing) return err('Trophy already issued for this fulfillment', 409);
+  const alreadyMinted = minted?.total || 0;
 
-  const tier = fulfillment.trophy_tier || 'bronze';
-  const keys = await getTrophyKeys(env);
-  if (!keys[tier]) return err(`No key configured for tier: ${tier}`, 500);
+  if (alreadyMinted + denomination > fulfillment.reward_rep) {
+    return err(`Cannot mint: ${alreadyMinted} of ${fulfillment.reward_rep} rep already minted. Requesting ${denomination} more would exceed reward.`);
+  }
 
-  // Blind-sign the message
+  // Blind-sign the rep token
+  const keys = await getMintKeys(env);
+  if (!keys[denomination]) return err(`No key for denomination ${denomination}`, 500);
+
   const suite = getBlindRSASuite();
-  const privateKey = await importRSAPrivateKey(keys[tier].privateJWK);
+  const privateKey = await importRSAPrivateKey(keys[denomination].privateJWK);
   const blindedMsg = fromBase64Url(blindedMessage);
   const blindSig = await suite.blindSign(privateKey, blindedMsg);
 
-  // Record the issuance (hash of blinded message for audit, not the token itself)
+  // Record the issuance
+  const issuanceId = randomId();
   const blindedMsgHash = await sha256(blindedMessage);
   await env.DB.prepare(
-    'INSERT INTO trophy_issuances (fulfillment_id, tier, blinded_msg_hash) VALUES (?, ?, ?)'
-  ).bind(fulfillmentId, tier, blindedMsgHash).run();
+    'INSERT INTO mint_issuances (id, fulfillment_id, denomination, blinded_msg_hash) VALUES (?, ?, ?, ?)'
+  ).bind(issuanceId, fulfillmentId, denomination, blindedMsgHash).run();
 
   return json({
     blindedSignature: toBase64Url(blindSig),
-    tier,
-    issuerPublicKey: keys[tier].publicJWK,
+    denomination,
+    mintedSoFar: alreadyMinted + denomination,
+    rewardTotal: fulfillment.reward_rep,
   });
 }
 
 async function getPublicKeys(env) {
-  const keys = await getTrophyKeys(env);
+  const keys = await getMintKeys(env);
   const publicKeys = {};
-  for (const [tier, keyPair] of Object.entries(keys)) {
-    publicKeys[tier] = keyPair.publicJWK;
+  for (const [denom, keyPair] of Object.entries(keys)) {
+    publicKeys[denom] = keyPair.publicJWK;
   }
-  return json({ keys: publicKeys, algorithm: 'RSABSSA-SHA384-PSS-Randomized' });
+  return json({ keys: publicKeys, denominations: DENOMINATIONS, algorithm: 'RSABSSA-SHA384-PSS-Randomized' });
 }
 
-async function verifyTrophy(env, body) {
-  const { tokenMessage, signature, tier } = body;
-  if (!tokenMessage || !signature || !tier) return err('tokenMessage, signature, tier required');
+async function verifyRep(env, body) {
+  const { tokenMessage, signature, denomination } = body;
+  if (!tokenMessage || !signature || !denomination) return err('tokenMessage, signature, denomination required');
+  if (!DENOMINATIONS.includes(denomination)) return err(`Invalid denomination: ${denomination}`);
 
-  const keys = await getTrophyKeys(env);
-  if (!keys[tier]) return err(`Unknown tier: ${tier}`, 400);
+  const keys = await getMintKeys(env);
+  if (!keys[denomination]) return err(`No key for denomination ${denomination}`);
 
   const suite = getBlindRSASuite();
-  const publicKey = await importRSAPublicKey(keys[tier].publicJWK);
+  const publicKey = await importRSAPublicKey(keys[denomination].publicJWK);
   const msgBytes = encoder.encode(tokenMessage);
   const sigBytes = fromBase64Url(signature);
 
   try {
     const valid = await suite.verify(publicKey, sigBytes, msgBytes);
-    return json({ valid, tier });
+    // Check if already spent
+    const nullifier = await sha256(`nullifier\x00${tokenMessage}`);
+    const spent = await env.DB.prepare('SELECT nullifier FROM spent_nullifiers WHERE nullifier = ?').bind(nullifier).first();
+    return json({ valid, denomination, spent: !!spent });
   } catch {
-    return json({ valid: false, tier });
+    return json({ valid: false, denomination, spent: false });
   }
 }
 
-async function presentTrophy(env, body) {
-  const { tokenMessage, signature, nullifier, tier } = body;
-  if (!tokenMessage || !signature || !nullifier || !tier) {
-    return err('tokenMessage, signature, nullifier, tier required');
+async function spendRep(env, body) {
+  const { tokenMessage, signature, nullifier, denomination, context } = body;
+  if (!tokenMessage || !signature || !nullifier || !denomination) {
+    return err('tokenMessage, signature, nullifier, denomination required');
   }
+  if (!DENOMINATIONS.includes(denomination)) return err(`Invalid denomination: ${denomination}`);
+
+  const keys = await getMintKeys(env);
+  if (!keys[denomination]) return err(`No key for denomination ${denomination}`);
 
   // Verify signature
-  const keys = await getTrophyKeys(env);
-  if (!keys[tier]) return err(`Unknown tier: ${tier}`, 400);
-
   const suite = getBlindRSASuite();
-  const publicKey = await importRSAPublicKey(keys[tier].publicJWK);
+  const publicKey = await importRSAPublicKey(keys[denomination].publicJWK);
   const msgBytes = encoder.encode(tokenMessage);
   const sigBytes = fromBase64Url(signature);
 
   try {
     const valid = await suite.verify(publicKey, sigBytes, msgBytes);
-    if (!valid) return err('Invalid trophy signature', 403);
+    if (!valid) return err('Invalid signature', 403);
   } catch {
-    return err('Invalid trophy signature', 403);
+    return err('Invalid signature', 403);
   }
 
-  // Verify nullifier derivation
+  // Verify nullifier
   const expectedNullifier = await sha256(`nullifier\x00${tokenMessage}`);
   if (nullifier !== expectedNullifier) return err('Invalid nullifier', 403);
 
-  // Check if already presented
-  const existing = await env.DB.prepare(
-    'SELECT * FROM trophy_nullifiers WHERE nullifier = ?'
-  ).bind(nullifier).first();
-  if (existing) return json({ accepted: false, reason: 'Trophy already presented (nullifier spent)' });
+  // Check not already spent
+  const existing = await env.DB.prepare('SELECT nullifier FROM spent_nullifiers WHERE nullifier = ?').bind(nullifier).first();
+  if (existing) return json({ accepted: false, reason: 'Already spent' });
 
-  // Register nullifier
+  // Spend it
   await env.DB.prepare(
-    'INSERT INTO trophy_nullifiers (nullifier) VALUES (?)'
-  ).bind(nullifier).run();
+    'INSERT INTO spent_nullifiers (nullifier, denomination, context) VALUES (?, ?, ?)'
+  ).bind(nullifier, denomination, context || null).run();
 
-  return json({ accepted: true, tier, message: 'Trophy verified and registered.' });
+  return json({ accepted: true, denomination });
 }
 
 // ─── Router ──────────────────────────────────────────────
@@ -327,49 +433,34 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
-    // CORS preflight
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
     try {
-      // API routes
-      if (path === '/api/bounties' && method === 'GET') {
-        return listBounties(env, url);
-      }
-      if (path === '/api/bounties' && method === 'POST') {
-        return createBounty(env, await request.json());
-      }
+      // Bounty routes
+      if (path === '/api/bounties' && method === 'GET') return listBounties(env, url);
+      if (path === '/api/bounties' && method === 'POST') return createBounty(env, await request.json());
 
       const bountyMatch = path.match(/^\/api\/bounties\/([^/]+)$/);
-      if (bountyMatch && method === 'GET') {
-        return getBounty(env, bountyMatch[1]);
-      }
+      if (bountyMatch && method === 'GET') return getBounty(env, bountyMatch[1]);
 
       const fulfillMatch = path.match(/^\/api\/bounties\/([^/]+)\/fulfill$/);
-      if (fulfillMatch && method === 'POST') {
-        return submitFulfillment(env, fulfillMatch[1], await request.json());
-      }
+      if (fulfillMatch && method === 'POST') return submitFulfillment(env, fulfillMatch[1], await request.json());
 
       const acceptMatch = path.match(/^\/api\/bounties\/([^/]+)\/accept\/([^/]+)$/);
-      if (acceptMatch && method === 'POST') {
-        return acceptFulfillment(env, acceptMatch[1], acceptMatch[2]);
-      }
+      if (acceptMatch && method === 'POST') return acceptFulfillment(env, acceptMatch[1], acceptMatch[2]);
 
-      if (path === '/api/trophy/blind-sign' && method === 'POST') {
-        return blindSignTrophy(env, await request.json());
-      }
-      if (path === '/api/trophy/public-keys' && method === 'GET') {
-        return getPublicKeys(env);
-      }
-      if (path === '/api/trophy/verify' && method === 'POST') {
-        return verifyTrophy(env, await request.json());
-      }
-      if (path === '/api/trophy/present' && method === 'POST') {
-        return presentTrophy(env, await request.json());
-      }
+      const stakeMatch = path.match(/^\/api\/bounties\/([^/]+)\/stake$/);
+      if (stakeMatch && method === 'POST') return stakeToClaim(env, stakeMatch[1], await request.json());
 
-      // Static assets fallthrough
+      // Rep routes
+      if (path === '/api/rep/mint' && method === 'POST') return mintRep(env, await request.json());
+      if (path === '/api/rep/keys' && method === 'GET') return getPublicKeys(env);
+      if (path === '/api/rep/verify' && method === 'POST') return verifyRep(env, await request.json());
+      if (path === '/api/rep/spend' && method === 'POST') return spendRep(env, await request.json());
+
+      // Static assets
       return env.ASSETS.fetch(request);
     } catch (e) {
       console.error('Worker error:', e);

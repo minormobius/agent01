@@ -1,9 +1,9 @@
 -- Bounty board D1 schema
--- Manages bounties, fulfillments, trophy issuance, and nullifiers
+-- Anonymous bounty marketplace with Chaumian ecash reputation
 
--- RSA key pairs for trophy signing (one per tier)
-CREATE TABLE IF NOT EXISTS trophy_keys (
-  tier TEXT PRIMARY KEY,  -- 'bronze', 'silver', 'gold'
+-- RSA key pairs for rep minting (one per denomination)
+CREATE TABLE IF NOT EXISTS mint_keys (
+  denomination INTEGER PRIMARY KEY,  -- 1, 5, 10, 25
   public_key_jwk TEXT NOT NULL,
   private_key_jwk TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -16,12 +16,9 @@ CREATE TABLE IF NOT EXISTS bounties (
   kind TEXT NOT NULL,
   description TEXT NOT NULL,
   tags TEXT,  -- JSON array
-  reward_amount TEXT,
-  reward_currency TEXT DEFAULT 'REPUTATION',
-  reward_method TEXT DEFAULT 'reputation',
-  trophy_tier TEXT DEFAULT 'bronze',
-  status TEXT NOT NULL DEFAULT 'open',
-  created_by_did TEXT,  -- NULL for anonymous
+  reward_rep INTEGER NOT NULL DEFAULT 10,  -- rep payout on fulfillment
+  stake_req INTEGER NOT NULL DEFAULT 0,    -- rep stake required to claim
+  status TEXT NOT NULL DEFAULT 'open',     -- open, claimed, fulfilled, closed, expired
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   closed_at TEXT
 );
@@ -32,27 +29,37 @@ CREATE TABLE IF NOT EXISTS fulfillments (
   bounty_id TEXT NOT NULL REFERENCES bounties(id),
   evidence_json TEXT NOT NULL,  -- JSON array of evidence items
   notes TEXT,
-  geo_lat REAL,
-  geo_lon REAL,
-  captured_at TEXT,
   status TEXT NOT NULL DEFAULT 'pending',  -- pending, accepted, rejected
-  submitted_by_did TEXT,  -- NULL for anonymous
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   accepted_at TEXT
 );
 
--- Track which fulfillments have been trophy-signed (prevent double-issuance)
-CREATE TABLE IF NOT EXISTS trophy_issuances (
-  fulfillment_id TEXT PRIMARY KEY REFERENCES fulfillments(id),
-  tier TEXT NOT NULL,
-  blinded_msg_hash TEXT NOT NULL,  -- SHA-256 of blinded message (for audit)
+-- Track rep minting (prevent double-mint for same fulfillment)
+CREATE TABLE IF NOT EXISTS mint_issuances (
+  id TEXT PRIMARY KEY,
+  fulfillment_id TEXT NOT NULL REFERENCES fulfillments(id),
+  denomination INTEGER NOT NULL,
+  blinded_msg_hash TEXT NOT NULL,  -- SHA-256 of blinded message (audit)
   issued_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Nullifier registry (prevent trophy replay/double-presentation)
-CREATE TABLE IF NOT EXISTS trophy_nullifiers (
+-- Spent nullifiers (prevent double-spend of rep tokens)
+CREATE TABLE IF NOT EXISTS spent_nullifiers (
   nullifier TEXT PRIMARY KEY,
-  presented_at TEXT NOT NULL DEFAULT (datetime('now'))
+  denomination INTEGER NOT NULL,
+  context TEXT,  -- what it was spent on: 'stake:{bountyId}', 'transfer', etc.
+  spent_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Active stakes (rep locked against bounty claims)
+CREATE TABLE IF NOT EXISTS stakes (
+  id TEXT PRIMARY KEY,
+  bounty_id TEXT NOT NULL REFERENCES bounties(id),
+  nullifiers_json TEXT NOT NULL,  -- JSON array of nullifiers being staked
+  total_rep INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',  -- active, returned, burned
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at TEXT
 );
 
 -- Indexes
@@ -60,3 +67,6 @@ CREATE INDEX IF NOT EXISTS idx_bounties_status ON bounties(status);
 CREATE INDEX IF NOT EXISTS idx_bounties_kind ON bounties(kind);
 CREATE INDEX IF NOT EXISTS idx_fulfillments_bounty ON fulfillments(bounty_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillments_status ON fulfillments(status);
+CREATE INDEX IF NOT EXISTS idx_mint_issuances_fulfillment ON mint_issuances(fulfillment_id);
+CREATE INDEX IF NOT EXISTS idx_stakes_bounty ON stakes(bounty_id);
+CREATE INDEX IF NOT EXISTS idx_stakes_status ON stakes(status);
