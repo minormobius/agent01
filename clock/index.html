@@ -1122,30 +1122,36 @@ async function main() {
       if (LEVELS[i].enabled) enabledLevels.push(i);
     }
 
+    // Each level becomes visible when camDist < parent's tubeRadius * FADE_SCALE
+    // (you need to be close enough to see inside the parent tube)
     const levelAlphas = new Array(LEVELS.length).fill(0);
     for (let ei = 0; ei < enabledLevels.length; ei++) {
       const i = enabledLevels[ei];
       if (i === 0) {
-        // Level 0: fade out when first child level appears
-        if (enabledLevels.length > 1) {
-          const nextI = enabledLevels[1];
-          const nextThresh = levelGeom[nextI].coilRadius * FADE_SCALE;
+        // Level 0: always visible unless a selection exists and we're zoomed in enough
+        if (enabledLevels.length > 1 && selectedGlobalFrac >= 0) {
+          const nextThresh = levelGeom[0].tubeRadius * FADE_SCALE;
           levelAlphas[0] = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
         } else {
           levelAlphas[0] = 1.0;
         }
       } else {
-        // Fade in: based on own coil radius (visible when camera is close enough)
-        const myThresh = levelGeom[i].coilRadius * FADE_SCALE;
-        const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
-        // Fade out: when next enabled level appears
-        let fadeOut = 1.0;
-        if (ei < enabledLevels.length - 1) {
-          const nextI = enabledLevels[ei + 1];
-          const nextThresh = levelGeom[nextI].coilRadius * FADE_SCALE;
-          fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
+        // Sub-levels only visible when there's an active selection
+        if (selectedGlobalFrac < 0) {
+          levelAlphas[i] = 0;
+        } else {
+          // Fade in: visible when camera is within parent's tube-radius scale
+          const prevEnabledIdx = enabledLevels[ei - 1];
+          const myThresh = levelGeom[prevEnabledIdx].tubeRadius * FADE_SCALE;
+          const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
+          // Fade out: when next enabled level appears
+          let fadeOut = 1.0;
+          if (ei < enabledLevels.length - 1) {
+            const nextThresh = levelGeom[i].tubeRadius * FADE_SCALE;
+            fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
+          }
+          levelAlphas[i] = fadeIn * fadeOut;
         }
-        levelAlphas[i] = fadeIn * fadeOut;
       }
     }
 
