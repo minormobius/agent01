@@ -363,7 +363,10 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
     <button onclick="switchTab('gantt',this)">Gantt</button>
     <button onclick="switchTab('kanban',this)">Board</button>
     <button onclick="switchTab('scurve',this)">S-Curve</button>
+    <button onclick="switchTab('team',this)">Team</button>
+    <button onclick="switchTab('resources',this)">Resources</button>
     <button onclick="switchTab('docs',this)">Docs</button>
+    <button onclick="switchTab('sync',this)" style="margin-left:auto;font-size:11px;opacity:0.7">&#x2B6E; Sync</button>
   </div>
 
   <!-- ─── Dashboard ─── -->
@@ -404,6 +407,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
       <div class="form-row">
         <div id="start-group"><label>Start</label><input id="t-start" type="date"></div>
         <div><label>Duration <span style="font-weight:400;color:var(--text2)">(e.g. 2w3d8h)</span></label><input id="t-dur" placeholder="2w3d"></div>
+        <div><label>Assignee</label><select id="t-assignee"><option value="">(unassigned)</option></select></div>
       </div>
       <button class="btn btn-primary" onclick="addTask()" style="width:100%">Add Task</button>
     </div>
@@ -462,6 +466,92 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
       <h2>Baselines</h2>
       <div id="baseline-list"></div>
       <div id="baseline-overlays" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ─── Team ─── -->
+  <div id="pane-team" class="pane">
+    <div class="card">
+      <h2>Add Team Member</h2>
+      <div class="form-row">
+        <div style="flex:2"><label>Display Name</label><input id="m-name" placeholder="Alice Smith"></div>
+        <div><label>Role</label>
+          <select id="m-role">
+            <option value="engineer">Engineer</option>
+            <option value="manager">Manager</option>
+            <option value="designer">Designer</option>
+            <option value="analyst">Analyst</option>
+            <option value="stakeholder">Stakeholder</option>
+            <option value="contractor">Contractor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>ATProto Handle <span style="font-weight:400;color:var(--text2)">(optional)</span></label><input id="m-handle" placeholder="alice.bsky.social"></div>
+        <div><label>Cost Rate ($/hr)</label><input id="m-rate" type="number" placeholder="0" min="0"></div>
+        <div><label>Max Hrs/Week</label><input id="m-hours" type="number" placeholder="40" min="0" max="168" value="40"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addMember()" style="width:100%">Add Member</button>
+    </div>
+    <div class="card">
+      <h2>Team Roster</h2>
+      <div id="team-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Resources ─── -->
+  <div id="pane-resources" class="pane">
+    <div class="card">
+      <h2>Resource Loading</h2>
+      <canvas id="resource-canvas" style="width:100%;height:300px"></canvas>
+      <div id="resource-legend" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:11px;color:var(--text2)"></div>
+    </div>
+    <div class="card">
+      <h2>Allocation Summary</h2>
+      <div id="resource-summary"></div>
+    </div>
+  </div>
+
+  <!-- ─── Sync ─── -->
+  <div id="pane-sync" class="pane">
+    <div class="card">
+      <h2>ATProto Sync</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Sync your project to an ATProto Personal Data Server. Your data is yours — portable, encrypted, and under your control.
+      </p>
+      <div id="sync-status" style="margin-bottom:12px"></div>
+      <div id="sync-auth" style="margin-bottom:16px">
+        <div class="form-row">
+          <div style="flex:2"><label>PDS Host</label><input id="sync-host" placeholder="https://bsky.social" value="https://bsky.social"></div>
+          <div style="flex:2"><label>Handle</label><input id="sync-handle" placeholder="you.bsky.social"></div>
+        </div>
+        <div class="form-row">
+          <div style="flex:2"><label>App Password</label><input id="sync-password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx"></div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" onclick="atprotoLogin()">Connect</button>
+          </div>
+        </div>
+      </div>
+      <div id="sync-connected" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
+          <span id="sync-did" style="font-size:12px;color:var(--text2);font-family:monospace"></span>
+          <button class="btn btn-sm btn-ghost" onclick="atprotoDisconnect()" style="margin-left:auto;font-size:11px">Disconnect</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn btn-primary" onclick="atprotoPush()" style="flex:1">&#x2B06; Push to PDS</button>
+          <button class="btn" onclick="atprotoPull()" style="flex:1;background:var(--surface2)">&#x2B07; Pull from PDS</button>
+        </div>
+        <div id="sync-log" style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Export / Import</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="exportJSON()" style="flex:1;background:var(--surface2)">Export JSON</button>
+        <button class="btn" onclick="document.getElementById('import-file').click()" style="flex:1;background:var(--surface2)">Import JSON</button>
+        <input id="import-file" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+      </div>
     </div>
   </div>
 
@@ -655,7 +745,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 let state = loadState();
 
 function defaultState() {
-  return { tasks: [], deps: [], baselines: [], collapsed: [], projectName: 'My Project' };
+  return { tasks: [], deps: [], baselines: [], collapsed: [], projectName: 'My Project', members: [], atproto: null };
 }
 
 function loadState() {
@@ -858,6 +948,7 @@ function addTask() {
   const calDays = durationToCalendarDays(durHours);
   const end = addDateDays(start, calDays);
 
+  const assigneeId = document.getElementById('t-assignee').value || null;
   const id = crypto.randomUUID();
   const task = {
     id, name,
@@ -867,6 +958,7 @@ function addTask() {
     plannedEnd: end,
     duration: durHours,
     percentComplete: 0,
+    assigneeId,
     createdAt: new Date().toISOString()
   };
   if (parentId) task.parentId = parentId;
@@ -930,6 +1022,11 @@ function updatePct(id, val) {
 function updateActualCost(id, val) {
   const t = state.tasks.find(t => t.id === id);
   if (t) { t.actualCost = Math.max(0, parseFloat(val) || 0); saveState(); if (t.parentId) rollUpParent(t.parentId); renderAll(); }
+}
+
+function assignTask(taskId, memberId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (t) { t.assigneeId = memberId || null; saveState(); renderTasks(); }
 }
 
 // ── EVM Engine ──
@@ -1123,7 +1220,11 @@ function renderTasks() {
           ${isP ? `<span style="font-size:13px">${pct}%</span>` : `<input type="number" value="${pct}" min="0" max="100" style="width:48px;padding:2px 4px;text-align:right;font-size:13px"
             onchange="updatePct('${t.id}',this.value)">%`}
         </div>
-        <div class="task-actions">
+        <div class="task-actions" style="gap:4px">
+          ${!isP ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="assignTask('${t.id}',this.value)">
+            <option value="">&#x1f464;</option>
+            ${(state.members || []).map(m => `<option value="${m.id}" ${t.assigneeId === m.id ? 'selected' : ''}>${esc(m.displayName)}</option>`).join('')}
+          </select>` : ''}
           ${otherTasks.length ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="if(this.value)addDep(this.value,'${t.id}');this.value=''"><option value="">+dep</option>${predOpts}</select>` : ''}
           <button class="btn btn-sm btn-ghost" onclick="deleteTask('${t.id}')" title="Delete">&times;</button>
         </div>
@@ -1564,7 +1665,7 @@ function renderGantt() {
         </div>`;
 
     rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
-      <div class="gantt-row-label${critCls}" title="${esc(t.name)}" style="padding-left:${8 + indent}px">${toggle}${esc(label)}</div>
+      <div class="gantt-row-label${critCls}" title="${esc(t.name)}" style="padding-left:${8 + indent}px">${toggle}${(() => { const m = (state.members || []).find(x => x.id === t.assigneeId); return m ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${m.color};margin-right:3px" title="${esc(m.displayName)}"></span>` : ''; })()}${esc(label)}</div>
       <div class="gantt-row-bars" style="width:${barAreaW}px">
         ${barHtml}
       </div>
@@ -2122,6 +2223,17 @@ function renderGanttDetail() {
         </div>
       </div>
 
+      ${!isParent && (state.members || []).length > 0 ? `
+      <div class="form-row">
+        <div style="flex:2">
+          <label>Assignee</label>
+          <select onchange="assignTask('${t.id}',this.value);renderGantt()">
+            <option value="">(unassigned)</option>
+            ${(state.members || []).map(m => `<option value="${m.id}" ${t.assigneeId === m.id ? 'selected' : ''}>${esc(m.displayName)} — ${m.role}</option>`).join('')}
+          </select>
+        </div>
+      </div>` : ''}
+
       ${!isParent ? `
       <div class="form-group" style="margin-top:6px">
         <label>Workflow</label>
@@ -2546,6 +2658,555 @@ function switchToGanttTask(taskId) {
   renderGanttDetail();
 }
 
+// ── Team Management ──
+
+const MEMBER_COLORS = ['#58a6ff', '#3fb950', '#f0883e', '#d2a8ff', '#f85149', '#ffd33d', '#a5d6ff', '#7ee787', '#ff9bce', '#79c0ff'];
+
+function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) return;
+  const role = document.getElementById('m-role').value;
+  const handle = document.getElementById('m-handle').value.trim();
+  const rate = parseFloat(document.getElementById('m-rate').value) || 0;
+  const hours = parseFloat(document.getElementById('m-hours').value) || 40;
+  if (!state.members) state.members = [];
+  const idx = state.members.length;
+  state.members.push({
+    id: crypto.randomUUID(),
+    displayName: name,
+    role,
+    handle: handle || null,
+    did: null,
+    costRate: rate,
+    maxHoursPerWeek: hours,
+    color: MEMBER_COLORS[idx % MEMBER_COLORS.length]
+  });
+  saveState();
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-handle').value = '';
+  document.getElementById('m-rate').value = '';
+  renderTeam();
+  renderAll();
+}
+
+function removeMember(id) {
+  state.members = (state.members || []).filter(m => m.id !== id);
+  // Unassign from tasks
+  state.tasks.forEach(t => { if (t.assigneeId === id) t.assigneeId = null; });
+  saveState();
+  renderTeam();
+  renderAll();
+}
+
+function resolveHandle(memberId) {
+  const m = (state.members || []).find(x => x.id === memberId);
+  if (!m || !m.handle) return;
+  const host = 'https://public.api.bsky.app';
+  fetch(`${host}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(m.handle)}`)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => {
+      m.did = data.did;
+      saveState();
+      renderTeam();
+    })
+    .catch(err => {
+      alert(`Could not resolve handle: ${err}`);
+    });
+}
+
+function renderTeam() {
+  const el = document.getElementById('team-list');
+  if (!el) return;
+  const members = state.members || [];
+  if (members.length === 0) {
+    el.innerHTML = '<div class="empty">No team members yet</div>';
+    return;
+  }
+  el.innerHTML = members.map(m => {
+    const assigned = state.tasks.filter(t => t.assigneeId === m.id).length;
+    const roleBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${m.color}22;color:${m.color};border:1px solid ${m.color}44">${m.role}</span>`;
+    const didBadge = m.did
+      ? `<span style="font-size:10px;color:var(--green)" title="${m.did}">&#x2713; linked</span>`
+      : m.handle
+        ? `<button class="btn btn-sm btn-ghost" style="font-size:10px;padding:1px 4px" onclick="resolveHandle('${m.id}')">resolve</button>`
+        : '';
+    return `<div class="forecast-row" style="gap:8px;align-items:center">
+      <span style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
+      <span class="fl" style="font-weight:500">${esc(m.displayName)}</span>
+      ${roleBadge}
+      ${m.handle ? `<span style="font-size:11px;color:var(--text2)">@${esc(m.handle)}</span>` : ''}
+      ${didBadge}
+      <span style="font-size:11px;color:var(--text2)">${assigned} task${assigned !== 1 ? 's' : ''} &middot; $${m.costRate}/hr &middot; ${m.maxHoursPerWeek}h/wk</span>
+      <button class="btn btn-sm btn-ghost" onclick="removeMember('${m.id}')" style="color:var(--red)">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+// ── Resource Loading Chart ──
+
+function renderResourceChart() {
+  const canvas = document.getElementById('resource-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const members = state.members || [];
+  const leaves = getLeafTasks().filter(t => t.assigneeId);
+  if (members.length === 0 || leaves.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Assign team members to tasks to see resource loading', W / 2, H / 2);
+    return;
+  }
+
+  // Time range (weekly buckets)
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const msPerWeek = 7 * 86400000;
+  const totalWeeks = Math.max(Math.ceil((tMax - tMin) / msPerWeek), 1);
+
+  const pad = { t: 20, r: 16, b: 32, l: 48 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  // Compute per-member per-week hours
+  const memberWeeks = {}; // memberId → [hours per week]
+  let maxHours = 0;
+  for (const m of members) {
+    memberWeeks[m.id] = new Array(totalWeeks).fill(0);
+  }
+
+  for (const t of leaves) {
+    const m = members.find(x => x.id === t.assigneeId);
+    if (!m) continue;
+    const ts = new Date(t.plannedStart).getTime();
+    const te = new Date(t.plannedEnd).getTime();
+    const dur = Math.max(te - ts, 1);
+    const hrsPerMs = t.duration / dur;
+
+    for (let w = 0; w < totalWeeks; w++) {
+      const ws = tMin + w * msPerWeek;
+      const we = ws + msPerWeek;
+      const overlap = Math.max(0, Math.min(te, we) - Math.max(ts, ws));
+      const hrs = overlap * hrsPerMs;
+      memberWeeks[m.id][w] += hrs;
+    }
+  }
+
+  // Find max for y-axis
+  for (const m of members) {
+    for (let w = 0; w < totalWeeks; w++) {
+      maxHours = Math.max(maxHours, memberWeeks[m.id][w]);
+    }
+  }
+  // Include max capacity line
+  const maxCapacity = Math.max(...members.map(m => m.maxHoursPerWeek || 40));
+  maxHours = Math.max(maxHours, maxCapacity) * 1.1;
+  if (maxHours === 0) maxHours = 40;
+
+  // Axes
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ch); ctx.lineTo(pad.l + cw, pad.t + ch);
+  ctx.stroke();
+
+  // Y-axis labels
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    ctx.fillText(Math.round(maxHours * i / 4) + 'h', pad.l - 6, y + 3);
+    if (i > 0) {
+      ctx.strokeStyle = '#21262d';
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    }
+  }
+
+  // X-axis week labels
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(totalWeeks / 8));
+  for (let w = 0; w < totalWeeks; w += labelStep) {
+    const x = pad.l + ((w + 0.5) / totalWeeks) * cw;
+    const dt = new Date(tMin + w * msPerWeek);
+    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t + ch + 16);
+  }
+
+  // Stacked bars per week
+  const barW = Math.max(2, (cw / totalWeeks) - 2);
+  for (let w = 0; w < totalWeeks; w++) {
+    let yOff = 0;
+    const x = pad.l + (w / totalWeeks) * cw + 1;
+    for (const m of members) {
+      const hrs = memberWeeks[m.id][w];
+      if (hrs <= 0) continue;
+      const barH = (hrs / maxHours) * ch;
+      const y = pad.t + ch - yOff - barH;
+      ctx.fillStyle = m.color + 'cc';
+      ctx.fillRect(x, y, barW, barH);
+      yOff += barH;
+    }
+  }
+
+  // Capacity line (dashed) for reference — show the max member capacity
+  ctx.strokeStyle = '#d29922';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  const capY = pad.t + ch - (maxCapacity / maxHours) * ch;
+  ctx.beginPath(); ctx.moveTo(pad.l, capY); ctx.lineTo(pad.l + cw, capY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#d29922';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${maxCapacity}h cap`, pad.l + cw - 50, capY - 4);
+
+  // Legend
+  const legendEl = document.getElementById('resource-legend');
+  if (legendEl) {
+    legendEl.innerHTML = members.filter(m => leaves.some(t => t.assigneeId === m.id)).map(m =>
+      `<span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:${m.color}"></span>${esc(m.displayName)}</span>`
+    ).join('');
+  }
+
+  // Summary
+  renderResourceSummary(members, memberWeeks, totalWeeks);
+}
+
+function renderResourceSummary(members, memberWeeks, totalWeeks) {
+  const el = document.getElementById('resource-summary');
+  if (!el) return;
+  el.innerHTML = members.map(m => {
+    const weeks = memberWeeks[m.id] || [];
+    const totalHrs = weeks.reduce((s, h) => s + h, 0);
+    const avgHrs = totalWeeks > 0 ? totalHrs / totalWeeks : 0;
+    const maxWeek = Math.max(...weeks, 0);
+    const cap = m.maxHoursPerWeek || 40;
+    const util = cap > 0 ? Math.round((avgHrs / cap) * 100) : 0;
+    const overloaded = maxWeek > cap;
+    const utilColor = util > 100 ? 'var(--red)' : util > 80 ? 'var(--orange)' : 'var(--green)';
+    return `<div class="forecast-row" style="gap:8px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
+      <span class="fl" style="min-width:100px">${esc(m.displayName)}</span>
+      <span style="font-size:12px;color:${utilColor};font-weight:600">${util}%</span>
+      <span style="font-size:11px;color:var(--text2)">${Math.round(avgHrs)}h/wk avg &middot; ${Math.round(maxWeek)}h peak${overloaded ? ' ⚠' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── ATProto Sync ──
+
+function atprotoLog(msg) {
+  const el = document.getElementById('sync-log');
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML += `<div>[${ts}] ${esc(msg)}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function atprotoLogin() {
+  const host = document.getElementById('sync-host').value.trim().replace(/\/+$/, '');
+  const handle = document.getElementById('sync-handle').value.trim();
+  const password = document.getElementById('sync-password').value;
+  if (!host || !handle || !password) { alert('Fill in all fields'); return; }
+
+  try {
+    const res = await fetch(`${host}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password })
+    });
+    if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
+    const data = await res.json();
+    state.atproto = { host, did: data.did, handle: data.handle, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
+    saveState();
+    renderSyncUI();
+    atprotoLog(`Authenticated as ${data.handle} (${data.did})`);
+  } catch (err) {
+    alert(`Login failed: ${err.message}`);
+  }
+}
+
+function atprotoDisconnect() {
+  if (state.atproto) {
+    state.atproto = null;
+    saveState();
+    renderSyncUI();
+  }
+}
+
+function renderSyncUI() {
+  const auth = document.getElementById('sync-auth');
+  const conn = document.getElementById('sync-connected');
+  const didEl = document.getElementById('sync-did');
+  if (!auth || !conn) return;
+
+  if (state.atproto && state.atproto.accessJwt) {
+    auth.style.display = 'none';
+    conn.style.display = '';
+    didEl.textContent = `${state.atproto.handle} (${state.atproto.did})`;
+  } else {
+    auth.style.display = '';
+    conn.style.display = 'none';
+  }
+}
+
+async function atprotoXrpc(method, nsid, body) {
+  const { host, accessJwt } = state.atproto;
+  const opts = {
+    method,
+    headers: { 'Authorization': `Bearer ${accessJwt}` }
+  };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const url = `${host}/xrpc/${nsid}`;
+  const res = await fetch(method === 'GET' ? `${url}?${new URLSearchParams(body).toString()}` : url, method === 'GET' ? { headers: opts.headers } : opts);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${nsid} ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+async function atprotoPush() {
+  if (!state.atproto) return;
+  atprotoLog('Pushing project to PDS...');
+
+  const now = new Date().toISOString();
+  const collection = 'com.minomobi.pm.project';
+  const rkey = state.projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50) || 'project';
+
+  // Build project record
+  const leaves = getLeafTasks();
+  const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
+  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+
+  const projectRecord = {
+    $type: collection,
+    name: state.projectName,
+    status: 'active',
+    budgetAtCompletion: bac,
+    scheduledStart: starts.length ? new Date(Math.min(...starts)).toISOString() : now,
+    scheduledEnd: ends.length ? new Date(Math.max(...ends)).toISOString() : now,
+    createdAt: now,
+    updatedAt: now,
+    // Embed full state for round-trip portability
+    _pmState: {
+      tasks: state.tasks,
+      deps: state.deps,
+      baselines: state.baselines,
+      members: state.members || [],
+      collapsed: state.collapsed
+    }
+  };
+
+  try {
+    await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+      repo: state.atproto.did,
+      collection,
+      rkey,
+      record: projectRecord
+    });
+    atprotoLog(`Pushed project "${state.projectName}" → ${collection}/${rkey}`);
+
+    // Push individual schedule records for interop
+    const writes = [];
+    for (const t of state.tasks) {
+      writes.push({
+        $type: 'com.atproto.repo.applyWrites#create',
+        collection: 'com.minomobi.pm.schedule',
+        rkey: t.id.slice(0, 15),
+        value: {
+          $type: 'com.minomobi.pm.schedule',
+          projectRkey: rkey,
+          issueRkey: t.id.slice(0, 15),
+          plannedStart: t.plannedStart ? new Date(t.plannedStart).toISOString() : now,
+          plannedEnd: t.plannedEnd ? new Date(t.plannedEnd).toISOString() : now,
+          plannedCost: t.plannedCost,
+          actualCost: t.actualCost,
+          percentComplete: t.percentComplete,
+          createdAt: now
+        }
+      });
+    }
+
+    // Batch in chunks of 200
+    for (let i = 0; i < writes.length; i += 200) {
+      const batch = writes.slice(i, i + 200);
+      await atprotoXrpc('POST', 'com.atproto.repo.applyWrites', {
+        repo: state.atproto.did,
+        writes: batch
+      });
+      atprotoLog(`Pushed ${Math.min(i + 200, writes.length)}/${writes.length} schedule records`);
+    }
+
+    // Push team roster
+    if ((state.members || []).length > 0) {
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: state.atproto.did,
+        collection: 'com.minomobi.pm.team',
+        rkey: rkey + '-team',
+        record: {
+          $type: 'com.minomobi.pm.team',
+          projectRkey: rkey,
+          members: state.members.map(m => ({
+            id: m.id,
+            displayName: m.displayName,
+            role: m.role,
+            handle: m.handle,
+            did: m.did,
+            costRate: m.costRate,
+            maxHoursPerWeek: m.maxHoursPerWeek,
+            color: m.color
+          })),
+          createdAt: now
+        }
+      });
+      atprotoLog(`Pushed team roster (${state.members.length} members)`);
+    }
+
+    atprotoLog('Push complete.');
+  } catch (err) {
+    atprotoLog(`Error: ${err.message}`);
+  }
+}
+
+async function atprotoPull() {
+  if (!state.atproto) return;
+  atprotoLog('Pulling from PDS...');
+
+  try {
+    // List project records
+    const projects = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+      repo: state.atproto.did,
+      collection: 'com.minomobi.pm.project',
+      limit: 100
+    });
+
+    if (!projects.records || projects.records.length === 0) {
+      atprotoLog('No projects found on PDS.');
+      return;
+    }
+
+    // If multiple projects, use the most recently updated
+    const rec = projects.records[projects.records.length - 1];
+    const val = rec.value;
+    atprotoLog(`Found project: ${val.name}`);
+
+    // Check for embedded full state (round-trip)
+    if (val._pmState) {
+      state.projectName = val.name || state.projectName;
+      state.tasks = val._pmState.tasks || [];
+      state.deps = val._pmState.deps || [];
+      state.baselines = val._pmState.baselines || [];
+      state.members = val._pmState.members || [];
+      state.collapsed = val._pmState.collapsed || [];
+      saveState();
+      renderAll();
+      atprotoLog(`Restored full project state: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
+    } else {
+      atprotoLog('Project record has no embedded state — pulling schedule records...');
+      const schedules = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+        repo: state.atproto.did,
+        collection: 'com.minomobi.pm.schedule',
+        limit: 1000
+      });
+      atprotoLog(`Found ${schedules.records.length} schedule records`);
+      // Build tasks from schedule records
+      state.projectName = val.name;
+      state.tasks = schedules.records.map(r => {
+        const s = r.value;
+        return {
+          id: s.issueRkey || crypto.randomUUID(),
+          parentId: null,
+          name: s.issueRkey || 'Task',
+          duration: Math.max(8, (new Date(s.plannedEnd) - new Date(s.plannedStart)) / 3600000),
+          plannedStart: s.plannedStart.split('T')[0],
+          plannedEnd: s.plannedEnd.split('T')[0],
+          plannedCost: s.plannedCost || 0,
+          actualCost: s.actualCost || 0,
+          percentComplete: s.percentComplete || 0
+        };
+      });
+      saveState();
+      renderAll();
+    }
+
+    // Pull team roster
+    try {
+      const teams = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+        repo: state.atproto.did,
+        collection: 'com.minomobi.pm.team',
+        limit: 10
+      });
+      if (teams.records && teams.records.length > 0) {
+        const teamRec = teams.records[teams.records.length - 1].value;
+        if (teamRec.members && !val._pmState) {
+          state.members = teamRec.members;
+          saveState();
+          atprotoLog(`Pulled team roster: ${state.members.length} members`);
+        }
+      }
+    } catch (e) {
+      atprotoLog(`Team roster pull skipped: ${e.message}`);
+    }
+
+    atprotoLog('Pull complete.');
+    renderAll();
+    renderTeam();
+  } catch (err) {
+    atprotoLog(`Error: ${err.message}`);
+  }
+}
+
+// ── Export / Import ──
+
+function exportJSON() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.projectName.replace(/[^a-z0-9]+/gi, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.tasks || !Array.isArray(data.tasks)) throw new Error('Invalid PM state');
+      Object.assign(state, data);
+      if (!state.members) state.members = [];
+      saveState();
+      renderAll();
+      renderTeam();
+      alert(`Imported: ${state.tasks.length} tasks, ${state.members.length} members`);
+    } catch (err) {
+      alert(`Import failed: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
 // ── Tab switching ──
 
 function switchTab(tab, btn) {
@@ -2557,6 +3218,9 @@ function switchTab(tab, btn) {
   if (tab === 'kanban') renderKanban();
   if (tab === 'scurve') renderSCurve();
   if (tab === 'dashboard') renderDashboard();
+  if (tab === 'team') renderTeam();
+  if (tab === 'resources') renderResourceChart();
+  if (tab === 'sync') renderSyncUI();
 }
 
 // ── Init ──
@@ -2579,6 +3243,14 @@ function renderAll() {
     psel.innerHTML = '<option value="">(root-level task)</option>' +
       getTreeOrder().map(t => `<option value="${t.id}">${'—'.repeat(getDepth(t))}${getDepth(t) ? ' ' : ''}${esc(t.name)}</option>`).join('');
     psel.value = pval;
+  }
+  // Update assignee dropdown
+  const asel = document.getElementById('t-assignee');
+  if (asel) {
+    const aval = asel.value;
+    asel.innerHTML = '<option value="">(unassigned)</option>' +
+      (state.members || []).map(m => `<option value="${m.id}">${esc(m.displayName)}</option>`).join('');
+    asel.value = aval;
   }
 }
 
