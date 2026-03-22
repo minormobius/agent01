@@ -9,7 +9,9 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
 canvas { width: 100%; height: 100%; display: block; }
 #fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; }
-#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; opacity: 0.5; pointer-events: none; letter-spacing: 0.05em; }
+#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; opacity: 0.5; pointer-events: none; letter-spacing: 0.05em; text-align: center; line-height: 1.6; }
+#hud .time { font-size: 0.95rem; opacity: 0.8; letter-spacing: 0.12em; }
+#hud .hint { font-size: 0.7rem; opacity: 0.5; }
 #year-label { position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.1rem; opacity: 0.7; pointer-events: none; letter-spacing: 0.1em; }
 #docs-tab { position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; transition: background 0.2s; z-index: 10; }
 #docs-tab:hover { background: rgba(255,255,255,0.15); }
@@ -38,14 +40,15 @@ canvas { width: 100%; height: 100%; display: block; }
   <p>A supercoiled visualization of time. Two nested helices encode years, months, days, and hours into a single continuous spiral.</p>
 
   <h2>Topology</h2>
-  <p><strong>Macro helix</strong> &mdash; One full revolution per year. Each month occupies 1/12 of the circumference when viewed on-axis. The helix advances vertically with each revolution, so consecutive years stack.</p>
-  <p><strong>Micro helix</strong> &mdash; Each day is one tight coil wound around the macro path. Within each month's arc you'll see ~30 individual day-loops. Hours map to position along each daily coil.</p>
-  <p>The result is a <em>coiled coil</em>: zoom out to read months and years, zoom in to see individual days spiraling past.</p>
+  <p><strong>Level 1 — Macro helix</strong> &mdash; One full revolution per year. Each month occupies 1/12 of the circumference. Years stack vertically.</p>
+  <p><strong>Level 2 — Day coils</strong> &mdash; Each day is one tight coil wound around the macro path. ~30 day-loops per month. Brightness encodes hour of day.</p>
+  <p><strong>Level 3 — Minute coils</strong> &mdash; Zoom all the way in to see 60 minute-coils spiraling around the current hour.</p>
+  <p>The result is a <em>triple-nested coiled coil</em>: zoom out for years, in for days, all the way in for minutes. A pulsing gold ring marks <em>now</em>.</p>
 
   <div class="section">
   <h2>Reading the time</h2>
   <p><strong>Brightness</strong> encodes time of day &mdash; midnight is dimmest, noon is brightest, with dawn/dusk transitions between.</p>
-  <p><strong>White ring</strong> marks the current moment (today's date and hour).</p>
+  <p><strong>Gold ring</strong> pulses at the current moment — tracks your position on the helix in real time.</p>
   <p><strong>Color</strong> encodes the month:</p>
   <div class="color-row"><span class="color-swatch" style="background:#8cbff2"></span> Jan</div>
   <div class="color-row"><span class="color-swatch" style="background:#99b3e6"></span> Feb</div>
@@ -71,7 +74,7 @@ canvas { width: 100%; height: 100%; display: block; }
   <div class="section">
   <h2>Technical</h2>
   <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. The geometry is a tube mesh extruded along the supercoil path with Phong shading, specular highlights, and rim lighting.</p>
-  <p>~1825 day-coils &times; 13 samples &times; 6-sided tube cross-section. All generated at load time on the client.</p>
+  <p>Three LOD levels with smooth crossfade. L1 and L2 generated at load; L3 (minute detail) generated on-demand for the current hour. A pulsing now-marker ring regenerates each frame (~48 tris).</p>
   <p>Requires Chrome 113+ or Edge 113+.</p>
   </div>
 
@@ -427,6 +430,64 @@ async function main() {
     return generateTubeMesh(path, 0.003, 4);
   }
 
+  // ============================================================
+  // NOW MARKER: bright torus ring at current time position
+  // Regenerated each frame (tiny mesh — ~48 tris)
+  // ============================================================
+  function generateNowMarker() {
+    const nowDate = new Date();
+    const yr = nowDate.getFullYear();
+    const yrIdx = yr - startYear;
+    if (yrIdx < 0 || yrIdx >= totalYears) return null;
+
+    const isLeap = (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0;
+    const daysInYear = isLeap ? 366 : 365;
+    const dayOfYear = Math.floor((nowDate - new Date(yr, 0, 0)) / 86400000) - 1;
+    const hourFrac = (nowDate.getHours() + nowDate.getMinutes() / 60 + nowDate.getSeconds() / 3600) / 24;
+    const dayFrac = (dayOfYear + hourFrac) / daysInYear;
+
+    // Position on macro helix
+    const macroPos = macroPoint(yrIdx, dayFrac);
+    const frame = macroFrame(yrIdx, dayFrac);
+
+    // Position on L2 (day coil)
+    const microRadius = 0.12;
+    const microAngle = hourFrac * Math.PI * 2;
+    const microOffset = v3add(
+      v3scale(frame.N, microRadius * Math.cos(microAngle)),
+      v3scale(frame.B, microRadius * Math.sin(microAngle))
+    );
+    const l2Pos = v3add(macroPos, microOffset);
+
+    // Build a small torus ring around the macro path at this point
+    const ringRadius = 0.16; // slightly larger than L1 tube
+    const tubeRadius = 0.012;
+    const ringSegs = 16;
+    const tubeSegs = 6;
+    const path = [];
+
+    for (let i = 0; i <= ringSegs; i++) {
+      const theta = (i / ringSegs) * Math.PI * 2;
+      const pos = v3add(macroPos, v3add(
+        v3scale(frame.N, ringRadius * Math.cos(theta)),
+        v3scale(frame.B, ringRadius * Math.sin(theta))
+      ));
+
+      const radial = v3normalize(v3sub(pos, macroPos));
+      const T = v3normalize(v3cross(frame.T, radial));
+      const N = radial;
+      const B = v3normalize(v3cross(T, N));
+
+      // White-gold color (pulse applied via alpha at draw time)
+      path.push({ pos, T, N, B, color: [1.0, 0.95, 0.7] });
+    }
+
+    return generateTubeMesh(path, tubeRadius, tubeSegs);
+  }
+
+  let nowGPU = null;
+  let lastNowSec = -1;
+
   // Generate both levels at startup (L3 generated on-demand per hour)
   console.time('geometry');
   const l1Mesh = generateLevel1();
@@ -586,9 +647,10 @@ async function main() {
     canvas.addEventListener('pointerup', up);
   });
 
+  let camDistTarget = camDist;
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDist = Math.max(0.5, Math.min(15, camDist + e.deltaY * 0.005));
+    camDistTarget = Math.max(0.5, Math.min(15, camDistTarget + e.deltaY * 0.005));
   }, { passive: false });
 
   // --- Matrix helpers ---
@@ -664,8 +726,14 @@ async function main() {
     pass.drawIndexed(gpu.indexCount);
   }
 
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
   function frame(t) {
     if (autoRotate) camTheta += 0.0008;
+
+    // Smooth zoom interpolation
+    camDist += (camDistTarget - camDist) * 0.12;
 
     const eye = [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
@@ -704,9 +772,11 @@ async function main() {
       }
     }
 
-    // Update HUD
+    // Update HUD with current time and zoom level
+    const nowHud = new Date();
+    const timeStr = `${DAY_NAMES[nowHud.getDay()]} ${nowHud.getDate()} ${MONTH_NAMES[nowHud.getMonth()]} ${nowHud.getFullYear()} · ${String(nowHud.getHours()).padStart(2,'0')}:${String(nowHud.getMinutes()).padStart(2,'0')}:${String(nowHud.getSeconds()).padStart(2,'0')}`;
     const level = camDist > 4 ? 'years · months' : camDist > 1.5 ? 'days · hours' : 'minutes · seconds';
-    hud.textContent = `drag to orbit · scroll to zoom — ${level}`;
+    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · scroll to zoom — ${level}</div>`;
 
     const commandEncoder = device.createCommandEncoder();
     const pass = commandEncoder.beginRenderPass({
@@ -736,6 +806,25 @@ async function main() {
     // Draw L3 (minute coils) — fades in at closest zoom
     if (l3GPU && l3Alpha > 0.01) {
       drawMesh(pass, l3GPU, mvp, eye, lightDir, l3Alpha);
+    }
+
+    // Draw NOW marker — pulsing gold ring at current time
+    {
+      const nowSec = Math.floor(t / 1000);
+      if (nowSec !== lastNowSec) {
+        lastNowSec = nowSec;
+        if (nowGPU) {
+          nowGPU.vertexBuffer.destroy();
+          nowGPU.indexBuffer.destroy();
+        }
+        const nowMesh = generateNowMarker();
+        if (nowMesh) nowGPU = createGPUMesh(device, nowMesh);
+      }
+      if (nowGPU) {
+        const pulse = 0.75 + 0.25 * Math.sin(t * 0.004);
+        const nowAlpha = Math.max(l1Alpha, l2Alpha, l3Alpha * 0.6) * pulse;
+        drawMesh(pass, nowGPU, mvp, eye, lightDir, nowAlpha);
+      }
     }
 
     pass.end();
