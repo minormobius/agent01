@@ -153,26 +153,26 @@ async function main() {
   //
   // Everything else is derived.
 
-  const ORBIT_RATIO = 2.8;   // child coil center = parent tube radius × this
-  const TUBE_FRAC = 0.25;    // tube radius = coil radius × this (must be < 1/ORBIT_RATIO for shrinking)
+  const ORBIT_RATIO = 2.5;   // child coil center = parent tube radius × this
+  const TUBE_FRAC = 0.06;    // tube radius = coil radius × this
   const SAMPLES_PER_COIL = 14; // path samples per coil revolution
   const TUBE_SIDES = 6;       // cross-section polygon sides
-  // Shrink ratio per level = ORBIT_RATIO × TUBE_FRAC = 0.70
-  // So each level is 70% the size of the previous — proper fractal!
+  // Shrink ratio per level = ORBIT_RATIO × TUBE_FRAC = 0.15
+  // Each level is ~7× smaller than the previous — clean separation!
 
-  // Level hierarchy: each entry is { name, subs, label }
+  // Level hierarchy: big subdivision jumps so each level lives in its own scale
   // subs = number of child coils per parent coil
   const LEVELS = [
     { name: 'year',    subs: 1,  label: 'Years' },       // L0: macro helix, 1 coil/year
     { name: 'quarter', subs: 4,  label: 'Quarters' },    // L1: 4 per year
-    { name: 'month',   subs: 3,  label: 'Months' },      // L2: 3 per quarter
-    { name: 'week',    subs: 4,  label: 'Weeks' },       // L3: ~4 per month
-    { name: 'day',     subs: 7,  label: 'Days' },        // L4: 7 per week
-    { name: 'watch',   subs: 4,  label: 'Watches' },     // L5: 4×6hr per day
-    { name: 'hour',    subs: 6,  label: 'Hours' },       // L6: 6 per watch
+    { name: 'week',    subs: 13, label: 'Weeks' },       // L2: 13 per quarter
+    { name: 'day',     subs: 7,  label: 'Days' },        // L3: 7 per week
+    { name: 'hour',    subs: 24, label: 'Hours' },       // L4: 24 per day
+    { name: '6min',    subs: 10, label: '6-min' },       // L5: 10 per hour
+    { name: '30s',     subs: 12, label: '30-sec' },      // L6: 12 per 6min
   ];
 
-  const MAX_VISIBLE_LEVELS = 3; // at most 3 levels render simultaneously
+  const MAX_VISIBLE_LEVELS = 2; // only 2 levels visible at once — no trampling
 
   // --- Calendar parameters ---
   const now = new Date();
@@ -636,7 +636,7 @@ async function main() {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDistTarget = Math.max(0.3, Math.min(30, camDistTarget * (1 + e.deltaY * 0.001)));
+    camDistTarget = Math.max(0.005, Math.min(30, camDistTarget * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
   // Touch: single-finger orbit, two-finger pinch-to-zoom, tap-to-select
@@ -682,7 +682,7 @@ async function main() {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (touchStartDist > 0) {
         const scale = touchStartDist / dist;
-        camDistTarget = Math.max(0.3, Math.min(30, touchStartCamDist * scale));
+        camDistTarget = Math.max(0.005, Math.min(30, touchStartCamDist * scale));
       }
     }
   }, { passive: false });
@@ -742,7 +742,8 @@ async function main() {
       camDist * Math.sin(camPhi) * Math.sin(camTheta),
     ]);
     const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
-    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
+    const nearClip = Math.max(0.0001, camDist * 0.005);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, nearClip, 100);
     const mvp = mat4Mul(proj, view);
     const invMVP = mat4Invert(mvp);
     if (!invMVP) return;
@@ -919,7 +920,8 @@ async function main() {
     ]);
 
     const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
-    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
+    const nearClip = Math.max(0.0001, camDist * 0.005);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, nearClip, 100);
     const mvp = mat4Mul(proj, view);
     const lightDir = v3normalize([0.5, 0.8, 0.3]);
 
@@ -927,8 +929,8 @@ async function main() {
     // Each level fades based on camDist thresholds.
     // Thresholds scale with level geometry — deeper levels need closer zoom.
     // Level N is visible when camDist < tubeRadius[N-1] * FADE_SCALE
-    const FADE_SCALE = 80;  // how many tube-radii away a level starts appearing
-    const FADE_RANGE = 0.5; // smoothstep width as fraction of threshold
+    const FADE_SCALE = 120; // how many tube-radii away a level starts appearing
+    const FADE_RANGE = 0.25; // smoothstep width — tight crossfade, less overlap
 
     // Compute alpha for each level
     const levelAlphas = [];
