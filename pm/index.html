@@ -145,8 +145,78 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 .empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
 
 /* Gantt */
-.gantt-wrap { overflow-x: auto; }
-canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--radius); }
+.gantt-viewport {
+  overflow: auto; -webkit-overflow-scrolling: touch;
+  position: relative; border-radius: var(--radius);
+  background: var(--bg); touch-action: pan-x pan-y;
+  max-height: 70vh;
+}
+.gantt-inner { position: relative; min-width: 100%; }
+.gantt-header {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; background: var(--surface2); border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--text2); height: 24px; align-items: center;
+}
+.gantt-header-label {
+  position: sticky; left: 0; z-index: 3; width: 120px; min-width: 120px;
+  padding: 0 8px; background: var(--surface2); font-weight: 600;
+}
+.gantt-header-dates { display: flex; flex: 1; position: relative; }
+.gantt-header-date { text-align: center; border-left: 1px solid var(--border); }
+.gantt-row {
+  display: flex; align-items: center; height: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.gantt-row:nth-child(even) { background: rgba(22,27,34,0.5); }
+.gantt-row-label {
+  position: sticky; left: 0; z-index: 1; width: 120px; min-width: 120px;
+  padding: 0 8px; font-size: 11px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: inherit;
+}
+.gantt-row-label.crit { color: var(--red); }
+.gantt-row-bars { flex: 1; position: relative; height: 100%; }
+.gantt-bar {
+  position: absolute; height: 16px; top: 8px;
+  border-radius: 3px; min-width: 4px;
+}
+.gantt-bar-bg { background: #253040; border: 1px solid #3a5070; }
+.gantt-bar-bg.crit { background: #3d1f1f; border-color: #f85149; }
+.gantt-bar-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  border-radius: 3px; min-width: 0;
+}
+.gantt-bar-fill.normal { background: #58a6ff; }
+.gantt-bar-fill.crit { background: #f85149; }
+.gantt-bar-pct {
+  position: absolute; right: -30px; top: 1px;
+  font-size: 9px; color: var(--text2); white-space: nowrap;
+}
+.gantt-today {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--orange); opacity: 0.7; z-index: 1;
+}
+.gantt-dep-svg {
+  position: absolute; top: 0; left: 0;
+  pointer-events: none; z-index: 1;
+}
+.gantt-legend {
+  display: flex; gap: 12px; padding: 8px 0; flex-wrap: wrap; font-size: 11px; color: var(--text2);
+}
+.gantt-legend-item { display: flex; align-items: center; gap: 4px; }
+.gantt-legend-swatch { width: 12px; height: 4px; border-radius: 2px; }
+.gantt-zoom { display: flex; gap: 4px; }
+.gantt-zoom button {
+  padding: 4px 10px; font-size: 12px; font-family: var(--font); font-weight: 600;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface2); color: var(--text2); cursor: pointer;
+}
+.gantt-zoom button:hover { background: var(--border); color: var(--text); }
+.gantt-zoom button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gantt-toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0 8px; flex-wrap: wrap; gap: 8px;
+}
 
 /* Dependency picker */
 .dep-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
@@ -185,7 +255,6 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
     <button onclick="switchTab('gantt',this)">Gantt</button>
     <button onclick="switchTab('scurve',this)">S-Curve</button>
     <button onclick="switchTab('docs',this)">Docs</button>
-    <button onclick="switchTab('roadmap',this)">Roadmap</button>
   </div>
 
   <!-- ─── Dashboard ─── -->
@@ -213,8 +282,9 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
         <div><label>Planned Cost</label><input id="t-cost" type="number" placeholder="0" min="0"></div>
       </div>
       <div class="form-group">
-        <label>Predecessor (finish-to-start)</label>
-        <select id="t-pred" onchange="toggleStartDate()"><option value="">None</option></select>
+        <label>Predecessors (finish-to-start)</label>
+        <select id="t-pred" multiple size="3" onchange="toggleStartDate()"><option value="">None</option></select>
+        <span style="font-size:10px;color:var(--text2)">Hold Ctrl/Cmd to select multiple. Clear selection for no predecessor.</span>
       </div>
       <div class="form-row">
         <div id="start-group"><label>Start</label><input id="t-start" type="date"></div>
@@ -231,8 +301,23 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
   <!-- ─── Gantt ─── -->
   <div id="pane-gantt" class="pane">
     <div class="card">
-      <h2>Gantt Chart</h2>
-      <div class="gantt-wrap"><canvas id="gantt-canvas" class="gantt"></canvas></div>
+      <div class="gantt-toolbar">
+        <h2 style="margin-bottom:0">Gantt Chart</h2>
+        <div class="gantt-zoom">
+          <button onclick="setGanttZoom(0.5)" id="gz-05">Fit</button>
+          <button onclick="setGanttZoom(1)" class="active" id="gz-1">1x</button>
+          <button onclick="setGanttZoom(2)" id="gz-2">2x</button>
+          <button onclick="setGanttZoom(4)" id="gz-4">4x</button>
+        </div>
+      </div>
+      <div class="gantt-viewport" id="gantt-viewport">
+        <div class="gantt-inner" id="gantt-inner"></div>
+      </div>
+      <div class="gantt-legend">
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#58a6ff"></div>Normal</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#f85149"></div>Critical</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:var(--orange)"></div>Today</div>
+      </div>
     </div>
   </div>
 
@@ -387,44 +472,36 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
         Use the <strong style="color:var(--text)">Snapshot</strong> button in the header to freeze the current plan. Old baselines are never deleted — full audit trail.
       </p>
     </div>
-  </div>
 
-  <!-- ─── Roadmap ─── -->
-  <div id="pane-roadmap" class="pane">
     <div class="card">
-      <h2>What's Here (v0.2)</h2>
+      <h2>What's Here (v0.3)</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
-        <li>Task creation with planned cost, start/end dates</li>
-        <li>Percent-complete tracking per task</li>
-        <li>Actual cost recording per task</li>
+        <li>Duration-based scheduling (2w3d8h format)</li>
+        <li>Multiple predecessors per task, auto-derived start dates</li>
         <li>Full EVM engine: PV, EV, AC, CV, SV, CPI, SPI</li>
-        <li>Earned Schedule: ES, SV(t), SPI(t)</li>
-        <li>Forecasts: EAC (cost), EAC(t) (schedule)</li>
+        <li>Earned Schedule: ES, SV(t), SPI(t), EAC(t)</li>
+        <li>Interactive Gantt — zoom, scroll, responsive, touch-friendly</li>
+        <li>Critical path (forward/backward pass) with red highlighting</li>
         <li>S-curve chart (PV/EV/AC over time)</li>
-        <li>Gantt chart with task bars, progress fill, today line</li>
-        <li>Finish-to-start dependencies with arrow rendering</li>
-        <li>Critical path calculation (forward/backward pass) with highlighting</li>
         <li>Baseline snapshots (local storage)</li>
         <li>PWA — installable, offline shell</li>
       </ul>
     </div>
     <div class="card">
-      <h2>Next Steps</h2>
+      <h2>Roadmap</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
         <li><strong>ATProto integration</strong> — PDS auth, read/write pm.schedule and pm.baseline records via vault.sealed encryption</li>
-        <li><strong>Gantt enhancements</strong> — drag to resize/move bars, zoom in/out, milestone markers</li>
         <li><strong>Dependency types</strong> — SS/FF/SF in addition to FS, lag/lead time</li>
         <li><strong>Change control UI</strong> — submit change requests, approval workflow, rebaseline with audit trail</li>
         <li><strong>WBS hierarchy</strong> — tree view, roll-up EVM at any WBS level</li>
         <li><strong>Multi-project portfolio</strong> — aggregate EVM across projects</li>
         <li><strong>Resource loading</strong> — who's over-allocated, leveling</li>
-        <li><strong>TCPI</strong> — To-Complete Performance Index (what CPI do we need from here?)</li>
-        <li><strong>Variance at Completion</strong> — VAC projections for both cost and schedule</li>
+        <li><strong>TCPI</strong> — To-Complete Performance Index</li>
         <li><strong>Export</strong> — CSV/JSON baseline exports, PDF reports</li>
       </ul>
     </div>
     <div class="card">
-      <h2>Lexicons Defined</h2>
+      <h2>Lexicons</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
         <li><code>com.minomobi.pm.project</code> — project container with BAC + SAC</li>
         <li><code>com.minomobi.pm.schedule</code> — per-task planned/actual cost + dates + % complete</li>
@@ -501,27 +578,36 @@ function addDateDays(dateStr, calDays) {
 
 // ── Task CRUD ──
 
+function getSelectedPreds() {
+  const sel = document.getElementById('t-pred');
+  return Array.from(sel.selectedOptions).map(o => o.value).filter(v => v !== '');
+}
+
 function toggleStartDate() {
-  const pred = document.getElementById('t-pred').value;
+  const preds = getSelectedPreds();
   const sg = document.getElementById('start-group');
-  sg.style.display = pred ? 'none' : '';
+  sg.style.display = preds.length > 0 ? 'none' : '';
 }
 
 function addTask() {
   const name = document.getElementById('t-name').value.trim();
   const cost = parseFloat(document.getElementById('t-cost').value) || 0;
   const durStr = document.getElementById('t-dur').value.trim();
-  const pred = document.getElementById('t-pred').value;
+  const preds = getSelectedPreds();
   const durHours = parseDuration(durStr);
 
   if (!name || durHours <= 0) return;
 
   let start;
-  if (pred) {
-    // Start = predecessor's end date
-    const predTask = state.tasks.find(t => t.id === pred);
-    if (!predTask) return;
-    start = predTask.plannedEnd;
+  if (preds.length > 0) {
+    // Start = latest end date among all predecessors
+    let latest = '';
+    for (const pid of preds) {
+      const pt = state.tasks.find(t => t.id === pid);
+      if (!pt) return;
+      if (!latest || pt.plannedEnd > latest) latest = pt.plannedEnd;
+    }
+    start = latest;
   } else {
     start = document.getElementById('t-start').value;
     if (!start) return;
@@ -541,15 +627,16 @@ function addTask() {
     percentComplete: 0,
     createdAt: new Date().toISOString()
   });
-  if (pred) {
-    if (!state.deps) state.deps = [];
-    state.deps.push({ from: pred, to: id });
+  if (!state.deps) state.deps = [];
+  for (const pid of preds) {
+    state.deps.push({ from: pid, to: id });
   }
   saveState();
   document.getElementById('t-name').value = '';
   document.getElementById('t-cost').value = '';
   document.getElementById('t-dur').value = '';
-  document.getElementById('t-pred').value = '';
+  const sel = document.getElementById('t-pred');
+  Array.from(sel.options).forEach(o => o.selected = false);
   toggleStartDate();
   renderAll();
 }
@@ -1018,39 +1105,31 @@ function computeCriticalPath() {
   return critical;
 }
 
-// ── Gantt Chart ──
+// ── Gantt Chart (DOM-based, interactive) ──
+
+let ganttZoom = 1;
+
+function setGanttZoom(z) {
+  ganttZoom = z;
+  document.querySelectorAll('.gantt-zoom button').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('gz-' + String(z).replace('.', ''));
+  if (btn) btn.classList.add('active');
+  renderGantt();
+}
 
 function renderGantt() {
-  const canvas = document.getElementById('gantt-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
+  const inner = document.getElementById('gantt-inner');
+  const viewport = document.getElementById('gantt-viewport');
+  if (!inner) return;
 
   const tasks = state.tasks;
-  const rowH = 32;
-  const neededH = Math.max(240, tasks.length * rowH + 80);
-  canvas.style.height = neededH + 'px';
-
-  canvas.width = rect.width * dpr;
-  canvas.height = neededH * dpr;
-  ctx.scale(dpr, dpr);
-  const W = rect.width, H = neededH;
-
-  ctx.fillStyle = '#0d1117';
-  ctx.fillRect(0, 0, W, H);
-
   if (tasks.length === 0) {
-    ctx.fillStyle = '#8b949e';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Add tasks to see the Gantt chart', W / 2, H / 2);
+    inner.innerHTML = '<div class="empty">Add tasks to see the Gantt chart</div>';
     return;
   }
 
-  const pad = { t: 28, r: 16, b: 16, l: 140 };
-  const cw = W - pad.l - pad.r;
-  const ch = H - pad.t - pad.b;
+  const critical = computeCriticalPath();
+  const deps = state.deps || [];
 
   // Time range
   const starts = tasks.map(t => new Date(t.plannedStart).getTime());
@@ -1058,102 +1137,65 @@ function renderGantt() {
   const tMin = Math.min(...starts);
   const tMax = Math.max(...ends);
   const tRange = Math.max(tMax - tMin, 86400000);
-
-  function tx(ts) { return pad.l + ((ts - tMin) / tRange) * cw; }
-  function ty(i) { return pad.t + i * rowH + rowH / 2; }
-
-  const critical = computeCriticalPath();
-  const deps = state.deps || [];
-
-  // Grid lines — date headers
-  ctx.fillStyle = '#8b949e';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'center';
   const totalDays = Math.ceil(tRange / 86400000);
-  const labelStep = Math.max(1, Math.floor(totalDays / 8));
+
+  // Sizing
+  const vpWidth = viewport.clientWidth;
+  const labelW = 120;
+  const barAreaBase = Math.max(vpWidth - labelW, 200);
+  const barAreaW = ganttZoom === 0.5 ? barAreaBase : barAreaBase * ganttZoom;
+  const innerW = labelW + barAreaW + 40; // 40px right pad for pct labels
+  const rowH = 32;
+
+  function pxFromTime(ts) { return ((ts - tMin) / tRange) * barAreaW; }
+
+  // Date header
+  const labelStep = Math.max(1, Math.floor(totalDays / Math.max(Math.floor(barAreaW / 60), 3)));
+  let headerDates = '';
   for (let d = 0; d <= totalDays; d += labelStep) {
-    const x = pad.l + (d / totalDays) * cw;
-    ctx.strokeStyle = '#21262d';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ch); ctx.stroke();
+    const x = (d / totalDays) * barAreaW;
+    const w = (labelStep / totalDays) * barAreaW;
     const dt = new Date(tMin + d * 86400000);
-    ctx.fillStyle = '#8b949e';
-    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t - 8);
+    headerDates += `<div class="gantt-header-date" style="position:absolute;left:${x}px;width:${Math.min(w, barAreaW - x)}px">${dt.getMonth() + 1}/${dt.getDate()}</div>`;
   }
 
-  // Today line
+  // Today marker
   const now = Date.now();
+  let todayHtml = '';
   if (now >= tMin && now <= tMax + 86400000 * 7) {
-    const nx = tx(now);
-    ctx.strokeStyle = '#d29922';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.moveTo(nx, pad.t); ctx.lineTo(nx, pad.t + ch); ctx.stroke();
-    ctx.setLineDash([]);
+    const tx = pxFromTime(now);
+    todayHtml = `<div class="gantt-today" style="left:${labelW + tx}px"></div>`;
   }
 
-  // Row stripes
-  for (let i = 0; i < tasks.length; i++) {
-    if (i % 2 === 0) {
-      ctx.fillStyle = '#161b22';
-      ctx.fillRect(pad.l, pad.t + i * rowH, cw, rowH);
-    }
-  }
-
-  // Task bars
+  // Task rows
   const taskIdx = {};
   tasks.forEach((t, i) => { taskIdx[t.id] = i; });
 
+  let rowsHtml = '';
   for (let i = 0; i < tasks.length; i++) {
     const t = tasks[i];
-    const x1 = tx(new Date(t.plannedStart).getTime());
-    const x2 = tx(new Date(t.plannedEnd).getTime());
-    const y = ty(i);
-    const barH = 14;
     const isCrit = critical.has(t.id);
+    const x1 = pxFromTime(new Date(t.plannedStart).getTime());
+    const x2 = pxFromTime(new Date(t.plannedEnd).getTime());
+    const barW = Math.max(x2 - x1, 4);
+    const fillW = barW * (t.percentComplete / 100);
+    const critCls = isCrit ? ' crit' : '';
+    const label = t.name.length > 16 ? t.name.slice(0, 15) + '\u2026' : t.name;
 
-    // Background bar
-    ctx.fillStyle = isCrit ? '#3d1f1f' : '#1c2129';
-    ctx.beginPath();
-    ctx.roundRect(x1, y - barH / 2, Math.max(x2 - x1, 4), barH, 3);
-    ctx.fill();
-
-    // Progress fill
-    const fillW = (x2 - x1) * (t.percentComplete / 100);
-    if (fillW > 0) {
-      ctx.fillStyle = isCrit ? '#f85149' : '#58a6ff';
-      ctx.beginPath();
-      ctx.roundRect(x1, y - barH / 2, Math.max(fillW, 2), barH, 3);
-      ctx.fill();
-    }
-
-    // Critical border
-    if (isCrit) {
-      ctx.strokeStyle = '#f85149';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(x1, y - barH / 2, Math.max(x2 - x1, 4), barH, 3);
-      ctx.stroke();
-    }
-
-    // Task label
-    ctx.fillStyle = isCrit ? '#f85149' : '#e6edf3';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    const label = t.name.length > 18 ? t.name.slice(0, 17) + '\u2026' : t.name;
-    ctx.fillText(label, pad.l - 8, y + 4);
-
-    // Percent label
-    ctx.fillStyle = '#8b949e';
-    ctx.font = '9px system-ui';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${t.percentComplete}%`, x2 + 4, y + 3);
+    rowsHtml += `<div class="gantt-row">
+      <div class="gantt-row-label${critCls}" title="${esc(t.name)}">${esc(label)}</div>
+      <div class="gantt-row-bars" style="width:${barAreaW}px">
+        <div class="gantt-bar gantt-bar-bg${critCls}" style="left:${x1}px;width:${barW}px">
+          <div class="gantt-bar-fill ${isCrit ? 'crit' : 'normal'}" style="width:${fillW}px"></div>
+          <div class="gantt-bar-pct">${t.percentComplete}%</div>
+        </div>
+      </div>
+    </div>`;
   }
 
-  // Dependency arrows
-  ctx.strokeStyle = '#8b949e';
-  ctx.fillStyle = '#8b949e';
-  ctx.lineWidth = 1;
+  // SVG for dependency arrows
+  const svgH = tasks.length * rowH;
+  let arrowPaths = '';
   for (const d of deps) {
     const fi = taskIdx[d.from];
     const ti = taskIdx[d.to];
@@ -1161,42 +1203,70 @@ function renderGantt() {
 
     const fromTask = tasks[fi];
     const toTask = tasks[ti];
-    const x1 = tx(new Date(fromTask.plannedEnd).getTime());
-    const y1 = ty(fi);
-    const x2 = tx(new Date(toTask.plannedStart).getTime());
-    const y2 = ty(ti);
-
-    ctx.beginPath();
-    // Right from end of predecessor, down/up, then right to start of successor
+    const x1 = labelW + pxFromTime(new Date(fromTask.plannedEnd).getTime());
+    const y1 = fi * rowH + rowH / 2;
+    const x2 = labelW + pxFromTime(new Date(toTask.plannedStart).getTime());
+    const y2 = ti * rowH + rowH / 2;
     const midX = x1 + 8;
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(midX, y1);
-    ctx.lineTo(midX, y2);
-    ctx.lineTo(x2 - 4, y2);
-    ctx.stroke();
 
-    // Arrowhead
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - 6, y2 - 3);
-    ctx.lineTo(x2 - 6, y2 + 3);
-    ctx.closePath();
-    ctx.fill();
+    arrowPaths += `<path d="M${x1},${y1} L${midX},${y1} L${midX},${y2} L${x2 - 4},${y2}" fill="none" stroke="#8b949e" stroke-width="1"/>`;
+    arrowPaths += `<polygon points="${x2},${y2} ${x2 - 5},${y2 - 3} ${x2 - 5},${y2 + 3}" fill="#8b949e"/>`;
   }
 
-  // Legend
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#f85149';
-  ctx.fillRect(pad.l, H - 12, 10, 3);
-  ctx.fillText(' Critical', pad.l + 14, H - 8);
-  ctx.fillStyle = '#58a6ff';
-  ctx.fillRect(pad.l + 80, H - 12, 10, 3);
-  ctx.fillText(' Normal', pad.l + 94, H - 8);
-  ctx.fillStyle = '#d29922';
-  ctx.fillRect(pad.l + 155, H - 12, 10, 3);
-  ctx.fillText(' Today', pad.l + 169, H - 8);
+  inner.style.width = innerW + 'px';
+  inner.innerHTML = `
+    <div class="gantt-header">
+      <div class="gantt-header-label">Task</div>
+      <div class="gantt-header-dates" style="width:${barAreaW}px;position:relative">${headerDates}</div>
+    </div>
+    <div style="position:relative">
+      ${todayHtml}
+      <svg class="gantt-dep-svg" width="${innerW}" height="${svgH}" viewBox="0 0 ${innerW} ${svgH}">${arrowPaths}</svg>
+      ${rowsHtml}
+    </div>`;
 }
+
+// ── Gantt pinch-to-zoom ──
+
+(function() {
+  let lastDist = 0;
+  const vp = document.getElementById('gantt-viewport');
+  if (!vp) return;
+
+  vp.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }
+  }, { passive: true });
+
+  vp.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (lastDist > 0) {
+        const ratio = dist / lastDist;
+        if (ratio > 1.15) { ganttZoom = Math.min(ganttZoom * 1.3, 8); lastDist = dist; renderGantt(); }
+        else if (ratio < 0.85) { ganttZoom = Math.max(ganttZoom * 0.7, 0.5); lastDist = dist; renderGantt(); }
+      }
+      lastDist = dist;
+    }
+  }, { passive: true });
+
+  // Mouse wheel zoom (ctrl+scroll or trackpad pinch)
+  vp.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (e.deltaY < 0) ganttZoom = Math.min(ganttZoom * 1.2, 8);
+      else ganttZoom = Math.max(ganttZoom * 0.8, 0.5);
+      renderGantt();
+    }
+  }, { passive: false });
+})();
+
+// Resize handler for Gantt
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.pane.active');
+  if (active && active.id === 'pane-gantt') renderGantt();
+});
 
 // ── Tab switching ──
 
