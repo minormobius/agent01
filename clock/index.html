@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Helix Calendar — clock.mino.mobi</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
-canvas { width: 100%; height: 100%; display: block; }
+canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 #fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; }
 #hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; opacity: 0.5; pointer-events: none; letter-spacing: 0.05em; text-align: center; line-height: 1.6; }
 #hud .time { font-size: 0.95rem; opacity: 0.8; letter-spacing: 0.12em; }
@@ -26,6 +26,9 @@ canvas { width: 100%; height: 100%; display: block; }
 #docs-panel .color-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0; }
 #docs-panel .color-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
 #docs-panel .section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; margin-top: 1rem; }
+#info-tip { position: absolute; display: none; background: rgba(10,10,18,0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; pointer-events: none; z-index: 15; white-space: nowrap; letter-spacing: 0.04em; color: #ddd; backdrop-filter: blur(8px); }
+#info-tip .date { font-size: 0.88rem; color: #fff; font-weight: 600; }
+#info-tip .detail { color: #999; font-size: 0.7rem; margin-top: 0.15rem; }
 </style>
 </head>
 <body>
@@ -33,6 +36,7 @@ canvas { width: 100%; height: 100%; display: block; }
 <div id="fallback">WebGPU is not supported in this browser.<br>Try Chrome 113+ or Edge 113+.</div>
 <div id="hud">drag to orbit · scroll to zoom</div>
 <div id="year-label"></div>
+<div id="info-tip"></div>
 <button id="docs-tab" onclick="document.getElementById('docs-panel').classList.toggle('open')">docs</button>
 <div id="docs-panel">
   <button class="close-btn" onclick="this.parentElement.classList.remove('open')">&times;</button>
@@ -552,7 +556,7 @@ async function main() {
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
   const uniformBuffer = device.createBuffer({
-    size: 256,
+    size: 256 * 4, // 4 draw slots (L1, L2, L3, now marker)
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -560,13 +564,13 @@ async function main() {
     entries: [{
       binding: 0,
       visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-      buffer: { type: 'uniform' },
+      buffer: { type: 'uniform', hasDynamicOffset: true },
     }],
   });
 
   const bindGroup = device.createBindGroup({
     layout: bindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+    entries: [{ binding: 0, resource: { buffer: uniformBuffer, size: 256 } }],
   });
 
   const pipelineLayout = device.createPipelineLayout({
@@ -630,7 +634,12 @@ async function main() {
   let l3GPU = null;
   let l3CachedKey = null; // "yearIdx-dayOfYear-hour"
 
+  let camDistTarget = camDist;
+
+  // --- Input: unified pointer (mouse) + touch (mobile) ---
+  // Mouse orbit + wheel zoom
   canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return; // handled by touch events
     canvas.setPointerCapture(e.pointerId);
     autoRotate = false;
     let lastX = e.clientX, lastY = e.clientY;
@@ -647,11 +656,186 @@ async function main() {
     canvas.addEventListener('pointerup', up);
   });
 
-  let camDistTarget = camDist;
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     camDistTarget = Math.max(0.5, Math.min(15, camDistTarget + e.deltaY * 0.005));
   }, { passive: false });
+
+  // Touch: single-finger orbit, two-finger pinch-to-zoom, tap-to-select
+  let touchStartDist = 0;
+  let touchStartCamDist = 0;
+  let lastTouchX = 0, lastTouchY = 0;
+  let touchMoved = false;
+  let tapStartTime = 0;
+  let tapStartPos = [0, 0];
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    autoRotate = false;
+    touchMoved = false;
+    tapStartTime = Date.now();
+
+    if (e.touches.length === 1) {
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+      tapStartPos = [lastTouchX, lastTouchY];
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartDist = Math.sqrt(dx * dx + dy * dy);
+      touchStartCamDist = camDistTarget;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+
+    if (e.touches.length === 1) {
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      const dx = x - lastTouchX, dy = y - lastTouchY;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) touchMoved = true;
+      camTheta -= dx * 0.005;
+      camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi - dy * 0.005));
+      lastTouchX = x; lastTouchY = y;
+    } else if (e.touches.length === 2) {
+      touchMoved = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (touchStartDist > 0) {
+        const scale = touchStartDist / dist;
+        camDistTarget = Math.max(0.5, Math.min(15, touchStartCamDist * scale));
+      }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    // Detect tap (short, no movement)
+    const elapsed = Date.now() - tapStartTime;
+    if (!touchMoved && elapsed < 300 && e.changedTouches.length === 1) {
+      handleTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+  }, { passive: false });
+
+  // Also handle mouse click for tap-to-select on desktop
+  {
+    let mouseDownPos = null;
+    canvas.addEventListener('mousedown', (e) => { mouseDownPos = [e.clientX, e.clientY]; });
+    canvas.addEventListener('mouseup', (e) => {
+      if (mouseDownPos) {
+        const dx = e.clientX - mouseDownPos[0], dy = e.clientY - mouseDownPos[1];
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) handleTap(e.clientX, e.clientY);
+        mouseDownPos = null;
+      }
+    });
+  }
+
+  // --- Tap-to-select: ray cast against macro helix ---
+  const infoTip = document.getElementById('info-tip');
+  let selectedInfo = null; // { screenX, screenY, text }
+
+  function mat4Invert(m) {
+    // 4x4 matrix inverse (column-major)
+    const a00=m[0],a01=m[1],a02=m[2],a03=m[3],a10=m[4],a11=m[5],a12=m[6],a13=m[7];
+    const a20=m[8],a21=m[9],a22=m[10],a23=m[11],a30=m[12],a31=m[13],a32=m[14],a33=m[15];
+    const b00=a00*a11-a01*a10,b01=a00*a12-a02*a10,b02=a00*a13-a03*a10,b03=a01*a12-a02*a11;
+    const b04=a01*a13-a03*a11,b05=a02*a13-a03*a12,b06=a20*a31-a21*a30,b07=a20*a32-a22*a30;
+    const b08=a20*a33-a23*a30,b09=a21*a32-a22*a31,b10=a21*a33-a23*a31,b11=a22*a33-a23*a32;
+    let det=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+    if (Math.abs(det) < 1e-8) return null;
+    det = 1.0 / det;
+    return new Float32Array([
+      (a11*b11-a12*b10+a13*b09)*det,(a02*b10-a01*b11-a03*b09)*det,(a31*b05-a32*b04+a33*b03)*det,(a22*b04-a21*b05-a23*b03)*det,
+      (a12*b08-a10*b11-a13*b07)*det,(a00*b11-a02*b08+a03*b07)*det,(a32*b02-a30*b05-a33*b01)*det,(a20*b05-a22*b02+a23*b01)*det,
+      (a10*b10-a11*b08+a13*b06)*det,(a01*b08-a00*b10-a03*b06)*det,(a30*b04-a31*b02+a33*b00)*det,(a21*b02-a20*b04-a23*b00)*det,
+      (a11*b07-a10*b09-a12*b06)*det,(a00*b09-a01*b07+a02*b06)*det,(a31*b01-a30*b03-a32*b00)*det,(a20*b03-a21*b01+a22*b00)*det,
+    ]);
+  }
+
+  function handleTap(clientX, clientY) {
+    // Convert screen coords to NDC
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
+
+    // Build current MVP and invert it
+    const eye = [
+      camDist * Math.sin(camPhi) * Math.cos(camTheta),
+      camDist * Math.cos(camPhi),
+      camDist * Math.sin(camPhi) * Math.sin(camTheta),
+    ];
+    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
+    const mvp = mat4Mul(proj, view);
+    const invMVP = mat4Invert(mvp);
+    if (!invMVP) return;
+
+    // Unproject near and far points
+    function unproject(x, y, z) {
+      const w = [x, y, z, 1];
+      const r = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++)
+        r[i] = invMVP[i]*w[0] + invMVP[4+i]*w[1] + invMVP[8+i]*w[2] + invMVP[12+i]*w[3];
+      return [r[0]/r[3], r[1]/r[3], r[2]/r[3]];
+    }
+    const near = unproject(ndcX, ndcY, -1);
+    const far = unproject(ndcX, ndcY, 1);
+    const rayDir = v3normalize(v3sub(far, near));
+
+    // Test against sampled points on the macro helix
+    let bestDist = Infinity;
+    let bestYr = 0, bestMonth = 0, bestDay = 0, bestHour = 0;
+
+    for (let yr = 0; yr < totalYears; yr++) {
+      const year = startYear + yr;
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+      const daysInYear = isLeap ? 366 : 365;
+      let dayAccum = 0;
+
+      for (let m = 0; m < 12; m++) {
+        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+        // Sample a few points per month
+        for (let s = 0; s <= 4; s++) {
+          const d = Math.min(Math.floor(s / 4 * daysInMonth), daysInMonth - 1);
+          const dayFrac = (dayAccum + d) / daysInYear;
+          const pt = macroPoint(yr, dayFrac);
+
+          // Distance from ray to point
+          const toPoint = v3sub(pt, near);
+          const proj = v3dot(toPoint, rayDir);
+          if (proj < 0) continue; // behind camera
+          const closest = v3add(near, v3scale(rayDir, proj));
+          const dist = v3len(v3sub(pt, closest));
+
+          // Hit threshold based on zoom level
+          const threshold = Math.max(0.15, camDist * 0.04);
+          if (dist < threshold && dist < bestDist) {
+            bestDist = dist;
+            bestYr = year;
+            bestMonth = m;
+            bestDay = d + 1;
+            bestHour = 0;
+          }
+        }
+        dayAccum += daysInMonth;
+      }
+    }
+
+    if (bestDist < Infinity) {
+      const tip = infoTip;
+      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">tap helix to explore</div>`;
+      tip.style.display = 'block';
+      tip.style.left = `${Math.min(clientX + 12, window.innerWidth - 200)}px`;
+      tip.style.top = `${Math.max(clientY - 40, 8)}px`;
+      // Auto-hide after 3 seconds
+      clearTimeout(tip._hideTimer);
+      tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 3000);
+    } else {
+      infoTip.style.display = 'none';
+    }
+  }
 
   // --- Matrix helpers ---
   function mat4Perspective(fov, aspect, near, far) {
@@ -706,24 +890,31 @@ async function main() {
   let autoRotate = true;
   const hud = document.getElementById('hud');
 
+  let drawSlot = 0;
+
   function drawMesh(pass, gpu, mvp, eye, lightDir, alpha) {
     if (alpha < 0.01) return; // skip invisible
+
+    const offset = drawSlot * 256;
 
     const uniformData = new Float32Array(32);
     uniformData.set(mvp, 0);
     uniformData.set(identity, 16);
-    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+    device.queue.writeBuffer(uniformBuffer, offset, uniformData);
 
     const lightEyeData = new Float32Array(8);
     lightEyeData.set(lightDir, 0);
     lightEyeData[3] = alpha;
     lightEyeData.set(eye, 4);
     lightEyeData[7] = 0;
-    device.queue.writeBuffer(uniformBuffer, 128, lightEyeData);
+    device.queue.writeBuffer(uniformBuffer, offset + 128, lightEyeData);
 
+    pass.setBindGroup(0, bindGroup, [offset]);
     pass.setVertexBuffer(0, gpu.vertexBuffer);
     pass.setIndexBuffer(gpu.indexBuffer, 'uint32');
     pass.drawIndexed(gpu.indexCount);
+
+    drawSlot++;
   }
 
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -795,7 +986,7 @@ async function main() {
     });
 
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
+    drawSlot = 0;
 
     // Draw L1 (macro tube) — fades out as you zoom in
     drawMesh(pass, l1GPU, mvp, eye, lightDir, l1Alpha);
