@@ -1136,8 +1136,8 @@ async function main() {
     }
 
     // LOD alpha: each level fades IN as you zoom closer.
-    // No fade-out — fractal levels coexist (each wraps around its parent).
-    // L0 always visible unless zoomed into a selection.
+    // Each sub-level gets a minimum alpha when its parent is visible,
+    // so the fractal structure is always hinted at (you can see what to zoom into).
     const levelAlphas = new Array(LEVELS.length).fill(0);
     for (let ei = 0; ei < enabledLevels.length; ei++) {
       const i = enabledLevels[ei];
@@ -1150,8 +1150,12 @@ async function main() {
         const prevEnabledIdx = enabledLevels[ei - 1];
         const myThresh = levelGeom[prevEnabledIdx].tubeRadius * FADE_SCALE;
         let fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
-        // First sub-level always visible on selection
-        if (ei === 1) fadeIn = Math.max(fadeIn, 0.5);
+        // When parent level is visible, hint this level at min alpha
+        const parentAlpha = levelAlphas[prevEnabledIdx];
+        if (parentAlpha > 0.3) {
+          const minAlpha = ei === 1 ? 0.5 : 0.35;
+          fadeIn = Math.max(fadeIn, minAlpha);
+        }
         levelAlphas[i] = fadeIn;
       }
     }
