@@ -233,6 +233,22 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   cursor: pointer; padding: 0 4px; line-height: 1;
 }
 .gantt-detail .close-btn:hover { color: var(--text); }
+.gantt-row-label .collapse-toggle {
+  display: inline-block; width: 14px; font-size: 10px; color: var(--text2);
+  cursor: pointer; text-align: center; user-select: none;
+}
+.gantt-row-label .collapse-toggle:hover { color: var(--text); }
+.gantt-bar-summary {
+  position: absolute; height: 6px; top: 13px;
+  border-radius: 1px; min-width: 4px;
+  background: var(--text2); opacity: 0.6;
+}
+.gantt-bar-summary::before, .gantt-bar-summary::after {
+  content: ''; position: absolute; bottom: 0; width: 3px; height: 10px;
+  background: var(--text2); opacity: 0.6;
+}
+.gantt-bar-summary::before { left: 0; }
+.gantt-bar-summary::after { right: 0; }
 
 /* Dependency picker */
 .dep-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
@@ -491,7 +507,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
     </div>
 
     <div class="card">
-      <h2>What's Here (v0.3)</h2>
+      <h2>What's Here (v0.4)</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
         <li>Duration-based scheduling (2w3d8h format)</li>
         <li>Multiple predecessors per task, auto-derived start dates</li>
@@ -500,6 +516,8 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <li>Interactive Gantt — zoom, scroll, responsive, touch-friendly</li>
         <li>Critical path (forward/backward pass) with red highlighting</li>
         <li>S-curve chart (PV/EV/AC over time)</li>
+        <li>Subtask hierarchy — arbitrary nesting, summary bars, roll-up</li>
+        <li>Expand/collapse tree with indented Gantt rows</li>
         <li>Baseline snapshots (local storage)</li>
         <li>PWA — installable, offline shell</li>
       </ul>
@@ -510,7 +528,6 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <li><strong>ATProto integration</strong> — PDS auth, read/write pm.schedule and pm.baseline records via vault.sealed encryption</li>
         <li><strong>Dependency types</strong> — SS/FF/SF in addition to FS, lag/lead time</li>
         <li><strong>Change control UI</strong> — submit change requests, approval workflow, rebaseline with audit trail</li>
-        <li><strong>WBS hierarchy</strong> — tree view, roll-up EVM at any WBS level</li>
         <li><strong>Multi-project portfolio</strong> — aggregate EVM across projects</li>
         <li><strong>Resource loading</strong> — who's over-allocated, leveling</li>
         <li><strong>TCPI</strong> — To-Complete Performance Index</li>
@@ -539,7 +556,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 let state = loadState();
 
 function defaultState() {
-  return { tasks: [], deps: [], baselines: [], projectName: 'My Project' };
+  return { tasks: [], deps: [], baselines: [], collapsed: [], projectName: 'My Project' };
 }
 
 function loadState() {
@@ -591,6 +608,105 @@ function addDateDays(dateStr, calDays) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + calDays);
   return d.toISOString().slice(0, 10);
+}
+
+// ── Tree utilities ──
+
+function getChildren(parentId) {
+  return state.tasks.filter(t => t.parentId === parentId);
+}
+
+function getAllDescendants(parentId) {
+  const result = [];
+  const stack = [parentId];
+  while (stack.length) {
+    const pid = stack.pop();
+    const kids = state.tasks.filter(t => t.parentId === pid);
+    for (const k of kids) { result.push(k); stack.push(k.id); }
+  }
+  return result;
+}
+
+function getLeafTasks() {
+  const parentIds = new Set(state.tasks.filter(t => t.parentId).map(t => t.parentId));
+  return state.tasks.filter(t => !parentIds.has(t.id));
+}
+
+function isParentTask(id) {
+  return state.tasks.some(t => t.parentId === id);
+}
+
+function getDepth(task) {
+  let d = 0, t = task;
+  while (t && t.parentId) {
+    d++;
+    t = state.tasks.find(x => x.id === t.parentId);
+    if (d > 20) break; // safety
+  }
+  return d;
+}
+
+function getTreeOrder() {
+  // Returns tasks in tree order (parent then children, recursively)
+  const roots = state.tasks.filter(t => !t.parentId);
+  const result = [];
+  function walk(tasks) {
+    for (const t of tasks) {
+      result.push(t);
+      const kids = state.tasks.filter(c => c.parentId === t.id);
+      if (kids.length) walk(kids);
+    }
+  }
+  walk(roots);
+  return result;
+}
+
+function isCollapsed(id) {
+  return (state.collapsed || []).includes(id);
+}
+
+function toggleCollapse(id) {
+  if (!state.collapsed) state.collapsed = [];
+  const idx = state.collapsed.indexOf(id);
+  if (idx >= 0) state.collapsed.splice(idx, 1);
+  else state.collapsed.push(id);
+  saveState();
+}
+
+function isHiddenByCollapse(task) {
+  let t = task;
+  while (t && t.parentId) {
+    if (isCollapsed(t.parentId)) return true;
+    t = state.tasks.find(x => x.id === t.parentId);
+  }
+  return false;
+}
+
+function rollUpParent(parentId) {
+  // Recalculate parent's dates and % from children
+  const t = state.tasks.find(x => x.id === parentId);
+  if (!t) return;
+  const kids = getChildren(parentId);
+  if (kids.length === 0) return;
+
+  let minStart = kids[0].plannedStart, maxEnd = kids[0].plannedEnd;
+  let totalCost = 0, weightedPct = 0;
+  for (const k of kids) {
+    if (k.plannedStart < minStart) minStart = k.plannedStart;
+    if (k.plannedEnd > maxEnd) maxEnd = k.plannedEnd;
+    totalCost += k.plannedCost;
+    weightedPct += k.plannedCost * k.percentComplete;
+  }
+  t.plannedStart = minStart;
+  t.plannedEnd = maxEnd;
+  t.percentComplete = totalCost > 0 ? Math.round(weightedPct / totalCost) : 0;
+  t.plannedCost = totalCost;
+  t.actualCost = kids.reduce((s, k) => s + k.actualCost, 0);
+  t.duration = ((new Date(maxEnd) - new Date(minStart)) / 3600000);
+
+  // Recurse up
+  if (t.parentId) rollUpParent(t.parentId);
+  saveState();
 }
 
 // ── Task CRUD ──
@@ -659,9 +775,13 @@ function addTask() {
 }
 
 function deleteTask(id) {
-  state.tasks = state.tasks.filter(t => t.id !== id);
-  if (state.deps) state.deps = state.deps.filter(d => d.from !== id && d.to !== id);
+  const t = state.tasks.find(x => x.id === id);
+  const parentId = t ? t.parentId : null;
+  const toDelete = new Set([id, ...getAllDescendants(id).map(d => d.id)]);
+  state.tasks = state.tasks.filter(t => !toDelete.has(t.id));
+  if (state.deps) state.deps = state.deps.filter(d => !toDelete.has(d.from) && !toDelete.has(d.to));
   saveState();
+  if (parentId) rollUpParent(parentId);
   renderAll();
 }
 
@@ -696,8 +816,9 @@ function updateActualCost(id, val) {
 function computeEVM(asOfDate) {
   const now = asOfDate || new Date();
   let pv = 0, ev = 0, ac = 0, bac = 0;
+  const leaves = getLeafTasks();
 
-  for (const t of state.tasks) {
+  for (const t of leaves) {
     const ps = new Date(t.plannedStart);
     const pe = new Date(t.plannedEnd);
     const dur = Math.max(pe - ps, 1);
@@ -724,10 +845,11 @@ function computeEVM(asOfDate) {
 // ── Earned Schedule Engine ──
 
 function computeES() {
-  if (state.tasks.length === 0) return { es: 0, at: 0, svt: 0, spit: 1, eact: 0, sac: 0 };
+  const leaves = getLeafTasks();
+  if (leaves.length === 0) return { es: 0, at: 0, svt: 0, spit: 1, eact: 0, sac: 0 };
 
-  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
-  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
   const projStart = Math.min(...starts);
   const projEnd = Math.max(...ends);
   const sac = (projEnd - projStart) / 86400000; // days
@@ -745,7 +867,7 @@ function computeES() {
   for (let d = 0; d <= steps; d++) {
     const sampleDate = new Date(projStart + d * 86400000);
     let pvAtD = 0;
-    for (const t of state.tasks) {
+    for (const t of leaves) {
       const ps = new Date(t.plannedStart).getTime();
       const pe = new Date(t.plannedEnd).getTime();
       const dur = Math.max(pe - ps, 1);
@@ -758,7 +880,7 @@ function computeES() {
       else {
         const prevDate = new Date(projStart + (d - 1) * 86400000);
         let pvPrev = 0;
-        for (const t of state.tasks) {
+        for (const t of leaves) {
           const ps = new Date(t.plannedStart).getTime();
           const pe = new Date(t.plannedEnd).getTime();
           const dur = Math.max(pe - ps, 1);
@@ -843,7 +965,10 @@ function renderTasks() {
 
   const deps = state.deps || [];
 
-  el.innerHTML = state.tasks.map(t => {
+  const treeOrder = getTreeOrder();
+  const visibleTasks = treeOrder.filter(t => !isHiddenByCollapse(t));
+
+  el.innerHTML = visibleTasks.map(t => {
     const pct = t.percentComplete;
     const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
     const taskDeps = deps.filter(d => d.to === t.id);
@@ -855,22 +980,27 @@ function renderTasks() {
     const predOpts = otherTasks.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
 
     const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
+    const depth = getDepth(t);
+    const indent = depth * 16;
+    const isP = isParentTask(t.id);
+    const collapsed = isCollapsed(t.id);
+    const toggle = isP ? `<span style="cursor:pointer;margin-right:4px;font-size:10px" onclick="toggleCollapse('${t.id}');renderTasks()">${collapsed ? '&#9654;' : '&#9660;'}</span>` : '';
 
     return `
-      <div class="task-row" style="flex-wrap:wrap">
-        <div class="task-name">${esc(t.name)}<br>
+      <div class="task-row" style="flex-wrap:wrap;padding-left:${indent}px${isP ? ';background:rgba(88,166,255,0.04)' : ''}">
+        <div class="task-name">${toggle}${isP ? '<strong>' : ''}${esc(t.name)}${isP ? '</strong>' : ''}<br>
           <span style="font-size:11px;color:var(--text2)">
-            ${dur} &middot; ${t.plannedStart} &middot;
+            ${dur} &middot; ${t.plannedStart}${isP ? '' : ` &middot;
             Cost: ${t.plannedCost} &middot; Actual:
             <input type="number" value="${t.actualCost}" min="0" style="width:60px;padding:2px 4px;display:inline;font-size:11px"
-              onchange="updateActualCost('${t.id}',this.value)">
+              onchange="updateActualCost('${t.id}',this.value)">`}
           </span>
           ${taskDeps.length ? '<br>' + depTags : ''}
         </div>
         <div class="task-bar"><div class="task-bar-fill" style="width:${pct}%;background:${color}"></div></div>
         <div class="task-pct">
-          <input type="number" value="${pct}" min="0" max="100" style="width:48px;padding:2px 4px;text-align:right;font-size:13px"
-            onchange="updatePct('${t.id}',this.value)">%
+          ${isP ? `<span style="font-size:13px">${pct}%</span>` : `<input type="number" value="${pct}" min="0" max="100" style="width:48px;padding:2px 4px;text-align:right;font-size:13px"
+            onchange="updatePct('${t.id}',this.value)">%`}
         </div>
         <div class="task-actions">
           ${otherTasks.length ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="if(this.value)addDep(this.value,'${t.id}');this.value=''"><option value="">+dep</option>${predOpts}</select>` : ''}
@@ -897,7 +1027,8 @@ function renderSCurve() {
   ctx.fillStyle = '#0d1117';
   ctx.fillRect(0, 0, W, H);
 
-  if (state.tasks.length === 0) {
+  const leaves = getLeafTasks();
+  if (leaves.length === 0) {
     ctx.fillStyle = '#8b949e';
     ctx.font = '14px system-ui';
     ctx.textAlign = 'center';
@@ -905,12 +1036,12 @@ function renderSCurve() {
     return;
   }
 
-  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
-  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
   const projStart = Math.min(...starts);
   const projEnd = Math.max(...ends);
   const totalDays = Math.max(Math.ceil((projEnd - projStart) / 86400000), 1);
-  const bac = state.tasks.reduce((s, t) => s + t.plannedCost, 0);
+  const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
   if (bac === 0) return;
 
   const pad = { t: 20, r: 16, b: 32, l: 48 };
@@ -926,7 +1057,7 @@ function renderSCurve() {
     const sampleTime = projStart + d * 86400000;
     let pv = 0, ev = 0, ac = 0;
 
-    for (const t of state.tasks) {
+    for (const t of leaves) {
       const ps = new Date(t.plannedStart).getTime();
       const pe = new Date(t.plannedEnd).getTime();
       const dur = Math.max(pe - ps, 1);
@@ -1185,43 +1316,62 @@ function renderGantt() {
     todayHtml = `<div class="gantt-today" style="left:${labelW + tx}px"></div>`;
   }
 
-  // Task rows
+  // Task rows in tree order
+  const treeOrder = getTreeOrder();
+  const visibleTasks = treeOrder.filter(t => !isHiddenByCollapse(t));
   const taskIdx = {};
-  tasks.forEach((t, i) => { taskIdx[t.id] = i; });
+  visibleTasks.forEach((t, i) => { taskIdx[t.id] = i; });
 
   let rowsHtml = '';
-  for (let i = 0; i < tasks.length; i++) {
-    const t = tasks[i];
+  for (let i = 0; i < visibleTasks.length; i++) {
+    const t = visibleTasks[i];
     const isCrit = critical.has(t.id);
+    const isParent = isParentTask(t.id);
+    const depth = getDepth(t);
     const x1 = pxFromTime(new Date(t.plannedStart).getTime());
     const x2 = pxFromTime(new Date(t.plannedEnd).getTime());
     const barW = Math.max(x2 - x1, 4);
     const fillW = barW * (t.percentComplete / 100);
     const critCls = isCrit ? ' crit' : '';
-    const label = t.name.length > 16 ? t.name.slice(0, 15) + '\u2026' : t.name;
+    const indent = depth * 16;
+    const maxLabelLen = Math.max(6, 16 - depth * 2);
+    const label = t.name.length > maxLabelLen ? t.name.slice(0, maxLabelLen - 1) + '\u2026' : t.name;
+
+    // Collapse toggle for parents
+    let toggle = '';
+    if (isParent) {
+      const arrow = isCollapsed(t.id) ? '\u25b6' : '\u25bc';
+      toggle = `<span class="collapse-toggle" onclick="event.stopPropagation();toggleCollapse('${t.id}');renderGantt()">${arrow}</span>`;
+    } else if (depth > 0) {
+      toggle = '<span style="display:inline-block;width:14px"></span>';
+    }
 
     const selCls = ganttSelectedId === t.id ? ' selected' : '';
-    rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
-      <div class="gantt-row-label${critCls}" title="${esc(t.name)}">${esc(label)}</div>
-      <div class="gantt-row-bars" style="width:${barAreaW}px">
-        <div class="gantt-bar gantt-bar-bg${critCls}" style="left:${x1}px;width:${barW}px">
+    const barHtml = isParent
+      ? `<div class="gantt-bar-summary" style="left:${x1}px;width:${barW}px"></div>`
+      : `<div class="gantt-bar gantt-bar-bg${critCls}" style="left:${x1}px;width:${barW}px">
           <div class="gantt-bar-fill ${isCrit ? 'crit' : 'normal'}" style="width:${fillW}px"></div>
           <div class="gantt-bar-pct">${t.percentComplete}%</div>
-        </div>
+        </div>`;
+
+    rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
+      <div class="gantt-row-label${critCls}" title="${esc(t.name)}" style="padding-left:${8 + indent}px">${toggle}${esc(label)}</div>
+      <div class="gantt-row-bars" style="width:${barAreaW}px">
+        ${barHtml}
       </div>
     </div>`;
   }
 
   // SVG for dependency arrows
-  const svgH = tasks.length * rowH;
+  const svgH = visibleTasks.length * rowH;
   let arrowPaths = '';
   for (const d of deps) {
     const fi = taskIdx[d.from];
     const ti = taskIdx[d.to];
     if (fi === undefined || ti === undefined) continue;
 
-    const fromTask = tasks[fi];
-    const toTask = tasks[ti];
+    const fromTask = visibleTasks[fi];
+    const toTask = visibleTasks[ti];
     const x1 = labelW + pxFromTime(new Date(fromTask.plannedEnd).getTime());
     const y1 = fi * rowH + rowH / 2;
     const x2 = labelW + pxFromTime(new Date(toTask.plannedStart).getTime());
@@ -1289,14 +1439,70 @@ function ganttUpdateField(id, field, val) {
   }
 
   saveState();
+  if (t.parentId) rollUpParent(t.parentId);
   renderGantt();
   renderDashboard();
 }
 
-function ganttDeleteTask(id) {
-  ganttSelectedId = null;
-  deleteTask(id);
+function ganttAddSubtask(parentId) {
+  const parent = state.tasks.find(t => t.id === parentId);
+  if (!parent) return;
+
+  const name = prompt('Subtask name:');
+  if (!name || !name.trim()) return;
+  const durStr = prompt('Duration (e.g. 1w, 3d, 8h):', '1d');
+  if (!durStr) return;
+  const durHours = parseDuration(durStr);
+  if (durHours <= 0) return;
+
+  const cost = parseFloat(prompt('Planned cost:', '0')) || 0;
+  const start = parent.plannedStart;
+  const calDays = durationToCalendarDays(durHours);
+  const end = addDateDays(start, calDays);
+
+  const id = crypto.randomUUID();
+  state.tasks.push({
+    id, name: name.trim(),
+    parentId,
+    plannedCost: cost,
+    actualCost: 0,
+    plannedStart: start,
+    plannedEnd: end,
+    duration: durHours,
+    percentComplete: 0,
+    createdAt: new Date().toISOString()
+  });
+
+  // Expand parent
+  if (state.collapsed) {
+    const idx = state.collapsed.indexOf(parentId);
+    if (idx >= 0) state.collapsed.splice(idx, 1);
+  }
+
+  saveState();
+  rollUpParent(parentId);
+  ganttSelectedId = id;
   renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function ganttDeleteTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  const parentId = t ? t.parentId : null;
+
+  // Delete all descendants too
+  const toDelete = new Set([id, ...getAllDescendants(id).map(d => d.id)]);
+  state.tasks = state.tasks.filter(t => !toDelete.has(t.id));
+  if (state.deps) state.deps = state.deps.filter(d => !toDelete.has(d.from) && !toDelete.has(d.to));
+
+  ganttSelectedId = null;
+  saveState();
+  if (parentId) rollUpParent(parentId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+  renderTasks();
 }
 
 function ganttAddDep(fromId, toId) {
@@ -1347,6 +1553,10 @@ function renderGanttDetail() {
   const hasPreds = preds.length > 0;
   const critical = computeCriticalPath();
   const isCrit = critical.has(t.id);
+  const isParent = isParentTask(t.id);
+  const children = getChildren(t.id);
+  const parent = t.parentId ? state.tasks.find(x => x.id === t.parentId) : null;
+  const depth = getDepth(t);
 
   // Predecessor tags with remove buttons
   const predTags = preds.map(d => {
@@ -1361,22 +1571,43 @@ function renderGanttDetail() {
     return s ? `<span class="dep-tag" style="border-color:var(--green)">${esc(s.name)}</span>` : '';
   }).join('');
 
-  // Available tasks to add as predecessors (not self, not already a pred)
+  // Available tasks to add as predecessors (not self, not already a pred, not descendants)
+  const descIds = new Set(getAllDescendants(t.id).map(x => x.id));
   const availPreds = state.tasks.filter(x =>
-    x.id !== t.id && !preds.some(d => d.from === x.id)
+    x.id !== t.id && !preds.some(d => d.from === x.id) && !descIds.has(x.id)
   );
   const predOpts = availPreds.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
 
-  // Available tasks to add as successors (not self, not already a succ)
+  // Available tasks to add as successors (not self, not already a succ, not descendants)
   const availSuccs = state.tasks.filter(x =>
-    x.id !== t.id && !succs.some(d => d.to === x.id)
+    x.id !== t.id && !succs.some(d => d.to === x.id) && !descIds.has(x.id)
   );
   const succOpts = availSuccs.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
 
+  // Parent breadcrumb
+  const parentBreadcrumb = parent
+    ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px;cursor:pointer" onclick="ganttSelectedId='${parent.id}';renderGantt();renderGanttDetail()">&#9664; ${esc(parent.name)}</div>`
+    : '';
+
+  // Children list for parent tasks
+  const childList = isParent ? children.map(c => {
+    const cPct = c.percentComplete;
+    const cColor = cPct >= 100 ? 'var(--green)' : cPct > 0 ? 'var(--accent)' : 'var(--border)';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px" onclick="ganttSelectedId='${c.id}';renderGantt();renderGanttDetail()">
+      <span style="flex:1;color:var(--text)">${esc(c.name)}</span>
+      <span style="width:40px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;flex-shrink:0"><span style="display:block;height:100%;width:${cPct}%;background:${cColor}"></span></span>
+      <span style="width:32px;text-align:right;color:var(--text2)">${cPct}%</span>
+    </div>`;
+  }).join('') : '';
+
+  // Rolled-up indicator for parent tasks
+  const rolledUp = isParent ? ' <span style="color:var(--text2);font-weight:400">(rolled up)</span>' : '';
+
   el.innerHTML = `
     <div class="gantt-detail">
+      ${parentBreadcrumb}
       <h3>
-        <span>${isCrit ? '<span style="color:var(--red);font-size:11px;font-weight:600;margin-right:6px">CRITICAL</span>' : ''}${esc(t.name)}</span>
+        <span>${isCrit ? '<span style="color:var(--red);font-size:11px;font-weight:600;margin-right:6px">CRITICAL</span>' : ''}${isParent ? '<span style="color:var(--accent);font-size:11px;font-weight:600;margin-right:6px">SUMMARY</span>' : ''}${esc(t.name)}</span>
         <button class="close-btn" onclick="closeGanttDetail()">&times;</button>
       </h3>
 
@@ -1387,20 +1618,20 @@ function renderGanttDetail() {
 
       <div class="form-row">
         <div>
-          <label>Duration</label>
-          <input value="${dur}" onchange="ganttUpdateField('${t.id}','duration',this.value)">
+          <label>Duration${rolledUp}</label>
+          <input value="${dur}" ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','duration',this.value)"`}>
         </div>
         <div>
-          <label>% Complete</label>
+          <label>% Complete${rolledUp}</label>
           <input type="number" value="${t.percentComplete}" min="0" max="100"
-            onchange="ganttUpdateField('${t.id}','percentComplete',this.value)">
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','percentComplete',this.value)"`}>
         </div>
       </div>
 
       <div class="form-row">
         <div>
-          <label>Start${hasPreds ? ' <span style="color:var(--text2);font-weight:400">(auto)</span>' : ''}</label>
-          <input type="date" value="${t.plannedStart}" ${hasPreds ? 'disabled style="opacity:0.5"' : ''}
+          <label>Start${hasPreds || isParent ? ' <span style="color:var(--text2);font-weight:400">(auto)</span>' : ''}</label>
+          <input type="date" value="${t.plannedStart}" ${hasPreds || isParent ? 'disabled style="opacity:0.5"' : ''}
             onchange="ganttUpdateField('${t.id}','plannedStart',this.value)">
         </div>
         <div>
@@ -1411,16 +1642,22 @@ function renderGanttDetail() {
 
       <div class="form-row">
         <div>
-          <label>Planned Cost</label>
+          <label>Planned Cost${rolledUp}</label>
           <input type="number" value="${t.plannedCost}" min="0"
-            onchange="ganttUpdateField('${t.id}','plannedCost',this.value)">
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','plannedCost',this.value)"`}>
         </div>
         <div>
-          <label>Actual Cost</label>
+          <label>Actual Cost${rolledUp}</label>
           <input type="number" value="${t.actualCost}" min="0"
-            onchange="ganttUpdateField('${t.id}','actualCost',this.value)">
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','actualCost',this.value)"`}>
         </div>
       </div>
+
+      ${isParent ? `
+      <div class="form-group" style="margin-top:4px">
+        <label>Subtasks (${children.length})</label>
+        <div style="max-height:120px;overflow-y:auto">${childList}</div>
+      </div>` : ''}
 
       <div class="form-group" style="margin-top:4px">
         <label>Predecessors</label>
@@ -1438,7 +1675,10 @@ function renderGanttDetail() {
         ${availSuccs.length ? `<select style="margin-top:4px;font-size:12px" onchange="if(this.value)ganttAddDep('${t.id}',this.value);this.value=''"><option value="">+ Add successor...</option>${succOpts}</select>` : ''}
       </div>
 
-      <button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="ganttDeleteTask('${t.id}')">Delete Task</button>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:var(--accent);color:#fff" onclick="ganttAddSubtask('${t.id}')">+ Subtask</button>
+        <button class="btn btn-sm btn-danger" onclick="ganttDeleteTask('${t.id}')">Delete${isParent ? ' (& subtasks)' : ''}</button>
+      </div>
     </div>`;
 }
 
