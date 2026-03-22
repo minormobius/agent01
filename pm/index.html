@@ -263,10 +263,53 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   font-size: 13px; padding: 0; line-height: 1;
 }
 
+/* Kanban */
+.kanban-board {
+  display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px; min-height: 200px;
+}
+.kanban-lane {
+  flex: 0 0 220px; min-width: 180px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex; flex-direction: column; max-height: 70vh;
+}
+.kanban-lane-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 700; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.04em; cursor: grab;
+}
+.kanban-lane-header .count {
+  background: var(--border); border-radius: 10px;
+  padding: 1px 7px; font-size: 10px; font-weight: 600; color: var(--text2);
+}
+.kanban-lane-body {
+  flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 6px;
+  min-height: 40px;
+}
+.kanban-lane-body.drag-over { background: rgba(88,166,255,0.06); }
+.kanban-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; cursor: grab;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.kanban-card:hover { border-color: var(--accent); }
+.kanban-card.dragging { opacity: 0.4; }
+.kanban-card .kc-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.kanban-card .kc-meta { font-size: 11px; color: var(--text2); display: flex; gap: 8px; flex-wrap: wrap; }
+.kanban-card .kc-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.kanban-card .kc-bar-fill { height: 100%; border-radius: 2px; }
+.kanban-card.crit { border-left: 3px solid var(--red); }
+.kanban-config { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+.kanban-config input {
+  width: 120px; padding: 4px 8px; font-size: 12px;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .task-bar { display: none; }
+  .kanban-lane { flex: 0 0 170px; min-width: 150px; }
 }
 </style>
 </head>
@@ -285,6 +328,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
     <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button onclick="switchTab('tasks',this)">Tasks</button>
     <button onclick="switchTab('gantt',this)">Gantt</button>
+    <button onclick="switchTab('kanban',this)">Board</button>
     <button onclick="switchTab('scurve',this)">S-Curve</button>
     <button onclick="switchTab('docs',this)">Docs</button>
   </div>
@@ -357,6 +401,20 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:var(--orange)"></div>Today</div>
       </div>
       <div id="gantt-detail"></div>
+    </div>
+  </div>
+
+  <!-- ─── Kanban ─── -->
+  <div id="pane-kanban" class="pane">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <h2 style="margin-bottom:0">Board</h2>
+        <div class="kanban-config">
+          <input id="kb-new-lane" placeholder="New lane name">
+          <button class="btn btn-sm btn-ghost" onclick="addKanbanLane()">+ Lane</button>
+        </div>
+      </div>
+      <div class="kanban-board" id="kanban-board"></div>
     </div>
   </div>
 
@@ -1820,6 +1878,169 @@ window.addEventListener('resize', () => {
   if (active && active.id === 'pane-gantt') renderGantt();
 });
 
+// ── Kanban Board ──
+
+// Default lanes stored in state.kanbanLanes
+function getKanbanLanes() {
+  if (!state.kanbanLanes || state.kanbanLanes.length === 0) {
+    state.kanbanLanes = [
+      { id: 'backlog', name: 'Backlog' },
+      { id: 'todo', name: 'To Do' },
+      { id: 'in-progress', name: 'In Progress' },
+      { id: 'review', name: 'Review' },
+      { id: 'done', name: 'Done' }
+    ];
+    saveState();
+  }
+  return state.kanbanLanes;
+}
+
+function addKanbanLane() {
+  const input = document.getElementById('kb-new-lane');
+  const name = input.value.trim();
+  if (!name) return;
+  const lanes = getKanbanLanes();
+  const id = 'lane-' + crypto.randomUUID().slice(0, 8);
+  lanes.push({ id, name });
+  saveState();
+  input.value = '';
+  renderKanban();
+}
+
+function removeKanbanLane(laneId) {
+  const lanes = getKanbanLanes();
+  // Move tasks in this lane back to first lane
+  const firstLane = lanes.find(l => l.id !== laneId);
+  if (firstLane) {
+    state.tasks.forEach(t => { if (t.kanbanLane === laneId) t.kanbanLane = firstLane.id; });
+  }
+  state.kanbanLanes = lanes.filter(l => l.id !== laneId);
+  saveState();
+  renderKanban();
+}
+
+function renameKanbanLane(laneId, newName) {
+  const lane = getKanbanLanes().find(l => l.id === laneId);
+  if (lane && newName.trim()) {
+    lane.name = newName.trim();
+    saveState();
+  }
+}
+
+function moveKanbanLane(laneId, dir) {
+  const lanes = getKanbanLanes();
+  const idx = lanes.findIndex(l => l.id === laneId);
+  const target = idx + dir;
+  if (target < 0 || target >= lanes.length) return;
+  [lanes[idx], lanes[target]] = [lanes[target], lanes[idx]];
+  saveState();
+  renderKanban();
+}
+
+// Drag-and-drop state
+let kbDragTaskId = null;
+
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+
+  const lanes = getKanbanLanes();
+  const critical = computeCriticalPath();
+  const treeOrder = getTreeOrder();
+  // Only show leaf tasks on the board (parents are structural)
+  const leafTasks = treeOrder.filter(t => !isParentTask(t.id));
+
+  // Auto-assign tasks to backlog if no lane set
+  for (const t of leafTasks) {
+    if (!t.kanbanLane) {
+      // Auto-assign based on percent: 100% → done, >0 → in-progress, else backlog
+      if (t.percentComplete >= 100) {
+        const doneLane = lanes.find(l => l.name.toLowerCase().includes('done'));
+        t.kanbanLane = doneLane ? doneLane.id : lanes[lanes.length - 1].id;
+      } else if (t.percentComplete > 0) {
+        const ipLane = lanes.find(l => l.name.toLowerCase().includes('progress'));
+        t.kanbanLane = ipLane ? ipLane.id : lanes[0].id;
+      } else {
+        t.kanbanLane = lanes[0].id;
+      }
+    }
+  }
+
+  board.innerHTML = lanes.map((lane, li) => {
+    const laneTasks = leafTasks.filter(t => t.kanbanLane === lane.id);
+
+    const cards = laneTasks.map(t => {
+      const pct = t.percentComplete;
+      const isCrit = critical.has(t.id);
+      const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
+      const dur = t.duration ? fmtDuration(t.duration) : '';
+      const parent = t.parentId ? state.tasks.find(x => x.id === t.parentId) : null;
+
+      return `<div class="kanban-card${isCrit ? ' crit' : ''}" draggable="true"
+        ondragstart="kbDragTaskId='${t.id}';this.classList.add('dragging')"
+        ondragend="kbDragTaskId=null;this.classList.remove('dragging')"
+        onclick="switchToGanttTask('${t.id}')">
+        ${parent ? `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${esc(parent.name)}</div>` : ''}
+        <div class="kc-name">${esc(t.name)}</div>
+        <div class="kc-meta">
+          ${dur ? `<span>${dur}</span>` : ''}
+          ${t.plannedCost ? `<span>$${t.plannedCost}</span>` : ''}
+          <span>${pct}%</span>
+        </div>
+        <div class="kc-bar"><div class="kc-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>`;
+    }).join('');
+
+    return `<div class="kanban-lane" data-lane="${lane.id}">
+      <div class="kanban-lane-header">
+        <span contenteditable="true" spellcheck="false"
+          onblur="renameKanbanLane('${lane.id}',this.textContent)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(lane.name)}</span>
+        <div style="display:flex;align-items:center;gap:2px">
+          <span class="count">${laneTasks.length}</span>
+          ${li > 0 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',-1)" title="Move left">&#9664;</button>` : ''}
+          ${li < lanes.length - 1 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',1)" title="Move right">&#9654;</button>` : ''}
+          ${lanes.length > 1 ? `<button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px" onclick="event.stopPropagation();removeKanbanLane('${lane.id}')" title="Remove lane">&times;</button>` : ''}
+        </div>
+      </div>
+      <div class="kanban-lane-body" data-lane="${lane.id}"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="kbDropTask(event,'${lane.id}');this.classList.remove('drag-over')">
+        ${cards || '<div style="text-align:center;font-size:11px;color:var(--text2);padding:8px">Drop tasks here</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function kbDropTask(event, laneId) {
+  event.preventDefault();
+  if (!kbDragTaskId) return;
+  const t = state.tasks.find(x => x.id === kbDragTaskId);
+  if (!t) return;
+  t.kanbanLane = laneId;
+
+  // Auto-sync % complete with done lane
+  const lanes = getKanbanLanes();
+  const doneLane = lanes.find(l => l.name.toLowerCase().includes('done'));
+  if (doneLane && laneId === doneLane.id && t.percentComplete < 100) {
+    t.percentComplete = 100;
+    if (t.parentId) rollUpParent(t.parentId);
+  }
+
+  saveState();
+  kbDragTaskId = null;
+  renderKanban();
+  renderDashboard();
+}
+
+function switchToGanttTask(taskId) {
+  ganttSelectedId = taskId;
+  const btn = document.querySelectorAll('.tabs button')[2]; // Gantt tab
+  switchTab('gantt', btn);
+  renderGanttDetail();
+}
+
 // ── Tab switching ──
 
 function switchTab(tab, btn) {
@@ -1828,6 +2049,7 @@ function switchTab(tab, btn) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (tab === 'gantt') renderGantt();
+  if (tab === 'kanban') renderKanban();
   if (tab === 'scurve') renderSCurve();
   if (tab === 'dashboard') renderDashboard();
 }
