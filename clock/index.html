@@ -29,6 +29,28 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 #info-tip { position: absolute; display: none; background: rgba(10,10,18,0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; pointer-events: none; z-index: 15; white-space: nowrap; letter-spacing: 0.04em; color: #ddd; backdrop-filter: blur(8px); }
 #info-tip .date { font-size: 0.88rem; color: #fff; font-weight: 600; }
 #info-tip .detail { color: #999; font-size: 0.7rem; margin-top: 0.15rem; }
+
+/* Tuning panel */
+#tune-tab { position: absolute; top: 1rem; right: 5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; transition: background 0.2s; z-index: 10; }
+#tune-tab:hover { background: rgba(255,255,255,0.15); }
+#tune-panel { display: none; position: absolute; top: 3.5rem; right: 1rem; width: 280px; background: rgba(10,10,18,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 25; padding: 1rem; font-size: 0.75rem; backdrop-filter: blur(12px); }
+#tune-panel.open { display: block; }
+#tune-panel h3 { font-size: 0.8rem; margin: 0 0 0.6rem; color: #fff; letter-spacing: 0.06em; }
+#tune-panel label { display: flex; justify-content: space-between; align-items: center; margin: 0.35rem 0; color: #aaa; }
+#tune-panel label span { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; color: #ddd; }
+#tune-panel input[type=range] { flex: 1; margin: 0 0.5rem; accent-color: #7a9; height: 3px; }
+#tune-panel .level-toggles { margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; }
+#tune-panel .level-toggle { display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0; color: #aaa; cursor: pointer; }
+#tune-panel .level-toggle input { accent-color: #7a9; }
+#tune-panel .level-toggle.active { color: #fff; }
+#tune-panel .geom-readout { margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.4rem; font-size: 0.65rem; color: #666; font-variant-numeric: tabular-nums; line-height: 1.5; }
+
+/* Breadcrumb nav */
+#breadcrumb { position: absolute; top: 3.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.15rem; align-items: center; z-index: 15; font-size: 0.72rem; pointer-events: auto; }
+#breadcrumb .crumb { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 0.2rem 0.5rem; color: #bbb; cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+#breadcrumb .crumb:hover { background: rgba(255,255,255,0.18); color: #fff; }
+#breadcrumb .crumb.current { background: rgba(122,153,122,0.25); border-color: rgba(122,153,122,0.4); color: #afd4af; }
+#breadcrumb .sep { color: #444; padding: 0 0.1rem; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -37,6 +59,17 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 <div id="hud">drag to orbit · scroll to zoom</div>
 <div id="year-label"></div>
 <div id="info-tip"></div>
+<div id="breadcrumb"></div>
+<button id="tune-tab" onclick="document.getElementById('tune-panel').classList.toggle('open')">tune</button>
+<div id="tune-panel">
+  <h3>Fractal Geometry</h3>
+  <label>orbit <input type="range" id="sl-orbit" min="1.2" max="5.0" step="0.1"> <span id="v-orbit"></span></label>
+  <label>tube  <input type="range" id="sl-tube" min="0.02" max="0.30" step="0.01"> <span id="v-tube"></span></label>
+  <label>fade  <input type="range" id="sl-fade" min="20" max="300" step="5"> <span id="v-fade"></span></label>
+  <label>range <input type="range" id="sl-range" min="0.05" max="0.8" step="0.05"> <span id="v-range"></span></label>
+  <div class="level-toggles" id="level-toggles"></div>
+  <div class="geom-readout" id="geom-readout"></div>
+</div>
 <button id="docs-tab" onclick="document.getElementById('docs-panel').classList.toggle('open')">docs</button>
 <div id="docs-panel">
   <button class="close-btn" onclick="this.parentElement.classList.remove('open')">&times;</button>
@@ -45,12 +78,13 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
   <h2>Topology</h2>
   <p><strong>Level 0 — Year helix</strong> &mdash; One revolution per year. Color encodes month.</p>
-  <p><strong>Level 1 — Quarter coils</strong> (×4) &mdash; 4 coils per year, one per quarter.</p>
-  <p><strong>Level 2 — Month coils</strong> (×3) &mdash; 3 coils per quarter.</p>
-  <p><strong>Level 3 — Week coils</strong> (×4) &mdash; ~4 coils per month.</p>
-  <p><strong>Level 4 — Day coils</strong> (×7) &mdash; 7 coils per week.</p>
-  <p><strong>Level 5 — Watch coils</strong> (×4) &mdash; 4 six-hour blocks per day.</p>
-  <p>Each level has 3-7 subdivisions. Zoom in to see the next fractal layer. Tap to focus, pinch to zoom.</p>
+  <p><strong>Level 1 — Quarters</strong> (×4) &mdash; 4 coils per year.</p>
+  <p><strong>Level 2 — Weeks</strong> (×13) &mdash; 13 coils per quarter.</p>
+  <p><strong>Level 3 — Days</strong> (×7) &mdash; 7 coils per week.</p>
+  <p><strong>Level 4 — Hours</strong> (×24) &mdash; 24 coils per day.</p>
+  <p><strong>Level 5 — 6-min</strong> (×10) &mdash; 10 blocks per hour.</p>
+  <p><strong>Level 6 — 30-sec</strong> (×12) &mdash; 12 ticks per 6-min block.</p>
+  <p>Tap to focus, scroll/pinch to zoom. Use the <strong>tune</strong> panel to adjust fractal geometry live. Toggle individual levels on/off.</p>
 
   <div class="section">
   <h2>Reading the time</h2>
@@ -80,8 +114,8 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
   <div class="section">
   <h2>Technical</h2>
-  <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. Parametric fractal — each level's geometry is derived from three rules: <code>orbitRatio</code>, <code>fillFactor</code>, and <code>subdivisions[]</code>.</p>
-  <p>6 LOD levels with smooth crossfade. Level 0 always loaded; deeper levels generated on-demand around the selected point.</p>
+  <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. Parametric fractal — each level's geometry is derived from <code>orbitRatio</code> and <code>tubeFrac</code>, tunable in real time.</p>
+  <p>7 LOD levels with smooth crossfade. Level 0 always loaded; deeper levels generated on-demand around the selected point. Click breadcrumbs to jump between zoom levels.</p>
   <p>Requires Chrome 113+ or Edge 113+.</p>
   </div>
 
@@ -153,26 +187,31 @@ async function main() {
   //
   // Everything else is derived.
 
-  const ORBIT_RATIO = 2.5;   // child coil center = parent tube radius × this
-  const TUBE_FRAC = 0.06;    // tube radius = coil radius × this
-  const SAMPLES_PER_COIL = 14; // path samples per coil revolution
-  const TUBE_SIDES = 6;       // cross-section polygon sides
-  // Shrink ratio per level = ORBIT_RATIO × TUBE_FRAC = 0.15
-  // Each level is ~7× smaller than the previous — clean separation!
+  // --- Tunable parameters (mutated by UI sliders) ---
+  let ORBIT_RATIO = 2.5;
+  let TUBE_FRAC = 0.06;
+  let FADE_SCALE = 120;
+  let FADE_RANGE = 0.25;
+  const SAMPLES_PER_COIL = 14;
+  const TUBE_SIDES = 6;
 
   // Level hierarchy: big subdivision jumps so each level lives in its own scale
-  // subs = number of child coils per parent coil
   const LEVELS = [
-    { name: 'year',    subs: 1,  label: 'Years' },       // L0: macro helix, 1 coil/year
-    { name: 'quarter', subs: 4,  label: 'Quarters' },    // L1: 4 per year
-    { name: 'week',    subs: 13, label: 'Weeks' },       // L2: 13 per quarter
-    { name: 'day',     subs: 7,  label: 'Days' },        // L3: 7 per week
-    { name: 'hour',    subs: 24, label: 'Hours' },       // L4: 24 per day
-    { name: '6min',    subs: 10, label: '6-min' },       // L5: 10 per hour
-    { name: '30s',     subs: 12, label: '30-sec' },      // L6: 12 per 6min
+    { name: 'year',    subs: 1,  label: 'Years',   enabled: true },
+    { name: 'quarter', subs: 4,  label: 'Quarters', enabled: true },
+    { name: 'week',    subs: 13, label: 'Weeks',    enabled: true },
+    { name: 'day',     subs: 7,  label: 'Days',     enabled: true },
+    { name: 'hour',    subs: 24, label: 'Hours',    enabled: true },
+    { name: '6min',    subs: 10, label: '6-min',    enabled: true },
+    { name: '30s',     subs: 12, label: '30-sec',   enabled: true },
   ];
 
-  const MAX_VISIBLE_LEVELS = 2; // only 2 levels visible at once — no trampling
+  const MAX_VISIBLE_LEVELS = 2;
+
+  // Track which levels are active (skip disabled ones in rendering)
+  function getActiveLevels() {
+    return LEVELS.map((l, i) => i === 0 || l.enabled);
+  }
 
   // --- Calendar parameters ---
   const now = new Date();
@@ -190,17 +229,32 @@ async function main() {
   const pitchPerYear = 1.5;
   const yCenter = (totalYears * pitchPerYear) / 2;
 
-  // Precompute coilRadius and tubeRadius for each level
-  // Level 0: hand-set base. Level 1+: derived recursively.
-  // coilR = parent.tubeR × ORBIT_RATIO (orbits outside parent tube)
-  // tubeR = coilR × TUBE_FRAC (fixed proportion → guaranteed shrinking)
-  const levelGeom = [{ coilRadius: macroRadius, tubeRadius: BASE_TUBE_RADIUS }];
-  for (let i = 1; i < LEVELS.length; i++) {
-    const parentTube = levelGeom[i - 1].tubeRadius;
-    const coilR = parentTube * ORBIT_RATIO;
-    const tubeR = coilR * TUBE_FRAC;
-    levelGeom.push({ coilRadius: coilR, tubeRadius: tubeR });
+  // Recompute coilRadius and tubeRadius for each level (called when sliders change)
+  let levelGeom = [];
+  let geomGeneration = 0; // bumped on slider change to invalidate caches
+
+  function recomputeGeom() {
+    levelGeom = [{ coilRadius: macroRadius, tubeRadius: BASE_TUBE_RADIUS }];
+    for (let i = 1; i < LEVELS.length; i++) {
+      const parentTube = levelGeom[i - 1].tubeRadius;
+      const coilR = parentTube * ORBIT_RATIO;
+      const tubeR = coilR * TUBE_FRAC;
+      levelGeom.push({ coilRadius: coilR, tubeRadius: tubeR });
+    }
+    updateGeomReadout();
   }
+
+  function updateGeomReadout() {
+    const el = document.getElementById('geom-readout');
+    if (!el) return;
+    const shrink = (ORBIT_RATIO * TUBE_FRAC).toFixed(3);
+    el.innerHTML = `shrink=${shrink}/level<br>` +
+      levelGeom.map((g, i) =>
+        `${LEVELS[i].name}: r=${g.coilRadius < 0.01 ? g.coilRadius.toExponential(1) : g.coilRadius.toFixed(3)} t=${g.tubeRadius < 0.01 ? g.tubeRadius.toExponential(1) : g.tubeRadius.toFixed(4)}`
+      ).join('<br>');
+  }
+
+  recomputeGeom();
 
   console.log('Level geometry:', levelGeom.map((g, i) =>
     `${LEVELS[i].name}: coilR=${g.coilRadius.toFixed(4)} tubeR=${g.tubeRadius.toFixed(4)}`
@@ -484,6 +538,117 @@ async function main() {
 
   console.timeEnd('geometry');
   console.log(`Level 0 (${LEVELS[0].name}): ${level0GPU.indexCount / 3} tris`);
+
+  // === TUNING PANEL WIRING ===
+  const slOrbit = document.getElementById('sl-orbit');
+  const slTube  = document.getElementById('sl-tube');
+  const slFade  = document.getElementById('sl-fade');
+  const slRange = document.getElementById('sl-range');
+  const vOrbit  = document.getElementById('v-orbit');
+  const vTube   = document.getElementById('v-tube');
+  const vFade   = document.getElementById('v-fade');
+  const vRange  = document.getElementById('v-range');
+
+  // Init slider positions
+  slOrbit.value = ORBIT_RATIO; slTube.value = TUBE_FRAC;
+  slFade.value = FADE_SCALE;   slRange.value = FADE_RANGE;
+  vOrbit.textContent = ORBIT_RATIO.toFixed(1);
+  vTube.textContent = TUBE_FRAC.toFixed(2);
+  vFade.textContent = FADE_SCALE;
+  vRange.textContent = FADE_RANGE.toFixed(2);
+
+  function invalidateLevels() {
+    geomGeneration++;
+    for (const ls of levelState) ls.cachedKey = null;
+  }
+
+  slOrbit.addEventListener('input', () => {
+    ORBIT_RATIO = parseFloat(slOrbit.value);
+    vOrbit.textContent = ORBIT_RATIO.toFixed(1);
+    recomputeGeom(); invalidateLevels();
+  });
+  slTube.addEventListener('input', () => {
+    TUBE_FRAC = parseFloat(slTube.value);
+    vTube.textContent = TUBE_FRAC.toFixed(2);
+    recomputeGeom(); invalidateLevels();
+  });
+  slFade.addEventListener('input', () => {
+    FADE_SCALE = parseFloat(slFade.value);
+    vFade.textContent = FADE_SCALE;
+  });
+  slRange.addEventListener('input', () => {
+    FADE_RANGE = parseFloat(slRange.value);
+    vRange.textContent = FADE_RANGE.toFixed(2);
+  });
+
+  // Level toggles
+  const togglesEl = document.getElementById('level-toggles');
+  LEVELS.forEach((lv, i) => {
+    if (i === 0) return; // L0 always on
+    const label = document.createElement('label');
+    label.className = 'level-toggle active';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true;
+    cb.addEventListener('change', () => {
+      lv.enabled = cb.checked;
+      label.className = 'level-toggle' + (cb.checked ? ' active' : '');
+      invalidateLevels();
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`L${i} ${lv.name} (×${lv.subs})`));
+    togglesEl.appendChild(label);
+  });
+  updateGeomReadout();
+
+  // === BREADCRUMB NAV ===
+  const breadcrumbEl = document.getElementById('breadcrumb');
+
+  function updateBreadcrumb() {
+    breadcrumbEl.innerHTML = '';
+    if (selectedGlobalFrac < 0) return;
+
+    const yr = startYear + Math.floor(selectedGlobalFrac);
+    const yearFrac = selectedGlobalFrac % 1;
+
+    // Build crumbs: Year > Q > W > D > H > 6m > 30s
+    const crumbs = [{ label: `${yr}`, level: 0, zoomTo: levelGeom[0].tubeRadius * FADE_SCALE * 1.5 }];
+
+    let frac = yearFrac;
+    for (let i = 1; i < LEVELS.length; i++) {
+      if (!LEVELS[i].enabled) continue;
+      if (i - 1 >= selectionPath.length) break;
+      const subs = LEVELS[i].subs;
+      const childIdx = selectionPath[i - 1];
+      const childLabel = LEVELS[i].name === 'quarter' ? `Q${childIdx + 1}` :
+                          LEVELS[i].name === 'week' ? `W${childIdx + 1}` :
+                          LEVELS[i].name === 'day' ? DAY_NAMES_SHORT[new Date(yr, 0, 1 + Math.floor(yearFrac * 365)).getDay()] || `D${childIdx + 1}` :
+                          LEVELS[i].name === 'hour' ? `${childIdx}h` :
+                          LEVELS[i].name === '6min' ? `${childIdx * 6}m` :
+                          LEVELS[i].name === '30s' ? `${childIdx * 30}s` :
+                          `${LEVELS[i].label} ${childIdx + 1}`;
+      const zoomTo = levelGeom[Math.min(i, levelGeom.length - 1)].tubeRadius * FADE_SCALE * 0.6;
+      crumbs.push({ label: childLabel, level: i, zoomTo });
+      frac = (frac * subs) - childIdx;
+    }
+
+    crumbs.forEach((c, idx) => {
+      if (idx > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '›';
+        breadcrumbEl.appendChild(sep);
+      }
+      const el = document.createElement('span');
+      el.className = 'crumb' + (idx === crumbs.length - 1 ? ' current' : '');
+      el.textContent = c.label;
+      el.addEventListener('click', () => {
+        camDistTarget = Math.max(0.005, c.zoomTo);
+      });
+      breadcrumbEl.appendChild(el);
+    });
+  }
+
+  const DAY_NAMES_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
   // --- Shader with alpha uniform for crossfade ---
   const shaderCode = /* wgsl */`
@@ -927,25 +1092,32 @@ async function main() {
 
     // === PARAMETRIC LOD SYSTEM ===
     // Each level fades based on camDist thresholds.
-    // Thresholds scale with level geometry — deeper levels need closer zoom.
-    // Level N is visible when camDist < tubeRadius[N-1] * FADE_SCALE
-    const FADE_SCALE = 120; // how many tube-radii away a level starts appearing
-    const FADE_RANGE = 0.25; // smoothstep width — tight crossfade, less overlap
+    // FADE_SCALE / FADE_RANGE are live-tunable via the tune panel.
 
-    // Compute alpha for each level
+    // Compute alpha for each level (disabled levels get 0)
     const levelAlphas = [];
     for (let i = 0; i < LEVELS.length; i++) {
+      if (i > 0 && !LEVELS[i].enabled) {
+        levelAlphas.push(0);
+        continue;
+      }
       if (i === 0) {
-        // Level 0 always starts visible, fades when level 1 appears
-        const nextThresh = levelGeom[0].tubeRadius * FADE_SCALE;
-        levelAlphas.push(smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist));
+        // Level 0 always starts visible, fades when next enabled level appears
+        const nextEnabled = LEVELS.findIndex((l, j) => j > 0 && l.enabled);
+        if (nextEnabled > 0) {
+          const nextThresh = levelGeom[0].tubeRadius * FADE_SCALE;
+          levelAlphas.push(smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist));
+        } else {
+          levelAlphas.push(1.0); // no children, always full
+        }
       } else {
         const myThresh = levelGeom[i - 1].tubeRadius * FADE_SCALE;
         const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
-        // Fade out when next level appears (if there is one)
+        // Fade out when next enabled level appears
         let fadeOut = 1.0;
-        if (i < LEVELS.length - 1) {
-          const nextThresh = levelGeom[i].tubeRadius * FADE_SCALE;
+        const nextEnabled = LEVELS.findIndex((l, j) => j > i && l.enabled);
+        if (nextEnabled > 0) {
+          const nextThresh = levelGeom[nextEnabled - 1].tubeRadius * FADE_SCALE;
           fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
         }
         levelAlphas.push(fadeIn * fadeOut);
@@ -1017,6 +1189,9 @@ async function main() {
       if (levelAlphas[i] > 0.1) { deepest = LEVELS[i].label; break; }
     }
     hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · pinch to zoom — ${deepest}</div>`;
+
+    // Update breadcrumb nav
+    updateBreadcrumb();
 
     // === RENDER ===
     const commandEncoder = device.createCommandEncoder();
