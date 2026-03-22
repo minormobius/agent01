@@ -41,13 +41,16 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 <div id="docs-panel">
   <button class="close-btn" onclick="this.parentElement.classList.remove('open')">&times;</button>
   <h2>Helix Calendar</h2>
-  <p>A supercoiled visualization of time. Two nested helices encode years, months, days, and hours into a single continuous spiral.</p>
+  <p>A parametric fractal visualization of time. Nested helices at every scale — each zoom level reveals the next layer of coils.</p>
 
   <h2>Topology</h2>
-  <p><strong>Level 1 — Macro helix</strong> &mdash; One full revolution per year. Each month occupies 1/12 of the circumference. Years stack vertically.</p>
-  <p><strong>Level 2 — Day coils</strong> &mdash; Each day is one tight coil wound around the macro path. ~30 day-loops per month. Brightness encodes hour of day.</p>
-  <p><strong>Level 3 — Minute coils</strong> &mdash; Zoom all the way in to see 60 minute-coils spiraling around the current hour.</p>
-  <p>The result is a <em>triple-nested coiled coil</em>: zoom out for years, in for days, all the way in for minutes. A pulsing gold ring marks <em>now</em>.</p>
+  <p><strong>Level 0 — Year helix</strong> &mdash; One revolution per year. Color encodes month.</p>
+  <p><strong>Level 1 — Quarter coils</strong> (×4) &mdash; 4 coils per year, one per quarter.</p>
+  <p><strong>Level 2 — Month coils</strong> (×3) &mdash; 3 coils per quarter.</p>
+  <p><strong>Level 3 — Week coils</strong> (×4) &mdash; ~4 coils per month.</p>
+  <p><strong>Level 4 — Day coils</strong> (×7) &mdash; 7 coils per week.</p>
+  <p><strong>Level 5 — Watch coils</strong> (×4) &mdash; 4 six-hour blocks per day.</p>
+  <p>Each level has 3-7 subdivisions. Zoom in to see the next fractal layer. Tap to focus, pinch to zoom.</p>
 
   <div class="section">
   <h2>Reading the time</h2>
@@ -77,8 +80,8 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
   <div class="section">
   <h2>Technical</h2>
-  <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. The geometry is a tube mesh extruded along the supercoil path with Phong shading, specular highlights, and rim lighting.</p>
-  <p>Three LOD levels with smooth crossfade. L1 and L2 generated at load; L3 (minute detail) generated on-demand for the current hour. A pulsing now-marker ring regenerates each frame (~48 tris).</p>
+  <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. Parametric fractal — each level's geometry is derived from three rules: <code>orbitRatio</code>, <code>fillFactor</code>, and <code>subdivisions[]</code>.</p>
+  <p>6 LOD levels with smooth crossfade. Level 0 always loaded; deeper levels generated on-demand around the selected point.</p>
   <p>Requires Chrome 113+ or Edge 113+.</p>
   </div>
 
@@ -141,6 +144,34 @@ async function main() {
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device, format, alphaMode: 'opaque' });
 
+  // === PARAMETRIC FRACTAL HELIX SYSTEM ===
+  //
+  // Three rules govern all geometry:
+  //   orbitRatio  — child coil center = parent tube radius × this
+  //   fillFactor  — child tube fills this fraction of arc between siblings
+  //   subdivisions[] — number of child coils per parent coil at each level
+  //
+  // Everything else is derived.
+
+  const ORBIT_RATIO = 2.8;   // how far child orbits outside parent tube
+  const FILL_FACTOR = 0.38;  // how fat each coil is relative to spacing
+  const SAMPLES_PER_COIL = 14; // path samples per coil revolution
+  const TUBE_SIDES = 6;       // cross-section polygon sides
+
+  // Level hierarchy: each entry is { name, subs, label }
+  // subs = number of child coils per parent coil
+  const LEVELS = [
+    { name: 'year',    subs: 1,  label: 'Years' },       // L0: macro helix, 1 coil/year
+    { name: 'quarter', subs: 4,  label: 'Quarters' },    // L1: 4 per year
+    { name: 'month',   subs: 3,  label: 'Months' },      // L2: 3 per quarter
+    { name: 'week',    subs: 4,  label: 'Weeks' },       // L3: ~4 per month
+    { name: 'day',     subs: 7,  label: 'Days' },        // L4: 7 per week
+    { name: 'watch',   subs: 4,  label: 'Watches' },     // L5: 4×6hr per day
+    { name: 'hour',    subs: 6,  label: 'Hours' },       // L6: 6 per watch
+  ];
+
+  const MAX_VISIBLE_LEVELS = 3; // at most 3 levels render simultaneously
+
   // --- Calendar parameters ---
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -150,12 +181,28 @@ async function main() {
 
   document.getElementById('year-label').textContent = `${startYear} — ${endYear}`;
 
-  // --- Macro helix geometry: one revolution per year ---
-  const macroRadius = 3.0;
+  // --- Derive tube radii for each level from rules ---
+  // Level 0 (macro helix): tubeRadius is the base size
+  const BASE_TUBE_RADIUS = 0.18;
+  const macroRadius = 3.0;   // radius of the outermost helix
   const pitchPerYear = 1.5;
   const yCenter = (totalYears * pitchPerYear) / 2;
 
-  // Position on macro helix at (yearOffset, frac) where frac ∈ [0,1)
+  // Precompute coilRadius and tubeRadius for each level
+  const levelGeom = [{ coilRadius: macroRadius, tubeRadius: BASE_TUBE_RADIUS }];
+  for (let i = 1; i < LEVELS.length; i++) {
+    const parentTube = levelGeom[i - 1].tubeRadius;
+    const coilR = parentTube * ORBIT_RATIO;
+    const arcSpacing = (2 * Math.PI * coilR) / LEVELS[i].subs;
+    const tubeR = arcSpacing * FILL_FACTOR;
+    levelGeom.push({ coilRadius: coilR, tubeRadius: tubeR });
+  }
+
+  console.log('Level geometry:', levelGeom.map((g, i) =>
+    `${LEVELS[i].name}: coilR=${g.coilRadius.toFixed(4)} tubeR=${g.tubeRadius.toFixed(4)}`
+  ));
+
+  // --- Macro helix (Level 0 backbone) ---
   function macroPoint(yearOffset, frac) {
     const angle = frac * Math.PI * 2;
     return [
@@ -245,222 +292,142 @@ async function main() {
   }
 
   // ============================================================
-  // LEVEL 1: Macro helix — thick tube, one coil per year
-  // Month colors visible as bands around the circumference
+  // PARAMETRIC COIL GENERATOR
+  //
+  // Given a parent path (array of {pos, T, N, B, frac}), generate
+  // child coils wound around it. Each child is one revolution.
+  // Returns a tube mesh path array.
   // ============================================================
-  function generateLevel1() {
-    const path = [];
-    const samplesPerMonth = 8; // samples along macro helix per month
 
-    for (let yr = 0; yr < totalYears; yr++) {
-      const year = startYear + yr;
-      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-      const daysInYear = isLeap ? 366 : 365;
-      let dayAccum = 0;
-
-      for (let m = 0; m < 12; m++) {
-        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-        const color = MONTH_COLORS[m];
-
-        for (let s = 0; s <= samplesPerMonth; s++) {
-          const frac = (dayAccum + (s / samplesPerMonth) * daysInMonth) / daysInYear;
-          const frame = macroFrame(yr, frac);
-          path.push({
-            pos: macroPoint(yr, frac),
-            T: frame.T, N: frame.N, B: frame.B,
-            color,
-          });
-        }
-        dayAccum += daysInMonth;
-      }
-    }
-
-    return generateTubeMesh(path, 0.15, 8);
+  // Get color for a fractional year position (frac ∈ [0,1) within a year)
+  function getMonthColor(yearFrac) {
+    const monthFrac = yearFrac * 12;
+    const m = Math.min(11, Math.floor(monthFrac));
+    const t = monthFrac - m;
+    const next = (m + 1) % 12;
+    return v3lerp(MONTH_COLORS[m], MONTH_COLORS[next], t);
   }
 
-  // ============================================================
-  // LEVEL 2: Days coiling around macro path — one revolution per day
-  // Hours visible as brightness variation
-  // Generates ±RANGE days around a center point for visible density
-  // ============================================================
-  const L2_DAY_RANGE = 45; // days to render on each side of center
-
-  function generateLevel2(centerYrIdx, centerDoy) {
-    const path = [];
-    const microRadius = 0.25;
-    const samplesPerDay = 14;
-
-    // Convert center to absolute day index across all years
-    let centerAbsDay = 0;
-    for (let y = 0; y < centerYrIdx && y < totalYears; y++) {
-      const yy = startYear + y;
-      centerAbsDay += ((yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0) ? 366 : 365;
-    }
-    centerAbsDay += centerDoy;
-
-    for (let yr = 0; yr < totalYears; yr++) {
-      const year = startYear + yr;
-      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-      const daysInYear = isLeap ? 366 : 365;
-
-      // Compute absolute day offset for start of this year
-      let yearAbsStart = 0;
-      for (let y = 0; y < yr; y++) {
-        const yy = startYear + y;
-        yearAbsStart += ((yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0) ? 366 : 365;
-      }
-
-      // Find which month each day falls in
-      let dayAccum = 0;
-      for (let m = 0; m < 12; m++) {
-        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-        const baseColor = MONTH_COLORS[m];
-
-        for (let d = 0; d < daysInMonth; d++) {
-          const globalDay = dayAccum + d;
-          const absDay = yearAbsStart + globalDay;
-
-          // Only render days within range of center
-          if (centerYrIdx >= 0 && Math.abs(absDay - centerAbsDay) > L2_DAY_RANGE) continue;
-
-          for (let s = 0; s <= samplesPerDay; s++) {
-            const hourFrac = s / samplesPerDay;
-            const dayFrac = (globalDay + hourFrac) / daysInYear;
-
-            const macroPos = macroPoint(yr, dayFrac);
-            const frame = macroFrame(yr, dayFrac);
-
-            const microAngle = hourFrac * Math.PI * 2;
-            const microOffset = v3add(
-              v3scale(frame.N, microRadius * Math.cos(microAngle)),
-              v3scale(frame.B, microRadius * Math.sin(microAngle))
-            );
-            const pos = v3add(macroPos, microOffset);
-
-            // Tube frame from radial direction
-            const radialN = v3normalize(microOffset);
-            const fullT = v3normalize(v3add(
-              v3scale(frame.T, 1.0 / daysInYear),
-              v3add(
-                v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2 / samplesPerDay),
-                v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2 / samplesPerDay)
-              )
-            ));
-            const tubeB = v3normalize(v3cross(fullT, radialN));
-            const tubeN = v3normalize(v3cross(tubeB, fullT));
-
-            // Hour-based brightness
-            const hour = hourFrac * 24;
-            let bright;
-            if (hour < 6) bright = 0.3 + 0.1 * (hour / 6);
-            else if (hour < 12) bright = 0.4 + 0.6 * ((hour - 6) / 6);
-            else if (hour < 18) bright = 1.0 - 0.3 * ((hour - 12) / 6);
-            else bright = 0.7 - 0.4 * ((hour - 18) / 6);
-
-            const color = baseColor.map(c => Math.min(1.0, c * bright));
-
-            path.push({ pos, T: fullT, N: tubeN, B: tubeB, color });
-          }
-        }
-        dayAccum += daysInMonth;
-      }
-    }
-
-    return generateTubeMesh(path, 0.03, 6);
+  // Sample the macro helix at a given yearFrac (spanning all years)
+  // globalFrac ∈ [0, totalYears) — integer part = year index, fractional = position in year
+  function sampleMacroPath(globalFrac) {
+    const yr = Math.floor(Math.max(0, Math.min(totalYears - 0.001, globalFrac)));
+    const frac = globalFrac - yr;
+    const pos = macroPoint(yr, frac);
+    const frame = macroFrame(yr, frac);
+    const color = getMonthColor(frac);
+    return { pos, T: frame.T, N: frame.N, B: frame.B, color, globalFrac };
   }
 
-  // ============================================================
-  // LEVEL 3: Minutes coiling around hour path — one revolution per minute
-  // Seconds visible as position along each minute coil
-  // Only generates geometry for a single hour (on-demand)
-  // ============================================================
-  function generateLevel3(yearIdx, dayOfYear, hourIdx) {
+  // Generate a coil mesh at a given level around a parent path
+  // parentPath: array of { pos, T, N, B, color, globalFrac }
+  // levelIdx: which level we're generating (1-based, since 0 is macro)
+  // childStart, childCount: which children to generate (for on-demand)
+  function generateCoilLevel(parentPath, levelIdx, childStart, childCount) {
+    const geom = levelGeom[levelIdx];
+    const coilR = geom.coilRadius;
+    const tubeR = geom.tubeRadius;
+    const subs = LEVELS[levelIdx].subs;
+    const totalChildren = childCount !== undefined ? childCount : subs;
+    const startChild = childStart !== undefined ? childStart : 0;
+
     const path = [];
-    const year = startYear + yearIdx;
-    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    const daysInYear = isLeap ? 366 : 365;
 
-    // Find which month this day falls in (for color)
-    let monthIdx = 0, dayAccum = 0;
-    for (let m = 0; m < 12; m++) {
-      const dim = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-      if (dayAccum + dim > dayOfYear) { monthIdx = m; break; }
-      dayAccum += dim;
-    }
-    const baseColor = MONTH_COLORS[monthIdx];
+    // For each child coil
+    for (let c = 0; c < totalChildren; c++) {
+      const childIdx = startChild + c;
+      // Sample along the parent path for this child
+      for (let s = 0; s <= SAMPLES_PER_COIL; s++) {
+        const sFrac = s / SAMPLES_PER_COIL; // 0..1 within this coil revolution
+        // Position along parent: this child spans [childIdx/subs, (childIdx+1)/subs] of parent
+        const parentFrac = (childIdx + sFrac) / subs;
+        // Clamp to [0,1]
+        const pf = Math.max(0, Math.min(1 - 1e-8, parentFrac));
 
-    const microRadius = 0.25;  // L2 coil radius (around macro path)
-    const nanoRadius = 0.03;   // L3 coil radius (around L2 path)
-    const samplesPerMinute = 8; // 8 samples per minute-coil
+        // Interpolate parent path at this fraction
+        const pIdx = pf * (parentPath.length - 1);
+        const pi = Math.min(parentPath.length - 2, Math.floor(pIdx));
+        const pt = pIdx - pi;
+        const p0 = parentPath[pi], p1 = parentPath[pi + 1];
 
-    // Generate 60 minutes for this hour
-    for (let minute = 0; minute < 60; minute++) {
-      for (let s = 0; s <= samplesPerMinute; s++) {
-        const secFrac = s / samplesPerMinute; // 0..1 within this minute
-        const minuteFrac = (minute + secFrac) / 60; // fraction of this hour
-        const hourFrac = (hourIdx + minuteFrac) / 24; // fraction of this day
-        const dayFrac = (dayOfYear + hourFrac) / daysInYear; // fraction of year
+        const parentPos = v3lerp(p0.pos, p1.pos, pt);
+        const parentT = v3normalize(v3lerp(p0.T, p1.T, pt));
+        const parentN = v3normalize(v3lerp(p0.N, p1.N, pt));
+        const parentB = v3normalize(v3lerp(p0.B, p1.B, pt));
+        const parentColor = v3lerp(p0.color, p1.color, pt);
 
-        // L1: macro helix position
-        const macroPos = macroPoint(yearIdx, dayFrac);
-        const frame = macroFrame(yearIdx, dayFrac);
+        // Coil angle: one full revolution per child
+        const angle = sFrac * Math.PI * 2;
 
-        // L2: day coil position (hour spiral around macro)
-        const microAngle = hourFrac * Math.PI * 2;
-        const microOffset = v3add(
-          v3scale(frame.N, microRadius * Math.cos(microAngle)),
-          v3scale(frame.B, microRadius * Math.sin(microAngle))
+        // Offset from parent center
+        const offset = v3add(
+          v3scale(parentN, coilR * Math.cos(angle)),
+          v3scale(parentB, coilR * Math.sin(angle))
         );
-        const l2Pos = v3add(macroPos, microOffset);
+        const pos = v3add(parentPos, offset);
 
-        // L2 frame: radial outward from macro center
-        const l2Radial = v3normalize(microOffset);
-        const l2T = v3normalize(v3add(
-          v3scale(frame.T, 1.0 / daysInYear),
+        // Frame for tube extrusion
+        const radialN = v3normalize(offset);
+        // Tangent: combination of parent tangent + coiling motion
+        const coilTangent = v3normalize(v3add(
+          v3scale(parentT, 1.0 / subs),
           v3add(
-            v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2 / 12),
-            v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2 / 12)
+            v3scale(parentN, -coilR * Math.sin(angle) * Math.PI * 2 / SAMPLES_PER_COIL),
+            v3scale(parentB, coilR * Math.cos(angle) * Math.PI * 2 / SAMPLES_PER_COIL)
           )
         ));
-        const l2B = v3normalize(v3cross(l2T, l2Radial));
-        const l2N = v3normalize(v3cross(l2B, l2T));
+        const tubeB = v3normalize(v3cross(coilTangent, radialN));
+        const tubeN = v3normalize(v3cross(tubeB, coilTangent));
 
-        // L3: minute coil around L2 path
-        const nanoAngle = secFrac * Math.PI * 2;
-        const nanoOffset = v3add(
-          v3scale(l2N, nanoRadius * Math.cos(nanoAngle)),
-          v3scale(l2B, nanoRadius * Math.sin(nanoAngle))
-        );
-        const pos = v3add(l2Pos, nanoOffset);
+        // Brightness variation within coil (subtle)
+        const bright = 0.7 + 0.3 * (0.5 + 0.5 * Math.cos(angle));
+        const color = parentColor.map(c => Math.min(1.0, c * bright));
 
-        // L3 frame
-        const nanoRadial = v3normalize(nanoOffset);
-        const nanoT = v3normalize(v3add(
-          v3scale(l2T, 1.0 / 60),
-          v3add(
-            v3scale(l2N, -nanoRadius * Math.sin(nanoAngle) * Math.PI * 2 / samplesPerMinute),
-            v3scale(l2B, nanoRadius * Math.cos(nanoAngle) * Math.PI * 2 / samplesPerMinute)
-          )
-        ));
-        const nanoB = v3normalize(v3cross(nanoT, nanoRadial));
-        const nanoN = v3normalize(v3cross(nanoB, nanoT));
+        // Inherit globalFrac for time-mapping
+        const gf = p0.globalFrac !== undefined
+          ? p0.globalFrac + (p1.globalFrac - p0.globalFrac) * pt
+          : parentFrac;
 
-        // Brightness: vary by second position within minute
-        const sec = secFrac * 60;
-        const bright = 0.5 + 0.5 * Math.sin(sec / 60 * Math.PI);
-        const color = baseColor.map(c => Math.min(1.0, c * bright));
-
-        path.push({ pos, T: nanoT, N: nanoN, B: nanoB, color });
+        path.push({ pos, T: coilTangent, N: tubeN, B: tubeB, color, globalFrac: gf });
       }
     }
 
-    return generateTubeMesh(path, 0.006, 4);
+    return {
+      path,
+      mesh: generateTubeMesh(path, tubeR, Math.max(4, TUBE_SIDES - levelIdx)),
+    };
   }
 
   // ============================================================
-  // NOW MARKER: bright torus ring at current time position
-  // Regenerated each frame (tiny mesh — ~48 tris)
+  // LEVEL MANAGER: generates and caches GPU meshes per level
+  // Level 0: macro helix (always loaded)
+  // Level 1+: generated on-demand around selection
   // ============================================================
+
+  // Generate Level 0 (macro helix) path and mesh
+  function generateLevel0() {
+    const path = [];
+    const samplesPerYear = 12 * 8; // 96 samples per year (8 per month)
+
+    for (let yr = 0; yr < totalYears; yr++) {
+      for (let s = 0; s <= samplesPerYear; s++) {
+        const frac = s / samplesPerYear;
+        const gf = yr + frac;
+        const frame = macroFrame(yr, frac);
+        path.push({
+          pos: macroPoint(yr, frac),
+          T: frame.T, N: frame.N, B: frame.B,
+          color: getMonthColor(frac),
+          globalFrac: gf,
+        });
+      }
+    }
+
+    const mesh = generateTubeMesh(path, levelGeom[0].tubeRadius, 8);
+    return { path, mesh };
+  }
+
+  // NOW MARKER: torus ring at current time
   function generateNowMarker() {
     const nowDate = new Date();
     const yr = nowDate.getFullYear();
@@ -473,64 +440,46 @@ async function main() {
     const hourFrac = (nowDate.getHours() + nowDate.getMinutes() / 60 + nowDate.getSeconds() / 3600) / 24;
     const dayFrac = (dayOfYear + hourFrac) / daysInYear;
 
-    // Position on macro helix
     const macroPos = macroPoint(yrIdx, dayFrac);
     const frame = macroFrame(yrIdx, dayFrac);
 
-    // Position on L2 (day coil)
-    const microRadius = 0.25;
-    const microAngle = hourFrac * Math.PI * 2;
-    const microOffset = v3add(
-      v3scale(frame.N, microRadius * Math.cos(microAngle)),
-      v3scale(frame.B, microRadius * Math.sin(microAngle))
-    );
-    const l2Pos = v3add(macroPos, microOffset);
-
-    // Build a small torus ring around the macro path at this point
-    const ringRadius = 0.35; // slightly larger than L1 tube
-    const tubeRadius = 0.025;
-    const ringSegs = 16;
-    const tubeSegs = 6;
+    const ringRadius = levelGeom[0].tubeRadius * ORBIT_RATIO * 1.2;
+    const tubeRadius = levelGeom[0].tubeRadius * 0.15;
     const path = [];
 
-    for (let i = 0; i <= ringSegs; i++) {
-      const theta = (i / ringSegs) * Math.PI * 2;
+    for (let i = 0; i <= 16; i++) {
+      const theta = (i / 16) * Math.PI * 2;
       const pos = v3add(macroPos, v3add(
         v3scale(frame.N, ringRadius * Math.cos(theta)),
         v3scale(frame.B, ringRadius * Math.sin(theta))
       ));
-
       const radial = v3normalize(v3sub(pos, macroPos));
       const T = v3normalize(v3cross(frame.T, radial));
       const N = radial;
       const B = v3normalize(v3cross(T, N));
-
-      // White-gold color (pulse applied via alpha at draw time)
       path.push({ pos, T, N, B, color: [1.0, 0.95, 0.7] });
     }
 
-    return generateTubeMesh(path, tubeRadius, tubeSegs);
+    return generateTubeMesh(path, tubeRadius, 6);
   }
 
   let nowGPU = null;
   let lastNowSec = -1;
 
-  // Generate L1 at startup; L2 and L3 are on-demand based on selection
+  // --- Build initial geometry ---
   console.time('geometry');
-  const l1Mesh = generateLevel1();
-  const l1GPU = createGPUMesh(device, l1Mesh);
+  const level0 = generateLevel0();
+  const level0GPU = createGPUMesh(device, level0.mesh);
 
-  // L2 starts showing "now" region, regenerates on selection change
-  const nowInit = new Date();
-  const initYrIdx = nowInit.getFullYear() - startYear;
-  const initIsLeap = (nowInit.getFullYear() % 4 === 0 && nowInit.getFullYear() % 100 !== 0) || nowInit.getFullYear() % 400 === 0;
-  const initDoy = Math.floor((nowInit - new Date(nowInit.getFullYear(), 0, 0)) / 86400000) - 1;
-  const l2InitMesh = generateLevel2(initYrIdx, initDoy);
-  let l2GPU = createGPUMesh(device, l2InitMesh);
-  let l2CachedKey = `${initYrIdx}-${initDoy}`;
+  // Level state: array of { gpu, path, cachedKey, parentPath }
+  // Index 0 = level 1 (quarters), etc.
+  const levelState = [];
+  for (let i = 1; i < LEVELS.length; i++) {
+    levelState.push({ gpu: null, path: null, cachedKey: null });
+  }
+
   console.timeEnd('geometry');
-
-  console.log(`L1: ${l1GPU.indexCount / 3} tris | L2: ${l2GPU.indexCount / 3} tris`);
+  console.log(`Level 0 (${LEVELS[0].name}): ${level0GPU.indexCount / 3} tris`);
 
   // --- Shader with alpha uniform for crossfade ---
   const shaderCode = /* wgsl */`
@@ -585,7 +534,7 @@ async function main() {
   const shaderModule = device.createShaderModule({ code: shaderCode });
 
   const uniformBuffer = device.createBuffer({
-    size: 256 * 4, // 4 draw slots (L1, L2, L3, now marker)
+    size: 256 * 8, // 8 draw slots (up to 6 levels + now marker + spare)
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -650,26 +599,16 @@ async function main() {
   let camTheta = 0.4;
   let camPhi = 0.8;
   let camDist = 14.0;
+  let camDistTarget = 14.0;
 
   // Orbit center — starts at world origin, moves to selected element
   let lookTarget = [0, 0, 0];
   let lookTargetGoal = [0, 0, 0];
 
-  // Zoom level thresholds for crossfade (scaled for larger helix)
-  const L1_FADE_HI = 12.0, L1_FADE_LO = 5.0;
-  const L2_FADE_HI = 10.0, L2_FADE_LO = 2.5;
-  const L3_FADE_HI = 4.0,  L3_FADE_LO = 1.5;
-
-  // L3 on-demand state: tracks which hour is currently generated
-  let l3GPU = null;
-  let l3CachedKey = null; // "yearIdx-dayOfYear-hour"
-
-  // Selection state — tracks where the user tapped for L2/L3 generation
-  let selectedYrIdx = -1;  // year index (0-based from startYear)
-  let selectedDoy = -1;    // day of year (0-based)
-  let selectedHour = 12;   // default to noon
-
-  let camDistTarget = 14.0;
+  // Selection: which child index is focused at each level
+  // selectionPath[i] = child index at level i+1 (e.g. which quarter, which month, ...)
+  let selectionPath = [];
+  let selectedGlobalFrac = -1; // position on macro helix
 
   // --- Input: unified pointer (mouse) + touch (mobile) ---
   // Mouse orbit + wheel zoom
@@ -789,12 +728,10 @@ async function main() {
   }
 
   function handleTap(clientX, clientY) {
-    // Convert screen coords to NDC
     const rect = canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
 
-    // Build current MVP and invert it
     const eye = v3add(lookTarget, [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
       camDist * Math.cos(camPhi),
@@ -806,7 +743,6 @@ async function main() {
     const invMVP = mat4Invert(mvp);
     if (!invMVP) return;
 
-    // Unproject near and far points
     function unproject(x, y, z) {
       const w = [x, y, z, 1];
       const r = [0, 0, 0, 0];
@@ -818,71 +754,64 @@ async function main() {
     const farPt = unproject(ndcX, ndcY, 1);
     const rayDir = v3normalize(v3sub(farPt, nearPt));
 
-    // Test against sampled points on the macro helix
+    // Test against macro helix path (level 0)
     let bestDist = Infinity;
-    let bestYr = 0, bestMonth = 0, bestDay = 0;
     let bestPos = null;
+    let bestGlobalFrac = 0;
 
-    for (let yr = 0; yr < totalYears; yr++) {
-      const year = startYear + yr;
-      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-      const daysInYear = isLeap ? 366 : 365;
-      let dayAccum = 0;
-
-      for (let m = 0; m < 12; m++) {
-        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-        // Sample several points per month for accuracy
-        for (let s = 0; s <= 6; s++) {
-          const d = Math.min(Math.floor(s / 6 * daysInMonth), daysInMonth - 1);
-          const dayFrac = (dayAccum + d) / daysInYear;
-          const pt = macroPoint(yr, dayFrac);
-
-          // Distance from ray to point
-          const toPoint = v3sub(pt, nearPt);
-          const projLen = v3dot(toPoint, rayDir);
-          if (projLen < 0) continue;
-          const closest = v3add(nearPt, v3scale(rayDir, projLen));
-          const dist = v3len(v3sub(pt, closest));
-
-          // Hit threshold scales with zoom
-          const threshold = Math.max(0.35, camDist * 0.06);
-          if (dist < threshold && dist < bestDist) {
-            bestDist = dist;
-            bestYr = year;
-            bestMonth = m;
-            bestDay = d + 1;
-            bestPos = pt;
-          }
-        }
-        dayAccum += daysInMonth;
+    for (let i = 0; i < level0.path.length; i++) {
+      const pt = level0.path[i].pos;
+      const toPoint = v3sub(pt, nearPt);
+      const projLen = v3dot(toPoint, rayDir);
+      if (projLen < 0) continue;
+      const closest = v3add(nearPt, v3scale(rayDir, projLen));
+      const dist = v3len(v3sub(pt, closest));
+      const threshold = Math.max(0.4, camDist * 0.06);
+      if (dist < threshold && dist < bestDist) {
+        bestDist = dist;
+        bestPos = pt;
+        bestGlobalFrac = level0.path[i].globalFrac;
       }
     }
 
     if (bestPos) {
-      // Move orbit center to selected point
       lookTargetGoal = [...bestPos];
+      selectedGlobalFrac = bestGlobalFrac;
 
-      // Store selection for L2/L3 generation
-      selectedYrIdx = bestYr - startYear;
-      const selIsLeap = (bestYr % 4 === 0 && bestYr % 100 !== 0) || bestYr % 400 === 0;
-      let selDayAccum = 0;
-      for (let mi = 0; mi < bestMonth; mi++)
-        selDayAccum += MONTH_DAYS[mi] + (mi === 1 && selIsLeap ? 1 : 0);
-      selectedDoy = selDayAccum + bestDay - 1;
-      selectedHour = 12;
-      // Force L3 regeneration
-      l3CachedKey = null;
+      // Derive selection path: which child at each level
+      selectionPath = [];
+      let frac = bestGlobalFrac % 1; // fraction within year
+      for (let i = 1; i < LEVELS.length; i++) {
+        const subs = LEVELS[i].subs;
+        const childIdx = Math.floor(frac * subs);
+        selectionPath.push(childIdx);
+        frac = (frac * subs) - childIdx; // remaining fraction within this child
+      }
 
+      // Invalidate cached levels
+      for (let i = 0; i < levelState.length; i++) {
+        levelState[i].cachedKey = null;
+      }
+
+      // Build label
+      const yr = startYear + Math.floor(bestGlobalFrac);
+      const yearFrac = bestGlobalFrac % 1;
+      const monthIdx = Math.min(11, Math.floor(yearFrac * 12));
+      const dayInMonth = Math.floor((yearFrac * 12 - monthIdx) * 30) + 1;
       const tip = infoTip;
-      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">pinch to zoom in · tap elsewhere to move</div>`;
+      tip.innerHTML = `<div class="date">${dayInMonth} ${MONTH_NAMES[monthIdx]} ${yr}</div><div class="detail">Q${selectionPath[0]+1} · pinch to zoom in</div>`;
       tip.style.display = 'block';
       tip.style.left = `${Math.min(clientX + 12, window.innerWidth - 200)}px`;
       tip.style.top = `${Math.max(clientY - 40, 8)}px`;
       clearTimeout(tip._hideTimer);
       tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 4000);
     } else {
-      // Tap on empty space — reset orbit to world origin
       lookTargetGoal = [0, 0, 0];
+      selectedGlobalFrac = -1;
+      selectionPath = [];
+      for (let i = 0; i < levelState.length; i++) {
+        levelState[i].cachedKey = null;
+      }
       infoTip.style.display = 'none';
     }
   }
@@ -990,49 +919,100 @@ async function main() {
     const mvp = mat4Mul(proj, view);
     const lightDir = v3normalize([0.5, 0.8, 0.3]);
 
-    // Compute LOD alphas based on camera distance
-    const l1Alpha = smoothstep(L1_FADE_LO, L1_FADE_HI, camDist);
-    const l3Alpha = 1.0 - smoothstep(L3_FADE_LO, L3_FADE_HI, camDist);
-    // L2 is full when L1 and L3 are both gone, fades when either appears
-    const l2Alpha = Math.min(1.0 - l1Alpha, 1.0 - l3Alpha);
+    // === PARAMETRIC LOD SYSTEM ===
+    // Each level fades based on camDist thresholds.
+    // Thresholds scale with level geometry — deeper levels need closer zoom.
+    // Level N is visible when camDist < tubeRadius[N-1] * FADE_SCALE
+    const FADE_SCALE = 80;  // how many tube-radii away a level starts appearing
+    const FADE_RANGE = 0.5; // smoothstep width as fraction of threshold
 
-    // Regenerate L2 when selection changes
-    {
-      const l2Key = `${selectedYrIdx}-${selectedDoy}`;
-      if (l2Key !== l2CachedKey && selectedYrIdx >= 0) {
-        l2GPU.vertexBuffer.destroy();
-        l2GPU.indexBuffer.destroy();
-        const l2Mesh = generateLevel2(selectedYrIdx, selectedDoy);
-        l2GPU = createGPUMesh(device, l2Mesh);
-        l2CachedKey = l2Key;
-        console.log(`L2 regenerated around day ${selectedDoy}, year ${startYear + selectedYrIdx}: ${l2GPU.indexCount / 3} tris`);
-      }
-    }
-
-    // Generate L3 on-demand for selected point when zoomed in enough
-    if (l3Alpha > 0.01 && selectedYrIdx >= 0) {
-      const yrIdx = selectedYrIdx;
-      const doy = selectedDoy;
-      const hr = selectedHour;
-      const key = `${yrIdx}-${doy}-${hr}`;
-      if (key !== l3CachedKey && yrIdx >= 0 && yrIdx < totalYears) {
-        if (l3GPU) {
-          l3GPU.vertexBuffer.destroy();
-          l3GPU.indexBuffer.destroy();
+    // Compute alpha for each level
+    const levelAlphas = [];
+    for (let i = 0; i < LEVELS.length; i++) {
+      if (i === 0) {
+        // Level 0 always starts visible, fades when level 1 appears
+        const nextThresh = levelGeom[0].tubeRadius * FADE_SCALE;
+        levelAlphas.push(smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist));
+      } else {
+        const myThresh = levelGeom[i - 1].tubeRadius * FADE_SCALE;
+        const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
+        // Fade out when next level appears (if there is one)
+        let fadeOut = 1.0;
+        if (i < LEVELS.length - 1) {
+          const nextThresh = levelGeom[i].tubeRadius * FADE_SCALE;
+          fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
         }
-        const l3Mesh = generateLevel3(yrIdx, doy, hr);
-        l3GPU = createGPUMesh(device, l3Mesh);
-        l3CachedKey = key;
-        console.log(`L3 generated for hour ${hr}, day ${doy}: ${l3GPU.indexCount / 3} tris`);
+        levelAlphas.push(fadeIn * fadeOut);
       }
     }
 
-    // Update HUD with current time and zoom level
+    // Generate deeper levels on-demand when they become visible
+    if (selectedGlobalFrac >= 0) {
+      let parentPath = level0.path;
+      // Rescale parent path to the selected year
+      const selectedYear = Math.floor(selectedGlobalFrac);
+      // For level 1+, we need a parent path scoped to the right year
+      const yearStart = selectedYear;
+      const yearPath = level0.path.filter(p =>
+        p.globalFrac >= yearStart && p.globalFrac <= yearStart + 1
+      );
+      // Normalize to frac [0,1] within this year
+      if (yearPath.length > 2) {
+        const renormed = yearPath.map(p => ({
+          ...p,
+          globalFrac: p.globalFrac, // keep absolute for tracing
+        }));
+        parentPath = renormed;
+      }
+
+      for (let i = 0; i < levelState.length; i++) {
+        const lvl = i + 1; // level index (1-based)
+        if (levelAlphas[lvl] < 0.01) continue; // not visible
+        if (i >= selectionPath.length) break;   // no selection at this depth
+
+        const childIdx = selectionPath[i];
+        const subs = LEVELS[lvl].subs;
+        const key = `${selectedYear}-${selectionPath.slice(0, i + 1).join('-')}`;
+
+        if (key !== levelState[i].cachedKey) {
+          // Free old buffers
+          if (levelState[i].gpu) {
+            levelState[i].gpu.vertexBuffer.destroy();
+            levelState[i].gpu.indexBuffer.destroy();
+          }
+
+          // Generate all children at this level (so you see all siblings)
+          const result = generateCoilLevel(parentPath, lvl, 0, subs);
+          levelState[i].gpu = createGPUMesh(device, result.mesh);
+          levelState[i].path = result.path;
+          levelState[i].cachedKey = key;
+          console.log(`Level ${lvl} (${LEVELS[lvl].name}): ${levelState[i].gpu.indexCount / 3} tris, subs=${subs}`);
+        }
+
+        // Use this level's path as parent for next level
+        if (levelState[i].path) {
+          // Extract just the selected child's path segment for next level's parent
+          const samplesPerChild = SAMPLES_PER_COIL + 1;
+          const childStart = childIdx * samplesPerChild;
+          const childEnd = childStart + samplesPerChild;
+          if (childEnd <= levelState[i].path.length) {
+            parentPath = levelState[i].path.slice(childStart, childEnd);
+          }
+        }
+      }
+    }
+
+    // Update HUD
     const nowHud = new Date();
     const timeStr = `${DAY_NAMES[nowHud.getDay()]} ${nowHud.getDate()} ${MONTH_NAMES[nowHud.getMonth()]} ${nowHud.getFullYear()} · ${String(nowHud.getHours()).padStart(2,'0')}:${String(nowHud.getMinutes()).padStart(2,'0')}:${String(nowHud.getSeconds()).padStart(2,'0')}`;
-    const level = camDist > 4 ? 'years · months' : camDist > 1.5 ? 'days · hours' : 'minutes · seconds';
-    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · scroll to zoom — ${level}</div>`;
+    // Find deepest visible level name
+    let deepest = LEVELS[0].label;
+    for (let i = LEVELS.length - 1; i >= 0; i--) {
+      if (levelAlphas[i] > 0.1) { deepest = LEVELS[i].label; break; }
+    }
+    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · pinch to zoom — ${deepest}</div>`;
 
+    // === RENDER ===
     const commandEncoder = device.createCommandEncoder();
     const pass = commandEncoder.beginRenderPass({
       colorAttachments: [{
@@ -1052,38 +1032,33 @@ async function main() {
     pass.setPipeline(pipeline);
     drawSlot = 0;
 
-    // Draw L1 (macro tube) — fades out as you zoom in
-    drawMesh(pass, l1GPU, mvp, eye, lightDir, l1Alpha);
+    // Draw level 0 (macro helix)
+    drawMesh(pass, level0GPU, mvp, eye, lightDir, levelAlphas[0]);
 
-    // Draw L2 (day coils) — fades in as you zoom in
-    drawMesh(pass, l2GPU, mvp, eye, lightDir, l2Alpha);
-
-    // Draw L3 (minute coils) — fades in at closest zoom
-    if (l3GPU && l3Alpha > 0.01) {
-      drawMesh(pass, l3GPU, mvp, eye, lightDir, l3Alpha);
+    // Draw deeper levels
+    for (let i = 0; i < levelState.length; i++) {
+      const lvl = i + 1;
+      if (levelState[i].gpu && levelAlphas[lvl] > 0.01) {
+        drawMesh(pass, levelState[i].gpu, mvp, eye, lightDir, levelAlphas[lvl]);
+      }
     }
 
-    // Draw NOW marker — pulsing gold ring at current time
+    // Draw NOW marker
     {
       const nowSec = Math.floor(t / 1000);
       if (nowSec !== lastNowSec) {
         lastNowSec = nowSec;
-        if (nowGPU) {
-          nowGPU.vertexBuffer.destroy();
-          nowGPU.indexBuffer.destroy();
-        }
+        if (nowGPU) { nowGPU.vertexBuffer.destroy(); nowGPU.indexBuffer.destroy(); }
         const nowMesh = generateNowMarker();
         if (nowMesh) nowGPU = createGPUMesh(device, nowMesh);
       }
       if (nowGPU) {
         const pulse = 0.75 + 0.25 * Math.sin(t * 0.004);
-        const nowAlpha = Math.max(l1Alpha, l2Alpha, l3Alpha * 0.6) * pulse;
-        drawMesh(pass, nowGPU, mvp, eye, lightDir, nowAlpha);
+        drawMesh(pass, nowGPU, mvp, eye, lightDir, pulse);
       }
     }
 
     pass.end();
-
     device.queue.submit([commandEncoder.finish()]);
     requestAnimationFrame(frame);
   }
