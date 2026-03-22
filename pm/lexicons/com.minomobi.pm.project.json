@@ -1,0 +1,56 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.project",
+  "description": "A project container. Groups tasks, baselines, and change requests. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Project record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "status", "budgetAtCompletion", "scheduledStart", "scheduledEnd", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "status": {
+            "type": "string",
+            "knownValues": ["planning", "active", "on-hold", "completed", "cancelled"]
+          },
+          "budgetAtCompletion": {
+            "type": "number",
+            "description": "Total planned budget (BAC). Currency-agnostic."
+          },
+          "scheduledStart": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "scheduledEnd": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Planned completion date (SAC in earned schedule terms)."
+          },
+          "keyringRkey": {
+            "type": "string",
+            "description": "Workspace keyring this project belongs to.",
+            "maxLength": 64
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

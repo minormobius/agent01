@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#0d1117"/>
+  <rect x="32" y="60" width="128" height="8" rx="4" fill="#2e3345"/>
+  <rect x="32" y="60" width="80" height="8" rx="4" fill="#6c8cff"/>
+  <rect x="32" y="80" width="128" height="8" rx="4" fill="#2e3345"/>
+  <rect x="32" y="80" width="48" height="8" rx="4" fill="#4caf84"/>
+  <rect x="32" y="100" width="128" height="8" rx="4" fill="#2e3345"/>
+  <rect x="32" y="100" width="112" height="8" rx="4" fill="#e09050"/>
+  <rect x="32" y="120" width="128" height="8" rx="4" fill="#2e3345"/>
+  <rect x="32" y="120" width="64" height="8" rx="4" fill="#e05555"/>
+  <text x="96" y="48" text-anchor="middle" fill="#e2e4eb" font-family="system-ui,sans-serif" font-size="22" font-weight="700">PM</text>
+</svg>

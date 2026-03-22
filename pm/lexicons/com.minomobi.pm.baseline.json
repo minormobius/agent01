@@ -1,0 +1,89 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.baseline",
+  "description": "A frozen snapshot of the project plan at a point in time. Contains serialized copies of all schedule records. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Performance Measurement Baseline (PMB) snapshot.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRkey", "version", "snapshot", "createdAt"],
+        "properties": {
+          "projectRkey": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "version": {
+            "type": "integer",
+            "description": "Baseline version number. 1 = original, 2+ = rebaseline.",
+            "minimum": 1
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label, e.g. 'Original baseline' or 'Post-scope-change v2'.",
+            "maxLength": 256
+          },
+          "changeRequestRkey": {
+            "type": "string",
+            "description": "rkey of the change request that triggered this rebaseline (null for original).",
+            "maxLength": 64
+          },
+          "snapshot": {
+            "type": "array",
+            "description": "Frozen copies of all pm.schedule records at time of baselining.",
+            "items": {
+              "type": "ref",
+              "ref": "#taskSnapshot"
+            },
+            "maxLength": 10000
+          },
+          "budgetAtCompletion": {
+            "type": "number",
+            "description": "Total BAC at time of snapshot."
+          },
+          "scheduledEnd": {
+            "type": "string",
+            "format": "datetime",
+            "description": "SAC (Schedule at Completion) at time of snapshot."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "taskSnapshot": {
+      "type": "object",
+      "description": "A frozen copy of one task's schedule data.",
+      "required": ["scheduleRkey", "issueRkey", "plannedStart", "plannedEnd", "plannedCost"],
+      "properties": {
+        "scheduleRkey": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "issueRkey": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "plannedStart": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "plannedEnd": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "plannedCost": {
+          "type": "number"
+        },
+        "wbsCode": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
+    }
+  }
+}

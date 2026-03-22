@@ -1,0 +1,67 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.changeRequest",
+  "description": "A formal change request against the project baseline. Requires approval before rebaselining. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Change request record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRkey", "title", "category", "status", "requestedByDid", "createdAt"],
+        "properties": {
+          "projectRkey": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed justification and impact analysis.",
+            "maxLength": 50000
+          },
+          "category": {
+            "type": "string",
+            "knownValues": ["scope", "schedule", "budget", "resource", "risk"]
+          },
+          "status": {
+            "type": "string",
+            "knownValues": ["draft", "submitted", "approved", "rejected", "deferred"]
+          },
+          "requestedByDid": {
+            "type": "string",
+            "format": "did"
+          },
+          "reviewedByDid": {
+            "type": "string",
+            "format": "did"
+          },
+          "impactScheduleDays": {
+            "type": "number",
+            "description": "Estimated schedule impact in days (positive = delay)."
+          },
+          "impactBudget": {
+            "type": "number",
+            "description": "Estimated budget impact (positive = increase)."
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

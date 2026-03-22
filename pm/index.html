@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mino PM — Earned Value Project Management</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PM">
+<link rel="apple-touch-icon" href="/icon-192.svg">
+
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2129;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #4090e0;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.app { max-width: 720px; margin: 0 auto; padding: 16px 16px 80px; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.header .sub { font-size: 12px; color: var(--text2); }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 2px; background: var(--surface); border-radius: var(--radius);
+  padding: 3px; margin-bottom: 16px;
+}
+.tabs button {
+  flex: 1; padding: 8px 4px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
+}
+.tabs button.active { background: var(--accent); color: #fff; }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.card h2 {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+}
+
+/* Metric grid */
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.metric {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px; text-align: center;
+}
+.metric .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.metric .value.good { color: var(--green); }
+.metric .value.bad { color: var(--red); }
+.metric .value.warn { color: var(--orange); }
+.metric .value.neutral { color: var(--text); }
+
+/* Forms */
+input, select, textarea {
+  width: 100%; padding: 8px 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+  font-size: 13px; font-family: var(--font); outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; }
+label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; }
+.form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.form-row > div { flex: 1; }
+.form-group { margin-bottom: 8px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.15s;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent2); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-danger { background: var(--red); color: #fff; }
+
+/* Task list */
+.task-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.task-row:last-child { border-bottom: none; }
+.task-name { flex: 1; font-size: 14px; font-weight: 500; }
+.task-pct { font-size: 13px; color: var(--text2); width: 48px; text-align: right; }
+.task-bar { width: 80px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.task-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.task-actions { display: flex; gap: 4px; }
+
+/* S-curve canvas */
+canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius); }
+
+/* Pane visibility */
+.pane { display: none; }
+.pane.active { display: block; }
+
+/* Forecast bar */
+.forecast-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 13px;
+}
+.forecast-row .fl { color: var(--text2); }
+
+/* Empty state */
+.empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .task-bar { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div>
+      <h1>Mino PM</h1>
+      <div class="sub">Earned Value Project Management</div>
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="showBaselineDialog()">Snapshot</button>
+  </div>
+
+  <div class="tabs">
+    <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button onclick="switchTab('tasks',this)">Tasks</button>
+    <button onclick="switchTab('scurve',this)">S-Curve</button>
+    <button onclick="switchTab('roadmap',this)">Roadmap</button>
+  </div>
+
+  <!-- ─── Dashboard ─── -->
+  <div id="pane-dashboard" class="pane active">
+    <div class="card">
+      <h2>Earned Value</h2>
+      <div class="metrics" id="ev-metrics"></div>
+    </div>
+    <div class="card">
+      <h2>Earned Schedule</h2>
+      <div class="metrics" id="es-metrics"></div>
+    </div>
+    <div class="card">
+      <h2>Forecasts</h2>
+      <div id="forecasts"></div>
+    </div>
+  </div>
+
+  <!-- ─── Tasks ─── -->
+  <div id="pane-tasks" class="pane">
+    <div class="card">
+      <h2>Add Task</h2>
+      <div class="form-row">
+        <div style="flex:2"><label>Name</label><input id="t-name" placeholder="Task name"></div>
+        <div><label>Planned Cost</label><input id="t-cost" type="number" placeholder="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Start</label><input id="t-start" type="date"></div>
+        <div><label>End</label><input id="t-end" type="date"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addTask()" style="width:100%">Add Task</button>
+    </div>
+    <div class="card">
+      <h2>Task List</h2>
+      <div id="task-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── S-Curve ─── -->
+  <div id="pane-scurve" class="pane">
+    <div class="card">
+      <h2>S-Curve — PV / EV / AC</h2>
+      <canvas id="scurve-canvas"></canvas>
+    </div>
+    <div class="card" id="baseline-card" style="display:none">
+      <h2>Baselines</h2>
+      <div id="baseline-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Roadmap ─── -->
+  <div id="pane-roadmap" class="pane">
+    <div class="card">
+      <h2>What's Here (v0.1)</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li>Task creation with planned cost, start/end dates</li>
+        <li>Percent-complete tracking per task</li>
+        <li>Actual cost recording per task</li>
+        <li>Full EVM engine: PV, EV, AC, CV, SV, CPI, SPI</li>
+        <li>Earned Schedule: ES, SV(t), SPI(t)</li>
+        <li>Forecasts: EAC (cost), EAC(t) (schedule)</li>
+        <li>S-curve chart (PV/EV/AC over time)</li>
+        <li>Baseline snapshots (local storage)</li>
+        <li>PWA — installable, offline shell</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Next Steps</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><strong>ATProto integration</strong> — PDS auth, read/write pm.schedule and pm.baseline records via vault.sealed encryption</li>
+        <li><strong>Gantt chart</strong> — task bars with dependency arrows, critical path shading</li>
+        <li><strong>Dependencies</strong> — finish-to-start, lag/lead, critical path calculation (forward/backward pass)</li>
+        <li><strong>Change control UI</strong> — submit change requests, approval workflow, rebaseline with audit trail</li>
+        <li><strong>WBS hierarchy</strong> — tree view, roll-up EVM at any WBS level</li>
+        <li><strong>Multi-project portfolio</strong> — aggregate EVM across projects</li>
+        <li><strong>Resource loading</strong> — who's over-allocated, leveling</li>
+        <li><strong>TCPI</strong> — To-Complete Performance Index (what CPI do we need from here?)</li>
+        <li><strong>Variance at Completion</strong> — VAC projections for both cost and schedule</li>
+        <li><strong>Export</strong> — CSV/JSON baseline exports, PDF reports</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Lexicons Defined</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><code>com.minomobi.pm.project</code> — project container with BAC + SAC</li>
+        <li><code>com.minomobi.pm.schedule</code> — per-task planned/actual cost + dates + % complete</li>
+        <li><code>com.minomobi.pm.dependency</code> — FS/SS/FF/SF edges with lag</li>
+        <li><code>com.minomobi.pm.baseline</code> — frozen PMB snapshot with task snapshots</li>
+        <li><code>com.minomobi.pm.changeRequest</code> — scope/schedule/budget change with approval status</li>
+      </ul>
+      <p style="font-size:12px;color:var(--text2);margin-top:10px">
+        All records encrypted inside <code>vault.sealed</code> (AES-256-GCM). Extends existing <code>tasks.issue</code> and <code>tasks.board</code> lexicons.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──
+let state = loadState();
+
+function defaultState() {
+  return { tasks: [], baselines: [], projectName: 'My Project' };
+}
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem('mino-pm-state')) || defaultState(); }
+  catch { return defaultState(); }
+}
+
+function saveState() {
+  localStorage.setItem('mino-pm-state', JSON.stringify(state));
+}
+
+// ── Task CRUD ──
+
+function addTask() {
+  const name = document.getElementById('t-name').value.trim();
+  const cost = parseFloat(document.getElementById('t-cost').value) || 0;
+  const start = document.getElementById('t-start').value;
+  const end = document.getElementById('t-end').value;
+  if (!name || !start || !end) return;
+
+  state.tasks.push({
+    id: crypto.randomUUID(),
+    name,
+    plannedCost: cost,
+    actualCost: 0,
+    plannedStart: start,
+    plannedEnd: end,
+    percentComplete: 0,
+    createdAt: new Date().toISOString()
+  });
+  saveState();
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-cost').value = '';
+  renderAll();
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  saveState();
+  renderAll();
+}
+
+function updatePct(id, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) { t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0)); saveState(); renderAll(); }
+}
+
+function updateActualCost(id, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) { t.actualCost = Math.max(0, parseFloat(val) || 0); saveState(); renderAll(); }
+}
+
+// ── EVM Engine ──
+
+function computeEVM(asOfDate) {
+  const now = asOfDate || new Date();
+  let pv = 0, ev = 0, ac = 0, bac = 0;
+
+  for (const t of state.tasks) {
+    const ps = new Date(t.plannedStart);
+    const pe = new Date(t.plannedEnd);
+    const dur = Math.max(pe - ps, 1);
+    const elapsed = Math.max(0, Math.min(now - ps, dur));
+    const plannedPct = elapsed / dur;
+
+    pv += t.plannedCost * plannedPct;
+    ev += t.plannedCost * (t.percentComplete / 100);
+    ac += t.actualCost;
+    bac += t.plannedCost;
+  }
+
+  const cv = ev - ac;
+  const sv = ev - pv;
+  const cpi = ac > 0 ? ev / ac : (ev > 0 ? Infinity : 1);
+  const spi = pv > 0 ? ev / pv : (ev > 0 ? Infinity : 1);
+  const eac = cpi > 0 ? bac / cpi : Infinity;
+  const etc_ = eac - ac;
+  const vac = bac - eac;
+
+  return { pv, ev, ac, bac, cv, sv, cpi, spi, eac, etc: etc_, vac };
+}
+
+// ── Earned Schedule Engine ──
+
+function computeES() {
+  if (state.tasks.length === 0) return { es: 0, at: 0, svt: 0, spit: 1, eact: 0, sac: 0 };
+
+  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+  const projStart = Math.min(...starts);
+  const projEnd = Math.max(...ends);
+  const sac = (projEnd - projStart) / 86400000; // days
+  const now = Date.now();
+  const at = Math.max(0, (now - projStart) / 86400000); // days elapsed
+
+  // Current EV
+  const evm = computeEVM();
+
+  // Find ES: the time on the PV curve where PV = current EV
+  // Sample PV at daily intervals to find the crossover
+  const steps = Math.ceil(sac) || 1;
+  let es = 0;
+
+  for (let d = 0; d <= steps; d++) {
+    const sampleDate = new Date(projStart + d * 86400000);
+    let pvAtD = 0;
+    for (const t of state.tasks) {
+      const ps = new Date(t.plannedStart).getTime();
+      const pe = new Date(t.plannedEnd).getTime();
+      const dur = Math.max(pe - ps, 1);
+      const elapsed = Math.max(0, Math.min(sampleDate.getTime() - ps, dur));
+      pvAtD += t.plannedCost * (elapsed / dur);
+    }
+    if (pvAtD >= evm.ev) {
+      // Linear interpolation between d-1 and d
+      if (d === 0) { es = 0; }
+      else {
+        const prevDate = new Date(projStart + (d - 1) * 86400000);
+        let pvPrev = 0;
+        for (const t of state.tasks) {
+          const ps = new Date(t.plannedStart).getTime();
+          const pe = new Date(t.plannedEnd).getTime();
+          const dur = Math.max(pe - ps, 1);
+          const elapsed = Math.max(0, Math.min(prevDate.getTime() - ps, dur));
+          pvPrev += t.plannedCost * (elapsed / dur);
+        }
+        const frac = pvAtD > pvPrev ? (evm.ev - pvPrev) / (pvAtD - pvPrev) : 0;
+        es = (d - 1) + frac;
+      }
+      break;
+    }
+    if (d === steps) es = steps; // EV exceeds all planned — ahead of schedule
+  }
+
+  const svt = es - at;
+  const spit = at > 0 ? es / at : (es > 0 ? Infinity : 1);
+  const eact = spit > 0 ? sac / spit : Infinity;
+
+  return { es, at, svt, spit, eact, sac };
+}
+
+// ── Rendering ──
+
+function fmtNum(n, dec = 1) {
+  if (!isFinite(n)) return '—';
+  return n.toFixed(dec);
+}
+
+function idxClass(v, good = 1) {
+  if (!isFinite(v)) return 'neutral';
+  if (v >= good) return 'good';
+  if (v >= good * 0.9) return 'warn';
+  return 'bad';
+}
+
+function varClass(v) {
+  if (!isFinite(v)) return 'neutral';
+  if (v > 0) return 'good';
+  if (v === 0) return 'neutral';
+  return 'bad';
+}
+
+function renderDashboard() {
+  const evm = computeEVM();
+  const es = computeES();
+
+  document.getElementById('ev-metrics').innerHTML = `
+    <div class="metric"><div class="label">PV</div><div class="value neutral">${fmtNum(evm.pv, 0)}</div></div>
+    <div class="metric"><div class="label">EV</div><div class="value neutral">${fmtNum(evm.ev, 0)}</div></div>
+    <div class="metric"><div class="label">AC</div><div class="value neutral">${fmtNum(evm.ac, 0)}</div></div>
+    <div class="metric"><div class="label">CPI</div><div class="value ${idxClass(evm.cpi)}">${fmtNum(evm.cpi, 2)}</div></div>
+    <div class="metric"><div class="label">SPI</div><div class="value ${idxClass(evm.spi)}">${fmtNum(evm.spi, 2)}</div></div>
+    <div class="metric"><div class="label">BAC</div><div class="value neutral">${fmtNum(evm.bac, 0)}</div></div>
+  `;
+
+  document.getElementById('es-metrics').innerHTML = `
+    <div class="metric"><div class="label">ES</div><div class="value neutral">${fmtNum(es.es)}d</div></div>
+    <div class="metric"><div class="label">AT</div><div class="value neutral">${fmtNum(es.at)}d</div></div>
+    <div class="metric"><div class="label">SV(t)</div><div class="value ${varClass(es.svt)}">${fmtNum(es.svt)}d</div></div>
+    <div class="metric"><div class="label">SPI(t)</div><div class="value ${idxClass(es.spit)}">${fmtNum(es.spit, 2)}</div></div>
+    <div class="metric"><div class="label">SAC</div><div class="value neutral">${fmtNum(es.sac)}d</div></div>
+    <div class="metric"><div class="label">EAC(t)</div><div class="value ${es.eact > es.sac * 1.1 ? 'bad' : es.eact > es.sac ? 'warn' : 'good'}">${fmtNum(es.eact)}d</div></div>
+  `;
+
+  const f = document.getElementById('forecasts');
+  f.innerHTML = `
+    <div class="forecast-row"><span class="fl">EAC (cost)</span><span class="${varClass(evm.vac)}">${fmtNum(evm.eac, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">ETC (remaining)</span><span>${fmtNum(evm.etc, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">VAC (budget variance)</span><span class="${varClass(evm.vac)}">${fmtNum(evm.vac, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">CV (cost variance)</span><span class="${varClass(evm.cv)}">${fmtNum(evm.cv, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">SV (schedule variance)</span><span class="${varClass(evm.sv)}">${fmtNum(evm.sv, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">EAC(t) (schedule forecast)</span><span>${fmtNum(es.eact)} days</span></div>
+  `;
+}
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  if (state.tasks.length === 0) {
+    el.innerHTML = '<div class="empty">No tasks yet. Add one above.</div>';
+    return;
+  }
+
+  el.innerHTML = state.tasks.map(t => {
+    const pct = t.percentComplete;
+    const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
+    return `
+      <div class="task-row">
+        <div class="task-name">${esc(t.name)}<br>
+          <span style="font-size:11px;color:var(--text2)">
+            Planned: ${t.plannedCost} &middot; Actual:
+            <input type="number" value="${t.actualCost}" min="0" style="width:60px;padding:2px 4px;display:inline;font-size:11px"
+              onchange="updateActualCost('${t.id}',this.value)">
+          </span>
+        </div>
+        <div class="task-bar"><div class="task-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="task-pct">
+          <input type="number" value="${pct}" min="0" max="100" style="width:48px;padding:2px 4px;text-align:right;font-size:13px"
+            onchange="updatePct('${t.id}',this.value)">%
+        </div>
+        <div class="task-actions">
+          <button class="btn btn-sm btn-ghost" onclick="deleteTask('${t.id}')" title="Delete">&times;</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── S-Curve ──
+
+function renderSCurve() {
+  const canvas = document.getElementById('scurve-canvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state.tasks.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Add tasks to see the S-curve', W / 2, H / 2);
+    return;
+  }
+
+  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+  const projStart = Math.min(...starts);
+  const projEnd = Math.max(...ends);
+  const totalDays = Math.max(Math.ceil((projEnd - projStart) / 86400000), 1);
+  const bac = state.tasks.reduce((s, t) => s + t.plannedCost, 0);
+  if (bac === 0) return;
+
+  const pad = { t: 20, r: 16, b: 32, l: 48 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  // Sample curves
+  const pvPts = [], evPts = [], acPts = [];
+  const now = Date.now();
+  const todayDay = Math.max(0, (now - projStart) / 86400000);
+
+  for (let d = 0; d <= totalDays; d++) {
+    const sampleTime = projStart + d * 86400000;
+    let pv = 0, ev = 0, ac = 0;
+
+    for (const t of state.tasks) {
+      const ps = new Date(t.plannedStart).getTime();
+      const pe = new Date(t.plannedEnd).getTime();
+      const dur = Math.max(pe - ps, 1);
+      const elapsed = Math.max(0, Math.min(sampleTime - ps, dur));
+      pv += t.plannedCost * (elapsed / dur);
+
+      // EV and AC only up to "now"
+      if (d <= Math.ceil(todayDay)) {
+        ev += t.plannedCost * (t.percentComplete / 100);
+        ac += t.actualCost * Math.min(1, elapsed / dur);
+      }
+    }
+
+    pvPts.push(pv);
+    if (d <= Math.ceil(todayDay)) { evPts.push(ev); acPts.push(ac); }
+  }
+
+  // Axes
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ch); ctx.lineTo(pad.l + cw, pad.t + ch);
+  ctx.stroke();
+
+  // Y-axis labels
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    const val = Math.round(bac * i / 4);
+    ctx.fillText(val, pad.l - 6, y + 3);
+    if (i > 0) {
+      ctx.strokeStyle = '#21262d';
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    }
+  }
+
+  // X-axis labels
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(totalDays / 6));
+  for (let d = 0; d <= totalDays; d += labelStep) {
+    const x = pad.l + (d / totalDays) * cw;
+    const dt = new Date(projStart + d * 86400000);
+    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t + ch + 16);
+  }
+
+  // Draw line
+  function drawLine(pts, color, maxPts) {
+    if (pts.length < 2) return;
+    const n = maxPts || pts.length;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = pad.l + (i / totalDays) * cw;
+      const y = pad.t + ch - (pts[i] / bac) * ch;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  drawLine(pvPts, '#58a6ff');
+  drawLine(evPts, '#3fb950');
+  drawLine(acPts, '#f85149');
+
+  // Today line
+  if (todayDay >= 0 && todayDay <= totalDays) {
+    const tx = pad.l + (todayDay / totalDays) * cw;
+    ctx.strokeStyle = '#d29922';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, pad.t + ch); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Legend
+  const legendY = pad.t + 8;
+  ctx.font = '11px system-ui';
+  [[' PV', '#58a6ff', pad.l + 8], [' EV', '#3fb950', pad.l + 58], [' AC', '#f85149', pad.l + 108]].forEach(([label, color, x]) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, legendY - 4, 12, 3);
+    ctx.fillStyle = '#e6edf3';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, x + 16, legendY);
+  });
+
+  // Render baseline list
+  renderBaselines();
+}
+
+// ── Baselines ──
+
+function showBaselineDialog() {
+  const label = prompt('Baseline label (e.g. "Original plan"):');
+  if (!label) return;
+  const evm = computeEVM();
+  const es = computeES();
+  const snap = {
+    id: crypto.randomUUID(),
+    version: state.baselines.length + 1,
+    label,
+    takenAt: new Date().toISOString(),
+    bac: evm.bac,
+    sac: es.sac,
+    tasks: state.tasks.map(t => ({
+      id: t.id, name: t.name,
+      plannedStart: t.plannedStart, plannedEnd: t.plannedEnd, plannedCost: t.plannedCost
+    }))
+  };
+  state.baselines.push(snap);
+  saveState();
+  renderAll();
+}
+
+function renderBaselines() {
+  const card = document.getElementById('baseline-card');
+  const el = document.getElementById('baseline-list');
+  if (state.baselines.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  el.innerHTML = state.baselines.map(b =>
+    `<div class="forecast-row">
+      <span class="fl">v${b.version}: ${esc(b.label)}</span>
+      <span style="font-size:12px;color:var(--text2)">${new Date(b.takenAt).toLocaleDateString()} &middot; BAC ${fmtNum(b.bac, 0)} &middot; ${b.tasks.length} tasks</span>
+    </div>`
+  ).join('');
+}
+
+// ── Tab switching ──
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane-' + tab).classList.add('active');
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab === 'scurve') renderSCurve();
+  if (tab === 'dashboard') renderDashboard();
+}
+
+// ── Init ──
+
+function renderAll() {
+  renderDashboard();
+  renderTasks();
+}
+
+renderAll();
+
+// PWA registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
+}
+</script>
+</body>
+</html>
