@@ -300,6 +300,20 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 .kanban-card .kc-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
 .kanban-card .kc-bar-fill { height: 100%; border-radius: 2px; }
 .kanban-card.crit { border-left: 3px solid var(--red); }
+.kanban-card .kc-actions {
+  display: flex; gap: 8px; margin-top: 6px; padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.kc-check {
+  display: flex; align-items: center; gap: 3px; font-size: 10px;
+  color: var(--text2); cursor: pointer; user-select: none;
+}
+.kc-check input[type="checkbox"] {
+  width: 14px; height: 14px; margin: 0; cursor: pointer;
+  accent-color: var(--accent);
+}
+.kc-check-done input[type="checkbox"] { accent-color: var(--green); }
+.kc-check input[type="checkbox"]:disabled { opacity: 0.3; cursor: not-allowed; }
 .kanban-config { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
 .kanban-config input {
   width: 120px; padding: 4px 8px; font-size: 12px;
@@ -883,7 +897,13 @@ function removeDep(fromId, toId) {
 
 function updatePct(id, val) {
   const t = state.tasks.find(t => t.id === id);
-  if (t) { t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0)); saveState(); if (t.parentId) rollUpParent(t.parentId); renderAll(); }
+  if (t) {
+    t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0));
+    syncTaskToLane(t);
+    saveState();
+    if (t.parentId) rollUpParent(t.parentId);
+    renderAll();
+  }
 }
 
 function updateActualCost(id, val) {
@@ -1518,9 +1538,11 @@ function ganttUpdateField(id, field, val) {
     t.plannedEnd = addDateDays(val, durationToCalendarDays(dur));
   }
 
+  if (field === 'percentComplete') syncTaskToLane(t);
   saveState();
   if (t.parentId) rollUpParent(t.parentId);
   renderGantt();
+  renderGanttDetail();
   renderDashboard();
 }
 
@@ -1807,6 +1829,24 @@ function renderGanttDetail() {
         </div>
       </div>
 
+      ${!isParent ? `
+      <div class="form-group" style="margin-top:6px">
+        <label>Workflow</label>
+        <div style="display:flex;gap:16px;align-items:center">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);cursor:pointer;font-weight:500">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)" ${t.queued ? 'checked' : ''}
+              onchange="setTaskQueued('${t.id}',this.checked)">
+            Queued
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:${t.percentComplete >= 100 ? 'var(--text)' : 'var(--text2)'};cursor:${t.percentComplete >= 100 ? 'pointer' : 'not-allowed'};font-weight:500">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--green)" ${t.reviewed ? 'checked' : ''} ${t.percentComplete < 100 ? 'disabled' : ''}
+              onchange="setTaskReviewed('${t.id}',this.checked)">
+            Reviewed
+          </label>
+          <span style="font-size:10px;color:var(--text2);margin-left:auto">${t.kanbanLane ? (getKanbanLanes().find(l => l.id === t.kanbanLane) || {}).name || '' : ''}</span>
+        </div>
+      </div>` : ''}
+
       ${isParent ? `
       <div class="form-group" style="margin-top:4px">
         <label>Subtasks (${children.length})</label>
@@ -1880,19 +1920,114 @@ window.addEventListener('resize', () => {
 
 // ── Kanban Board ──
 
-// Default lanes stored in state.kanbanLanes
+// Lane roles define workflow semantics. Order matters.
 function getKanbanLanes() {
-  if (!state.kanbanLanes || state.kanbanLanes.length === 0) {
+  if (!state.kanbanLanes || state.kanbanLanes.length === 0 || !state.kanbanLanes[0].role) {
     state.kanbanLanes = [
-      { id: 'backlog', name: 'Backlog' },
-      { id: 'todo', name: 'To Do' },
-      { id: 'in-progress', name: 'In Progress' },
-      { id: 'review', name: 'Review' },
-      { id: 'done', name: 'Done' }
+      { id: 'backlog',     name: 'Backlog',     role: 'backlog' },
+      { id: 'todo',        name: 'To Do',       role: 'queued' },
+      { id: 'in-progress', name: 'In Progress', role: 'active' },
+      { id: 'review',      name: 'Review',      role: 'review' },
+      { id: 'done',        name: 'Done',        role: 'done' }
     ];
     saveState();
   }
   return state.kanbanLanes;
+}
+
+function laneByRole(role) {
+  return getKanbanLanes().find(l => l.role === role);
+}
+
+// ── Bidirectional sync: state → lane ──
+
+function syncTaskToLane(t) {
+  const lanes = getKanbanLanes();
+  const backlog = laneByRole('backlog');
+  const queued  = laneByRole('queued');
+  const active  = laneByRole('active');
+  const review  = laneByRole('review');
+  const done    = laneByRole('done');
+
+  if (t.reviewed && t.percentComplete >= 100) {
+    t.kanbanLane = done ? done.id : lanes[lanes.length - 1].id;
+  } else if (t.percentComplete >= 100) {
+    t.kanbanLane = review ? review.id : lanes[lanes.length - 1].id;
+  } else if (t.percentComplete > 0) {
+    // Working on it → auto-queue and move to active
+    t.queued = true;
+    t.kanbanLane = active ? active.id : (queued ? queued.id : lanes[0].id);
+  } else if (t.queued) {
+    t.kanbanLane = queued ? queued.id : (active ? active.id : lanes[0].id);
+  } else {
+    t.kanbanLane = backlog ? backlog.id : lanes[0].id;
+  }
+}
+
+// ── Bidirectional sync: lane → state (on drag/drop) ──
+
+function syncLaneToTask(t, laneId) {
+  const lane = getKanbanLanes().find(l => l.id === laneId);
+  if (!lane) return;
+
+  t.kanbanLane = laneId;
+
+  switch (lane.role) {
+    case 'backlog':
+      t.queued = false;
+      t.reviewed = false;
+      break;
+    case 'queued':
+      t.queued = true;
+      t.reviewed = false;
+      break;
+    case 'active':
+      t.queued = true;
+      t.reviewed = false;
+      break;
+    case 'review':
+      t.queued = true;
+      t.reviewed = false;
+      // Must be 100% to be in review
+      if (t.percentComplete < 100) {
+        t.percentComplete = 100;
+        if (t.parentId) rollUpParent(t.parentId);
+      }
+      break;
+    case 'done':
+      t.queued = true;
+      t.reviewed = true;
+      if (t.percentComplete < 100) {
+        t.percentComplete = 100;
+        if (t.parentId) rollUpParent(t.parentId);
+      }
+      break;
+  }
+}
+
+// Workflow checkbox handlers
+function setTaskQueued(id, val) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.queued = val;
+  if (!val) t.reviewed = false;
+  syncTaskToLane(t);
+  saveState();
+  renderKanban();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function setTaskReviewed(id, val) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (val && t.percentComplete < 100) return; // guard
+  t.reviewed = val;
+  syncTaskToLane(t);
+  saveState();
+  renderKanban();
+  renderGanttDetail();
+  renderDashboard();
 }
 
 function addKanbanLane() {
@@ -1901,7 +2036,10 @@ function addKanbanLane() {
   if (!name) return;
   const lanes = getKanbanLanes();
   const id = 'lane-' + crypto.randomUUID().slice(0, 8);
-  lanes.push({ id, name });
+  // Custom lanes default to 'active' role — inserted before review
+  const reviewIdx = lanes.findIndex(l => l.role === 'review');
+  const insertAt = reviewIdx >= 0 ? reviewIdx : lanes.length;
+  lanes.splice(insertAt, 0, { id, name, role: 'active' });
   saveState();
   input.value = '';
   renderKanban();
@@ -1909,11 +2047,11 @@ function addKanbanLane() {
 
 function removeKanbanLane(laneId) {
   const lanes = getKanbanLanes();
-  // Move tasks in this lane back to first lane
-  const firstLane = lanes.find(l => l.id !== laneId);
-  if (firstLane) {
-    state.tasks.forEach(t => { if (t.kanbanLane === laneId) t.kanbanLane = firstLane.id; });
-  }
+  const lane = lanes.find(l => l.id === laneId);
+  // Can't remove core workflow lanes
+  if (lane && ['backlog', 'review', 'done'].includes(lane.role)) return;
+  const fallback = laneByRole('backlog') || lanes[0];
+  state.tasks.forEach(t => { if (t.kanbanLane === laneId) t.kanbanLane = fallback.id; });
   state.kanbanLanes = lanes.filter(l => l.id !== laneId);
   saveState();
   renderKanban();
@@ -1937,8 +2075,84 @@ function moveKanbanLane(laneId, dir) {
   renderKanban();
 }
 
-// Drag-and-drop state
+// ── Touch drag state ──
 let kbDragTaskId = null;
+let kbTouchGhost = null;
+let kbTouchStartY = 0;
+let kbTouchStartX = 0;
+let kbTouchMoved = false;
+
+function kbTouchStart(e, taskId) {
+  // Long-press detection: small threshold before committing to drag
+  kbTouchStartX = e.touches[0].clientX;
+  kbTouchStartY = e.touches[0].clientY;
+  kbTouchMoved = false;
+  kbDragTaskId = taskId;
+}
+
+function kbTouchMove(e) {
+  if (!kbDragTaskId) return;
+  const dx = e.touches[0].clientX - kbTouchStartX;
+  const dy = e.touches[0].clientY - kbTouchStartY;
+
+  if (!kbTouchMoved && Math.abs(dx) + Math.abs(dy) < 10) return; // deadzone
+  kbTouchMoved = true;
+  e.preventDefault();
+
+  // Create ghost on first move
+  if (!kbTouchGhost) {
+    const src = e.target.closest('.kanban-card');
+    if (!src) return;
+    kbTouchGhost = src.cloneNode(true);
+    kbTouchGhost.style.cssText = `position:fixed;z-index:999;pointer-events:none;opacity:0.8;width:${src.offsetWidth}px;transform:rotate(2deg);box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+    document.body.appendChild(kbTouchGhost);
+    src.classList.add('dragging');
+  }
+
+  kbTouchGhost.style.left = (e.touches[0].clientX - 30) + 'px';
+  kbTouchGhost.style.top = (e.touches[0].clientY - 20) + 'px';
+
+  // Highlight drop target
+  document.querySelectorAll('.kanban-lane-body').forEach(b => b.classList.remove('drag-over'));
+  const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+  if (el) {
+    const body = el.closest('.kanban-lane-body');
+    if (body) body.classList.add('drag-over');
+  }
+}
+
+function kbTouchEnd(e) {
+  if (!kbDragTaskId) return;
+
+  // Clean up ghost
+  if (kbTouchGhost) {
+    kbTouchGhost.remove();
+    kbTouchGhost = null;
+  }
+  document.querySelectorAll('.kanban-card.dragging').forEach(c => c.classList.remove('dragging'));
+  document.querySelectorAll('.kanban-lane-body.drag-over').forEach(b => b.classList.remove('drag-over'));
+
+  if (!kbTouchMoved) {
+    // It was a tap, not a drag — open detail
+    const id = kbDragTaskId;
+    kbDragTaskId = null;
+    switchToGanttTask(id);
+    return;
+  }
+
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (el) {
+    const body = el.closest('.kanban-lane-body');
+    if (body) {
+      const laneId = body.dataset.lane;
+      kbDropTask(null, laneId);
+      return;
+    }
+  }
+  kbDragTaskId = null;
+}
 
 function renderKanban() {
   const board = document.getElementById('kanban-board');
@@ -1947,27 +2161,18 @@ function renderKanban() {
   const lanes = getKanbanLanes();
   const critical = computeCriticalPath();
   const treeOrder = getTreeOrder();
-  // Only show leaf tasks on the board (parents are structural)
   const leafTasks = treeOrder.filter(t => !isParentTask(t.id));
 
-  // Auto-assign tasks to backlog if no lane set
+  // Auto-assign tasks that have no lane
   for (const t of leafTasks) {
-    if (!t.kanbanLane) {
-      // Auto-assign based on percent: 100% → done, >0 → in-progress, else backlog
-      if (t.percentComplete >= 100) {
-        const doneLane = lanes.find(l => l.name.toLowerCase().includes('done'));
-        t.kanbanLane = doneLane ? doneLane.id : lanes[lanes.length - 1].id;
-      } else if (t.percentComplete > 0) {
-        const ipLane = lanes.find(l => l.name.toLowerCase().includes('progress'));
-        t.kanbanLane = ipLane ? ipLane.id : lanes[0].id;
-      } else {
-        t.kanbanLane = lanes[0].id;
-      }
+    if (!t.kanbanLane || !lanes.some(l => l.id === t.kanbanLane)) {
+      syncTaskToLane(t);
     }
   }
 
   board.innerHTML = lanes.map((lane, li) => {
     const laneTasks = leafTasks.filter(t => t.kanbanLane === lane.id);
+    const isCore = ['backlog', 'review', 'done'].includes(lane.role);
 
     const cards = laneTasks.map(t => {
       const pct = t.percentComplete;
@@ -1977,9 +2182,12 @@ function renderKanban() {
       const parent = t.parentId ? state.tasks.find(x => x.id === t.parentId) : null;
 
       return `<div class="kanban-card${isCrit ? ' crit' : ''}" draggable="true"
+        data-task-id="${t.id}"
         ondragstart="kbDragTaskId='${t.id}';this.classList.add('dragging')"
         ondragend="kbDragTaskId=null;this.classList.remove('dragging')"
-        onclick="switchToGanttTask('${t.id}')">
+        ontouchstart="kbTouchStart(event,'${t.id}')"
+        ontouchmove="kbTouchMove(event)"
+        ontouchend="kbTouchEnd(event)">
         ${parent ? `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${esc(parent.name)}</div>` : ''}
         <div class="kc-name">${esc(t.name)}</div>
         <div class="kc-meta">
@@ -1988,6 +2196,18 @@ function renderKanban() {
           <span>${pct}%</span>
         </div>
         <div class="kc-bar"><div class="kc-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="kc-actions" onclick="event.stopPropagation()">
+          <label class="kc-check" title="Queued / prioritized">
+            <input type="checkbox" ${t.queued ? 'checked' : ''}
+              onchange="setTaskQueued('${t.id}',this.checked)">
+            <span>Q</span>
+          </label>
+          <label class="kc-check kc-check-done" title="${pct < 100 ? 'Complete progress to 100% first' : 'Mark reviewed / done'}">
+            <input type="checkbox" ${t.reviewed ? 'checked' : ''} ${pct < 100 ? 'disabled' : ''}
+              onchange="setTaskReviewed('${t.id}',this.checked)">
+            <span>R</span>
+          </label>
+        </div>
       </div>`;
     }).join('');
 
@@ -2000,7 +2220,7 @@ function renderKanban() {
           <span class="count">${laneTasks.length}</span>
           ${li > 0 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',-1)" title="Move left">&#9664;</button>` : ''}
           ${li < lanes.length - 1 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',1)" title="Move right">&#9654;</button>` : ''}
-          ${lanes.length > 1 ? `<button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px" onclick="event.stopPropagation();removeKanbanLane('${lane.id}')" title="Remove lane">&times;</button>` : ''}
+          ${!isCore ? `<button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px" onclick="event.stopPropagation();removeKanbanLane('${lane.id}')" title="Remove lane">&times;</button>` : ''}
         </div>
       </div>
       <div class="kanban-lane-body" data-lane="${lane.id}"
@@ -2014,20 +2234,12 @@ function renderKanban() {
 }
 
 function kbDropTask(event, laneId) {
-  event.preventDefault();
+  if (event) event.preventDefault();
   if (!kbDragTaskId) return;
   const t = state.tasks.find(x => x.id === kbDragTaskId);
   if (!t) return;
-  t.kanbanLane = laneId;
 
-  // Auto-sync % complete with done lane
-  const lanes = getKanbanLanes();
-  const doneLane = lanes.find(l => l.name.toLowerCase().includes('done'));
-  if (doneLane && laneId === doneLane.id && t.percentComplete < 100) {
-    t.percentComplete = 100;
-    if (t.parentId) rollUpParent(t.parentId);
-  }
-
+  syncLaneToTask(t, laneId);
   saveState();
   kbDragTaskId = null;
   renderKanban();
