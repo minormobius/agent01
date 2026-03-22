@@ -275,30 +275,53 @@ async function main() {
       }
     }
 
-    return generateTubeMesh(path, 0.25, 8);
+    return generateTubeMesh(path, 0.15, 8);
   }
 
   // ============================================================
   // LEVEL 2: Days coiling around macro path — one revolution per day
   // Hours visible as brightness variation
+  // Generates ±RANGE days around a center point for visible density
   // ============================================================
-  function generateLevel2() {
+  const L2_DAY_RANGE = 45; // days to render on each side of center
+
+  function generateLevel2(centerYrIdx, centerDoy) {
     const path = [];
     const microRadius = 0.25;
-    const samplesPerDay = 12;
+    const samplesPerDay = 14;
+
+    // Convert center to absolute day index across all years
+    let centerAbsDay = 0;
+    for (let y = 0; y < centerYrIdx && y < totalYears; y++) {
+      const yy = startYear + y;
+      centerAbsDay += ((yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0) ? 366 : 365;
+    }
+    centerAbsDay += centerDoy;
 
     for (let yr = 0; yr < totalYears; yr++) {
       const year = startYear + yr;
       const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
       const daysInYear = isLeap ? 366 : 365;
-      let dayAccum = 0;
 
+      // Compute absolute day offset for start of this year
+      let yearAbsStart = 0;
+      for (let y = 0; y < yr; y++) {
+        const yy = startYear + y;
+        yearAbsStart += ((yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0) ? 366 : 365;
+      }
+
+      // Find which month each day falls in
+      let dayAccum = 0;
       for (let m = 0; m < 12; m++) {
         const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
         const baseColor = MONTH_COLORS[m];
 
         for (let d = 0; d < daysInMonth; d++) {
           const globalDay = dayAccum + d;
+          const absDay = yearAbsStart + globalDay;
+
+          // Only render days within range of center
+          if (centerYrIdx >= 0 && Math.abs(absDay - centerAbsDay) > L2_DAY_RANGE) continue;
 
           for (let s = 0; s <= samplesPerDay; s++) {
             const hourFrac = s / samplesPerDay;
@@ -343,7 +366,7 @@ async function main() {
       }
     }
 
-    return generateTubeMesh(path, 0.035, 6);
+    return generateTubeMesh(path, 0.03, 6);
   }
 
   // ============================================================
@@ -492,13 +515,19 @@ async function main() {
   let nowGPU = null;
   let lastNowSec = -1;
 
-  // Generate both levels at startup (L3 generated on-demand per hour)
+  // Generate L1 at startup; L2 and L3 are on-demand based on selection
   console.time('geometry');
   const l1Mesh = generateLevel1();
   const l1GPU = createGPUMesh(device, l1Mesh);
 
-  const l2Mesh = generateLevel2();
-  const l2GPU = createGPUMesh(device, l2Mesh);
+  // L2 starts showing "now" region, regenerates on selection change
+  const nowInit = new Date();
+  const initYrIdx = nowInit.getFullYear() - startYear;
+  const initIsLeap = (nowInit.getFullYear() % 4 === 0 && nowInit.getFullYear() % 100 !== 0) || nowInit.getFullYear() % 400 === 0;
+  const initDoy = Math.floor((nowInit - new Date(nowInit.getFullYear(), 0, 0)) / 86400000) - 1;
+  const l2InitMesh = generateLevel2(initYrIdx, initDoy);
+  let l2GPU = createGPUMesh(device, l2InitMesh);
+  let l2CachedKey = `${initYrIdx}-${initDoy}`;
   console.timeEnd('geometry');
 
   console.log(`L1: ${l1GPU.indexCount / 3} tris | L2: ${l2GPU.indexCount / 3} tris`);
@@ -634,6 +663,11 @@ async function main() {
   // L3 on-demand state: tracks which hour is currently generated
   let l3GPU = null;
   let l3CachedKey = null; // "yearIdx-dayOfYear-hour"
+
+  // Selection state — tracks where the user tapped for L2/L3 generation
+  let selectedYrIdx = -1;  // year index (0-based from startYear)
+  let selectedDoy = -1;    // day of year (0-based)
+  let selectedHour = 12;   // default to noon
 
   let camDistTarget = 14.0;
 
@@ -828,8 +862,19 @@ async function main() {
       // Move orbit center to selected point
       lookTargetGoal = [...bestPos];
 
+      // Store selection for L2/L3 generation
+      selectedYrIdx = bestYr - startYear;
+      const selIsLeap = (bestYr % 4 === 0 && bestYr % 100 !== 0) || bestYr % 400 === 0;
+      let selDayAccum = 0;
+      for (let mi = 0; mi < bestMonth; mi++)
+        selDayAccum += MONTH_DAYS[mi] + (mi === 1 && selIsLeap ? 1 : 0);
+      selectedDoy = selDayAccum + bestDay - 1;
+      selectedHour = 12;
+      // Force L3 regeneration
+      l3CachedKey = null;
+
       const tip = infoTip;
-      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">scroll to zoom in · tap elsewhere to move</div>`;
+      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">pinch to zoom in · tap elsewhere to move</div>`;
       tip.style.display = 'block';
       tip.style.left = `${Math.min(clientX + 12, window.innerWidth - 200)}px`;
       tip.style.top = `${Math.max(clientY - 40, 8)}px`;
@@ -951,15 +996,26 @@ async function main() {
     // L2 is full when L1 and L3 are both gone, fades when either appears
     const l2Alpha = Math.min(1.0 - l1Alpha, 1.0 - l3Alpha);
 
-    // Generate L3 on-demand when zoomed in enough
-    if (l3Alpha > 0.01) {
-      const nowL3 = new Date();
-      const yrIdx = nowL3.getFullYear() - startYear;
-      const doy = Math.floor((nowL3 - new Date(nowL3.getFullYear(), 0, 0)) / 86400000) - 1;
-      const hr = nowL3.getHours();
+    // Regenerate L2 when selection changes
+    {
+      const l2Key = `${selectedYrIdx}-${selectedDoy}`;
+      if (l2Key !== l2CachedKey && selectedYrIdx >= 0) {
+        l2GPU.vertexBuffer.destroy();
+        l2GPU.indexBuffer.destroy();
+        const l2Mesh = generateLevel2(selectedYrIdx, selectedDoy);
+        l2GPU = createGPUMesh(device, l2Mesh);
+        l2CachedKey = l2Key;
+        console.log(`L2 regenerated around day ${selectedDoy}, year ${startYear + selectedYrIdx}: ${l2GPU.indexCount / 3} tris`);
+      }
+    }
+
+    // Generate L3 on-demand for selected point when zoomed in enough
+    if (l3Alpha > 0.01 && selectedYrIdx >= 0) {
+      const yrIdx = selectedYrIdx;
+      const doy = selectedDoy;
+      const hr = selectedHour;
       const key = `${yrIdx}-${doy}-${hr}`;
       if (key !== l3CachedKey && yrIdx >= 0 && yrIdx < totalYears) {
-        // Free old buffers
         if (l3GPU) {
           l3GPU.vertexBuffer.destroy();
           l3GPU.indexBuffer.destroy();
