@@ -195,7 +195,7 @@ async function main() {
   // --- Tunable parameters (mutated by UI sliders) ---
   let ORBIT_RATIO = 2.5;
   let TUBE_FRAC = 0.06;
-  let FADE_SCALE = 120;
+  let FADE_SCALE = 80;
   let FADE_RANGE = 0.25;
   let COIL_EXTENT = 1;  // how many parent-revolutions of children to render (1 = just the selected parent coil)
   const SAMPLES_PER_COIL = 14;
@@ -822,7 +822,8 @@ async function main() {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDistTarget = Math.max(0.005, Math.min(30, camDistTarget * (1 + e.deltaY * 0.001)));
+    const delta = Math.max(-0.15, Math.min(0.15, e.deltaY * 0.001));
+    camDistTarget = Math.max(0.005, Math.min(30, camDistTarget * (1 + delta)));
   }, { passive: false });
 
   // Touch: single-finger orbit, two-finger pinch-to-zoom, tap-to-select
@@ -1093,11 +1094,11 @@ async function main() {
   function frame(t) {
     if (autoRotate) camTheta += 0.0008;
 
-    // Smooth zoom interpolation
-    camDist += (camDistTarget - camDist) * 0.12;
+    // Smooth zoom interpolation (matched rate with lookTarget for stability)
+    camDist += (camDistTarget - camDist) * 0.1;
 
     // Smooth orbit center interpolation
-    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.08);
+    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.1);
 
     const eye = v3add(lookTarget, [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
@@ -1122,36 +1123,36 @@ async function main() {
       if (LEVELS[i].enabled) enabledLevels.push(i);
     }
 
-    // Each level becomes visible when camDist < parent's tubeRadius * FADE_SCALE
-    // (you need to be close enough to see inside the parent tube)
+    // LOD alpha for each level
+    // L0: always visible unless zoomed into a selection
+    // L1+: zoom-based crossfade, but first sub-level gets a minimum alpha on selection
     const levelAlphas = new Array(LEVELS.length).fill(0);
     for (let ei = 0; ei < enabledLevels.length; ei++) {
       const i = enabledLevels[ei];
       if (i === 0) {
-        // Level 0: always visible unless a selection exists and we're zoomed in enough
         if (enabledLevels.length > 1 && selectedGlobalFrac >= 0) {
           const nextThresh = levelGeom[0].tubeRadius * FADE_SCALE;
           levelAlphas[0] = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
         } else {
           levelAlphas[0] = 1.0;
         }
+      } else if (selectedGlobalFrac < 0) {
+        levelAlphas[i] = 0;
       } else {
-        // Sub-levels only visible when there's an active selection
-        if (selectedGlobalFrac < 0) {
-          levelAlphas[i] = 0;
-        } else {
-          // Fade in: visible when camera is within parent's tube-radius scale
-          const prevEnabledIdx = enabledLevels[ei - 1];
-          const myThresh = levelGeom[prevEnabledIdx].tubeRadius * FADE_SCALE;
-          const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
-          // Fade out: when next enabled level appears
-          let fadeOut = 1.0;
-          if (ei < enabledLevels.length - 1) {
-            const nextThresh = levelGeom[i].tubeRadius * FADE_SCALE;
-            fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
-          }
-          levelAlphas[i] = fadeIn * fadeOut;
+        // Fade in based on zoom into parent's tube
+        const prevEnabledIdx = enabledLevels[ei - 1];
+        const myThresh = levelGeom[prevEnabledIdx].tubeRadius * FADE_SCALE;
+        const fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
+        // Fade out when deeper level appears
+        let fadeOut = 1.0;
+        if (ei < enabledLevels.length - 1) {
+          const nextThresh = levelGeom[i].tubeRadius * FADE_SCALE;
+          fadeOut = smoothstep(nextThresh * (1 - FADE_RANGE), nextThresh, camDist);
         }
+        let alpha = fadeIn * fadeOut;
+        // First sub-level gets minimum alpha on selection so user sees it immediately
+        if (ei === 1) alpha = Math.max(alpha, 0.5);
+        levelAlphas[i] = alpha;
       }
     }
 
