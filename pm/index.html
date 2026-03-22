@@ -217,6 +217,22 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   display: flex; justify-content: space-between; align-items: center;
   padding: 4px 0 8px; flex-wrap: wrap; gap: 8px;
 }
+.gantt-row.selected { background: rgba(88,166,255,0.08); }
+.gantt-row.selected .gantt-row-label { color: var(--accent); font-weight: 700; }
+.gantt-row { cursor: pointer; }
+.gantt-row:hover { background: rgba(88,166,255,0.04); }
+.gantt-detail {
+  background: var(--surface); border: 1px solid var(--accent);
+  border-radius: var(--radius); padding: 16px; margin-top: 8px;
+  animation: slideDown 0.15s ease-out;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.gantt-detail h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.gantt-detail .close-btn {
+  background: none; border: none; color: var(--text2); font-size: 18px;
+  cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.gantt-detail .close-btn:hover { color: var(--text); }
 
 /* Dependency picker */
 .dep-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
@@ -318,6 +334,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#f85149"></div>Critical</div>
         <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:var(--orange)"></div>Today</div>
       </div>
+      <div id="gantt-detail"></div>
     </div>
   </div>
 
@@ -1108,6 +1125,7 @@ function computeCriticalPath() {
 // ── Gantt Chart (DOM-based, interactive) ──
 
 let ganttZoom = 1;
+let ganttSelectedId = null;
 
 function setGanttZoom(z) {
   ganttZoom = z;
@@ -1182,7 +1200,8 @@ function renderGantt() {
     const critCls = isCrit ? ' crit' : '';
     const label = t.name.length > 16 ? t.name.slice(0, 15) + '\u2026' : t.name;
 
-    rowsHtml += `<div class="gantt-row">
+    const selCls = ganttSelectedId === t.id ? ' selected' : '';
+    rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
       <div class="gantt-row-label${critCls}" title="${esc(t.name)}">${esc(label)}</div>
       <div class="gantt-row-bars" style="width:${barAreaW}px">
         <div class="gantt-bar gantt-bar-bg${critCls}" style="left:${x1}px;width:${barW}px">
@@ -1223,6 +1242,140 @@ function renderGantt() {
       ${todayHtml}
       <svg class="gantt-dep-svg" width="${innerW}" height="${svgH}" viewBox="0 0 ${innerW} ${svgH}">${arrowPaths}</svg>
       ${rowsHtml}
+    </div>`;
+}
+
+function selectGanttTask(id) {
+  if (ganttSelectedId === id) {
+    ganttSelectedId = null;
+  } else {
+    ganttSelectedId = id;
+  }
+  // Update row selection without full re-render
+  document.querySelectorAll('.gantt-row[data-task-id]').forEach(r => {
+    r.classList.toggle('selected', r.dataset.taskId === ganttSelectedId);
+  });
+  renderGanttDetail();
+}
+
+function closeGanttDetail() {
+  ganttSelectedId = null;
+  document.querySelectorAll('.gantt-row[data-task-id]').forEach(r => r.classList.remove('selected'));
+  renderGanttDetail();
+}
+
+function ganttUpdateField(id, field, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+
+  if (field === 'name') {
+    t.name = val;
+  } else if (field === 'percentComplete') {
+    t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0));
+  } else if (field === 'actualCost') {
+    t.actualCost = Math.max(0, parseFloat(val) || 0);
+  } else if (field === 'plannedCost') {
+    t.plannedCost = Math.max(0, parseFloat(val) || 0);
+  } else if (field === 'duration') {
+    const h = parseDuration(val);
+    if (h > 0) {
+      t.duration = h;
+      t.plannedEnd = addDateDays(t.plannedStart, durationToCalendarDays(h));
+    }
+  } else if (field === 'plannedStart') {
+    t.plannedStart = val;
+    const dur = t.duration || ((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 3600000);
+    t.plannedEnd = addDateDays(val, durationToCalendarDays(dur));
+  }
+
+  saveState();
+  renderGantt();
+  renderDashboard();
+}
+
+function ganttDeleteTask(id) {
+  ganttSelectedId = null;
+  deleteTask(id);
+  renderGantt();
+}
+
+function renderGanttDetail() {
+  const el = document.getElementById('gantt-detail');
+  if (!el) return;
+
+  if (!ganttSelectedId) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const t = state.tasks.find(t => t.id === ganttSelectedId);
+  if (!t) { el.innerHTML = ''; return; }
+
+  const deps = (state.deps || []).filter(d => d.to === t.id);
+  const succs = (state.deps || []).filter(d => d.from === t.id);
+  const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
+  const hasPreds = deps.length > 0;
+  const critical = computeCriticalPath();
+  const isCrit = critical.has(t.id);
+
+  const predNames = deps.map(d => {
+    const p = state.tasks.find(x => x.id === d.from);
+    return p ? esc(p.name) : '?';
+  });
+  const succNames = succs.map(d => {
+    const s = state.tasks.find(x => x.id === d.to);
+    return s ? esc(s.name) : '?';
+  });
+
+  el.innerHTML = `
+    <div class="gantt-detail">
+      <h3>
+        <span>${isCrit ? '<span style="color:var(--red);font-size:11px;font-weight:600;margin-right:6px">CRITICAL</span>' : ''}${esc(t.name)}</span>
+        <button class="close-btn" onclick="closeGanttDetail()">&times;</button>
+      </h3>
+      <div class="form-row">
+        <div style="flex:2">
+          <label>Name</label>
+          <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+        </div>
+        <div>
+          <label>% Complete</label>
+          <input type="number" value="${t.percentComplete}" min="0" max="100"
+            onchange="ganttUpdateField('${t.id}','percentComplete',this.value)">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Duration</label>
+          <input value="${dur}" onchange="ganttUpdateField('${t.id}','duration',this.value)">
+        </div>
+        <div>
+          <label>Start${hasPreds ? ' <span style="color:var(--text2);font-weight:400">(from predecessor)</span>' : ''}</label>
+          <input type="date" value="${t.plannedStart}" ${hasPreds ? 'disabled' : ''}
+            onchange="ganttUpdateField('${t.id}','plannedStart',this.value)">
+        </div>
+        <div>
+          <label>End <span style="color:var(--text2);font-weight:400">(computed)</span></label>
+          <input type="date" value="${t.plannedEnd}" disabled>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Planned Cost</label>
+          <input type="number" value="${t.plannedCost}" min="0"
+            onchange="ganttUpdateField('${t.id}','plannedCost',this.value)">
+        </div>
+        <div>
+          <label>Actual Cost</label>
+          <input type="number" value="${t.actualCost}" min="0"
+            onchange="ganttUpdateField('${t.id}','actualCost',this.value)">
+        </div>
+      </div>
+      ${predNames.length ? `<div style="font-size:12px;color:var(--text2);margin-top:4px">Predecessors: ${predNames.join(', ')}</div>` : ''}
+      ${succNames.length ? `<div style="font-size:12px;color:var(--text2);margin-top:2px">Successors: ${succNames.join(', ')}</div>` : ''}
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-sm btn-danger" onclick="ganttDeleteTask('${t.id}')">Delete Task</button>
+      </div>
     </div>`;
 }
 
