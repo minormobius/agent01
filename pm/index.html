@@ -825,12 +825,12 @@ function removeDep(fromId, toId) {
 
 function updatePct(id, val) {
   const t = state.tasks.find(t => t.id === id);
-  if (t) { t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0)); saveState(); renderAll(); }
+  if (t) { t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0)); saveState(); if (t.parentId) rollUpParent(t.parentId); renderAll(); }
 }
 
 function updateActualCost(id, val) {
   const t = state.tasks.find(t => t.id === id);
-  if (t) { t.actualCost = Math.max(0, parseFloat(val) || 0); saveState(); renderAll(); }
+  if (t) { t.actualCost = Math.max(0, parseFloat(val) || 0); saveState(); if (t.parentId) rollUpParent(t.parentId); renderAll(); }
 }
 
 // ── EVM Engine ──
