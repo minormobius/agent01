@@ -680,7 +680,29 @@ async function main() {
 
     // Compute LOD alphas based on camera distance
     const l1Alpha = smoothstep(L1_FADE_LO, L1_FADE_HI, camDist);
-    const l2Alpha = 1.0 - l1Alpha;
+    const l3Alpha = 1.0 - smoothstep(L3_FADE_LO, L3_FADE_HI, camDist);
+    // L2 is full when L1 and L3 are both gone, fades when either appears
+    const l2Alpha = Math.min(1.0 - l1Alpha, 1.0 - l3Alpha);
+
+    // Generate L3 on-demand when zoomed in enough
+    if (l3Alpha > 0.01) {
+      const nowL3 = new Date();
+      const yrIdx = nowL3.getFullYear() - startYear;
+      const doy = Math.floor((nowL3 - new Date(nowL3.getFullYear(), 0, 0)) / 86400000) - 1;
+      const hr = nowL3.getHours();
+      const key = `${yrIdx}-${doy}-${hr}`;
+      if (key !== l3CachedKey && yrIdx >= 0 && yrIdx < totalYears) {
+        // Free old buffers
+        if (l3GPU) {
+          l3GPU.vertexBuffer.destroy();
+          l3GPU.indexBuffer.destroy();
+        }
+        const l3Mesh = generateLevel3(yrIdx, doy, hr);
+        l3GPU = createGPUMesh(device, l3Mesh);
+        l3CachedKey = key;
+        console.log(`L3 generated for hour ${hr}, day ${doy}: ${l3GPU.indexCount / 3} tris`);
+      }
+    }
 
     // Update HUD
     const level = camDist > 4 ? 'years · months' : camDist > 1.5 ? 'days · hours' : 'minutes · seconds';
@@ -710,6 +732,11 @@ async function main() {
 
     // Draw L2 (day coils) — fades in as you zoom in
     drawMesh(pass, l2GPU, mvp, eye, lightDir, l2Alpha);
+
+    // Draw L3 (minute coils) — fades in at closest zoom
+    if (l3GPU && l3Alpha > 0.01) {
+      drawMesh(pass, l3GPU, mvp, eye, lightDir, l3Alpha);
+    }
 
     pass.end();
 
