@@ -184,6 +184,7 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
     <button onclick="switchTab('tasks',this)">Tasks</button>
     <button onclick="switchTab('gantt',this)">Gantt</button>
     <button onclick="switchTab('scurve',this)">S-Curve</button>
+    <button onclick="switchTab('docs',this)">Docs</button>
     <button onclick="switchTab('roadmap',this)">Roadmap</button>
   </div>
 
@@ -244,6 +245,147 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
     <div class="card" id="baseline-card" style="display:none">
       <h2>Baselines</h2>
       <div id="baseline-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Docs ─── -->
+  <div id="pane-docs" class="pane">
+    <div class="card">
+      <h2>Earned Value Management (EVM)</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        EVM answers "are we on track?" by comparing three values at any point in time:
+      </p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--accent);font-weight:600;width:60px">PV</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Planned Value</strong> — how much work should be done by now, in budget terms. Computed from each task's planned cost weighted by how much of its scheduled duration has elapsed.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--green);font-weight:600">EV</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Earned Value</strong> — how much work is actually done, valued at what we planned to spend. Each task's planned cost &times; its percent complete.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--red);font-weight:600">AC</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Actual Cost</strong> — what we actually spent on the work performed.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Variances</strong> (positive = good):</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">CV</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &minus; AC. Positive = under budget.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SV</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &minus; PV. Positive = ahead of schedule.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Indices</strong> (1.0 = on track, &gt;1.0 = efficient, &lt;1.0 = trouble):</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">CPI</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &divide; AC. Cost efficiency — how much value per dollar spent.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SPI</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &divide; PV. Schedule efficiency — how much work done vs. planned.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Forecasts</strong>:</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">BAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Budget at Completion — total planned budget (sum of all task costs).</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">EAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Estimate at Completion = BAC &divide; CPI. At current burn rate, total cost will be...</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">ETC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Estimate to Complete = EAC &minus; AC. How much more we need to spend.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">VAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Variance at Completion = BAC &minus; EAC. Projected budget surplus/deficit.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Earned Schedule (ES)</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Classic EVM measures schedule variance in dollars, which breaks down late in a project (SV converges to zero at completion even if you're late). Earned Schedule converts to time:
+      </p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">ES</td>
+          <td style="padding:4px 8px;color:var(--text2)">The point on the timeline where PV equals current EV. "Based on work done, what date should it be?"</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">AT</td>
+          <td style="padding:4px 8px;color:var(--text2)">Actual Time — days elapsed since project start.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SV(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">ES &minus; AT. Schedule variance in days. Positive = ahead.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SPI(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">ES &divide; AT. Schedule efficiency in time. &gt;1.0 = ahead, &lt;1.0 = behind.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Schedule at Completion — planned project duration in days.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">EAC(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">SAC &divide; SPI(t). Forecasted total duration at current pace.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Critical Path</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        The critical path is the longest chain of dependent tasks through your project. Any delay on a critical task delays the entire project.
+      </p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        Computed via forward pass (earliest start/finish) and backward pass (latest start/finish). Tasks with zero float (LS &minus; ES = 0) are on the critical path and highlighted red on the Gantt chart.
+      </p>
+      <p style="font-size:13px;color:var(--text2)">
+        Add finish-to-start dependencies between tasks to see the critical path. Tasks without dependencies each stand alone — add deps to build the network.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>S-Curve</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        The S-curve plots cumulative PV, EV, and AC over time. The shape reveals project health at a glance:
+      </p>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><span style="color:var(--accent)">Blue (PV)</span> — the plan. Where you should be.</li>
+        <li><span style="color:var(--green)">Green (EV)</span> — actual progress valued at planned cost. Where you are.</li>
+        <li><span style="color:var(--red)">Red (AC)</span> — actual spend. What it's costing.</li>
+        <li>EV above PV = ahead of schedule. EV below PV = behind.</li>
+        <li>AC below EV = under budget. AC above EV = over budget.</li>
+        <li>The <span style="color:var(--orange)">dashed yellow</span> line marks today.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Baselines &amp; Change Control</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        A baseline is a frozen snapshot of your project plan — scope, schedule, and cost — taken at a point in time. All EVM metrics are measured against the current baseline.
+      </p>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><strong style="color:var(--text)">When to snapshot</strong> — before work begins (original baseline), and after approved scope changes (rebaseline).</li>
+        <li><strong style="color:var(--text)">When NOT to rebaseline</strong> — poor performance is not a reason. The baseline exists to expose it.</li>
+        <li><strong style="color:var(--text)">Change control</strong> — scope/schedule/budget changes should go through a formal request, impact analysis, and approval before rebaselining. (Coming in a future version.)</li>
+      </ul>
+      <p style="font-size:13px;color:var(--text2);margin-top:8px">
+        Use the <strong style="color:var(--text)">Snapshot</strong> button in the header to freeze the current plan. Old baselines are never deleted — full audit trail.
+      </p>
     </div>
   </div>
 
