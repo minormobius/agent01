@@ -1299,33 +1299,79 @@ function ganttDeleteTask(id) {
   renderGantt();
 }
 
+function ganttAddDep(fromId, toId) {
+  addDep(fromId, toId);
+  // Recalculate start from predecessors
+  recalcTaskStart(toId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function ganttRemoveDep(fromId, toId) {
+  removeDep(fromId, toId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function recalcTaskStart(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+  const preds = (state.deps || []).filter(d => d.to === id);
+  if (preds.length === 0) return;
+  let latest = '';
+  for (const d of preds) {
+    const pt = state.tasks.find(x => x.id === d.from);
+    if (pt && (!latest || pt.plannedEnd > latest)) latest = pt.plannedEnd;
+  }
+  t.plannedStart = latest;
+  const dur = t.duration || ((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 3600000);
+  t.plannedEnd = addDateDays(latest, durationToCalendarDays(dur));
+  saveState();
+}
+
 function renderGanttDetail() {
   const el = document.getElementById('gantt-detail');
   if (!el) return;
 
-  if (!ganttSelectedId) {
-    el.innerHTML = '';
-    return;
-  }
+  if (!ganttSelectedId) { el.innerHTML = ''; return; }
 
   const t = state.tasks.find(t => t.id === ganttSelectedId);
   if (!t) { el.innerHTML = ''; return; }
 
-  const deps = (state.deps || []).filter(d => d.to === t.id);
-  const succs = (state.deps || []).filter(d => d.from === t.id);
+  const allDeps = state.deps || [];
+  const preds = allDeps.filter(d => d.to === t.id);
+  const succs = allDeps.filter(d => d.from === t.id);
   const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
-  const hasPreds = deps.length > 0;
+  const hasPreds = preds.length > 0;
   const critical = computeCriticalPath();
   const isCrit = critical.has(t.id);
 
-  const predNames = deps.map(d => {
+  // Predecessor tags with remove buttons
+  const predTags = preds.map(d => {
     const p = state.tasks.find(x => x.id === d.from);
-    return p ? esc(p.name) : '?';
-  });
-  const succNames = succs.map(d => {
+    if (!p) return '';
+    return `<span class="dep-tag">${esc(p.name)}<button onclick="ganttRemoveDep('${d.from}','${t.id}')">&times;</button></span>`;
+  }).join('');
+
+  // Successor tags (display only)
+  const succTags = succs.map(d => {
     const s = state.tasks.find(x => x.id === d.to);
-    return s ? esc(s.name) : '?';
-  });
+    return s ? `<span class="dep-tag" style="border-color:var(--green)">${esc(s.name)}</span>` : '';
+  }).join('');
+
+  // Available tasks to add as predecessors (not self, not already a pred)
+  const availPreds = state.tasks.filter(x =>
+    x.id !== t.id && !preds.some(d => d.from === x.id)
+  );
+  const predOpts = availPreds.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
+  // Available tasks to add as successors (not self, not already a succ)
+  const availSuccs = state.tasks.filter(x =>
+    x.id !== t.id && !succs.some(d => d.to === x.id)
+  );
+  const succOpts = availSuccs.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
 
   el.innerHTML = `
     <div class="gantt-detail">
@@ -1333,10 +1379,16 @@ function renderGanttDetail() {
         <span>${isCrit ? '<span style="color:var(--red);font-size:11px;font-weight:600;margin-right:6px">CRITICAL</span>' : ''}${esc(t.name)}</span>
         <button class="close-btn" onclick="closeGanttDetail()">&times;</button>
       </h3>
+
+      <div class="form-group">
+        <label>Name</label>
+        <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+      </div>
+
       <div class="form-row">
-        <div style="flex:2">
-          <label>Name</label>
-          <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+        <div>
+          <label>Duration</label>
+          <input value="${dur}" onchange="ganttUpdateField('${t.id}','duration',this.value)">
         </div>
         <div>
           <label>% Complete</label>
@@ -1344,21 +1396,19 @@ function renderGanttDetail() {
             onchange="ganttUpdateField('${t.id}','percentComplete',this.value)">
         </div>
       </div>
+
       <div class="form-row">
         <div>
-          <label>Duration</label>
-          <input value="${dur}" onchange="ganttUpdateField('${t.id}','duration',this.value)">
-        </div>
-        <div>
-          <label>Start${hasPreds ? ' <span style="color:var(--text2);font-weight:400">(from predecessor)</span>' : ''}</label>
-          <input type="date" value="${t.plannedStart}" ${hasPreds ? 'disabled' : ''}
+          <label>Start${hasPreds ? ' <span style="color:var(--text2);font-weight:400">(auto)</span>' : ''}</label>
+          <input type="date" value="${t.plannedStart}" ${hasPreds ? 'disabled style="opacity:0.5"' : ''}
             onchange="ganttUpdateField('${t.id}','plannedStart',this.value)">
         </div>
         <div>
-          <label>End <span style="color:var(--text2);font-weight:400">(computed)</span></label>
-          <input type="date" value="${t.plannedEnd}" disabled>
+          <label>End <span style="color:var(--text2);font-weight:400">(auto)</span></label>
+          <input type="date" value="${t.plannedEnd}" disabled style="opacity:0.5">
         </div>
       </div>
+
       <div class="form-row">
         <div>
           <label>Planned Cost</label>
@@ -1371,11 +1421,24 @@ function renderGanttDetail() {
             onchange="ganttUpdateField('${t.id}','actualCost',this.value)">
         </div>
       </div>
-      ${predNames.length ? `<div style="font-size:12px;color:var(--text2);margin-top:4px">Predecessors: ${predNames.join(', ')}</div>` : ''}
-      ${succNames.length ? `<div style="font-size:12px;color:var(--text2);margin-top:2px">Successors: ${succNames.join(', ')}</div>` : ''}
-      <div style="margin-top:10px;display:flex;gap:8px">
-        <button class="btn btn-sm btn-danger" onclick="ganttDeleteTask('${t.id}')">Delete Task</button>
+
+      <div class="form-group" style="margin-top:4px">
+        <label>Predecessors</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px">
+          ${predTags || '<span style="font-size:11px;color:var(--text2)">None</span>'}
+        </div>
+        ${availPreds.length ? `<select style="margin-top:4px;font-size:12px" onchange="if(this.value)ganttAddDep(this.value,'${t.id}');this.value=''"><option value="">+ Add predecessor...</option>${predOpts}</select>` : ''}
       </div>
+
+      <div class="form-group">
+        <label>Successors</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px">
+          ${succTags || '<span style="font-size:11px;color:var(--text2)">None</span>'}
+        </div>
+        ${availSuccs.length ? `<select style="margin-top:4px;font-size:12px" onchange="if(this.value)ganttAddDep('${t.id}',this.value);this.value=''"><option value="">+ Add successor...</option>${succOpts}</select>` : ''}
+      </div>
+
+      <button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="ganttDeleteTask('${t.id}')">Delete Task</button>
     </div>`;
 }
 
