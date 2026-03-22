@@ -313,10 +313,16 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <div style="flex:2"><label>Name</label><input id="t-name" placeholder="Task name"></div>
         <div><label>Planned Cost</label><input id="t-cost" type="number" placeholder="0" min="0"></div>
       </div>
-      <div class="form-group">
-        <label>Predecessors (finish-to-start)</label>
-        <select id="t-pred" multiple size="3" onchange="toggleStartDate()"><option value="">None</option></select>
-        <span style="font-size:10px;color:var(--text2)">Hold Ctrl/Cmd to select multiple. Clear selection for no predecessor.</span>
+      <div class="form-row">
+        <div>
+          <label>Parent Task</label>
+          <select id="t-parent"><option value="">(root-level task)</option></select>
+        </div>
+        <div style="flex:2">
+          <label>Predecessors (finish-to-start)</label>
+          <select id="t-pred" multiple size="3" onchange="toggleStartDate()"><option value="">None</option></select>
+          <span style="font-size:10px;color:var(--text2)">Ctrl/Cmd+click for multiple</span>
+        </div>
       </div>
       <div class="form-row">
         <div id="start-group"><label>Start</label><input id="t-start" type="date"></div>
@@ -689,19 +695,25 @@ function rollUpParent(parentId) {
   const kids = getChildren(parentId);
   if (kids.length === 0) return;
 
+  // Preserve original estimate if not already saved
+  if (t.originalEstimate === undefined) {
+    t.originalEstimate = { cost: t.plannedCost, duration: t.duration };
+  }
+
   let minStart = kids[0].plannedStart, maxEnd = kids[0].plannedEnd;
-  let totalCost = 0, weightedPct = 0;
+  let totalCost = 0, totalActual = 0, weightedPct = 0;
   for (const k of kids) {
     if (k.plannedStart < minStart) minStart = k.plannedStart;
     if (k.plannedEnd > maxEnd) maxEnd = k.plannedEnd;
     totalCost += k.plannedCost;
     weightedPct += k.plannedCost * k.percentComplete;
+    totalActual += k.actualCost;
   }
   t.plannedStart = minStart;
   t.plannedEnd = maxEnd;
   t.percentComplete = totalCost > 0 ? Math.round(weightedPct / totalCost) : 0;
   t.plannedCost = totalCost;
-  t.actualCost = kids.reduce((s, k) => s + k.actualCost, 0);
+  t.actualCost = totalActual;
   t.duration = ((new Date(maxEnd) - new Date(minStart)) / 3600000);
 
   // Recurse up
@@ -727,13 +739,13 @@ function addTask() {
   const cost = parseFloat(document.getElementById('t-cost').value) || 0;
   const durStr = document.getElementById('t-dur').value.trim();
   const preds = getSelectedPreds();
+  const parentId = document.getElementById('t-parent').value || null;
   const durHours = parseDuration(durStr);
 
   if (!name || durHours <= 0) return;
 
   let start;
   if (preds.length > 0) {
-    // Start = latest end date among all predecessors
     let latest = '';
     for (const pid of preds) {
       const pt = state.tasks.find(t => t.id === pid);
@@ -741,6 +753,10 @@ function addTask() {
       if (!latest || pt.plannedEnd > latest) latest = pt.plannedEnd;
     }
     start = latest;
+  } else if (parentId) {
+    // Default to parent's start date
+    const parent = state.tasks.find(t => t.id === parentId);
+    start = parent ? parent.plannedStart : document.getElementById('t-start').value;
   } else {
     start = document.getElementById('t-start').value;
     if (!start) return;
@@ -750,7 +766,7 @@ function addTask() {
   const end = addDateDays(start, calDays);
 
   const id = crypto.randomUUID();
-  state.tasks.push({
+  const task = {
     id, name,
     plannedCost: cost,
     actualCost: 0,
@@ -759,15 +775,21 @@ function addTask() {
     duration: durHours,
     percentComplete: 0,
     createdAt: new Date().toISOString()
-  });
+  };
+  if (parentId) task.parentId = parentId;
+  state.tasks.push(task);
+
   if (!state.deps) state.deps = [];
   for (const pid of preds) {
     state.deps.push({ from: pid, to: id });
   }
   saveState();
+  if (parentId) rollUpParent(parentId);
+
   document.getElementById('t-name').value = '';
   document.getElementById('t-cost').value = '';
   document.getElementById('t-dur').value = '';
+  document.getElementById('t-parent').value = '';
   const sel = document.getElementById('t-pred');
   Array.from(sel.options).forEach(o => o.selected = false);
   toggleStartDate();
@@ -1505,6 +1527,49 @@ function ganttDeleteTask(id) {
   renderTasks();
 }
 
+function reparentTask(taskId, newParentId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const oldParentId = t.parentId || null;
+  const target = newParentId || null;
+
+  // Prevent circular: can't parent under self or own descendants
+  if (target) {
+    const descIds = new Set(getAllDescendants(taskId).map(x => x.id));
+    if (target === taskId || descIds.has(target)) return;
+  }
+
+  // Dependency inheritance: when child moves to a new parent,
+  // the new parent inherits the child's external dependencies
+  if (!state.deps) state.deps = [];
+  if (target) {
+    const childAndDesc = new Set([taskId, ...getAllDescendants(taskId).map(x => x.id)]);
+    // External deps pointing TO this task → also add pointing TO new parent
+    for (const d of [...state.deps]) {
+      if (d.to === taskId && !childAndDesc.has(d.from)) {
+        if (!state.deps.some(x => x.from === d.from && x.to === target)) {
+          state.deps.push({ from: d.from, to: target });
+        }
+      }
+      // External deps FROM this task → also add FROM new parent
+      if (d.from === taskId && !childAndDesc.has(d.to)) {
+        if (!state.deps.some(x => x.from === target && x.to === d.to)) {
+          state.deps.push({ from: target, to: d.to });
+        }
+      }
+    }
+  }
+
+  t.parentId = target;
+  saveState();
+  if (oldParentId) rollUpParent(oldParentId);
+  if (target) rollUpParent(target);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+  renderTasks();
+}
+
 function ganttAddDep(fromId, toId) {
   addDep(fromId, toId);
   // Recalculate start from predecessors
@@ -1603,6 +1668,26 @@ function renderGanttDetail() {
   // Rolled-up indicator for parent tasks
   const rolledUp = isParent ? ' <span style="color:var(--text2);font-weight:400">(rolled up)</span>' : '';
 
+  // Original estimate badge for parents
+  const origEst = t.originalEstimate;
+  const origBadge = (isParent && origEst)
+    ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 8px;margin-bottom:6px">
+        <strong>Original estimate:</strong> ${fmtDuration(origEst.duration)} &middot; $${origEst.cost}
+        &nbsp;→&nbsp; <strong>Rolled up:</strong> ${dur} &middot; $${t.plannedCost}
+        ${t.plannedCost > origEst.cost ? `<span style="color:var(--red);font-weight:600"> (+$${(t.plannedCost - origEst.cost).toFixed(0)})</span>` : ''}
+        ${t.plannedCost < origEst.cost ? `<span style="color:var(--green);font-weight:600"> (-$${(origEst.cost - t.plannedCost).toFixed(0)})</span>` : ''}
+      </div>`
+    : '';
+
+  // Parent reassignment dropdown — can't be own descendant
+  const availParents = getTreeOrder().filter(x =>
+    x.id !== t.id && !descIds.has(x.id)
+  );
+  const parentOpts = availParents.map(x => {
+    const d = getDepth(x);
+    return `<option value="${x.id}" ${t.parentId === x.id ? 'selected' : ''}>${'—'.repeat(d)}${d ? ' ' : ''}${esc(x.name)}</option>`;
+  }).join('');
+
   el.innerHTML = `
     <div class="gantt-detail">
       ${parentBreadcrumb}
@@ -1611,9 +1696,20 @@ function renderGanttDetail() {
         <button class="close-btn" onclick="closeGanttDetail()">&times;</button>
       </h3>
 
-      <div class="form-group">
-        <label>Name</label>
-        <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+      ${origBadge}
+
+      <div class="form-row">
+        <div style="flex:2">
+          <label>Name</label>
+          <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+        </div>
+        <div>
+          <label>Parent</label>
+          <select style="font-size:12px" onchange="reparentTask('${t.id}',this.value)">
+            <option value="" ${!t.parentId ? 'selected' : ''}>(root)</option>
+            ${parentOpts}
+          </select>
+        </div>
       </div>
 
       <div class="form-row">
@@ -1746,8 +1842,16 @@ function renderAll() {
   if (sel) {
     const val = sel.value;
     sel.innerHTML = '<option value="">None</option>' +
-      state.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      state.tasks.map(t => `<option value="${t.id}">${'—'.repeat(getDepth(t))}${getDepth(t) ? ' ' : ''}${esc(t.name)}</option>`).join('');
     sel.value = val;
+  }
+  // Update parent dropdown
+  const psel = document.getElementById('t-parent');
+  if (psel) {
+    const pval = psel.value;
+    psel.innerHTML = '<option value="">(root-level task)</option>' +
+      getTreeOrder().map(t => `<option value="${t.id}">${'—'.repeat(getDepth(t))}${getDepth(t) ? ' ' : ''}${esc(t.name)}</option>`).join('');
+    psel.value = pval;
   }
 }
 
