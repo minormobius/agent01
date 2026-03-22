@@ -83,29 +83,39 @@ canvas { width: 100%; height: 100%; display: block; }
 
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
 const MONTH_COLORS = [
-  [0.55, 0.75, 0.95], // Jan - icy blue
-  [0.60, 0.70, 0.90], // Feb - slate blue
-  [0.50, 0.85, 0.55], // Mar - spring green
-  [0.40, 0.90, 0.45], // Apr - bright green
-  [0.35, 0.92, 0.60], // May - emerald
-  [0.95, 0.90, 0.35], // Jun - golden
-  [0.95, 0.70, 0.25], // Jul - amber
-  [0.95, 0.55, 0.25], // Aug - orange
-  [0.90, 0.45, 0.30], // Sep - burnt orange
-  [0.85, 0.40, 0.40], // Oct - russet
-  [0.65, 0.45, 0.60], // Nov - plum
-  [0.45, 0.50, 0.80], // Dec - winter blue
+  [0.55, 0.75, 0.95], // Jan
+  [0.60, 0.70, 0.90], // Feb
+  [0.50, 0.85, 0.55], // Mar
+  [0.40, 0.90, 0.45], // Apr
+  [0.35, 0.92, 0.60], // May
+  [0.95, 0.90, 0.35], // Jun
+  [0.95, 0.70, 0.25], // Jul
+  [0.95, 0.55, 0.25], // Aug
+  [0.90, 0.45, 0.30], // Sep
+  [0.85, 0.40, 0.40], // Oct
+  [0.65, 0.45, 0.60], // Nov
+  [0.45, 0.50, 0.80], // Dec
 ];
 
 // --- Vector helpers ---
 function v3add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function v3sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
 function v3scale(a, s) { return [a[0]*s, a[1]*s, a[2]*s]; }
+function v3dot(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function v3len(a) { return Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]); }
 function v3normalize(a) {
-  const l = Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
+  const l = v3len(a);
   return l > 1e-8 ? [a[0]/l, a[1]/l, a[2]/l] : [0,0,0];
 }
 function v3cross(a, b) {
   return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+}
+function v3lerp(a, b, t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+
+// Smooth interpolation for crossfade
+function smoothstep(lo, hi, x) {
+  const t = Math.max(0, Math.min(1, (x - lo) / (hi - lo)));
+  return t * t * (3 - 2 * t);
 }
 
 async function main() {
@@ -133,13 +143,12 @@ async function main() {
 
   document.getElementById('year-label').textContent = `${startYear} — ${endYear}`;
 
-  // --- Macro helix: one revolution per year ---
+  // --- Macro helix geometry: one revolution per year ---
   const macroRadius = 1.2;
-  const pitchPerYear = 1.4;
+  const pitchPerYear = 0.6;
   const yCenter = (totalYears * pitchPerYear) / 2;
 
-  // Macro helix position & frame at fractional year offset
-  // frac ∈ [0,1) within a year
+  // Position on macro helix at (yearOffset, frac) where frac ∈ [0,1)
   function macroPoint(yearOffset, frac) {
     const angle = frac * Math.PI * 2;
     return [
@@ -158,7 +167,6 @@ async function main() {
     ]);
   }
 
-  // Build a stable Frenet-like frame along macro helix
   function macroFrame(yearOffset, frac) {
     const T = macroTangent(yearOffset, frac);
     let up = [0, 1, 0];
@@ -168,218 +176,187 @@ async function main() {
     return { T, N, B };
   }
 
-  // --- Micro helix: days spiral around the macro path ---
-  // Each day = one revolution of the micro helix around the macro tube
-  const microRadius = 0.12; // radius of day-loops around macro path
-  const tubeRadius = 0.018; // thickness of the rendered tube
+  // --- Generic tube mesh generator ---
+  // Given a path (array of {pos, normal, color}), extrude a tube around it
+  function generateTubeMesh(path, tubeRadius, tubeSegments) {
+    const verts = [];
+    const idxs = [];
+    let vOff = 0;
 
-  // Samples per day (hours resolution)
-  const samplesPerDay = 12; // 12 samples per day-loop (every 2 hours)
-  const tubeSegments = 6;   // cross-section of rendered tube
+    for (let i = 0; i < path.length; i++) {
+      const { pos, T, N, B, color } = path[i];
 
-  const vertices = [];
-  const indices = [];
-  let vertexOffset = 0;
+      for (let t = 0; t < tubeSegments; t++) {
+        const theta = (t / tubeSegments) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
 
-  // Today tracking
-  const dayOfYear = Math.floor((now - new Date(currentYear, 0, 0)) / 86400000);
-  const currentHour = now.getHours() + now.getMinutes() / 60;
+        const vx = pos[0] + tubeRadius * (cosT * N[0] + sinT * B[0]);
+        const vy = pos[1] + tubeRadius * (cosT * N[1] + sinT * B[1]);
+        const vz = pos[2] + tubeRadius * (cosT * N[2] + sinT * B[2]);
 
-  for (let yr = 0; yr < totalYears; yr++) {
-    const year = startYear + yr;
-    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    const daysInYear = isLeap ? 366 : 365;
-    let dayAccum = 0;
+        const nx = cosT * N[0] + sinT * B[0];
+        const ny = cosT * N[1] + sinT * B[1];
+        const nz = cosT * N[2] + sinT * B[2];
 
-    for (let m = 0; m < 12; m++) {
-      const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-      const baseColor = MONTH_COLORS[m];
-
-      // For each day in this month, we make one full micro-revolution
-      for (let d = 0; d < daysInMonth; d++) {
-        const globalDay = dayAccum + d;
-
-        for (let s = 0; s <= samplesPerDay; s++) {
-          const hourFrac = s / samplesPerDay; // 0..1 within this day
-          const dayFrac = (globalDay + hourFrac) / daysInYear; // fraction of year
-
-          // Position on macro helix
-          const macroPos = macroPoint(yr, dayFrac);
-          const frame = macroFrame(yr, dayFrac);
-
-          // Micro helix: one revolution per day around the macro path
-          const microAngle = hourFrac * Math.PI * 2;
-          const microOffset = v3add(
-            v3scale(frame.N, microRadius * Math.cos(microAngle)),
-            v3scale(frame.B, microRadius * Math.sin(microAngle))
-          );
-          const pos = v3add(macroPos, microOffset);
-
-          // Micro tangent (for tube normal computation)
-          // Derivative of micro offset w.r.t. hourFrac
-          const microTangentLocal = v3add(
-            v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2),
-            v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2)
-          );
-          // Full tangent = macro tangent (scaled by speed) + micro tangent
-          const macroSpeed = 1.0 / daysInYear; // dayFrac change per day
-          const fullTangent = v3normalize(v3add(
-            v3scale(macroTangent(yr, dayFrac), macroSpeed * pitchPerYear),
-            v3scale(microTangentLocal, 1.0 / samplesPerDay)
-          ));
-
-          // Normal pointing outward from macro center (radial from macro path)
-          const radialNorm = v3normalize(microOffset);
-
-          // Build tube cross-section frame
-          const tubeN = radialNorm;
-          const tubeB = v3normalize(v3cross(fullTangent, tubeN));
-          const tubeNcorrected = v3normalize(v3cross(tubeB, fullTangent));
-
-          // Color: base month color, vary brightness by hour
-          // Dawn/dusk dimmer, midday brighter, midnight darkest
-          const hour = hourFrac * 24;
-          let timeBrightness;
-          if (hour < 6) timeBrightness = 0.3 + 0.1 * (hour / 6);        // night → dawn
-          else if (hour < 12) timeBrightness = 0.4 + 0.6 * ((hour-6)/6); // dawn → noon
-          else if (hour < 18) timeBrightness = 1.0 - 0.3 * ((hour-12)/6);// noon → dusk
-          else timeBrightness = 0.7 - 0.4 * ((hour-18)/6);               // dusk → night
-
-          // Today highlight
-          let todayGlow = 0;
-          if (yr === currentYear - startYear && globalDay === dayOfYear - 1) {
-            todayGlow = 0.3;
-            // Extra glow near current hour
-            const hourDist = Math.abs(hour - currentHour);
-            if (hourDist < 2) todayGlow += 0.5 * (1 - hourDist / 2);
-          }
-
-          const color = baseColor.map(c =>
-            Math.min(1.0, c * timeBrightness + todayGlow)
-          );
-
-          // Generate tube vertices
-          for (let t = 0; t < tubeSegments; t++) {
-            const theta = (t / tubeSegments) * Math.PI * 2;
-            const cosT = Math.cos(theta);
-            const sinT = Math.sin(theta);
-
-            const vx = pos[0] + tubeRadius * (cosT * tubeNcorrected[0] + sinT * tubeB[0]);
-            const vy = pos[1] + tubeRadius * (cosT * tubeNcorrected[1] + sinT * tubeB[1]);
-            const vz = pos[2] + tubeRadius * (cosT * tubeNcorrected[2] + sinT * tubeB[2]);
-
-            const nx = cosT * tubeNcorrected[0] + sinT * tubeB[0];
-            const ny = cosT * tubeNcorrected[1] + sinT * tubeB[1];
-            const nz = cosT * tubeNcorrected[2] + sinT * tubeB[2];
-
-            vertices.push(vx, vy, vz, color[0], color[1], color[2], nx, ny, nz);
-          }
-
-          // Connect to previous ring (but not across day boundaries at s=0 of first day)
-          if (s > 0 || d > 0) {
-            // Only connect if this isn't the very first ring of this month
-            if (!(d === 0 && s === 0)) {
-              const curr = vertexOffset;
-              const prev = vertexOffset - tubeSegments;
-              for (let t = 0; t < tubeSegments; t++) {
-                const t1 = (t + 1) % tubeSegments;
-                indices.push(prev + t, curr + t, curr + t1);
-                indices.push(prev + t, curr + t1, prev + t1);
-              }
-            }
-          }
-          vertexOffset += tubeSegments;
-        }
-      }
-      dayAccum += daysInMonth;
-    }
-  }
-
-  // --- Today marker: bright ring around the current position ---
-  {
-    const todayDayOfYear = dayOfYear - 1;
-    const todayFrac = (todayDayOfYear + currentHour / 24) / 365;
-    const todayYr = currentYear - startYear;
-    const tPos = macroPoint(todayYr, todayFrac);
-    const tFrame = macroFrame(todayYr, todayFrac);
-    const microAngle = (currentHour / 24) * Math.PI * 2;
-    const todayMicroOffset = v3add(
-      v3scale(tFrame.N, microRadius * Math.cos(microAngle)),
-      v3scale(tFrame.B, microRadius * Math.sin(microAngle))
-    );
-    const todayPos = v3add(tPos, todayMicroOffset);
-    const radial = v3normalize(todayMicroOffset);
-
-    // Small torus marker
-    const mRadius = 0.04;
-    const mTube = 0.008;
-    const mSegs = 20;
-    const mTubeSegs = 6;
-
-    // Ring lies in the plane perpendicular to the macro tangent
-    const T = macroTangent(todayYr, todayFrac);
-    const rN = v3normalize(v3cross(T, [0, 1, 0]));
-    const rB = v3normalize(v3cross(T, rN));
-
-    for (let i = 0; i <= mSegs; i++) {
-      const phi = (i / mSegs) * Math.PI * 2;
-      const cx = todayPos[0] + mRadius * (Math.cos(phi) * rN[0] + Math.sin(phi) * rB[0]);
-      const cy = todayPos[1] + mRadius * (Math.cos(phi) * rN[1] + Math.sin(phi) * rB[1]);
-      const cz = todayPos[2] + mRadius * (Math.cos(phi) * rN[2] + Math.sin(phi) * rB[2]);
-      const ringDir = v3normalize([
-        Math.cos(phi) * rN[0] + Math.sin(phi) * rB[0],
-        Math.cos(phi) * rN[1] + Math.sin(phi) * rB[1],
-        Math.cos(phi) * rN[2] + Math.sin(phi) * rB[2],
-      ]);
-
-      for (let j = 0; j < mTubeSegs; j++) {
-        const theta = (j / mTubeSegs) * Math.PI * 2;
-        const vx = cx + mTube * (Math.cos(theta) * ringDir[0] + Math.sin(theta) * T[0]);
-        const vy = cy + mTube * (Math.cos(theta) * ringDir[1] + Math.sin(theta) * T[1]);
-        const vz = cz + mTube * (Math.cos(theta) * ringDir[2] + Math.sin(theta) * T[2]);
-        vertices.push(vx, vy, vz, 1.0, 1.0, 1.0, ringDir[0], ringDir[1], ringDir[2]);
+        verts.push(vx, vy, vz, color[0], color[1], color[2], nx, ny, nz);
       }
 
       if (i > 0) {
-        const curr = vertexOffset;
-        const prev = vertexOffset - mTubeSegs;
-        for (let t = 0; t < mTubeSegs; t++) {
-          const t1 = (t + 1) % mTubeSegs;
-          indices.push(prev + t, curr + t, curr + t1);
-          indices.push(prev + t, curr + t1, prev + t1);
+        const curr = vOff;
+        const prev = vOff - tubeSegments;
+        for (let t = 0; t < tubeSegments; t++) {
+          const t1 = (t + 1) % tubeSegments;
+          idxs.push(prev + t, curr + t, curr + t1);
+          idxs.push(prev + t, curr + t1, prev + t1);
         }
       }
-      vertexOffset += mTubeSegs;
+      vOff += tubeSegments;
     }
+
+    return { vertices: new Float32Array(verts), indices: new Uint32Array(idxs) };
   }
 
-  // --- Upload to GPU ---
-  const vertexData = new Float32Array(vertices);
-  const indexData = new Uint32Array(indices);
+  // --- LOD Level management ---
+  // Each level is { vertexBuffer, indexBuffer, indexCount, alpha }
+  // We'll manage up to 3 levels, each with its own GPU buffers
 
-  const vertexBuffer = device.createBuffer({
-    size: vertexData.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(vertexBuffer, 0, vertexData);
+  function createGPUMesh(device, mesh) {
+    const vb = device.createBuffer({
+      size: mesh.vertices.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(vb, 0, mesh.vertices);
 
-  const indexBuffer = device.createBuffer({
-    size: indexData.byteLength,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(indexBuffer, 0, indexData);
+    const ib = device.createBuffer({
+      size: mesh.indices.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(ib, 0, mesh.indices);
 
-  const indexCount = indices.length;
+    return { vertexBuffer: vb, indexBuffer: ib, indexCount: mesh.indices.length };
+  }
 
-  console.log(`Supercoil: ${(vertexData.byteLength/1024/1024).toFixed(1)}MB vertices, ${(indexData.byteLength/1024/1024).toFixed(1)}MB indices, ${indexCount} triangles`);
+  // ============================================================
+  // LEVEL 1: Macro helix — thick tube, one coil per year
+  // Month colors visible as bands around the circumference
+  // ============================================================
+  function generateLevel1() {
+    const path = [];
+    const samplesPerMonth = 8; // samples along macro helix per month
 
-  // --- Shader ---
+    for (let yr = 0; yr < totalYears; yr++) {
+      const year = startYear + yr;
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+      const daysInYear = isLeap ? 366 : 365;
+      let dayAccum = 0;
+
+      for (let m = 0; m < 12; m++) {
+        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+        const color = MONTH_COLORS[m];
+
+        for (let s = 0; s <= samplesPerMonth; s++) {
+          const frac = (dayAccum + (s / samplesPerMonth) * daysInMonth) / daysInYear;
+          const frame = macroFrame(yr, frac);
+          path.push({
+            pos: macroPoint(yr, frac),
+            T: frame.T, N: frame.N, B: frame.B,
+            color,
+          });
+        }
+        dayAccum += daysInMonth;
+      }
+    }
+
+    return generateTubeMesh(path, 0.12, 8);
+  }
+
+  // ============================================================
+  // LEVEL 2: Days coiling around macro path — one revolution per day
+  // Hours visible as brightness variation
+  // ============================================================
+  function generateLevel2() {
+    const path = [];
+    const microRadius = 0.12;
+    const samplesPerDay = 12;
+
+    for (let yr = 0; yr < totalYears; yr++) {
+      const year = startYear + yr;
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+      const daysInYear = isLeap ? 366 : 365;
+      let dayAccum = 0;
+
+      for (let m = 0; m < 12; m++) {
+        const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+        const baseColor = MONTH_COLORS[m];
+
+        for (let d = 0; d < daysInMonth; d++) {
+          const globalDay = dayAccum + d;
+
+          for (let s = 0; s <= samplesPerDay; s++) {
+            const hourFrac = s / samplesPerDay;
+            const dayFrac = (globalDay + hourFrac) / daysInYear;
+
+            const macroPos = macroPoint(yr, dayFrac);
+            const frame = macroFrame(yr, dayFrac);
+
+            const microAngle = hourFrac * Math.PI * 2;
+            const microOffset = v3add(
+              v3scale(frame.N, microRadius * Math.cos(microAngle)),
+              v3scale(frame.B, microRadius * Math.sin(microAngle))
+            );
+            const pos = v3add(macroPos, microOffset);
+
+            // Tube frame from radial direction
+            const radialN = v3normalize(microOffset);
+            const fullT = v3normalize(v3add(
+              v3scale(frame.T, 1.0 / daysInYear),
+              v3add(
+                v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2 / samplesPerDay),
+                v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2 / samplesPerDay)
+              )
+            ));
+            const tubeB = v3normalize(v3cross(fullT, radialN));
+            const tubeN = v3normalize(v3cross(tubeB, fullT));
+
+            // Hour-based brightness
+            const hour = hourFrac * 24;
+            let bright;
+            if (hour < 6) bright = 0.3 + 0.1 * (hour / 6);
+            else if (hour < 12) bright = 0.4 + 0.6 * ((hour - 6) / 6);
+            else if (hour < 18) bright = 1.0 - 0.3 * ((hour - 12) / 6);
+            else bright = 0.7 - 0.4 * ((hour - 18) / 6);
+
+            const color = baseColor.map(c => Math.min(1.0, c * bright));
+
+            path.push({ pos, T: fullT, N: tubeN, B: tubeB, color });
+          }
+        }
+        dayAccum += daysInMonth;
+      }
+    }
+
+    return generateTubeMesh(path, 0.018, 6);
+  }
+
+  // Generate both levels at startup (L3 will be on-demand later)
+  console.time('geometry');
+  const l1Mesh = generateLevel1();
+  const l1GPU = createGPUMesh(device, l1Mesh);
+
+  const l2Mesh = generateLevel2();
+  const l2GPU = createGPUMesh(device, l2Mesh);
+  console.timeEnd('geometry');
+
+  console.log(`L1: ${l1GPU.indexCount / 3} tris | L2: ${l2GPU.indexCount / 3} tris`);
+
+  // --- Shader with alpha uniform for crossfade ---
   const shaderCode = /* wgsl */`
     struct Uniforms {
       mvp: mat4x4f,
       model: mat4x4f,
       lightDir: vec3f,
-      _pad: f32,
+      alpha: f32,
       eye: vec3f,
       _pad2: f32,
     };
@@ -417,7 +394,7 @@ async function main() {
       let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.15;
 
       let lighting = ambient + diffuse + spec + rim;
-      let col = in.color * lighting;
+      let col = in.color * lighting * u.alpha;
 
       return vec4f(pow(col, vec3f(1.0/2.2)), 1.0);
     }
@@ -492,6 +469,13 @@ async function main() {
   let camPhi = 0.8;
   let camDist = 6.0;
 
+  // Zoom level thresholds for crossfade
+  // L1 visible: camDist > 3.0 (fades out 3.0 → 2.0)
+  // L2 visible: camDist < 5.0 (fades in 5.0 → 3.0)
+  // L3 visible: camDist < 2.0 (future — fades in 2.0 → 1.0)
+  const L1_FADE_HI = 5.0, L1_FADE_LO = 2.5;
+  const L2_FADE_HI = 5.0, L2_FADE_LO = 2.5;
+
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
     autoRotate = false;
@@ -511,7 +495,7 @@ async function main() {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDist = Math.max(1.5, Math.min(15, camDist + e.deltaY * 0.005));
+    camDist = Math.max(0.5, Math.min(15, camDist + e.deltaY * 0.005));
   }, { passive: false });
 
   // --- Matrix helpers ---
@@ -565,6 +549,27 @@ async function main() {
   resize();
 
   let autoRotate = true;
+  const hud = document.getElementById('hud');
+
+  function drawMesh(pass, gpu, mvp, eye, lightDir, alpha) {
+    if (alpha < 0.01) return; // skip invisible
+
+    const uniformData = new Float32Array(32);
+    uniformData.set(mvp, 0);
+    uniformData.set(identity, 16);
+    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+    const lightEyeData = new Float32Array(8);
+    lightEyeData.set(lightDir, 0);
+    lightEyeData[3] = alpha;
+    lightEyeData.set(eye, 4);
+    lightEyeData[7] = 0;
+    device.queue.writeBuffer(uniformBuffer, 128, lightEyeData);
+
+    pass.setVertexBuffer(0, gpu.vertexBuffer);
+    pass.setIndexBuffer(gpu.indexBuffer, 'uint32');
+    pass.drawIndexed(gpu.indexCount);
+  }
 
   function frame(t) {
     if (autoRotate) camTheta += 0.0008;
@@ -578,20 +583,15 @@ async function main() {
     const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
     const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
     const mvp = mat4Mul(proj, view);
-
     const lightDir = v3normalize([0.5, 0.8, 0.3]);
 
-    const uniformData = new Float32Array(32);
-    uniformData.set(mvp, 0);
-    uniformData.set(identity, 16);
-    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+    // Compute LOD alphas based on camera distance
+    const l1Alpha = smoothstep(L1_FADE_LO, L1_FADE_HI, camDist);
+    const l2Alpha = 1.0 - l1Alpha;
 
-    const lightEyeData = new Float32Array(8);
-    lightEyeData.set(lightDir, 0);
-    lightEyeData[3] = 0;
-    lightEyeData.set(eye, 4);
-    lightEyeData[7] = 0;
-    device.queue.writeBuffer(uniformBuffer, 128, lightEyeData);
+    // Update HUD
+    const level = camDist > 4 ? 'years · months' : camDist > 1.5 ? 'days · hours' : 'minutes · seconds';
+    hud.textContent = `drag to orbit · scroll to zoom — ${level}`;
 
     const commandEncoder = device.createCommandEncoder();
     const pass = commandEncoder.beginRenderPass({
@@ -610,10 +610,14 @@ async function main() {
     });
 
     pass.setPipeline(pipeline);
-    pass.setVertexBuffer(0, vertexBuffer);
-    pass.setIndexBuffer(indexBuffer, 'uint32');
     pass.setBindGroup(0, bindGroup);
-    pass.drawIndexed(indexCount);
+
+    // Draw L1 (macro tube) — fades out as you zoom in
+    drawMesh(pass, l1GPU, mvp, eye, lightDir, l1Alpha);
+
+    // Draw L2 (day coils) — fades in as you zoom in
+    drawMesh(pass, l2GPU, mvp, eye, lightDir, l2Alpha);
+
     pass.end();
 
     device.queue.submit([commandEncoder.finish()]);
