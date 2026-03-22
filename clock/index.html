@@ -153,10 +153,12 @@ async function main() {
   //
   // Everything else is derived.
 
-  const ORBIT_RATIO = 2.8;   // how far child orbits outside parent tube
-  const FILL_FACTOR = 0.38;  // how fat each coil is relative to spacing
+  const ORBIT_RATIO = 2.8;   // child coil center = parent tube radius × this
+  const TUBE_FRAC = 0.25;    // tube radius = coil radius × this (must be < 1/ORBIT_RATIO for shrinking)
   const SAMPLES_PER_COIL = 14; // path samples per coil revolution
   const TUBE_SIDES = 6;       // cross-section polygon sides
+  // Shrink ratio per level = ORBIT_RATIO × TUBE_FRAC = 0.70
+  // So each level is 70% the size of the previous — proper fractal!
 
   // Level hierarchy: each entry is { name, subs, label }
   // subs = number of child coils per parent coil
@@ -189,12 +191,14 @@ async function main() {
   const yCenter = (totalYears * pitchPerYear) / 2;
 
   // Precompute coilRadius and tubeRadius for each level
+  // Level 0: hand-set base. Level 1+: derived recursively.
+  // coilR = parent.tubeR × ORBIT_RATIO (orbits outside parent tube)
+  // tubeR = coilR × TUBE_FRAC (fixed proportion → guaranteed shrinking)
   const levelGeom = [{ coilRadius: macroRadius, tubeRadius: BASE_TUBE_RADIUS }];
   for (let i = 1; i < LEVELS.length; i++) {
     const parentTube = levelGeom[i - 1].tubeRadius;
     const coilR = parentTube * ORBIT_RATIO;
-    const arcSpacing = (2 * Math.PI * coilR) / LEVELS[i].subs;
-    const tubeR = arcSpacing * FILL_FACTOR;
+    const tubeR = coilR * TUBE_FRAC;
     levelGeom.push({ coilRadius: coilR, tubeRadius: tubeR });
   }
 
