@@ -212,13 +212,13 @@ canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--
         <div style="flex:2"><label>Name</label><input id="t-name" placeholder="Task name"></div>
         <div><label>Planned Cost</label><input id="t-cost" type="number" placeholder="0" min="0"></div>
       </div>
-      <div class="form-row">
-        <div><label>Start</label><input id="t-start" type="date"></div>
-        <div><label>End</label><input id="t-end" type="date"></div>
-      </div>
       <div class="form-group">
         <label>Predecessor (finish-to-start)</label>
-        <select id="t-pred"><option value="">None</option></select>
+        <select id="t-pred" onchange="toggleStartDate()"><option value="">None</option></select>
+      </div>
+      <div class="form-row">
+        <div id="start-group"><label>Start</label><input id="t-start" type="date"></div>
+        <div><label>Duration <span style="font-weight:400;color:var(--text2)">(e.g. 2w3d8h)</span></label><input id="t-dur" placeholder="2w3d"></div>
       </div>
       <button class="btn btn-primary" onclick="addTask()" style="width:100%">Add Task</button>
     </div>
@@ -457,15 +457,78 @@ function saveState() {
   localStorage.setItem('mino-pm-state', JSON.stringify(state));
 }
 
+// ── Duration parsing ──
+
+function parseDuration(s) {
+  // Parses "2w3d8h", "5d", "1w", "4h", "2w 3d", etc. → hours
+  if (!s || !s.trim()) return 0;
+  let hours = 0;
+  const str = s.trim().toLowerCase();
+  const weeks = str.match(/([\d.]+)\s*w/);
+  const days = str.match(/([\d.]+)\s*d/);
+  const hrs = str.match(/([\d.]+)\s*h/);
+  if (weeks) hours += parseFloat(weeks[1]) * 40; // 5 work days * 8h
+  if (days) hours += parseFloat(days[1]) * 8;
+  if (hrs) hours += parseFloat(hrs[1]);
+  // If just a plain number, treat as days
+  if (!weeks && !days && !hrs && /^[\d.]+$/.test(str)) hours = parseFloat(str) * 8;
+  return hours;
+}
+
+function durationToCalendarDays(hours) {
+  // Convert work hours → calendar days (8h = 1 day)
+  return Math.max(Math.ceil(hours / 8), 1);
+}
+
+function fmtDuration(hours) {
+  if (!hours || hours <= 0) return '0d';
+  const w = Math.floor(hours / 40);
+  const rem = hours % 40;
+  const d = Math.floor(rem / 8);
+  const h = Math.round(rem % 8);
+  let s = '';
+  if (w) s += w + 'w';
+  if (d) s += d + 'd';
+  if (h) s += h + 'h';
+  return s || '0d';
+}
+
+function addDateDays(dateStr, calDays) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + calDays);
+  return d.toISOString().slice(0, 10);
+}
+
 // ── Task CRUD ──
+
+function toggleStartDate() {
+  const pred = document.getElementById('t-pred').value;
+  const sg = document.getElementById('start-group');
+  sg.style.display = pred ? 'none' : '';
+}
 
 function addTask() {
   const name = document.getElementById('t-name').value.trim();
   const cost = parseFloat(document.getElementById('t-cost').value) || 0;
-  const start = document.getElementById('t-start').value;
-  const end = document.getElementById('t-end').value;
+  const durStr = document.getElementById('t-dur').value.trim();
   const pred = document.getElementById('t-pred').value;
-  if (!name || !start || !end) return;
+  const durHours = parseDuration(durStr);
+
+  if (!name || durHours <= 0) return;
+
+  let start;
+  if (pred) {
+    // Start = predecessor's end date
+    const predTask = state.tasks.find(t => t.id === pred);
+    if (!predTask) return;
+    start = predTask.plannedEnd;
+  } else {
+    start = document.getElementById('t-start').value;
+    if (!start) return;
+  }
+
+  const calDays = durationToCalendarDays(durHours);
+  const end = addDateDays(start, calDays);
 
   const id = crypto.randomUUID();
   state.tasks.push({
@@ -474,6 +537,7 @@ function addTask() {
     actualCost: 0,
     plannedStart: start,
     plannedEnd: end,
+    duration: durHours,
     percentComplete: 0,
     createdAt: new Date().toISOString()
   });
@@ -484,7 +548,9 @@ function addTask() {
   saveState();
   document.getElementById('t-name').value = '';
   document.getElementById('t-cost').value = '';
+  document.getElementById('t-dur').value = '';
   document.getElementById('t-pred').value = '';
+  toggleStartDate();
   renderAll();
 }
 
@@ -684,11 +750,14 @@ function renderTasks() {
     const otherTasks = state.tasks.filter(x => x.id !== t.id && !deps.some(d => d.from === x.id && d.to === t.id));
     const predOpts = otherTasks.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
 
+    const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
+
     return `
       <div class="task-row" style="flex-wrap:wrap">
         <div class="task-name">${esc(t.name)}<br>
           <span style="font-size:11px;color:var(--text2)">
-            Planned: ${t.plannedCost} &middot; Actual:
+            ${dur} &middot; ${t.plannedStart} &middot;
+            Cost: ${t.plannedCost} &middot; Actual:
             <input type="number" value="${t.actualCost}" min="0" style="width:60px;padding:2px 4px;display:inline;font-size:11px"
               onchange="updateActualCost('${t.id}',this.value)">
           </span>
