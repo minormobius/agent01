@@ -339,7 +339,95 @@ async function main() {
     return generateTubeMesh(path, 0.018, 6);
   }
 
-  // Generate both levels at startup (L3 will be on-demand later)
+  // ============================================================
+  // LEVEL 3: Minutes coiling around hour path — one revolution per minute
+  // Seconds visible as position along each minute coil
+  // Only generates geometry for a single hour (on-demand)
+  // ============================================================
+  function generateLevel3(yearIdx, dayOfYear, hourIdx) {
+    const path = [];
+    const year = startYear + yearIdx;
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const daysInYear = isLeap ? 366 : 365;
+
+    // Find which month this day falls in (for color)
+    let monthIdx = 0, dayAccum = 0;
+    for (let m = 0; m < 12; m++) {
+      const dim = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
+      if (dayAccum + dim > dayOfYear) { monthIdx = m; break; }
+      dayAccum += dim;
+    }
+    const baseColor = MONTH_COLORS[monthIdx];
+
+    const microRadius = 0.12;  // L2 coil radius (around macro path)
+    const nanoRadius = 0.016;  // L3 coil radius (around L2 path)
+    const samplesPerMinute = 8; // 8 samples per minute-coil
+
+    // Generate 60 minutes for this hour
+    for (let minute = 0; minute < 60; minute++) {
+      for (let s = 0; s <= samplesPerMinute; s++) {
+        const secFrac = s / samplesPerMinute; // 0..1 within this minute
+        const minuteFrac = (minute + secFrac) / 60; // fraction of this hour
+        const hourFrac = (hourIdx + minuteFrac) / 24; // fraction of this day
+        const dayFrac = (dayOfYear + hourFrac) / daysInYear; // fraction of year
+
+        // L1: macro helix position
+        const macroPos = macroPoint(yearIdx, dayFrac);
+        const frame = macroFrame(yearIdx, dayFrac);
+
+        // L2: day coil position (hour spiral around macro)
+        const microAngle = hourFrac * Math.PI * 2;
+        const microOffset = v3add(
+          v3scale(frame.N, microRadius * Math.cos(microAngle)),
+          v3scale(frame.B, microRadius * Math.sin(microAngle))
+        );
+        const l2Pos = v3add(macroPos, microOffset);
+
+        // L2 frame: radial outward from macro center
+        const l2Radial = v3normalize(microOffset);
+        const l2T = v3normalize(v3add(
+          v3scale(frame.T, 1.0 / daysInYear),
+          v3add(
+            v3scale(frame.N, -microRadius * Math.sin(microAngle) * Math.PI * 2 / 12),
+            v3scale(frame.B, microRadius * Math.cos(microAngle) * Math.PI * 2 / 12)
+          )
+        ));
+        const l2B = v3normalize(v3cross(l2T, l2Radial));
+        const l2N = v3normalize(v3cross(l2B, l2T));
+
+        // L3: minute coil around L2 path
+        const nanoAngle = secFrac * Math.PI * 2;
+        const nanoOffset = v3add(
+          v3scale(l2N, nanoRadius * Math.cos(nanoAngle)),
+          v3scale(l2B, nanoRadius * Math.sin(nanoAngle))
+        );
+        const pos = v3add(l2Pos, nanoOffset);
+
+        // L3 frame
+        const nanoRadial = v3normalize(nanoOffset);
+        const nanoT = v3normalize(v3add(
+          v3scale(l2T, 1.0 / 60),
+          v3add(
+            v3scale(l2N, -nanoRadius * Math.sin(nanoAngle) * Math.PI * 2 / samplesPerMinute),
+            v3scale(l2B, nanoRadius * Math.cos(nanoAngle) * Math.PI * 2 / samplesPerMinute)
+          )
+        ));
+        const nanoB = v3normalize(v3cross(nanoT, nanoRadial));
+        const nanoN = v3normalize(v3cross(nanoB, nanoT));
+
+        // Brightness: vary by second position within minute
+        const sec = secFrac * 60;
+        const bright = 0.5 + 0.5 * Math.sin(sec / 60 * Math.PI);
+        const color = baseColor.map(c => Math.min(1.0, c * bright));
+
+        path.push({ pos, T: nanoT, N: nanoN, B: nanoB, color });
+      }
+    }
+
+    return generateTubeMesh(path, 0.003, 4);
+  }
+
+  // Generate both levels at startup (L3 generated on-demand per hour)
   console.time('geometry');
   const l1Mesh = generateLevel1();
   const l1GPU = createGPUMesh(device, l1Mesh);
@@ -470,11 +558,16 @@ async function main() {
   let camDist = 6.0;
 
   // Zoom level thresholds for crossfade
-  // L1 visible: camDist > 3.0 (fades out 3.0 → 2.0)
-  // L2 visible: camDist < 5.0 (fades in 5.0 → 3.0)
-  // L3 visible: camDist < 2.0 (future — fades in 2.0 → 1.0)
+  // L1 fades: visible at camDist > 5, gone at < 2.5
+  // L2 fades: appears at camDist < 5, fades out at < 1.5
+  // L3 fades: appears at camDist < 2, full at < 1.0
   const L1_FADE_HI = 5.0, L1_FADE_LO = 2.5;
-  const L2_FADE_HI = 5.0, L2_FADE_LO = 2.5;
+  const L2_FADE_HI = 5.0, L2_FADE_LO = 1.5;
+  const L3_FADE_HI = 2.0, L3_FADE_LO = 1.0;
+
+  // L3 on-demand state: tracks which hour is currently generated
+  let l3GPU = null;
+  let l3CachedKey = null; // "yearIdx-dayOfYear-hour"
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
