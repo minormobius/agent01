@@ -33,9 +33,13 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 /* Tuning panel */
 #tune-tab { position: absolute; top: 1rem; right: 5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; transition: background 0.2s; z-index: 10; }
 #tune-tab:hover { background: rgba(255,255,255,0.15); }
-#tune-panel { display: none; position: absolute; top: 3.5rem; right: 1rem; width: 280px; background: rgba(10,10,18,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 25; padding: 1rem; font-size: 0.75rem; backdrop-filter: blur(12px); }
+#tune-panel { display: none; position: absolute; top: 3.5rem; right: 1rem; width: 280px; max-height: calc(100vh - 5rem); overflow-y: auto; background: rgba(10,10,18,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 25; padding: 1rem; font-size: 0.75rem; backdrop-filter: blur(12px); touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+@media (max-width: 480px) { #tune-panel { right: 0; left: 0; width: auto; top: 0; max-height: 100vh; border-radius: 0; padding: 1rem 1rem 2rem; } }
 #tune-panel.open { display: block; }
-#tune-panel h3 { font-size: 0.8rem; margin: 0 0 0.6rem; color: #fff; letter-spacing: 0.06em; }
+#tune-panel .tune-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+#tune-panel .tune-header h3 { font-size: 0.8rem; margin: 0; color: #fff; letter-spacing: 0.06em; }
+#tune-panel .tune-close { background: none; border: none; color: #666; font-size: 1.3rem; cursor: pointer; padding: 0.2rem 0.4rem; line-height: 1; }
+#tune-panel .tune-close:hover { color: #fff; }
 #tune-panel label { display: flex; justify-content: space-between; align-items: center; margin: 0.35rem 0; color: #aaa; }
 #tune-panel label span { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; color: #ddd; }
 #tune-panel input[type=range] { flex: 1; margin: 0 0.5rem; accent-color: #7a9; height: 3px; }
@@ -62,7 +66,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 <div id="breadcrumb"></div>
 <button id="tune-tab" onclick="document.getElementById('tune-panel').classList.toggle('open')">tune</button>
 <div id="tune-panel">
-  <h3>Fractal Geometry</h3>
+  <div class="tune-header"><h3>Fractal Geometry</h3><button class="tune-close" onclick="this.closest('#tune-panel').classList.remove('open')">&times;</button></div>
   <label>orbit <input type="range" id="sl-orbit" min="1.2" max="5.0" step="0.1"> <span id="v-orbit"></span></label>
   <label>tube  <input type="range" id="sl-tube" min="0.02" max="0.30" step="0.01"> <span id="v-tube"></span></label>
   <label>fade  <input type="range" id="sl-fade" min="20" max="300" step="5"> <span id="v-fade"></span></label>
@@ -599,6 +603,10 @@ async function main() {
     togglesEl.appendChild(label);
   });
   updateGeomReadout();
+
+  // Prevent tune panel touches from orbiting/zooming the canvas
+  document.getElementById('tune-panel').addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+  document.getElementById('tune-panel').addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
 
   // === BREADCRUMB NAV ===
   const breadcrumbEl = document.getElementById('breadcrumb');
