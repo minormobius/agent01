@@ -791,9 +791,10 @@ async function main() {
   let camDist = 14.0;
   let camDistTarget = 14.0;
 
-  // Orbit center — starts at world origin, moves to selected element
+  // Orbit center — starts at world origin, blends toward selected point as you zoom
   let lookTarget = [0, 0, 0];
   let lookTargetGoal = [0, 0, 0];
+  let selectedPos = null; // world position of selected point on L0
 
   // Selection: which child index is focused at each level
   // selectionPath[i] = child index at level i+1 (e.g. which quarter, which month, ...)
@@ -967,7 +968,7 @@ async function main() {
     }
 
     if (bestPos) {
-      // Don't snap lookTarget — keep the current vantage point stable
+      selectedPos = [...bestPos];
       selectedGlobalFrac = bestGlobalFrac;
 
       // Derive selection path: which child at each level
@@ -999,6 +1000,7 @@ async function main() {
       tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 4000);
     } else {
       lookTargetGoal = [0, 0, 0];
+      selectedPos = null;
       selectedGlobalFrac = -1;
       selectionPath = [];
       for (let i = 0; i < levelState.length; i++) {
@@ -1097,8 +1099,18 @@ async function main() {
     // Smooth zoom interpolation (matched rate with lookTarget for stability)
     camDist += (camDistTarget - camDist) * 0.1;
 
-    // Smooth orbit center interpolation
-    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.1);
+    // Blend orbit center toward selected point proportional to zoom depth.
+    // At full zoom-out, orbit around origin. As you zoom past L0's tube,
+    // smoothly shift to orbit around the selected segment.
+    if (selectedPos) {
+      const zoomBlend = 1.0 - smoothstep(
+        levelGeom[0].tubeRadius * FADE_SCALE * (1 - FADE_RANGE),
+        levelGeom[0].tubeRadius * FADE_SCALE,
+        camDist
+      );
+      lookTargetGoal = v3lerp([0, 0, 0], selectedPos, zoomBlend);
+    }
+    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.08);
 
     const eye = v3add(lookTarget, [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
