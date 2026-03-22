@@ -151,8 +151,8 @@ async function main() {
   document.getElementById('year-label').textContent = `${startYear} — ${endYear}`;
 
   // --- Macro helix geometry: one revolution per year ---
-  const macroRadius = 1.2;
-  const pitchPerYear = 0.6;
+  const macroRadius = 3.0;
+  const pitchPerYear = 1.5;
   const yCenter = (totalYears * pitchPerYear) / 2;
 
   // Position on macro helix at (yearOffset, frac) where frac ∈ [0,1)
@@ -275,7 +275,7 @@ async function main() {
       }
     }
 
-    return generateTubeMesh(path, 0.12, 8);
+    return generateTubeMesh(path, 0.25, 8);
   }
 
   // ============================================================
@@ -284,7 +284,7 @@ async function main() {
   // ============================================================
   function generateLevel2() {
     const path = [];
-    const microRadius = 0.12;
+    const microRadius = 0.25;
     const samplesPerDay = 12;
 
     for (let yr = 0; yr < totalYears; yr++) {
@@ -343,7 +343,7 @@ async function main() {
       }
     }
 
-    return generateTubeMesh(path, 0.018, 6);
+    return generateTubeMesh(path, 0.035, 6);
   }
 
   // ============================================================
@@ -366,8 +366,8 @@ async function main() {
     }
     const baseColor = MONTH_COLORS[monthIdx];
 
-    const microRadius = 0.12;  // L2 coil radius (around macro path)
-    const nanoRadius = 0.016;  // L3 coil radius (around L2 path)
+    const microRadius = 0.25;  // L2 coil radius (around macro path)
+    const nanoRadius = 0.03;   // L3 coil radius (around L2 path)
     const samplesPerMinute = 8; // 8 samples per minute-coil
 
     // Generate 60 minutes for this hour
@@ -431,7 +431,7 @@ async function main() {
       }
     }
 
-    return generateTubeMesh(path, 0.003, 4);
+    return generateTubeMesh(path, 0.006, 4);
   }
 
   // ============================================================
@@ -455,7 +455,7 @@ async function main() {
     const frame = macroFrame(yrIdx, dayFrac);
 
     // Position on L2 (day coil)
-    const microRadius = 0.12;
+    const microRadius = 0.25;
     const microAngle = hourFrac * Math.PI * 2;
     const microOffset = v3add(
       v3scale(frame.N, microRadius * Math.cos(microAngle)),
@@ -464,8 +464,8 @@ async function main() {
     const l2Pos = v3add(macroPos, microOffset);
 
     // Build a small torus ring around the macro path at this point
-    const ringRadius = 0.16; // slightly larger than L1 tube
-    const tubeRadius = 0.012;
+    const ringRadius = 0.35; // slightly larger than L1 tube
+    const tubeRadius = 0.025;
     const ringSegs = 16;
     const tubeSegs = 6;
     const path = [];
@@ -620,21 +620,22 @@ async function main() {
   // --- Camera ---
   let camTheta = 0.4;
   let camPhi = 0.8;
-  let camDist = 6.0;
+  let camDist = 14.0;
 
-  // Zoom level thresholds for crossfade
-  // L1 fades: visible at camDist > 5, gone at < 2.5
-  // L2 fades: appears at camDist < 5, fades out at < 1.5
-  // L3 fades: appears at camDist < 2, full at < 1.0
-  const L1_FADE_HI = 5.0, L1_FADE_LO = 2.5;
-  const L2_FADE_HI = 5.0, L2_FADE_LO = 1.5;
-  const L3_FADE_HI = 2.0, L3_FADE_LO = 1.0;
+  // Orbit center — starts at world origin, moves to selected element
+  let lookTarget = [0, 0, 0];
+  let lookTargetGoal = [0, 0, 0];
+
+  // Zoom level thresholds for crossfade (scaled for larger helix)
+  const L1_FADE_HI = 12.0, L1_FADE_LO = 5.0;
+  const L2_FADE_HI = 10.0, L2_FADE_LO = 2.5;
+  const L3_FADE_HI = 4.0,  L3_FADE_LO = 1.5;
 
   // L3 on-demand state: tracks which hour is currently generated
   let l3GPU = null;
   let l3CachedKey = null; // "yearIdx-dayOfYear-hour"
 
-  let camDistTarget = camDist;
+  let camDistTarget = 14.0;
 
   // --- Input: unified pointer (mouse) + touch (mobile) ---
   // Mouse orbit + wheel zoom
@@ -658,7 +659,7 @@ async function main() {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDistTarget = Math.max(0.5, Math.min(15, camDistTarget + e.deltaY * 0.005));
+    camDistTarget = Math.max(0.3, Math.min(30, camDistTarget * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
   // Touch: single-finger orbit, two-finger pinch-to-zoom, tap-to-select
@@ -704,7 +705,7 @@ async function main() {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (touchStartDist > 0) {
         const scale = touchStartDist / dist;
-        camDistTarget = Math.max(0.5, Math.min(15, touchStartCamDist * scale));
+        camDistTarget = Math.max(0.3, Math.min(30, touchStartCamDist * scale));
       }
     }
   }, { passive: false });
@@ -756,18 +757,17 @@ async function main() {
   function handleTap(clientX, clientY) {
     // Convert screen coords to NDC
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
 
     // Build current MVP and invert it
-    const eye = [
+    const eye = v3add(lookTarget, [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
       camDist * Math.cos(camPhi),
       camDist * Math.sin(camPhi) * Math.sin(camTheta),
-    ];
-    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
-    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
+    ]);
+    const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
     const mvp = mat4Mul(proj, view);
     const invMVP = mat4Invert(mvp);
     if (!invMVP) return;
@@ -780,13 +780,14 @@ async function main() {
         r[i] = invMVP[i]*w[0] + invMVP[4+i]*w[1] + invMVP[8+i]*w[2] + invMVP[12+i]*w[3];
       return [r[0]/r[3], r[1]/r[3], r[2]/r[3]];
     }
-    const near = unproject(ndcX, ndcY, -1);
-    const far = unproject(ndcX, ndcY, 1);
-    const rayDir = v3normalize(v3sub(far, near));
+    const nearPt = unproject(ndcX, ndcY, -1);
+    const farPt = unproject(ndcX, ndcY, 1);
+    const rayDir = v3normalize(v3sub(farPt, nearPt));
 
     // Test against sampled points on the macro helix
     let bestDist = Infinity;
-    let bestYr = 0, bestMonth = 0, bestDay = 0, bestHour = 0;
+    let bestYr = 0, bestMonth = 0, bestDay = 0;
+    let bestPos = null;
 
     for (let yr = 0; yr < totalYears; yr++) {
       const year = startYear + yr;
@@ -796,43 +797,47 @@ async function main() {
 
       for (let m = 0; m < 12; m++) {
         const daysInMonth = MONTH_DAYS[m] + (m === 1 && isLeap ? 1 : 0);
-        // Sample a few points per month
-        for (let s = 0; s <= 4; s++) {
-          const d = Math.min(Math.floor(s / 4 * daysInMonth), daysInMonth - 1);
+        // Sample several points per month for accuracy
+        for (let s = 0; s <= 6; s++) {
+          const d = Math.min(Math.floor(s / 6 * daysInMonth), daysInMonth - 1);
           const dayFrac = (dayAccum + d) / daysInYear;
           const pt = macroPoint(yr, dayFrac);
 
           // Distance from ray to point
-          const toPoint = v3sub(pt, near);
-          const proj = v3dot(toPoint, rayDir);
-          if (proj < 0) continue; // behind camera
-          const closest = v3add(near, v3scale(rayDir, proj));
+          const toPoint = v3sub(pt, nearPt);
+          const projLen = v3dot(toPoint, rayDir);
+          if (projLen < 0) continue;
+          const closest = v3add(nearPt, v3scale(rayDir, projLen));
           const dist = v3len(v3sub(pt, closest));
 
-          // Hit threshold based on zoom level
-          const threshold = Math.max(0.15, camDist * 0.04);
+          // Hit threshold scales with zoom
+          const threshold = Math.max(0.35, camDist * 0.06);
           if (dist < threshold && dist < bestDist) {
             bestDist = dist;
             bestYr = year;
             bestMonth = m;
             bestDay = d + 1;
-            bestHour = 0;
+            bestPos = pt;
           }
         }
         dayAccum += daysInMonth;
       }
     }
 
-    if (bestDist < Infinity) {
+    if (bestPos) {
+      // Move orbit center to selected point
+      lookTargetGoal = [...bestPos];
+
       const tip = infoTip;
-      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">tap helix to explore</div>`;
+      tip.innerHTML = `<div class="date">${bestDay} ${MONTH_NAMES[bestMonth]} ${bestYr}</div><div class="detail">scroll to zoom in · tap elsewhere to move</div>`;
       tip.style.display = 'block';
       tip.style.left = `${Math.min(clientX + 12, window.innerWidth - 200)}px`;
       tip.style.top = `${Math.max(clientY - 40, 8)}px`;
-      // Auto-hide after 3 seconds
       clearTimeout(tip._hideTimer);
-      tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 3000);
+      tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 4000);
     } else {
+      // Tap on empty space — reset orbit to world origin
+      lookTargetGoal = [0, 0, 0];
       infoTip.style.display = 'none';
     }
   }
@@ -926,14 +931,17 @@ async function main() {
     // Smooth zoom interpolation
     camDist += (camDistTarget - camDist) * 0.12;
 
-    const eye = [
+    // Smooth orbit center interpolation
+    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.08);
+
+    const eye = v3add(lookTarget, [
       camDist * Math.sin(camPhi) * Math.cos(camTheta),
       camDist * Math.cos(camPhi),
       camDist * Math.sin(camPhi) * Math.sin(camTheta),
-    ];
+    ]);
 
-    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
-    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
+    const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
     const mvp = mat4Mul(proj, view);
     const lightDir = v3normalize([0.5, 0.8, 0.3]);
 
