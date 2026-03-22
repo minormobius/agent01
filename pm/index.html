@@ -517,7 +517,8 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
     <div class="card">
       <h2>ATProto Sync</h2>
       <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
-        Sync your project to an ATProto Personal Data Server. Your data is yours — portable, encrypted, and under your control.
+        End-to-end encrypted sync to your ATProto PDS. Records are sealed in <code>vault.sealed</code> envelopes —
+        your PDS operator sees only ciphertext.
       </p>
       <div id="sync-status" style="margin-bottom:12px"></div>
       <div id="sync-auth" style="margin-bottom:16px">
@@ -527,20 +528,24 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         </div>
         <div class="form-row">
           <div style="flex:2"><label>App Password</label><input id="sync-password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx"></div>
-          <div style="display:flex;align-items:flex-end">
-            <button class="btn btn-primary" onclick="atprotoLogin()">Connect</button>
-          </div>
+          <div style="flex:2"><label>Vault Passphrase</label><input id="sync-passphrase" type="password" placeholder="your vault passphrase"></div>
         </div>
+        <p style="font-size:11px;color:var(--text2);margin:4px 0 8px">
+          Passphrase derives your encryption key (PBKDF2, 600k iterations). Same passphrase as Wave/CRM vault.
+        </p>
+        <button class="btn btn-primary" onclick="atprotoLogin()" style="width:100%">Connect &amp; Unlock Vault</button>
       </div>
       <div id="sync-connected" style="display:none">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
           <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
           <span id="sync-did" style="font-size:12px;color:var(--text2);font-family:monospace"></span>
-          <button class="btn btn-sm btn-ghost" onclick="atprotoDisconnect()" style="margin-left:auto;font-size:11px">Disconnect</button>
+          <span id="sync-vault-status" style="font-size:11px;margin-left:auto"></span>
+          <button class="btn btn-sm btn-ghost" onclick="atprotoDisconnect()" style="font-size:11px">Disconnect</button>
         </div>
+        <div id="sync-org-ctx" style="margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button class="btn btn-primary" onclick="atprotoPush()" style="flex:1">&#x2B06; Push to PDS</button>
-          <button class="btn" onclick="atprotoPull()" style="flex:1;background:var(--surface2)">&#x2B07; Pull from PDS</button>
+          <button class="btn btn-primary" onclick="atprotoPush()" style="flex:1">&#x2B06; Push (Encrypted)</button>
+          <button class="btn" onclick="atprotoPull()" style="flex:1;background:var(--surface2)">&#x2B07; Pull (Decrypt)</button>
         </div>
         <div id="sync-log" style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
       </div>
@@ -2905,7 +2910,163 @@ function renderResourceSummary(members, memberWeeks, totalWeeks) {
   }).join('');
 }
 
-// ── ATProto Sync ──
+// ── Vault Crypto (WebCrypto — matches wave/src/crypto.ts) ──
+
+const VAULT_PBKDF2_ITERATIONS = 600000;
+const VAULT_HKDF_INFO = new TextEncoder().encode('vault-dek-v1');
+const VAULT_MEMBER_WRAP_INFO = new TextEncoder().encode('vault-member-wrap-v1');
+
+function vaultToBase64(bytes) {
+  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function vaultFromBase64(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function vaultDeriveKek(passphrase, salt) {
+  const raw = new TextEncoder().encode(passphrase);
+  const baseKey = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt.buffer, iterations: VAULT_PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultGenerateIdentityKey() {
+  return crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
+}
+
+async function vaultExportPublicKey(key) {
+  return new Uint8Array(await crypto.subtle.exportKey('raw', key));
+}
+
+async function vaultImportPublicKey(raw) {
+  return crypto.subtle.importKey('raw', raw.buffer, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+}
+
+async function vaultWrapPrivateKey(privateKey, kek) {
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, kek, pkcs8);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
+}
+
+async function vaultUnwrapPrivateKey(wrappedKey, kek) {
+  const iv = wrappedKey.slice(0, 12);
+  const ct = wrappedKey.slice(12);
+  const pkcs8 = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, kek, ct.buffer);
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey', 'deriveBits']);
+}
+
+async function vaultDeriveDek(privateKey, publicKey) {
+  const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
+  const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_HKDF_INFO.buffer },
+    hkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultEncrypt(plaintext, dek) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, dek, plaintext.buffer);
+  return { iv, ciphertext: new Uint8Array(ct) };
+}
+
+async function vaultDecrypt(ciphertext, iv, dek) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, dek, ciphertext.buffer);
+  return new Uint8Array(pt);
+}
+
+async function vaultSealRecord(innerType, record, keyringRkey, dek) {
+  const plaintext = new TextEncoder().encode(JSON.stringify(record));
+  const { iv, ciphertext } = await vaultEncrypt(plaintext, dek);
+  return {
+    $type: 'com.minomobi.vault.sealed',
+    innerType,
+    keyringRkey,
+    iv: { $bytes: vaultToBase64(iv) },
+    ciphertext: { $bytes: vaultToBase64(ciphertext) },
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function vaultUnsealRecord(envelope, dek) {
+  const ivField = envelope.iv;
+  const ctField = envelope.ciphertext;
+  if (!ivField || !ivField.$bytes || !ctField || !ctField.$bytes) {
+    throw new Error('Invalid sealed envelope: missing iv or ciphertext');
+  }
+  const iv = vaultFromBase64(ivField.$bytes);
+  const ciphertext = vaultFromBase64(ctField.$bytes);
+  const plaintext = await vaultDecrypt(ciphertext, iv, dek);
+  const json = new TextDecoder().decode(plaintext);
+  return { innerType: envelope.innerType, record: JSON.parse(json) };
+}
+
+// Org tier DEK unwrapping (matches wave pattern)
+async function vaultDeriveMemberKey(privateKey, publicKey) {
+  const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
+  const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_MEMBER_WRAP_INFO.buffer },
+    hkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultUnwrapDekFromMember(wrappedDek, recipientPrivateKey, senderPublicKey) {
+  if (wrappedDek.length === 40) {
+    // Legacy AES-KW format
+    const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: senderPublicKey }, recipientPrivateKey, 256);
+    const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+    const wrappingKey = await crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_MEMBER_WRAP_INFO.buffer },
+      hkdfKey,
+      { name: 'AES-KW', length: 256 },
+      false,
+      ['wrapKey', 'unwrapKey']
+    );
+    return crypto.subtle.unwrapKey('raw', wrappedDek.buffer, wrappingKey, 'AES-KW', { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  }
+  // Current AES-GCM format
+  const memberKey = await vaultDeriveMemberKey(recipientPrivateKey, senderPublicKey);
+  const iv = wrappedDek.slice(0, 12);
+  const ct = wrappedDek.slice(12);
+  const dekRaw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, memberKey, ct.buffer);
+  return crypto.subtle.importKey('raw', dekRaw, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+}
+
+async function vaultWrapDekForMember(tierDek, senderPrivateKey, recipientPublicKey) {
+  const memberKey = await vaultDeriveMemberKey(senderPrivateKey, recipientPublicKey);
+  const dekRaw = await crypto.subtle.exportKey('raw', tierDek);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, memberKey, dekRaw);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
+}
+
+// ── ATProto Sync (Encrypted) ──
+
+// In-memory vault state (never persisted to localStorage)
+let vaultCtx = null; // { dek, privateKey, publicKey, keyringRkey, orgRkey }
 
 function atprotoLog(msg) {
   const el = document.getElementById('sync-log');
@@ -2919,26 +3080,142 @@ async function atprotoLogin() {
   const host = document.getElementById('sync-host').value.trim().replace(/\/+$/, '');
   const handle = document.getElementById('sync-handle').value.trim();
   const password = document.getElementById('sync-password').value;
-  if (!host || !handle || !password) { alert('Fill in all fields'); return; }
+  const passphrase = document.getElementById('sync-passphrase').value;
+  if (!host || !handle || !password || !passphrase) { alert('Fill in all fields including passphrase'); return; }
 
   try {
+    // 1. Authenticate
     const res = await fetch(`${host}/xrpc/com.atproto.server.createSession`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier: handle, password })
     });
     if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-    const data = await res.json();
-    state.atproto = { host, did: data.did, handle: data.handle, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
+    const session = await res.json();
+    state.atproto = { host, did: session.did, handle: session.handle, accessJwt: session.accessJwt, refreshJwt: session.refreshJwt };
     saveState();
+    atprotoLog(`Authenticated as ${session.handle} (${session.did})`);
+
+    // 2. Derive KEK from passphrase + DID-based salt
+    const salt = new TextEncoder().encode(session.did);
+    const kek = await vaultDeriveKek(passphrase, salt);
+    atprotoLog('KEK derived (PBKDF2, 600k iterations)');
+
+    // 3. Check for existing identity key on PDS
+    let privateKey, publicKey;
+    const identityRec = await atprotoXrpc('GET', 'com.atproto.repo.getRecord', {
+      repo: session.did,
+      collection: 'com.minomobi.vault.wrappedIdentity',
+      rkey: 'self'
+    }).catch(() => null);
+
+    if (identityRec && identityRec.value) {
+      atprotoLog('Found existing identity key — unwrapping...');
+      const wrappedBytes = vaultFromBase64(identityRec.value.wrappedKey.$bytes);
+      privateKey = await vaultUnwrapPrivateKey(wrappedBytes, kek);
+
+      // Fetch public key
+      const pubRec = await atprotoXrpc('GET', 'com.atproto.repo.getRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.encryptionKey',
+        rkey: 'self'
+      });
+      publicKey = await vaultImportPublicKey(vaultFromBase64(pubRec.value.publicKey.$bytes));
+      atprotoLog('Identity key unlocked');
+    } else {
+      atprotoLog('No identity key found — generating new ECDH P-256 keypair...');
+      const keyPair = await vaultGenerateIdentityKey();
+      privateKey = keyPair.privateKey;
+      publicKey = keyPair.publicKey;
+
+      // Store wrapped identity on PDS
+      const wrappedBytes = await vaultWrapPrivateKey(privateKey, kek);
+      const pubBytes = await vaultExportPublicKey(publicKey);
+      const now = new Date().toISOString();
+
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.wrappedIdentity',
+        rkey: 'self',
+        record: {
+          $type: 'com.minomobi.vault.wrappedIdentity',
+          wrappedKey: { $bytes: vaultToBase64(wrappedBytes) },
+          algorithm: 'PBKDF2-SHA256',
+          salt: { $bytes: vaultToBase64(salt) },
+          iterations: VAULT_PBKDF2_ITERATIONS,
+          createdAt: now
+        }
+      });
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.encryptionKey',
+        rkey: 'self',
+        record: {
+          $type: 'com.minomobi.vault.encryptionKey',
+          publicKey: { $bytes: vaultToBase64(pubBytes) },
+          algorithm: 'ECDH-P256',
+          createdAt: now
+        }
+      });
+      atprotoLog('Identity keypair stored on PDS');
+
+      // Re-import private key as non-extractable
+      privateKey = await vaultUnwrapPrivateKey(wrappedBytes, kek);
+    }
+
+    // 4. Derive personal DEK (self-ECDH)
+    const personalDek = await vaultDeriveDek(privateKey, publicKey);
+    atprotoLog('Personal DEK derived (self-ECDH → HKDF)');
+
+    // 5. Check for org keyrings — try to find a keyring we have access to
+    let dek = personalDek;
+    let keyringRkey = 'personal';
+    let orgRkey = null;
+
+    try {
+      const keyrings = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.keyring',
+        limit: 50
+      });
+      if (keyrings.records && keyrings.records.length > 0) {
+        atprotoLog(`Found ${keyrings.records.length} keyring(s) — checking for org access...`);
+        for (const kr of keyrings.records) {
+          const krVal = kr.value;
+          const myEntry = (krVal.members || []).find(m => m.did === session.did);
+          if (myEntry) {
+            // Try to unwrap DEK from this keyring
+            const writerPubRec = krVal.writerPublicKey
+              ? await vaultImportPublicKey(vaultFromBase64(krVal.writerPublicKey))
+              : publicKey; // self-written keyring
+            const wrappedDek = vaultFromBase64(myEntry.wrappedDek.$bytes || myEntry.wrappedDek);
+            const orgDek = await vaultUnwrapDekFromMember(wrappedDek, privateKey, writerPubRec);
+            dek = orgDek;
+            keyringRkey = kr.uri.split('/').pop();
+            orgRkey = krVal.orgRkey || null;
+            atprotoLog(`Using org keyring: ${keyringRkey}${krVal.name ? ' (' + krVal.name + ')' : ''}`);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      atprotoLog(`Org keyring check: ${e.message} — using personal DEK`);
+    }
+
+    vaultCtx = { dek, privateKey, publicKey, keyringRkey, orgRkey };
+
+    // Clear passphrase from DOM
+    document.getElementById('sync-passphrase').value = '';
     renderSyncUI();
-    atprotoLog(`Authenticated as ${data.handle} (${data.did})`);
+    atprotoLog('Vault unlocked. Ready to push/pull encrypted records.');
   } catch (err) {
     alert(`Login failed: ${err.message}`);
+    atprotoLog(`Error: ${err.message}`);
   }
 }
 
 function atprotoDisconnect() {
+  vaultCtx = null;
   if (state.atproto) {
     state.atproto = null;
     saveState();
@@ -2950,12 +3227,27 @@ function renderSyncUI() {
   const auth = document.getElementById('sync-auth');
   const conn = document.getElementById('sync-connected');
   const didEl = document.getElementById('sync-did');
+  const vaultStatus = document.getElementById('sync-vault-status');
+  const orgCtx = document.getElementById('sync-org-ctx');
   if (!auth || !conn) return;
 
   if (state.atproto && state.atproto.accessJwt) {
     auth.style.display = 'none';
     conn.style.display = '';
     didEl.textContent = `${state.atproto.handle} (${state.atproto.did})`;
+    if (vaultCtx) {
+      vaultStatus.innerHTML = '<span style="color:var(--green)">&#x1f512; Vault unlocked</span>';
+      if (vaultCtx.keyringRkey !== 'personal') {
+        orgCtx.innerHTML = `<div style="font-size:11px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+          Keyring: <code>${esc(vaultCtx.keyringRkey)}</code>${vaultCtx.orgRkey ? ` &middot; Org: <code>${esc(vaultCtx.orgRkey)}</code>` : ''}
+        </div>`;
+      } else {
+        orgCtx.innerHTML = '<div style="font-size:11px;color:var(--text2)">Using personal vault (self-ECDH). Create an org in Wave to enable team encryption.</div>';
+      }
+    } else {
+      vaultStatus.innerHTML = '<span style="color:var(--orange)">&#x1f513; Not encrypted</span>';
+      orgCtx.innerHTML = '';
+    }
   } else {
     auth.style.display = '';
     conn.style.display = 'none';
@@ -2964,16 +3256,20 @@ function renderSyncUI() {
 
 async function atprotoXrpc(method, nsid, body) {
   const { host, accessJwt } = state.atproto;
-  const opts = {
-    method,
-    headers: { 'Authorization': `Bearer ${accessJwt}` }
-  };
-  if (body) {
-    opts.headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify(body);
+  const headers = { 'Authorization': `Bearer ${accessJwt}` };
+  if (method === 'GET') {
+    const qs = new URLSearchParams(body).toString();
+    const res = await fetch(`${host}/xrpc/${nsid}?${qs}`, { headers });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${nsid} ${res.status}: ${text}`);
+    }
+    return res.json();
   }
-  const url = `${host}/xrpc/${nsid}`;
-  const res = await fetch(method === 'GET' ? `${url}?${new URLSearchParams(body).toString()}` : url, method === 'GET' ? { headers: opts.headers } : opts);
+  headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${host}/xrpc/${nsid}`, {
+    method: 'POST', headers, body: JSON.stringify(body)
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`${nsid} ${res.status}: ${text}`);
@@ -2982,190 +3278,198 @@ async function atprotoXrpc(method, nsid, body) {
 }
 
 async function atprotoPush() {
-  if (!state.atproto) return;
-  atprotoLog('Pushing project to PDS...');
+  if (!state.atproto || !vaultCtx) { alert('Connect and unlock vault first'); return; }
+  atprotoLog('Pushing encrypted project to PDS...');
 
   const now = new Date().toISOString();
-  const collection = 'com.minomobi.pm.project';
   const rkey = state.projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50) || 'project';
-
-  // Build project record
-  const leaves = getLeafTasks();
-  const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
-  const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
-  const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
-
-  const projectRecord = {
-    $type: collection,
-    name: state.projectName,
-    status: 'active',
-    budgetAtCompletion: bac,
-    scheduledStart: starts.length ? new Date(Math.min(...starts)).toISOString() : now,
-    scheduledEnd: ends.length ? new Date(Math.max(...ends)).toISOString() : now,
-    createdAt: now,
-    updatedAt: now,
-    // Embed full state for round-trip portability
-    _pmState: {
-      tasks: state.tasks,
-      deps: state.deps,
-      baselines: state.baselines,
-      members: state.members || [],
-      collapsed: state.collapsed
-    }
-  };
+  const { dek, keyringRkey } = vaultCtx;
 
   try {
+    // Build the full PM state as the inner record
+    const leaves = getLeafTasks();
+    const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
+    const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
+    const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+
+    const projectInner = {
+      $type: 'com.minomobi.pm.project',
+      name: state.projectName,
+      status: 'active',
+      budgetAtCompletion: bac,
+      scheduledStart: starts.length ? new Date(Math.min(...starts)).toISOString() : now,
+      scheduledEnd: ends.length ? new Date(Math.max(...ends)).toISOString() : now,
+      keyringRkey,
+      createdAt: now,
+      updatedAt: now,
+      _pmState: {
+        tasks: state.tasks,
+        deps: state.deps,
+        baselines: state.baselines,
+        members: state.members || [],
+        collapsed: state.collapsed
+      }
+    };
+
+    // Seal the project record
+    const sealedProject = await vaultSealRecord('com.minomobi.pm.project', projectInner, keyringRkey, dek);
     await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
       repo: state.atproto.did,
-      collection,
-      rkey,
-      record: projectRecord
+      collection: 'com.minomobi.vault.sealed',
+      rkey: 'pm-' + rkey,
+      record: sealedProject
     });
-    atprotoLog(`Pushed project "${state.projectName}" → ${collection}/${rkey}`);
+    atprotoLog(`Sealed project → vault.sealed/pm-${rkey}`);
 
-    // Push individual schedule records for interop
+    // Seal individual schedule records for interop
     const writes = [];
     for (const t of state.tasks) {
+      const schedInner = {
+        $type: 'com.minomobi.pm.schedule',
+        projectRkey: rkey,
+        issueRkey: t.id.slice(0, 15),
+        plannedStart: t.plannedStart ? new Date(t.plannedStart).toISOString() : now,
+        plannedEnd: t.plannedEnd ? new Date(t.plannedEnd).toISOString() : now,
+        plannedCost: t.plannedCost,
+        actualCost: t.actualCost,
+        percentComplete: t.percentComplete,
+        createdAt: now
+      };
+      const sealed = await vaultSealRecord('com.minomobi.pm.schedule', schedInner, keyringRkey, dek);
       writes.push({
         $type: 'com.atproto.repo.applyWrites#create',
-        collection: 'com.minomobi.pm.schedule',
-        rkey: t.id.slice(0, 15),
-        value: {
-          $type: 'com.minomobi.pm.schedule',
-          projectRkey: rkey,
-          issueRkey: t.id.slice(0, 15),
-          plannedStart: t.plannedStart ? new Date(t.plannedStart).toISOString() : now,
-          plannedEnd: t.plannedEnd ? new Date(t.plannedEnd).toISOString() : now,
-          plannedCost: t.plannedCost,
-          actualCost: t.actualCost,
-          percentComplete: t.percentComplete,
-          createdAt: now
-        }
+        collection: 'com.minomobi.vault.sealed',
+        rkey: 'pm-sched-' + t.id.slice(0, 10),
+        value: sealed
       });
     }
 
-    // Batch in chunks of 200
     for (let i = 0; i < writes.length; i += 200) {
       const batch = writes.slice(i, i + 200);
       await atprotoXrpc('POST', 'com.atproto.repo.applyWrites', {
         repo: state.atproto.did,
         writes: batch
       });
-      atprotoLog(`Pushed ${Math.min(i + 200, writes.length)}/${writes.length} schedule records`);
+      atprotoLog(`Sealed ${Math.min(i + 200, writes.length)}/${writes.length} schedule records`);
     }
 
-    // Push team roster
+    // Seal team roster
     if ((state.members || []).length > 0) {
+      const teamInner = {
+        $type: 'com.minomobi.pm.team',
+        projectRkey: rkey,
+        members: state.members.map(m => ({
+          id: m.id, displayName: m.displayName, role: m.role,
+          handle: m.handle, did: m.did,
+          costRate: m.costRate, maxHoursPerWeek: m.maxHoursPerWeek, color: m.color
+        })),
+        createdAt: now
+      };
+      const sealedTeam = await vaultSealRecord('com.minomobi.pm.team', teamInner, keyringRkey, dek);
       await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
         repo: state.atproto.did,
-        collection: 'com.minomobi.pm.team',
-        rkey: rkey + '-team',
-        record: {
-          $type: 'com.minomobi.pm.team',
-          projectRkey: rkey,
-          members: state.members.map(m => ({
-            id: m.id,
-            displayName: m.displayName,
-            role: m.role,
-            handle: m.handle,
-            did: m.did,
-            costRate: m.costRate,
-            maxHoursPerWeek: m.maxHoursPerWeek,
-            color: m.color
-          })),
-          createdAt: now
-        }
+        collection: 'com.minomobi.vault.sealed',
+        rkey: 'pm-team-' + rkey,
+        record: sealedTeam
       });
-      atprotoLog(`Pushed team roster (${state.members.length} members)`);
+      atprotoLog(`Sealed team roster (${state.members.length} members)`);
     }
 
-    atprotoLog('Push complete.');
+    atprotoLog('Push complete. All records encrypted in vault.sealed envelopes.');
   } catch (err) {
     atprotoLog(`Error: ${err.message}`);
   }
 }
 
 async function atprotoPull() {
-  if (!state.atproto) return;
-  atprotoLog('Pulling from PDS...');
+  if (!state.atproto || !vaultCtx) { alert('Connect and unlock vault first'); return; }
+  atprotoLog('Pulling sealed records from PDS...');
+
+  const { dek } = vaultCtx;
 
   try {
-    // List project records
-    const projects = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+    // List all vault.sealed records, filter for PM types
+    const sealed = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
       repo: state.atproto.did,
-      collection: 'com.minomobi.pm.project',
-      limit: 100
+      collection: 'com.minomobi.vault.sealed',
+      limit: 1000
     });
 
-    if (!projects.records || projects.records.length === 0) {
-      atprotoLog('No projects found on PDS.');
+    if (!sealed.records || sealed.records.length === 0) {
+      atprotoLog('No sealed records found on PDS.');
       return;
     }
 
-    // If multiple projects, use the most recently updated
-    const rec = projects.records[projects.records.length - 1];
-    const val = rec.value;
-    atprotoLog(`Found project: ${val.name}`);
+    const pmRecords = sealed.records.filter(r =>
+      r.value.innerType && r.value.innerType.startsWith('com.minomobi.pm.')
+    );
+    atprotoLog(`Found ${pmRecords.length} PM sealed records out of ${sealed.records.length} total`);
 
-    // Check for embedded full state (round-trip)
-    if (val._pmState) {
-      state.projectName = val.name || state.projectName;
-      state.tasks = val._pmState.tasks || [];
-      state.deps = val._pmState.deps || [];
-      state.baselines = val._pmState.baselines || [];
-      state.members = val._pmState.members || [];
-      state.collapsed = val._pmState.collapsed || [];
-      saveState();
-      renderAll();
-      atprotoLog(`Restored full project state: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
-    } else {
-      atprotoLog('Project record has no embedded state — pulling schedule records...');
-      const schedules = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
-        repo: state.atproto.did,
-        collection: 'com.minomobi.pm.schedule',
-        limit: 1000
-      });
-      atprotoLog(`Found ${schedules.records.length} schedule records`);
-      // Build tasks from schedule records
-      state.projectName = val.name;
-      state.tasks = schedules.records.map(r => {
-        const s = r.value;
-        return {
-          id: s.issueRkey || crypto.randomUUID(),
-          parentId: null,
-          name: s.issueRkey || 'Task',
-          duration: Math.max(8, (new Date(s.plannedEnd) - new Date(s.plannedStart)) / 3600000),
-          plannedStart: s.plannedStart.split('T')[0],
-          plannedEnd: s.plannedEnd.split('T')[0],
-          plannedCost: s.plannedCost || 0,
-          actualCost: s.actualCost || 0,
-          percentComplete: s.percentComplete || 0
-        };
-      });
-      saveState();
-      renderAll();
+    // Find the project record (innerType = com.minomobi.pm.project)
+    const projectRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.project');
+    if (projectRecs.length === 0) {
+      atprotoLog('No sealed PM project found.');
+      return;
     }
 
-    // Pull team roster
-    try {
-      const teams = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
-        repo: state.atproto.did,
-        collection: 'com.minomobi.pm.team',
-        limit: 10
-      });
-      if (teams.records && teams.records.length > 0) {
-        const teamRec = teams.records[teams.records.length - 1].value;
-        if (teamRec.members && !val._pmState) {
-          state.members = teamRec.members;
-          saveState();
-          atprotoLog(`Pulled team roster: ${state.members.length} members`);
+    const projectEnvelope = projectRecs[projectRecs.length - 1].value;
+    const { record: projectInner } = await vaultUnsealRecord(projectEnvelope, dek);
+    atprotoLog(`Decrypted project: ${projectInner.name}`);
+
+    if (projectInner._pmState) {
+      state.projectName = projectInner.name || state.projectName;
+      state.tasks = projectInner._pmState.tasks || [];
+      state.deps = projectInner._pmState.deps || [];
+      state.baselines = projectInner._pmState.baselines || [];
+      state.members = projectInner._pmState.members || [];
+      state.collapsed = projectInner._pmState.collapsed || [];
+      saveState();
+      renderAll();
+      renderTeam();
+      atprotoLog(`Restored: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
+    } else {
+      // Decrypt individual schedule records
+      const schedRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.schedule');
+      atprotoLog(`Decrypting ${schedRecs.length} schedule records...`);
+      state.projectName = projectInner.name;
+      state.tasks = [];
+      for (const sr of schedRecs) {
+        try {
+          const { record: sched } = await vaultUnsealRecord(sr.value, dek);
+          state.tasks.push({
+            id: sched.issueRkey || crypto.randomUUID(),
+            parentId: null,
+            name: sched.issueRkey || 'Task',
+            duration: Math.max(8, (new Date(sched.plannedEnd) - new Date(sched.plannedStart)) / 3600000),
+            plannedStart: sched.plannedStart.split('T')[0],
+            plannedEnd: sched.plannedEnd.split('T')[0],
+            plannedCost: sched.plannedCost || 0,
+            actualCost: sched.actualCost || 0,
+            percentComplete: sched.percentComplete || 0
+          });
+        } catch (e) {
+          atprotoLog(`  Skip record: ${e.message}`);
         }
       }
-    } catch (e) {
-      atprotoLog(`Team roster pull skipped: ${e.message}`);
+      saveState();
+      renderAll();
     }
 
-    atprotoLog('Pull complete.');
+    // Decrypt team roster
+    const teamRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.team');
+    if (teamRecs.length > 0 && !projectInner._pmState) {
+      try {
+        const { record: team } = await vaultUnsealRecord(teamRecs[teamRecs.length - 1].value, dek);
+        state.members = team.members || [];
+        saveState();
+        renderTeam();
+        atprotoLog(`Decrypted team roster: ${state.members.length} members`);
+      } catch (e) {
+        atprotoLog(`Team decrypt failed: ${e.message}`);
+      }
+    }
+
+    atprotoLog('Pull complete. All records decrypted client-side.');
     renderAll();
     renderTeam();
   } catch (err) {

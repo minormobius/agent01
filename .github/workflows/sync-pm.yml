@@ -40,7 +40,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests cryptography
 
       - name: Resolve account credentials
         id: creds
@@ -64,6 +64,7 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ steps.creds.outputs.handle }}
           BLUESKY_APP_PASSWORD: ${{ steps.creds.outputs.password }}
+          VAULT_PASSPHRASE: ${{ secrets.VAULT_PASSPHRASE }}
           SYNC_MODE: ${{ inputs.mode }}
           PROJECT_FILE: ${{ inputs.project_file }}
         run: python scripts/sync-pm-to-atproto.py
