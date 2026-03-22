@@ -144,6 +144,23 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 /* Empty state */
 .empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
 
+/* Gantt */
+.gantt-wrap { overflow-x: auto; }
+canvas.gantt { width: 100%; height: 300px; display: block; border-radius: var(--radius); }
+
+/* Dependency picker */
+.dep-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.dep-row select { width: auto; flex: 1; padding: 3px 6px; font-size: 11px; }
+.dep-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 6px; color: var(--text2); margin: 2px 2px 0 0;
+}
+.dep-tag button {
+  background: none; border: none; color: var(--red); cursor: pointer;
+  font-size: 13px; padding: 0; line-height: 1;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -165,6 +182,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   <div class="tabs">
     <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button onclick="switchTab('tasks',this)">Tasks</button>
+    <button onclick="switchTab('gantt',this)">Gantt</button>
     <button onclick="switchTab('scurve',this)">S-Curve</button>
     <button onclick="switchTab('roadmap',this)">Roadmap</button>
   </div>
@@ -197,11 +215,23 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <div><label>Start</label><input id="t-start" type="date"></div>
         <div><label>End</label><input id="t-end" type="date"></div>
       </div>
+      <div class="form-group">
+        <label>Predecessor (finish-to-start)</label>
+        <select id="t-pred"><option value="">None</option></select>
+      </div>
       <button class="btn btn-primary" onclick="addTask()" style="width:100%">Add Task</button>
     </div>
     <div class="card">
       <h2>Task List</h2>
       <div id="task-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Gantt ─── -->
+  <div id="pane-gantt" class="pane">
+    <div class="card">
+      <h2>Gantt Chart</h2>
+      <div class="gantt-wrap"><canvas id="gantt-canvas" class="gantt"></canvas></div>
     </div>
   </div>
 
@@ -220,7 +250,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   <!-- ─── Roadmap ─── -->
   <div id="pane-roadmap" class="pane">
     <div class="card">
-      <h2>What's Here (v0.1)</h2>
+      <h2>What's Here (v0.2)</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
         <li>Task creation with planned cost, start/end dates</li>
         <li>Percent-complete tracking per task</li>
@@ -229,6 +259,9 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
         <li>Earned Schedule: ES, SV(t), SPI(t)</li>
         <li>Forecasts: EAC (cost), EAC(t) (schedule)</li>
         <li>S-curve chart (PV/EV/AC over time)</li>
+        <li>Gantt chart with task bars, progress fill, today line</li>
+        <li>Finish-to-start dependencies with arrow rendering</li>
+        <li>Critical path calculation (forward/backward pass) with highlighting</li>
         <li>Baseline snapshots (local storage)</li>
         <li>PWA — installable, offline shell</li>
       </ul>
@@ -237,8 +270,8 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
       <h2>Next Steps</h2>
       <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
         <li><strong>ATProto integration</strong> — PDS auth, read/write pm.schedule and pm.baseline records via vault.sealed encryption</li>
-        <li><strong>Gantt chart</strong> — task bars with dependency arrows, critical path shading</li>
-        <li><strong>Dependencies</strong> — finish-to-start, lag/lead, critical path calculation (forward/backward pass)</li>
+        <li><strong>Gantt enhancements</strong> — drag to resize/move bars, zoom in/out, milestone markers</li>
+        <li><strong>Dependency types</strong> — SS/FF/SF in addition to FS, lag/lead time</li>
         <li><strong>Change control UI</strong> — submit change requests, approval workflow, rebaseline with audit trail</li>
         <li><strong>WBS hierarchy</strong> — tree view, roll-up EVM at any WBS level</li>
         <li><strong>Multi-project portfolio</strong> — aggregate EVM across projects</li>
@@ -270,7 +303,7 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
 let state = loadState();
 
 function defaultState() {
-  return { tasks: [], baselines: [], projectName: 'My Project' };
+  return { tasks: [], deps: [], baselines: [], projectName: 'My Project' };
 }
 
 function loadState() {
@@ -289,11 +322,12 @@ function addTask() {
   const cost = parseFloat(document.getElementById('t-cost').value) || 0;
   const start = document.getElementById('t-start').value;
   const end = document.getElementById('t-end').value;
+  const pred = document.getElementById('t-pred').value;
   if (!name || !start || !end) return;
 
+  const id = crypto.randomUUID();
   state.tasks.push({
-    id: crypto.randomUUID(),
-    name,
+    id, name,
     plannedCost: cost,
     actualCost: 0,
     plannedStart: start,
@@ -301,14 +335,36 @@ function addTask() {
     percentComplete: 0,
     createdAt: new Date().toISOString()
   });
+  if (pred) {
+    if (!state.deps) state.deps = [];
+    state.deps.push({ from: pred, to: id });
+  }
   saveState();
   document.getElementById('t-name').value = '';
   document.getElementById('t-cost').value = '';
+  document.getElementById('t-pred').value = '';
   renderAll();
 }
 
 function deleteTask(id) {
   state.tasks = state.tasks.filter(t => t.id !== id);
+  if (state.deps) state.deps = state.deps.filter(d => d.from !== id && d.to !== id);
+  saveState();
+  renderAll();
+}
+
+function addDep(fromId, toId) {
+  if (!state.deps) state.deps = [];
+  if (fromId === toId) return;
+  if (state.deps.some(d => d.from === fromId && d.to === toId)) return;
+  state.deps.push({ from: fromId, to: toId });
+  saveState();
+  renderAll();
+}
+
+function removeDep(fromId, toId) {
+  if (!state.deps) return;
+  state.deps = state.deps.filter(d => !(d.from === fromId && d.to === toId));
   saveState();
   renderAll();
 }
@@ -473,17 +529,28 @@ function renderTasks() {
     return;
   }
 
+  const deps = state.deps || [];
+
   el.innerHTML = state.tasks.map(t => {
     const pct = t.percentComplete;
     const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
+    const taskDeps = deps.filter(d => d.to === t.id);
+    const depTags = taskDeps.map(d => {
+      const pred = state.tasks.find(x => x.id === d.from);
+      return pred ? `<span class="dep-tag">${esc(pred.name)}<button onclick="removeDep('${d.from}','${t.id}')">&times;</button></span>` : '';
+    }).join('');
+    const otherTasks = state.tasks.filter(x => x.id !== t.id && !deps.some(d => d.from === x.id && d.to === t.id));
+    const predOpts = otherTasks.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
     return `
-      <div class="task-row">
+      <div class="task-row" style="flex-wrap:wrap">
         <div class="task-name">${esc(t.name)}<br>
           <span style="font-size:11px;color:var(--text2)">
             Planned: ${t.plannedCost} &middot; Actual:
             <input type="number" value="${t.actualCost}" min="0" style="width:60px;padding:2px 4px;display:inline;font-size:11px"
               onchange="updateActualCost('${t.id}',this.value)">
           </span>
+          ${taskDeps.length ? '<br>' + depTags : ''}
         </div>
         <div class="task-bar"><div class="task-bar-fill" style="width:${pct}%;background:${color}"></div></div>
         <div class="task-pct">
@@ -491,6 +558,7 @@ function renderTasks() {
             onchange="updatePct('${t.id}',this.value)">%
         </div>
         <div class="task-actions">
+          ${otherTasks.length ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="if(this.value)addDep(this.value,'${t.id}');this.value=''"><option value="">+dep</option>${predOpts}</select>` : ''}
           <button class="btn btn-sm btn-ghost" onclick="deleteTask('${t.id}')" title="Delete">&times;</button>
         </div>
       </div>`;
@@ -672,6 +740,253 @@ function renderBaselines() {
   ).join('');
 }
 
+// ── Critical Path ──
+
+function computeCriticalPath() {
+  const tasks = state.tasks;
+  const deps = state.deps || [];
+  if (tasks.length === 0) return new Set();
+
+  // Build adjacency: task id → { es, ef, ls, lf, dur }
+  const info = {};
+  for (const t of tasks) {
+    const dur = Math.max((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000, 0);
+    info[t.id] = { dur, es: 0, ef: 0, ls: Infinity, lf: Infinity, preds: [], succs: [] };
+  }
+  for (const d of deps) {
+    if (info[d.from] && info[d.to]) {
+      info[d.to].preds.push(d.from);
+      info[d.from].succs.push(d.to);
+    }
+  }
+
+  // Topological sort
+  const visited = new Set(), order = [];
+  function visit(id) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    for (const s of (info[id]?.succs || [])) visit(s);
+    order.unshift(id);
+  }
+  for (const t of tasks) visit(t.id);
+
+  // Forward pass
+  for (const id of order) {
+    const n = info[id];
+    for (const p of n.preds) {
+      if (info[p]) n.es = Math.max(n.es, info[p].ef);
+    }
+    n.ef = n.es + n.dur;
+  }
+
+  // Project end
+  let projEnd = 0;
+  for (const id of order) projEnd = Math.max(projEnd, info[id].ef);
+
+  // Backward pass
+  for (const id of [...order].reverse()) {
+    const n = info[id];
+    if (n.succs.length === 0) {
+      n.lf = projEnd;
+    } else {
+      n.lf = Infinity;
+      for (const s of n.succs) {
+        if (info[s]) n.lf = Math.min(n.lf, info[s].ls);
+      }
+    }
+    n.ls = n.lf - n.dur;
+  }
+
+  // Critical = zero float
+  const critical = new Set();
+  for (const id of order) {
+    const n = info[id];
+    const float = n.ls - n.es;
+    if (Math.abs(float) < 0.01) critical.add(id);
+  }
+  return critical;
+}
+
+// ── Gantt Chart ──
+
+function renderGantt() {
+  const canvas = document.getElementById('gantt-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+
+  const tasks = state.tasks;
+  const rowH = 32;
+  const neededH = Math.max(240, tasks.length * rowH + 80);
+  canvas.style.height = neededH + 'px';
+
+  canvas.width = rect.width * dpr;
+  canvas.height = neededH * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = neededH;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  if (tasks.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Add tasks to see the Gantt chart', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { t: 28, r: 16, b: 16, l: 140 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  // Time range
+  const starts = tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = tasks.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const tRange = Math.max(tMax - tMin, 86400000);
+
+  function tx(ts) { return pad.l + ((ts - tMin) / tRange) * cw; }
+  function ty(i) { return pad.t + i * rowH + rowH / 2; }
+
+  const critical = computeCriticalPath();
+  const deps = state.deps || [];
+
+  // Grid lines — date headers
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  const totalDays = Math.ceil(tRange / 86400000);
+  const labelStep = Math.max(1, Math.floor(totalDays / 8));
+  for (let d = 0; d <= totalDays; d += labelStep) {
+    const x = pad.l + (d / totalDays) * cw;
+    ctx.strokeStyle = '#21262d';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ch); ctx.stroke();
+    const dt = new Date(tMin + d * 86400000);
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t - 8);
+  }
+
+  // Today line
+  const now = Date.now();
+  if (now >= tMin && now <= tMax + 86400000 * 7) {
+    const nx = tx(now);
+    ctx.strokeStyle = '#d29922';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(nx, pad.t); ctx.lineTo(nx, pad.t + ch); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Row stripes
+  for (let i = 0; i < tasks.length; i++) {
+    if (i % 2 === 0) {
+      ctx.fillStyle = '#161b22';
+      ctx.fillRect(pad.l, pad.t + i * rowH, cw, rowH);
+    }
+  }
+
+  // Task bars
+  const taskIdx = {};
+  tasks.forEach((t, i) => { taskIdx[t.id] = i; });
+
+  for (let i = 0; i < tasks.length; i++) {
+    const t = tasks[i];
+    const x1 = tx(new Date(t.plannedStart).getTime());
+    const x2 = tx(new Date(t.plannedEnd).getTime());
+    const y = ty(i);
+    const barH = 14;
+    const isCrit = critical.has(t.id);
+
+    // Background bar
+    ctx.fillStyle = isCrit ? '#3d1f1f' : '#1c2129';
+    ctx.beginPath();
+    ctx.roundRect(x1, y - barH / 2, Math.max(x2 - x1, 4), barH, 3);
+    ctx.fill();
+
+    // Progress fill
+    const fillW = (x2 - x1) * (t.percentComplete / 100);
+    if (fillW > 0) {
+      ctx.fillStyle = isCrit ? '#f85149' : '#58a6ff';
+      ctx.beginPath();
+      ctx.roundRect(x1, y - barH / 2, Math.max(fillW, 2), barH, 3);
+      ctx.fill();
+    }
+
+    // Critical border
+    if (isCrit) {
+      ctx.strokeStyle = '#f85149';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x1, y - barH / 2, Math.max(x2 - x1, 4), barH, 3);
+      ctx.stroke();
+    }
+
+    // Task label
+    ctx.fillStyle = isCrit ? '#f85149' : '#e6edf3';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    const label = t.name.length > 18 ? t.name.slice(0, 17) + '\u2026' : t.name;
+    ctx.fillText(label, pad.l - 8, y + 4);
+
+    // Percent label
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${t.percentComplete}%`, x2 + 4, y + 3);
+  }
+
+  // Dependency arrows
+  ctx.strokeStyle = '#8b949e';
+  ctx.fillStyle = '#8b949e';
+  ctx.lineWidth = 1;
+  for (const d of deps) {
+    const fi = taskIdx[d.from];
+    const ti = taskIdx[d.to];
+    if (fi === undefined || ti === undefined) continue;
+
+    const fromTask = tasks[fi];
+    const toTask = tasks[ti];
+    const x1 = tx(new Date(fromTask.plannedEnd).getTime());
+    const y1 = ty(fi);
+    const x2 = tx(new Date(toTask.plannedStart).getTime());
+    const y2 = ty(ti);
+
+    ctx.beginPath();
+    // Right from end of predecessor, down/up, then right to start of successor
+    const midX = x1 + 8;
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(midX, y1);
+    ctx.lineTo(midX, y2);
+    ctx.lineTo(x2 - 4, y2);
+    ctx.stroke();
+
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 6, y2 - 3);
+    ctx.lineTo(x2 - 6, y2 + 3);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Legend
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f85149';
+  ctx.fillRect(pad.l, H - 12, 10, 3);
+  ctx.fillText(' Critical', pad.l + 14, H - 8);
+  ctx.fillStyle = '#58a6ff';
+  ctx.fillRect(pad.l + 80, H - 12, 10, 3);
+  ctx.fillText(' Normal', pad.l + 94, H - 8);
+  ctx.fillStyle = '#d29922';
+  ctx.fillRect(pad.l + 155, H - 12, 10, 3);
+  ctx.fillText(' Today', pad.l + 169, H - 8);
+}
+
 // ── Tab switching ──
 
 function switchTab(tab, btn) {
@@ -679,6 +994,7 @@ function switchTab(tab, btn) {
   document.getElementById('pane-' + tab).classList.add('active');
   document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  if (tab === 'gantt') renderGantt();
   if (tab === 'scurve') renderSCurve();
   if (tab === 'dashboard') renderDashboard();
 }
@@ -688,6 +1004,14 @@ function switchTab(tab, btn) {
 function renderAll() {
   renderDashboard();
   renderTasks();
+  // Update predecessor dropdown in add-task form
+  const sel = document.getElementById('t-pred');
+  if (sel) {
+    const val = sel.value;
+    sel.innerHTML = '<option value="">None</option>' +
+      state.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+    sel.value = val;
+  }
 }
 
 renderAll();
