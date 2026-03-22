@@ -180,18 +180,37 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
   position: absolute; height: 16px; top: 8px;
   border-radius: 3px; min-width: 4px;
 }
-.gantt-bar-bg { background: #253040; border: 1px solid #3a5070; }
+.gantt-bar-bg { background: #253040; border: 1px solid #3a5070; cursor: grab; }
 .gantt-bar-bg.crit { background: #3d1f1f; border-color: #f85149; }
 .gantt-bar-fill {
   position: absolute; left: 0; top: 0; height: 100%;
-  border-radius: 3px; min-width: 0;
+  border-radius: 3px; min-width: 0; pointer-events: none;
 }
 .gantt-bar-fill.normal { background: #58a6ff; }
 .gantt-bar-fill.crit { background: #f85149; }
 .gantt-bar-pct {
   position: absolute; right: -30px; top: 1px;
-  font-size: 9px; color: var(--text2); white-space: nowrap;
+  font-size: 9px; color: var(--text2); white-space: nowrap; pointer-events: none;
 }
+/* Drag handles */
+.gantt-handle {
+  position: absolute; top: 0; width: 6px; height: 100%;
+  cursor: ew-resize; z-index: 2;
+}
+.gantt-handle:hover, .gantt-handle.active { background: rgba(88,166,255,0.4); }
+.gantt-handle-l { left: 0; border-radius: 3px 0 0 3px; }
+.gantt-handle-r { right: 0; border-radius: 0 3px 3px 0; }
+/* Link connector dot */
+.gantt-link-dot {
+  position: absolute; top: 50%; right: -5px; transform: translateY(-50%);
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface);
+  cursor: crosshair; z-index: 3; opacity: 0; transition: opacity 0.1s;
+}
+.gantt-bar:hover .gantt-link-dot, .gantt-link-dot.active { opacity: 1; }
+/* Drag feedback */
+.gantt-bar.dragging { opacity: 0.6; }
+.gantt-row.link-target .gantt-bar-bg { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gantt-today {
   position: absolute; top: 0; bottom: 0; width: 2px;
   background: var(--orange); opacity: 0.7; z-index: 1;
@@ -437,10 +456,12 @@ canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius
     <div class="card">
       <h2>S-Curve — PV / EV / AC</h2>
       <canvas id="scurve-canvas"></canvas>
+      <div id="scurve-legend" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:11px;color:var(--text2)"></div>
     </div>
     <div class="card" id="baseline-card" style="display:none">
       <h2>Baselines</h2>
       <div id="baseline-list"></div>
+      <div id="baseline-overlays" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -1224,6 +1245,53 @@ function renderSCurve() {
   drawLine(evPts, '#3fb950');
   drawLine(acPts, '#f85149');
 
+  // Draw baseline overlays
+  const baselineColors = ['#d2a8ff', '#f0883e', '#a5d6ff', '#ffd33d'];
+  if (!state.baselineVisible) state.baselineVisible = {};
+  const visibleBaselines = (state.baselines || []).filter(b => state.baselineVisible[b.id]);
+
+  for (let bi = 0; bi < visibleBaselines.length; bi++) {
+    const b = visibleBaselines[bi];
+    const bColor = baselineColors[bi % baselineColors.length];
+    const bLeaves = b.tasks.filter(bt => !b.tasks.some(c => c.parentId === bt.id));
+    if (bLeaves.length === 0) continue;
+
+    const bStarts = bLeaves.map(t => new Date(t.plannedStart).getTime());
+    const bEnds = bLeaves.map(t => new Date(t.plannedEnd).getTime());
+    const bStart = Math.min(...bStarts);
+    const bEnd = Math.max(...bEnds);
+    const bBac = bLeaves.reduce((s, t) => s + t.plannedCost, 0);
+    if (bBac === 0) continue;
+
+    // Sample baseline PV curve
+    const bPts = [];
+    for (let d = 0; d <= totalDays; d++) {
+      const sampleTime = projStart + d * 86400000;
+      let bpv = 0;
+      for (const t of bLeaves) {
+        const ps = new Date(t.plannedStart).getTime();
+        const pe = new Date(t.plannedEnd).getTime();
+        const dur = Math.max(pe - ps, 1);
+        const elapsed = Math.max(0, Math.min(sampleTime - ps, dur));
+        bpv += t.plannedCost * (elapsed / dur);
+      }
+      bPts.push(bpv);
+    }
+
+    // Draw as dashed line
+    ctx.strokeStyle = bColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    for (let i = 0; i < bPts.length; i++) {
+      const x = pad.l + (i / totalDays) * cw;
+      const y = pad.t + ch - (bPts[i] / bac) * ch;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Today line
   if (todayDay >= 0 && todayDay <= totalDays) {
     const tx = pad.l + (todayDay / totalDays) * cw;
@@ -1234,16 +1302,22 @@ function renderSCurve() {
     ctx.setLineDash([]);
   }
 
-  // Legend
-  const legendY = pad.t + 8;
-  ctx.font = '11px system-ui';
-  [[' PV', '#58a6ff', pad.l + 8], [' EV', '#3fb950', pad.l + 58], [' AC', '#f85149', pad.l + 108]].forEach(([label, color, x]) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, legendY - 4, 12, 3);
-    ctx.fillStyle = '#e6edf3';
-    ctx.textAlign = 'left';
-    ctx.fillText(label, x + 16, legendY);
-  });
+  // HTML legend (below canvas)
+  const legendEl = document.getElementById('scurve-legend');
+  if (legendEl) {
+    let legendHtml = [
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#58a6ff;border-radius:1px"></span>PV</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#3fb950;border-radius:1px"></span>EV</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#f85149;border-radius:1px"></span>AC</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#d29922;border-radius:1px;border-top:1px dashed #d29922"></span>Today</span>'
+    ];
+    for (let bi = 0; bi < visibleBaselines.length; bi++) {
+      const b = visibleBaselines[bi];
+      const c = baselineColors[bi % baselineColors.length];
+      legendHtml.push(`<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:0;border-top:2px dashed ${c}"></span>v${b.version}</span>`);
+    }
+    legendEl.innerHTML = legendHtml.join('');
+  }
 
   // Render baseline list
   renderBaselines();
@@ -1277,13 +1351,37 @@ function renderBaselines() {
   const card = document.getElementById('baseline-card');
   const el = document.getElementById('baseline-list');
   if (state.baselines.length === 0) { card.style.display = 'none'; return; }
+  if (!state.baselineVisible) state.baselineVisible = {};
   card.style.display = '';
-  el.innerHTML = state.baselines.map(b =>
-    `<div class="forecast-row">
-      <span class="fl">v${b.version}: ${esc(b.label)}</span>
-      <span style="font-size:12px;color:var(--text2)">${new Date(b.takenAt).toLocaleDateString()} &middot; BAC ${fmtNum(b.bac, 0)} &middot; ${b.tasks.length} tasks</span>
-    </div>`
-  ).join('');
+  const baselineColors = ['#d2a8ff', '#f0883e', '#a5d6ff', '#ffd33d'];
+  el.innerHTML = state.baselines.map((b, i) => {
+    const color = baselineColors[i % baselineColors.length];
+    const vis = state.baselineVisible[b.id];
+    return `<div class="forecast-row" style="gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0">
+        <input type="checkbox" ${vis ? 'checked' : ''} style="width:14px;height:14px;accent-color:${color}"
+          onchange="toggleBaselineOverlay('${b.id}')">
+        <span class="fl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">v${b.version}: ${esc(b.label)}</span>
+      </label>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${new Date(b.takenAt).toLocaleDateString()} &middot; BAC ${fmtNum(b.bac, 0)}</span>
+      <button class="btn btn-sm btn-ghost" style="padding:2px 6px;font-size:11px;color:var(--red)" onclick="deleteBaseline('${b.id}')">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleBaselineOverlay(id) {
+  if (!state.baselineVisible) state.baselineVisible = {};
+  state.baselineVisible[id] = !state.baselineVisible[id];
+  saveState();
+  renderSCurve();
+}
+
+function deleteBaseline(id) {
+  state.baselines = state.baselines.filter(b => b.id !== id);
+  if (state.baselineVisible) delete state.baselineVisible[id];
+  saveState();
+  renderBaselines();
+  renderSCurve();
 }
 
 // ── Critical Path ──
@@ -1449,9 +1547,20 @@ function renderGantt() {
     const selCls = ganttSelectedId === t.id ? ' selected' : '';
     const barHtml = isParent
       ? `<div class="gantt-bar-summary" style="left:${x1}px;width:${barW}px"></div>`
-      : `<div class="gantt-bar gantt-bar-bg${critCls}" style="left:${x1}px;width:${barW}px">
+      : `<div class="gantt-bar gantt-bar-bg${critCls}" data-task-id="${t.id}" style="left:${x1}px;width:${barW}px"
+            onmousedown="ganttBarDragStart(event,'${t.id}','move')"
+            ontouchstart="ganttBarTouchStart(event,'${t.id}','move')">
+          <div class="gantt-handle gantt-handle-l"
+            onmousedown="event.stopPropagation();ganttBarDragStart(event,'${t.id}','resize-l')"
+            ontouchstart="event.stopPropagation();ganttBarTouchStart(event,'${t.id}','resize-l')"></div>
           <div class="gantt-bar-fill ${isCrit ? 'crit' : 'normal'}" style="width:${fillW}px"></div>
           <div class="gantt-bar-pct">${t.percentComplete}%</div>
+          <div class="gantt-handle gantt-handle-r"
+            onmousedown="event.stopPropagation();ganttBarDragStart(event,'${t.id}','resize-r')"
+            ontouchstart="event.stopPropagation();ganttBarTouchStart(event,'${t.id}','resize-r')"></div>
+          <div class="gantt-link-dot"
+            onmousedown="event.stopPropagation();ganttLinkStart(event,'${t.id}')"
+            ontouchstart="event.stopPropagation();ganttLinkTouchStart(event,'${t.id}')"></div>
         </div>`;
 
     rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
@@ -1493,6 +1602,190 @@ function renderGantt() {
       <svg class="gantt-dep-svg" width="${innerW}" height="${svgH}" viewBox="0 0 ${innerW} ${svgH}">${arrowPaths}</svg>
       ${rowsHtml}
     </div>`;
+}
+
+// ── Gantt direct editing: drag bars, resize, link ──
+
+let ganttDrag = null; // { taskId, mode:'move'|'resize-l'|'resize-r', startX, origStart, origEnd, origDur }
+let ganttLink = null; // { fromId, startX, startY }
+
+function ganttGetTimeInfo() {
+  const tasks = state.tasks;
+  const starts = tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = tasks.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const tRange = Math.max(tMax - tMin, 86400000);
+  const viewport = document.getElementById('gantt-viewport');
+  const labelW = 120;
+  const barAreaBase = Math.max(viewport.clientWidth - labelW, 200);
+  const barAreaW = ganttZoom === 0.5 ? barAreaBase : barAreaBase * ganttZoom;
+  return { tMin, tRange, labelW, barAreaW };
+}
+
+function ganttPxToDays(px) {
+  const { tRange, barAreaW } = ganttGetTimeInfo();
+  return (px / barAreaW) * (tRange / 86400000);
+}
+
+function ganttBarDragStart(e, taskId, mode) {
+  if (e.button !== 0) return;
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  e.preventDefault();
+  e.stopPropagation();
+  ganttDrag = {
+    taskId, mode,
+    startX: e.clientX,
+    origStart: t.plannedStart,
+    origEnd: t.plannedEnd,
+    origDur: t.duration
+  };
+  const bar = e.target.closest('.gantt-bar');
+  if (bar) bar.classList.add('dragging');
+}
+
+function ganttBarTouchStart(e, taskId, mode) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  e.stopPropagation();
+  ganttDrag = {
+    taskId, mode,
+    startX: e.touches[0].clientX,
+    origStart: t.plannedStart,
+    origEnd: t.plannedEnd,
+    origDur: t.duration
+  };
+}
+
+function ganttBarDragMove(clientX) {
+  if (!ganttDrag) return;
+  const dx = clientX - ganttDrag.startX;
+  const daysDelta = Math.round(ganttPxToDays(dx));
+  if (daysDelta === 0) return;
+
+  const t = state.tasks.find(x => x.id === ganttDrag.taskId);
+  if (!t) return;
+
+  if (ganttDrag.mode === 'move') {
+    t.plannedStart = addDateDays(ganttDrag.origStart, daysDelta);
+    t.plannedEnd = addDateDays(ganttDrag.origEnd, daysDelta);
+  } else if (ganttDrag.mode === 'resize-r') {
+    const newEnd = addDateDays(ganttDrag.origEnd, daysDelta);
+    if (newEnd > t.plannedStart) {
+      t.plannedEnd = newEnd;
+      t.duration = Math.max(8, ((new Date(newEnd) - new Date(t.plannedStart)) / 3600000));
+    }
+  } else if (ganttDrag.mode === 'resize-l') {
+    const newStart = addDateDays(ganttDrag.origStart, daysDelta);
+    if (newStart < t.plannedEnd) {
+      t.plannedStart = newStart;
+      t.duration = Math.max(8, ((new Date(t.plannedEnd) - new Date(newStart)) / 3600000));
+    }
+  }
+
+  renderGantt();
+}
+
+function ganttBarDragEnd() {
+  if (!ganttDrag) return;
+  const t = state.tasks.find(x => x.id === ganttDrag.taskId);
+  ganttDrag = null;
+  if (t) {
+    saveState();
+    if (t.parentId) rollUpParent(t.parentId);
+    renderGantt();
+    renderGanttDetail();
+    renderDashboard();
+  }
+}
+
+// Mouse listeners (on document for drag outside bar)
+document.addEventListener('mousemove', e => {
+  if (ganttDrag) { e.preventDefault(); ganttBarDragMove(e.clientX); }
+  if (ganttLink) { ganttLinkMove(e.clientX, e.clientY); }
+});
+document.addEventListener('mouseup', e => {
+  if (ganttDrag) ganttBarDragEnd();
+  if (ganttLink) ganttLinkEnd(e.clientX, e.clientY);
+});
+document.addEventListener('touchmove', e => {
+  if (ganttDrag) { ganttBarDragMove(e.touches[0].clientX); }
+  if (ganttLink) { ganttLinkMove(e.touches[0].clientX, e.touches[0].clientY); }
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (ganttDrag) ganttBarDragEnd();
+  if (ganttLink) ganttLinkEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+});
+
+// ── Gantt link creation: drag from dot to another bar ──
+
+function ganttLinkStart(e, fromId) {
+  e.preventDefault();
+  ganttLink = { fromId, startX: e.clientX, startY: e.clientY };
+  // Create SVG line overlay for visual feedback
+  const inner = document.getElementById('gantt-inner');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'gantt-link-svg';
+  svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999;pointer-events:none';
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('stroke', '#58a6ff');
+  line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-dasharray', '6,4');
+  line.setAttribute('x1', e.clientX); line.setAttribute('y1', e.clientY);
+  line.setAttribute('x2', e.clientX); line.setAttribute('y2', e.clientY);
+  svg.appendChild(line);
+  document.body.appendChild(svg);
+}
+
+function ganttLinkTouchStart(e, fromId) {
+  e.stopPropagation();
+  ganttLink = { fromId, startX: e.touches[0].clientX, startY: e.touches[0].clientY };
+  ganttLinkStart({ preventDefault(){}, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }, fromId);
+}
+
+function ganttLinkMove(clientX, clientY) {
+  if (!ganttLink) return;
+  const svg = document.getElementById('gantt-link-svg');
+  if (svg) {
+    const line = svg.querySelector('line');
+    line.setAttribute('x2', clientX);
+    line.setAttribute('y2', clientY);
+  }
+  // Highlight target row
+  document.querySelectorAll('.gantt-row').forEach(r => r.classList.remove('link-target'));
+  const el = document.elementFromPoint(clientX, clientY);
+  if (el) {
+    const row = el.closest('.gantt-row');
+    if (row && row.dataset.taskId !== ganttLink.fromId) {
+      row.classList.add('link-target');
+    }
+  }
+}
+
+function ganttLinkEnd(clientX, clientY) {
+  if (!ganttLink) return;
+  const fromId = ganttLink.fromId;
+  ganttLink = null;
+
+  // Clean up
+  const svg = document.getElementById('gantt-link-svg');
+  if (svg) svg.remove();
+  document.querySelectorAll('.gantt-row').forEach(r => r.classList.remove('link-target'));
+
+  // Find target
+  const el = document.elementFromPoint(clientX, clientY);
+  if (el) {
+    const row = el.closest('.gantt-row');
+    if (row && row.dataset.taskId && row.dataset.taskId !== fromId) {
+      addDep(fromId, row.dataset.taskId);
+      recalcTaskStart(row.dataset.taskId);
+      renderGantt();
+      renderGanttDetail();
+      renderDashboard();
+      return;
+    }
+  }
 }
 
 function selectGanttTask(id) {
