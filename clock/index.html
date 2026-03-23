@@ -193,23 +193,23 @@ async function main() {
   // Everything else is derived.
 
   // --- Tunable parameters (mutated by UI sliders) ---
-  let ORBIT_RATIO = 2.5;
-  let TUBE_FRAC = 0.06;
+  let ORBIT_RATIO = 4.0;
+  let TUBE_FRAC = 0.10;
   let FADE_SCALE = 80;
-  let FADE_RANGE = 0.25;
-  let COIL_EXTENT = 1;  // how many parent-revolutions of children to render (1 = just the selected parent coil)
+  let FADE_RANGE = 0.40;
+  let COIL_EXTENT = 100;  // how many parent-revolutions of children to render (1 = just the selected parent coil)
   const SAMPLES_PER_COIL = 14;
   const TUBE_SIDES = 6;
 
   // Level hierarchy: big subdivision jumps so each level lives in its own scale
   const LEVELS = [
     { name: 'year',    subs: 1,  label: 'Years',   enabled: true },
-    { name: 'quarter', subs: 4,  label: 'Quarters', enabled: true },
+    { name: 'quarter', subs: 4,  label: 'Quarters', enabled: false },
     { name: 'week',    subs: 13, label: 'Weeks',    enabled: true },
     { name: 'day',     subs: 7,  label: 'Days',     enabled: true },
     { name: 'hour',    subs: 24, label: 'Hours',    enabled: true },
-    { name: '6min',    subs: 10, label: '6-min',    enabled: true },
-    { name: '30s',     subs: 12, label: '30-sec',   enabled: true },
+    { name: '6min',    subs: 10, label: '6-min',    enabled: false },
+    { name: '30s',     subs: 12, label: '30-sec',   enabled: false },
   ];
 
   const MAX_VISIBLE_LEVELS = 2;
