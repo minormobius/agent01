@@ -417,9 +417,14 @@ async function main() {
         const p0 = parentPath[pi], p1 = parentPath[pi + 1];
 
         const parentPos = v3lerp(p0.pos, p1.pos, pt);
+        // Interpolate and re-orthogonalize frame (Gram-Schmidt)
+        // Naive v3lerp of T/N/B loses orthogonality at each level
         const parentT = v3normalize(v3lerp(p0.T, p1.T, pt));
-        const parentN = v3normalize(v3lerp(p0.N, p1.N, pt));
-        const parentB = v3normalize(v3lerp(p0.B, p1.B, pt));
+        let parentN = v3normalize(v3lerp(p0.N, p1.N, pt));
+        let parentB = v3normalize(v3lerp(p0.B, p1.B, pt));
+        // Remove T component from N, then rebuild B
+        parentN = v3normalize(v3sub(parentN, v3scale(parentT, v3dot(parentN, parentT))));
+        parentB = v3normalize(v3cross(parentT, parentN));
         const parentColor = v3lerp(p0.color, p1.color, pt);
 
         // Coil angle: one full revolution per child
@@ -1166,16 +1171,20 @@ async function main() {
       let parentSpan = 1; // how many "revolutions" the parent path covers
       const selectedYear = Math.floor(selectedGlobalFrac);
 
-      // For level 1: widen parent path to cover COIL_EXTENT years centered on selection
-      const halfExtent = (COIL_EXTENT - 1) / 2;
-      const yearLo = selectedYear - Math.floor(halfExtent);
-      const yearHi = selectedYear + Math.ceil(halfExtent) + 1;
+      // For level 1: parent is the selected year (1 revolution of L0).
+      // COIL_EXTENT expands to neighboring years for context.
+      const halfExt = Math.floor((COIL_EXTENT - 1) / 2);
+      const yearLo = Math.max(0, selectedYear - halfExt);
+      const yearHi = Math.min(totalYears, selectedYear + halfExt + 1);
       const yearPath = level0.path.filter(p =>
         p.globalFrac >= yearLo && p.globalFrac <= yearHi
       );
+      // Track which revolution within the expanded parent holds the selection
+      let parentChildOffset = 0;
       if (yearPath.length > 2) {
         parentPath = yearPath;
         parentSpan = yearHi - yearLo;
+        parentChildOffset = selectedYear - yearLo;
       }
 
       for (let i = 0; i < levelState.length; i++) {
@@ -1202,12 +1211,20 @@ async function main() {
           continue;
         }
 
-        // Extent: render subs × COIL_EXTENT children, centered on the selected child
-        const totalCoils = subs * COIL_EXTENT;
-        const centerChild = childIdx;
-        const extentStart = Math.max(0, centerChild - Math.floor((totalCoils - subs) / 2));
+        // Render subs × parentSpan children to fill the full parent path.
+        // parentSpan > 1 when COIL_EXTENT expanded the parent at a previous level.
+        // The selected child's absolute index within this set:
+        //   (selectedParentOffset * subs) + childIdx
+        // where selectedParentOffset = which parent revolution holds the selection.
+        const totalCoils = subs * parentSpan;
+        const extentStart = 0;
 
-        const key = `${selectedYear}-${selectionPath.slice(0, i + 1).join('-')}-e${COIL_EXTENT}`;
+        // The selected child's position in the expanded set.
+        // parentChildOffset tracks which of the parentSpan revolutions
+        // contains the selected parent child (set when expanding below).
+        const selectedChildAbsolute = (parentChildOffset || 0) * subs + childIdx;
+
+        const key = `${selectedYear}-${selectionPath.slice(0, i + 1).join('-')}-e${COIL_EXTENT}-s${parentSpan}`;
 
         if (key !== levelState[i].cachedKey) {
           // Free old buffers
@@ -1216,33 +1233,51 @@ async function main() {
             levelState[i].gpu.indexBuffer.destroy();
           }
 
-          // Generate extended children around the selection
+          // Generate children filling the entire expanded parent
           const result = generateCoilLevel(parentPath, lvl, extentStart, totalCoils, parentSpan);
           levelState[i].gpu = createGPUMesh(device, result.mesh);
           levelState[i].path = result.path;
           levelState[i].cachedKey = key;
           levelState[i].startChild = extentStart;
-          console.log(`Level ${lvl} (${LEVELS[lvl].name}): ${levelState[i].gpu.indexCount / 3} tris, coils=${totalCoils}`);
+          console.log(`Level ${lvl} (${LEVELS[lvl].name}): ${levelState[i].gpu.indexCount / 3} tris, coils=${totalCoils}, span=${parentSpan}`);
         }
 
-        // Use this level's path as parent for next level — just the selected child's segment
-        parentSpan = 1; // child is always 1 revolution
+        // For the next level's parent: expand COIL_EXTENT children centered
+        // on the selected child within this level's rendered coils.
         if (levelState[i].path) {
           const samplesPerChild = SAMPLES_PER_COIL + 1;
-          const localIdx = childIdx - (levelState[i].startChild || 0);
-          const childStart = localIdx * samplesPerChild;
-          const childEnd = childStart + samplesPerChild;
-          if (childStart >= 0 && childEnd <= levelState[i].path.length) {
-            parentPath = levelState[i].path.slice(childStart, childEnd);
+          const halfExt = Math.floor((COIL_EXTENT - 1) / 2);
+          const extLo = Math.max(0, selectedChildAbsolute - halfExt);
+          const extHi = Math.min(totalCoils, selectedChildAbsolute + halfExt + 1);
+          const sliceStart = extLo * samplesPerChild;
+          const sliceEnd = extHi * samplesPerChild;
+
+          if (sliceStart >= 0 && sliceEnd <= levelState[i].path.length) {
+            parentPath = levelState[i].path.slice(sliceStart, sliceEnd);
+            parentSpan = extHi - extLo;
+            // Track where the selected child sits within the new expanded parent
+            parentChildOffset = selectedChildAbsolute - extLo;
+          } else {
+            // Fallback: just the selected child
+            const s0 = selectedChildAbsolute * samplesPerChild;
+            const s1 = s0 + samplesPerChild;
+            if (s0 >= 0 && s1 <= levelState[i].path.length) {
+              parentPath = levelState[i].path.slice(s0, s1);
+            }
+            parentSpan = 1;
+            parentChildOffset = 0;
           }
         }
       }
 
-      // Update selectedPos to the deepest generated level's selected child midpoint.
-      // parentPath now points to the deepest child segment — use its midpoint.
-      if (parentPath.length > 0) {
-        const mid = parentPath[Math.floor(parentPath.length / 2)];
-        selectedPos = [...mid.pos];
+      // Update selectedPos to the selected child's midpoint within the deepest level.
+      // parentPath may be expanded (parentSpan > 1). Use parentChildOffset to find
+      // the selected revolution's midpoint.
+      if (parentPath.length > 0 && parentSpan > 0) {
+        const samplesPerRev = Math.floor(parentPath.length / parentSpan);
+        const revStart = (parentChildOffset || 0) * samplesPerRev;
+        const midIdx = Math.min(parentPath.length - 1, revStart + Math.floor(samplesPerRev / 2));
+        selectedPos = [...parentPath[midIdx].pos];
       }
     }
 
@@ -1254,7 +1289,10 @@ async function main() {
     for (let i = LEVELS.length - 1; i >= 0; i--) {
       if (levelAlphas[i] > 0.1) { deepest = LEVELS[i].label; break; }
     }
-    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · pinch to zoom — ${deepest}</div>`;
+    const selDebug = selectedGlobalFrac >= 0
+      ? ` · sel=${startYear + Math.floor(selectedGlobalFrac)} d=${camDist.toFixed(1)}`
+      : '';
+    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · pinch to zoom — ${deepest}${selDebug}</div>`;
 
     // Update breadcrumb nav
     updateBreadcrumb();
