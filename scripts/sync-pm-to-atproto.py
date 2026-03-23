@@ -171,7 +171,7 @@ def unseal_record(envelope: dict, dek: bytes) -> dict:
 
 def setup_vault(token, did, passphrase):
     """Bootstrap or unlock vault identity key, derive DEK."""
-    salt = did.encode()
+    salt = (did + ":vault-kek").encode()  # must match wave/src/App.tsx:114
     kek = derive_kek(passphrase, salt)
     print(f"KEK derived (PBKDF2, {PBKDF2_ITERATIONS} iterations)")
 

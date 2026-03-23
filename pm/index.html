@@ -3096,8 +3096,8 @@ async function atprotoLogin() {
     saveState();
     atprotoLog(`Authenticated as ${session.handle} (${session.did})`);
 
-    // 2. Derive KEK from passphrase + DID-based salt
-    const salt = new TextEncoder().encode(session.did);
+    // 2. Derive KEK from passphrase + DID-based salt (must match wave/src/App.tsx:114)
+    const salt = new TextEncoder().encode(session.did + ':vault-kek');
     const kek = await vaultDeriveKek(passphrase, salt);
     atprotoLog('KEK derived (PBKDF2, 600k iterations)');
 
