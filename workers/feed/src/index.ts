@@ -146,15 +146,15 @@ async function persistCommunities(
 ): Promise<void> {
   // Clear old data
   await db.batch([
-    db.prepare('DELETE FROM bridges'),
-    db.prepare('DELETE FROM community_members'),
-    db.prepare('DELETE FROM communities'),
+    db.prepare('DELETE FROM feed_bridges'),
+    db.prepare('DELETE FROM feed_community_members'),
+    db.prepare('DELETE FROM feed_communities'),
   ]);
 
   // Insert communities and members
   for (const c of communities) {
     const insert = await db.prepare(
-      'INSERT INTO communities (label, core_size, total_size) VALUES (?, ?, ?)'
+      'INSERT INTO feed_communities (label, core_size, total_size) VALUES (?, ?, ?)'
     ).bind(
       c.label,
       c.core.length,
@@ -169,7 +169,7 @@ async function persistCommunities(
     for (const did of c.core) {
       stmts.push(
         db.prepare(
-          'INSERT INTO community_members (community_id, did, shell, mutual_count) VALUES (?, ?, 0, ?)'
+          'INSERT INTO feed_community_members (community_id, did, shell, mutual_count) VALUES (?, ?, 0, ?)'
         ).bind(communityId, did, c.core.length - 1)
       );
     }
@@ -178,7 +178,7 @@ async function persistCommunities(
       for (const m of shell.members) {
         stmts.push(
           db.prepare(
-            'INSERT INTO community_members (community_id, did, shell, mutual_count) VALUES (?, ?, ?, ?)'
+            'INSERT INTO feed_community_members (community_id, did, shell, mutual_count) VALUES (?, ?, ?, ?)'
           ).bind(communityId, m.did, shell.threshold, m.count)
         );
       }
@@ -195,7 +195,7 @@ async function persistCommunities(
   for (const [did, cIds] of bridges) {
     bridgeStmts.push(
       db.prepare(
-        'INSERT INTO bridges (did, community_ids) VALUES (?, ?)'
+        'INSERT INTO feed_bridges (did, community_ids) VALUES (?, ?)'
       ).bind(did, JSON.stringify([...cIds]))
     );
   }
@@ -237,7 +237,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
   // Health check
   if (path === '/health') {
-    const count = await env.DB.prepare('SELECT COUNT(*) as n FROM communities').first<{ n: number }>();
+    const count = await env.DB.prepare('SELECT COUNT(*) as n FROM feed_communities').first<{ n: number }>();
     return Response.json({
       ok: true,
       communities: count?.n ?? 0,
@@ -289,7 +289,7 @@ async function generateFeed(
 ): Promise<ScoredPost[]> {
   // 1. Load all community members from D1
   const members = await env.DB.prepare(
-    'SELECT community_id, did, shell FROM community_members'
+    'SELECT community_id, did, shell FROM feed_community_members'
   ).all<{ community_id: number; did: string; shell: number }>();
 
   if (!members.results || members.results.length === 0) {
@@ -312,7 +312,7 @@ async function generateFeed(
   }
 
   // 2. Load bridge DIDs
-  const bridgeRows = await env.DB.prepare('SELECT did FROM bridges').all<{ did: string }>();
+  const bridgeRows = await env.DB.prepare('SELECT did FROM feed_bridges').all<{ did: string }>();
   const bridgeDids = new Set((bridgeRows.results || []).map(r => r.did));
 
   // 3. Discover candidates via Constellation
