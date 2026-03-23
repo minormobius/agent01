@@ -1100,9 +1100,9 @@ async function main() {
     camDist += (camDistTarget - camDist) * 0.1;
 
     // Blend orbit center toward selected point proportional to zoom depth.
-    // At full zoom-out, orbit around origin. As you zoom past L0's tube,
-    // smoothly shift to orbit around the selected segment.
-    if (selectedPos) {
+    // Track the deepest visible level's selected segment as the zoom target,
+    // so the camera automatically recenters on sub-level geometry as you zoom in.
+    if (selectedPos && selectedGlobalFrac >= 0) {
       const zoomBlend = 1.0 - smoothstep(
         levelGeom[0].tubeRadius * FADE_SCALE * (1 - FADE_RANGE),
         levelGeom[0].tubeRadius * FADE_SCALE,
@@ -1236,6 +1236,13 @@ async function main() {
             parentPath = levelState[i].path.slice(childStart, childEnd);
           }
         }
+      }
+
+      // Update selectedPos to the deepest generated level's selected child midpoint.
+      // parentPath now points to the deepest child segment — use its midpoint.
+      if (parentPath.length > 0) {
+        const mid = parentPath[Math.floor(parentPath.length / 2)];
+        selectedPos = [...mid.pos];
       }
     }
 
