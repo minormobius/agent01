@@ -350,13 +350,22 @@ def push_project(token, did, project, dek, keyring_rkey):
 
 def pull_project(token, did, dek):
     print("Pulling sealed records from PDS...")
-    sealed = xrpc_get(token, "com.atproto.repo.listRecords", {
-        "repo": did,
-        "collection": "com.minomobi.vault.sealed",
-        "limit": "1000",
-    })
+    records = []
+    cursor = None
+    while True:
+        params = {
+            "repo": did,
+            "collection": "com.minomobi.vault.sealed",
+            "limit": "100",
+        }
+        if cursor:
+            params["cursor"] = cursor
+        page = xrpc_get(token, "com.atproto.repo.listRecords", params)
+        records.extend(page.get("records", []))
+        cursor = page.get("cursor")
+        if not cursor or not page.get("records"):
+            break
 
-    records = sealed.get("records", [])
     if not records:
         print("No sealed records found on PDS.")
         return None

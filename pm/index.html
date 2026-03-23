@@ -3207,7 +3207,53 @@ async function atprotoLogin() {
     // Clear passphrase from DOM
     document.getElementById('sync-passphrase').value = '';
     renderSyncUI();
-    atprotoLog('Vault unlocked. Ready to push/pull encrypted records.');
+    atprotoLog('Vault unlocked. Auto-syncing...');
+
+    // Auto-sync: check PDS for existing PM data
+    try {
+      let allRecords = [];
+      let cursor = undefined;
+      while (true) {
+        const params = { repo: session.did, collection: 'com.minomobi.vault.sealed', limit: 100 };
+        if (cursor) params.cursor = cursor;
+        const page = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', params);
+        if (page.records) allRecords = allRecords.concat(page.records);
+        if (!page.cursor || !page.records || page.records.length < 100) break;
+        cursor = page.cursor;
+      }
+      const pmRecords = allRecords.filter(r =>
+        r.value.innerType && r.value.innerType.startsWith('com.minomobi.pm.')
+      );
+      const projectRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.project');
+
+      if (projectRecs.length > 0) {
+        // PDS has PM data — pull it
+        atprotoLog(`Found ${projectRecs.length} project(s) on PDS — pulling latest...`);
+        const projectEnvelope = projectRecs[projectRecs.length - 1].value;
+        const { record: projectInner } = await vaultUnsealRecord(projectEnvelope, dek);
+        atprotoLog(`Decrypted project: ${projectInner.name}`);
+        if (projectInner._pmState) {
+          state.projectName = projectInner.name || state.projectName;
+          state.tasks = projectInner._pmState.tasks || [];
+          state.deps = projectInner._pmState.deps || [];
+          state.baselines = projectInner._pmState.baselines || [];
+          state.members = projectInner._pmState.members || [];
+          state.collapsed = projectInner._pmState.collapsed || [];
+          saveState();
+          renderAll();
+          renderTeam();
+          atprotoLog(`Restored: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
+        }
+      } else if (state.tasks.length > 0) {
+        // PDS is empty but we have local data — push it
+        atprotoLog(`No PM data on PDS — pushing local project (${state.tasks.length} tasks)...`);
+        await atprotoPush();
+      } else {
+        atprotoLog('No PM data on PDS or locally. Start adding tasks!');
+      }
+    } catch (syncErr) {
+      atprotoLog(`Auto-sync: ${syncErr.message}`);
+    }
   } catch (err) {
     alert(`Login failed: ${err.message}`);
     atprotoLog(`Error: ${err.message}`);
@@ -3388,19 +3434,24 @@ async function atprotoPull() {
   const { dek } = vaultCtx;
 
   try {
-    // List all vault.sealed records, filter for PM types
-    const sealed = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
-      repo: state.atproto.did,
-      collection: 'com.minomobi.vault.sealed',
-      limit: 1000
-    });
+    // Paginated fetch of vault.sealed records
+    let allRecords = [];
+    let cursor = undefined;
+    while (true) {
+      const params = { repo: state.atproto.did, collection: 'com.minomobi.vault.sealed', limit: 100 };
+      if (cursor) params.cursor = cursor;
+      const page = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', params);
+      if (page.records) allRecords = allRecords.concat(page.records);
+      if (!page.cursor || !page.records || page.records.length < 100) break;
+      cursor = page.cursor;
+    }
 
-    if (!sealed.records || sealed.records.length === 0) {
+    if (allRecords.length === 0) {
       atprotoLog('No sealed records found on PDS.');
       return;
     }
 
-    const pmRecords = sealed.records.filter(r =>
+    const pmRecords = allRecords.filter(r =>
       r.value.innerType && r.value.innerType.startsWith('com.minomobi.pm.')
     );
     atprotoLog(`Found ${pmRecords.length} PM sealed records out of ${sealed.records.length} total`);
