@@ -1,0 +1,92 @@
+// --- PDS Session ---
+
+export interface Session {
+  did: string;
+  handle: string;
+  accessJwt: string;
+  refreshJwt: string;
+}
+
+// --- Vault Org Types ---
+
+export interface TierDef {
+  name: string;
+  level: number;
+  currentEpoch?: number;
+}
+
+export const DEFAULT_TIERS: TierDef[] = [
+  { name: "member", level: 0 },
+  { name: "manager", level: 1 },
+  { name: "admin", level: 2 },
+];
+
+export interface Org {
+  name: string;
+  founderDid: string;
+  tiers: TierDef[];
+  createdAt: string;
+}
+
+export interface OrgRecord {
+  rkey: string;
+  org: Org;
+}
+
+export interface Membership {
+  orgRkey: string;
+  orgService: string;
+  orgFounderDid: string;
+  memberDid: string;
+  memberHandle?: string;
+  tierName: string;
+  invitedBy: string;
+  createdAt: string;
+}
+
+export interface MembershipRecord {
+  rkey: string;
+  membership: Membership;
+}
+
+export interface OrgBookmark {
+  founderDid: string;
+  founderService: string;
+  orgRkey: string;
+  orgName: string;
+  createdAt: string;
+}
+
+export interface KeyringMemberEntry {
+  did: string;
+  wrappedDek: string; // base64
+}
+
+export interface Keyring {
+  orgRkey: string;
+  tierName: string;
+  epoch?: number;
+  writerDid: string;
+  writerPublicKey: string; // base64
+  members: KeyringMemberEntry[];
+}
+
+// --- App Registry ---
+
+export interface AppDef {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  icon: string;
+  orgAware: boolean;
+}
+
+export const APPS: AppDef[] = [
+  { id: "wave", name: "Wave", description: "Encrypted channels, threads & docs", url: "https://wave.mino.mobi", icon: "\u{1F30A}", orgAware: true },
+  { id: "crm", name: "CRM", description: "Deal pipeline & proposals", url: "https://crm.mino.mobi", icon: "\u{1F4BC}", orgAware: true },
+  { id: "pm", name: "PM", description: "Earned value project management", url: "https://pm.mino.mobi", icon: "\u{1F4CA}", orgAware: true },
+  { id: "time", name: "Times", description: "Articles & podcast", url: "https://mino.mobi/time/", icon: "\u{1F4F0}", orgAware: false },
+  { id: "cards", name: "Cards", description: "Deep Wikipedia card game", url: "https://mino.mobi/cards/", icon: "\u{1F0CF}", orgAware: false },
+  { id: "labglass", name: "LABGLASS", description: "DuckDB + Pyodide analytics", url: "https://mino.mobi/labglass/", icon: "\u{1F52C}", orgAware: false },
+];
