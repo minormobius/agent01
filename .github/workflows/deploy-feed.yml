@@ -2,7 +2,7 @@ name: Deploy Feed Worker
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/bluesky-anonymous-polls-*']
     paths:
       - 'workers/feed/**'
       - 'poll/apps/api/migrations/0010_feed_communities.sql'
