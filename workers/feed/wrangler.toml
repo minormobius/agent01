@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["0 */6 * * *"]  # Recompute communities every 6 hours
 
+[[routes]]
+pattern = "feed.mino.mobi"
+custom_domain = true
+
 [vars]
 FEED_URI = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/simcluster"
 PUBLISHER_DID = "did:plc:7zre4plmd5jllccww575j6sb"
