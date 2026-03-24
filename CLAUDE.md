@@ -316,3 +316,81 @@ Do **not** try to call the OToL API or Wikidata SPARQL directly from the sandbox
 
 ### Viewer Clade Picker
 Both viewers auto-detect multiple roots from the flat PDS node list and show a dropdown to switch between clades. No manual wiring needed — just sync the clade and it appears.
+
+## SimCluster Feed Generator
+
+### What It Is
+A Bluesky custom feed generator (`workers/feed/`) deployed as a Cloudflare Worker. It discovers communities from mutual-follow graphs, tracks engagement via the Constellation relay, and ranks posts by cross-community appeal.
+
+### Architecture
+```
+Cron (6h) → Fetch seed DIDs → Fetch follows → Community detection (Bron-Kerbosch) → D1 storage
+HTTP GET  → Load communities → Sample members → Query Constellation → Score posts → Feed skeleton
+```
+
+**Source files:**
+- `src/index.ts` — Worker entry point, cron handler, feed endpoint
+- `src/graph.ts` — Community detection (clique finding, shell peeling, bridge detection)
+- `src/constellation.ts` — Engagement signal discovery via Bluesky relay
+- `src/scoring.ts` — Post ranking (community breadth, recency decay, bridge bonus)
+
+### Infrastructure
+| Resource | ID / Value |
+|----------|-----------|
+| D1 database | `atpolls-db` / `fee2f25a-8b4a-4d46-b245-9d5da93c117d` |
+| KV namespace (STATE) | `67ce39f7715b47aab1187a5443f74e0e` |
+| Hostname | `feed.mino.mobi` |
+| Publisher DID | `did:plc:7zre4plmd5jllccww575j6sb` |
+| Seed list | `at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mhrbb6iqxi2g` |
+
+### Deployment
+Automated via `.github/workflows/deploy-feed.yml` on push to `main`. Steps: type check, D1 migration, `wrangler deploy`.
+
+Manual:
+```bash
+cd workers/feed
+npm install
+npm run migrate    # Apply D1 migrations to remote
+npm run deploy     # Deploy worker to Cloudflare
+```
+
+Local dev:
+```bash
+npm run dev              # http://localhost:8787
+npm run migrate:local    # Local SQLite for D1
+```
+
+### After Deployment
+1. Register the feed generator record on the PDS (one-time):
+   ```
+   app.bsky.feed.generator/simcluster → { did: "did:web:feed.mino.mobi", ... }
+   ```
+2. The cron runs every 6 hours to recompute communities
+3. Bluesky clients can subscribe to the feed via the feed URI in `FEED_URI`
+4. The `/health` endpoint reports community count from D1
+
+### Endpoints
+- `GET /xrpc/app.bsky.feed.getFeedSkeleton?feed=<uri>` — Feed skeleton (paginated)
+- `GET /xrpc/app.bsky.feed.describeFeedGenerator` — Feed metadata
+- `GET /.well-known/did.json` — did:web document
+- `GET /health` — Health check
+
+## Ops Tricks
+
+### Triggering `workflow_dispatch` Workflows From a Feature Branch
+One-shot `workflow_dispatch` workflows (like creating a KV namespace) can't be triggered from the GitHub UI on a feature branch. Workaround:
+
+1. Temporarily change the trigger to `push` scoped to your branch and its own path:
+   ```yaml
+   on:
+     push:
+       branches:
+         - 'your/feature-branch'
+       paths:
+         - '.github/workflows/this-workflow.yml'
+   ```
+2. Commit and push — the push itself matches the path filter and triggers the workflow.
+3. Grab the output from the Actions log.
+4. Revert the trigger back to `workflow_dispatch` and commit.
+
+This is useful for infrastructure provisioning (KV namespaces, D1 databases, etc.) that needs to run once from CI with secrets that aren't available locally.
