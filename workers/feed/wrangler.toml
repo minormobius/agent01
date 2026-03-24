@@ -7,10 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["0 */6 * * *"]  # Recompute communities every 6 hours
 
 [vars]
-FEED_URI = "at://did:plc:PLACEHOLDER/app.bsky.feed.generator/simcluster"
-PUBLISHER_DID = "did:plc:PLACEHOLDER"
+FEED_URI = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/simcluster"
+PUBLISHER_DID = "did:plc:7zre4plmd5jllccww575j6sb"
 HOSTNAME = "feed.mino.mobi"
 CONSTELLATION_RELAY = "https://constellation.us-east.host.bsky.network"
+BLUESKY_SEED_LIST = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mhrbb6iqxi2g"
 
 [[d1_databases]]
 binding = "DB"
