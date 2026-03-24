@@ -21,4 +21,4 @@ migrations_dir = "../../poll/apps/api/migrations"
 
 [[kv_namespaces]]
 binding = "STATE"
-id = "PLACEHOLDER"
+id = "67ce39f7715b47aab1187a5443f74e0e"

@@ -1,11 +1,7 @@
 name: Create KV Namespace
 
 on:
-  push:
-    branches:
-      - 'claude/bluesky-anonymous-polls-DcGuR'
-    paths:
-      - '.github/workflows/create-kv-namespace.yml'
+  workflow_dispatch:
 
 jobs:
   create-kv:
