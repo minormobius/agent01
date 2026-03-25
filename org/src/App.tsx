@@ -18,6 +18,8 @@ import { OrgDetail } from "./components/OrgDetail";
 import { CreateOrg } from "./components/CreateOrg";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
+import { PmApp } from "./pm/PmApp";
+import { Route } from "./router";
 
 // ATProto collection names
 const IDENTITY_COLLECTION = "com.minomobi.vault.wrappedIdentity";
@@ -261,16 +263,99 @@ export function App() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  // --- Logged in, invite URL → write bookmark then show orgs ---
-  // (handled inside the login flow — bookmark written on first discovery)
+  // --- Routed app pages (logged in) ---
+  return (
+    <>
+      {/* PM tool — full-page, own layout */}
+      <Route path="/pm">
+        <PmApp />
+      </Route>
 
+      {/* Hub home — org management + app grid */}
+      <Route path="/" exact>
+        <HubHome
+          vault={vault}
+          pds={pds}
+          orgs={orgs}
+          memberships={memberships}
+          selectedOrg={selectedOrg}
+          view={view}
+          loading={loading}
+          onLogout={handleLogout}
+          onSelectOrg={handleSelectOrg}
+          onCreateView={() => setView("create")}
+          onOrgCreated={handleOrgCreated}
+          onMembershipsChanged={handleMembershipChanged}
+          onBack={() => {
+            setSelectedOrg(null);
+            setView("orgs");
+          }}
+        />
+      </Route>
+
+      {/* Invite link (logged in — write bookmark) */}
+      <Route path="/invite">
+        <HubHome
+          vault={vault}
+          pds={pds}
+          orgs={orgs}
+          memberships={memberships}
+          selectedOrg={selectedOrg}
+          view={view}
+          loading={loading}
+          onLogout={handleLogout}
+          onSelectOrg={handleSelectOrg}
+          onCreateView={() => setView("create")}
+          onOrgCreated={handleOrgCreated}
+          onMembershipsChanged={handleMembershipChanged}
+          onBack={() => {
+            setSelectedOrg(null);
+            setView("orgs");
+          }}
+        />
+      </Route>
+    </>
+  );
+}
+
+// --- Hub home (extracted for reuse across routes) ---
+
+function HubHome({
+  vault,
+  pds,
+  orgs,
+  memberships,
+  selectedOrg,
+  view,
+  loading,
+  onLogout,
+  onSelectOrg,
+  onCreateView,
+  onOrgCreated,
+  onMembershipsChanged,
+  onBack,
+}: {
+  vault: VaultState;
+  pds: PdsClient;
+  orgs: OrgRecord[];
+  memberships: MembershipRecord[];
+  selectedOrg: OrgRecord | null;
+  view: View;
+  loading: boolean;
+  onLogout: () => void;
+  onSelectOrg: (org: OrgRecord) => void;
+  onCreateView: () => void;
+  onOrgCreated: (org: OrgRecord) => void;
+  onMembershipsChanged: (updated: MembershipRecord[]) => void;
+  onBack: () => void;
+}) {
   return (
     <div className="hub">
       <header className="hub-header">
         <h1>Org Hub</h1>
         <div className="user-info">
           <span>@{vault.session.handle}</span>
-          <button className="btn-secondary btn-sm" onClick={handleLogout}>
+          <button className="btn-secondary btn-sm" onClick={onLogout}>
             Sign out
           </button>
         </div>
@@ -284,8 +369,8 @@ export function App() {
             <OrgList
               orgs={orgs}
               myDid={vault.session.did}
-              onSelect={handleSelectOrg}
-              onCreate={() => setView("create")}
+              onSelect={onSelectOrg}
+              onCreate={onCreateView}
             />
             <AppGrid activeOrg={selectedOrg} />
           </>
@@ -297,8 +382,8 @@ export function App() {
             myDid={vault.session.did}
             myPrivateKey={vault.privateKey}
             myPublicKey={vault.publicKey}
-            onCreated={handleOrgCreated}
-            onCancel={() => setView("orgs")}
+            onCreated={onOrgCreated}
+            onCancel={onBack}
           />
         )}
 
@@ -308,11 +393,8 @@ export function App() {
             vault={vault}
             org={selectedOrg}
             memberships={memberships.filter((m) => m.membership.orgRkey === selectedOrg.rkey)}
-            onMembershipsChanged={handleMembershipChanged}
-            onBack={() => {
-              setSelectedOrg(null);
-              setView("orgs");
-            }}
+            onMembershipsChanged={onMembershipsChanged}
+            onBack={onBack}
           />
         )}
       </div>
