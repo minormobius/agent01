@@ -1,11 +1,16 @@
 /**
  * PM shell — tab bar and pane routing.
- * Panes are lazy-loaded as they get built out.
  */
 
 import { useProject } from "./useProject";
 import { PM_TABS } from "./types";
 import { Dashboard } from "./panes/Dashboard";
+import { Tasks } from "./panes/Tasks";
+import { Gantt } from "./panes/Gantt";
+import { Kanban } from "./panes/Kanban";
+import { SCurve } from "./panes/SCurve";
+import { Team } from "./panes/Team";
+import { Resources } from "./panes/Resources";
 import { useRouter } from "../router";
 
 export function PmApp() {
@@ -26,6 +31,23 @@ export function PmApp() {
             onChange={(e) => project.setProjectName(e.target.value)}
           />
         </h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-secondary btn-sm" onClick={project.exportJSON}>
+            Export
+          </button>
+          <label className="btn-secondary btn-sm" style={{ cursor: "pointer" }}>
+            Import
+            <input
+              type="file"
+              accept=".json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) project.importJSON(f);
+              }}
+            />
+          </label>
+        </div>
       </header>
 
       <nav className="pm-tabs">
@@ -42,14 +64,14 @@ export function PmApp() {
 
       <div className="pm-pane">
         {activeTab === "dashboard" && <Dashboard project={project} />}
-        {activeTab === "tasks" && <Placeholder label="Tasks" />}
-        {activeTab === "gantt" && <Placeholder label="Gantt" />}
-        {activeTab === "kanban" && <Placeholder label="Kanban" />}
-        {activeTab === "scurve" && <Placeholder label="S-Curve" />}
-        {activeTab === "team" && <Placeholder label="Team" />}
-        {activeTab === "resources" && <Placeholder label="Resources" />}
-        {activeTab === "sync" && <Placeholder label="Sync" />}
-        {activeTab === "docs" && <Placeholder label="Docs" />}
+        {activeTab === "tasks" && <Tasks project={project} />}
+        {activeTab === "gantt" && <Gantt project={project} />}
+        {activeTab === "kanban" && <Kanban project={project} />}
+        {activeTab === "scurve" && <SCurve project={project} />}
+        {activeTab === "team" && <Team project={project} />}
+        {activeTab === "resources" && <Resources project={project} />}
+        {activeTab === "sync" && <Placeholder label="Sync — coming next (ATProto push/pull)" />}
+        {activeTab === "docs" && <Placeholder label="Docs — coming next" />}
       </div>
     </div>
   );
@@ -58,7 +80,7 @@ export function PmApp() {
 function Placeholder({ label }: { label: string }) {
   return (
     <div style={{ padding: 32, color: "var(--text-dim)", textAlign: "center" }}>
-      {label} pane — coming next
+      {label}
     </div>
   );
 }
