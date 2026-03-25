@@ -29,12 +29,17 @@ migrations_dir = "migrations"
 # Durable Object bindings
 [durable_objects]
 bindings = [
-  { name = "POLL_COORDINATOR", class_name = "PollCoordinator" }
+  { name = "POLL_COORDINATOR", class_name = "PollCoordinator" },
+  { name = "SURVEY_COORDINATOR", class_name = "SurveyCoordinator" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["PollCoordinator"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["SurveyCoordinator"]
 
 # Environment-specific overrides
 [env.production]

@@ -6,17 +6,21 @@
  */
 
 import { PollCoordinator } from './durable-objects/poll-coordinator.js';
+import { SurveyCoordinator } from './durable-objects/survey-coordinator.js';
 import { handlePollRoutes } from './routes/polls.js';
 import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
+import { handleSurveyRoutes } from './routes/surveys.js';
+import { handleSurveyBallotRoutes } from './routes/survey-ballots.js';
 import { getClientPublicJWK, getClientSigningKey } from './oauth/keypair.js';
 import { discoverAuthServer } from './oauth/discovery.js';
 
-export { PollCoordinator };
+export { PollCoordinator, SurveyCoordinator };
 
 export interface Env {
   DB: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
+  SURVEY_COORDINATOR: DurableObjectNamespace;
   ASSETS: { fetch: typeof fetch };
   FRONTEND_URL: string;
   ATPROTO_MOCK_MODE: string;
@@ -113,10 +117,14 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         const spaRequest = new Request(new URL('/', request.url), { method: 'GET' });
         const spaResponse = await env.ASSETS.fetch(spaRequest);
 
-        // Inject OG meta tags for poll pages so link cards show a preview
+        // Inject OG meta tags for poll/survey pages so link cards show a preview
         const pollOgMatch = url.pathname.match(/^(?:\/public)?\/poll\/([0-9a-f-]{36})(?:\/|$)/);
         if (pollOgMatch) {
           return injectPollOgTags(spaResponse, pollOgMatch[1], url, env);
+        }
+        const surveyOgMatch = url.pathname.match(/^\/survey\/([0-9a-f-]{36})(?:\/|$)/);
+        if (surveyOgMatch) {
+          return injectSurveyOgTags(spaResponse, surveyOgMatch[1], url, env);
         }
 
         return spaResponse;
@@ -130,6 +138,10 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       // Route to appropriate handler
       if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/me') {
         response = await handleAuthRoutes(request, env, url);
+      } else if (url.pathname.match(/^\/api\/surveys\/[^/]+\/ballots/)) {
+        response = await handleSurveyBallotRoutes(request, env, url);
+      } else if (url.pathname.startsWith('/api/surveys')) {
+        response = await handleSurveyRoutes(request, env, url);
       } else if (url.pathname.match(/^\/api\/polls\/[^/]+\/ballots/)) {
         response = await handleBallotRoutes(request, env, url);
       } else if (url.pathname.startsWith('/api/polls')) {
@@ -229,6 +241,42 @@ async function injectPollOgTags(spaResponse: Response, pollId: string, url: URL,
     });
   } catch (e) {
     console.error('OG tag injection failed:', e);
+    return spaResponse;
+  }
+}
+
+async function injectSurveyOgTags(spaResponse: Response, surveyId: string, url: URL, env: Env): Promise<Response> {
+  try {
+    const survey = await env.DB.prepare('SELECT title, description, status FROM surveys WHERE id = ?')
+      .bind(surveyId).first();
+    if (!survey) return spaResponse;
+
+    const title = survey.title as string;
+    const description = (survey.description as string) || 'Anonymous survey on ATPolls';
+    const pageUrl = `${url.origin}${url.pathname}`;
+
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const ogTags = `
+    <meta property="og:title" content="${esc(title)}" />
+    <meta property="og:description" content="${esc('Survey — ' + description)}" />
+    <meta property="og:url" content="${esc(pageUrl)}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${esc(title)}" />
+    <meta name="twitter:description" content="${esc('Survey — ' + description)}" />`;
+
+    const html = await spaResponse.text();
+    const injected = html.replace('</head>', ogTags + '\n  </head>');
+
+    const headers = new Headers(spaResponse.headers);
+    headers.delete('Content-Length');
+    headers.delete('Content-Encoding');
+    headers.set('Content-Type', 'text/html; charset=utf-8');
+
+    return new Response(injected, { status: 200, headers });
+  } catch (e) {
+    console.error('Survey OG tag injection failed:', e);
     return spaResponse;
   }
 }
@@ -467,4 +515,10 @@ async function handleOAuthDebug(env: Env, url: URL): Promise<Response> {
 export function getPollDO(env: Env, pollId: string): DurableObjectStub {
   const id = env.POLL_COORDINATOR.idFromName(pollId);
   return env.POLL_COORDINATOR.get(id);
+}
+
+/** Get the Durable Object stub for a given survey ID */
+export function getSurveyDO(env: Env, surveyId: string): DurableObjectStub {
+  const id = env.SURVEY_COORDINATOR.idFromName(surveyId);
+  return env.SURVEY_COORDINATOR.get(id);
 }

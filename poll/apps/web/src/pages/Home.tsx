@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
 import { AuthCard } from '../components/Layout';
-import { listPolls } from '../lib/api';
+import { listPolls, listSurveys } from '../lib/api';
 
 export function HomePage() {
   const { did } = useAuth();
@@ -11,11 +11,13 @@ export function HomePage() {
   const siteMode = useSiteMode();
   const basePath = useBasePath();
   const [polls, setPolls] = useState<any[]>([]);
+  const [surveys, setSurveys] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     listPolls(showAll ? 'all' : undefined).then(d => setPolls(d.polls || [])).catch(() => {});
+    listSurveys(showAll ? 'all' : undefined).then(d => setSurveys(d.surveys || [])).catch(() => {});
   }, [showAll]);
 
   // Filter by site mode
@@ -51,7 +53,12 @@ export function HomePage() {
             </p>
           </>
         )}
-        {did && <Link to={`${basePath}/create`} className="btn btn-primary">Create a Poll</Link>}
+        {did && (
+          <div className="flex gap-8">
+            <Link to={`${basePath}/create`} className="btn btn-primary">Create a Poll</Link>
+            <Link to="/survey/create" className="btn btn-secondary">Create a Survey</Link>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -100,6 +107,27 @@ export function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Surveys */}
+      {surveys.length > 0 && (
+        <div className="card">
+          <h3 style={{ margin: '0 0 8px' }}>Surveys ({surveys.length})</h3>
+          <div className="poll-list">
+            {surveys.map((s: any) => (
+              <Link to={`/survey/${s.id}`} key={s.id} className="poll-list-item">
+                <div className="poll-list-question">{s.title}</div>
+                <div className="poll-list-meta">
+                  {s.eligibility_mode && s.eligibility_mode !== 'open' && (
+                    <span className="eligibility-badge">{s.eligibility_mode.replace('_', ' ')}</span>
+                  )}
+                  <span className={`status-badge status-${s.status}`}>{s.status}</span>
+                  <span className="muted">{new Date(s.created_at).toLocaleDateString()}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

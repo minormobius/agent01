@@ -119,6 +119,67 @@ export const syncLikes = (id: string) =>
     `/api/polls/${id}/likes/sync`, { method: 'POST' }
   );
 
+// Surveys
+export const createSurvey = (data: {
+  title: string;
+  description?: string;
+  questions: { question: string; options: string[]; required?: boolean }[];
+  opensAt: string;
+  closesAt: string;
+  eligibilityMode?: string;
+  eligibilitySource?: string;
+  whitelistedDids?: string[];
+}) => apiFetch<any>('/api/surveys', { method: 'POST', body: JSON.stringify(data) });
+
+export const listSurveys = (status?: string) =>
+  apiFetch<{ surveys: any[] }>(`/api/surveys${status ? `?status=${status}` : ''}`);
+
+export const getSurvey = (id: string) => apiFetch<any>(`/api/surveys/${id}`);
+
+export const openSurvey = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}/open`, { method: 'POST' });
+
+export const closeSurvey = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}/close`, { method: 'POST' });
+
+export const finalizeSurvey = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}/finalize`, { method: 'POST' });
+
+export const deleteSurvey = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}`, { method: 'DELETE' });
+
+export const requestSurveyEligibility = (surveyId: string, blindedMessage?: string) =>
+  apiFetch<any>(`/api/surveys/${surveyId}/eligibility/request`, {
+    method: 'POST',
+    body: JSON.stringify({ blindedMessage }),
+  });
+
+export const submitSurveyBallot = (surveyId: string, ballot: {
+  choices: number[];
+  tokenMessage: string;
+  issuerSignature: string;
+  nullifier: string;
+  ballotVersion: number;
+}) => apiFetch<any>(`/api/surveys/${surveyId}/ballots/submit`, {
+  method: 'POST',
+  body: JSON.stringify(ballot),
+});
+
+export const getSurveyTally = (surveyId: string) =>
+  apiFetch<any>(`/api/surveys/${surveyId}/tally`);
+
+export const getSurveyBallots = (surveyId: string) =>
+  apiFetch<{ ballots: any[] }>(`/api/surveys/${surveyId}/ballots`);
+
+export const getSurveyAudit = (surveyId: string) =>
+  apiFetch<{ events: any[] }>(`/api/surveys/${surveyId}/audit`);
+
+export const syncSurveyEligibleDids = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}/eligible/sync`, { method: 'POST' });
+
+export const getSurveyEligibleDids = (id: string) =>
+  apiFetch<any>(`/api/surveys/${id}/eligible`);
+
 // Public data
 export const getBallots = (pollId: string) =>
   apiFetch<{ ballots: any[] }>(`/api/polls/${pollId}/ballots`);
