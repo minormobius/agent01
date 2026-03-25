@@ -25,12 +25,21 @@ export function HomePage() {
     ? polls
     : polls.filter(p => p.mode === siteMode);
 
-  const filtered = search.trim()
+  const searchLower = search.trim().toLowerCase();
+  const filtered = searchLower
     ? modeFiltered.filter(p =>
-        p.question?.toLowerCase().includes(search.toLowerCase()) ||
+        p.question?.toLowerCase().includes(searchLower) ||
         p.id?.includes(search.trim())
       )
     : modeFiltered;
+
+  const filteredSurveys = searchLower
+    ? surveys.filter(s =>
+        s.title?.toLowerCase().includes(searchLower) ||
+        s.description?.toLowerCase().includes(searchLower) ||
+        s.id?.includes(search.trim())
+      )
+    : surveys;
 
   return (
     <div>
@@ -65,13 +74,16 @@ export function HomePage() {
         <div className="search-row">
           <input
             type="text"
-            placeholder="Search polls or paste a poll ID..."
+            placeholder="Search polls & surveys or paste an ID..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && search.trim()) {
-                if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search.trim())) {
-                  navigate(`${basePath}/poll/${search.trim()}`);
+                const id = search.trim();
+                if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+                  // Check if it's a known survey first, else try as poll
+                  const isSurvey = surveys.some(s => s.id === id);
+                  navigate(isSurvey ? `/survey/${id}` : `${basePath}/poll/${id}`);
                 }
               }
             }}
@@ -108,14 +120,20 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Surveys */}
-      {surveys.length > 0 && (
-        <div className="card">
-          <h3 style={{ margin: '0 0 8px' }}>Surveys ({surveys.length})</h3>
+      <div className="card">
+        <h3 style={{ margin: '0 0 8px' }}>Surveys ({filteredSurveys.length})</h3>
+        {filteredSurveys.length === 0 ? (
+          <p className="muted">{search ? 'No matching surveys.' : 'No surveys yet.'}{' '}
+            {did && <Link to="/survey/create">Create one</Link>}
+          </p>
+        ) : (
           <div className="poll-list">
-            {surveys.map((s: any) => (
+            {filteredSurveys.map((s: any) => (
               <Link to={`/survey/${s.id}`} key={s.id} className="poll-list-item">
-                <div className="poll-list-question">{s.title}</div>
+                <div className="poll-list-question">
+                  {s.title}
+                  <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>survey</span>
+                </div>
                 <div className="poll-list-meta">
                   {s.eligibility_mode && s.eligibility_mode !== 'open' && (
                     <span className="eligibility-badge">{s.eligibility_mode.replace('_', ' ')}</span>
@@ -126,8 +144,8 @@ export function HomePage() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
