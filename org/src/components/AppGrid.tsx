@@ -8,6 +8,8 @@ interface Props {
 /** Internal routes — apps that live inside the org hub */
 const INTERNAL_ROUTES: Record<string, string> = {
   pm: "/pm",
+  wave: "/wave",
+  crm: "/crm",
 };
 
 export function AppGrid({ activeOrg }: Props) {

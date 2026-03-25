@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { PdsClient, resolvePds } from "./pds";
 import {
   deriveKek,
@@ -19,6 +19,8 @@ import { CreateOrg } from "./components/CreateOrg";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
 import { PmApp } from "./pm/PmApp";
+import { WaveApp } from "./wave/WaveApp";
+import { CrmApp } from "./crm/CrmApp";
 import { Route } from "./router";
 
 // ATProto collection names
@@ -49,6 +51,44 @@ function parseInviteUrl(): { orgRkey: string; founderDid: string; founderService
   return { orgRkey: match[1], founderDid, founderService };
 }
 
+// --- Durable session ---
+const SESSION_KEY = "mino-org-session";
+
+interface StoredSession {
+  service: string;
+  did: string;
+  handle: string;
+  accessJwt: string;
+  refreshJwt: string;
+  passphrase: string;
+}
+
+function saveSession(service: string, session: Session, passphrase: string) {
+  const stored: StoredSession = {
+    service,
+    did: session.did,
+    handle: session.handle,
+    accessJwt: session.accessJwt,
+    refreshJwt: session.refreshJwt,
+    passphrase,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
+}
+
+function loadSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 export function App() {
   const [vault, setVault] = useState<VaultState | null>(null);
   const [pds, setPds] = useState<PdsClient | null>(null);
@@ -57,16 +97,14 @@ export function App() {
   const [memberships, setMemberships] = useState<MembershipRecord[]>([]);
   const [view, setView] = useState<View>("orgs");
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  const restoredRef = useRef(false);
 
   const inviteParams = parseInviteUrl();
 
-  // --- Login + vault bootstrap ---
-  const handleLogin = useCallback(
-    async (service: string, handle: string, appPassword: string, passphrase: string) => {
-      const client = new PdsClient(service);
-      const session = await client.login(handle, appPassword);
-      setPds(client);
-
+  // --- Core vault bootstrap (shared by login + restore) ---
+  const bootstrapVault = useCallback(
+    async (service: string, passphrase: string, session: Session, client: PdsClient) => {
       // Derive KEK
       const salt = new TextEncoder().encode(session.did + ":vault-kek");
       const kek = await deriveKek(passphrase, salt);
@@ -115,7 +153,11 @@ export function App() {
       }
 
       const dek = await deriveDek(privateKey, publicKey);
+      setPds(client);
       setVault({ session, dek, privateKey, publicKey });
+
+      // Persist session
+      saveSession(service, session, passphrase);
 
       // Discover orgs
       setLoading(true);
@@ -128,6 +170,49 @@ export function App() {
       }
     },
     [],
+  );
+
+  // --- Restore session on mount ---
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    const stored = loadSession();
+    if (!stored) {
+      setRestoring(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const client = new PdsClient(stored.service);
+        // Try to refresh the session using stored refresh token
+        client.restoreSession({
+          did: stored.did,
+          handle: stored.handle,
+          accessJwt: stored.accessJwt,
+          refreshJwt: stored.refreshJwt,
+        });
+        await client.refreshSession();
+        const session = client.getSession()!;
+        await bootstrapVault(stored.service, stored.passphrase, session, client);
+      } catch (err) {
+        console.warn("Session restore failed:", err);
+        clearSession();
+      } finally {
+        setRestoring(false);
+      }
+    })();
+  }, [bootstrapVault]);
+
+  // --- Login (fresh) ---
+  const handleLogin = useCallback(
+    async (service: string, handle: string, appPassword: string, passphrase: string) => {
+      const client = new PdsClient(service);
+      const session = await client.login(handle, appPassword);
+      await bootstrapVault(service, passphrase, session, client);
+    },
+    [bootstrapVault],
   );
 
   // --- Org discovery ---
@@ -234,6 +319,7 @@ export function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    clearSession();
     setVault(null);
     setPds(null);
     setOrgs([]);
@@ -245,6 +331,15 @@ export function App() {
       window.history.replaceState(null, "", "/");
     }
   }, []);
+
+  // --- Restoring session ---
+  if (restoring) {
+    return (
+      <div className="hub" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="loading">Restoring session...</div>
+      </div>
+    );
+  }
 
   // --- Invite onboarding (not logged in, invite URL present) ---
   if (!vault && inviteParams) {
@@ -269,6 +364,16 @@ export function App() {
       {/* PM tool — full-page, own layout */}
       <Route path="/pm">
         <PmApp vault={vault} pds={pds} />
+      </Route>
+
+      {/* Wave — encrypted channels, threads & docs */}
+      <Route path="/wave">
+        <WaveApp vault={vault} pds={pds} />
+      </Route>
+
+      {/* CRM — deal pipeline & proposals */}
+      <Route path="/crm">
+        <CrmApp vault={vault} pds={pds} />
       </Route>
 
       {/* Hub home — org management + app grid */}

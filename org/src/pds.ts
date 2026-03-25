@@ -208,6 +208,11 @@ export class PdsClient {
     return res.json();
   }
 
+  /** Restore a previously stored session (for durable login). */
+  restoreSession(session: Session): void {
+    this.session = session;
+  }
+
   /** Get the current session info. */
   getSession(): Session | null {
     return this.session;
