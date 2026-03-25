@@ -18,7 +18,15 @@
 import { CreateSurveySchema } from '@atpolls/shared';
 import type { Env } from '../index.js';
 import { jsonResponse, getSurveyDO } from '../index.js';
-import { getSession } from './auth.js';
+import { getSession, getPdsAccessToken } from './auth.js';
+import { createDPoPProof } from '../oauth/jwt.js';
+// @ts-ignore — WASM import handled by wrangler bundler
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
+import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import fontRegular from '../fonts/roboto-mono-400.js';
+import fontBold from '../fonts/roboto-mono-700.js';
+
+let resvgInitialized = false;
 
 export async function handleSurveyRoutes(
   request: Request,
@@ -81,6 +89,16 @@ export async function handleSurveyRoutes(
   const getEligibleMatch = url.pathname.match(/^\/api\/surveys\/([^/]+)\/eligible$/);
   if (getEligibleMatch && request.method === 'GET') {
     return getEligibleDids(env, getEligibleMatch[1]);
+  }
+
+  const postBskyMatch = url.pathname.match(/^\/api\/surveys\/([^/]+)\/post-to-bluesky$/);
+  if (postBskyMatch && request.method === 'POST') {
+    return postSurveyToBluesky(request, env, postBskyMatch[1]);
+  }
+
+  const ogMatch = url.pathname.match(/^\/api\/surveys\/([^/]+)\/og\.png$/);
+  if (ogMatch && request.method === 'GET') {
+    return generateSurveyOgImage(env, ogMatch[1]);
   }
 
   return null;
@@ -442,6 +460,287 @@ async function fetchAllFollows(did: string, direction: 'followers' | 'follows'):
     if (!cursor || items.length === 0) break;
   }
   return dids;
+}
+
+async function postSurveyToBluesky(request: Request, env: Env, surveyId: string): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+  const survey = await env.DB.prepare('SELECT * FROM surveys WHERE id = ?').bind(surveyId).first();
+  if (!survey) return jsonResponse({ error: 'Survey not found' }, 404);
+  if (survey.host_did !== session.did) return jsonResponse({ error: 'Forbidden' }, 403);
+
+  if (session.oauthScope && !session.oauthScope.includes('transition:generic')) {
+    return jsonResponse({
+      error: 'insufficient_scope',
+      message: 'Posting to Bluesky requires write permission. Please re-authorize.',
+    }, 403);
+  }
+
+  const pdsAuth = await getPdsAccessToken(request, env);
+  if (!pdsAuth) {
+    return jsonResponse({ error: 'PDS session expired. Please log out and log back in.' }, 401);
+  }
+
+  const title = survey.title as string;
+  const description = (survey.description as string) || '';
+  const origin = new URL(request.url).origin;
+  const encoder = new TextEncoder();
+  const surveyUrl = `${origin}/survey/${surveyId}/vote`;
+  const timeLeft = formatTimeLeftServer(survey.closes_at as string);
+
+  // Post text: title (hyperlinked), description, tagline
+  // Format:
+  //   Survey Title
+  //   Description text here
+  //
+  //   Take this survey · Verifiable & anonymous · 24h left
+  const footerParts = ['Take this survey', 'Verifiable & anonymous'];
+  if (timeLeft) footerParts.push(timeLeft);
+  const footer = footerParts.join(' · ');
+
+  let postText: string;
+  if (description) {
+    postText = `${title}\n\n${description}\n\n${footer}`;
+  } else {
+    postText = `${title}\n\n${footer}`;
+  }
+
+  const facets: any[] = [];
+
+  // Title is a link to the survey
+  const titleBytes = encoder.encode(title);
+  facets.push({
+    index: { byteStart: 0, byteEnd: titleBytes.byteLength },
+    features: [{ $type: 'app.bsky.richtext.facet#link', uri: surveyUrl }],
+  });
+
+  // "Take this survey" link in footer
+  const beforeFooter = description
+    ? `${title}\n\n${description}\n\n`
+    : `${title}\n\n`;
+  const footerStart = encoder.encode(beforeFooter).byteLength;
+  const takeSurveyBytes = encoder.encode('Take this survey');
+  facets.push({
+    index: { byteStart: footerStart, byteEnd: footerStart + takeSurveyBytes.byteLength },
+    features: [{ $type: 'app.bsky.richtext.facet#link', uri: surveyUrl }],
+  });
+
+  // Build link card
+  const qCount = (survey as any).questions?.length;
+  const cardDescription = description
+    || (qCount ? `${qCount} question${qCount !== 1 ? 's' : ''} · Anonymous & verifiable` : 'Anonymous & verifiable survey');
+
+  // Try to upload OG image as thumb
+  let thumbBlob: { $type: 'blob'; ref: { $link: string }; mimeType: string; size: number } | undefined;
+  try {
+    const ogResponse = await generateSurveyOgImage(env, surveyId);
+    if (ogResponse.ok) {
+      const pngBytes = await ogResponse.arrayBuffer();
+      const uploadUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.uploadBlob`;
+      let uploadRes: Response;
+      if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+        let proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', uploadUrl, undefined, pdsAuth.accessJwt);
+        uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof },
+          body: pngBytes,
+        });
+        if ((uploadRes.status === 401 || uploadRes.status === 400) && uploadRes.headers.get('DPoP-Nonce')) {
+          proof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', uploadUrl, uploadRes.headers.get('DPoP-Nonce')!, pdsAuth.accessJwt);
+          uploadRes = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'image/png', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': proof },
+            body: pngBytes,
+          });
+        }
+      } else {
+        uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Authorization': `Bearer ${pdsAuth.accessJwt}` },
+          body: pngBytes,
+        });
+      }
+      if (uploadRes.ok) {
+        const blobResult = await uploadRes.json() as { blob: { ref: { $link: string }; mimeType: string; size: number } };
+        thumbBlob = { $type: 'blob', ref: blobResult.blob.ref, mimeType: blobResult.blob.mimeType, size: blobResult.blob.size };
+      }
+    }
+  } catch (e) {
+    console.error('Failed to upload survey OG thumb:', e);
+  }
+
+  // Need question count from DB since the survey row doesn't include it
+  let questionCount = qCount;
+  if (!questionCount) {
+    const qResult = await env.DB.prepare('SELECT COUNT(*) as c FROM survey_questions WHERE survey_id = ?').bind(surveyId).first();
+    questionCount = (qResult as any)?.c || 0;
+  }
+  const finalCardDesc = description
+    || `${questionCount} question${questionCount !== 1 ? 's' : ''} · Anonymous & verifiable`;
+
+  const record: Record<string, unknown> = {
+    $type: 'app.bsky.feed.post',
+    text: postText,
+    facets,
+    embed: {
+      $type: 'app.bsky.embed.external',
+      external: {
+        uri: surveyUrl,
+        title,
+        description: finalCardDesc,
+        ...(thumbBlob ? { thumb: thumbBlob } : {}),
+      },
+    },
+    createdAt: new Date().toISOString(),
+  };
+
+  const createRecordUrl = `${pdsAuth.pdsUrl}/xrpc/com.atproto.repo.createRecord`;
+  const requestBody = JSON.stringify({
+    repo: pdsAuth.did,
+    collection: 'app.bsky.feed.post',
+    record,
+  });
+
+  let createRes: Response;
+  if (pdsAuth.authMethod === 'oauth' && pdsAuth.dpopKeyPair) {
+    let dpopProof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, undefined, pdsAuth.accessJwt);
+    createRes = await fetch(createRecordUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': dpopProof },
+      body: requestBody,
+    });
+    if (createRes.status === 401 || createRes.status === 400) {
+      const nonce = createRes.headers.get('DPoP-Nonce');
+      if (nonce) {
+        dpopProof = await createDPoPProof(pdsAuth.dpopKeyPair, 'POST', createRecordUrl, nonce, pdsAuth.accessJwt);
+        createRes = await fetch(createRecordUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `DPoP ${pdsAuth.accessJwt}`, 'DPoP': dpopProof },
+          body: requestBody,
+        });
+      }
+    }
+  } else {
+    createRes = await fetch(createRecordUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pdsAuth.accessJwt}` },
+      body: requestBody,
+    });
+  }
+
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    return jsonResponse({ error: `Failed to post: ${err}` }, 500);
+  }
+
+  const result = await createRes.json() as { uri: string; cid: string };
+
+  // Store the Bluesky post reference
+  await env.DB.prepare('UPDATE surveys SET bluesky_post_uri = ?, bluesky_post_cid = ? WHERE id = ?')
+    .bind(result.uri, result.cid, surveyId).run();
+
+  return jsonResponse({ uri: result.uri, cid: result.cid });
+}
+
+/**
+ * Generate an OG image for survey link cards.
+ * Big block letters of the survey title — branding-first, not data-centric.
+ */
+async function generateSurveyOgImage(env: Env, surveyId: string): Promise<Response> {
+  const survey = await env.DB.prepare('SELECT title, description, status FROM surveys WHERE id = ?').bind(surveyId).first();
+  if (!survey) return new Response('Not found', { status: 404 });
+
+  const title = survey.title as string;
+  const status = survey.status as string;
+
+  const W = 1200;
+  const H = 630;
+  const PAD = 80;
+
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Word-wrap title into lines that fit the card width
+  // At ~48px font, roughly 25 chars per line at 1200px with 80px padding each side
+  const maxCharsPerLine = 28;
+  const words = title.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if (current && (current.length + 1 + word.length) > maxCharsPerLine) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = current ? current + ' ' + word : word;
+    }
+  }
+  if (current) lines.push(current);
+  // Cap at 5 lines
+  if (lines.length > 5) {
+    lines.length = 5;
+    lines[4] = lines[4].slice(0, maxCharsPerLine - 3) + '...';
+  }
+
+  const fontSize = lines.length <= 2 ? 64 : lines.length <= 3 ? 52 : 44;
+  const lineHeight = fontSize * 1.25;
+  const totalTextHeight = lines.length * lineHeight;
+  const textStartY = Math.max(PAD + 60, (H - totalTextHeight) / 2 + fontSize * 0.35);
+
+  const titleLines = lines.map((line, i) =>
+    `<text x="${PAD}" y="${textStartY + i * lineHeight}" fill="#f0f0f0" font-size="${fontSize}" font-family="Roboto Mono, monospace" font-weight="bold">${esc(line)}</text>`
+  ).join('\n  ');
+
+  const statusLabel = status === 'open' ? 'OPEN' : status === 'closed' ? 'CLOSED' : status.toUpperCase();
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="#1a1a1a"/>
+  <rect x="0" y="0" width="${W}" height="6" fill="#c41230"/>
+  <rect x="0" y="${H - 6}" width="${W}" height="6" fill="#c41230"/>
+
+  <!-- Branding top-left -->
+  <text x="${PAD}" y="44" fill="#c41230" font-size="18" font-family="Roboto Mono, monospace" font-weight="bold">ATPOLLS</text>
+  <text x="${PAD + 130}" y="44" fill="#555" font-size="18" font-family="Roboto Mono, monospace">SURVEY · ${statusLabel}</text>
+
+  <!-- Title in big block letters -->
+  ${titleLines}
+
+  <!-- Footer -->
+  <text x="${PAD}" y="${H - 30}" fill="#555" font-size="16" font-family="Roboto Mono, monospace">poll.mino.mobi · anonymous & verifiable</text>
+</svg>`;
+
+  try {
+    if (!resvgInitialized) {
+      await initWasm(resvgWasm);
+      resvgInitialized = true;
+    }
+    const resvg = new Resvg(svg, {
+      font: {
+        fontBuffers: [new Uint8Array(fontRegular), new Uint8Array(fontBold)],
+        loadSystemFonts: false,
+        defaultFontFamily: 'Roboto Mono',
+        monospaceFamily: 'Roboto Mono',
+      },
+      fitTo: { mode: 'width', value: W },
+    });
+    const rendered = resvg.render();
+    const pngBuffer = rendered.asPng();
+    return new Response(pngBuffer, {
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=60' },
+    });
+  } catch (e) {
+    console.error('resvg PNG conversion failed for survey, serving SVG fallback:', e);
+    return new Response(svg, {
+      headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=60' },
+    });
+  }
+}
+
+function formatTimeLeftServer(closesAt: string): string {
+  const diff = new Date(closesAt).getTime() - Date.now();
+  if (diff <= 0) return 'Closed';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h left`;
+  return `${Math.floor(hours / 24)}d left`;
 }
 
 async function fetchAtprotoList(listUri: string): Promise<string[]> {

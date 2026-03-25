@@ -180,6 +180,11 @@ export const syncSurveyEligibleDids = (id: string) =>
 export const getSurveyEligibleDids = (id: string) =>
   apiFetch<any>(`/api/surveys/${id}/eligible`);
 
+export const postSurveyToBluesky = (id: string) =>
+  apiFetch<{ uri: string; cid: string }>(`/api/surveys/${id}/post-to-bluesky`, {
+    method: 'POST',
+  });
+
 // Public data
 export const getBallots = (pollId: string) =>
   apiFetch<{ ballots: any[] }>(`/api/polls/${pollId}/ballots`);

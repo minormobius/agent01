@@ -9,6 +9,8 @@ import {
   deleteSurvey,
   syncSurveyEligibleDids,
   getSurveyEligibleDids,
+  postSurveyToBluesky,
+  authOAuthStart,
 } from '../lib/api';
 
 export function SurveyAdminPage() {
@@ -183,6 +185,8 @@ export function SurveyAdminPage() {
         </div>
       )}
 
+      <SurveyShareToBluesky survey={survey} surveyId={id!} />
+
       {/* Danger zone */}
       {(survey.status === 'draft' || survey.status === 'open') && (
         <div className="card" style={{ borderColor: 'var(--error-color, #c33)' }}>
@@ -212,4 +216,144 @@ export function SurveyAdminPage() {
       </div>
     </div>
   );
+}
+
+function SurveyShareToBluesky({ survey, surveyId }: { survey: any; surveyId: string }) {
+  const { handle, did, canPost } = useAuth();
+  const [posting, setPosting] = useState(false);
+  const [postResult, setPostResult] = useState<{ uri?: string; error?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const title = survey.title || '';
+  const description = survey.description || '';
+  const timeLeft = survey.closes_at ? formatTimeLeft(survey.closes_at) : '';
+  const surveyUrl = `${baseUrl}/survey/${surveyId}/vote`;
+
+  const footerParts = ['Take this survey', 'Verifiable & anonymous'];
+  if (timeLeft) footerParts.push(timeLeft);
+  const footer = footerParts.join(' · ');
+
+  const previewText = description
+    ? `${title}\n\n${description}\n\n${footer}`
+    : `${title}\n\n${footer}`;
+
+  const fallbackText = description
+    ? `${title}\n\n${description}\n\nTake the survey: ${surveyUrl}`
+    : `${title}\n\nTake the survey: ${surveyUrl}`;
+
+  const handleReauth = async () => {
+    const identifier = handle || did;
+    if (!identifier) return;
+    setPosting(true);
+    try {
+      const authResult = await authOAuthStart(
+        identifier,
+        `/survey/${surveyId}/admin`,
+        'atproto transition:generic'
+      );
+      window.location.href = authResult.authUrl;
+    } catch (err: any) {
+      setPostResult({ error: err.message });
+      setPosting(false);
+    }
+  };
+
+  const handlePost = async () => {
+    setPosting(true);
+    setPostResult(null);
+    try {
+      const result = await postSurveyToBluesky(surveyId);
+      setPostResult({ uri: result.uri });
+    } catch (err: any) {
+      setPostResult({ error: err.message });
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const copyFallback = () => {
+    navigator.clipboard.writeText(fallbackText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="card">
+      <h3>Share to Bluesky</h3>
+      <p className="muted mb-12">
+        Post your survey with a link card — title links to the vote page.
+      </p>
+      <div className="share-preview">
+        <pre className="share-post-text">{previewText}</pre>
+        <p className="muted" style={{ fontSize: '12px', marginTop: '4px' }}>
+          Title and "Take this survey" become clickable links on Bluesky.
+        </p>
+      </div>
+
+      <div style={{ marginTop: '12px' }}>
+        {canPost ? (
+          <button
+            className="btn btn-primary"
+            disabled={posting}
+            onClick={handlePost}
+          >
+            {posting ? 'Posting...' : 'Post to Bluesky'}
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            disabled={posting}
+            onClick={handleReauth}
+          >
+            {posting ? 'Redirecting...' : 'Authorize & Post to Bluesky'}
+          </button>
+        )}
+      </div>
+
+      {postResult?.uri && (
+        <p className="success mt-12">
+          Posted! <a href={atUriToBskyUrl(postResult.uri)} target="_blank" rel="noopener noreferrer">View on Bluesky</a>
+        </p>
+      )}
+      {postResult?.error && <p className="error mt-12">{postResult.error}</p>}
+
+      <details style={{ marginTop: '12px' }}>
+        <summary className="muted" style={{ cursor: 'pointer', fontSize: '13px' }}>
+          Or copy plain text / open in compose
+        </summary>
+        <div className="flex gap-8 mt-12">
+          <button className="btn btn-secondary" onClick={copyFallback}>
+            {copied ? 'Copied!' : 'Copy Text'}
+          </button>
+          <a
+            href={`https://bsky.app/intent/compose?text=${encodeURIComponent(fallbackText)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+          >
+            Open in Bluesky
+          </a>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function atUriToBskyUrl(uri: string): string {
+  const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+  if (match) return `https://bsky.app/profile/${match[1]}/post/${match[2]}`;
+  return uri;
+}
+
+function formatTimeLeft(closesAt: string): string {
+  const now = Date.now();
+  const close = new Date(closesAt).getTime();
+  const diff = close - now;
+  if (diff <= 0) return 'Closed';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h left`;
+  const days = Math.floor(hours / 24);
+  return `${days}d left`;
 }
