@@ -11,9 +11,18 @@ import { Kanban } from "./panes/Kanban";
 import { SCurve } from "./panes/SCurve";
 import { Team } from "./panes/Team";
 import { Resources } from "./panes/Resources";
+import { Sync } from "./panes/Sync";
+import { Docs } from "./panes/Docs";
 import { useRouter } from "../router";
+import type { VaultState } from "../App";
+import type { PdsClient } from "../pds";
 
-export function PmApp() {
+interface Props {
+  vault?: VaultState | null;
+  pds?: PdsClient | null;
+}
+
+export function PmApp({ vault, pds }: Props) {
   const project = useProject();
   const { navigate } = useRouter();
   const { activeTab, setActiveTab } = project;
@@ -70,17 +79,10 @@ export function PmApp() {
         {activeTab === "scurve" && <SCurve project={project} />}
         {activeTab === "team" && <Team project={project} />}
         {activeTab === "resources" && <Resources project={project} />}
-        {activeTab === "sync" && <Placeholder label="Sync — coming next (ATProto push/pull)" />}
-        {activeTab === "docs" && <Placeholder label="Docs — coming next" />}
+        {activeTab === "sync" && <Sync project={project} vault={vault} pds={pds} />}
+        {activeTab === "docs" && <Docs />}
       </div>
     </div>
   );
 }
 
-function Placeholder({ label }: { label: string }) {
-  return (
-    <div style={{ padding: 32, color: "var(--text-dim)", textAlign: "center" }}>
-      {label}
-    </div>
-  );
-}

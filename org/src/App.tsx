@@ -268,7 +268,7 @@ export function App() {
     <>
       {/* PM tool — full-page, own layout */}
       <Route path="/pm">
-        <PmApp />
+        <PmApp vault={vault} pds={pds} />
       </Route>
 
       {/* Hub home — org management + app grid */}
