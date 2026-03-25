@@ -215,7 +215,7 @@ async function createSurvey(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ ...survey, eligibleCount }, 201);
   } catch (err: any) {
     console.error(`createSurvey failed at step "${step}":`, err);
-    return jsonResponse({ error: 'Survey creation failed' }, 500);
+    return jsonResponse({ error: 'Survey creation failed', step, detail: String(err?.message || err) }, 500);
   }
 }
 
