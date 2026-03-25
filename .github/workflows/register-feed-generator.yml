@@ -1,24 +1,11 @@
 name: Register Feed Generator
 
 on:
-  workflow_dispatch:
-    inputs:
-      feed_rkey:
-        description: 'Feed record key (e.g. simcluster)'
-        required: true
-        default: 'simcluster'
-      display_name:
-        description: 'Feed display name'
-        required: true
-        default: 'SimCluster'
-      description:
-        description: 'Feed description'
-        required: true
-        default: 'Posts that resonate across communities in the minomobi network'
-      avatar_path:
-        description: 'Optional path to avatar image (relative to repo root)'
-        required: false
-        default: ''
+  push:
+    branches:
+      - 'claude/bluesky-anonymous-polls-*'
+    paths:
+      - '.github/workflows/register-feed-generator.yml'
 
 jobs:
   register:
@@ -37,10 +24,10 @@ jobs:
 
           HANDLE="${{ secrets.BLUESKY_HANDLE }}"
           PASSWORD="${{ secrets.BLUESKY_APP_PASSWORD }}"
-          FEED_RKEY="${{ inputs.feed_rkey }}"
-          DISPLAY_NAME="${{ inputs.display_name }}"
-          DESCRIPTION="${{ inputs.description }}"
-          AVATAR_PATH="${{ inputs.avatar_path }}"
+          FEED_RKEY="simcluster"
+          DISPLAY_NAME="SimCluster"
+          DESCRIPTION="Posts that resonate across communities in the minomobi network"
+          AVATAR_PATH=""
           FEED_HOSTNAME="feed.mino.mobi"
 
           # Resolve DID from handle

@@ -6,7 +6,7 @@
  */
 
 import { detectCommunities, detectBridges, type Community } from './graph';
-import { discoverCandidates, type EngagementSignal } from './constellation';
+import { discoverCandidates, getAuthorFeed, type EngagementSignal } from './constellation';
 import { scoreCandiates, type ScoredPost } from './scoring';
 
 export interface Env {
@@ -324,7 +324,13 @@ async function generateFeed(
   );
 
   // 4. Score candidates
-  const scored = scoreCandiates(engagementMap, memberIndex, bridgeDids);
+  let scored = scoreCandiates(engagementMap, memberIndex, bridgeDids);
+
+  // 4b. Fallback: if Constellation returned no engagement data, score posts
+  // directly from member feeds based on author community membership + recency
+  if (scored.length === 0) {
+    scored = await fallbackFromMemberFeeds(allMemberDids, memberIndex, bridgeDids);
+  }
 
   // 5. Apply cursor (pagination)
   let filtered = scored;
@@ -337,6 +343,64 @@ async function generateFeed(
   }
 
   return filtered.slice(0, limit);
+}
+
+/**
+ * Fallback when Constellation engagement data is unavailable.
+ * Fetches recent posts from community members and scores by:
+ * - Author community breadth (members in multiple communities score higher)
+ * - Bridge node bonus
+ * - Recency decay
+ */
+async function fallbackFromMemberFeeds(
+  allMemberDids: string[],
+  memberIndex: Map<string, { communityId: number; shell: number }[]>,
+  bridgeDids: Set<string>
+): Promise<ScoredPost[]> {
+  const HALF_LIFE_MS = 6 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  // Sample members, preferring those in multiple communities or bridges
+  const sorted = [...allMemberDids].sort((a, b) => {
+    const aScore = (memberIndex.get(a)?.length ?? 0) + (bridgeDids.has(a) ? 2 : 0);
+    const bScore = (memberIndex.get(b)?.length ?? 0) + (bridgeDids.has(b) ? 2 : 0);
+    return bScore - aScore;
+  });
+  const sampled = sorted.slice(0, 30);
+
+  // Fetch their recent posts
+  const feedResults = await Promise.allSettled(
+    sampled.map(did => getAuthorFeed(did, 10))
+  );
+
+  const scored: ScoredPost[] = [];
+
+  for (let i = 0; i < sampled.length; i++) {
+    const result = feedResults[i];
+    if (result.status !== 'fulfilled') continue;
+
+    const did = sampled[i];
+    const memberships = memberIndex.get(did) || [];
+    const communityHits = new Set(memberships.map(m => m.communityId)).size;
+    const isBridge = bridgeDids.has(did);
+
+    for (const post of result.value) {
+      const age = now - new Date(post.indexedAt).getTime();
+      const recency = Math.pow(0.5, age / HALF_LIFE_MS);
+      const breadth = communityHits >= 2 ? 2.0 * communityHits : 1.0;
+      const bridge = isBridge ? 1.5 : 1.0;
+
+      scored.push({
+        uri: post.uri,
+        score: breadth * bridge * recency,
+        communityHits,
+        engagementCount: 0,
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
 }
 
 function didDocument(env: Env) {
