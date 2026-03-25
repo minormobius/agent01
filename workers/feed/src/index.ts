@@ -244,7 +244,118 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }, { headers: corsHeaders() });
   }
 
+  // Community graph endpoint — feeds the cluster visualizer
+  if (path === '/xrpc/com.minomobi.feed.getCommunities') {
+    return handleGetCommunities(env);
+  }
+
   return new Response('not found', { status: 404 });
+}
+
+async function handleGetCommunities(env: Env): Promise<Response> {
+  try {
+    // Fetch communities
+    const comRows = await env.DB.prepare(
+      'SELECT id, label, core_size, total_size FROM feed_communities ORDER BY total_size DESC'
+    ).all<{ id: number; label: string; core_size: number; total_size: number }>();
+
+    if (!comRows.results || comRows.results.length === 0) {
+      return Response.json({ communities: [], bridges: [], members: [] }, { headers: corsHeaders() });
+    }
+
+    // Fetch all members
+    const memRows = await env.DB.prepare(
+      'SELECT community_id, did, shell, mutual_count FROM feed_community_members ORDER BY community_id, shell, mutual_count DESC'
+    ).all<{ community_id: number; did: string; shell: number; mutual_count: number }>();
+
+    // Fetch bridges
+    const bridgeRows = await env.DB.prepare(
+      'SELECT did, community_ids FROM feed_bridges'
+    ).all<{ did: string; community_ids: string }>();
+
+    // Resolve DIDs to handles (best-effort, cached in KV)
+    const allDids = new Set<string>();
+    for (const m of memRows.results || []) allDids.add(m.did);
+    const handles = await resolveHandlesBatch(env, [...allDids]);
+
+    // Shape the response
+    const communities = (comRows.results || []).map(c => ({
+      id: c.id,
+      label: c.label,
+      coreSize: c.core_size,
+      totalSize: c.total_size,
+      members: (memRows.results || [])
+        .filter(m => m.community_id === c.id)
+        .map(m => ({
+          did: m.did,
+          handle: handles.get(m.did) || null,
+          shell: m.shell,
+          mutualCount: m.mutual_count,
+        })),
+    }));
+
+    const bridges = (bridgeRows.results || []).map(b => ({
+      did: b.did,
+      handle: handles.get(b.did) || null,
+      communityIds: JSON.parse(b.community_ids) as number[],
+    }));
+
+    return Response.json({ communities, bridges }, { headers: corsHeaders() });
+  } catch (err) {
+    console.error('getCommunities error:', err);
+    return Response.json(
+      { error: 'InternalError', message: 'Failed to fetch communities' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+/**
+ * Best-effort batch resolve DIDs → handles via Bluesky public API.
+ * Caches results in KV for 24h. Failures return empty string.
+ */
+async function resolveHandlesBatch(
+  env: Env,
+  dids: string[]
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const BSKY = 'https://public.api.bsky.app';
+
+  // Check KV cache first
+  const uncached: string[] = [];
+  for (const did of dids) {
+    const cached = await env.STATE.get(`handle:${did}`);
+    if (cached) {
+      result.set(did, cached);
+    } else {
+      uncached.push(did);
+    }
+  }
+
+  // Resolve uncached in batches of 5
+  const BATCH = 5;
+  for (let i = 0; i < uncached.length; i += BATCH) {
+    const batch = uncached.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(async (did) => {
+        const res = await fetch(
+          `${BSKY}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`
+        );
+        if (!res.ok) return { did, handle: '' };
+        const data = await res.json() as { handle?: string };
+        return { did, handle: data.handle || '' };
+      })
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.handle) {
+        result.set(r.value.did, r.value.handle);
+        // Cache for 24h — fire and forget
+        env.STATE.put(`handle:${r.value.did}`, r.value.handle, { expirationTtl: 86400 });
+      }
+    }
+  }
+
+  return result;
 }
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
