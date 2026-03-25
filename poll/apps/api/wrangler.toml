@@ -13,11 +13,8 @@ type = "CompiledWasm"
 globs = ["**/*.wasm"]
 fallthrough = false
 
-# Handle font file imports (bundled as binary data for resvg)
-[[rules]]
-type = "Data"
-globs = ["**/*.ttf"]
-fallthrough = false
+# Fonts are pre-encoded to .ts modules by scripts/encode-fonts.js
+# (the [[rules]] type=Data approach doesn't work with `wrangler versions upload`)
 
 [vars]
 FRONTEND_URL = "https://polls.example.com"

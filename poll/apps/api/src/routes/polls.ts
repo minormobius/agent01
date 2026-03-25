@@ -23,10 +23,8 @@ import { createDPoPProof } from '../oauth/jwt.js';
 // @ts-ignore — WASM import handled by wrangler bundler
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
-// @ts-ignore — binary import handled by wrangler bundler
-import fontRegular from '../fonts/roboto-mono-400.ttf';
-// @ts-ignore — binary import handled by wrangler bundler
-import fontBold from '../fonts/roboto-mono-700.ttf';
+import fontRegular from '../fonts/roboto-mono-400.js';
+import fontBold from '../fonts/roboto-mono-700.js';
 
 let resvgInitialized = false;
 

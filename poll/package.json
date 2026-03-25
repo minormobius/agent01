@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build:shared && npm run build:web",
+    "build": "npm run build:shared && node apps/api/scripts/encode-fonts.js && npm run build:web",
     "dev": "npm run dev:api & npm run dev:web",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
