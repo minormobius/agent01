@@ -259,7 +259,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleGetAvatars(url, env);
   }
 
-  return new Response('not found', { status: 404 });
+  return new Response('not found', { status: 404, headers: corsHeaders() });
 }
 
 async function handleGetCommunities(env: Env): Promise<Response> {
@@ -745,7 +745,15 @@ function corsHeaders(): HeadersInit {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return handleRequest(request, env);
+    try {
+      return await handleRequest(request, env);
+    } catch (err) {
+      console.error('Unhandled error:', err);
+      return Response.json(
+        { error: 'InternalError', message: 'Internal server error' },
+        { status: 500, headers: corsHeaders() },
+      );
+    }
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
