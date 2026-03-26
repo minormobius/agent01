@@ -438,12 +438,16 @@ canvas {
     <input id="dbg-limit" type="number" value="5" style="width:60px">
     <button id="btn-dbg-list">list</button>
   </div>
+  <div class="form-row">
+    <button onclick="document.getElementById('dbg-collection').value='com.minomobi.finance.security'">security</button>
+    <button onclick="document.getElementById('dbg-collection').value='com.minomobi.finance.dailySeries'">dailySeries</button>
+  </div>
   <pre id="dbg-records" class="dbg-output"></pre>
 
   <p class="section-hdr">3. get single record</p>
   <div class="form-row">
     <input id="dbg-get-collection" type="text" value="com.minomobi.finance.security" style="flex:1">
-    <input id="dbg-rkey" type="text" placeholder="rkey (e.g. AAPL)" style="width:120px">
+    <input id="dbg-rkey" type="text" placeholder="symbol (e.g. AAPL, GC=F)" style="width:160px">
     <button id="btn-dbg-get">get</button>
   </div>
   <pre id="dbg-single" class="dbg-output"></pre>
@@ -455,6 +459,7 @@ canvas {
   </div>
   <div class="form-row">
     <button id="btn-dbg-write-test">write test security record</button>
+    <button id="btn-dbg-write-series-test">write test dailySeries record</button>
     <button id="btn-dbg-delete-test">delete test record</button>
   </div>
   <pre id="dbg-write-result" class="dbg-output"></pre>
@@ -537,11 +542,8 @@ async function resolvePDS(did) {
 async function listRecords(did, pds, collection, limit = 100, cursor = null) {
   const params = new URLSearchParams({ repo: did, collection, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
-  // Try public API first, fall back to PDS
-  let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
-  if (!r.ok) {
-    r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
-  }
+  // Query PDS directly — public API does not serve listRecords for custom collections
+  const r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
   if (!r.ok) throw new Error(`listRecords failed (${r.status})`);
   return r.json();
 }
@@ -614,34 +616,37 @@ async function loadArchive() {
   typeFilters.innerHTML = '';
 
   try {
+    browseStatus.textContent = `[1/4] resolving handle "${handle}"...`;
     state.did = await resolveHandle(handle);
+    browseStatus.textContent = `[2/4] resolved DID: ${state.did} — resolving PDS...`;
+
     state.pds = await resolvePDS(state.did);
-    browseStatus.textContent = `resolved ${state.did.slice(0, 20)}...`;
+    browseStatus.textContent = `[3/4] PDS: ${state.pds} — loading securities...`;
     browseProgress.style.width = '10%';
 
     // Load security metadata
-    browseStatus.textContent = 'loading security index...';
     state.securities = await listAllRecords(state.did, state.pds, META_COLLECTION, (n) => {
-      browseStatus.textContent = `loaded ${n} securities...`;
+      browseStatus.textContent = `[3/4] PDS: ${state.pds} — loaded ${n} securities...`;
       browseProgress.style.width = `${Math.min(10 + (n / 10), 90)}%`;
     });
 
     browseProgress.style.width = '100%';
 
     if (state.securities.length === 0) {
-      browseStatus.textContent = 'no securities found. sync data first (see data sources tab).';
+      browseStatus.textContent = `[4/4] 0 securities found on PDS ${state.pds} in collection ${META_COLLECTION}. DID: ${state.did}`;
       browseStatus.className = 'status error';
       btnLoad.disabled = false;
       return;
     }
 
-    browseStatus.textContent = `${state.securities.length} securities loaded`;
+    browseStatus.textContent = `${state.securities.length} securities loaded from ${state.pds}`;
     renderSecurityList(state.securities);
     renderTypeFilters(state.securities);
 
   } catch (err) {
-    browseStatus.textContent = err.message;
+    browseStatus.textContent = `Error at DID=${state.did} PDS=${state.pds}: ${err.message}`;
     browseStatus.className = 'status error';
+    console.error('loadArchive failed:', err);
   }
   btnLoad.disabled = false;
 }
@@ -724,25 +729,57 @@ chartSymbol.addEventListener('keydown', e => { if (e.key === 'Enter') drawChart(
 async function loadBarsForSymbol(symbol) {
   if (state.seriesCache[symbol]) return state.seriesCache[symbol];
   if (!state.did) {
-    // Try loading the PDS first
     await loadArchive();
   }
   if (!state.did) throw new Error('Load a PDS handle first');
 
   chartStatus.textContent = `fetching ${symbol} series...`;
 
-  const records = await listAllRecords(state.did, state.pds, COLLECTION, (n) => {
-    chartStatus.textContent = `fetching series records... ${n}`;
-  });
+  // Fetch by individual year rkeys instead of listing ALL records
+  const sanitized = symbol.replace(/=/g, '-').replace(/\^/g, '').replace(/\//g, '-');
+  const thisYear = new Date().getFullYear();
+  const bars = [];
+  let yearsFound = 0;
+  let consecutiveMisses = 0;
 
-  // Filter to this symbol and merge bars
-  const matching = records
-    .filter(r => r.value.symbol === symbol)
-    .sort((a, b) => a.value.year - b.value.year);
+  // Walk backwards from current year; stop after 5 consecutive misses
+  let firstError = null;
+  for (let year = thisYear; year >= 1950 && consecutiveMisses < 5; year--) {
+    const rkey = `${sanitized}:${year}`;
+    try {
+      const params = new URLSearchParams({
+        repo: state.did,
+        collection: COLLECTION,
+        rkey,
+      });
+      const url = `${state.pds}/xrpc/com.atproto.repo.getRecord?${params}`;
+      const r = await fetch(url);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.value?.bars?.length) {
+          bars.unshift(...data.value.bars);
+          yearsFound++;
+          consecutiveMisses = 0;
+          chartStatus.textContent = `${symbol}: ${yearsFound} years loaded (${bars.length} bars)...`;
+        }
+      } else {
+        consecutiveMisses++;
+        if (!firstError) {
+          const errText = await r.text().catch(() => '');
+          firstError = `rkey="${rkey}" status=${r.status} ${errText.slice(0, 200)}`;
+          console.warn(`loadBars miss: ${url} → ${r.status}`, errText.slice(0, 300));
+        }
+      }
+    } catch (e) {
+      consecutiveMisses++;
+      if (!firstError) firstError = `rkey="${rkey}" fetch error: ${e.message}`;
+    }
+  }
 
-  if (matching.length === 0) throw new Error(`No data for ${symbol}`);
+  if (bars.length === 0) {
+    throw new Error(`No dailySeries data for ${symbol} (tried rkeys like ${sanitized}:${thisYear}). First miss: ${firstError || 'unknown'}`);
+  }
 
-  const bars = matching.flatMap(r => r.value.bars);
   state.seriesCache[symbol] = bars;
   return bars;
 }
@@ -1382,17 +1419,20 @@ document.getElementById('btn-dbg-list').addEventListener('click', async () => {
 
 document.getElementById('btn-dbg-get').addEventListener('click', async () => {
   const out = document.getElementById('dbg-single');
-  if (!dbgState.did) { out.textContent = 'Resolve a handle first (step 1)'; return; }
+  if (!dbgState.did || !dbgState.pds) { out.textContent = 'Resolve a handle first (step 1)'; return; }
 
   const collection = document.getElementById('dbg-get-collection').value.trim();
-  const rkey = document.getElementById('dbg-rkey').value.trim();
-  if (!rkey) { out.textContent = 'Enter an rkey'; return; }
+  let rkey = document.getElementById('dbg-rkey').value.trim().toUpperCase();
+  // Sanitize symbol → rkey (same as sync does)
+  rkey = rkey.replace(/=/g, '-').replace(/\^/g, '').replace(/\//g, '-');
+  if (!rkey) { out.textContent = 'Enter an rkey (e.g. AAPL, GC-F, DGS10)'; return; }
 
-  out.textContent = 'fetching...\n';
+  out.textContent = `rkey (sanitized): "${rkey}"\n\n`;
   try {
+    // Use PDS directly (public API doesn't serve custom collections reliably)
     const params = new URLSearchParams({ repo: dbgState.did, collection, rkey });
-    const url = `${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`;
-    out.textContent = `GET ${url}\n\n`;
+    const url = `${dbgState.pds}/xrpc/com.atproto.repo.getRecord?${params}`;
+    out.textContent += `GET ${url}\n\n`;
     const r = await fetch(url);
     const text = await r.text();
     out.textContent += `Status: ${r.status}\n\n`;
@@ -1486,6 +1526,90 @@ document.getElementById('btn-dbg-write-test').addEventListener('click', async ()
       out.textContent += `SUCCESS — test record written. Now try listing com.minomobi.finance.security in step 2.`;
     } else {
       out.textContent += `FAILED — this tells us why PDS writes are failing.`;
+    }
+  } catch (err) {
+    out.textContent += `\nError: ${err.message}`;
+  }
+});
+
+document.getElementById('btn-dbg-write-series-test').addEventListener('click', async () => {
+  const out = document.getElementById('dbg-write-result');
+  const handle = document.getElementById('dbg-write-handle').value.trim();
+  const password = document.getElementById('dbg-app-password').value;
+  if (!handle || !password) { out.textContent = 'Enter handle and app password'; return; }
+
+  out.textContent = 'authenticating...\n';
+  try {
+    const r1 = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    if (!r1.ok) throw new Error(`Could not resolve handle: ${handle}`);
+    const { did } = await r1.json();
+
+    let doc;
+    if (did.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${did}`)).json();
+    } else {
+      const host = did.slice('did:web:'.length).replaceAll(':', '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    }
+    const pds = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer')?.serviceEndpoint;
+    if (!pds) throw new Error('No PDS found');
+    out.textContent += `PDS: ${pds}\n`;
+
+    const sessResp = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password }),
+    });
+    if (!sessResp.ok) throw new Error(`Auth failed (${sessResp.status}): ${await sessResp.text()}`);
+    const sess = await sessResp.json();
+    out.textContent += `Authenticated as ${sess.handle}\n\n`;
+
+    // Write a test dailySeries record with 3 sample bars
+    const testRecord = {
+      $type: 'com.minomobi.finance.dailySeries',
+      symbol: 'TEST',
+      year: 2026,
+      seriesType: 'equity',
+      name: 'Debug Test Series',
+      source: 'debug-panel',
+      adjusted: true,
+      bars: [
+        { d: '2026-03-17', c: 100.0, o: 99.5, h: 101.0, l: 99.0, v: 1000000 },
+        { d: '2026-03-18', c: 101.5, o: 100.0, h: 102.0, l: 99.5, v: 1200000 },
+        { d: '2026-03-19', c: 102.0, o: 101.5, h: 103.0, l: 101.0, v: 900000 },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const rkey = 'TEST:2026';
+    const body = { repo: did, collection: 'com.minomobi.finance.dailySeries', rkey, record: testRecord };
+
+    out.textContent += `Writing dailySeries test record...\n`;
+    out.textContent += `rkey: ${rkey}\n`;
+    out.textContent += `Body: ${JSON.stringify(body, null, 2)}\n\n`;
+
+    const writeResp = await fetch(`${pds}/xrpc/com.atproto.repo.putRecord`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sess.accessJwt}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const writeText = await writeResp.text();
+    out.textContent += `Status: ${writeResp.status}\n`;
+    try {
+      out.textContent += `Response: ${JSON.stringify(JSON.parse(writeText), null, 2)}\n\n`;
+    } catch {
+      out.textContent += `Response: ${writeText}\n\n`;
+    }
+
+    if (writeResp.ok) {
+      out.textContent += `SUCCESS — dailySeries record written! Try charting TEST now.\nCleanup: delete rkey TEST:2026 from com.minomobi.finance.dailySeries`;
+    } else {
+      out.textContent += `FAILED — this is the exact error the sync is hitting.`;
     }
   } catch (err) {
     out.textContent += `\nError: ${err.message}`;
