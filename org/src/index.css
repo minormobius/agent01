@@ -519,6 +519,50 @@ button:disabled {
   margin-top: 6px;
 }
 
+.notif-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notif-preview {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+.notif-prefs {
+  padding: 8px 0;
+}
+
+.notif-prefs-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.notif-pref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.notif-pref-row input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.notif-pref-row:hover {
+  color: var(--primary);
+}
+
 .org-list {
   display: flex;
   flex-direction: column;

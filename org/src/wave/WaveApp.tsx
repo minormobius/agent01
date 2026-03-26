@@ -33,7 +33,7 @@ import {
   THREAD_COLLECTION,
   MEMBERSHIP_COLLECTION,
 } from "./context";
-import { publishNotification } from "../crm/context";
+import { publishNotification, broadcastNotification } from "../crm/context";
 import { JetstreamClient, type JetstreamEvent } from "./jetstream";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
@@ -250,8 +250,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       await createChannelRecord(pds, activeOrg, name, resolvedTier);
       const chans = await loadChannels(pds, activeOrg, myDid);
       setChannels(chans);
+      broadcastNotification(
+        pds, "wave-channel", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-channel",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: name,
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle,
+      ).catch(() => {});
     },
-    [pds, activeOrg, myDid],
+    [pds, activeOrg, myDid, myHandle],
   );
 
   // --- Create thread ---
@@ -261,6 +273,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       const t = await createThreadRecord(pds, activeOrg, activeChannel.rkey, "chat", title, myDid, myHandle);
       setThreads((prev) => [...prev, t]);
       selectThread(t);
+      broadcastNotification(
+        pds, "wave-thread", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-thread",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: title,
+          threadType: "chat",
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel,
+      ).catch(() => {});
     },
     [pds, activeOrg, activeChannel, myDid, myHandle, selectThread],
   );
@@ -272,6 +298,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       const t = await createThreadRecord(pds, activeOrg, activeChannel.rkey, "doc", title, myDid, myHandle);
       setThreads((prev) => [...prev, t]);
       selectThread(t);
+      broadcastNotification(
+        pds, "wave-thread", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-thread",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: title,
+          threadType: "doc",
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel,
+      ).catch(() => {});
     },
     [pds, activeOrg, activeChannel, myDid, myHandle, selectThread],
   );
@@ -320,8 +360,19 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         // Publish notification for the invitee
         try {
           await publishNotification(
-            pds, memberDid, activeOrg.org.rkey, activeOrg.org.org.name,
-            activeOrg.founderDid, activeOrg.service, tierName,
+            pds, memberDid, "org-invite",
+            activeOrg.org.rkey, activeOrg.org.org.name,
+            {
+              type: "org-invite",
+              orgRkey: activeOrg.org.rkey,
+              orgName: activeOrg.org.org.name,
+              founderDid: activeOrg.founderDid,
+              founderService: activeOrg.service,
+              tierName,
+              invitedBy: myDid,
+              invitedByHandle: myHandle,
+              createdAt: new Date().toISOString(),
+            },
             myDid, myHandle,
           );
         } catch (err) {
@@ -374,6 +425,23 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       );
       setOps((prev) => [...prev, opRec]);
       setMessageText("");
+      // Broadcast notification (fire and forget)
+      broadcastNotification(
+        pds, "wave-message", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-message",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: activeThread.thread.title,
+          threadRkey: activeThread.rkey,
+          threadAuthorDid: activeThread.authorDid,
+          senderHandle: myHandle,
+          preview: messageText.trim().slice(0, 80),
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel,
+      ).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Send failed");
     } finally {
@@ -401,6 +469,22 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
           myHandle,
         );
         setOps((prev) => [...prev, opRec]);
+        // Broadcast notification (fire and forget)
+        broadcastNotification(
+          pds, "wave-doc-edit", activeOrg.org.rkey, activeOrg.org.org.name,
+          {
+            type: "wave-doc-edit",
+            orgRkey: activeOrg.org.rkey,
+            orgName: activeOrg.org.org.name,
+            channelName: activeChannel.channel.name,
+            docTitle: activeThread.thread.title,
+            threadRkey: activeThread.rkey,
+            threadAuthorDid: activeThread.authorDid,
+            senderHandle: myHandle,
+            createdAt: new Date().toISOString(),
+          },
+          myDid, myHandle, activeOrg.myTierLevel,
+        ).catch(() => {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Save failed");
       } finally {

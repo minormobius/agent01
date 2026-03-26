@@ -679,11 +679,20 @@ function ManageOrg({
         await publishNotification(
           pds,
           inviteeDid,
+          "org-invite",
           org.rkey,
           org.org.name,
-          org.org.founderDid,
-          pds.getService(),
-          inviteTier,
+          {
+            type: "org-invite",
+            orgRkey: org.rkey,
+            orgName: org.org.name,
+            founderDid: org.org.founderDid,
+            founderService: pds.getService(),
+            tierName: inviteTier,
+            invitedBy: myDid,
+            invitedByHandle: myHandle,
+            createdAt: new Date().toISOString(),
+          },
           myDid,
           myHandle,
         );

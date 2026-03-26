@@ -11,13 +11,15 @@ import {
   fromBase64,
   toBase64,
 } from "./crypto";
-import type { Session, OrgRecord, MembershipRecord, NotificationRecord, PublishedNotification } from "./types";
+import type { Session, OrgRecord, MembershipRecord, NotificationRecord, PublishedNotification, Notification, NotificationPreferences } from "./types";
 import type { OrgContext } from "./crm/types";
 import {
   discoverOrgs as discoverOrgsFromPds,
   buildOrgContext,
   discoverPendingInvites,
   loadDismissedNotifications,
+  loadNotificationPreferences,
+  saveNotificationPreferences,
   BOOKMARK_COLLECTION,
   NOTIFICATION_COLLECTION,
 } from "./crm/context";
@@ -105,6 +107,7 @@ export function App() {
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [view, setView] = useState<View>("home");
   const [managingOrg, setManagingOrg] = useState<OrgRecord | null>(null);
   const [loading, setLoading] = useState(false);
@@ -113,6 +116,10 @@ export function App() {
   const hubJetstreamRef = useRef<JetstreamClient | null>(null);
   const dismissedKeysRef = useRef<Set<string>>(dismissedKeys);
   dismissedKeysRef.current = dismissedKeys;
+  const notifPrefsRef = useRef<NotificationPreferences | null>(notifPrefs);
+  notifPrefsRef.current = notifPrefs;
+  const orgsRef = useRef<OrgRecord[]>(orgs);
+  orgsRef.current = orgs;
 
   const inviteParams = parseInviteUrl();
 
@@ -134,6 +141,14 @@ export function App() {
 
       if (memberDids.size === 0) return;
 
+      // Build a set of orgRkeys the user is a member of (for broadcast filtering)
+      const myOrgRkeys = new Set<string>();
+      for (const m of allMemberships) {
+        if (m.membership.memberDid === myDid) {
+          myOrgRkeys.add(m.membership.orgRkey);
+        }
+      }
+
       const client = new JetstreamClient({
         wantedDids: Array.from(memberDids),
         wantedCollections: [NOTIFICATION_COLLECTION],
@@ -142,30 +157,35 @@ export function App() {
           const { operation, collection, record } = event.commit;
           if (operation !== "create" || collection !== NOTIFICATION_COLLECTION || !record) return;
 
-          const notif = record as unknown as PublishedNotification;
-          if (notif.targetDid !== myDid) return; // not for us
+          const pub = record as unknown as PublishedNotification;
 
-          const key = `invite:${notif.founderDid}:${notif.orgRkey}`;
+          // Filter: must be targeted at us or be an org-wide broadcast for our org
+          if (pub.targetDid !== myDid && pub.targetDid !== "*") return;
+          if (pub.targetDid === "*" && !myOrgRkeys.has(pub.orgRkey)) return;
+          if (pub.senderDid === myDid) return; // skip our own broadcasts
+
+          // Check notification preferences
+          const prefs = notifPrefsRef.current;
+          if (prefs) {
+            const orgOverride = prefs.orgOverrides?.[pub.orgRkey];
+            const enabled = orgOverride?.[pub.notificationType] ?? prefs.enabled[pub.notificationType];
+            if (enabled === false) return;
+          }
+
+          // Parse payload into typed notification
+          let notification: Notification;
+          try {
+            notification = JSON.parse(pub.payload) as Notification;
+          } catch {
+            return;
+          }
+
+          const key = `${pub.notificationType}:${pub.senderDid}:${pub.orgRkey}:${pub.createdAt}`;
           if (dismissedKeysRef.current.has(key)) return;
-
-          const notifRecord: NotificationRecord = {
-            rkey: key,
-            notification: {
-              type: "org-invite",
-              orgRkey: notif.orgRkey,
-              orgName: notif.orgName,
-              founderDid: notif.founderDid,
-              founderService: notif.founderService,
-              tierName: notif.tierName,
-              invitedBy: notif.senderDid,
-              invitedByHandle: notif.senderHandle,
-              createdAt: notif.createdAt,
-            },
-          };
 
           setNotifications((prev) => {
             if (prev.some((n) => n.rkey === key)) return prev;
-            return [...prev, notifRecord];
+            return [...prev, { rkey: key, notification }];
           });
         },
       });
@@ -288,6 +308,10 @@ export function App() {
           ]);
           const dismissed = await loadDismissedNotifications(client);
           setDismissedKeys(dismissed);
+
+          // Load notification preferences
+          const prefs = await loadNotificationPreferences(client);
+          if (prefs) setNotifPrefs(prefs);
 
           // Collect unique founder DIDs from existing memberships (others' orgs we know about)
           const knownFounderDids = new Set<string>();
@@ -465,6 +489,21 @@ export function App() {
     [dismissedKeys],
   );
 
+  /** Save notification preferences */
+  const handleSaveNotifPrefs = useCallback(
+    async (prefs: NotificationPreferences) => {
+      setNotifPrefs(prefs);
+      if (pds) {
+        try {
+          await saveNotificationPreferences(pds, prefs);
+        } catch (err) {
+          console.warn("Failed to save notification preferences:", err);
+        }
+      }
+    },
+    [pds],
+  );
+
   // --- Restoring session ---
   if (restoring) {
     return (
@@ -532,6 +571,8 @@ export function App() {
           onAcceptInvite={handleAcceptInvite}
           onDismissNotification={handleDismissNotification}
           onNewNotifications={handleNewNotifications}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={handleSaveNotifPrefs}
         />
       </Route>
 
@@ -557,6 +598,8 @@ export function App() {
           onAcceptInvite={handleAcceptInvite}
           onDismissNotification={handleDismissNotification}
           onNewNotifications={handleNewNotifications}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={handleSaveNotifPrefs}
         />
       </Route>
     </>
@@ -586,6 +629,8 @@ function HubHome({
   onAcceptInvite,
   onDismissNotification,
   onNewNotifications,
+  notifPrefs,
+  onSaveNotifPrefs,
 }: {
   vault: VaultState;
   pds: PdsClient;
@@ -607,6 +652,8 @@ function HubHome({
   onAcceptInvite: (notif: NotificationRecord) => void;
   onDismissNotification: (notif: NotificationRecord) => void;
   onNewNotifications: (notifs: NotificationRecord[]) => void;
+  notifPrefs: NotificationPreferences | null;
+  onSaveNotifPrefs: (prefs: NotificationPreferences) => void;
 }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -646,6 +693,8 @@ function HubHome({
           onDismiss={onDismissNotification}
           onNewNotifications={onNewNotifications}
           onClose={() => setShowNotifications(false)}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={onSaveNotifPrefs}
         />
       )}
 

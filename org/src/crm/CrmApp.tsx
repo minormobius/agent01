@@ -23,6 +23,7 @@ import {
   createApproval,
   applyProposal as applyProposalFn,
   keyringRkeyForTier,
+  broadcastNotification,
   SEALED_COLLECTION,
 } from "./context";
 import { DealsBoard } from "./components/DealsBoard";
@@ -138,8 +139,40 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
           ...prev.filter((d) => !(d.rkey === existingDeal.rkey && d.authorDid === existingDeal.authorDid)),
           { rkey: newRkey, deal, authorDid: vault.session.did, previousDid: existingDeal.authorDid, previousRkey: existingDeal.rkey, orgRkey: existingDeal.orgRkey },
         ]);
+        // Broadcast deal update notification
+        if (currentActiveOrg) {
+          broadcastNotification(
+            pds, "deal-updated", currentActiveOrg.org.rkey, currentActiveOrg.org.org.name,
+            {
+              type: "deal-updated",
+              orgRkey: currentActiveOrg.org.rkey,
+              orgName: currentActiveOrg.org.org.name,
+              dealTitle: deal.title,
+              stage: deal.stage,
+              senderHandle: vault.session.handle,
+              createdAt: new Date().toISOString(),
+            },
+            vault.session.did, vault.session.handle,
+          ).catch(() => {});
+        }
       } else {
         setDeals((prev) => [...prev, { rkey: newRkey, deal, authorDid: vault.session.did, orgRkey: targetOrgRkey }]);
+        // Broadcast new deal notification
+        if (currentActiveOrg) {
+          broadcastNotification(
+            pds, "deal-created", currentActiveOrg.org.rkey, currentActiveOrg.org.org.name,
+            {
+              type: "deal-created",
+              orgRkey: currentActiveOrg.org.rkey,
+              orgName: currentActiveOrg.org.org.name,
+              dealTitle: deal.title,
+              stage: deal.stage,
+              senderHandle: vault.session.handle,
+              createdAt: new Date().toISOString(),
+            },
+            vault.session.did, vault.session.handle,
+          ).catch(() => {});
+        }
       }
     },
     [pds, vault, deals, filterOrg, orgContexts]
@@ -170,6 +203,20 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
         }
         return updated;
       });
+
+      // Broadcast proposal notification
+      broadcastNotification(
+        pds, "proposal-created", dealOrgCtx.org.rkey, dealOrgCtx.org.org.name,
+        {
+          type: "proposal-created",
+          orgRkey: dealOrgCtx.org.rkey,
+          orgName: dealOrgCtx.org.org.name,
+          summary,
+          senderHandle: vault.session.handle,
+          createdAt: new Date().toISOString(),
+        },
+        vault.session.did, vault.session.handle,
+      ).catch(() => {});
 
       // If no approvals needed, apply immediately
       if (proposal.requiredOffices.length === 0) {

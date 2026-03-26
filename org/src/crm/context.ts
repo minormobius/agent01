@@ -289,32 +289,77 @@ export async function checkInvitesFromUser(
   return notifications;
 }
 
-/** Publish a notification record to the sender's PDS (picked up via Jetstream by receiver) */
+const NOTIFICATION_PREFS_COLLECTION = "com.minomobi.vault.notificationPrefs";
+
+/**
+ * Publish a notification record to the sender's PDS.
+ * targetDid can be a specific DID or "*" for org-wide broadcast.
+ */
 export async function publishNotification(
   client: PdsClient,
   targetDid: string,
+  notificationType: import("../types").NotificationType,
   orgRkey: string,
   orgName: string,
-  founderDid: string,
-  founderService: string,
-  tierName: string,
+  payload: import("../types").Notification,
   senderDid: string,
   senderHandle?: string,
+  tierLevel?: number,
 ): Promise<void> {
   const record: import("../types").PublishedNotification = {
     $type: NOTIFICATION_COLLECTION,
     targetDid,
-    notificationType: "org-invite",
+    notificationType,
     orgRkey,
     orgName,
-    founderDid,
-    founderService,
-    tierName,
+    payload: JSON.stringify(payload),
     senderDid,
     senderHandle,
+    tierLevel,
     createdAt: new Date().toISOString(),
   };
   await client.createRecord(NOTIFICATION_COLLECTION, record);
+}
+
+/**
+ * Broadcast a notification to the entire org (targetDid = "*").
+ * Convenience wrapper around publishNotification.
+ */
+export async function broadcastNotification(
+  client: PdsClient,
+  notificationType: import("../types").NotificationType,
+  orgRkey: string,
+  orgName: string,
+  payload: import("../types").Notification,
+  senderDid: string,
+  senderHandle?: string,
+  tierLevel?: number,
+): Promise<void> {
+  return publishNotification(
+    client, "*", notificationType, orgRkey, orgName,
+    payload, senderDid, senderHandle, tierLevel,
+  );
+}
+
+/** Load notification preferences from PDS */
+export async function loadNotificationPreferences(
+  client: PdsClient,
+): Promise<import("../types").NotificationPreferences | null> {
+  try {
+    const rec = await client.getRecord(NOTIFICATION_PREFS_COLLECTION, "self");
+    if (!rec) return null;
+    return (rec as Record<string, unknown>).value as unknown as import("../types").NotificationPreferences;
+  } catch {
+    return null;
+  }
+}
+
+/** Save notification preferences to PDS */
+export async function saveNotificationPreferences(
+  client: PdsClient,
+  prefs: import("../types").NotificationPreferences,
+): Promise<void> {
+  await client.putRecord(NOTIFICATION_PREFS_COLLECTION, "self", prefs);
 }
 
 /** Load dismissed notification keys from PDS */
