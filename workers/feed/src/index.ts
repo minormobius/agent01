@@ -254,6 +254,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleGetCommunityActivity(env);
   }
 
+  // Avatar proxy — KV-cached, server-side fetched (avoids browser rate limits)
+  if (path === '/xrpc/com.minomobi.feed.getAvatars') {
+    return handleGetAvatars(url, env);
+  }
+
   return new Response('not found', { status: 404 });
 }
 
@@ -484,6 +489,78 @@ async function handleGetCommunityActivity(env: Env): Promise<Response> {
       { status: 500, headers: corsHeaders() }
     );
   }
+}
+
+/**
+ * Avatar proxy: resolves DIDs → avatar URLs via Bluesky public API.
+ * Caches in KV for 6 hours. Retries on 429 with exponential backoff.
+ * Accepts up to 100 DIDs per request (?dids=did1&dids=did2...).
+ */
+async function handleGetAvatars(url: URL, env: Env): Promise<Response> {
+  const dids = url.searchParams.getAll('dids').slice(0, 100);
+  if (dids.length === 0) {
+    return Response.json({ avatars: {} }, { headers: corsHeaders() });
+  }
+
+  const BSKY = 'https://public.api.bsky.app';
+  const KV_TTL = 6 * 60 * 60; // 6 hours
+  const avatars: Record<string, string | null> = {};
+
+  // Check KV cache first
+  const uncached: string[] = [];
+  for (const did of dids) {
+    const cached = await env.STATE.get(`avatar:${did}`);
+    if (cached !== null) {
+      avatars[did] = cached === '' ? null : cached;
+    } else {
+      uncached.push(did);
+    }
+  }
+
+  // Fetch uncached in batches of 25 (getProfiles limit)
+  const BATCH = 25;
+  for (let i = 0; i < uncached.length; i += BATCH) {
+    const batch = uncached.slice(i, i + BATCH);
+    const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join('&');
+
+    let data: { profiles?: { did: string; avatar?: string }[] } | null = null;
+
+    // Retry with exponential backoff on 429
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await fetch(`${BSKY}/xrpc/app.bsky.actor.getProfiles?${params}`);
+        if (res.status === 429) {
+          await new Promise(r => setTimeout(r, (1 << attempt) * 500));
+          continue;
+        }
+        if (!res.ok) break;
+        data = await res.json() as typeof data;
+        break;
+      } catch {
+        break;
+      }
+    }
+
+    if (data?.profiles) {
+      const seen = new Set<string>();
+      for (const profile of data.profiles) {
+        seen.add(profile.did);
+        const avatarUrl = profile.avatar || '';
+        avatars[profile.did] = avatarUrl || null;
+        // Cache — empty string means "no avatar" (still cache to avoid re-fetching)
+        env.STATE.put(`avatar:${profile.did}`, avatarUrl, { expirationTtl: KV_TTL });
+      }
+      // DIDs not in response — cache as no-avatar
+      for (const d of batch) {
+        if (!seen.has(d)) {
+          avatars[d] = null;
+          env.STATE.put(`avatar:${d}`, '', { expirationTtl: KV_TTL });
+        }
+      }
+    }
+  }
+
+  return Response.json({ avatars }, { headers: corsHeaders() });
 }
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {

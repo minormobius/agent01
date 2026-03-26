@@ -101,9 +101,9 @@ const avatarImages = new Map();   // did → HTMLImageElement (loaded)
 const avatarLoading = new Set();  // dids currently being fetched
 let hexCells = [];                // computed each frame: [{sx, sy, node}]
 
-// Batch-fetch avatar URLs from Bluesky public API
+// Batch-fetch avatar URLs via feed worker proxy (KV-cached, retries on rate limits)
 async function fetchAvatars(dids) {
-  const BATCH = 25;
+  const BATCH = 75; // worker handles sub-batching to Bluesky
   const unresolved = dids.filter(d => !avatarImages.has(d) && !avatarLoading.has(d));
   if (unresolved.length === 0) return;
 
@@ -111,25 +111,22 @@ async function fetchAvatars(dids) {
     const batch = unresolved.slice(i, i + BATCH);
     batch.forEach(d => avatarLoading.add(d));
     try {
-      const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join("&");
-      const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${params}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      for (const profile of (data.profiles || [])) {
-        if (profile.avatar) {
+      const params = batch.map(d => `dids=${encodeURIComponent(d)}`).join("&");
+      const res = await fetch(`${API_BASE}/xrpc/com.minomobi.feed.getAvatars?${params}`);
+      if (!res.ok) { batch.forEach(d => avatarLoading.delete(d)); continue; }
+      const { avatars } = await res.json();
+      for (const did of batch) {
+        const url = avatars[did];
+        avatarLoading.delete(did);
+        if (url) {
           const img = new Image();
           img.crossOrigin = "anonymous";
-          img.src = profile.avatar;
-          img.onload = () => { avatarImages.set(profile.did, img); scheduleDraw(); };
-          img.onerror = () => { avatarImages.set(profile.did, null); }; // mark as failed
+          img.src = url;
+          img.onload = () => { avatarImages.set(did, img); scheduleDraw(); };
+          img.onerror = () => { avatarImages.set(did, null); };
         } else {
-          avatarImages.set(profile.did, null);
+          avatarImages.set(did, null);
         }
-        avatarLoading.delete(profile.did);
-      }
-      // Mark any DIDs not in response as no-avatar
-      for (const d of batch) {
-        if (!avatarImages.has(d)) { avatarImages.set(d, null); avatarLoading.delete(d); }
       }
     } catch(e) {
       batch.forEach(d => avatarLoading.delete(d));
