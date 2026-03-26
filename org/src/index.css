@@ -2819,6 +2819,7 @@ button:disabled {
 .cal-day:hover { background: var(--surface-2); }
 .cal-day.cal-today { background: rgba(88, 166, 255, 0.08); }
 .cal-day.cal-other-month { opacity: 0.4; }
+.cal-day.cal-month-start { border-left: 2px solid var(--accent); }
 
 .cal-day-num {
   font-size: 0.8rem;

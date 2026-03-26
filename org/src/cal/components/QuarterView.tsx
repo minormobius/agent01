@@ -37,7 +37,7 @@ export function QuarterView({ date, events, onSelectDate, onSelectEvent, onDateC
       if (Math.abs(scrollAccum.current) >= threshold) {
         const direction = scrollAccum.current > 0 ? 1 : -1;
         scrollAccum.current = 0;
-        onDateChange?.(addDays(date, direction * 7));
+        onDateChange?.(addDays(date, direction * 14));
       }
     },
     [date, onDateChange],
