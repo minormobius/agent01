@@ -3,7 +3,7 @@
  * Org-aware: scopes project data per org via localStorage key.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useProject } from "./useProject";
 import { PM_TABS } from "./types";
 import { Dashboard } from "./panes/Dashboard";
@@ -16,7 +16,6 @@ import { Resources } from "./panes/Resources";
 import { Sync } from "./panes/Sync";
 import { Docs } from "./panes/Docs";
 import { useRouter } from "../router";
-import { discoverOrgs } from "../crm/context";
 import type { VaultState } from "../App";
 import type { PdsClient } from "../pds";
 import type { OrgRecord } from "../crm/types";
@@ -26,27 +25,12 @@ type OrgScope = "personal" | string; // org rkey
 interface Props {
   vault?: VaultState | null;
   pds?: PdsClient | null;
+  orgs?: OrgRecord[];
 }
 
-export function PmApp({ vault, pds }: Props) {
+export function PmApp({ vault, pds, orgs = [] }: Props) {
   const { navigate } = useRouter();
-  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [orgScope, setOrgScope] = useState<OrgScope>("personal");
-  const discoveredRef = useRef(false);
-
-  // Discover orgs on mount
-  useEffect(() => {
-    if (!pds || discoveredRef.current) return;
-    discoveredRef.current = true;
-    (async () => {
-      try {
-        const { foundedOrgs, joinedOrgs } = await discoverOrgs(pds);
-        setOrgs([...foundedOrgs, ...joinedOrgs.map((j) => j.org)]);
-      } catch (err) {
-        console.warn("PM: failed to discover orgs:", err);
-      }
-    })();
-  }, [pds]);
 
   // Scope key for localStorage: "personal" or org rkey
   const storageScope = orgScope === "personal" ? undefined : orgScope;

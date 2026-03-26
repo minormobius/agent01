@@ -8,16 +8,13 @@ import { sealRecord, unsealRecord } from "../crypto";
 import type { CalEvent, CalEventRecord } from "./types";
 import type { OrgContext } from "../crm/types";
 import {
-  discoverOrgs,
-  buildOrgContext,
   keyringRkeyForTier,
   SEALED_COLLECTION,
 } from "../crm/context";
 
 export const INNER_TYPE = "com.minomobi.cal.event";
 
-// Re-export for convenience
-export { discoverOrgs, buildOrgContext, keyringRkeyForTier, SEALED_COLLECTION };
+export { keyringRkeyForTier, SEALED_COLLECTION };
 
 /** Load personal calendar events */
 export async function loadPersonalEvents(

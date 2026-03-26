@@ -79,19 +79,22 @@ export function QuarterView({ date, events, onSelectDate, onSelectEvent, onDateC
                       ? day.toLocaleDateString("en-US", { month: "short", day: "numeric" })
                       : day.getDate()}
                   </span>
-                  {dayEvents.length > 0 && (
-                    <div className="cal-qday-dots">
-                      {dayEvents.slice(0, 3).map((ev) => (
-                        <span
-                          key={ev.rkey}
-                          className="cal-qday-dot"
-                          style={{ background: ev.event.color ?? "#58a6ff" }}
-                          onClick={(e) => { e.stopPropagation(); onSelectEvent(ev); }}
-                          title={ev.event.title}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="cal-day-events">
+                    {dayEvents.slice(0, 2).map((ev) => (
+                      <div
+                        key={ev.rkey}
+                        className="cal-day-event cal-qday-event"
+                        style={{ borderLeftColor: ev.event.color ?? "#58a6ff" }}
+                        onClick={(e) => { e.stopPropagation(); onSelectEvent(ev); }}
+                        title={ev.event.title}
+                      >
+                        {ev.event.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 2 && (
+                      <div className="cal-day-more">+{dayEvents.length - 2}</div>
+                    )}
+                  </div>
                 </div>
               );
             })}

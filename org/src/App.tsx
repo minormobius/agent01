@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { PdsClient, resolvePds } from "./pds";
+import { PdsClient } from "./pds";
 import {
   deriveKek,
   generateIdentityKey,
@@ -11,13 +11,16 @@ import {
   fromBase64,
   toBase64,
 } from "./crypto";
-import type { Session, OrgRecord, Org, MembershipRecord, Membership, OrgBookmark } from "./types";
+import type { Session, OrgRecord, MembershipRecord } from "./types";
+import type { OrgContext } from "./crm/types";
+import {
+  discoverOrgs as discoverOrgsFromPds,
+  buildOrgContext,
+} from "./crm/context";
 import { LoginScreen } from "./components/LoginScreen";
-import { OrgList } from "./components/OrgList";
-import { OrgDetail } from "./components/OrgDetail";
-import { CreateOrg } from "./components/CreateOrg";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
+import { OrgManager } from "./components/OrgManager";
 import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
@@ -28,9 +31,6 @@ import { Route } from "./router";
 // ATProto collection names
 const IDENTITY_COLLECTION = "com.minomobi.vault.wrappedIdentity";
 const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
-const ORG_COLLECTION = "com.minomobi.vault.org";
-const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
-const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 
 export interface VaultState {
   session: Session;
@@ -39,7 +39,7 @@ export interface VaultState {
   publicKey: CryptoKey;
 }
 
-type View = "orgs" | "create" | "detail" | "invite-onboarding";
+type View = "orgs" | "manage";
 
 /** Parse invite params from URL: /invite/<orgRkey>?founder=<did>&service=<pds> */
 function parseInviteUrl(): { orgRkey: string; founderDid: string; founderService: string } | null {
@@ -95,8 +95,8 @@ export function App() {
   const [vault, setVault] = useState<VaultState | null>(null);
   const [pds, setPds] = useState<PdsClient | null>(null);
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<OrgRecord | null>(null);
   const [memberships, setMemberships] = useState<MembershipRecord[]>([]);
+  const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
   const [view, setView] = useState<View>("orgs");
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -161,12 +161,45 @@ export function App() {
       // Persist session
       saveSession(service, session, passphrase);
 
-      // Discover orgs
+      // Discover orgs and build contexts
       setLoading(true);
       try {
-        const discovered = await discoverOrgs(client, session.did);
-        setOrgs(discovered.orgs);
-        setMemberships(discovered.memberships);
+        const { foundedOrgs, joinedOrgs, allMemberships } = await discoverOrgsFromPds(client);
+        const allOrgs = [...foundedOrgs, ...joinedOrgs.map((j) => j.org)];
+        setOrgs(allOrgs);
+        setMemberships(allMemberships);
+
+        // Build org contexts (unwrap DEKs once, share across apps)
+        const contexts = new Map<string, OrgContext>();
+        for (const org of foundedOrgs) {
+          const myM = allMemberships.find(
+            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === session.did
+          );
+          if (!myM) continue;
+          try {
+            const ctx = await buildOrgContext(
+              client, client.getService(), org, myM, allMemberships, privateKey, session.did
+            );
+            contexts.set(org.rkey, ctx);
+          } catch (err) {
+            console.warn(`Failed to build context for ${org.org.name}:`, err);
+          }
+        }
+        for (const { org, founderService } of joinedOrgs) {
+          const myM = allMemberships.find(
+            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === session.did
+          );
+          if (!myM) continue;
+          try {
+            const ctx = await buildOrgContext(
+              client, founderService, org, myM, allMemberships, privateKey, session.did
+            );
+            contexts.set(org.rkey, ctx);
+          } catch (err) {
+            console.warn(`Failed to build context for ${org.org.name}:`, err);
+          }
+        }
+        setOrgContexts(contexts);
       } finally {
         setLoading(false);
       }
@@ -217,93 +250,6 @@ export function App() {
     [bootstrapVault],
   );
 
-  // --- Org discovery ---
-  async function discoverOrgs(
-    client: PdsClient,
-    _myDid: string,
-  ): Promise<{ orgs: OrgRecord[]; memberships: MembershipRecord[] }> {
-    // Founded orgs
-    const foundedOrgs: OrgRecord[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await client.listRecords(ORG_COLLECTION, 100, cursor);
-      for (const rec of page.records) {
-        const val = (rec as Record<string, unknown>).value as Org;
-        const rkey = (rec as Record<string, unknown>).uri as string;
-        foundedOrgs.push({ rkey: rkey.split("/").pop()!, org: val });
-      }
-      cursor = page.cursor;
-    } while (cursor);
-
-    // All memberships from my founded orgs
-    const allMemberships: MembershipRecord[] = [];
-    cursor = undefined;
-    do {
-      const page = await client.listRecords(MEMBERSHIP_COLLECTION, 100, cursor);
-      for (const rec of page.records) {
-        const val = (rec as Record<string, unknown>).value as Membership;
-        const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
-        allMemberships.push({ rkey, membership: val });
-      }
-      cursor = page.cursor;
-    } while (cursor);
-
-    // Bookmarks (joined orgs from other founders)
-    const bookmarks: OrgBookmark[] = [];
-    cursor = undefined;
-    do {
-      const page = await client.listRecords(BOOKMARK_COLLECTION, 100, cursor);
-      for (const rec of page.records) {
-        bookmarks.push((rec as Record<string, unknown>).value as OrgBookmark);
-      }
-      cursor = page.cursor;
-    } while (cursor);
-
-    const joinedOrgs: OrgRecord[] = [];
-    for (const bm of bookmarks) {
-      try {
-        let founderService: string;
-        try {
-          founderService = await resolvePds(bm.founderDid);
-        } catch {
-          founderService = bm.founderService;
-        }
-        const founderClient = new PdsClient(founderService);
-        const orgRec = await founderClient.getRecordFrom(
-          bm.founderDid,
-          ORG_COLLECTION,
-          bm.orgRkey,
-        );
-        if (!orgRec) continue;
-        const val = (orgRec as Record<string, unknown>).value as Org;
-        joinedOrgs.push({ rkey: bm.orgRkey, org: val });
-
-        // Also fetch memberships from founder for this org
-        let mCursor: string | undefined;
-        do {
-          const page = await founderClient.listRecordsFrom(
-            bm.founderDid,
-            MEMBERSHIP_COLLECTION,
-            100,
-            mCursor,
-          );
-          for (const rec of page.records) {
-            const mVal = (rec as Record<string, unknown>).value as Membership;
-            if (mVal.orgRkey === bm.orgRkey) {
-              const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
-              allMemberships.push({ rkey, membership: mVal });
-            }
-          }
-          mCursor = page.cursor;
-        } while (mCursor);
-      } catch (err) {
-        console.warn("Failed to fetch joined org:", err);
-      }
-    }
-
-    return { orgs: [...foundedOrgs, ...joinedOrgs], memberships: allMemberships };
-  }
-
   // --- Callbacks for child components ---
   const handleOrgCreated = useCallback((org: OrgRecord) => {
     setOrgs((prev) => [...prev, org]);
@@ -315,10 +261,15 @@ export function App() {
     [],
   );
 
-  const handleSelectOrg = useCallback((org: OrgRecord) => {
-    setSelectedOrg(org);
-    setView("detail");
-  }, []);
+  const handleOrgDeleted = useCallback(
+    (orgRkey: string) => {
+      setOrgs((prev) => prev.filter((o) => o.rkey !== orgRkey));
+      setMemberships((prev) => prev.filter((m) => m.membership.orgRkey !== orgRkey));
+      setOrgContexts((prev) => { const u = new Map(prev); u.delete(orgRkey); return u; });
+      setView("orgs");
+    },
+    [],
+  );
 
   const handleLogout = useCallback(() => {
     clearSession();
@@ -326,9 +277,8 @@ export function App() {
     setPds(null);
     setOrgs([]);
     setMemberships([]);
-    setSelectedOrg(null);
+    setOrgContexts(new Map());
     setView("orgs");
-    // Clear invite URL
     if (window.location.pathname.startsWith("/invite/")) {
       window.history.replaceState(null, "", "/");
     }
@@ -363,102 +313,90 @@ export function App() {
   // --- Routed app pages (logged in) ---
   return (
     <>
-      {/* PM tool — full-page, own layout */}
       <Route path="/pm">
-        <PmApp vault={vault} pds={pds} />
+        <PmApp vault={vault} pds={pds} orgs={orgs} />
       </Route>
 
-      {/* Wave — encrypted channels, threads & docs */}
       <Route path="/wave">
-        <WaveApp vault={vault} pds={pds} />
+        <WaveApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
-      {/* CRM — deal pipeline & proposals */}
       <Route path="/crm">
-        <CrmApp vault={vault} pds={pds} />
+        <CrmApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
-      {/* Calendar — personal + org events, PM integration */}
       <Route path="/cal">
-        <CalendarApp vault={vault} pds={pds} />
+        <CalendarApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
-      {/* Hub home — org management + app grid */}
       <Route path="/" exact>
         <HubHome
           vault={vault}
           pds={pds}
           orgs={orgs}
           memberships={memberships}
-          selectedOrg={selectedOrg}
+          orgContexts={orgContexts}
           view={view}
           loading={loading}
           onLogout={handleLogout}
-          onSelectOrg={handleSelectOrg}
-          onCreateView={() => setView("create")}
           onOrgCreated={handleOrgCreated}
           onMembershipsChanged={handleMembershipChanged}
-          onBack={() => {
-            setSelectedOrg(null);
-            setView("orgs");
-          }}
+          onOrgDeleted={handleOrgDeleted}
+          onManageOrgs={() => setView("manage")}
+          onBack={() => setView("orgs")}
         />
       </Route>
 
-      {/* Invite link (logged in — write bookmark) */}
       <Route path="/invite">
         <HubHome
           vault={vault}
           pds={pds}
           orgs={orgs}
           memberships={memberships}
-          selectedOrg={selectedOrg}
+          orgContexts={orgContexts}
           view={view}
           loading={loading}
           onLogout={handleLogout}
-          onSelectOrg={handleSelectOrg}
-          onCreateView={() => setView("create")}
           onOrgCreated={handleOrgCreated}
           onMembershipsChanged={handleMembershipChanged}
-          onBack={() => {
-            setSelectedOrg(null);
-            setView("orgs");
-          }}
+          onOrgDeleted={handleOrgDeleted}
+          onManageOrgs={() => setView("manage")}
+          onBack={() => setView("orgs")}
         />
       </Route>
     </>
   );
 }
 
-// --- Hub home (extracted for reuse across routes) ---
+// --- Hub home ---
 
 function HubHome({
   vault,
   pds,
   orgs,
   memberships,
-  selectedOrg,
+  orgContexts,
   view,
   loading,
   onLogout,
-  onSelectOrg,
-  onCreateView,
   onOrgCreated,
   onMembershipsChanged,
+  onOrgDeleted,
+  onManageOrgs,
   onBack,
 }: {
   vault: VaultState;
   pds: PdsClient;
   orgs: OrgRecord[];
   memberships: MembershipRecord[];
-  selectedOrg: OrgRecord | null;
+  orgContexts: Map<string, OrgContext>;
   view: View;
   loading: boolean;
   onLogout: () => void;
-  onSelectOrg: (org: OrgRecord) => void;
-  onCreateView: () => void;
   onOrgCreated: (org: OrgRecord) => void;
   onMembershipsChanged: (updated: MembershipRecord[]) => void;
+  onOrgDeleted: (orgRkey: string) => void;
+  onManageOrgs: () => void;
   onBack: () => void;
 }) {
   return (
@@ -479,35 +417,56 @@ function HubHome({
 
         {!loading && view === "orgs" && (
           <>
-            <OrgList
-              orgs={orgs}
-              myDid={vault.session.did}
-              onSelect={onSelectOrg}
-              onCreate={onCreateView}
-            />
-            <AppGrid activeOrg={selectedOrg} />
+            <div className="org-selector">
+              <h2>Organizations</h2>
+              {orgs.length === 0 && (
+                <p style={{ color: "var(--text-dim)", marginBottom: 12 }}>
+                  No organizations yet. Manage orgs to create one.
+                </p>
+              )}
+              <div className="org-list">
+                {orgs.map((o) => (
+                  <div key={o.rkey} className="org-item">
+                    <div>
+                      <div className="org-name">{o.org.name}</div>
+                      <div className="org-meta">
+                        {o.org.founderDid === vault.session.did ? "Founded by you" : "Member"} &middot; {o.org.tiers.length} tiers
+                      </div>
+                    </div>
+                    <span className="tier-badge">
+                      {o.org.founderDid === vault.session.did ? "founder" : "member"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="org-actions">
+                <button className="btn-primary" style={{ width: "auto" }} onClick={onManageOrgs}>
+                  Manage Organizations
+                </button>
+              </div>
+            </div>
+            <AppGrid activeOrg={null} />
           </>
         )}
 
-        {view === "create" && (
-          <CreateOrg
+        {view === "manage" && (
+          <OrgManager
             pds={pds}
             myDid={vault.session.did}
+            myHandle={vault.session.handle}
             myPrivateKey={vault.privateKey}
             myPublicKey={vault.publicKey}
-            onCreated={onOrgCreated}
-            onCancel={onBack}
-          />
-        )}
-
-        {view === "detail" && selectedOrg && (
-          <OrgDetail
-            pds={pds}
-            vault={vault}
-            org={selectedOrg}
-            memberships={memberships.filter((m) => m.membership.orgRkey === selectedOrg.rkey)}
-            onMembershipsChanged={onMembershipsChanged}
-            onBack={onBack}
+            orgs={orgs}
+            memberships={memberships}
+            relationships={Array.from(orgContexts.values()).flatMap((ctx) => ctx.relationships)}
+            onOrgCreated={onOrgCreated}
+            onMemberInvited={(m) => onMembershipsChanged([...memberships, m])}
+            onOrgUpdated={() => {}}
+            onOrgJoined={() => {}}
+            onMemberRemoved={() => {}}
+            onRelationshipCreated={() => {}}
+            onOrgDeleted={onOrgDeleted}
+            onClose={onBack}
           />
         )}
       </div>

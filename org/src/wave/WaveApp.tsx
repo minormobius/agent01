@@ -46,13 +46,16 @@ const OP_COLLECTION = "com.minomobi.wave.op";
 interface Props {
   vault?: VaultState | null;
   pds?: PdsClient | null;
+  orgs?: OrgRecord[];
+  orgContexts?: Map<string, import("../crm/types").OrgContext>;
 }
 
-export function WaveApp({ vault, pds }: Props) {
+export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
   const { navigate } = useRouter();
 
-  // Org state
-  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
+  // Org state (use shared orgs from hub, fall back to local discovery)
+  const [localOrgs, setLocalOrgs] = useState<OrgRecord[]>([]);
+  const orgs = sharedOrgs.length > 0 ? sharedOrgs : localOrgs;
   const [activeOrg, setActiveOrg] = useState<WaveOrgContext | null>(null);
 
   // Wave state
@@ -93,16 +96,16 @@ export function WaveApp({ vault, pds }: Props) {
   const myDid = vault.session.did;
   const myHandle = vault.session.handle;
 
-  // --- Discover orgs on mount ---
+  // --- Discover orgs on mount (skip if hub provided them) ---
   useEffect(() => {
-    if (!pds || !vault) return;
+    if (!pds || !vault || sharedOrgs.length > 0) return;
     let cancelled = false;
 
     (async () => {
       setLoading(true);
       try {
         const discovered = await discoverOrgs(pds, myDid);
-        if (!cancelled) setOrgs(discovered);
+        if (!cancelled) setLocalOrgs(discovered);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,7 +114,7 @@ export function WaveApp({ vault, pds }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [pds, vault, myDid]);
+  }, [pds, vault, myDid, sharedOrgs]);
 
   // --- Org discovery ---
   async function discoverOrgs(client: PdsClient, _did: string): Promise<OrgRecord[]> {
@@ -396,7 +399,7 @@ export function WaveApp({ vault, pds }: Props) {
       try {
         await createOrgRecord(pds, name, tierNames, myDid, myHandle, vault.privateKey, vault.publicKey);
         const discovered = await discoverOrgs(pds, myDid);
-        setOrgs(discovered);
+        setLocalOrgs(discovered);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create org");
       } finally {

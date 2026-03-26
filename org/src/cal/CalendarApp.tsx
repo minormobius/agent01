@@ -10,8 +10,6 @@ import type { PdsClient } from "../pds";
 import type { OrgRecord, OrgContext } from "../crm/types";
 import type { CalEvent, CalEventRecord, CalView } from "./types";
 import {
-  discoverOrgs,
-  buildOrgContext,
   keyringRkeyForTier,
   loadPersonalEvents,
   loadOrgEvents,
@@ -41,6 +39,8 @@ type OrgFilter = "all" | "personal" | string;
 interface Props {
   vault?: VaultState | null;
   pds?: PdsClient | null;
+  orgs?: OrgRecord[];
+  orgContexts?: Map<string, OrgContext>;
 }
 
 /** Read PM task deadlines from localStorage as synthetic calendar events */
@@ -72,15 +72,13 @@ function loadPmTasks(orgScope?: string): CalEventRecord[] {
   }
 }
 
-export function CalendarApp({ vault, pds }: Props) {
+export function CalendarApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: sharedContexts = new Map() }: Props) {
   const { navigate } = useRouter();
 
   const [events, setEvents] = useState<CalEventRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<CalView>("month");
   const [date, setDate] = useState(new Date());
-  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
-  const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalEventRecord | undefined>();
@@ -89,7 +87,7 @@ export function CalendarApp({ vault, pds }: Props) {
 
   const loadedRef = useRef(false);
 
-  // Load data on mount
+  // Load events on mount (org contexts come pre-built from hub)
   useEffect(() => {
     if (!vault || !pds || loadedRef.current) return;
     loadedRef.current = true;
@@ -98,62 +96,31 @@ export function CalendarApp({ vault, pds }: Props) {
       setLoading(true);
       try {
         const personalEvents = await loadPersonalEvents(pds, vault.dek, vault.session.did);
-        const { foundedOrgs, joinedOrgs, allMemberships } = await discoverOrgs(pds);
-
         const allOrgEvents: CalEventRecord[] = [];
-        const contexts = new Map<string, OrgContext>();
-
-        for (const org of foundedOrgs) {
-          const myM = allMemberships.find(
-            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === vault.session.did
-          );
-          if (!myM) continue;
+        for (const ctx of sharedContexts.values()) {
           try {
-            const ctx = await buildOrgContext(
-              pds, pds.getService(), org, myM, allMemberships, vault.privateKey, vault.session.did
-            );
-            contexts.set(org.rkey, ctx);
             allOrgEvents.push(...await loadOrgEvents(pds, ctx));
           } catch (err) {
-            console.warn(`Cal: failed to load org ${org.org.name}:`, err);
+            console.warn(`Cal: failed to load org ${ctx.org.org.name}:`, err);
           }
         }
-
-        for (const { org, founderService } of joinedOrgs) {
-          const myM = allMemberships.find(
-            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === vault.session.did
-          );
-          if (!myM) continue;
-          try {
-            const ctx = await buildOrgContext(
-              pds, founderService, org, myM, allMemberships, vault.privateKey, vault.session.did
-            );
-            contexts.set(org.rkey, ctx);
-            allOrgEvents.push(...await loadOrgEvents(pds, ctx));
-          } catch (err) {
-            console.warn(`Cal: failed to load joined org ${org.org.name}:`, err);
-          }
-        }
-
         setEvents([...personalEvents, ...allOrgEvents]);
-        setOrgs([...foundedOrgs, ...joinedOrgs.map((j) => j.org)]);
-        setOrgContexts(contexts);
       } finally {
         setLoading(false);
       }
     })();
-  }, [vault, pds]);
+  }, [vault, pds, sharedContexts]);
 
   // PM task events
   const pmTasks = useMemo(() => {
     if (!showPmTasks) return [];
     const tasks: CalEventRecord[] = [];
     tasks.push(...loadPmTasks()); // personal PM
-    for (const org of orgs) {
+    for (const org of sharedOrgs) {
       tasks.push(...loadPmTasks(org.rkey));
     }
     return tasks;
-  }, [showPmTasks, orgs]);
+  }, [showPmTasks, sharedOrgs]);
 
   // Filter events
   const filteredEvents = useMemo(() => {
@@ -170,13 +137,13 @@ export function CalendarApp({ vault, pds }: Props) {
   const orgNames = useMemo(() => {
     const map = new Map<string, string>();
     map.set("personal", "Personal");
-    for (const org of orgs) map.set(org.rkey, org.org.name);
+    for (const org of sharedOrgs) map.set(org.rkey, org.org.name);
     return map;
-  }, [orgs]);
+  }, [sharedOrgs]);
 
   // Active org context
   const activeOrg = filterOrg !== "all" && filterOrg !== "personal"
-    ? orgContexts.get(filterOrg) ?? null
+    ? sharedContexts.get(filterOrg) ?? null
     : null;
 
   // Navigation
@@ -310,7 +277,7 @@ export function CalendarApp({ vault, pds }: Props) {
           >
             <option value="all">All Calendars</option>
             <option value="personal">Personal</option>
-            {orgs.map((o) => (
+            {sharedOrgs.map((o) => (
               <option key={o.rkey} value={o.rkey}>{o.org.name}</option>
             ))}
           </select>

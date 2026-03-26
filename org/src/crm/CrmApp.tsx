@@ -1,6 +1,6 @@
 /**
  * CrmApp — encrypted deal pipeline on ATProto.
- * Receives vault + pds from the org hub (no independent login).
+ * Receives vault + pds + shared org contexts from the hub.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -12,14 +12,9 @@ import type {
   DealRecord,
   OrgRecord,
   OrgContext,
-  Org,
-  MembershipRecord,
   OrgFilter,
-  OrgRelationshipRecord,
 } from "./types";
 import {
-  discoverOrgs,
-  buildOrgContext,
   loadPersonalDeals,
   loadOrgDealsForCtx,
   saveDeal,
@@ -29,11 +24,9 @@ import {
   applyProposal as applyProposalFn,
   keyringRkeyForTier,
   SEALED_COLLECTION,
-  ORG_COLLECTION,
 } from "./context";
 import { DealsBoard } from "./components/DealsBoard";
 import { DocsPage } from "./components/DocsPage";
-import { OrgManager } from "./components/OrgManager";
 import { OrgSwitcher } from "./components/OrgSwitcher";
 
 type Tab = "deals" | "docs";
@@ -41,23 +34,26 @@ type Tab = "deals" | "docs";
 interface Props {
   vault?: VaultState | null;
   pds?: PdsClient | null;
+  orgs?: OrgRecord[];
+  orgContexts?: Map<string, OrgContext>;
 }
 
-export function CrmApp({ vault, pds }: Props) {
+export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = new Map() }: Props) {
   const { navigate } = useRouter();
 
-  // CRM state
+  // CRM state — local copy of contexts so change control can update locally
   const [deals, setDeals] = useState<DealRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("deals");
-  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
-  const [memberships, setMemberships] = useState<MembershipRecord[]>([]);
-  const [showOrgManager, setShowOrgManager] = useState(false);
-  const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
-  const [relationships, setRelationships] = useState<OrgRelationshipRecord[]>([]);
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
+  const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(sharedContexts);
 
   const loadedRef = useRef(false);
+
+  // Sync from hub when shared contexts change
+  useEffect(() => {
+    setOrgContexts(sharedContexts);
+  }, [sharedContexts]);
 
   // Derive activeOrg from filter
   const activeOrg = filterOrg !== "all" && filterOrg !== "personal"
@@ -73,69 +69,21 @@ export function CrmApp({ vault, pds }: Props) {
       setLoading(true);
       try {
         const personalDeals = await loadPersonalDeals(pds, vault.dek, vault.session.did);
-        const { foundedOrgs, joinedOrgs, allMemberships } = await discoverOrgs(pds);
-
         const allOrgDeals: DealRecord[] = [];
-        const loadedContexts = new Map<string, OrgContext>();
-
-        // Founded orgs
-        for (const org of foundedOrgs) {
-          const myMembership = allMemberships.find(
-            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === vault.session.did
-          );
-          if (!myMembership) continue;
+        for (const ctx of orgContexts.values()) {
           try {
-            const ctx = await buildOrgContext(
-              pds, pds.getService(), org, myMembership, allMemberships, vault.privateKey, vault.session.did
-            );
-            loadedContexts.set(org.rkey, ctx);
             const orgDeals = await loadOrgDealsForCtx(pds, ctx);
             allOrgDeals.push(...orgDeals);
           } catch (err) {
-            console.warn(`Failed to load org ${org.org.name}:`, err);
+            console.warn(`Failed to load deals for ${ctx.org.org.name}:`, err);
           }
         }
-
-        // Joined orgs
-        for (const { org, founderService } of joinedOrgs) {
-          const myMembership = allMemberships.find(
-            (m) => m.membership.orgRkey === org.rkey && m.membership.memberDid === vault.session.did
-          );
-          if (!myMembership) continue;
-          try {
-            const ctx = await buildOrgContext(
-              pds, founderService, org, myMembership, allMemberships, vault.privateKey, vault.session.did
-            );
-            loadedContexts.set(org.rkey, ctx);
-            const orgDeals = await loadOrgDealsForCtx(pds, ctx);
-            allOrgDeals.push(...orgDeals);
-          } catch (err) {
-            console.warn(`Failed to load joined org ${org.org.name}:`, err);
-          }
-        }
-
-        const allOrgRecords = [...foundedOrgs, ...joinedOrgs.map((j) => j.org)];
-
-        // Collect relationships
-        const allRelationships: OrgRelationshipRecord[] = [];
-        for (const ctx of loadedContexts.values()) {
-          for (const r of ctx.relationships) {
-            if (!allRelationships.some((ar) => ar.rkey === r.rkey)) {
-              allRelationships.push(r);
-            }
-          }
-        }
-
         setDeals([...personalDeals, ...allOrgDeals]);
-        setOrgContexts(loadedContexts);
-        setOrgs(allOrgRecords);
-        setMemberships(allMemberships);
-        setRelationships(allRelationships);
       } finally {
         setLoading(false);
       }
     })();
-  }, [vault, pds]);
+  }, [vault, pds, orgContexts]);
 
   // --- Filter change ---
   const handleFilterChange = useCallback((newFilter: OrgFilter) => {
@@ -300,88 +248,6 @@ export function CrmApp({ vault, pds }: Props) {
     [pds]
   );
 
-  // --- Update org ---
-  const handleUpdateOrg = useCallback(
-    async (updatedOrg: Org) => {
-      if (!pds) return;
-      const orgRecord = orgs.find((o) => o.org.name === updatedOrg.name);
-      if (!orgRecord) return;
-
-      await pds.putRecord(ORG_COLLECTION, orgRecord.rkey, { $type: ORG_COLLECTION, ...updatedOrg });
-
-      setOrgs((prev) => prev.map((o) => o.rkey === orgRecord.rkey ? { ...o, org: updatedOrg } : o));
-      setOrgContexts((prev) => {
-        const updated = new Map(prev);
-        const ctx = updated.get(orgRecord.rkey);
-        if (ctx) updated.set(orgRecord.rkey, { ...ctx, org: { ...ctx.org, org: updatedOrg } });
-        return updated;
-      });
-    },
-    [pds, orgs]
-  );
-
-  // --- Org joined ---
-  const handleOrgJoined = useCallback(
-    async (org: OrgRecord, founderService: string, newMemberships: MembershipRecord[]) => {
-      if (!pds || !vault) return;
-      setOrgs((prev) => [...prev, org]);
-      setMemberships((prev) => [...prev, ...newMemberships]);
-
-      const myMembership = newMemberships.find((m) => m.membership.memberDid === vault.session.did);
-      if (!myMembership) return;
-
-      try {
-        const ctx = await buildOrgContext(
-          pds, founderService, org, myMembership, newMemberships, vault.privateKey, vault.session.did
-        );
-        setOrgContexts((prev) => { const u = new Map(prev); u.set(org.rkey, ctx); return u; });
-        const orgDeals = await loadOrgDealsForCtx(pds, ctx);
-        setDeals((prev) => [...prev, ...orgDeals]);
-      } catch (err) {
-        console.warn("Failed to load joined org:", err);
-      }
-    },
-    [pds, vault]
-  );
-
-  // --- Member removed ---
-  const handleMemberRemoved = useCallback(
-    async (membershipRkey: string, updatedOrg: Org) => {
-      if (!pds || !vault) return;
-      setMemberships((prev) => prev.filter((m) => m.rkey !== membershipRkey));
-
-      const orgRecord = orgs.find((o) => o.org.name === updatedOrg.name);
-      if (orgRecord) {
-        setOrgs((prev) => prev.map((o) => o.rkey === orgRecord.rkey ? { ...o, org: updatedOrg } : o));
-      }
-
-      if (orgRecord) {
-        const myMembership = memberships.find(
-          (m) => m.membership.orgRkey === orgRecord.rkey && m.membership.memberDid === vault.session.did
-        );
-        if (myMembership) {
-          try {
-            const founderService = orgContexts.get(orgRecord.rkey)?.service ?? pds.getService();
-            const allMems = memberships.filter((m) => m.rkey !== membershipRkey);
-            const ctx = await buildOrgContext(
-              pds, founderService, { rkey: orgRecord.rkey, org: updatedOrg }, myMembership, allMems,
-              vault.privateKey, vault.session.did
-            );
-            setOrgContexts((prev) => { const u = new Map(prev); u.set(orgRecord.rkey, ctx); return u; });
-          } catch (err) {
-            console.warn("Failed to rebuild org context:", err);
-          }
-        }
-      }
-    },
-    [pds, vault, orgs, memberships, orgContexts]
-  );
-
-  // --- Logout (back to hub) ---
-  const handleLogout = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
-
   // --- Guard ---
   if (!vault || !pds) {
     return (
@@ -397,7 +263,7 @@ export function CrmApp({ vault, pds }: Props) {
   if (loading) {
     return (
       <div className="crm-container">
-        <div className="loading">Decrypting vault...</div>
+        <div className="loading">Loading deals...</div>
       </div>
     );
   }
@@ -426,7 +292,7 @@ export function CrmApp({ vault, pds }: Props) {
         onApprove={handleApprove}
         handle={vault.session.handle}
         myDid={vault.session.did}
-        onLogout={handleLogout}
+        onLogout={() => navigate("/")}
         onBackToHub={() => navigate("/")}
         tab={tab}
         onTabChange={setTab}
@@ -435,7 +301,7 @@ export function CrmApp({ vault, pds }: Props) {
             orgs={orgs}
             filterOrg={filterOrg}
             onFilterChange={handleFilterChange}
-            onManageOrgs={() => setShowOrgManager(true)}
+            onManageOrgs={() => navigate("/")}
             activeOrg={activeOrg}
           />
         }
@@ -444,25 +310,6 @@ export function CrmApp({ vault, pds }: Props) {
         availableTiers={availableTiers}
       />
       {tab === "docs" && <DocsPage />}
-      {showOrgManager && (
-        <OrgManager
-          pds={pds}
-          myDid={vault.session.did}
-          myHandle={vault.session.handle}
-          myPrivateKey={vault.privateKey}
-          myPublicKey={vault.publicKey}
-          orgs={orgs}
-          memberships={memberships}
-          relationships={relationships}
-          onOrgCreated={(org) => setOrgs((prev) => [...prev, org])}
-          onMemberInvited={(m) => setMemberships((prev) => [...prev, m])}
-          onOrgUpdated={handleUpdateOrg}
-          onOrgJoined={handleOrgJoined}
-          onMemberRemoved={handleMemberRemoved}
-          onRelationshipCreated={(rel) => setRelationships((prev) => [...prev, rel])}
-          onClose={() => setShowOrgManager(false)}
-        />
-      )}
     </div>
   );
 }

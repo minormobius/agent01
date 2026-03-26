@@ -10,6 +10,7 @@ const INTERNAL_ROUTES: Record<string, string> = {
   pm: "/pm",
   wave: "/wave",
   crm: "/crm",
+  cal: "/cal",
 };
 
 export function AppGrid({ activeOrg }: Props) {
