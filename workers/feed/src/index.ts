@@ -7,7 +7,7 @@
  */
 
 import { detectCommunities, detectBridges, type Community } from './graph';
-import { discoverCandidates, getAuthorFeed, type EngagementSignal } from './constellation';
+import { discoverCandidates, getAuthorFeed, getPostThreadDepth, type EngagementSignal, type FeedPost } from './constellation';
 import { scoreCandiates, type ScoredPost } from './scoring';
 
 export interface Env {
@@ -255,6 +255,26 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleGetCommunityActivity(env);
   }
 
+  // Post thread depth — lazy enrichment for post dot sizing
+  if (path === '/xrpc/com.minomobi.feed.getPostThreadDepth') {
+    const postUri = url.searchParams.get('uri');
+    if (!postUri) {
+      return Response.json({ error: 'missing uri param' }, { status: 400, headers: corsHeaders() });
+    }
+    // Check KV cache (1-hour TTL)
+    const cacheKey = `thread_depth:${postUri}`;
+    const cached = await env.STATE.get(cacheKey, 'json');
+    if (cached) {
+      return Response.json(cached, { headers: corsHeaders() });
+    }
+    const result = await getPostThreadDepth(postUri);
+    if (!result) {
+      return Response.json({ error: 'thread not found' }, { status: 404, headers: corsHeaders() });
+    }
+    await env.STATE.put(cacheKey, JSON.stringify(result), { expirationTtl: 3600 });
+    return Response.json(result, { headers: corsHeaders() });
+  }
+
   // Avatar proxy — KV-cached, server-side fetched (avoids browser rate limits)
   if (path === '/xrpc/com.minomobi.feed.getAvatars') {
     return handleGetAvatars(url, env);
@@ -430,6 +450,9 @@ async function handleGetCommunityActivity(env: Env): Promise<Response> {
       authorDid: string;
       communityIds: number[];
       score: number;
+      replyCount: number;
+      likeCount: number;
+      repostCount: number;
       indexedAt: string;
     }[] = [];
 
@@ -454,6 +477,9 @@ async function handleGetCommunityActivity(env: Env): Promise<Response> {
           authorDid: did,
           communityIds,
           score,
+          replyCount: post.replyCount,
+          likeCount: post.likeCount,
+          repostCount: post.repostCount,
           indexedAt: post.indexedAt,
         });
 

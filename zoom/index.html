@@ -87,6 +87,8 @@ let communities = [];  // from API
 let bridges = [];
 let activityData = {}; // community id → { postCount, totalScore }
 let activityPosts = []; // scored posts with community attribution
+let postDots = [];     // laid-out post dots: { x, y, r, post, communityId, _type: "post" }
+let threadCache = {};  // uri → { maxDepth, topLevelReplies, interactorDids }
 let flat = [];         // laid-out nodes for hit testing
 let selectedNode = null;
 let hoveredNode = null;
@@ -367,6 +369,128 @@ function layoutCommunities() {
   }
 }
 
+// ── Post dot layout ──────────────────────────────────────────────────
+// Sizing: replyCount * max(maxDepth, 1) + likeCount/10
+// Position: centroid of author node within community (first pass)
+function layoutPostDots() {
+  postDots = [];
+  if (activityPosts.length === 0) return;
+
+  // Build DID → member node lookup
+  const memberByDid = new Map();
+  for (const n of flat) {
+    if (n._type === "member") memberByDid.set(n._member.did, n);
+  }
+
+  // Build community node lookup
+  const communityNode = new Map();
+  for (const n of flat) {
+    if (n._type === "community") communityNode.set(n._community.id, n);
+  }
+
+  for (const post of activityPosts) {
+    // Place one dot per community the post is attributed to
+    for (const cid of post.communityIds) {
+      const cNode = communityNode.get(cid);
+      if (!cNode) continue;
+
+      // Centroid: if we have thread data with interactors, use those positions
+      // Otherwise, use author position (or community center as fallback)
+      const tc = threadCache[post.uri];
+      let cx, cy, interactorCount = 0;
+
+      if (tc && tc.interactorDids.length > 0) {
+        // Centroid of all interactors that are members of this community
+        let sx = 0, sy = 0, count = 0;
+        for (const did of tc.interactorDids) {
+          const mn = memberByDid.get(did);
+          if (mn && mn._ci === cNode._ci) {
+            sx += mn._x; sy += mn._y; count++;
+          }
+        }
+        if (count > 0) {
+          cx = sx / count; cy = sy / count;
+          interactorCount = count;
+        } else {
+          // Interactors exist but none in this community — use author position
+          const authorNode = memberByDid.get(post.authorDid);
+          cx = authorNode ? authorNode._x : cNode._x;
+          cy = authorNode ? authorNode._y : cNode._y;
+        }
+      } else {
+        // No thread data yet — use author's position
+        const authorNode = memberByDid.get(post.authorDid);
+        cx = authorNode ? authorNode._x : cNode._x;
+        cy = authorNode ? authorNode._y : cNode._y;
+      }
+
+      // Jitter to avoid exact overlaps (deterministic from uri hash)
+      let hash = 0;
+      for (let i = 0; i < post.uri.length; i++) hash = ((hash << 5) - hash + post.uri.charCodeAt(i)) | 0;
+      const jAngle = (hash & 0xffff) / 0xffff * Math.PI * 2;
+      const jDist = cNode._r * 0.03 * ((hash >> 16 & 0xff) / 255);
+      cx += jDist * Math.cos(jAngle);
+      cy += jDist * Math.sin(jAngle);
+
+      // Sizing: estimated score using replyCount as proxy for top-level replies
+      const replyCount = post.replyCount || 0;
+      const likeCount = post.likeCount || 0;
+      const maxDepth = tc ? tc.maxDepth : 1;
+      const topLevel = tc ? tc.topLevelReplies : replyCount;
+      const magnitude = topLevel * Math.max(maxDepth, 1) + likeCount / 10;
+
+      // Map magnitude to radius: sqrt for area-proportional scaling
+      // min 2px equivalent in world coords, max ~15% of community radius
+      const minR = cNode._r * 0.015;
+      const maxR = cNode._r * 0.12;
+      const r = Math.max(minR, Math.min(maxR, minR + Math.sqrt(magnitude) * cNode._r * 0.012));
+
+      postDots.push({
+        _type: "post",
+        _x: cx, _y: cy, _r: r,
+        _post: post,
+        _communityId: cid,
+        _ci: cNode._ci,
+        _hue: cNode._hue,
+        _magnitude: magnitude,
+        _hasThreadData: !!tc,
+        _interactorCount: interactorCount,
+        _parent: cNode,
+      });
+    }
+  }
+}
+
+// Lazy thread depth fetching — called when user clicks a community
+async function fetchThreadDepths(communityId) {
+  const postsForCommunity = activityPosts.filter(p => p.communityIds.includes(communityId));
+  const unfetched = postsForCommunity.filter(p => !threadCache[p.uri]);
+  if (unfetched.length === 0) return;
+
+  // Fetch top 20 by score to stay within limits
+  const toFetch = unfetched.sort((a, b) => b.score - a.score).slice(0, 20);
+  const results = await Promise.allSettled(
+    toFetch.map(p =>
+      fetch(`${API_BASE}/xrpc/com.minomobi.feed.getPostThreadDepth?uri=${encodeURIComponent(p.uri)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => ({ uri: p.uri, data }))
+    )
+  );
+
+  let updated = false;
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.data) {
+      threadCache[r.value.uri] = r.value.data;
+      updated = true;
+    }
+  }
+
+  if (updated) {
+    layoutPostDots();
+    scheduleDraw();
+  }
+}
+
 // ── Rendering ────────────────────────────────────────────────────────
 let drawId = 0;
 function scheduleDraw() {
@@ -465,6 +589,61 @@ function draw() {
       ctx.strokeStyle = `hsla(${fillH}, 50%, 50%, .5)`;
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(sx, sy, sr + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // ── Post dots (between community blobs and hex overlay) ─────────
+  for (const dot of postDots) {
+    const [sx, sy] = w2s(dot._x, dot._y);
+    const sr = dot._r * cam.scale;
+
+    if (sx + sr < -10 || sx - sr > W + 10) continue;
+    if (sy + sr < -10 || sy - sr > H + 10) continue;
+    if (sr < 1.5) continue;
+
+    const mag = dot._magnitude;
+    // Color: low magnitude = cool (dim), high = warm (bright)
+    const t = Math.min(1, mag / 50); // normalize to 0..1 range
+    const dotH = dot._hue;
+    const dotS = 30 + t * 40;
+    const dotL = 25 + t * 30;
+    const alpha = 0.5 + t * 0.35;
+
+    // Glow for high-magnitude posts
+    if (mag > 10 && sr > 3) {
+      const glowR = sr * 2;
+      const grad = ctx.createRadialGradient(sx, sy, sr * 0.3, sx, sy, glowR);
+      grad.addColorStop(0, `hsla(${dotH}, ${dotS + 10}%, ${dotL + 15}%, ${alpha * 0.4})`);
+      grad.addColorStop(1, `hsla(${dotH}, ${dotS}%, ${dotL}%, 0)`);
+      ctx.beginPath();
+      ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Main dot
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${dotH}, ${dotS}%, ${dotL}%, ${alpha})`;
+    ctx.fill();
+
+    // Ring: solid if thread data loaded, dashed if estimated
+    ctx.strokeStyle = dot._hasThreadData
+      ? `hsla(${dotH}, ${dotS + 15}%, ${dotL + 20}%, ${alpha + 0.1})`
+      : `hsla(${dotH}, 20%, 40%, 0.3)`;
+    ctx.lineWidth = dot._hasThreadData ? 1.5 : 0.8;
+    ctx.stroke();
+
+    // Hover / selection
+    if (dot === hoveredNode) {
+      ctx.strokeStyle = `hsla(${dotH}, 60%, 65%, .8)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx, sy, sr + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (dot === selectedNode) {
+      ctx.strokeStyle = "#f92";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx, sy, sr + 4, 0, Math.PI * 2); ctx.stroke();
     }
   }
 
@@ -651,8 +830,21 @@ function hitTest(sx, sy) {
   }
   if (bestHex) return bestHex;
 
-  // Fall back to community blobs (world space)
+  // Check post dots (world space, smaller targets)
   const [wx, wy] = s2w(sx, sy);
+  let bestPost = null, bestPostDist = Infinity;
+  for (const dot of postDots) {
+    if (dot._r * cam.scale < 2) continue;
+    const dx = wx - dot._x, dy = wy - dot._y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < dot._r && d < bestPostDist) {
+      bestPostDist = d;
+      bestPost = dot;
+    }
+  }
+  if (bestPost) return bestPost;
+
+  // Fall back to community blobs (world space)
   let best = null, bestR = Infinity;
   for (const n of flat) {
     if (n._type !== "community") continue;
@@ -674,6 +866,11 @@ function updateHover(sx, sy) {
       const a = activityData[hit._community.id];
       const activityTag = a ? ` · ${a.postCount} posts · score ${a.totalScore.toFixed(1)}` : " · no recent posts";
       el.textContent = `${hit._community.label} · ${hit._community.coreSize} core · ${hit._community.totalSize} total${activityTag}`;
+    } else if (hit._type === "post") {
+      const p = hit._post;
+      const rkey = p.uri.split("/").pop();
+      const depthTag = hit._hasThreadData ? `depth ${threadCache[p.uri].maxDepth}` : "est.";
+      el.textContent = `post ${rkey.slice(0,12)}… · ${p.replyCount || 0} replies · ${p.likeCount || 0} likes · magnitude ${hit._magnitude.toFixed(1)} · ${depthTag}`;
     } else {
       const bTag = hit._isBridge ? " · bridge" : "";
       el.textContent = `${hit._label} · shell ${hit._shell}${bTag}`;
@@ -736,6 +933,41 @@ function selectNode(node) {
       html += `</ul>`;
     }
     inner.innerHTML = html;
+
+    // Lazy-fetch thread depths for this community's posts
+    fetchThreadDepths(c.id);
+  } else if (node._type === "post") {
+    const p = node._post;
+    const rkey = p.uri.split("/").pop();
+    const authorDid = p.authorDid;
+    const tc = threadCache[p.uri];
+    let html = `<span class="info-close">&times;</span>`;
+    html += `<h2>post</h2>`;
+    html += `<div class="meta">${p.replyCount || 0} replies · ${p.likeCount || 0} likes · ${p.repostCount || 0} reposts</div>`;
+    html += `<div class="meta">magnitude: ${node._magnitude.toFixed(1)}${tc ? ` · depth ${tc.maxDepth} · ${tc.topLevelReplies} top-level` : " · estimated"}</div>`;
+    if (tc && tc.interactorDids.length > 0) {
+      html += `<div class="meta">${tc.interactorDids.length} interactors in thread</div>`;
+    }
+    html += `<div style="margin-top:.6em"><a href="https://bsky.app/profile/${authorDid}/post/${rkey}" target="_blank" rel="noopener" style="color:#8bf;text-decoration:none">↗ view on Bluesky</a></div>`;
+    inner.innerHTML = html;
+
+    // Lazy-fetch thread depth for this specific post if not cached
+    if (!tc) {
+      fetch(`${API_BASE}/xrpc/com.minomobi.feed.getPostThreadDepth?uri=${encodeURIComponent(p.uri)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            threadCache[p.uri] = data;
+            layoutPostDots();
+            scheduleDraw();
+            // Update panel if still showing this post
+            if (selectedNode && selectedNode._type === "post" && selectedNode._post.uri === p.uri) {
+              selectNode(selectedNode);
+            }
+          }
+        })
+        .catch(() => {});
+    }
   } else {
     const m = node._member;
     let html = `<span class="info-close">&times;</span>`;
@@ -821,13 +1053,15 @@ function flyTo(node, duration) {
 
     status.textContent = "laying out…";
     layoutCommunities();
+    layoutPostDots();
 
     cam.x = 0; cam.y = 0;
     cam.scale = Math.min(W, H) * 0.9;
 
     const totalMembers = communities.reduce((n, c) => n + c.totalSize, 0);
     const postCount = activityPosts.length;
-    status.textContent = `DEBUG: 1/${allCommunities.length} communities · ${totalMembers} members · check console for [pfp] logs`;
+    const dotCount = postDots.length;
+    status.textContent = `${allCommunities.length} communities · ${totalMembers} members · ${postCount} posts (${dotCount} dots)`;
     scheduleDraw();
 
     // Fetch avatars for all members (non-blocking)
