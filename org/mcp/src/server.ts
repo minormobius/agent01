@@ -21,6 +21,8 @@ import { crmTools } from "./tools/crm.js";
 import { orgTools } from "./tools/orgs.js";
 import { analysisTools } from "./tools/analysis.js";
 import { calendarTools } from "./tools/calendar.js";
+import { notificationTools } from "./tools/notifications.js";
+import { waveTools } from "./tools/wave.js";
 
 const server = new McpServer({
   name: "vault-mcp",
@@ -249,6 +251,114 @@ server.tool(
     org: z.string().optional(),
   },
   safe(calendarTools["upcoming-events"].handler)
+);
+
+// --- Notification tools ---
+
+server.tool(
+  "list-notifications",
+  "List pending notifications (org invites, messages, etc).",
+  {},
+  safe(notificationTools["list-notifications"].handler)
+);
+
+server.tool(
+  "dismiss-notification",
+  "Dismiss a notification by its key so it won't appear again.",
+  { key: z.string().describe("Notification key (e.g. invite:did:...:orgRkey)") },
+  safe(notificationTools["dismiss-notification"].handler)
+);
+
+server.tool(
+  "notification-preferences",
+  "View or update notification preferences. Without arguments shows current settings.",
+  {
+    enable: z.array(z.string()).optional().describe("Notification types to enable"),
+    disable: z.array(z.string()).optional().describe("Notification types to disable"),
+  },
+  safe(notificationTools["notification-preferences"].handler)
+);
+
+server.tool(
+  "send-notification",
+  "Send a notification to a user or broadcast to the entire org.",
+  {
+    org: z.string().describe("Org rkey"),
+    type: z.string().describe("Notification type (e.g. org-invite, wave-message, deal-created)"),
+    message: z.string().describe("Notification message/summary"),
+    targetDid: z.string().optional().describe("Target user DID, or omit to broadcast"),
+  },
+  safe(notificationTools["send-notification"].handler)
+);
+
+// --- Wave tools ---
+
+server.tool(
+  "list-channels",
+  "List channels in an org with tier and creation date.",
+  { org: z.string().describe("Org rkey") },
+  safe(waveTools["list-channels"].handler)
+);
+
+server.tool(
+  "list-threads",
+  "List threads in a channel with title, type, author.",
+  {
+    org: z.string().describe("Org rkey"),
+    channel: z.string().describe("Channel rkey"),
+  },
+  safe(waveTools["list-threads"].handler)
+);
+
+server.tool(
+  "read-thread",
+  "Read decrypted messages or doc edits in a thread.",
+  {
+    org: z.string().describe("Org rkey"),
+    threadAuthorDid: z.string().describe("DID of the thread author"),
+    threadRkey: z.string().describe("Thread rkey"),
+    maxResults: z.number().optional().describe("Max messages to return (default 50)"),
+  },
+  safe(waveTools["read-thread"].handler)
+);
+
+server.tool(
+  "send-message",
+  "Send an encrypted message to a Wave thread.",
+  {
+    org: z.string().describe("Org rkey"),
+    threadAuthorDid: z.string().describe("DID of the thread author"),
+    threadRkey: z.string().describe("Thread rkey"),
+    text: z.string().describe("Message text"),
+    channel: z.string().optional().describe("Channel rkey (for context)"),
+    channelName: z.string().optional().describe("Channel name (for notification)"),
+    threadTitle: z.string().optional().describe("Thread title (for notification)"),
+  },
+  safe(waveTools["send-message"].handler)
+);
+
+server.tool(
+  "create-thread",
+  "Create a new thread (chat or doc) in a channel.",
+  {
+    org: z.string().describe("Org rkey"),
+    channel: z.string().describe("Channel rkey"),
+    type: z.enum(["chat", "doc"]).optional().describe("Thread type (default: chat)"),
+    title: z.string().optional().describe("Thread title"),
+    channelName: z.string().optional().describe("Channel name (for notification)"),
+  },
+  safe(waveTools["create-thread"].handler)
+);
+
+server.tool(
+  "create-channel",
+  "Create a new channel in an org (founder only).",
+  {
+    org: z.string().describe("Org rkey"),
+    name: z.string().describe("Channel name"),
+    tier: z.string().optional().describe("Tier name (default: your tier)"),
+  },
+  safe(waveTools["create-channel"].handler)
 );
 
 // Start
