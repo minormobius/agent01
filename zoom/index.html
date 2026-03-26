@@ -166,18 +166,93 @@ function processProfiles(profiles, batch) {
   }
 }
 
-// Compute hex overlay — place every member at its screen position (allow overlaps)
+// Compute hex overlay — pack into non-overlapping hex grid near each user's graph position
 function computeHexOverlay() {
   hexCells = [];
   const memberNodes = flat.filter(n => n._type === "member");
   if (memberNodes.length === 0) return;
 
+  const hexR = HEX_PFP_SIZE / 2;
+  // Flat-top hex grid spacing
+  const hexW = Math.sqrt(3) * hexR;  // horizontal distance between centers
+  const hexH = 2 * hexR;             // vertical height of hex
+  const rowH = hexH * 0.75;          // vertical distance between row centers
+
+  // Collect on-screen members with their desired screen positions
+  const margin = HEX_PFP_SIZE * 2;
+  const candidates = [];
   for (const n of memberNodes) {
     const [sx, sy] = w2s(n._x, n._y);
-    // Cull off-screen (with margin for hex size)
-    if (sx < -HEX_PFP_SIZE || sx > W + HEX_PFP_SIZE) continue;
-    if (sy < -HEX_PFP_SIZE || sy > H + HEX_PFP_SIZE) continue;
-    hexCells.push({ sx, sy, node: n });
+    if (sx < -margin || sx > W + margin) continue;
+    if (sy < -margin || sy > H + margin) continue;
+    candidates.push({ sx, sy, node: n });
+  }
+  if (candidates.length === 0) return;
+
+  // Sort by shell (core first) so core members get priority placement
+  candidates.sort((a, b) => (a.node._shell || 0) - (b.node._shell || 0));
+
+  // Convert screen position to nearest hex grid cell (axial coords)
+  function screenToHexCell(sx, sy) {
+    // Flat-top hex: column = sx / hexW, row depends on odd/even column
+    const col = Math.round(sx / hexW);
+    const isOdd = col & 1;
+    const row = Math.round((sy - (isOdd ? rowH * 0.5 : 0)) / rowH);
+    return { col, row };
+  }
+
+  // Convert hex grid cell back to screen position
+  function hexCellToScreen(col, row) {
+    const isOdd = col & 1;
+    const cx = col * hexW;
+    const cy = row * rowH + (isOdd ? rowH * 0.5 : 0);
+    return { cx, cy };
+  }
+
+  const occupied = new Set(); // "col,row" keys
+  function cellKey(col, row) { return col + "," + row; }
+
+  // For each candidate, find the nearest unoccupied grid cell using spiral search
+  for (const cand of candidates) {
+    const { col: idealCol, row: idealRow } = screenToHexCell(cand.sx, cand.sy);
+
+    let bestCol = idealCol, bestRow = idealRow;
+    let bestDist = Infinity;
+    let found = false;
+
+    // Spiral outward from ideal cell, checking neighbors at increasing radius
+    for (let ring = 0; ring <= 40; ring++) {
+      if (ring === 0) {
+        const key = cellKey(idealCol, idealRow);
+        if (!occupied.has(key)) {
+          bestCol = idealCol; bestRow = idealRow; found = true; break;
+        }
+        continue;
+      }
+      // Check all cells at Manhattan-ish distance `ring`
+      let ringFound = false;
+      for (let dc = -ring; dc <= ring; dc++) {
+        for (let dr = -ring; dr <= ring; dr++) {
+          if (Math.abs(dc) !== ring && Math.abs(dr) !== ring) continue; // only border cells
+          const c = idealCol + dc, r = idealRow + dr;
+          const key = cellKey(c, r);
+          if (occupied.has(key)) continue;
+          const { cx, cy } = hexCellToScreen(c, r);
+          const dx = cx - cand.sx, dy = cy - cand.sy;
+          const dist = dx * dx + dy * dy;
+          if (dist < bestDist) {
+            bestDist = dist; bestCol = c; bestRow = r; ringFound = true;
+          }
+        }
+      }
+      if (ringFound) { found = true; break; }
+    }
+
+    if (found) {
+      occupied.add(cellKey(bestCol, bestRow));
+      const { cx, cy } = hexCellToScreen(bestCol, bestRow);
+      hexCells.push({ sx: cx, sy: cy, node: cand.node });
+    }
   }
 }
 
