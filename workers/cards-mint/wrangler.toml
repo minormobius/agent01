@@ -1,0 +1,19 @@
+name = "cards-mint"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+FRONTEND_URL = "https://time.minomobi.com"
+MINT_DID = "did:plc:placeholder"
+
+# KV namespace for rate limiting (one daily pack per DID)
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "9c202b12f3754b9aa6b46a11eba03489"
+
+[observability]
+enabled = true
+
+[env.production]
+vars = { FRONTEND_URL = "https://time.minomobi.com" }

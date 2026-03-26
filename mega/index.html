@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Megaproject Dashboard — Global Infrastructure Tracker</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --border: #1e1e2e;
+  --text: #c8c8d0;
+  --text-dim: #6a6a7a;
+  --accent: #ff8c00;
+  --accent2: #00c8ff;
+  --danger: #ff4466;
+  --success: #44cc88;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow: hidden; }
+
+/* ── Layout ────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr 400px;
+  height: 100vh;
+}
+#header {
+  grid-column: 1 / -1;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface);
+}
+#map-container {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+}
+#map { width: 100%; height: 100%; }
+#sidebar {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+#status-bar {
+  grid-column: 1;
+  grid-row: 3;
+  padding: 6px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Header Controls ───────────────────────────────────── */
+#masthead {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+#masthead span {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  margin-left: 8px;
+}
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ctrl-group label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filter-btn {
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--text); }
+.filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+/* ── Sidebar ───────────────────────────────────────────── */
+#sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.project-list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.project-list-item:hover { background: rgba(255, 140, 0, 0.05); }
+.project-list-item.active { background: rgba(255, 140, 0, 0.1); border-left: 3px solid var(--accent); }
+.project-list-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.project-list-meta {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  display: flex;
+  gap: 10px;
+}
+.project-list-type {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#sidebar-stats {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Detail Panel ─────────────────────────────────────── */
+#detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#detail-panel.open { transform: translateX(0); }
+#detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+#detail-close:hover { color: var(--text); border-color: var(--accent); }
+#detail-backdrop {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+#detail-backdrop.open { display: block; }
+#detail-mobile-close {
+  display: none;
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--bg);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  flex-shrink: 0;
+}
+.detail-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-header h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+  padding-right: 36px;
+}
+.detail-header .detail-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.detail-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.detail-stat {
+  background: var(--surface);
+  padding: 12px 16px;
+}
+.detail-stat-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.detail-stat-value {
+  font-size: 16px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+}
+.detail-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-section h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.detail-section p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.detail-section ul {
+  list-style: none;
+  padding: 0;
+}
+.detail-section ul li {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(30, 30, 46, 0.5);
+  color: var(--text);
+}
+.detail-section ul li::before {
+  content: '›';
+  color: var(--accent);
+  margin-right: 8px;
+  font-weight: 700;
+}
+.detail-section a {
+  color: var(--accent2);
+  text-decoration: none;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.detail-section a:hover { text-decoration: underline; }
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-construction { background: rgba(255, 140, 0, 0.2); color: var(--accent); }
+.status-planned { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.status-completed { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.status-partial { background: rgba(140, 100, 255, 0.2); color: #8c64ff; }
+
+/* ── Tooltip ───────────────────────────────────────────── */
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  max-width: 260px;
+  z-index: 200;
+  display: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+#tooltip .tt-name { font-weight: 600; color: #fff; margin-bottom: 3px; }
+#tooltip .tt-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+#tooltip .tt-cost { color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
+
+/* ── Responsive ───────────────────────────────────────── */
+/* ── Prediction Market Gauge ──────────────────────────── */
+.prediction-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.prediction-section h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.pred-gauge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.pred-ring {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+.pred-ring svg { transform: rotate(-90deg); }
+.pred-ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
+.pred-ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+.pred-pct {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+.pred-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.pred-market-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--accent2);
+  text-decoration: none;
+}
+.pred-market-link:hover { text-decoration: underline; }
+.pred-loading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 8px 0;
+}
+.pred-none {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.pred-markets-list {
+  list-style: none;
+  padding: 0;
+}
+.pred-markets-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(30, 30, 46, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pred-markets-list li a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  flex: 1;
+  margin-right: 10px;
+}
+.pred-markets-list li a:hover { color: #fff; }
+.pred-prob-badge {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar Tabs ─────────────────────────────────────── */
+#sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-tab {
+  flex: 1;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.sidebar-tab:hover { color: var(--text); }
+.sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Bounty Board ─────────────────────────────────────── */
+#bounty-panel { display: none; flex: 1; overflow-y: auto; }
+#bounty-panel.active { display: block; }
+#sidebar-list.active { display: block; }
+.bounty-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bounty-header h4 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.bounty-add-btn {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.bounty-add-btn:hover { opacity: 0.85; }
+a.bounty-item {
+  display: block;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  text-decoration: none;
+  color: inherit;
+}
+a.bounty-item:hover { background: rgba(255, 140, 0, 0.05); }
+.bounty-view-all {
+  display: block;
+  text-align: center;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-decoration: none;
+  border-top: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.bounty-view-all:hover { background: rgba(255, 140, 0, 0.08); }
+.bounty-kind {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+.bounty-kind-webcam { background: rgba(255, 68, 102, 0.2); color: var(--danger); }
+.bounty-kind-photo { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.bounty-kind-video { background: rgba(140, 100, 255, 0.2); color: #8c64ff; }
+.bounty-kind-document { background: rgba(200, 160, 0, 0.2); color: #c8a000; }
+.bounty-kind-progress_update { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.bounty-kind-satellite { background: rgba(0, 160, 255, 0.2); color: #00a0ff; }
+.bounty-kind-other { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+.bounty-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.bounty-meta {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.bounty-reward {
+  color: var(--success);
+  font-weight: 600;
+}
+.bounty-project {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.bounty-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Hide header scrollbar but keep scrollable */
+#header::-webkit-scrollbar { display: none; }
+#header { scrollbar-width: none; }
+
+@media (max-width: 900px) {
+  #app { grid-template-columns: 1fr; }
+  #header { gap: 10px; padding: 10px 14px; }
+  #masthead { font-size: 14px; flex-shrink: 0; }
+  #masthead span { display: none; }
+  .filter-btn { flex-shrink: 0; padding: 5px 10px; font-size: 10px; }
+  #sidebar { grid-column: 1; grid-row: 3; max-height: 35vh; border-left: none; border-top: 1px solid var(--border); }
+  #status-bar { display: none; }
+  #detail-panel { width: 100%; }
+  #detail-mobile-close { display: block; }
+  #detail-close { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="masthead">Megaproject Dashboard <span>Global Infrastructure Tracker</span></div>
+    <div class="ctrl-group" id="filters"></div>
+  </div>
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="detail-backdrop"></div>
+    <div id="detail-panel">
+      <button id="detail-mobile-close">&darr; Close</button>
+      <button id="detail-close">&times;</button>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="projects">Projects</button>
+      <button class="sidebar-tab" data-tab="bounties">Bounties</button>
+    </div>
+    <div id="sidebar-stats"></div>
+    <div id="sidebar-list" class="active"></div>
+    <div id="bounty-panel"></div>
+  </div>
+  <div id="status-bar">
+    <span id="status-left"></span>
+    <span id="status-right">Sources: Wikipedia, news reports, government filings</span>
+  </div>
+</div>
+<div id="tooltip"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.1.7/dist.min.js"></script>
+<script>
+// ── Megaproject Data ─────────────────────────────────────
+const TYPES = {
+  transport:  { name: 'Transport',    color: [255, 140, 0],   hex: '#ff8c00' },
+  energy:     { name: 'Energy',       color: [68, 204, 136],  hex: '#44cc88' },
+  urban:      { name: 'Urban',        color: [0, 200, 255],   hex: '#00c8ff' },
+  industrial: { name: 'Industrial',   color: [140, 100, 255], hex: '#8c64ff' },
+  water:      { name: 'Water',        color: [0, 160, 255],   hex: '#00a0ff' },
+  aerospace:  { name: 'Aerospace',    color: [255, 68, 102],  hex: '#ff4466' },
+  digital:    { name: 'Digital',      color: [200, 160, 0],   hex: '#c8a000' },
+};
+
+const PROJECTS = [
+  // ── Transport ──────────────────────────────────────────
+  {
+    id: 'fehmarn',
+    name: 'Fehmarn Belt Fixed Link',
+    type: 'transport',
+    country: 'Denmark / Germany',
+    lat: 54.55, lon: 11.25,
+    cost: 8.7e9,
+    currency: 'EUR',
+    status: 'construction',
+    start: 2021,
+    completion: '2029',
+    description: 'The world\'s longest immersed tunnel — an 18 km combined road and rail link connecting Denmark and Germany across the Fehmarn Belt strait. 89 prefabricated concrete elements, each 217m long, lowered into a trench on the seabed.',
+    keyFacts: [
+      '18 km total length — longest immersed tunnel ever built',
+      '79 standard tunnel elements + 10 special elements',
+      'Each element weighs ~73,000 tonnes',
+      'Cuts Copenhagen–Hamburg travel from 4.5 hours to 2.5 hours',
+      'Will carry both a 4-lane motorway and electrified double-track railway',
+      'Casting yard at Rødbyhavn produces elements on industrial scale',
+    ],
+    route: [[11.35, 54.65], [11.30, 54.58], [11.23, 54.50]],
+    links: [
+      { label: 'Official site', url: 'https://femern.com/en' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Fehmarn_Belt_Fixed_Link' },
+    ],
+  },
+  {
+    id: 'cahsr',
+    name: 'California High-Speed Rail',
+    type: 'transport',
+    country: 'United States',
+    lat: 36.75, lon: -119.77,
+    cost: 105e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2015,
+    completion: '2030s',
+    description: 'The first true high-speed rail system in the United States, connecting Los Angeles to San Francisco at speeds up to 220 mph. The Central Valley segment is under active construction with 119 miles of guideway work underway.',
+    keyFacts: [
+      '500 miles from LA to SF when fully built',
+      '119 miles under active construction in Central Valley',
+      'Over 70 miles of structures already completed',
+      'Top design speed: 220 mph (354 km/h)',
+      'Initial operating segment: Merced to Bakersfield',
+      'Budget has escalated from original $33B to ~$105B',
+    ],
+    route: [[-122.40, 37.78], [-121.89, 37.34], [-121.23, 37.10], [-120.48, 37.30], [-119.77, 36.74], [-119.44, 36.33], [-119.02, 35.37], [-118.12, 34.58], [-118.24, 34.05]],
+    links: [
+      { label: 'Official site', url: 'https://hsr.ca.gov/' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/California_High-Speed_Rail' },
+    ],
+  },
+  {
+    id: 'grandparis',
+    name: 'Grand Paris Express',
+    type: 'transport',
+    country: 'France',
+    lat: 48.86, lon: 2.35,
+    cost: 36e9,
+    currency: 'EUR',
+    status: 'construction',
+    start: 2016,
+    completion: '2030',
+    description: 'Europe\'s largest urban transport project — 200 km of new automated metro lines encircling Paris with 68 new stations. Four new lines (15, 16, 17, 18) plus extensions to existing lines, serving 2 million daily riders.',
+    keyFacts: [
+      '200 km of new tunnels — most bored by TBMs through limestone and gypsum',
+      '68 new stations, each designed by a different architect',
+      'Fully automated driverless trains',
+      'Line 15 Sud (first section) opened 2025 for Olympics preparations',
+      'Will connect suburbs to suburbs, bypassing central Paris',
+      '2 million additional daily passengers expected',
+    ],
+    route: [[2.30, 48.93], [2.15, 48.92], [2.07, 48.87], [2.10, 48.80], [2.20, 48.76], [2.35, 48.75], [2.50, 48.77], [2.55, 48.83], [2.53, 48.90], [2.42, 48.93], [2.30, 48.93]],
+    links: [
+      { label: 'Official site', url: 'https://www.societedugrandparis.fr/en' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Grand_Paris_Express' },
+    ],
+  },
+  {
+    id: 'chuoshinkansen',
+    name: 'Chuo Shinkansen Maglev',
+    type: 'transport',
+    country: 'Japan',
+    lat: 35.36, lon: 138.73,
+    cost: 55e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2014,
+    completion: '2034+',
+    description: 'A superconducting maglev line connecting Tokyo to Nagoya (later Osaka) at 500 km/h. 86% of the 286 km Tokyo–Nagoya route runs through deep tunnels bored through the Japanese Alps. The world\'s fastest ground transport when operational.',
+    keyFacts: [
+      '500 km/h operating speed — Tokyo to Nagoya in 40 minutes',
+      '86% of route is in tunnels through mountainous terrain',
+      'Superconducting magnets levitate train 10 cm above guideway',
+      'Test line has been operational since 1997',
+      'Shizuoka Prefecture water table dispute delayed construction years',
+      'Extension to Osaka (another ~160 km) planned for ~2037',
+    ],
+    route: [[139.74, 35.63], [139.40, 35.55], [139.05, 35.50], [138.73, 35.36], [138.18, 35.25], [137.60, 35.18], [136.88, 35.17]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Ch%C5%AB%C5%8D_Shinkansen' },
+    ],
+  },
+  {
+    id: 'crossrail2',
+    name: 'HS2 (High Speed 2)',
+    type: 'transport',
+    country: 'United Kingdom',
+    lat: 52.48, lon: -1.90,
+    cost: 66e9,
+    currency: 'GBP',
+    status: 'construction',
+    start: 2020,
+    completion: '2030s',
+    description: 'Britain\'s new high-speed railway connecting London Euston to Birmingham Curzon Street, with initial plans for northern extensions now scaled back. The largest infrastructure project in Europe when fully scoped.',
+    keyFacts: [
+      'London–Birmingham phase under active tunneling',
+      '225 mph (360 km/h) design speed',
+      'Northern legs to Manchester and Leeds cancelled in 2023 cost review',
+      'Includes 10-mile twin-bore tunnel under the Chilterns',
+      'Old Oak Common interchange station — largest new station in UK',
+      'Budget ballooned from £37.5B original estimate to £66B+',
+    ],
+    route: [[-0.13, 51.53], [-0.24, 51.53], [-0.52, 51.62], [-0.80, 51.72], [-1.00, 51.83], [-1.25, 51.95], [-1.55, 52.12], [-1.72, 52.28], [-1.87, 52.48]],
+    links: [
+      { label: 'Official site', url: 'https://www.hs2.org.uk/' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/High_Speed_2' },
+    ],
+  },
+  {
+    id: 'mumbaiahmedabad',
+    name: 'Mumbai–Ahmedabad HSR',
+    type: 'transport',
+    country: 'India',
+    lat: 20.59, lon: 72.96,
+    cost: 15e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2017,
+    completion: '2028',
+    description: 'India\'s first high-speed rail corridor — 508 km between Mumbai and Ahmedabad using Japanese Shinkansen technology (E5 series). Funded by a Japanese soft loan at 0.1% interest over 50 years.',
+    keyFacts: [
+      '508 km corridor with 12 stations',
+      '320 km/h design speed — Mumbai to Ahmedabad in ~2 hours (vs. 7 by road)',
+      '21 km undersea tunnel in Mumbai — India\'s first',
+      'Japanese E5 series trainsets (same as Tohoku Shinkansen)',
+      'Surat–Bilimora segment expected to open first',
+      'Japan International Cooperation Agency (JICA) funding ~81% of cost',
+    ],
+    route: [[72.88, 19.08], [72.92, 19.45], [72.97, 19.85], [72.93, 20.30], [72.85, 20.75], [72.83, 21.17], [72.70, 21.60], [72.65, 22.10], [72.60, 22.55], [72.57, 23.02]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Mumbai%E2%80%93Ahmedabad_high-speed_rail_corridor' },
+    ],
+  },
+  {
+    id: 'istanbulcanal',
+    name: 'Canal Istanbul',
+    type: 'transport',
+    country: 'Turkey',
+    lat: 41.15, lon: 28.65,
+    cost: 15e9,
+    currency: 'USD',
+    status: 'planned',
+    start: 2021,
+    completion: '2028+',
+    description: 'An artificial sea-level waterway parallel to the Bosphorus, connecting the Black Sea to the Sea of Marmara. Designed to relieve traffic in the Bosphorus Strait and bypass Montreux Convention limits on warship transit.',
+    keyFacts: [
+      '45 km long, 275 m wide, 20.75 m deep',
+      'Parallel to the Bosphorus — 25 km to its west',
+      'Would create an island between the two waterways',
+      'Geopolitical implications: may bypass Montreux Convention naval limits',
+      'Environmentally controversial — could alter salinity of Black Sea',
+      'Construction progress disputed; some preparatory earthworks completed',
+    ],
+    route: [[28.65, 41.35], [28.63, 41.28], [28.64, 41.20], [28.66, 41.12], [28.68, 41.02], [28.70, 40.95]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Canal_Istanbul' },
+    ],
+  },
+  {
+    id: 'tuasport',
+    name: 'Tuas Mega Port',
+    type: 'transport',
+    country: 'Singapore',
+    lat: 1.27, lon: 103.64,
+    cost: 20e9,
+    currency: 'SGD',
+    status: 'construction',
+    start: 2017,
+    completion: '2040s',
+    description: 'The world\'s largest fully automated container terminal. When complete, Tuas will consolidate all of Singapore\'s container operations into a single mega-port with 65 million TEU annual capacity.',
+    keyFacts: [
+      '65 million TEU capacity — largest single terminal in the world',
+      'Phase 1 opened December 2021 with 21 million TEU capacity',
+      'Fully automated: yard cranes, vehicles, and vessel planning',
+      'Digital twin system simulates entire port operations in real time',
+      'Built on 294 hectares of reclaimed land',
+      'Consolidates Tanjong Pagar, Keppel, Brani, and Pasir Panjang terminals',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Tuas_Port' },
+    ],
+  },
+  {
+    id: 'almaktoum',
+    name: 'Al Maktoum International Airport',
+    type: 'transport',
+    country: 'United Arab Emirates',
+    lat: 24.90, lon: 55.16,
+    cost: 35e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2019,
+    completion: '2030s',
+    description: 'The expansion of Dubai World Central into the world\'s largest airport — designed for 260 million passengers annually. Will eventually replace Dubai International (DXB) as the city\'s primary hub.',
+    keyFacts: [
+      '260 million passenger capacity when fully built — world\'s largest',
+      'Five parallel runways planned',
+      'Terminal area: 15 million sq ft',
+      'Will be primary hub for Emirates airline',
+      'Located in Dubai South free zone — integrated aerotropolis concept',
+      'Current DXB handled 92 million passengers in 2024',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Al_Maktoum_International_Airport' },
+    ],
+  },
+  // ── Urban ──────────────────────────────────────────────
+  {
+    id: 'neom',
+    name: 'NEOM / The Line',
+    type: 'urban',
+    country: 'Saudi Arabia',
+    lat: 27.95, lon: 35.60,
+    cost: 500e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2021,
+    completion: '2039+',
+    description: 'A futuristic megacity in the Tabuk Province of Saudi Arabia, anchored by "The Line" — a 170 km linear city of mirrored facades with no roads, cars, or carbon emissions. The most expensive construction project in history.',
+    keyFacts: [
+      'The Line: 170 km long, 200 m wide, 500 m tall mirrored structure',
+      'Recently scaled to 2.4 km initial phase with 300,000 residents by 2030',
+      'Also includes Trojena (mountain resort), Oxagon (floating industrial port), Sindalah (island resort)',
+      'Zero-carbon city powered entirely by renewable energy',
+      'Massive earthworks visible from satellite imagery',
+      '$500B total investment — centerpiece of Vision 2030',
+    ],
+    links: [
+      { label: 'Official site', url: 'https://www.neom.com' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Neom' },
+    ],
+  },
+  {
+    id: 'kaec',
+    name: 'King Abdullah Economic City',
+    type: 'urban',
+    country: 'Saudi Arabia',
+    lat: 22.39, lon: 39.11,
+    cost: 100e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2006,
+    completion: '2035+',
+    description: 'A planned city on the Red Sea coast north of Jeddah, featuring the King Abdullah Port (already operational), industrial valley, residential neighborhoods, and a central business district.',
+    keyFacts: [
+      '181 sq km — larger than Washington, D.C.',
+      'King Abdullah Port: 20 million TEU capacity, already operational',
+      'Planned for 2 million residents',
+      'Connected to Saudi railway network',
+      'Emaar Properties is primary developer',
+      'Progress has been slow; currently ~10% inhabited',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/King_Abdullah_Economic_City' },
+    ],
+  },
+  {
+    id: 'silkcity',
+    name: 'Silk City (Madinat al-Hareer)',
+    type: 'urban',
+    country: 'Kuwait',
+    lat: 29.57, lon: 47.80,
+    cost: 100e9,
+    currency: 'USD',
+    status: 'planned',
+    start: null,
+    completion: '2035+',
+    description: 'A massive 250 sq km planned city in Subiya, northern Kuwait. Centerpiece is the Burj Mubarak al-Kabir — planned at 1,001m, it would be the tallest building in the world. Includes a new airport, nature reserve, and commercial hub.',
+    keyFacts: [
+      '250 sq km development area across the bay from Kuwait City',
+      'Burj Mubarak al-Kabir: 1,001 m tall — symbolic of Arabian Nights',
+      'Connected to Kuwait City by a bridge',
+      'Planned to house 700,000 residents',
+      'Includes free trade zone, resort area, and ecological reserve',
+      'Long delayed — first announced in 2008, limited construction to date',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Madinat_al-Hareer' },
+    ],
+  },
+  {
+    id: 'nusantara',
+    name: 'Nusantara (New Capital)',
+    type: 'urban',
+    country: 'Indonesia',
+    lat: -1.10, lon: 116.85,
+    cost: 35e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2022,
+    completion: '2045',
+    description: 'Indonesia\'s new capital city on Borneo, replacing Jakarta. A planned smart forest city designed around sustainability, replacing the sinking, overcrowded Jakarta on Java. Officially inaugurated August 2024.',
+    keyFacts: [
+      '2,560 sq km total area in East Kalimantan, Borneo',
+      'Presidential Palace completed and inaugurated August 2024',
+      'Designed as "forest city" — 75% green/blue space',
+      'Phase 1 (government core) targeted for 2024; delays ongoing',
+      'Replaces Jakarta which is sinking 25 cm/year in places',
+      'Funding mix: 20% state budget, 80% private/PPP investment',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Nusantara_(city)' },
+    ],
+  },
+  // ── Energy ─────────────────────────────────────────────
+  {
+    id: 'iter',
+    name: 'ITER Fusion Reactor',
+    type: 'energy',
+    country: 'France',
+    lat: 43.71, lon: 5.78,
+    cost: 22e9,
+    currency: 'EUR',
+    status: 'construction',
+    start: 2010,
+    completion: '2035+',
+    description: 'The world\'s largest fusion experiment — a tokamak reactor designed to prove that fusion energy is scientifically and technologically feasible at power-plant scale. A collaboration of 35 nations.',
+    keyFacts: [
+      'Tokamak design: 23,000-tonne machine, plasma volume 840 m³',
+      'Target: produce 500 MW of fusion power from 50 MW input (Q=10)',
+      '35 nations collaborating: EU, US, China, Japan, Russia, Korea, India',
+      'Assembly phase ongoing — largest components being installed',
+      'Plasma temperature: 150 million °C — 10× the core of the Sun',
+      'First plasma target revised to 2035 (originally 2025)',
+    ],
+    links: [
+      { label: 'Official site', url: 'https://www.iter.org' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/ITER' },
+    ],
+  },
+  {
+    id: 'hinckleyc',
+    name: 'Hinkley Point C Nuclear',
+    type: 'energy',
+    country: 'United Kingdom',
+    lat: 51.21, lon: -3.13,
+    cost: 33e9,
+    currency: 'GBP',
+    status: 'construction',
+    start: 2017,
+    completion: '2031',
+    description: 'The first new nuclear power station in the UK in over 20 years. Two EPR reactors producing 3.2 GW — enough to power 6 million homes. The most expensive power station ever built.',
+    keyFacts: [
+      'Two EPR (European Pressurized Reactor) units, 1.6 GW each',
+      '3.2 GW total — 7% of UK electricity demand',
+      'Largest concrete pour in UK history for the basemat',
+      'First nuclear new-build in UK since Sizewell B (1995)',
+      'EDF Energy building; 67% EDF, 33% CGN (China General Nuclear)',
+      'Budget risen from initial £18B to £33B+; schedule slipped ~5 years',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Hinkley_Point_C_nuclear_power_station' },
+    ],
+  },
+  {
+    id: 'gerd',
+    name: 'Grand Ethiopian Renaissance Dam',
+    type: 'energy',
+    country: 'Ethiopia',
+    lat: 11.22, lon: 35.09,
+    cost: 4.8e9,
+    currency: 'USD',
+    status: 'partial',
+    start: 2011,
+    completion: '2025',
+    description: 'Africa\'s largest hydroelectric dam on the Blue Nile. A gravity dam 145m tall, creating a reservoir that has been filling since 2020. Geopolitically contentious — Egypt and Sudan fear reduced downstream water flow.',
+    keyFacts: [
+      '6.45 GW capacity — Africa\'s largest hydroelectric plant',
+      '145 m tall, 1,780 m long gravity dam',
+      'Reservoir: 74 km³ — took several years of staged filling',
+      'Generates ~60% of Ethiopia\'s planned electricity',
+      'Ongoing diplomatic dispute with Egypt and Sudan over water rights',
+      'Most turbines now operational; full generation expected 2025',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Grand_Ethiopian_Renaissance_Dam' },
+    ],
+  },
+  {
+    id: 'barakah',
+    name: 'Barakah Nuclear Power Plant',
+    type: 'energy',
+    country: 'United Arab Emirates',
+    lat: 23.96, lon: 52.26,
+    cost: 24.4e9,
+    currency: 'USD',
+    status: 'partial',
+    start: 2012,
+    completion: '2025',
+    description: 'The Arab world\'s first nuclear power plant — four APR-1400 reactors on the Persian Gulf coast. Three units operational, fourth in commissioning. Provides ~25% of UAE\'s electricity.',
+    keyFacts: [
+      'Four Korean APR-1400 reactors, 1.4 GW each (5.6 GW total)',
+      'Units 1–3 operational; Unit 4 commissioning',
+      'First Arab world nuclear power plant',
+      'Built by Korea Electric Power Corporation (KEPCO)',
+      'Provides ~25% of UAE electricity when fully operational',
+      'Zero-carbon baseload — part of UAE clean energy strategy',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Barakah_nuclear_power_plant' },
+    ],
+  },
+  {
+    id: 'hornsea',
+    name: 'Hornsea Wind Farm Complex',
+    type: 'energy',
+    country: 'United Kingdom',
+    lat: 53.88, lon: 1.80,
+    cost: 20e9,
+    currency: 'GBP',
+    status: 'construction',
+    start: 2018,
+    completion: '2030',
+    description: 'The world\'s largest offshore wind farm complex in the North Sea. Hornsea 1 and 2 are operational (2.6 GW); Hornsea 3 (2.9 GW) under construction. Total complex could reach 8+ GW.',
+    keyFacts: [
+      'Hornsea 1: 1.2 GW, operational 2020 — was world\'s largest offshore wind farm',
+      'Hornsea 2: 1.4 GW, operational 2022 — surpassed Hornsea 1',
+      'Hornsea 3: 2.9 GW under construction — will be world\'s largest single wind farm',
+      'Located 120 km off the Yorkshire coast',
+      'Developer: Ørsted (formerly DONG Energy)',
+      'Combined complex powering millions of UK homes',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Hornsea_Wind_Farm' },
+    ],
+  },
+  // ── Water ──────────────────────────────────────────────
+  {
+    id: 'snnp',
+    name: 'South–North Water Transfer',
+    type: 'water',
+    country: 'China',
+    lat: 33.00, lon: 112.00,
+    cost: 79e9,
+    currency: 'USD',
+    status: 'partial',
+    start: 2002,
+    completion: '2050',
+    description: 'The world\'s largest water transfer project — three canal routes moving 44.8 billion m³ of water annually from the Yangtze River basin to the arid north. Eastern and Central routes operational; Western route still in planning.',
+    keyFacts: [
+      'Three routes: Eastern (operational 2013), Central (operational 2014), Western (planned)',
+      'Central route: 1,264 km canal from Danjiangkou Reservoir to Beijing',
+      'Eastern route: follows/upgrades Grand Canal infrastructure',
+      'Total designed capacity: 44.8 billion m³/year',
+      'Displaced ~345,000 people for the Central route alone',
+      'Western route (most ambitious) would tunnel through Tibetan Plateau',
+    ],
+    route: [[111.51, 32.54], [112.30, 33.30], [112.90, 34.00], [113.50, 34.50], [113.80, 35.10], [114.20, 35.80], [114.50, 36.50], [115.20, 37.30], [115.80, 38.20], [116.20, 39.10], [116.40, 39.90]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/South%E2%80%93North_Water_Transfer_Project' },
+    ],
+  },
+  {
+    id: 'mose',
+    name: 'MOSE Flood Barrier',
+    type: 'water',
+    country: 'Italy',
+    lat: 45.33, lon: 12.33,
+    cost: 6e9,
+    currency: 'EUR',
+    status: 'completed',
+    start: 2003,
+    completion: '2024',
+    description: 'An integrated system of 78 mobile gates at the three inlets of the Venice Lagoon, designed to protect Venice from high tides (acqua alta) up to 3 meters. After decades of delays, now operational.',
+    keyFacts: [
+      '78 mobile flap gates across three lagoon inlets',
+      'Gates lie flat on the seabed; rise with compressed air when activated',
+      'Protects against tides up to 3 meters',
+      'Took 21 years to build — plagued by corruption scandals and cost overruns',
+      'Successfully activated 60+ times since 2020 commissioning',
+      'Original budget was €1.6B; final cost ~€6B',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/MOSE' },
+    ],
+  },
+  // ── Industrial ─────────────────────────────────────────
+  {
+    id: 'tsmc',
+    name: 'TSMC Arizona Fabs',
+    type: 'industrial',
+    country: 'United States',
+    lat: 33.67, lon: -112.04,
+    cost: 65e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2021,
+    completion: '2030',
+    description: 'Taiwan Semiconductor Manufacturing Company\'s three-fab complex in Phoenix, Arizona — bringing the world\'s most advanced chip manufacturing to US soil. The largest foreign direct investment in Arizona history.',
+    keyFacts: [
+      'Fab 1 (N4 process): production started 2025',
+      'Fab 2 (N3/N2 process): under construction, production ~2028',
+      'Fab 3 (N2/A16 process): planned, production ~2030',
+      '$65B total investment — largest foreign direct investment in Arizona history',
+      'CHIPS Act subsidies: ~$6.6B direct + $5B in loans',
+      'Will produce most advanced chips outside Taiwan',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/TSMC_Arizona' },
+    ],
+  },
+  {
+    id: 'micron',
+    name: 'Micron Megafab',
+    type: 'industrial',
+    country: 'United States',
+    lat: 43.08, lon: -76.15,
+    cost: 100e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2024,
+    completion: '2040s',
+    description: 'The largest semiconductor fabrication campus in US history — up to four fabs in Clay, New York, producing advanced memory chips. A 20-year, $100B investment anchoring a new semiconductor corridor.',
+    keyFacts: [
+      'Up to 4 clean-room fabs on 1,400-acre site',
+      '$100B investment over 20 years',
+      'Will produce leading-edge DRAM memory chips',
+      'CHIPS Act: $6.1B in direct subsidies',
+      'Up to 50,000 jobs (9,000 direct + supply chain)',
+      'First fab production expected mid-2020s',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Micron_Technology' },
+    ],
+  },
+  {
+    id: 'intel',
+    name: 'Intel Ohio Fabs',
+    type: 'industrial',
+    country: 'United States',
+    lat: 40.10, lon: -82.77,
+    cost: 28e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2022,
+    completion: '2028',
+    description: 'Intel\'s "Silicon Heartland" — two leading-edge chip fabs in Licking County, Ohio, with room for expansion to eight fabs total. Part of Intel\'s strategy to reclaim process leadership.',
+    keyFacts: [
+      'Two fabs initially, expandable to eight on 1,000-acre site',
+      '$28B Phase 1 investment',
+      'CHIPS Act: $8.5B in direct subsidies',
+      'Intel 18A and Intel 14A process nodes planned',
+      '3,000 direct jobs, 7,000 construction jobs',
+      'Part of Intel Foundry Services (IFS) expansion',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Intel_Ohio' },
+    ],
+  },
+  {
+    id: 'gigaberlin',
+    name: 'Tesla Gigafactory Berlin',
+    type: 'industrial',
+    country: 'Germany',
+    lat: 52.39, lon: 13.79,
+    cost: 5.8e9,
+    currency: 'EUR',
+    status: 'partial',
+    start: 2020,
+    completion: '2025',
+    description: 'Tesla\'s European production hub in Grünheide, Brandenburg — producing Model Y vehicles and planned battery cell manufacturing. The fastest large factory build in German history despite environmental controversies.',
+    keyFacts: [
+      'Producing Model Y since March 2022',
+      'Current capacity: ~250,000 vehicles/year, targeting 500,000',
+      'Includes planned battery cell production facility (4680 cells)',
+      'Built in ~2 years — record speed for German industrial permitting',
+      'Water usage and deforestation controversies with local community',
+      'Expansion plans on hold pending local referendum outcome',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Gigafactory_Berlin-Brandenburg' },
+    ],
+  },
+  // ── Aerospace ──────────────────────────────────────────
+  {
+    id: 'starbase',
+    name: 'SpaceX Starbase',
+    type: 'aerospace',
+    country: 'United States',
+    lat: 25.99, lon: -97.16,
+    cost: 3e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2019,
+    completion: 'Ongoing',
+    description: 'SpaceX\'s Starship development and launch facility at Boca Chica, Texas. Home to the largest and most powerful rocket ever built — the Starship/Super Heavy system designed for Mars colonization.',
+    keyFacts: [
+      'Starship: 121 m tall, 9 m diameter — tallest rocket ever',
+      'Super Heavy booster: 33 Raptor engines, 7,590 tonnes thrust',
+      'Mechazilla tower catches returning boosters with mechanical arms',
+      'Multiple successful orbital test flights completed',
+      'Launch pad, tank farm, and production facilities on-site',
+      'Designed for rapid reuse — target: aircraft-like turnaround',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/SpaceX_Starbase' },
+    ],
+  },
+  {
+    id: 'artemis',
+    name: 'Artemis / Gateway Station',
+    type: 'aerospace',
+    country: 'United States',
+    lat: 28.57, lon: -80.65,
+    cost: 93e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2017,
+    completion: '2030s',
+    description: 'NASA\'s program to return humans to the Moon and establish a sustained presence. Includes the SLS rocket, Orion capsule, Gateway lunar orbital station, Human Landing System (SpaceX Starship), and Artemis Base Camp on the surface.',
+    keyFacts: [
+      'Artemis I (uncrewed) completed 2022 — Orion orbited Moon',
+      'Artemis II (crewed lunar flyby) targeting 2025–2026',
+      'Artemis III: first crewed Moon landing since Apollo 17 (1972)',
+      'Gateway: mini space station in lunar orbit, international partners',
+      'Human Landing System: SpaceX Starship variant',
+      '$93B spent through Artemis I; total program cost rising',
+    ],
+    links: [
+      { label: 'Official site', url: 'https://www.nasa.gov/artemis' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Artemis_program' },
+    ],
+  },
+  // ── Digital ────────────────────────────────────────────
+  {
+    id: 'metahyperion',
+    name: 'Meta Louisiana AI Campus',
+    type: 'digital',
+    country: 'United States',
+    lat: 32.50, lon: -91.80,
+    cost: 10e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2024,
+    completion: '2030',
+    description: 'Meta\'s largest AI data center — a $10B campus in northeast Louisiana spanning 4 million sq ft on a 2,250-acre site. One of the largest single-site data center investments in the world.',
+    keyFacts: [
+      '$10B investment in northeast Louisiana',
+      '4 million sq ft on 2,250-acre site — one of Meta\'s largest globally',
+      'Construction began December 2024',
+      'Designed for large-scale AI model training (LLaMA and beyond)',
+      'Part of Meta\'s $60B+ annual AI infrastructure buildout',
+      'Louisiana received $15B in data center starts in 2025 alone',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Meta_Platforms' },
+    ],
+  },
+  {
+    id: 'stargate',
+    name: 'Stargate AI Infrastructure',
+    type: 'digital',
+    country: 'United States',
+    lat: 32.40, lon: -97.30,
+    cost: 500e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2025,
+    completion: '2029',
+    description: 'The largest AI infrastructure project ever announced — a $500B joint venture between OpenAI, SoftBank, Oracle, and MGX to build multiple data center campuses across the US with 7+ GW of total compute capacity.',
+    keyFacts: [
+      '$500B planned investment over 4 years — largest digital infrastructure project in history',
+      'Joint venture: OpenAI, SoftBank, Oracle, MGX (UAE)',
+      'Announced January 2025 by President Trump at the White House',
+      'First campus: Abilene, Texas — already under construction',
+      'Port Washington, Wisconsin campus: $15B, ~1 GW capacity',
+      '5+ campuses announced across Texas, Wisconsin, and more by late 2025',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Stargate_Project_(artificial_intelligence)' },
+    ],
+  },
+  {
+    id: 'vantagefrontier',
+    name: 'Vantage Frontier Campus',
+    type: 'digital',
+    country: 'United States',
+    lat: 32.87, lon: -99.35,
+    cost: 25e9,
+    currency: 'USD',
+    status: 'planned',
+    start: 2025,
+    completion: '2030+',
+    description: 'Vantage Data Centers\' mega-scale "Frontier" campus in Shackelford County, Texas — a 1.4 GW data center campus that would be one of the largest single-site compute facilities on Earth.',
+    keyFacts: [
+      '$25B total investment in Shackelford County, Texas',
+      '1.4 GW of power capacity — equivalent to a large nuclear plant',
+      'Will employ 5,000+ across construction phases',
+      'Part of Vantage\'s hyperscale expansion program',
+      'Designed for AI training workloads requiring massive power density',
+      'Rural Texas site chosen for land, power, and fiber availability',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Vantage_Data_Centers' },
+    ],
+  },
+  {
+    id: 'msftpa',
+    name: 'Microsoft Pennsylvania AI Campus',
+    type: 'digital',
+    country: 'United States',
+    lat: 41.10, lon: -76.40,
+    cost: 20e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2025,
+    completion: '2028+',
+    description: 'Microsoft\'s $20B investment in Pennsylvania for multiple AI and cloud infrastructure campuses. Key sites in Salem Township and Falls Township, with Salem adjacent to the Susquehanna nuclear power plant for direct clean power.',
+    keyFacts: [
+      '$20B across multiple Pennsylvania sites',
+      'Salem Township site adjacent to Susquehanna nuclear power plant (2.5 GW)',
+      'Falls Township site near Bucks County',
+      'Part of Microsoft\'s Azure AI infrastructure expansion',
+      'Nuclear-adjacent siting reflects trend toward dedicated clean power for AI',
+      'Microsoft is also investing $17.5B in India, $15B in UK, $5.4B in Canada',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Microsoft_Azure' },
+    ],
+  },
+  {
+    id: 'compass',
+    name: 'Compass Meridian Campus',
+    type: 'digital',
+    country: 'United States',
+    lat: 32.38, lon: -88.70,
+    cost: 10e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2025,
+    completion: '2030',
+    description: 'Compass Datacenters\' Meridian Campus in Lauderdale County, Mississippi — eight data center buildings, each 250,000 sq ft, forming one of the largest data center campuses in the US Southeast.',
+    keyFacts: [
+      '$10B investment in Lauderdale County, Mississippi',
+      'Eight data center buildings, 250,000 sq ft each',
+      'Mississippi received $13.9B in data center starts in 2025',
+      'Part of the massive Southeast data center buildout',
+      'Compass is one of the fastest-growing hyperscale developers',
+      'Designed to serve cloud and AI workloads at hyperscale',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Compass_Datacenters' },
+    ],
+  },
+  {
+    id: 'msftuk',
+    name: 'Microsoft UK Cloud & AI',
+    type: 'digital',
+    country: 'United Kingdom',
+    lat: 52.00, lon: -1.00,
+    cost: 15e9,
+    currency: 'USD',
+    status: 'planned',
+    start: 2025,
+    completion: '2029',
+    description: 'Microsoft\'s $15B investment to build cloud and AI infrastructure across the United Kingdom — the largest single tech investment in UK history.',
+    keyFacts: [
+      '$15B investment through 2029 — largest tech investment in UK history',
+      'Multiple data center sites across England',
+      'Part of Microsoft\'s global $80B+ annual AI capex',
+      'Supports Azure, OpenAI, and Copilot workloads for European customers',
+      'UK government AI strategy partnership',
+      'Announced alongside £1B AI skills initiative',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Microsoft_Azure' },
+    ],
+  },
+  // ── More Transport ─────────────────────────────────────
+  {
+    id: 'brenner',
+    name: 'Brenner Base Tunnel',
+    type: 'transport',
+    country: 'Austria / Italy',
+    lat: 47.00, lon: 11.50,
+    cost: 10.5e9,
+    currency: 'EUR',
+    status: 'construction',
+    start: 2008,
+    completion: '2032',
+    description: 'When complete, the world\'s longest underground rail link — a 64 km twin-tube tunnel under the Brenner Pass connecting Innsbruck (Austria) to Fortezza (Italy). Part of the Scandinavian–Mediterranean TEN-T corridor.',
+    keyFacts: [
+      '64 km tunnel (55 km in rock) — world\'s longest underground rail link',
+      'Twin single-track tubes + exploratory tunnel below',
+      'Crosses under the Alps at up to 1,700 m below the surface',
+      'Will shift freight from road to rail on the Brenner corridor',
+      'Part of EU Trans-European Transport Network (TEN-T)',
+      '~50% of tunneling complete as of 2024',
+    ],
+    route: [[11.39, 47.26], [11.42, 47.15], [11.45, 47.05], [11.50, 46.95], [11.55, 46.87], [11.63, 46.80]],
+    links: [
+      { label: 'Official site', url: 'https://www.bbt-se.com/en/' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Brenner_Base_Tunnel' },
+    ],
+  },
+  {
+    id: 'lyon-turin',
+    name: 'Lyon–Turin Rail Tunnel',
+    type: 'transport',
+    country: 'France / Italy',
+    lat: 45.18, lon: 6.67,
+    cost: 8.6e9,
+    currency: 'EUR',
+    status: 'construction',
+    start: 2011,
+    completion: '2032',
+    description: 'A 57.5 km base tunnel through the Western Alps between Saint-Jean-de-Maurienne (France) and Susa (Italy). Will be the longest rail tunnel in the world, surpassing the Gotthard Base Tunnel.',
+    keyFacts: [
+      '57.5 km base tunnel — will surpass Gotthard (57.1 km) as world\'s longest',
+      'Twin single-track tubes with safety gallery between them',
+      'Maximum cover: 2,500 m below the mountain peaks',
+      'TBMs currently boring from both the French and Italian sides',
+      'Part of the Mediterranean TEN-T corridor',
+      'Politically contentious in Italy — NO TAV protest movement',
+    ],
+    route: [[6.35, 45.28], [6.50, 45.23], [6.67, 45.18], [6.82, 45.15], [7.05, 45.14]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Lyon%E2%80%93Turin_base_tunnel' },
+    ],
+  },
+  {
+    id: 'crossrail',
+    name: 'Crossrail (Elizabeth Line)',
+    type: 'transport',
+    country: 'United Kingdom',
+    lat: 51.52, lon: -0.07,
+    cost: 19e9,
+    currency: 'GBP',
+    status: 'completed',
+    start: 2009,
+    completion: '2022',
+    description: 'A 118 km railway line crossing London from west to east, including 42 km of new tunnels under central London. Now the Elizabeth Line — the most significant addition to London\'s transport network in a generation.',
+    keyFacts: [
+      '118 km total route; 42 km of new tunnels',
+      '10 new stations including Canary Wharf and Tottenham Court Road',
+      'Carries 200+ million passengers/year',
+      'Opened May 2022 — 4 years late, £4B over budget',
+      'Custom Class 345 Aventra trains, 200m long, walk-through',
+      'Platform screen doors in central stations — first in UK',
+    ],
+    route: [[-0.97, 51.46], [-0.75, 51.51], [-0.49, 51.52], [-0.30, 51.52], [-0.13, 51.52], [-0.07, 51.52], [0.02, 51.51], [0.10, 51.51], [0.25, 51.54]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Crossrail' },
+    ],
+  },
+  {
+    id: 'sgr',
+    name: 'Standard Gauge Railway (East Africa)',
+    type: 'transport',
+    country: 'Kenya / Tanzania',
+    lat: -1.29, lon: 36.82,
+    cost: 15e9,
+    currency: 'USD',
+    status: 'partial',
+    start: 2014,
+    completion: '2027+',
+    description: 'A modern railway network connecting Mombasa port to Nairobi and onward to East African hinterland. China-financed and built. Mombasa–Nairobi section operational since 2017; extensions stalled by debt concerns.',
+    keyFacts: [
+      'Mombasa–Nairobi: 472 km, operational since 2017',
+      'Nairobi–Suswa extension: 120 km, completed 2019',
+      'Originally planned to connect to Uganda, Rwanda, South Sudan',
+      'Built by China Road and Bridge Corporation, financed by Exim Bank of China',
+      'Carries 1.5+ million passengers/year on Nairobi–Mombasa route',
+      'Further extensions stalled amid debt sustainability concerns',
+    ],
+    route: [[39.66, -4.04], [39.25, -3.60], [38.70, -3.10], [38.10, -2.55], [37.55, -2.10], [37.15, -1.72], [36.82, -1.29], [36.42, -1.05]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Standard_Gauge_Railway_(Kenya)' },
+    ],
+  },
+  // ── More Energy ────────────────────────────────────────
+  {
+    id: 'xlinks',
+    name: 'Xlinks Morocco–UK Power Cable',
+    type: 'energy',
+    country: 'Morocco / United Kingdom',
+    lat: 30.00, lon: -8.00,
+    cost: 22e9,
+    currency: 'GBP',
+    status: 'planned',
+    start: 2025,
+    completion: '2030',
+    description: 'A 3,800 km HVDC subsea cable to transmit solar and wind power from the Sahara Desert in Morocco directly to the UK grid — enough to power 7 million homes. The longest subsea power cable ever proposed.',
+    keyFacts: [
+      '3,800 km HVDC cable — longest subsea power connection ever',
+      '10.5 GW of solar + wind generation in the Guelmim-Oued Noun region',
+      '3.6 GW delivered to UK grid — ~8% of UK demand',
+      'Enough for 7 million homes',
+      'Cable route: Morocco → Portugal coast → France coast → Devon, UK',
+      'Solar irradiance in Morocco is ~2× that of UK',
+    ],
+    route: [[-8.00, 30.00], [-9.50, 32.50], [-9.80, 35.00], [-9.50, 37.50], [-9.20, 39.00], [-8.50, 40.50], [-7.00, 42.50], [-5.50, 44.00], [-4.50, 46.50], [-4.00, 48.50], [-3.80, 49.80], [-3.50, 50.70]],
+    links: [
+      { label: 'Official site', url: 'https://xlinks.co/' },
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Xlinks' },
+    ],
+  },
+  {
+    id: 'rooppur',
+    name: 'Rooppur Nuclear Power Plant',
+    type: 'energy',
+    country: 'Bangladesh',
+    lat: 24.07, lon: 89.05,
+    cost: 12.65e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2017,
+    completion: '2026',
+    description: 'Bangladesh\'s first nuclear power plant — two Russian VVER-1200 reactors on the Padma River. A landmark project for energy security in a nation of 170 million people.',
+    keyFacts: [
+      'Two VVER-1200 reactors (Gen III+), 2.4 GW total',
+      'Built by Rosatom (Russia)',
+      'First reactor fuel loaded in 2024',
+      'Financed by Russian state credit (~90% of cost)',
+      'Will provide ~10% of Bangladesh\'s electricity',
+      'First nuclear plant in Bangladesh',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Rooppur_Nuclear_Power_Plant' },
+    ],
+  },
+  // ── More Urban ─────────────────────────────────────────
+  {
+    id: 'forest',
+    name: 'Forest City',
+    type: 'urban',
+    country: 'Malaysia',
+    lat: 1.37, lon: 103.63,
+    cost: 100e9,
+    currency: 'USD',
+    status: 'partial',
+    start: 2014,
+    completion: '2035+',
+    description: 'A massive Chinese-developed city on four artificial islands in the Strait of Johor, opposite Singapore. Planned for 700,000 residents, but largely empty — a cautionary tale of geopolitics and real estate speculation.',
+    keyFacts: [
+      'Four artificial islands totaling 30 sq km',
+      'Country Garden (Chinese developer) is the primary backer',
+      'Planned for 700,000 residents; current occupancy: ~1%',
+      'Malaysian government suspended foreign property purchases',
+      'Now being repositioned as a special economic zone',
+      'Buildings completed but largely unoccupied — "ghost city" reputation',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Forest_City_(Johor)' },
+    ],
+  },
+  // ── More Water ─────────────────────────────────────────
+  {
+    id: 'diamer',
+    name: 'Diamer-Bhasha Dam',
+    type: 'water',
+    country: 'Pakistan',
+    lat: 35.52, lon: 73.70,
+    cost: 14e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2020,
+    completion: '2029',
+    description: 'A 272 m tall concrete-faced rockfill dam on the Indus River in Gilgit-Baltistan — when complete, among the tallest dams in the world. Critical for Pakistan\'s water storage and power generation.',
+    keyFacts: [
+      '272 m tall — among the tallest dams in the world',
+      '4,500 MW hydroelectric capacity',
+      '8.1 million acre-feet reservoir storage',
+      'Located on the Indus River between Kohistan and Gilgit-Baltistan',
+      'China-Pakistan Economic Corridor (CPEC) associated project',
+      'River diversion tunnels completed; main dam under construction',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Diamer-Bhasha_Dam' },
+    ],
+  },
+  // ── Industrial ─────────────────────────────────────────
+  {
+    id: 'jnk',
+    name: 'Jeddah Tower',
+    type: 'urban',
+    country: 'Saudi Arabia',
+    lat: 21.76, lon: 39.05,
+    cost: 1.5e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2013,
+    completion: '2028+',
+    description: 'Designed to be the world\'s first building to exceed 1 km in height (1,008 m). Construction resumed in 2023 after a multi-year halt due to a corruption investigation. Currently at ~third of final height.',
+    keyFacts: [
+      '1,008 m planned height — world\'s first 1 km+ building',
+      'Adrian Smith + Gordon Gill Architecture (designers of Burj Khalifa)',
+      'Construction halted 2018–2023 due to corruption charges against Saudi Binladin Group',
+      'Currently ~350 m completed (~1/3 of final height)',
+      'Centerpiece of Jeddah Economic City development',
+      'Triangular floor plan with notched corners for wind resistance',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Jeddah_Tower' },
+    ],
+  },
+  {
+    id: 'lagarfljot',
+    name: 'Iceland–UK Subsea Cable (IceLink)',
+    type: 'energy',
+    country: 'Iceland / United Kingdom',
+    lat: 63.50, lon: -19.00,
+    cost: 3.5e9,
+    currency: 'GBP',
+    status: 'planned',
+    start: null,
+    completion: '2030s',
+    description: 'A proposed 1,200 km HVDC submarine cable to export Iceland\'s abundant geothermal and hydroelectric energy to the UK. Would make Iceland a clean energy exporter to Europe.',
+    keyFacts: [
+      '~1,200 km subsea HVDC cable from eastern Iceland to northern Scotland',
+      '1.2 GW capacity — enough for ~1.6 million homes',
+      'Iceland has surplus renewable energy (geothermal + hydro)',
+      'Water depth up to 1,000 m along cable route',
+      'Various feasibility studies completed; no final investment decision',
+      'Could help UK meet net-zero targets using Icelandic geothermal',
+    ],
+    route: [[-14.50, 65.25], [-13.00, 64.50], [-11.00, 63.50], [-8.50, 62.50], [-6.50, 61.50], [-5.00, 60.50], [-3.80, 59.50], [-3.20, 58.60]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/IceLink' },
+    ],
+  },
+  // ── China ──────────────────────────────────────────────
+  {
+    id: 'yarlungtsangpo',
+    name: 'Yarlung Tsangpo Hydropower',
+    type: 'energy',
+    country: 'China',
+    lat: 29.50, lon: 95.00,
+    cost: 167e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2025,
+    completion: '2040s',
+    description: 'The world\'s largest hydropower project — a cascade of five dams on the Yarlung Tsangpo River in Tibet, harnessing a massive gorge with a 2,000m elevation drop. At 300 billion kWh annual output, it would produce triple the Three Gorges Dam.',
+    keyFacts: [
+      '¥1.2 trillion ($167B) investment — largest single energy project in history',
+      'Cascade of 5 dams on the Yarlung Tsangpo (Brahmaputra) River',
+      'Great Bend of the Yarlung Tsangpo: 2,000m drop in a single gorge',
+      '300 billion kWh annual output — 3× Three Gorges Dam',
+      'Construction began July 2025 after decades of feasibility studies',
+      'Geopolitically sensitive — downstream nations India and Bangladesh alarmed',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Yarlung_Tsangpo_Grand_Canyon' },
+    ],
+  },
+  {
+    id: 'shuangjiangkou',
+    name: 'Shuangjiangkou Dam',
+    type: 'water',
+    country: 'China',
+    lat: 31.45, lon: 101.80,
+    cost: 5e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2015,
+    completion: '2025',
+    description: 'The world\'s tallest dam at 315 meters — a concrete-face rockfill dam on the Dadu River in Sichuan. Taller than the Eiffel Tower, it will generate 2 GW of hydroelectric power for southwest China.',
+    keyFacts: [
+      '315 m tall — world\'s tallest dam (surpasses Jinping-I by 10 m)',
+      'Concrete-faced rockfill dam on the Dadu River, Sichuan Province',
+      '2 GW hydroelectric capacity',
+      'Reservoir filling began May 2025',
+      '¥36 billion ($5B) total investment',
+      'Supplies power to Sichuan and Chongqing megacities',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Shuangjiangkou_Dam' },
+    ],
+  },
+  {
+    id: 'sichuantibet',
+    name: 'Sichuan–Tibet Railway',
+    type: 'transport',
+    country: 'China',
+    lat: 30.00, lon: 97.00,
+    cost: 50e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2020,
+    completion: '2030s',
+    description: 'A 1,838 km railway from Chengdu to Lhasa through the most extreme terrain on Earth — crossing 14 major rivers, punching through the Hengduan Mountains, and climbing to 4,400m elevation. The most technically challenging railway ever built.',
+    keyFacts: [
+      '1,838 km total — Chengdu to Lhasa',
+      'Crosses 14 rivers, passes through 21 mountain ranges',
+      'Over 80% of the route is in tunnels or on bridges',
+      'Max elevation: ~4,400 m above sea level',
+      'Cuts Chengdu–Lhasa travel from 48 hours to 13 hours',
+      'Second rail link to Tibet after Qinghai–Tibet Railway (2006)',
+    ],
+    route: [[104.07, 30.57], [103.00, 30.10], [101.80, 30.00], [100.30, 30.00], [99.00, 29.80], [98.00, 29.70], [97.00, 29.65], [95.50, 29.70], [94.00, 29.80], [92.50, 29.80], [91.10, 29.65]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Sichuan%E2%80%93Tibet_railway' },
+    ],
+  },
+  {
+    id: 'cr450',
+    name: 'CR450 High-Speed Network Expansion',
+    type: 'transport',
+    country: 'China',
+    lat: 31.23, lon: 121.47,
+    cost: 74e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2023,
+    completion: '2030',
+    description: 'China\'s next-generation high-speed rail expansion — new 400 km/h CR450 trains on an expanding 60,000 km network. The Shanghai–Chongqing–Chengdu line alone costs $74B. The CR450 hit 453 km/h in testing.',
+    keyFacts: [
+      'Target: 60,000 km of high-speed rail by 2030 (currently ~45,000 km)',
+      'CR450 trains: 400 km/h cruise speed, tested at 453 km/h',
+      'Beijing–Shanghai in 2.5 hours (vs. current 4.5 hours)',
+      'Shanghai–Chongqing–Chengdu line: $74B, linking 3 megacities',
+      'Rail fixed-asset investment exceeded $111B in 2024 alone',
+      '~3,800 km of new high-speed track per year',
+    ],
+    route: [[121.47, 31.23], [118.80, 32.06], [117.00, 32.60], [115.80, 33.30], [114.30, 34.00], [113.50, 34.75], [112.50, 35.50], [111.60, 36.10], [110.50, 36.60], [109.50, 34.30], [108.90, 34.25], [107.40, 33.00], [106.55, 31.80], [106.55, 29.56]],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/CR450' },
+    ],
+  },
+  {
+    id: 'xiongan',
+    name: 'Xiong\'an New Area',
+    type: 'urban',
+    country: 'China',
+    lat: 38.95, lon: 116.00,
+    cost: 60e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2018,
+    completion: '2035',
+    description: 'A brand-new city 100 km south of Beijing, designated as a national-level new area to decongest the capital. Planned to absorb "non-capital functions" — universities, hospitals, state enterprises — from Beijing into a purpose-built smart city.',
+    keyFacts: [
+      '1,770 sq km — roughly the size of Shenzhen',
+      'Designated by Xi Jinping as a "millennium plan" for national development',
+      'Designed to absorb 2–2.5 million people from Beijing',
+      'Institutional anchors relocating: universities, hospitals, SOE headquarters',
+      'Connected to Beijing by high-speed rail (20 minutes)',
+      'Massive investment in underground utility tunnels and smart infrastructure',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Xiong%27an_New_Area' },
+    ],
+  },
+  {
+    id: 'taihu',
+    name: 'Taihu Lake Tunnel',
+    type: 'transport',
+    country: 'China',
+    lat: 31.20, lon: 120.20,
+    cost: 5e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2022,
+    completion: '2028',
+    description: 'The world\'s longest underwater highway tunnel — 10.79 km under Lake Taihu, connecting the Shanghai–Nanjing corridor. Six lanes of highway under one of China\'s largest freshwater lakes.',
+    keyFacts: [
+      '10.79 km long — world\'s longest underwater highway tunnel',
+      'Six lanes under Lake Taihu',
+      'Connects the Shanghai–Nanjing economic corridor',
+      'TBM-bored through soft lakebed sediment',
+      'Part of China\'s expressway modernization program',
+      'Replaces surface routes that added 90+ minutes to the journey',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Taihu_Tunnel' },
+    ],
+  },
+  {
+    id: 'ordossolar',
+    name: 'Ordos Desert Solar Farm',
+    type: 'energy',
+    country: 'China',
+    lat: 39.60, lon: 109.80,
+    cost: 11e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2023,
+    completion: '2026',
+    description: 'An 8 GW solar installation in Inner Mongolia\'s Ordos Desert — part of China\'s massive push to install renewable energy in its western deserts and transmit power east via ultra-high-voltage lines.',
+    keyFacts: [
+      '8 GW capacity — one of the largest solar installations on Earth',
+      '$11B capital investment in the Kubuqi Desert',
+      'Part of China\'s "desert solar" strategy across Inner Mongolia, Gansu, Xinjiang',
+      'China installed 198 GW of new solar in just the first 5 months of 2025',
+      'Power transmitted east via 1,100+ kV UHV DC lines',
+      'Combined with wind and storage for baseload-like output',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Kubuqi_Desert' },
+    ],
+  },
+  {
+    id: 'alibabaai',
+    name: 'Alibaba AI Infrastructure',
+    type: 'digital',
+    country: 'China',
+    lat: 30.27, lon: 120.15,
+    cost: 50e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2025,
+    completion: '2028',
+    description: 'Alibaba\'s $50B three-year investment in cloud computing and AI infrastructure — the largest single AI infrastructure commitment by a Chinese company. Spans data centers across multiple provinces.',
+    keyFacts: [
+      '$50B over three years — largest AI infra commitment by a Chinese firm',
+      'Alibaba Cloud is China\'s largest cloud provider (~30% market share)',
+      'Data centers across Hebei, Inner Mongolia, Guizhou, and more',
+      'Supports Tongyi Qianwen (Qwen) large language models',
+      'Part of China\'s 500 billion yuan ($70B) tech giant AI buildout',
+      'Chinese government designated AI infrastructure as national priority',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Alibaba_Cloud' },
+    ],
+  },
+  {
+    id: 'yangqu',
+    name: 'Yangqu AI-Built Dam',
+    type: 'water',
+    country: 'China',
+    lat: 36.10, lon: 100.60,
+    cost: 1.5e9,
+    currency: 'USD',
+    status: 'construction',
+    start: 2021,
+    completion: '2026',
+    description: 'A 180-meter dam on the Tibetan Plateau being built entirely by autonomous AI-controlled machinery — unmanned bulldozers, trucks, excavators, and pavers using 3D printing techniques. The world\'s largest structure built without human labor on-site.',
+    keyFacts: [
+      '180 m tall — built entirely by autonomous AI-controlled equipment',
+      'Unmanned bulldozers, excavators, trucks, and pavers',
+      'Construction uses 3D printing and layer-by-layer placement',
+      'Located on the Yellow River, Tibetan Plateau',
+      'World\'s largest structure built without direct human labor',
+      'Proof of concept for autonomous mega-construction',
+    ],
+    links: [
+      { label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Yangqu_Dam' },
+    ],
+  },
+];
+
+// ── State ────────────────────────────────────────────────
+const state = {
+  projects: PROJECTS,
+  filtered: [...PROJECTS],
+  activeType: 'all',
+  selectedProject: null,
+  hoveredProject: null,
+};
+
+// ── Helpers ──────────────────────────────────────────────
+function formatCost(value, currency) {
+  const c = currency || 'USD';
+  if (value >= 1e12) return `${c === 'USD' ? '$' : ''}${(value / 1e12).toFixed(1)}T ${c !== 'USD' ? c : ''}`.trim();
+  if (value >= 1e9) return `${c === 'USD' ? '$' : ''}${(value / 1e9).toFixed(1)}B ${c !== 'USD' ? c : ''}`.trim();
+  if (value >= 1e6) return `${c === 'USD' ? '$' : ''}${(value / 1e6).toFixed(0)}M ${c !== 'USD' ? c : ''}`.trim();
+  return `${c === 'USD' ? '$' : ''}${value.toLocaleString()} ${c !== 'USD' ? c : ''}`.trim();
+}
+
+function statusLabel(s) {
+  const map = { construction: 'Under Construction', planned: 'Planned', completed: 'Completed', partial: 'Partially Operational' };
+  return map[s] || s;
+}
+
+function statusClass(s) {
+  return 'status-badge status-' + s;
+}
+
+function typeColor(t) {
+  return TYPES[t] ? TYPES[t].hex : '#888';
+}
+
+function typeRgba(t, a) {
+  const c = TYPES[t] ? TYPES[t].color : [128, 128, 128];
+  return [...c, a];
+}
+
+// ── Map & Deck Setup ─────────────────────────────────────
+let map, deckOverlay;
+
+function init() {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: { version: 8, sources: { carto: { type: 'raster', tiles: ['https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: '&copy; <a href="https://carto.com">CARTO</a>' } }, layers: [{ id: 'carto', type: 'raster', source: 'carto' }] },
+    center: [30, 25],
+    zoom: 1.8,
+    minZoom: 1,
+    maxZoom: 12,
+    attributionControl: false,
+  });
+  map.addControl(new maplibregl.NavigationControl(), 'bottom-left');
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+  deckOverlay = new deck.MapboxOverlay({ layers: [] });
+  map.addControl(deckOverlay);
+
+  buildFilters();
+  applyFilters();
+  updateSidebar();
+
+  document.getElementById('detail-close').addEventListener('click', closeDetail);
+  document.getElementById('detail-mobile-close').addEventListener('click', closeDetail);
+  document.getElementById('detail-backdrop').addEventListener('click', closeDetail);
+
+  // Sidebar tabs
+  document.querySelectorAll('.sidebar-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+}
+
+// ── Filters ──────────────────────────────────────────────
+function buildFilters() {
+  const container = document.getElementById('filters');
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = 'All';
+  allBtn.dataset.type = 'all';
+  allBtn.addEventListener('click', () => setFilter('all'));
+  container.appendChild(allBtn);
+
+  for (const [key, val] of Object.entries(TYPES)) {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.textContent = val.name;
+    btn.dataset.type = key;
+    btn.addEventListener('click', () => setFilter(key));
+    container.appendChild(btn);
+  }
+}
+
+function setFilter(type) {
+  state.activeType = type;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+  applyFilters();
+  updateSidebar();
+}
+
+function applyFilters() {
+  if (state.activeType === 'all') {
+    state.filtered = [...state.projects];
+  } else {
+    state.filtered = state.projects.filter(p => p.type === state.activeType);
+  }
+  updateDeckLayers();
+  updateStatus();
+}
+
+// ── Deck.gl Layers ───────────────────────────────────────
+function updateDeckLayers() {
+  const data = state.filtered;
+  const maxCost = Math.max(...data.map(p => p.cost));
+
+  const scatterLayer = new deck.ScatterplotLayer({
+    id: 'projects',
+    data,
+    getPosition: d => [d.lon, d.lat],
+    getRadius: d => 30000 + Math.sqrt(d.cost / maxCost) * 250000,
+    getFillColor: d => {
+      if (state.selectedProject && state.selectedProject.id === d.id) return [255, 255, 255, 220];
+      if (state.hoveredProject && state.hoveredProject.id === d.id) return [...(TYPES[d.type]?.color || [180, 180, 180]), 240];
+      return typeRgba(d.type, 180);
+    },
+    getLineColor: d => {
+      if (state.selectedProject && state.selectedProject.id === d.id) return [255, 140, 0, 255];
+      return [0, 0, 0, 0];
+    },
+    lineWidthMinPixels: 0,
+    lineWidthMaxPixels: 3,
+    stroked: true,
+    getLineWidth: d => (state.selectedProject && state.selectedProject.id === d.id) ? 3 : 0,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 30,
+    pickable: true,
+    onHover: info => onHover(info),
+    onClick: info => onClick(info),
+    updateTriggers: {
+      getFillColor: [state.selectedProject?.id, state.hoveredProject?.id],
+      getLineColor: [state.selectedProject?.id],
+      getLineWidth: [state.selectedProject?.id],
+    },
+  });
+
+  const textLayer = new deck.TextLayer({
+    id: 'labels',
+    data: data.filter(d => d.cost / maxCost > 0.03),
+    getPosition: d => [d.lon, d.lat],
+    getText: d => d.name.length > 20 ? d.name.slice(0, 18) + '…' : d.name,
+    getSize: 11,
+    getColor: [200, 200, 208, 200],
+    getPixelOffset: [0, 18],
+    fontFamily: '"SF Mono", "Cascadia Code", monospace',
+    fontWeight: 500,
+    outlineWidth: 2,
+    outlineColor: [10, 10, 15, 200],
+    billboard: true,
+    sizeMinPixels: 10,
+    sizeMaxPixels: 13,
+  });
+
+  const routeData = data.filter(d => d.route && d.route.length > 1);
+  const pathLayer = new deck.PathLayer({
+    id: 'routes',
+    data: routeData,
+    getPath: d => d.route,
+    getColor: d => {
+      const c = TYPES[d.type]?.color || [180, 180, 180];
+      if (state.selectedProject && state.selectedProject.id === d.id) return [...c, 220];
+      return [...c, 90];
+    },
+    getWidth: d => (state.selectedProject && state.selectedProject.id === d.id) ? 4 : 2,
+    widthMinPixels: 1,
+    widthMaxPixels: 6,
+    capRounded: true,
+    jointRounded: true,
+    billboard: false,
+    pickable: true,
+    onHover: info => onHover(info),
+    onClick: info => onClick(info),
+    updateTriggers: {
+      getColor: [state.selectedProject?.id],
+      getWidth: [state.selectedProject?.id],
+    },
+  });
+
+  deckOverlay.setProps({ layers: [pathLayer, scatterLayer, textLayer] });
+}
+
+// ── Interactions ─────────────────────────────────────────
+function onHover(info) {
+  const tooltip = document.getElementById('tooltip');
+  if (info.object) {
+    state.hoveredProject = info.object;
+    const p = info.object;
+    tooltip.innerHTML = `
+      <div class="tt-name">${p.name}</div>
+      <div class="tt-meta">${p.country}</div>
+      <div class="tt-cost">${formatCost(p.cost, p.currency)}</div>
+      <div class="tt-meta">${statusLabel(p.status)}</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (info.x + 14) + 'px';
+    tooltip.style.top = (info.y + 14) + 'px';
+  } else {
+    state.hoveredProject = null;
+    tooltip.style.display = 'none';
+  }
+  updateDeckLayers();
+}
+
+function onClick(info) {
+  if (info.object) {
+    selectProject(info.object);
+  }
+}
+
+function selectProject(project) {
+  state.selectedProject = project;
+  updateDeckLayers();
+  updateSidebar();
+  openDetail(project);
+
+  map.flyTo({
+    center: [project.lon, project.lat],
+    zoom: Math.max(map.getZoom(), 4),
+    duration: 800,
+  });
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-backdrop').classList.remove('open');
+  state.selectedProject = null;
+  updateDeckLayers();
+  updateSidebar();
+}
+
+function openDetail(project) {
+  const panel = document.getElementById('detail-panel');
+  const content = document.getElementById('detail-content');
+
+  const p = project;
+  content.innerHTML = `
+    <div class="detail-header">
+      <h2>${p.name}</h2>
+      <div class="detail-subtitle">${p.country} &nbsp;&middot;&nbsp; <span class="project-list-type" style="background:${typeColor(p.type)}22;color:${typeColor(p.type)}">${TYPES[p.type]?.name || p.type}</span></div>
+    </div>
+    <div class="detail-stats">
+      <div class="detail-stat">
+        <div class="detail-stat-label">Estimated Cost</div>
+        <div class="detail-stat-value">${formatCost(p.cost, p.currency)}</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">Status</div>
+        <div class="detail-stat-value"><span class="${statusClass(p.status)}">${statusLabel(p.status)}</span></div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">Construction Start</div>
+        <div class="detail-stat-value">${p.start || 'TBD'}</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">Target Completion</div>
+        <div class="detail-stat-value">${p.completion}</div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Overview</h3>
+      <p>${p.description}</p>
+    </div>
+    <div class="detail-section">
+      <h3>Key Facts</h3>
+      <ul>
+        ${p.keyFacts.map(f => `<li>${f}</li>`).join('')}
+      </ul>
+    </div>
+    <div class="detail-section">
+      <h3>References</h3>
+      ${p.links.map(l => `<a href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a><br>`).join('')}
+    </div>
+    <div class="prediction-section" id="pred-section">
+      <h3>Prediction Markets</h3>
+      <div class="pred-loading" id="pred-loading">Searching Manifold Markets...</div>
+      <div id="pred-results" style="display:none"></div>
+    </div>
+  `;
+
+  panel.classList.add('open');
+  document.getElementById('detail-backdrop').classList.add('open');
+
+  // Search Manifold for prediction markets about this project
+  searchManifold(p.name);
+}
+
+// ── Sidebar ──────────────────────────────────────────────
+function updateSidebar() {
+  const stats = document.getElementById('sidebar-stats');
+  const totalCost = state.filtered.reduce((s, p) => s + p.cost, 0);
+  stats.innerHTML = `
+    <span>${state.filtered.length} projects</span>
+    <span>~${formatCost(totalCost, 'USD')} total investment</span>
+  `;
+
+  const list = document.getElementById('sidebar-list');
+  const sorted = [...state.filtered].sort((a, b) => b.cost - a.cost);
+  list.innerHTML = sorted.map(p => `
+    <div class="project-list-item${state.selectedProject?.id === p.id ? ' active' : ''}" data-id="${p.id}">
+      <div class="project-list-name">${p.name}</div>
+      <div class="project-list-meta">
+        <span class="project-list-type" style="background:${typeColor(p.type)}22;color:${typeColor(p.type)}">${TYPES[p.type]?.name || p.type}</span>
+        <span>${formatCost(p.cost, p.currency)}</span>
+        <span>${p.country}</span>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.project-list-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const proj = state.projects.find(p => p.id === el.dataset.id);
+      if (proj) selectProject(proj);
+    });
+  });
+}
+
+// ── Status Bar ───────────────────────────────────────────
+function updateStatus() {
+  const left = document.getElementById('status-left');
+  const typeLabel = state.activeType === 'all' ? 'All types' : TYPES[state.activeType]?.name;
+  left.textContent = `${state.filtered.length} megaprojects · ${typeLabel}`;
+}
+
+// ── Boot ─────────────────────────────────────────────────
+// ── Manifold Markets Integration ─────────────────────────
+async function searchManifold(projectName) {
+  const loading = document.getElementById('pred-loading');
+  const results = document.getElementById('pred-results');
+  if (!loading || !results) return;
+
+  // Build search terms — use project name, try to find relevant markets
+  const terms = projectName.replace(/[()]/g, '').split(/\s+/).slice(0, 4).join(' ');
+
+  try {
+    const resp = await fetch(
+      `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(terms)}&filter=open&contractType=BINARY&limit=5&sort=most-popular`
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const markets = await resp.json();
+
+    loading.style.display = 'none';
+    results.style.display = 'block';
+
+    if (!markets || markets.length === 0) {
+      results.innerHTML = `
+        <div class="pred-none">
+          No prediction markets found for this project.<br>
+          <a class="pred-market-link" href="https://manifold.markets/create" target="_blank" rel="noopener">Create one on Manifold ↗</a>
+        </div>`;
+      return;
+    }
+
+    // Show top market as a gauge, rest as list
+    const top = markets[0];
+    const pct = Math.round((top.probability || 0) * 100);
+    const color = pct >= 60 ? '#44cc88' : pct >= 35 ? '#ff8c00' : '#ff4466';
+    const circumference = 2 * Math.PI * 22;
+    const offset = circumference - (pct / 100) * circumference;
+
+    let html = `
+      <div class="pred-gauge">
+        <div class="pred-ring">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle class="pred-ring-bg" cx="28" cy="28" r="22"/>
+            <circle class="pred-ring-fill" cx="28" cy="28" r="22"
+              stroke="${color}"
+              stroke-dasharray="${circumference}"
+              stroke-dashoffset="${offset}"/>
+          </svg>
+        </div>
+        <div>
+          <div class="pred-pct" style="color:${color}">${pct}%</div>
+          <div class="pred-label">${top.question.length > 60 ? top.question.slice(0, 58) + '…' : top.question}</div>
+          <a class="pred-market-link" href="${top.url}" target="_blank" rel="noopener">Trade on Manifold ↗</a>
+        </div>
+      </div>`;
+
+    if (markets.length > 1) {
+      html += `<ul class="pred-markets-list">`;
+      for (let i = 1; i < markets.length; i++) {
+        const m = markets[i];
+        const mp = Math.round((m.probability || 0) * 100);
+        const mc = mp >= 60 ? '#44cc88' : mp >= 35 ? '#ff8c00' : '#ff4466';
+        html += `<li>
+          <a href="${m.url}" target="_blank" rel="noopener">${m.question.length > 50 ? m.question.slice(0, 48) + '…' : m.question}</a>
+          <span class="pred-prob-badge" style="background:${mc}22;color:${mc}">${mp}%</span>
+        </li>`;
+      }
+      html += `</ul>`;
+    }
+
+    results.innerHTML = html;
+  } catch (err) {
+    loading.style.display = 'none';
+    results.style.display = 'block';
+    results.innerHTML = `<div class="pred-none">Could not reach Manifold Markets.<br><span style="font-size:11px;color:var(--text-dim)">${err.message}</span></div>`;
+  }
+}
+
+// ── Bounty Board ─────────────────────────────────────────
+// Demo bounties — in production these come from ATProto PDS records
+const BOUNTIES = [
+  { id: 'b1', projectId: 'fehmarn', projectName: 'Fehmarn Belt Fixed Link', kind: 'webcam', title: 'Live webcam feed from Rødbyhavn casting yard', description: 'Looking for a current webcam URL showing the tunnel element production at the casting yard.', reward: '10 REPUTATION', status: 'open', createdAt: '2026-03-15' },
+  { id: 'b2', projectId: 'cahsr', projectName: 'California High-Speed Rail', kind: 'photo', title: 'Recent photos of viaduct construction near Fresno', description: 'Ground-level photos of the elevated guideway sections under construction in the Central Valley.', reward: '15 REPUTATION', status: 'open', createdAt: '2026-03-14' },
+  { id: 'b3', projectId: 'sichuantibet', projectName: 'Sichuan–Tibet Railway', kind: 'progress_update', title: 'Tunneling progress update — Kangding to Nyingchi section', description: 'Any recent reports on TBM progress through the Hengduan Mountains. Official sources or local news.', reward: '25 REPUTATION', status: 'open', createdAt: '2026-03-12' },
+  { id: 'b4', projectId: 'iter', projectName: 'ITER Fusion Reactor', kind: 'video', title: 'Recent drone footage of tokamak assembly', description: 'Looking for recent (2026) drone video showing the current state of the tokamak pit assembly.', reward: '20 REPUTATION', status: 'open', createdAt: '2026-03-10' },
+  { id: 'b5', projectId: 'neom', projectName: 'NEOM / The Line', kind: 'satellite', title: 'Satellite imagery of The Line foundation work', description: 'Recent satellite/aerial imagery showing the extent of earthworks and foundation construction along The Line alignment.', reward: '30 REPUTATION', status: 'open', createdAt: '2026-03-08' },
+  { id: 'b6', projectId: 'brenner', projectName: 'Brenner Base Tunnel', kind: 'document', title: 'Latest tunneling progress report (2026 Q1)', description: 'Official or news summary of meters bored to date and remaining work on the Brenner Base Tunnel.', reward: '10 REPUTATION', status: 'open', createdAt: '2026-03-06' },
+  { id: 'b7', projectId: 'stargate', projectName: 'Stargate AI Infrastructure', kind: 'photo', title: 'Construction photos from Abilene, TX campus', description: 'On-the-ground photos of the Stargate data center campus under construction in Abilene, Texas.', reward: '20 REPUTATION', status: 'open', createdAt: '2026-03-05' },
+  { id: 'b8', projectId: 'yarlungtsangpo', projectName: 'Yarlung Tsangpo Hydropower', kind: 'webcam', title: 'Any visual documentation of dam site preparation', description: 'This project is shrouded in secrecy. Any webcam, photo, or satellite imagery of the construction site on the Yarlung Tsangpo gorge.', reward: '50 REPUTATION', status: 'open', createdAt: '2026-03-01' },
+];
+
+function updateBountyBoard() {
+  const panel = document.getElementById('bounty-panel');
+  const filtered = state.selectedProject
+    ? BOUNTIES.filter(b => b.projectId === state.selectedProject.id)
+    : BOUNTIES;
+  const displayed = filtered.length > 0 ? filtered : BOUNTIES;
+
+  let html = `
+    <div class="bounty-header">
+      <h4>${state.selectedProject ? `Bounties: ${state.selectedProject.name}` : 'All Open Bounties'}</h4>
+    </div>`;
+
+  if (displayed.length === 0) {
+    html += `<div class="bounty-empty">No bounties yet.<br>Be the first to request information about a megaproject.</div>`;
+  } else {
+    html += displayed.map(b => `
+      <a href="/bounty/#${b.id}" class="bounty-item" data-project="${b.projectId}">
+        <div class="bounty-title">
+          <span class="bounty-kind bounty-kind-${b.kind}">${b.kind.replace('_', ' ')}</span>
+          ${b.title}
+        </div>
+        <div class="bounty-meta">
+          <span class="bounty-reward">${b.reward}</span>
+          <span class="bounty-project">${b.projectName}</span>
+        </div>
+      </a>
+    `).join('');
+  }
+
+  html += `<a href="/bounty/" class="bounty-view-all">View all bounties →</a>`;
+
+  panel.innerHTML = html;
+}
+
+// ── Sidebar Tabs ─────────────────────────────────────────
+function switchTab(tabName) {
+  document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  const list = document.getElementById('sidebar-list');
+  const bounty = document.getElementById('bounty-panel');
+  const stats = document.getElementById('sidebar-stats');
+  if (tabName === 'projects') {
+    list.style.display = 'block';
+    stats.style.display = 'flex';
+    bounty.style.display = 'none';
+  } else {
+    list.style.display = 'none';
+    stats.style.display = 'none';
+    bounty.style.display = 'block';
+    updateBountyBoard();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

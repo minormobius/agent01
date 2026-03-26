@@ -1,0 +1,88 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mega.request",
+  "description": "An information bounty — a request for specific information about a megaproject (webcam footage, progress photos, on-the-ground reports, etc.). Other users can fulfill requests.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A bounty request posted by a user seeking specific information about a megaproject. The request describes what information is needed and optionally offers a reward. Anyone can fulfill it by creating a fulfillment record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRef", "kind", "title", "description", "status", "createdAt"],
+        "properties": {
+          "projectRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the com.minomobi.mega.project record this request is about"
+          },
+          "projectName": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Denormalized project name for display without resolving the reference"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["webcam", "photo", "video", "document", "progress_update", "satellite", "other"],
+            "description": "Type of information requested"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Short title describing the request (e.g., 'Current webcam feed for Brenner Base Tunnel south portal')"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Detailed description of what information is needed and any requirements"
+          },
+          "bounty": {
+            "type": "ref",
+            "ref": "#bountyInfo",
+            "description": "Optional bounty/reward details"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "claimed", "fulfilled", "expired"],
+            "description": "Current status of the request"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this request expires if unfulfilled"
+          },
+          "fulfilledBy": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the fulfillment record that satisfied this request"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this request was created"
+          }
+        }
+      }
+    },
+    "bountyInfo": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "Bounty amount in the specified currency"
+        },
+        "currency": {
+          "type": "string",
+          "maxLength": 8,
+          "description": "ISO 4217 currency code or 'REPUTATION' for non-monetary bounties"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "How the bounty will be paid (e.g., 'PayPal', 'Lightning', 'Venmo')"
+        }
+      }
+    }
+  }
+}

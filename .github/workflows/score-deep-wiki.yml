@@ -1,0 +1,98 @@
+name: Score Deep Wikipedia
+
+on:
+  push:
+    branches:
+      - main
+      - claude/wiki-card-game-oJbLE
+    paths:
+      - 'scripts/score-deep-wikipedia.py'
+      - 'scripts/generate-pool-js.py'
+      - 'scripts/compute-embeddings.py'
+      - 'scripts/publish-cards-to-pds.py'
+      - '.github/workflows/score-deep-wiki.yml'
+
+  workflow_dispatch:
+    inputs:
+      include_ga:
+        description: 'Include Good Articles (~43K, much slower)'
+        required: false
+        default: false
+        type: boolean
+      limit:
+        description: 'Limit to N articles (0 = all, use 100 for testing)'
+        required: false
+        default: '0'
+      per_bin:
+        description: 'Top articles per Wikinatomy bin'
+        required: false
+        default: '30'
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Score Featured Articles
+        timeout-minutes: 300
+        run: |
+          mkdir -p cards/data
+          python3 scripts/score-deep-wikipedia.py \
+            ${{ inputs.include_ga == 'true' && '--include-ga' || '' }} \
+            ${{ inputs.limit != '0' && inputs.limit && format('--limit {0}', inputs.limit) || '' }} \
+            --per-bin ${{ inputs.per_bin || '30' }} \
+            -o cards/data/deep-wikipedia.json \
+            --pool-output cards/data/deep-pool.json \
+            2>&1 | tee cards/data/score-log.txt
+
+      - name: Generate pool.js from scored data
+        run: python3 scripts/generate-pool-js.py
+
+      - name: Compute embeddings for Alchemy
+        timeout-minutes: 30
+        run: |
+          pip install sentence-transformers
+          python3 scripts/compute-embeddings.py \
+            --pool cards/data/full-pool.json \
+            --articles cards/data/deep-wikipedia.json \
+            --output-dir cards/data/
+
+      - name: Publish card catalog to PDS
+        if: success()
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: |
+          python3 scripts/publish-cards-to-pds.py \
+            --input cards/data/deep-wikipedia.json \
+            --replace
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cards/data/ cards/js/pool.js
+          git diff --cached --quiet && echo "No changes" && exit 0
+
+          git commit -m "deep-wiki: score $(jq -r '.meta.total_scored' cards/data/deep-wikipedia.json 2>/dev/null || echo '?') articles, regenerate pool [auto]"
+
+          # Rebase on remote; resolve conflicts by keeping workflow output
+          # (workflow generates fresh data that should always win)
+          if ! git pull --rebase origin ${{ github.ref_name }}; then
+            echo "Rebase conflict — keeping workflow-generated files"
+            git checkout --theirs -- cards/data/ cards/js/pool.js 2>/dev/null || true
+            git add cards/data/ cards/js/pool.js
+            GIT_EDITOR=true git rebase --continue
+          fi
+
+          git push origin ${{ github.ref_name }}

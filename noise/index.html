@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.">
+<title>Noise — binaural beats generator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#0a0a14;
+  --surface:#12121e;
+  --border:#1e1e30;
+  --text:#c8c8d8;
+  --dim:#666680;
+  --accent:#6e56cf;
+  --accent-glow:#6e56cf44;
+  --warm:#cf8856;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+
+/* ---- Header ---- */
+header{
+  text-align:center;
+  padding:2rem 1rem 1rem;
+}
+header h1{
+  font-size:1.4rem;
+  font-weight:300;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+header h1 span{
+  color:var(--accent);
+  font-weight:600;
+}
+
+/* ---- Main Play Button ---- */
+.play-zone{
+  display:flex;
+  justify-content:center;
+  padding:1.5rem 0;
+}
+.play-btn{
+  width:88px;height:88px;
+  border-radius:50%;
+  border:2px solid var(--accent);
+  background:transparent;
+  color:var(--accent);
+  font-size:2rem;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+  box-shadow:0 0 0 0 var(--accent-glow);
+}
+.play-btn:hover,.play-btn:active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 30px 8px var(--accent-glow);
+}
+.play-btn.active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 40px 12px var(--accent-glow);
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 30px 8px var(--accent-glow)}
+  50%{box-shadow:0 0 50px 16px var(--accent-glow)}
+}
+
+/* ---- Controls ---- */
+.controls{
+  flex:1;
+  padding:0 1rem 2rem;
+  max-width:480px;
+  margin:0 auto;
+  width:100%;
+}
+
+.section{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1rem;
+  margin-bottom:1rem;
+}
+.section-title{
+  font-size:.65rem;
+  text-transform:uppercase;
+  letter-spacing:.15em;
+  color:var(--dim);
+  margin-bottom:.75rem;
+}
+
+/* Slider rows */
+.slider-row{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  margin-bottom:.6rem;
+}
+.slider-row:last-child{margin-bottom:0}
+.slider-label{
+  font-size:.8rem;
+  min-width:80px;
+  color:var(--text);
+}
+.slider-value{
+  font-size:.75rem;
+  min-width:48px;
+  text-align:right;
+  color:var(--dim);
+  font-variant-numeric:tabular-nums;
+}
+input[type=range]{
+  -webkit-appearance:none;
+  appearance:none;
+  flex:1;
+  height:6px;
+  border-radius:3px;
+  background:var(--border);
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--accent);
+  border:2px solid var(--bg);
+  cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--accent);
+  border:2px solid var(--bg);
+  cursor:pointer;
+}
+
+/* Preset chips */
+.presets{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+  margin-top:.5rem;
+}
+.preset-chip{
+  padding:.4rem .8rem;
+  font-size:.72rem;
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:all .15s;
+  letter-spacing:.03em;
+}
+.preset-chip:hover,.preset-chip.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-glow);
+}
+
+/* Noise type toggle */
+.noise-types{
+  display:flex;
+  gap:.5rem;
+}
+.noise-type-btn{
+  flex:1;
+  padding:.5rem;
+  font-size:.75rem;
+  font-weight:500;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:all .15s;
+  text-align:center;
+}
+.noise-type-btn:hover{border-color:var(--dim)}
+.noise-type-btn.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-glow);
+}
+
+/* Tone mode toggle — same style as noise types */
+.tone-modes{
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+}
+.tone-mode-btn{
+  flex:1;
+  padding:.5rem;
+  font-size:.72rem;
+  font-weight:500;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:all .15s;
+  text-align:center;
+  min-width:70px;
+}
+.tone-mode-btn:hover{border-color:var(--dim)}
+.tone-mode-btn.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accent-glow);
+}
+
+/* Conditional controls */
+.mode-controls{margin-top:.75rem}
+.mode-controls[hidden]{display:none}
+
+/* Timer */
+.timer-row{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+}
+.timer-display{
+  font-size:.85rem;
+  font-variant-numeric:tabular-nums;
+  color:var(--dim);
+}
+
+/* Footer */
+footer{
+  text-align:center;
+  padding:1rem;
+  font-size:.6rem;
+  color:var(--dim);
+  letter-spacing:.1em;
+}
+footer a{color:var(--accent);text-decoration:none}
+
+/* Status bar */
+.status{
+  text-align:center;
+  font-size:.65rem;
+  color:var(--dim);
+  padding:.5rem;
+  min-height:1.5rem;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Noise</span></h1>
+</header>
+
+<div class="status" id="status"></div>
+
+<div class="play-zone">
+  <button class="play-btn" id="play-btn" aria-label="Play">
+    <svg id="icon-play" width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><polygon points="7,3 21,12 7,21"/></svg>
+    <svg id="icon-pause" width="36" height="36" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+  </button>
+</div>
+
+<div class="controls">
+
+  <!-- Tone Mode -->
+  <div class="section">
+    <div class="section-title">Tone Mode</div>
+    <div class="tone-modes" id="tone-modes">
+      <button class="tone-mode-btn active" data-mode="binaural">Binaural</button>
+      <button class="tone-mode-btn" data-mode="harmonic">Harmonic</button>
+      <button class="tone-mode-btn" data-mode="shepard">Shepard</button>
+      <button class="tone-mode-btn" data-mode="comb">Comb</button>
+    </div>
+
+    <!-- Binaural / Harmonic controls -->
+    <div class="mode-controls" id="controls-binaural">
+      <div class="slider-row">
+        <span class="slider-label">Base freq</span>
+        <input type="range" id="base-freq" min="80" max="500" value="200" step="1">
+        <span class="slider-value" id="base-freq-val">200 Hz</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Beat freq</span>
+        <input type="range" id="beat-freq" min="0.5" max="40" value="10" step="0.5">
+        <span class="slider-value" id="beat-freq-val">10 Hz</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Tone vol</span>
+        <input type="range" id="tone-vol" min="0" max="100" value="30" step="1">
+        <span class="slider-value" id="tone-vol-val">30%</span>
+      </div>
+      <div class="presets">
+        <button class="preset-chip" data-beat="2" data-label="Delta">Delta 2 Hz</button>
+        <button class="preset-chip" data-beat="6" data-label="Theta">Theta 6 Hz</button>
+        <button class="preset-chip active" data-beat="10" data-label="Alpha">Alpha 10 Hz</button>
+        <button class="preset-chip" data-beat="20" data-label="Beta">Beta 20 Hz</button>
+        <button class="preset-chip" data-beat="40" data-label="Gamma">Gamma 40 Hz</button>
+      </div>
+    </div>
+
+    <!-- Harmonic-specific: overtone selector -->
+    <div class="mode-controls" id="controls-harmonic" hidden>
+      <div class="slider-row">
+        <span class="slider-label">Base freq</span>
+        <input type="range" id="harm-base-freq" min="80" max="500" value="200" step="1">
+        <span class="slider-value" id="harm-base-freq-val">200 Hz</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Beat freq</span>
+        <input type="range" id="harm-beat-freq" min="0.5" max="40" value="10" step="0.5">
+        <span class="slider-value" id="harm-beat-freq-val">10 Hz</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Tone vol</span>
+        <input type="range" id="harm-tone-vol" min="0" max="100" value="30" step="1">
+        <span class="slider-value" id="harm-tone-vol-val">30%</span>
+      </div>
+      <div class="section-title" style="margin-top:.75rem">Overtones</div>
+      <div class="presets" id="harmonic-presets">
+        <button class="preset-chip active" data-ratio="2" data-label="Octave">Octave (2x)</button>
+        <button class="preset-chip" data-ratio="1.5" data-label="Fifth">Fifth (1.5x)</button>
+        <button class="preset-chip" data-ratio="3" data-label="Oct+5th">Oct+5th (3x)</button>
+        <button class="preset-chip" data-ratio="4" data-label="2 Oct">2 Oct (4x)</button>
+      </div>
+      <div class="slider-row" style="margin-top:.5rem">
+        <span class="slider-label">Overtone mix</span>
+        <input type="range" id="overtone-mix" min="0" max="100" value="40" step="1">
+        <span class="slider-value" id="overtone-mix-val">40%</span>
+      </div>
+    </div>
+
+    <!-- Shepard tone controls -->
+    <div class="mode-controls" id="controls-shepard" hidden>
+      <div class="slider-row">
+        <span class="slider-label">Speed</span>
+        <input type="range" id="shepard-speed" min="1" max="30" value="8" step="1">
+        <span class="slider-value" id="shepard-speed-val">8 s/oct</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Tone vol</span>
+        <input type="range" id="shepard-vol" min="0" max="100" value="30" step="1">
+        <span class="slider-value" id="shepard-vol-val">30%</span>
+      </div>
+      <div class="presets" id="shepard-dir">
+        <button class="preset-chip active" data-dir="up">Rising</button>
+        <button class="preset-chip" data-dir="down">Falling</button>
+      </div>
+    </div>
+
+    <!-- Comb filter controls -->
+    <div class="mode-controls" id="controls-comb" hidden>
+      <div class="slider-row">
+        <span class="slider-label">Fundamental</span>
+        <input type="range" id="comb-freq" min="40" max="300" value="100" step="1">
+        <span class="slider-value" id="comb-freq-val">100 Hz</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Resonance</span>
+        <input type="range" id="comb-q" min="1" max="80" value="30" step="1">
+        <span class="slider-value" id="comb-q-val">30</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Harmonics</span>
+        <input type="range" id="comb-harmonics" min="2" max="16" value="8" step="1">
+        <span class="slider-value" id="comb-harmonics-val">8</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Comb vol</span>
+        <input type="range" id="comb-vol" min="0" max="100" value="30" step="1">
+        <span class="slider-value" id="comb-vol-val">30%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Noise Layer -->
+  <div class="section">
+    <div class="section-title">Noise</div>
+    <div class="noise-types" id="noise-types">
+      <button class="noise-type-btn" data-type="off">Off</button>
+      <button class="noise-type-btn active" data-type="white">White</button>
+      <button class="noise-type-btn" data-type="pink">Pink</button>
+      <button class="noise-type-btn" data-type="brown">Brown</button>
+    </div>
+    <div class="slider-row" style="margin-top:.75rem">
+      <span class="slider-label">Noise vol</span>
+      <input type="range" id="noise-vol" min="0" max="100" value="20" step="1">
+      <span class="slider-value" id="noise-vol-val">20%</span>
+    </div>
+  </div>
+
+  <!-- Sleep Timer -->
+  <div class="section">
+    <div class="section-title">Sleep Timer</div>
+    <div class="presets" id="timer-presets">
+      <button class="preset-chip active" data-minutes="0">Off</button>
+      <button class="preset-chip" data-minutes="15">15 min</button>
+      <button class="preset-chip" data-minutes="30">30 min</button>
+      <button class="preset-chip" data-minutes="60">1 hr</button>
+      <button class="preset-chip" data-minutes="120">2 hr</button>
+    </div>
+    <div class="timer-row" style="margin-top:.5rem">
+      <span class="timer-display" id="timer-display"></span>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <a href="docs.html">how it works</a> &middot; <a href="https://minomobi.com">minomobi.com</a>
+</footer>
+
+<!-- Hidden audio element — the key to background playback -->
+<audio id="bg-audio" playsinline webkit-playsinline></audio>
+
+<script>
+(() => {
+  // ============================================================
+  // BACKGROUND AUDIO TRICK
+  //
+  // Web Audio API oscillators get suspended when the phone sleeps.
+  // But a standard <audio> element playing a MediaStream stays alive.
+  // So we route: Oscillators -> MediaStreamDestination -> <audio>.src
+  // The OS sees a playing <audio> element and keeps it running.
+  // ============================================================
+
+  let ctx = null;
+  let streamDest = null;
+  const bgAudio = document.getElementById("bg-audio");
+  let playing = false;
+
+  // Shared nodes
+  let gainMaster = null;
+  let gainTone = null;
+  let gainNoise = null;
+
+  // Binaural nodes
+  let oscL = null, oscR = null;
+  let panL = null, panR = null;
+
+  // Harmonic nodes
+  let harmOscL = null, harmOscR = null;
+  let harmOvertoneL = null, harmOvertoneR = null;
+  let harmPanL = null, harmPanR = null;
+  let harmGainFund = null, harmGainOvertone = null;
+
+  // Shepard nodes
+  let shepardOscs = [];
+  let shepardGains = [];
+  let shepardInterval = null;
+
+  // Comb filter nodes
+  let combNoiseSource = null, combNoiseBuffer = null;
+  let combFilters = [];
+  let combFilterGains = [];
+  let combMerge = null;
+  let gainComb = null;
+
+  // Noise
+  let noiseSource = null, noiseBuffer = null;
+
+  // State
+  let toneMode = "binaural"; // binaural | harmonic | shepard | comb
+  let baseFreq = 200;
+  let beatFreq = 10;
+  let toneVol = 0.3;
+  let noiseVol = 0.2;
+  let noiseType = "white";
+  let timerMinutes = 0;
+  let timerInterval = null;
+  let timerEnd = null;
+
+  // Harmonic state
+  let harmRatio = 2;
+  let overtoneMix = 0.4;
+
+  // Shepard state
+  let shepardSpeed = 8; // seconds per octave
+  let shepardDir = 1; // 1 = up, -1 = down
+  let shepardVol = 0.3;
+  let shepardPhase = 0; // 0..1 log position within the spectral window
+  let shepardAnimFrame = null;
+  let shepardLastTime = 0;
+
+  // Comb state
+  let combFreq = 100;
+  let combQ = 30;
+  let combHarmonics = 8;
+  let combVol = 0.3;
+
+  // Elements
+  const playBtn = document.getElementById("play-btn");
+  const iconPlay = document.getElementById("icon-play");
+  const iconPause = document.getElementById("icon-pause");
+  const statusEl = document.getElementById("status");
+
+  // ---- Audio Context Setup ----
+
+  function ensureContext() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    streamDest = ctx.createMediaStreamDestination();
+    bgAudio.srcObject = streamDest.stream;
+
+    gainMaster = ctx.createGain();
+    gainMaster.gain.value = 1;
+    gainMaster.connect(streamDest);
+    // ALL audio through <audio> element only — no ctx.destination
+
+    gainTone = ctx.createGain();
+    gainTone.gain.value = toneVol;
+    gainTone.connect(gainMaster);
+
+    gainNoise = ctx.createGain();
+    gainNoise.gain.value = noiseVol;
+    gainNoise.connect(gainMaster);
+
+    // Binaural pan nodes
+    panL = ctx.createStereoPanner();
+    panL.pan.value = -1;
+    panL.connect(gainTone);
+
+    panR = ctx.createStereoPanner();
+    panR.pan.value = 1;
+    panR.connect(gainTone);
+
+    generateNoiseBuffers();
+  }
+
+  function generateNoiseBuffers() {
+    const sr = ctx.sampleRate;
+    const len = sr * 10;
+    noiseBuffer = {};
+
+    // White noise
+    const white = ctx.createBuffer(1, len, sr);
+    const wd = white.getChannelData(0);
+    for (let i = 0; i < len; i++) wd[i] = Math.random() * 2 - 1;
+    noiseBuffer.white = white;
+
+    // Pink noise (Voss-McCartney)
+    const pink = ctx.createBuffer(1, len, sr);
+    const pd = pink.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886*b0 + w*0.0555179;
+      b1 = 0.99332*b1 + w*0.0750759;
+      b2 = 0.96900*b2 + w*0.1538520;
+      b3 = 0.86650*b3 + w*0.3104856;
+      b4 = 0.55000*b4 + w*0.5329522;
+      b5 = -0.7616*b5 - w*0.0168980;
+      pd[i] = (b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+      b6 = w*0.115926;
+    }
+    noiseBuffer.pink = pink;
+
+    // Brown noise (integrated white)
+    const brown = ctx.createBuffer(1, len, sr);
+    const bd = brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      last = (last + (0.02 * w)) / 1.02;
+      bd[i] = last * 3.5;
+    }
+    noiseBuffer.brown = brown;
+  }
+
+  // ---- Start / Stop ----
+
+  function start() {
+    ensureContext();
+    if (ctx.state === "suspended") ctx.resume();
+
+    startToneMode();
+    startNoise();
+
+    bgAudio.play().catch(() => {});
+
+    playing = true;
+    updateUI();
+    updateMediaSession();
+    statusEl.textContent = "Playing \u2014 will continue in background";
+
+    if (timerMinutes > 0) startTimer(timerMinutes);
+  }
+
+  function stop() {
+    stopToneMode();
+    stopNoise();
+    bgAudio.pause();
+    playing = false;
+    updateUI();
+    stopTimer();
+    statusEl.textContent = "";
+  }
+
+  // ---- Tone Mode Dispatch ----
+
+  function startToneMode() {
+    stopToneMode();
+    switch (toneMode) {
+      case "binaural": startBinaural(); break;
+      case "harmonic": startHarmonic(); break;
+      case "shepard": startShepard(); break;
+      case "comb": startComb(); break;
+    }
+  }
+
+  function stopToneMode() {
+    stopBinaural();
+    stopHarmonic();
+    stopShepard();
+    stopComb();
+  }
+
+  // ---- Binaural ----
+
+  function startBinaural() {
+    oscL = ctx.createOscillator();
+    oscR = ctx.createOscillator();
+    oscL.type = "sine";
+    oscR.type = "sine";
+    oscL.frequency.value = baseFreq;
+    oscR.frequency.value = baseFreq + beatFreq;
+    oscL.connect(panL);
+    oscR.connect(panR);
+    oscL.start();
+    oscR.start();
+  }
+
+  function stopBinaural() {
+    if (oscL) { oscL.stop(); oscL.disconnect(); oscL = null; }
+    if (oscR) { oscR.stop(); oscR.disconnect(); oscR = null; }
+  }
+
+  function updateBinaural() {
+    if (!playing || toneMode !== "binaural") return;
+    if (oscL) oscL.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    if (oscR) oscR.frequency.setValueAtTime(baseFreq + beatFreq, ctx.currentTime);
+  }
+
+  // ---- Harmonic Overtone ----
+
+  function startHarmonic() {
+    // Read harmonic-specific slider values
+    const hBase = parseFloat(document.getElementById("harm-base-freq").value);
+    const hBeat = parseFloat(document.getElementById("harm-beat-freq").value);
+
+    harmGainFund = ctx.createGain();
+    harmGainFund.gain.value = 1.0;
+    harmGainOvertone = ctx.createGain();
+    harmGainOvertone.gain.value = overtoneMix;
+
+    harmPanL = ctx.createStereoPanner();
+    harmPanL.pan.value = -1;
+    harmPanR = ctx.createStereoPanner();
+    harmPanR.pan.value = 1;
+
+    // Route: fundamentals -> harmGainFund -> panL/R -> gainTone
+    // Route: overtones -> harmGainOvertone -> panL/R -> gainTone
+    harmGainFund.connect(harmPanL);
+    harmGainFund.connect(harmPanR);
+    harmGainOvertone.connect(harmPanL);
+    harmGainOvertone.connect(harmPanR);
+    harmPanL.connect(gainTone);
+    harmPanR.connect(gainTone);
+
+    // Left fundamental
+    harmOscL = ctx.createOscillator();
+    harmOscL.type = "sine";
+    harmOscL.frequency.value = hBase;
+
+    // Right fundamental
+    harmOscR = ctx.createOscillator();
+    harmOscR.type = "sine";
+    harmOscR.frequency.value = hBase + hBeat;
+
+    // Left overtone
+    harmOvertoneL = ctx.createOscillator();
+    harmOvertoneL.type = "sine";
+    harmOvertoneL.frequency.value = hBase * harmRatio;
+
+    // Right overtone
+    harmOvertoneR = ctx.createOscillator();
+    harmOvertoneR.type = "sine";
+    harmOvertoneR.frequency.value = (hBase + hBeat) * harmRatio;
+
+    // Wire up with separate gain paths for fundamental vs overtone
+    // We need per-oscillator gain to split fund/overtone levels
+    const fundGainL = ctx.createGain(); fundGainL.gain.value = 1;
+    const fundGainR = ctx.createGain(); fundGainR.gain.value = 1;
+    const overtoneGainL = ctx.createGain(); overtoneGainL.gain.value = 1;
+    const overtoneGainR = ctx.createGain(); overtoneGainR.gain.value = 1;
+
+    harmOscL.connect(fundGainL);
+    harmOscR.connect(fundGainR);
+    harmOvertoneL.connect(overtoneGainL);
+    harmOvertoneR.connect(overtoneGainR);
+
+    // L fundamental + L overtone -> panL
+    // R fundamental + R overtone -> panR
+    const panHL = ctx.createStereoPanner(); panHL.pan.value = -1;
+    const panHR = ctx.createStereoPanner(); panHR.pan.value = 1;
+    const panOL = ctx.createStereoPanner(); panOL.pan.value = -1;
+    const panOR = ctx.createStereoPanner(); panOR.pan.value = 1;
+
+    fundGainL.connect(panHL);
+    fundGainR.connect(panHR);
+    overtoneGainL.connect(panOL);
+    overtoneGainR.connect(panOR);
+
+    // Disconnect the shared panL/panR approach — use dedicated ones
+    harmPanL.disconnect();
+    harmPanR.disconnect();
+    harmGainFund.disconnect();
+    harmGainOvertone.disconnect();
+
+    // Create mix gains
+    harmGainFund = ctx.createGain();
+    harmGainFund.gain.value = 1.0;
+    harmGainOvertone = ctx.createGain();
+    harmGainOvertone.gain.value = overtoneMix;
+
+    panHL.connect(harmGainFund);
+    panHR.connect(harmGainFund);
+    panOL.connect(harmGainOvertone);
+    panOR.connect(harmGainOvertone);
+
+    harmGainFund.connect(gainTone);
+    harmGainOvertone.connect(gainTone);
+
+    harmOscL.start();
+    harmOscR.start();
+    harmOvertoneL.start();
+    harmOvertoneR.start();
+  }
+
+  function stopHarmonic() {
+    [harmOscL, harmOscR, harmOvertoneL, harmOvertoneR].forEach(o => {
+      if (o) { try { o.stop(); } catch(e){} o.disconnect(); }
+    });
+    harmOscL = harmOscR = harmOvertoneL = harmOvertoneR = null;
+    if (harmGainFund) { harmGainFund.disconnect(); harmGainFund = null; }
+    if (harmGainOvertone) { harmGainOvertone.disconnect(); harmGainOvertone = null; }
+    if (harmPanL) { harmPanL.disconnect(); harmPanL = null; }
+    if (harmPanR) { harmPanR.disconnect(); harmPanR = null; }
+  }
+
+  function updateHarmonic() {
+    if (!playing || toneMode !== "harmonic") return;
+    const hBase = parseFloat(document.getElementById("harm-base-freq").value);
+    const hBeat = parseFloat(document.getElementById("harm-beat-freq").value);
+    if (harmOscL) harmOscL.frequency.setValueAtTime(hBase, ctx.currentTime);
+    if (harmOscR) harmOscR.frequency.setValueAtTime(hBase + hBeat, ctx.currentTime);
+    if (harmOvertoneL) harmOvertoneL.frequency.setValueAtTime(hBase * harmRatio, ctx.currentTime);
+    if (harmOvertoneR) harmOvertoneR.frequency.setValueAtTime((hBase + hBeat) * harmRatio, ctx.currentTime);
+    if (harmGainOvertone) harmGainOvertone.gain.setTargetAtTime(overtoneMix, ctx.currentTime, 0.05);
+  }
+
+  // ---- Shepard Tone ----
+  // Creates 6-8 octave-spaced sine waves with a Gaussian spectral envelope.
+  // The frequencies continuously glide up (or down), wrapping around when they
+  // exit the audible window. The Gaussian envelope fades them in/out at the
+  // edges so no individual tone is heard entering or leaving.
+
+  const SHEPARD_OCTAVES = 7;
+  const SHEPARD_BASE_LOW = 40;   // Hz — bottom of the spectral window
+  const SHEPARD_BASE_HIGH = 40 * Math.pow(2, SHEPARD_OCTAVES); // ~5120 Hz
+
+  function shepardGaussianGain(freqHz) {
+    // Gaussian centered at log-midpoint of the window
+    const logLow = Math.log2(SHEPARD_BASE_LOW);
+    const logHigh = Math.log2(SHEPARD_BASE_HIGH);
+    const logMid = (logLow + logHigh) / 2;
+    const logFreq = Math.log2(freqHz);
+    const sigma = (logHigh - logLow) / 4; // ~2 sigma covers the window
+    const d = (logFreq - logMid) / sigma;
+    return Math.exp(-0.5 * d * d);
+  }
+
+  function startShepard() {
+    shepardOscs = [];
+    shepardGains = [];
+    shepardPhase = 0;
+    shepardLastTime = ctx.currentTime;
+
+    const shepGainMaster = ctx.createGain();
+    shepGainMaster.gain.value = shepardVol;
+    shepGainMaster.connect(gainMaster);
+    // Store for cleanup
+    shepardGains.push({ node: shepGainMaster, type: "master" });
+
+    for (let i = 0; i < SHEPARD_OCTAVES; i++) {
+      const freq = SHEPARD_BASE_LOW * Math.pow(2, i + shepardPhase);
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      const g = ctx.createGain();
+      g.gain.value = shepardGaussianGain(freq) / SHEPARD_OCTAVES;
+
+      osc.connect(g);
+      g.connect(shepGainMaster);
+      osc.start();
+
+      shepardOscs.push(osc);
+      shepardGains.push({ node: g, index: i });
+    }
+
+    // Animate frequency glide
+    function animate(time) {
+      if (!playing || toneMode !== "shepard") return;
+      const now = ctx.currentTime;
+      const dt = now - shepardLastTime;
+      shepardLastTime = now;
+
+      // Move phase: dt / shepardSpeed gives fraction of octave traversed
+      shepardPhase += (dt / shepardSpeed) * shepardDir;
+      // Wrap
+      shepardPhase = ((shepardPhase % 1) + 1) % 1;
+
+      for (let i = 0; i < SHEPARD_OCTAVES; i++) {
+        const freq = SHEPARD_BASE_LOW * Math.pow(2, i + shepardPhase);
+        if (shepardOscs[i]) {
+          shepardOscs[i].frequency.setValueAtTime(freq, now);
+        }
+        if (shepardGains[i + 1]) { // +1 because [0] is master
+          const gain = shepardGaussianGain(freq) / SHEPARD_OCTAVES;
+          shepardGains[i + 1].node.gain.setValueAtTime(gain, now);
+        }
+      }
+
+      shepardAnimFrame = requestAnimationFrame(animate);
+    }
+    shepardAnimFrame = requestAnimationFrame(animate);
+  }
+
+  function stopShepard() {
+    if (shepardAnimFrame) { cancelAnimationFrame(shepardAnimFrame); shepardAnimFrame = null; }
+    shepardOscs.forEach(o => { try { o.stop(); } catch(e){} o.disconnect(); });
+    shepardGains.forEach(g => { g.node.disconnect(); });
+    shepardOscs = [];
+    shepardGains = [];
+  }
+
+  // ---- Comb Filter (Harmonic Resonator) ----
+  // White noise through a bank of narrow bandpass filters tuned to harmonics
+  // of a fundamental. Creates a pitched, breathy drone.
+
+  function startComb() {
+    gainComb = ctx.createGain();
+    gainComb.gain.value = combVol;
+    gainComb.connect(gainMaster);
+
+    // Noise source for the comb
+    combNoiseBuffer = noiseBuffer.white;
+    combNoiseSource = ctx.createBufferSource();
+    combNoiseSource.buffer = combNoiseBuffer;
+    combNoiseSource.loop = true;
+
+    combFilters = [];
+    combFilterGains = [];
+
+    for (let h = 1; h <= combHarmonics; h++) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = combFreq * h;
+      filter.Q.value = combQ;
+
+      // Each harmonic gets progressively quieter (1/h rolloff)
+      const hGain = ctx.createGain();
+      hGain.gain.value = 1 / h;
+
+      combNoiseSource.connect(filter);
+      filter.connect(hGain);
+      hGain.connect(gainComb);
+
+      combFilters.push(filter);
+      combFilterGains.push(hGain);
+    }
+
+    combNoiseSource.start();
+  }
+
+  function stopComb() {
+    if (combNoiseSource) { try { combNoiseSource.stop(); } catch(e){} combNoiseSource.disconnect(); combNoiseSource = null; }
+    combFilters.forEach(f => f.disconnect());
+    combFilterGains.forEach(g => g.disconnect());
+    combFilters = [];
+    combFilterGains = [];
+    if (gainComb) { gainComb.disconnect(); gainComb = null; }
+  }
+
+  function updateComb() {
+    if (!playing || toneMode !== "comb") return;
+    for (let i = 0; i < combFilters.length; i++) {
+      combFilters[i].frequency.setValueAtTime(combFreq * (i + 1), ctx.currentTime);
+      combFilters[i].Q.setValueAtTime(combQ, ctx.currentTime);
+    }
+    if (gainComb) gainComb.gain.setTargetAtTime(combVol, ctx.currentTime, 0.05);
+  }
+
+  // ---- Noise (independent layer) ----
+
+  function startNoise() {
+    stopNoise();
+    if (noiseType === "off" || !noiseBuffer[noiseType]) return;
+    noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer[noiseType];
+    noiseSource.loop = true;
+    noiseSource.connect(gainNoise);
+    noiseSource.start();
+  }
+
+  function stopNoise() {
+    if (noiseSource) {
+      noiseSource.stop();
+      noiseSource.disconnect();
+      noiseSource = null;
+    }
+  }
+
+  // ---- Volume updates ----
+
+  function updateVolumes() {
+    if (!gainTone || !gainNoise) return;
+    gainTone.gain.setTargetAtTime(toneVol, ctx.currentTime, 0.05);
+    gainNoise.gain.setTargetAtTime(noiseVol, ctx.currentTime, 0.05);
+  }
+
+  // ---- Timer ----
+
+  function startTimer(minutes) {
+    stopTimer();
+    timerEnd = Date.now() + minutes * 60 * 1000;
+    timerInterval = setInterval(() => {
+      const remaining = timerEnd - Date.now();
+      if (remaining <= 0) {
+        stop();
+        document.getElementById("timer-display").textContent = "";
+        return;
+      }
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      document.getElementById("timer-display").textContent =
+        `${m}:${s.toString().padStart(2, "0")} remaining`;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    document.getElementById("timer-display").textContent = "";
+  }
+
+  // ---- Media Session ----
+
+  function updateMediaSession() {
+    if (!("mediaSession" in navigator)) return;
+
+    const modeLabels = {
+      binaural: `${beatFreq} Hz binaural`,
+      harmonic: `${beatFreq} Hz harmonic`,
+      shepard: `Shepard tone (${shepardDir > 0 ? "rising" : "falling"})`,
+      comb: `Comb drone ${combFreq} Hz`
+    };
+    const label = modeLabels[toneMode] || toneMode;
+    const noiseLabel = noiseType !== "off" ? ` + ${noiseType} noise` : "";
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: `${label}${noiseLabel}`,
+      artist: "Noise \u2014 minomobi.com",
+      album: "Binaural Beats"
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (!playing) start(); else { ctx.resume(); bgAudio.play(); }
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      if (playing) stop();
+    });
+    navigator.mediaSession.setActionHandler("stop", () => {
+      if (playing) stop();
+    });
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      cycleBeatPreset(-1);
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      cycleBeatPreset(1);
+    });
+  }
+
+  const presetBeats = [2, 6, 10, 20, 40];
+  function cycleBeatPreset(dir) {
+    let idx = presetBeats.indexOf(beatFreq);
+    if (idx === -1) idx = 2;
+    idx = (idx + dir + presetBeats.length) % presetBeats.length;
+    beatFreq = presetBeats[idx];
+    document.getElementById("beat-freq").value = beatFreq;
+    document.getElementById("beat-freq-val").textContent = beatFreq + " Hz";
+    updateBinaural();
+    updatePresetChips();
+    updateMediaSession();
+  }
+
+  // ---- UI ----
+
+  function updateUI() {
+    iconPlay.style.display = playing ? "none" : "";
+    iconPause.style.display = playing ? "" : "none";
+    playBtn.classList.toggle("active", playing);
+    playBtn.setAttribute("aria-label", playing ? "Stop" : "Play");
+  }
+
+  function updatePresetChips() {
+    document.querySelectorAll(".presets [data-beat]").forEach(chip => {
+      chip.classList.toggle("active", parseFloat(chip.dataset.beat) === beatFreq);
+    });
+  }
+
+  function showModeControls(mode) {
+    ["binaural", "harmonic", "shepard", "comb"].forEach(m => {
+      const el = document.getElementById("controls-" + m);
+      if (el) el.hidden = (m !== mode);
+    });
+  }
+
+  // Play button
+  playBtn.addEventListener("click", () => {
+    if (playing) stop(); else start();
+  });
+
+  // ---- Tone mode buttons ----
+  document.querySelectorAll("#tone-modes .tone-mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#tone-modes .tone-mode-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      toneMode = btn.dataset.mode;
+      showModeControls(toneMode);
+      if (playing) {
+        startToneMode();
+        updateMediaSession();
+      }
+    });
+  });
+
+  // ---- Binaural controls ----
+  const baseFreqSlider = document.getElementById("base-freq");
+  const baseFreqVal = document.getElementById("base-freq-val");
+  baseFreqSlider.addEventListener("input", () => {
+    baseFreq = parseFloat(baseFreqSlider.value);
+    baseFreqVal.textContent = baseFreq + " Hz";
+    updateBinaural();
+  });
+
+  const beatFreqSlider = document.getElementById("beat-freq");
+  const beatFreqVal = document.getElementById("beat-freq-val");
+  beatFreqSlider.addEventListener("input", () => {
+    beatFreq = parseFloat(beatFreqSlider.value);
+    beatFreqVal.textContent = beatFreq + " Hz";
+    updateBinaural();
+    updatePresetChips();
+    if (playing) updateMediaSession();
+  });
+
+  const toneVolSlider = document.getElementById("tone-vol");
+  const toneVolVal = document.getElementById("tone-vol-val");
+  toneVolSlider.addEventListener("input", () => {
+    toneVol = parseInt(toneVolSlider.value) / 100;
+    toneVolVal.textContent = toneVolSlider.value + "%";
+    updateVolumes();
+  });
+
+  // Preset chips (binaural)
+  document.querySelectorAll(".presets [data-beat]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      beatFreq = parseFloat(chip.dataset.beat);
+      beatFreqSlider.value = beatFreq;
+      beatFreqVal.textContent = beatFreq + " Hz";
+      updateBinaural();
+      updatePresetChips();
+      if (playing) updateMediaSession();
+    });
+  });
+
+  // ---- Harmonic controls ----
+  const harmBaseSlider = document.getElementById("harm-base-freq");
+  const harmBaseVal = document.getElementById("harm-base-freq-val");
+  harmBaseSlider.addEventListener("input", () => {
+    harmBaseVal.textContent = harmBaseSlider.value + " Hz";
+    updateHarmonic();
+  });
+
+  const harmBeatSlider = document.getElementById("harm-beat-freq");
+  const harmBeatVal = document.getElementById("harm-beat-freq-val");
+  harmBeatSlider.addEventListener("input", () => {
+    harmBeatVal.textContent = harmBeatSlider.value + " Hz";
+    updateHarmonic();
+  });
+
+  const harmToneVolSlider = document.getElementById("harm-tone-vol");
+  const harmToneVolVal = document.getElementById("harm-tone-vol-val");
+  harmToneVolSlider.addEventListener("input", () => {
+    toneVol = parseInt(harmToneVolSlider.value) / 100;
+    harmToneVolVal.textContent = harmToneVolSlider.value + "%";
+    updateVolumes();
+  });
+
+  // Harmonic ratio presets
+  document.querySelectorAll("#harmonic-presets .preset-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("#harmonic-presets .preset-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      harmRatio = parseFloat(chip.dataset.ratio);
+      if (playing && toneMode === "harmonic") {
+        stopHarmonic();
+        startHarmonic();
+      }
+    });
+  });
+
+  // Overtone mix
+  const overtoneMixSlider = document.getElementById("overtone-mix");
+  const overtoneMixVal = document.getElementById("overtone-mix-val");
+  overtoneMixSlider.addEventListener("input", () => {
+    overtoneMix = parseInt(overtoneMixSlider.value) / 100;
+    overtoneMixVal.textContent = overtoneMixSlider.value + "%";
+    updateHarmonic();
+  });
+
+  // ---- Shepard controls ----
+  const shepardSpeedSlider = document.getElementById("shepard-speed");
+  const shepardSpeedVal = document.getElementById("shepard-speed-val");
+  shepardSpeedSlider.addEventListener("input", () => {
+    shepardSpeed = parseInt(shepardSpeedSlider.value);
+    shepardSpeedVal.textContent = shepardSpeed + " s/oct";
+  });
+
+  const shepardVolSlider = document.getElementById("shepard-vol");
+  const shepardVolVal = document.getElementById("shepard-vol-val");
+  shepardVolSlider.addEventListener("input", () => {
+    shepardVol = parseInt(shepardVolSlider.value) / 100;
+    shepardVolVal.textContent = shepardVolSlider.value + "%";
+    // Update master gain of Shepard
+    if (shepardGains.length > 0 && shepardGains[0].type === "master") {
+      shepardGains[0].node.gain.setTargetAtTime(shepardVol, ctx.currentTime, 0.05);
+    }
+  });
+
+  document.querySelectorAll("#shepard-dir .preset-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("#shepard-dir .preset-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      shepardDir = chip.dataset.dir === "up" ? 1 : -1;
+      if (playing) updateMediaSession();
+    });
+  });
+
+  // ---- Comb controls ----
+  const combFreqSlider = document.getElementById("comb-freq");
+  const combFreqVal = document.getElementById("comb-freq-val");
+  combFreqSlider.addEventListener("input", () => {
+    combFreq = parseInt(combFreqSlider.value);
+    combFreqVal.textContent = combFreq + " Hz";
+    updateComb();
+  });
+
+  const combQSlider = document.getElementById("comb-q");
+  const combQVal = document.getElementById("comb-q-val");
+  combQSlider.addEventListener("input", () => {
+    combQ = parseInt(combQSlider.value);
+    combQVal.textContent = combQ;
+    updateComb();
+  });
+
+  const combHarmonicsSlider = document.getElementById("comb-harmonics");
+  const combHarmonicsVal = document.getElementById("comb-harmonics-val");
+  combHarmonicsSlider.addEventListener("input", () => {
+    combHarmonics = parseInt(combHarmonicsSlider.value);
+    combHarmonicsVal.textContent = combHarmonics;
+    // Rebuild the filter bank
+    if (playing && toneMode === "comb") {
+      stopComb();
+      startComb();
+    }
+  });
+
+  const combVolSlider = document.getElementById("comb-vol");
+  const combVolVal = document.getElementById("comb-vol-val");
+  combVolSlider.addEventListener("input", () => {
+    combVol = parseInt(combVolSlider.value) / 100;
+    combVolVal.textContent = combVolSlider.value + "%";
+    updateComb();
+  });
+
+  // ---- Noise controls ----
+  const noiseVolSlider = document.getElementById("noise-vol");
+  const noiseVolVal = document.getElementById("noise-vol-val");
+  noiseVolSlider.addEventListener("input", () => {
+    noiseVol = parseInt(noiseVolSlider.value) / 100;
+    noiseVolVal.textContent = noiseVolSlider.value + "%";
+    updateVolumes();
+  });
+
+  document.querySelectorAll("#noise-types .noise-type-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#noise-types .noise-type-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      noiseType = btn.dataset.type;
+      if (playing) {
+        startNoise();
+        updateMediaSession();
+      }
+    });
+  });
+
+  // ---- Timer presets ----
+  document.querySelectorAll("#timer-presets .preset-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("#timer-presets .preset-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      timerMinutes = parseInt(chip.dataset.minutes);
+      if (timerMinutes === 0) {
+        stopTimer();
+      } else if (playing) {
+        startTimer(timerMinutes);
+      }
+    });
+  });
+
+  // Prevent audio interruption on visibility change
+  document.addEventListener("visibilitychange", () => {
+    if (playing && ctx && ctx.state === "suspended") {
+      ctx.resume();
+    }
+    if (playing && bgAudio.paused) {
+      bgAudio.play().catch(() => {});
+    }
+  });
+  // ---- Service Worker ----
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

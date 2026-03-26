@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>150×150 Cosine Similarity Heatmap</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; overflow: hidden; }
+
+#container { display: flex; height: 100vh; }
+#sidebar { width: 260px; padding: 16px; overflow-y: auto; border-right: 1px solid #333; flex-shrink: 0; }
+#sidebar h1 { font-size: 14px; color: #fff; margin-bottom: 8px; }
+#sidebar .stat { font-size: 11px; color: #888; margin-bottom: 4px; }
+#legend { margin: 12px 0; }
+#legend .bar { height: 16px; border-radius: 3px; margin-bottom: 4px; }
+#legend .labels { display: flex; justify-content: space-between; font-size: 10px; color: #666; }
+#cluster-key { margin-top: 12px; }
+#cluster-key div { font-size: 11px; margin: 3px 0; display: flex; align-items: center; gap: 6px; }
+#cluster-key .swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+#tooltip {
+  position: fixed; background: #1a1a1a; border: 1px solid #555; padding: 8px 12px;
+  font-size: 11px; pointer-events: none; display: none; z-index: 100;
+  max-width: 320px; border-radius: 4px;
+}
+#tooltip .t-title { color: #fff; font-weight: bold; margin-bottom: 2px; }
+#tooltip .t-sim { color: #0f0; }
+#tooltip .t-cluster { color: #888; }
+
+#main { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="sidebar">
+    <h1>COSINE SIMILARITY</h1>
+    <div class="stat" id="info">Loading...</div>
+    <div id="legend">
+      <div class="bar" id="legend-bar"></div>
+      <div class="labels"><span>0.0</span><span>0.5</span><span>1.0</span></div>
+    </div>
+    <div id="cluster-key"></div>
+    <div style="margin-top:16px">
+      <div class="stat" id="hover-info">Hover for details</div>
+    </div>
+  </div>
+  <div id="main">
+    <canvas id="heatmap"></canvas>
+  </div>
+</div>
+<div id="tooltip"></div>
+
+<script>
+const CLUSTER_COLORS = {
+  'NATURAL WORLD': '#2ecc71',
+  'CONFLICT':      '#e74c3c',
+  'COMPETITION':   '#e67e22',
+  'CULTURE':       '#9b59b6',
+  'NARRATIVE':     '#3498db',
+  'STRUCTURE':     '#f1c40f',
+  'EARTH':         '#1abc9c',
+};
+
+function simToColor(v) {
+  // Blue (cold, 0) → white (0.5) → red (hot, 1)
+  v = Math.max(0, Math.min(1, v));
+  let r, g, b;
+  if (v < 0.5) {
+    const t = v / 0.5;
+    r = Math.round(10 + t * 245);
+    g = Math.round(10 + t * 245);
+    b = Math.round(80 + t * 175);
+  } else {
+    const t = (v - 0.5) / 0.5;
+    r = Math.round(255);
+    g = Math.round(255 - t * 230);
+    b = Math.round(255 - t * 230);
+  }
+  return [r, g, b];
+}
+
+async function init() {
+  const resp = await fetch('data/cosine-matrix-150.json');
+  const data = await resp.json();
+  const { n, articles, matrix } = data;
+
+  document.getElementById('info').textContent = `${n} × ${n} matrix`;
+
+  // Legend gradient
+  const bar = document.getElementById('legend-bar');
+  const stops = [];
+  for (let i = 0; i <= 20; i++) {
+    const v = i / 20;
+    const [r, g, b] = simToColor(v);
+    stops.push(`rgb(${r},${g},${b})`);
+  }
+  bar.style.background = `linear-gradient(to right, ${stops.join(',')})`;
+
+  // Cluster key
+  const keyEl = document.getElementById('cluster-key');
+  const seen = [];
+  for (const a of articles) {
+    if (!seen.includes(a.cluster)) seen.push(a.cluster);
+  }
+  for (const c of seen) {
+    const count = articles.filter(a => a.cluster === c).length;
+    const div = document.createElement('div');
+    div.innerHTML = `<span class="swatch" style="background:${CLUSTER_COLORS[c] || '#666'}"></span>${c} (${count})`;
+    keyEl.appendChild(div);
+  }
+
+  // Draw heatmap
+  const px = Math.min(4, Math.floor((window.innerHeight - 40) / n));
+  const size = n * px;
+  const canvas = document.getElementById('heatmap');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(size, size);
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const v = matrix[i][j];
+      const [r, g, b] = simToColor(v);
+      for (let dy = 0; dy < px; dy++) {
+        for (let dx = 0; dx < px; dx++) {
+          const off = ((i * px + dy) * size + j * px + dx) * 4;
+          img.data[off] = r;
+          img.data[off + 1] = g;
+          img.data[off + 2] = b;
+          img.data[off + 3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  // Draw cluster boundaries
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  let prevCluster = articles[0].cluster;
+  for (let i = 1; i < n; i++) {
+    if (articles[i].cluster !== prevCluster) {
+      const pos = i * px;
+      ctx.beginPath();
+      ctx.moveTo(pos, 0); ctx.lineTo(pos, size);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, pos); ctx.lineTo(size, pos);
+      ctx.stroke();
+      prevCluster = articles[i].cluster;
+    }
+  }
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  const hoverInfo = document.getElementById('hover-info');
+
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / px);
+    const y = Math.floor((e.clientY - rect.top) / px);
+    if (x < 0 || x >= n || y < 0 || y >= n) {
+      tooltip.style.display = 'none';
+      return;
+    }
+    const ai = articles[y];
+    const aj = articles[x];
+    const sim = matrix[y][x];
+
+    tooltip.innerHTML = `
+      <div class="t-title">${ai.title}</div>
+      <div class="t-cluster">${ai.cluster} / ${ai.neighborhood}</div>
+      <div style="margin:4px 0;color:#666">×</div>
+      <div class="t-title">${aj.title}</div>
+      <div class="t-cluster">${aj.cluster} / ${aj.neighborhood}</div>
+      <div class="t-sim" style="margin-top:6px">cosine: ${sim.toFixed(4)}</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top = (e.clientY + 16) + 'px';
+
+    // Keep tooltip in viewport
+    const tr = tooltip.getBoundingClientRect();
+    if (tr.right > window.innerWidth) tooltip.style.left = (e.clientX - tr.width - 8) + 'px';
+    if (tr.bottom > window.innerHeight) tooltip.style.top = (e.clientY - tr.height - 8) + 'px';
+
+    hoverInfo.textContent = `[${y},${x}] cos=${sim.toFixed(4)}`;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+    hoverInfo.textContent = 'Hover for details';
+  });
+}
+
+init();
+</script>
+</body>
+</html>

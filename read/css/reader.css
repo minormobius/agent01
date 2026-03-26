@@ -1,0 +1,888 @@
+/* reader.css — Gutenberg reader design system */
+
+:root {
+  --bg: #111;
+  --bg-surface: #1a1a1a;
+  --bg-raised: #222;
+  --text: #e0e0e0;
+  --text-muted: #888;
+  --accent: #c45;
+  --accent-dim: rgba(204,68,85,0.15);
+  --rule: #333;
+  --serif: Georgia, 'Times New Roman', serif;
+  --mono: 'SF Mono', 'Fira Code', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --reading-width: 38em;
+  --rsvp-font-size: clamp(2rem, 6vw, 3.5rem);
+  --radius: 8px;
+  --transition: 0.2s ease;
+  --crawl-text: #ffd700;
+}
+
+[data-theme="light"] {
+  --bg: #faf8f5;
+  --bg-surface: #fff;
+  --bg-raised: #f0ede8;
+  --text: #222;
+  --text-muted: #777;
+  --rule: #ddd;
+  --accent: #b33;
+  --accent-dim: rgba(187,51,51,0.1);
+}
+
+[data-font="sans"] {
+  --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+
+/* ─── Layout ─── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ─── Search View ─── */
+#search-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+#search-view h1 {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  margin-bottom: 0.3rem;
+  letter-spacing: -0.02em;
+}
+
+#search-view .subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1.2rem;
+}
+
+/* Source tabs */
+.source-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  width: fit-content;
+}
+.source-tab {
+  padding: 0.4rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.source-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+.source-tab:not(.active):hover {
+  background: var(--accent-dim);
+}
+
+.poetry-random {
+  margin-bottom: 1rem;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: var(--sans);
+  outline: none;
+}
+.search-bar input:focus { border-color: var(--accent); }
+
+.search-bar button {
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: var(--sans);
+  white-space: nowrap;
+}
+
+.search-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  gap: 0.8rem;
+  height: 100%;
+}
+.load-error-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 400px;
+  word-break: break-word;
+}
+.load-error-back {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+.load-error-back:hover { border-color: var(--accent); }
+
+.search-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.book-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  transition: border-color var(--transition);
+  font-family: var(--sans);
+  color: var(--text);
+}
+.book-card:hover { border-color: var(--accent); }
+
+.book-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.book-author {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+.book-dl {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.shelf-heading {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.6rem;
+  margin-top: 1rem;
+}
+
+.demo-link {
+  display: block;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 0.8rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  font-family: var(--sans);
+}
+
+/* ─── Reader View ─── */
+#reader-view {
+  display: none;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+#reader-view.active { display: flex; }
+
+/* ─── Reader Header ─── */
+.reader-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-surface);
+  min-height: 44px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.btn-icon:hover { background: var(--accent-dim); }
+
+.reader-title {
+  flex: 1;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.chapter-select {
+  padding: 0.3rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  max-width: 40%;
+  font-family: var(--sans);
+}
+
+/* ─── Reading Area ─── */
+#reading-area {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow-y: auto;
+}
+
+/* Scroll mode */
+#reading-area.scroll-reader {
+  padding: 1.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+#reading-area.scroll-reader > * {
+  max-width: var(--reading-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* RSVP and crawl clip their content */
+#reading-area.rsvp-reader,
+#reading-area.crawl-reader {
+  overflow: hidden;
+}
+
+.scroll-reader .chapter-title {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.scroll-reader p {
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.7;
+  margin-bottom: 1em;
+  text-indent: 1.5em;
+}
+.scroll-reader p:first-of-type { text-indent: 0; }
+
+.scroll-reader b {
+  font-weight: 700;
+}
+
+/* ─── RSVP Mode ─── */
+.rsvp-reader {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rsvp-frame {
+  position: relative;
+  width: 96%;
+  padding: 2rem 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rsvp-word {
+  font-family: var(--mono);
+  font-size: var(--rsvp-font-size);
+  white-space: pre;
+  text-align: center;
+  color: var(--text);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  transition: background-color 0.05s;
+}
+
+/* ─── Depth Trail (Star Wars crawl distance) ─── */
+.rsvp-trail {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  perspective: 400px;
+  margin-bottom: 0.3rem;
+}
+.rsvp-trail.active { display: flex; }
+
+.rsvp-trail-word {
+  font-family: var(--mono);
+  white-space: pre;
+  text-align: center;
+  color: var(--text);
+  line-height: 1.2;
+  transition: opacity 0.08s, filter 0.08s;
+}
+
+/* Each depth level: progressively smaller, more transparent, blurrier, vertically compressed */
+.rsvp-trail-word[data-depth="0"] {
+  font-size: calc(var(--rsvp-font-size) * 0.65);
+  opacity: 0.50;
+  filter: blur(0.5px);
+  transform: scaleY(0.92);
+}
+.rsvp-trail-word[data-depth="1"] {
+  font-size: calc(var(--rsvp-font-size) * 0.48);
+  opacity: 0.35;
+  filter: blur(1px);
+  transform: scaleY(0.85);
+}
+.rsvp-trail-word[data-depth="2"] {
+  font-size: calc(var(--rsvp-font-size) * 0.34);
+  opacity: 0.22;
+  filter: blur(1.5px);
+  transform: scaleY(0.78);
+}
+.rsvp-trail-word[data-depth="3"] {
+  font-size: calc(var(--rsvp-font-size) * 0.24);
+  opacity: 0.12;
+  filter: blur(2px);
+  transform: scaleY(0.72);
+}
+.rsvp-trail-word[data-depth="4"] {
+  font-size: calc(var(--rsvp-font-size) * 0.17);
+  opacity: 0.06;
+  filter: blur(2.5px);
+  transform: scaleY(0.65);
+}
+
+.rsvp-wpm {
+  position: absolute;
+  bottom: -1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--sans);
+}
+
+/* ─── Crawl Mode ─── */
+#reading-area.crawl-reader {
+  background: #000;
+  overflow: hidden;
+}
+
+.crawl-viewport {
+  width: 100%;
+  height: 100%;
+  perspective: 800px;
+  perspective-origin: center -300%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.crawl-viewport:active { cursor: grabbing; }
+
+.crawl-perspective {
+  width: 100%;
+  margin: 0 auto;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.crawl-content {
+  color: var(--crawl-text);
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--crawl-font-size, clamp(1rem, 3vw, 1.4rem));
+  line-height: 1.8;
+  text-align: justify;
+  width: 130%;
+  margin-left: -15%;
+  padding: 2rem 1.5rem;
+  transform-origin: center bottom;
+  transform: rotateX(20deg) translateY(100%);
+  will-change: transform;
+}
+
+.crawl-content .crawl-title {
+  font-size: 1.8em;
+  text-align: center;
+  margin-bottom: 1.5em;
+  letter-spacing: 0.05em;
+}
+
+.crawl-content p {
+  margin-bottom: 1.2em;
+}
+
+/* ─── Reader Footer ─── */
+.reader-footer {
+  border-top: 1px solid var(--rule);
+  background: var(--bg-surface);
+  padding: 0.4rem 0.8rem calc(0.4rem + env(safe-area-inset-bottom, 0px)); /* safari bottom nav clearance */
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.progress-bar {
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  margin-bottom: 0.4rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.15s;
+  border-radius: 2px;
+}
+
+.reader-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.reader-controls button {
+  background: none;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: border-color var(--transition);
+}
+.reader-controls button:hover { border-color: var(--accent); }
+.reader-controls button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.speed-label {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 4.5em;
+  text-align: center;
+}
+
+.control-sep {
+  width: 1px;
+  height: 1.2rem;
+  background: var(--rule);
+  margin: 0 0.3rem;
+}
+
+/* ─── Settings Dialog ─── */
+#settings-dialog {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  background: var(--bg-surface);
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-radius: 16px 16px 0 0;
+  padding: 0;
+  color: var(--text);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow-y: auto;
+}
+#settings-dialog::backdrop {
+  background: rgba(0,0,0,0.4);
+}
+
+.settings-inner {
+  padding: 1.2rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.settings-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  margin: 0.6rem auto 1rem;
+}
+
+.settings-inner h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.setting-group {
+  margin-bottom: 1.2rem;
+}
+
+.setting-group label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.setting-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.setting-row .range-val {
+  font-size: 0.85rem;
+  min-width: 3em;
+  text-align: right;
+  font-family: var(--mono);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.toggle-row span {
+  font-size: 0.9rem;
+}
+
+.toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  background: var(--rule);
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--transition);
+}
+.toggle.on::after { transform: translateX(18px); }
+
+.setting-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.rsvp-settings, .crawl-settings, .memorize-settings, .scroll-crawl-setting { display: none; }
+.rsvp-settings.visible, .crawl-settings.visible, .memorize-settings.visible, .scroll-crawl-setting.visible { display: block; }
+
+/* ─── Memorize Mode ─── */
+.memorize-reader {
+  padding: 1.5rem;
+  max-width: var(--reading-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-height: 100%;
+}
+
+#reading-area.memorize-reader {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mem-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mem-counter {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mem-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.mem-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rule);
+  transition: background 0.2s, transform 0.2s;
+}
+.mem-dot.active { background: var(--accent); }
+.mem-dot.current { transform: scale(1.3); }
+
+.mem-mastered-badge {
+  font-size: 0.72rem;
+  color: #4a4;
+  background: rgba(68, 170, 68, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mem-text-block {
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.8;
+  transition: opacity 0.3s;
+}
+
+.mem-text-block.mem-text-hidden {
+  display: none;
+}
+
+.mem-line {
+  margin-bottom: 0.3em;
+  min-height: 1.5em;
+}
+
+.mem-word {
+  display: inline;
+  transition: opacity 0.3s, color 0.3s;
+}
+
+.mem-word b { font-weight: 700; }
+
+.mem-hidden {
+  color: transparent;
+  border-bottom: 1.5px solid var(--rule);
+  letter-spacing: -0.05em;
+}
+
+.mem-letter {
+  color: var(--accent);
+  border-bottom: 1.5px solid var(--accent-dim);
+  font-style: italic;
+}
+
+.mem-blank {
+  color: transparent;
+  border-bottom: 1.5px solid var(--rule);
+  opacity: 0.4;
+}
+
+/* Controls */
+.mem-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.mem-stanza-nav {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.mem-btn-primary,
+.mem-btn-secondary,
+.mem-btn-accent {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.mem-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.mem-btn-primary:hover { filter: brightness(1.1); }
+
+.mem-btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+.mem-btn-secondary:hover { border-color: var(--accent); }
+
+.mem-btn-accent {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mem-btn-accent:hover { background: var(--accent-dim); }
+
+/* Check / recall mode */
+.mem-check-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.mem-textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+}
+.mem-textarea:focus { border-color: var(--accent); }
+
+.mem-check-btns {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Diff display */
+.mem-diff {
+  font-family: var(--body-font, var(--serif));
+  font-size: var(--font-size, 1.1rem);
+  line-height: 1.8;
+}
+
+.mem-diff-line {
+  margin-bottom: 0.3em;
+}
+
+.mem-diff-correct {
+  color: #4a4;
+}
+.mem-diff-wrong {
+  color: #c44;
+  text-decoration: underline wavy #c44;
+  cursor: help;
+}
+.mem-diff-missing {
+  color: var(--text-muted);
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.mem-score {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-raised);
+  border-radius: var(--radius);
+}
+.mem-score strong {
+  font-size: 1.2em;
+}
+
+/* ─── Desktop adjustments ─── */
+@media (min-width: 768px) {
+  #settings-dialog {
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 420px;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
+    max-height: 80vh;
+  }
+
+  .rsvp-frame { max-width: 900px; margin: 0 auto; }
+}
+
+/* ─── Transitions ─── */
+#search-view, #reader-view { transition: opacity 0.15s ease; }
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

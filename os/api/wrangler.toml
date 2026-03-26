@@ -1,0 +1,19 @@
+name = "os-mino-api"
+main = "src/index.js"
+compatibility_date = "2026-02-20"
+compatibility_flags = ["nodejs_compat", "containers"]
+
+# Container definition — Docker image for the PTY shell
+[[containers]]
+class_name = "ContainerShell"
+image = "./container/Dockerfile"
+max_instances = 10
+
+# Durable Object bindings
+[[durable_objects.bindings]]
+name = "CONTAINER_SHELL"
+class_name = "ContainerShell"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ContainerShell"]

@@ -1,0 +1,78 @@
+Embedding 120 anchor texts...
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 3526.73it/s]
+[1mBertModel LOAD REPORT[0m from: BAAI/bge-base-en-v1.5
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Batches:   0%|          | 0/4 [00:00<?, ?it/s]Batches:  25%|██▌       | 1/4 [00:00<00:02,  1.23it/s]Batches:  50%|█████     | 2/4 [00:01<00:01,  1.35it/s]Batches:  75%|███████▌  | 3/4 [00:02<00:00,  1.46it/s]Batches: 100%|██████████| 4/4 [00:02<00:00,  1.75it/s]Batches: 100%|██████████| 4/4 [00:02<00:00,  1.59it/s]
+Embedding dimension: 768
+Wrote ternary/anchor-cosines.json
+
+========================================================================
+WITHIN-POLE COHERENCE (all unique pairs within each pole)
+========================================================================
+Pole                     Mean      Min      Max      Std   N_pairs
+------------------------------------------------------------------------
+flesh_high             0.5166   0.3775   0.7706   0.0626   190
+flesh_low              0.5741   0.3299   0.7616   0.0853   190
+knowledge_high         0.4825   0.3591   0.6852   0.0653   190
+knowledge_low          0.5270   0.3879   0.7029   0.0648   190
+argument_high          0.5433   0.3782   0.7823   0.0684   190
+argument_low           0.4955   0.3324   0.6720   0.0649   190
+
+========================================================================
+CROSS-POLE MEAN COSINE MATRIX (all 20x20 pairwise between poles)
+========================================================================
+                        flesh_high     flesh_lowknowledge_high knowledge_low argument_high  argument_low
+--------------------------------------------------------------------------------------------------------
+          flesh_high        0.5166        0.4287        0.4206        0.4586        0.4097        0.4280
+           flesh_low        0.4287        0.5741        0.4849        0.4627        0.4775        0.4149
+      knowledge_high        0.4206        0.4849        0.4825        0.4261        0.4526        0.3956
+       knowledge_low        0.4586        0.4627        0.4261        0.5270        0.4657        0.4664
+       argument_high        0.4097        0.4775        0.4526        0.4657        0.5433        0.4002
+        argument_low        0.4280        0.4149        0.3956        0.4664        0.4002        0.4955
+
+========================================================================
+AXIS DIAGNOSTICS
+========================================================================
+
+Anti-pole cosine (high_centroid vs low_centroid — want negative):
+         flesh: cos(high, low) =   0.7555
+     knowledge: cos(high, low) =   0.8053
+      argument: cos(high, low) =   0.7371
+
+Axis direction orthogonality (want ~0):
+         flesh vs knowledge   :  -0.2508
+         flesh vs argument    :  -0.2861
+     knowledge vs argument    :   0.2374
+
+Axis direction magnitudes:
+         flesh: ||d|| = 0.5279
+     knowledge: ||d|| = 0.4549
+      argument: ||d|| = 0.5352
+
+========================================================================
+SUMMARY
+========================================================================
+  flesh:
+    high internal coherence: 0.5166
+    low  internal coherence: 0.5741
+    high-low cross cosine:   0.4287  OK
+  knowledge:
+    high internal coherence: 0.4825
+    low  internal coherence: 0.5270
+    high-low cross cosine:   0.4261  OK
+  argument:
+    high internal coherence: 0.5433
+    low  internal coherence: 0.4955
+    high-low cross cosine:   0.4002  OK
+
+  axis orthogonality:
+    flesh_vs_knowledge:  -0.2508  WEAK
+    flesh_vs_argument:  -0.2861  WEAK
+    knowledge_vs_argument:   0.2374  WEAK
+

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Read</title>
+  <link rel="stylesheet" href="css/reader.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ─── Search View ─── -->
+    <div id="search-view">
+      <h1>Read</h1>
+      <p class="subtitle">Books &amp; poetry, four ways</p>
+
+      <div class="source-tabs">
+        <button id="source-books" class="source-tab active" type="button">Books</button>
+        <button id="source-poetry" class="source-tab" type="button">Poetry</button>
+      </div>
+
+      <div class="search-bar">
+        <input id="search-input" type="text" placeholder="Search books..." autocomplete="off">
+        <button id="search-btn">Search</button>
+      </div>
+
+      <div id="poetry-random" class="poetry-random" style="display:none">
+        <button id="random-poem-btn" class="demo-link">Surprise me — random poem</button>
+      </div>
+
+      <div id="search-results"></div>
+      <div id="bookshelf"></div>
+
+      <button id="demo-btn" class="demo-link">or start with Moby Dick</button>
+    </div>
+
+    <!-- ─── Reader View ─── -->
+    <div id="reader-view">
+      <header class="reader-header">
+        <button id="btn-back" class="btn-icon" title="Back" aria-label="Back">&larr;</button>
+        <span id="reader-title" class="reader-title"></span>
+        <button id="btn-prev" class="btn-icon" title="Previous chapter" aria-label="Previous chapter">&lsaquo;</button>
+        <select id="chapter-select" class="chapter-select" aria-label="Chapter"></select>
+        <button id="btn-next" class="btn-icon" title="Next chapter" aria-label="Next chapter">&rsaquo;</button>
+        <button id="btn-settings" class="btn-icon" title="Settings" aria-label="Settings">&#9881;</button>
+      </header>
+
+      <div id="reading-area"></div>
+
+      <footer class="reader-footer">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <div class="reader-controls">
+          <button id="mode-scroll">Scroll</button>
+          <button id="mode-rsvp">RSVP</button>
+          <button id="mode-crawl">Crawl</button>
+          <button id="mode-memorize">Memorize</button>
+          <div class="control-sep"></div>
+          <button id="btn-slower" class="btn-icon" title="Slower" aria-label="Slower">&minus;</button>
+          <span id="speed-label" class="speed-label"></span>
+          <button id="btn-faster" class="btn-icon" title="Faster" aria-label="Faster">+</button>
+          <div class="control-sep"></div>
+          <button id="btn-play" class="btn-icon" title="Play/Pause" aria-label="Play/Pause">&#9654;</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- ─── Settings Dialog ─── -->
+    <dialog id="settings-dialog">
+      <div class="settings-handle"></div>
+      <div class="settings-inner">
+        <h3>Settings</h3>
+
+        <div class="setting-group">
+          <label>Font Size</label>
+          <div class="setting-row">
+            <input id="font-slider" type="range" min="12" max="32" step="1" value="19">
+            <span id="font-val" class="range-val">19</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="toggle-row">
+            <span>Light Theme</span>
+            <button id="theme-toggle" class="toggle" type="button" aria-label="Toggle theme"></button>
+          </div>
+        </div>
+
+        <div class="setting-group scroll-crawl-setting">
+          <div class="toggle-row">
+            <span>Serif Font</span>
+            <button id="serif-toggle" class="toggle on" type="button" aria-label="Toggle serif font"></button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="toggle-row">
+            <span>Bionic Reading</span>
+            <button id="bionic-toggle" class="toggle" type="button" aria-label="Toggle bionic reading"></button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="toggle-row">
+            <span>Read Aloud</span>
+            <button id="tts-toggle" class="toggle" type="button" aria-label="Toggle text-to-speech"></button>
+          </div>
+        </div>
+
+        <div class="rsvp-settings">
+          <div class="setting-group">
+            <label>Words Per Minute</label>
+            <div class="setting-row">
+              <input id="wpm-slider" type="range" min="100" max="1000" step="25" value="300">
+              <span id="wpm-val" class="range-val">300</span>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="toggle-row">
+              <span>Color Frames</span>
+              <button id="color-toggle" class="toggle" type="button" aria-label="Toggle color frames"></button>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="toggle-row">
+              <span>Depth Trail</span>
+              <button id="depth-toggle" class="toggle" type="button" aria-label="Toggle depth trail"></button>
+            </div>
+            <span class="setting-hint">Previous words recede into the distance</span>
+          </div>
+
+          <div class="setting-group">
+            <label>Min Chunk Length</label>
+            <div class="setting-row">
+              <input id="minchars-slider" type="range" min="0" max="30" step="1" value="0">
+              <span id="minchars-val" class="range-val">0</span>
+            </div>
+            <span class="setting-hint">Group short words (0 = single word)</span>
+          </div>
+        </div>
+
+        <div class="crawl-settings">
+          <div class="setting-group">
+            <label>Crawl Speed</label>
+            <div class="setting-row">
+              <input id="crawl-speed-slider" type="range" min="2" max="50" step="1" value="10">
+              <span id="crawl-speed-val" class="range-val">1.0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="memorize-settings">
+          <p class="setting-hint">Use Fade to progressively hide words, then Recall to test yourself. Arrow keys: Up/Down = fade/reveal, Enter = recall mode.</p>
+        </div>
+      </div>
+    </dialog>
+
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/gutenberg.js"></script>
+  <script src="js/poetrydb.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/reader-scroll.js"></script>
+  <script src="js/reader-rsvp.js"></script>
+  <script src="js/reader-crawl.js"></script>
+  <script src="js/reader-tts.js"></script>
+  <script src="js/reader-memorize.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

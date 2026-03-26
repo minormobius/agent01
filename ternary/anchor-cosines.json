@@ -1,0 +1,103 @@
+{
+  "model": "BAAI/bge-base-en-v1.5",
+  "dimension": 768,
+  "n_anchors_per_pole": 20,
+  "within_pole_coherence": {
+    "flesh_high": {
+      "mean": 0.5166,
+      "min": 0.3775,
+      "max": 0.7706,
+      "std": 0.0626
+    },
+    "flesh_low": {
+      "mean": 0.5741,
+      "min": 0.3299,
+      "max": 0.7616,
+      "std": 0.0853
+    },
+    "knowledge_high": {
+      "mean": 0.4825,
+      "min": 0.3591,
+      "max": 0.6852,
+      "std": 0.0653
+    },
+    "knowledge_low": {
+      "mean": 0.527,
+      "min": 0.3879,
+      "max": 0.7029,
+      "std": 0.0648
+    },
+    "argument_high": {
+      "mean": 0.5433,
+      "min": 0.3782,
+      "max": 0.7823,
+      "std": 0.0684
+    },
+    "argument_low": {
+      "mean": 0.4955,
+      "min": 0.3324,
+      "max": 0.672,
+      "std": 0.0649
+    }
+  },
+  "cross_pole_matrix": {
+    "flesh_high": {
+      "flesh_high": 0.5166,
+      "flesh_low": 0.4287,
+      "knowledge_high": 0.4206,
+      "knowledge_low": 0.4586,
+      "argument_high": 0.4097,
+      "argument_low": 0.428
+    },
+    "flesh_low": {
+      "flesh_high": 0.4287,
+      "flesh_low": 0.5741,
+      "knowledge_high": 0.4849,
+      "knowledge_low": 0.4627,
+      "argument_high": 0.4775,
+      "argument_low": 0.4149
+    },
+    "knowledge_high": {
+      "flesh_high": 0.4206,
+      "flesh_low": 0.4849,
+      "knowledge_high": 0.4825,
+      "knowledge_low": 0.4261,
+      "argument_high": 0.4526,
+      "argument_low": 0.3956
+    },
+    "knowledge_low": {
+      "flesh_high": 0.4586,
+      "flesh_low": 0.4627,
+      "knowledge_high": 0.4261,
+      "knowledge_low": 0.527,
+      "argument_high": 0.4657,
+      "argument_low": 0.4664
+    },
+    "argument_high": {
+      "flesh_high": 0.4097,
+      "flesh_low": 0.4775,
+      "knowledge_high": 0.4526,
+      "knowledge_low": 0.4657,
+      "argument_high": 0.5433,
+      "argument_low": 0.4002
+    },
+    "argument_low": {
+      "flesh_high": 0.428,
+      "flesh_low": 0.4149,
+      "knowledge_high": 0.3956,
+      "knowledge_low": 0.4664,
+      "argument_high": 0.4002,
+      "argument_low": 0.4955
+    }
+  },
+  "axis_direction_cosines": {
+    "flesh_vs_knowledge": -0.2508,
+    "flesh_vs_argument": -0.2861,
+    "knowledge_vs_argument": 0.2374
+  },
+  "antipole_cosines": {
+    "flesh": 0.7555,
+    "knowledge": 0.8053,
+    "argument": 0.7371
+  }
+}

@@ -17,7 +17,7 @@ fallthrough = false
 # (the [[rules]] type=Data approach doesn't work with `wrangler versions upload`)
 
 [vars]
-FRONTEND_URL = "https://polls.example.com"
+FRONTEND_URL = "https://poll.mino.mobi"
 ATPROTO_MOCK_MODE = "true"
 
 # D1 database binding
@@ -36,7 +36,7 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["PollCoordinator"]
+new_sqlite_classes = ["PollCoordinator"]
 
 [[migrations]]
 tag = "v2"
@@ -44,7 +44,7 @@ new_classes = ["SurveyCoordinator"]
 
 # Environment-specific overrides
 [env.production]
-vars = { FRONTEND_URL = "https://polls.example.com", ATPROTO_MOCK_MODE = "false" }
+vars = { FRONTEND_URL = "https://poll.mino.mobi", ATPROTO_MOCK_MODE = "false" }
 
 [env.production.d1_databases]
 binding = "DB"
