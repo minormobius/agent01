@@ -105,6 +105,7 @@ let hexCells = [];                // computed each frame: [{sx, sy, node}]
 async function fetchAvatars(dids) {
   const BATCH = 75; // worker handles sub-batching to Bluesky
   const unresolved = dids.filter(d => !avatarImages.has(d) && !avatarLoading.has(d));
+  console.log(`[pfp] fetchAvatars called: ${dids.length} total, ${unresolved.length} unresolved`);
   if (unresolved.length === 0) return;
 
   for (let i = 0; i < unresolved.length; i += BATCH) {
@@ -112,23 +113,42 @@ async function fetchAvatars(dids) {
     batch.forEach(d => avatarLoading.add(d));
     try {
       const params = batch.map(d => `dids=${encodeURIComponent(d)}`).join("&");
-      const res = await fetch(`${API_BASE}/xrpc/com.minomobi.feed.getAvatars?${params}`);
-      if (!res.ok) { batch.forEach(d => avatarLoading.delete(d)); continue; }
-      const { avatars } = await res.json();
+      const url = `${API_BASE}/xrpc/com.minomobi.feed.getAvatars?${params}`;
+      console.log(`[pfp] fetching batch ${i / BATCH + 1}: ${batch.length} dids from ${API_BASE}`);
+      const res = await fetch(url);
+      console.log(`[pfp] response: ${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        console.error(`[pfp] error body:`, body);
+        batch.forEach(d => avatarLoading.delete(d));
+        continue;
+      }
+      const json = await res.json();
+      const avatars = json.avatars || {};
+      const withUrl = Object.values(avatars).filter(v => v).length;
+      const withoutUrl = Object.values(avatars).filter(v => !v).length;
+      console.log(`[pfp] got ${withUrl} avatar URLs, ${withoutUrl} null, ${batch.length - withUrl - withoutUrl} missing from response`);
+      // Log first 3 avatar URLs for inspection
+      const sample = Object.entries(avatars).filter(([, v]) => v).slice(0, 3);
+      for (const [did, avatarUrl] of sample) {
+        console.log(`[pfp] sample: ${did.slice(0, 24)}… → ${avatarUrl}`);
+      }
+      let loaded = 0, errored = 0;
       for (const did of batch) {
-        const url = avatars[did];
+        const avatarUrl = avatars[did];
         avatarLoading.delete(did);
-        if (url) {
+        if (avatarUrl) {
           const img = new Image();
           img.crossOrigin = "anonymous";
-          img.src = url;
-          img.onload = () => { avatarImages.set(did, img); scheduleDraw(); };
-          img.onerror = () => { avatarImages.set(did, null); };
+          img.src = avatarUrl;
+          img.onload = () => { loaded++; avatarImages.set(did, img); scheduleDraw(); console.log(`[pfp] ✓ loaded image for ${did.slice(0,20)}… (${loaded} total)`); };
+          img.onerror = (e) => { errored++; avatarImages.set(did, null); console.warn(`[pfp] ✗ image load failed for ${did.slice(0,20)}…: ${avatarUrl.slice(0,80)}`, e); };
         } else {
           avatarImages.set(did, null);
         }
       }
     } catch(e) {
+      console.error(`[pfp] fetch error:`, e);
       batch.forEach(d => avatarLoading.delete(d));
     }
   }
@@ -691,8 +711,13 @@ function flyTo(node, duration) {
     if (!comRes.ok) throw new Error(`HTTP ${comRes.status}`);
     const data = await comRes.json();
 
-    communities = data.communities || [];
+    const allCommunities = data.communities || [];
     bridges = data.bridges || [];
+
+    // DEBUG: limit to top community only to isolate PFP issue
+    communities = allCommunities.slice(0, 1);
+    console.log(`[debug] showing top community only: "${communities[0]?.label}" (${communities[0]?.totalSize} members) out of ${allCommunities.length} total`);
+    console.log(`[debug] first 5 member DIDs:`, (communities[0]?.members || []).slice(0, 5).map(m => m.did));
 
     // Load activity heatmap data
     if (actRes && actRes.ok) {
@@ -719,11 +744,12 @@ function flyTo(node, duration) {
 
     const totalMembers = communities.reduce((n, c) => n + c.totalSize, 0);
     const postCount = activityPosts.length;
-    status.textContent = `${communities.length} communities · ${totalMembers} members · ${bridges.length} bridges · ${postCount} posts · scroll to zoom`;
+    status.textContent = `DEBUG: 1/${allCommunities.length} communities · ${totalMembers} members · check console for [pfp] logs`;
     scheduleDraw();
 
     // Fetch avatars for all members (non-blocking)
     const allDids = flat.filter(n => n._type === "member").map(n => n._member.did);
+    console.log(`[pfp] will request avatars for ${allDids.length} DIDs`);
     fetchAvatars(allDids);
 
     // Start pulse animation if there's activity data
