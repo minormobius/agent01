@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="18 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="23 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 18 sites built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 23 sites built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 18 sites built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 23 sites built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png">
 <style>
 :root {
@@ -158,7 +158,25 @@ hr {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-grid-group {
+  margin-bottom: 1.5rem;
+}
+
+.card-grid-group:last-child {
   margin-bottom: 3rem;
+}
+
+.card-grid-label {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  padding-left: 0.1rem;
 }
 
 .card-grid a {
@@ -215,25 +233,45 @@ footer a:hover {
 
 <h1>minomobi</h1>
 
-<nav class="card-grid">
-  <a href="https://time.mino.mobi">time</a>
-  <a href="https://poll.mino.mobi">poll</a>
-  <a href="https://mino.mobi/labglass/">labglass</a>
-  <a href="https://mino.mobi/read/">read</a>
-  <a href="https://mino.mobi/cards/">cards</a>
-  <a href="https://mino.mobi/noise/">noise</a>
-  <a href="https://mino.mobi/phylo/">phylo</a>
-  <a href="https://mino.mobi/music/">music</a>
-  <a href="https://bakery.mino.mobi">bakery</a>
-  <a href="https://mino.mobi/sweat/">sweat</a>
-  <a href="https://mino.mobi/flows/">flows</a>
-  <a href="https://mino.mobi/ternary/">ternary</a>
-  <a href="https://mino.mobi/judge/">judge</a>
-  <a href="https://mino.mobi/novelty/">novelty</a>
-  <a href="https://mino.mobi/echo/">echo</a>
-  <a href="https://mino.mobi/density/">density</a>
-  <a href="https://mino.mobi/seek/">seek</a>
-  <a href="https://mino.mobi/cluster/">cluster</a>
+<nav>
+  <div class="card-grid-group">
+    <div class="card-grid-label">bluesky</div>
+    <div class="card-grid">
+      <a href="https://poll.mino.mobi">poll</a>
+      <a href="https://mino.mobi/photo/">photo</a>
+      <a href="https://mino.mobi/ternary/">ternary</a>
+      <a href="https://mino.mobi/judge/">judge</a>
+      <a href="https://mino.mobi/novelty/">novelty</a>
+      <a href="https://mino.mobi/echo/">echo</a>
+      <a href="https://mino.mobi/density/">density</a>
+      <a href="https://mino.mobi/seek/">seek</a>
+      <a href="https://mino.mobi/cluster/">cluster</a>
+    </div>
+  </div>
+  <div class="card-grid-group">
+    <div class="card-grid-label">data</div>
+    <div class="card-grid">
+      <a href="https://time.mino.mobi">time</a>
+      <a href="https://mino.mobi/mega/">mega</a>
+      <a href="https://mino.mobi/finance/">finance</a>
+      <a href="https://mino.mobi/wars/">wars</a>
+      <a href="https://mino.mobi/flows/">flows</a>
+      <a href="https://mino.mobi/phylo/">phylo</a>
+      <a href="https://mino.mobi/cards/">cards</a>
+    </div>
+  </div>
+  <div class="card-grid-group">
+    <div class="card-grid-label">tools</div>
+    <div class="card-grid">
+      <a href="https://mino.mobi/labglass/">labglass</a>
+      <a href="https://mino.mobi/os/">os</a>
+      <a href="https://mino.mobi/read/">read</a>
+      <a href="https://mino.mobi/noise/">noise</a>
+      <a href="https://mino.mobi/music/">music</a>
+      <a href="https://bakery.mino.mobi">bakery</a>
+      <a href="https://mino.mobi/sweat/">sweat</a>
+    </div>
+  </div>
 </nav>
 
 <div class="manifesto">
@@ -248,7 +286,7 @@ footer a:hover {
 
 <hr>
 
-<div class="site-count">18 sites</div>
+<div class="site-count">23 sites</div>
 
 <!-- ——— Publications & Applications ——— -->
 
@@ -300,6 +338,36 @@ footer a:hover {
       <span class="tag">pwa</span>
     </div>
     <div class="desc">Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/mega/">mega</a>
+      <span class="tag">maplibre</span>
+      <span class="tag">deck.gl</span>
+    </div>
+    <div class="desc">Interactive map of global megaprojects&mdash;construction, timelines, costs, and deep context rendered on a 3D globe.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/os/">os</a>
+      <span class="tag">react</span>
+      <span class="tag">wasm</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Browser-based terminal for your ATProto Personal Data Server. XRPC commands, DuckDB SQL, AI chat, and an embedded bash container.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/finance/">finance</a>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/wars/">wars</a>
+    </div>
+    <div class="desc">War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties.</div>
   </li>
 </ul>
 
@@ -398,6 +466,15 @@ footer a:hover {
       <a href="https://mino.mobi/cluster/">cluster</a>
     </div>
     <div class="desc">Find your tightest circle. The largest group of your follows who all mutually follow each other.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/photo/">photo</a>
+      <span class="tag">react</span>
+      <span class="tag">duckdb</span>
+      <span class="tag">wasm</span>
+    </div>
+    <div class="desc">Bluesky photo explorer. Every image from any handle, rendered as a filterable masonry grid with engagement analytics.</div>
   </li>
 </ul>
 
