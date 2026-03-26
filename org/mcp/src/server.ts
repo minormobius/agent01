@@ -20,6 +20,7 @@ import { sessionTools } from "./tools/session.js";
 import { crmTools } from "./tools/crm.js";
 import { orgTools } from "./tools/orgs.js";
 import { analysisTools } from "./tools/analysis.js";
+import { calendarTools } from "./tools/calendar.js";
 
 const server = new McpServer({
   name: "vault-mcp",
@@ -179,6 +180,75 @@ server.tool(
   "Compare pipeline metrics across all orgs — deal counts, values, stage distribution.",
   {},
   safe(analysisTools["cross-org-report"].handler)
+);
+
+// --- Calendar tools ---
+
+server.tool(
+  "list-events",
+  "List calendar events. Filter by org, date range, or search text.",
+  {
+    org: z.string().optional().describe("Org rkey, 'personal', or omit for all"),
+    from: z.string().optional().describe("Start date (ISO, e.g. 2026-03-01)"),
+    to: z.string().optional().describe("End date (ISO, e.g. 2026-03-31)"),
+    search: z.string().optional().describe("Search title, location, or notes"),
+    maxResults: z.number().optional().describe("Max events to return (default 50)"),
+  },
+  safe(calendarTools["list-events"].handler)
+);
+
+server.tool(
+  "get-event",
+  "Get full details of a single calendar event by rkey.",
+  { rkey: z.string() },
+  safe(calendarTools["get-event"].handler)
+);
+
+server.tool(
+  "create-event",
+  "Create a new calendar event.",
+  {
+    title: z.string(),
+    start: z.string().describe("Start datetime (ISO)"),
+    end: z.string().describe("End datetime (ISO)"),
+    allDay: z.boolean().optional(),
+    location: z.string().optional(),
+    notes: z.string().optional(),
+    org: z.string().optional().describe("Org rkey, omit for personal"),
+  },
+  safe(calendarTools["create-event"].handler)
+);
+
+server.tool(
+  "update-event",
+  "Update an existing calendar event.",
+  {
+    rkey: z.string(),
+    title: z.string().optional(),
+    start: z.string().optional(),
+    end: z.string().optional(),
+    allDay: z.boolean().optional(),
+    location: z.string().optional(),
+    notes: z.string().optional(),
+  },
+  safe(calendarTools["update-event"].handler)
+);
+
+server.tool(
+  "delete-event",
+  "Delete a calendar event.",
+  { rkey: z.string() },
+  safe(calendarTools["delete-event"].handler)
+);
+
+server.tool(
+  "upcoming-events",
+  "Show upcoming events for the next N days. Great for daily/weekly briefings.",
+  {
+    days: z.number().optional().describe("Days ahead (default 7)"),
+    org: z.string().optional(),
+  },
+  safe(calendarTools["upcoming-events"].handler)
 );
 
 // Start

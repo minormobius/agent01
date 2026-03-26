@@ -86,4 +86,5 @@ export const APPS: AppDef[] = [
   { id: "wave", name: "Wave", description: "Encrypted channels, threads & docs", url: "/wave", icon: "\u{1F30A}", orgAware: true },
   { id: "crm", name: "CRM", description: "Deal pipeline & proposals", url: "/crm", icon: "\u{1F4BC}", orgAware: true },
   { id: "pm", name: "PM", description: "Earned value project management", url: "/pm", icon: "\u{1F4CA}", orgAware: true },
+  { id: "cal", name: "Calendar", description: "Events, scheduling & PM deadlines", url: "/cal", icon: "\u{1F4C5}", orgAware: true },
 ];

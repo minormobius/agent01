@@ -21,6 +21,7 @@ import { InviteOnboarding } from "./components/InviteOnboarding";
 import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
+import { CalendarApp } from "./cal/CalendarApp";
 import { Route } from "./router";
 
 // ATProto collection names
@@ -374,6 +375,11 @@ export function App() {
       {/* CRM — deal pipeline & proposals */}
       <Route path="/crm">
         <CrmApp vault={vault} pds={pds} />
+      </Route>
+
+      {/* Calendar — personal + org events, PM integration */}
+      <Route path="/cal">
+        <CalendarApp vault={vault} pds={pds} />
       </Route>
 
       {/* Hub home — org management + app grid */}
