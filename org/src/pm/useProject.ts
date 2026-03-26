@@ -220,15 +220,15 @@ export function useProject(scope?: string) {
   // ── Members ──
 
   const addMember = useCallback(
-    (opts: { displayName: string; role: string; costRate: number; maxHoursPerWeek: number }) => {
+    (opts: { displayName: string; role: string; costRate: number; maxHoursPerWeek: number; handle?: string | null; did?: string | null }) => {
       setState((prev) => {
         const color = MEMBER_COLORS[prev.members.length % MEMBER_COLORS.length];
         const member: Member = {
           id: uuid(),
           displayName: opts.displayName,
           role: opts.role,
-          handle: null,
-          did: null,
+          handle: opts.handle ?? null,
+          did: opts.did ?? null,
           costRate: opts.costRate,
           maxHoursPerWeek: opts.maxHoursPerWeek,
           color,

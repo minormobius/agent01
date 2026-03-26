@@ -1082,6 +1082,59 @@ button:disabled {
   gap: 12px;
 }
 
+/* -- Team org import -- */
+
+.team-org-import {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.team-org-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.team-org-import-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.team-org-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-org-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.team-org-member-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-org-member-name {
+  font-size: 0.85rem;
+}
+
+.team-role-input {
+  width: 100px;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
 .team-card {
   background: var(--surface);
   border: 1px solid var(--border);

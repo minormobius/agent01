@@ -419,7 +419,7 @@ export function App() {
   return (
     <>
       <Route path="/pm">
-        <PmApp vault={vault} pds={pds} orgs={orgs} />
+        <PmApp vault={vault} pds={pds} orgs={orgs} memberships={memberships} />
       </Route>
 
       <Route path="/wave">

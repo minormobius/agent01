@@ -1,20 +1,91 @@
 /**
  * Team pane — member roster with CRUD, roles, cost rates, capacity.
+ * When an org is selected, shows org members and lets you import them.
  */
 
 import { useState } from "react";
 import type { ProjectActions } from "../useProject";
+import type { MembershipRecord, OrgRecord } from "../../types";
 
 interface Props {
   project: ProjectActions;
+  orgMembers?: MembershipRecord[];
+  selectedOrg?: OrgRecord | null;
 }
 
-export function Team({ project }: Props) {
+export function Team({ project, orgMembers = [], selectedOrg }: Props) {
   const { state, addMember, removeMember, updateMember } = project;
+
+  // Org members not yet in the project team (matched by DID)
+  const existingDids = new Set(state.members.filter((m) => m.did).map((m) => m.did));
+  const unimported = orgMembers.filter(
+    (m) => !existingDids.has(m.membership.memberDid),
+  );
+
+  const importOrgMember = (m: MembershipRecord) => {
+    addMember({
+      displayName: m.membership.memberHandle ?? m.membership.memberDid.slice(0, 20),
+      role: m.membership.tierName,
+      costRate: 0,
+      maxHoursPerWeek: 40,
+      handle: m.membership.memberHandle ?? null,
+      did: m.membership.memberDid,
+    });
+  };
+
+  const importAll = () => {
+    for (const m of unimported) {
+      importOrgMember(m);
+    }
+  };
 
   return (
     <div className="pm-team">
-      <AddMemberForm onAdd={addMember} />
+      {/* Org member import section */}
+      {selectedOrg && orgMembers.length > 0 && (
+        <div className="team-org-import">
+          <div className="team-org-import-header">
+            <h3>{selectedOrg.org.name} Members</h3>
+            {unimported.length > 0 && (
+              <button className="btn-primary btn-sm" onClick={importAll}>
+                Import All ({unimported.length})
+              </button>
+            )}
+          </div>
+          {unimported.length === 0 ? (
+            <p className="pm-empty" style={{ marginBottom: 0 }}>
+              All org members are on the project team.
+            </p>
+          ) : (
+            <div className="team-org-members">
+              {unimported.map((m) => (
+                <div key={m.rkey} className="team-org-member">
+                  <div className="team-org-member-info">
+                    <span className="team-org-member-name">
+                      {m.membership.memberHandle
+                        ? `@${m.membership.memberHandle}`
+                        : m.membership.memberDid.slice(0, 24) + "..."}
+                    </span>
+                    <span className="tier-badge">{m.membership.tierName}</span>
+                  </div>
+                  <button
+                    className="btn-secondary btn-sm"
+                    onClick={() => importOrgMember(m)}
+                  >
+                    Import
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <AddMemberForm
+        onAdd={addMember}
+        orgTierNames={selectedOrg?.org.tiers.map((t) => t.name)}
+      />
+
       <div className="team-roster">
         {state.members.length === 0 && (
           <div className="pm-empty">No team members yet.</div>
@@ -31,7 +102,12 @@ export function Team({ project }: Props) {
                   style={{ background: m.color }}
                 />
                 <div className="team-card-name">{m.displayName}</div>
-                <span className="tier-badge">{m.role}</span>
+                <input
+                  className="task-inline-input team-role-input"
+                  value={m.role}
+                  onChange={(e) => updateMember(m.id, { role: e.target.value })}
+                  title="Role"
+                />
               </div>
               <div className="team-card-body">
                 <div className="team-stat">
@@ -96,6 +172,7 @@ export function Team({ project }: Props) {
 
 function AddMemberForm({
   onAdd,
+  orgTierNames,
 }: {
   onAdd: (opts: {
     displayName: string;
@@ -103,9 +180,14 @@ function AddMemberForm({
     costRate: number;
     maxHoursPerWeek: number;
   }) => void;
+  orgTierNames?: string[];
 }) {
+  const roles = orgTierNames && orgTierNames.length > 0
+    ? orgTierNames
+    : ["Engineer", "Designer", "Manager", "Analyst", "QA", "Contractor"];
+
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Engineer");
+  const [role, setRole] = useState(roles[0]);
   const [rate, setRate] = useState("");
   const [hours, setHours] = useState("40");
 
@@ -135,12 +217,9 @@ function AddMemberForm({
         onChange={(e) => setRole(e.target.value)}
         className="task-input task-input-sm"
       >
-        <option>Engineer</option>
-        <option>Designer</option>
-        <option>Manager</option>
-        <option>Analyst</option>
-        <option>QA</option>
-        <option>Contractor</option>
+        {roles.map((r) => (
+          <option key={r} value={r}>{r}</option>
+        ))}
       </select>
       <input
         placeholder="$/hr"

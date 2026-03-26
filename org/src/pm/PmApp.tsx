@@ -19,6 +19,7 @@ import { useRouter } from "../router";
 import type { VaultState } from "../App";
 import type { PdsClient } from "../pds";
 import type { OrgRecord } from "../crm/types";
+import type { MembershipRecord } from "../types";
 
 type OrgScope = "personal" | string; // org rkey
 
@@ -26,9 +27,10 @@ interface Props {
   vault?: VaultState | null;
   pds?: PdsClient | null;
   orgs?: OrgRecord[];
+  memberships?: MembershipRecord[];
 }
 
-export function PmApp({ vault, pds, orgs = [] }: Props) {
+export function PmApp({ vault, pds, orgs = [], memberships = [] }: Props) {
   const { navigate } = useRouter();
   const [orgScope, setOrgScope] = useState<OrgScope>("personal");
 
@@ -40,6 +42,7 @@ export function PmApp({ vault, pds, orgs = [] }: Props) {
     vault={vault}
     pds={pds}
     orgs={orgs}
+    memberships={memberships}
     orgScope={orgScope}
     onOrgScopeChange={setOrgScope}
     storageScope={storageScope}
@@ -48,10 +51,11 @@ export function PmApp({ vault, pds, orgs = [] }: Props) {
 }
 
 /** Inner component — remounts when orgScope changes via React key */
-function PmInner({ vault, pds, orgs, orgScope, onOrgScopeChange, storageScope, navigate }: {
+function PmInner({ vault, pds, orgs, memberships, orgScope, onOrgScopeChange, storageScope, navigate }: {
   vault?: VaultState | null;
   pds?: PdsClient | null;
   orgs: OrgRecord[];
+  memberships: MembershipRecord[];
   orgScope: OrgScope;
   onOrgScopeChange: (scope: OrgScope) => void;
   storageScope?: string;
@@ -122,7 +126,19 @@ function PmInner({ vault, pds, orgs, orgScope, onOrgScopeChange, storageScope, n
         {activeTab === "gantt" && <Gantt project={project} />}
         {activeTab === "kanban" && <Kanban project={project} />}
         {activeTab === "scurve" && <SCurve project={project} />}
-        {activeTab === "team" && <Team project={project} />}
+        {activeTab === "team" && (
+          <Team
+            project={project}
+            orgMembers={orgScope !== "personal"
+              ? memberships.filter((m) => m.membership.orgRkey === orgScope)
+              : []
+            }
+            selectedOrg={orgScope !== "personal"
+              ? orgs.find((o) => o.rkey === orgScope) ?? null
+              : null
+            }
+          />
+        )}
         {activeTab === "resources" && <Resources project={project} />}
         {activeTab === "sync" && <Sync project={project} vault={vault} pds={pds} />}
         {activeTab === "docs" && <Docs />}
