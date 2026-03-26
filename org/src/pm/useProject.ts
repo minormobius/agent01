@@ -15,7 +15,7 @@ import {
   syncTaskToLane,
 } from "./engine";
 
-const STORAGE_KEY = "mino-pm-state";
+const BASE_STORAGE_KEY = "mino-pm-state";
 
 function uuid(): string {
   return crypto.randomUUID();
@@ -42,9 +42,13 @@ function defaultState(): ProjectState {
   };
 }
 
-function loadState(): ProjectState {
+function storageKeyFor(scope?: string): string {
+  return scope ? `${BASE_STORAGE_KEY}:${scope}` : BASE_STORAGE_KEY;
+}
+
+function loadState(storageKey: string): ProjectState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw) as Partial<ProjectState>;
     return { ...defaultState(), ...parsed };
@@ -53,21 +57,22 @@ function loadState(): ProjectState {
   }
 }
 
-function saveState(state: ProjectState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveState(storageKey: string, state: ProjectState): void {
+  localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
-export function useProject() {
-  const [state, _setState] = useState<ProjectState>(loadState);
+export function useProject(scope?: string) {
+  const storageKey = storageKeyFor(scope);
+  const [state, _setState] = useState<ProjectState>(() => loadState(storageKey));
   const [activeTab, setActiveTab] = useState<PmTab>("dashboard");
 
   const setState = useCallback((updater: (prev: ProjectState) => ProjectState) => {
     _setState((prev) => {
       const next = updater(prev);
-      saveState(next);
+      saveState(storageKey, next);
       return next;
     });
-  }, []);
+  }, [storageKey]);
 
   // ── Task CRUD ──
 

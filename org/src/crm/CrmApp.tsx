@@ -427,6 +427,7 @@ export function CrmApp({ vault, pds }: Props) {
         handle={vault.session.handle}
         myDid={vault.session.did}
         onLogout={handleLogout}
+        onBackToHub={() => navigate("/")}
         tab={tab}
         onTabChange={setTab}
         orgSwitcher={

@@ -22,6 +22,7 @@ interface Props {
   handle: string;
   myDid: string;
   onLogout: () => void;
+  onBackToHub?: () => void;
   tab: Tab;
   onTabChange: (tab: Tab) => void;
   orgSwitcher?: ReactNode;
@@ -41,6 +42,7 @@ export function DealsBoard({
   handle,
   myDid,
   onLogout,
+  onBackToHub,
   tab,
   onTabChange,
   orgSwitcher,
@@ -169,6 +171,11 @@ export function DealsBoard({
     <div className="board-container">
       <header className="board-header">
         <div className="header-left">
+          {onBackToHub && (
+            <button className="back-btn" onClick={onBackToHub} title="Back to Hub">
+              &larr;
+            </button>
+          )}
           {orgSwitcher}
           <nav className="tab-bar">
             <button

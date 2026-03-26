@@ -180,8 +180,17 @@ export async function buildOrgContext(
         const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
         if (!myEntry) continue;
 
-        const writerPublicKey = await importPublicKey(fromBase64(keyringVal.writerPublicKey));
-        const tierDek = await unwrapDekFromMember(fromBase64(myEntry.wrappedDek), privateKey, writerPublicKey);
+        const wrappedDekB64 =
+          typeof myEntry.wrappedDek === "string"
+            ? myEntry.wrappedDek
+            : (myEntry.wrappedDek as unknown as { $bytes: string }).$bytes;
+        const writerPubB64 =
+          typeof keyringVal.writerPublicKey === "string"
+            ? keyringVal.writerPublicKey
+            : (keyringVal.writerPublicKey as unknown as { $bytes: string }).$bytes;
+
+        const writerPublicKey = await importPublicKey(fromBase64(writerPubB64));
+        const tierDek = await unwrapDekFromMember(fromBase64(wrappedDekB64), privateKey, writerPublicKey);
 
         keyringDeks.set(rkey, tierDek);
         if (epoch === currentEpoch) tierDeks.set(tier.name, tierDek);
