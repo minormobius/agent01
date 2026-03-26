@@ -11,7 +11,7 @@ import {
   fromBase64,
   toBase64,
 } from "./crypto";
-import type { Session, OrgRecord, MembershipRecord, NotificationRecord } from "./types";
+import type { Session, OrgRecord, MembershipRecord, NotificationRecord, PublishedNotification } from "./types";
 import type { OrgContext } from "./crm/types";
 import {
   discoverOrgs as discoverOrgsFromPds,
@@ -19,7 +19,9 @@ import {
   discoverPendingInvites,
   loadDismissedNotifications,
   BOOKMARK_COLLECTION,
+  NOTIFICATION_COLLECTION,
 } from "./crm/context";
+import { JetstreamClient, type JetstreamEvent } from "./wave/jetstream";
 import { LoginScreen } from "./components/LoginScreen";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
@@ -108,8 +110,78 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
   const restoredRef = useRef(false);
+  const hubJetstreamRef = useRef<JetstreamClient | null>(null);
+  const dismissedKeysRef = useRef<Set<string>>(dismissedKeys);
+  dismissedKeysRef.current = dismissedKeys;
 
   const inviteParams = parseInviteUrl();
+
+  // --- Hub-level Jetstream for real-time notifications ---
+  const startHubJetstream = useCallback(
+    (myDid: string, allMemberships: MembershipRecord[]) => {
+      hubJetstreamRef.current?.close();
+
+      // Collect all unique member DIDs across all orgs (excluding self)
+      const memberDids = new Set<string>();
+      for (const m of allMemberships) {
+        if (m.membership.memberDid !== myDid) {
+          memberDids.add(m.membership.memberDid);
+        }
+        if (m.membership.orgFounderDid && m.membership.orgFounderDid !== myDid) {
+          memberDids.add(m.membership.orgFounderDid);
+        }
+      }
+
+      if (memberDids.size === 0) return;
+
+      const client = new JetstreamClient({
+        wantedDids: Array.from(memberDids),
+        wantedCollections: [NOTIFICATION_COLLECTION],
+        onEvent: (event: JetstreamEvent) => {
+          if (event.kind !== "commit" || !event.commit) return;
+          const { operation, collection, record } = event.commit;
+          if (operation !== "create" || collection !== NOTIFICATION_COLLECTION || !record) return;
+
+          const notif = record as unknown as PublishedNotification;
+          if (notif.targetDid !== myDid) return; // not for us
+
+          const key = `invite:${notif.founderDid}:${notif.orgRkey}`;
+          if (dismissedKeysRef.current.has(key)) return;
+
+          const notifRecord: NotificationRecord = {
+            rkey: key,
+            notification: {
+              type: "org-invite",
+              orgRkey: notif.orgRkey,
+              orgName: notif.orgName,
+              founderDid: notif.founderDid,
+              founderService: notif.founderService,
+              tierName: notif.tierName,
+              invitedBy: notif.senderDid,
+              invitedByHandle: notif.senderHandle,
+              createdAt: notif.createdAt,
+            },
+          };
+
+          setNotifications((prev) => {
+            if (prev.some((n) => n.rkey === key)) return prev;
+            return [...prev, notifRecord];
+          });
+        },
+      });
+
+      client.connect();
+      hubJetstreamRef.current = client;
+    },
+    [],
+  );
+
+  // Cleanup hub Jetstream on unmount
+  useEffect(() => {
+    return () => {
+      hubJetstreamRef.current?.close();
+    };
+  }, []);
 
   // --- Core vault bootstrap (shared by login + restore) ---
   const bootstrapVault = useCallback(
@@ -232,6 +304,9 @@ export function App() {
         } catch (err) {
           console.warn("Failed to discover pending invites:", err);
         }
+
+        // Start hub-level Jetstream for real-time notifications
+        startHubJetstream(session.did, allMemberships);
       } finally {
         setLoading(false);
       }
@@ -306,6 +381,7 @@ export function App() {
 
   const handleLogout = useCallback(() => {
     clearSession();
+    hubJetstreamRef.current?.close();
     setVault(null);
     setPds(null);
     setOrgs([]);

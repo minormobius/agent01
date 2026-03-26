@@ -46,6 +46,7 @@ export const DECISION_COLLECTION = "com.minomobi.vault.decision";
 export const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 export const RELATIONSHIP_COLLECTION = "com.minomobi.vault.orgRelationship";
 export const NOTIFICATION_DISMISSAL_COLLECTION = "com.minomobi.vault.notificationDismissal";
+export const NOTIFICATION_COLLECTION = "com.minomobi.vault.notification";
 export const INNER_TYPE = "com.minomobi.crm.deal";
 
 /** Compute the keyring rkey for a tier at a given epoch. */
@@ -286,6 +287,34 @@ export async function checkInvitesFromUser(
   } while (cursor);
 
   return notifications;
+}
+
+/** Publish a notification record to the sender's PDS (picked up via Jetstream by receiver) */
+export async function publishNotification(
+  client: PdsClient,
+  targetDid: string,
+  orgRkey: string,
+  orgName: string,
+  founderDid: string,
+  founderService: string,
+  tierName: string,
+  senderDid: string,
+  senderHandle?: string,
+): Promise<void> {
+  const record: import("../types").PublishedNotification = {
+    $type: NOTIFICATION_COLLECTION,
+    targetDid,
+    notificationType: "org-invite",
+    orgRkey,
+    orgName,
+    founderDid,
+    founderService,
+    tierName,
+    senderDid,
+    senderHandle,
+    createdAt: new Date().toISOString(),
+  };
+  await client.createRecord(NOTIFICATION_COLLECTION, record);
 }
 
 /** Load dismissed notification keys from PDS */

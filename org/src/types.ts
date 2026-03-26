@@ -99,6 +99,25 @@ export interface NotificationDismissal {
   dismissedAt: string;
 }
 
+/**
+ * Published notification — written to the SENDER's PDS so it can be
+ * discovered via Jetstream by the target user. The sender writes it;
+ * the receiver's client filters by targetDid.
+ */
+export interface PublishedNotification {
+  $type: "com.minomobi.vault.notification";
+  targetDid: string;
+  notificationType: "org-invite";
+  orgRkey: string;
+  orgName: string;
+  founderDid: string;
+  founderService: string;
+  tierName: string;
+  senderDid: string;
+  senderHandle?: string;
+  createdAt: string;
+}
+
 // --- App Registry ---
 
 export interface AppDef {

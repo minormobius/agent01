@@ -33,6 +33,7 @@ import {
   THREAD_COLLECTION,
   MEMBERSHIP_COLLECTION,
 } from "./context";
+import { publishNotification } from "../crm/context";
 import { JetstreamClient, type JetstreamEvent } from "./jetstream";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
@@ -316,6 +317,16 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         const memberDid = handleOrDid.startsWith("did:") ? handleOrDid : await resolveHandle(handleOrDid);
         const memberHandle = handleOrDid.startsWith("did:") ? undefined : handleOrDid.replace(/^@/, "");
         await inviteMemberToOrg(pds, activeOrg, memberDid, memberHandle, tierName, myDid, vault.privateKey, vault.publicKey);
+        // Publish notification for the invitee
+        try {
+          await publishNotification(
+            pds, memberDid, activeOrg.org.rkey, activeOrg.org.org.name,
+            activeOrg.founderDid, activeOrg.service, tierName,
+            myDid, myHandle,
+          );
+        } catch (err) {
+          console.warn("Failed to publish notification:", err);
+        }
         // Refresh context
         const ctx = await buildOrgContext(pds, activeOrg.org, vault.privateKey, myDid);
         setActiveOrg(ctx);

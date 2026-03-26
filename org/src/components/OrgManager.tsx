@@ -30,6 +30,7 @@ import {
 } from "../crypto";
 import { HandleTypeahead } from "./HandleTypeahead";
 import { checkAuthority, logAuthorityViolation } from "../crm/authority";
+import { publishNotification } from "../crm/context";
 
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
@@ -672,6 +673,23 @@ function ManageOrg({
         createdAt: new Date().toISOString(),
       });
       const membershipRkey = membershipRes.uri.split("/").pop()!;
+
+      // Publish notification so the invitee picks it up via Jetstream
+      try {
+        await publishNotification(
+          pds,
+          inviteeDid,
+          org.rkey,
+          org.org.name,
+          org.org.founderDid,
+          pds.getService(),
+          inviteTier,
+          myDid,
+          myHandle,
+        );
+      } catch (err) {
+        console.warn("Failed to publish notification:", err);
+      }
 
       const displayName = input.startsWith("did:") ? inviteeDid : `@${input}`;
       onMemberInvited({
