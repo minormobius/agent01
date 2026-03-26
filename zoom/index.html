@@ -174,9 +174,8 @@ function computeHexOverlay() {
 
   const hexR = HEX_PFP_SIZE / 2;
   // Flat-top hex grid spacing
-  const hexW = Math.sqrt(3) * hexR;  // horizontal distance between centers
-  const hexH = 2 * hexR;             // vertical height of hex
-  const rowH = hexH * 0.75;          // vertical distance between row centers
+  const colW = 1.5 * hexR;                 // horizontal distance between columns
+  const rowH = Math.sqrt(3) * hexR;        // vertical distance between rows
 
   // Collect on-screen members with their desired screen positions
   const margin = HEX_PFP_SIZE * 2;
@@ -192,10 +191,9 @@ function computeHexOverlay() {
   // Sort by shell (core first) so core members get priority placement
   candidates.sort((a, b) => (a.node._shell || 0) - (b.node._shell || 0));
 
-  // Convert screen position to nearest hex grid cell (axial coords)
+  // Convert screen position to nearest hex grid cell (flat-top: odd columns offset)
   function screenToHexCell(sx, sy) {
-    // Flat-top hex: column = sx / hexW, row depends on odd/even column
-    const col = Math.round(sx / hexW);
+    const col = Math.round(sx / colW);
     const isOdd = col & 1;
     const row = Math.round((sy - (isOdd ? rowH * 0.5 : 0)) / rowH);
     return { col, row };
@@ -204,7 +202,7 @@ function computeHexOverlay() {
   // Convert hex grid cell back to screen position
   function hexCellToScreen(col, row) {
     const isOdd = col & 1;
-    const cx = col * hexW;
+    const cx = col * colW;
     const cy = row * rowH + (isOdd ? rowH * 0.5 : 0);
     return { cx, cy };
   }
@@ -260,7 +258,7 @@ function computeHexOverlay() {
 function hexPath(cx, cy, r) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
-    const angle = Math.PI / 6 + i * Math.PI / 3;
+    const angle = i * Math.PI / 3;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -530,13 +528,14 @@ function draw() {
       ctx.stroke();
     }
 
-    // Handle label at deep zoom
+    // Handle label only at deep zoom where hexes space out
     const sr = node._r * cam.scale;
-    if (sr > 3 && node._name) {
-      const fontSize = Math.max(8, Math.min(11, sr * 0.6));
+    if (sr > 20 && node._name) {
+      const alpha = Math.min(1, (sr - 20) / 15);
+      const fontSize = Math.max(8, Math.min(11, sr * 0.3));
       ctx.font = `${fontSize}px monospace`;
       ctx.textAlign = "center"; ctx.textBaseline = "top";
-      ctx.fillStyle = `hsla(0, 0%, 65%, ${Math.min(1, (sr - 3) / 4)})`;
+      ctx.fillStyle = `hsla(0, 0%, 65%, ${alpha})`;
       ctx.fillText(node._name, sx, sy + hexR + 2);
     }
   }
