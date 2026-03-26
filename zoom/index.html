@@ -34,9 +34,9 @@
     border-left: 1px solid #222; background: rgba(10,10,10,.96);
     z-index: 20; font: 13px/1.6 monospace; color: #ccc;
   }
-  #info-panel.open { width: 320px; }
+  #info-panel.open { width: 360px; }
   #info-inner {
-    width: 320px; padding: 1em; overflow-y: auto; height: 100%;
+    width: 360px; padding: 1em; overflow-y: auto; height: 100%;
   }
   #info-panel h2 { font-size: 1em; color: #ddd; margin-bottom: .2em; font-weight: normal; }
   #info-panel .meta { color: #666; font-size: .85em; margin-bottom: .6em; }
@@ -47,6 +47,21 @@
   #info-panel .info-close { cursor: pointer; color: #555; float: right; font-size: 1.2em; }
   #info-panel .info-close:hover { color: #fff; }
   #info-panel .bridge-tag { color: #f92; font-size: .8em; }
+  /* Thread viewer */
+  .thread-post { padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
+  .thread-post.root { border-bottom: 1px solid #333; margin-bottom: 4px; }
+  .thread-reply { padding: 6px 0 6px 12px; border-left: 2px solid #222; margin-left: 4px; }
+  .thread-reply .thread-reply { border-left-color: #1a1a1a; }
+  .thread-author { color: #8bf; font-size: .85em; font-weight: bold; }
+  .thread-author a { color: #8bf; text-decoration: none; }
+  .thread-author a:hover { text-decoration: underline; }
+  .thread-text { color: #ccc; font-size: .9em; line-height: 1.5; margin: 4px 0; word-wrap: break-word; }
+  .thread-stats { color: #555; font-size: .75em; }
+  .thread-stats span { margin-right: 8px; }
+  .thread-time { color: #444; font-size: .75em; }
+  .thread-img { max-width: 100%; border-radius: 4px; margin: 6px 0; }
+  .thread-loading { color: #555; padding: 12px 0; }
+  .thread-error { color: #a55; padding: 8px 0; font-size: .85em; }
 </style>
 </head>
 <body>
@@ -461,6 +476,97 @@ function layoutPostDots() {
   }
 }
 
+// ── Thread fetching (full thread from Bluesky public API) ──────────
+let fullThreadCache = {}; // uri → full thread response
+
+async function fetchFullThread(uri) {
+  if (fullThreadCache[uri]) return fullThreadCache[uri];
+  const url = `${BSKY_PUBLIC}/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=10&parentHeight=0`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  fullThreadCache[uri] = data.thread;
+  return data.thread;
+}
+
+function relativeTime(dateStr) {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+}
+
+function renderPostNode(node, depth) {
+  if (!node || node.$type === 'app.bsky.feed.defs#blockedPost' || node.$type === 'app.bsky.feed.defs#notFoundPost') {
+    return `<div class="thread-reply" style="color:#555;font-size:.8em">[unavailable]</div>`;
+  }
+  const post = node.post;
+  if (!post) return '';
+
+  const author = post.author || {};
+  const handle = author.handle || author.did?.slice(0, 20) || '?';
+  const displayName = author.displayName || handle;
+  const record = post.record || {};
+  const text = record.text || '';
+  const isRoot = depth === 0;
+  const cls = isRoot ? 'thread-post root' : 'thread-reply';
+
+  // Extract images if present
+  let imgHtml = '';
+  const embed = post.embed;
+  if (embed) {
+    const images = embed.images || (embed.media && embed.media.images) || [];
+    for (const img of images) {
+      const thumb = img.thumb || img.fullsize;
+      if (thumb) imgHtml += `<img class="thread-img" src="${thumb}" loading="lazy" alt="">`;
+    }
+  }
+
+  // Stats
+  const likes = post.likeCount || 0;
+  const replies = post.replyCount || 0;
+  const reposts = post.repostCount || 0;
+  const time = record.createdAt ? relativeTime(record.createdAt) : '';
+  const rkey = post.uri?.split('/').pop() || '';
+
+  let html = `<div class="${cls}">`;
+  html += `<div class="thread-author"><a href="https://bsky.app/profile/${handle}" target="_blank" rel="noopener">${displayName}</a> <span class="thread-time">@${handle} · ${time}</span></div>`;
+  html += `<div class="thread-text">${escapeHtml(text)}</div>`;
+  html += imgHtml;
+  html += `<div class="thread-stats">`;
+  html += `<span>${replies} 💬</span><span>${reposts} 🔁</span><span>${likes} ❤️</span>`;
+  html += ` <a href="https://bsky.app/profile/${author.did || handle}/post/${rkey}" target="_blank" rel="noopener" style="color:#555;text-decoration:none">↗</a>`;
+  html += `</div>`;
+
+  // Render replies recursively
+  if (node.replies && node.replies.length > 0) {
+    // Sort by like count descending
+    const sorted = [...node.replies].sort((a, b) => ((b.post?.likeCount || 0) - (a.post?.likeCount || 0)));
+    for (const reply of sorted) {
+      html += renderPostNode(reply, depth + 1);
+    }
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+}
+
+// Update post dot engagement from full thread data
+function updatePostFromThread(post, thread) {
+  if (!thread || !thread.post) return;
+  const p = thread.post;
+  post.replyCount = p.replyCount || 0;
+  post.likeCount = p.likeCount || 0;
+  post.repostCount = p.repostCount || 0;
+}
+
 // Lazy thread depth fetching — called when user clicks a community
 async function fetchThreadDepths(communityId) {
   const postsForCommunity = activityPosts.filter(p => p.communityIds.includes(communityId));
@@ -743,6 +849,12 @@ window.addEventListener("mousemove", e => {
 });
 
 window.addEventListener("mouseup", e => {
+  // Don't select when clicking inside the info panel (let links work)
+  if (document.getElementById("info-panel").contains(e.target)) {
+    dragging = false;
+    canvas.classList.remove("dragging");
+    return;
+  }
   if (!dragMoved) {
     const hit = hitTest(e.clientX, e.clientY);
     selectNode(hit);
@@ -810,7 +922,10 @@ canvas.addEventListener("touchmove", e => {
 canvas.addEventListener("touchend", e => {
   if (!touchMoved && e.changedTouches.length === 1) {
     const t = e.changedTouches[0];
-    selectNode(hitTest(t.clientX, t.clientY));
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    if (!document.getElementById("info-panel").contains(el)) {
+      selectNode(hitTest(t.clientX, t.clientY));
+    }
   }
   dragging = false; touchMoved = false; lastTouchDist = 0;
 });
@@ -940,34 +1055,65 @@ function selectNode(node) {
     const p = node._post;
     const rkey = p.uri.split("/").pop();
     const authorDid = p.authorDid;
-    const tc = threadCache[p.uri];
-    let html = `<span class="info-close">&times;</span>`;
-    html += `<h2>post</h2>`;
-    html += `<div class="meta">${p.replyCount || 0} replies · ${p.likeCount || 0} likes · ${p.repostCount || 0} reposts</div>`;
-    html += `<div class="meta">magnitude: ${node._magnitude.toFixed(1)}${tc ? ` · depth ${tc.maxDepth} · ${tc.topLevelReplies} top-level` : " · estimated"}</div>`;
-    if (tc && tc.interactorDids.length > 0) {
-      html += `<div class="meta">${tc.interactorDids.length} interactors in thread</div>`;
-    }
-    html += `<div style="margin-top:.6em"><a href="https://bsky.app/profile/${authorDid}/post/${rkey}" target="_blank" rel="noopener" style="color:#8bf;text-decoration:none">↗ view on Bluesky</a></div>`;
-    inner.innerHTML = html;
 
-    // Lazy-fetch thread depth for this specific post if not cached
-    if (!tc) {
-      fetch(`${API_BASE}/xrpc/com.minomobi.feed.getPostThreadDepth?uri=${encodeURIComponent(p.uri)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data) {
-            threadCache[p.uri] = data;
-            layoutPostDots();
-            scheduleDraw();
-            // Update panel if still showing this post
-            if (selectedNode && selectedNode._type === "post" && selectedNode._post.uri === p.uri) {
-              selectNode(selectedNode);
-            }
-          }
-        })
-        .catch(() => {});
-    }
+    // Show loading state immediately
+    let html = `<span class="info-close">&times;</span>`;
+    html += `<h2>thread</h2>`;
+    html += `<div class="thread-loading">loading thread…</div>`;
+    inner.innerHTML = html;
+    inner.querySelector(".info-close").onclick = () => {
+      panel.classList.remove("open"); selectedNode = null; scheduleDraw();
+    };
+
+    // Fetch and render the full thread
+    fetchFullThread(p.uri).then(thread => {
+      // Update engagement counts from live data
+      updatePostFromThread(p, thread);
+      layoutPostDots();
+      scheduleDraw();
+
+      // Also update threadCache for sizing
+      if (thread && thread.replies) {
+        const walkDepth = (n, d) => {
+          let max = d;
+          for (const r of (n.replies || [])) max = Math.max(max, walkDepth(r, d + 1));
+          return max;
+        };
+        const maxDepth = walkDepth(thread, 0);
+        const topLevel = (thread.replies || []).length;
+        const interactorDids = [];
+        const walkDids = (n) => {
+          if (n.post?.author?.did) interactorDids.push(n.post.author.did);
+          for (const r of (n.replies || [])) walkDids(r);
+        };
+        walkDids(thread);
+        threadCache[p.uri] = { maxDepth, topLevelReplies: topLevel, interactorDids };
+        layoutPostDots();
+        scheduleDraw();
+      }
+
+      // Check still selected
+      if (selectedNode !== node) return;
+
+      let h = `<span class="info-close">&times;</span>`;
+      h += `<h2>thread</h2>`;
+      h += renderPostNode(thread, 0);
+      inner.innerHTML = h;
+      inner.querySelector(".info-close").onclick = () => {
+        panel.classList.remove("open"); selectedNode = null; scheduleDraw();
+      };
+    }).catch(err => {
+      if (selectedNode !== node) return;
+      let h = `<span class="info-close">&times;</span>`;
+      h += `<h2>thread</h2>`;
+      h += `<div class="thread-error">failed to load thread: ${err.message}</div>`;
+      h += `<div style="margin-top:.6em"><a href="https://bsky.app/profile/${authorDid}/post/${rkey}" target="_blank" rel="noopener" style="color:#8bf;text-decoration:none">↗ view on Bluesky</a></div>`;
+      inner.innerHTML = h;
+      inner.querySelector(".info-close").onclick = () => {
+        panel.classList.remove("open"); selectedNode = null; scheduleDraw();
+      };
+    });
+    return; // close handler set above, skip the one below
   } else {
     const m = node._member;
     let html = `<span class="info-close">&times;</span>`;
@@ -991,7 +1137,7 @@ function selectNode(node) {
 // Dismiss info panel on click/tap anywhere on the canvas (already works via selectNode(null))
 // Also dismiss when tapping the panel background (not links)
 document.getElementById("info-inner").addEventListener("click", e => {
-  if (e.target.tagName === 'A') return; // let links work
+  if (e.target.closest('a')) return; // let links work (including child spans inside anchors)
   document.getElementById("info-panel").classList.remove("open");
   selectedNode = null; scheduleDraw();
 });
