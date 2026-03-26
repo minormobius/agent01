@@ -75,6 +75,14 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
   const jetstreamRef = useRef<JetstreamClient | null>(null);
   const [connected, setConnected] = useState(false);
 
+  // Refs for Jetstream handler (so it always sees current state)
+  const activeOrgRef = useRef<WaveOrgContext | null>(null);
+  const activeChannelRef = useRef<WaveChannelRecord | null>(null);
+  const activeThreadRef = useRef<WaveThreadRecord | null>(null);
+  activeOrgRef.current = activeOrg;
+  activeChannelRef.current = activeChannel;
+  activeThreadRef.current = activeThread;
+
   // Decrypted cache
   const [decryptedMessages, setDecryptedMessages] = useState<Map<string, MessagePayload | DocEditPayload>>(new Map());
 
@@ -179,6 +187,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         setActiveThread(null);
         setOps([]);
         setDecryptedMessages(new Map());
+        startOrgJetstream(ctx);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load org");
       } finally {
@@ -218,7 +227,6 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
         const loaded = await loadOpsForThread(pds, activeOrg, threadUri, myDid);
         setOps(loaded);
-        startJetstream(activeOrg, threadUri);
       } finally {
         setLoading(false);
       }
@@ -409,9 +417,9 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
     [pds, vault, myDid, myHandle],
   );
 
-  // --- Jetstream ---
-  const startJetstream = useCallback(
-    (ctx: WaveOrgContext, threadUri: string) => {
+  // --- Jetstream (org-level: watches ops, threads, and channels) ---
+  const startOrgJetstream = useCallback(
+    (ctx: WaveOrgContext) => {
       jetstreamRef.current?.close();
       const memberDids = ctx.memberships.map((m) => m.membership.memberDid);
 
@@ -421,12 +429,46 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         onEvent: (event: JetstreamEvent) => {
           if (event.kind !== "commit" || !event.commit) return;
           const { operation, collection, rkey, record } = event.commit;
-          if (operation === "create" && collection === OP_COLLECTION && record) {
+          if (operation !== "create" || !record) return;
+          if (event.did === myDid) return; // skip own records (already added optimistically)
+
+          const handle = ctx.memberships.find(
+            (m) => m.membership.memberDid === event.did,
+          )?.membership.memberHandle;
+
+          if (collection === OP_COLLECTION) {
             const op = record as unknown as import("./types").WaveOp;
-            if (op.threadUri === threadUri) {
-              if (event.did === myDid) return; // skip own ops (already added optimistically)
-              const handle = ctx.memberships.find((m) => m.membership.memberDid === event.did)?.membership.memberHandle;
-              setOps((prev) => [...prev, { rkey, op, authorDid: event.did, authorHandle: handle }]);
+            const curThread = activeThreadRef.current;
+            if (curThread) {
+              const threadUri = `at://${curThread.authorDid}/${THREAD_COLLECTION}/${curThread.rkey}`;
+              if (op.threadUri === threadUri) {
+                setOps((prev) => [...prev, { rkey, op, authorDid: event.did, authorHandle: handle }]);
+              }
+            }
+          } else if (collection === THREAD_COLLECTION) {
+            const thread = record as unknown as import("./types").WaveThread;
+            const curChannel = activeChannelRef.current;
+            if (curChannel) {
+              const channelUri = `at://${ctx.founderDid}/${CHANNEL_COLLECTION}/${curChannel.rkey}`;
+              if (thread.channelUri === channelUri) {
+                setThreads((prev) => {
+                  // Dedupe
+                  if (prev.some((t) => t.rkey === rkey && t.authorDid === event.did)) return prev;
+                  return [...prev, { rkey, thread, authorDid: event.did, authorHandle: handle }];
+                });
+              }
+            }
+          } else if (collection === CHANNEL_COLLECTION) {
+            const channel = record as unknown as import("./types").WaveChannel;
+            if (channel.orgRkey === ctx.org.rkey) {
+              // Only add if the user has access to this tier
+              const tierDef = ctx.org.org.tiers.find((t) => t.name === channel.tierName);
+              if (tierDef && tierDef.level <= ctx.myTierLevel) {
+                setChannels((prev) => {
+                  if (prev.some((c) => c.rkey === rkey)) return prev;
+                  return [...prev, { rkey, channel }];
+                });
+              }
             }
           }
         },
