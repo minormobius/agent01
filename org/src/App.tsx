@@ -11,16 +11,20 @@ import {
   fromBase64,
   toBase64,
 } from "./crypto";
-import type { Session, OrgRecord, MembershipRecord } from "./types";
+import type { Session, OrgRecord, MembershipRecord, NotificationRecord } from "./types";
 import type { OrgContext } from "./crm/types";
 import {
   discoverOrgs as discoverOrgsFromPds,
   buildOrgContext,
+  discoverPendingInvites,
+  loadDismissedNotifications,
+  BOOKMARK_COLLECTION,
 } from "./crm/context";
 import { LoginScreen } from "./components/LoginScreen";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
 import { OrgManager } from "./components/OrgManager";
+import { NotificationPane } from "./components/NotificationPane";
 import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
@@ -97,6 +101,8 @@ export function App() {
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [memberships, setMemberships] = useState<MembershipRecord[]>([]);
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
   const [view, setView] = useState<View>("home");
   const [managingOrg, setManagingOrg] = useState<OrgRecord | null>(null);
   const [loading, setLoading] = useState(false);
@@ -201,6 +207,31 @@ export function App() {
           }
         }
         setOrgContexts(contexts);
+
+        // Discover pending invites from known founders
+        try {
+          const bookmarkOrgRkeys = new Set([
+            ...foundedOrgs.map((o) => o.rkey),
+            ...joinedOrgs.map((j) => j.org.rkey),
+          ]);
+          const dismissed = await loadDismissedNotifications(client);
+          setDismissedKeys(dismissed);
+
+          // Collect unique founder DIDs from existing memberships (others' orgs we know about)
+          const knownFounderDids = new Set<string>();
+          for (const m of allMemberships) {
+            if (m.membership.orgFounderDid && m.membership.orgFounderDid !== session.did) {
+              knownFounderDids.add(m.membership.orgFounderDid);
+            }
+          }
+
+          const pending = await discoverPendingInvites(
+            client, session.did, Array.from(knownFounderDids), bookmarkOrgRkeys, dismissed
+          );
+          setNotifications(pending);
+        } catch (err) {
+          console.warn("Failed to discover pending invites:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -280,12 +311,83 @@ export function App() {
     setOrgs([]);
     setMemberships([]);
     setOrgContexts(new Map());
+    setNotifications([]);
+    setDismissedKeys(new Set());
     setManagingOrg(null);
     setView("home");
     if (window.location.pathname.startsWith("/invite/")) {
       window.history.replaceState(null, "", "/");
     }
   }, []);
+
+  /** Accept an org invite notification — write bookmark, refresh orgs */
+  const handleAcceptInvite = useCallback(
+    async (notif: NotificationRecord) => {
+      if (!pds || !vault) return;
+      const inv = notif.notification;
+      if (inv.type !== "org-invite") return;
+
+      // Write org bookmark to our PDS
+      await pds.putRecord(BOOKMARK_COLLECTION, inv.orgRkey, {
+        $type: BOOKMARK_COLLECTION,
+        founderDid: inv.founderDid,
+        founderService: inv.founderService,
+        orgRkey: inv.orgRkey,
+        orgName: inv.orgName,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Remove from notifications
+      setNotifications((prev) => prev.filter((n) => n.rkey !== notif.rkey));
+
+      // Re-bootstrap to pick up the new org
+      const stored = loadSession();
+      if (stored) {
+        try {
+          await bootstrapVault(stored.service, stored.passphrase, {
+            did: vault.session.did,
+            handle: vault.session.handle,
+            accessJwt: stored.accessJwt,
+            refreshJwt: stored.refreshJwt,
+          }, pds);
+        } catch (err) {
+          console.warn("Re-bootstrap after invite accept failed:", err);
+        }
+      }
+    },
+    [pds, vault, bootstrapVault],
+  );
+
+  /** Dismiss a notification */
+  const handleDismissNotification = useCallback(
+    async (notif: NotificationRecord) => {
+      if (!pds) return;
+      // Write dismissal to PDS
+      const rkey = notif.rkey.replace(/[^a-zA-Z0-9.:_-]/g, "_");
+      try {
+        await pds.putRecord("com.minomobi.vault.notificationDismissal", rkey, {
+          $type: "com.minomobi.vault.notificationDismissal",
+          notificationKey: notif.rkey,
+          dismissedAt: new Date().toISOString(),
+        });
+      } catch { /* best effort */ }
+      setDismissedKeys((prev) => new Set([...prev, notif.rkey]));
+      setNotifications((prev) => prev.filter((n) => n.rkey !== notif.rkey));
+    },
+    [pds],
+  );
+
+  /** Add newly discovered notifications (from "check invites" feature) */
+  const handleNewNotifications = useCallback(
+    (newNotifs: NotificationRecord[]) => {
+      setNotifications((prev) => {
+        const existingKeys = new Set(prev.map((n) => n.rkey));
+        const unique = newNotifs.filter((n) => !existingKeys.has(n.rkey) && !dismissedKeys.has(n.rkey));
+        return [...prev, ...unique];
+      });
+    },
+    [dismissedKeys],
+  );
 
   // --- Restoring session ---
   if (restoring) {
@@ -350,6 +452,10 @@ export function App() {
           onCreateOrg={() => setView("create")}
           onJoinOrg={() => setView("join")}
           onBack={() => { setManagingOrg(null); setView("home"); }}
+          notifications={notifications}
+          onAcceptInvite={handleAcceptInvite}
+          onDismissNotification={handleDismissNotification}
+          onNewNotifications={handleNewNotifications}
         />
       </Route>
 
@@ -371,6 +477,10 @@ export function App() {
           onCreateOrg={() => setView("create")}
           onJoinOrg={() => setView("join")}
           onBack={() => { setManagingOrg(null); setView("home"); }}
+          notifications={notifications}
+          onAcceptInvite={handleAcceptInvite}
+          onDismissNotification={handleDismissNotification}
+          onNewNotifications={handleNewNotifications}
         />
       </Route>
     </>
@@ -396,6 +506,10 @@ function HubHome({
   onCreateOrg,
   onJoinOrg,
   onBack,
+  notifications,
+  onAcceptInvite,
+  onDismissNotification,
+  onNewNotifications,
 }: {
   vault: VaultState;
   pds: PdsClient;
@@ -413,19 +527,51 @@ function HubHome({
   onCreateOrg: () => void;
   onJoinOrg: () => void;
   onBack: () => void;
+  notifications: NotificationRecord[];
+  onAcceptInvite: (notif: NotificationRecord) => void;
+  onDismissNotification: (notif: NotificationRecord) => void;
+  onNewNotifications: (notifs: NotificationRecord[]) => void;
 }) {
+  const [showNotifications, setShowNotifications] = useState(false);
+
   return (
     <div className="hub">
       <header className="hub-header">
         <h1>Org Hub</h1>
         <div className="user-info">
           <ThemePicker />
+          <button
+            className="notif-bell"
+            onClick={() => setShowNotifications(!showNotifications)}
+            title="Notifications"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {notifications.length > 0 && (
+              <span className="notif-badge">{notifications.length}</span>
+            )}
+          </button>
           <span>@{vault.session.handle}</span>
           <button className="btn-secondary btn-sm" onClick={onLogout}>
             Sign out
           </button>
         </div>
       </header>
+
+      {showNotifications && (
+        <NotificationPane
+          pds={pds}
+          myDid={vault.session.did}
+          notifications={notifications}
+          existingOrgRkeys={new Set(orgs.map((o) => o.rkey))}
+          onAccept={onAcceptInvite}
+          onDismiss={onDismissNotification}
+          onNewNotifications={onNewNotifications}
+          onClose={() => setShowNotifications(false)}
+        />
+      )}
 
       <div className="hub-body">
         {loading && <div className="loading">Loading...</div>}

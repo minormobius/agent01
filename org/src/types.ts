@@ -71,6 +71,34 @@ export interface Keyring {
   members: KeyringMemberEntry[];
 }
 
+// --- Notifications ---
+
+export interface OrgInviteNotification {
+  type: "org-invite";
+  orgRkey: string;
+  orgName: string;
+  founderDid: string;
+  founderService: string;
+  tierName: string;
+  invitedBy: string;
+  invitedByHandle?: string;
+  createdAt: string;
+}
+
+export type Notification = OrgInviteNotification;
+
+export interface NotificationRecord {
+  /** Stable key: `invite:{founderDid}:{orgRkey}` */
+  rkey: string;
+  notification: Notification;
+}
+
+/** Stored on user's PDS to track dismissed notifications */
+export interface NotificationDismissal {
+  notificationKey: string;
+  dismissedAt: string;
+}
+
 // --- App Registry ---
 
 export interface AppDef {

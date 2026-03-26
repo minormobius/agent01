@@ -3,7 +3,7 @@
  * Extracted from CRM App.tsx to keep CrmApp.tsx lean.
  */
 
-import { PdsClient, resolvePds } from "../pds";
+import { PdsClient, resolvePds, resolveHandle } from "../pds";
 import {
   sealRecord,
   unsealRecord,
@@ -45,6 +45,7 @@ export const APPROVAL_COLLECTION = "com.minomobi.vault.approval";
 export const DECISION_COLLECTION = "com.minomobi.vault.decision";
 export const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
 export const RELATIONSHIP_COLLECTION = "com.minomobi.vault.orgRelationship";
+export const NOTIFICATION_DISMISSAL_COLLECTION = "com.minomobi.vault.notificationDismissal";
 export const INNER_TYPE = "com.minomobi.crm.deal";
 
 /** Compute the keyring rkey for a tier at a given epoch. */
@@ -143,6 +144,164 @@ export async function discoverOrgs(client: PdsClient): Promise<{
     joinedOrgs,
     allMemberships: [...localMemberships, ...remoteMemberships],
   };
+}
+
+/**
+ * Discover pending org invites — memberships targeting our DID that we haven't
+ * bookmarked yet. Scans known founders' PDS + optionally a specific handle.
+ *
+ * Returns notifications for invites that haven't been dismissed.
+ */
+export async function discoverPendingInvites(
+  _client: PdsClient,
+  myDid: string,
+  knownFounderDids: string[],
+  existingBookmarkOrgRkeys: Set<string>,
+  dismissedKeys: Set<string>,
+): Promise<import("../types").NotificationRecord[]> {
+  const notifications: import("../types").NotificationRecord[] = [];
+  const seen = new Set<string>();
+
+  for (const founderDid of knownFounderDids) {
+    try {
+      let founderService: string;
+      try {
+        founderService = await resolvePds(founderDid);
+      } catch { continue; }
+
+      const founderClient = new PdsClient(founderService);
+
+      // Scan founder's memberships for records targeting us
+      let cursor: string | undefined;
+      do {
+        const page = await founderClient.listRecordsFrom(
+          founderDid, MEMBERSHIP_COLLECTION, 100, cursor
+        );
+        for (const rec of page.records) {
+          const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+          if ((val as { memberDid?: string }).memberDid !== myDid) continue;
+
+          const orgRkey = (val as { orgRkey?: string }).orgRkey;
+          if (!orgRkey) continue;
+          if (existingBookmarkOrgRkeys.has(orgRkey)) continue;
+
+          const key = `invite:${founderDid}:${orgRkey}`;
+          if (seen.has(key) || dismissedKeys.has(key)) continue;
+          seen.add(key);
+
+          // Fetch org name
+          let orgName = orgRkey;
+          try {
+            const orgRec = await founderClient.getRecordFrom(founderDid, ORG_COLLECTION, orgRkey);
+            if (orgRec) {
+              const orgVal = (orgRec as Record<string, unknown>).value as Record<string, unknown>;
+              orgName = (orgVal as { name?: string }).name ?? orgRkey;
+            }
+          } catch { /* use rkey as fallback */ }
+
+          notifications.push({
+            rkey: key,
+            notification: {
+              type: "org-invite",
+              orgRkey,
+              orgName,
+              founderDid,
+              founderService,
+              tierName: (val as { tierName?: string }).tierName ?? "member",
+              invitedBy: (val as { invitedBy?: string }).invitedBy ?? founderDid,
+              invitedByHandle: (val as { memberHandle?: string }).memberHandle,
+              createdAt: (val as { createdAt?: string }).createdAt ?? new Date().toISOString(),
+            },
+          });
+        }
+        cursor = page.cursor;
+      } while (cursor);
+    } catch (err) {
+      console.warn(`Failed to check invites from ${founderDid}:`, err);
+    }
+  }
+
+  return notifications;
+}
+
+/**
+ * Check a specific user's PDS for invites targeting our DID.
+ * Used for the "check invites from handle" feature.
+ */
+export async function checkInvitesFromUser(
+  _client: PdsClient,
+  founderHandleOrDid: string,
+  myDid: string,
+  existingBookmarkOrgRkeys: Set<string>,
+): Promise<import("../types").NotificationRecord[]> {
+  const input = founderHandleOrDid.trim().replace(/^@/, "");
+  if (!input) return [];
+
+  const founderDid = input.startsWith("did:") ? input : await resolveHandle(input);
+  const founderService = await resolvePds(founderDid);
+  const founderClient = new PdsClient(founderService);
+
+  const notifications: import("../types").NotificationRecord[] = [];
+
+  let cursor: string | undefined;
+  do {
+    const page = await founderClient.listRecordsFrom(
+      founderDid, MEMBERSHIP_COLLECTION, 100, cursor
+    );
+    for (const rec of page.records) {
+      const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+      if ((val as { memberDid?: string }).memberDid !== myDid) continue;
+
+      const orgRkey = (val as { orgRkey?: string }).orgRkey;
+      if (!orgRkey) continue;
+      if (existingBookmarkOrgRkeys.has(orgRkey)) continue;
+
+      const key = `invite:${founderDid}:${orgRkey}`;
+
+      let orgName = orgRkey;
+      try {
+        const orgRec = await founderClient.getRecordFrom(founderDid, ORG_COLLECTION, orgRkey);
+        if (orgRec) {
+          const orgVal = (orgRec as Record<string, unknown>).value as Record<string, unknown>;
+          orgName = (orgVal as { name?: string }).name ?? orgRkey;
+        }
+      } catch { /* use rkey as fallback */ }
+
+      notifications.push({
+        rkey: key,
+        notification: {
+          type: "org-invite",
+          orgRkey,
+          orgName,
+          founderDid,
+          founderService,
+          tierName: (val as { tierName?: string }).tierName ?? "member",
+          invitedBy: (val as { invitedBy?: string }).invitedBy ?? founderDid,
+          invitedByHandle: input.startsWith("did:") ? undefined : input,
+          createdAt: (val as { createdAt?: string }).createdAt ?? new Date().toISOString(),
+        },
+      });
+    }
+    cursor = page.cursor;
+  } while (cursor);
+
+  return notifications;
+}
+
+/** Load dismissed notification keys from PDS */
+export async function loadDismissedNotifications(client: PdsClient): Promise<Set<string>> {
+  const dismissed = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    const page = await client.listRecords(NOTIFICATION_DISMISSAL_COLLECTION, 100, cursor);
+    for (const rec of page.records) {
+      const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+      const key = (val as { notificationKey?: string }).notificationKey;
+      if (key) dismissed.add(key);
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  return dismissed;
 }
 
 /** Build org context: unwrap DEKs, load change control + relationships */
