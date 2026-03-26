@@ -39,7 +39,7 @@ export interface VaultState {
   publicKey: CryptoKey;
 }
 
-type View = "orgs" | "manage";
+type View = "home" | "create" | "join" | "manage-org";
 
 /** Parse invite params from URL: /invite/<orgRkey>?founder=<did>&service=<pds> */
 function parseInviteUrl(): { orgRkey: string; founderDid: string; founderService: string } | null {
@@ -97,7 +97,8 @@ export function App() {
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [memberships, setMemberships] = useState<MembershipRecord[]>([]);
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
-  const [view, setView] = useState<View>("orgs");
+  const [view, setView] = useState<View>("home");
+  const [managingOrg, setManagingOrg] = useState<OrgRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
   const restoredRef = useRef(false);
@@ -253,7 +254,7 @@ export function App() {
   // --- Callbacks for child components ---
   const handleOrgCreated = useCallback((org: OrgRecord) => {
     setOrgs((prev) => [...prev, org]);
-    setView("orgs");
+    setView("home");
   }, []);
 
   const handleMembershipChanged = useCallback(
@@ -266,7 +267,8 @@ export function App() {
       setOrgs((prev) => prev.filter((o) => o.rkey !== orgRkey));
       setMemberships((prev) => prev.filter((m) => m.membership.orgRkey !== orgRkey));
       setOrgContexts((prev) => { const u = new Map(prev); u.delete(orgRkey); return u; });
-      setView("orgs");
+      setManagingOrg(null);
+      setView("home");
     },
     [],
   );
@@ -278,7 +280,8 @@ export function App() {
     setOrgs([]);
     setMemberships([]);
     setOrgContexts(new Map());
-    setView("orgs");
+    setManagingOrg(null);
+    setView("home");
     if (window.location.pathname.startsWith("/invite/")) {
       window.history.replaceState(null, "", "/");
     }
@@ -337,13 +340,16 @@ export function App() {
           memberships={memberships}
           orgContexts={orgContexts}
           view={view}
+          managingOrg={managingOrg}
           loading={loading}
           onLogout={handleLogout}
           onOrgCreated={handleOrgCreated}
           onMembershipsChanged={handleMembershipChanged}
           onOrgDeleted={handleOrgDeleted}
-          onManageOrgs={() => setView("manage")}
-          onBack={() => setView("orgs")}
+          onManageOrg={(org) => { setManagingOrg(org); setView("manage-org"); }}
+          onCreateOrg={() => setView("create")}
+          onJoinOrg={() => setView("join")}
+          onBack={() => { setManagingOrg(null); setView("home"); }}
         />
       </Route>
 
@@ -355,13 +361,16 @@ export function App() {
           memberships={memberships}
           orgContexts={orgContexts}
           view={view}
+          managingOrg={managingOrg}
           loading={loading}
           onLogout={handleLogout}
           onOrgCreated={handleOrgCreated}
           onMembershipsChanged={handleMembershipChanged}
           onOrgDeleted={handleOrgDeleted}
-          onManageOrgs={() => setView("manage")}
-          onBack={() => setView("orgs")}
+          onManageOrg={(org) => { setManagingOrg(org); setView("manage-org"); }}
+          onCreateOrg={() => setView("create")}
+          onJoinOrg={() => setView("join")}
+          onBack={() => { setManagingOrg(null); setView("home"); }}
         />
       </Route>
     </>
@@ -377,12 +386,15 @@ function HubHome({
   memberships,
   orgContexts,
   view,
+  managingOrg,
   loading,
   onLogout,
   onOrgCreated,
   onMembershipsChanged,
   onOrgDeleted,
-  onManageOrgs,
+  onManageOrg,
+  onCreateOrg,
+  onJoinOrg,
   onBack,
 }: {
   vault: VaultState;
@@ -391,12 +403,15 @@ function HubHome({
   memberships: MembershipRecord[];
   orgContexts: Map<string, OrgContext>;
   view: View;
+  managingOrg: OrgRecord | null;
   loading: boolean;
   onLogout: () => void;
   onOrgCreated: (org: OrgRecord) => void;
   onMembershipsChanged: (updated: MembershipRecord[]) => void;
   onOrgDeleted: (orgRkey: string) => void;
-  onManageOrgs: () => void;
+  onManageOrg: (org: OrgRecord) => void;
+  onCreateOrg: () => void;
+  onJoinOrg: () => void;
   onBack: () => void;
 }) {
   return (
@@ -415,13 +430,23 @@ function HubHome({
       <div className="hub-body">
         {loading && <div className="loading">Loading...</div>}
 
-        {!loading && view === "orgs" && (
+        {!loading && view === "home" && (
           <>
             <div className="org-selector">
-              <h2>Organizations</h2>
+              <div className="org-selector-header">
+                <h2>Organizations</h2>
+                <div className="org-header-actions">
+                  <button className="btn-secondary btn-sm" onClick={onJoinOrg}>
+                    Join
+                  </button>
+                  <button className="btn-primary btn-sm" onClick={onCreateOrg}>
+                    + New
+                  </button>
+                </div>
+              </div>
               {orgs.length === 0 && (
                 <p style={{ color: "var(--text-dim)", marginBottom: 12 }}>
-                  No organizations yet. Manage orgs to create one.
+                  No organizations yet. Create one or join an existing org.
                 </p>
               )}
               <div className="org-list">
@@ -433,23 +458,23 @@ function HubHome({
                         {o.org.founderDid === vault.session.did ? "Founded by you" : "Member"} &middot; {o.org.tiers.length} tiers
                       </div>
                     </div>
-                    <span className="tier-badge">
-                      {o.org.founderDid === vault.session.did ? "founder" : "member"}
-                    </span>
+                    <div className="org-item-actions">
+                      <span className="tier-badge">
+                        {o.org.founderDid === vault.session.did ? "founder" : "member"}
+                      </span>
+                      <button className="btn-secondary btn-sm" onClick={() => onManageOrg(o)}>
+                        Manage
+                      </button>
+                    </div>
                   </div>
                 ))}
-              </div>
-              <div className="org-actions">
-                <button className="btn-primary" style={{ width: "auto" }} onClick={onManageOrgs}>
-                  Manage Organizations
-                </button>
               </div>
             </div>
             <AppGrid activeOrg={null} />
           </>
         )}
 
-        {view === "manage" && (
+        {!loading && (view === "create" || view === "join" || view === "manage-org") && (
           <OrgManager
             pds={pds}
             myDid={vault.session.did}
@@ -467,6 +492,9 @@ function HubHome({
             onRelationshipCreated={() => {}}
             onOrgDeleted={onOrgDeleted}
             onClose={onBack}
+            inline
+            initialOrg={view === "manage-org" ? managingOrg : undefined}
+            initialView={view === "create" ? "create" : view === "join" ? "join" : view === "manage-org" ? "manage" : undefined}
           />
         )}
       </div>

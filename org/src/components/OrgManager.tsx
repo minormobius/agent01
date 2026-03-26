@@ -55,6 +55,12 @@ interface Props {
   onRelationshipCreated: (rel: OrgRelationshipRecord) => void;
   onOrgDeleted?: (orgRkey: string) => void;
   onClose: () => void;
+  /** When true, render inline (no modal overlay) */
+  inline?: boolean;
+  /** Pre-select an org to manage */
+  initialOrg?: OrgRecord | null;
+  /** Start in a specific sub-view */
+  initialView?: View;
 }
 
 type View = "list" | "create" | "join" | "manage";
@@ -76,88 +82,103 @@ export function OrgManager({
   onRelationshipCreated,
   onOrgDeleted,
   onClose,
+  inline,
+  initialOrg,
+  initialView: initView,
 }: Props) {
-  const [view, setView] = useState<View>("list");
-  const [selectedOrg, setSelectedOrg] = useState<OrgRecord | null>(null);
+  const [view, setView] = useState<View>(initView ?? (initialOrg ? "manage" : "list"));
+  const [selectedOrg, setSelectedOrg] = useState<OrgRecord | null>(initialOrg ?? null);
+
+  const goBack = inline ? onClose : () => setView("list");
+
+  const content = (
+    <>
+      {view === "list" && (
+        <OrgList
+          orgs={orgs}
+          memberships={memberships}
+          myDid={myDid}
+          onCreateNew={() => setView("create")}
+          onJoinOrg={() => setView("join")}
+          onManage={(org) => {
+            setSelectedOrg(org);
+            setView("manage");
+          }}
+          onClose={onClose}
+        />
+      )}
+      {view === "join" && (
+        <JoinOrg
+          pds={pds}
+          myDid={myDid}
+          onJoined={(org, founderService, joinedMemberships) => {
+            onOrgJoined(org, founderService, joinedMemberships);
+            goBack();
+          }}
+          onBack={goBack}
+        />
+      )}
+      {view === "create" && (
+        <CreateOrg
+          pds={pds}
+          myDid={myDid}
+          myPrivateKey={myPrivateKey}
+          myPublicKey={myPublicKey}
+          onCreated={(org) => {
+            onOrgCreated(org);
+            goBack();
+          }}
+          onBack={goBack}
+        />
+      )}
+      {view === "manage" && selectedOrg && (
+        <ManageOrg
+          pds={pds}
+          org={selectedOrg}
+          myDid={myDid}
+          myHandle={myHandle}
+          myPrivateKey={myPrivateKey}
+          myPublicKey={myPublicKey}
+          memberships={memberships.filter(
+            (m) => m.membership.orgRkey === selectedOrg.rkey
+          )}
+          allMemberships={memberships}
+          relationships={relationships.filter(
+            (r) =>
+              (r.relationship.parentRef?.orgRkey === selectedOrg.rkey &&
+                r.relationship.parentRef?.did === myDid) ||
+              (r.relationship.childRef.orgRkey === selectedOrg.rkey &&
+                r.relationship.childRef.did === myDid)
+          )}
+          onMemberInvited={onMemberInvited}
+          onMemberRemoved={(membershipRkey, updatedOrg) => {
+            onMemberRemoved(membershipRkey, updatedOrg);
+            setSelectedOrg({ ...selectedOrg, org: updatedOrg });
+          }}
+          onOrgUpdated={(updatedOrg) => {
+            onOrgUpdated(updatedOrg);
+            setSelectedOrg({ ...selectedOrg, org: updatedOrg });
+          }}
+          onRelationshipCreated={onRelationshipCreated}
+          onOrgDeleted={onOrgDeleted ? (orgRkey) => {
+            onOrgDeleted(orgRkey);
+            setSelectedOrg(null);
+            goBack();
+          } : undefined}
+          onBack={goBack}
+        />
+      )}
+    </>
+  );
+
+  if (inline) {
+    return <div className="org-manager-inline">{content}</div>;
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal org-modal" onClick={(e) => e.stopPropagation()}>
-        {view === "list" && (
-          <OrgList
-            orgs={orgs}
-            memberships={memberships}
-            myDid={myDid}
-            onCreateNew={() => setView("create")}
-            onJoinOrg={() => setView("join")}
-            onManage={(org) => {
-              setSelectedOrg(org);
-              setView("manage");
-            }}
-            onClose={onClose}
-          />
-        )}
-        {view === "join" && (
-          <JoinOrg
-            pds={pds}
-            myDid={myDid}
-            onJoined={(org, founderService, joinedMemberships) => {
-              onOrgJoined(org, founderService, joinedMemberships);
-              setView("list");
-            }}
-            onBack={() => setView("list")}
-          />
-        )}
-        {view === "create" && (
-          <CreateOrg
-            pds={pds}
-            myDid={myDid}
-            myPrivateKey={myPrivateKey}
-            myPublicKey={myPublicKey}
-            onCreated={(org) => {
-              onOrgCreated(org);
-              setView("list");
-            }}
-            onBack={() => setView("list")}
-          />
-        )}
-        {view === "manage" && selectedOrg && (
-          <ManageOrg
-            pds={pds}
-            org={selectedOrg}
-            myDid={myDid}
-            myHandle={myHandle}
-            myPrivateKey={myPrivateKey}
-            myPublicKey={myPublicKey}
-            memberships={memberships.filter(
-              (m) => m.membership.orgRkey === selectedOrg.rkey
-            )}
-            allMemberships={memberships}
-            relationships={relationships.filter(
-              (r) =>
-                (r.relationship.parentRef?.orgRkey === selectedOrg.rkey &&
-                  r.relationship.parentRef?.did === myDid) ||
-                (r.relationship.childRef.orgRkey === selectedOrg.rkey &&
-                  r.relationship.childRef.did === myDid)
-            )}
-            onMemberInvited={onMemberInvited}
-            onMemberRemoved={(membershipRkey, updatedOrg) => {
-              onMemberRemoved(membershipRkey, updatedOrg);
-              setSelectedOrg({ ...selectedOrg, org: updatedOrg });
-            }}
-            onOrgUpdated={(updatedOrg) => {
-              onOrgUpdated(updatedOrg);
-              setSelectedOrg({ ...selectedOrg, org: updatedOrg });
-            }}
-            onRelationshipCreated={onRelationshipCreated}
-            onOrgDeleted={onOrgDeleted ? (orgRkey) => {
-              onOrgDeleted(orgRkey);
-              setSelectedOrg(null);
-              setView("list");
-            } : undefined}
-            onBack={() => setView("list")}
-          />
-        )}
+        {content}
       </div>
     </div>
   );
@@ -1056,6 +1077,10 @@ function ManageOrg({
               </div>
             )}
           </div>
+
+          {canManageMembers && (
+            <InviteLinkSection orgRkey={org.rkey} founderDid={org.org.founderDid} pdsService={pds.getService()} />
+          )}
         </>
       )}
 
@@ -1907,5 +1932,46 @@ function JoinOrg({
         </div>
       </form>
     </>
+  );
+}
+
+// --- Invite Link ---
+
+function InviteLinkSection({ orgRkey, founderDid, pdsService }: { orgRkey: string; founderDid: string; pdsService: string }) {
+  const [copied, setCopied] = useState(false);
+  const inviteLink = `${window.location.origin}/invite/${orgRkey}?founder=${encodeURIComponent(founderDid)}&service=${encodeURIComponent(pdsService)}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="org-section">
+      <h3>Invite Link</h3>
+      <p className="org-hint">
+        Share this link with new users. They'll be guided through vault setup and org joining.
+      </p>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          readOnly
+          value={inviteLink}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
+            color: "var(--text-dim)",
+            fontSize: "0.8rem",
+          }}
+        />
+        <button className="btn-secondary btn-sm" onClick={copyLink}>
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+    </div>
   );
 }

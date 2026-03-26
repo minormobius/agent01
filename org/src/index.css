@@ -331,7 +331,29 @@ button:disabled {
 
 .org-selector h2 {
   font-size: 1.1rem;
+  margin-bottom: 0;
+}
+
+.org-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.org-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.org-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.org-manager-inline {
+  width: 100%;
 }
 
 .org-list {
