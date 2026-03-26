@@ -1,9 +1,0 @@
-name = "mino-zoom"
-compatibility_date = "2026-02-20"
-
-# Serve static assets from this directory
-assets = { directory = "." }
-
-[[routes]]
-pattern = "zoom.mino.mobi"
-custom_domain = true
