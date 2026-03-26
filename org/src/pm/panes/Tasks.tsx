@@ -1,5 +1,5 @@
 /**
- * Tasks pane — tree list with inline editing, deps, assignment, add form.
+ * Tasks pane — tree list with inline editing, workflow checkmarks, deps, assignment.
  */
 
 import { useState } from "react";
@@ -219,6 +219,34 @@ function TaskList({
                 </div>
               )}
             </div>
+
+            {/* Workflow checkmarks */}
+            {!isP && (
+              <div className="task-workflow-col">
+                <label
+                  className={`task-check${t.queued ? " checked" : ""}`}
+                  title="Queued — task is ready to start"
+                >
+                  <input
+                    type="checkbox"
+                    checked={t.queued}
+                    onChange={(e) => onUpdate(t.id, { queued: e.target.checked })}
+                  />
+                  Q
+                </label>
+                <label
+                  className={`task-check${t.reviewed ? " checked" : ""}`}
+                  title="Reviewed — task has been signed off"
+                >
+                  <input
+                    type="checkbox"
+                    checked={t.reviewed}
+                    onChange={(e) => onUpdate(t.id, { reviewed: e.target.checked })}
+                  />
+                  R
+                </label>
+              </div>
+            )}
 
             <div className="task-bar-col">
               <div className="task-bar">

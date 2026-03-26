@@ -1061,6 +1061,40 @@ button:disabled {
 .task-pct-col { width: 50px; text-align: right; font-size: 0.8rem; }
 .task-actions-col { display: flex; gap: 4px; align-items: center; }
 
+/* Workflow checkmarks */
+.task-workflow-col {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-check {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.task-check input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.task-check.checked {
+  background: var(--accent);
+  color: #fff;
+}
+
 .task-bar {
   height: 8px;
   background: var(--surface-3);
@@ -1441,6 +1475,81 @@ button:disabled {
 .kanban-card-bar-fill {
   height: 100%;
   border-radius: 2px;
+}
+
+.kanban-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.kanban-card-flags {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.kanban-flag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+.kanban-flag-q {
+  background: var(--accent);
+  color: #fff;
+}
+
+.kanban-flag-r {
+  background: var(--success, #3fb950);
+  color: #fff;
+}
+
+.kanban-card-expanded {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kanban-card-field label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.kanban-card-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kanban-range {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--accent);
+}
+
+.kanban-range-val {
+  font-size: 0.75rem;
+  font-weight: 600;
+  width: 32px;
+  text-align: right;
+}
+
+.kanban-card-checks {
+  display: flex;
+  gap: 8px;
+}
+
+.kanban-card-expanded .task-inline-input {
+  width: 100%;
 }
 
 /* ---------- S-Curve & Resources ---------- */
