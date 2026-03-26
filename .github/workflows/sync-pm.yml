@@ -1,0 +1,70 @@
+name: Sync PM to ATProto
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Sync mode'
+        required: true
+        default: 'push'
+        type: choice
+        options:
+          - push
+          - pull
+      project_file:
+        description: 'Path to project JSON export (for push mode)'
+        required: false
+        default: 'pm/exports/latest.json'
+      account:
+        description: 'Bluesky account to write to'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - modulo
+          - morphyx
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests cryptography
+
+      - name: Resolve account credentials
+        id: creds
+        run: |
+          case "${{ inputs.account }}" in
+            main)
+              echo "handle=${{ secrets.BLUESKY_HANDLE }}" >> $GITHUB_OUTPUT
+              echo "password=${{ secrets.BLUESKY_APP_PASSWORD }}" >> $GITHUB_OUTPUT
+              ;;
+            modulo)
+              echo "handle=${{ secrets.BLUESKY_MODULO_HANDLE }}" >> $GITHUB_OUTPUT
+              echo "password=${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}" >> $GITHUB_OUTPUT
+              ;;
+            morphyx)
+              echo "handle=${{ secrets.BLUESKY_MORPHYX_HANDLE }}" >> $GITHUB_OUTPUT
+              echo "password=${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Sync PM data
+        env:
+          BLUESKY_HANDLE: ${{ steps.creds.outputs.handle }}
+          BLUESKY_APP_PASSWORD: ${{ steps.creds.outputs.password }}
+          VAULT_PASSPHRASE: ${{ secrets.VAULT_PASSPHRASE }}
+          SYNC_MODE: ${{ inputs.mode }}
+          PROJECT_FILE: ${{ inputs.project_file }}
+        run: python scripts/sync-pm-to-atproto.py

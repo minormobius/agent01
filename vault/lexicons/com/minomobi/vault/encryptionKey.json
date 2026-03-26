@@ -1,0 +1,32 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.vault.encryptionKey",
+  "description": "User's ECDH P-256 public key. Published so other users can establish shared secrets for group key exchange.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Public encryption key for vault key exchange.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["publicKey", "algorithm", "createdAt"],
+        "properties": {
+          "publicKey": {
+            "type": "bytes",
+            "description": "ECDH P-256 public key in uncompressed SEC1 format (65 bytes).",
+            "maxLength": 128
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "Key agreement algorithm.",
+            "knownValues": ["ECDH-P256"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

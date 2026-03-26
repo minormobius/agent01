@@ -1,0 +1,46 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.vault.sealed",
+  "description": "Encrypted envelope containing one inner record. The relay sees only ciphertext. Decryption requires the workspace DEK from the associated keyring.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Sealed (encrypted) business record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["innerType", "keyringRkey", "iv", "ciphertext", "createdAt"],
+        "properties": {
+          "innerType": {
+            "type": "string",
+            "description": "The ATProto NSID of the inner record type (e.g., com.minomobi.crm.deal). Cleartext for query filtering.",
+            "maxLength": 256
+          },
+          "keyringRkey": {
+            "type": "string",
+            "description": "rkey of the vault.keyring record that holds the DEK for decryption.",
+            "maxLength": 64
+          },
+          "iv": {
+            "type": "bytes",
+            "description": "AES-GCM initialization vector (96 bits / 12 bytes).",
+            "maxLength": 12
+          },
+          "ciphertext": {
+            "type": "bytes",
+            "description": "AES-256-GCM ciphertext of the DAG-CBOR-serialized inner record (includes auth tag).",
+            "maxLength": 1048576
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

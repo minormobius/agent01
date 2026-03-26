@@ -1,0 +1,87 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.team",
+  "description": "Project team roster. Maps DIDs to display names, roles, and cost rates. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Team roster for a project.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRkey", "members", "createdAt"],
+        "properties": {
+          "projectRkey": {
+            "type": "string",
+            "description": "rkey of the associated pm.project record.",
+            "maxLength": 64
+          },
+          "members": {
+            "type": "array",
+            "description": "List of team members.",
+            "items": {
+              "type": "ref",
+              "ref": "#member"
+            },
+            "maxLength": 256
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "description": "A team member entry.",
+      "required": ["id", "displayName", "role"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Member identifier. DID if ATProto-linked, otherwise local UUID.",
+          "maxLength": 256
+        },
+        "did": {
+          "type": "string",
+          "format": "did",
+          "description": "ATProto DID, if the member has a linked identity."
+        },
+        "handle": {
+          "type": "string",
+          "description": "ATProto handle for display (e.g., alice.bsky.social).",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable name.",
+          "maxLength": 256
+        },
+        "role": {
+          "type": "string",
+          "description": "Project role.",
+          "knownValues": ["manager", "engineer", "designer", "analyst", "stakeholder", "contractor"]
+        },
+        "costRate": {
+          "type": "number",
+          "description": "Hourly cost rate for resource loading calculations. Currency-agnostic."
+        },
+        "maxHoursPerWeek": {
+          "type": "number",
+          "description": "Maximum available hours per week (default 40).",
+          "minimum": 0,
+          "maximum": 168
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex color for Gantt/resource chart (e.g., '#58a6ff').",
+          "maxLength": 7
+        }
+      }
+    }
+  }
+}
