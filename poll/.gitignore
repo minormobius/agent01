@@ -4,3 +4,5 @@ dist/
 .dev.vars
 .mf/
 *.local
+# Generated font modules (built by scripts/encode-fonts.js)
+apps/api/src/fonts/*.ts

@@ -6,9 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["0 */6 * * *"]  # Recompute communities every 6 hours
 
+[[routes]]
+pattern = "feed.mino.mobi"
+custom_domain = true
+
 [vars]
-FEED_URI = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/simcluster"
-PUBLISHER_DID = "did:plc:7zre4plmd5jllccww575j6sb"
+FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster"
+PUBLISHER_DID = "did:plc:oqyev6xmuwgbtpr6jgxh5xg3"
 HOSTNAME = "feed.mino.mobi"
 CONSTELLATION_RELAY = "https://constellation.us-east.host.bsky.network"
 BLUESKY_SEED_LIST = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mhrbb6iqxi2g"
@@ -21,4 +25,4 @@ migrations_dir = "../../poll/apps/api/migrations"
 
 [[kv_namespaces]]
 binding = "STATE"
-id = "PLACEHOLDER"
+id = "67ce39f7715b47aab1187a5443f74e0e"

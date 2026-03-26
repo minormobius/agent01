@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
+import { HandleAutocomplete } from './HandleAutocomplete';
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -61,6 +63,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { did, handle, loading, logout } = useAuth();
   const theme = useTheme();
   const pwa = useInstallPrompt();
+  const siteMode = useSiteMode();
+  const basePath = useBasePath();
 
   return (
     <div className="container">
@@ -74,7 +78,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <header>
-        <h1><Link to="/">ATPolls</Link></h1>
+        <h1><Link to={basePath || '/'}>{siteMode === 'public_like' ? 'Public Polls' : 'ATPolls'}</Link></h1>
         <nav>
           <button className="theme-toggle" onClick={theme.toggle} title={theme.dark ? 'Light mode' : 'Dark mode'}>
             {theme.dark ? (
@@ -84,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
           <Link to="/docs">Docs</Link>
-          <Link to="/create">Create</Link>
+          <Link to={`${basePath}/create`}>Create</Link>
           {!loading && did && (
             <>
               <span className="muted">{handle}</span>
@@ -102,16 +106,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export function AuthCard({ returnTo }: { returnTo?: string } = {}) {
   const { did, handle, loading, error, login, loginOAuth, logout } = useAuth();
-  const [loginHandle, setLoginHandle] = useState('');
+  const [loginHandle, setLoginHandle] = useState(() => {
+    try { return localStorage.getItem('atpolls:last-handle') || ''; } catch { return ''; }
+  });
   const [showAppPassword, setShowAppPassword] = useState(false);
   const [appPassword, setAppPassword] = useState('');
 
   const doOAuth = () => {
-    if (loginHandle) loginOAuth(loginHandle, returnTo);
+    if (loginHandle) {
+      try { localStorage.setItem('atpolls:last-handle', loginHandle); } catch {}
+      loginOAuth(loginHandle, returnTo);
+    }
   };
 
   const doAppPasswordLogin = () => {
     if (loginHandle && appPassword) {
+      try { localStorage.setItem('atpolls:last-handle', loginHandle); } catch {}
       login(loginHandle, appPassword);
       setAppPassword('');
     }
@@ -139,12 +149,11 @@ export function AuthCard({ returnTo }: { returnTo?: string } = {}) {
         Enter your Bluesky handle to sign in securely via OAuth.
       </p>
       <div className="auth-form">
-        <input
-          type="text"
-          placeholder="handle.bsky.social"
+        <HandleAutocomplete
           value={loginHandle}
-          onChange={e => setLoginHandle(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doOAuth()}
+          onChange={setLoginHandle}
+          onSubmit={doOAuth}
+          placeholder="handle.bsky.social"
         />
         <button className="btn btn-primary" onClick={doOAuth}>
           Sign in with Bluesky

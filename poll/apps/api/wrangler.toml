@@ -3,6 +3,19 @@ main = "src/index.ts"
 compatibility_date = "2024-07-18"
 compatibility_flags = ["nodejs_compat"]
 
+# Static frontend assets (built by Vite into poll/dist/)
+[assets]
+directory = "../../dist"
+
+# Handle WASM imports (resvg for OG image generation)
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = false
+
+# Fonts are pre-encoded to .ts modules by scripts/encode-fonts.js
+# (the [[rules]] type=Data approach doesn't work with `wrangler versions upload`)
+
 [vars]
 FRONTEND_URL = "https://poll.mino.mobi"
 ATPROTO_MOCK_MODE = "true"
@@ -17,12 +30,17 @@ migrations_dir = "migrations"
 # Durable Object bindings
 [durable_objects]
 bindings = [
-  { name = "POLL_COORDINATOR", class_name = "PollCoordinator" }
+  { name = "POLL_COORDINATOR", class_name = "PollCoordinator" },
+  { name = "SURVEY_COORDINATOR", class_name = "SurveyCoordinator" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["PollCoordinator"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["SurveyCoordinator"]
 
 # Environment-specific overrides
 [env.production]

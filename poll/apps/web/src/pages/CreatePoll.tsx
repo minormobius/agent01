@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSiteMode, useBasePath } from '../hooks/useSiteMode';
 import { createPoll } from '../lib/api';
 
 const ELIGIBILITY_DESCRIPTIONS: Record<string, string> = {
@@ -14,10 +15,12 @@ const ELIGIBILITY_DESCRIPTIONS: Record<string, string> = {
 export function CreatePollPage() {
   const { did } = useAuth();
   const navigate = useNavigate();
+  const siteMode = useSiteMode();
+  const basePath = useBasePath();
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [closesIn, setClosesIn] = useState('24');
-  const [mode, setMode] = useState('public_like');
+  const [mode, setMode] = useState(siteMode === 'all' ? 'public_like' : siteMode);
   const [eligibilityMode, setEligibilityMode] = useState('open');
   const [didListText, setDidListText] = useState('');
   const [listUri, setListUri] = useState('');
@@ -77,7 +80,7 @@ export function CreatePollPage() {
         eligibilitySource: eligibilityMode === 'at_list' ? listUri.trim() : undefined,
         whitelistedDids,
       });
-      navigate(`/poll/${poll.id}/admin`);
+      navigate(`${basePath}/poll/${poll.id}/admin`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -121,18 +124,20 @@ export function CreatePollPage() {
           </button>
         )}
 
-        <div className="mt-12">
-          <label>Poll type</label>
-          <select value={mode} onChange={e => setMode(e.target.value)}>
-            <option value="public_like">Public (vote by liking on Bluesky)</option>
-            <option value="anon_credential_v2">Anonymous (cryptographic ballot)</option>
-          </select>
-          <p className="muted">
-            {mode === 'public_like'
-              ? 'Zero friction — voters like a reply on Bluesky. Votes are public.'
-              : 'Voters authenticate once, then cast an anonymous ballot. Cryptographic unlinkability.'}
-          </p>
-        </div>
+        {siteMode === 'all' && (
+          <div className="mt-12">
+            <label>Poll type</label>
+            <select value={mode} onChange={e => setMode(e.target.value as typeof mode)}>
+              <option value="public_like">Public (vote by liking on Bluesky)</option>
+              <option value="anon_credential_v2">Anonymous (cryptographic ballot)</option>
+            </select>
+            <p className="muted">
+              {mode === 'public_like'
+                ? 'Zero friction — voters like a reply on Bluesky. Votes are public.'
+                : 'Voters authenticate once, then cast an anonymous ballot. Cryptographic unlinkability.'}
+            </p>
+          </div>
+        )}
 
         <div className="mt-12">
           <label>Closes in (hours)</label>

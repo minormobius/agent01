@@ -106,6 +106,93 @@ export interface LocalCredential {
   issuedAt: string;
 }
 
+/** Survey types — multi-question polling */
+
+export interface Survey {
+  id: string;
+  hostDid: string;
+  title: string;
+  description: string | null;
+  questions: SurveyQuestion[];
+  opensAt: string;
+  closesAt: string;
+  status: PollStatus;
+  eligibilityMode: EligibilityMode;
+  eligibilitySource: string | null;
+  hostKeyFingerprint: string;
+  hostPublicKey: string | null;
+  atprotoRecordUri: string | null;
+  createdAt: string;
+}
+
+export interface SurveyQuestion {
+  id: string;
+  surveyId: string;
+  question: string;
+  options: string[];
+  position: number;
+  required: boolean;
+}
+
+export interface SurveyBallot {
+  ballotId: string;
+  surveyId: string;
+  publicBallotSerial: number;
+  nullifier: string;
+  choices: number[];
+  tokenMessage: string;
+  issuerSignature: string;
+  credentialProof: string | null;
+  accepted: boolean;
+  rejectionReason: string | null;
+  submittedAt: string;
+  publishedRecordUri: string | null;
+  rollingAuditHash: string;
+}
+
+export interface SurveyTallySnapshot {
+  surveyId: string;
+  countsByQuestion: Record<string, Record<string, number>>;
+  ballotCount: number;
+  computedAt: string;
+  final: boolean;
+}
+
+export interface CreateSurveyRequest {
+  title: string;
+  description?: string;
+  questions: { question: string; options: string[]; required?: boolean }[];
+  opensAt: string;
+  closesAt: string;
+  eligibilityMode?: EligibilityMode;
+  eligibilitySource?: string;
+  whitelistedDids?: string[];
+}
+
+export interface SurveyBallotSubmission {
+  choices: number[];
+  tokenMessage: string;
+  issuerSignature: string;
+  nullifier: string;
+  credentialProof?: string;
+  ballotVersion: number;
+}
+
+export interface SurveyBallotResponse {
+  accepted: boolean;
+  ballotId?: string;
+  publicSerial?: number;
+  rejectionReason?: string;
+}
+
+export interface SurveyTallyResponse {
+  surveyId: string;
+  countsByQuestion: Record<string, Record<string, number>>;
+  ballotCount: number;
+  computedAt: string;
+  final: boolean;
+}
+
 /** API request/response shapes */
 export interface CreatePollRequest {
   question: string;

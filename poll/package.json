@@ -6,15 +6,19 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build:shared && npm run build:web",
+    "build": "npm run build:shared && node apps/api/scripts/encode-fonts.js && npm run build:web",
     "dev": "npm run dev:api & npm run dev:web",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build:web": "npm run build -w apps/web",
     "build:shared": "npm run build -w packages/shared",
     "deploy": "npx wrangler deploy",
-    "deploy:migrate": "npx wrangler d1 execute atpolls-db --file=apps/api/migrations/0001_init.sql",
+    "deploy:migrate": "for f in apps/api/migrations/*.sql; do echo \"Running $f\"; npx wrangler d1 execute anon-polls-db --file=\"$f\" --remote || echo \"⚠️ $f returned non-zero, continuing...\"; done",
     "test": "npm run test -w packages/shared && npm run test -w apps/api",
     "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2"
   }
 }
+

@@ -3,10 +3,11 @@
  *
  * Scheduled (cron): Recomputes communities from mutual-follow graph, stores in D1.
  * HTTP: Serves getFeedSkeleton for Bluesky feed protocol + did:web document.
+ * Also serves avatar proxy, community graph, activity heatmap, and thread depth endpoints.
  */
 
 import { detectCommunities, detectBridges, type Community } from './graph';
-import { discoverCandidates, type EngagementSignal } from './constellation';
+import { discoverCandidates, getAuthorFeed, getPostThreadDepth, type EngagementSignal, type FeedPost } from './constellation';
 import { scoreCandiates, type ScoredPost } from './scoring';
 
 export interface Env {
@@ -244,7 +245,349 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }, { headers: corsHeaders() });
   }
 
-  return new Response('not found', { status: 404 });
+  // Community graph endpoint — feeds the cluster visualizer
+  if (path === '/xrpc/com.minomobi.feed.getCommunities') {
+    return handleGetCommunities(env);
+  }
+
+  // Community activity endpoint — post scores per community for heatmap
+  if (path === '/xrpc/com.minomobi.feed.getCommunityActivity') {
+    return handleGetCommunityActivity(env);
+  }
+
+  // Post thread depth — lazy enrichment for post dot sizing
+  if (path === '/xrpc/com.minomobi.feed.getPostThreadDepth') {
+    const postUri = url.searchParams.get('uri');
+    if (!postUri) {
+      return Response.json({ error: 'missing uri param' }, { status: 400, headers: corsHeaders() });
+    }
+    // Check KV cache (1-hour TTL)
+    const cacheKey = `thread_depth:${postUri}`;
+    const cached = await env.STATE.get(cacheKey, 'json');
+    if (cached) {
+      return Response.json(cached, { headers: corsHeaders() });
+    }
+    const result = await getPostThreadDepth(postUri);
+    if (!result) {
+      return Response.json({ error: 'thread not found' }, { status: 404, headers: corsHeaders() });
+    }
+    await env.STATE.put(cacheKey, JSON.stringify(result), { expirationTtl: 3600 });
+    return Response.json(result, { headers: corsHeaders() });
+  }
+
+  // Avatar proxy — KV-cached, server-side fetched (avoids browser rate limits)
+  if (path === '/xrpc/com.minomobi.feed.getAvatars') {
+    return handleGetAvatars(url, env);
+  }
+
+  return new Response('not found', { status: 404, headers: corsHeaders() });
+}
+
+async function handleGetCommunities(env: Env): Promise<Response> {
+  try {
+    // Fetch communities
+    const comRows = await env.DB.prepare(
+      'SELECT id, label, core_size, total_size FROM feed_communities ORDER BY total_size DESC'
+    ).all<{ id: number; label: string; core_size: number; total_size: number }>();
+
+    if (!comRows.results || comRows.results.length === 0) {
+      return Response.json({ communities: [], bridges: [], members: [] }, { headers: corsHeaders() });
+    }
+
+    // Fetch all members
+    const memRows = await env.DB.prepare(
+      'SELECT community_id, did, shell, mutual_count FROM feed_community_members ORDER BY community_id, shell, mutual_count DESC'
+    ).all<{ community_id: number; did: string; shell: number; mutual_count: number }>();
+
+    // Fetch bridges
+    const bridgeRows = await env.DB.prepare(
+      'SELECT did, community_ids FROM feed_bridges'
+    ).all<{ did: string; community_ids: string }>();
+
+    // Resolve DIDs to handles (best-effort, cached in KV)
+    const allDids = new Set<string>();
+    for (const m of memRows.results || []) allDids.add(m.did);
+    const handles = await resolveHandlesBatch(env, [...allDids]);
+
+    // Shape the response
+    const communities = (comRows.results || []).map(c => ({
+      id: c.id,
+      label: c.label,
+      coreSize: c.core_size,
+      totalSize: c.total_size,
+      members: (memRows.results || [])
+        .filter(m => m.community_id === c.id)
+        .map(m => ({
+          did: m.did,
+          handle: handles.get(m.did) || null,
+          shell: m.shell,
+          mutualCount: m.mutual_count,
+        })),
+    }));
+
+    const bridges = (bridgeRows.results || []).map(b => ({
+      did: b.did,
+      handle: handles.get(b.did) || null,
+      communityIds: JSON.parse(b.community_ids) as number[],
+    }));
+
+    return Response.json({ communities, bridges }, { headers: corsHeaders() });
+  } catch (err) {
+    console.error('getCommunities error:', err);
+    return Response.json(
+      { error: 'InternalError', message: 'Failed to fetch communities' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+/**
+ * Best-effort batch resolve DIDs → handles via Bluesky public API.
+ * Caches results in KV for 24h. Failures return empty string.
+ */
+async function resolveHandlesBatch(
+  env: Env,
+  dids: string[]
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const BSKY = 'https://public.api.bsky.app';
+
+  // Check KV cache first
+  const uncached: string[] = [];
+  for (const did of dids) {
+    const cached = await env.STATE.get(`handle:${did}`);
+    if (cached) {
+      result.set(did, cached);
+    } else {
+      uncached.push(did);
+    }
+  }
+
+  // Resolve uncached in batches of 5
+  const BATCH = 5;
+  for (let i = 0; i < uncached.length; i += BATCH) {
+    const batch = uncached.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(async (did) => {
+        const res = await fetch(
+          `${BSKY}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`
+        );
+        if (!res.ok) return { did, handle: '' };
+        const data = await res.json() as { handle?: string };
+        return { did, handle: data.handle || '' };
+      })
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.handle) {
+        result.set(r.value.did, r.value.handle);
+        // Cache for 24h — fire and forget
+        env.STATE.put(`handle:${r.value.did}`, r.value.handle, { expirationTtl: 86400 });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Returns post activity per community for heatmap visualization.
+ * Samples member feeds, scores posts, aggregates by community.
+ * Cached in KV for 10 minutes to avoid hammering Bluesky API.
+ */
+async function handleGetCommunityActivity(env: Env): Promise<Response> {
+  try {
+    // Check KV cache (10-minute TTL)
+    const cached = await env.STATE.get('community_activity', 'json');
+    if (cached) {
+      return Response.json(cached, { headers: corsHeaders() });
+    }
+
+    // Load community members from D1
+    const members = await env.DB.prepare(
+      'SELECT community_id, did, shell FROM feed_community_members'
+    ).all<{ community_id: number; did: string; shell: number }>();
+
+    if (!members.results || members.results.length === 0) {
+      return Response.json({ communities: {}, posts: [] }, { headers: corsHeaders() });
+    }
+
+    // Build member index
+    const memberIndex = new Map<string, { communityId: number; shell: number }[]>();
+    const allMemberDids: string[] = [];
+    for (const row of members.results) {
+      if (!memberIndex.has(row.did)) {
+        memberIndex.set(row.did, []);
+        allMemberDids.push(row.did);
+      }
+      memberIndex.get(row.did)!.push({ communityId: row.community_id, shell: row.shell });
+    }
+
+    // Load bridges
+    const bridgeRows = await env.DB.prepare('SELECT did FROM feed_bridges').all<{ did: string }>();
+    const bridgeDids = new Set((bridgeRows.results || []).map(r => r.did));
+
+    // Sample members — prefer bridges and multi-community members
+    const sorted = [...allMemberDids].sort((a, b) => {
+      const aScore = (memberIndex.get(a)?.length ?? 0) + (bridgeDids.has(a) ? 2 : 0);
+      const bScore = (memberIndex.get(b)?.length ?? 0) + (bridgeDids.has(b) ? 2 : 0);
+      return bScore - aScore;
+    });
+    const sampled = sorted.slice(0, 25);
+
+    // Fetch recent posts from sampled members
+    const feedResults = await Promise.allSettled(
+      sampled.map(did => getAuthorFeed(did, 10))
+    );
+
+    const HALF_LIFE_MS = 6 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Per-community activity aggregation
+    const communityActivity = new Map<number, { postCount: number; totalScore: number }>();
+    // Post list with community attribution
+    const posts: {
+      uri: string;
+      authorDid: string;
+      communityIds: number[];
+      score: number;
+      replyCount: number;
+      likeCount: number;
+      repostCount: number;
+      indexedAt: string;
+    }[] = [];
+
+    for (let i = 0; i < sampled.length; i++) {
+      const result = feedResults[i];
+      if (result.status !== 'fulfilled') continue;
+
+      const did = sampled[i];
+      const memberships = memberIndex.get(did) || [];
+      const communityIds = [...new Set(memberships.map(m => m.communityId))];
+      const isBridge = bridgeDids.has(did);
+
+      for (const post of result.value) {
+        const age = now - new Date(post.indexedAt).getTime();
+        const recency = Math.pow(0.5, age / HALF_LIFE_MS);
+        const breadth = communityIds.length >= 2 ? 2.0 * communityIds.length : 1.0;
+        const bridge = isBridge ? 1.5 : 1.0;
+        const score = breadth * bridge * recency;
+
+        posts.push({
+          uri: post.uri,
+          authorDid: did,
+          communityIds,
+          score,
+          replyCount: post.replyCount,
+          likeCount: post.likeCount,
+          repostCount: post.repostCount,
+          indexedAt: post.indexedAt,
+        });
+
+        // Attribute activity to each community the author belongs to
+        for (const cid of communityIds) {
+          const entry = communityActivity.get(cid) || { postCount: 0, totalScore: 0 };
+          entry.postCount++;
+          entry.totalScore += score;
+          communityActivity.set(cid, entry);
+        }
+      }
+    }
+
+    // Sort posts by score descending, cap at 100
+    posts.sort((a, b) => b.score - a.score);
+    const topPosts = posts.slice(0, 100);
+
+    // Build community activity map
+    const activityMap: Record<number, { postCount: number; totalScore: number }> = {};
+    for (const [cid, entry] of communityActivity) {
+      activityMap[cid] = entry;
+    }
+
+    const response = { communities: activityMap, posts: topPosts };
+
+    // Cache for 10 minutes
+    await env.STATE.put('community_activity', JSON.stringify(response), { expirationTtl: 600 });
+
+    return Response.json(response, { headers: corsHeaders() });
+  } catch (err) {
+    console.error('getCommunityActivity error:', err);
+    return Response.json(
+      { error: 'InternalError', message: 'Failed to fetch activity' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+/**
+ * Avatar proxy: resolves DIDs → avatar URLs via Bluesky public API.
+ * Caches in KV for 6 hours. Retries on 429 with exponential backoff.
+ * Accepts up to 100 DIDs per request (?dids=did1&dids=did2...).
+ */
+async function handleGetAvatars(url: URL, env: Env): Promise<Response> {
+  const dids = url.searchParams.getAll('dids').slice(0, 100);
+  if (dids.length === 0) {
+    return Response.json({ avatars: {} }, { headers: corsHeaders() });
+  }
+
+  const BSKY = 'https://public.api.bsky.app';
+  const KV_TTL = 6 * 60 * 60; // 6 hours
+  const avatars: Record<string, string | null> = {};
+
+  // Check KV cache first
+  const uncached: string[] = [];
+  for (const did of dids) {
+    const cached = await env.STATE.get(`avatar:${did}`);
+    if (cached !== null) {
+      avatars[did] = cached === '' ? null : cached;
+    } else {
+      uncached.push(did);
+    }
+  }
+
+  // Fetch uncached in batches of 25 (getProfiles limit)
+  const BATCH = 25;
+  for (let i = 0; i < uncached.length; i += BATCH) {
+    const batch = uncached.slice(i, i + BATCH);
+    const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join('&');
+
+    let data: { profiles?: { did: string; avatar?: string }[] } | null = null;
+
+    // Retry with exponential backoff on 429
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await fetch(`${BSKY}/xrpc/app.bsky.actor.getProfiles?${params}`);
+        if (res.status === 429) {
+          await new Promise(r => setTimeout(r, (1 << attempt) * 500));
+          continue;
+        }
+        if (!res.ok) break;
+        data = await res.json() as typeof data;
+        break;
+      } catch {
+        break;
+      }
+    }
+
+    if (data?.profiles) {
+      const seen = new Set<string>();
+      for (const profile of data.profiles) {
+        seen.add(profile.did);
+        const avatarUrl = profile.avatar || '';
+        avatars[profile.did] = avatarUrl || null;
+        // Cache — empty string means "no avatar" (still cache to avoid re-fetching)
+        env.STATE.put(`avatar:${profile.did}`, avatarUrl, { expirationTtl: KV_TTL });
+      }
+      // DIDs not in response — cache as no-avatar
+      for (const d of batch) {
+        if (!seen.has(d)) {
+          avatars[d] = null;
+          env.STATE.put(`avatar:${d}`, '', { expirationTtl: KV_TTL });
+        }
+      }
+    }
+  }
+
+  return Response.json({ avatars }, { headers: corsHeaders() });
 }
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
@@ -324,7 +667,13 @@ async function generateFeed(
   );
 
   // 4. Score candidates
-  const scored = scoreCandiates(engagementMap, memberIndex, bridgeDids);
+  let scored = scoreCandiates(engagementMap, memberIndex, bridgeDids);
+
+  // 4b. Fallback: if Constellation returned no engagement data, score posts
+  // directly from member feeds based on author community membership + recency
+  if (scored.length === 0) {
+    scored = await fallbackFromMemberFeeds(allMemberDids, memberIndex, bridgeDids);
+  }
 
   // 5. Apply cursor (pagination)
   let filtered = scored;
@@ -337,6 +686,64 @@ async function generateFeed(
   }
 
   return filtered.slice(0, limit);
+}
+
+/**
+ * Fallback when Constellation engagement data is unavailable.
+ * Fetches recent posts from community members and scores by:
+ * - Author community breadth (members in multiple communities score higher)
+ * - Bridge node bonus
+ * - Recency decay
+ */
+async function fallbackFromMemberFeeds(
+  allMemberDids: string[],
+  memberIndex: Map<string, { communityId: number; shell: number }[]>,
+  bridgeDids: Set<string>
+): Promise<ScoredPost[]> {
+  const HALF_LIFE_MS = 6 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  // Sample members, preferring those in multiple communities or bridges
+  const sorted = [...allMemberDids].sort((a, b) => {
+    const aScore = (memberIndex.get(a)?.length ?? 0) + (bridgeDids.has(a) ? 2 : 0);
+    const bScore = (memberIndex.get(b)?.length ?? 0) + (bridgeDids.has(b) ? 2 : 0);
+    return bScore - aScore;
+  });
+  const sampled = sorted.slice(0, 30);
+
+  // Fetch their recent posts
+  const feedResults = await Promise.allSettled(
+    sampled.map(did => getAuthorFeed(did, 10))
+  );
+
+  const scored: ScoredPost[] = [];
+
+  for (let i = 0; i < sampled.length; i++) {
+    const result = feedResults[i];
+    if (result.status !== 'fulfilled') continue;
+
+    const did = sampled[i];
+    const memberships = memberIndex.get(did) || [];
+    const communityHits = new Set(memberships.map(m => m.communityId)).size;
+    const isBridge = bridgeDids.has(did);
+
+    for (const post of result.value) {
+      const age = now - new Date(post.indexedAt).getTime();
+      const recency = Math.pow(0.5, age / HALF_LIFE_MS);
+      const breadth = communityHits >= 2 ? 2.0 * communityHits : 1.0;
+      const bridge = isBridge ? 1.5 : 1.0;
+
+      scored.push({
+        uri: post.uri,
+        score: breadth * bridge * recency,
+        communityHits,
+        engagementCount: 0,
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
 }
 
 function didDocument(env: Env) {
@@ -365,7 +772,15 @@ function corsHeaders(): HeadersInit {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return handleRequest(request, env);
+    try {
+      return await handleRequest(request, env);
+    } catch (err) {
+      console.error('Unhandled error:', err);
+      return Response.json(
+        { error: 'InternalError', message: 'Internal server error' },
+        { status: 500, headers: corsHeaders() },
+      );
+    }
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {

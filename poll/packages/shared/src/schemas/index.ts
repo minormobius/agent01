@@ -32,6 +32,36 @@ export const PollIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
+/** Survey schemas */
+
+export const CreateSurveySchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(2000).optional(),
+  questions: z.array(z.object({
+    question: z.string().min(1).max(500),
+    options: z.array(z.string().min(1).max(200)).min(2).max(20),
+    required: z.boolean().default(true),
+  })).min(1).max(50),
+  opensAt: z.string().datetime(),
+  closesAt: z.string().datetime(),
+  eligibilityMode: EligibilityModeSchema.default('open'),
+  eligibilitySource: z.string().max(2000).optional(),
+  whitelistedDids: z.array(z.string().min(1).max(100)).max(10000).optional(),
+});
+
+export const SurveyBallotSubmissionSchema = z.object({
+  choices: z.array(z.number().int().min(-1)),  // -1 = skipped (optional questions)
+  tokenMessage: z.string().min(1),
+  issuerSignature: z.string().min(1),
+  nullifier: z.string().min(1),
+  credentialProof: z.string().optional(),
+  ballotVersion: z.number().int().default(1),
+});
+
+export const SurveyIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
 /** ATProto record shapes for publishing */
 export const PollDefRecordSchema = z.object({
   $type: z.literal('com.minomobi.poll.def'),
