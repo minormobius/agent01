@@ -101,9 +101,11 @@ const avatarImages = new Map();   // did → HTMLImageElement (loaded)
 const avatarLoading = new Set();  // dids currently being fetched
 let hexCells = [];                // computed each frame: [{sx, sy, node}]
 
-// Batch-fetch avatar URLs via feed worker proxy (KV-cached, retries on rate limits)
+// Batch-fetch avatar URLs directly from Bluesky public API (same approach as ternary)
+const BSKY_PUBLIC = "https://public.api.bsky.app";
+
 async function fetchAvatars(dids) {
-  const BATCH = 75; // worker handles sub-batching to Bluesky
+  const BATCH = 25; // getProfiles limit
   const unresolved = dids.filter(d => !avatarImages.has(d) && !avatarLoading.has(d));
   console.log(`[pfp] fetchAvatars called: ${dids.length} total, ${unresolved.length} unresolved`);
   if (unresolved.length === 0) return;
@@ -112,44 +114,54 @@ async function fetchAvatars(dids) {
     const batch = unresolved.slice(i, i + BATCH);
     batch.forEach(d => avatarLoading.add(d));
     try {
-      const params = batch.map(d => `dids=${encodeURIComponent(d)}`).join("&");
-      const url = `${API_BASE}/xrpc/com.minomobi.feed.getAvatars?${params}`;
-      console.log(`[pfp] fetching batch ${i / BATCH + 1}: ${batch.length} dids from ${API_BASE}`);
+      const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join("&");
+      const url = `${BSKY_PUBLIC}/xrpc/app.bsky.actor.getProfiles?${params}`;
+      console.log(`[pfp] fetching batch ${Math.floor(i / BATCH) + 1}: ${batch.length} dids`);
       const res = await fetch(url);
       console.log(`[pfp] response: ${res.status} ${res.statusText}`);
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        console.error(`[pfp] error body:`, body);
+        // Rate limited — wait and retry once
+        if (res.status === 429) {
+          console.warn(`[pfp] rate limited, waiting 2s…`);
+          await new Promise(r => setTimeout(r, 2000));
+          const retry = await fetch(url);
+          if (retry.ok) {
+            const data = await retry.json();
+            processProfiles(data.profiles || [], batch);
+            continue;
+          }
+        }
         batch.forEach(d => avatarLoading.delete(d));
         continue;
       }
-      const json = await res.json();
-      const avatars = json.avatars || {};
-      const withUrl = Object.values(avatars).filter(v => v).length;
-      const withoutUrl = Object.values(avatars).filter(v => !v).length;
-      console.log(`[pfp] got ${withUrl} avatar URLs, ${withoutUrl} null, ${batch.length - withUrl - withoutUrl} missing from response`);
-      // Log first 3 avatar URLs for inspection
-      const sample = Object.entries(avatars).filter(([, v]) => v).slice(0, 3);
-      for (const [did, avatarUrl] of sample) {
-        console.log(`[pfp] sample: ${did.slice(0, 24)}… → ${avatarUrl}`);
-      }
-      let loaded = 0, errored = 0;
-      for (const did of batch) {
-        const avatarUrl = avatars[did];
-        avatarLoading.delete(did);
-        if (avatarUrl) {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = avatarUrl;
-          img.onload = () => { loaded++; avatarImages.set(did, img); scheduleDraw(); console.log(`[pfp] ✓ loaded image for ${did.slice(0,20)}… (${loaded} total)`); };
-          img.onerror = (e) => { errored++; avatarImages.set(did, null); console.warn(`[pfp] ✗ image load failed for ${did.slice(0,20)}…: ${avatarUrl.slice(0,80)}`, e); };
-        } else {
-          avatarImages.set(did, null);
-        }
-      }
+      const data = await res.json();
+      processProfiles(data.profiles || [], batch);
     } catch(e) {
       console.error(`[pfp] fetch error:`, e);
       batch.forEach(d => avatarLoading.delete(d));
+    }
+  }
+}
+
+function processProfiles(profiles, batch) {
+  const seen = new Set();
+  for (const profile of profiles) {
+    seen.add(profile.did);
+    avatarLoading.delete(profile.did);
+    if (profile.avatar) {
+      const img = new Image();
+      img.src = profile.avatar;
+      img.onload = () => { avatarImages.set(profile.did, img); scheduleDraw(); };
+      img.onerror = () => { avatarImages.set(profile.did, null); };
+    } else {
+      avatarImages.set(profile.did, null);
+    }
+  }
+  // Mark missing DIDs as no-avatar
+  for (const d of batch) {
+    if (!seen.has(d)) {
+      avatarLoading.delete(d);
+      avatarImages.set(d, null);
     }
   }
 }
