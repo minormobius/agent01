@@ -69,6 +69,15 @@ The `time/` viewer is read-only — it fetches records from the PDS and renders 
 ├── morphyx/
 │   └── .well-known/
 │       └── atproto-did          # Bluesky handle verification for morphyx.minomobi.com
+├── poll/                        # ATPolls — anonymous polling on Bluesky
+│   ├── apps/
+│   │   ├── api/                 # Cloudflare Worker backend (Durable Objects, D1)
+│   │   └── web/                 # React SPA frontend (Vite)
+│   └── packages/
+│       └── shared/              # Crypto (RSA blind sigs), types, ATProto publisher
+├── zoom/                        # SimCluster community visualizer
+│   ├── index.html               # Self-contained canvas SPA
+│   └── wrangler.jsonc           # Cloudflare Workers deployment
 ├── .github/
 │   └── workflows/
 │       └── post-to-bluesky.yml  # Posts threads to Bluesky on push
@@ -374,6 +383,127 @@ npm run migrate:local    # Local SQLite for D1
 - `GET /xrpc/app.bsky.feed.describeFeedGenerator` — Feed metadata
 - `GET /.well-known/did.json` — did:web document
 - `GET /health` — Health check
+
+## ATPolls — Anonymous Polling on Bluesky
+
+### What It Is
+A cryptographic polling system for Bluesky (`poll/`) with two voting modes, deployed as a Cloudflare Worker + React SPA at `poll.mino.mobi`.
+
+- **Public mode (`public_like`)**: Zero-friction voting via Bluesky likes. Poll options are hidden reply posts; voters like them directly in Bluesky. No login required.
+- **Anonymous mode (`anon_credential_v2`)**: Cryptographically anonymous voting using RSA Blind Signatures (RFC 9474). Voters authenticate once to prove eligibility, receive a blind-signed credential, then submit an anonymous ballot. The host cannot deanonymize voters even if compromised.
+
+### Architecture
+```
+React SPA (Cloudflare Pages)  ←→  Cloudflare Worker (/api/*)
+                                       │
+                          ┌────────────┼────────────┬──────────────┐
+                          ▼            ▼            ▼              ▼
+                     D1 Database  Durable Objects  ATProto PDS   OAuth
+                     (state,      (PollCoordinator  (public       (identity
+                      tally)       per-poll atom.)   ballots)      verification)
+```
+
+- **PollCoordinator Durable Object**: Per-poll state machine — serializes eligibility checks, ballot acceptance, tally, and audit events atomically.
+- **D1**: Persistent storage for polls, eligibility, ballots, tally snapshots, audit log, sessions.
+- **ATProto PDS**: Public bulletin board — poll definitions, ballots, and tallies published as immutable records using custom lexicons (`com.minomobi.poll.def`, `com.minomobi.poll.ballot`, `com.minomobi.poll.tally`).
+- **OAuth**: ATProto OAuth 2.1 (PAR, DPoP, PKCE, confidential client) with app-password fallback.
+
+### Key Files
+| Path | Purpose |
+|------|---------|
+| `poll/apps/api/src/durable-objects/poll-coordinator.ts` | Core: per-poll state machine |
+| `poll/apps/api/src/routes/polls.ts` | Poll CRUD, open/close/publish |
+| `poll/apps/api/src/routes/ballots.ts` | Anonymous ballot submission |
+| `poll/apps/api/src/routes/auth.ts` | Session, OAuth flow, app-password fallback |
+| `poll/apps/api/src/oauth/flow.ts` | ATProto OAuth 2.1 implementation |
+| `poll/apps/web/src/pages/Vote.tsx` | Full credential flow for anonymous voting |
+| `poll/apps/web/src/pages/QuickVote.tsx` | Streamlined vote-from-Bluesky (auto-auth) |
+| `poll/apps/web/src/pages/Admin.tsx` | Host panel (lifecycle, publish, Bluesky posting) |
+| `poll/packages/shared/src/crypto/index.ts` | RSA blind signatures, nullifiers, commitments |
+| `poll/packages/shared/src/atproto/index.ts` | PdsPublisher + MockPublisher |
+
+### Anonymous Voting Flow
+1. Voter authenticates (OAuth or app password) to prove DID
+2. Client generates random `secret`, derives `tokenMessage`, blinds it
+3. Server (PollCoordinator DO) verifies DID eligible, consumes DID atomically, blind-signs `blindedMsg`
+4. Client unblinds → holds valid RSA-PSS signature over `tokenMessage` (server never saw it)
+5. Client derives `nullifier = SHA-256("nullifier\0" + tokenMessage)` and submits ballot **without a session**
+6. Server verifies signature, checks nullifier uniqueness, accepts ballot
+7. On poll close: ballots shuffled (Fisher-Yates), published to ATProto, results replied to Bluesky
+
+### Public Voting Flow
+1. Host posts poll to Bluesky — hidden option posts created via bridge-delete trick
+2. Voters like option posts directly in Bluesky
+3. Results page fetches like counts from `public.api.bsky.app`
+4. On close: final like counts synced to D1, tally published to ATProto
+
+### Eligibility Modes
+`open`, `did_list` (whitelist), `followers`, `mutuals`, `at_list`
+
+### Bluesky Integration
+- Posts poll to Bluesky with faceted links (option names → vote pages)
+- Public polls: hidden option posts as orphaned replies (bridge-delete trick)
+- Anonymous polls: link facets point to QuickVote pages
+- Results auto-replied to host's original post on close
+
+### Deployment
+```bash
+cd poll
+npm install
+npm run migrate:remote   # D1 migrations
+npm run build:web        # Vite build
+npx wrangler deploy      # Worker + static assets
+```
+
+**Worker secrets**: `RSA_PRIVATE_KEY_JWK`, `RSA_PUBLIC_KEY_JWK`, `ATPROTO_SERVICE_DID`, `ATPROTO_SERVICE_HANDLE`, `ATPROTO_SERVICE_PASSWORD`, `ATPROTO_SERVICE_PDS`, `OAUTH_CLIENT_ID`, `OAUTH_SIGNING_PRIVATE_KEY_JWK`, `OAUTH_SIGNING_PUBLIC_KEY_JWK`
+
+**Local dev**: `ATPROTO_MOCK_MODE=true` in `.dev.vars` — skips real ATProto/OAuth, uses mock publisher.
+
+### Infrastructure
+| Resource | Value |
+|----------|-------|
+| D1 database | `atpolls-db` / `fee2f25a-8b4a-4d46-b245-9d5da93c117d` |
+| Domain | `poll.mino.mobi` |
+| Publisher DID | `did:plc:7zre4plmd5jllccww575j6sb` |
+
+## Zoom — SimCluster Community Visualizer
+
+### What It Is
+An interactive canvas-based visualization of Bluesky community topology (`zoom/`), deployed as a Cloudflare Worker at `zoom.mino.mobi`. Shows communities discovered by the SimCluster feed generator, their members, activity heatmaps, and cross-community bridges.
+
+### Architecture
+Single self-contained HTML file (~30KB) with embedded CSS + JS. No build step, no dependencies. Fetches data from the SimCluster feed API at `feed.mino.mobi`.
+
+```
+zoom/index.html  →  Canvas 2D rendering
+                 →  fetch feed.mino.mobi/xrpc/com.minomobi.feed.getCommunities
+                 →  fetch feed.mino.mobi/xrpc/com.minomobi.feed.getCommunityActivity
+                 →  fetch public.api.bsky.app/xrpc/app.bsky.actor.getProfiles (avatars)
+```
+
+### Key Features
+- **Radial sector layout**: Communities positioned by angular sector proportional to size
+- **Shell-based members**: Members organized in concentric shells (core → periphery)
+- **Activity heatmap**: 4-stop HSL gradient (cold blue → hot orange/white) with pulsing glow
+- **Hex PFP overlay**: 28px hexagonal profile pictures fetched from Bluesky (batch 25 at a time)
+- **Bridge arcs**: Orange quadratic curves connecting users who span multiple communities
+- **Info panel**: Click any node → right panel with members, posts, profile links
+- **Fly-to animation**: Double-click → smooth cubic-easing zoom to target
+- **Pan/zoom**: Mouse drag, wheel zoom, touch pinch
+
+### Interaction
+- Hover → bottom bar shows community/member metadata
+- Click → right panel with full details (members by shell, top posts, profile links)
+- Double-click → fly-to animation
+- Fallback avatars: colored hex + initial letter when no PFP available
+
+### Deployment
+```bash
+cd zoom
+npx wrangler deploy   # Deploys index.html to zoom.mino.mobi
+```
+
+Worker name: `mino-zoom`. No build step — serves static `index.html` directly.
 
 ## Ops Tricks
 
