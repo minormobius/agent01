@@ -3,6 +3,7 @@
  *
  * Scheduled (cron): Recomputes communities from mutual-follow graph, stores in D1.
  * HTTP: Serves getFeedSkeleton for Bluesky feed protocol + did:web document.
+ * Also serves avatar proxy, community graph, and activity heatmap endpoints.
  */
 
 import { detectCommunities, detectBridges, type Community } from './graph';

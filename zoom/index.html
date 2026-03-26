@@ -714,10 +714,7 @@ function flyTo(node, duration) {
     const allCommunities = data.communities || [];
     bridges = data.bridges || [];
 
-    // DEBUG: limit to top community only to isolate PFP issue
-    communities = allCommunities.slice(0, 1);
-    console.log(`[debug] showing top community only: "${communities[0]?.label}" (${communities[0]?.totalSize} members) out of ${allCommunities.length} total`);
-    console.log(`[debug] first 5 member DIDs:`, (communities[0]?.members || []).slice(0, 5).map(m => m.did));
+    communities = allCommunities;
 
     // Load activity heatmap data
     if (actRes && actRes.ok) {
