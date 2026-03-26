@@ -137,61 +137,19 @@ async function fetchAvatars(dids) {
   }
 }
 
-// Compute hex grid and assign member nodes to cells
+// Compute hex overlay — place every member at its screen position (allow overlaps)
 function computeHexOverlay() {
   hexCells = [];
   const memberNodes = flat.filter(n => n._type === "member");
   if (memberNodes.length === 0) return;
 
-  // Transform all member positions to screen space
-  const screenMembers = [];
   for (const n of memberNodes) {
     const [sx, sy] = w2s(n._x, n._y);
     // Cull off-screen (with margin for hex size)
     if (sx < -HEX_PFP_SIZE || sx > W + HEX_PFP_SIZE) continue;
     if (sy < -HEX_PFP_SIZE || sy > H + HEX_PFP_SIZE) continue;
-    screenMembers.push({ sx, sy, node: n });
+    hexCells.push({ sx, sy, node: n });
   }
-
-  if (screenMembers.length === 0) return;
-
-  // Hex grid parameters (flat-top hexagons)
-  const colW = HEX_SPACING * 0.866;  // horizontal distance between columns (sqrt(3)/2)
-  const rowH = HEX_SPACING;          // vertical distance between rows
-
-  // Spatial grid for fast nearest-hex lookup: grid cell → list of screen members
-  const gridCellSize = HEX_SPACING * 2;
-  const memberGrid = new Map();
-  for (const sm of screenMembers) {
-    const gx = Math.floor(sm.sx / gridCellSize);
-    const gy = Math.floor(sm.sy / gridCellSize);
-    const key = `${gx},${gy}`;
-    if (!memberGrid.has(key)) memberGrid.set(key, []);
-    memberGrid.get(key).push(sm);
-  }
-
-  // For each member, compute its hex cell and claim the closest
-  const occupied = new Map(); // "col,row" → { sx, sy, node, dist }
-
-  for (const sm of screenMembers) {
-    // Find hex cell for this screen position
-    const col = Math.round(sm.sx / colW);
-    const row = Math.round((sm.sy - (col % 2 === 0 ? 0 : rowH * 0.5)) / rowH);
-    const cellKey = `${col},${row}`;
-
-    // Hex cell center in screen coords
-    const hx = col * colW;
-    const hy = row * rowH + (col % 2 === 0 ? 0 : rowH * 0.5);
-    const dx = sm.sx - hx, dy = sm.sy - hy;
-    const dist = dx * dx + dy * dy;
-
-    const existing = occupied.get(cellKey);
-    if (!existing || dist < existing.dist) {
-      occupied.set(cellKey, { sx: hx, sy: hy, node: sm.node, dist });
-    }
-  }
-
-  hexCells = [...occupied.values()];
 }
 
 // Draw a hexagon path (flat-top) centered at (cx, cy) with given radius
