@@ -1,0 +1,54 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mail.message",
+  "description": "An internal encrypted message. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Mail message.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["from", "to", "subject", "body", "createdAt"],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "did"
+          },
+          "to": {
+            "type": "array",
+            "items": { "type": "string", "format": "did" },
+            "maxLength": 64
+          },
+          "cc": {
+            "type": "array",
+            "items": { "type": "string", "format": "did" },
+            "maxLength": 64
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "threadRkey": {
+            "type": "string",
+            "description": "rkey of the associated mail.thread inner record.",
+            "maxLength": 64
+          },
+          "replyToRkey": {
+            "type": "string",
+            "description": "rkey of the message this is replying to.",
+            "maxLength": 64
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

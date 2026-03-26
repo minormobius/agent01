@@ -26,12 +26,14 @@
   // Durable Objects
   "durable_objects": {
     "bindings": [
-      { "name": "POLL_COORDINATOR", "class_name": "PollCoordinator" }
+      { "name": "POLL_COORDINATOR", "class_name": "PollCoordinator" },
+      { "name": "SURVEY_COORDINATOR", "class_name": "SurveyCoordinator" }
     ]
   },
 
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] }
+    { "tag": "v1", "new_sqlite_classes": ["PollCoordinator"] },
+    { "tag": "v2", "new_sqlite_classes": ["SurveyCoordinator"] }
   ],
 
   // Observability — full invocation + console logs

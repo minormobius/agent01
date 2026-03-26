@@ -1,0 +1,3620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mino PM — Earned Value Project Management</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PM">
+<link rel="apple-touch-icon" href="/icon-192.svg">
+
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2129;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #4090e0;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.app { max-width: 720px; margin: 0 auto; padding: 16px 16px 80px; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.header .sub { font-size: 12px; color: var(--text2); }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 2px; background: var(--surface); border-radius: var(--radius);
+  padding: 3px; margin-bottom: 16px;
+}
+.tabs button {
+  flex: 1; padding: 8px 4px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.15s;
+}
+.tabs button.active { background: var(--accent); color: #fff; }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.card h2 {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+}
+
+/* Metric grid */
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.metric {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px; text-align: center;
+}
+.metric .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.metric .value.good { color: var(--green); }
+.metric .value.bad { color: var(--red); }
+.metric .value.warn { color: var(--orange); }
+.metric .value.neutral { color: var(--text); }
+
+/* Forms */
+input, select, textarea {
+  width: 100%; padding: 8px 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+  font-size: 13px; font-family: var(--font); outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; }
+label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; }
+.form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.form-row > div { flex: 1; }
+.form-group { margin-bottom: 8px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; font-family: var(--font);
+  border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.15s;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent2); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-danger { background: var(--red); color: #fff; }
+
+/* Task list */
+.task-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.task-row:last-child { border-bottom: none; }
+.task-name { flex: 1; font-size: 14px; font-weight: 500; }
+.task-pct { font-size: 13px; color: var(--text2); width: 48px; text-align: right; }
+.task-bar { width: 80px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.task-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.task-actions { display: flex; gap: 4px; }
+
+/* S-curve canvas */
+canvas { width: 100%; height: 240px; display: block; border-radius: var(--radius); }
+
+/* Pane visibility */
+.pane { display: none; }
+.pane.active { display: block; }
+
+/* Forecast bar */
+.forecast-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 13px;
+}
+.forecast-row .fl { color: var(--text2); }
+
+/* Empty state */
+.empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 14px; }
+
+/* Gantt */
+.gantt-viewport {
+  overflow: auto; -webkit-overflow-scrolling: touch;
+  position: relative; border-radius: var(--radius);
+  background: var(--bg); touch-action: pan-x pan-y;
+  max-height: 70vh;
+}
+.gantt-inner { position: relative; min-width: 100%; }
+.gantt-header {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; background: var(--surface2); border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--text2); height: 24px; align-items: center;
+}
+.gantt-header-label {
+  position: sticky; left: 0; z-index: 3; width: 120px; min-width: 120px;
+  padding: 0 8px; background: var(--surface2); font-weight: 600;
+}
+.gantt-header-dates { display: flex; flex: 1; position: relative; }
+.gantt-header-date { text-align: center; border-left: 1px solid var(--border); }
+.gantt-row {
+  display: flex; align-items: center; height: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.gantt-row:nth-child(even) { background: rgba(22,27,34,0.5); }
+.gantt-row-label {
+  position: sticky; left: 0; z-index: 1; width: 120px; min-width: 120px;
+  padding: 0 8px; font-size: 11px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: inherit;
+}
+.gantt-row-label.crit { color: var(--red); }
+.gantt-row-bars { flex: 1; position: relative; height: 100%; }
+.gantt-bar {
+  position: absolute; height: 16px; top: 8px;
+  border-radius: 3px; min-width: 4px;
+}
+.gantt-bar-bg { background: #253040; border: 1px solid #3a5070; cursor: grab; }
+.gantt-bar-bg.crit { background: #3d1f1f; border-color: #f85149; }
+.gantt-bar-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  border-radius: 3px; min-width: 0; pointer-events: none;
+}
+.gantt-bar-fill.normal { background: #58a6ff; }
+.gantt-bar-fill.crit { background: #f85149; }
+.gantt-bar-pct {
+  position: absolute; right: -30px; top: 1px;
+  font-size: 9px; color: var(--text2); white-space: nowrap; pointer-events: none;
+}
+/* Drag handles */
+.gantt-handle {
+  position: absolute; top: 0; width: 6px; height: 100%;
+  cursor: ew-resize; z-index: 2;
+}
+.gantt-handle:hover, .gantt-handle.active { background: rgba(88,166,255,0.4); }
+.gantt-handle-l { left: 0; border-radius: 3px 0 0 3px; }
+.gantt-handle-r { right: 0; border-radius: 0 3px 3px 0; }
+/* Link connector dot */
+.gantt-link-dot {
+  position: absolute; top: 50%; right: -5px; transform: translateY(-50%);
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface);
+  cursor: crosshair; z-index: 3; opacity: 0; transition: opacity 0.1s;
+}
+.gantt-bar:hover .gantt-link-dot, .gantt-link-dot.active { opacity: 1; }
+/* Drag feedback */
+.gantt-bar.dragging { opacity: 0.6; }
+.gantt-row.link-target .gantt-bar-bg { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gantt-today {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--orange); opacity: 0.7; z-index: 1;
+}
+.gantt-dep-svg {
+  position: absolute; top: 0; left: 0;
+  pointer-events: none; z-index: 1;
+}
+.gantt-legend {
+  display: flex; gap: 12px; padding: 8px 0; flex-wrap: wrap; font-size: 11px; color: var(--text2);
+}
+.gantt-legend-item { display: flex; align-items: center; gap: 4px; }
+.gantt-legend-swatch { width: 12px; height: 4px; border-radius: 2px; }
+.gantt-zoom { display: flex; gap: 4px; }
+.gantt-zoom button {
+  padding: 4px 10px; font-size: 12px; font-family: var(--font); font-weight: 600;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface2); color: var(--text2); cursor: pointer;
+}
+.gantt-zoom button:hover { background: var(--border); color: var(--text); }
+.gantt-zoom button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gantt-toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0 8px; flex-wrap: wrap; gap: 8px;
+}
+.gantt-row.selected { background: rgba(88,166,255,0.08); }
+.gantt-row.selected .gantt-row-label { color: var(--accent); font-weight: 700; }
+.gantt-row { cursor: pointer; }
+.gantt-row:hover { background: rgba(88,166,255,0.04); }
+.gantt-detail {
+  background: var(--surface); border: 1px solid var(--accent);
+  border-radius: var(--radius); padding: 16px; margin-top: 8px;
+  animation: slideDown 0.15s ease-out;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.gantt-detail h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.gantt-detail .close-btn {
+  background: none; border: none; color: var(--text2); font-size: 18px;
+  cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.gantt-detail .close-btn:hover { color: var(--text); }
+.gantt-row-label .collapse-toggle {
+  display: inline-block; width: 14px; font-size: 10px; color: var(--text2);
+  cursor: pointer; text-align: center; user-select: none;
+}
+.gantt-row-label .collapse-toggle:hover { color: var(--text); }
+.gantt-bar-summary {
+  position: absolute; height: 6px; top: 13px;
+  border-radius: 1px; min-width: 4px;
+  background: var(--text2); opacity: 0.6;
+}
+.gantt-bar-summary::before, .gantt-bar-summary::after {
+  content: ''; position: absolute; bottom: 0; width: 3px; height: 10px;
+  background: var(--text2); opacity: 0.6;
+}
+.gantt-bar-summary::before { left: 0; }
+.gantt-bar-summary::after { right: 0; }
+
+/* Dependency picker */
+.dep-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.dep-row select { width: auto; flex: 1; padding: 3px 6px; font-size: 11px; }
+.dep-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 6px; color: var(--text2); margin: 2px 2px 0 0;
+}
+.dep-tag button {
+  background: none; border: none; color: var(--red); cursor: pointer;
+  font-size: 13px; padding: 0; line-height: 1;
+}
+
+/* Kanban */
+.kanban-board {
+  display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px; min-height: 200px;
+}
+.kanban-lane {
+  flex: 0 0 220px; min-width: 180px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex; flex-direction: column; max-height: 70vh;
+}
+.kanban-lane-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 700; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.04em; cursor: grab;
+}
+.kanban-lane-header .count {
+  background: var(--border); border-radius: 10px;
+  padding: 1px 7px; font-size: 10px; font-weight: 600; color: var(--text2);
+}
+.kanban-lane-body {
+  flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 6px;
+  min-height: 40px;
+}
+.kanban-lane-body.drag-over { background: rgba(88,166,255,0.06); }
+.kanban-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; cursor: grab;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.kanban-card:hover { border-color: var(--accent); }
+.kanban-card.dragging { opacity: 0.4; }
+.kanban-card .kc-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.kanban-card .kc-meta { font-size: 11px; color: var(--text2); display: flex; gap: 8px; flex-wrap: wrap; }
+.kanban-card .kc-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.kanban-card .kc-bar-fill { height: 100%; border-radius: 2px; }
+.kanban-card.crit { border-left: 3px solid var(--red); }
+.kanban-card .kc-actions {
+  display: flex; gap: 8px; margin-top: 6px; padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.kc-check {
+  display: flex; align-items: center; gap: 3px; font-size: 10px;
+  color: var(--text2); cursor: pointer; user-select: none;
+}
+.kc-check input[type="checkbox"] {
+  width: 14px; height: 14px; margin: 0; cursor: pointer;
+  accent-color: var(--accent);
+}
+.kc-check-done input[type="checkbox"] { accent-color: var(--green); }
+.kc-check input[type="checkbox"]:disabled { opacity: 0.3; cursor: not-allowed; }
+.kanban-config { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+.kanban-config input {
+  width: 120px; padding: 4px 8px; font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .task-bar { display: none; }
+  .kanban-lane { flex: 0 0 170px; min-width: 150px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div>
+      <h1>Mino PM</h1>
+      <div class="sub">Earned Value Project Management</div>
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="showBaselineDialog()">Snapshot</button>
+  </div>
+
+  <div class="tabs">
+    <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button onclick="switchTab('tasks',this)">Tasks</button>
+    <button onclick="switchTab('gantt',this)">Gantt</button>
+    <button onclick="switchTab('kanban',this)">Board</button>
+    <button onclick="switchTab('scurve',this)">S-Curve</button>
+    <button onclick="switchTab('team',this)">Team</button>
+    <button onclick="switchTab('resources',this)">Resources</button>
+    <button onclick="switchTab('docs',this)">Docs</button>
+    <button onclick="switchTab('sync',this)" style="margin-left:auto;font-size:11px;opacity:0.7">&#x2B6E; Sync</button>
+  </div>
+
+  <!-- ─── Dashboard ─── -->
+  <div id="pane-dashboard" class="pane active">
+    <div class="card">
+      <h2>Earned Value</h2>
+      <div class="metrics" id="ev-metrics"></div>
+    </div>
+    <div class="card">
+      <h2>Earned Schedule</h2>
+      <div class="metrics" id="es-metrics"></div>
+    </div>
+    <div class="card">
+      <h2>Forecasts</h2>
+      <div id="forecasts"></div>
+    </div>
+  </div>
+
+  <!-- ─── Tasks ─── -->
+  <div id="pane-tasks" class="pane">
+    <div class="card">
+      <h2>Add Task</h2>
+      <div class="form-row">
+        <div style="flex:2"><label>Name</label><input id="t-name" placeholder="Task name"></div>
+        <div><label>Planned Cost</label><input id="t-cost" type="number" placeholder="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Parent Task</label>
+          <select id="t-parent"><option value="">(root-level task)</option></select>
+        </div>
+        <div style="flex:2">
+          <label>Predecessors (finish-to-start)</label>
+          <select id="t-pred" multiple size="3" onchange="toggleStartDate()"><option value="">None</option></select>
+          <span style="font-size:10px;color:var(--text2)">Ctrl/Cmd+click for multiple</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div id="start-group"><label>Start</label><input id="t-start" type="date"></div>
+        <div><label>Duration <span style="font-weight:400;color:var(--text2)">(e.g. 2w3d8h)</span></label><input id="t-dur" placeholder="2w3d"></div>
+        <div><label>Assignee</label><select id="t-assignee"><option value="">(unassigned)</option></select></div>
+      </div>
+      <button class="btn btn-primary" onclick="addTask()" style="width:100%">Add Task</button>
+    </div>
+    <div class="card">
+      <h2>Task List</h2>
+      <div id="task-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Gantt ─── -->
+  <div id="pane-gantt" class="pane">
+    <div class="card">
+      <div class="gantt-toolbar">
+        <h2 style="margin-bottom:0">Gantt Chart</h2>
+        <div class="gantt-zoom">
+          <button onclick="setGanttZoom(0.5)" id="gz-05">Fit</button>
+          <button onclick="setGanttZoom(1)" class="active" id="gz-1">1x</button>
+          <button onclick="setGanttZoom(2)" id="gz-2">2x</button>
+          <button onclick="setGanttZoom(4)" id="gz-4">4x</button>
+        </div>
+      </div>
+      <div class="gantt-viewport" id="gantt-viewport">
+        <div class="gantt-inner" id="gantt-inner"></div>
+      </div>
+      <div class="gantt-legend">
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#58a6ff"></div>Normal</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#f85149"></div>Critical</div>
+        <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:var(--orange)"></div>Today</div>
+      </div>
+      <div id="gantt-detail"></div>
+    </div>
+  </div>
+
+  <!-- ─── Kanban ─── -->
+  <div id="pane-kanban" class="pane">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <h2 style="margin-bottom:0">Board</h2>
+        <div class="kanban-config">
+          <input id="kb-new-lane" placeholder="New lane name">
+          <button class="btn btn-sm btn-ghost" onclick="addKanbanLane()">+ Lane</button>
+        </div>
+      </div>
+      <div class="kanban-board" id="kanban-board"></div>
+    </div>
+  </div>
+
+  <!-- ─── S-Curve ─── -->
+  <div id="pane-scurve" class="pane">
+    <div class="card">
+      <h2>S-Curve — PV / EV / AC</h2>
+      <canvas id="scurve-canvas"></canvas>
+      <div id="scurve-legend" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:11px;color:var(--text2)"></div>
+    </div>
+    <div class="card" id="baseline-card" style="display:none">
+      <h2>Baselines</h2>
+      <div id="baseline-list"></div>
+      <div id="baseline-overlays" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- ─── Team ─── -->
+  <div id="pane-team" class="pane">
+    <div class="card">
+      <h2>Add Team Member</h2>
+      <div class="form-row">
+        <div style="flex:2"><label>Display Name</label><input id="m-name" placeholder="Alice Smith"></div>
+        <div><label>Role</label>
+          <select id="m-role">
+            <option value="engineer">Engineer</option>
+            <option value="manager">Manager</option>
+            <option value="designer">Designer</option>
+            <option value="analyst">Analyst</option>
+            <option value="stakeholder">Stakeholder</option>
+            <option value="contractor">Contractor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>ATProto Handle <span style="font-weight:400;color:var(--text2)">(optional)</span></label><input id="m-handle" placeholder="alice.bsky.social"></div>
+        <div><label>Cost Rate ($/hr)</label><input id="m-rate" type="number" placeholder="0" min="0"></div>
+        <div><label>Max Hrs/Week</label><input id="m-hours" type="number" placeholder="40" min="0" max="168" value="40"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addMember()" style="width:100%">Add Member</button>
+    </div>
+    <div class="card">
+      <h2>Team Roster</h2>
+      <div id="team-list"></div>
+    </div>
+  </div>
+
+  <!-- ─── Resources ─── -->
+  <div id="pane-resources" class="pane">
+    <div class="card">
+      <h2>Resource Loading</h2>
+      <canvas id="resource-canvas" style="width:100%;height:300px"></canvas>
+      <div id="resource-legend" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:11px;color:var(--text2)"></div>
+    </div>
+    <div class="card">
+      <h2>Allocation Summary</h2>
+      <div id="resource-summary"></div>
+    </div>
+  </div>
+
+  <!-- ─── Sync ─── -->
+  <div id="pane-sync" class="pane">
+    <div class="card">
+      <h2>ATProto Sync</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        End-to-end encrypted sync to your ATProto PDS. Records are sealed in <code>vault.sealed</code> envelopes —
+        your PDS operator sees only ciphertext.
+      </p>
+      <div id="sync-status" style="margin-bottom:12px"></div>
+      <div id="sync-auth" style="margin-bottom:16px">
+        <div class="form-row">
+          <div style="flex:2"><label>PDS Host</label><input id="sync-host" placeholder="https://bsky.social" value="https://bsky.social"></div>
+          <div style="flex:2"><label>Handle</label><input id="sync-handle" placeholder="you.bsky.social"></div>
+        </div>
+        <div class="form-row">
+          <div style="flex:2"><label>App Password</label><input id="sync-password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx"></div>
+          <div style="flex:2"><label>Vault Passphrase</label><input id="sync-passphrase" type="password" placeholder="your vault passphrase"></div>
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin:4px 0 8px">
+          Passphrase derives your encryption key (PBKDF2, 600k iterations). Same passphrase as Wave/CRM vault.
+        </p>
+        <button class="btn btn-primary" onclick="atprotoLogin()" style="width:100%">Connect &amp; Unlock Vault</button>
+      </div>
+      <div id="sync-connected" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
+          <span id="sync-did" style="font-size:12px;color:var(--text2);font-family:monospace"></span>
+          <span id="sync-vault-status" style="font-size:11px;margin-left:auto"></span>
+          <button class="btn btn-sm btn-ghost" onclick="atprotoDisconnect()" style="font-size:11px">Disconnect</button>
+        </div>
+        <div id="sync-org-ctx" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn btn-primary" onclick="atprotoPush()" style="flex:1">&#x2B06; Push (Encrypted)</button>
+          <button class="btn" onclick="atprotoPull()" style="flex:1;background:var(--surface2)">&#x2B07; Pull (Decrypt)</button>
+        </div>
+        <div id="sync-log" style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Export / Import</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="exportJSON()" style="flex:1;background:var(--surface2)">Export JSON</button>
+        <button class="btn" onclick="document.getElementById('import-file').click()" style="flex:1;background:var(--surface2)">Import JSON</button>
+        <input id="import-file" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Docs ─── -->
+  <div id="pane-docs" class="pane">
+    <div class="card">
+      <h2>Earned Value Management (EVM)</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        EVM answers "are we on track?" by comparing three values at any point in time:
+      </p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--accent);font-weight:600;width:60px">PV</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Planned Value</strong> — how much work should be done by now, in budget terms. Computed from each task's planned cost weighted by how much of its scheduled duration has elapsed.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--green);font-weight:600">EV</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Earned Value</strong> — how much work is actually done, valued at what we planned to spend. Each task's planned cost &times; its percent complete.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;color:var(--red);font-weight:600">AC</td>
+          <td style="padding:6px 8px;color:var(--text2)"><strong style="color:var(--text)">Actual Cost</strong> — what we actually spent on the work performed.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Variances</strong> (positive = good):</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">CV</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &minus; AC. Positive = under budget.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SV</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &minus; PV. Positive = ahead of schedule.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Indices</strong> (1.0 = on track, &gt;1.0 = efficient, &lt;1.0 = trouble):</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">CPI</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &divide; AC. Cost efficiency — how much value per dollar spent.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SPI</td>
+          <td style="padding:4px 8px;color:var(--text2)">EV &divide; PV. Schedule efficiency — how much work done vs. planned.</td>
+        </tr>
+      </table>
+      <p style="font-size:13px;color:var(--text2);margin-top:12px"><strong style="color:var(--text)">Forecasts</strong>:</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">BAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Budget at Completion — total planned budget (sum of all task costs).</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">EAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Estimate at Completion = BAC &divide; CPI. At current burn rate, total cost will be...</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">ETC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Estimate to Complete = EAC &minus; AC. How much more we need to spend.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">VAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Variance at Completion = BAC &minus; EAC. Projected budget surplus/deficit.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Earned Schedule (ES)</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Classic EVM measures schedule variance in dollars, which breaks down late in a project (SV converges to zero at completion even if you're late). Earned Schedule converts to time:
+      </p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600;width:60px">ES</td>
+          <td style="padding:4px 8px;color:var(--text2)">The point on the timeline where PV equals current EV. "Based on work done, what date should it be?"</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">AT</td>
+          <td style="padding:4px 8px;color:var(--text2)">Actual Time — days elapsed since project start.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SV(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">ES &minus; AT. Schedule variance in days. Positive = ahead.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SPI(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">ES &divide; AT. Schedule efficiency in time. &gt;1.0 = ahead, &lt;1.0 = behind.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">SAC</td>
+          <td style="padding:4px 8px;color:var(--text2)">Schedule at Completion — planned project duration in days.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;font-weight:600">EAC(t)</td>
+          <td style="padding:4px 8px;color:var(--text2)">SAC &divide; SPI(t). Forecasted total duration at current pace.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Critical Path</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        The critical path is the longest chain of dependent tasks through your project. Any delay on a critical task delays the entire project.
+      </p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        Computed via forward pass (earliest start/finish) and backward pass (latest start/finish). Tasks with zero float (LS &minus; ES = 0) are on the critical path and highlighted red on the Gantt chart.
+      </p>
+      <p style="font-size:13px;color:var(--text2)">
+        Add finish-to-start dependencies between tasks to see the critical path. Tasks without dependencies each stand alone — add deps to build the network.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>S-Curve</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        The S-curve plots cumulative PV, EV, and AC over time. The shape reveals project health at a glance:
+      </p>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><span style="color:var(--accent)">Blue (PV)</span> — the plan. Where you should be.</li>
+        <li><span style="color:var(--green)">Green (EV)</span> — actual progress valued at planned cost. Where you are.</li>
+        <li><span style="color:var(--red)">Red (AC)</span> — actual spend. What it's costing.</li>
+        <li>EV above PV = ahead of schedule. EV below PV = behind.</li>
+        <li>AC below EV = under budget. AC above EV = over budget.</li>
+        <li>The <span style="color:var(--orange)">dashed yellow</span> line marks today.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Baselines &amp; Change Control</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px">
+        A baseline is a frozen snapshot of your project plan — scope, schedule, and cost — taken at a point in time. All EVM metrics are measured against the current baseline.
+      </p>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><strong style="color:var(--text)">When to snapshot</strong> — before work begins (original baseline), and after approved scope changes (rebaseline).</li>
+        <li><strong style="color:var(--text)">When NOT to rebaseline</strong> — poor performance is not a reason. The baseline exists to expose it.</li>
+        <li><strong style="color:var(--text)">Change control</strong> — scope/schedule/budget changes should go through a formal request, impact analysis, and approval before rebaselining. (Coming in a future version.)</li>
+      </ul>
+      <p style="font-size:13px;color:var(--text2);margin-top:8px">
+        Use the <strong style="color:var(--text)">Snapshot</strong> button in the header to freeze the current plan. Old baselines are never deleted — full audit trail.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>What's Here (v0.4)</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li>Duration-based scheduling (2w3d8h format)</li>
+        <li>Multiple predecessors per task, auto-derived start dates</li>
+        <li>Full EVM engine: PV, EV, AC, CV, SV, CPI, SPI</li>
+        <li>Earned Schedule: ES, SV(t), SPI(t), EAC(t)</li>
+        <li>Interactive Gantt — zoom, scroll, responsive, touch-friendly</li>
+        <li>Critical path (forward/backward pass) with red highlighting</li>
+        <li>S-curve chart (PV/EV/AC over time)</li>
+        <li>Subtask hierarchy — arbitrary nesting, summary bars, roll-up</li>
+        <li>Expand/collapse tree with indented Gantt rows</li>
+        <li>Baseline snapshots (local storage)</li>
+        <li>PWA — installable, offline shell</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Roadmap</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><strong>ATProto integration</strong> — PDS auth, read/write pm.schedule and pm.baseline records via vault.sealed encryption</li>
+        <li><strong>Dependency types</strong> — SS/FF/SF in addition to FS, lag/lead time</li>
+        <li><strong>Change control UI</strong> — submit change requests, approval workflow, rebaseline with audit trail</li>
+        <li><strong>Multi-project portfolio</strong> — aggregate EVM across projects</li>
+        <li><strong>Resource loading</strong> — who's over-allocated, leveling</li>
+        <li><strong>TCPI</strong> — To-Complete Performance Index</li>
+        <li><strong>Export</strong> — CSV/JSON baseline exports, PDF reports</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Lexicons</h2>
+      <ul style="font-size:13px;color:var(--text2);padding-left:20px;line-height:1.8">
+        <li><code>com.minomobi.pm.project</code> — project container with BAC + SAC</li>
+        <li><code>com.minomobi.pm.schedule</code> — per-task planned/actual cost + dates + % complete</li>
+        <li><code>com.minomobi.pm.dependency</code> — FS/SS/FF/SF edges with lag</li>
+        <li><code>com.minomobi.pm.baseline</code> — frozen PMB snapshot with task snapshots</li>
+        <li><code>com.minomobi.pm.changeRequest</code> — scope/schedule/budget change with approval status</li>
+      </ul>
+      <p style="font-size:12px;color:var(--text2);margin-top:10px">
+        All records encrypted inside <code>vault.sealed</code> (AES-256-GCM). Extends existing <code>tasks.issue</code> and <code>tasks.board</code> lexicons.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──
+let state = loadState();
+
+function defaultState() {
+  return { tasks: [], deps: [], baselines: [], collapsed: [], projectName: 'My Project', members: [], atproto: null };
+}
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem('mino-pm-state')) || defaultState(); }
+  catch { return defaultState(); }
+}
+
+function saveState() {
+  localStorage.setItem('mino-pm-state', JSON.stringify(state));
+}
+
+// ── Duration parsing ──
+
+function parseDuration(s) {
+  // Parses "2w3d8h", "5d", "1w", "4h", "2w 3d", etc. → hours
+  if (!s || !s.trim()) return 0;
+  let hours = 0;
+  const str = s.trim().toLowerCase();
+  const weeks = str.match(/([\d.]+)\s*w/);
+  const days = str.match(/([\d.]+)\s*d/);
+  const hrs = str.match(/([\d.]+)\s*h/);
+  if (weeks) hours += parseFloat(weeks[1]) * 40; // 5 work days * 8h
+  if (days) hours += parseFloat(days[1]) * 8;
+  if (hrs) hours += parseFloat(hrs[1]);
+  // If just a plain number, treat as days
+  if (!weeks && !days && !hrs && /^[\d.]+$/.test(str)) hours = parseFloat(str) * 8;
+  return hours;
+}
+
+function durationToCalendarDays(hours) {
+  // Convert work hours → calendar days (8h = 1 day)
+  return Math.max(Math.ceil(hours / 8), 1);
+}
+
+function fmtDuration(hours) {
+  if (!hours || hours <= 0) return '0d';
+  const w = Math.floor(hours / 40);
+  const rem = hours % 40;
+  const d = Math.floor(rem / 8);
+  const h = Math.round(rem % 8);
+  let s = '';
+  if (w) s += w + 'w';
+  if (d) s += d + 'd';
+  if (h) s += h + 'h';
+  return s || '0d';
+}
+
+function addDateDays(dateStr, calDays) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + calDays);
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Tree utilities ──
+
+function getChildren(parentId) {
+  return state.tasks.filter(t => t.parentId === parentId);
+}
+
+function getAllDescendants(parentId) {
+  const result = [];
+  const stack = [parentId];
+  while (stack.length) {
+    const pid = stack.pop();
+    const kids = state.tasks.filter(t => t.parentId === pid);
+    for (const k of kids) { result.push(k); stack.push(k.id); }
+  }
+  return result;
+}
+
+function getLeafTasks() {
+  const parentIds = new Set(state.tasks.filter(t => t.parentId).map(t => t.parentId));
+  return state.tasks.filter(t => !parentIds.has(t.id));
+}
+
+function isParentTask(id) {
+  return state.tasks.some(t => t.parentId === id);
+}
+
+function getDepth(task) {
+  let d = 0, t = task;
+  while (t && t.parentId) {
+    d++;
+    t = state.tasks.find(x => x.id === t.parentId);
+    if (d > 20) break; // safety
+  }
+  return d;
+}
+
+function getTreeOrder() {
+  // Returns tasks in tree order (parent then children, recursively)
+  const roots = state.tasks.filter(t => !t.parentId);
+  const result = [];
+  function walk(tasks) {
+    for (const t of tasks) {
+      result.push(t);
+      const kids = state.tasks.filter(c => c.parentId === t.id);
+      if (kids.length) walk(kids);
+    }
+  }
+  walk(roots);
+  return result;
+}
+
+function isCollapsed(id) {
+  return (state.collapsed || []).includes(id);
+}
+
+function toggleCollapse(id) {
+  if (!state.collapsed) state.collapsed = [];
+  const idx = state.collapsed.indexOf(id);
+  if (idx >= 0) state.collapsed.splice(idx, 1);
+  else state.collapsed.push(id);
+  saveState();
+}
+
+function isHiddenByCollapse(task) {
+  let t = task;
+  while (t && t.parentId) {
+    if (isCollapsed(t.parentId)) return true;
+    t = state.tasks.find(x => x.id === t.parentId);
+  }
+  return false;
+}
+
+function rollUpParent(parentId) {
+  // Recalculate parent's dates and % from children
+  const t = state.tasks.find(x => x.id === parentId);
+  if (!t) return;
+  const kids = getChildren(parentId);
+  if (kids.length === 0) return;
+
+  // Preserve original estimate if not already saved
+  if (t.originalEstimate === undefined) {
+    t.originalEstimate = { cost: t.plannedCost, duration: t.duration };
+  }
+
+  let minStart = kids[0].plannedStart, maxEnd = kids[0].plannedEnd;
+  let totalCost = 0, totalActual = 0, weightedPct = 0;
+  for (const k of kids) {
+    if (k.plannedStart < minStart) minStart = k.plannedStart;
+    if (k.plannedEnd > maxEnd) maxEnd = k.plannedEnd;
+    totalCost += k.plannedCost;
+    weightedPct += k.plannedCost * k.percentComplete;
+    totalActual += k.actualCost;
+  }
+  t.plannedStart = minStart;
+  t.plannedEnd = maxEnd;
+  t.percentComplete = totalCost > 0 ? Math.round(weightedPct / totalCost) : 0;
+  t.plannedCost = totalCost;
+  t.actualCost = totalActual;
+  t.duration = ((new Date(maxEnd) - new Date(minStart)) / 3600000);
+
+  // Recurse up
+  if (t.parentId) rollUpParent(t.parentId);
+  saveState();
+}
+
+// ── Task CRUD ──
+
+function getSelectedPreds() {
+  const sel = document.getElementById('t-pred');
+  return Array.from(sel.selectedOptions).map(o => o.value).filter(v => v !== '');
+}
+
+function toggleStartDate() {
+  const preds = getSelectedPreds();
+  const sg = document.getElementById('start-group');
+  sg.style.display = preds.length > 0 ? 'none' : '';
+}
+
+function addTask() {
+  const name = document.getElementById('t-name').value.trim();
+  const cost = parseFloat(document.getElementById('t-cost').value) || 0;
+  const durStr = document.getElementById('t-dur').value.trim();
+  const preds = getSelectedPreds();
+  const parentId = document.getElementById('t-parent').value || null;
+  const durHours = parseDuration(durStr);
+
+  if (!name || durHours <= 0) return;
+
+  let start;
+  if (preds.length > 0) {
+    let latest = '';
+    for (const pid of preds) {
+      const pt = state.tasks.find(t => t.id === pid);
+      if (!pt) return;
+      if (!latest || pt.plannedEnd > latest) latest = pt.plannedEnd;
+    }
+    start = latest;
+  } else if (parentId) {
+    // Default to parent's start date
+    const parent = state.tasks.find(t => t.id === parentId);
+    start = parent ? parent.plannedStart : document.getElementById('t-start').value;
+  } else {
+    start = document.getElementById('t-start').value;
+    if (!start) return;
+  }
+
+  const calDays = durationToCalendarDays(durHours);
+  const end = addDateDays(start, calDays);
+
+  const assigneeId = document.getElementById('t-assignee').value || null;
+  const id = crypto.randomUUID();
+  const task = {
+    id, name,
+    plannedCost: cost,
+    actualCost: 0,
+    plannedStart: start,
+    plannedEnd: end,
+    duration: durHours,
+    percentComplete: 0,
+    assigneeId,
+    createdAt: new Date().toISOString()
+  };
+  if (parentId) task.parentId = parentId;
+  state.tasks.push(task);
+
+  if (!state.deps) state.deps = [];
+  for (const pid of preds) {
+    state.deps.push({ from: pid, to: id });
+  }
+  saveState();
+  if (parentId) rollUpParent(parentId);
+
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-cost').value = '';
+  document.getElementById('t-dur').value = '';
+  document.getElementById('t-parent').value = '';
+  const sel = document.getElementById('t-pred');
+  Array.from(sel.options).forEach(o => o.selected = false);
+  toggleStartDate();
+  renderAll();
+}
+
+function deleteTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  const parentId = t ? t.parentId : null;
+  const toDelete = new Set([id, ...getAllDescendants(id).map(d => d.id)]);
+  state.tasks = state.tasks.filter(t => !toDelete.has(t.id));
+  if (state.deps) state.deps = state.deps.filter(d => !toDelete.has(d.from) && !toDelete.has(d.to));
+  saveState();
+  if (parentId) rollUpParent(parentId);
+  renderAll();
+}
+
+function addDep(fromId, toId) {
+  if (!state.deps) state.deps = [];
+  if (fromId === toId) return;
+  if (state.deps.some(d => d.from === fromId && d.to === toId)) return;
+  state.deps.push({ from: fromId, to: toId });
+  saveState();
+  renderAll();
+}
+
+function removeDep(fromId, toId) {
+  if (!state.deps) return;
+  state.deps = state.deps.filter(d => !(d.from === fromId && d.to === toId));
+  saveState();
+  renderAll();
+}
+
+function updatePct(id, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) {
+    t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0));
+    syncTaskToLane(t);
+    saveState();
+    if (t.parentId) rollUpParent(t.parentId);
+    renderAll();
+  }
+}
+
+function updateActualCost(id, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (t) { t.actualCost = Math.max(0, parseFloat(val) || 0); saveState(); if (t.parentId) rollUpParent(t.parentId); renderAll(); }
+}
+
+function assignTask(taskId, memberId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (t) { t.assigneeId = memberId || null; saveState(); renderTasks(); }
+}
+
+// ── EVM Engine ──
+
+function computeEVM(asOfDate) {
+  const now = asOfDate || new Date();
+  let pv = 0, ev = 0, ac = 0, bac = 0;
+  const leaves = getLeafTasks();
+
+  for (const t of leaves) {
+    const ps = new Date(t.plannedStart);
+    const pe = new Date(t.plannedEnd);
+    const dur = Math.max(pe - ps, 1);
+    const elapsed = Math.max(0, Math.min(now - ps, dur));
+    const plannedPct = elapsed / dur;
+
+    pv += t.plannedCost * plannedPct;
+    ev += t.plannedCost * (t.percentComplete / 100);
+    ac += t.actualCost;
+    bac += t.plannedCost;
+  }
+
+  const cv = ev - ac;
+  const sv = ev - pv;
+  const cpi = ac > 0 ? ev / ac : (ev > 0 ? Infinity : 1);
+  const spi = pv > 0 ? ev / pv : (ev > 0 ? Infinity : 1);
+  const eac = cpi > 0 ? bac / cpi : Infinity;
+  const etc_ = eac - ac;
+  const vac = bac - eac;
+
+  return { pv, ev, ac, bac, cv, sv, cpi, spi, eac, etc: etc_, vac };
+}
+
+// ── Earned Schedule Engine ──
+
+function computeES() {
+  const leaves = getLeafTasks();
+  if (leaves.length === 0) return { es: 0, at: 0, svt: 0, spit: 1, eact: 0, sac: 0 };
+
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
+  const projStart = Math.min(...starts);
+  const projEnd = Math.max(...ends);
+  const sac = (projEnd - projStart) / 86400000; // days
+  const now = Date.now();
+  const at = Math.max(0, (now - projStart) / 86400000); // days elapsed
+
+  // Current EV
+  const evm = computeEVM();
+
+  // Find ES: the time on the PV curve where PV = current EV
+  // Sample PV at daily intervals to find the crossover
+  const steps = Math.ceil(sac) || 1;
+  let es = 0;
+
+  for (let d = 0; d <= steps; d++) {
+    const sampleDate = new Date(projStart + d * 86400000);
+    let pvAtD = 0;
+    for (const t of leaves) {
+      const ps = new Date(t.plannedStart).getTime();
+      const pe = new Date(t.plannedEnd).getTime();
+      const dur = Math.max(pe - ps, 1);
+      const elapsed = Math.max(0, Math.min(sampleDate.getTime() - ps, dur));
+      pvAtD += t.plannedCost * (elapsed / dur);
+    }
+    if (pvAtD >= evm.ev) {
+      // Linear interpolation between d-1 and d
+      if (d === 0) { es = 0; }
+      else {
+        const prevDate = new Date(projStart + (d - 1) * 86400000);
+        let pvPrev = 0;
+        for (const t of leaves) {
+          const ps = new Date(t.plannedStart).getTime();
+          const pe = new Date(t.plannedEnd).getTime();
+          const dur = Math.max(pe - ps, 1);
+          const elapsed = Math.max(0, Math.min(prevDate.getTime() - ps, dur));
+          pvPrev += t.plannedCost * (elapsed / dur);
+        }
+        const frac = pvAtD > pvPrev ? (evm.ev - pvPrev) / (pvAtD - pvPrev) : 0;
+        es = (d - 1) + frac;
+      }
+      break;
+    }
+    if (d === steps) es = steps; // EV exceeds all planned — ahead of schedule
+  }
+
+  const svt = es - at;
+  const spit = at > 0 ? es / at : (es > 0 ? Infinity : 1);
+  const eact = spit > 0 ? sac / spit : Infinity;
+
+  return { es, at, svt, spit, eact, sac };
+}
+
+// ── Rendering ──
+
+function fmtNum(n, dec = 1) {
+  if (!isFinite(n)) return '—';
+  return n.toFixed(dec);
+}
+
+function idxClass(v, good = 1) {
+  if (!isFinite(v)) return 'neutral';
+  if (v >= good) return 'good';
+  if (v >= good * 0.9) return 'warn';
+  return 'bad';
+}
+
+function varClass(v) {
+  if (!isFinite(v)) return 'neutral';
+  if (v > 0) return 'good';
+  if (v === 0) return 'neutral';
+  return 'bad';
+}
+
+function renderDashboard() {
+  const evm = computeEVM();
+  const es = computeES();
+
+  document.getElementById('ev-metrics').innerHTML = `
+    <div class="metric"><div class="label">PV</div><div class="value neutral">${fmtNum(evm.pv, 0)}</div></div>
+    <div class="metric"><div class="label">EV</div><div class="value neutral">${fmtNum(evm.ev, 0)}</div></div>
+    <div class="metric"><div class="label">AC</div><div class="value neutral">${fmtNum(evm.ac, 0)}</div></div>
+    <div class="metric"><div class="label">CPI</div><div class="value ${idxClass(evm.cpi)}">${fmtNum(evm.cpi, 2)}</div></div>
+    <div class="metric"><div class="label">SPI</div><div class="value ${idxClass(evm.spi)}">${fmtNum(evm.spi, 2)}</div></div>
+    <div class="metric"><div class="label">BAC</div><div class="value neutral">${fmtNum(evm.bac, 0)}</div></div>
+  `;
+
+  document.getElementById('es-metrics').innerHTML = `
+    <div class="metric"><div class="label">ES</div><div class="value neutral">${fmtNum(es.es)}d</div></div>
+    <div class="metric"><div class="label">AT</div><div class="value neutral">${fmtNum(es.at)}d</div></div>
+    <div class="metric"><div class="label">SV(t)</div><div class="value ${varClass(es.svt)}">${fmtNum(es.svt)}d</div></div>
+    <div class="metric"><div class="label">SPI(t)</div><div class="value ${idxClass(es.spit)}">${fmtNum(es.spit, 2)}</div></div>
+    <div class="metric"><div class="label">SAC</div><div class="value neutral">${fmtNum(es.sac)}d</div></div>
+    <div class="metric"><div class="label">EAC(t)</div><div class="value ${es.eact > es.sac * 1.1 ? 'bad' : es.eact > es.sac ? 'warn' : 'good'}">${fmtNum(es.eact)}d</div></div>
+  `;
+
+  const f = document.getElementById('forecasts');
+  f.innerHTML = `
+    <div class="forecast-row"><span class="fl">EAC (cost)</span><span class="${varClass(evm.vac)}">${fmtNum(evm.eac, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">ETC (remaining)</span><span>${fmtNum(evm.etc, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">VAC (budget variance)</span><span class="${varClass(evm.vac)}">${fmtNum(evm.vac, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">CV (cost variance)</span><span class="${varClass(evm.cv)}">${fmtNum(evm.cv, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">SV (schedule variance)</span><span class="${varClass(evm.sv)}">${fmtNum(evm.sv, 0)}</span></div>
+    <div class="forecast-row"><span class="fl">EAC(t) (schedule forecast)</span><span>${fmtNum(es.eact)} days</span></div>
+  `;
+}
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  if (state.tasks.length === 0) {
+    el.innerHTML = '<div class="empty">No tasks yet. Add one above.</div>';
+    return;
+  }
+
+  const deps = state.deps || [];
+
+  const treeOrder = getTreeOrder();
+  const visibleTasks = treeOrder.filter(t => !isHiddenByCollapse(t));
+
+  el.innerHTML = visibleTasks.map(t => {
+    const pct = t.percentComplete;
+    const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
+    const taskDeps = deps.filter(d => d.to === t.id);
+    const depTags = taskDeps.map(d => {
+      const pred = state.tasks.find(x => x.id === d.from);
+      return pred ? `<span class="dep-tag">${esc(pred.name)}<button onclick="removeDep('${d.from}','${t.id}')">&times;</button></span>` : '';
+    }).join('');
+    const otherTasks = state.tasks.filter(x => x.id !== t.id && !deps.some(d => d.from === x.id && d.to === t.id));
+    const predOpts = otherTasks.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
+    const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
+    const depth = getDepth(t);
+    const indent = depth * 16;
+    const isP = isParentTask(t.id);
+    const collapsed = isCollapsed(t.id);
+    const toggle = isP ? `<span style="cursor:pointer;margin-right:4px;font-size:10px" onclick="toggleCollapse('${t.id}');renderTasks()">${collapsed ? '&#9654;' : '&#9660;'}</span>` : '';
+
+    return `
+      <div class="task-row" style="flex-wrap:wrap;padding-left:${indent}px${isP ? ';background:rgba(88,166,255,0.04)' : ''}">
+        <div class="task-name">${toggle}${isP ? '<strong>' : ''}${esc(t.name)}${isP ? '</strong>' : ''}<br>
+          <span style="font-size:11px;color:var(--text2)">
+            ${dur} &middot; ${t.plannedStart}${isP ? '' : ` &middot;
+            Cost: ${t.plannedCost} &middot; Actual:
+            <input type="number" value="${t.actualCost}" min="0" style="width:60px;padding:2px 4px;display:inline;font-size:11px"
+              onchange="updateActualCost('${t.id}',this.value)">`}
+          </span>
+          ${taskDeps.length ? '<br>' + depTags : ''}
+        </div>
+        <div class="task-bar"><div class="task-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="task-pct">
+          ${isP ? `<span style="font-size:13px">${pct}%</span>` : `<input type="number" value="${pct}" min="0" max="100" style="width:48px;padding:2px 4px;text-align:right;font-size:13px"
+            onchange="updatePct('${t.id}',this.value)">%`}
+        </div>
+        <div class="task-actions" style="gap:4px">
+          ${!isP ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="assignTask('${t.id}',this.value)">
+            <option value="">&#x1f464;</option>
+            ${(state.members || []).map(m => `<option value="${m.id}" ${t.assigneeId === m.id ? 'selected' : ''}>${esc(m.displayName)}</option>`).join('')}
+          </select>` : ''}
+          ${otherTasks.length ? `<select style="width:auto;padding:2px 4px;font-size:11px" onchange="if(this.value)addDep(this.value,'${t.id}');this.value=''"><option value="">+dep</option>${predOpts}</select>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="deleteTask('${t.id}')" title="Delete">&times;</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── S-Curve ──
+
+function renderSCurve() {
+  const canvas = document.getElementById('scurve-canvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const leaves = getLeafTasks();
+  if (leaves.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Add tasks to see the S-curve', W / 2, H / 2);
+    return;
+  }
+
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
+  const projStart = Math.min(...starts);
+  const projEnd = Math.max(...ends);
+  const totalDays = Math.max(Math.ceil((projEnd - projStart) / 86400000), 1);
+  const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
+  if (bac === 0) return;
+
+  const pad = { t: 20, r: 16, b: 32, l: 48 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  // Sample curves
+  const pvPts = [], evPts = [], acPts = [];
+  const now = Date.now();
+  const todayDay = Math.max(0, (now - projStart) / 86400000);
+
+  for (let d = 0; d <= totalDays; d++) {
+    const sampleTime = projStart + d * 86400000;
+    let pv = 0, ev = 0, ac = 0;
+
+    for (const t of leaves) {
+      const ps = new Date(t.plannedStart).getTime();
+      const pe = new Date(t.plannedEnd).getTime();
+      const dur = Math.max(pe - ps, 1);
+      const elapsed = Math.max(0, Math.min(sampleTime - ps, dur));
+      pv += t.plannedCost * (elapsed / dur);
+
+      // EV and AC only up to "now"
+      if (d <= Math.ceil(todayDay)) {
+        ev += t.plannedCost * (t.percentComplete / 100);
+        ac += t.actualCost * Math.min(1, elapsed / dur);
+      }
+    }
+
+    pvPts.push(pv);
+    if (d <= Math.ceil(todayDay)) { evPts.push(ev); acPts.push(ac); }
+  }
+
+  // Axes
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ch); ctx.lineTo(pad.l + cw, pad.t + ch);
+  ctx.stroke();
+
+  // Y-axis labels
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    const val = Math.round(bac * i / 4);
+    ctx.fillText(val, pad.l - 6, y + 3);
+    if (i > 0) {
+      ctx.strokeStyle = '#21262d';
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    }
+  }
+
+  // X-axis labels
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(totalDays / 6));
+  for (let d = 0; d <= totalDays; d += labelStep) {
+    const x = pad.l + (d / totalDays) * cw;
+    const dt = new Date(projStart + d * 86400000);
+    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t + ch + 16);
+  }
+
+  // Draw line
+  function drawLine(pts, color, maxPts) {
+    if (pts.length < 2) return;
+    const n = maxPts || pts.length;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = pad.l + (i / totalDays) * cw;
+      const y = pad.t + ch - (pts[i] / bac) * ch;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  drawLine(pvPts, '#58a6ff');
+  drawLine(evPts, '#3fb950');
+  drawLine(acPts, '#f85149');
+
+  // Draw baseline overlays
+  const baselineColors = ['#d2a8ff', '#f0883e', '#a5d6ff', '#ffd33d'];
+  if (!state.baselineVisible) state.baselineVisible = {};
+  const visibleBaselines = (state.baselines || []).filter(b => state.baselineVisible[b.id]);
+
+  for (let bi = 0; bi < visibleBaselines.length; bi++) {
+    const b = visibleBaselines[bi];
+    const bColor = baselineColors[bi % baselineColors.length];
+    const bLeaves = b.tasks.filter(bt => !b.tasks.some(c => c.parentId === bt.id));
+    if (bLeaves.length === 0) continue;
+
+    const bStarts = bLeaves.map(t => new Date(t.plannedStart).getTime());
+    const bEnds = bLeaves.map(t => new Date(t.plannedEnd).getTime());
+    const bStart = Math.min(...bStarts);
+    const bEnd = Math.max(...bEnds);
+    const bBac = bLeaves.reduce((s, t) => s + t.plannedCost, 0);
+    if (bBac === 0) continue;
+
+    // Sample baseline PV curve
+    const bPts = [];
+    for (let d = 0; d <= totalDays; d++) {
+      const sampleTime = projStart + d * 86400000;
+      let bpv = 0;
+      for (const t of bLeaves) {
+        const ps = new Date(t.plannedStart).getTime();
+        const pe = new Date(t.plannedEnd).getTime();
+        const dur = Math.max(pe - ps, 1);
+        const elapsed = Math.max(0, Math.min(sampleTime - ps, dur));
+        bpv += t.plannedCost * (elapsed / dur);
+      }
+      bPts.push(bpv);
+    }
+
+    // Draw as dashed line
+    ctx.strokeStyle = bColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    for (let i = 0; i < bPts.length; i++) {
+      const x = pad.l + (i / totalDays) * cw;
+      const y = pad.t + ch - (bPts[i] / bac) * ch;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Today line
+  if (todayDay >= 0 && todayDay <= totalDays) {
+    const tx = pad.l + (todayDay / totalDays) * cw;
+    ctx.strokeStyle = '#d29922';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, pad.t + ch); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // HTML legend (below canvas)
+  const legendEl = document.getElementById('scurve-legend');
+  if (legendEl) {
+    let legendHtml = [
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#58a6ff;border-radius:1px"></span>PV</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#3fb950;border-radius:1px"></span>EV</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#f85149;border-radius:1px"></span>AC</span>',
+      '<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:3px;background:#d29922;border-radius:1px;border-top:1px dashed #d29922"></span>Today</span>'
+    ];
+    for (let bi = 0; bi < visibleBaselines.length; bi++) {
+      const b = visibleBaselines[bi];
+      const c = baselineColors[bi % baselineColors.length];
+      legendHtml.push(`<span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:0;border-top:2px dashed ${c}"></span>v${b.version}</span>`);
+    }
+    legendEl.innerHTML = legendHtml.join('');
+  }
+
+  // Render baseline list
+  renderBaselines();
+}
+
+// ── Baselines ──
+
+function showBaselineDialog() {
+  const label = prompt('Baseline label (e.g. "Original plan"):');
+  if (!label) return;
+  const evm = computeEVM();
+  const es = computeES();
+  const snap = {
+    id: crypto.randomUUID(),
+    version: state.baselines.length + 1,
+    label,
+    takenAt: new Date().toISOString(),
+    bac: evm.bac,
+    sac: es.sac,
+    tasks: state.tasks.map(t => ({
+      id: t.id, name: t.name,
+      plannedStart: t.plannedStart, plannedEnd: t.plannedEnd, plannedCost: t.plannedCost
+    }))
+  };
+  state.baselines.push(snap);
+  saveState();
+  renderAll();
+}
+
+function renderBaselines() {
+  const card = document.getElementById('baseline-card');
+  const el = document.getElementById('baseline-list');
+  if (state.baselines.length === 0) { card.style.display = 'none'; return; }
+  if (!state.baselineVisible) state.baselineVisible = {};
+  card.style.display = '';
+  const baselineColors = ['#d2a8ff', '#f0883e', '#a5d6ff', '#ffd33d'];
+  el.innerHTML = state.baselines.map((b, i) => {
+    const color = baselineColors[i % baselineColors.length];
+    const vis = state.baselineVisible[b.id];
+    return `<div class="forecast-row" style="gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0">
+        <input type="checkbox" ${vis ? 'checked' : ''} style="width:14px;height:14px;accent-color:${color}"
+          onchange="toggleBaselineOverlay('${b.id}')">
+        <span class="fl" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">v${b.version}: ${esc(b.label)}</span>
+      </label>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">${new Date(b.takenAt).toLocaleDateString()} &middot; BAC ${fmtNum(b.bac, 0)}</span>
+      <button class="btn btn-sm btn-ghost" style="padding:2px 6px;font-size:11px;color:var(--red)" onclick="deleteBaseline('${b.id}')">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleBaselineOverlay(id) {
+  if (!state.baselineVisible) state.baselineVisible = {};
+  state.baselineVisible[id] = !state.baselineVisible[id];
+  saveState();
+  renderSCurve();
+}
+
+function deleteBaseline(id) {
+  state.baselines = state.baselines.filter(b => b.id !== id);
+  if (state.baselineVisible) delete state.baselineVisible[id];
+  saveState();
+  renderBaselines();
+  renderSCurve();
+}
+
+// ── Critical Path ──
+
+function computeCriticalPath() {
+  const tasks = state.tasks;
+  const deps = state.deps || [];
+  if (tasks.length === 0) return new Set();
+
+  // Build adjacency: task id → { es, ef, ls, lf, dur }
+  const info = {};
+  for (const t of tasks) {
+    const dur = Math.max((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000, 0);
+    info[t.id] = { dur, es: 0, ef: 0, ls: Infinity, lf: Infinity, preds: [], succs: [] };
+  }
+  for (const d of deps) {
+    if (info[d.from] && info[d.to]) {
+      info[d.to].preds.push(d.from);
+      info[d.from].succs.push(d.to);
+    }
+  }
+
+  // Topological sort
+  const visited = new Set(), order = [];
+  function visit(id) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    for (const s of (info[id]?.succs || [])) visit(s);
+    order.unshift(id);
+  }
+  for (const t of tasks) visit(t.id);
+
+  // Forward pass
+  for (const id of order) {
+    const n = info[id];
+    for (const p of n.preds) {
+      if (info[p]) n.es = Math.max(n.es, info[p].ef);
+    }
+    n.ef = n.es + n.dur;
+  }
+
+  // Project end
+  let projEnd = 0;
+  for (const id of order) projEnd = Math.max(projEnd, info[id].ef);
+
+  // Backward pass
+  for (const id of [...order].reverse()) {
+    const n = info[id];
+    if (n.succs.length === 0) {
+      n.lf = projEnd;
+    } else {
+      n.lf = Infinity;
+      for (const s of n.succs) {
+        if (info[s]) n.lf = Math.min(n.lf, info[s].ls);
+      }
+    }
+    n.ls = n.lf - n.dur;
+  }
+
+  // Critical = zero float
+  const critical = new Set();
+  for (const id of order) {
+    const n = info[id];
+    const float = n.ls - n.es;
+    if (Math.abs(float) < 0.01) critical.add(id);
+  }
+  return critical;
+}
+
+// ── Gantt Chart (DOM-based, interactive) ──
+
+let ganttZoom = 1;
+let ganttSelectedId = null;
+
+function setGanttZoom(z) {
+  ganttZoom = z;
+  document.querySelectorAll('.gantt-zoom button').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('gz-' + String(z).replace('.', ''));
+  if (btn) btn.classList.add('active');
+  renderGantt();
+}
+
+function renderGantt() {
+  const inner = document.getElementById('gantt-inner');
+  const viewport = document.getElementById('gantt-viewport');
+  if (!inner) return;
+
+  const tasks = state.tasks;
+  if (tasks.length === 0) {
+    inner.innerHTML = '<div class="empty">Add tasks to see the Gantt chart</div>';
+    return;
+  }
+
+  const critical = computeCriticalPath();
+  const deps = state.deps || [];
+
+  // Time range
+  const starts = tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = tasks.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const tRange = Math.max(tMax - tMin, 86400000);
+  const totalDays = Math.ceil(tRange / 86400000);
+
+  // Sizing
+  const vpWidth = viewport.clientWidth;
+  const labelW = 120;
+  const barAreaBase = Math.max(vpWidth - labelW, 200);
+  const barAreaW = ganttZoom === 0.5 ? barAreaBase : barAreaBase * ganttZoom;
+  const innerW = labelW + barAreaW + 40; // 40px right pad for pct labels
+  const rowH = 32;
+
+  function pxFromTime(ts) { return ((ts - tMin) / tRange) * barAreaW; }
+
+  // Date header
+  const labelStep = Math.max(1, Math.floor(totalDays / Math.max(Math.floor(barAreaW / 60), 3)));
+  let headerDates = '';
+  for (let d = 0; d <= totalDays; d += labelStep) {
+    const x = (d / totalDays) * barAreaW;
+    const w = (labelStep / totalDays) * barAreaW;
+    const dt = new Date(tMin + d * 86400000);
+    headerDates += `<div class="gantt-header-date" style="position:absolute;left:${x}px;width:${Math.min(w, barAreaW - x)}px">${dt.getMonth() + 1}/${dt.getDate()}</div>`;
+  }
+
+  // Today marker
+  const now = Date.now();
+  let todayHtml = '';
+  if (now >= tMin && now <= tMax + 86400000 * 7) {
+    const tx = pxFromTime(now);
+    todayHtml = `<div class="gantt-today" style="left:${labelW + tx}px"></div>`;
+  }
+
+  // Task rows in tree order
+  const treeOrder = getTreeOrder();
+  const visibleTasks = treeOrder.filter(t => !isHiddenByCollapse(t));
+  const taskIdx = {};
+  visibleTasks.forEach((t, i) => { taskIdx[t.id] = i; });
+
+  let rowsHtml = '';
+  for (let i = 0; i < visibleTasks.length; i++) {
+    const t = visibleTasks[i];
+    const isCrit = critical.has(t.id);
+    const isParent = isParentTask(t.id);
+    const depth = getDepth(t);
+    const x1 = pxFromTime(new Date(t.plannedStart).getTime());
+    const x2 = pxFromTime(new Date(t.plannedEnd).getTime());
+    const barW = Math.max(x2 - x1, 4);
+    const fillW = barW * (t.percentComplete / 100);
+    const critCls = isCrit ? ' crit' : '';
+    const indent = depth * 16;
+    const maxLabelLen = Math.max(6, 16 - depth * 2);
+    const label = t.name.length > maxLabelLen ? t.name.slice(0, maxLabelLen - 1) + '\u2026' : t.name;
+
+    // Collapse toggle for parents
+    let toggle = '';
+    if (isParent) {
+      const arrow = isCollapsed(t.id) ? '\u25b6' : '\u25bc';
+      toggle = `<span class="collapse-toggle" onclick="event.stopPropagation();toggleCollapse('${t.id}');renderGantt()">${arrow}</span>`;
+    } else if (depth > 0) {
+      toggle = '<span style="display:inline-block;width:14px"></span>';
+    }
+
+    const selCls = ganttSelectedId === t.id ? ' selected' : '';
+    const barHtml = isParent
+      ? `<div class="gantt-bar-summary" style="left:${x1}px;width:${barW}px"></div>`
+      : `<div class="gantt-bar gantt-bar-bg${critCls}" data-task-id="${t.id}" style="left:${x1}px;width:${barW}px"
+            onmousedown="ganttBarDragStart(event,'${t.id}','move')"
+            ontouchstart="ganttBarTouchStart(event,'${t.id}','move')">
+          <div class="gantt-handle gantt-handle-l"
+            onmousedown="event.stopPropagation();ganttBarDragStart(event,'${t.id}','resize-l')"
+            ontouchstart="event.stopPropagation();ganttBarTouchStart(event,'${t.id}','resize-l')"></div>
+          <div class="gantt-bar-fill ${isCrit ? 'crit' : 'normal'}" style="width:${fillW}px"></div>
+          <div class="gantt-bar-pct">${t.percentComplete}%</div>
+          <div class="gantt-handle gantt-handle-r"
+            onmousedown="event.stopPropagation();ganttBarDragStart(event,'${t.id}','resize-r')"
+            ontouchstart="event.stopPropagation();ganttBarTouchStart(event,'${t.id}','resize-r')"></div>
+          <div class="gantt-link-dot"
+            onmousedown="event.stopPropagation();ganttLinkStart(event,'${t.id}')"
+            ontouchstart="event.stopPropagation();ganttLinkTouchStart(event,'${t.id}')"></div>
+        </div>`;
+
+    rowsHtml += `<div class="gantt-row${selCls}" data-task-id="${t.id}" onclick="selectGanttTask('${t.id}')">
+      <div class="gantt-row-label${critCls}" title="${esc(t.name)}" style="padding-left:${8 + indent}px">${toggle}${(() => { const m = (state.members || []).find(x => x.id === t.assigneeId); return m ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${m.color};margin-right:3px" title="${esc(m.displayName)}"></span>` : ''; })()}${esc(label)}</div>
+      <div class="gantt-row-bars" style="width:${barAreaW}px">
+        ${barHtml}
+      </div>
+    </div>`;
+  }
+
+  // SVG for dependency arrows
+  const svgH = visibleTasks.length * rowH;
+  let arrowPaths = '';
+  for (const d of deps) {
+    const fi = taskIdx[d.from];
+    const ti = taskIdx[d.to];
+    if (fi === undefined || ti === undefined) continue;
+
+    const fromTask = visibleTasks[fi];
+    const toTask = visibleTasks[ti];
+    const x1 = labelW + pxFromTime(new Date(fromTask.plannedEnd).getTime());
+    const y1 = fi * rowH + rowH / 2;
+    const x2 = labelW + pxFromTime(new Date(toTask.plannedStart).getTime());
+    const y2 = ti * rowH + rowH / 2;
+    const midX = x1 + 8;
+
+    arrowPaths += `<path d="M${x1},${y1} L${midX},${y1} L${midX},${y2} L${x2 - 4},${y2}" fill="none" stroke="#8b949e" stroke-width="1"/>`;
+    arrowPaths += `<polygon points="${x2},${y2} ${x2 - 5},${y2 - 3} ${x2 - 5},${y2 + 3}" fill="#8b949e"/>`;
+  }
+
+  inner.style.width = innerW + 'px';
+  inner.innerHTML = `
+    <div class="gantt-header">
+      <div class="gantt-header-label">Task</div>
+      <div class="gantt-header-dates" style="width:${barAreaW}px;position:relative">${headerDates}</div>
+    </div>
+    <div style="position:relative">
+      ${todayHtml}
+      <svg class="gantt-dep-svg" width="${innerW}" height="${svgH}" viewBox="0 0 ${innerW} ${svgH}">${arrowPaths}</svg>
+      ${rowsHtml}
+    </div>`;
+}
+
+// ── Gantt direct editing: drag bars, resize, link ──
+
+let ganttDrag = null; // { taskId, mode:'move'|'resize-l'|'resize-r', startX, origStart, origEnd, origDur }
+let ganttLink = null; // { fromId, startX, startY }
+
+function ganttGetTimeInfo() {
+  const tasks = state.tasks;
+  const starts = tasks.map(t => new Date(t.plannedStart).getTime());
+  const ends = tasks.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const tRange = Math.max(tMax - tMin, 86400000);
+  const viewport = document.getElementById('gantt-viewport');
+  const labelW = 120;
+  const barAreaBase = Math.max(viewport.clientWidth - labelW, 200);
+  const barAreaW = ganttZoom === 0.5 ? barAreaBase : barAreaBase * ganttZoom;
+  return { tMin, tRange, labelW, barAreaW };
+}
+
+function ganttPxToDays(px) {
+  const { tRange, barAreaW } = ganttGetTimeInfo();
+  return (px / barAreaW) * (tRange / 86400000);
+}
+
+function ganttBarDragStart(e, taskId, mode) {
+  if (e.button !== 0) return;
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  e.preventDefault();
+  e.stopPropagation();
+  ganttDrag = {
+    taskId, mode,
+    startX: e.clientX,
+    origStart: t.plannedStart,
+    origEnd: t.plannedEnd,
+    origDur: t.duration
+  };
+  const bar = e.target.closest('.gantt-bar');
+  if (bar) bar.classList.add('dragging');
+}
+
+function ganttBarTouchStart(e, taskId, mode) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  e.stopPropagation();
+  ganttDrag = {
+    taskId, mode,
+    startX: e.touches[0].clientX,
+    origStart: t.plannedStart,
+    origEnd: t.plannedEnd,
+    origDur: t.duration
+  };
+}
+
+function ganttBarDragMove(clientX) {
+  if (!ganttDrag) return;
+  const dx = clientX - ganttDrag.startX;
+  const daysDelta = Math.round(ganttPxToDays(dx));
+  if (daysDelta === 0) return;
+
+  const t = state.tasks.find(x => x.id === ganttDrag.taskId);
+  if (!t) return;
+
+  if (ganttDrag.mode === 'move') {
+    t.plannedStart = addDateDays(ganttDrag.origStart, daysDelta);
+    t.plannedEnd = addDateDays(ganttDrag.origEnd, daysDelta);
+  } else if (ganttDrag.mode === 'resize-r') {
+    const newEnd = addDateDays(ganttDrag.origEnd, daysDelta);
+    if (newEnd > t.plannedStart) {
+      t.plannedEnd = newEnd;
+      t.duration = Math.max(8, ((new Date(newEnd) - new Date(t.plannedStart)) / 3600000));
+    }
+  } else if (ganttDrag.mode === 'resize-l') {
+    const newStart = addDateDays(ganttDrag.origStart, daysDelta);
+    if (newStart < t.plannedEnd) {
+      t.plannedStart = newStart;
+      t.duration = Math.max(8, ((new Date(t.plannedEnd) - new Date(newStart)) / 3600000));
+    }
+  }
+
+  renderGantt();
+}
+
+function ganttBarDragEnd() {
+  if (!ganttDrag) return;
+  const t = state.tasks.find(x => x.id === ganttDrag.taskId);
+  ganttDrag = null;
+  if (t) {
+    saveState();
+    if (t.parentId) rollUpParent(t.parentId);
+    renderGantt();
+    renderGanttDetail();
+    renderDashboard();
+  }
+}
+
+// Mouse listeners (on document for drag outside bar)
+document.addEventListener('mousemove', e => {
+  if (ganttDrag) { e.preventDefault(); ganttBarDragMove(e.clientX); }
+  if (ganttLink) { ganttLinkMove(e.clientX, e.clientY); }
+});
+document.addEventListener('mouseup', e => {
+  if (ganttDrag) ganttBarDragEnd();
+  if (ganttLink) ganttLinkEnd(e.clientX, e.clientY);
+});
+document.addEventListener('touchmove', e => {
+  if (ganttDrag) { ganttBarDragMove(e.touches[0].clientX); }
+  if (ganttLink) { ganttLinkMove(e.touches[0].clientX, e.touches[0].clientY); }
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (ganttDrag) ganttBarDragEnd();
+  if (ganttLink) ganttLinkEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+});
+
+// ── Gantt link creation: drag from dot to another bar ──
+
+function ganttLinkStart(e, fromId) {
+  e.preventDefault();
+  ganttLink = { fromId, startX: e.clientX, startY: e.clientY };
+  // Create SVG line overlay for visual feedback
+  const inner = document.getElementById('gantt-inner');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'gantt-link-svg';
+  svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999;pointer-events:none';
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('stroke', '#58a6ff');
+  line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-dasharray', '6,4');
+  line.setAttribute('x1', e.clientX); line.setAttribute('y1', e.clientY);
+  line.setAttribute('x2', e.clientX); line.setAttribute('y2', e.clientY);
+  svg.appendChild(line);
+  document.body.appendChild(svg);
+}
+
+function ganttLinkTouchStart(e, fromId) {
+  e.stopPropagation();
+  ganttLink = { fromId, startX: e.touches[0].clientX, startY: e.touches[0].clientY };
+  ganttLinkStart({ preventDefault(){}, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }, fromId);
+}
+
+function ganttLinkMove(clientX, clientY) {
+  if (!ganttLink) return;
+  const svg = document.getElementById('gantt-link-svg');
+  if (svg) {
+    const line = svg.querySelector('line');
+    line.setAttribute('x2', clientX);
+    line.setAttribute('y2', clientY);
+  }
+  // Highlight target row
+  document.querySelectorAll('.gantt-row').forEach(r => r.classList.remove('link-target'));
+  const el = document.elementFromPoint(clientX, clientY);
+  if (el) {
+    const row = el.closest('.gantt-row');
+    if (row && row.dataset.taskId !== ganttLink.fromId) {
+      row.classList.add('link-target');
+    }
+  }
+}
+
+function ganttLinkEnd(clientX, clientY) {
+  if (!ganttLink) return;
+  const fromId = ganttLink.fromId;
+  ganttLink = null;
+
+  // Clean up
+  const svg = document.getElementById('gantt-link-svg');
+  if (svg) svg.remove();
+  document.querySelectorAll('.gantt-row').forEach(r => r.classList.remove('link-target'));
+
+  // Find target
+  const el = document.elementFromPoint(clientX, clientY);
+  if (el) {
+    const row = el.closest('.gantt-row');
+    if (row && row.dataset.taskId && row.dataset.taskId !== fromId) {
+      addDep(fromId, row.dataset.taskId);
+      recalcTaskStart(row.dataset.taskId);
+      renderGantt();
+      renderGanttDetail();
+      renderDashboard();
+      return;
+    }
+  }
+}
+
+function selectGanttTask(id) {
+  if (ganttSelectedId === id) {
+    ganttSelectedId = null;
+  } else {
+    ganttSelectedId = id;
+  }
+  // Update row selection without full re-render
+  document.querySelectorAll('.gantt-row[data-task-id]').forEach(r => {
+    r.classList.toggle('selected', r.dataset.taskId === ganttSelectedId);
+  });
+  renderGanttDetail();
+}
+
+function closeGanttDetail() {
+  ganttSelectedId = null;
+  document.querySelectorAll('.gantt-row[data-task-id]').forEach(r => r.classList.remove('selected'));
+  renderGanttDetail();
+}
+
+function ganttUpdateField(id, field, val) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+
+  if (field === 'name') {
+    t.name = val;
+  } else if (field === 'percentComplete') {
+    t.percentComplete = Math.max(0, Math.min(100, parseFloat(val) || 0));
+  } else if (field === 'actualCost') {
+    t.actualCost = Math.max(0, parseFloat(val) || 0);
+  } else if (field === 'plannedCost') {
+    t.plannedCost = Math.max(0, parseFloat(val) || 0);
+  } else if (field === 'duration') {
+    const h = parseDuration(val);
+    if (h > 0) {
+      t.duration = h;
+      t.plannedEnd = addDateDays(t.plannedStart, durationToCalendarDays(h));
+    }
+  } else if (field === 'plannedStart') {
+    t.plannedStart = val;
+    const dur = t.duration || ((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 3600000);
+    t.plannedEnd = addDateDays(val, durationToCalendarDays(dur));
+  }
+
+  if (field === 'percentComplete') syncTaskToLane(t);
+  saveState();
+  if (t.parentId) rollUpParent(t.parentId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function ganttAddSubtask(parentId) {
+  const parent = state.tasks.find(t => t.id === parentId);
+  if (!parent) return;
+
+  const name = prompt('Subtask name:');
+  if (!name || !name.trim()) return;
+  const durStr = prompt('Duration (e.g. 1w, 3d, 8h):', '1d');
+  if (!durStr) return;
+  const durHours = parseDuration(durStr);
+  if (durHours <= 0) return;
+
+  const cost = parseFloat(prompt('Planned cost:', '0')) || 0;
+  const start = parent.plannedStart;
+  const calDays = durationToCalendarDays(durHours);
+  const end = addDateDays(start, calDays);
+
+  const id = crypto.randomUUID();
+  state.tasks.push({
+    id, name: name.trim(),
+    parentId,
+    plannedCost: cost,
+    actualCost: 0,
+    plannedStart: start,
+    plannedEnd: end,
+    duration: durHours,
+    percentComplete: 0,
+    createdAt: new Date().toISOString()
+  });
+
+  // Expand parent
+  if (state.collapsed) {
+    const idx = state.collapsed.indexOf(parentId);
+    if (idx >= 0) state.collapsed.splice(idx, 1);
+  }
+
+  saveState();
+  rollUpParent(parentId);
+  ganttSelectedId = id;
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function ganttDeleteTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  const parentId = t ? t.parentId : null;
+
+  // Delete all descendants too
+  const toDelete = new Set([id, ...getAllDescendants(id).map(d => d.id)]);
+  state.tasks = state.tasks.filter(t => !toDelete.has(t.id));
+  if (state.deps) state.deps = state.deps.filter(d => !toDelete.has(d.from) && !toDelete.has(d.to));
+
+  ganttSelectedId = null;
+  saveState();
+  if (parentId) rollUpParent(parentId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+  renderTasks();
+}
+
+function reparentTask(taskId, newParentId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const oldParentId = t.parentId || null;
+  const target = newParentId || null;
+
+  // Prevent circular: can't parent under self or own descendants
+  if (target) {
+    const descIds = new Set(getAllDescendants(taskId).map(x => x.id));
+    if (target === taskId || descIds.has(target)) return;
+  }
+
+  // Dependency inheritance: when child moves to a new parent,
+  // the new parent inherits the child's external dependencies
+  if (!state.deps) state.deps = [];
+  if (target) {
+    const childAndDesc = new Set([taskId, ...getAllDescendants(taskId).map(x => x.id)]);
+    // External deps pointing TO this task → also add pointing TO new parent
+    for (const d of [...state.deps]) {
+      if (d.to === taskId && !childAndDesc.has(d.from)) {
+        if (!state.deps.some(x => x.from === d.from && x.to === target)) {
+          state.deps.push({ from: d.from, to: target });
+        }
+      }
+      // External deps FROM this task → also add FROM new parent
+      if (d.from === taskId && !childAndDesc.has(d.to)) {
+        if (!state.deps.some(x => x.from === target && x.to === d.to)) {
+          state.deps.push({ from: target, to: d.to });
+        }
+      }
+    }
+  }
+
+  t.parentId = target;
+  saveState();
+  if (oldParentId) rollUpParent(oldParentId);
+  if (target) rollUpParent(target);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+  renderTasks();
+}
+
+function ganttAddDep(fromId, toId) {
+  addDep(fromId, toId);
+  // Recalculate start from predecessors
+  recalcTaskStart(toId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function ganttRemoveDep(fromId, toId) {
+  removeDep(fromId, toId);
+  renderGantt();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function recalcTaskStart(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+  const preds = (state.deps || []).filter(d => d.to === id);
+  if (preds.length === 0) return;
+  let latest = '';
+  for (const d of preds) {
+    const pt = state.tasks.find(x => x.id === d.from);
+    if (pt && (!latest || pt.plannedEnd > latest)) latest = pt.plannedEnd;
+  }
+  t.plannedStart = latest;
+  const dur = t.duration || ((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 3600000);
+  t.plannedEnd = addDateDays(latest, durationToCalendarDays(dur));
+  saveState();
+}
+
+function renderGanttDetail() {
+  const el = document.getElementById('gantt-detail');
+  if (!el) return;
+
+  if (!ganttSelectedId) { el.innerHTML = ''; return; }
+
+  const t = state.tasks.find(t => t.id === ganttSelectedId);
+  if (!t) { el.innerHTML = ''; return; }
+
+  const allDeps = state.deps || [];
+  const preds = allDeps.filter(d => d.to === t.id);
+  const succs = allDeps.filter(d => d.from === t.id);
+  const dur = t.duration ? fmtDuration(t.duration) : Math.ceil((new Date(t.plannedEnd) - new Date(t.plannedStart)) / 86400000) + 'd';
+  const hasPreds = preds.length > 0;
+  const critical = computeCriticalPath();
+  const isCrit = critical.has(t.id);
+  const isParent = isParentTask(t.id);
+  const children = getChildren(t.id);
+  const parent = t.parentId ? state.tasks.find(x => x.id === t.parentId) : null;
+  const depth = getDepth(t);
+
+  // Predecessor tags with remove buttons
+  const predTags = preds.map(d => {
+    const p = state.tasks.find(x => x.id === d.from);
+    if (!p) return '';
+    return `<span class="dep-tag">${esc(p.name)}<button onclick="ganttRemoveDep('${d.from}','${t.id}')">&times;</button></span>`;
+  }).join('');
+
+  // Successor tags (display only)
+  const succTags = succs.map(d => {
+    const s = state.tasks.find(x => x.id === d.to);
+    return s ? `<span class="dep-tag" style="border-color:var(--green)">${esc(s.name)}</span>` : '';
+  }).join('');
+
+  // Available tasks to add as predecessors (not self, not already a pred, not descendants)
+  const descIds = new Set(getAllDescendants(t.id).map(x => x.id));
+  const availPreds = state.tasks.filter(x =>
+    x.id !== t.id && !preds.some(d => d.from === x.id) && !descIds.has(x.id)
+  );
+  const predOpts = availPreds.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
+  // Available tasks to add as successors (not self, not already a succ, not descendants)
+  const availSuccs = state.tasks.filter(x =>
+    x.id !== t.id && !succs.some(d => d.to === x.id) && !descIds.has(x.id)
+  );
+  const succOpts = availSuccs.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+
+  // Parent breadcrumb
+  const parentBreadcrumb = parent
+    ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px;cursor:pointer" onclick="ganttSelectedId='${parent.id}';renderGantt();renderGanttDetail()">&#9664; ${esc(parent.name)}</div>`
+    : '';
+
+  // Children list for parent tasks
+  const childList = isParent ? children.map(c => {
+    const cPct = c.percentComplete;
+    const cColor = cPct >= 100 ? 'var(--green)' : cPct > 0 ? 'var(--accent)' : 'var(--border)';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px" onclick="ganttSelectedId='${c.id}';renderGantt();renderGanttDetail()">
+      <span style="flex:1;color:var(--text)">${esc(c.name)}</span>
+      <span style="width:40px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;flex-shrink:0"><span style="display:block;height:100%;width:${cPct}%;background:${cColor}"></span></span>
+      <span style="width:32px;text-align:right;color:var(--text2)">${cPct}%</span>
+    </div>`;
+  }).join('') : '';
+
+  // Rolled-up indicator for parent tasks
+  const rolledUp = isParent ? ' <span style="color:var(--text2);font-weight:400">(rolled up)</span>' : '';
+
+  // Original estimate badge for parents
+  const origEst = t.originalEstimate;
+  const origBadge = (isParent && origEst)
+    ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 8px;margin-bottom:6px">
+        <strong>Original estimate:</strong> ${fmtDuration(origEst.duration)} &middot; $${origEst.cost}
+        &nbsp;→&nbsp; <strong>Rolled up:</strong> ${dur} &middot; $${t.plannedCost}
+        ${t.plannedCost > origEst.cost ? `<span style="color:var(--red);font-weight:600"> (+$${(t.plannedCost - origEst.cost).toFixed(0)})</span>` : ''}
+        ${t.plannedCost < origEst.cost ? `<span style="color:var(--green);font-weight:600"> (-$${(origEst.cost - t.plannedCost).toFixed(0)})</span>` : ''}
+      </div>`
+    : '';
+
+  // Parent reassignment dropdown — can't be own descendant
+  const availParents = getTreeOrder().filter(x =>
+    x.id !== t.id && !descIds.has(x.id)
+  );
+  const parentOpts = availParents.map(x => {
+    const d = getDepth(x);
+    return `<option value="${x.id}" ${t.parentId === x.id ? 'selected' : ''}>${'—'.repeat(d)}${d ? ' ' : ''}${esc(x.name)}</option>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="gantt-detail">
+      ${parentBreadcrumb}
+      <h3>
+        <span>${isCrit ? '<span style="color:var(--red);font-size:11px;font-weight:600;margin-right:6px">CRITICAL</span>' : ''}${isParent ? '<span style="color:var(--accent);font-size:11px;font-weight:600;margin-right:6px">SUMMARY</span>' : ''}${esc(t.name)}</span>
+        <button class="close-btn" onclick="closeGanttDetail()">&times;</button>
+      </h3>
+
+      ${origBadge}
+
+      <div class="form-row">
+        <div style="flex:2">
+          <label>Name</label>
+          <input value="${esc(t.name)}" onchange="ganttUpdateField('${t.id}','name',this.value)">
+        </div>
+        <div>
+          <label>Parent</label>
+          <select style="font-size:12px" onchange="reparentTask('${t.id}',this.value)">
+            <option value="" ${!t.parentId ? 'selected' : ''}>(root)</option>
+            ${parentOpts}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Duration${rolledUp}</label>
+          <input value="${dur}" ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','duration',this.value)"`}>
+        </div>
+        <div>
+          <label>% Complete${rolledUp}</label>
+          <input type="number" value="${t.percentComplete}" min="0" max="100"
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','percentComplete',this.value)"`}>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Start${hasPreds || isParent ? ' <span style="color:var(--text2);font-weight:400">(auto)</span>' : ''}</label>
+          <input type="date" value="${t.plannedStart}" ${hasPreds || isParent ? 'disabled style="opacity:0.5"' : ''}
+            onchange="ganttUpdateField('${t.id}','plannedStart',this.value)">
+        </div>
+        <div>
+          <label>End <span style="color:var(--text2);font-weight:400">(auto)</span></label>
+          <input type="date" value="${t.plannedEnd}" disabled style="opacity:0.5">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Planned Cost${rolledUp}</label>
+          <input type="number" value="${t.plannedCost}" min="0"
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','plannedCost',this.value)"`}>
+        </div>
+        <div>
+          <label>Actual Cost${rolledUp}</label>
+          <input type="number" value="${t.actualCost}" min="0"
+            ${isParent ? 'disabled style="opacity:0.5"' : `onchange="ganttUpdateField('${t.id}','actualCost',this.value)"`}>
+        </div>
+      </div>
+
+      ${!isParent && (state.members || []).length > 0 ? `
+      <div class="form-row">
+        <div style="flex:2">
+          <label>Assignee</label>
+          <select onchange="assignTask('${t.id}',this.value);renderGantt()">
+            <option value="">(unassigned)</option>
+            ${(state.members || []).map(m => `<option value="${m.id}" ${t.assigneeId === m.id ? 'selected' : ''}>${esc(m.displayName)} — ${m.role}</option>`).join('')}
+          </select>
+        </div>
+      </div>` : ''}
+
+      ${!isParent ? `
+      <div class="form-group" style="margin-top:6px">
+        <label>Workflow</label>
+        <div style="display:flex;gap:16px;align-items:center">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);cursor:pointer;font-weight:500">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)" ${t.queued ? 'checked' : ''}
+              onchange="setTaskQueued('${t.id}',this.checked)">
+            Queued
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:${t.percentComplete >= 100 ? 'var(--text)' : 'var(--text2)'};cursor:${t.percentComplete >= 100 ? 'pointer' : 'not-allowed'};font-weight:500">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--green)" ${t.reviewed ? 'checked' : ''} ${t.percentComplete < 100 ? 'disabled' : ''}
+              onchange="setTaskReviewed('${t.id}',this.checked)">
+            Reviewed
+          </label>
+          <span style="font-size:10px;color:var(--text2);margin-left:auto">${t.kanbanLane ? (getKanbanLanes().find(l => l.id === t.kanbanLane) || {}).name || '' : ''}</span>
+        </div>
+      </div>` : ''}
+
+      ${isParent ? `
+      <div class="form-group" style="margin-top:4px">
+        <label>Subtasks (${children.length})</label>
+        <div style="max-height:120px;overflow-y:auto">${childList}</div>
+      </div>` : ''}
+
+      <div class="form-group" style="margin-top:4px">
+        <label>Predecessors</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px">
+          ${predTags || '<span style="font-size:11px;color:var(--text2)">None</span>'}
+        </div>
+        ${availPreds.length ? `<select style="margin-top:4px;font-size:12px" onchange="if(this.value)ganttAddDep(this.value,'${t.id}');this.value=''"><option value="">+ Add predecessor...</option>${predOpts}</select>` : ''}
+      </div>
+
+      <div class="form-group">
+        <label>Successors</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:24px">
+          ${succTags || '<span style="font-size:11px;color:var(--text2)">None</span>'}
+        </div>
+        ${availSuccs.length ? `<select style="margin-top:4px;font-size:12px" onchange="if(this.value)ganttAddDep('${t.id}',this.value);this.value=''"><option value="">+ Add successor...</option>${succOpts}</select>` : ''}
+      </div>
+
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:var(--accent);color:#fff" onclick="ganttAddSubtask('${t.id}')">+ Subtask</button>
+        <button class="btn btn-sm btn-danger" onclick="ganttDeleteTask('${t.id}')">Delete${isParent ? ' (& subtasks)' : ''}</button>
+      </div>
+    </div>`;
+}
+
+// ── Gantt pinch-to-zoom ──
+
+(function() {
+  let lastDist = 0;
+  const vp = document.getElementById('gantt-viewport');
+  if (!vp) return;
+
+  vp.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }
+  }, { passive: true });
+
+  vp.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (lastDist > 0) {
+        const ratio = dist / lastDist;
+        if (ratio > 1.15) { ganttZoom = Math.min(ganttZoom * 1.3, 8); lastDist = dist; renderGantt(); }
+        else if (ratio < 0.85) { ganttZoom = Math.max(ganttZoom * 0.7, 0.5); lastDist = dist; renderGantt(); }
+      }
+      lastDist = dist;
+    }
+  }, { passive: true });
+
+  // Mouse wheel zoom (ctrl+scroll or trackpad pinch)
+  vp.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (e.deltaY < 0) ganttZoom = Math.min(ganttZoom * 1.2, 8);
+      else ganttZoom = Math.max(ganttZoom * 0.8, 0.5);
+      renderGantt();
+    }
+  }, { passive: false });
+})();
+
+// Resize handler for Gantt
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.pane.active');
+  if (active && active.id === 'pane-gantt') renderGantt();
+});
+
+// ── Kanban Board ──
+
+// Lane roles define workflow semantics. Order matters.
+function getKanbanLanes() {
+  if (!state.kanbanLanes || state.kanbanLanes.length === 0 || !state.kanbanLanes[0].role) {
+    state.kanbanLanes = [
+      { id: 'backlog',     name: 'Backlog',     role: 'backlog' },
+      { id: 'todo',        name: 'To Do',       role: 'queued' },
+      { id: 'in-progress', name: 'In Progress', role: 'active' },
+      { id: 'review',      name: 'Review',      role: 'review' },
+      { id: 'done',        name: 'Done',        role: 'done' }
+    ];
+    saveState();
+  }
+  return state.kanbanLanes;
+}
+
+function laneByRole(role) {
+  return getKanbanLanes().find(l => l.role === role);
+}
+
+// ── Bidirectional sync: state → lane ──
+
+function syncTaskToLane(t) {
+  const lanes = getKanbanLanes();
+  const backlog = laneByRole('backlog');
+  const queued  = laneByRole('queued');
+  const active  = laneByRole('active');
+  const review  = laneByRole('review');
+  const done    = laneByRole('done');
+
+  if (t.reviewed && t.percentComplete >= 100) {
+    t.kanbanLane = done ? done.id : lanes[lanes.length - 1].id;
+  } else if (t.percentComplete >= 100) {
+    t.kanbanLane = review ? review.id : lanes[lanes.length - 1].id;
+  } else if (t.percentComplete > 0) {
+    // Working on it → auto-queue and move to active
+    t.queued = true;
+    t.kanbanLane = active ? active.id : (queued ? queued.id : lanes[0].id);
+  } else if (t.queued) {
+    t.kanbanLane = queued ? queued.id : (active ? active.id : lanes[0].id);
+  } else {
+    t.kanbanLane = backlog ? backlog.id : lanes[0].id;
+  }
+}
+
+// ── Bidirectional sync: lane → state (on drag/drop) ──
+
+function syncLaneToTask(t, laneId) {
+  const lane = getKanbanLanes().find(l => l.id === laneId);
+  if (!lane) return;
+
+  t.kanbanLane = laneId;
+
+  switch (lane.role) {
+    case 'backlog':
+      t.queued = false;
+      t.reviewed = false;
+      break;
+    case 'queued':
+      t.queued = true;
+      t.reviewed = false;
+      break;
+    case 'active':
+      t.queued = true;
+      t.reviewed = false;
+      break;
+    case 'review':
+      t.queued = true;
+      t.reviewed = false;
+      // Must be 100% to be in review
+      if (t.percentComplete < 100) {
+        t.percentComplete = 100;
+        if (t.parentId) rollUpParent(t.parentId);
+      }
+      break;
+    case 'done':
+      t.queued = true;
+      t.reviewed = true;
+      if (t.percentComplete < 100) {
+        t.percentComplete = 100;
+        if (t.parentId) rollUpParent(t.parentId);
+      }
+      break;
+  }
+}
+
+// Workflow checkbox handlers
+function setTaskQueued(id, val) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.queued = val;
+  if (!val) t.reviewed = false;
+  syncTaskToLane(t);
+  saveState();
+  renderKanban();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function setTaskReviewed(id, val) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (val && t.percentComplete < 100) return; // guard
+  t.reviewed = val;
+  syncTaskToLane(t);
+  saveState();
+  renderKanban();
+  renderGanttDetail();
+  renderDashboard();
+}
+
+function addKanbanLane() {
+  const input = document.getElementById('kb-new-lane');
+  const name = input.value.trim();
+  if (!name) return;
+  const lanes = getKanbanLanes();
+  const id = 'lane-' + crypto.randomUUID().slice(0, 8);
+  // Custom lanes default to 'active' role — inserted before review
+  const reviewIdx = lanes.findIndex(l => l.role === 'review');
+  const insertAt = reviewIdx >= 0 ? reviewIdx : lanes.length;
+  lanes.splice(insertAt, 0, { id, name, role: 'active' });
+  saveState();
+  input.value = '';
+  renderKanban();
+}
+
+function removeKanbanLane(laneId) {
+  const lanes = getKanbanLanes();
+  const lane = lanes.find(l => l.id === laneId);
+  // Can't remove core workflow lanes
+  if (lane && ['backlog', 'review', 'done'].includes(lane.role)) return;
+  const fallback = laneByRole('backlog') || lanes[0];
+  state.tasks.forEach(t => { if (t.kanbanLane === laneId) t.kanbanLane = fallback.id; });
+  state.kanbanLanes = lanes.filter(l => l.id !== laneId);
+  saveState();
+  renderKanban();
+}
+
+function renameKanbanLane(laneId, newName) {
+  const lane = getKanbanLanes().find(l => l.id === laneId);
+  if (lane && newName.trim()) {
+    lane.name = newName.trim();
+    saveState();
+  }
+}
+
+function moveKanbanLane(laneId, dir) {
+  const lanes = getKanbanLanes();
+  const idx = lanes.findIndex(l => l.id === laneId);
+  const target = idx + dir;
+  if (target < 0 || target >= lanes.length) return;
+  [lanes[idx], lanes[target]] = [lanes[target], lanes[idx]];
+  saveState();
+  renderKanban();
+}
+
+// ── Touch drag state ──
+let kbDragTaskId = null;
+let kbTouchGhost = null;
+let kbTouchStartY = 0;
+let kbTouchStartX = 0;
+let kbTouchMoved = false;
+
+function kbTouchStart(e, taskId) {
+  // Long-press detection: small threshold before committing to drag
+  kbTouchStartX = e.touches[0].clientX;
+  kbTouchStartY = e.touches[0].clientY;
+  kbTouchMoved = false;
+  kbDragTaskId = taskId;
+}
+
+function kbTouchMove(e) {
+  if (!kbDragTaskId) return;
+  const dx = e.touches[0].clientX - kbTouchStartX;
+  const dy = e.touches[0].clientY - kbTouchStartY;
+
+  if (!kbTouchMoved && Math.abs(dx) + Math.abs(dy) < 10) return; // deadzone
+  kbTouchMoved = true;
+  e.preventDefault();
+
+  // Create ghost on first move
+  if (!kbTouchGhost) {
+    const src = e.target.closest('.kanban-card');
+    if (!src) return;
+    kbTouchGhost = src.cloneNode(true);
+    kbTouchGhost.style.cssText = `position:fixed;z-index:999;pointer-events:none;opacity:0.8;width:${src.offsetWidth}px;transform:rotate(2deg);box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+    document.body.appendChild(kbTouchGhost);
+    src.classList.add('dragging');
+  }
+
+  kbTouchGhost.style.left = (e.touches[0].clientX - 30) + 'px';
+  kbTouchGhost.style.top = (e.touches[0].clientY - 20) + 'px';
+
+  // Highlight drop target
+  document.querySelectorAll('.kanban-lane-body').forEach(b => b.classList.remove('drag-over'));
+  const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+  if (el) {
+    const body = el.closest('.kanban-lane-body');
+    if (body) body.classList.add('drag-over');
+  }
+}
+
+function kbTouchEnd(e) {
+  if (!kbDragTaskId) return;
+
+  // Clean up ghost
+  if (kbTouchGhost) {
+    kbTouchGhost.remove();
+    kbTouchGhost = null;
+  }
+  document.querySelectorAll('.kanban-card.dragging').forEach(c => c.classList.remove('dragging'));
+  document.querySelectorAll('.kanban-lane-body.drag-over').forEach(b => b.classList.remove('drag-over'));
+
+  if (!kbTouchMoved) {
+    // It was a tap, not a drag — open detail
+    const id = kbDragTaskId;
+    kbDragTaskId = null;
+    switchToGanttTask(id);
+    return;
+  }
+
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (el) {
+    const body = el.closest('.kanban-lane-body');
+    if (body) {
+      const laneId = body.dataset.lane;
+      kbDropTask(null, laneId);
+      return;
+    }
+  }
+  kbDragTaskId = null;
+}
+
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+
+  const lanes = getKanbanLanes();
+  const critical = computeCriticalPath();
+  const treeOrder = getTreeOrder();
+  const leafTasks = treeOrder.filter(t => !isParentTask(t.id));
+
+  // Auto-assign tasks that have no lane
+  for (const t of leafTasks) {
+    if (!t.kanbanLane || !lanes.some(l => l.id === t.kanbanLane)) {
+      syncTaskToLane(t);
+    }
+  }
+
+  board.innerHTML = lanes.map((lane, li) => {
+    const laneTasks = leafTasks.filter(t => t.kanbanLane === lane.id);
+    const isCore = ['backlog', 'review', 'done'].includes(lane.role);
+
+    const cards = laneTasks.map(t => {
+      const pct = t.percentComplete;
+      const isCrit = critical.has(t.id);
+      const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--border)';
+      const dur = t.duration ? fmtDuration(t.duration) : '';
+      const parent = t.parentId ? state.tasks.find(x => x.id === t.parentId) : null;
+
+      return `<div class="kanban-card${isCrit ? ' crit' : ''}" draggable="true"
+        data-task-id="${t.id}"
+        ondragstart="kbDragTaskId='${t.id}';this.classList.add('dragging')"
+        ondragend="kbDragTaskId=null;this.classList.remove('dragging')"
+        ontouchstart="kbTouchStart(event,'${t.id}')"
+        ontouchmove="kbTouchMove(event)"
+        ontouchend="kbTouchEnd(event)">
+        ${parent ? `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">${esc(parent.name)}</div>` : ''}
+        <div class="kc-name">${esc(t.name)}</div>
+        <div class="kc-meta">
+          ${dur ? `<span>${dur}</span>` : ''}
+          ${t.plannedCost ? `<span>$${t.plannedCost}</span>` : ''}
+          <span>${pct}%</span>
+        </div>
+        <div class="kc-bar"><div class="kc-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="kc-actions" onclick="event.stopPropagation()">
+          <label class="kc-check" title="Queued / prioritized">
+            <input type="checkbox" ${t.queued ? 'checked' : ''}
+              onchange="setTaskQueued('${t.id}',this.checked)">
+            <span>Q</span>
+          </label>
+          <label class="kc-check kc-check-done" title="${pct < 100 ? 'Complete progress to 100% first' : 'Mark reviewed / done'}">
+            <input type="checkbox" ${t.reviewed ? 'checked' : ''} ${pct < 100 ? 'disabled' : ''}
+              onchange="setTaskReviewed('${t.id}',this.checked)">
+            <span>R</span>
+          </label>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="kanban-lane" data-lane="${lane.id}">
+      <div class="kanban-lane-header">
+        <span contenteditable="true" spellcheck="false"
+          onblur="renameKanbanLane('${lane.id}',this.textContent)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(lane.name)}</span>
+        <div style="display:flex;align-items:center;gap:2px">
+          <span class="count">${laneTasks.length}</span>
+          ${li > 0 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',-1)" title="Move left">&#9664;</button>` : ''}
+          ${li < lanes.length - 1 ? `<button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:0 2px" onclick="event.stopPropagation();moveKanbanLane('${lane.id}',1)" title="Move right">&#9654;</button>` : ''}
+          ${!isCore ? `<button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 2px" onclick="event.stopPropagation();removeKanbanLane('${lane.id}')" title="Remove lane">&times;</button>` : ''}
+        </div>
+      </div>
+      <div class="kanban-lane-body" data-lane="${lane.id}"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="kbDropTask(event,'${lane.id}');this.classList.remove('drag-over')">
+        ${cards || '<div style="text-align:center;font-size:11px;color:var(--text2);padding:8px">Drop tasks here</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function kbDropTask(event, laneId) {
+  if (event) event.preventDefault();
+  if (!kbDragTaskId) return;
+  const t = state.tasks.find(x => x.id === kbDragTaskId);
+  if (!t) return;
+
+  syncLaneToTask(t, laneId);
+  saveState();
+  kbDragTaskId = null;
+  renderKanban();
+  renderDashboard();
+}
+
+function switchToGanttTask(taskId) {
+  ganttSelectedId = taskId;
+  const btn = document.querySelectorAll('.tabs button')[2]; // Gantt tab
+  switchTab('gantt', btn);
+  renderGanttDetail();
+}
+
+// ── Team Management ──
+
+const MEMBER_COLORS = ['#58a6ff', '#3fb950', '#f0883e', '#d2a8ff', '#f85149', '#ffd33d', '#a5d6ff', '#7ee787', '#ff9bce', '#79c0ff'];
+
+function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) return;
+  const role = document.getElementById('m-role').value;
+  const handle = document.getElementById('m-handle').value.trim();
+  const rate = parseFloat(document.getElementById('m-rate').value) || 0;
+  const hours = parseFloat(document.getElementById('m-hours').value) || 40;
+  if (!state.members) state.members = [];
+  const idx = state.members.length;
+  state.members.push({
+    id: crypto.randomUUID(),
+    displayName: name,
+    role,
+    handle: handle || null,
+    did: null,
+    costRate: rate,
+    maxHoursPerWeek: hours,
+    color: MEMBER_COLORS[idx % MEMBER_COLORS.length]
+  });
+  saveState();
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-handle').value = '';
+  document.getElementById('m-rate').value = '';
+  renderTeam();
+  renderAll();
+}
+
+function removeMember(id) {
+  state.members = (state.members || []).filter(m => m.id !== id);
+  // Unassign from tasks
+  state.tasks.forEach(t => { if (t.assigneeId === id) t.assigneeId = null; });
+  saveState();
+  renderTeam();
+  renderAll();
+}
+
+function resolveHandle(memberId) {
+  const m = (state.members || []).find(x => x.id === memberId);
+  if (!m || !m.handle) return;
+  const host = 'https://public.api.bsky.app';
+  fetch(`${host}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(m.handle)}`)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => {
+      m.did = data.did;
+      saveState();
+      renderTeam();
+    })
+    .catch(err => {
+      alert(`Could not resolve handle: ${err}`);
+    });
+}
+
+function renderTeam() {
+  const el = document.getElementById('team-list');
+  if (!el) return;
+  const members = state.members || [];
+  if (members.length === 0) {
+    el.innerHTML = '<div class="empty">No team members yet</div>';
+    return;
+  }
+  el.innerHTML = members.map(m => {
+    const assigned = state.tasks.filter(t => t.assigneeId === m.id).length;
+    const roleBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${m.color}22;color:${m.color};border:1px solid ${m.color}44">${m.role}</span>`;
+    const didBadge = m.did
+      ? `<span style="font-size:10px;color:var(--green)" title="${m.did}">&#x2713; linked</span>`
+      : m.handle
+        ? `<button class="btn btn-sm btn-ghost" style="font-size:10px;padding:1px 4px" onclick="resolveHandle('${m.id}')">resolve</button>`
+        : '';
+    return `<div class="forecast-row" style="gap:8px;align-items:center">
+      <span style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
+      <span class="fl" style="font-weight:500">${esc(m.displayName)}</span>
+      ${roleBadge}
+      ${m.handle ? `<span style="font-size:11px;color:var(--text2)">@${esc(m.handle)}</span>` : ''}
+      ${didBadge}
+      <span style="font-size:11px;color:var(--text2)">${assigned} task${assigned !== 1 ? 's' : ''} &middot; $${m.costRate}/hr &middot; ${m.maxHoursPerWeek}h/wk</span>
+      <button class="btn btn-sm btn-ghost" onclick="removeMember('${m.id}')" style="color:var(--red)">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+// ── Resource Loading Chart ──
+
+function renderResourceChart() {
+  const canvas = document.getElementById('resource-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const members = state.members || [];
+  const leaves = getLeafTasks().filter(t => t.assigneeId);
+  if (members.length === 0 || leaves.length === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Assign team members to tasks to see resource loading', W / 2, H / 2);
+    return;
+  }
+
+  // Time range (weekly buckets)
+  const starts = leaves.map(t => new Date(t.plannedStart).getTime());
+  const ends = leaves.map(t => new Date(t.plannedEnd).getTime());
+  const tMin = Math.min(...starts);
+  const tMax = Math.max(...ends);
+  const msPerWeek = 7 * 86400000;
+  const totalWeeks = Math.max(Math.ceil((tMax - tMin) / msPerWeek), 1);
+
+  const pad = { t: 20, r: 16, b: 32, l: 48 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  // Compute per-member per-week hours
+  const memberWeeks = {}; // memberId → [hours per week]
+  let maxHours = 0;
+  for (const m of members) {
+    memberWeeks[m.id] = new Array(totalWeeks).fill(0);
+  }
+
+  for (const t of leaves) {
+    const m = members.find(x => x.id === t.assigneeId);
+    if (!m) continue;
+    const ts = new Date(t.plannedStart).getTime();
+    const te = new Date(t.plannedEnd).getTime();
+    const dur = Math.max(te - ts, 1);
+    const hrsPerMs = t.duration / dur;
+
+    for (let w = 0; w < totalWeeks; w++) {
+      const ws = tMin + w * msPerWeek;
+      const we = ws + msPerWeek;
+      const overlap = Math.max(0, Math.min(te, we) - Math.max(ts, ws));
+      const hrs = overlap * hrsPerMs;
+      memberWeeks[m.id][w] += hrs;
+    }
+  }
+
+  // Find max for y-axis
+  for (const m of members) {
+    for (let w = 0; w < totalWeeks; w++) {
+      maxHours = Math.max(maxHours, memberWeeks[m.id][w]);
+    }
+  }
+  // Include max capacity line
+  const maxCapacity = Math.max(...members.map(m => m.maxHoursPerWeek || 40));
+  maxHours = Math.max(maxHours, maxCapacity) * 1.1;
+  if (maxHours === 0) maxHours = 40;
+
+  // Axes
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ch); ctx.lineTo(pad.l + cw, pad.t + ch);
+  ctx.stroke();
+
+  // Y-axis labels
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch - (ch * i / 4);
+    ctx.fillText(Math.round(maxHours * i / 4) + 'h', pad.l - 6, y + 3);
+    if (i > 0) {
+      ctx.strokeStyle = '#21262d';
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    }
+  }
+
+  // X-axis week labels
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(totalWeeks / 8));
+  for (let w = 0; w < totalWeeks; w += labelStep) {
+    const x = pad.l + ((w + 0.5) / totalWeeks) * cw;
+    const dt = new Date(tMin + w * msPerWeek);
+    ctx.fillText(`${dt.getMonth() + 1}/${dt.getDate()}`, x, pad.t + ch + 16);
+  }
+
+  // Stacked bars per week
+  const barW = Math.max(2, (cw / totalWeeks) - 2);
+  for (let w = 0; w < totalWeeks; w++) {
+    let yOff = 0;
+    const x = pad.l + (w / totalWeeks) * cw + 1;
+    for (const m of members) {
+      const hrs = memberWeeks[m.id][w];
+      if (hrs <= 0) continue;
+      const barH = (hrs / maxHours) * ch;
+      const y = pad.t + ch - yOff - barH;
+      ctx.fillStyle = m.color + 'cc';
+      ctx.fillRect(x, y, barW, barH);
+      yOff += barH;
+    }
+  }
+
+  // Capacity line (dashed) for reference — show the max member capacity
+  ctx.strokeStyle = '#d29922';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  const capY = pad.t + ch - (maxCapacity / maxHours) * ch;
+  ctx.beginPath(); ctx.moveTo(pad.l, capY); ctx.lineTo(pad.l + cw, capY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#d29922';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${maxCapacity}h cap`, pad.l + cw - 50, capY - 4);
+
+  // Legend
+  const legendEl = document.getElementById('resource-legend');
+  if (legendEl) {
+    legendEl.innerHTML = members.filter(m => leaves.some(t => t.assigneeId === m.id)).map(m =>
+      `<span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:${m.color}"></span>${esc(m.displayName)}</span>`
+    ).join('');
+  }
+
+  // Summary
+  renderResourceSummary(members, memberWeeks, totalWeeks);
+}
+
+function renderResourceSummary(members, memberWeeks, totalWeeks) {
+  const el = document.getElementById('resource-summary');
+  if (!el) return;
+  el.innerHTML = members.map(m => {
+    const weeks = memberWeeks[m.id] || [];
+    const totalHrs = weeks.reduce((s, h) => s + h, 0);
+    const avgHrs = totalWeeks > 0 ? totalHrs / totalWeeks : 0;
+    const maxWeek = Math.max(...weeks, 0);
+    const cap = m.maxHoursPerWeek || 40;
+    const util = cap > 0 ? Math.round((avgHrs / cap) * 100) : 0;
+    const overloaded = maxWeek > cap;
+    const utilColor = util > 100 ? 'var(--red)' : util > 80 ? 'var(--orange)' : 'var(--green)';
+    return `<div class="forecast-row" style="gap:8px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></span>
+      <span class="fl" style="min-width:100px">${esc(m.displayName)}</span>
+      <span style="font-size:12px;color:${utilColor};font-weight:600">${util}%</span>
+      <span style="font-size:11px;color:var(--text2)">${Math.round(avgHrs)}h/wk avg &middot; ${Math.round(maxWeek)}h peak${overloaded ? ' ⚠' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Vault Crypto (WebCrypto — matches wave/src/crypto.ts) ──
+
+const VAULT_PBKDF2_ITERATIONS = 600000;
+const VAULT_HKDF_INFO = new TextEncoder().encode('vault-dek-v1');
+const VAULT_MEMBER_WRAP_INFO = new TextEncoder().encode('vault-member-wrap-v1');
+
+function vaultToBase64(bytes) {
+  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function vaultFromBase64(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function vaultDeriveKek(passphrase, salt) {
+  const raw = new TextEncoder().encode(passphrase);
+  const baseKey = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt.buffer, iterations: VAULT_PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultGenerateIdentityKey() {
+  return crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
+}
+
+async function vaultExportPublicKey(key) {
+  return new Uint8Array(await crypto.subtle.exportKey('raw', key));
+}
+
+async function vaultImportPublicKey(raw) {
+  return crypto.subtle.importKey('raw', raw.buffer, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+}
+
+async function vaultWrapPrivateKey(privateKey, kek) {
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, kek, pkcs8);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
+}
+
+async function vaultUnwrapPrivateKey(wrappedKey, kek) {
+  const iv = wrappedKey.slice(0, 12);
+  const ct = wrappedKey.slice(12);
+  const pkcs8 = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, kek, ct.buffer);
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey', 'deriveBits']);
+}
+
+async function vaultDeriveDek(privateKey, publicKey) {
+  const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
+  const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_HKDF_INFO.buffer },
+    hkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultEncrypt(plaintext, dek) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, dek, plaintext.buffer);
+  return { iv, ciphertext: new Uint8Array(ct) };
+}
+
+async function vaultDecrypt(ciphertext, iv, dek) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, dek, ciphertext.buffer);
+  return new Uint8Array(pt);
+}
+
+async function vaultSealRecord(innerType, record, keyringRkey, dek) {
+  const plaintext = new TextEncoder().encode(JSON.stringify(record));
+  const { iv, ciphertext } = await vaultEncrypt(plaintext, dek);
+  return {
+    $type: 'com.minomobi.vault.sealed',
+    innerType,
+    keyringRkey,
+    iv: { $bytes: vaultToBase64(iv) },
+    ciphertext: { $bytes: vaultToBase64(ciphertext) },
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function vaultUnsealRecord(envelope, dek) {
+  const ivField = envelope.iv;
+  const ctField = envelope.ciphertext;
+  if (!ivField || !ivField.$bytes || !ctField || !ctField.$bytes) {
+    throw new Error('Invalid sealed envelope: missing iv or ciphertext');
+  }
+  const iv = vaultFromBase64(ivField.$bytes);
+  const ciphertext = vaultFromBase64(ctField.$bytes);
+  const plaintext = await vaultDecrypt(ciphertext, iv, dek);
+  const json = new TextDecoder().decode(plaintext);
+  return { innerType: envelope.innerType, record: JSON.parse(json) };
+}
+
+// Org tier DEK unwrapping (matches wave pattern)
+async function vaultDeriveMemberKey(privateKey, publicKey) {
+  const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
+  const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_MEMBER_WRAP_INFO.buffer },
+    hkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function vaultUnwrapDekFromMember(wrappedDek, recipientPrivateKey, senderPublicKey) {
+  if (wrappedDek.length === 40) {
+    // Legacy AES-KW format
+    const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: senderPublicKey }, recipientPrivateKey, 256);
+    const hkdfKey = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+    const wrappingKey = await crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32).buffer, info: VAULT_MEMBER_WRAP_INFO.buffer },
+      hkdfKey,
+      { name: 'AES-KW', length: 256 },
+      false,
+      ['wrapKey', 'unwrapKey']
+    );
+    return crypto.subtle.unwrapKey('raw', wrappedDek.buffer, wrappingKey, 'AES-KW', { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  }
+  // Current AES-GCM format
+  const memberKey = await vaultDeriveMemberKey(recipientPrivateKey, senderPublicKey);
+  const iv = wrappedDek.slice(0, 12);
+  const ct = wrappedDek.slice(12);
+  const dekRaw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer }, memberKey, ct.buffer);
+  return crypto.subtle.importKey('raw', dekRaw, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+}
+
+async function vaultWrapDekForMember(tierDek, senderPrivateKey, recipientPublicKey) {
+  const memberKey = await vaultDeriveMemberKey(senderPrivateKey, recipientPublicKey);
+  const dekRaw = await crypto.subtle.exportKey('raw', tierDek);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer }, memberKey, dekRaw);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(ct), 12);
+  return result;
+}
+
+// ── ATProto Sync (Encrypted) ──
+
+// In-memory vault state (never persisted to localStorage)
+let vaultCtx = null; // { dek, privateKey, publicKey, keyringRkey, orgRkey }
+
+function atprotoLog(msg) {
+  const el = document.getElementById('sync-log');
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML += `<div>[${ts}] ${esc(msg)}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function atprotoLogin() {
+  const host = document.getElementById('sync-host').value.trim().replace(/\/+$/, '');
+  const handle = document.getElementById('sync-handle').value.trim();
+  const password = document.getElementById('sync-password').value;
+  const passphrase = document.getElementById('sync-passphrase').value;
+  if (!host || !handle || !password || !passphrase) { alert('Fill in all fields including passphrase'); return; }
+
+  try {
+    // 1. Authenticate
+    const res = await fetch(`${host}/xrpc/com.atproto.server.createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password })
+    });
+    if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
+    const session = await res.json();
+    state.atproto = { host, did: session.did, handle: session.handle, accessJwt: session.accessJwt, refreshJwt: session.refreshJwt };
+    saveState();
+    atprotoLog(`Authenticated as ${session.handle} (${session.did})`);
+
+    // 2. Derive KEK from passphrase + DID-based salt (must match wave/src/App.tsx:114)
+    const salt = new TextEncoder().encode(session.did + ':vault-kek');
+    const kek = await vaultDeriveKek(passphrase, salt);
+    atprotoLog('KEK derived (PBKDF2, 600k iterations)');
+
+    // 3. Check for existing identity key on PDS
+    let privateKey, publicKey;
+    const identityRec = await atprotoXrpc('GET', 'com.atproto.repo.getRecord', {
+      repo: session.did,
+      collection: 'com.minomobi.vault.wrappedIdentity',
+      rkey: 'self'
+    }).catch(() => null);
+
+    if (identityRec && identityRec.value) {
+      atprotoLog('Found existing identity key — unwrapping...');
+      const wrappedBytes = vaultFromBase64(identityRec.value.wrappedKey.$bytes);
+      privateKey = await vaultUnwrapPrivateKey(wrappedBytes, kek);
+
+      // Fetch public key
+      const pubRec = await atprotoXrpc('GET', 'com.atproto.repo.getRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.encryptionKey',
+        rkey: 'self'
+      });
+      publicKey = await vaultImportPublicKey(vaultFromBase64(pubRec.value.publicKey.$bytes));
+      atprotoLog('Identity key unlocked');
+    } else {
+      atprotoLog('No identity key found — generating new ECDH P-256 keypair...');
+      const keyPair = await vaultGenerateIdentityKey();
+      privateKey = keyPair.privateKey;
+      publicKey = keyPair.publicKey;
+
+      // Store wrapped identity on PDS
+      const wrappedBytes = await vaultWrapPrivateKey(privateKey, kek);
+      const pubBytes = await vaultExportPublicKey(publicKey);
+      const now = new Date().toISOString();
+
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.wrappedIdentity',
+        rkey: 'self',
+        record: {
+          $type: 'com.minomobi.vault.wrappedIdentity',
+          wrappedKey: { $bytes: vaultToBase64(wrappedBytes) },
+          algorithm: 'PBKDF2-SHA256',
+          salt: { $bytes: vaultToBase64(salt) },
+          iterations: VAULT_PBKDF2_ITERATIONS,
+          createdAt: now
+        }
+      });
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.encryptionKey',
+        rkey: 'self',
+        record: {
+          $type: 'com.minomobi.vault.encryptionKey',
+          publicKey: { $bytes: vaultToBase64(pubBytes) },
+          algorithm: 'ECDH-P256',
+          createdAt: now
+        }
+      });
+      atprotoLog('Identity keypair stored on PDS');
+
+      // Re-import private key as non-extractable
+      privateKey = await vaultUnwrapPrivateKey(wrappedBytes, kek);
+    }
+
+    // 4. Derive personal DEK (self-ECDH)
+    const personalDek = await vaultDeriveDek(privateKey, publicKey);
+    atprotoLog('Personal DEK derived (self-ECDH → HKDF)');
+
+    // 5. Check for org keyrings — try to find a keyring we have access to
+    let dek = personalDek;
+    let keyringRkey = 'personal';
+    let orgRkey = null;
+
+    try {
+      const keyrings = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', {
+        repo: session.did,
+        collection: 'com.minomobi.vault.keyring',
+        limit: 50
+      });
+      if (keyrings.records && keyrings.records.length > 0) {
+        atprotoLog(`Found ${keyrings.records.length} keyring(s) — checking for org access...`);
+        for (const kr of keyrings.records) {
+          const krVal = kr.value;
+          const myEntry = (krVal.members || []).find(m => m.did === session.did);
+          if (myEntry) {
+            // Try to unwrap DEK from this keyring
+            const writerPubRec = krVal.writerPublicKey
+              ? await vaultImportPublicKey(vaultFromBase64(krVal.writerPublicKey))
+              : publicKey; // self-written keyring
+            const wrappedDek = vaultFromBase64(myEntry.wrappedDek.$bytes || myEntry.wrappedDek);
+            const orgDek = await vaultUnwrapDekFromMember(wrappedDek, privateKey, writerPubRec);
+            dek = orgDek;
+            keyringRkey = kr.uri.split('/').pop();
+            orgRkey = krVal.orgRkey || null;
+            atprotoLog(`Using org keyring: ${keyringRkey}${krVal.name ? ' (' + krVal.name + ')' : ''}`);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      atprotoLog(`Org keyring check: ${e.message} — using personal DEK`);
+    }
+
+    vaultCtx = { dek, privateKey, publicKey, keyringRkey, orgRkey };
+
+    // Clear passphrase from DOM
+    document.getElementById('sync-passphrase').value = '';
+    renderSyncUI();
+    atprotoLog('Vault unlocked. Auto-syncing...');
+
+    // Auto-sync: check PDS for existing PM data
+    try {
+      let allRecords = [];
+      let cursor = undefined;
+      while (true) {
+        const params = { repo: session.did, collection: 'com.minomobi.vault.sealed', limit: 100 };
+        if (cursor) params.cursor = cursor;
+        const page = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', params);
+        if (page.records) allRecords = allRecords.concat(page.records);
+        if (!page.cursor || !page.records || page.records.length < 100) break;
+        cursor = page.cursor;
+      }
+      const pmRecords = allRecords.filter(r =>
+        r.value.innerType && r.value.innerType.startsWith('com.minomobi.pm.')
+      );
+      const projectRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.project');
+
+      if (projectRecs.length > 0) {
+        // PDS has PM data — pull it
+        atprotoLog(`Found ${projectRecs.length} project(s) on PDS — pulling latest...`);
+        const projectEnvelope = projectRecs[projectRecs.length - 1].value;
+        const { record: projectInner } = await vaultUnsealRecord(projectEnvelope, dek);
+        atprotoLog(`Decrypted project: ${projectInner.name}`);
+        if (projectInner._pmState) {
+          state.projectName = projectInner.name || state.projectName;
+          state.tasks = projectInner._pmState.tasks || [];
+          state.deps = projectInner._pmState.deps || [];
+          state.baselines = projectInner._pmState.baselines || [];
+          state.members = projectInner._pmState.members || [];
+          state.collapsed = projectInner._pmState.collapsed || [];
+          saveState();
+          renderAll();
+          renderTeam();
+          atprotoLog(`Restored: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
+        }
+      } else if (state.tasks.length > 0) {
+        // PDS is empty but we have local data — push it
+        atprotoLog(`No PM data on PDS — pushing local project (${state.tasks.length} tasks)...`);
+        await atprotoPush();
+      } else {
+        atprotoLog('No PM data on PDS or locally. Start adding tasks!');
+      }
+    } catch (syncErr) {
+      atprotoLog(`Auto-sync: ${syncErr.message}`);
+    }
+  } catch (err) {
+    alert(`Login failed: ${err.message}`);
+    atprotoLog(`Error: ${err.message}`);
+  }
+}
+
+function atprotoDisconnect() {
+  vaultCtx = null;
+  if (state.atproto) {
+    state.atproto = null;
+    saveState();
+    renderSyncUI();
+  }
+}
+
+function renderSyncUI() {
+  const auth = document.getElementById('sync-auth');
+  const conn = document.getElementById('sync-connected');
+  const didEl = document.getElementById('sync-did');
+  const vaultStatus = document.getElementById('sync-vault-status');
+  const orgCtx = document.getElementById('sync-org-ctx');
+  if (!auth || !conn) return;
+
+  if (state.atproto && state.atproto.accessJwt) {
+    auth.style.display = 'none';
+    conn.style.display = '';
+    didEl.textContent = `${state.atproto.handle} (${state.atproto.did})`;
+    if (vaultCtx) {
+      vaultStatus.innerHTML = '<span style="color:var(--green)">&#x1f512; Vault unlocked</span>';
+      if (vaultCtx.keyringRkey !== 'personal') {
+        orgCtx.innerHTML = `<div style="font-size:11px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+          Keyring: <code>${esc(vaultCtx.keyringRkey)}</code>${vaultCtx.orgRkey ? ` &middot; Org: <code>${esc(vaultCtx.orgRkey)}</code>` : ''}
+        </div>`;
+      } else {
+        orgCtx.innerHTML = '<div style="font-size:11px;color:var(--text2)">Using personal vault (self-ECDH). Create an org in Wave to enable team encryption.</div>';
+      }
+    } else {
+      vaultStatus.innerHTML = '<span style="color:var(--orange)">&#x1f513; Not encrypted</span>';
+      orgCtx.innerHTML = '';
+    }
+  } else {
+    auth.style.display = '';
+    conn.style.display = 'none';
+  }
+}
+
+async function atprotoXrpc(method, nsid, body) {
+  const { host, accessJwt } = state.atproto;
+  const headers = { 'Authorization': `Bearer ${accessJwt}` };
+  if (method === 'GET') {
+    const qs = new URLSearchParams(body).toString();
+    const res = await fetch(`${host}/xrpc/${nsid}?${qs}`, { headers });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${nsid} ${res.status}: ${text}`);
+    }
+    return res.json();
+  }
+  headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${host}/xrpc/${nsid}`, {
+    method: 'POST', headers, body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${nsid} ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+async function atprotoPush() {
+  if (!state.atproto || !vaultCtx) { alert('Connect and unlock vault first'); return; }
+  atprotoLog('Pushing encrypted project to PDS...');
+
+  const now = new Date().toISOString();
+  const rkey = state.projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50) || 'project';
+  const { dek, keyringRkey } = vaultCtx;
+
+  try {
+    // Build the full PM state as the inner record
+    const leaves = getLeafTasks();
+    const bac = leaves.reduce((s, t) => s + t.plannedCost, 0);
+    const starts = state.tasks.map(t => new Date(t.plannedStart).getTime());
+    const ends = state.tasks.map(t => new Date(t.plannedEnd).getTime());
+
+    const projectInner = {
+      $type: 'com.minomobi.pm.project',
+      name: state.projectName,
+      status: 'active',
+      budgetAtCompletion: bac,
+      scheduledStart: starts.length ? new Date(Math.min(...starts)).toISOString() : now,
+      scheduledEnd: ends.length ? new Date(Math.max(...ends)).toISOString() : now,
+      keyringRkey,
+      createdAt: now,
+      updatedAt: now,
+      _pmState: {
+        tasks: state.tasks,
+        deps: state.deps,
+        baselines: state.baselines,
+        members: state.members || [],
+        collapsed: state.collapsed
+      }
+    };
+
+    // Seal the project record
+    const sealedProject = await vaultSealRecord('com.minomobi.pm.project', projectInner, keyringRkey, dek);
+    await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+      repo: state.atproto.did,
+      collection: 'com.minomobi.vault.sealed',
+      rkey: 'pm-' + rkey,
+      record: sealedProject
+    });
+    atprotoLog(`Sealed project → vault.sealed/pm-${rkey}`);
+
+    // Seal individual schedule records for interop
+    const writes = [];
+    for (const t of state.tasks) {
+      const schedInner = {
+        $type: 'com.minomobi.pm.schedule',
+        projectRkey: rkey,
+        issueRkey: t.id.slice(0, 15),
+        plannedStart: t.plannedStart ? new Date(t.plannedStart).toISOString() : now,
+        plannedEnd: t.plannedEnd ? new Date(t.plannedEnd).toISOString() : now,
+        plannedCost: t.plannedCost,
+        actualCost: t.actualCost,
+        percentComplete: t.percentComplete,
+        createdAt: now
+      };
+      const sealed = await vaultSealRecord('com.minomobi.pm.schedule', schedInner, keyringRkey, dek);
+      writes.push({
+        $type: 'com.atproto.repo.applyWrites#create',
+        collection: 'com.minomobi.vault.sealed',
+        rkey: 'pm-sched-' + t.id.slice(0, 10),
+        value: sealed
+      });
+    }
+
+    for (let i = 0; i < writes.length; i += 200) {
+      const batch = writes.slice(i, i + 200);
+      await atprotoXrpc('POST', 'com.atproto.repo.applyWrites', {
+        repo: state.atproto.did,
+        writes: batch
+      });
+      atprotoLog(`Sealed ${Math.min(i + 200, writes.length)}/${writes.length} schedule records`);
+    }
+
+    // Seal team roster
+    if ((state.members || []).length > 0) {
+      const teamInner = {
+        $type: 'com.minomobi.pm.team',
+        projectRkey: rkey,
+        members: state.members.map(m => ({
+          id: m.id, displayName: m.displayName, role: m.role,
+          handle: m.handle, did: m.did,
+          costRate: m.costRate, maxHoursPerWeek: m.maxHoursPerWeek, color: m.color
+        })),
+        createdAt: now
+      };
+      const sealedTeam = await vaultSealRecord('com.minomobi.pm.team', teamInner, keyringRkey, dek);
+      await atprotoXrpc('POST', 'com.atproto.repo.putRecord', {
+        repo: state.atproto.did,
+        collection: 'com.minomobi.vault.sealed',
+        rkey: 'pm-team-' + rkey,
+        record: sealedTeam
+      });
+      atprotoLog(`Sealed team roster (${state.members.length} members)`);
+    }
+
+    atprotoLog('Push complete. All records encrypted in vault.sealed envelopes.');
+  } catch (err) {
+    atprotoLog(`Error: ${err.message}`);
+  }
+}
+
+async function atprotoPull() {
+  if (!state.atproto || !vaultCtx) { alert('Connect and unlock vault first'); return; }
+  atprotoLog('Pulling sealed records from PDS...');
+
+  const { dek } = vaultCtx;
+
+  try {
+    // Paginated fetch of vault.sealed records
+    let allRecords = [];
+    let cursor = undefined;
+    while (true) {
+      const params = { repo: state.atproto.did, collection: 'com.minomobi.vault.sealed', limit: 100 };
+      if (cursor) params.cursor = cursor;
+      const page = await atprotoXrpc('GET', 'com.atproto.repo.listRecords', params);
+      if (page.records) allRecords = allRecords.concat(page.records);
+      if (!page.cursor || !page.records || page.records.length < 100) break;
+      cursor = page.cursor;
+    }
+
+    if (allRecords.length === 0) {
+      atprotoLog('No sealed records found on PDS.');
+      return;
+    }
+
+    const pmRecords = allRecords.filter(r =>
+      r.value.innerType && r.value.innerType.startsWith('com.minomobi.pm.')
+    );
+    atprotoLog(`Found ${pmRecords.length} PM sealed records out of ${sealed.records.length} total`);
+
+    // Find the project record (innerType = com.minomobi.pm.project)
+    const projectRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.project');
+    if (projectRecs.length === 0) {
+      atprotoLog('No sealed PM project found.');
+      return;
+    }
+
+    const projectEnvelope = projectRecs[projectRecs.length - 1].value;
+    const { record: projectInner } = await vaultUnsealRecord(projectEnvelope, dek);
+    atprotoLog(`Decrypted project: ${projectInner.name}`);
+
+    if (projectInner._pmState) {
+      state.projectName = projectInner.name || state.projectName;
+      state.tasks = projectInner._pmState.tasks || [];
+      state.deps = projectInner._pmState.deps || [];
+      state.baselines = projectInner._pmState.baselines || [];
+      state.members = projectInner._pmState.members || [];
+      state.collapsed = projectInner._pmState.collapsed || [];
+      saveState();
+      renderAll();
+      renderTeam();
+      atprotoLog(`Restored: ${state.tasks.length} tasks, ${(state.members || []).length} members`);
+    } else {
+      // Decrypt individual schedule records
+      const schedRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.schedule');
+      atprotoLog(`Decrypting ${schedRecs.length} schedule records...`);
+      state.projectName = projectInner.name;
+      state.tasks = [];
+      for (const sr of schedRecs) {
+        try {
+          const { record: sched } = await vaultUnsealRecord(sr.value, dek);
+          state.tasks.push({
+            id: sched.issueRkey || crypto.randomUUID(),
+            parentId: null,
+            name: sched.issueRkey || 'Task',
+            duration: Math.max(8, (new Date(sched.plannedEnd) - new Date(sched.plannedStart)) / 3600000),
+            plannedStart: sched.plannedStart.split('T')[0],
+            plannedEnd: sched.plannedEnd.split('T')[0],
+            plannedCost: sched.plannedCost || 0,
+            actualCost: sched.actualCost || 0,
+            percentComplete: sched.percentComplete || 0
+          });
+        } catch (e) {
+          atprotoLog(`  Skip record: ${e.message}`);
+        }
+      }
+      saveState();
+      renderAll();
+    }
+
+    // Decrypt team roster
+    const teamRecs = pmRecords.filter(r => r.value.innerType === 'com.minomobi.pm.team');
+    if (teamRecs.length > 0 && !projectInner._pmState) {
+      try {
+        const { record: team } = await vaultUnsealRecord(teamRecs[teamRecs.length - 1].value, dek);
+        state.members = team.members || [];
+        saveState();
+        renderTeam();
+        atprotoLog(`Decrypted team roster: ${state.members.length} members`);
+      } catch (e) {
+        atprotoLog(`Team decrypt failed: ${e.message}`);
+      }
+    }
+
+    atprotoLog('Pull complete. All records decrypted client-side.');
+    renderAll();
+    renderTeam();
+  } catch (err) {
+    atprotoLog(`Error: ${err.message}`);
+  }
+}
+
+// ── Export / Import ──
+
+function exportJSON() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.projectName.replace(/[^a-z0-9]+/gi, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.tasks || !Array.isArray(data.tasks)) throw new Error('Invalid PM state');
+      Object.assign(state, data);
+      if (!state.members) state.members = [];
+      saveState();
+      renderAll();
+      renderTeam();
+      alert(`Imported: ${state.tasks.length} tasks, ${state.members.length} members`);
+    } catch (err) {
+      alert(`Import failed: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ── Tab switching ──
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane-' + tab).classList.add('active');
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab === 'gantt') renderGantt();
+  if (tab === 'kanban') renderKanban();
+  if (tab === 'scurve') renderSCurve();
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'team') renderTeam();
+  if (tab === 'resources') renderResourceChart();
+  if (tab === 'sync') renderSyncUI();
+}
+
+// ── Init ──
+
+function renderAll() {
+  renderDashboard();
+  renderTasks();
+  // Update predecessor dropdown in add-task form
+  const sel = document.getElementById('t-pred');
+  if (sel) {
+    const val = sel.value;
+    sel.innerHTML = '<option value="">None</option>' +
+      state.tasks.map(t => `<option value="${t.id}">${'—'.repeat(getDepth(t))}${getDepth(t) ? ' ' : ''}${esc(t.name)}</option>`).join('');
+    sel.value = val;
+  }
+  // Update parent dropdown
+  const psel = document.getElementById('t-parent');
+  if (psel) {
+    const pval = psel.value;
+    psel.innerHTML = '<option value="">(root-level task)</option>' +
+      getTreeOrder().map(t => `<option value="${t.id}">${'—'.repeat(getDepth(t))}${getDepth(t) ? ' ' : ''}${esc(t.name)}</option>`).join('');
+    psel.value = pval;
+  }
+  // Update assignee dropdown
+  const asel = document.getElementById('t-assignee');
+  if (asel) {
+    const aval = asel.value;
+    asel.innerHTML = '<option value="">(unassigned)</option>' +
+      (state.members || []).map(m => `<option value="${m.id}">${esc(m.displayName)}</option>`).join('');
+    asel.value = aval;
+  }
+}
+
+renderAll();
+
+// PWA registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
+}
+</script>
+</body>
+</html>

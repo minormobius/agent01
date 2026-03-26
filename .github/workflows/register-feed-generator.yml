@@ -1,0 +1,115 @@
+name: Register Feed Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      feed_rkey:
+        description: 'Feed record key (e.g. simcluster)'
+        required: true
+        default: 'simcluster'
+      display_name:
+        description: 'Feed display name'
+        required: true
+        default: 'SimCluster'
+      description:
+        description: 'Feed description'
+        required: true
+        default: 'Posts that resonate across communities in the minomobi network'
+      avatar_path:
+        description: 'Optional path to avatar image (relative to repo root)'
+        required: false
+        default: ''
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Register feed generator record on PDS
+        run: |
+          set -euo pipefail
+
+          HANDLE="${{ secrets.BLUESKY_HANDLE }}"
+          PASSWORD="${{ secrets.BLUESKY_APP_PASSWORD }}"
+          FEED_RKEY="${{ inputs.feed_rkey }}"
+          DISPLAY_NAME="${{ inputs.display_name }}"
+          DESCRIPTION="${{ inputs.description }}"
+          AVATAR_PATH="${{ inputs.avatar_path }}"
+          FEED_HOSTNAME="feed.mino.mobi"
+
+          # Resolve DID from handle
+          echo "Resolving DID for ${HANDLE}..."
+          DID=$(curl -sf "https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${HANDLE}" | jq -r '.did')
+          echo "DID: ${DID}"
+
+          # Resolve PDS endpoint
+          echo "Resolving PDS..."
+          PDS_URL=$(curl -sf "https://plc.directory/${DID}" | jq -r '.service[] | select(.type=="AtprotoPersonalDataServer") | .serviceEndpoint')
+          echo "PDS: ${PDS_URL}"
+
+          # Create session
+          echo "Authenticating..."
+          SESSION=$(curl -sf -X POST "${PDS_URL}/xrpc/com.atproto.server.createSession" \
+            -H 'Content-Type: application/json' \
+            -d "{\"identifier\": \"${HANDLE}\", \"password\": \"${PASSWORD}\"}")
+          ACCESS_JWT=$(echo "$SESSION" | jq -r '.accessJwt')
+
+          # Upload avatar blob if provided
+          AVATAR_REF=""
+          if [ -n "$AVATAR_PATH" ] && [ -f "$AVATAR_PATH" ]; then
+            echo "Uploading avatar..."
+            MIME_TYPE=$(file --mime-type -b "$AVATAR_PATH")
+            BLOB_RESP=$(curl -sf -X POST "${PDS_URL}/xrpc/com.atproto.repo.uploadBlob" \
+              -H "Authorization: Bearer ${ACCESS_JWT}" \
+              -H "Content-Type: ${MIME_TYPE}" \
+              --data-binary "@${AVATAR_PATH}")
+            AVATAR_REF=$(echo "$BLOB_RESP" | jq '.blob')
+            echo "Avatar uploaded: $(echo "$BLOB_RESP" | jq -r '.blob.ref."$link"')"
+          fi
+
+          # Build the record
+          RECORD=$(jq -n \
+            --arg did "did:web:${FEED_HOSTNAME}" \
+            --arg name "$DISPLAY_NAME" \
+            --arg desc "$DESCRIPTION" \
+            --arg now "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+            '{
+              "$type": "app.bsky.feed.generator",
+              did: $did,
+              displayName: $name,
+              description: $desc,
+              createdAt: $now
+            }')
+
+          # Add avatar if we have one
+          if [ -n "$AVATAR_REF" ]; then
+            RECORD=$(echo "$RECORD" | jq --argjson avatar "$AVATAR_REF" '. + {avatar: $avatar}')
+          fi
+
+          # Create or update the record via putRecord (idempotent)
+          echo "Writing app.bsky.feed.generator/${FEED_RKEY}..."
+          RESULT=$(curl -sf -X POST "${PDS_URL}/xrpc/com.atproto.repo.putRecord" \
+            -H "Authorization: Bearer ${ACCESS_JWT}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg repo "$DID" \
+              --arg rkey "$FEED_RKEY" \
+              --argjson record "$RECORD" \
+              '{
+                repo: $repo,
+                collection: "app.bsky.feed.generator",
+                rkey: $rkey,
+                record: $record
+              }')")
+
+          echo "Feed generator registered:"
+          echo "$RESULT" | jq .
+          echo ""
+          echo "Feed URI: at://${DID}/app.bsky.feed.generator/${FEED_RKEY}"
+          echo "Service DID: did:web:${FEED_HOSTNAME}"

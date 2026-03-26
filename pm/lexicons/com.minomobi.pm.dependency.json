@@ -1,0 +1,46 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.dependency",
+  "description": "A dependency link between two tasks. Used for critical path calculation. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Task dependency edge.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRkey", "predecessorRkey", "successorRkey", "type", "createdAt"],
+        "properties": {
+          "projectRkey": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "predecessorRkey": {
+            "type": "string",
+            "description": "rkey of the predecessor schedule record.",
+            "maxLength": 64
+          },
+          "successorRkey": {
+            "type": "string",
+            "description": "rkey of the successor schedule record.",
+            "maxLength": 64
+          },
+          "type": {
+            "type": "string",
+            "description": "Dependency type.",
+            "knownValues": ["finish-to-start", "start-to-start", "finish-to-finish", "start-to-finish"]
+          },
+          "lagDays": {
+            "type": "number",
+            "description": "Lag or lead time in days. Negative = lead.",
+            "default": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

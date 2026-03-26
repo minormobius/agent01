@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useBasePath } from '../hooks/useSiteMode';
 import { getPoll, requestEligibility, submitBallot } from '../lib/api';
 import { AuthCard } from '../components/Layout';
 import {
@@ -33,6 +34,7 @@ export function VotePage() {
   const { id } = useParams<{ id: string }>();
   const { did } = useAuth();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [poll, setPoll] = useState<any>(null);
   const [step, setStep] = useState<Step>('loading');
@@ -170,7 +172,7 @@ export function VotePage() {
             This is a public poll. Find the poll post on Bluesky and like the reply for the option you want to vote for.
           </p>
           <div className="flex gap-8">
-            <button className="btn btn-primary" onClick={() => navigate(`/poll/${id}`)}>
+            <button className="btn btn-primary" onClick={() => navigate(`${basePath}/poll/${id}`)}>
               View Results
             </button>
           </div>
@@ -244,7 +246,7 @@ export function VotePage() {
             Ballot #{result.publicSerial}
             {result.publishedUri && <> &middot; Published to ATProto</>}
           </p>
-          <button className="btn btn-primary mt-12" onClick={() => navigate(`/poll/${id}`)}>
+          <button className="btn btn-primary mt-12" onClick={() => navigate(`${basePath}/poll/${id}`)}>
             View Results
           </button>
         </div>
@@ -253,7 +255,7 @@ export function VotePage() {
       {step === 'error' && (
         <div className="card">
           <p className="error">{error}</p>
-          <button className="btn btn-secondary mt-12" onClick={() => navigate(`/poll/${id}`)}>
+          <button className="btn btn-secondary mt-12" onClick={() => navigate(`${basePath}/poll/${id}`)}>
             Back to Poll
           </button>
         </div>

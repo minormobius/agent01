@@ -1,6 +1,6 @@
 # minomobi
 
-**Personal tooling for the open web.** 18 sites built in conversation — one human, one model, the open web.
+**Personal tooling for the open web.** 23 sites built in conversation — one human, one model, the open web.
 
 Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No SaaS dependencies.
 
@@ -20,6 +20,10 @@ Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No Sa
 | **Read** | [read](https://mino.mobi/read/) | Workers | Adaptive speed reader for Project Gutenberg texts. Bionic formatting, variable character chunks, color-changing frames, and eye-tracking-driven pacing. |
 | **Wiki Cards** | [cards](https://mino.mobi/cards/) | ATProto | Deep Wikipedia card game — Lucky, Transmute, Nexus, and Library modes built on scored and embedded articles. |
 | **Noise** | [noise](https://mino.mobi/noise/) | PWA | Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps. |
+| **Mega** | [mega](https://mino.mobi/mega/) | MapLibre, deck.gl | Interactive map of global megaprojects — construction, timelines, costs, and deep context on a 3D globe. |
+| **OS** | [os](https://mino.mobi/os/) | React, Wasm, ATProto | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |
+| **Finance** | [finance](https://mino.mobi/finance/) | ATProto | Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts. |
+| **Wars** | [wars](https://mino.mobi/wars/) | — | War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties. |
 
 ### ATProto Tools
 
@@ -42,6 +46,7 @@ Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No Sa
 | **Density** | [density](https://mino.mobi/density/) | Post brevity, measured. Filter posts by exact word count, ranked by character length. |
 | **Seek** | [seek](https://mino.mobi/seek/) | Find follows-of-follows you don't yet follow, ranked by network density. |
 | **Cluster** | [cluster](https://mino.mobi/cluster/) | Find your tightest circle. The largest group of your follows who all mutually follow each other. |
+| **Photo** | [photo](https://mino.mobi/photo/) | Bluesky photo explorer. Every image from any handle as a filterable masonry grid with engagement analytics. |
 
 ---
 
@@ -79,7 +84,12 @@ Static files on Cloudflare Pages. Data on ATProto PDS. No backend servers. No Sa
 ├── novelty/         Semantic novelty trajectory
 ├── seek/            Friend discovery
 ├── ternary/         Ternary chart analysis
-├── workers/         bsky-bot (cron), cluster-batch
+├── mega/            Global megaprojects map (MapLibre + deck.gl)
+├── os/              ATProto PDS browser terminal (React + Wasm)
+├── finance/         Financial dashboard with ATProto sync
+├── photo/           Bluesky photo explorer (React + DuckDB)
+├── wars/            Correlates of War data visualization
+├── workers/         bsky-bot (cron), cluster-batch, cards-mint
 ├── functions/       Serverless functions (profiles, proxy, etc.)
 ├── scripts/         Build and data processing scripts
 ├── modulo/          ATProto DID for @modulo.minomobi.com
@@ -106,6 +116,6 @@ cd bakery && npm install && npm run build
 
 ## Stats
 
-27 days of active development. 411 commits. ~62K lines of handwritten code across 18 sites.
+~30 days of active development. 400+ commits. 23 sites.
 
 Built in conversation — one human, one model, the open web.

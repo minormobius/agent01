@@ -204,7 +204,29 @@ const COLOR_REGIONS = [
   { name: 'white', r: 240, g: 240, b: 240 },
 ];
 
-// Classify an image's dominant color into a named region
+// Classify an image into all matching color regions.
+// Checks every palette color (not just the dominant one) and returns
+// the set of region names where any color with >= 5% coverage matches.
+export function imageColorRegions(did, rkey, cid) {
+  const palette = getColors(did, rkey, cid);
+  if (!palette || palette.length === 0) return null;
+
+  const regions = new Set();
+  for (const color of palette) {
+    // Skip negligible colors
+    if (color.pct < 0.05) continue;
+    let best = COLOR_REGIONS[0];
+    let bestDist = Infinity;
+    for (const region of COLOR_REGIONS) {
+      const d = colorDistance(color, region);
+      if (d < bestDist) { bestDist = d; best = region; }
+    }
+    regions.add(best.name);
+  }
+  return regions;
+}
+
+// Legacy single-region function (kept for eigenpalette weighting)
 export function dominantColorRegion(did, rkey, cid) {
   const palette = getColors(did, rkey, cid);
   if (!palette || palette.length === 0) return null;

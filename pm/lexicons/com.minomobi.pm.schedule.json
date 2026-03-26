@@ -1,0 +1,71 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.pm.schedule",
+  "description": "Schedule and cost data for a single task. Links to a tasks.issue record. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Task schedule/cost entry for EVM calculations.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["projectRkey", "issueRkey", "plannedStart", "plannedEnd", "plannedCost", "createdAt"],
+        "properties": {
+          "projectRkey": {
+            "type": "string",
+            "description": "rkey of the associated pm.project record.",
+            "maxLength": 64
+          },
+          "issueRkey": {
+            "type": "string",
+            "description": "rkey of the associated tasks.issue record.",
+            "maxLength": 64
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "plannedCost": {
+            "type": "number",
+            "description": "Budgeted cost for this task (contributes to PV curve)."
+          },
+          "actualStart": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "actualEnd": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "actualCost": {
+            "type": "number",
+            "description": "Actual cost incurred (contributes to AC curve)."
+          },
+          "percentComplete": {
+            "type": "number",
+            "description": "0-100. Used to compute partial EV: plannedCost * (percentComplete / 100).",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "wbsCode": {
+            "type": "string",
+            "description": "Work breakdown structure code (e.g., '1.2.3').",
+            "maxLength": 64
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

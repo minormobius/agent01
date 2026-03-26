@@ -1,0 +1,15 @@
+{
+  "name": "mino-feed",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate": "wrangler d1 migrations apply feed-communities --remote",
+    "migrate:local": "wrangler d1 migrations apply feed-communities --local"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20250320.0",
+    "typescript": "^5.7.0"
+  }
+}

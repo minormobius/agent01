@@ -1,0 +1,35 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mail.thread",
+  "description": "A mail thread grouping messages. Inner record — encrypted inside vault.sealed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Mail thread.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "participants", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "participants": {
+            "type": "array",
+            "items": { "type": "string", "format": "did" },
+            "maxLength": 128
+          },
+          "lastActivityAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

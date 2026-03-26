@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useBasePath } from '../hooks/useSiteMode';
 import { getPoll, getTally, getBallots } from '../lib/api';
 import { recomputeTally } from '@atpolls/shared';
 
@@ -44,6 +45,7 @@ async function fetchLikeCounts(
 
 export function PollPage() {
   const { id } = useParams<{ id: string }>();
+  const basePath = useBasePath();
   const [poll, setPoll] = useState<any>(null);
   const [tally, setTally] = useState<any>(null);
   const [ballots, setBallots] = useState<any[]>([]);
@@ -174,15 +176,15 @@ export function PollPage() {
 
         <div className="flex gap-8 mt-12">
           {poll.status === 'open' && poll.mode !== 'public_like' && (
-            <Link to={`/poll/${id}/vote`} className="btn btn-primary">Vote</Link>
+            <Link to={`${basePath}/poll/${id}/vote`} className="btn btn-primary">Vote</Link>
           )}
           {poll.mode === 'public_like' && (
             <span className="muted" style={{ fontSize: '13px', alignSelf: 'center' }}>
               {likesLoading ? 'Counting likes...' : 'Vote by liking on Bluesky'}
             </span>
           )}
-          <Link to={`/poll/${id}/audit`} className="btn btn-secondary">Audit</Link>
-          <Link to={`/poll/${id}/admin`} className="btn btn-secondary">Admin</Link>
+          <Link to={`${basePath}/poll/${id}/audit`} className="btn btn-secondary">Audit</Link>
+          <Link to={`${basePath}/poll/${id}/admin`} className="btn btn-secondary">Admin</Link>
         </div>
       </div>
 

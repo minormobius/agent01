@@ -1,0 +1,37 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.arena.image",
+  "description": "An image uploaded directly to the arena, not associated with a Bluesky post. Anchors the blob on the user's PDS.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A standalone image stored on the user's PDS.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["image", "createdAt"],
+        "properties": {
+          "image": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 10000000,
+            "description": "The image blob"
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 3000,
+            "description": "Alt text description"
+          },
+          "aspectRatio": {
+            "type": "ref",
+            "ref": "app.bsky.embed.defs#aspectRatio"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

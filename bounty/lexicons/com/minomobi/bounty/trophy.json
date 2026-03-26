@@ -1,0 +1,45 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.repToken",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "A blind-signed rep token — Chaumian ecash for reputation. Each token is a specific denomination (1, 5, 10, 25 rep) signed by the board's mint key for that denomination. Fungible, stakeable, unlinkable to the job that earned it.",
+      "record": {
+        "type": "object",
+        "required": ["tokenMessage", "signature", "nullifier", "denomination", "boardId", "createdAt"],
+        "properties": {
+          "tokenMessage": {
+            "type": "string",
+            "description": "The unblinded token message. Format: rep:v1:{boardId}:{denomination}:{expiryISO}:{hmac}"
+          },
+          "signature": {
+            "type": "string",
+            "description": "RSA-PSS blind signature (base64url). Verifiable against the board's published mint key for this denomination."
+          },
+          "nullifier": {
+            "type": "string",
+            "description": "SHA-256 derived deterministically from the token. Prevents double-spend."
+          },
+          "denomination": {
+            "type": "integer",
+            "description": "Rep value of this token: 1, 5, 10, or 25."
+          },
+          "boardId": {
+            "type": "string",
+            "description": "Hostname of the bounty board that minted this token."
+          },
+          "spent": {
+            "type": "boolean",
+            "description": "Whether this token has been spent (staked or transferred)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,10 @@ import { AuditPage } from './pages/Audit';
 import { AdminPage } from './pages/Admin';
 import { DocsPage } from './pages/Docs';
 import { QuickVotePage } from './pages/QuickVote';
+import { CreateSurveyPage } from './pages/CreateSurvey';
+import { SurveyPage } from './pages/Survey';
+import { SurveyVotePage } from './pages/SurveyVote';
+import { SurveyAdminPage } from './pages/SurveyAdmin';
 import './styles.css';
 
 /**
@@ -57,6 +61,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <Layout>
           <Routes>
+            {/* Default site — all poll modes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/create" element={<CreatePollPage />} />
             <Route path="/poll/:id" element={<PollPage />} />
@@ -64,6 +69,22 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/poll/:id/audit" element={<AuditPage />} />
             <Route path="/poll/:id/admin" element={<AdminPage />} />
             <Route path="/v/:id" element={<QuickVotePage />} />
+
+            {/* Surveys — multi-question anonymous polls */}
+            <Route path="/survey/create" element={<CreateSurveyPage />} />
+            <Route path="/survey/:id" element={<SurveyPage />} />
+            <Route path="/survey/:id/vote" element={<SurveyVotePage />} />
+            <Route path="/survey/:id/admin" element={<SurveyAdminPage />} />
+
+            {/* Public polls — like-based, zero friction */}
+            <Route path="/public" element={<HomePage />} />
+            <Route path="/public/create" element={<CreatePollPage />} />
+            <Route path="/public/poll/:id" element={<PollPage />} />
+            <Route path="/public/poll/:id/vote" element={<VotePage />} />
+            <Route path="/public/poll/:id/audit" element={<AuditPage />} />
+            <Route path="/public/poll/:id/admin" element={<AdminPage />} />
+            <Route path="/public/v/:id" element={<QuickVotePage />} />
+
             <Route path="/docs" element={<DocsPage />} />
             <Route path="/api/*" element={<ApiDebug />} />
             <Route path="*" element={<NotFound />} />

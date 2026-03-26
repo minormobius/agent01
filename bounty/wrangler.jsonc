@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bounty-minomobi",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets — served from public/
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  },
+
+  // D1 database — bounties, fulfillments, mint keys, nullifiers
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bounty-board",
+      "database_id": "TODO_REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Observability
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    }
+  },
+
+  // Dev vars — override in Cloudflare dashboard for production
+  "vars": {
+    "FRONTEND_URL": "https://bounty.mino.mobi"
+  }
+}
