@@ -2,8 +2,9 @@
  * Wave doc view — collaborative markdown document with edit history.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { WaveThreadRecord, WaveOpRecord, MessagePayload, DocEditPayload } from "../types";
+import { renderMarkdown } from "../markdown";
 
 interface DocHistoryEntry {
   uri: string;
@@ -67,6 +68,8 @@ export function DocView({
   useEffect(() => {
     if (!editing) setDocText(latestText);
   }, [latestText, editing]);
+
+  const renderedHtml = useMemo(() => renderMarkdown(docText), [docText]);
 
   return (
     <>
@@ -142,7 +145,10 @@ export function DocView({
           {loading && <div className="wave-loading-inline">Loading document...</div>}
           <div className="wave-doc-content">
             {docText ? (
-              <pre className="wave-doc-rendered">{docText}</pre>
+              <div
+                className="wave-doc-rendered md-preview"
+                dangerouslySetInnerHTML={{ __html: renderedHtml }}
+              />
             ) : (
               <p className="wave-empty-hint">Empty document. Click Edit to start writing.</p>
             )}
