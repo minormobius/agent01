@@ -94,6 +94,118 @@ let heatMax = 1;       // max totalScore across communities (for normalization)
 let pulsePhase = 0;    // animation phase for activity glow
 let animating = false;
 
+// ── Hex PFP Overlay ─────────────────────────────────────────────────
+const HEX_PFP_SIZE = 28;         // pfp diameter in pixels (constant across zoom)
+const HEX_SPACING = HEX_PFP_SIZE + 2; // gap between hex centers
+const avatarImages = new Map();   // did → HTMLImageElement (loaded)
+const avatarLoading = new Set();  // dids currently being fetched
+let hexCells = [];                // computed each frame: [{sx, sy, node}]
+
+// Batch-fetch avatar URLs from Bluesky public API
+async function fetchAvatars(dids) {
+  const BATCH = 25;
+  const unresolved = dids.filter(d => !avatarImages.has(d) && !avatarLoading.has(d));
+  if (unresolved.length === 0) return;
+
+  for (let i = 0; i < unresolved.length; i += BATCH) {
+    const batch = unresolved.slice(i, i + BATCH);
+    batch.forEach(d => avatarLoading.add(d));
+    try {
+      const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join("&");
+      const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${params}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const profile of (data.profiles || [])) {
+        if (profile.avatar) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = profile.avatar;
+          img.onload = () => { avatarImages.set(profile.did, img); scheduleDraw(); };
+          img.onerror = () => { avatarImages.set(profile.did, null); }; // mark as failed
+        } else {
+          avatarImages.set(profile.did, null);
+        }
+        avatarLoading.delete(profile.did);
+      }
+      // Mark any DIDs not in response as no-avatar
+      for (const d of batch) {
+        if (!avatarImages.has(d)) { avatarImages.set(d, null); avatarLoading.delete(d); }
+      }
+    } catch(e) {
+      batch.forEach(d => avatarLoading.delete(d));
+    }
+  }
+}
+
+// Compute hex grid and assign member nodes to cells
+function computeHexOverlay() {
+  hexCells = [];
+  const memberNodes = flat.filter(n => n._type === "member");
+  if (memberNodes.length === 0) return;
+
+  // Transform all member positions to screen space
+  const screenMembers = [];
+  for (const n of memberNodes) {
+    const [sx, sy] = w2s(n._x, n._y);
+    // Cull off-screen (with margin for hex size)
+    if (sx < -HEX_PFP_SIZE || sx > W + HEX_PFP_SIZE) continue;
+    if (sy < -HEX_PFP_SIZE || sy > H + HEX_PFP_SIZE) continue;
+    screenMembers.push({ sx, sy, node: n });
+  }
+
+  if (screenMembers.length === 0) return;
+
+  // Hex grid parameters (flat-top hexagons)
+  const colW = HEX_SPACING * 0.866;  // horizontal distance between columns (sqrt(3)/2)
+  const rowH = HEX_SPACING;          // vertical distance between rows
+
+  // Spatial grid for fast nearest-hex lookup: grid cell → list of screen members
+  const gridCellSize = HEX_SPACING * 2;
+  const memberGrid = new Map();
+  for (const sm of screenMembers) {
+    const gx = Math.floor(sm.sx / gridCellSize);
+    const gy = Math.floor(sm.sy / gridCellSize);
+    const key = `${gx},${gy}`;
+    if (!memberGrid.has(key)) memberGrid.set(key, []);
+    memberGrid.get(key).push(sm);
+  }
+
+  // For each member, compute its hex cell and claim the closest
+  const occupied = new Map(); // "col,row" → { sx, sy, node, dist }
+
+  for (const sm of screenMembers) {
+    // Find hex cell for this screen position
+    const col = Math.round(sm.sx / colW);
+    const row = Math.round((sm.sy - (col % 2 === 0 ? 0 : rowH * 0.5)) / rowH);
+    const cellKey = `${col},${row}`;
+
+    // Hex cell center in screen coords
+    const hx = col * colW;
+    const hy = row * rowH + (col % 2 === 0 ? 0 : rowH * 0.5);
+    const dx = sm.sx - hx, dy = sm.sy - hy;
+    const dist = dx * dx + dy * dy;
+
+    const existing = occupied.get(cellKey);
+    if (!existing || dist < existing.dist) {
+      occupied.set(cellKey, { sx: hx, sy: hy, node: sm.node, dist });
+    }
+  }
+
+  hexCells = [...occupied.values()];
+}
+
+// Draw a hexagon path (flat-top) centered at (cx, cy) with given radius
+function hexPath(cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 6 + i * Math.PI / 3;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
 // Community hue palette — spread evenly around HSL wheel
 function communityHue(idx, total) {
   return (idx / Math.max(total, 1)) * 360;
@@ -233,111 +345,137 @@ function draw() {
     }
   }
 
-  // Draw nodes
+  // Draw community blobs (behind hex overlay)
   for (const node of flat) {
+    if (node._type !== "community") continue;
     const [sx, sy] = w2s(node._x, node._y);
     const sr = node._r * cam.scale;
 
-    // Cull off-screen and too-small
     if (sx + sr < -20 || sx - sr > W + 20) continue;
     if (sy + sr < -20 || sy - sr > H + 20) continue;
+    if (sr < 2) continue;
 
-    if (node._type === "community") {
-      // Community blob — heatmapped by activity
-      if (sr < 2) continue;
+    const activity = activityData[node._community.id];
+    const heat = activity ? Math.min(1, activity.totalScore / Math.max(heatMax, 0.01)) : 0;
+    const hc = heatColor(heat);
+    const pulse = heat > 0.1 ? 0.5 + 0.5 * Math.sin(pulsePhase + node._ci) : 0;
+    const glowAlpha = heat * 0.3 * pulse;
 
-      const activity = activityData[node._community.id];
-      const heat = activity ? Math.min(1, activity.totalScore / Math.max(heatMax, 0.01)) : 0;
-      const hc = heatColor(heat);
-      const pulse = heat > 0.1 ? 0.5 + 0.5 * Math.sin(pulsePhase + node._ci) : 0;
-      const glowAlpha = heat * 0.3 * pulse;
-
-      // Outer glow for active communities
-      if (heat > 0.1 && sr > 8) {
-        const grad = ctx.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 1.5);
-        grad.addColorStop(0, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, ${glowAlpha})`);
-        grad.addColorStop(1, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, 0)`);
-        ctx.beginPath();
-        ctx.arc(sx, sy, sr * 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-      }
-
-      // Main blob fill — blend community hue with heat
+    // Outer glow for active communities
+    if (heat > 0.1 && sr > 8) {
+      const grad = ctx.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 1.5);
+      grad.addColorStop(0, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, ${glowAlpha})`);
+      grad.addColorStop(1, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, 0)`);
       ctx.beginPath();
-      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-      const fillL = 15 + heat * 15;
-      const fillS = 30 + heat * 30;
-      const fillH = heat > 0.2 ? hc.h : node._hue;
-      ctx.fillStyle = `hsla(${fillH}, ${fillS}%, ${fillL}%, ${0.4 + heat * 0.3})`;
+      ctx.arc(sx, sy, sr * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = `hsla(${fillH}, ${fillS + 10}%, ${fillL + 15}%, ${0.5 + heat * 0.3})`;
-      ctx.lineWidth = Math.max(0.5, sr * 0.01);
+    }
+
+    // Main blob fill
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    const fillL = 15 + heat * 15;
+    const fillS = 30 + heat * 30;
+    const fillH = heat > 0.2 ? hc.h : node._hue;
+    ctx.fillStyle = `hsla(${fillH}, ${fillS}%, ${fillL}%, ${0.4 + heat * 0.3})`;
+    ctx.fill();
+    ctx.strokeStyle = `hsla(${fillH}, ${fillS + 10}%, ${fillL + 15}%, ${0.5 + heat * 0.3})`;
+    ctx.lineWidth = Math.max(0.5, sr * 0.01);
+    ctx.stroke();
+
+    // Label
+    if (sr > 40) {
+      const fontSize = Math.max(9, Math.min(sr * 0.08, 14));
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const labelL = 55 + heat * 20;
+      ctx.fillStyle = `hsla(${fillH}, ${Math.min(60, fillS + 5)}%, ${labelL}%, .9)`;
+      const postTag = activity ? ` · ${activity.postCount}p` : "";
+      ctx.fillText(node._label + postTag, sx, sy);
+    }
+
+    // Highlight
+    if (node === selectedNode) {
+      ctx.strokeStyle = `hsla(${fillH}, 60%, 60%, .8)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx, sy, sr + 4, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (node === hoveredNode && node !== selectedNode) {
+      ctx.strokeStyle = `hsla(${fillH}, 50%, 50%, .5)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(sx, sy, sr + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // ── Hex PFP overlay ──────────────────────────────────────────────
+  // Recompute hex cell assignments based on current camera
+  computeHexOverlay();
+
+  const hexR = HEX_PFP_SIZE / 2; // radius of hex cell
+
+  for (const cell of hexCells) {
+    const { sx, sy, node } = cell;
+    const did = node._member.did;
+    const img = avatarImages.get(did);
+
+    // Draw hexagon
+    ctx.save();
+    hexPath(sx, sy, hexR);
+
+    if (img) {
+      // Clip to hexagon and draw avatar
+      ctx.clip();
+      ctx.drawImage(img, sx - hexR, sy - hexR, HEX_PFP_SIZE, HEX_PFP_SIZE);
+      ctx.restore();
+
+      // Hex border
+      hexPath(sx, sy, hexR);
+      ctx.strokeStyle = node._isBridge
+        ? "rgba(255,153,34,.7)"
+        : `hsla(${node._hue}, 25%, 30%, .6)`;
+      ctx.lineWidth = 1;
       ctx.stroke();
-
-      // Label — show post count if available
-      if (sr > 40) {
-        const fontSize = Math.max(9, Math.min(sr * 0.08, 14));
-        ctx.font = `${fontSize}px monospace`;
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        const labelL = 55 + heat * 20;
-        ctx.fillStyle = `hsla(${fillH}, ${Math.min(60, fillS + 5)}%, ${labelL}%, .9)`;
-        const postTag = activity ? ` · ${activity.postCount}p` : "";
-        ctx.fillText(node._label + postTag, sx, sy);
-      }
-
-      // Highlight
-      if (node === selectedNode) {
-        ctx.strokeStyle = `hsla(${fillH}, 60%, 60%, .8)`;
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx, sy, sr + 4, 0, Math.PI * 2); ctx.stroke();
-      }
-      if (node === hoveredNode && node !== selectedNode) {
-        ctx.strokeStyle = `hsla(${fillH}, 50%, 50%, .5)`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(sx, sy, sr + 3, 0, Math.PI * 2); ctx.stroke();
-      }
-
-    } else if (node._type === "member") {
-      if (sr < 0.5) continue;
-
-      // Branch from community center to member
-      if (node._parent && sr > 1) {
-        const [px, py] = w2s(node._parent._x, node._parent._y);
-        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx, sy);
-        ctx.strokeStyle = `hsla(${node._hue}, 20%, 22%, .3)`;
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-      }
-
-      // Member dot
-      const dotR = Math.max(1.5, Math.min(sr * 1.2, 6));
-      const lum = node._shell === 0 ? 55 : 35;
-      const sat = node._isBridge ? 70 : 30;
-      ctx.beginPath(); ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
+    } else {
+      // Fallback: colored hex with initial
+      const lum = node._shell === 0 ? 30 : 20;
+      const sat = node._isBridge ? 60 : 25;
       ctx.fillStyle = node._isBridge
-        ? `hsla(30, 80%, 55%, .9)`
-        : `hsla(${node._hue}, ${sat}%, ${lum}%, .8)`;
+        ? "hsla(30, 60%, 28%, .9)"
+        : `hsla(${node._hue}, ${sat}%, ${lum}%, .85)`;
       ctx.fill();
+      ctx.strokeStyle = `hsla(${node._hue}, 20%, 40%, .5)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
 
-      // Selection ring
-      if (node === selectedNode) {
-        ctx.strokeStyle = "#f92"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx, sy, dotR + 4, 0, Math.PI * 2); ctx.stroke();
-      }
-      if (node === hoveredNode && node !== selectedNode) {
-        ctx.strokeStyle = "#8bf"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(sx, sy, dotR + 3, 0, Math.PI * 2); ctx.stroke();
-      }
+      // Initial letter
+      const initial = (node._name || "?")[0].toUpperCase();
+      ctx.font = `bold ${Math.round(hexR * 0.8)}px monospace`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = `hsla(${node._hue}, 30%, 60%, .9)`;
+      ctx.fillText(initial, sx, sy);
+    }
 
-      // Handle label at deep zoom
-      if (sr > 3 && node._name) {
-        const fontSize = Math.max(8, Math.min(sr * 0.6, 11));
-        ctx.font = `${fontSize}px monospace`;
-        ctx.textAlign = "center"; ctx.textBaseline = "top";
-        ctx.fillStyle = `hsla(0, 0%, 60%, ${Math.min(1, (sr - 3) / 4)})`;
-        ctx.fillText(node._name, sx, sy + dotR + 2);
-      }
+    // Selection / hover ring on hex
+    if (node === selectedNode) {
+      hexPath(sx, sy, hexR + 3);
+      ctx.strokeStyle = "#f92"; ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (node === hoveredNode) {
+      hexPath(sx, sy, hexR + 2);
+      ctx.strokeStyle = "#8bf"; ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // Handle label at deep zoom
+    const sr = node._r * cam.scale;
+    if (sr > 3 && node._name) {
+      const fontSize = Math.max(8, Math.min(11, sr * 0.6));
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillStyle = `hsla(0, 0%, 65%, ${Math.min(1, (sr - 3) / 4)})`;
+      ctx.fillText(node._name, sx, sy + hexR + 2);
     }
   }
 }
@@ -439,14 +577,28 @@ canvas.addEventListener("touchend", e => {
 
 // ── Hit testing ──────────────────────────────────────────────────────
 function hitTest(sx, sy) {
+  // First check hex cells (member pfps in screen space)
+  const hexR = HEX_PFP_SIZE / 2;
+  let bestHex = null, bestHexDist = Infinity;
+  for (const cell of hexCells) {
+    const dx = sx - cell.sx, dy = sy - cell.sy;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < hexR && d < bestHexDist) {
+      bestHexDist = d;
+      bestHex = cell.node;
+    }
+  }
+  if (bestHex) return bestHex;
+
+  // Fall back to community blobs (world space)
   const [wx, wy] = s2w(sx, sy);
   let best = null, bestR = Infinity;
   for (const n of flat) {
-    if (n._r * cam.scale < 1) continue;
+    if (n._type !== "community") continue;
+    if (n._r * cam.scale < 2) continue;
     const dx = wx - n._x, dy = wy - n._y;
-    const d = Math.sqrt(dx*dx + dy*dy);
-    const hitR = n._type === "community" ? n._r * 0.9 : n._r * 0.5;
-    if (d < hitR && n._r < bestR) { bestR = n._r; best = n; }
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < n._r * 0.9 && n._r < bestR) { bestR = n._r; best = n; }
   }
   return best;
 }
@@ -614,6 +766,10 @@ function flyTo(node, duration) {
     const postCount = activityPosts.length;
     status.textContent = `${communities.length} communities · ${totalMembers} members · ${bridges.length} bridges · ${postCount} posts · scroll to zoom`;
     scheduleDraw();
+
+    // Fetch avatars for all members (non-blocking)
+    const allDids = flat.filter(n => n._type === "member").map(n => n._member.did);
+    fetchAvatars(allDids);
 
     // Start pulse animation if there's activity data
     if (heatMax > 0) startPulseAnimation();
