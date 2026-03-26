@@ -85,13 +85,38 @@ function s2w(sx, sy) { return [(sx - W/2) / cam.scale + cam.x, (sy - H/2) / cam.
 // ── Data ─────────────────────────────────────────────────────────────
 let communities = [];  // from API
 let bridges = [];
+let activityData = {}; // community id → { postCount, totalScore }
+let activityPosts = []; // scored posts with community attribution
 let flat = [];         // laid-out nodes for hit testing
 let selectedNode = null;
 let hoveredNode = null;
+let heatMax = 1;       // max totalScore across communities (for normalization)
+let pulsePhase = 0;    // animation phase for activity glow
+let animating = false;
 
 // Community hue palette — spread evenly around HSL wheel
 function communityHue(idx, total) {
   return (idx / Math.max(total, 1)) * 360;
+}
+
+// Heat color: cold (deep blue) → warm (orange/white) based on 0–1 intensity
+function heatColor(t) {
+  // 0 = cool dark blue, 0.5 = warm orange, 1.0 = hot white-yellow
+  if (t < 0.25) return { h: 220, s: 60, l: 12 + t * 40 };
+  if (t < 0.5)  return { h: 220 - (t - 0.25) * 800, s: 60 + (t - 0.25) * 80, l: 22 + (t - 0.25) * 60 };
+  if (t < 0.75) return { h: 20, s: 75 + (t - 0.5) * 40, l: 37 + (t - 0.5) * 40 };
+  return { h: 30 + (t - 0.75) * 40, s: 90, l: 47 + (t - 0.75) * 60 };
+}
+
+function startPulseAnimation() {
+  if (animating) return;
+  animating = true;
+  function pulse() {
+    pulsePhase = (performance.now() / 2000) % (Math.PI * 2);
+    scheduleDraw();
+    if (animating) requestAnimationFrame(pulse);
+  }
+  requestAnimationFrame(pulse);
 }
 
 // ── Layout: communities as radial sectors, members within ────────────
@@ -218,33 +243,57 @@ function draw() {
     if (sy + sr < -20 || sy - sr > H + 20) continue;
 
     if (node._type === "community") {
-      // Community blob
+      // Community blob — heatmapped by activity
       if (sr < 2) continue;
+
+      const activity = activityData[node._community.id];
+      const heat = activity ? Math.min(1, activity.totalScore / Math.max(heatMax, 0.01)) : 0;
+      const hc = heatColor(heat);
+      const pulse = heat > 0.1 ? 0.5 + 0.5 * Math.sin(pulsePhase + node._ci) : 0;
+      const glowAlpha = heat * 0.3 * pulse;
+
+      // Outer glow for active communities
+      if (heat > 0.1 && sr > 8) {
+        const grad = ctx.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 1.5);
+        grad.addColorStop(0, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, ${glowAlpha})`);
+        grad.addColorStop(1, `hsla(${hc.h}, ${hc.s}%, ${hc.l}%, 0)`);
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr * 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Main blob fill — blend community hue with heat
       ctx.beginPath();
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${node._hue}, 30%, 15%, .4)`;
+      const fillL = 15 + heat * 15;
+      const fillS = 30 + heat * 30;
+      const fillH = heat > 0.2 ? hc.h : node._hue;
+      ctx.fillStyle = `hsla(${fillH}, ${fillS}%, ${fillL}%, ${0.4 + heat * 0.3})`;
       ctx.fill();
-      ctx.strokeStyle = `hsla(${node._hue}, 40%, 30%, .5)`;
+      ctx.strokeStyle = `hsla(${fillH}, ${fillS + 10}%, ${fillL + 15}%, ${0.5 + heat * 0.3})`;
       ctx.lineWidth = Math.max(0.5, sr * 0.01);
       ctx.stroke();
 
-      // Label
+      // Label — show post count if available
       if (sr > 40) {
         const fontSize = Math.max(9, Math.min(sr * 0.08, 14));
         ctx.font = `${fontSize}px monospace`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillStyle = `hsla(${node._hue}, 35%, 55%, .9)`;
-        ctx.fillText(node._label, sx, sy);
+        const labelL = 55 + heat * 20;
+        ctx.fillStyle = `hsla(${fillH}, ${Math.min(60, fillS + 5)}%, ${labelL}%, .9)`;
+        const postTag = activity ? ` · ${activity.postCount}p` : "";
+        ctx.fillText(node._label + postTag, sx, sy);
       }
 
       // Highlight
       if (node === selectedNode) {
-        ctx.strokeStyle = `hsla(${node._hue}, 60%, 60%, .8)`;
+        ctx.strokeStyle = `hsla(${fillH}, 60%, 60%, .8)`;
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(sx, sy, sr + 4, 0, Math.PI * 2); ctx.stroke();
       }
       if (node === hoveredNode && node !== selectedNode) {
-        ctx.strokeStyle = `hsla(${node._hue}, 50%, 50%, .5)`;
+        ctx.strokeStyle = `hsla(${fillH}, 50%, 50%, .5)`;
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(sx, sy, sr + 3, 0, Math.PI * 2); ctx.stroke();
       }
@@ -409,7 +458,9 @@ function updateHover(sx, sy) {
   if (hit) {
     el.classList.add("visible");
     if (hit._type === "community") {
-      el.textContent = `${hit._community.label} · ${hit._community.coreSize} core · ${hit._community.totalSize} total`;
+      const a = activityData[hit._community.id];
+      const activityTag = a ? ` · ${a.postCount} posts · score ${a.totalScore.toFixed(1)}` : " · no recent posts";
+      el.textContent = `${hit._community.label} · ${hit._community.coreSize} core · ${hit._community.totalSize} total${activityTag}`;
     } else {
       const bTag = hit._isBridge ? " · bridge" : "";
       el.textContent = `${hit._label} · shell ${hit._shell}${bTag}`;
@@ -433,7 +484,23 @@ function selectNode(node) {
     const c = node._community;
     let html = `<span class="info-close">&times;</span>`;
     html += `<h2>${c.label}</h2>`;
-    html += `<div class="meta">${c.coreSize} core · ${c.totalSize} total members</div>`;
+    const a = activityData[c.id];
+    const activityMeta = a ? ` · ${a.postCount} posts · activity ${a.totalScore.toFixed(1)}` : "";
+    html += `<div class="meta">${c.coreSize} core · ${c.totalSize} total members${activityMeta}</div>`;
+
+    // Top posts for this community
+    const cPosts = activityPosts.filter(p => p.communityIds.includes(c.id)).slice(0, 5);
+    if (cPosts.length > 0) {
+      html += `<div class="meta" style="margin-top:.4em">top posts</div>`;
+      html += `<ul class="member-list">`;
+      for (const p of cPosts) {
+        const rkey = p.uri.split("/").pop();
+        const authorDid = p.uri.split("/")[2];
+        const shortUri = rkey.slice(0, 12);
+        html += `<li><a href="https://bsky.app/profile/${authorDid}/post/${rkey}" target="_blank" rel="noopener" style="color:#8bf;text-decoration:none">${shortUri}…</a> <span class="shell-tag">score ${p.score.toFixed(2)}</span></li>`;
+      }
+      html += `</ul>`;
+    }
 
     // List members grouped by shell
     const byShell = new Map();
@@ -510,12 +577,27 @@ function flyTo(node, duration) {
 
   try {
     status.textContent = "fetching communities…";
-    const res = await fetch(`${API_BASE}/xrpc/com.minomobi.feed.getCommunities`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const [comRes, actRes] = await Promise.all([
+      fetch(`${API_BASE}/xrpc/com.minomobi.feed.getCommunities`),
+      fetch(`${API_BASE}/xrpc/com.minomobi.feed.getCommunityActivity`).catch(() => null),
+    ]);
+    if (!comRes.ok) throw new Error(`HTTP ${comRes.status}`);
+    const data = await comRes.json();
 
     communities = data.communities || [];
     bridges = data.bridges || [];
+
+    // Load activity heatmap data
+    if (actRes && actRes.ok) {
+      const actData = await actRes.json();
+      activityData = actData.communities || {};
+      activityPosts = actData.posts || [];
+      // Find max score for normalization
+      heatMax = 0;
+      for (const cid in activityData) {
+        if (activityData[cid].totalScore > heatMax) heatMax = activityData[cid].totalScore;
+      }
+    }
 
     if (communities.length === 0) {
       status.textContent = "no communities yet — waiting for cron";
@@ -529,8 +611,12 @@ function flyTo(node, duration) {
     cam.scale = Math.min(W, H) * 0.9;
 
     const totalMembers = communities.reduce((n, c) => n + c.totalSize, 0);
-    status.textContent = `${communities.length} communities · ${totalMembers} members · ${bridges.length} bridges · scroll to zoom`;
+    const postCount = activityPosts.length;
+    status.textContent = `${communities.length} communities · ${totalMembers} members · ${bridges.length} bridges · ${postCount} posts · scroll to zoom`;
     scheduleDraw();
+
+    // Start pulse animation if there's activity data
+    if (heatMax > 0) startPulseAnimation();
   } catch (e) {
     status.textContent = `error: ${e.message}`;
     console.error(e);

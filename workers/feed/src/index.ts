@@ -249,6 +249,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return handleGetCommunities(env);
   }
 
+  // Community activity endpoint — post scores per community for heatmap
+  if (path === '/xrpc/com.minomobi.feed.getCommunityActivity') {
+    return handleGetCommunityActivity(env);
+  }
+
   return new Response('not found', { status: 404 });
 }
 
@@ -356,6 +361,129 @@ async function resolveHandlesBatch(
   }
 
   return result;
+}
+
+/**
+ * Returns post activity per community for heatmap visualization.
+ * Samples member feeds, scores posts, aggregates by community.
+ * Cached in KV for 10 minutes to avoid hammering Bluesky API.
+ */
+async function handleGetCommunityActivity(env: Env): Promise<Response> {
+  try {
+    // Check KV cache (10-minute TTL)
+    const cached = await env.STATE.get('community_activity', 'json');
+    if (cached) {
+      return Response.json(cached, { headers: corsHeaders() });
+    }
+
+    // Load community members from D1
+    const members = await env.DB.prepare(
+      'SELECT community_id, did, shell FROM feed_community_members'
+    ).all<{ community_id: number; did: string; shell: number }>();
+
+    if (!members.results || members.results.length === 0) {
+      return Response.json({ communities: {}, posts: [] }, { headers: corsHeaders() });
+    }
+
+    // Build member index
+    const memberIndex = new Map<string, { communityId: number; shell: number }[]>();
+    const allMemberDids: string[] = [];
+    for (const row of members.results) {
+      if (!memberIndex.has(row.did)) {
+        memberIndex.set(row.did, []);
+        allMemberDids.push(row.did);
+      }
+      memberIndex.get(row.did)!.push({ communityId: row.community_id, shell: row.shell });
+    }
+
+    // Load bridges
+    const bridgeRows = await env.DB.prepare('SELECT did FROM feed_bridges').all<{ did: string }>();
+    const bridgeDids = new Set((bridgeRows.results || []).map(r => r.did));
+
+    // Sample members — prefer bridges and multi-community members
+    const sorted = [...allMemberDids].sort((a, b) => {
+      const aScore = (memberIndex.get(a)?.length ?? 0) + (bridgeDids.has(a) ? 2 : 0);
+      const bScore = (memberIndex.get(b)?.length ?? 0) + (bridgeDids.has(b) ? 2 : 0);
+      return bScore - aScore;
+    });
+    const sampled = sorted.slice(0, 25);
+
+    // Fetch recent posts from sampled members
+    const feedResults = await Promise.allSettled(
+      sampled.map(did => getAuthorFeed(did, 10))
+    );
+
+    const HALF_LIFE_MS = 6 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Per-community activity aggregation
+    const communityActivity = new Map<number, { postCount: number; totalScore: number }>();
+    // Post list with community attribution
+    const posts: {
+      uri: string;
+      authorDid: string;
+      communityIds: number[];
+      score: number;
+      indexedAt: string;
+    }[] = [];
+
+    for (let i = 0; i < sampled.length; i++) {
+      const result = feedResults[i];
+      if (result.status !== 'fulfilled') continue;
+
+      const did = sampled[i];
+      const memberships = memberIndex.get(did) || [];
+      const communityIds = [...new Set(memberships.map(m => m.communityId))];
+      const isBridge = bridgeDids.has(did);
+
+      for (const post of result.value) {
+        const age = now - new Date(post.indexedAt).getTime();
+        const recency = Math.pow(0.5, age / HALF_LIFE_MS);
+        const breadth = communityIds.length >= 2 ? 2.0 * communityIds.length : 1.0;
+        const bridge = isBridge ? 1.5 : 1.0;
+        const score = breadth * bridge * recency;
+
+        posts.push({
+          uri: post.uri,
+          authorDid: did,
+          communityIds,
+          score,
+          indexedAt: post.indexedAt,
+        });
+
+        // Attribute activity to each community the author belongs to
+        for (const cid of communityIds) {
+          const entry = communityActivity.get(cid) || { postCount: 0, totalScore: 0 };
+          entry.postCount++;
+          entry.totalScore += score;
+          communityActivity.set(cid, entry);
+        }
+      }
+    }
+
+    // Sort posts by score descending, cap at 100
+    posts.sort((a, b) => b.score - a.score);
+    const topPosts = posts.slice(0, 100);
+
+    // Build community activity map
+    const activityMap: Record<number, { postCount: number; totalScore: number }> = {};
+    for (const [cid, entry] of communityActivity) {
+      activityMap[cid] = entry;
+    }
+
+    const response = { communities: activityMap, posts: topPosts };
+
+    // Cache for 10 minutes
+    await env.STATE.put('community_activity', JSON.stringify(response), { expirationTtl: 600 });
+
+    return Response.json(response, { headers: corsHeaders() });
+  } catch (err) {
+    console.error('getCommunityActivity error:', err);
+    return Response.json(
+      { error: 'InternalError', message: 'Failed to fetch activity' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
 }
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
