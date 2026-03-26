@@ -1,0 +1,17 @@
+{
+  "name": "bounty-minomobi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Static site — no build step'",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "generate-keys": "node scripts/generate-keys.js"
+  },
+  "dependencies": {
+    "@cloudflare/blindrsa-ts": "^0.3.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

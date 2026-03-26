@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bounty Board</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --border: #1e1e2e;
+  --text: #c8c8d0;
+  --text-dim: #6a6a7a;
+  --accent: #ff8c00;
+  --accent2: #00c8ff;
+  --danger: #ff4466;
+  --success: #44cc88;
+  --gold: #ffd700;
+  --silver: #c0c0c0;
+  --bronze: #cd7f32;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+
+/* ── Layout ───────────────────────────────────── */
+.container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+header h1 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+header h1 small {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* ── Tabs ─────────────────────────────────────── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 20px;
+}
+.tab {
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .badge {
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+/* ── Buttons ──────────────────────────────────── */
+.btn {
+  background: var(--border);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn-primary:hover { opacity: 0.85; }
+.btn-small { padding: 4px 10px; font-size: 11px; }
+.btn-success { background: var(--success); color: var(--bg); border-color: var(--success); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Panels ───────────────────────────────────── */
+.panel { display: none; padding: 24px 0; }
+.panel.active { display: block; }
+
+/* ── Bounty cards ─────────────────────────────── */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--accent); }
+.card.expanded { border-color: var(--accent); }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+.card-reward {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+}
+.card-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+/* ── Badges ───────────────────────────────────── */
+.badge-kind {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.kind-webcam { background: rgba(255, 68, 102, 0.2); color: var(--danger); }
+.kind-photo { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.kind-video { background: rgba(140, 100, 255, 0.2); color: #8c64ff; }
+.kind-document { background: rgba(200, 160, 0, 0.2); color: #c8a000; }
+.kind-progress_update { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.kind-satellite { background: rgba(0, 160, 255, 0.2); color: #00a0ff; }
+.kind-dataset { background: rgba(160, 200, 0, 0.2); color: #a0c800; }
+.kind-other { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+.badge-status {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+.status-open { background: rgba(68, 204, 136, 0.2); color: var(--success); }
+.status-claimed { background: rgba(255, 140, 0, 0.2); color: var(--accent); }
+.status-fulfilled { background: rgba(0, 200, 255, 0.2); color: var(--accent2); }
+.status-closed { background: rgba(106, 106, 122, 0.2); color: var(--text-dim); }
+
+/* ── Detail panel ─────────────────────────────── */
+.card-detail {
+  display: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.card.expanded .card-detail { display: block; }
+.card-detail p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.trace {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 10px;
+}
+.trace-step {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(30, 30, 46, 0.5);
+}
+.trace-step:last-child { border-bottom: none; }
+.trace-step-icon { color: var(--accent); font-weight: 700; flex-shrink: 0; width: 16px; text-align: center; }
+.trace-step-label { color: var(--text-dim); min-width: 70px; }
+.trace-step-value { color: var(--text); font-family: var(--font-mono); font-size: 11px; }
+
+/* ── Forms ────────────────────────────────────── */
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: none;
+}
+.form-section.open { display: block; }
+.form-section h3 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.form-group textarea { min-height: 80px; resize: vertical; font-family: var(--font-sans); }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ── Fulfill form (inline) ────────────────────── */
+.fulfill-inline {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.fulfill-inline h4 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--success);
+  margin-bottom: 10px;
+}
+
+/* ── Rep wallet ───────────────────────────────── */
+.rep-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rep-total {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.rep-total-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.rep-breakdown {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+.rep-denom {
+  text-align: center;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  min-width: 50px;
+}
+.rep-denom-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.rep-denom-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.coin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.coin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+.coin-card:hover { border-color: var(--accent); }
+.coin-card.spent { opacity: 0.4; }
+.coin-value {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.coin-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.coin-sig {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  word-break: break-all;
+  padding: 4px;
+  background: var(--bg);
+  border-radius: 3px;
+  max-height: 32px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.coin-sig:hover { max-height: none; }
+.coin-actions { margin-top: 8px; }
+
+/* ── Docs panel ──────────────────────────────── */
+.docs-content {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+  max-width: 680px;
+}
+.docs-content h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 28px 0 10px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.docs-content h3:first-child { margin-top: 0; }
+.docs-content p { margin-bottom: 12px; }
+.docs-content code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.docs-content a { color: var(--accent); }
+.docs-content dl { margin: 8px 0 16px 0; }
+.docs-content dt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 8px;
+}
+.docs-content dd {
+  margin: 2px 0 0 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.docs-content .diagram {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 12px 0;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-dim);
+}
+
+/* ── Verify section ───────────────────────────── */
+.verify-result {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.verify-valid { border-color: var(--success); }
+.verify-invalid { border-color: var(--danger); }
+
+/* ── Empty state ──────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.empty-state h3 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+/* ── Status toast ─────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  z-index: 1000;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  max-width: 400px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: var(--success); color: var(--bg); }
+.toast.error { background: var(--danger); color: #fff; }
+.toast.info { background: var(--accent2); color: var(--bg); }
+
+/* ── Footer ───────────────────────────────────── */
+.page-footer {
+  padding: 24px 20px;
+  text-align: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+.page-footer a { color: var(--accent); text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: 1fr; }
+  .card-header { flex-direction: column; }
+  .coin-grid { grid-template-columns: 1fr; }
+  .rep-summary { flex-wrap: wrap; }
+  .rep-breakdown { margin-left: 0; }
+  .tabs { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bounty Board <small>anonymous work &middot; portable reputation</small></h1>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-panel="bounties">Bounties</button>
+  <button class="tab" data-panel="wallet">Rep <span class="badge" id="rep-count">0</span></button>
+  <button class="tab" data-panel="verify">Verify</button>
+  <button class="tab" data-panel="docs">Docs</button>
+</div>
+
+<div class="container">
+
+  <!-- ═══ BOUNTIES PANEL ═══ -->
+  <div class="panel active" id="panel-bounties">
+    <div class="section-header">
+      <span class="section-title">Open Bounties</span>
+      <button class="btn btn-primary btn-small" id="toggle-create">+ New Bounty</button>
+    </div>
+
+    <!-- Create form -->
+    <div class="form-section" id="create-form">
+      <h3>Post a Bounty</h3>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="f-title" placeholder="What do you need?" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="f-kind">
+            <option value="photo">Photo</option>
+            <option value="webcam">Webcam</option>
+            <option value="video">Video</option>
+            <option value="document">Document</option>
+            <option value="progress_update">Progress Update</option>
+            <option value="satellite">Satellite Imagery</option>
+            <option value="dataset">Dataset</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reward (rep)</label>
+          <input type="number" id="f-reward" value="10" min="1" max="100" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="f-description" placeholder="Describe exactly what you need and what counts as valid evidence..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stake Required (rep)</label>
+          <input type="number" id="f-stake" value="0" min="0" max="100" />
+        </div>
+        <div class="form-group">
+          <label>Tags (comma-separated)</label>
+          <input type="text" id="f-tags" placeholder="e.g., infrastructure, china, tunnel" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="f-submit">Post Bounty</button>
+        <button class="btn" id="f-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="bounty-list"></div>
+  </div>
+
+  <!-- ═══ REP WALLET PANEL ═══ -->
+  <div class="panel" id="panel-wallet">
+    <div id="wallet-summary" class="rep-summary" style="display:none"></div>
+    <div class="section-header" style="margin-top:8px">
+      <span class="section-title">Tokens</span>
+    </div>
+    <div id="wallet-grid"></div>
+  </div>
+
+  <!-- ═══ VERIFY PANEL ═══ -->
+  <div class="panel" id="panel-verify">
+    <div class="section-header">
+      <span class="section-title">Verify a Rep Token</span>
+    </div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+      Paste a token message and signature to verify it was minted by this board.
+      Verification proves the rep is real without revealing which job earned it.
+    </p>
+    <div class="form-section open" style="display:block">
+      <div class="form-group">
+        <label>Token Message</label>
+        <input type="text" id="v-token" placeholder="rep:v1:..." />
+      </div>
+      <div class="form-group">
+        <label>Signature (base64url)</label>
+        <textarea id="v-sig" placeholder="RSA-PSS signature" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Denomination</label>
+          <select id="v-denom">
+            <option value="1">1 rep</option>
+            <option value="5">5 rep</option>
+            <option value="10">10 rep</option>
+            <option value="25">25 rep</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" id="v-submit">Verify Token</button>
+        </div>
+      </div>
+      <div id="verify-result"></div>
+    </div>
+  </div>
+
+  <!-- ═══ DOCS PANEL ═══ -->
+  <div class="panel" id="panel-docs"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="page-footer">
+  Chaumian ecash reputation &middot; <a href="https://www.rfc-editor.org/rfc/rfc9474" target="_blank" rel="noopener">RFC 9474</a> &middot;
+  Denomination-based blind-signed rep tokens &middot;
+  <a href="https://github.com/minormobius/agent01/tree/main/bounty/lexicons">Lexicons</a>
+</div>
+
+<script type="module">
+// ─── Blind RSA from CDN ──────────────────────────────────
+// Import the same library the Worker uses, client-side via esm.sh
+let RSABSSA;
+try {
+  const mod = await import('https://esm.sh/@cloudflare/blindrsa-ts@0.3.0');
+  RSABSSA = mod.RSABSSA;
+} catch {
+  console.warn('Could not load blindrsa-ts from CDN. Rep minting will be unavailable.');
+}
+
+const encoder = new TextEncoder();
+
+function toBase64Url(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function sha256(data) {
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomHex(n) {
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── API client ──────────────────────────────────────────
+
+const API = '';  // same origin
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+  return data;
+}
+
+// ─── Rep wallet (localStorage) ───────────────────────────
+
+const WALLET_KEY = 'bounty_rep_tokens';
+
+function loadWallet() {
+  try { return JSON.parse(localStorage.getItem(WALLET_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveWallet(tokens) {
+  localStorage.setItem(WALLET_KEY, JSON.stringify(tokens));
+  updateRepCount();
+}
+
+function addToken(token) {
+  const wallet = loadWallet();
+  wallet.push({ ...token, earnedAt: new Date().toISOString() });
+  saveWallet(wallet);
+}
+
+function updateRepCount() {
+  const tokens = loadWallet();
+  const total = tokens.filter(t => !t.spent).reduce((s, t) => s + (t.denomination || 0), 0);
+  document.getElementById('rep-count').textContent = total;
+}
+
+// ─── Toast ───────────────────────────────────────────────
+
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ─── Docs content ────────────────────────────────────────
+
+const DOCS_HTML = `<div class="docs-content">
+  <h3>what this is</h3>
+  <p>
+    A bounty board for megaproject intelligence. Post a bounty for evidence you need —
+    webcam feeds, construction photos, satellite imagery, progress reports — and anyone
+    can fulfill it. Fulfillments are accepted by the poster. Accepted work earns
+    <strong>rep</strong>: anonymous, denomination-based tokens you accumulate and stake.
+  </p>
+  <p>
+    Hosted at <code>bounty.mino.mobi</code>. Data in Cloudflare D1.
+    No accounts, no logins, no tracking. Rep lives in your browser.
+  </p>
+
+  <h3>how rep works</h3>
+  <p>
+    Rep is Chaumian ecash — blind-signed tokens in fixed denominations (1, 5, 10, 25).
+    When your fulfillment is accepted, you mint rep tokens that sum to the bounty's reward.
+    The board signs them without seeing the token content. You unblind them locally.
+    The result: cryptographically valid rep that the board can verify but cannot link
+    back to the job that earned it.
+  </p>
+  <div class="diagram">You: generate token → blind it → send to board
+Board: sign the blinded token → return
+You: unblind signature → store token locally
+Anyone: verify token against board's public key</div>
+  <p>
+    This is the same <a href="https://www.rfc-editor.org/rfc/rfc9474" target="_blank" rel="noopener">RFC 9474</a>
+    RSA blind signature scheme used by the
+    <a href="https://poll.mino.mobi" target="_blank" rel="noopener">ATPolls</a> anonymous voting system,
+    applied to reputation instead of ballots. David Chaum invented it for digital cash in 1982.
+  </p>
+
+  <h3>denominations</h3>
+  <dl>
+    <dt>1 rep</dt><dd>Smallest unit. Easy bounties, micro-contributions.</dd>
+    <dt>5 rep</dt><dd>Standard fulfillment. A solid photo or document find.</dd>
+    <dt>10 rep</dt><dd>Substantial work. Multi-source evidence, detailed reports.</dd>
+    <dt>25 rep</dt><dd>Major contribution. Rare footage, satellite imagery, exclusive access.</dd>
+  </dl>
+  <p>
+    Each denomination has its own RSA keypair. A 10-rep token is signed by the 10-rep key,
+    so you can't forge denominations. Tokens are fungible within denomination — one 10-rep
+    token is indistinguishable from any other.
+  </p>
+
+  <h3>staking</h3>
+  <p>
+    Some bounties require a stake: you lock rep tokens to claim the job. If your fulfillment
+    is accepted, you get the stake back plus the reward. If you abandon or submit junk,
+    the stake is burned (nullifier registered, tokens spent). This is skin in the game —
+    it filters out noise and signals commitment.
+  </p>
+  <div class="diagram">Bounty: "Satellite imagery of The Line" — 50 rep reward, 10 rep stake
+→ Claim: spend 10 rep tokens (nullifiers registered)
+→ Fulfill: submit imagery + sources
+→ Accept: get 10 rep back + 50 rep reward = 60 rep minted</div>
+
+  <h3>verification</h3>
+  <p>
+    Anyone can verify a rep token using the <strong>Verify</strong> tab. Paste the token message
+    and signature, select the denomination, and the board checks the RSA-PSS signature against
+    its public key. Valid means: this token was minted by this board for real work. But which work?
+    The blind signature ensures nobody — not even the board — can tell.
+  </p>
+  <p>
+    Tokens also carry a <code>nullifier</code> — a one-way hash that prevents double-spending.
+    When you spend or stake a token, the nullifier is registered. The token is still verifiable
+    but marked as spent.
+  </p>
+
+  <h3>bounty types</h3>
+  <dl>
+    <dt>webcam</dt><dd>Live camera feed URL showing a project site.</dd>
+    <dt>photo</dt><dd>Ground-level or aerial photography. Recent, with context.</dd>
+    <dt>video</dt><dd>Drone footage, timelapse, or site walkthrough.</dd>
+    <dt>satellite</dt><dd>Satellite or high-altitude aerial imagery.</dd>
+    <dt>document</dt><dd>Reports, filings, permits, official publications.</dd>
+    <dt>progress_update</dt><dd>Status summary from credible sources.</dd>
+    <dt>data</dt><dd>Structured data: coordinates, measurements, timelines.</dd>
+  </dl>
+
+  <h3>threat model</h3>
+  <p>
+    The board operator (this site) is an honest-but-curious adversary. The blind signature
+    scheme means even a malicious board cannot link tokens to fulfillments after issuance.
+    The board <em>can</em> see who submits fulfillments (IP addresses, timing), but it
+    <em>cannot</em> see which tokens those people later present. The unlinkability is
+    mathematical, not policy.
+  </p>
+  <p>
+    Tokens live in <code>localStorage</code>. If you clear your browser data, they're gone.
+    Export tokens you care about. Future: ATProto PDS storage for portability.
+  </p>
+
+  <h3>what this isn't</h3>
+  <p>
+    This is not a cryptocurrency. Rep has no exchange rate, no market, no liquidity.
+    It's proof-of-work reputation — you earned it by doing something real. It's also not
+    a prediction market or a futures contract. It's a bulletin board with cryptographic receipts.
+  </p>
+
+  <h3>stack</h3>
+  <dl>
+    <dt>Frontend</dt><dd>Static HTML/JS, no framework. Served from Cloudflare Pages.</dd>
+    <dt>Worker</dt><dd>Cloudflare Worker handling API routes + static asset serving.</dd>
+    <dt>Database</dt><dd>Cloudflare D1 (SQLite) — bounties, fulfillments, mint keys, nullifiers.</dd>
+    <dt>Crypto</dt><dd><code>@cloudflare/blindrsa-ts</code> — RFC 9474 RSA-PSS blind signatures.</dd>
+    <dt>Verification</dt><dd>Client-side via Web Crypto API + blind RSA library from CDN.</dd>
+  </dl>
+</div>`;
+
+// ─── Tab switching ───────────────────────────────────────
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
+    if (tab.dataset.panel === 'wallet') renderWallet();
+    if (tab.dataset.panel === 'docs') document.getElementById('panel-docs').innerHTML = DOCS_HTML;
+  });
+});
+
+// ─── Create bounty form ─────────────────────────────────
+
+document.getElementById('toggle-create').addEventListener('click', () => {
+  document.getElementById('create-form').classList.toggle('open');
+});
+
+document.getElementById('f-cancel').addEventListener('click', () => {
+  document.getElementById('create-form').classList.remove('open');
+});
+
+document.getElementById('f-submit').addEventListener('click', async () => {
+  const title = document.getElementById('f-title').value.trim();
+  const kind = document.getElementById('f-kind').value;
+  const description = document.getElementById('f-description').value.trim();
+  const rewardRep = parseInt(document.getElementById('f-reward').value) || 10;
+  const stakeReq = parseInt(document.getElementById('f-stake').value) || 0;
+  const tagsText = document.getElementById('f-tags').value.trim();
+
+  if (!title || !description) return toast('Title and description required', 'error');
+
+  const tags = tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const btn = document.getElementById('f-submit');
+  btn.disabled = true;
+  btn.textContent = 'Posting...';
+
+  try {
+    await api('/api/bounties', { method: 'POST', body: { title, kind, description, tags, rewardRep, stakeReq } });
+    toast('Bounty posted!', 'success');
+    document.getElementById('create-form').classList.remove('open');
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-description').value = '';
+    document.getElementById('f-tags').value = '';
+    loadBounties();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Post Bounty';
+});
+
+// ─── Bounty list ─────────────────────────────────────────
+
+async function loadBounties() {
+  const list = document.getElementById('bounty-list');
+
+  try {
+    const data = await api('/api/bounties');
+    if (data.bounties.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <h3>No bounties yet</h3>
+          Post the first bounty — request any information, evidence, or data you need.
+          <br>Fulfillments earn blind-signed rep tokens: anonymous, fungible, stakeable reputation.
+        </div>`;
+      return;
+    }
+    renderBounties(data.bounties);
+  } catch {
+    // If API not available, show demo bounties
+    renderBounties(DEMO_BOUNTIES);
+  }
+}
+
+function renderBounties(bounties) {
+  const list = document.getElementById('bounty-list');
+  const targetId = window.location.hash.slice(1);
+
+  list.innerHTML = bounties.map(b => `
+    <div class="card${b.id === targetId ? ' expanded' : ''}" data-id="${b.id}">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="badge-kind kind-${b.kind}">${(b.kind || '').replace('_', ' ')}</span>
+          ${b.title}
+        </div>
+        <div class="card-reward">${b.reward_rep || 0} rep</div>
+      </div>
+      <div class="card-meta">
+        <span class="badge-status status-${b.status}">${b.status}</span>
+        ${b.stake_req > 0 ? `<span style="color:var(--accent)">stake: ${b.stake_req} rep</span>` : ''}
+        <span>${b.created_at || b.createdAt || ''}</span>
+      </div>
+      <div class="card-detail">
+        <p>${b.description}</p>
+        <div class="trace">
+          <div class="trace-step">
+            <span class="trace-step-icon">1</span>
+            <span class="trace-step-label">Created</span>
+            <span class="trace-step-value">${b.created_at || b.createdAt || ''}</span>
+          </div>
+          <div class="trace-step">
+            <span class="trace-step-icon">2</span>
+            <span class="trace-step-label">Status</span>
+            <span class="trace-step-value">${b.status === 'open' ? 'Awaiting fulfillment' : b.status}</span>
+          </div>
+        </div>
+        ${b.status === 'open' ? `
+        <div class="fulfill-inline">
+          <h4>Submit Fulfillment</h4>
+          <div class="form-group">
+            <label>Evidence URL</label>
+            <input type="text" placeholder="URL to photo, video, document, webcam feed..." class="ful-url" />
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea placeholder="Describe what you found and how it satisfies the bounty..." class="ful-notes"></textarea>
+          </div>
+          <button class="btn btn-success btn-small ful-btn" data-bounty="${b.id}">Submit Evidence</button>
+        </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  // Scroll to target
+  if (targetId) {
+    const target = document.querySelector(`.card[data-id="${targetId}"]`);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Toggle expand
+  list.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT'].includes(e.target.tagName)) return;
+      card.classList.toggle('expanded');
+    });
+  });
+
+  // Fulfill handlers
+  list.querySelectorAll('.ful-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const card = btn.closest('.card');
+      const url = card.querySelector('.ful-url').value.trim();
+      const notes = card.querySelector('.ful-notes').value.trim();
+      if (!url && !notes) return toast('Provide evidence URL or notes', 'error');
+
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      try {
+        const evidence = url ? [{ url, caption: notes || 'Evidence' }] : [];
+        const result = await api(`/api/bounties/${btn.dataset.bounty}/fulfill`, {
+          method: 'POST',
+          body: { evidence, notes },
+        });
+        toast('Fulfillment submitted! Once accepted, you can mint your rep tokens.', 'success');
+        btn.textContent = 'Submitted!';
+      } catch (e) {
+        toast(e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Submit Evidence';
+      }
+    });
+  });
+}
+
+// ─── Rep minting (blind signature flow) ──────────────────
+
+async function mintRepToken(fulfillmentId, denomination) {
+  if (!RSABSSA) {
+    toast('Blind RSA library not loaded. Cannot mint rep.', 'error');
+    return;
+  }
+
+  toast(`Minting ${denomination} rep token...`, 'info');
+
+  try {
+    // 1. Fetch the board's public key for this denomination
+    const keysData = await api('/api/rep/keys');
+    const publicKeyJWK = keysData.keys[denomination];
+    if (!publicKeyJWK) throw new Error(`No public key for denomination: ${denomination}`);
+
+    const publicKey = await crypto.subtle.importKey(
+      'jwk', publicKeyJWK,
+      { name: 'RSA-PSS', hash: 'SHA-384' },
+      true, ['verify']
+    );
+
+    // 2. Generate token message
+    const secret = randomHex(32);
+    const boardId = window.location.hostname;
+    const expiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    const hmacKey = await crypto.subtle.importKey(
+      'raw', encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false, ['sign']
+    );
+    const hmacData = encoder.encode(`rep_v1\x00${boardId}\x00${denomination}\x00${expiry}`);
+    const hmacSig = await crypto.subtle.sign('HMAC', hmacKey, hmacData);
+    const hmacHex = Array.from(new Uint8Array(hmacSig)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const tokenMessage = `rep:v1:${boardId}:${denomination}:${expiry}:${hmacHex}`;
+
+    // 3. Blind the token message
+    const suite = RSABSSA.SHA384.PSS.Randomized();
+    const msgBytes = encoder.encode(tokenMessage);
+    const { blindedMsg, inv } = await suite.blind(publicKey, msgBytes);
+    const blindedMsgB64 = toBase64Url(blindedMsg);
+
+    // 4. Send blinded message to server for signing
+    const signResult = await api('/api/rep/mint', {
+      method: 'POST',
+      body: { fulfillmentId, denomination, blindedMessage: blindedMsgB64 },
+    });
+
+    // 5. Unblind the signature
+    const blindSig = fromBase64Url(signResult.blindedSignature);
+    const signature = await suite.finalize(publicKey, msgBytes, blindSig, inv);
+    const signatureB64 = toBase64Url(signature);
+
+    // 6. Derive nullifier
+    const nullifier = await sha256(`nullifier\x00${tokenMessage}`);
+
+    // 7. Verify locally before saving
+    const valid = await suite.verify(publicKey, signature, msgBytes);
+    if (!valid) throw new Error('Rep token signature verification failed');
+
+    // 8. Save to wallet
+    addToken({
+      tokenMessage,
+      signature: signatureB64,
+      nullifier,
+      denomination: signResult.denomination,
+      boardId,
+      issuerPublicKey: publicKeyJWK,
+    });
+
+    toast(`${denomination} rep minted! (${signResult.mintedSoFar}/${signResult.rewardTotal} claimed)`, 'success');
+  } catch (e) {
+    toast(`Mint failed: ${e.message}`, 'error');
+  }
+}
+
+window.mintRepToken = mintRepToken;
+
+// ─── Rep wallet rendering ────────────────────────────────
+
+function renderWallet() {
+  const tokens = loadWallet();
+  const summary = document.getElementById('wallet-summary');
+  const grid = document.getElementById('wallet-grid');
+
+  if (tokens.length === 0) {
+    summary.style.display = 'none';
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>No rep tokens yet</h3>
+        Fulfill a bounty and mint your blind-signed rep tokens.<br>
+        Tokens are denomination-based (1, 5, 10, 25 rep) — fungible and anonymous.<br>
+        Stored locally in your browser. Stake them to claim bounties.
+      </div>`;
+    return;
+  }
+
+  const unspent = tokens.filter(t => !t.spent);
+  const total = unspent.reduce((s, t) => s + (t.denomination || 0), 0);
+  const denomCounts = {};
+  unspent.forEach(t => { denomCounts[t.denomination] = (denomCounts[t.denomination] || 0) + 1; });
+
+  summary.style.display = 'flex';
+  summary.innerHTML = `
+    <div>
+      <div class="rep-total">${total}</div>
+      <div class="rep-total-label">Total Rep</div>
+    </div>
+    <div class="rep-breakdown">
+      ${[25, 10, 5, 1].map(d => `
+        <div class="rep-denom">
+          <div class="rep-denom-value">${denomCounts[d] || 0}</div>
+          <div class="rep-denom-label">${d} rep</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  grid.innerHTML = '<div class="coin-grid">' + tokens.map((t, i) => `
+    <div class="coin-card${t.spent ? ' spent' : ''}">
+      <div class="coin-value">${t.denomination}</div>
+      <div class="coin-label">${t.spent ? 'spent' : 'rep'}</div>
+      <div class="coin-sig" title="Click to expand">${t.signature?.slice(0, 30)}...</div>
+      <div class="coin-actions">
+        <button class="btn btn-small" onclick="copyToken(${i})">Copy</button>
+        <button class="btn btn-small" onclick="exportToken(${i})">Export</button>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+
+window.copyToken = function(index) {
+  const token = loadWallet()[index];
+  if (!token) return;
+  const data = JSON.stringify({
+    tokenMessage: token.tokenMessage,
+    signature: token.signature,
+    nullifier: token.nullifier,
+    denomination: token.denomination,
+    boardId: token.boardId,
+  }, null, 2);
+  navigator.clipboard.writeText(data).then(() => toast('Token copied to clipboard', 'success'));
+};
+
+window.exportToken = function(index) {
+  const token = loadWallet()[index];
+  if (!token) return;
+  const data = JSON.stringify({
+    tokenMessage: token.tokenMessage,
+    signature: token.signature,
+    nullifier: token.nullifier,
+    denomination: token.denomination,
+    boardId: token.boardId,
+    issuerPublicKey: token.issuerPublicKey,
+  }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rep-${token.denomination}-${token.nullifier?.slice(0, 8) || index}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Token exported as JSON', 'success');
+};
+
+// ─── Verify panel ────────────────────────────────────────
+
+document.getElementById('v-submit').addEventListener('click', async () => {
+  const tokenMessage = document.getElementById('v-token').value.trim();
+  const signature = document.getElementById('v-sig').value.trim();
+  const denomination = parseInt(document.getElementById('v-denom').value);
+  const result = document.getElementById('verify-result');
+
+  if (!tokenMessage || !signature) {
+    result.innerHTML = '<div class="verify-result verify-invalid"><strong>Missing data.</strong> Provide both token message and signature.</div>';
+    return;
+  }
+
+  try {
+    const data = await api('/api/rep/verify', {
+      method: 'POST',
+      body: { tokenMessage, signature, denomination },
+    });
+
+    if (data.valid) {
+      result.innerHTML = `
+        <div class="verify-result verify-valid">
+          <strong style="color:var(--success)">Valid ${denomination}-rep token.</strong>
+          ${data.spent ? '<span style="color:var(--danger)"> (SPENT)</span>' : ''}<br>
+          <span style="font-size:12px;color:var(--text-dim)">
+            This token was signed by this board's ${denomination}-rep mint key.
+            Cryptographically valid — earned through real work.
+            But which job? Nobody knows. That's the point.
+          </span>
+        </div>`;
+    } else {
+      result.innerHTML = `<div class="verify-result verify-invalid"><strong style="color:var(--danger)">Invalid.</strong> Signature does not verify.</div>`;
+    }
+  } catch (e) {
+    result.innerHTML = `<div class="verify-result verify-invalid"><strong style="color:var(--danger)">Error:</strong> ${e.message}</div>`;
+  }
+});
+
+// ─── Demo bounties (offline fallback) ────────────────────
+
+const DEMO_BOUNTIES = [
+  { id: 'b1', title: 'Live webcam feed from Rødbyhavn casting yard', kind: 'webcam', description: 'Looking for a current webcam URL showing the Fehmarn Belt tunnel element production at the casting yard.', reward_rep: 10, stake_req: 0, status: 'open', created_at: '2026-03-15' },
+  { id: 'b2', title: 'Recent photos of CAHSR viaduct construction near Fresno', kind: 'photo', description: 'Ground-level photos of the elevated guideway sections under construction in the Central Valley. Last 30 days.', reward_rep: 10, stake_req: 0, status: 'open', created_at: '2026-03-14' },
+  { id: 'b3', title: 'Sichuan-Tibet Railway tunneling progress update', kind: 'progress_update', description: 'Any recent reports on TBM progress through the Hengduan Mountains. Official sources or local news. Tunnels at 3,000m+ elevation through active fault zones.', reward_rep: 25, stake_req: 5, status: 'open', created_at: '2026-03-12' },
+  { id: 'b4', title: 'Recent drone footage of ITER tokamak assembly', kind: 'video', description: 'Looking for recent (2026) drone video showing the current state of the ITER tokamak pit assembly in Cadarache, France.', reward_rep: 25, stake_req: 5, status: 'open', created_at: '2026-03-10' },
+  { id: 'b5', title: 'Satellite imagery of The Line foundation work', kind: 'satellite', description: 'Recent satellite/aerial imagery showing the extent of NEOM earthworks and foundation construction along The Line alignment.', reward_rep: 50, stake_req: 10, status: 'open', created_at: '2026-03-08' },
+  { id: 'b6', title: 'Brenner Base Tunnel 2026 Q1 progress report', kind: 'document', description: 'Official or news summary of meters bored to date and remaining work on the Brenner Base Tunnel.', reward_rep: 10, stake_req: 0, status: 'open', created_at: '2026-03-06' },
+  { id: 'b7', title: 'Stargate data center campus construction photos — Abilene TX', kind: 'photo', description: 'On-the-ground photos of the $500B Stargate AI infrastructure campus under construction in Abilene, Texas.', reward_rep: 25, stake_req: 5, status: 'open', created_at: '2026-03-05' },
+  { id: 'b8', title: 'Any visual documentation of Yarlung Tsangpo dam site', kind: 'webcam', description: 'This $167B project is shrouded in secrecy. Any webcam, photo, or satellite imagery of the construction site on the Yarlung Tsangpo gorge.', reward_rep: 50, stake_req: 10, status: 'open', created_at: '2026-03-01' },
+];
+
+// ─── Init ────────────────────────────────────────────────
+
+updateRepCount();
+loadBounties();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.bounty.mintKeys",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "Public mint keys for a bounty board. One RSA key per denomination. Published on the board operator's PDS so anyone can verify rep token signatures offline.",
+      "record": {
+        "type": "object",
+        "required": ["boardId", "keys", "createdAt"],
+        "properties": {
+          "boardId": {
+            "type": "string",
+            "description": "Hostname of the bounty board."
+          },
+          "boardName": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "keys": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#denomKey" },
+            "description": "Public keys indexed by denomination."
+          },
+          "denominations": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "description": "Supported denominations (e.g., [1, 5, 10, 25])."
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "RSABSSA-SHA384-PSS-Randomized (RFC 9474)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "denomKey": {
+      "type": "object",
+      "required": ["denomination", "publicKeyJwk"],
+      "properties": {
+        "denomination": {
+          "type": "integer",
+          "description": "Rep value this key signs."
+        },
+        "publicKeyJwk": {
+          "type": "string",
+          "description": "RSA public key in JWK format (JSON stringified)."
+        }
+      }
+    }
+  }
+}
