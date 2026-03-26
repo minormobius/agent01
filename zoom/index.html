@@ -476,6 +476,14 @@ function selectNode(node) {
   };
 }
 
+// Dismiss info panel on click/tap anywhere on the canvas (already works via selectNode(null))
+// Also dismiss when tapping the panel background (not links)
+document.getElementById("info-inner").addEventListener("click", e => {
+  if (e.target.tagName === 'A') return; // let links work
+  document.getElementById("info-panel").classList.remove("open");
+  selectedNode = null; scheduleDraw();
+});
+
 // ── Animation ────────────────────────────────────────────────────────
 function flyTo(node, duration) {
   duration = duration || 500;
