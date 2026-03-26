@@ -22,6 +22,7 @@ import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
 import { CalendarApp } from "./cal/CalendarApp";
+import { ThemePicker } from "./components/ThemePicker";
 import { Route } from "./router";
 
 // ATProto collection names
@@ -465,6 +466,7 @@ function HubHome({
       <header className="hub-header">
         <h1>Org Hub</h1>
         <div className="user-info">
+          <ThemePicker />
           <span>@{vault.session.handle}</span>
           <button className="btn-secondary btn-sm" onClick={onLogout}>
             Sign out

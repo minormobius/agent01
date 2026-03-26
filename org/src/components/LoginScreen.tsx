@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ThemePicker } from "./ThemePicker";
 
 interface Props {
   onLogin: (service: string, handle: string, appPassword: string, passphrase: string) => Promise<void>;
@@ -31,6 +32,7 @@ export function LoginScreen({ onLogin, heading, subtitle }: Props) {
 
   return (
     <div className="login-screen">
+      <div className="login-theme-picker"><ThemePicker /></div>
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>{heading ?? "Org Hub"}</h1>
         <p className="subtitle">{subtitle ?? "Sign in with your ATProto account to manage organizations."}</p>
