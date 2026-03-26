@@ -1,17 +1,33 @@
-import { useMemo } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import type { CalEventRecord } from "../types";
-import { monthGrid, isToday, WEEKDAYS } from "../dateUtils";
+import { monthGrid, isToday, addDays, WEEKDAYS } from "../dateUtils";
 
 interface Props {
   date: Date;
   events: CalEventRecord[];
   onSelectDate: (d: Date) => void;
   onSelectEvent: (e: CalEventRecord) => void;
+  onDateChange?: (d: Date) => void;
 }
 
-export function MonthView({ date, events, onSelectDate, onSelectEvent }: Props) {
+export function MonthView({ date, events, onSelectDate, onSelectEvent, onDateChange }: Props) {
   const weeks = useMemo(() => monthGrid(date), [date]);
   const currentMonth = date.getMonth();
+  const scrollAccum = useRef(0);
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      scrollAccum.current += e.deltaY;
+      const threshold = 50;
+      if (Math.abs(scrollAccum.current) >= threshold) {
+        const direction = scrollAccum.current > 0 ? 1 : -1;
+        scrollAccum.current = 0;
+        onDateChange?.(addDays(date, direction * 7));
+      }
+    },
+    [date, onDateChange],
+  );
 
   const eventsForDay = (d: Date) =>
     events.filter((e) => {
@@ -22,7 +38,7 @@ export function MonthView({ date, events, onSelectDate, onSelectEvent }: Props) 
     });
 
   return (
-    <div className="cal-month">
+    <div className="cal-month" onWheel={handleWheel}>
       <div className="cal-month-header">
         {WEEKDAYS.map((d) => (
           <div key={d} className="cal-weekday">{d}</div>

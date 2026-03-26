@@ -2858,6 +2858,76 @@ button:disabled {
   padding-left: 7px;
 }
 
+/* Quarter View (2 weeks per row, 6 rows) */
+
+.cal-quarter {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cal-quarter-header {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.cal-quarter-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-quarter-row {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  flex: 1;
+  min-height: 60px;
+}
+
+.cal-qday {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.cal-qday:hover { background: var(--surface-2); }
+.cal-qday.cal-today { background: rgba(88, 166, 255, 0.08); }
+
+.cal-qday.cal-month-start {
+  border-left: 2px solid var(--accent);
+}
+
+.cal-qday-num {
+  font-size: 0.65rem;
+  font-weight: 500;
+  display: block;
+  line-height: 1.2;
+}
+
+.cal-today .cal-qday-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cal-qday-dots {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.cal-qday-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Week View */
 
 .cal-week {

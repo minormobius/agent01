@@ -20,6 +20,7 @@ import {
   deleteEvent,
 } from "./context";
 import { MonthView } from "./components/MonthView";
+import { QuarterView } from "./components/QuarterView";
 import { WeekView } from "./components/WeekView";
 import { DayView } from "./components/DayView";
 import { AgendaView } from "./components/AgendaView";
@@ -30,6 +31,7 @@ import {
   startOfWeek,
   endOfWeek,
   formatMonth,
+  formatQuarterRange,
   formatWeekRange,
   formatDayHeader,
 } from "./dateUtils";
@@ -180,12 +182,14 @@ export function CalendarApp({ vault, pds }: Props) {
   // Navigation
   const navPrev = useCallback(() => {
     if (view === "month") setDate((d) => addMonths(d, -1));
+    else if (view === "quarter") setDate((d) => addDays(d, -14));
     else if (view === "week") setDate((d) => addDays(d, -7));
     else setDate((d) => addDays(d, -1));
   }, [view]);
 
   const navNext = useCallback(() => {
     if (view === "month") setDate((d) => addMonths(d, 1));
+    else if (view === "quarter") setDate((d) => addDays(d, 14));
     else if (view === "week") setDate((d) => addDays(d, 7));
     else setDate((d) => addDays(d, 1));
   }, [view]);
@@ -284,11 +288,13 @@ export function CalendarApp({ vault, pds }: Props) {
   // Header label
   const headerLabel = view === "month"
     ? formatMonth(date)
-    : view === "week"
-      ? formatWeekRange(startOfWeek(date), endOfWeek(date))
-      : view === "day"
-        ? formatDayHeader(date)
-        : "Agenda";
+    : view === "quarter"
+      ? formatQuarterRange(startOfWeek(date))
+      : view === "week"
+        ? formatWeekRange(startOfWeek(date), endOfWeek(date))
+        : view === "day"
+          ? formatDayHeader(date)
+          : "Agenda";
 
   return (
     <div className="cal-container">
@@ -327,7 +333,7 @@ export function CalendarApp({ vault, pds }: Props) {
             PM tasks
           </label>
           <nav className="cal-view-tabs">
-            {(["month", "week", "day", "agenda"] as CalView[]).map((v) => (
+            {(["month", "quarter", "week", "day", "agenda"] as CalView[]).map((v) => (
               <button
                 key={v}
                 className={`cal-view-tab${view === v ? " active" : ""}`}
@@ -357,6 +363,16 @@ export function CalendarApp({ vault, pds }: Props) {
             events={filteredEvents}
             onSelectDate={handleSelectDate}
             onSelectEvent={handleSelectEvent}
+            onDateChange={setDate}
+          />
+        )}
+        {view === "quarter" && (
+          <QuarterView
+            date={date}
+            events={filteredEvents}
+            onSelectDate={handleSelectDate}
+            onSelectEvent={handleSelectEvent}
+            onDateChange={setDate}
           />
         )}
         {view === "week" && (

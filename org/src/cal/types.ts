@@ -20,7 +20,7 @@ export interface CalEventRecord {
   orgRkey: string; // "personal" or org rkey
 }
 
-export type CalView = "month" | "week" | "day" | "agenda";
+export type CalView = "month" | "quarter" | "week" | "day" | "agenda";
 
 /** Date range for the current view */
 export interface ViewRange {

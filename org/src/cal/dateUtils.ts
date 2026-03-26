@@ -63,6 +63,13 @@ export function formatDayHeader(d: Date): string {
   return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 }
 
+export function formatQuarterRange(start: Date): string {
+  const end = addDays(start, 83); // 6 rows × 14 days - 1
+  const s = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const e = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return `${s} – ${e}`;
+}
+
 export function formatTime(d: Date): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
