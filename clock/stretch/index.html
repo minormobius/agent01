@@ -87,11 +87,11 @@
   function addQuad(a, b, c, d) { indices.push(a, b, c, a, c, d); }
 
   // -- Face disk: subdivided for stretchability --
-  const FACE_R = 0.7;
-  const FACE_DEPTH = 0.15;
-  const FACE_RINGS = 8;
-  const FACE_SEGS = 32;
-  const FACE_COLOR = [0.92, 0.82, 0.78]; // warm pinkish
+  const FACE_R = 0.38;
+  const FACE_DEPTH = 0.13;
+  const FACE_RINGS = 6;
+  const FACE_SEGS = 28;
+  const FACE_COLOR = [0.97, 0.95, 0.93]; // white-ish
   const SPIKE_COLOR = [0.88, 0.45, 0.25]; // coral orange
 
   // Generate front and back face as subdivided disks
@@ -180,16 +180,16 @@
   }
 
   // -- Spikes: organic, varying lengths, radiating from edge --
-  const NUM_SPIKES = 18;
-  const SPIKE_SUBDIVS = 5;
+  const NUM_SPIKES = 14;
+  const SPIKE_SUBDIVS = 6;
   // Seeded random for consistent spikes
   let seed = 42;
   function srand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
 
   for (let sp = 0; sp < NUM_SPIKES; sp++) {
-    const baseAngle = (sp / NUM_SPIKES) * Math.PI * 2 + (srand() - 0.5) * 0.2;
-    const spikeLen = 0.35 + srand() * 0.55; // vary length
-    const spikeWidth = 0.06 + srand() * 0.06;
+    const baseAngle = (sp / NUM_SPIKES) * Math.PI * 2 + (srand() - 0.5) * 0.25;
+    const spikeLen = 0.55 + srand() * 0.65; // long spikes
+    const spikeWidth = 0.08 + srand() * 0.07; // chunkier
     const ca = Math.cos(baseAngle), sa = Math.sin(baseAngle);
     const px = -sa, py = ca; // perpendicular
 
@@ -260,48 +260,58 @@
     }
   }
 
-  // -- Eyes: two dark circles on the front face --
-  const EYE_COLOR = [0.08, 0.08, 0.1];
-  const EYE_R = 0.09;
-  const EYE_SEGS = 10;
-  const eyePositions = [[-0.22, 0.15], [0.22, 0.15]];
+  // -- ^w^ face expression --
+  // Draw lines as extruded quads on the front face
+  const FEAT_COLOR = [0.12, 0.12, 0.14];
+  const FEAT_Z = FACE_DEPTH + 0.006;
+  const LINE_W = 0.022; // line thickness
 
-  for (const [ex, ey] of eyePositions) {
-    const center = addVert([ex, ey, FACE_DEPTH + 0.005], [0, 0, 1], EYE_COLOR);
-    const ring = [];
-    for (let s = 0; s < EYE_SEGS; s++) {
-      const a = (s / EYE_SEGS) * Math.PI * 2;
-      ring.push(addVert(
-        [ex + EYE_R * Math.cos(a), ey + EYE_R * Math.sin(a), FACE_DEPTH + 0.005],
-        [0, 0, 1], EYE_COLOR
-      ));
-    }
-    for (let s = 0; s < EYE_SEGS; s++) {
-      addTri(center, ring[s], ring[(s+1) % EYE_SEGS]);
-    }
+  // Helper: draw a line segment as a quad
+  function drawLine(x0, y0, x1, y1) {
+    const dx = x1-x0, dy = y1-y0;
+    const len = Math.sqrt(dx*dx+dy*dy) || 1;
+    const nx = -dy/len * LINE_W, ny = dx/len * LINE_W;
+    addQuad(
+      addVert([x0-nx, y0-ny, FEAT_Z], [0,0,1], FEAT_COLOR),
+      addVert([x0+nx, y0+ny, FEAT_Z], [0,0,1], FEAT_COLOR),
+      addVert([x1+nx, y1+ny, FEAT_Z], [0,0,1], FEAT_COLOR),
+      addVert([x1-nx, y1-ny, FEAT_Z], [0,0,1], FEAT_COLOR),
+    );
   }
 
-  // -- Smile: curved arc of dark triangles --
-  const SMILE_COLOR = [0.08, 0.08, 0.1];
-  const SMILE_SEGS = 8;
-  const SMILE_R = 0.22;
-  const SMILE_WIDTH = 0.035;
-  for (let s = 0; s < SMILE_SEGS; s++) {
-    const a0 = Math.PI * 0.15 + (s / SMILE_SEGS) * Math.PI * 0.7;
-    const a1 = Math.PI * 0.15 + ((s + 1) / SMILE_SEGS) * Math.PI * 0.7;
-    // Outer and inner arc points
-    const z = FACE_DEPTH + 0.005;
-    const ox0 = SMILE_R * Math.cos(a0), oy0 = -SMILE_R * Math.sin(a0) - 0.02;
-    const ox1 = SMILE_R * Math.cos(a1), oy1 = -SMILE_R * Math.sin(a1) - 0.02;
-    const ix0 = (SMILE_R - SMILE_WIDTH) * Math.cos(a0), iy0 = -(SMILE_R - SMILE_WIDTH) * Math.sin(a0) - 0.02;
-    const ix1 = (SMILE_R - SMILE_WIDTH) * Math.cos(a1), iy1 = -(SMILE_R - SMILE_WIDTH) * Math.sin(a1) - 0.02;
+  // ^ eyes (two chevrons)
+  const eyeW = 0.07, eyeH = 0.06;
+  // Left eye ^
+  drawLine(-0.14 - eyeW, 0.06, -0.14, 0.06 + eyeH);
+  drawLine(-0.14, 0.06 + eyeH, -0.14 + eyeW, 0.06);
+  // Right eye ^
+  drawLine(0.14 - eyeW, 0.06, 0.14, 0.06 + eyeH);
+  drawLine(0.14, 0.06 + eyeH, 0.14 + eyeW, 0.06);
 
-    addQuad(
-      addVert([ix0, iy0, z], [0,0,1], SMILE_COLOR),
-      addVert([ox0, oy0, z], [0,0,1], SMILE_COLOR),
-      addVert([ox1, oy1, z], [0,0,1], SMILE_COLOR),
-      addVert([ix1, iy1, z], [0,0,1], SMILE_COLOR),
-    );
+  // w mouth — two connected u-shapes
+  const mY = -0.06; // mouth center y
+  const mW = 0.07;  // half-width of each u
+  const mD = 0.05;  // depth of each u
+  const mSegs = 5;
+  // Left u of the w
+  for (let i = 0; i < mSegs; i++) {
+    const t0 = i / mSegs, t1 = (i+1) / mSegs;
+    const a0 = Math.PI * t0, a1 = Math.PI * t1;
+    const x0 = -mW + mW * Math.cos(a0) - mW * 0.02;
+    const y0 = mY - mD * Math.sin(a0);
+    const x1 = -mW + mW * Math.cos(a1) - mW * 0.02;
+    const y1 = mY - mD * Math.sin(a1);
+    drawLine(x0, y0, x1, y1);
+  }
+  // Right u of the w
+  for (let i = 0; i < mSegs; i++) {
+    const t0 = i / mSegs, t1 = (i+1) / mSegs;
+    const a0 = Math.PI * t0, a1 = Math.PI * t1;
+    const x0 = mW - mW * Math.cos(a0) + mW * 0.02;
+    const y0 = mY - mD * Math.sin(a0);
+    const x1 = mW - mW * Math.cos(a1) + mW * 0.02;
+    const y1 = mY - mD * Math.sin(a1);
+    drawLine(x0, y0, x1, y1);
   }
 
   const NUM_VERTS = restPositions.length / 3;
@@ -488,7 +498,7 @@
     if (hit) {
       // Check if near the face
       const distFromCenter = Math.sqrt(hit[0]*hit[0] + hit[1]*hit[1]);
-      if (distFromCenter < FACE_R + 1.2) {
+      if (distFromCenter < FACE_R + 1.8) {
         grabbing = true; isDragging = true;
         dragPoint3D = [...hit];
         computeGrabWeights(hit);
