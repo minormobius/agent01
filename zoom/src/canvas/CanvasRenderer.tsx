@@ -2,16 +2,12 @@ import { useRef, useEffect } from 'react';
 import { useCameraStore } from '../stores/camera';
 import { useSelectionStore } from '../stores/selection';
 import { useDataStore } from '../stores/data';
-import { drawBackground } from './layers/background';
-import { drawBridges } from './layers/bridges';
 import { drawPosts } from './layers/posts';
 import { bindCanvas } from './interaction';
 
 export function CanvasRenderer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawIdRef = useRef(0);
-  const pulseRef = useRef(0);
-  const animRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,50 +41,34 @@ export function CanvasRenderer() {
       const data = useDataStore.getState();
       const sel = useSelectionStore.getState();
 
-      if (data.communityNodes.length === 0) return;
+      if (data.postDots.length === 0) return;
 
-      drawBridges(ctx, W, H, cam, data.bridges, data.communityNodes);
-      drawBackground(
-        ctx, W, H, cam, data.communityNodes,
-        data.activityData, data.heatMax, pulseRef.current
-      );
       drawPosts(
         ctx, W, H, cam, data.postDots,
-        data.threadCache, data.avatarImages,
-        sel.selected, sel.hovered
+        data.avatarImages, sel.selected, sel.hovered
       );
     }
 
-    // Pulse animation
-    function pulse() {
-      pulseRef.current = (performance.now() / 2000) % (Math.PI * 2);
-      scheduleDraw();
-      animRef.current = requestAnimationFrame(pulse);
-    }
+    // Register draw scheduler so stores can trigger redraws
+    useDataStore.getState().setScheduleDraw(scheduleDraw);
 
-    // Register the draw scheduler so stores can trigger redraws
-    useDataStore.getState().setDrawScheduler(scheduleDraw);
-
-    // Set initial camera
     resize();
     window.addEventListener('resize', resize);
     bindCanvas(canvas, scheduleDraw);
 
     // Start loading data
     useDataStore.getState().loadData().then(() => {
-      // Set initial zoom to fit
+      // Set initial zoom to fit the spiral
       const cam = useCameraStore.getState();
       if (cam.scale === 1) {
-        useCameraStore.setState({ scale: Math.min(W, H) * 0.9 });
+        useCameraStore.setState({ scale: Math.min(W, H) * 0.8 });
       }
       scheduleDraw();
-      animRef.current = requestAnimationFrame(pulse);
     });
 
     return () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(drawIdRef.current);
-      cancelAnimationFrame(animRef.current);
     };
   }, []);
 

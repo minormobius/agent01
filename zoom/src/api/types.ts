@@ -20,59 +20,43 @@ export interface Bridge {
   communityIds: number[];
 }
 
-export interface Post {
+/** A hydrated post with full thread data from Bluesky. */
+export interface HydratedPost {
   uri: string;
   authorDid: string;
-  communityIds: number[];
-  score: number;
+  authorHandle: string;
+  authorAvatar: string | null;
+  text: string;
   replyCount: number;
   likeCount: number;
   repostCount: number;
   indexedAt: string;
-}
-
-export interface CommunityActivity {
-  postCount: number;
-  totalScore: number;
-}
-
-export interface ThreadDepth {
-  maxDepth: number;
+  // Thread info (populated after hydration)
+  threadDepth: number;
   topLevelReplies: number;
-  interactorDids: string[];
+  // Community coloring — biggest community this author belongs to
+  primaryCommunityId: number | null;
+  primaryCommunityLabel: string;
+  primaryCommunityHue: number;
+  // Magnitude for sizing: replies * max(depth,1) + likes/10
+  magnitude: number;
 }
 
-// ── Layout node types ────────────────────────────────────────────────
-
-export interface CommunityNode {
-  _type: 'community';
-  _x: number;
-  _y: number;
-  _r: number;
-  _community: Community;
-  _ci: number;
-  _hue: number;
-  _label: string;
-}
+// ── Layout node ──────────────────────────────────────────────────────
 
 export interface PostDot {
   _type: 'post';
   _x: number;
   _y: number;
   _r: number;
-  _post: Post;
-  _communityId: number;
-  _ci: number;
+  _post: HydratedPost;
   _hue: number;
   _magnitude: number;
-  _hasThreadData: boolean;
-  _interactorCount: number;
-  _parent: CommunityNode;
 }
 
-export type LayoutNode = CommunityNode | PostDot;
+export type LayoutNode = PostDot;
 
-// ── Bluesky thread types ─────────────────────────────────────────────
+// ── Bluesky API types ────────────────────────────────────────────────
 
 export interface BlueskyAuthor {
   did: string;
@@ -110,6 +94,11 @@ export interface BlueskyThreadNode {
   $type?: string;
   post?: BlueskyPost;
   replies?: BlueskyThreadNode[];
+}
+
+export interface BlueskyFeedItem {
+  post: BlueskyPost;
+  reply?: { root: { uri: string }; parent: { uri: string } };
 }
 
 // ── Camera ───────────────────────────────────────────────────────────

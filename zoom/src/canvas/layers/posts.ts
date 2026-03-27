@@ -1,9 +1,9 @@
-import type { Camera, PostDot, LayoutNode, ThreadDepth } from '../../api/types';
+import type { Camera, PostDot, LayoutNode } from '../../api/types';
 import { w2s } from '../camera';
 
 /**
- * Draw posts as the PRIMARY visual elements.
- * Big circles with author PFP + text snippet at zoom.
+ * Draw posts as the PRIMARY (and only) visual elements.
+ * Big circles colored by community, with author PFP, depth rings, and labels.
  */
 export function drawPosts(
   ctx: CanvasRenderingContext2D,
@@ -11,7 +11,6 @@ export function drawPosts(
   H: number,
   cam: Camera,
   postDots: PostDot[],
-  threadCache: Record<string, ThreadDepth>,
   avatarImages: Map<string, HTMLImageElement | null>,
   selected: LayoutNode | null,
   hovered: LayoutNode | null
@@ -22,20 +21,20 @@ export function drawPosts(
 
     if (sx + sr < -10 || sx - sr > W + 10) continue;
     if (sy + sr < -10 || sy - sr > H + 10) continue;
-    if (sr < 3) continue;
+    if (sr < 2) continue;
 
     const mag = dot._magnitude;
     const t = Math.min(1, mag / 50);
     const hue = dot._hue;
-    const sat = 35 + t * 35;
-    const lum = 25 + t * 25;
-    const alpha = 0.6 + t * 0.3;
+    const sat = 30 + t * 40;
+    const lum = 20 + t * 25;
+    const alpha = 0.5 + t * 0.4;
 
     // Glow for high-magnitude posts
-    if (mag > 8 && sr > 5) {
+    if (mag > 5 && sr > 4) {
       const glowR = sr * 2.5;
       const grad = ctx.createRadialGradient(sx, sy, sr * 0.3, sx, sy, glowR);
-      grad.addColorStop(0, `hsla(${hue}, ${sat + 10}%, ${lum + 15}%, ${alpha * 0.35})`);
+      grad.addColorStop(0, `hsla(${hue}, ${sat + 10}%, ${lum + 15}%, ${alpha * 0.3})`);
       grad.addColorStop(1, `hsla(${hue}, ${sat}%, ${lum}%, 0)`);
       ctx.beginPath();
       ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
@@ -49,17 +48,30 @@ export function drawPosts(
     ctx.fillStyle = `hsla(${hue}, ${sat}%, ${lum}%, ${alpha})`;
     ctx.fill();
 
-    // Ring — solid if thread data loaded, dashed if estimated
-    const hasThread = dot._hasThreadData;
-    ctx.strokeStyle = hasThread
-      ? `hsla(${hue}, ${sat + 15}%, ${lum + 20}%, ${alpha + 0.1})`
-      : `hsla(${hue}, 20%, 40%, 0.3)`;
-    ctx.lineWidth = hasThread ? 2 : 1;
+    // Border ring
+    ctx.strokeStyle = `hsla(${hue}, ${sat + 15}%, ${lum + 20}%, ${alpha})`;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Author PFP inside circle (when circle is large enough)
-    if (sr > 14) {
-      const pfpR = Math.min(sr * 0.55, 20);
+    // Thread depth rings — concentric rings radiating out = deep thread
+    const depth = dot._post.threadDepth;
+    if (depth > 1 && sr > 8) {
+      const rings = Math.min(depth, 8);
+      for (let d = 0; d < rings; d++) {
+        const ringR = sr + 3 + d * 2.5;
+        const ringAlpha = 0.25 - d * 0.025;
+        if (ringAlpha <= 0.02) break;
+        ctx.beginPath();
+        ctx.arc(sx, sy, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${hue}, ${sat}%, ${lum + 10}%, ${ringAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // Author PFP inside circle
+    if (sr > 12) {
+      const pfpR = Math.min(sr * 0.55, 22);
       const img = avatarImages.get(dot._post.authorDid);
       if (img) {
         ctx.save();
@@ -68,44 +80,52 @@ export function drawPosts(
         ctx.clip();
         ctx.drawImage(img, sx - pfpR, sy - pfpR, pfpR * 2, pfpR * 2);
         ctx.restore();
-        // PFP border
         ctx.beginPath();
         ctx.arc(sx, sy, pfpR, 0, Math.PI * 2);
-        ctx.strokeStyle = `hsla(${hue}, 30%, 50%, 0.5)`;
+        ctx.strokeStyle = `hsla(${hue}, 30%, 50%, 0.4)`;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
     }
 
-    // Thread depth indicator (ring segments for depth)
-    const tc = threadCache[dot._post.uri];
-    if (tc && tc.maxDepth > 1 && sr > 10) {
-      const depthRings = Math.min(tc.maxDepth, 6);
-      for (let d = 0; d < depthRings; d++) {
-        const ringR = sr + 3 + d * 2.5;
-        const arcAlpha = 0.3 - d * 0.04;
-        if (arcAlpha <= 0) break;
-        ctx.beginPath();
-        ctx.arc(sx, sy, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = `hsla(${hue}, ${sat}%, ${lum + 10}%, ${arcAlpha})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-    }
-
-    // Reply count + depth label
-    if (sr > 18) {
-      const labelY = sy + sr + 12;
-      const fontSize = Math.max(8, Math.min(11, sr * 0.25));
+    // Labels at moderate zoom
+    if (sr > 16) {
+      const fontSize = Math.max(8, Math.min(11, sr * 0.22));
       ctx.font = `${fontSize}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
 
+      // Author handle
+      const handleY = sy + sr + 4;
+      ctx.fillStyle = `hsla(210, 40%, 70%, 0.8)`;
+      ctx.fillText(`@${dot._post.authorHandle}`, sx, handleY);
+
+      // Stats line
+      const statsY = handleY + fontSize + 2;
       const p = dot._post;
-      const depth = tc ? `d${tc.maxDepth}` : '';
-      const label = `${p.replyCount}r ${p.likeCount}♥ ${depth}`;
-      ctx.fillStyle = `hsla(0, 0%, 55%, 0.7)`;
-      ctx.fillText(label, sx, labelY);
+      const depthLabel = p.threadDepth > 0 ? ` d${p.threadDepth}` : '';
+      ctx.fillStyle = `hsla(0, 0%, 50%, 0.6)`;
+      ctx.fillText(`${p.replyCount}r ${p.likeCount}\u2665${depthLabel}`, sx, statsY);
+
+      // Community label at deeper zoom
+      if (sr > 30 && p.primaryCommunityLabel) {
+        const comY = statsY + fontSize + 2;
+        ctx.fillStyle = `hsla(${hue}, 30%, 45%, 0.5)`;
+        ctx.fillText(p.primaryCommunityLabel, sx, comY);
+      }
+    }
+
+    // Text snippet at deep zoom
+    if (sr > 40) {
+      const snippetY = sy - sr - 10;
+      const maxChars = Math.min(60, Math.floor(sr * 0.8));
+      const snippet = dot._post.text.slice(0, maxChars).replace(/\n/g, ' ');
+      const fontSize = Math.max(8, Math.min(10, sr * 0.15));
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = `hsla(0, 0%, 70%, 0.6)`;
+      ctx.fillText(snippet + (dot._post.text.length > maxChars ? '\u2026' : ''), sx, snippetY);
     }
 
     // Hover / selection highlights

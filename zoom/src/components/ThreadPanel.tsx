@@ -48,22 +48,16 @@ function ThreadPost({ node, depth }: { node: BlueskyThreadNode; depth: number })
   const rkey = post.uri?.split('/').pop() || '';
 
   const sortedReplies = [...(node.replies || [])].sort(
-    (a, b) => ((b.post?.likeCount || 0) - (a.post?.likeCount || 0))
+    (a, b) => (b.post?.likeCount || 0) - (a.post?.likeCount || 0)
   );
 
   return (
     <div className={cls}>
       <div className="thread-author">
-        <a
-          href={`https://bsky.app/profile/${handle}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={`https://bsky.app/profile/${handle}`} target="_blank" rel="noopener noreferrer">
           {displayName}
         </a>{' '}
-        <span className="thread-time">
-          @{handle} &middot; {time}
-        </span>
+        <span className="thread-time">@{handle} &middot; {time}</span>
       </div>
       <div className="thread-text">{text}</div>
       {images.map((src, i) => (
@@ -72,8 +66,7 @@ function ThreadPost({ node, depth }: { node: BlueskyThreadNode; depth: number })
       <div className="thread-stats">
         <span>{replies} replies</span>
         <span>{reposts} reposts</span>
-        <span>{likes} likes</span>
-        {' '}
+        <span>{likes} likes</span>{' '}
         <a
           href={`https://bsky.app/profile/${author.did || handle}/post/${rkey}`}
           target="_blank"
@@ -93,7 +86,6 @@ function ThreadPost({ node, depth }: { node: BlueskyThreadNode; depth: number })
 export function ThreadPanel() {
   const selected = useSelectionStore((s) => s.selected);
   const fetchFullThread = useDataStore((s) => s.fetchFullThread);
-  const activityData = useDataStore((s) => s.activityData);
   const [thread, setThread] = useState<BlueskyThreadNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,13 +99,11 @@ export function ThreadPanel() {
 
     if (!selected) return;
 
-    if (selected._type === 'post') {
-      setLoading(true);
-      fetchFullThread(selected._post.uri)
-        .then((t) => setThread(t))
-        .catch((e) => setError((e as Error).message))
-        .finally(() => setLoading(false));
-    }
+    setLoading(true);
+    fetchFullThread(selected._post.uri)
+      .then((t) => setThread(t))
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false));
   }, [selected, fetchFullThread]);
 
   const isOpen = selected !== null;
@@ -121,13 +111,22 @@ export function ThreadPanel() {
   return (
     <div id="info-panel" className={isOpen ? 'open' : ''}>
       <div id="info-inner">
-        <span className="info-close" onClick={close}>
-          &times;
-        </span>
-
-        {selected?._type === 'post' && (
+        <span className="info-close" onClick={close}>&times;</span>
+        {selected && (
           <>
-            <h2>thread</h2>
+            <h2>
+              @{selected._post.authorHandle}
+              {selected._post.primaryCommunityLabel && (
+                <span className="meta" style={{ marginLeft: 8 }}>
+                  {selected._post.primaryCommunityLabel}
+                </span>
+              )}
+            </h2>
+            <div className="meta">
+              {selected._post.replyCount} replies &middot;{' '}
+              {selected._post.likeCount} likes &middot;{' '}
+              depth {selected._post.threadDepth}
+            </div>
             {loading && <div className="thread-loading">loading thread&hellip;</div>}
             {error && (
               <div className="thread-error">
@@ -145,26 +144,6 @@ export function ThreadPanel() {
               </div>
             )}
             {thread && <ThreadPost node={thread} depth={0} />}
-          </>
-        )}
-
-        {selected?._type === 'community' && (
-          <>
-            <h2>{selected._community.label}</h2>
-            <div className="meta">
-              {selected._community.coreSize} core &middot; {selected._community.totalSize} total
-              {activityData[selected._community.id] &&
-                ` \u00b7 ${activityData[selected._community.id].postCount} posts`}
-            </div>
-            <div className="meta" style={{ marginTop: '.4em' }}>
-              Members listed in community view.{' '}
-              <a
-                href="/communities.html"
-                style={{ color: '#8bf', textDecoration: 'none' }}
-              >
-                Open
-              </a>
-            </div>
           </>
         )}
       </div>

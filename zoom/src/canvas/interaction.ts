@@ -23,7 +23,7 @@ function doHitTest(sx: number, sy: number) {
   const { W, H } = getSize();
   const cam = useCameraStore.getState();
   const data = useDataStore.getState();
-  return hitTest(sx, sy, cam, W, H, data.postDots, data.communityNodes);
+  return hitTest(sx, sy, cam, W, H, data.postDots);
 }
 
 let scheduleDraw: (() => void) | null = null;

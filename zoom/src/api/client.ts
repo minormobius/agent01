@@ -1,4 +1,4 @@
-import type { Community, Bridge, Post, CommunityActivity } from './types';
+import type { Community, Bridge } from './types';
 
 const API_BASE =
   typeof window !== 'undefined' &&
@@ -11,29 +11,9 @@ export interface CommunitiesResponse {
   bridges: Bridge[];
 }
 
-export interface ActivityResponse {
-  communities: Record<string, CommunityActivity>;
-  posts: Post[];
-}
-
+/** Fetch community graph from the feed worker. This is the only worker call we need. */
 export async function getCommunities(): Promise<CommunitiesResponse> {
   const res = await fetch(`${API_BASE}/xrpc/com.minomobi.feed.getCommunities`);
   if (!res.ok) throw new Error(`getCommunities HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function getCommunityActivity(): Promise<ActivityResponse> {
-  const res = await fetch(`${API_BASE}/xrpc/com.minomobi.feed.getCommunityActivity`);
-  if (!res.ok) throw new Error(`getCommunityActivity HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function getThreadDepth(
-  uri: string
-): Promise<{ maxDepth: number; topLevelReplies: number; interactorDids: string[] }> {
-  const res = await fetch(
-    `${API_BASE}/xrpc/com.minomobi.feed.getPostThreadDepth?uri=${encodeURIComponent(uri)}`
-  );
-  if (!res.ok) throw new Error(`getThreadDepth HTTP ${res.status}`);
   return res.json();
 }
