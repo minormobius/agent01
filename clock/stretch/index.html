@@ -179,6 +179,30 @@
     addQuad(a, b, c, d);
   }
 
+  // -- Spike base ring: fills gaps between spikes around the face --
+  const RING_INNER = FACE_R * 0.85;
+  const RING_OUTER = FACE_R + 0.15;
+  const RING_SEGS = 36;
+  for (let s = 0; s < RING_SEGS; s++) {
+    const a0 = (s / RING_SEGS) * Math.PI * 2;
+    const a1 = ((s+1) / RING_SEGS) * Math.PI * 2;
+    const sc = SPIKE_COLOR;
+    // Front
+    addQuad(
+      addVert([RING_INNER*Math.cos(a0), RING_INNER*Math.sin(a0), FACE_DEPTH*0.95], [0,0,1], sc),
+      addVert([RING_OUTER*Math.cos(a0), RING_OUTER*Math.sin(a0), FACE_DEPTH*0.95], [0,0,1], sc),
+      addVert([RING_OUTER*Math.cos(a1), RING_OUTER*Math.sin(a1), FACE_DEPTH*0.95], [0,0,1], sc),
+      addVert([RING_INNER*Math.cos(a1), RING_INNER*Math.sin(a1), FACE_DEPTH*0.95], [0,0,1], sc),
+    );
+    // Back
+    addQuad(
+      addVert([RING_OUTER*Math.cos(a0), RING_OUTER*Math.sin(a0), -FACE_DEPTH*0.95], [0,0,-1], sc),
+      addVert([RING_INNER*Math.cos(a0), RING_INNER*Math.sin(a0), -FACE_DEPTH*0.95], [0,0,-1], sc),
+      addVert([RING_INNER*Math.cos(a1), RING_INNER*Math.sin(a1), -FACE_DEPTH*0.95], [0,0,-1], sc),
+      addVert([RING_OUTER*Math.cos(a1), RING_OUTER*Math.sin(a1), -FACE_DEPTH*0.95], [0,0,-1], sc),
+    );
+  }
+
   // -- Spikes: organic, varying lengths, radiating from edge --
   const NUM_SPIKES = 14;
   const SPIKE_SUBDIVS = 6;
@@ -264,7 +288,7 @@
   // Draw lines as extruded quads on the front face
   const FEAT_COLOR = [0.12, 0.12, 0.14];
   const FEAT_Z = FACE_DEPTH + 0.006;
-  const LINE_W = 0.022; // line thickness
+  const LINE_W = 0.06; // line thickness — thicc
 
   // Helper: draw a line segment as a quad
   function drawLine(x0, y0, x1, y1) {
