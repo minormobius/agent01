@@ -203,7 +203,9 @@ export function ThreadPanel() {
         {selected && (
           <>
             <h2>
-              @{selected._post.authorHandle}
+              <a href={`https://bsky.app/profile/${selected._post.authorHandle}`} target="_blank" rel="noopener noreferrer" style={{ color: '#8bf', textDecoration: 'none' }}>
+                @{selected._post.authorHandle}
+              </a>
               {selected._post.primaryCommunityLabel && (
                 <span className="meta" style={{ marginLeft: 8 }}>
                   {selected._post.primaryCommunityLabel}
@@ -215,6 +217,15 @@ export function ThreadPanel() {
               {selected._post.likeCount} likes &middot;{' '}
               depth {selected._post.threadDepth}
               {selected._post.authorShell === 0 ? ' \u2605 core' : ''}
+              {' '}&middot;{' '}
+              <a
+                href={`https://bsky.app/profile/${selected._post.authorDid}/post/${selected._post.uri.split('/').pop()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bsky-link"
+              >
+                view on Bluesky
+              </a>
             </div>
             {loading && <div className="thread-loading">loading thread&hellip;</div>}
             {error && (

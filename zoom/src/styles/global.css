@@ -69,3 +69,11 @@ canvas.dragging { cursor: grabbing; }
 }
 .nav-btn:hover { border-color: #555; color: #ccc; }
 .nav-position { color: #555; font-size: .8em; }
+
+/* Bluesky link in panel header */
+.bsky-link {
+  color: #8bf; text-decoration: none;
+  border: 1px solid #333; padding: 1px 6px;
+  border-radius: 3px; font-size: .85em;
+}
+.bsky-link:hover { border-color: #555; color: #adf; }
