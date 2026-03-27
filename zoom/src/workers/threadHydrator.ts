@@ -63,7 +63,8 @@ function scoreMagnitude(
   topLevelReplies: number,
   threadDepth: number,
   likeCount: number,
-  authorShell: number
+  authorShell: number,
+  indexedAt: string
 ): number {
   const threadSignal = topLevelReplies * Math.max(threadDepth, 1);
 
@@ -82,7 +83,12 @@ function scoreMagnitude(
   else if (authorShell <= 3) authorWeight = 1.0;
   else authorWeight = 0.03;
 
-  return (threadSignal + likeSignal) * authorWeight;
+  // Recency: exponential decay, 12-hour half-life
+  const HALF_LIFE_MS = 12 * 60 * 60 * 1000;
+  const age = indexedAt ? Date.now() - new Date(indexedAt).getTime() : 0;
+  const recency = age > 0 ? Math.pow(0.5, age / HALF_LIFE_MS) : 1;
+
+  return (threadSignal + likeSignal) * authorWeight * recency;
 }
 
 async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
@@ -116,7 +122,7 @@ async function hydrateOne(post: RawPost): Promise<HydratedResult | null> {
       post,
       threadDepth: depth,
       topLevelReplies: topLevel,
-      magnitude: scoreMagnitude(topLevel, depth, likeCount, post.authorShell),
+      magnitude: scoreMagnitude(topLevel, depth, likeCount, post.authorShell, post.indexedAt),
       replyCount,
       likeCount,
       repostCount: lp.repostCount || post.repostCount,

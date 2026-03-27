@@ -42,7 +42,8 @@ function scoreMagnitude(
   topLevelReplies: number,
   threadDepth: number,
   likeCount: number,
-  authorShell: number
+  authorShell: number,
+  indexedAt: string
 ): number {
   const threadSignal = topLevelReplies * Math.max(threadDepth, 1);
 
@@ -61,7 +62,12 @@ function scoreMagnitude(
   else if (authorShell <= 3) authorWeight = 1.0;
   else authorWeight = 0.03; // non-member: near-invisible
 
-  return (threadSignal + likeSignal) * authorWeight;
+  // Recency: exponential decay, 12-hour half-life
+  const HALF_LIFE_MS = 12 * 60 * 60 * 1000;
+  const age = indexedAt ? Date.now() - new Date(indexedAt).getTime() : 0;
+  const recency = age > 0 ? Math.pow(0.5, age / HALF_LIFE_MS) : 1;
+
+  return (threadSignal + likeSignal) * authorWeight * recency;
 }
 
 /** Load an Image from a URL. Returns null on failure. */
@@ -293,7 +299,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         if (post.likeCount < 3) continue;
         const com = authorCommunity.get(post.authorDid);
         const authorShell = com?.shell ?? 99;
-        const mag = scoreMagnitude(0, 0, post.likeCount, authorShell);
+        const mag = scoreMagnitude(0, 0, post.likeCount, authorShell, post.indexedAt);
         if (mag < 0.5) continue;
         hydratedPosts.push({
           ...post,
