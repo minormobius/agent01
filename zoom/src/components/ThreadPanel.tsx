@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSelectionStore } from '../stores/selection';
 import { useDataStore } from '../stores/data';
 import type { BlueskyThreadNode } from '../api/types';
@@ -85,12 +85,50 @@ function ThreadPost({ node, depth }: { node: BlueskyThreadNode; depth: number })
 
 export function ThreadPanel() {
   const selected = useSelectionStore((s) => s.selected);
+  const postDots = useDataStore((s) => s.postDots);
   const fetchFullThread = useDataStore((s) => s.fetchFullThread);
   const [thread, setThread] = useState<BlueskyThreadNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const close = () => useSelectionStore.getState().setSelected(null);
+
+  // Find current index in the spiral order (postDots is sorted by magnitude ascending,
+  // but the spiral places index 0 = highest magnitude at center)
+  const currentIndex = selected
+    ? postDots.findIndex((d) => d._post.uri === selected._post.uri)
+    : -1;
+
+  const navigate = useCallback(
+    (delta: number) => {
+      if (postDots.length === 0) return;
+      let next = currentIndex + delta;
+      if (next < 0) next = postDots.length - 1;
+      if (next >= postDots.length) next = 0;
+      useSelectionStore.getState().setSelected(postDots[next]);
+      // Scroll thread panel to top
+      document.getElementById('info-inner')?.scrollTo(0, 0);
+    },
+    [currentIndex, postDots]
+  );
+
+  // Keyboard nav: left/up = prev, right/down = next
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        navigate(1);
+      } else if (e.key === 'Escape') {
+        close();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected, navigate]);
 
   useEffect(() => {
     setThread(null);
@@ -107,11 +145,26 @@ export function ThreadPanel() {
   }, [selected, fetchFullThread]);
 
   const isOpen = selected !== null;
+  const position = currentIndex >= 0 ? `${currentIndex + 1}/${postDots.length}` : '';
 
   return (
     <div id="info-panel" className={isOpen ? 'open' : ''}>
       <div id="info-inner">
         <span className="info-close" onClick={close}>&times;</span>
+
+        {/* Navigation bar */}
+        {selected && (
+          <div className="thread-nav">
+            <button className="nav-btn" onClick={() => navigate(-1)} title="Previous thread (←)">
+              &larr; prev
+            </button>
+            <span className="nav-position">{position}</span>
+            <button className="nav-btn" onClick={() => navigate(1)} title="Next thread (→)">
+              next &rarr;
+            </button>
+          </div>
+        )}
+
         {selected && (
           <>
             <h2>
@@ -126,6 +179,7 @@ export function ThreadPanel() {
               {selected._post.replyCount} replies &middot;{' '}
               {selected._post.likeCount} likes &middot;{' '}
               depth {selected._post.threadDepth}
+              {selected._post.authorShell === 0 ? ' \u2605 core' : ''}
             </div>
             {loading && <div className="thread-loading">loading thread&hellip;</div>}
             {error && (

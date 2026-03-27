@@ -55,3 +55,17 @@ canvas.dragging { cursor: grabbing; }
 .thread-img { max-width: 100%; border-radius: 4px; margin: 6px 0; }
 .thread-loading { color: #555; padding: 12px 0; }
 .thread-error { color: #a55; padding: 8px 0; font-size: .85em; }
+
+/* Thread navigation */
+.thread-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .6em; padding-bottom: .5em;
+  border-bottom: 1px solid #1a1a1a;
+}
+.nav-btn {
+  background: none; border: 1px solid #333; color: #888;
+  font: 11px monospace; padding: 3px 10px; cursor: pointer;
+  border-radius: 3px; transition: all .15s;
+}
+.nav-btn:hover { border-color: #555; color: #ccc; }
+.nav-position { color: #555; font-size: .8em; }
