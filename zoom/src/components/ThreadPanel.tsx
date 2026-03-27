@@ -93,20 +93,55 @@ export function ThreadPanel() {
 
   const close = () => useSelectionStore.getState().setSelected(null);
 
-  // Find current index in the spiral order (postDots is sorted by magnitude ascending,
-  // but the spiral places index 0 = highest magnitude at center)
   const currentIndex = selected
     ? postDots.findIndex((d) => d._post.uri === selected._post.uri)
     : -1;
 
+  // Navigate to the nearest spatial neighbor in the given direction.
+  // "next" = clockwise-ish neighbor, "prev" = counter-clockwise.
+  // Falls back to spiral index +-1 if spatial search fails.
   const navigate = useCallback(
     (delta: number) => {
-      if (postDots.length === 0) return;
-      let next = currentIndex + delta;
-      if (next < 0) next = postDots.length - 1;
-      if (next >= postDots.length) next = 0;
-      useSelectionStore.getState().setSelected(postDots[next]);
-      // Scroll thread panel to top
+      if (postDots.length === 0 || currentIndex < 0) return;
+      const cur = postDots[currentIndex];
+
+      // Find nearest neighbor by Euclidean distance, preferring the
+      // direction (positive delta = outward/clockwise, negative = inward)
+      let bestIdx = -1;
+      let bestDist = Infinity;
+      const curAngle = Math.atan2(cur._y, cur._x);
+
+      for (let i = 0; i < postDots.length; i++) {
+        if (i === currentIndex) continue;
+        const d = postDots[i];
+        const dx = d._x - cur._x;
+        const dy = d._y - cur._y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Angular direction relative to current post
+        const angle = Math.atan2(dy, dx);
+        let angleDiff = angle - curAngle;
+        if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        // For "next" (delta > 0): prefer clockwise neighbors (angleDiff > 0)
+        // For "prev" (delta < 0): prefer counter-clockwise (angleDiff < 0)
+        const directionMatch = delta > 0 ? angleDiff > -0.5 : angleDiff < 0.5;
+
+        // Weight distance, with a mild preference for directionally-matching posts
+        const weight = directionMatch ? dist : dist * 1.8;
+        if (weight < bestDist) {
+          bestDist = weight;
+          bestIdx = i;
+        }
+      }
+
+      if (bestIdx < 0) {
+        // Fallback: just step by index
+        bestIdx = (currentIndex + delta + postDots.length) % postDots.length;
+      }
+
+      useSelectionStore.getState().setSelected(postDots[bestIdx]);
       document.getElementById('info-inner')?.scrollTo(0, 0);
     },
     [currentIndex, postDots]

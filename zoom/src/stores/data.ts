@@ -59,7 +59,7 @@ function scoreMagnitude(
   if (authorShell === 0) authorWeight = 3.0;
   else if (authorShell === 1) authorWeight = 1.5;
   else if (authorShell <= 3) authorWeight = 1.0;
-  else authorWeight = 0.3;
+  else authorWeight = 0.03; // non-member: near-invisible
 
   return (threadSignal + likeSignal) * authorWeight;
 }
@@ -134,10 +134,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       const allMemberDids = [...new Set(communities.flatMap((c) => (c.members || []).map((m) => m.did)))];
 
-      // The Bluesky list can't include the list author — add them manually
+      // The Bluesky list can't include the list author — add them as core
       const EXTRA_HANDLES = ['minormobius.bsky.social'];
       for (const h of EXTRA_HANDLES) {
         if (!allMemberDids.includes(h)) allMemberDids.push(h);
+        // Give them core status in the biggest community so they score correctly
+        if (!authorCommunity.has(h) && communities.length > 0) {
+          const biggest = communities.reduce((a, b) => a.totalSize > b.totalSize ? a : b);
+          const ci = communities.indexOf(biggest);
+          authorCommunity.set(h, {
+            id: biggest.id,
+            label: biggest.label,
+            size: biggest.totalSize,
+            hue: communityHue(ci, communities.length),
+            shell: 0,
+          });
+        }
       }
 
       set({ communities });
@@ -167,6 +179,14 @@ export const useDataStore = create<DataStore>((set, get) => ({
           // Load avatar directly from feed data (no separate getProfiles call)
           if (p.author?.avatar && p.author?.did) {
             loadImage(p.author.avatar, p.author.did, get, set, scheduleDraw);
+          }
+
+          // If this author was added by handle, copy their community mapping to their DID
+          if (p.author?.did && p.author?.handle) {
+            const byHandle = authorCommunity.get(p.author.handle);
+            if (byHandle && !authorCommunity.has(p.author.did)) {
+              authorCommunity.set(p.author.did, byHandle);
+            }
           }
 
           const existing = postMap.get(p.uri);

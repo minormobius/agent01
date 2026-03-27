@@ -1,9 +1,8 @@
 import type { HydratedPost, PostDot } from '../api/types';
 
 /**
- * Flat layout: posts arranged by magnitude in a packed spiral.
- * No community sectors. Biggest posts at center, smaller ones radiate out.
- * Color comes from each post's primary community.
+ * Flat layout: posts in a Fermat spiral, biggest at center.
+ * Spacing compresses at the wings so low-magnitude posts pack tighter.
  */
 export function layoutPosts(posts: HydratedPost[]): PostDot[] {
   if (posts.length === 0) return [];
@@ -12,38 +11,30 @@ export function layoutPosts(posts: HydratedPost[]): PostDot[] {
   const sorted = [...posts].sort((a, b) => b.magnitude - a.magnitude);
 
   const dots: PostDot[] = [];
-
-  // World-space sizing: normalize radii so the layout fits in ~[-1, 1]
   const maxMag = sorted[0].magnitude || 1;
 
-  // Place posts in a Fermat spiral (golden angle) — even packing, no overlaps
-  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ~137.5 degrees
-  const BASE_R = 0.015; // minimum post radius in world coords
-  const MAX_R = 0.08;   // maximum post radius
-
-  // Pre-compute radii to figure out spacing
-  const radii = sorted.map((p) => {
-    const t = Math.sqrt(p.magnitude / maxMag);
-    return BASE_R + t * (MAX_R - BASE_R);
-  });
-
-  // Spacing factor — controls how spread out the spiral is
-  const SPACING = 0.12;
+  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+  const BASE_R = 0.012;
+  const MAX_R = 0.08;
 
   for (let i = 0; i < sorted.length; i++) {
     const post = sorted[i];
-    const r = radii[i];
+    const t = Math.sqrt(post.magnitude / maxMag);
+    const r = BASE_R + t * (MAX_R - BASE_R);
 
-    // Fermat spiral: r_pos = spacing * sqrt(i), theta = i * golden_angle
-    const spiralR = SPACING * Math.sqrt(i);
+    // Spacing decreases with index — center is roomy, wings are dense.
+    // Core spacing for first ~20 posts, then compresses logarithmically.
+    const spacing = i < 20
+      ? 0.12
+      : 0.12 * Math.pow(20 / (i + 1), 0.3); // shrinks ~30% per decade of posts
+
+    const spiralR = spacing * Math.sqrt(i);
     const theta = i * GOLDEN_ANGLE;
-    const x = spiralR * Math.cos(theta);
-    const y = spiralR * Math.sin(theta);
 
     dots.push({
       _type: 'post',
-      _x: x,
-      _y: y,
+      _x: spiralR * Math.cos(theta),
+      _y: spiralR * Math.sin(theta),
       _r: r,
       _post: post,
       _hue: post.primaryCommunityHue,

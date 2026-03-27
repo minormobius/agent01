@@ -80,7 +80,7 @@ function scoreMagnitude(
   if (authorShell === 0) authorWeight = 3.0;
   else if (authorShell === 1) authorWeight = 1.5;
   else if (authorShell <= 3) authorWeight = 1.0;
-  else authorWeight = 0.3;
+  else authorWeight = 0.03;
 
   return (threadSignal + likeSignal) * authorWeight;
 }
