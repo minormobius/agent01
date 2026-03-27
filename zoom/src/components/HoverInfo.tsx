@@ -8,7 +8,8 @@ export function HoverInfo() {
   const p = hovered._post;
   const depthTag = p.threadDepth > 0 ? ` \u00b7 depth ${p.threadDepth}` : '';
   const comTag = p.primaryCommunityLabel ? ` \u00b7 ${p.primaryCommunityLabel}` : '';
-  const text = `@${p.authorHandle} \u00b7 ${p.replyCount} replies \u00b7 ${p.likeCount} likes${depthTag}${comTag}`;
+  const shellTag = p.authorShell === 0 ? ' \u2605 core' : p.authorShell <= 3 ? ` shell ${p.authorShell}` : '';
+  const text = `@${p.authorHandle}${shellTag} \u00b7 ${p.replyCount} replies \u00b7 ${p.likeCount} likes${depthTag}${comTag}`;
 
   return (
     <div id="hover-info" className="visible">

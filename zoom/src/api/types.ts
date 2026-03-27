@@ -34,11 +34,12 @@ export interface HydratedPost {
   // Thread info (populated after hydration)
   threadDepth: number;
   topLevelReplies: number;
-  // Community coloring — biggest community this author belongs to
+  // Author's community membership
+  authorShell: number; // 0 = core, 1+ = shell, 99 = not in any community
   primaryCommunityId: number | null;
   primaryCommunityLabel: string;
   primaryCommunityHue: number;
-  // Magnitude for sizing: replies * max(depth,1) + likes/10
+  // Scoring magnitude (see scoreMagnitude in stores/data.ts)
   magnitude: number;
 }
 

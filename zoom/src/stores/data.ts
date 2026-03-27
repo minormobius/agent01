@@ -44,6 +44,47 @@ function walkDepth(node: BlueskyThreadNode, d: number): number {
   return max;
 }
 
+/**
+ * Scoring function: heavily weights community membership and thread depth.
+ * Likes use a tent/parabolic shape — peaks around 30-80, decays above 100.
+ * Core members get 3x, shell-1 gets 1.5x, shell-2+ gets 1x, non-members 0.3x.
+ */
+function scoreMagnitude(
+  topLevelReplies: number,
+  threadDepth: number,
+  likeCount: number,
+  authorShell: number
+): number {
+  // Thread signal: replies * depth is the core signal for "deep conversation"
+  const threadSignal = topLevelReplies * Math.max(threadDepth, 1);
+
+  // Likes: tent function peaking around 50, decaying hard above 100
+  // 0-50 likes: ramps up (log scale)
+  // 50-100: plateau
+  // 100+: decays (penalty for mega-viral)
+  let likeSignal: number;
+  if (likeCount <= 0) {
+    likeSignal = 0;
+  } else if (likeCount <= 50) {
+    likeSignal = Math.log2(1 + likeCount); // 0→0, 10→3.5, 50→5.7
+  } else if (likeCount <= 100) {
+    likeSignal = Math.log2(51); // plateau at ~5.7
+  } else {
+    // Decay: the further past 100, the more it drops
+    const overshoot = likeCount - 100;
+    likeSignal = Math.log2(51) * Math.pow(0.5, overshoot / 200); // halves every 200 extra likes
+  }
+
+  // Author weight: core members dominate, non-members are noise
+  let authorWeight: number;
+  if (authorShell === 0) authorWeight = 3.0;       // core
+  else if (authorShell === 1) authorWeight = 1.5;   // shell 1
+  else if (authorShell <= 3) authorWeight = 1.0;    // shell 2-3
+  else authorWeight = 0.3;                           // non-member or deep shell
+
+  return (threadSignal + likeSignal) * authorWeight;
+}
+
 export const useDataStore = create<DataStore>((set, get) => ({
   communities: [],
   posts: [],
@@ -71,15 +112,16 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       // Build author → community mapping
-      // Each author gets their "biggest" community (most members) for coloring
-      const authorCommunity = new Map<string, { id: number; label: string; size: number; hue: number }>();
+      // Each author gets their "biggest" community for coloring, plus best (lowest) shell
+      const authorCommunity = new Map<string, { id: number; label: string; size: number; hue: number; shell: number }>();
       for (let ci = 0; ci < communities.length; ci++) {
         const c = communities[ci];
         const hue = communityHue(ci, communities.length);
         for (const m of c.members || []) {
           const existing = authorCommunity.get(m.did);
-          if (!existing || c.totalSize > existing.size) {
-            authorCommunity.set(m.did, { id: c.id, label: c.label, size: c.totalSize, hue });
+          // Prefer: lowest shell first, then biggest community for ties
+          if (!existing || m.shell < existing.shell || (m.shell === existing.shell && c.totalSize > existing.size)) {
+            authorCommunity.set(m.did, { id: c.id, label: c.label, size: c.totalSize, hue, shell: m.shell });
           }
         }
       }
@@ -157,10 +199,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
           // Update counts from live data
           const livePost = thread.post;
           const com = authorCommunity.get(post.authorDid);
+          const authorShell = com?.shell ?? 99;
 
           const replyCount = livePost.replyCount || post.replyCount;
           const likeCount = livePost.likeCount || post.likeCount;
-          const magnitude = topLevel * Math.max(depth, 1) + likeCount / 10;
+          const magnitude = scoreMagnitude(topLevel, depth, likeCount, authorShell);
 
           const hydrated: HydratedPost = {
             uri: post.uri,
@@ -174,6 +217,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
             indexedAt: post.indexedAt,
             threadDepth: depth,
             topLevelReplies: topLevel,
+            authorShell,
             primaryCommunityId: com?.id ?? null,
             primaryCommunityLabel: com?.label ?? '',
             primaryCommunityHue: com?.hue ?? 0,
@@ -202,19 +246,23 @@ export const useDataStore = create<DataStore>((set, get) => ({
         if (r) hydratedPosts.push(r);
       }
 
-      // Also include posts without replies but high likes (> 5)
+      // Also include posts without replies but with some likes
       for (const [, post] of postMap) {
         if (post.replyCount > 0) continue; // already handled
-        if (post.likeCount < 5) continue;
+        if (post.likeCount < 3) continue;
         const com = authorCommunity.get(post.authorDid);
+        const authorShell = com?.shell ?? 99;
+        const mag = scoreMagnitude(0, 0, post.likeCount, authorShell);
+        if (mag < 0.5) continue; // skip noise
         hydratedPosts.push({
           ...post,
           threadDepth: 0,
           topLevelReplies: 0,
+          authorShell,
           primaryCommunityId: com?.id ?? null,
           primaryCommunityLabel: com?.label ?? '',
           primaryCommunityHue: com?.hue ?? 0,
-          magnitude: post.likeCount / 10,
+          magnitude: mag,
         });
       }
 
