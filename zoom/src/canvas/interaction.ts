@@ -59,6 +59,13 @@ export function bindCanvas(canvas: HTMLCanvasElement, scheduleDrawFn: () => void
   });
 
   window.addEventListener('mouseup', (e) => {
+    // Don't deselect when clicking inside the info panel (nav buttons, links, etc.)
+    const panel = document.getElementById('info-panel');
+    if (panel && panel.contains(e.target as Node)) {
+      dragging = false;
+      canvas.classList.remove('dragging');
+      return;
+    }
     if (!dragMoved) {
       const hit = doHitTest(e.clientX, e.clientY);
       useSelectionStore.getState().setSelected(hit);
@@ -145,8 +152,14 @@ export function bindCanvas(canvas: HTMLCanvasElement, scheduleDrawFn: () => void
   canvas.addEventListener('touchend', (e) => {
     if (!touchMoved && e.changedTouches.length === 1) {
       const t = e.changedTouches[0];
-      const hit = doHitTest(t.clientX, t.clientY);
-      useSelectionStore.getState().setSelected(hit);
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      const panel = document.getElementById('info-panel');
+      if (panel && panel.contains(el)) {
+        // Let panel buttons handle it
+      } else {
+        const hit = doHitTest(t.clientX, t.clientY);
+        useSelectionStore.getState().setSelected(hit);
+      }
     }
     dragging = false;
     touchMoved = false;

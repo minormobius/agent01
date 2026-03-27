@@ -78,7 +78,8 @@ function loadImage(
   set({ avatarImages: m });
 
   const img = new Image();
-  img.crossOrigin = 'anonymous';
+  // No crossOrigin — Bluesky CDN doesn't send CORS headers.
+  // We only need drawImage (not pixel readback), so tainted canvas is fine.
   img.src = url;
   img.onload = () => {
     const m2 = new Map(get().avatarImages);
@@ -132,6 +133,13 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       const allMemberDids = [...new Set(communities.flatMap((c) => (c.members || []).map((m) => m.did)))];
+
+      // The Bluesky list can't include the list author — add them manually
+      const EXTRA_HANDLES = ['minormobius.bsky.social'];
+      for (const h of EXTRA_HANDLES) {
+        if (!allMemberDids.includes(h)) allMemberDids.push(h);
+      }
+
       set({ communities });
 
       // ── Phase 2: Fetch feeds ───────────────────────────────────
