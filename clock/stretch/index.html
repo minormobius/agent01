@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Stretch — Anthropic Logo</title>
+<title>Stretch</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0d12; }
@@ -15,7 +15,7 @@
     text-align: center; pointer-events: none; user-select: none;
   }
   #fallback {
-    display: none; position: fixed; inset: 0;
+    position: fixed; inset: 0;
     color: #aaa; font: 18px/1.6 -apple-system, sans-serif;
     display: none; align-items: center; justify-content: center; text-align: center;
   }
@@ -27,13 +27,7 @@
 <div id="fallback">WebGPU not available in this browser.</div>
 <script>
 (async () => {
-  // =====================================================================
-  // WebGPU init
-  // =====================================================================
-  if (!navigator.gpu) {
-    document.getElementById('fallback').style.display = 'flex';
-    return;
-  }
+  if (!navigator.gpu) { document.getElementById('fallback').style.display = 'flex'; return; }
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) { document.getElementById('fallback').style.display = 'flex'; return; }
   const device = await adapter.requestDevice();
@@ -49,241 +43,298 @@
     createDepthTexture();
   }
 
-  // =====================================================================
-  // Math helpers
-  // =====================================================================
+  // === Math ===
   const v3add = (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
   const v3sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
   const v3scale = (a, s) => [a[0]*s, a[1]*s, a[2]*s];
   const v3dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
   const v3cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
   const v3len = a => Math.sqrt(v3dot(a, a));
-  const v3normalize = a => { const l = v3len(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; };
-  const v3lerp = (a, b, t) => [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+  const v3normalize = a => { const l = v3len(a)||1; return [a[0]/l, a[1]/l, a[2]/l]; };
 
-  function mat4Identity() {
-    return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
-  }
+  function mat4Identity() { return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]; }
   function mat4Perspective(fov, aspect, near, far) {
-    const f = 1 / Math.tan(fov / 2);
-    const rangeInv = 1 / (near - far);
-    return [f/aspect,0,0,0, 0,f,0,0, 0,0,(near+far)*rangeInv,-1, 0,0,near*far*rangeInv*2,0];
+    const f = 1/Math.tan(fov/2), ri = 1/(near-far);
+    return [f/aspect,0,0,0, 0,f,0,0, 0,0,(near+far)*ri,-1, 0,0,near*far*ri*2,0];
   }
   function mat4LookAt(eye, target, up) {
     const z = v3normalize(v3sub(eye, target));
     const x = v3normalize(v3cross(up, z));
     const y = v3cross(z, x);
-    return [
-      x[0],y[0],z[0],0,
-      x[1],y[1],z[1],0,
-      x[2],y[2],z[2],0,
-      -v3dot(x,eye),-v3dot(y,eye),-v3dot(z,eye),1
-    ];
+    return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+      -v3dot(x,eye),-v3dot(y,eye),-v3dot(z,eye),1];
   }
   function mat4Mul(a, b) {
     const o = new Array(16).fill(0);
-    for (let i = 0; i < 4; i++)
-      for (let j = 0; j < 4; j++)
-        for (let k = 0; k < 4; k++)
-          o[j*4+i] += a[k*4+i] * b[j*4+k];
+    for (let i=0;i<4;i++) for(let j=0;j<4;j++) for(let k=0;k<4;k++) o[j*4+i]+=a[k*4+i]*b[j*4+k];
     return o;
   }
 
-  // =====================================================================
-  // Anthropic logo geometry — starburst with extruded 3D petals
-  // =====================================================================
-  // The logo is ~8 pointed rays radiating from center.
-  // Each ray: tapered diamond shape, extruded for thickness.
-
-  const NUM_RAYS = 8;
-  const INNER_R = 0.15;    // inner radius (gap at center)
-  const OUTER_R = 1.0;     // tip of each ray
-  const RAY_WIDTH = 0.18;  // half-width at widest point
-  const DEPTH = 0.12;      // extrusion thickness
-  const SUBDIVS = 6;       // subdivisions along each ray for smooth stretching
-  const BASE_COLOR = [0.85, 0.75, 0.6]; // warm gold-ish
-
-  // Build mesh: each ray is a subdivided strip with front/back/sides
-  const restPositions = [];  // vec3 per vertex (flat)
+  // === Geometry: round spiky face ===
+  const restPositions = [];
   const colors = [];
   const normals = [];
   const indices = [];
 
-  function addVertex(pos, normal, color) {
+  function addVert(pos, normal, color) {
     const idx = restPositions.length / 3;
     restPositions.push(pos[0], pos[1], pos[2]);
     normals.push(normal[0], normal[1], normal[2]);
     colors.push(color[0], color[1], color[2]);
     return idx;
   }
+  function addTri(a, b, c) { indices.push(a, b, c); }
+  function addQuad(a, b, c, d) { indices.push(a, b, c, a, c, d); }
 
-  function addQuad(a, b, c, d) {
-    indices.push(a, b, c, a, c, d);
-  }
+  // -- Face disk: subdivided for stretchability --
+  const FACE_R = 0.7;
+  const FACE_DEPTH = 0.15;
+  const FACE_RINGS = 8;
+  const FACE_SEGS = 32;
+  const FACE_COLOR = [0.92, 0.82, 0.78]; // warm pinkish
+  const SPIKE_COLOR = [0.88, 0.45, 0.25]; // coral orange
 
-  // Center hub: octagonal disk
-  const hubVerts = [];
-  const hubZ = DEPTH / 2;
+  // Generate front and back face as subdivided disks
   // Front face
-  const hubCenterF = addVertex([0, 0, hubZ], [0, 0, 1], BASE_COLOR);
-  for (let i = 0; i < NUM_RAYS * 2; i++) {
-    const angle = (i / (NUM_RAYS * 2)) * Math.PI * 2;
-    const r = INNER_R * 1.1;
-    const p = [r * Math.cos(angle), r * Math.sin(angle), hubZ];
-    hubVerts.push(addVertex(p, [0, 0, 1], BASE_COLOR));
-  }
-  for (let i = 0; i < NUM_RAYS * 2; i++) {
-    indices.push(hubCenterF, hubVerts[i], hubVerts[(i + 1) % (NUM_RAYS * 2)]);
-  }
-  // Back face
-  const hubCenterB = addVertex([0, 0, -hubZ], [0, 0, -1], BASE_COLOR);
-  const hubVertsB = [];
-  for (let i = 0; i < NUM_RAYS * 2; i++) {
-    const angle = (i / (NUM_RAYS * 2)) * Math.PI * 2;
-    const r = INNER_R * 1.1;
-    const p = [r * Math.cos(angle), r * Math.sin(angle), -hubZ];
-    hubVertsB.push(addVertex(p, [0, 0, -1], BASE_COLOR));
-  }
-  for (let i = 0; i < NUM_RAYS * 2; i++) {
-    indices.push(hubCenterB, hubVertsB[(i + 1) % (NUM_RAYS * 2)], hubVertsB[i]);
-  }
-
-  // Rays
-  for (let ray = 0; ray < NUM_RAYS; ray++) {
-    const angle = (ray / NUM_RAYS) * Math.PI * 2;
-    const ca = Math.cos(angle), sa = Math.sin(angle);
-    // Perpendicular direction for width
-    const px = -sa, py = ca;
-
-    // Ray color: slight hue variation per ray
-    const hueShift = ray / NUM_RAYS;
-    const rc = [
-      BASE_COLOR[0] * (0.85 + 0.15 * Math.cos(hueShift * Math.PI * 2)),
-      BASE_COLOR[1] * (0.85 + 0.15 * Math.cos(hueShift * Math.PI * 2 + 2)),
-      BASE_COLOR[2] * (0.85 + 0.15 * Math.cos(hueShift * Math.PI * 2 + 4)),
+  const frontCenter = addVert([0, 0, FACE_DEPTH], [0, 0, 1], FACE_COLOR);
+  const frontRings = []; // [ring][seg] = vertex index
+  for (let r = 1; r <= FACE_RINGS; r++) {
+    const ring = [];
+    const radius = (r / FACE_RINGS) * FACE_R;
+    const t = r / FACE_RINGS;
+    // Slight color shift toward edge
+    const c = [
+      FACE_COLOR[0] * (1 - t * 0.08),
+      FACE_COLOR[1] * (1 - t * 0.05),
+      FACE_COLOR[2] * (1 - t * 0.03),
     ];
+    for (let s = 0; s < FACE_SEGS; s++) {
+      const angle = (s / FACE_SEGS) * Math.PI * 2;
+      const x = radius * Math.cos(angle);
+      const y = radius * Math.sin(angle);
+      ring.push(addVert([x, y, FACE_DEPTH], [0, 0, 1], c));
+    }
+    frontRings.push(ring);
+  }
+  // Center fan
+  for (let s = 0; s < FACE_SEGS; s++) {
+    addTri(frontCenter, frontRings[0][s], frontRings[0][(s+1) % FACE_SEGS]);
+  }
+  // Ring strips
+  for (let r = 0; r < FACE_RINGS - 1; r++) {
+    for (let s = 0; s < FACE_SEGS; s++) {
+      const s1 = (s+1) % FACE_SEGS;
+      addQuad(frontRings[r][s], frontRings[r][s1], frontRings[r+1][s1], frontRings[r+1][s]);
+    }
+  }
 
-    // Build subdivided ray profile
-    // Width tapers: 0 at INNER_R, max at ~0.4, 0 at OUTER_R
-    const frontVerts = []; // left and right columns
-    const backVerts = [];
+  // Back face (mirror)
+  const backCenter = addVert([0, 0, -FACE_DEPTH], [0, 0, -1], FACE_COLOR);
+  const backRings = [];
+  for (let r = 1; r <= FACE_RINGS; r++) {
+    const ring = [];
+    const radius = (r / FACE_RINGS) * FACE_R;
+    const t = r / FACE_RINGS;
+    const c = [
+      FACE_COLOR[0] * (1 - t * 0.12),
+      FACE_COLOR[1] * (1 - t * 0.08),
+      FACE_COLOR[2] * (1 - t * 0.05),
+    ];
+    for (let s = 0; s < FACE_SEGS; s++) {
+      const angle = (s / FACE_SEGS) * Math.PI * 2;
+      const x = radius * Math.cos(angle);
+      const y = radius * Math.sin(angle);
+      ring.push(addVert([x, y, -FACE_DEPTH], [0, 0, -1], c));
+    }
+    backRings.push(ring);
+  }
+  for (let s = 0; s < FACE_SEGS; s++) {
+    addTri(backCenter, backRings[0][(s+1) % FACE_SEGS], backRings[0][s]);
+  }
+  for (let r = 0; r < FACE_RINGS - 1; r++) {
+    for (let s = 0; s < FACE_SEGS; s++) {
+      const s1 = (s+1) % FACE_SEGS;
+      addQuad(backRings[r][s1], backRings[r][s], backRings[r+1][s], backRings[r+1][s1]);
+    }
+  }
 
-    for (let s = 0; s <= SUBDIVS; s++) {
-      const t = s / SUBDIVS;
-      const r = INNER_R + (OUTER_R - INNER_R) * t;
-      // Taper: diamond shape (widen then narrow)
-      const widthT = Math.sin(t * Math.PI);
-      const w = RAY_WIDTH * widthT;
-      const z = hubZ * (1 - t * 0.3); // slight thinning toward tip
+  // Edge rim (connects front to back outer ring)
+  for (let s = 0; s < FACE_SEGS; s++) {
+    const s1 = (s+1) % FACE_SEGS;
+    const angle = (s / FACE_SEGS) * Math.PI * 2;
+    const angle1 = ((s+1) / FACE_SEGS) * Math.PI * 2;
+    const n0 = [Math.cos(angle), Math.sin(angle), 0];
+    const n1 = [Math.cos(angle1), Math.sin(angle1), 0];
+    const fOuter = frontRings[FACE_RINGS - 1];
+    const bOuter = backRings[FACE_RINGS - 1];
+    const fp = [restPositions[fOuter[s]*3], restPositions[fOuter[s]*3+1], restPositions[fOuter[s]*3+2]];
+    const fp1 = [restPositions[fOuter[s1]*3], restPositions[fOuter[s1]*3+1], restPositions[fOuter[s1]*3+2]];
+    const bp = [restPositions[bOuter[s]*3], restPositions[bOuter[s]*3+1], restPositions[bOuter[s]*3+2]];
+    const bp1 = [restPositions[bOuter[s1]*3], restPositions[bOuter[s1]*3+1], restPositions[bOuter[s1]*3+2]];
+    const ec = [FACE_COLOR[0]*0.85, FACE_COLOR[1]*0.85, FACE_COLOR[2]*0.85];
+    const a = addVert(fp, n0, ec);
+    const b = addVert(fp1, n1, ec);
+    const c = addVert(bp1, n1, ec);
+    const d = addVert(bp, n0, ec);
+    addQuad(a, b, c, d);
+  }
 
-      const cx = r * ca, cy = r * sa;
+  // -- Spikes: organic, varying lengths, radiating from edge --
+  const NUM_SPIKES = 18;
+  const SPIKE_SUBDIVS = 5;
+  // Seeded random for consistent spikes
+  let seed = 42;
+  function srand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+
+  for (let sp = 0; sp < NUM_SPIKES; sp++) {
+    const baseAngle = (sp / NUM_SPIKES) * Math.PI * 2 + (srand() - 0.5) * 0.2;
+    const spikeLen = 0.35 + srand() * 0.55; // vary length
+    const spikeWidth = 0.06 + srand() * 0.06;
+    const ca = Math.cos(baseAngle), sa = Math.sin(baseAngle);
+    const px = -sa, py = ca; // perpendicular
+
+    // Slight color variation per spike
+    const sc = [
+      SPIKE_COLOR[0] * (0.85 + srand() * 0.3),
+      SPIKE_COLOR[1] * (0.85 + srand() * 0.3),
+      SPIKE_COLOR[2] * (0.85 + srand() * 0.3),
+    ].map(v => Math.min(1, v));
+
+    // Slight wobble
+    const wobbleX = (srand() - 0.5) * 0.15;
+    const wobbleY = (srand() - 0.5) * 0.15;
+
+    const fVerts = [];
+    const bVerts = [];
+
+    for (let s = 0; s <= SPIKE_SUBDIVS; s++) {
+      const t = s / SPIKE_SUBDIVS;
+      const r = FACE_R + spikeLen * t;
+      const taper = 1 - t * t; // quadratic taper
+      const w = spikeWidth * taper;
+      const z = FACE_DEPTH * (1 - t * 0.6);
+
+      const cx = r * ca + wobbleX * t * t;
+      const cy = r * sa + wobbleY * t * t;
       const lx = cx - px * w, ly = cy - py * w;
       const rx = cx + px * w, ry = cy + py * w;
 
-      // Brightness gradient: brighter at tip
-      const bright = 0.8 + 0.2 * t;
-      const vc = rc.map(c => Math.min(1.0, c * bright));
+      const bright = 0.9 + 0.1 * t;
+      const vc = sc.map(c => Math.min(1, c * bright));
 
-      // Front face vertices (left, right)
-      frontVerts.push({
-        l: addVertex([lx, ly, z], [0, 0, 1], vc),
-        r: addVertex([rx, ry, z], [0, 0, 1], vc),
+      fVerts.push({
+        l: addVert([lx, ly, z], [0, 0, 1], vc),
+        r: addVert([rx, ry, z], [0, 0, 1], vc),
       });
-      // Back face vertices
-      backVerts.push({
-        l: addVertex([lx, ly, -z], [0, 0, -1], vc),
-        r: addVertex([rx, ry, -z], [0, 0, -1], vc),
+      bVerts.push({
+        l: addVert([lx, ly, -z], [0, 0, -1], vc),
+        r: addVert([rx, ry, -z], [0, 0, -1], vc),
       });
     }
 
-    // Front face quads
-    for (let s = 0; s < SUBDIVS; s++) {
-      addQuad(frontVerts[s].l, frontVerts[s].r, frontVerts[s+1].r, frontVerts[s+1].l);
+    // Front/back quads
+    for (let s = 0; s < SPIKE_SUBDIVS; s++) {
+      addQuad(fVerts[s].l, fVerts[s].r, fVerts[s+1].r, fVerts[s+1].l);
+      addQuad(bVerts[s].r, bVerts[s].l, bVerts[s+1].l, bVerts[s+1].r);
     }
-    // Back face quads (reversed winding)
-    for (let s = 0; s < SUBDIVS; s++) {
-      addQuad(backVerts[s].r, backVerts[s].l, backVerts[s+1].l, backVerts[s+1].r);
-    }
-
-    // Side edges (left edge, right edge)
-    for (let s = 0; s < SUBDIVS; s++) {
-      // Left side
-      const nL = v3normalize([-py, px, 0]); // outward normal for left edge
-      const fl = frontVerts[s].l, fl1 = frontVerts[s+1].l;
-      const bl = backVerts[s].l, bl1 = backVerts[s+1].l;
-      // We need side vertices with side normals — reuse positions, add new verts
-      const sfl = addVertex(
-        [restPositions[fl*3], restPositions[fl*3+1], restPositions[fl*3+2]],
-        v3scale(nL, -1), rc);
-      const sfl1 = addVertex(
-        [restPositions[fl1*3], restPositions[fl1*3+1], restPositions[fl1*3+2]],
-        v3scale(nL, -1), rc);
-      const sbl = addVertex(
-        [restPositions[bl*3], restPositions[bl*3+1], restPositions[bl*3+2]],
-        v3scale(nL, -1), rc);
-      const sbl1 = addVertex(
-        [restPositions[bl1*3], restPositions[bl1*3+1], restPositions[bl1*3+2]],
-        v3scale(nL, -1), rc);
-      addQuad(sbl, sfl, sfl1, sbl1);
-
-      // Right side
+    // Side edges
+    for (let s = 0; s < SPIKE_SUBDIVS; s++) {
+      const nL = v3normalize([-py, px, 0]);
       const nR = v3normalize([py, -px, 0]);
-      const fr = frontVerts[s].r, fr1 = frontVerts[s+1].r;
-      const br = backVerts[s].r, br1 = backVerts[s+1].r;
-      const sfr = addVertex(
-        [restPositions[fr*3], restPositions[fr*3+1], restPositions[fr*3+2]],
-        nR, rc);
-      const sfr1 = addVertex(
-        [restPositions[fr1*3], restPositions[fr1*3+1], restPositions[fr1*3+2]],
-        nR, rc);
-      const sbr = addVertex(
-        [restPositions[br*3], restPositions[br*3+1], restPositions[br*3+2]],
-        nR, rc);
-      const sbr1 = addVertex(
-        [restPositions[br1*3], restPositions[br1*3+1], restPositions[br1*3+2]],
-        nR, rc);
-      addQuad(sfr, sbr, sbr1, sfr1);
+      // Left
+      const fl = fVerts[s].l, fl1 = fVerts[s+1].l, bl = bVerts[s].l, bl1 = bVerts[s+1].l;
+      addQuad(
+        addVert([restPositions[bl*3],restPositions[bl*3+1],restPositions[bl*3+2]], v3scale(nL,-1), sc),
+        addVert([restPositions[fl*3],restPositions[fl*3+1],restPositions[fl*3+2]], v3scale(nL,-1), sc),
+        addVert([restPositions[fl1*3],restPositions[fl1*3+1],restPositions[fl1*3+2]], v3scale(nL,-1), sc),
+        addVert([restPositions[bl1*3],restPositions[bl1*3+1],restPositions[bl1*3+2]], v3scale(nL,-1), sc),
+      );
+      // Right
+      const fr = fVerts[s].r, fr1 = fVerts[s+1].r, br = bVerts[s].r, br1 = bVerts[s+1].r;
+      addQuad(
+        addVert([restPositions[fr*3],restPositions[fr*3+1],restPositions[fr*3+2]], nR, sc),
+        addVert([restPositions[br*3],restPositions[br*3+1],restPositions[br*3+2]], nR, sc),
+        addVert([restPositions[br1*3],restPositions[br1*3+1],restPositions[br1*3+2]], nR, sc),
+        addVert([restPositions[fr1*3],restPositions[fr1*3+1],restPositions[fr1*3+2]], nR, sc),
+      );
     }
   }
 
+  // -- Eyes: two dark circles on the front face --
+  const EYE_COLOR = [0.08, 0.08, 0.1];
+  const EYE_R = 0.09;
+  const EYE_SEGS = 10;
+  const eyePositions = [[-0.22, 0.15], [0.22, 0.15]];
+
+  for (const [ex, ey] of eyePositions) {
+    const center = addVert([ex, ey, FACE_DEPTH + 0.005], [0, 0, 1], EYE_COLOR);
+    const ring = [];
+    for (let s = 0; s < EYE_SEGS; s++) {
+      const a = (s / EYE_SEGS) * Math.PI * 2;
+      ring.push(addVert(
+        [ex + EYE_R * Math.cos(a), ey + EYE_R * Math.sin(a), FACE_DEPTH + 0.005],
+        [0, 0, 1], EYE_COLOR
+      ));
+    }
+    for (let s = 0; s < EYE_SEGS; s++) {
+      addTri(center, ring[s], ring[(s+1) % EYE_SEGS]);
+    }
+  }
+
+  // -- Smile: curved arc of dark triangles --
+  const SMILE_COLOR = [0.08, 0.08, 0.1];
+  const SMILE_SEGS = 8;
+  const SMILE_R = 0.22;
+  const SMILE_WIDTH = 0.035;
+  for (let s = 0; s < SMILE_SEGS; s++) {
+    const a0 = Math.PI * 0.15 + (s / SMILE_SEGS) * Math.PI * 0.7;
+    const a1 = Math.PI * 0.15 + ((s + 1) / SMILE_SEGS) * Math.PI * 0.7;
+    // Outer and inner arc points
+    const z = FACE_DEPTH + 0.005;
+    const ox0 = SMILE_R * Math.cos(a0), oy0 = -SMILE_R * Math.sin(a0) - 0.02;
+    const ox1 = SMILE_R * Math.cos(a1), oy1 = -SMILE_R * Math.sin(a1) - 0.02;
+    const ix0 = (SMILE_R - SMILE_WIDTH) * Math.cos(a0), iy0 = -(SMILE_R - SMILE_WIDTH) * Math.sin(a0) - 0.02;
+    const ix1 = (SMILE_R - SMILE_WIDTH) * Math.cos(a1), iy1 = -(SMILE_R - SMILE_WIDTH) * Math.sin(a1) - 0.02;
+
+    addQuad(
+      addVert([ix0, iy0, z], [0,0,1], SMILE_COLOR),
+      addVert([ox0, oy0, z], [0,0,1], SMILE_COLOR),
+      addVert([ox1, oy1, z], [0,0,1], SMILE_COLOR),
+      addVert([ix1, iy1, z], [0,0,1], SMILE_COLOR),
+    );
+  }
+
   const NUM_VERTS = restPositions.length / 3;
-  console.log(`Logo mesh: ${NUM_VERTS} vertices, ${indices.length / 3} triangles`);
+  console.log(`Face mesh: ${NUM_VERTS} verts, ${indices.length / 3} tris`);
 
-  // =====================================================================
-  // Spring physics state — SM64 stretch mechanics
-  // =====================================================================
-  // Each vertex has: currentPos, velocity, restPos
-  // Spring: F = -stiffness * (pos - rest) - damping * vel
-  // Grab: vertices within radius of grab point get pulled toward cursor
-
+  // === Spring physics — SM64 stretch (dramatic!) ===
   const currentPositions = new Float32Array(restPositions);
-  const velocities = new Float32Array(NUM_VERTS * 3); // starts at 0
+  const velocities = new Float32Array(NUM_VERTS * 3);
 
-  const STIFFNESS = 35.0;    // spring constant
-  const DAMPING = 4.5;       // velocity damping
-  const GRAB_RADIUS = 0.6;   // world-space grab influence radius
-  const GRAB_STRENGTH = 12.0; // pull force
-  const MAX_STRETCH = 1.5;   // max displacement from rest
+  const STIFFNESS = 18.0;     // lower = stretchier
+  const DAMPING = 2.8;        // lower = more wobble
+  const GRAB_RADIUS = 0.9;    // big grab area
+  const GRAB_STRENGTH = 25.0; // strong pull
+  const MAX_STRETCH = 3.0;    // can stretch very far
 
   let grabbing = false;
-  let grabPoint3D = [0, 0, 0];  // world-space grab origin
-  let dragPoint3D = [0, 0, 0];  // current drag position
-  let grabWeights = new Float32Array(NUM_VERTS); // per-vertex grab influence
+  let dragPoint3D = [0, 0, 0];
+  let grabWeights = new Float32Array(NUM_VERTS);
 
   function stepPhysics(dt) {
-    dt = Math.min(dt, 1/30); // cap to avoid explosion
+    dt = Math.min(dt, 1/30);
     for (let i = 0; i < NUM_VERTS; i++) {
-      const ix = i * 3, iy = ix + 1, iz = ix + 2;
+      const ix = i*3, iy = ix+1, iz = ix+2;
       const rx = restPositions[ix], ry = restPositions[iy], rz = restPositions[iz];
       let cx = currentPositions[ix], cy = currentPositions[iy], cz = currentPositions[iz];
       let vx = velocities[ix], vy = velocities[iy], vz = velocities[iz];
 
-      // Spring force toward rest position
+      // Spring toward rest
       let fx = -STIFFNESS * (cx - rx) - DAMPING * vx;
       let fy = -STIFFNESS * (cy - ry) - DAMPING * vy;
       let fz = -STIFFNESS * (cz - rz) - DAMPING * vz;
 
-      // Grab force: pull toward drag point
+      // Grab pull
       if (grabbing && grabWeights[i] > 0.01) {
         const w = grabWeights[i] * GRAB_STRENGTH;
         fx += (dragPoint3D[0] - cx) * w;
@@ -291,92 +342,47 @@
         fz += (dragPoint3D[2] - cz) * w;
       }
 
-      // Integrate (semi-implicit Euler)
-      vx += fx * dt;
-      vy += fy * dt;
-      vz += fz * dt;
-      cx += vx * dt;
-      cy += vy * dt;
-      cz += vz * dt;
+      vx += fx * dt; vy += fy * dt; vz += fz * dt;
+      cx += vx * dt; cy += vy * dt; cz += vz * dt;
 
-      // Clamp max stretch
-      const dx = cx - rx, dy = cy - ry, dz = cz - rz;
-      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      // Clamp stretch
+      const dx = cx-rx, dy = cy-ry, dz = cz-rz;
+      const dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
       if (dist > MAX_STRETCH) {
         const s = MAX_STRETCH / dist;
-        cx = rx + dx * s;
-        cy = ry + dy * s;
-        cz = rz + dz * s;
-        // Dampen velocity when hitting stretch limit
-        vx *= 0.5; vy *= 0.5; vz *= 0.5;
+        cx = rx+dx*s; cy = ry+dy*s; cz = rz+dz*s;
+        vx *= 0.3; vy *= 0.3; vz *= 0.3;
       }
 
-      currentPositions[ix] = cx; currentPositions[iy] = cy; currentPositions[iz] = cz;
-      velocities[ix] = vx; velocities[iy] = vy; velocities[iz] = vz;
+      currentPositions[ix]=cx; currentPositions[iy]=cy; currentPositions[iz]=cz;
+      velocities[ix]=vx; velocities[iy]=vy; velocities[iz]=vz;
     }
   }
 
-  // =====================================================================
-  // Build GPU vertex buffer (positions updated each frame)
-  // =====================================================================
-  // Vertex layout: position(3) + color(3) + normal(3) = 9 floats
+  // === GPU buffers ===
   const vertexData = new Float32Array(NUM_VERTS * 9);
   function updateVertexData() {
     for (let i = 0; i < NUM_VERTS; i++) {
-      const ix = i * 3;
-      const ox = i * 9;
-      vertexData[ox]   = currentPositions[ix];
-      vertexData[ox+1] = currentPositions[ix+1];
-      vertexData[ox+2] = currentPositions[ix+2];
-      vertexData[ox+3] = colors[ix];
-      vertexData[ox+4] = colors[ix+1];
-      vertexData[ox+5] = colors[ix+2];
-      vertexData[ox+6] = normals[ix];
-      vertexData[ox+7] = normals[ix+1];
-      vertexData[ox+8] = normals[ix+2];
+      const ix = i*3, ox = i*9;
+      vertexData[ox]=currentPositions[ix]; vertexData[ox+1]=currentPositions[ix+1]; vertexData[ox+2]=currentPositions[ix+2];
+      vertexData[ox+3]=colors[ix]; vertexData[ox+4]=colors[ix+1]; vertexData[ox+5]=colors[ix+2];
+      vertexData[ox+6]=normals[ix]; vertexData[ox+7]=normals[ix+1]; vertexData[ox+8]=normals[ix+2];
     }
   }
   updateVertexData();
 
-  const vertexBuffer = device.createBuffer({
-    size: vertexData.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
+  const vertexBuffer = device.createBuffer({ size: vertexData.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
   device.queue.writeBuffer(vertexBuffer, 0, vertexData);
-
   const indexData = new Uint32Array(indices);
-  const indexBuffer = device.createBuffer({
-    size: indexData.byteLength,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  });
+  const indexBuffer = device.createBuffer({ size: indexData.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
   device.queue.writeBuffer(indexBuffer, 0, indexData);
 
-  // =====================================================================
-  // Shader
-  // =====================================================================
+  // === Shader ===
   const shaderCode = /* wgsl */`
-    struct Uniforms {
-      mvp: mat4x4f,
-      model: mat4x4f,
-      lightDir: vec3f,
-      alpha: f32,
-      eye: vec3f,
-      _pad: f32,
-    };
+    struct Uniforms { mvp: mat4x4f, model: mat4x4f, lightDir: vec3f, alpha: f32, eye: vec3f, _pad: f32 };
     @group(0) @binding(0) var<uniform> u: Uniforms;
-
-    struct VSOut {
-      @builtin(position) pos: vec4f,
-      @location(0) color: vec3f,
-      @location(1) normal: vec3f,
-      @location(2) worldPos: vec3f,
-    };
-
-    @vertex fn vs(
-      @location(0) position: vec3f,
-      @location(1) color: vec3f,
-      @location(2) normal: vec3f,
-    ) -> VSOut {
+    struct VSOut { @builtin(position) pos: vec4f, @location(0) color: vec3f, @location(1) normal: vec3f, @location(2) worldPos: vec3f };
+    @vertex fn vs(@location(0) position: vec3f, @location(1) color: vec3f, @location(2) normal: vec3f) -> VSOut {
       var out: VSOut;
       out.pos = u.mvp * vec4f(position, 1.0);
       out.color = color;
@@ -384,85 +390,44 @@
       out.worldPos = (u.model * vec4f(position, 1.0)).xyz;
       return out;
     }
-
     @fragment fn fs(in: VSOut) -> @location(0) vec4f {
       let N = normalize(in.normal);
       let L = normalize(u.lightDir);
       let V = normalize(u.eye - in.worldPos);
       let H = normalize(L + V);
-
-      let ambient = 0.15;
-      let diffuse = max(dot(N, L), 0.0) * 0.6;
-      let backlight = max(dot(N, -L), 0.0) * 0.1;
-      let spec = pow(max(dot(N, H), 0.0), 60.0) * 0.7;
+      let ambient = 0.18;
+      let diffuse = max(dot(N, L), 0.0) * 0.55;
+      let backlight = max(dot(N, -L), 0.0) * 0.12;
+      let spec = pow(max(dot(N, H), 0.0), 50.0) * 0.6;
       let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.2;
-
       let lighting = ambient + diffuse + backlight + spec + rim;
       let col = in.color * lighting;
-
       return vec4f(pow(col, vec3f(1.0/2.2)), u.alpha);
     }
   `;
-
   const shaderModule = device.createShaderModule({ code: shaderCode });
-
-  const uniformBuffer = device.createBuffer({
-    size: 256,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
-  const bindGroupLayout = device.createBindGroupLayout({
-    entries: [{
-      binding: 0,
-      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-      buffer: { type: 'uniform' },
-    }],
-  });
-
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
-  });
-
-  const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [bindGroupLayout],
-  });
+  const uniformBuffer = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const bindGroupLayout = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }] });
+  const bindGroup = device.createBindGroup({ layout: bindGroupLayout, entries: [{ binding: 0, resource: { buffer: uniformBuffer } }] });
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
 
   let depthTexture;
   function createDepthTexture() {
     if (depthTexture) depthTexture.destroy();
-    depthTexture = device.createTexture({
-      size: [canvas.width, canvas.height],
-      format: 'depth24plus',
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
+    depthTexture = device.createTexture({ size: [canvas.width, canvas.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
   }
 
   const pipeline = device.createRenderPipeline({
     layout: pipelineLayout,
-    vertex: {
-      module: shaderModule,
-      entryPoint: 'vs',
-      buffers: [{
-        arrayStride: 9 * 4,
-        attributes: [
-          { shaderLocation: 0, offset: 0, format: 'float32x3' },  // position
-          { shaderLocation: 1, offset: 12, format: 'float32x3' }, // color
-          { shaderLocation: 2, offset: 24, format: 'float32x3' }, // normal
-        ],
-      }],
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: 'fs',
-      targets: [{
-        format: fmt,
-        blend: {
-          color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-          alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-        },
-      }],
-    },
+    vertex: { module: shaderModule, entryPoint: 'vs', buffers: [{ arrayStride: 36, attributes: [
+      { shaderLocation: 0, offset: 0, format: 'float32x3' },
+      { shaderLocation: 1, offset: 12, format: 'float32x3' },
+      { shaderLocation: 2, offset: 24, format: 'float32x3' },
+    ]}]},
+    fragment: { module: shaderModule, entryPoint: 'fs', targets: [{ format: fmt, blend: {
+      color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+      alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+    }}]},
     primitive: { topology: 'triangle-list', cullMode: 'back' },
     depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
   });
@@ -470,236 +435,151 @@
   resize();
   window.addEventListener('resize', resize);
 
-  // =====================================================================
-  // Camera: orbit controls
-  // =====================================================================
-  let camTheta = 0.3;
-  let camPhi = 1.2;
-  let camDist = 3.2;
-  let camDistTarget = 3.2;
-  let autoRotate = true;
+  // === Camera ===
+  let camTheta = 0.0;
+  let camPhi = Math.PI / 2; // front-on
+  let camDist = 3.5;
+  let camDistTarget = 3.5;
+  let autoRotate = false;
 
-  // =====================================================================
-  // Input: grab, drag, orbit, zoom
-  // =====================================================================
+  // === Input ===
   function screenToRay(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
-
-    const eye = [
-      camDist * Math.sin(camPhi) * Math.cos(camTheta),
-      camDist * Math.cos(camPhi),
-      camDist * Math.sin(camPhi) * Math.sin(camTheta),
-    ];
+    const eye = [camDist*Math.sin(camPhi)*Math.cos(camTheta), camDist*Math.cos(camPhi), camDist*Math.sin(camPhi)*Math.sin(camTheta)];
     const fwd = v3normalize(v3scale(eye, -1));
-    const right = v3normalize(v3cross(fwd, [0, 1, 0]));
+    let right = v3normalize(v3cross(fwd, [0,1,0]));
+    if (v3len(right) < 0.01) right = v3normalize(v3cross(fwd, [1,0,0]));
     const up = v3cross(right, fwd);
-    const fovY = Math.PI / 4;
-    const aspect = canvas.width / canvas.height;
-    const halfH = Math.tan(fovY / 2);
-    const halfW = halfH * aspect;
-    const dir = v3normalize(v3add(fwd, v3add(v3scale(right, nx * halfW), v3scale(up, ny * halfH))));
+    const halfH = Math.tan(Math.PI/8), halfW = halfH * canvas.width / canvas.height;
+    const dir = v3normalize(v3add(fwd, v3add(v3scale(right, nx*halfW), v3scale(up, ny*halfH))));
     return { origin: eye, dir };
   }
 
-  function rayIntersectPlane(origin, dir, planeNormal, planeD) {
-    const denom = v3dot(dir, planeNormal);
+  function rayPlane(origin, dir, normal, d) {
+    const denom = v3dot(dir, normal);
     if (Math.abs(denom) < 1e-6) return null;
-    const t = (planeD - v3dot(origin, planeNormal)) / denom;
-    if (t < 0) return null;
-    return v3add(origin, v3scale(dir, t));
-  }
-
-  function findClosestVertex(worldPt) {
-    let bestDist = Infinity, bestIdx = -1;
-    for (let i = 0; i < NUM_VERTS; i++) {
-      const ix = i * 3;
-      const dx = restPositions[ix] - worldPt[0];
-      const dy = restPositions[ix+1] - worldPt[1];
-      const dz = restPositions[ix+2] - worldPt[2];
-      const d = dx*dx + dy*dy + dz*dz;
-      if (d < bestDist) { bestDist = d; bestIdx = i; }
-    }
-    return { idx: bestIdx, dist: Math.sqrt(bestDist) };
+    const t = (d - v3dot(origin, normal)) / denom;
+    return t < 0 ? null : v3add(origin, v3scale(dir, t));
   }
 
   function computeGrabWeights(worldPt) {
     grabWeights.fill(0);
     for (let i = 0; i < NUM_VERTS; i++) {
-      const ix = i * 3;
-      const dx = currentPositions[ix] - worldPt[0];
-      const dy = currentPositions[ix+1] - worldPt[1];
-      const dz = currentPositions[ix+2] - worldPt[2];
-      const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      const ix = i*3;
+      const dx = currentPositions[ix]-worldPt[0], dy = currentPositions[ix+1]-worldPt[1], dz = currentPositions[ix+2]-worldPt[2];
+      const d = Math.sqrt(dx*dx+dy*dy+dz*dz);
       if (d < GRAB_RADIUS) {
-        // Smooth falloff (cubic)
-        const t = 1 - d / GRAB_RADIUS;
-        grabWeights[i] = t * t * t;
+        const t = 1 - d/GRAB_RADIUS;
+        grabWeights[i] = t * t; // quadratic falloff — smoother, wider deformation
       }
     }
   }
 
-  let isDragging = false;
-  let isOrbiting = false;
-  let lastX = 0, lastY = 0;
+  let isDragging = false, isOrbiting = false, lastX = 0, lastY = 0;
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
     lastX = e.clientX; lastY = e.clientY;
-
-    // Try to grab the mesh
     const ray = screenToRay(e.clientX, e.clientY);
-    // Intersect with z=0 plane (mesh is roughly in z=0)
-    const hit = rayIntersectPlane(ray.origin, ray.dir, [0, 0, 1], 0);
+    const hit = rayPlane(ray.origin, ray.dir, [0, 0, 1], 0);
     if (hit) {
-      const { dist } = findClosestVertex(hit);
-      if (dist < GRAB_RADIUS * 1.5) {
-        grabbing = true;
-        isDragging = true;
-        autoRotate = false;
-        grabPoint3D = [...hit];
+      // Check if near the face
+      const distFromCenter = Math.sqrt(hit[0]*hit[0] + hit[1]*hit[1]);
+      if (distFromCenter < FACE_R + 1.2) {
+        grabbing = true; isDragging = true;
         dragPoint3D = [...hit];
         computeGrabWeights(hit);
         canvas.classList.add('grabbing');
         return;
       }
     }
-    // Otherwise: orbit
     isOrbiting = true;
-    autoRotate = false;
   });
 
   canvas.addEventListener('pointermove', (e) => {
     if (isDragging) {
       const ray = screenToRay(e.clientX, e.clientY);
-      const hit = rayIntersectPlane(ray.origin, ray.dir, [0, 0, 1], 0);
+      const hit = rayPlane(ray.origin, ray.dir, [0, 0, 1], 0);
       if (hit) dragPoint3D = [...hit];
     } else if (isOrbiting) {
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
-      camTheta -= dx * 0.005;
-      camPhi = Math.max(0.2, Math.min(Math.PI - 0.2, camPhi - dy * 0.005));
+      camTheta -= (e.clientX - lastX) * 0.005;
+      camPhi = Math.max(0.3, Math.min(Math.PI - 0.3, camPhi - (e.clientY - lastY) * 0.005));
       lastX = e.clientX; lastY = e.clientY;
     }
   });
 
   canvas.addEventListener('pointerup', () => {
-    if (isDragging) {
-      grabbing = false;
-      isDragging = false;
-      canvas.classList.remove('grabbing');
-    }
+    if (isDragging) { grabbing = false; isDragging = false; canvas.classList.remove('grabbing'); }
     isOrbiting = false;
   });
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.08 : -0.08;
-    camDistTarget = Math.max(1.5, Math.min(8, camDistTarget * (1 + delta)));
+    camDistTarget = Math.max(1.5, Math.min(8, camDistTarget * (1 + (e.deltaY > 0 ? 0.08 : -0.08))));
   }, { passive: false });
 
-  // Touch zoom
-  let touchStartDist = 0;
-  let touchStartCam = 0;
+  let touchStartDist = 0, touchStartCam = 0;
   canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      touchStartDist = Math.sqrt(dx*dx + dy*dy);
-      touchStartCam = camDistTarget;
+      const dx = e.touches[0].clientX-e.touches[1].clientX, dy = e.touches[0].clientY-e.touches[1].clientY;
+      touchStartDist = Math.sqrt(dx*dx+dy*dy); touchStartCam = camDistTarget;
     }
   }, { passive: true });
   canvas.addEventListener('touchmove', (e) => {
     if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      const scale = touchStartDist / Math.max(1, d);
-      camDistTarget = Math.max(1.5, Math.min(8, touchStartCam * scale));
+      const dx = e.touches[0].clientX-e.touches[1].clientX, dy = e.touches[0].clientY-e.touches[1].clientY;
+      camDistTarget = Math.max(1.5, Math.min(8, touchStartCam * touchStartDist / Math.max(1, Math.sqrt(dx*dx+dy*dy))));
     }
   }, { passive: true });
 
-  // =====================================================================
-  // Render loop
-  // =====================================================================
+  // === Render loop ===
   let lastTime = performance.now();
 
   function frame(t) {
     requestAnimationFrame(frame);
-
     const dt = (t - lastTime) / 1000;
     lastTime = t;
     if (dt <= 0 || dt > 0.2) return;
 
-    // Auto-rotate (slow tumble when idle)
     if (autoRotate) camTheta += 0.003;
     camDist += (camDistTarget - camDist) * 0.1;
 
-    // Step spring physics (sub-steps for stability)
-    const substeps = 3;
+    // Sub-stepped physics
+    const substeps = 4;
     const subDt = dt / substeps;
-    for (let s = 0; s < substeps; s++) {
-      stepPhysics(subDt);
-    }
+    for (let s = 0; s < substeps; s++) stepPhysics(subDt);
 
-    // Upload updated vertex positions
     updateVertexData();
     device.queue.writeBuffer(vertexBuffer, 0, vertexData);
 
-    // Camera
-    const eye = [
-      camDist * Math.sin(camPhi) * Math.cos(camTheta),
-      camDist * Math.cos(camPhi),
-      camDist * Math.sin(camPhi) * Math.sin(camTheta),
-    ];
-    const view = mat4LookAt(eye, [0, 0, 0], [0, 1, 0]);
-    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, 0.01, 50);
+    const eye = [camDist*Math.sin(camPhi)*Math.cos(camTheta), camDist*Math.cos(camPhi), camDist*Math.sin(camPhi)*Math.sin(camTheta)];
+    const view = mat4LookAt(eye, [0,0,0], [0,1,0]);
+    const proj = mat4Perspective(Math.PI/4, canvas.width/canvas.height, 0.01, 50);
     const mvp = mat4Mul(proj, view);
+    const lightDir = v3normalize([0.4, 0.7, 0.5]);
 
-    // Uniforms
-    const lightDir = v3normalize([0.5, 0.8, 0.4]);
-    const ub = new Float32Array(32);
-    ub.set(mvp, 0);
-    ub.set(mat4Identity(), 16); // model = identity
-    ub[28] = lightDir[0]; ub[29] = lightDir[1]; ub[30] = lightDir[2];
-    ub[31] = 1.0; // alpha
-    // eye position at offset 32... we need 10 more floats. Let's use a bigger buffer range.
-    // Actually the struct is: mvp(16) + model(16) + lightDir(3) + alpha(1) + eye(3) + pad(1) = 40 floats
-    const ub2 = new Float32Array(40);
-    ub2.set(mvp, 0);
-    ub2.set(mat4Identity(), 16);
-    ub2[32] = lightDir[0]; ub2[33] = lightDir[1]; ub2[34] = lightDir[2];
-    ub2[35] = 1.0;
-    ub2[36] = eye[0]; ub2[37] = eye[1]; ub2[38] = eye[2];
-    ub2[39] = 0;
-    device.queue.writeBuffer(uniformBuffer, 0, ub2);
+    const ub = new Float32Array(40);
+    ub.set(mvp, 0); ub.set(mat4Identity(), 16);
+    ub[32]=lightDir[0]; ub[33]=lightDir[1]; ub[34]=lightDir[2]; ub[35]=1.0;
+    ub[36]=eye[0]; ub[37]=eye[1]; ub[38]=eye[2]; ub[39]=0;
+    device.queue.writeBuffer(uniformBuffer, 0, ub);
 
-    // Render
-    const commandEncoder = device.createCommandEncoder();
-    const pass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: ctx.getCurrentTexture().createView(),
-        clearValue: { r: 0.05, g: 0.05, b: 0.07, a: 1 },
-        loadOp: 'clear', storeOp: 'store',
-      }],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store',
-      },
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r: 0.05, g: 0.05, b: 0.07, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+      depthStencilAttachment: { view: depthTexture.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
     });
-
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.setVertexBuffer(0, vertexBuffer);
     pass.setIndexBuffer(indexBuffer, 'uint32');
     pass.drawIndexed(indexData.length);
     pass.end();
-
-    device.queue.submit([commandEncoder.finish()]);
+    device.queue.submit([enc.finish()]);
   }
-
   requestAnimationFrame(frame);
 })();
 </script>
