@@ -1,0 +1,57 @@
+* { margin: 0; box-sizing: border-box; }
+body { background: #0a0a0a; overflow: hidden; font-family: monospace; }
+canvas { display: block; cursor: grab; }
+canvas.dragging { cursor: grabbing; }
+
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  padding: 8px 12px; background: rgba(10,10,10,.9);
+  color: #666; font: 12px monospace; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid #1a1a1a;
+  user-select: none;
+}
+#hud .title { color: #777; }
+#status { color: #555; }
+
+#hover-info {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 6px 12px; background: rgba(10,10,10,.92);
+  color: #888; font: 12px monospace; z-index: 10;
+  border-top: 1px solid #1a1a1a;
+  opacity: 0; transition: opacity .15s;
+  user-select: none;
+}
+#hover-info.visible { opacity: 1; }
+
+/* Info / Thread panel */
+#info-panel {
+  position: fixed; top: 30px; right: 0; bottom: 0;
+  width: 0; overflow: hidden; transition: width .2s;
+  border-left: 1px solid #222; background: rgba(10,10,10,.96);
+  z-index: 20; font: 13px/1.6 monospace; color: #ccc;
+}
+#info-panel.open { width: 380px; }
+#info-inner {
+  width: 380px; padding: 1em; overflow-y: auto; height: 100%;
+}
+#info-panel h2 { font-size: 1em; color: #ddd; margin-bottom: .2em; font-weight: normal; }
+#info-panel .meta { color: #666; font-size: .85em; margin-bottom: .6em; }
+#info-panel .info-close { cursor: pointer; color: #555; float: right; font-size: 1.2em; }
+#info-panel .info-close:hover { color: #fff; }
+
+/* Thread post styles */
+.thread-post { padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
+.thread-post.root { border-bottom: 1px solid #333; margin-bottom: 4px; }
+.thread-reply { padding: 6px 0 6px 12px; border-left: 2px solid #222; margin-left: 4px; }
+.thread-reply .thread-reply { border-left-color: #1a1a1a; }
+.thread-author { color: #8bf; font-size: .85em; font-weight: bold; }
+.thread-author a { color: #8bf; text-decoration: none; }
+.thread-author a:hover { text-decoration: underline; }
+.thread-text { color: #ccc; font-size: .9em; line-height: 1.5; margin: 4px 0; word-wrap: break-word; white-space: pre-wrap; }
+.thread-stats { color: #555; font-size: .75em; }
+.thread-stats span { margin-right: 8px; }
+.thread-time { color: #444; font-size: .75em; }
+.thread-img { max-width: 100%; border-radius: 4px; margin: 6px 0; }
+.thread-loading { color: #555; padding: 12px 0; }
+.thread-error { color: #a55; padding: 8px 0; font-size: .85em; }

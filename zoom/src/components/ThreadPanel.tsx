@@ -1,0 +1,173 @@
+import { useEffect, useState } from 'react';
+import { useSelectionStore } from '../stores/selection';
+import { useDataStore } from '../stores/data';
+import type { BlueskyThreadNode } from '../api/types';
+
+function relativeTime(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+}
+
+function ThreadPost({ node, depth }: { node: BlueskyThreadNode; depth: number }) {
+  if (
+    !node ||
+    node.$type === 'app.bsky.feed.defs#blockedPost' ||
+    node.$type === 'app.bsky.feed.defs#notFoundPost'
+  ) {
+    return <div className="thread-reply" style={{ color: '#555', fontSize: '.8em' }}>[unavailable]</div>;
+  }
+
+  const post = node.post;
+  if (!post) return null;
+
+  const author = post.author || {};
+  const handle = author.handle || author.did?.slice(0, 20) || '?';
+  const displayName = author.displayName || handle;
+  const text = post.record?.text || '';
+  const isRoot = depth === 0;
+  const cls = isRoot ? 'thread-post root' : 'thread-reply';
+
+  const images: string[] = [];
+  if (post.embed) {
+    const imgs = post.embed.images || post.embed.media?.images || [];
+    for (const img of imgs) {
+      const thumb = img.thumb || img.fullsize;
+      if (thumb) images.push(thumb);
+    }
+  }
+
+  const likes = post.likeCount || 0;
+  const replies = post.replyCount || 0;
+  const reposts = post.repostCount || 0;
+  const time = post.record?.createdAt ? relativeTime(post.record.createdAt) : '';
+  const rkey = post.uri?.split('/').pop() || '';
+
+  const sortedReplies = [...(node.replies || [])].sort(
+    (a, b) => ((b.post?.likeCount || 0) - (a.post?.likeCount || 0))
+  );
+
+  return (
+    <div className={cls}>
+      <div className="thread-author">
+        <a
+          href={`https://bsky.app/profile/${handle}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {displayName}
+        </a>{' '}
+        <span className="thread-time">
+          @{handle} &middot; {time}
+        </span>
+      </div>
+      <div className="thread-text">{text}</div>
+      {images.map((src, i) => (
+        <img key={i} className="thread-img" src={src} loading="lazy" alt="" />
+      ))}
+      <div className="thread-stats">
+        <span>{replies} replies</span>
+        <span>{reposts} reposts</span>
+        <span>{likes} likes</span>
+        {' '}
+        <a
+          href={`https://bsky.app/profile/${author.did || handle}/post/${rkey}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#555', textDecoration: 'none' }}
+        >
+          open
+        </a>
+      </div>
+      {sortedReplies.map((reply, i) => (
+        <ThreadPost key={i} node={reply} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+
+export function ThreadPanel() {
+  const selected = useSelectionStore((s) => s.selected);
+  const fetchFullThread = useDataStore((s) => s.fetchFullThread);
+  const activityData = useDataStore((s) => s.activityData);
+  const [thread, setThread] = useState<BlueskyThreadNode | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const close = () => useSelectionStore.getState().setSelected(null);
+
+  useEffect(() => {
+    setThread(null);
+    setError(null);
+    setLoading(false);
+
+    if (!selected) return;
+
+    if (selected._type === 'post') {
+      setLoading(true);
+      fetchFullThread(selected._post.uri)
+        .then((t) => setThread(t))
+        .catch((e) => setError((e as Error).message))
+        .finally(() => setLoading(false));
+    }
+  }, [selected, fetchFullThread]);
+
+  const isOpen = selected !== null;
+
+  return (
+    <div id="info-panel" className={isOpen ? 'open' : ''}>
+      <div id="info-inner">
+        <span className="info-close" onClick={close}>
+          &times;
+        </span>
+
+        {selected?._type === 'post' && (
+          <>
+            <h2>thread</h2>
+            {loading && <div className="thread-loading">loading thread&hellip;</div>}
+            {error && (
+              <div className="thread-error">
+                failed to load: {error}
+                <div style={{ marginTop: '.6em' }}>
+                  <a
+                    href={`https://bsky.app/profile/${selected._post.authorDid}/post/${selected._post.uri.split('/').pop()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#8bf', textDecoration: 'none' }}
+                  >
+                    view on Bluesky
+                  </a>
+                </div>
+              </div>
+            )}
+            {thread && <ThreadPost node={thread} depth={0} />}
+          </>
+        )}
+
+        {selected?._type === 'community' && (
+          <>
+            <h2>{selected._community.label}</h2>
+            <div className="meta">
+              {selected._community.coreSize} core &middot; {selected._community.totalSize} total
+              {activityData[selected._community.id] &&
+                ` \u00b7 ${activityData[selected._community.id].postCount} posts`}
+            </div>
+            <div className="meta" style={{ marginTop: '.4em' }}>
+              Members listed in community view.{' '}
+              <a
+                href="/communities.html"
+                style={{ color: '#8bf', textDecoration: 'none' }}
+              >
+                Open
+              </a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
