@@ -3185,6 +3185,65 @@ button:disabled {
 .docs-footer a { color: var(--accent); text-decoration: none; }
 .docs-footer a:hover { text-decoration: underline; }
 
+/* ── To-Do ── */
+
+.todo-container { display: flex; flex-direction: column; height: 100vh; background: var(--bg); color: var(--text); }
+.todo-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; }
+
+.todo-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.todo-header-left { display: flex; align-items: center; gap: 0.75rem; }
+.todo-header-left h1 { font-size: 1.1rem; margin: 0; }
+.todo-header-left .back-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text); font-size: 1rem; }
+.todo-header-left .back-btn:hover { background: var(--surface-2); }
+.todo-count { font-size: 0.8rem; color: var(--text-dim); }
+.todo-header-right { display: flex; align-items: center; gap: 0.5rem; }
+
+.todo-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.todo-filters { display: flex; gap: 0; }
+.todo-filter-btn { background: none; border: 1px solid var(--border); padding: 0.3rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: var(--text-dim); text-transform: capitalize; }
+.todo-filter-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.todo-filter-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.todo-filter-btn:not(:last-child) { border-right: none; }
+.todo-filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.todo-sort { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-dim); }
+
+.todo-select { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem 0.5rem; font-size: 0.8rem; color: var(--text); }
+
+.todo-list { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+.todo-empty-state { padding: 3rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+
+.todo-item { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.todo-item:hover { background: var(--surface); }
+.todo-item.done .todo-title { text-decoration: line-through; color: var(--text-dim); }
+
+.todo-check { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0; line-height: 1; color: var(--text-dim); flex-shrink: 0; margin-top: 0.1rem; }
+.todo-check:hover { color: var(--accent); }
+.todo-check:disabled { opacity: 0.5; cursor: default; }
+
+.todo-body { flex: 1; cursor: pointer; min-width: 0; }
+.todo-title { font-size: 0.9rem; font-weight: 500; }
+.todo-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; font-size: 0.75rem; }
+.todo-priority { padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; }
+.todo-priority.high { background: rgba(248,81,73,0.15); color: #f85149; }
+.todo-priority.medium { background: rgba(227,179,65,0.15); color: #e3b341; }
+.todo-priority.low { background: rgba(63,185,80,0.15); color: #3fb950; }
+.todo-due { color: var(--text-dim); }
+.todo-org { color: var(--accent); }
+.todo-tags { color: var(--text-dim); font-style: italic; }
+
+.todo-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; line-height: 1; flex-shrink: 0; }
+.todo-delete:hover { color: #f85149; }
+
+.todo-form-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.todo-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 0.75rem; }
+.todo-form h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.todo-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.65rem; font-size: 0.85rem; color: var(--text); width: 100%; box-sizing: border-box; }
+.todo-input:focus { outline: none; border-color: var(--accent); }
+.todo-textarea { resize: vertical; font-family: inherit; }
+.todo-form-row { display: flex; gap: 0.5rem; }
+.todo-form-row > * { flex: 1; }
+.todo-form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+
 /* ── Calendar ── */
 
 .cal-container {

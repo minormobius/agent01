@@ -11,6 +11,7 @@ const INTERNAL_ROUTES: Record<string, string> = {
   wave: "/wave",
   crm: "/crm",
   cal: "/cal",
+  todo: "/todo",
   docs: "/docs",
 };
 
