@@ -14,6 +14,7 @@ import { SCurve } from "./panes/SCurve";
 import { Team } from "./panes/Team";
 import { Resources } from "./panes/Resources";
 import { Sync } from "./panes/Sync";
+import { TimeLogs } from "./panes/TimeLogs";
 import { Docs } from "./panes/Docs";
 import { useRouter } from "../router";
 import type { VaultState } from "../App";
@@ -140,6 +141,7 @@ function PmInner({ vault, pds, orgs, memberships, orgScope, onOrgScopeChange, st
           />
         )}
         {activeTab === "resources" && <Resources project={project} />}
+        {activeTab === "timelogs" && <TimeLogs project={project} />}
         {activeTab === "sync" && <Sync project={project} vault={vault} pds={pds} />}
         {activeTab === "docs" && <Docs />}
       </div>

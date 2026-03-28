@@ -12,6 +12,7 @@ const INTERNAL_ROUTES: Record<string, string> = {
   crm: "/crm",
   cal: "/cal",
   todo: "/todo",
+  contacts: "/contacts",
   docs: "/docs",
 };
 

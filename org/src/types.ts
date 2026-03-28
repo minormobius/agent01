@@ -261,5 +261,6 @@ export const APPS: AppDef[] = [
   { id: "pm", name: "PM", description: "Earned value project management", url: "/pm", icon: "\u{1F4CA}", orgAware: true },
   { id: "cal", name: "Calendar", description: "Events, scheduling & PM deadlines", url: "/cal", icon: "\u{1F4C5}", orgAware: true },
   { id: "todo", name: "To-Do", description: "Encrypted checklists & tasks", url: "/todo", icon: "\u2705", orgAware: true },
+  { id: "contacts", name: "Contacts", description: "Encrypted contact directory", url: "/contacts", icon: "\u{1F4C7}", orgAware: true },
   { id: "docs", name: "Docs", description: "Architecture & encryption reference", url: "/docs", icon: "\u{1F4D6}", orgAware: false },
 ];

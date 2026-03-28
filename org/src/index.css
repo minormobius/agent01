@@ -1697,6 +1697,33 @@ button:disabled {
   }
 }
 
+/* ── Time Log pane ── */
+
+.pm-timelog { padding: 1rem 1.25rem; }
+.pm-timelog-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.pm-timelog-form h3 { margin: 0 0 0.5rem; font-size: 0.9rem; }
+.pm-timelog-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.pm-timelog-row select, .pm-timelog-row input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.35rem 0.5rem; font-size: 0.8rem; color: var(--text); }
+
+.pm-timelog-summary { display: flex; align-items: center; gap: 1.5rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+.pm-timelog-stat { display: flex; flex-direction: column; }
+.pm-timelog-stat-value { font-size: 1.25rem; font-weight: 700; }
+.pm-timelog-stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.pm-timelog-group { margin-bottom: 0.75rem; }
+.pm-timelog-group-header { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.5rem; background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; }
+.pm-timelog-group-total { color: var(--accent); font-weight: 700; }
+
+.pm-timelog-entry { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-top: none; font-size: 0.8rem; }
+.pm-timelog-entry:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+.pm-timelog-entry-date { color: var(--text-dim); min-width: 90px; }
+.pm-timelog-entry-task { font-weight: 500; }
+.pm-timelog-entry-member { color: var(--accent); }
+.pm-timelog-entry-hours { font-weight: 600; min-width: 40px; }
+.pm-timelog-entry-notes { color: var(--text-dim); flex: 1; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-timelog-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1rem; padding: 0 0.25rem; margin-left: auto; }
+.pm-timelog-delete:hover { color: #f85149; }
+
 /* ── Sync pane ── */
 
 .sync-pane {
@@ -3817,3 +3844,87 @@ button:disabled {
 }
 
 .btn-danger:hover { opacity: 0.9; }
+
+/* ── Contacts ── */
+
+.contacts-container { display: flex; flex-direction: column; height: 100vh; background: var(--bg); color: var(--text); }
+.contacts-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; }
+
+.contacts-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.contacts-header-left { display: flex; align-items: center; gap: 0.75rem; }
+.contacts-header-left h1 { font-size: 1.1rem; margin: 0; }
+.contacts-header-left .back-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text); font-size: 1rem; }
+.contacts-header-left .back-btn:hover { background: var(--surface-2); }
+.contacts-count { font-size: 0.8rem; color: var(--text-dim); }
+.contacts-header-right { display: flex; align-items: center; gap: 0.5rem; }
+.contacts-select { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem 0.5rem; font-size: 0.8rem; color: var(--text); }
+
+.contacts-search { padding: 0.5rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.contacts-search input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.85rem; color: var(--text); box-sizing: border-box; }
+.contacts-search input:focus { outline: none; border-color: var(--accent); }
+
+.contacts-list { flex: 1; overflow-y: auto; }
+.contacts-empty-state { padding: 3rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+
+.contact-card { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+.contact-card:hover { background: var(--surface); }
+
+.contact-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+
+.contact-info { flex: 1; min-width: 0; }
+.contact-name { font-weight: 600; font-size: 0.9rem; }
+.contact-handle { margin-left: 0.5rem; color: var(--accent); font-weight: 400; font-size: 0.8rem; }
+.contact-meta { display: flex; gap: 0.5rem; font-size: 0.8rem; color: var(--text-dim); margin-top: 0.15rem; }
+.contact-meta span:not(:last-child)::after { content: "\00b7"; margin-left: 0.5rem; }
+.contact-details { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-dim); margin-top: 0.15rem; }
+.contact-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.25rem; }
+.contact-tag { font-size: 0.65rem; padding: 0.1rem 0.35rem; background: var(--surface-2); border-radius: 3px; color: var(--text-dim); }
+
+.contact-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
+.contact-org { font-size: 0.7rem; color: var(--accent); }
+.contact-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0; }
+.contact-delete:hover { color: #f85149; }
+
+.contact-form-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.contact-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 0.75rem; }
+.contact-form h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.contact-form input, .contact-form textarea { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.65rem; font-size: 0.85rem; color: var(--text); width: 100%; box-sizing: border-box; font-family: inherit; }
+.contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: var(--accent); }
+.contact-form textarea { resize: vertical; }
+.contact-form-row { display: flex; gap: 0.5rem; }
+.contact-form-row > * { flex: 1; }
+.contact-form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+
+/* --- CRM Tab Bar --- */
+
+.crm-tab-bar { display: flex; gap: 0; margin-right: 0.5rem; }
+.crm-tab-btn { background: none; border: 1px solid var(--border); padding: 0.3rem 0.75rem; font-size: 0.8rem; cursor: pointer; color: var(--text-dim); font-weight: 500; }
+.crm-tab-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.crm-tab-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.crm-tab-btn:not(:last-child) { border-right: none; }
+.crm-tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* --- Expenses --- */
+
+.expense-toolbar { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+.expense-toolbar select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.35rem 0.5rem; font-size: 0.8rem; color: var(--text); }
+
+.expense-list { flex: 1; overflow-y: auto; }
+.expense-empty { padding: 3rem; text-align: center; color: var(--text-dim); }
+
+.expense-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.expense-row:hover { background: var(--surface); }
+.expense-date { color: var(--text-dim); min-width: 90px; font-size: 0.8rem; }
+.expense-cat { padding: 0.15rem 0.4rem; background: var(--surface-2); border-radius: 3px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; min-width: 70px; text-align: center; }
+.expense-desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expense-deal { margin-left: 0.5rem; color: var(--accent); font-size: 0.75rem; }
+.expense-vendor { margin-left: 0.5rem; color: var(--text-dim); font-size: 0.75rem; font-style: italic; }
+.expense-amount { font-weight: 700; min-width: 80px; text-align: right; }
+.expense-actions { display: flex; gap: 0.25rem; align-items: center; }
+.expense-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; }
+.expense-delete:hover { color: #f85149; }
+
+.expense-form .form-row { margin-bottom: 0.75rem; }
+.expense-form .form-row label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-dim); }
+.expense-form .form-row input, .expense-form .form-row select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.65rem; font-size: 0.85rem; color: var(--text); box-sizing: border-box; }
+.expense-form .form-row input:focus, .expense-form .form-row select:focus { outline: none; border-color: var(--accent); }

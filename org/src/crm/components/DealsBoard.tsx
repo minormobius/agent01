@@ -25,6 +25,8 @@ interface Props {
   activeOrg?: OrgContext | null;
   orgContexts: Map<string, OrgContext>;
   availableTiers?: TierDef[] | null;
+  crmTab?: "deals" | "expenses";
+  onCrmTabChange?: (tab: "deals" | "expenses") => void;
 }
 
 export function DealsBoard({
@@ -43,6 +45,8 @@ export function DealsBoard({
   activeOrg,
   orgContexts,
   availableTiers,
+  crmTab,
+  onCrmTabChange,
 }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DealRecord | undefined>();
@@ -169,6 +173,12 @@ export function DealsBoard({
             <button className="back-btn" onClick={onBackToHub} title="Back to Hub">
               &larr;
             </button>
+          )}
+          {onCrmTabChange && (
+            <nav className="crm-tab-bar">
+              <button className={`crm-tab-btn${crmTab === "deals" ? " active" : ""}`} onClick={() => onCrmTabChange("deals")}>Deals</button>
+              <button className={`crm-tab-btn${crmTab === "expenses" ? " active" : ""}`} onClick={() => onCrmTabChange("expenses")}>Expenses</button>
+            </nav>
           )}
           {orgSwitcher}
           {(

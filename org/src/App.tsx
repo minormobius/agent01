@@ -34,6 +34,7 @@ import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
 import { CalendarApp } from "./cal/CalendarApp";
 import { TodoApp } from "./todo/TodoApp";
+import { ContactsApp } from "./contacts/ContactsApp";
 import { DocsPage } from "./components/DocsPage";
 import { ThemePicker } from "./components/ThemePicker";
 import { Route } from "./router";
@@ -553,6 +554,10 @@ export function App() {
 
       <Route path="/todo">
         <TodoApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/contacts">
+        <ContactsApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
       <Route path="/docs">

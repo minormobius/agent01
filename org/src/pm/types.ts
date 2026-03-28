@@ -50,6 +50,16 @@ export interface KanbanLane {
   role: "backlog" | "queued" | "active" | "review" | "done" | "custom";
 }
 
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  memberId: string;
+  date: string;          // YYYY-MM-DD
+  hours: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface ProjectState {
   tasks: Task[];
   deps: Dependency[];
@@ -59,6 +69,7 @@ export interface ProjectState {
   projectName: string;
   members: Member[];
   kanbanLanes: KanbanLane[];
+  timeEntries?: TimeEntry[];
 }
 
 // ── EVM / ES result types ──
@@ -96,6 +107,7 @@ export type PmTab =
   | "scurve"
   | "team"
   | "resources"
+  | "timelogs"
   | "sync"
   | "docs";
 
@@ -107,6 +119,7 @@ export const PM_TABS: { id: PmTab; label: string }[] = [
   { id: "scurve", label: "S-Curve" },
   { id: "team", label: "Team" },
   { id: "resources", label: "Resources" },
+  { id: "timelogs", label: "Time Log" },
   { id: "sync", label: "Sync" },
   { id: "docs", label: "Docs" },
 ];
