@@ -49,6 +49,19 @@ export function CreateSurveyPage() {
     setQuestions(questions.filter((_, j) => j !== i));
   };
 
+  const duplicateQuestion = (i: number) => {
+    if (questions.length >= 50) return;
+    const src = questions[i];
+    const copy = [...questions];
+    copy.splice(i + 1, 0, {
+      question: '',
+      options: [...src.options],
+      required: src.required,
+      questionType: src.questionType,
+    });
+    setQuestions(copy);
+  };
+
   const updateQuestion = (i: number, field: keyof QuestionDraft, value: any) => {
     const copy = [...questions];
     (copy[i] as any)[field] = value;
@@ -202,6 +215,9 @@ export function CreateSurveyPage() {
                   onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}>Up</button>
                 <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: 12 }}
                   onClick={() => moveQuestion(qi, 1)} disabled={qi === questions.length - 1}>Down</button>
+                <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: 12 }}
+                  onClick={() => duplicateQuestion(qi)} disabled={questions.length >= 50}
+                  title="Add new question with same options">Duplicate</button>
                 {questions.length > 1 && (
                   <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: 12 }}
                     onClick={() => removeQuestion(qi)}>Remove</button>
