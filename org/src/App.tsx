@@ -33,6 +33,7 @@ import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
 import { CalendarApp } from "./cal/CalendarApp";
+import { DocsPage } from "./components/DocsPage";
 import { ThemePicker } from "./components/ThemePicker";
 import { Route } from "./router";
 
@@ -547,6 +548,10 @@ export function App() {
 
       <Route path="/cal">
         <CalendarApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/docs">
+        <DocsPage />
       </Route>
 
       <Route path="/" exact>

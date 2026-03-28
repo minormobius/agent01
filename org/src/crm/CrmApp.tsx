@@ -27,10 +27,7 @@ import {
   SEALED_COLLECTION,
 } from "./context";
 import { DealsBoard } from "./components/DealsBoard";
-import { DocsPage } from "./components/DocsPage";
 import { OrgSwitcher } from "./components/OrgSwitcher";
-
-type Tab = "deals" | "docs";
 
 interface Props {
   vault?: VaultState | null;
@@ -45,7 +42,6 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
   // CRM state — local copy of contexts so change control can update locally
   const [deals, setDeals] = useState<DealRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<Tab>("deals");
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(sharedContexts);
 
@@ -341,8 +337,6 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
         myDid={vault.session.did}
         onLogout={() => navigate("/")}
         onBackToHub={() => navigate("/")}
-        tab={tab}
-        onTabChange={setTab}
         orgSwitcher={
           <OrgSwitcher
             orgs={orgs}
@@ -356,7 +350,6 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
         orgContexts={orgContexts}
         availableTiers={availableTiers}
       />
-      {tab === "docs" && <DocsPage />}
     </div>
   );
 }

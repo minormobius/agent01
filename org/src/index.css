@@ -3146,9 +3146,19 @@ button:disabled {
 .gate-office-badge { font-size: 0.65rem; font-weight: 600; padding: 0.1rem 0.35rem; background: var(--accent); color: white; border-radius: 3px; text-transform: uppercase; }
 .gate-office-selector { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 
-/* --- CRM Docs Page --- */
+/* --- Docs Page --- */
 
-.docs-page { flex: 1; overflow-y: auto; background: var(--bg); }
+.docs-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg); color: var(--text); }
+
+.docs-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+.docs-header h1 { font-size: 1.1rem; margin: 0; }
+.docs-header .back-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 0.6rem; cursor: pointer; color: var(--text); font-size: 1rem; }
+.docs-header .back-btn:hover { background: var(--surface-2); }
+
+.docs-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); background: var(--surface); padding: 0 1.25rem; overflow-x: auto; }
+.docs-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; padding: 0.6rem 1rem; cursor: pointer; color: var(--text-dim); font-size: 0.85rem; font-weight: 500; white-space: nowrap; transition: color 0.15s, border-color 0.15s; }
+.docs-tab:hover { color: var(--text); }
+.docs-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 .docs-content { max-width: 760px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
 .docs-content h1 { font-size: 2rem; margin-bottom: 0.5rem; }
 .docs-lead { font-size: 1.1rem; color: var(--text-dim); line-height: 1.6; margin-bottom: 2.5rem; }

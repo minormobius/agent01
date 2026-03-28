@@ -4,8 +4,6 @@ import type { Deal, DealRecord, Stage, TierDef, OrgContext, OrgFilter } from "..
 import { DealCard } from "./DealCard";
 import { DealForm } from "./DealForm";
 
-type Tab = "deals" | "docs";
-
 interface Props {
   deals: DealRecord[];
   filterOrg: OrgFilter;
@@ -23,8 +21,6 @@ interface Props {
   myDid: string;
   onLogout: () => void;
   onBackToHub?: () => void;
-  tab: Tab;
-  onTabChange: (tab: Tab) => void;
   orgSwitcher?: ReactNode;
   activeOrg?: OrgContext | null;
   orgContexts: Map<string, OrgContext>;
@@ -43,8 +39,6 @@ export function DealsBoard({
   myDid,
   onLogout,
   onBackToHub,
-  tab,
-  onTabChange,
   orgSwitcher,
   activeOrg,
   orgContexts,
@@ -177,21 +171,7 @@ export function DealsBoard({
             </button>
           )}
           {orgSwitcher}
-          <nav className="tab-bar">
-            <button
-              className={`tab ${tab === "deals" ? "tab-active" : ""}`}
-              onClick={() => onTabChange("deals")}
-            >
-              Deals
-            </button>
-            <button
-              className={`tab ${tab === "docs" ? "tab-active" : ""}`}
-              onClick={() => onTabChange("docs")}
-            >
-              Docs
-            </button>
-          </nav>
-          {tab === "deals" && (
+          {(
             <span className="header-stat">
               {filteredDeals.length} deal{filteredDeals.length !== 1 ? "s" : ""}
               {filteredDeals.length !== deals.length && ` of ${deals.length}`}
@@ -201,7 +181,7 @@ export function DealsBoard({
         </div>
         <div className="header-right">
           <span className="header-handle">{handle}</span>
-          {tab === "deals" && canCreate && (
+          {canCreate && (
             <button onClick={() => { setEditing(undefined); setProposing(undefined); setShowForm(true); }} className="btn-primary">
               + New Deal
             </button>
@@ -212,7 +192,7 @@ export function DealsBoard({
         </div>
       </header>
 
-      {tab === "deals" && (
+      {(
         <>
           <div className="filter-bar">
             <div className="filter-group">
