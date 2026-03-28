@@ -34,6 +34,8 @@ export const PollIdParamSchema = z.object({
 
 /** Survey schemas */
 
+export const SurveyQuestionTypeSchema = z.enum(['single_choice', 'ranking']).default('single_choice');
+
 export const CreateSurveySchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(2000).optional(),
@@ -41,6 +43,7 @@ export const CreateSurveySchema = z.object({
     question: z.string().min(1).max(500),
     options: z.array(z.string().min(1).max(200)).min(2).max(20),
     required: z.boolean().default(true),
+    questionType: SurveyQuestionTypeSchema,
   })).min(1).max(50),
   opensAt: z.string().datetime(),
   closesAt: z.string().datetime(),
@@ -50,7 +53,8 @@ export const CreateSurveySchema = z.object({
 });
 
 export const SurveyBallotSubmissionSchema = z.object({
-  choices: z.array(z.number().int().min(-1)),  // -1 = skipped (optional questions)
+  // Single-choice: number (-1 = skipped). Ranking: number[] (ordered preference).
+  choices: z.array(z.union([z.number().int().min(-1), z.array(z.number().int().min(0))])),
   tokenMessage: z.string().min(1),
   issuerSignature: z.string().min(1),
   nullifier: z.string().min(1),

@@ -11,10 +11,13 @@ const ELIGIBILITY_DESCRIPTIONS: Record<string, string> = {
   at_list: 'Only members of an ATProto list can respond (snapshot at creation).',
 };
 
+type QuestionType = 'single_choice' | 'ranking';
+
 interface QuestionDraft {
   question: string;
   options: string[];
   required: boolean;
+  questionType: QuestionType;
 }
 
 export function CreateSurveyPage() {
@@ -23,7 +26,7 @@ export function CreateSurveyPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<QuestionDraft[]>([
-    { question: '', options: ['', ''], required: true },
+    { question: '', options: ['', ''], required: true, questionType: 'single_choice' },
   ]);
   const [closesIn, setClosesIn] = useState('72');
   const [eligibilityMode, setEligibilityMode] = useState('open');
@@ -38,7 +41,7 @@ export function CreateSurveyPage() {
 
   const addQuestion = () => {
     if (questions.length >= 50) return;
-    setQuestions([...questions, { question: '', options: ['', ''], required: true }]);
+    setQuestions([...questions, { question: '', options: ['', ''], required: true, questionType: 'single_choice' }]);
   };
 
   const removeQuestion = (i: number) => {
@@ -132,6 +135,7 @@ export function CreateSurveyPage() {
           question: q.question.trim(),
           options: q.options.filter(o => o.trim()),
           required: q.required,
+          questionType: q.questionType,
         })),
         opensAt: now.toISOString(),
         closesAt: close.toISOString(),
@@ -212,6 +216,22 @@ export function CreateSurveyPage() {
               placeholder={`Question ${qi + 1}`}
               maxLength={500}
             />
+
+            <div style={{ marginBottom: 8 }}>
+              <select
+                value={q.questionType}
+                onChange={e => updateQuestion(qi, 'questionType', e.target.value)}
+                style={{ fontSize: 12 }}
+              >
+                <option value="single_choice">Single choice</option>
+                <option value="ranking">Ranking (drag to order)</option>
+              </select>
+              {q.questionType === 'ranking' && (
+                <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>
+                  Respondents will rank all options. Results use Borda count.
+                </span>
+              )}
+            </div>
 
             {q.options.map((opt, oi) => (
               <div key={oi} className="flex gap-8" style={{ marginBottom: 4 }}>
