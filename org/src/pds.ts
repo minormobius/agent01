@@ -213,6 +213,47 @@ export class PdsClient {
     this.session = session;
   }
 
+  /** Upload a blob to the PDS. Returns the blob ref for embedding in records. */
+  async uploadBlob(
+    data: Uint8Array,
+    mimeType: string
+  ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+    if (!this.session) throw new Error("Not authenticated");
+    const res = await fetch(
+      `${this.service}/xrpc/com.atproto.repo.uploadBlob`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.session.accessJwt}`,
+          "Content-Type": mimeType,
+        },
+        body: data.buffer as ArrayBuffer,
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`uploadBlob failed (${res.status}): ${text}`);
+    }
+    const { blob } = await res.json();
+    return blob;
+  }
+
+  /** Fetch a blob by DID + CID. Works cross-PDS for public blobs. */
+  async getBlob(did: string, cid: string): Promise<Uint8Array> {
+    const params = new URLSearchParams({ did, cid });
+    const headers: Record<string, string> = {};
+    if (this.session) {
+      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
+    }
+    const res = await fetch(
+      `${this.service}/xrpc/com.atproto.sync.getBlob?${params}`,
+      { headers }
+    );
+    if (!res.ok) throw new Error(`getBlob failed (${res.status})`);
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+
   /** Get the current session info. */
   getSession(): Session | null {
     return this.session;
