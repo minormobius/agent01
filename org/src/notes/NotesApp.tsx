@@ -1,6 +1,7 @@
 /**
  * NotesApp — encrypted notes, bookmarks & snippets on ATProto.
  * One collection, three swim lanes via `kind` discriminator.
+ * Supports encrypted file attachments via the blob layer.
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
@@ -10,6 +11,16 @@ import type { PdsClient } from "../pds";
 import type { OrgRecord, OrgContext } from "../crm/types";
 import type { Note, NoteRecord, NoteKind } from "./types";
 import { NOTE_KINDS } from "./types";
+import type { VaultBlobRef } from "../blobs";
+import {
+  encryptAndUploadAuto,
+  fetchAndDecryptAuto,
+  readFileAsBytes,
+  blobToObjectUrl,
+  downloadBlob,
+  formatFileSize,
+  isChunked,
+} from "../blobs";
 import {
   keyringRkeyForTier,
   loadPersonalNotes,
@@ -27,6 +38,39 @@ interface Props {
   pds?: PdsClient | null;
   orgs?: OrgRecord[];
   orgContexts?: Map<string, OrgContext>;
+}
+
+/** Resolve the DEK + keyringRkey for the current scope */
+function resolveDek(
+  vault: VaultState,
+  activeOrg: OrgContext | null,
+): { dek: CryptoKey; keyringRkey: string; orgRkey: string } {
+  if (activeOrg) {
+    const tierName = activeOrg.myTierName;
+    const tierDek = activeOrg.tierDeks.get(tierName);
+    if (!tierDek) throw new Error(`No access to tier: ${tierName}`);
+    const tierDef = activeOrg.org.org.tiers.find((t) => t.name === tierName);
+    return {
+      dek: tierDek,
+      keyringRkey: keyringRkeyForTier(activeOrg.org.rkey, tierName, tierDef?.currentEpoch ?? 0),
+      orgRkey: activeOrg.org.rkey,
+    };
+  }
+  return { dek: vault.dek, keyringRkey: "self", orgRkey: "personal" };
+}
+
+/** Resolve the DEK for reading an existing record's attachments */
+function resolveDekForRecord(
+  vault: VaultState,
+  rec: NoteRecord,
+  sharedContexts: Map<string, OrgContext>,
+): CryptoKey | null {
+  if (rec.orgRkey === "personal") return vault.dek;
+  const ctx = sharedContexts.get(rec.orgRkey);
+  if (!ctx) return null;
+  // For reading, any keyringDek works — the blob was encrypted with the tier DEK at write time
+  const tierDek = ctx.tierDeks.get(ctx.myTierName);
+  return tierDek ?? null;
 }
 
 export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: sharedContexts = new Map() }: Props) {
@@ -77,7 +121,6 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
     ? sharedContexts.get(filterOrg) ?? null
     : null;
 
-  // Counts per kind
   const kindCounts = useMemo(() => {
     const counts = { note: 0, bookmark: 0, snippet: 0 };
     for (const n of notes) {
@@ -88,12 +131,9 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
 
   const visible = useMemo(() => {
     let result = [...notes];
-
     if (filterOrg === "personal") result = result.filter((n) => n.orgRkey === "personal");
     else if (filterOrg !== "all") result = result.filter((n) => n.orgRkey === filterOrg);
-
     if (filterKind !== "all") result = result.filter((n) => n.note.kind === filterKind);
-
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((n) =>
@@ -103,8 +143,6 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         || n.note.tags?.some((t) => t.toLowerCase().includes(q))
       );
     }
-
-    // Pinned first, then by updated/created descending
     result.sort((a, b) => {
       if (a.note.pinned && !b.note.pinned) return -1;
       if (!a.note.pinned && b.note.pinned) return 1;
@@ -112,40 +150,40 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
       const bDate = b.note.updatedAt || b.note.createdAt;
       return bDate.localeCompare(aDate);
     });
-
     return result;
   }, [notes, filterOrg, filterKind, search]);
 
+  // Save note — handles blob uploads for pending files
   const handleSave = useCallback(
-    async (note: Note, existingRkey?: string) => {
+    async (note: Note, pendingFiles: File[], existingRkey?: string) => {
       if (!pds || !vault) return;
 
-      let dek: CryptoKey;
-      let keyringRkey: string;
-      let orgRkey = "personal";
+      const { dek, keyringRkey, orgRkey } = resolveDek(vault, activeOrg);
 
-      if (activeOrg) {
-        const tierName = activeOrg.myTierName;
-        const tierDek = activeOrg.tierDeks.get(tierName);
-        if (!tierDek) throw new Error(`No access to tier: ${tierName}`);
-        dek = tierDek;
-        const tierDef = activeOrg.org.org.tiers.find((t) => t.name === tierName);
-        keyringRkey = keyringRkeyForTier(activeOrg.org.rkey, tierName, tierDef?.currentEpoch ?? 0);
-        orgRkey = activeOrg.org.rkey;
-      } else {
-        dek = vault.dek;
-        keyringRkey = "self";
+      // Upload pending files as encrypted blobs
+      const newAttachments: VaultBlobRef[] = [];
+      for (const file of pendingFiles) {
+        const bytes = await readFileAsBytes(file);
+        const ref = await encryptAndUploadAuto(pds, bytes, dek, file.type || "application/octet-stream", file.name);
+        newAttachments.push(ref);
       }
 
+      // Merge with existing attachments (carry forward unless removed)
+      const allAttachments = [...(note.attachments || []), ...newAttachments];
+      const finalNote: Note = {
+        ...note,
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+      };
+
       if (existingRkey) {
-        const { rkey: newRkey } = await updateNote(pds, existingRkey, note, dek, keyringRkey);
+        const { rkey: newRkey } = await updateNote(pds, existingRkey, finalNote, dek, keyringRkey);
         setNotes((prev) => [
           ...prev.filter((n) => n.rkey !== existingRkey),
-          { rkey: newRkey, note, authorDid: vault.session.did, orgRkey },
+          { rkey: newRkey, note: finalNote, authorDid: vault.session.did, orgRkey },
         ]);
       } else {
-        const { rkey } = await saveNote(pds, note, dek, keyringRkey);
-        setNotes((prev) => [...prev, { rkey, note, authorDid: vault.session.did, orgRkey }]);
+        const { rkey } = await saveNote(pds, finalNote, dek, keyringRkey);
+        setNotes((prev) => [...prev, { rkey, note: finalNote, authorDid: vault.session.did, orgRkey }]);
       }
 
       setShowForm(false);
@@ -189,6 +227,18 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         ...prev.filter((n) => n.rkey !== rec.rkey),
         { rkey: newRkey, note: updated, authorDid: vault.session.did, orgRkey: rec.orgRkey },
       ]);
+    },
+    [pds, vault, sharedContexts],
+  );
+
+  // Download an attachment
+  const handleDownloadAttachment = useCallback(
+    async (rec: NoteRecord, ref: VaultBlobRef) => {
+      if (!pds || !vault) return;
+      const dek = resolveDekForRecord(vault, rec, sharedContexts);
+      if (!dek) return;
+      const { data, mimeType, filename } = await fetchAndDecryptAuto(pds, ref, dek);
+      downloadBlob(data, mimeType, filename || "attachment");
     },
     [pds, vault, sharedContexts],
   );
@@ -269,6 +319,9 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
           <NoteCard
             key={rec.rkey}
             rec={rec}
+            pds={pds}
+            vault={vault}
+            sharedContexts={sharedContexts}
             isOwner={rec.authorDid === vault.session.did}
             isExpanded={expanded === rec.rkey}
             orgName={rec.orgRkey !== "personal" ? orgNames.get(rec.orgRkey) : undefined}
@@ -276,6 +329,7 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
             onEdit={() => { setEditing(rec); setShowForm(true); }}
             onDelete={() => handleDelete(rec)}
             onTogglePin={() => handleTogglePin(rec)}
+            onDownload={(ref) => handleDownloadAttachment(rec, ref)}
           />
         ))}
       </div>
@@ -292,8 +346,13 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
   );
 }
 
+// ── NoteCard ──
+
 function NoteCard({
   rec,
+  pds,
+  vault,
+  sharedContexts,
   isOwner,
   isExpanded,
   orgName,
@@ -301,8 +360,12 @@ function NoteCard({
   onEdit,
   onDelete,
   onTogglePin,
+  onDownload,
 }: {
   rec: NoteRecord;
+  pds: PdsClient;
+  vault: VaultState;
+  sharedContexts: Map<string, OrgContext>;
   isOwner: boolean;
   isExpanded: boolean;
   orgName?: string;
@@ -310,15 +373,53 @@ function NoteCard({
   onEdit: () => void;
   onDelete: () => void;
   onTogglePin: () => void;
+  onDownload: (ref: VaultBlobRef) => void;
 }) {
   const n = rec.note;
   const kindIcon = n.kind === "bookmark" ? "\u{1F517}" : n.kind === "snippet" ? "\u{1F4CB}" : "\u{1F4DD}";
+  const attachments = n.attachments || [];
+  const attachCount = attachments.length;
+
+  // For inline image previews, we decrypt on expand
+  const [previews, setPreviews] = useState<Map<number, string>>(new Map());
+
+  const loadPreview = useCallback(async (idx: number, ref: VaultBlobRef) => {
+    if (previews.has(idx)) return;
+    const dek = resolveDekForRecord(vault, rec, sharedContexts);
+    if (!dek) return;
+    try {
+      const { data, mimeType } = await fetchAndDecryptAuto(pds, ref, dek);
+      if (mimeType.startsWith("image/")) {
+        const url = blobToObjectUrl(data, mimeType);
+        setPreviews((prev) => new Map(prev).set(idx, url));
+      }
+    } catch {
+      // Can't preview — that's fine
+    }
+  }, [pds, vault, rec, sharedContexts, previews]);
+
+  // Load image previews when expanded
+  useEffect(() => {
+    if (!isExpanded) return;
+    attachments.forEach((ref, i) => {
+      const mime = isChunked(ref) ? ref.mimeType : ref.mimeType;
+      if (mime.startsWith("image/")) loadPreview(i, ref);
+    });
+  }, [isExpanded, attachments, loadPreview]);
+
+  // Cleanup object URLs
+  useEffect(() => {
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previews]);
 
   return (
     <div className={`note-card${n.pinned ? " pinned" : ""}${isExpanded ? " expanded" : ""}`}>
       <div className="note-card-header" onClick={onToggleExpand}>
         <span className="note-kind-icon">{kindIcon}</span>
         <span className="note-title">{n.title}</span>
+        {attachCount > 0 && <span className="note-attach-badge">{attachCount} file{attachCount !== 1 ? "s" : ""}</span>}
         {n.pinned && <span className="note-pin-badge">pinned</span>}
         {n.language && <span className="note-lang-badge">{n.language}</span>}
         {orgName && <span className="note-org-badge">{orgName}</span>}
@@ -337,6 +438,36 @@ function NoteCard({
           <div className={`note-body-text${n.kind === "snippet" ? " snippet" : ""}`}>
             {n.kind === "snippet" ? <pre>{n.body}</pre> : <p>{n.body}</p>}
           </div>
+
+          {attachments.length > 0 && (
+            <div className="note-attachments">
+              {attachments.map((ref, i) => {
+                const name = isChunked(ref) ? ref.filename : ref.filename;
+                const size = isChunked(ref) ? ref.size : ref.size;
+                const mime = isChunked(ref) ? ref.mimeType : ref.mimeType;
+                const previewUrl = previews.get(i);
+
+                return (
+                  <div key={i} className="note-attachment">
+                    {previewUrl && (
+                      <img src={previewUrl} alt={name || "attachment"} className="note-attach-preview" />
+                    )}
+                    <div className="note-attach-info">
+                      <span className="note-attach-name">{name || "attachment"}</span>
+                      <span className="note-attach-meta">{mime} &middot; {formatFileSize(size)}</span>
+                    </div>
+                    <button
+                      className="btn-secondary btn-sm"
+                      onClick={(e) => { e.stopPropagation(); onDownload(ref); }}
+                    >
+                      Download
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {n.tags && n.tags.length > 0 && (
             <div className="note-tags">
               {n.tags.map((t) => <span key={t} className="note-tag">{t}</span>)}
@@ -363,6 +494,8 @@ function NoteCard({
   );
 }
 
+// ── NoteForm ──
+
 function NoteForm({
   existing,
   defaultKind,
@@ -371,7 +504,7 @@ function NoteForm({
 }: {
   existing?: NoteRecord;
   defaultKind: NoteKind;
-  onSave: (note: Note, existingRkey?: string) => Promise<void>;
+  onSave: (note: Note, pendingFiles: File[], existingRkey?: string) => Promise<void>;
   onCancel: () => void;
 }) {
   const [kind, setKind] = useState<NoteKind>(existing?.note.kind ?? defaultKind);
@@ -381,6 +514,25 @@ function NoteForm({
   const [language, setLanguage] = useState(existing?.note.language ?? "");
   const [tags, setTags] = useState(existing?.note.tags?.join(", ") ?? "");
   const [saving, setSaving] = useState(false);
+
+  // File management
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [keptAttachments, setKeptAttachments] = useState<VaultBlobRef[]>(existing?.note.attachments || []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setPendingFiles((prev) => [...prev, ...files]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemovePending = (idx: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleRemoveExisting = (idx: number) => {
+    setKeptAttachments((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,9 +548,10 @@ function NoteForm({
         language: kind === "snippet" ? language.trim() || undefined : undefined,
         tags: tags.trim() ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         pinned: existing?.note.pinned ?? false,
+        attachments: keptAttachments.length > 0 ? keptAttachments : undefined,
         createdAt: existing?.note.createdAt ?? now,
         updatedAt: existing ? now : undefined,
-      }, existing?.rkey);
+      }, pendingFiles, existing?.rkey);
     } finally {
       setSaving(false);
     }
@@ -442,10 +595,53 @@ function NoteForm({
 
         <input type="text" placeholder="Tags (comma-separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
 
+        {/* Attachments section */}
+        <div className="note-form-attachments">
+          <div className="note-form-attach-header">
+            <span>Attachments</span>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()}>
+              + File
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={handleAddFiles}
+            />
+          </div>
+
+          {/* Existing (kept) attachments */}
+          {keptAttachments.map((ref, i) => {
+            const name = isChunked(ref) ? ref.filename : ref.filename;
+            const size = isChunked(ref) ? ref.size : ref.size;
+            return (
+              <div key={`existing-${i}`} className="note-form-attach-item">
+                <span className="note-form-attach-name">{name || "attachment"}</span>
+                <span className="note-form-attach-size">{formatFileSize(size)}</span>
+                <button type="button" className="note-form-attach-remove" onClick={() => handleRemoveExisting(i)}>&times;</button>
+              </div>
+            );
+          })}
+
+          {/* Pending new files */}
+          {pendingFiles.map((file, i) => (
+            <div key={`pending-${i}`} className="note-form-attach-item pending">
+              <span className="note-form-attach-name">{file.name}</span>
+              <span className="note-form-attach-size">{formatFileSize(file.size)}</span>
+              <button type="button" className="note-form-attach-remove" onClick={() => handleRemovePending(i)}>&times;</button>
+            </div>
+          ))}
+
+          {keptAttachments.length === 0 && pendingFiles.length === 0 && (
+            <div className="note-form-attach-empty">No attachments</div>
+          )}
+        </div>
+
         <div className="note-form-actions">
           <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={saving || !title.trim()}>
-            {saving ? "Saving..." : existing ? "Update" : "Add"}
+            {saving ? (pendingFiles.length > 0 ? "Uploading..." : "Saving...") : existing ? "Update" : "Add"}
           </button>
         </div>
       </form>

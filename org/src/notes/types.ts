@@ -1,5 +1,7 @@
 /** Notes data model — unified type for notes, bookmarks, and snippets */
 
+import type { VaultBlobRef } from "../blobs";
+
 export type NoteKind = "note" | "bookmark" | "snippet";
 
 export const NOTE_KINDS: { id: NoteKind; label: string }[] = [
@@ -18,6 +20,8 @@ export interface Note {
   language?: string;
   tags?: string[];
   pinned?: boolean;
+  /** Encrypted file attachments */
+  attachments?: VaultBlobRef[];
   createdAt: string;
   updatedAt?: string;
 }
