@@ -1,0 +1,24 @@
+name = "audio-rooms-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-20"
+
+# Static frontend assets (built by Vite into audio/dist/)
+[assets]
+directory = "../../dist"
+
+[vars]
+FRONTEND_URL = "https://audio.mino.mobi"
+
+# Durable Object bindings
+[durable_objects]
+bindings = [
+  { name = "ROOM_COORDINATOR", class_name = "RoomCoordinator" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RoomCoordinator"]
+
+# Environment-specific overrides
+[env.production]
+vars = { FRONTEND_URL = "https://audio.mino.mobi" }
