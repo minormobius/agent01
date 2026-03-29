@@ -18,14 +18,80 @@
     border: 2px solid rgba(255,255,200,0.3); border-radius: 4px;
     image-rendering: pixelated;
   }
+  #lobby {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,20,0.92); z-index: 10;
+  }
+  #lobby.hidden { display: none; }
+  .lobby-box {
+    background: #1e1e2e; border: 1px solid #3a3a5a; border-radius: 8px;
+    padding: 28px 32px; min-width: 300px; color: #ddd; font: 15px/1.5 monospace;
+  }
+  .lobby-box h2 { margin: 0 0 16px; font-size: 20px; color: #f0e0c0; }
+  .lobby-box input[type=text] {
+    width: 100%; padding: 8px 10px; margin: 6px 0 12px;
+    background: #12121e; border: 1px solid #3a3a5a; border-radius: 4px;
+    color: #eee; font: 14px monospace; outline: none;
+  }
+  .lobby-box input:focus { border-color: #6a6aaa; }
+  .lobby-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .lobby-btns button {
+    flex: 1; padding: 10px; border: 1px solid #4a4a6a; border-radius: 4px;
+    background: #2a2a3e; color: #ddd; font: 14px monospace; cursor: pointer;
+  }
+  .lobby-btns button:hover { background: #3a3a5e; border-color: #7a7aaa; }
 </style>
 </head>
 <body>
+<div id="lobby">
+  <div class="lobby-box">
+    <h2>Scape</h2>
+    <label>name</label>
+    <input type="text" id="nameInput" maxlength="12" placeholder="wanderer" autofocus>
+    <div class="lobby-btns">
+      <button id="btnSolo">Solo</button>
+      <button id="btnHost">Host</button>
+      <button id="btnJoin">Join</button>
+    </div>
+  </div>
+</div>
 <canvas id="c"></canvas>
 <canvas id="minimap" width="128" height="128"></canvas>
 <div id="hud"></div>
 <script>
 (() => {
+  // =====================================================================
+  // Lobby — name entry + mode selection
+  // =====================================================================
+  let playerName = 'wanderer';
+  let netMode = 'solo'; // 'solo' | 'host' | 'peer'
+  let gameStarted = false;
+
+  const lobby = document.getElementById('lobby');
+  const nameInput = document.getElementById('nameInput');
+
+  // Restore last name
+  const saved = localStorage.getItem('scape-name');
+  if (saved) nameInput.value = saved;
+
+  function startGame(mode) {
+    playerName = (nameInput.value.trim() || 'wanderer').slice(0, 12);
+    localStorage.setItem('scape-name', playerName);
+    netMode = mode;
+    lobby.classList.add('hidden');
+    gameStarted = true;
+    canvas.focus();
+    console.log(`Starting as ${playerName} (${netMode})`);
+  }
+
+  document.getElementById('btnSolo').addEventListener('click', () => startGame('solo'));
+  document.getElementById('btnHost').addEventListener('click', () => startGame('host'));
+  document.getElementById('btnJoin').addEventListener('click', () => startGame('peer'));
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') startGame('solo');
+    e.stopPropagation(); // don't trigger WASD
+  });
+
   // =====================================================================
   // Toroidal world — seamless wrapping tile map
   // =====================================================================
@@ -328,10 +394,18 @@
   // =====================================================================
   // Player sprite
   // =====================================================================
-  function drawPlayer(screenX, screenY) {
-    const frame = Math.floor(playerFrame) % 4;
+  // Player colors for multiplayer (index by peer id)
+  const PLAYER_COLORS = [
+    '#e86030', '#3080e8', '#30c050', '#c040c0',
+    '#c0a030', '#30b0b0', '#e04060', '#80a0e0',
+    '#a06020', '#60c080',
+  ];
+
+  function drawPlayer(screenX, screenY, name, dir, animFrame, colorIdx) {
+    const frame = Math.floor(animFrame) % 4;
     const bobY = (frame === 1 || frame === 3) ? -1 : 0;
     const x = screenX, y = screenY + bobY;
+    const bodyColor = PLAYER_COLORS[colorIdx % PLAYER_COLORS.length];
 
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -340,7 +414,7 @@
     ctx.fill();
 
     // Body
-    ctx.fillStyle = '#e86030';
+    ctx.fillStyle = bodyColor;
     ctx.fillRect(x + 4, y + 6, 8, 7);
 
     // Head (round)
@@ -351,11 +425,11 @@
 
     // Eyes (direction-dependent)
     ctx.fillStyle = '#222';
-    if (playerDir === 0) { // down
+    if (dir === 0) { // down
       ctx.fillRect(x + 6, y + 4, 1, 2);
       ctx.fillRect(x + 9, y + 4, 1, 2);
-    } else if (playerDir === 2) { // up — no eyes visible
-    } else if (playerDir === 1) { // left
+    } else if (dir === 2) { // up — no eyes visible
+    } else if (dir === 1) { // left
       ctx.fillRect(x + 5, y + 4, 1, 2);
     } else { // right
       ctx.fillRect(x + 10, y + 4, 1, 2);
@@ -366,6 +440,16 @@
     const legOff = (frame === 1) ? 1 : (frame === 3) ? -1 : 0;
     ctx.fillRect(x + 5 + legOff, y + 13, 2, 3);
     ctx.fillRect(x + 9 - legOff, y + 13, 2, 3);
+
+    // Name label
+    if (name) {
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillText(name, x + 8 + 1, y - 4 + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(name, x + 8, y - 4);
+    }
   }
 
   // =====================================================================
@@ -465,7 +549,7 @@
     // Draw player at screen center
     const playerScreenX = w / 2 - 8;
     const playerScreenY = h / 2 - 8;
-    drawPlayer(playerScreenX, playerScreenY);
+    drawPlayer(playerScreenX, playerScreenY, playerName, playerDir, playerFrame, 0);
 
     // Update minimap player dot
     mmCtx.putImageData(mmImg, 0, 0);
@@ -491,6 +575,7 @@
 
   function frame(t) {
     requestAnimationFrame(frame);
+    if (!gameStarted) return;
     const dt = Math.min((t - lastTime) / 1000, 0.05);
     lastTime = t;
     update(dt);
