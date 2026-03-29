@@ -36,6 +36,7 @@ import { CalendarApp } from "./cal/CalendarApp";
 import { TodoApp } from "./todo/TodoApp";
 import { ContactsApp } from "./contacts/ContactsApp";
 import { NotesApp } from "./notes/NotesApp";
+import { StrategyApp } from "./strategy/StrategyApp";
 import { DocsPage } from "./components/DocsPage";
 import { ThemePicker } from "./components/ThemePicker";
 import { Route } from "./router";
@@ -563,6 +564,10 @@ export function App() {
 
       <Route path="/notes">
         <NotesApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/strategy">
+        <StrategyApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
       <Route path="/docs">
