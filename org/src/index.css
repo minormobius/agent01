@@ -4022,3 +4022,41 @@ button:disabled {
 .note-form-attach-remove { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; line-height: 1; }
 .note-form-attach-remove:hover { color: var(--danger); }
 .note-form-attach-empty { padding: 0.75rem; text-align: center; font-size: 0.8rem; color: var(--text-dim); }
+.note-form-attach-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Voice badge on card header */
+.note-voice-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; background: var(--accent); color: #fff; border-radius: 3px; margin-left: 0.25rem; white-space: nowrap; }
+
+/* Audio attachment inline player */
+.note-attachment.audio { flex-direction: column; align-items: stretch; }
+.note-attach-audio { width: 100%; height: 36px; border-radius: 4px; }
+
+/* ---------- Voice Recorder ---------- */
+
+.voice-recorder { display: inline-flex; align-items: center; }
+
+.voice-rec-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface-2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s; }
+.voice-rec-btn:hover { border-color: var(--accent); }
+
+.voice-rec-mic { width: 10px; height: 14px; background: var(--text-dim); border-radius: 5px 5px 2px 2px; position: relative; }
+.voice-rec-btn:hover .voice-rec-mic { background: var(--accent); }
+
+.voice-rec-active { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--danger); }
+
+.voice-rec-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: voice-pulse 1s ease-in-out infinite; }
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.voice-rec-time { font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--text); min-width: 3ch; }
+
+.voice-rec-stop { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--danger); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.voice-rec-stop:hover { background: rgba(239, 68, 68, 0.15); }
+.voice-rec-stop-icon { width: 10px; height: 10px; background: var(--danger); border-radius: 2px; }
+
+.voice-rec-preview { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border); flex-wrap: wrap; }
+.voice-rec-audio { height: 32px; flex: 1; min-width: 120px; }
+.voice-rec-size { font-size: 0.75rem; color: var(--text-dim); }
+.voice-rec-discard { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 0 0.25rem; }
+.voice-rec-discard:hover { color: var(--danger); }

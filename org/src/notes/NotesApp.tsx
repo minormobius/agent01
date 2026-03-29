@@ -21,6 +21,7 @@ import {
   formatFileSize,
   isChunked,
 } from "../blobs";
+import { VoiceRecorder } from "./VoiceRecorder";
 import {
   keyringRkeyForTier,
   loadPersonalNotes,
@@ -379,6 +380,7 @@ function NoteCard({
   const kindIcon = n.kind === "bookmark" ? "\u{1F517}" : n.kind === "snippet" ? "\u{1F4CB}" : "\u{1F4DD}";
   const attachments = n.attachments || [];
   const attachCount = attachments.length;
+  const hasAudio = attachments.some((a) => (isChunked(a) ? a.mimeType : a.mimeType).startsWith("audio/"));
 
   // For inline image previews, we decrypt on expand
   const [previews, setPreviews] = useState<Map<number, string>>(new Map());
@@ -389,7 +391,7 @@ function NoteCard({
     if (!dek) return;
     try {
       const { data, mimeType } = await fetchAndDecryptAuto(pds, ref, dek);
-      if (mimeType.startsWith("image/")) {
+      if (mimeType.startsWith("image/") || mimeType.startsWith("audio/")) {
         const url = blobToObjectUrl(data, mimeType);
         setPreviews((prev) => new Map(prev).set(idx, url));
       }
@@ -398,12 +400,12 @@ function NoteCard({
     }
   }, [pds, vault, rec, sharedContexts, previews]);
 
-  // Load image previews when expanded
+  // Load image and audio previews when expanded
   useEffect(() => {
     if (!isExpanded) return;
     attachments.forEach((ref, i) => {
       const mime = isChunked(ref) ? ref.mimeType : ref.mimeType;
-      if (mime.startsWith("image/")) loadPreview(i, ref);
+      if (mime.startsWith("image/") || mime.startsWith("audio/")) loadPreview(i, ref);
     });
   }, [isExpanded, attachments, loadPreview]);
 
@@ -419,6 +421,7 @@ function NoteCard({
       <div className="note-card-header" onClick={onToggleExpand}>
         <span className="note-kind-icon">{kindIcon}</span>
         <span className="note-title">{n.title}</span>
+        {hasAudio && <span className="note-voice-badge">voice</span>}
         {attachCount > 0 && <span className="note-attach-badge">{attachCount} file{attachCount !== 1 ? "s" : ""}</span>}
         {n.pinned && <span className="note-pin-badge">pinned</span>}
         {n.language && <span className="note-lang-badge">{n.language}</span>}
@@ -447,10 +450,16 @@ function NoteCard({
                 const mime = isChunked(ref) ? ref.mimeType : ref.mimeType;
                 const previewUrl = previews.get(i);
 
+                const isAudio = mime.startsWith("audio/");
+                const isImage = mime.startsWith("image/");
+
                 return (
-                  <div key={i} className="note-attachment">
-                    {previewUrl && (
+                  <div key={i} className={`note-attachment${isAudio ? " audio" : ""}`}>
+                    {previewUrl && isImage && (
                       <img src={previewUrl} alt={name || "attachment"} className="note-attach-preview" />
+                    )}
+                    {previewUrl && isAudio && (
+                      <audio src={previewUrl} controls className="note-attach-audio" />
                     )}
                     <div className="note-attach-info">
                       <span className="note-attach-name">{name || "attachment"}</span>
@@ -599,9 +608,12 @@ function NoteForm({
         <div className="note-form-attachments">
           <div className="note-form-attach-header">
             <span>Attachments</span>
-            <button type="button" className="btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()}>
-              + File
-            </button>
+            <div className="note-form-attach-actions">
+              <VoiceRecorder onRecorded={(file) => setPendingFiles((prev) => [...prev, file])} />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()}>
+                + File
+              </button>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
