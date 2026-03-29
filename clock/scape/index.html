@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Scape</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+  canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  #hud {
+    position: fixed; top: 12px; left: 12px;
+    color: rgba(255,255,200,0.7); font: 13px/1.4 monospace;
+    pointer-events: none; user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+  #minimap {
+    position: fixed; bottom: 12px; right: 12px;
+    border: 2px solid rgba(255,255,200,0.3); border-radius: 4px;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="minimap" width="128" height="128"></canvas>
+<div id="hud"></div>
+<script>
+(() => {
+  // =====================================================================
+  // Toroidal world — seamless wrapping tile map
+  // =====================================================================
+  const WORLD_W = 128;
+  const WORLD_H = 128;
+  const TILE_PX = 16;
+
+  // Tile types
+  const T = {
+    GRASS: 0, GRASS2: 1, GRASS3: 2,
+    WATER: 3, SAND: 4, DIRT: 5,
+    TREE: 6, ROCK: 7, FLOWER: 8,
+    BRIDGE: 9, TALL_GRASS: 10,
+    PATH: 11,
+  };
+
+  // Tile colors (base)
+  const TILE_COLORS = {
+    [T.GRASS]:   [0x3a, 0x7d, 0x44],
+    [T.GRASS2]:  [0x35, 0x72, 0x3f],
+    [T.GRASS3]:  [0x40, 0x88, 0x4a],
+    [T.WATER]:   [0x2a, 0x5c, 0x8f],
+    [T.SAND]:    [0xc2, 0xb2, 0x80],
+    [T.DIRT]:    [0x7a, 0x5c, 0x3e],
+    [T.TREE]:    [0x2a, 0x5a, 0x30],
+    [T.ROCK]:    [0x6a, 0x6a, 0x72],
+    [T.FLOWER]:  [0x3a, 0x7d, 0x44],
+    [T.BRIDGE]:  [0x8a, 0x6a, 0x44],
+    [T.TALL_GRASS]: [0x30, 0x70, 0x38],
+    [T.PATH]:    [0x9a, 0x82, 0x5a],
+  };
+
+  const WALKABLE = new Set([
+    T.GRASS, T.GRASS2, T.GRASS3, T.SAND, T.DIRT,
+    T.FLOWER, T.BRIDGE, T.TALL_GRASS, T.PATH,
+  ]);
+
+  // =====================================================================
+  // Procedural world generation (seeded)
+  // =====================================================================
+  let seed = 7;
+  function rng() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  function noise2d(x, y) {
+    // Simple value noise with toroidal wrapping
+    const wrap = (v, s) => ((v % s) + s) % s;
+    const ix = wrap(Math.floor(x), WORLD_W);
+    const iy = wrap(Math.floor(y), WORLD_H);
+    // Hash based on wrapped coords
+    let h = ix * 374761393 + iy * 668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    h = h ^ (h >> 16);
+    return (h & 0xffff) / 0xffff;
+  }
+
+  function smoothNoise(x, y, scale) {
+    const sx = x / scale, sy = y / scale;
+    const ix = Math.floor(sx), iy = Math.floor(sy);
+    const fx = sx - ix, fy = sy - iy;
+    // Smooth interpolation
+    const u = fx * fx * (3 - 2 * fx);
+    const v = fy * fy * (3 - 2 * fy);
+    const a = noise2d(ix, iy);
+    const b = noise2d(ix + 1, iy);
+    const c = noise2d(ix, iy + 1);
+    const d = noise2d(ix + 1, iy + 1);
+    return a * (1-u) * (1-v) + b * u * (1-v) + c * (1-u) * v + d * u * v;
+  }
+
+  function fbm(x, y, octaves) {
+    let val = 0, amp = 1, freq = 1, total = 0;
+    for (let i = 0; i < octaves; i++) {
+      val += smoothNoise(x * freq, y * freq, 16) * amp;
+      total += amp;
+      amp *= 0.5;
+      freq *= 2;
+    }
+    return val / total;
+  }
+
+  // Generate world tiles
+  const world = new Uint8Array(WORLD_W * WORLD_H);
+
+  function generateWorld() {
+    for (let y = 0; y < WORLD_H; y++) {
+      for (let x = 0; x < WORLD_W; x++) {
+        const elev = fbm(x, y, 4);
+        const moisture = fbm(x + 500, y + 500, 3);
+        const detail = smoothNoise(x * 3, y * 3, 8);
+
+        let tile;
+        if (elev < 0.32) {
+          tile = T.WATER;
+        } else if (elev < 0.37) {
+          tile = T.SAND;
+        } else if (elev > 0.7) {
+          tile = detail > 0.6 ? T.ROCK : T.DIRT;
+        } else {
+          // Grassland variations
+          if (detail < 0.3) tile = T.GRASS;
+          else if (detail < 0.6) tile = T.GRASS2;
+          else tile = T.GRASS3;
+
+          // Scatter objects
+          if (moisture > 0.55 && detail > 0.75 && rng() < 0.4) tile = T.TREE;
+          else if (detail > 0.85 && rng() < 0.15) tile = T.FLOWER;
+          else if (moisture < 0.35 && rng() < 0.05) tile = T.TALL_GRASS;
+        }
+
+        world[y * WORLD_W + x] = tile;
+      }
+    }
+
+    // Carve some paths (toroidal-safe)
+    for (let p = 0; p < 6; p++) {
+      let px = Math.floor(rng() * WORLD_W);
+      let py = Math.floor(rng() * WORLD_H);
+      for (let step = 0; step < 200; step++) {
+        const idx = ((py % WORLD_H + WORLD_H) % WORLD_H) * WORLD_W +
+                    ((px % WORLD_W + WORLD_W) % WORLD_W);
+        if (world[idx] !== T.WATER) world[idx] = T.PATH;
+        // Wander
+        const dir = rng();
+        if (dir < 0.35) px++;
+        else if (dir < 0.55) px--;
+        else if (dir < 0.8) py++;
+        else py--;
+      }
+    }
+
+    // Place bridges over water near paths
+    for (let y = 0; y < WORLD_H; y++) {
+      for (let x = 0; x < WORLD_W; x++) {
+        if (world[y * WORLD_W + x] !== T.WATER) continue;
+        // Check if adjacent to path
+        let nearPath = false;
+        for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nx = ((x+dx) % WORLD_W + WORLD_W) % WORLD_W;
+          const ny = ((y+dy) % WORLD_H + WORLD_H) % WORLD_H;
+          if (world[ny * WORLD_W + nx] === T.PATH) nearPath = true;
+        }
+        if (nearPath && rng() < 0.3) world[y * WORLD_W + x] = T.BRIDGE;
+      }
+    }
+  }
+  generateWorld();
+
+  // =====================================================================
+  // Canvas setup
+  // =====================================================================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const mmCanvas = document.getElementById('minimap');
+  const mmCtx = mmCanvas.getContext('2d');
+
+  function resize() {
+    const dpr = Math.min(devicePixelRatio, 2);
+    canvas.width = Math.floor(canvas.clientWidth * dpr);
+    canvas.height = Math.floor(canvas.clientHeight * dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // =====================================================================
+  // Render minimap once
+  // =====================================================================
+  const mmImg = mmCtx.createImageData(WORLD_W, WORLD_H);
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const tile = world[y * WORLD_W + x];
+      const c = TILE_COLORS[tile] || [0, 0, 0];
+      const i = (y * WORLD_W + x) * 4;
+      mmImg.data[i] = c[0]; mmImg.data[i+1] = c[1]; mmImg.data[i+2] = c[2]; mmImg.data[i+3] = 255;
+    }
+  }
+  mmCtx.putImageData(mmImg, 0, 0);
+
+  // =====================================================================
+  // Player
+  // =====================================================================
+  // Find a walkable spawn
+  let playerX = 64.5, playerY = 64.5; // fractional tile coords
+  for (let tries = 0; tries < 1000; tries++) {
+    const tx = Math.floor(rng() * WORLD_W);
+    const ty = Math.floor(rng() * WORLD_H);
+    if (WALKABLE.has(world[ty * WORLD_W + tx])) {
+      playerX = tx + 0.5;
+      playerY = ty + 0.5;
+      break;
+    }
+  }
+
+  let playerDir = 0; // 0=down, 1=left, 2=up, 3=right
+  let playerFrame = 0;
+  let playerMoveT = 0;
+  const PLAYER_SPEED = 3.2; // tiles per second
+
+  // Movement input
+  const keys = {};
+  window.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // Click-to-move
+  let moveTarget = null;
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / rect.width;
+    const screenX = (e.clientX - rect.left) * dpr;
+    const screenY = (e.clientY - rect.top) * dpr;
+    // Convert screen to world
+    const tilesX = canvas.width / TILE_PX;
+    const tilesY = canvas.height / TILE_PX;
+    const worldClickX = playerX + (screenX / TILE_PX - tilesX / 2);
+    const worldClickY = playerY + (screenY / TILE_PX - tilesY / 2);
+    moveTarget = { x: worldClickX, y: worldClickY };
+  });
+
+  // Wrap helper
+  function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+  function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+
+  function tileAt(x, y) {
+    return world[Math.floor(wrapY(y)) * WORLD_W + Math.floor(wrapX(x))];
+  }
+
+  function canWalk(x, y) {
+    return WALKABLE.has(tileAt(x, y));
+  }
+
+  // =====================================================================
+  // Tile rendering with detail
+  // =====================================================================
+  function drawTile(tileType, screenX, screenY, worldTX, worldTY) {
+    const c = TILE_COLORS[tileType];
+    if (!c) return;
+
+    // Base color with slight per-tile variation
+    const hash = ((worldTX * 374761393 + worldTY * 668265263) ^ 0xdeadbeef) & 0xffff;
+    const vary = ((hash & 0xff) - 128) / 512;
+    const r = Math.max(0, Math.min(255, c[0] + c[0] * vary));
+    const g = Math.max(0, Math.min(255, c[1] + c[1] * vary));
+    const b = Math.max(0, Math.min(255, c[2] + c[2] * vary));
+
+    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    ctx.fillRect(screenX, screenY, TILE_PX + 1, TILE_PX + 1);
+
+    // Tile decorations
+    if (tileType === T.TREE) {
+      // Trunk
+      ctx.fillStyle = '#5a3a20';
+      ctx.fillRect(screenX + 6, screenY + 10, 4, 6);
+      // Canopy
+      ctx.fillStyle = `rgb(${(0x1a + (hash & 0x1f))|0},${(0x5a + (hash & 0x1f))|0},${(0x20 + (hash & 0xf))|0})`;
+      ctx.beginPath();
+      ctx.arc(screenX + 8, screenY + 7, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (tileType === T.ROCK) {
+      ctx.fillStyle = '#8a8a92';
+      ctx.beginPath();
+      ctx.arc(screenX + 8, screenY + 9, 5 + (hash & 1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#9a9aa2';
+      ctx.beginPath();
+      ctx.arc(screenX + 7, screenY + 7, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (tileType === T.FLOWER) {
+      // Grass base already drawn
+      const flowerColors = ['#e44', '#e8e', '#ee4', '#4ae', '#f84'];
+      ctx.fillStyle = flowerColors[hash % flowerColors.length];
+      const fx = screenX + 4 + (hash & 7);
+      const fy = screenY + 4 + ((hash >> 3) & 7);
+      ctx.fillRect(fx, fy, 3, 3);
+      ctx.fillRect(fx + 1, fy - 1, 1, 1);
+      ctx.fillRect(fx + 1, fy + 3, 1, 1);
+    } else if (tileType === T.WATER) {
+      // Animated wave highlight
+      const waveT = performance.now() / 1000;
+      const wave = Math.sin(worldTX * 0.5 + worldTY * 0.3 + waveT * 2) * 0.15;
+      const wr = Math.max(0, Math.min(255, c[0] + 40 * wave));
+      const wg = Math.max(0, Math.min(255, c[1] + 50 * wave));
+      const wb = Math.max(0, Math.min(255, c[2] + 30 * wave));
+      ctx.fillStyle = `rgb(${wr|0},${wg|0},${wb|0})`;
+      ctx.fillRect(screenX, screenY, TILE_PX + 1, TILE_PX + 1);
+    } else if (tileType === T.TALL_GRASS) {
+      // Grass tufts
+      ctx.fillStyle = '#285a2e';
+      for (let i = 0; i < 3; i++) {
+        const gx = screenX + 2 + ((hash >> (i*4)) & 0xb);
+        ctx.fillRect(gx, screenY + 4, 1, 8);
+        ctx.fillRect(gx, screenY + 3, 2, 1);
+      }
+    } else if (tileType === T.PATH) {
+      // Occasional pebble
+      if ((hash & 7) === 0) {
+        ctx.fillStyle = '#8a7a5a';
+        ctx.fillRect(screenX + (hash & 7) + 3, screenY + ((hash>>4) & 7) + 3, 2, 2);
+      }
+    }
+  }
+
+  // =====================================================================
+  // Player sprite
+  // =====================================================================
+  function drawPlayer(screenX, screenY) {
+    const frame = Math.floor(playerFrame) % 4;
+    const bobY = (frame === 1 || frame === 3) ? -1 : 0;
+    const x = screenX, y = screenY + bobY;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x + 8, y + 15, 5, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = '#e86030';
+    ctx.fillRect(x + 4, y + 6, 8, 7);
+
+    // Head (round)
+    ctx.fillStyle = '#f0d0b0';
+    ctx.beginPath();
+    ctx.arc(x + 8, y + 4, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes (direction-dependent)
+    ctx.fillStyle = '#222';
+    if (playerDir === 0) { // down
+      ctx.fillRect(x + 6, y + 4, 1, 2);
+      ctx.fillRect(x + 9, y + 4, 1, 2);
+    } else if (playerDir === 2) { // up — no eyes visible
+    } else if (playerDir === 1) { // left
+      ctx.fillRect(x + 5, y + 4, 1, 2);
+    } else { // right
+      ctx.fillRect(x + 10, y + 4, 1, 2);
+    }
+
+    // Legs
+    ctx.fillStyle = '#446';
+    const legOff = (frame === 1) ? 1 : (frame === 3) ? -1 : 0;
+    ctx.fillRect(x + 5 + legOff, y + 13, 2, 3);
+    ctx.fillRect(x + 9 - legOff, y + 13, 2, 3);
+  }
+
+  // =====================================================================
+  // Game loop
+  // =====================================================================
+  let lastTime = performance.now();
+
+  function update(dt) {
+    let dx = 0, dy = 0;
+
+    // Keyboard
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) { dx -= 1; playerDir = 1; }
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) { dx += 1; playerDir = 3; }
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) { dy -= 1; playerDir = 2; }
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) { dy += 1; playerDir = 0; }
+
+    // Click-to-move
+    if (moveTarget && dx === 0 && dy === 0) {
+      // Shortest path on torus
+      let tdx = moveTarget.x - playerX;
+      let tdy = moveTarget.y - playerY;
+      // Wrap to shortest distance
+      if (tdx > WORLD_W / 2) tdx -= WORLD_W;
+      if (tdx < -WORLD_W / 2) tdx += WORLD_W;
+      if (tdy > WORLD_H / 2) tdy -= WORLD_H;
+      if (tdy < -WORLD_H / 2) tdy += WORLD_H;
+
+      const dist = Math.sqrt(tdx * tdx + tdy * tdy);
+      if (dist < 0.3) {
+        moveTarget = null;
+      } else {
+        dx = tdx / dist;
+        dy = tdy / dist;
+        // Face direction
+        if (Math.abs(tdx) > Math.abs(tdy)) {
+          playerDir = tdx > 0 ? 3 : 1;
+        } else {
+          playerDir = tdy > 0 ? 0 : 2;
+        }
+      }
+    }
+
+    // Normalize diagonal
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0.01) {
+      dx /= len; dy /= len;
+      const speed = PLAYER_SPEED * dt;
+      const newX = playerX + dx * speed;
+      const newY = playerY + dy * speed;
+
+      // Check walkability (test a few points around the player)
+      const canX = canWalk(newX, playerY) && canWalk(newX + 0.3, playerY) && canWalk(newX - 0.3, playerY);
+      const canY = canWalk(playerX, newY) && canWalk(playerX, newY + 0.3) && canWalk(playerX, newY - 0.3);
+
+      if (canX) playerX = wrapX(newX);
+      if (canY) playerY = wrapY(newY);
+
+      playerFrame += dt * 6;
+    } else {
+      playerFrame = 0;
+    }
+  }
+
+  function render() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // How many tiles fit on screen
+    const tilesX = Math.ceil(w / TILE_PX) + 2;
+    const tilesY = Math.ceil(h / TILE_PX) + 2;
+
+    // Camera center = player position
+    const camX = playerX;
+    const camY = playerY;
+
+    // Pixel offset for sub-tile scrolling
+    const offsetPxX = (camX * TILE_PX) - w / 2;
+    const offsetPxY = (camY * TILE_PX) - h / 2;
+
+    const startTileX = Math.floor(offsetPxX / TILE_PX);
+    const startTileY = Math.floor(offsetPxY / TILE_PX);
+    const fracX = offsetPxX - startTileX * TILE_PX;
+    const fracY = offsetPxY - startTileY * TILE_PX;
+
+    // Draw tiles — seamless toroidal wrapping
+    for (let ty = 0; ty < tilesY; ty++) {
+      for (let tx = 0; tx < tilesX; tx++) {
+        const worldTX = ((startTileX + tx) % WORLD_W + WORLD_W) % WORLD_W;
+        const worldTY = ((startTileY + ty) % WORLD_H + WORLD_H) % WORLD_H;
+        const tile = world[worldTY * WORLD_W + worldTX];
+        const screenX = tx * TILE_PX - fracX;
+        const screenY = ty * TILE_PX - fracY;
+        drawTile(tile, screenX, screenY, worldTX, worldTY);
+      }
+    }
+
+    // Draw player at screen center
+    const playerScreenX = w / 2 - 8;
+    const playerScreenY = h / 2 - 8;
+    drawPlayer(playerScreenX, playerScreenY);
+
+    // Update minimap player dot
+    mmCtx.putImageData(mmImg, 0, 0);
+    mmCtx.fillStyle = '#fff';
+    const mmx = wrapX(playerX);
+    const mmy = wrapY(playerY);
+    mmCtx.fillRect(mmx - 1, mmy - 1, 3, 3);
+    // Draw viewport rectangle
+    mmCtx.strokeStyle = 'rgba(255,255,200,0.5)';
+    mmCtx.lineWidth = 1;
+    const vpw = tilesX / WORLD_W * WORLD_W;
+    const vph = tilesY / WORLD_H * WORLD_H;
+    // This wraps too — draw it simply
+    mmCtx.strokeRect(mmx - vpw/2, mmy - vph/2, vpw, vph);
+
+    // HUD
+    const tx = Math.floor(wrapX(playerX));
+    const ty = Math.floor(wrapY(playerY));
+    const tileName = ['grass','grass','grass','water','sand','dirt','tree','rock','flowers','bridge','tall grass','path'][tileAt(playerX, playerY)] || '?';
+    document.getElementById('hud').textContent =
+      `${tx}, ${ty} · ${tileName}\nwasd / click to move`;
+  }
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    const dt = Math.min((t - lastTime) / 1000, 0.05);
+    lastTime = t;
+    update(dt);
+    render();
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
