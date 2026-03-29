@@ -15,6 +15,7 @@ const INTERNAL_ROUTES: Record<string, string> = {
   contacts: "/contacts",
   notes: "/notes",
   strategy: "/strategy",
+  sheets: "/sheets",
   docs: "/docs",
 };
 

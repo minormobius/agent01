@@ -264,5 +264,6 @@ export const APPS: AppDef[] = [
   { id: "contacts", name: "Contacts", description: "Encrypted contact directory", url: "/contacts", icon: "\u{1F4C7}", orgAware: true },
   { id: "notes", name: "Notes", description: "Notes, bookmarks & snippets", url: "/notes", icon: "\u{1F4DD}", orgAware: true },
   { id: "strategy", name: "Strategy", description: "Decision matrices & strategic tools", url: "/strategy", icon: "\u{1F3AF}", orgAware: true },
+  { id: "sheets", name: "Sheets", description: "Encrypted spreadsheets with formulas", url: "/sheets", icon: "\u{1F4C8}", orgAware: true },
   { id: "docs", name: "Docs", description: "Architecture & encryption reference", url: "/docs", icon: "\u{1F4D6}", orgAware: false },
 ];
