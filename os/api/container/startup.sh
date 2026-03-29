@@ -105,5 +105,5 @@ fi
 
 # ─── Start PTY server ──────────────────────────────────────────────
 
-echo "[startup] starting pty-server"
+echo "[startup] ready"
 exec node /home/coder/server.js
