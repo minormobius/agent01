@@ -40,6 +40,24 @@
     background: #2a2a3e; color: #ddd; font: 14px monospace; cursor: pointer;
   }
   .lobby-btns button:hover { background: #3a3a5e; border-color: #7a7aaa; }
+  #netPanel {
+    position: fixed; top: 12px; right: 12px; z-index: 5;
+    background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
+    padding: 12px 14px; color: #ccc; font: 12px/1.5 monospace; max-width: 320px;
+  }
+  #netPanel.hidden { display: none; }
+  #netPanel label { display: block; color: #aaa; margin-top: 8px; }
+  #netPanel textarea {
+    width: 100%; height: 60px; margin: 4px 0 6px; padding: 6px;
+    background: #12121e; border: 1px solid #3a3a5a; border-radius: 3px;
+    color: #eee; font: 11px monospace; resize: vertical;
+  }
+  #netPanel button {
+    padding: 6px 12px; border: 1px solid #4a4a6a; border-radius: 3px;
+    background: #2a2a3e; color: #ddd; font: 12px monospace; cursor: pointer; margin-right: 4px;
+  }
+  #netPanel button:hover { background: #3a3a5e; }
+  #netPanel .status { color: #8a8; margin-top: 6px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -55,6 +73,7 @@
     </div>
   </div>
 </div>
+<div id="netPanel" class="hidden"></div>
 <canvas id="c"></canvas>
 <canvas id="minimap" width="128" height="128"></canvas>
 <div id="hud"></div>
@@ -82,6 +101,8 @@
     gameStarted = true;
     canvas.focus();
     console.log(`Starting as ${playerName} (${netMode})`);
+    if (mode === 'host') showHostPanel();
+    else if (mode === 'peer') showPeerPanel();
   }
 
   document.getElementById('btnSolo').addEventListener('click', () => startGame('solo'));
@@ -91,6 +112,265 @@
     if (e.key === 'Enter') startGame('solo');
     e.stopPropagation(); // don't trigger WASD
   });
+
+  // =====================================================================
+  // WebRTC P2P — compact copy-paste signaling, star topology
+  // =====================================================================
+  const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const netPanel = document.getElementById('netPanel');
+
+  // Compress SDP to shorter pasteable string
+  function compressSDP(sdp) {
+    // Strip unnecessary lines, keep only essential SDP
+    const lines = sdp.split('\r\n').filter(l =>
+      l.startsWith('v=') || l.startsWith('o=') || l.startsWith('s=') ||
+      l.startsWith('t=') || l.startsWith('a=group') || l.startsWith('a=msid') ||
+      l.startsWith('m=') || l.startsWith('c=') ||
+      l.startsWith('a=ice-ufrag') || l.startsWith('a=ice-pwd') ||
+      l.startsWith('a=fingerprint') || l.startsWith('a=setup') ||
+      l.startsWith('a=mid') || l.startsWith('a=sctp') ||
+      l.startsWith('a=max-message') || l.startsWith('a=candidate')
+    );
+    return btoa(lines.join('\n'));
+  }
+
+  function decompressSDP(compressed, type) {
+    const lines = atob(compressed).split('\n');
+    // Rebuild a minimal valid SDP
+    const sdp = lines.join('\r\n') + '\r\n';
+    return new RTCSessionDescription({ type, sdp });
+  }
+
+  // -- Remote players state --
+  const remotePlayers = new Map(); // peerId → { name, x, y, dir, frame, colorIdx }
+
+  // -- Host state --
+  const hostPeers = new Map(); // peerId → { pc, dc, name }
+  let nextPeerId = 1;
+
+  async function hostCreateOffer() {
+    const peerId = nextPeerId++;
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dc = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 });
+
+    dc.onopen = () => {
+      console.log(`Peer ${peerId} connected`);
+      const info = hostPeers.get(peerId);
+      if (info) info.status = 'connected';
+      updateNetPanelHost();
+      // Send world seed so peer generates same map
+      dc.send(JSON.stringify({ type: 'welcome', peerId, seed: 7, worldW: 128, worldH: 128 }));
+    };
+    dc.onmessage = (e) => hostHandleMessage(peerId, JSON.parse(e.data));
+    dc.onclose = () => {
+      console.log(`Peer ${peerId} disconnected`);
+      hostPeers.delete(peerId);
+      remotePlayers.delete(peerId);
+      updateNetPanelHost();
+    };
+
+    hostPeers.set(peerId, { pc, dc, name: '?', status: 'waiting', peerId });
+
+    // Gather all ICE candidates before creating the offer string
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for ICE gathering to complete
+    await new Promise(resolve => {
+      if (pc.iceGatheringState === 'complete') return resolve();
+      pc.onicecandidate = (e) => { if (!e.candidate) resolve(); };
+    });
+
+    return { peerId, offerCode: compressSDP(pc.localDescription.sdp) };
+  }
+
+  async function hostAcceptAnswer(peerId, answerCode) {
+    const info = hostPeers.get(peerId);
+    if (!info) return;
+    const answer = decompressSDP(answerCode, 'answer');
+    await info.pc.setRemoteDescription(answer);
+  }
+
+  function hostHandleMessage(peerId, msg) {
+    if (msg.type === 'input') {
+      // Peer sent their input state
+      remotePlayers.set(peerId, {
+        name: msg.name || '?',
+        x: msg.x, y: msg.y,
+        dir: msg.dir, frame: msg.frame,
+        colorIdx: peerId,
+      });
+    }
+  }
+
+  function hostBroadcast() {
+    if (netMode !== 'host') return;
+    // Collect all player states
+    const players = [{ id: 0, name: playerName, x: playerX, y: playerY, dir: playerDir, frame: playerFrame }];
+    for (const [pid, p] of remotePlayers) {
+      players.push({ id: pid, name: p.name, x: p.x, y: p.y, dir: p.dir, frame: p.frame });
+    }
+    const msg = JSON.stringify({ type: 'state', players });
+    for (const [, info] of hostPeers) {
+      if (info.dc && info.dc.readyState === 'open') {
+        try { info.dc.send(msg); } catch(e) {}
+      }
+    }
+  }
+
+  // -- Peer state --
+  let peerPC = null;
+  let peerDC = null;
+  let myPeerId = -1;
+
+  async function peerConnect(offerCode) {
+    peerPC = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    peerPC.ondatachannel = (e) => {
+      peerDC = e.channel;
+      peerDC.onopen = () => {
+        console.log('Connected to host');
+        updateNetPanelPeer('connected');
+      };
+      peerDC.onmessage = (e) => peerHandleMessage(JSON.parse(e.data));
+      peerDC.onclose = () => {
+        console.log('Disconnected from host');
+        updateNetPanelPeer('disconnected');
+      };
+    };
+
+    const offer = decompressSDP(offerCode, 'offer');
+    await peerPC.setRemoteDescription(offer);
+    const answer = await peerPC.createAnswer();
+    await peerPC.setLocalDescription(answer);
+
+    // Wait for ICE
+    await new Promise(resolve => {
+      if (peerPC.iceGatheringState === 'complete') return resolve();
+      peerPC.onicecandidate = (e) => { if (!e.candidate) resolve(); };
+    });
+
+    return compressSDP(peerPC.localDescription.sdp);
+  }
+
+  function peerHandleMessage(msg) {
+    if (msg.type === 'welcome') {
+      myPeerId = msg.peerId;
+      console.log('Assigned peerId:', myPeerId);
+    } else if (msg.type === 'state') {
+      // Update all remote players (everyone except us)
+      remotePlayers.clear();
+      for (const p of msg.players) {
+        if (p.id === myPeerId) continue; // skip self
+        remotePlayers.set(p.id, {
+          name: p.name, x: p.x, y: p.y,
+          dir: p.dir, frame: p.frame,
+          colorIdx: p.id,
+        });
+      }
+    }
+  }
+
+  function peerSendInput() {
+    if (!peerDC || peerDC.readyState !== 'open') return;
+    try {
+      peerDC.send(JSON.stringify({
+        type: 'input', name: playerName,
+        x: playerX, y: playerY, dir: playerDir, frame: playerFrame,
+      }));
+    } catch(e) {}
+  }
+
+  // -- Net panel UI --
+  function showHostPanel() {
+    netPanel.classList.remove('hidden');
+    updateNetPanelHost();
+  }
+
+  function updateNetPanelHost() {
+    const peers = [...hostPeers.values()];
+    const connected = peers.filter(p => p.status === 'connected').length;
+    netPanel.innerHTML = `
+      <b>Hosting</b> (${connected} connected)
+      <button id="hostAddPeer">+ Add peer</button>
+      <div id="hostSignaling"></div>
+      <div class="status">${peers.map(p => `${p.peerId}: ${p.status}`).join(', ') || 'no peers'}</div>
+    `;
+    document.getElementById('hostAddPeer').onclick = async () => {
+      const { peerId, offerCode } = await hostCreateOffer();
+      const sigDiv = document.getElementById('hostSignaling');
+      sigDiv.innerHTML = `
+        <label>Send this code to peer ${peerId}:</label>
+        <textarea id="offerText" readonly>${offerCode}</textarea>
+        <button id="copyOffer">Copy</button>
+        <label>Paste their answer:</label>
+        <textarea id="answerText" placeholder="paste answer code here..."></textarea>
+        <button id="acceptAnswer">Connect</button>
+      `;
+      document.getElementById('copyOffer').onclick = () => {
+        navigator.clipboard.writeText(offerCode);
+        document.getElementById('copyOffer').textContent = 'Copied!';
+      };
+      document.getElementById('answerText').addEventListener('keydown', e => e.stopPropagation());
+      document.getElementById('acceptAnswer').onclick = async () => {
+        const code = document.getElementById('answerText').value.trim();
+        if (!code) return;
+        await hostAcceptAnswer(peerId, code);
+        sigDiv.innerHTML = '<div class="status">Connecting...</div>';
+      };
+    };
+  }
+
+  function showPeerPanel() {
+    netPanel.classList.remove('hidden');
+    netPanel.innerHTML = `
+      <b>Join</b>
+      <label>Paste host's code:</label>
+      <textarea id="peerOfferText" placeholder="paste offer code here..."></textarea>
+      <button id="peerDoConnect">Connect</button>
+      <div id="peerSignaling"></div>
+    `;
+    document.getElementById('peerOfferText').addEventListener('keydown', e => e.stopPropagation());
+    document.getElementById('peerDoConnect').onclick = async () => {
+      const code = document.getElementById('peerOfferText').value.trim();
+      if (!code) return;
+      const sigDiv = document.getElementById('peerSignaling');
+      sigDiv.innerHTML = '<div class="status">Generating answer...</div>';
+      try {
+        const answerCode = await peerConnect(code);
+        sigDiv.innerHTML = `
+          <label>Send this answer back to host:</label>
+          <textarea id="answerOut" readonly>${answerCode}</textarea>
+          <button id="copyAnswer">Copy</button>
+          <div class="status" id="peerStatus">Waiting for host...</div>
+        `;
+        document.getElementById('copyAnswer').onclick = () => {
+          navigator.clipboard.writeText(answerCode);
+          document.getElementById('copyAnswer').textContent = 'Copied!';
+        };
+      } catch(err) {
+        sigDiv.innerHTML = `<div class="status" style="color:#c66">Error: ${err.message}</div>`;
+      }
+    };
+  }
+
+  function updateNetPanelPeer(status) {
+    const el = document.getElementById('peerStatus');
+    if (el) {
+      el.textContent = status === 'connected' ? 'Connected!' : 'Disconnected';
+      el.style.color = status === 'connected' ? '#8a8' : '#c66';
+    }
+  }
+
+  // Net tick (runs in game loop)
+  let netTickAccum = 0;
+  function netTick(dt) {
+    netTickAccum += dt;
+    if (netTickAccum < 1/15) return; // 15 Hz
+    netTickAccum = 0;
+    if (netMode === 'host') hostBroadcast();
+    else if (netMode === 'peer') peerSendInput();
+  }
 
   // =====================================================================
   // Toroidal world — seamless wrapping tile map
@@ -546,7 +826,24 @@
       }
     }
 
-    // Draw player at screen center
+    // Draw remote players (toroidal-aware screen position)
+    for (const [pid, rp] of remotePlayers) {
+      // Toroidal shortest offset from camera
+      let rdx = rp.x - camX;
+      let rdy = rp.y - camY;
+      if (rdx > WORLD_W / 2) rdx -= WORLD_W;
+      if (rdx < -WORLD_W / 2) rdx += WORLD_W;
+      if (rdy > WORLD_H / 2) rdy -= WORLD_H;
+      if (rdy < -WORLD_H / 2) rdy += WORLD_H;
+      const rsx = w / 2 + rdx * TILE_PX - 8;
+      const rsy = h / 2 + rdy * TILE_PX - 8;
+      // Only draw if on screen (with margin)
+      if (rsx > -32 && rsx < w + 32 && rsy > -32 && rsy < h + 32) {
+        drawPlayer(rsx, rsy, rp.name, rp.dir, rp.frame, rp.colorIdx);
+      }
+    }
+
+    // Draw local player at screen center
     const playerScreenX = w / 2 - 8;
     const playerScreenY = h / 2 - 8;
     drawPlayer(playerScreenX, playerScreenY, playerName, playerDir, playerFrame, 0);
@@ -557,6 +854,14 @@
     const mmx = wrapX(playerX);
     const mmy = wrapY(playerY);
     mmCtx.fillRect(mmx - 1, mmy - 1, 3, 3);
+    // Remote player dots on minimap
+    for (const [, rp] of remotePlayers) {
+      const rpx = wrapX(rp.x);
+      const rpy = wrapY(rp.y);
+      const pc = PLAYER_COLORS[rp.colorIdx % PLAYER_COLORS.length];
+      mmCtx.fillStyle = pc;
+      mmCtx.fillRect(rpx - 1, rpy - 1, 3, 3);
+    }
     // Draw viewport rectangle
     mmCtx.strokeStyle = 'rgba(255,255,200,0.5)';
     mmCtx.lineWidth = 1;
@@ -569,8 +874,10 @@
     const tx = Math.floor(wrapX(playerX));
     const ty = Math.floor(wrapY(playerY));
     const tileName = ['grass','grass','grass','water','sand','dirt','tree','rock','flowers','bridge','tall grass','path'][tileAt(playerX, playerY)] || '?';
+    const netInfo = netMode === 'host' ? ` · hosting (${remotePlayers.size} peers)` :
+                    netMode === 'peer' ? ` · ${peerDC && peerDC.readyState === 'open' ? 'connected' : 'connecting...'}` : '';
     document.getElementById('hud').textContent =
-      `${tx}, ${ty} · ${tileName}\nwasd / click to move`;
+      `${tx}, ${ty} · ${tileName}${netInfo}\nwasd / click to move`;
   }
 
   function frame(t) {
@@ -579,6 +886,7 @@
     const dt = Math.min((t - lastTime) / 1000, 0.05);
     lastTime = t;
     update(dt);
+    netTick(dt);
     render();
   }
   requestAnimationFrame(frame);
