@@ -1,7 +1,7 @@
 /**
  * NotesApp — encrypted notes, bookmarks & snippets on ATProto.
  * One collection, three swim lanes via `kind` discriminator.
- * Supports encrypted file attachments via the blob layer.
+ * Supports encrypted file attachments, voice notes, folders, and [[wiki-links]].
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
@@ -10,7 +10,7 @@ import type { VaultState } from "../App";
 import type { PdsClient } from "../pds";
 import type { OrgRecord, OrgContext } from "../crm/types";
 import type { Note, NoteRecord, NoteKind } from "./types";
-import { NOTE_KINDS } from "./types";
+import { NOTE_KINDS, extractFolders, isInFolder } from "./types";
 import type { VaultBlobRef } from "../blobs";
 import {
   encryptAndUploadAuto,
@@ -69,7 +69,6 @@ function resolveDekForRecord(
   if (rec.orgRkey === "personal") return vault.dek;
   const ctx = sharedContexts.get(rec.orgRkey);
   if (!ctx) return null;
-  // For reading, any keyringDek works — the blob was encrypted with the tier DEK at write time
   const tierDek = ctx.tierDeks.get(ctx.myTierName);
   return tierDek ?? null;
 }
@@ -81,10 +80,12 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
   const [loading, setLoading] = useState(false);
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
   const [filterKind, setFilterKind] = useState<KindFilter>("all");
+  const [filterFolder, setFilterFolder] = useState<string>("/");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<NoteRecord | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
 
   const loadedRef = useRef(false);
 
@@ -122,6 +123,8 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
     ? sharedContexts.get(filterOrg) ?? null
     : null;
 
+  const folders = useMemo(() => extractFolders(notes), [notes]);
+
   const kindCounts = useMemo(() => {
     const counts = { note: 0, bookmark: 0, snippet: 0 };
     for (const n of notes) {
@@ -135,6 +138,7 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
     if (filterOrg === "personal") result = result.filter((n) => n.orgRkey === "personal");
     else if (filterOrg !== "all") result = result.filter((n) => n.orgRkey === filterOrg);
     if (filterKind !== "all") result = result.filter((n) => n.note.kind === filterKind);
+    if (filterFolder !== "/") result = result.filter((n) => isInFolder(n.note, filterFolder));
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((n) =>
@@ -142,6 +146,7 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         || n.note.body.toLowerCase().includes(q)
         || n.note.url?.toLowerCase().includes(q)
         || n.note.tags?.some((t) => t.toLowerCase().includes(q))
+        || n.note.folder?.toLowerCase().includes(q)
       );
     }
     result.sort((a, b) => {
@@ -152,16 +157,21 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
       return bDate.localeCompare(aDate);
     });
     return result;
-  }, [notes, filterOrg, filterKind, search]);
+  }, [notes, filterOrg, filterKind, filterFolder, search]);
 
-  // Save note — handles blob uploads for pending files
+  // Navigate to a note by title (for wiki-links)
+  const handleNavigateToNote = useCallback((title: string) => {
+    const target = notes.find((n) => n.note.title.toLowerCase() === title.toLowerCase());
+    if (target) setExpanded(target.rkey);
+  }, [notes]);
+
+  // Save note
   const handleSave = useCallback(
     async (note: Note, pendingFiles: File[], existingRkey?: string) => {
       if (!pds || !vault) return;
 
       const { dek, keyringRkey, orgRkey } = resolveDek(vault, activeOrg);
 
-      // Upload pending files as encrypted blobs
       const newAttachments: VaultBlobRef[] = [];
       for (const file of pendingFiles) {
         const bytes = await readFileAsBytes(file);
@@ -169,7 +179,6 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         newAttachments.push(ref);
       }
 
-      // Merge with existing attachments (carry forward unless removed)
       const allAttachments = [...(note.attachments || []), ...newAttachments];
       const finalNote: Note = {
         ...note,
@@ -232,7 +241,20 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
     [pds, vault, sharedContexts],
   );
 
-  // Download an attachment
+  // View an image attachment in-app (lightbox)
+  const handleViewAttachment = useCallback(
+    async (rec: NoteRecord, ref: VaultBlobRef) => {
+      if (!pds || !vault) return;
+      const dek = resolveDekForRecord(vault, rec, sharedContexts);
+      if (!dek) return;
+      const { data, mimeType, filename } = await fetchAndDecryptAuto(pds, ref, dek);
+      const url = blobToObjectUrl(data, mimeType);
+      setLightbox({ url, name: filename || "attachment" });
+    },
+    [pds, vault, sharedContexts],
+  );
+
+  // Download an attachment (fallback / secondary action)
   const handleDownloadAttachment = useCallback(
     async (rec: NoteRecord, ref: VaultBlobRef) => {
       if (!pds || !vault) return;
@@ -254,6 +276,9 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
       </div>
     );
   }
+
+  // Breadcrumb for current folder
+  const folderParts = filterFolder === "/" ? [] : filterFolder.split("/").filter(Boolean);
 
   return (
     <div className="notes-container">
@@ -307,6 +332,48 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         />
       </div>
 
+      {/* Folder breadcrumb + folder list */}
+      {folders.length > 1 && (
+        <div className="notes-folder-bar">
+          <div className="notes-breadcrumb">
+            <button
+              className={`notes-breadcrumb-btn${filterFolder === "/" ? " active" : ""}`}
+              onClick={() => setFilterFolder("/")}
+            >
+              All Folders
+            </button>
+            {folderParts.map((part, i) => {
+              const path = folderParts.slice(0, i + 1).join("/");
+              return (
+                <span key={path}>
+                  <span className="notes-breadcrumb-sep">/</span>
+                  <button
+                    className={`notes-breadcrumb-btn${filterFolder === path ? " active" : ""}`}
+                    onClick={() => setFilterFolder(path)}
+                  >
+                    {part}
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+          <div className="notes-folder-chips">
+            {folders.filter((f) => {
+              if (filterFolder === "/") return f !== "/" && !f.includes("/");
+              return f.startsWith(filterFolder + "/") && f.split("/").length === filterFolder.split("/").length + 1;
+            }).map((f) => (
+              <button
+                key={f}
+                className="notes-folder-chip"
+                onClick={() => setFilterFolder(f)}
+              >
+                {f.split("/").pop()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading && <div className="loading" style={{ padding: "2rem" }}>Loading...</div>}
 
       {!loading && visible.length === 0 && (
@@ -330,7 +397,9 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
             onEdit={() => { setEditing(rec); setShowForm(true); }}
             onDelete={() => handleDelete(rec)}
             onTogglePin={() => handleTogglePin(rec)}
+            onView={(ref) => handleViewAttachment(rec, ref)}
             onDownload={(ref) => handleDownloadAttachment(rec, ref)}
+            onLinkClick={handleNavigateToNote}
           />
         ))}
       </div>
@@ -339,9 +408,26 @@ export function NotesApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: share
         <NoteForm
           existing={editing ?? undefined}
           defaultKind={filterKind !== "all" ? filterKind : "note"}
+          defaultFolder={filterFolder}
+          folders={folders}
+          allNotes={notes}
           onSave={handleSave}
           onCancel={() => { setShowForm(false); setEditing(null); }}
         />
+      )}
+
+      {lightbox && (
+        <div className="note-lightbox" onClick={() => { URL.revokeObjectURL(lightbox.url); setLightbox(null); }}>
+          <div className="note-lightbox-inner" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} className="note-lightbox-img" />
+            <div className="note-lightbox-bar">
+              <span className="note-lightbox-name">{lightbox.name}</span>
+              <button className="btn-secondary btn-sm" onClick={() => { URL.revokeObjectURL(lightbox.url); setLightbox(null); }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -361,7 +447,9 @@ function NoteCard({
   onEdit,
   onDelete,
   onTogglePin,
+  onView,
   onDownload,
+  onLinkClick,
 }: {
   rec: NoteRecord;
   pds: PdsClient;
@@ -374,7 +462,9 @@ function NoteCard({
   onEdit: () => void;
   onDelete: () => void;
   onTogglePin: () => void;
+  onView: (ref: VaultBlobRef) => void;
   onDownload: (ref: VaultBlobRef) => void;
+  onLinkClick: (title: string) => void;
 }) {
   const n = rec.note;
   const kindIcon = n.kind === "bookmark" ? "\u{1F517}" : n.kind === "snippet" ? "\u{1F4CB}" : "\u{1F4DD}";
@@ -382,7 +472,7 @@ function NoteCard({
   const attachCount = attachments.length;
   const hasAudio = attachments.some((a) => (isChunked(a) ? a.mimeType : a.mimeType).startsWith("audio/"));
 
-  // For inline image previews, we decrypt on expand
+  // For inline previews, we decrypt on expand
   const [previews, setPreviews] = useState<Map<number, string>>(new Map());
 
   const loadPreview = useCallback(async (idx: number, ref: VaultBlobRef) => {
@@ -400,7 +490,6 @@ function NoteCard({
     }
   }, [pds, vault, rec, sharedContexts, previews]);
 
-  // Load image and audio previews when expanded
   useEffect(() => {
     if (!isExpanded) return;
     attachments.forEach((ref, i) => {
@@ -409,7 +498,6 @@ function NoteCard({
     });
   }, [isExpanded, attachments, loadPreview]);
 
-  // Cleanup object URLs
   useEffect(() => {
     return () => {
       previews.forEach((url) => URL.revokeObjectURL(url));
@@ -423,6 +511,7 @@ function NoteCard({
         <span className="note-title">{n.title}</span>
         {hasAudio && <span className="note-voice-badge">voice</span>}
         {attachCount > 0 && <span className="note-attach-badge">{attachCount} file{attachCount !== 1 ? "s" : ""}</span>}
+        {n.folder && n.folder !== "/" && <span className="note-folder-badge">{n.folder}</span>}
         {n.pinned && <span className="note-pin-badge">pinned</span>}
         {n.language && <span className="note-lang-badge">{n.language}</span>}
         {orgName && <span className="note-org-badge">{orgName}</span>}
@@ -439,7 +528,10 @@ function NoteCard({
       {isExpanded && (
         <div className="note-card-body">
           <div className={`note-body-text${n.kind === "snippet" ? " snippet" : ""}`}>
-            {n.kind === "snippet" ? <pre>{n.body}</pre> : <p>{n.body}</p>}
+            {n.kind === "snippet"
+              ? <pre>{n.body}</pre>
+              : <NoteBodyRenderer body={n.body} onLinkClick={onLinkClick} />
+            }
           </div>
 
           {attachments.length > 0 && (
@@ -456,7 +548,13 @@ function NoteCard({
                 return (
                   <div key={i} className={`note-attachment${isAudio ? " audio" : ""}`}>
                     {previewUrl && isImage && (
-                      <img src={previewUrl} alt={name || "attachment"} className="note-attach-preview" />
+                      <img
+                        src={previewUrl}
+                        alt={name || "attachment"}
+                        className="note-attach-preview"
+                        onClick={(e) => { e.stopPropagation(); onView(ref); }}
+                        style={{ cursor: "pointer" }}
+                      />
                     )}
                     {previewUrl && isAudio && (
                       <audio src={previewUrl} controls className="note-attach-audio" />
@@ -465,12 +563,21 @@ function NoteCard({
                       <span className="note-attach-name">{name || "attachment"}</span>
                       <span className="note-attach-meta">{mime} &middot; {formatFileSize(size)}</span>
                     </div>
-                    <button
-                      className="btn-secondary btn-sm"
-                      onClick={(e) => { e.stopPropagation(); onDownload(ref); }}
-                    >
-                      Download
-                    </button>
+                    {isImage ? (
+                      <button
+                        className="btn-primary btn-sm"
+                        onClick={(e) => { e.stopPropagation(); onView(ref); }}
+                      >
+                        View
+                      </button>
+                    ) : !isAudio ? (
+                      <button
+                        className="btn-secondary btn-sm"
+                        onClick={(e) => { e.stopPropagation(); onDownload(ref); }}
+                      >
+                        Download
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -496,10 +603,50 @@ function NoteCard({
 
       {!isExpanded && n.body && (
         <div className="note-preview" onClick={onToggleExpand}>
-          {n.body.slice(0, 120)}{n.body.length > 120 ? "..." : ""}
+          {n.body.replace(/\[\[([^\]]+)\]\]/g, "$1").slice(0, 120)}{n.body.length > 120 ? "..." : ""}
         </div>
       )}
     </div>
+  );
+}
+
+// ── NoteBodyRenderer — renders text with [[wiki-links]] as clickable ──
+
+function NoteBodyRenderer({ body, onLinkClick }: { body: string; onLinkClick: (title: string) => void }) {
+  const parts = useMemo(() => {
+    const result: { type: "text" | "link"; value: string }[] = [];
+    const regex = /\[\[([^\]]+)\]\]/g;
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(body)) !== null) {
+      if (match.index > lastIdx) {
+        result.push({ type: "text", value: body.slice(lastIdx, match.index) });
+      }
+      result.push({ type: "link", value: match[1].trim() });
+      lastIdx = regex.lastIndex;
+    }
+    if (lastIdx < body.length) {
+      result.push({ type: "text", value: body.slice(lastIdx) });
+    }
+    return result;
+  }, [body]);
+
+  return (
+    <p>
+      {parts.map((part, i) =>
+        part.type === "link" ? (
+          <span
+            key={i}
+            className="note-wiki-link"
+            onClick={(e) => { e.stopPropagation(); onLinkClick(part.value); }}
+          >
+            {part.value}
+          </span>
+        ) : (
+          <span key={i}>{part.value}</span>
+        )
+      )}
+    </p>
   );
 }
 
@@ -508,11 +655,17 @@ function NoteCard({
 function NoteForm({
   existing,
   defaultKind,
+  defaultFolder,
+  folders,
+  allNotes,
   onSave,
   onCancel,
 }: {
   existing?: NoteRecord;
   defaultKind: NoteKind;
+  defaultFolder: string;
+  folders: string[];
+  allNotes: NoteRecord[];
   onSave: (note: Note, pendingFiles: File[], existingRkey?: string) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -522,7 +675,49 @@ function NoteForm({
   const [url, setUrl] = useState(existing?.note.url ?? "");
   const [language, setLanguage] = useState(existing?.note.language ?? "");
   const [tags, setTags] = useState(existing?.note.tags?.join(", ") ?? "");
+  const [folder, setFolder] = useState(existing?.note.folder ?? (defaultFolder === "/" ? "" : defaultFolder));
+  const [newFolder, setNewFolder] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Wiki-link autocomplete
+  const [linkQuery, setLinkQuery] = useState<string | null>(null);
+  const [linkSuggestions, setLinkSuggestions] = useState<string[]>([]);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleBodyChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setBody(val);
+
+    // Detect if cursor is inside [[ ]]
+    const pos = e.target.selectionStart;
+    const before = val.slice(0, pos);
+    const openIdx = before.lastIndexOf("[[");
+    const closeIdx = before.lastIndexOf("]]");
+    if (openIdx > closeIdx) {
+      const query = before.slice(openIdx + 2).toLowerCase();
+      setLinkQuery(query);
+      setLinkSuggestions(
+        allNotes
+          .map((n) => n.note.title)
+          .filter((t) => t.toLowerCase().includes(query))
+          .slice(0, 5)
+      );
+    } else {
+      setLinkQuery(null);
+    }
+  }, [allNotes]);
+
+  const insertLink = useCallback((title: string) => {
+    if (!bodyRef.current || linkQuery === null) return;
+    const pos = bodyRef.current.selectionStart;
+    const before = body.slice(0, pos);
+    const openIdx = before.lastIndexOf("[[");
+    const after = body.slice(pos);
+    const closeIdx = after.indexOf("]]");
+    const newBody = body.slice(0, openIdx) + `[[${title}]]` + (closeIdx >= 0 ? after.slice(closeIdx + 2) : after);
+    setBody(newBody);
+    setLinkQuery(null);
+  }, [body, linkQuery]);
 
   // File management
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -543,6 +738,8 @@ function NoteForm({
     setKeptAttachments((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const effectiveFolder = newFolder.trim() || folder || undefined;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -557,6 +754,7 @@ function NoteForm({
         language: kind === "snippet" ? language.trim() || undefined : undefined,
         tags: tags.trim() ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         pinned: existing?.note.pinned ?? false,
+        folder: effectiveFolder,
         attachments: keptAttachments.length > 0 ? keptAttachments : undefined,
         createdAt: existing?.note.createdAt ?? now,
         updatedAt: existing ? now : undefined,
@@ -586,6 +784,23 @@ function NoteForm({
 
         <input type="text" placeholder="Title *" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
 
+        {/* Folder picker */}
+        <div className="note-form-folder-row">
+          <select value={folder} onChange={(e) => { setFolder(e.target.value); setNewFolder(""); }}>
+            <option value="">/ (root)</option>
+            {folders.filter((f) => f !== "/").map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="or new folder path..."
+            value={newFolder}
+            onChange={(e) => setNewFolder(e.target.value.replace(/^\/+/, ""))}
+            className="note-form-folder-input"
+          />
+        </div>
+
         {kind === "bookmark" && (
           <input type="url" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
         )}
@@ -594,13 +809,25 @@ function NoteForm({
           <input type="text" placeholder="Language (e.g. typescript, python)" value={language} onChange={(e) => setLanguage(e.target.value)} />
         )}
 
-        <textarea
-          placeholder={kind === "snippet" ? "Paste code here..." : kind === "bookmark" ? "Description (optional)" : "Write something..."}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={kind === "snippet" ? 10 : 5}
-          className={kind === "snippet" ? "note-snippet-input" : ""}
-        />
+        <div className="note-form-body-wrap">
+          <textarea
+            ref={bodyRef}
+            placeholder={kind === "snippet" ? "Paste code here..." : kind === "bookmark" ? "Description (optional)" : "Write something... use [[title]] to link notes"}
+            value={body}
+            onChange={handleBodyChange}
+            rows={kind === "snippet" ? 10 : 5}
+            className={kind === "snippet" ? "note-snippet-input" : ""}
+          />
+          {linkQuery !== null && linkSuggestions.length > 0 && (
+            <div className="note-link-suggest">
+              {linkSuggestions.map((s) => (
+                <button key={s} type="button" className="note-link-suggest-item" onClick={() => insertLink(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <input type="text" placeholder="Tags (comma-separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
 
@@ -623,7 +850,6 @@ function NoteForm({
             />
           </div>
 
-          {/* Existing (kept) attachments */}
           {keptAttachments.map((ref, i) => {
             const name = isChunked(ref) ? ref.filename : ref.filename;
             const size = isChunked(ref) ? ref.size : ref.size;
@@ -636,7 +862,6 @@ function NoteForm({
             );
           })}
 
-          {/* Pending new files */}
           {pendingFiles.map((file, i) => (
             <div key={`pending-${i}`} className="note-form-attach-item pending">
               <span className="note-form-attach-name">{file.name}</span>
