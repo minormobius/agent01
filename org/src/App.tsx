@@ -8,6 +8,7 @@ import {
   exportPublicKey,
   importPublicKey,
   deriveDek,
+  unsealRecord,
   fromBase64,
   toBase64,
 } from "./crypto";
@@ -21,7 +22,6 @@ import {
   loadNotificationPreferences,
   saveNotificationPreferences,
   BOOKMARK_COLLECTION,
-  NOTIFICATION_COLLECTION,
 } from "./crm/context";
 import { JetstreamClient, type JetstreamEvent } from "./wave/jetstream";
 import { LoginScreen } from "./components/LoginScreen";
@@ -126,15 +126,27 @@ export function App() {
   notifPrefsRef.current = notifPrefs;
   const orgsRef = useRef<OrgRecord[]>(orgs);
   orgsRef.current = orgs;
+  // Hub-level DEK cache for decrypting sealed notifications in real-time
+  const hubDeksRef = useRef<Map<string, CryptoKey>>(new Map());
+  const orgContextsRef = useRef<Map<string, OrgContext>>(orgContexts);
+  orgContextsRef.current = orgContexts;
+  // Sync DEKs from loaded org contexts
+  useEffect(() => {
+    const deks = new Map<string, CryptoKey>();
+    for (const ctx of orgContexts.values()) {
+      for (const [kr, dek] of ctx.keyringDeks) deks.set(kr, dek);
+    }
+    hubDeksRef.current = deks;
+  }, [orgContexts]);
 
   const inviteParams = parseInviteUrl();
 
   // --- Hub-level Jetstream for real-time notifications ---
+  // Watches vault.sealed from org members, decrypts to find notifications.
   const startHubJetstream = useCallback(
     (myDid: string, allMemberships: MembershipRecord[]) => {
       hubJetstreamRef.current?.close();
 
-      // Collect all unique member DIDs across all orgs (excluding self)
       const memberDids = new Set<string>();
       for (const m of allMemberships) {
         if (m.membership.memberDid !== myDid) {
@@ -147,7 +159,6 @@ export function App() {
 
       if (memberDids.size === 0) return;
 
-      // Build a set of orgRkeys the user is a member of (for broadcast filtering)
       const myOrgRkeys = new Set<string>();
       for (const m of allMemberships) {
         if (m.membership.memberDid === myDid) {
@@ -155,44 +166,74 @@ export function App() {
         }
       }
 
+      const SEALED = "com.minomobi.vault.sealed";
+      const NOTIF_TYPE = "com.minomobi.vault.notification";
+      // Also listen for legacy plaintext notifications during migration
+      const LEGACY_NOTIF = "com.minomobi.vault.notification";
+
       const client = new JetstreamClient({
         wantedDids: Array.from(memberDids),
-        wantedCollections: [NOTIFICATION_COLLECTION],
+        wantedCollections: [SEALED, LEGACY_NOTIF],
         onEvent: (event: JetstreamEvent) => {
           if (event.kind !== "commit" || !event.commit) return;
           const { operation, collection, record } = event.commit;
-          if (operation !== "create" || collection !== NOTIFICATION_COLLECTION || !record) return;
+          if (operation !== "create" || !record) return;
 
-          const pub = record as unknown as PublishedNotification;
+          const processNotification = (pub: {
+            targetDid?: string;
+            notificationType?: string;
+            orgRkey?: string;
+            senderDid?: string;
+            payload?: string;
+            createdAt?: string;
+          }) => {
+            if (!pub.targetDid || !pub.notificationType || !pub.orgRkey) return;
+            if (pub.targetDid !== myDid && pub.targetDid !== "*") return;
+            if (pub.targetDid === "*" && !myOrgRkeys.has(pub.orgRkey)) return;
+            if (pub.senderDid === myDid) return;
 
-          // Filter: must be targeted at us or be an org-wide broadcast for our org
-          if (pub.targetDid !== myDid && pub.targetDid !== "*") return;
-          if (pub.targetDid === "*" && !myOrgRkeys.has(pub.orgRkey)) return;
-          if (pub.senderDid === myDid) return; // skip our own broadcasts
+            const prefs = notifPrefsRef.current;
+            if (prefs) {
+              const orgOverride = prefs.orgOverrides?.[pub.orgRkey];
+              const enabled = orgOverride?.[pub.notificationType as keyof typeof prefs.enabled] ?? prefs.enabled[pub.notificationType as keyof typeof prefs.enabled];
+              if (enabled === false) return;
+            }
 
-          // Check notification preferences
-          const prefs = notifPrefsRef.current;
-          if (prefs) {
-            const orgOverride = prefs.orgOverrides?.[pub.orgRkey];
-            const enabled = orgOverride?.[pub.notificationType] ?? prefs.enabled[pub.notificationType];
-            if (enabled === false) return;
+            let notification: Notification;
+            try {
+              notification = JSON.parse(pub.payload ?? "{}") as Notification;
+            } catch { return; }
+
+            const key = `${pub.notificationType}:${pub.senderDid}:${pub.orgRkey}:${pub.createdAt}`;
+            if (dismissedKeysRef.current.has(key)) return;
+
+            setNotifications((prev) => {
+              if (prev.some((n) => n.rkey === key)) return prev;
+              return [...prev, { rkey: key, notification }];
+            });
+          };
+
+          if (collection === SEALED) {
+            // Try to decrypt sealed record and check if it's a notification
+            const val = record as unknown as Record<string, unknown>;
+            const recKeyring = val.keyringRkey as string;
+            if (!recKeyring) return;
+            const dek = hubDeksRef.current.get(recKeyring);
+            if (!dek) return;
+
+            void (async () => {
+              try {
+                const { innerType, record: inner } = await unsealRecord<Record<string, unknown>>(val, dek);
+                if (innerType === NOTIF_TYPE) {
+                  processNotification(inner as Record<string, string>);
+                }
+              } catch { /* can't decrypt — not our org/tier */ }
+            })();
+          } else if (collection === LEGACY_NOTIF) {
+            // Legacy plaintext notification — backward compat
+            const pub = record as unknown as PublishedNotification;
+            processNotification(pub);
           }
-
-          // Parse payload into typed notification
-          let notification: Notification;
-          try {
-            notification = JSON.parse(pub.payload) as Notification;
-          } catch {
-            return;
-          }
-
-          const key = `${pub.notificationType}:${pub.senderDid}:${pub.orgRkey}:${pub.createdAt}`;
-          if (dismissedKeysRef.current.has(key)) return;
-
-          setNotifications((prev) => {
-            if (prev.some((n) => n.rkey === key)) return prev;
-            return [...prev, { rkey: key, notification }];
-          });
         },
       });
 

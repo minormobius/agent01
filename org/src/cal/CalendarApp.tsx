@@ -229,7 +229,7 @@ export function CalendarApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: sh
             senderHandle: vault.session.handle,
             createdAt: new Date().toISOString(),
           },
-          vault.session.did, vault.session.handle,
+          vault.session.did, vault.session.handle, undefined, activeOrg,
         ).catch(() => {});
       }
 

@@ -161,7 +161,7 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
               senderHandle: vault.session.handle,
               createdAt: new Date().toISOString(),
             },
-            vault.session.did, vault.session.handle,
+            vault.session.did, vault.session.handle, undefined, currentActiveOrg,
           ).catch(() => {});
         }
       } else {
@@ -179,7 +179,7 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
               senderHandle: vault.session.handle,
               createdAt: new Date().toISOString(),
             },
-            vault.session.did, vault.session.handle,
+            vault.session.did, vault.session.handle, undefined, currentActiveOrg,
           ).catch(() => {});
         }
       }
@@ -224,7 +224,7 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
           senderHandle: vault.session.handle,
           createdAt: new Date().toISOString(),
         },
-        vault.session.did, vault.session.handle,
+        vault.session.did, vault.session.handle, undefined, dealOrgCtx,
       ).catch(() => {});
 
       // If no approvals needed, apply immediately

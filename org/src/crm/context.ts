@@ -48,6 +48,10 @@ export const RELATIONSHIP_COLLECTION = "com.minomobi.vault.orgRelationship";
 export const NOTIFICATION_DISMISSAL_COLLECTION = "com.minomobi.vault.notificationDismissal";
 export const NOTIFICATION_COLLECTION = "com.minomobi.vault.notification";
 export const INNER_TYPE = "com.minomobi.crm.deal";
+export const NOTIFICATION_INNER_TYPE = "com.minomobi.vault.notification";
+export const PROPOSAL_INNER_TYPE = "com.minomobi.vault.proposal";
+export const APPROVAL_INNER_TYPE = "com.minomobi.vault.approval";
+export const DECISION_INNER_TYPE = "com.minomobi.vault.decision";
 
 /** Compute the keyring rkey for a tier at a given epoch. */
 export function keyringRkeyForTier(orgRkey: string, tierName: string, epoch: number): string {
@@ -292,8 +296,32 @@ export async function checkInvitesFromUser(
 const NOTIFICATION_PREFS_COLLECTION = "com.minomobi.vault.notificationPrefs";
 
 /**
- * Publish a notification record to the sender's PDS.
- * targetDid can be a specific DID or "*" for org-wide broadcast.
+ * Resolve DEK + keyringRkey for the lowest tier of an org context.
+ * Used for notifications (visible to all members).
+ */
+function resolveNotifDek(
+  orgRkey: string,
+  orgCtx?: { tierDeks: Map<string, CryptoKey>; org: { org: { tiers: { name: string; level: number; currentEpoch?: number }[] } }; myTierName: string } | null,
+): { dek?: CryptoKey; krkey?: string } {
+  if (!orgCtx) return {};
+  // Use lowest-level tier so all members can decrypt
+  const sorted = [...orgCtx.org.org.tiers].sort((a, b) => a.level - b.level);
+  for (const tier of sorted) {
+    const dek = orgCtx.tierDeks.get(tier.name);
+    if (dek) {
+      const epoch = tier.currentEpoch ?? 0;
+      return { dek, krkey: keyringRkeyForTier(orgRkey, tier.name, epoch) };
+    }
+  }
+  return {};
+}
+
+/**
+ * Publish a notification as a sealed record — all metadata (targetDid,
+ * notificationType, orgName, payload) is encrypted. No plaintext leaks.
+ *
+ * If orgCtx is provided, auto-resolves DEK from the org context.
+ * Falls back to plaintext if no DEK available (legacy compat).
  */
 export async function publishNotification(
   client: PdsClient,
@@ -305,9 +333,9 @@ export async function publishNotification(
   senderDid: string,
   senderHandle?: string,
   tierLevel?: number,
+  orgCtx?: { tierDeks: Map<string, CryptoKey>; org: { org: { tiers: { name: string; level: number; currentEpoch?: number }[] } }; myTierName: string } | null,
 ): Promise<void> {
-  const record: import("../types").PublishedNotification = {
-    $type: NOTIFICATION_COLLECTION,
+  const inner = {
     targetDid,
     notificationType,
     orgRkey,
@@ -318,7 +346,19 @@ export async function publishNotification(
     tierLevel,
     createdAt: new Date().toISOString(),
   };
-  await client.createRecord(NOTIFICATION_COLLECTION, record);
+
+  const { dek, krkey } = resolveNotifDek(orgRkey, orgCtx);
+  if (dek && krkey) {
+    const sealed = await sealRecord(NOTIFICATION_INNER_TYPE, inner, krkey, dek);
+    await client.createRecord(SEALED_COLLECTION, sealed);
+  } else {
+    // Fallback: plaintext notification (for backward compat during migration)
+    const record: import("../types").PublishedNotification = {
+      $type: NOTIFICATION_COLLECTION,
+      ...inner,
+    };
+    await client.createRecord(NOTIFICATION_COLLECTION, record);
+  }
 }
 
 /**
@@ -334,10 +374,11 @@ export async function broadcastNotification(
   senderDid: string,
   senderHandle?: string,
   tierLevel?: number,
+  orgCtx?: { tierDeks: Map<string, CryptoKey>; org: { org: { tiers: { name: string; level: number; currentEpoch?: number }[] } }; myTierName: string } | null,
 ): Promise<void> {
   return publishNotification(
     client, "*", notificationType, orgRkey, orgName,
-    payload, senderDid, senderHandle, tierLevel,
+    payload, senderDid, senderHandle, tierLevel, orgCtx,
   );
 }
 
@@ -436,7 +477,7 @@ export async function buildOrgContext(
   const orgMemberships = allMemberships.filter((m) => m.membership.orgRkey === orgRecord.rkey);
   const memberDids = orgMemberships.map((m) => m.membership.memberDid);
 
-  const { proposals, approvals, decisions } = await loadChangeControl(client, orgRecord.rkey, memberDids);
+  const { proposals, approvals, decisions } = await loadChangeControl(client, orgRecord.rkey, memberDids, keyringDeks);
   const relationships = await loadRelationships(controlClient, founderDid, orgRecord.rkey, client);
 
   return {
@@ -468,17 +509,18 @@ export async function loadPersonalDeals(
     const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
       const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-      if (val.innerType !== INNER_TYPE) continue;
       if ((val.keyringRkey as string) !== "self") continue;
       try {
-        const { record } = await unsealRecord<Deal>(val, dek);
+        const { innerType, record } = await unsealRecord<Deal & { previousDid?: string; previousRkey?: string }>(val, dek);
+        if (innerType !== INNER_TYPE) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
+        const { previousDid: pDid, previousRkey: pRkey, ...deal } = record;
         loaded.push({
           rkey,
-          deal: record,
+          deal: deal as Deal,
           authorDid: ownerDid,
-          previousDid: val.previousDid as string | undefined,
-          previousRkey: val.previousRkey as string | undefined,
+          previousDid: pDid ?? (val.previousDid as string | undefined),
+          previousRkey: pRkey ?? (val.previousRkey as string | undefined),
           orgRkey: "personal",
         });
       } catch (err) {
@@ -511,7 +553,6 @@ export async function loadOrgDealsForCtx(
         : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        if (val.innerType !== INNER_TYPE) continue;
         const recKeyring = val.keyringRkey as string;
         if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
 
@@ -521,13 +562,15 @@ export async function loadOrgDealsForCtx(
         const dek = orgCtx.keyringDeks.get(recKeyring);
         if (!dek) continue;
         try {
-          const { record } = await unsealRecord<Deal>(val, dek);
+          const { innerType, record } = await unsealRecord<Deal & { previousDid?: string; previousRkey?: string }>(val, dek);
+          if (innerType !== INNER_TYPE) continue;
+          const { previousDid: pDid, previousRkey: pRkey, ...deal } = record;
           allDeals.push({
             rkey,
-            deal: record,
+            deal: deal as Deal,
             authorDid: did,
-            previousDid: val.previousDid as string | undefined,
-            previousRkey: val.previousRkey as string | undefined,
+            previousDid: pDid ?? (val.previousDid as string | undefined),
+            previousRkey: pRkey ?? (val.previousRkey as string | undefined),
             orgRkey: orgCtx.org.rkey,
           });
         } catch {
@@ -553,11 +596,12 @@ export async function loadOrgDealsForCtx(
   return allDeals;
 }
 
-/** Load change control state (proposals, approvals, decisions) for an org */
+/** Load change control state (proposals, approvals, decisions) from sealed records */
 async function loadChangeControl(
   client: PdsClient,
   orgRkey: string,
-  memberDids: string[]
+  memberDids: string[],
+  keyringDeks: Map<string, CryptoKey>,
 ): Promise<{
   proposals: ProposalRecord[];
   approvals: ApprovalRecord[];
@@ -568,40 +612,34 @@ async function loadChangeControl(
   const decisions: DecisionRecord[] = [];
   const myDid = client.getSession()!.did;
 
-  const loadCollection = async <T,>(
-    did: string,
-    collection: string,
-    orgPrefix: string,
-    accumulator: { rkey: string; data: T }[]
-  ) => {
-    let cursor: string | undefined;
-    const isMe = did === myDid;
-    do {
-      const page = isMe
-        ? await client.listRecords(collection, 100, cursor)
-        : await client.listRecordsFrom(did, collection, 100, cursor);
-      for (const rec of page.records) {
-        const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
-        if (val.orgRkey === orgPrefix || rkey.startsWith(orgPrefix + ":")) {
-          accumulator.push({ rkey, data: val as unknown as T });
-        }
-      }
-      cursor = page.cursor;
-    } while (cursor);
-  };
-
   for (const did of memberDids) {
     try {
-      const p: { rkey: string; data: Proposal }[] = [];
-      const a: { rkey: string; data: Approval }[] = [];
-      const d: { rkey: string; data: Decision }[] = [];
-      await loadCollection(did, PROPOSAL_COLLECTION, orgRkey, p);
-      await loadCollection(did, APPROVAL_COLLECTION, orgRkey, a);
-      await loadCollection(did, DECISION_COLLECTION, orgRkey, d);
-      for (const x of p) proposals.push({ rkey: x.rkey, proposal: x.data });
-      for (const x of a) approvals.push({ rkey: x.rkey, approval: x.data });
-      for (const x of d) decisions.push({ rkey: x.rkey, decision: x.data });
+      let cursor: string | undefined;
+      const isMe = did === myDid;
+      do {
+        const page = isMe
+          ? await client.listRecords(SEALED_COLLECTION, 100, cursor)
+          : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
+        for (const rec of page.records) {
+          const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+          const recKeyring = val.keyringRkey as string;
+          if (!recKeyring?.startsWith(orgRkey + ":")) continue;
+          const dek = keyringDeks.get(recKeyring);
+          if (!dek) continue;
+          const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
+          try {
+            const { innerType, record } = await unsealRecord<Record<string, unknown>>(val, dek);
+            if (innerType === PROPOSAL_INNER_TYPE) {
+              proposals.push({ rkey, proposal: record as unknown as Proposal });
+            } else if (innerType === APPROVAL_INNER_TYPE) {
+              approvals.push({ rkey, approval: record as unknown as Approval });
+            } else if (innerType === DECISION_INNER_TYPE) {
+              decisions.push({ rkey, decision: record as unknown as Decision });
+            }
+          } catch { /* can't decrypt */ }
+        }
+        cursor = page.cursor;
+      } while (cursor);
     } catch {
       // PDS unreachable
     }
@@ -639,7 +677,7 @@ async function loadRelationships(
   return relationships;
 }
 
-/** Save a deal (seal + create record, optionally with chain link) */
+/** Save a deal (seal + create record, optionally with chain link inside ciphertext) */
 export async function saveDeal(
   client: PdsClient,
   deal: Deal,
@@ -647,16 +685,16 @@ export async function saveDeal(
   keyringRkey: string,
   existingDeal?: DealRecord
 ): Promise<{ rkey: string }> {
-  const sealed = await sealRecord(INNER_TYPE, deal, keyringRkey, dek);
-  const sealedWithLink = existingDeal
-    ? { ...(sealed as Record<string, unknown>), previousDid: existingDeal.authorDid, previousRkey: existingDeal.rkey }
-    : sealed;
-
-  const res = await client.createRecord(SEALED_COLLECTION, sealedWithLink);
+  // Chain link (previousDid/previousRkey) goes inside the ciphertext — no plaintext lineage
+  const inner = existingDeal
+    ? { ...deal, previousDid: existingDeal.authorDid, previousRkey: existingDeal.rkey }
+    : deal;
+  const sealed = await sealRecord(INNER_TYPE, inner, keyringRkey, dek);
+  const res = await client.createRecord(SEALED_COLLECTION, sealed);
   return { rkey: res.uri.split("/").pop()! };
 }
 
-/** Write a decision record for a deal edit */
+/** Write a decision record for a deal edit — sealed into vault.sealed */
 export async function writeDecision(
   client: PdsClient,
   orgRkey: string,
@@ -666,11 +704,10 @@ export async function writeDecision(
   previousRkey: string,
   newDid: string,
   newRkey: string,
-  keyringRkey: string
+  keyringRkey: string,
+  dek?: CryptoKey,
 ): Promise<{ rkey: string }> {
-  const decisionRkey = `${keyringRkey}:${previousRkey}:${newRkey}`;
-  const decision: Decision & { $type: string } = {
-    $type: DECISION_COLLECTION,
+  const decision: Decision = {
     orgRkey,
     proposalDid,
     proposalRkey,
@@ -681,11 +718,20 @@ export async function writeDecision(
     outcome: "accepted",
     createdAt: new Date().toISOString(),
   };
-  await client.putRecord(DECISION_COLLECTION, decisionRkey, decision);
-  return { rkey: decisionRkey };
+
+  if (dek) {
+    const sealed = await sealRecord(DECISION_INNER_TYPE, decision, keyringRkey, dek);
+    const res = await client.createRecord(SEALED_COLLECTION, sealed);
+    return { rkey: res.uri.split("/").pop()! };
+  } else {
+    // Fallback: legacy plaintext
+    const decisionRkey = `${keyringRkey}:${previousRkey}:${newRkey}`;
+    await client.putRecord(DECISION_COLLECTION, decisionRkey, { $type: DECISION_COLLECTION, ...decision });
+    return { rkey: decisionRkey };
+  }
 }
 
-/** Create a proposal for changing someone else's deal */
+/** Create a proposal for changing someone else's deal — sealed into vault.sealed */
 export async function createProposal(
   client: PdsClient,
   orgCtx: OrgContext,
@@ -704,6 +750,7 @@ export async function createProposal(
   const epoch = tierDef?.currentEpoch ?? 0;
   const keyringRkey = keyringRkeyForTier(orgCtx.org.rkey, tierName, epoch);
 
+  // Encrypt proposed deal content inside the proposal
   const json = JSON.stringify(proposedDeal);
   const plaintext = new TextEncoder().encode(json);
   const { iv, ciphertext } = await aesEncrypt(plaintext, dek);
@@ -717,8 +764,7 @@ export async function createProposal(
     if (gate) requiredOffices = gate.requiredOffices;
   }
 
-  const proposal: Proposal & { $type: string } = {
-    $type: PROPOSAL_COLLECTION,
+  const proposal: Proposal = {
     orgRkey: orgCtx.org.rkey,
     targetDid: targetDeal.authorDid,
     targetRkey: targetDeal.rkey,
@@ -734,12 +780,14 @@ export async function createProposal(
     createdAt: new Date().toISOString(),
   };
 
-  const res = await client.createRecord(PROPOSAL_COLLECTION, proposal);
+  // Seal the entire proposal into vault.sealed — summary, status, offices all encrypted
+  const sealed = await sealRecord(PROPOSAL_INNER_TYPE, proposal, keyringRkey, dek);
+  const res = await client.createRecord(SEALED_COLLECTION, sealed);
   const rkey = res.uri.split("/").pop()!;
-  return { rkey, proposal: proposal as Proposal };
+  return { rkey, proposal };
 }
 
-/** Write an approval for a proposal */
+/** Write an approval for a proposal — sealed into vault.sealed */
 export async function createApproval(
   client: PdsClient,
   orgRkey: string,
@@ -747,10 +795,11 @@ export async function createApproval(
   proposalRkey: string,
   officeName: string,
   myDid: string,
-  myHandle: string
+  myHandle: string,
+  dek?: CryptoKey,
+  keyringRkey?: string,
 ): Promise<{ rkey: string; approval: Approval }> {
-  const approval: Approval & { $type: string } = {
-    $type: APPROVAL_COLLECTION,
+  const approval: Approval = {
     proposalDid,
     proposalRkey,
     officeName,
@@ -759,12 +808,20 @@ export async function createApproval(
     createdAt: new Date().toISOString(),
   };
 
-  const approvalRkey = `${orgRkey}:${proposalRkey}:${officeName}:${myDid}`;
-  await client.putRecord(APPROVAL_COLLECTION, approvalRkey, approval);
-  return { rkey: approvalRkey, approval: approval as Approval };
+  if (dek && keyringRkey) {
+    const sealed = await sealRecord(APPROVAL_INNER_TYPE, approval, keyringRkey, dek);
+    const res = await client.createRecord(SEALED_COLLECTION, sealed);
+    const rkey = res.uri.split("/").pop()!;
+    return { rkey, approval };
+  } else {
+    // Fallback: legacy plaintext
+    const approvalRkey = `${orgRkey}:${proposalRkey}:${officeName}:${myDid}`;
+    await client.putRecord(APPROVAL_COLLECTION, approvalRkey, { $type: APPROVAL_COLLECTION, ...approval });
+    return { rkey: approvalRkey, approval };
+  }
 }
 
-/** Apply a proposal: write new sealed record + decision */
+/** Apply a proposal: write new sealed record + sealed decision */
 export async function applyProposal(
   client: PdsClient,
   proposalRkey: string,
@@ -775,18 +832,12 @@ export async function applyProposal(
   keyringRkey: string,
   myDid: string
 ): Promise<{ newRkey: string; decisionRkey: string }> {
-  const sealed = await sealRecord(INNER_TYPE, newDeal, keyringRkey, dek);
-  const sealedWithLink = {
-    ...(sealed as Record<string, unknown>),
-    previousDid: targetDeal.authorDid,
-    previousRkey: targetDeal.rkey,
-  };
-
-  const newRes = await client.createRecord(SEALED_COLLECTION, sealedWithLink);
+  const inner = { ...newDeal, previousDid: targetDeal.authorDid, previousRkey: targetDeal.rkey };
+  const sealed = await sealRecord(INNER_TYPE, inner, keyringRkey, dek);
+  const newRes = await client.createRecord(SEALED_COLLECTION, sealed);
   const newRkey = newRes.uri.split("/").pop()!;
 
-  const decision: Decision & { $type: string } = {
-    $type: DECISION_COLLECTION,
+  const decision: Decision = {
     orgRkey: proposal.orgRkey,
     proposalDid: myDid,
     proposalRkey,
@@ -798,15 +849,16 @@ export async function applyProposal(
     createdAt: new Date().toISOString(),
   };
 
-  const decisionRkey = `${proposal.orgRkey}:${proposalRkey}`;
-  await client.putRecord(DECISION_COLLECTION, decisionRkey, decision);
+  // Seal the decision into vault.sealed
+  const sealedDecision = await sealRecord(DECISION_INNER_TYPE, decision, keyringRkey, dek);
+  const decisionRes = await client.createRecord(SEALED_COLLECTION, sealedDecision);
+  const decisionRkey = decisionRes.uri.split("/").pop()!;
 
-  // Update proposal status
-  await client.putRecord(PROPOSAL_COLLECTION, proposalRkey, {
-    $type: PROPOSAL_COLLECTION,
-    ...proposal,
-    status: "applied",
-  });
+  // Update proposal status — delete old sealed proposal, create new one with status="applied"
+  await client.deleteRecord(SEALED_COLLECTION, proposalRkey);
+  const updatedProposal = { ...proposal, status: "applied" as const };
+  await sealRecord(PROPOSAL_INNER_TYPE, updatedProposal, keyringRkey, dek)
+    .then(s => client.createRecord(SEALED_COLLECTION, s));
 
   return { newRkey, decisionRkey };
 }
@@ -827,10 +879,10 @@ export async function loadPersonalExpenses(
     const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
       const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-      if (val.innerType !== EXPENSE_INNER_TYPE) continue;
       if ((val.keyringRkey as string) !== "self") continue;
       try {
-        const { record } = await unsealRecord<import("./types").Expense>(val, dek);
+        const { innerType, record } = await unsealRecord<import("./types").Expense>(val, dek);
+        if (innerType !== EXPENSE_INNER_TYPE) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         loaded.push({ rkey, expense: record, authorDid: ownerDid, orgRkey: "personal" });
       } catch { /* can't decrypt */ }
@@ -855,14 +907,14 @@ export async function loadOrgExpenses(
         : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        if (val.innerType !== EXPENSE_INNER_TYPE) continue;
         const recKeyring = val.keyringRkey as string;
         if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         const dek = orgCtx.keyringDeks.get(recKeyring);
         if (!dek) continue;
         try {
-          const { record } = await unsealRecord<import("./types").Expense>(val, dek);
+          const { innerType, record } = await unsealRecord<import("./types").Expense>(val, dek);
+          if (innerType !== EXPENSE_INNER_TYPE) continue;
           all.push({ rkey, expense: record, authorDid: did, orgRkey: orgCtx.org.rkey });
         } catch { /* can't decrypt */ }
       }

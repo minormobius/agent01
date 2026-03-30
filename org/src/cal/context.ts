@@ -29,10 +29,10 @@ export async function loadPersonalEvents(
     const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
       const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-      if (val.innerType !== INNER_TYPE) continue;
       if ((val.keyringRkey as string) !== "self") continue;
       try {
-        const { record } = await unsealRecord<CalEvent>(val, dek);
+        const { innerType, record } = await unsealRecord<CalEvent>(val, dek);
+        if (innerType !== INNER_TYPE) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         loaded.push({ rkey, event: record, authorDid: ownerDid, orgRkey: "personal" });
       } catch {
@@ -60,7 +60,6 @@ export async function loadOrgEvents(
         : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        if (val.innerType !== INNER_TYPE) continue;
         const recKeyring = val.keyringRkey as string;
         if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
 
@@ -68,7 +67,8 @@ export async function loadOrgEvents(
         const dek = orgCtx.keyringDeks.get(recKeyring);
         if (!dek) continue;
         try {
-          const { record } = await unsealRecord<CalEvent>(val, dek);
+          const { innerType, record } = await unsealRecord<CalEvent>(val, dek);
+          if (innerType !== INNER_TYPE) continue;
           allEvents.push({ rkey, event: record, authorDid: did, orgRkey: orgCtx.org.rkey });
         } catch {
           // Can't decrypt
