@@ -225,6 +225,7 @@ export const crmTools = {
 
       // Broadcast notification for org deals
       if (orgRkey !== "personal") {
+        const orgCtx = state.orgContexts.get(orgRkey);
         broadcastNotification(
           vault.client, "deal-created" as NotificationType,
           orgRkey, orgName,
@@ -238,6 +239,7 @@ export const crmTools = {
             createdAt: new Date().toISOString(),
           } as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         ).catch(() => {});
       }
 
@@ -330,6 +332,7 @@ export const crmTools = {
             createdAt: new Date().toISOString(),
           } as any,
           vault.did, vault.handle,
+          undefined, ctx,
         ).catch(() => {});
 
         return {
@@ -369,12 +372,14 @@ export const crmTools = {
         existing.rkey,
         vault.did,
         newRkey,
-        keyringRkey
+        keyringRkey,
+        dek,
       );
 
       // Broadcast notification for org deal updates
       if (isOrg) {
         const orgName = state.orgs.find((o) => o.rkey === existing.orgRkey)?.org.name ?? existing.orgRkey;
+        const dealOrgCtx = state.orgContexts.get(existing.orgRkey);
         broadcastNotification(
           vault.client, "deal-updated" as NotificationType,
           existing.orgRkey, orgName,
@@ -388,6 +393,7 @@ export const crmTools = {
             createdAt: new Date().toISOString(),
           } as any,
           vault.did, vault.handle,
+          undefined, dealOrgCtx,
         ).catch(() => {});
       }
 
@@ -460,9 +466,16 @@ export const crmTools = {
       const proposal = ctx.proposals.find((p) => p.rkey === args.proposalRkey);
       if (!proposal) throw new Error(`Proposal not found: ${args.proposalRkey}`);
 
+      // Resolve DEK for sealing the approval
+      const tierName = ctx.myTierName;
+      const tierDek = ctx.tierDeks.get(tierName);
+      const tierDef = ctx.org.org.tiers.find((t) => t.name === tierName);
+      const approvalKeyring = tierDek ? keyringRkeyForTier(ctx.org.rkey, tierName, tierDef?.currentEpoch ?? 0) : undefined;
+
       const { rkey } = await createApproval(
         vault.client, args.org, proposal.proposal.proposerDid, args.proposalRkey,
-        args.office, vault.did, vault.handle
+        args.office, vault.did, vault.handle,
+        tierDek, approvalKeyring,
       );
 
       return {

@@ -7,8 +7,6 @@ import { PdsClient } from "../../../src/pds";
 import { unsealRecord } from "../../../src/crypto";
 import {
   SEALED_COLLECTION,
-  NOTIFICATION_COLLECTION,
-  DECISION_COLLECTION,
 } from "../../../src/crm/context";
 import type { Deal } from "../../../src/crm/types";
 import type { CalEvent } from "../../../src/cal/types";
@@ -28,6 +26,7 @@ const DEAL_INNER = "com.minomobi.crm.deal";
 const TASK_INNER = "com.minomobi.pm.task";
 const CONTACT_INNER = "com.minomobi.crm.contact";
 const EVENT_INNER = "com.minomobi.cal.event";
+const NOTIFICATION_INNER = "com.minomobi.vault.notification";
 
 export const activityTools = {
   "activity-feed": {
@@ -58,7 +57,6 @@ export const activityTools = {
             : await vault.client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
           for (const rec of page.records) {
             const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-            const innerType = val.innerType as string;
             const recKeyring = val.keyringRkey as string;
 
             if (args.org === "personal" && recKeyring !== "self") continue;
@@ -73,8 +71,9 @@ export const activityTools = {
             if (!dek) continue;
 
             try {
+              const { innerType, record: raw } = await unsealRecord<Record<string, unknown>>(val, dek);
               if (innerType === DEAL_INNER) {
-                const { record } = await unsealRecord<Deal>(val, dek);
+                const record = raw as unknown as Deal;
                 if (record.createdAt >= cutoff) {
                   items.push({
                     type: "deal", title: record.title,
@@ -83,7 +82,7 @@ export const activityTools = {
                   });
                 }
               } else if (innerType === TASK_INNER) {
-                const { record } = await unsealRecord<{ title: string; status: string; createdAt: string; updatedAt?: string }>(val, dek);
+                const record = raw as unknown as { title: string; status: string; createdAt: string; updatedAt?: string };
                 const ts = record.updatedAt ?? record.createdAt;
                 if (ts >= cutoff) {
                   items.push({
@@ -92,7 +91,7 @@ export const activityTools = {
                   });
                 }
               } else if (innerType === CONTACT_INNER) {
-                const { record } = await unsealRecord<{ name: string; company?: string; createdAt: string }>(val, dek);
+                const record = raw as unknown as { name: string; company?: string; createdAt: string };
                 if (record.createdAt >= cutoff) {
                   items.push({
                     type: "contact", title: record.name, detail: record.company ?? "",
@@ -100,7 +99,7 @@ export const activityTools = {
                   });
                 }
               } else if (innerType === EVENT_INNER) {
-                const { record } = await unsealRecord<CalEvent>(val, dek);
+                const record = raw as unknown as CalEvent;
                 if (record.createdAt >= cutoff) {
                   items.push({
                     type: "event", title: record.title,
@@ -108,32 +107,21 @@ export const activityTools = {
                     orgRkey, authorDid: did, createdAt: record.createdAt,
                   });
                 }
+              } else if (innerType === NOTIFICATION_INNER) {
+                const createdAt = raw.createdAt as string;
+                if (createdAt >= cutoff) {
+                  if (args.org && raw.orgRkey !== args.org) continue;
+                  items.push({
+                    type: "notification",
+                    title: (raw.notificationType as string) ?? "notification",
+                    detail: (raw.orgName as string) ?? "",
+                    orgRkey: (raw.orgRkey as string) ?? orgRkey,
+                    authorDid: (raw.senderDid as string) ?? did,
+                    createdAt,
+                  });
+                }
               }
             } catch { /* can't decrypt */ }
-          }
-          cursor = page.cursor;
-        } while (cursor);
-      };
-
-      // Scan notifications
-      const scanNotifications = async () => {
-        let cursor: string | undefined;
-        do {
-          const page = await vault.client.listRecords(NOTIFICATION_COLLECTION, 100, cursor);
-          for (const rec of page.records) {
-            const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-            const createdAt = val.createdAt as string;
-            if (createdAt < cutoff) continue;
-            if (args.org && val.orgRkey !== args.org) continue;
-
-            items.push({
-              type: "notification",
-              title: (val.notificationType as string) ?? "notification",
-              detail: val.orgName as string ?? "",
-              orgRkey: (val.orgRkey as string) ?? "personal",
-              authorDid: (val.senderDid as string) ?? vault.did,
-              createdAt,
-            });
           }
           cursor = page.cursor;
         } while (cursor);
@@ -154,8 +142,6 @@ export const activityTools = {
           try { await scanSealed(m.membership.memberDid, deks, orgRkey, false); } catch { /* PDS unreachable */ }
         }
       }
-
-      await scanNotifications();
 
       // Sort by most recent
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

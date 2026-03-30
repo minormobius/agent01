@@ -11,7 +11,7 @@ import {
   sendDocEditOp,
   createChannelRecord,
   createThreadRecord,
-  CHANNEL_COLLECTION,
+  SEALED_COLLECTION,
 } from "../../../src/wave/context";
 import { broadcastNotification } from "../../../src/crm/context";
 import type { WaveOrgContext } from "../../../src/wave/types";
@@ -72,7 +72,7 @@ export const waveTools = {
     handler: async (args: { org: string; channel: string }) => {
       const vault = requireVault();
       const ctx = getOrgCtx(args.org);
-      const channelUri = `at://${ctx.founderDid}/${CHANNEL_COLLECTION}/${args.channel}`;
+      const channelUri = `at://${ctx.founderDid}/${SEALED_COLLECTION}/${args.channel}`;
       const threads = await loadThreadsForChannel(vault.client, ctx, channelUri, vault.did);
 
       if (threads.length === 0) {
@@ -110,7 +110,7 @@ export const waveTools = {
     handler: async (args: { org: string; threadAuthorDid: string; threadRkey: string; maxResults?: number }) => {
       const vault = requireVault();
       const ctx = getOrgCtx(args.org);
-      const threadUri = `at://${args.threadAuthorDid}/com.minomobi.wave.thread/${args.threadRkey}`;
+      const threadUri = `at://${args.threadAuthorDid}/${SEALED_COLLECTION}/${args.threadRkey}`;
       const ops = await loadOpsForThread(vault.client, ctx, threadUri, vault.did);
 
       const max = args.maxResults ?? 50;
@@ -201,6 +201,7 @@ export const waveTools = {
           createdAt: new Date().toISOString(),
         } as any,
         vault.did, vault.handle,
+        undefined, ctx,
       ).catch(() => {});
 
       return {
@@ -256,6 +257,7 @@ export const waveTools = {
           createdAt: new Date().toISOString(),
         } as any,
         vault.did, vault.handle,
+        undefined, ctx,
       ).catch(() => {});
 
       return {
@@ -302,6 +304,7 @@ export const waveTools = {
           createdAt: new Date().toISOString(),
         } as any,
         vault.did, vault.handle,
+        undefined, ctx,
       ).catch(() => {});
 
       return {

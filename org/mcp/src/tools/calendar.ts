@@ -210,6 +210,7 @@ export const calendarTools = {
 
       // Broadcast notification for org events
       if (orgRkey !== "personal") {
+        const orgCtx = state.orgContexts.get(orgRkey);
         broadcastNotification(
           vault.client, "cal-event" as NotificationType,
           orgRkey, orgName,
@@ -223,6 +224,7 @@ export const calendarTools = {
             createdAt: new Date().toISOString(),
           } as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         ).catch(() => {});
       }
 

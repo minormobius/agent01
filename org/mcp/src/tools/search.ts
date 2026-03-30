@@ -12,7 +12,6 @@ import type { OrgContext } from "../../../src/crm/types";
 import {
   loadChannels,
   loadThreadsForChannel,
-  CHANNEL_COLLECTION,
 } from "../../../src/wave/context";
 import type { WaveOrgContext } from "../../../src/wave/types";
 import { state, requireVault } from "../state";
@@ -57,7 +56,6 @@ export const searchTools = {
             : await vault.client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
           for (const rec of page.records) {
             const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-            const innerType = val.innerType as string;
             const recKeyring = val.keyringRkey as string;
 
             // Filter by org
@@ -70,8 +68,9 @@ export const searchTools = {
             const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
 
             try {
+              const { innerType, record: raw } = await unsealRecord<Record<string, unknown>>(val, dek);
               if (innerType === DEAL_INNER && (!typeFilter || typeFilter.has("deal"))) {
-                const { record } = await unsealRecord<Deal>(val, dek);
+                const record = raw as unknown as Deal;
                 const searchable = `${record.title} ${record.notes ?? ""} ${record.contact ?? ""}`.toLowerCase();
                 if (searchable.includes(q)) {
                   results.push({
@@ -81,7 +80,7 @@ export const searchTools = {
                   });
                 }
               } else if (innerType === TASK_INNER && (!typeFilter || typeFilter.has("task"))) {
-                const { record } = await unsealRecord<{ title: string; description?: string; status: string; tags?: string[]; createdAt: string }>(val, dek);
+                const record = raw as unknown as { title: string; description?: string; status: string; tags?: string[]; createdAt: string };
                 const searchable = `${record.title} ${record.description ?? ""} ${record.tags?.join(" ") ?? ""}`.toLowerCase();
                 if (searchable.includes(q)) {
                   results.push({
@@ -90,7 +89,7 @@ export const searchTools = {
                   });
                 }
               } else if (innerType === CONTACT_INNER && (!typeFilter || typeFilter.has("contact"))) {
-                const { record } = await unsealRecord<{ name: string; company?: string; email?: string; notes?: string; createdAt: string }>(val, dek);
+                const record = raw as unknown as { name: string; company?: string; email?: string; notes?: string; createdAt: string };
                 const searchable = `${record.name} ${record.company ?? ""} ${record.email ?? ""} ${record.notes ?? ""}`.toLowerCase();
                 if (searchable.includes(q)) {
                   results.push({
@@ -100,7 +99,7 @@ export const searchTools = {
                   });
                 }
               } else if (innerType === EVENT_INNER && (!typeFilter || typeFilter.has("event"))) {
-                const { record } = await unsealRecord<CalEvent>(val, dek);
+                const record = raw as unknown as CalEvent;
                 const searchable = `${record.title} ${record.location ?? ""} ${record.notes ?? ""}`.toLowerCase();
                 if (searchable.includes(q)) {
                   results.push({
@@ -145,7 +144,7 @@ export const searchTools = {
                 });
               }
               if (!typeFilter || typeFilter.has("thread")) {
-                const channelUri = `at://${waveCtx.founderDid}/${CHANNEL_COLLECTION}/${ch.rkey}`;
+                const channelUri = `at://${waveCtx.founderDid}/${SEALED_COLLECTION}/${ch.rkey}`;
                 const threads = await loadThreadsForChannel(vault.client, waveCtx, channelUri, vault.did);
                 for (const t of threads) {
                   const searchable = `${t.thread.title ?? ""} ${ch.channel.name}`.toLowerCase();

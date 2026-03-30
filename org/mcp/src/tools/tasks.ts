@@ -64,10 +64,10 @@ async function loadPersonalTasks(client: PdsClient, dek: CryptoKey, ownerDid: st
     const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
       const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-      if (val.innerType !== INNER_TYPE) continue;
       if ((val.keyringRkey as string) !== "self") continue;
       try {
-        const { record } = await unsealRecord<VaultTask>(val, dek);
+        const { innerType, record } = await unsealRecord<VaultTask>(val, dek);
+        if (innerType !== INNER_TYPE) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         loaded.push({ rkey, task: record, authorDid: ownerDid, orgRkey: "personal" });
       } catch { /* can't decrypt */ }
@@ -89,14 +89,14 @@ async function loadOrgTasks(client: PdsClient, orgCtx: OrgContext): Promise<Task
         : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        if (val.innerType !== INNER_TYPE) continue;
         const recKeyring = val.keyringRkey as string;
         if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         const dek = orgCtx.keyringDeks.get(recKeyring);
         if (!dek) continue;
         try {
-          const { record } = await unsealRecord<VaultTask>(val, dek);
+          const { innerType, record } = await unsealRecord<VaultTask>(val, dek);
+          if (innerType !== INNER_TYPE) continue;
           all.push({ rkey, task: record, authorDid: did, orgRkey: orgCtx.org.rkey });
         } catch { /* can't decrypt */ }
       }
@@ -272,11 +272,13 @@ export const taskTools = {
       const orgName = orgRkey === "personal" ? "Personal" : (state.orgs.find((o) => o.rkey === orgRkey)?.org.name ?? orgRkey);
 
       if (orgRkey !== "personal") {
+        const orgCtx = state.orgContexts.get(orgRkey);
         broadcastNotification(
           vault.client, "task-created" as NotificationType,
           orgRkey, orgName,
           { type: "task-created", orgRkey, orgName, taskTitle: task.title, senderHandle: vault.handle, createdAt: task.createdAt } as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         ).catch(() => {});
       }
 
@@ -347,11 +349,13 @@ export const taskTools = {
       // Broadcast status changes for org tasks
       if (existing.orgRkey !== "personal" && args.status && args.status !== existing.task.status) {
         const orgName = state.orgs.find((o) => o.rkey === existing.orgRkey)?.org.name ?? existing.orgRkey;
+        const orgCtx = state.orgContexts.get(existing.orgRkey);
         broadcastNotification(
           vault.client, "task-updated" as NotificationType,
           existing.orgRkey, orgName,
           { type: "task-updated", orgRkey: existing.orgRkey, orgName, taskTitle: updated.title, status: STATUS_LABELS[updated.status], senderHandle: vault.handle, createdAt: new Date().toISOString() } as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         ).catch(() => {});
       }
 

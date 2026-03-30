@@ -9,7 +9,6 @@ import {
   saveNotificationPreferences,
   broadcastNotification,
   publishNotification,
-  NOTIFICATION_COLLECTION,
 } from "../../../src/crm/context";
 import type { NotificationType, NotificationPreferences } from "../../../src/types";
 import { NOTIFICATION_TYPE_LABELS } from "../../../src/types";
@@ -184,11 +183,14 @@ export const notificationTools = {
         createdAt: new Date().toISOString(),
       };
 
+      const orgCtx = state.orgContexts.get(args.org);
+
       if (args.targetDid) {
         await publishNotification(
           vault.client, args.targetDid, args.type as NotificationType,
           args.org, org.org.name, payload as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         );
         return {
           content: [{
@@ -201,6 +203,7 @@ export const notificationTools = {
           vault.client, args.type as NotificationType,
           args.org, org.org.name, payload as any,
           vault.did, vault.handle,
+          undefined, orgCtx,
         );
         return {
           content: [{

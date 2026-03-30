@@ -45,10 +45,10 @@ async function loadPersonalContacts(client: PdsClient, dek: CryptoKey, ownerDid:
     const page = await client.listRecords(SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
       const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-      if (val.innerType !== INNER_TYPE) continue;
       if ((val.keyringRkey as string) !== "self") continue;
       try {
-        const { record } = await unsealRecord<Contact>(val, dek);
+        const { innerType, record } = await unsealRecord<Contact>(val, dek);
+        if (innerType !== INNER_TYPE) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         loaded.push({ rkey, contact: record, authorDid: ownerDid, orgRkey: "personal" });
       } catch { /* can't decrypt */ }
@@ -70,14 +70,14 @@ async function loadOrgContacts(client: PdsClient, orgCtx: OrgContext): Promise<C
         : await client.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
       for (const rec of page.records) {
         const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
-        if (val.innerType !== INNER_TYPE) continue;
         const recKeyring = val.keyringRkey as string;
         if (!recKeyring.startsWith(orgCtx.org.rkey + ":")) continue;
         const rkey = ((rec as Record<string, unknown>).uri as string).split("/").pop()!;
         const dek = orgCtx.keyringDeks.get(recKeyring);
         if (!dek) continue;
         try {
-          const { record } = await unsealRecord<Contact>(val, dek);
+          const { innerType, record } = await unsealRecord<Contact>(val, dek);
+          if (innerType !== INNER_TYPE) continue;
           all.push({ rkey, contact: record, authorDid: did, orgRkey: orgCtx.org.rkey });
         } catch { /* can't decrypt */ }
       }
