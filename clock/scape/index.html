@@ -851,198 +851,228 @@
   const VFOV = Math.PI * 0.45; // vertical FOV
 
   // Torus geometry constants
-  // Major radius R (center of donut hole to center of tube)
-  // Minor radius r (tube radius)
-  // World X maps to u (around donut), World Y maps to v (around tube)
-  const TORUS_R = 5.0;  // major radius (arbitrary units — ratio matters)
+  const TORUS_R = 5.0;  // major radius
   const TORUS_r = 2.0;  // minor radius
-  // Player's angular position on the tube cross-section
   function getPlayerV() {
     return (playerY / WORLD_H) * Math.PI * 2;
   }
+  function getPlayerU() {
+    return (playerX / WORLD_W) * Math.PI * 2;
+  }
 
   // =====================================================================
-  // Torus sky — silhouette of the ring in the sky
+  // Torus sky — proper ray-torus intersection per pixel
   // =====================================================================
-  // For a given vertical look angle (elevation from horizon) and the
-  // player's v position on the tube, compute whether we see:
-  //   - the opposite inner wall (when on inner surface)
-  //   - the ring edges (when on outer surface)
-  //   - open space / stars
-  //
-  // Simplified model: we ray-trace in the tube cross-section plane.
-  // The cross-section is a circle of radius r centered at distance R
-  // from the torus axis. Standing on the surface at angle v, looking
-  // "up" (outward normal direction) with some elevation, we check if
-  // the ray hits the opposite side of the tube (inner wall) or the
-  // donut ring across the hole.
+  // The torus surface in 3D: ((sqrt(x^2+z^2) - R)^2 + y^2 = r^2
+  // Player stands on the surface. Their local frame:
+  //   - e_u: tangent along the donut ring (X movement)
+  //   - e_v: tangent along the tube (Y movement)
+  //   - e_n: surface normal (outward)
+  // Screen maps: horizontal → mix of e_u, vertical → mix of e_n and e_v rotated by look
+
+  // Torus point from (u, v) angles
+  function torusPos(u, v) {
+    return [
+      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
+      TORUS_r * Math.sin(v),
+      (TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
+    ];
+  }
+
+  // Ray-torus intersection via quartic solver
+  // Torus: (sqrt(x^2+z^2) - R)^2 + y^2 = r^2
+  // Ray: P + t*D
+  // Expands to a degree-4 polynomial in t.
+  function rayTorus(ox, oy, oz, dx, dy, dz) {
+    const R = TORUS_R, r = TORUS_r;
+    const R2 = R * R, r2 = r * r;
+
+    // Dot products
+    const dDotD = dx*dx + dy*dy + dz*dz;
+    const oDotD = ox*dx + oy*dy + oz*dz;
+    const oDotO = ox*ox + oy*oy + oz*oz;
+    const K = oDotO - R2 - r2;
+
+    // Quartic coefficients: a4*t^4 + a3*t^3 + a2*t^2 + a1*t + a0 = 0
+    const a4 = dDotD * dDotD;
+    const a3 = 4 * dDotD * oDotD;
+    const a2 = 2 * dDotD * K + 4 * oDotD * oDotD + 4 * R2 * dy * dy;
+    const a1 = 4 * K * oDotD + 8 * R2 * oy * dy;
+    const a0 = K * K - 4 * R2 * (r2 - oy * oy);
+
+    // Solve quartic by finding real roots via bisection on intervals
+    // Normalize
+    const c3 = a3/a4, c2 = a2/a4, c1 = a1/a4, c0 = a0/a4;
+
+    // Evaluate polynomial
+    function f(t) { return ((((t + c3) * t + c2) * t + c1) * t + c0); }
+
+    // Sample at intervals to find sign changes, then bisect
+    const tMin = 0.05; // skip self-intersection
+    const tMax = 50;
+    const steps = 80;
+    const dt = (tMax - tMin) / steps;
+    let bestT = -1;
+    let prevT = tMin, prevF = f(tMin);
+
+    for (let i = 1; i <= steps; i++) {
+      const t = tMin + i * dt;
+      const fv = f(t);
+      if (prevF * fv < 0) {
+        // Bisect
+        let lo = prevT, hi = t;
+        for (let b = 0; b < 20; b++) {
+          const mid = (lo + hi) / 2;
+          if (f(mid) * f(lo) < 0) hi = mid; else lo = mid;
+        }
+        bestT = (lo + hi) / 2;
+        break;
+      }
+      prevT = t; prevF = fv;
+    }
+    return bestT;
+  }
+
+  // Pre-generate stars (screen-space, seeded)
+  let starSeed = 12345;
+  function starRng() { starSeed = (starSeed * 16807) % 2147483647; return (starSeed - 1) / 2147483646; }
+  const STAR_COUNT = 300;
+  const starData = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    starData.push({
+      // Stars in spherical coords (azimuth, elevation) relative to camera
+      az: starRng() * Math.PI * 2,
+      el: starRng() * Math.PI * 0.48, // above horizon
+      bright: 0.3 + starRng() * 0.7,
+      size: starRng() < 0.08 ? 2 : 1,
+    });
+  }
 
   function renderTorusSky(w, h) {
     const halfH = h / 2;
+    const u = getPlayerU();
     const v = getPlayerV();
 
-    // Player position in cross-section plane (2D: distance from torus axis, height)
-    // In the cross-section, the tube center is at (R, 0).
-    // Player is on the tube surface at angle v:
-    //   pR = R + r*cos(v)  (distance from torus axis)
-    //   pZ = r*sin(v)      (height)
-    const pR = TORUS_R + TORUS_r * Math.cos(v);
-    const pZ = TORUS_r * Math.sin(v);
+    // Player position on torus
+    const P = torusPos(u, v);
 
-    // Surface normal at this point (points outward from tube center)
-    const nR = Math.cos(v);
-    const nZ = Math.sin(v);
+    // Local frame at (u, v)
+    // e_u: d/du of torusPos, normalized (tangent along ring)
+    const eu = [
+      -(TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
+      0,
+      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
+    ];
+    const euLen = Math.sqrt(eu[0]*eu[0] + eu[1]*eu[1] + eu[2]*eu[2]);
+    eu[0] /= euLen; eu[1] /= euLen; eu[2] /= euLen;
 
-    // Tangent along the tube surface (perpendicular to normal, in the cross-section)
-    // This is the "horizon" direction in the cross-section
-    const tR = -Math.sin(v);
-    const tZ = Math.cos(v);
+    // e_v: d/dv of torusPos, normalized (tangent along tube)
+    const ev = [
+      -TORUS_r * Math.sin(v) * Math.cos(u),
+      TORUS_r * Math.cos(v),
+      -TORUS_r * Math.sin(v) * Math.sin(u),
+    ];
+    const evLen = Math.sqrt(ev[0]*ev[0] + ev[1]*ev[1] + ev[2]*ev[2]);
+    ev[0] /= evLen; ev[1] /= evLen; ev[2] /= evLen;
 
-    // For each screen column, we can vary the horizontal look angle,
-    // but the torus silhouette in the cross-section plane is the same
-    // for all horizontal angles (it's rotationally symmetric around
-    // the torus axis for the "up" direction). So we compute per-row.
+    // e_n: outward normal = cross(e_u, e_v) (or just the radial direction)
+    const en = [
+      Math.cos(v) * Math.cos(u),
+      Math.sin(v),
+      Math.cos(v) * Math.sin(u),
+    ];
 
-    // Stars: scattered fixed dots
-    // Pre-generate star positions (seeded)
-    const starSeed = 12345;
-    let ss = starSeed;
-    function starRng() { ss = (ss * 16807) % 2147483647; return (ss - 1) / 2147483646; }
-    const NUM_STARS = 200;
-    const stars = [];
-    for (let i = 0; i < NUM_STARS; i++) {
-      stars.push({
-        sx: starRng() * w,
-        sy: starRng() * halfH * 0.95,
-        bright: 0.3 + starRng() * 0.7,
-        size: starRng() < 0.1 ? 2 : 1,
-      });
-    }
+    // playerAngle: 0 = south (+Y = +v direction), pi/2 = east (+X = +u direction)
+    // On the torus surface, "forward" in the game is:
+    //   forward = sin(playerAngle) * e_u + cos(playerAngle) * e_v
+    //   right   = cos(playerAngle) * e_u - sin(playerAngle) * e_v
+    //   up      = e_n
+    const fwd = [
+      Math.sin(playerAngle) * eu[0] + Math.cos(playerAngle) * ev[0],
+      Math.sin(playerAngle) * eu[1] + Math.cos(playerAngle) * ev[1],
+      Math.sin(playerAngle) * eu[2] + Math.cos(playerAngle) * ev[2],
+    ];
+    const right = [
+      Math.cos(playerAngle) * eu[0] - Math.sin(playerAngle) * ev[0],
+      Math.cos(playerAngle) * eu[1] - Math.sin(playerAngle) * ev[1],
+      Math.cos(playerAngle) * eu[2] - Math.sin(playerAngle) * ev[2],
+    ];
+    const up = en;
 
     // Background: deep space
-    ctx.fillStyle = '#08080e';
+    ctx.fillStyle = '#06060a';
     ctx.fillRect(0, 0, w, halfH);
 
-    // Draw stars
-    for (const star of stars) {
-      const b = Math.floor(star.bright * 255);
-      ctx.fillStyle = `rgb(${b},${b},${Math.min(255, b + 30)})`;
-      ctx.fillRect(star.sx, star.sy, star.size, star.size);
+    // Draw stars that aren't occluded by torus
+    // Map star spherical coords to screen, but offset by player's look direction
+    for (const star of starData) {
+      // Star direction in world space (fixed celestial sphere)
+      const sdx = Math.cos(star.el) * Math.cos(star.az);
+      const sdy = Math.sin(star.el);
+      const sdz = Math.cos(star.el) * Math.sin(star.az);
+
+      // Project into camera space
+      const camX = sdx * right[0] + sdy * up[0] + sdz * fwd[0];
+      const camY2 = sdx * right[1] + sdy * up[1] + sdz * fwd[1];
+      const camZ = sdx * right[2] + sdy * up[2] + sdz * fwd[2];
+      // camFwd = dot with fwd
+      const camFwd = sdx * fwd[0] + sdy * fwd[1] + sdz * fwd[2];
+      const camRight = sdx * right[0] + sdy * right[1] + sdz * right[2];
+      const camUp = sdx * up[0] + sdy * up[1] + sdz * up[2];
+
+      if (camFwd < 0.01) continue; // behind camera
+      const sx = (camRight / camFwd) / Math.tan(FOV/2) * (w/2) + w/2;
+      const sy = halfH - (camUp / camFwd) / Math.tan(VFOV/2) * halfH;
+
+      if (sx < 0 || sx >= w || sy < 0 || sy >= halfH) continue;
+
+      // Quick torus hit test for this star direction
+      const t = rayTorus(P[0], P[1], P[2], sdx, sdy, sdz);
+      if (t > 0) continue; // occluded by torus
+
+      const b = Math.floor(star.bright * 220);
+      ctx.fillStyle = `rgb(${b},${b},${Math.min(255, b + 40)})`;
+      ctx.fillRect(sx, sy, star.size, star.size);
     }
 
-    // Compute torus silhouette per screen row
-    // For each elevation angle, cast a ray in the cross-section from (pR, pZ)
-    // in the direction (nR, nZ)*cos(elev) + (0, 1)*sin(elev)... actually simpler:
-    // The ray direction in the cross-section plane is:
-    //   outward normal * cos(elev) + tangent * sin(elev)... no.
-    //
-    // Let's think of it as: elevation = 0 is horizon (tangent to surface).
-    // elevation = pi/2 is straight up (along normal).
-    // Ray dir in cross-section: normal*sin(elev) + tangent*cos(elev)
-    // But we want elevation from horizon, so:
-    //   lookR = tR * cos(elev) + nR * sin(elev)
-    //   lookZ = tZ * cos(elev) + nZ * sin(elev)
-    // The ray starts at (pR, pZ) and goes in direction (lookR, lookZ).
-    // We test intersection with the tube cross-section circle
-    // (centered at R, 0, radius r) — but we're ON that circle, so we want
-    // the FAR intersection if it exists.
-    // We also test intersection with the opposite side of the torus:
-    // the tube cross-section at the diametrically opposite point,
-    // centered at (-R... no. The full torus in 3D wraps around, but in
-    // the cross-section view, the "other side" of the donut hole appears
-    // as another circle at (-R, 0)... wait, no. Let me think again.
-    //
-    // The cross-section through the torus axis shows two circles:
-    // one at (R, 0) with radius r (the near tube) and one at (-R, 0)
-    // with radius r (the far tube, on the other side of the hole).
-    // Actually no — a cross section through the axis shows the two circles
-    // at (+R, 0) and (-R, 0) in the (distance-from-axis, height) plane.
-    // But "distance from axis" is always positive! So in the (R, Z) plane,
-    // the near tube is at (R, 0) and the far tube... you can see it by
-    // looking THROUGH the hole, which means looking in the -R direction.
-    // In the (R, Z) plane, the far side is also at (R, 0) but you reach
-    // it by going through R=0 (the axis). So a ray going inward (decreasing R)
-    // crosses R=0 and then hits the far tube at (R, 0) from the other side.
-    //
-    // Simpler approach: just ray-circle intersection.
-    // Near tube: circle at (R, 0), radius r. We're on it, so the second
-    // intersection is the far side of our own tube (the inner wall).
-    // Far tube: for the ring across the hole, we check if the ray
-    // crosses R=0 and then hits a band at roughly R ∈ [0, 2*r] at
-    // height Z ∈ [-r, r]. This is the donut seen through the hole.
+    // Torus silhouette: ray-trace per screen column in sky half
+    // Use coarser resolution for performance
+    const skyStripW = 4;
+    const skyStripH = 4;
+    const skyColsCount = Math.ceil(w / skyStripW);
+    const skyRowsCount = Math.ceil(halfH / skyStripH);
 
-    // Per-row: compute screen Y → elevation angle → ray → hit test
-    const silhouetteStrip = 4; // pixels per row computation
-    for (let sy = 0; sy < halfH; sy += silhouetteStrip) {
-      // Screen Y to elevation angle
-      // sy=0 is top of sky (highest elevation), sy=halfH is horizon (elev=0)
-      const screenFrac = 1 - sy / halfH; // 0 at horizon, 1 at zenith
-      const elev = screenFrac * VFOV;
+    for (let row = 0; row < skyRowsCount; row++) {
+      const sy = row * skyStripH;
+      const screenV = 1 - sy / halfH; // 0 at horizon, 1 at zenith
+      const elevAngle = screenV * VFOV;
 
-      // Ray direction in cross-section
-      const lookR = tR * Math.cos(elev) + nR * Math.sin(elev);
-      const lookZ = tZ * Math.cos(elev) + nZ * Math.sin(elev);
+      for (let col = 0; col < skyColsCount; col++) {
+        const sx = col * skyStripW;
+        const screenH = (sx / w) * 2 - 1; // -1 to 1
+        const azAngle = screenH * FOV / 2;
 
-      // Ray-circle intersection: circle at (R, 0), radius r
-      // Ray: P + t * D where P=(pR,pZ), D=(lookR,lookZ)
-      // |P + tD - C|^2 = r^2 where C=(R,0)
-      const ocR = pR - TORUS_R, ocZ = pZ;
-      const a = lookR * lookR + lookZ * lookZ;
-      const b2 = ocR * lookR + ocZ * lookZ; // half of b
-      const c = ocR * ocR + ocZ * ocZ - TORUS_r * TORUS_r;
-      const disc = b2 * b2 - a * c;
+        // Ray direction in world space
+        const rd = [
+          fwd[0] * Math.cos(elevAngle) * Math.cos(azAngle) + right[0] * Math.cos(elevAngle) * Math.sin(azAngle) + up[0] * Math.sin(elevAngle),
+          fwd[1] * Math.cos(elevAngle) * Math.cos(azAngle) + right[1] * Math.cos(elevAngle) * Math.sin(azAngle) + up[1] * Math.sin(elevAngle),
+          fwd[2] * Math.cos(elevAngle) * Math.cos(azAngle) + right[2] * Math.cos(elevAngle) * Math.sin(azAngle) + up[2] * Math.sin(elevAngle),
+        ];
 
-      let hitOwnTube = false;
-      if (disc > 0) {
-        const sqrtDisc = Math.sqrt(disc);
-        const t1 = (-b2 - sqrtDisc) / a;
-        const t2 = (-b2 + sqrtDisc) / a;
-        // t2 is the far intersection (we're at t=0 on the surface)
-        if (t2 > 0.1) {
-          // Where does it hit?
-          const hitR = pR + t2 * lookR;
-          const hitZ = pZ + t2 * lookZ;
-          // This is the opposite wall of our tube (inner wall)
-          // Only visible if hitR < R (inner side)
-          if (hitR < TORUS_R) {
-            hitOwnTube = true;
-          }
+        const t = rayTorus(P[0], P[1], P[2], rd[0], rd[1], rd[2]);
+        if (t > 0) {
+          // Hit torus — shade by distance
+          const fade = Math.min(1, t / 40);
+          const sr = Math.floor(18 + 8 * (1 - fade));
+          const sg = Math.floor(28 + 12 * (1 - fade));
+          const sb = Math.floor(16 + 6 * (1 - fade));
+          ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
+          ctx.fillRect(sx, sy, skyStripW, skyStripH);
         }
-      }
-
-      // Check if ray goes through the donut hole → hits far side of torus
-      // The far side tube center is at (R, 0) too, but reached by going
-      // through the hole (R decreasing to 0 and continuing).
-      // In the axial cross-section, looking "inward" (toward axis) we'd see
-      // the far tube at angular distance π around the donut.
-      // Approximate: if looking inward (lookR < 0), check if ray crosses
-      // R=0 and at what Z. The far tube spans Z ∈ [-r, r].
-      let hitFarTorus = false;
-      if (lookR < -0.01) {
-        const tAxis = -pR / lookR; // time to reach R=0 (torus axis)
-        if (tAxis > 0) {
-          const zAtAxis = pZ + tAxis * lookZ;
-          // The far tube center is at distance R on the other side,
-          // visible through the hole as a band at Z ∈ [-r, r] roughly
-          if (Math.abs(zAtAxis) < TORUS_r * 1.3) {
-            hitFarTorus = true;
-          }
-        }
-      }
-
-      if (hitOwnTube || hitFarTorus) {
-        // Draw silhouette strip
-        const distFade = hitFarTorus ? 0.6 : 0.8;
-        // Darker if inner wall, slightly blue-tinted if far torus
-        const sr = hitFarTorus ? 15 : 20;
-        const sg = hitFarTorus ? 22 : 28;
-        const sb = hitFarTorus ? 18 : 22;
-        ctx.fillStyle = `rgba(${sr},${sg},${sb},${distFade})`;
-        ctx.fillRect(0, sy, w, silhouetteStrip);
       }
     }
 
-    // Floor gradient (unchanged)
+    // Floor gradient
     const floorGrad = ctx.createLinearGradient(0, halfH, 0, h);
     floorGrad.addColorStop(0, '#2a4a28');
     floorGrad.addColorStop(1, '#1a2a18');
