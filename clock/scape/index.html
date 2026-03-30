@@ -634,12 +634,15 @@
     const c = TILE_COLORS[tileType];
     if (!c) return;
 
-    // Base color with slight per-tile variation
+    // Sun lighting for this tile
+    const sun = tileSunlight(worldTX, worldTY);
+
+    // Base color with slight per-tile variation, modulated by sunlight
     const hash = ((worldTX * 374761393 + worldTY * 668265263) ^ 0xdeadbeef) & 0xffff;
     const vary = ((hash & 0xff) - 128) / 512;
-    const r = Math.max(0, Math.min(255, c[0] + c[0] * vary));
-    const g = Math.max(0, Math.min(255, c[1] + c[1] * vary));
-    const b = Math.max(0, Math.min(255, c[2] + c[2] * vary));
+    const r = Math.max(0, Math.min(255, (c[0] + c[0] * vary) * sun));
+    const g = Math.max(0, Math.min(255, (c[1] + c[1] * vary) * sun));
+    const b = Math.max(0, Math.min(255, (c[2] + c[2] * vary) * sun));
 
     ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
     ctx.fillRect(screenX, screenY, TILE_PX + 1, TILE_PX + 1);
@@ -860,6 +863,33 @@
     return (playerX / WORLD_W) * Math.PI * 2;
   }
 
+  // Sun — tidally locked, fixed in world space
+  // Points along +X with slight elevation (above the torus plane)
+  const SUN_DIR = [0.92, 0.35, 0.17]; // normalized below
+  const sunLen = Math.sqrt(SUN_DIR[0]**2 + SUN_DIR[1]**2 + SUN_DIR[2]**2);
+  SUN_DIR[0] /= sunLen; SUN_DIR[1] /= sunLen; SUN_DIR[2] /= sunLen;
+  const SUN_RADIUS = 0.06; // angular radius for the disk (radians)
+
+  // Compute sun exposure at a torus surface point (u, v)
+  // Returns 0 (full shadow) to 1 (full sun)
+  function sunExposure(u, v) {
+    // Surface normal at (u,v)
+    const nx = Math.cos(v) * Math.cos(u);
+    const ny = Math.sin(v);
+    const nz = Math.cos(v) * Math.sin(u);
+    const dot = nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2];
+    return Math.max(0, dot);
+  }
+
+  // Sunlight tint for a tile at world position (wx, wy)
+  function tileSunlight(wx, wy) {
+    const u = (wx / WORLD_W) * Math.PI * 2;
+    const v = (wy / WORLD_H) * Math.PI * 2;
+    const exposure = sunExposure(u, v);
+    // Ambient 0.15 in shadow, up to 1.0 in full sun
+    return 0.15 + 0.85 * exposure;
+  }
+
   // =====================================================================
   // Torus sky — proper ray-torus intersection per pixel
   // =====================================================================
@@ -999,44 +1029,64 @@
     ];
     const up = en;
 
+    // Helper: project world-space direction to screen pixel
+    function worldToScreen(dx, dy, dz) {
+      const cf = dx*fwd[0] + dy*fwd[1] + dz*fwd[2];
+      if (cf < 0.01) return null;
+      const cr = dx*right[0] + dy*right[1] + dz*right[2];
+      const cu = dx*up[0] + dy*up[1] + dz*up[2];
+      return {
+        sx: (cr / cf) / Math.tan(FOV/2) * (w/2) + w/2,
+        sy: halfH - (cu / cf) / Math.tan(VFOV/2) * halfH,
+      };
+    }
+
     // Background: deep space
     ctx.fillStyle = '#06060a';
     ctx.fillRect(0, 0, w, halfH);
 
-    // Draw stars that aren't occluded by torus
-    // Map star spherical coords to screen, but offset by player's look direction
+    // Draw stars (not occluded by torus)
     for (const star of starData) {
-      // Star direction in world space (fixed celestial sphere)
       const sdx = Math.cos(star.el) * Math.cos(star.az);
       const sdy = Math.sin(star.el);
       const sdz = Math.cos(star.el) * Math.sin(star.az);
-
-      // Project into camera space
-      const camX = sdx * right[0] + sdy * up[0] + sdz * fwd[0];
-      const camY2 = sdx * right[1] + sdy * up[1] + sdz * fwd[1];
-      const camZ = sdx * right[2] + sdy * up[2] + sdz * fwd[2];
-      // camFwd = dot with fwd
-      const camFwd = sdx * fwd[0] + sdy * fwd[1] + sdz * fwd[2];
-      const camRight = sdx * right[0] + sdy * right[1] + sdz * right[2];
-      const camUp = sdx * up[0] + sdy * up[1] + sdz * up[2];
-
-      if (camFwd < 0.01) continue; // behind camera
-      const sx = (camRight / camFwd) / Math.tan(FOV/2) * (w/2) + w/2;
-      const sy = halfH - (camUp / camFwd) / Math.tan(VFOV/2) * halfH;
-
-      if (sx < 0 || sx >= w || sy < 0 || sy >= halfH) continue;
-
-      // Quick torus hit test for this star direction
+      const sp = worldToScreen(sdx, sdy, sdz);
+      if (!sp || sp.sx < 0 || sp.sx >= w || sp.sy < 0 || sp.sy >= halfH) continue;
       const t = rayTorus(P[0], P[1], P[2], sdx, sdy, sdz);
-      if (t > 0) continue; // occluded by torus
-
+      if (t > 0) continue;
       const b = Math.floor(star.bright * 220);
       ctx.fillStyle = `rgb(${b},${b},${Math.min(255, b + 40)})`;
-      ctx.fillRect(sx, sy, star.size, star.size);
+      ctx.fillRect(sp.sx, sp.sy, star.size, star.size);
     }
 
-    // Torus silhouette: ray-trace per screen column in sky half
-    // Use coarser resolution for performance
+    // Draw sun disk + glow
+    const sunScreen = worldToScreen(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
+    if (sunScreen && sunScreen.sy < halfH + 40) {
+      // Check if sun is occluded by torus
+      const sunT = rayTorus(P[0], P[1], P[2], SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
+      if (sunT < 0) {
+        // Sun is visible — draw glow then disk
+        const glowR = 60;
+        const grad = ctx.createRadialGradient(sunScreen.sx, sunScreen.sy, 4, sunScreen.sx, sunScreen.sy, glowR);
+        grad.addColorStop(0, 'rgba(255,240,200,0.4)');
+        grad.addColorStop(0.3, 'rgba(255,200,120,0.15)');
+        grad.addColorStop(1, 'rgba(255,180,80,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(sunScreen.sx - glowR, sunScreen.sy - glowR, glowR * 2, glowR * 2);
+
+        // Sun disk
+        ctx.beginPath();
+        ctx.arc(sunScreen.sx, sunScreen.sy, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff8e0';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sunScreen.sx, sunScreen.sy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffefa';
+        ctx.fill();
+      }
+    }
+
+    // Torus silhouette with sun lighting
     const skyStripW = 4;
     const skyStripH = 4;
     const skyColsCount = Math.ceil(w / skyStripW);
@@ -1044,38 +1094,62 @@
 
     for (let row = 0; row < skyRowsCount; row++) {
       const sy = row * skyStripH;
-      const screenV = 1 - sy / halfH; // 0 at horizon, 1 at zenith
+      const screenV = 1 - sy / halfH;
       const elevAngle = screenV * VFOV;
 
       for (let col = 0; col < skyColsCount; col++) {
         const sx = col * skyStripW;
-        const screenH = (sx / w) * 2 - 1; // -1 to 1
+        const screenH = (sx / w) * 2 - 1;
         const azAngle = screenH * FOV / 2;
 
-        // Ray direction in world space
         const rd = [
-          fwd[0] * Math.cos(elevAngle) * Math.cos(azAngle) + right[0] * Math.cos(elevAngle) * Math.sin(azAngle) + up[0] * Math.sin(elevAngle),
-          fwd[1] * Math.cos(elevAngle) * Math.cos(azAngle) + right[1] * Math.cos(elevAngle) * Math.sin(azAngle) + up[1] * Math.sin(elevAngle),
-          fwd[2] * Math.cos(elevAngle) * Math.cos(azAngle) + right[2] * Math.cos(elevAngle) * Math.sin(azAngle) + up[2] * Math.sin(elevAngle),
+          fwd[0]*Math.cos(elevAngle)*Math.cos(azAngle) + right[0]*Math.cos(elevAngle)*Math.sin(azAngle) + up[0]*Math.sin(elevAngle),
+          fwd[1]*Math.cos(elevAngle)*Math.cos(azAngle) + right[1]*Math.cos(elevAngle)*Math.sin(azAngle) + up[1]*Math.sin(elevAngle),
+          fwd[2]*Math.cos(elevAngle)*Math.cos(azAngle) + right[2]*Math.cos(elevAngle)*Math.sin(azAngle) + up[2]*Math.sin(elevAngle),
         ];
 
         const t = rayTorus(P[0], P[1], P[2], rd[0], rd[1], rd[2]);
         if (t > 0) {
-          // Hit torus — shade by distance
+          // Hit point on torus
+          const hx = P[0] + t * rd[0];
+          const hy = P[1] + t * rd[1];
+          const hz = P[2] + t * rd[2];
+
+          // Compute surface normal at hit point
+          // For a torus: normal = (p - center_of_nearest_tube_circle) / r
+          const distFromAxis = Math.sqrt(hx * hx + hz * hz);
+          const tubeX = (distFromAxis > 0.001) ? hx * TORUS_R / distFromAxis : TORUS_R;
+          const tubeZ = (distFromAxis > 0.001) ? hz * TORUS_R / distFromAxis : 0;
+          const hnx = hx - tubeX;
+          const hny = hy;
+          const hnz = hz - tubeZ;
+          const hnLen = Math.sqrt(hnx*hnx + hny*hny + hnz*hnz) || 1;
+
+          // Sun dot normal
+          const sunDot = Math.max(0, (hnx * SUN_DIR[0] + hny * SUN_DIR[1] + hnz * SUN_DIR[2]) / hnLen);
+          const light = 0.08 + 0.92 * sunDot;
+
+          // Distance fade
           const fade = Math.min(1, t / 40);
-          const sr = Math.floor(18 + 8 * (1 - fade));
-          const sg = Math.floor(28 + 12 * (1 - fade));
-          const sb = Math.floor(16 + 6 * (1 - fade));
+          const distDim = 1 - fade * 0.7;
+
+          // Green-ish torus surface lit by sun
+          const sr = Math.floor(Math.min(255, (25 + 45 * sunDot) * distDim));
+          const sg = Math.floor(Math.min(255, (35 + 65 * sunDot) * distDim));
+          const sb = Math.floor(Math.min(255, (18 + 25 * sunDot) * distDim));
           ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
           ctx.fillRect(sx, sy, skyStripW, skyStripH);
         }
       }
     }
 
-    // Floor gradient
+    // Floor with sun lighting
+    const floorSun = tileSunlight(playerX, playerY);
+    const floorLit = Math.floor(42 * floorSun);
+    const floorDark = Math.floor(26 * floorSun);
     const floorGrad = ctx.createLinearGradient(0, halfH, 0, h);
-    floorGrad.addColorStop(0, '#2a4a28');
-    floorGrad.addColorStop(1, '#1a2a18');
+    floorGrad.addColorStop(0, `rgb(${floorLit},${Math.floor(74*floorSun)},${Math.floor(40*floorSun)})`);
+    floorGrad.addColorStop(1, `rgb(${floorDark},${Math.floor(42*floorSun)},${Math.floor(24*floorSun)})`);
     ctx.fillStyle = floorGrad;
     ctx.fillRect(0, halfH, w, halfH);
   }
@@ -1110,7 +1184,7 @@
         ? (mapY + 1 - playerY) * deltaDistY
         : (playerY - mapY) * deltaDistY;
 
-      let hit = false, side = 0, dist = 0, hitTile = 0;
+      let hit = false, side = 0, dist = 0, hitTile = 0, hitWX = 0, hitWY = 0;
 
       for (let step = 0; step < 80; step++) {
         if (sideDistX < sideDistY) {
@@ -1130,6 +1204,7 @@
         if (!WALKABLE.has(tile)) {
           hit = true;
           hitTile = tile;
+          hitWX = wx; hitWY = wy;
           dist = side === 0
             ? (mapX - playerX + (1 - stepX) / 2) / rdx
             : (mapY - playerY + (1 - stepY) / 2) / rdy;
@@ -1147,18 +1222,23 @@
       const wallH = Math.min(h * 2, h / perpDist);
       const wallTop = halfH - wallH / 2;
 
-      // Wall color with fog
+      // Wall color with sun lighting + fog
       const wc = WALL_COLORS[hitTile] || DEFAULT_WALL;
       const baseColor = side === 1 ? wc.side : wc.front;
+      const wallSun = tileSunlight(hitWX, hitWY);
       const fog = Math.min(1, perpDist / FOG_DIST);
 
-      // Parse hex to RGB, blend with fog
-      const br = parseInt(baseColor.slice(1,3), 16);
-      const bg = parseInt(baseColor.slice(3,5), 16);
-      const bb = parseInt(baseColor.slice(5,7), 16);
-      const fr = Math.floor(br * (1-fog) + 0x1a * fog);
-      const fg = Math.floor(bg * (1-fog) + 0x2a * fog);
-      const fb = Math.floor(bb * (1-fog) + 0x3a * fog);
+      // Parse hex to RGB, apply sun, blend with fog
+      const br = parseInt(baseColor.slice(1,3), 16) * wallSun;
+      const bg = parseInt(baseColor.slice(3,5), 16) * wallSun;
+      const bb = parseInt(baseColor.slice(5,7), 16) * wallSun;
+      // Fog color also darkens on shadow side
+      const fogR = 0x06 + 0x14 * wallSun;
+      const fogG = 0x06 + 0x24 * wallSun;
+      const fogB = 0x0a + 0x1a * wallSun;
+      const fr = Math.floor(br * (1-fog) + fogR * fog);
+      const fg = Math.floor(bg * (1-fog) + fogG * fog);
+      const fb = Math.floor(bb * (1-fog) + fogB * fog);
 
       ctx.fillStyle = `rgb(${fr},${fg},${fb})`;
       ctx.fillRect(col * stripW, wallTop, stripW, wallH);
