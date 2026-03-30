@@ -19,14 +19,207 @@
     color: rgba(255,255,200,0.6); font: 12px/1.4 monospace;
     text-align: center; pointer-events: none; user-select: none;
   }
+  #lobby {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,20,0.92); z-index: 10;
+  }
+  #lobby.hidden { display: none; }
+  .lobby-box {
+    background: #1e1e2e; border: 1px solid #3a3a5a; border-radius: 8px;
+    padding: 28px 32px; min-width: 300px; color: #ddd; font: 15px/1.5 monospace;
+  }
+  .lobby-box h2 { margin: 0 0 16px; font-size: 20px; color: #f0e0c0; }
+  .lobby-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .lobby-btns button, .lobby-box button {
+    padding: 10px 16px; border: 1px solid #4a4a6a; border-radius: 4px;
+    background: #2a2a3e; color: #ddd; font: 14px monospace; cursor: pointer;
+  }
+  .lobby-btns button:hover, .lobby-box button:hover { background: #3a3a5e; border-color: #7a7aaa; }
+  .lobby-box label { display: block; color: #aaa; margin-top: 10px; font-size: 13px; }
+  .lobby-box textarea {
+    width: 100%; height: 56px; margin: 4px 0 6px; padding: 6px;
+    background: #12121e; border: 1px solid #3a3a5a; border-radius: 3px;
+    color: #eee; font: 11px monospace; resize: vertical;
+  }
+  .lobby-box .info { color: #8a8; font-size: 12px; margin-top: 8px; }
 </style>
 </head>
 <body>
+<div id="lobby">
+  <div class="lobby-box">
+    <h2>Torus Chess</h2>
+    <p style="color:#aaa;font-size:13px">16x16 toroidal board — all edges wrap</p>
+    <div class="lobby-btns">
+      <button id="btnLocal">Local 2P</button>
+      <button id="btnHost">Host (White)</button>
+      <button id="btnJoin">Join (Black)</button>
+    </div>
+    <div id="lobbySignaling"></div>
+  </div>
+</div>
 <canvas id="c"></canvas>
 <div id="hud"></div>
 <div id="status">click piece to select &middot; click square to move &middot; board wraps</div>
 <script>
 (() => {
+  // =====================================================================
+  // Lobby + WebRTC signaling
+  // =====================================================================
+  const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+  let netMode = 'local'; // 'local' | 'host' | 'peer'
+  let myColor = 0;       // 1=white, -1=black (0=both for local)
+  let dataChannel = null;
+  let peerConnection = null;
+
+  function compressSDP(sdp) {
+    const lines = sdp.split('\r\n').filter(l =>
+      l.startsWith('v=') || l.startsWith('o=') || l.startsWith('s=') ||
+      l.startsWith('t=') || l.startsWith('a=group') || l.startsWith('a=msid') ||
+      l.startsWith('m=') || l.startsWith('c=') ||
+      l.startsWith('a=ice-ufrag') || l.startsWith('a=ice-pwd') ||
+      l.startsWith('a=fingerprint') || l.startsWith('a=setup') ||
+      l.startsWith('a=mid') || l.startsWith('a=sctp') ||
+      l.startsWith('a=max-message') || l.startsWith('a=candidate')
+    );
+    return btoa(lines.join('\n'));
+  }
+
+  function decompressSDP(compressed, type) {
+    const sdp = atob(compressed).split('\n').join('\r\n') + '\r\n';
+    return new RTCSessionDescription({ type, sdp });
+  }
+
+  function onNetMessage(msg) {
+    const data = JSON.parse(msg.data);
+    if (data.type === 'move') {
+      // Opponent made a move — apply it
+      makeMove(data.fx, data.fy, data.tx, data.ty, data.moveData || {});
+      selected = null; legalMoves = [];
+      render();
+    } else if (data.type === 'restart') {
+      initBoard();
+      turn = 1; selected = null; legalMoves = [];
+      lastMove = null; gameOver = null; inCheck = false;
+      render();
+    }
+  }
+
+  function sendMove(fx, fy, tx, ty, moveData) {
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'move', fx, fy, tx, ty, moveData }));
+    }
+  }
+
+  function sendRestart() {
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'restart' }));
+    }
+  }
+
+  async function waitICE(pc) {
+    if (pc.iceGatheringState === 'complete') return;
+    await new Promise(r => { pc.onicecandidate = e => { if (!e.candidate) r(); }; });
+  }
+
+  const lobby = document.getElementById('lobby');
+  const sigDiv = document.getElementById('lobbySignaling');
+
+  function startGame(mode, color) {
+    netMode = mode;
+    myColor = color;
+    lobby.classList.add('hidden');
+  }
+
+  document.getElementById('btnLocal').addEventListener('click', () => {
+    startGame('local', 0);
+    render();
+  });
+
+  document.getElementById('btnHost').addEventListener('click', async () => {
+    sigDiv.innerHTML = '<div class="info">Generating offer...</div>';
+    peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    dataChannel = peerConnection.createDataChannel('chess', { ordered: true });
+    dataChannel.onopen = () => {
+      sigDiv.innerHTML = '<div class="info">Connected! You are White.</div>';
+      setTimeout(() => startGame('host', 1), 500);
+      setTimeout(render, 600);
+    };
+    dataChannel.onmessage = onNetMessage;
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    await waitICE(peerConnection);
+    const code = compressSDP(peerConnection.localDescription.sdp);
+
+    sigDiv.innerHTML = `
+      <label>Send this code to your opponent:</label>
+      <textarea id="offerText" readonly>${code}</textarea>
+      <button id="copyOffer">Copy</button>
+      <label>Paste their answer:</label>
+      <textarea id="answerText" placeholder="paste answer code here..."></textarea>
+      <button id="acceptAnswer">Connect</button>
+      <div class="info" id="hostStatus"></div>
+    `;
+    document.getElementById('copyOffer').onclick = () => {
+      navigator.clipboard.writeText(code);
+      document.getElementById('copyOffer').textContent = 'Copied!';
+    };
+    document.getElementById('answerText').addEventListener('keydown', e => e.stopPropagation());
+    document.getElementById('acceptAnswer').onclick = async () => {
+      const ansCode = document.getElementById('answerText').value.trim();
+      if (!ansCode) return;
+      document.getElementById('hostStatus').textContent = 'Connecting...';
+      await peerConnection.setRemoteDescription(decompressSDP(ansCode, 'answer'));
+    };
+  });
+
+  document.getElementById('btnJoin').addEventListener('click', () => {
+    sigDiv.innerHTML = `
+      <label>Paste host's code:</label>
+      <textarea id="joinOfferText" placeholder="paste offer code here..."></textarea>
+      <button id="joinConnect">Connect</button>
+      <div id="joinSignaling"></div>
+    `;
+    document.getElementById('joinOfferText').addEventListener('keydown', e => e.stopPropagation());
+    document.getElementById('joinConnect').onclick = async () => {
+      const offerCode = document.getElementById('joinOfferText').value.trim();
+      if (!offerCode) return;
+      const jSig = document.getElementById('joinSignaling');
+      jSig.innerHTML = '<div class="info">Generating answer...</div>';
+
+      peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      peerConnection.ondatachannel = (e) => {
+        dataChannel = e.channel;
+        dataChannel.onopen = () => {
+          jSig.innerHTML = '<div class="info">Connected! You are Black.</div>';
+          setTimeout(() => startGame('peer', -1), 500);
+          setTimeout(render, 600);
+        };
+        dataChannel.onmessage = onNetMessage;
+      };
+
+      await peerConnection.setRemoteDescription(decompressSDP(offerCode, 'offer'));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      await waitICE(peerConnection);
+      const ansCode = compressSDP(peerConnection.localDescription.sdp);
+
+      jSig.innerHTML = `
+        <label>Send this answer back to host:</label>
+        <textarea readonly>${ansCode}</textarea>
+        <button id="copyAnswer">Copy</button>
+        <div class="info">Waiting for connection...</div>
+      `;
+      document.getElementById('copyAnswer').onclick = () => {
+        navigator.clipboard.writeText(ansCode);
+        document.getElementById('copyAnswer').textContent = 'Copied!';
+      };
+    };
+  });
+
+  // =====================================================================
+  // Chess engine
+  // =====================================================================
   const BOARD = 16;
   const wrap = (v) => ((v % BOARD) + BOARD) % BOARD;
 
@@ -406,6 +599,10 @@
     if (gameOver === 'checkmate') hudText = `Checkmate! ${turn === 1 ? 'Black' : 'White'} wins`;
     else if (gameOver === 'stalemate') hudText = 'Stalemate — draw';
     else if (inCheck) hudText += ' (check!)';
+    // Network info
+    if (myColor === 1) hudText += '  [you: White]';
+    else if (myColor === -1) hudText += '  [you: Black]';
+    if (myColor !== 0 && turn !== myColor && !gameOver) hudText += '  waiting...';
     document.getElementById('hud').textContent = hudText;
   }
 
@@ -414,13 +611,19 @@
   // =====================================================================
   canvas.addEventListener('click', (e) => {
     if (gameOver) {
-      // Click to restart
-      initBoard();
-      turn = 1; selected = null; legalMoves = [];
-      lastMove = null; gameOver = null; inCheck = false;
-      render();
+      // Click to restart (only in local mode, or if host)
+      if (netMode === 'local' || netMode === 'host') {
+        initBoard();
+        turn = 1; selected = null; legalMoves = [];
+        lastMove = null; gameOver = null; inCheck = false;
+        if (netMode === 'host') sendRestart();
+        render();
+      }
       return;
     }
+
+    // In network mode, can only move on your turn
+    if (myColor !== 0 && turn !== myColor) return;
 
     const rect = canvas.getBoundingClientRect();
     const mx = Math.floor((e.clientX - rect.left) / (rect.width / BOARD));
@@ -428,14 +631,14 @@
     if (mx < 0 || mx >= BOARD || my < 0 || my >= BOARD) return;
 
     if (selected) {
-      // Try to move to clicked square
       const move = legalMoves.find(m => m.x === mx && m.y === my);
       if (move) {
+        // Send move to opponent before applying
+        sendMove(selected.x, selected.y, mx, my, { ep: move.ep || false });
         makeMove(selected.x, selected.y, mx, my, move);
         selected = null;
         legalMoves = [];
       } else if (colorOf(board[my][mx]) === turn) {
-        // Select different piece
         selected = { x: mx, y: my };
         legalMoves = legalMovesFor(mx, my);
       } else {
@@ -443,7 +646,6 @@
         legalMoves = [];
       }
     } else {
-      // Select piece
       if (colorOf(board[my][mx]) === turn) {
         selected = { x: mx, y: my };
         legalMoves = legalMovesFor(mx, my);
