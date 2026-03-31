@@ -585,6 +585,10 @@
   const mmCanvas = document.getElementById('minimap');
   const mmCtx = mmCanvas.getContext('2d');
 
+  // GPU sky state (declared early so resize() can reference it)
+  let gpuSky = null;
+  let gpuSkyDirty = true;
+
   function resize() {
     const maxDpr = isMobile ? 1 : 2;
     const dpr = Math.min(devicePixelRatio, maxDpr);
@@ -598,9 +602,6 @@
   // =====================================================================
   // WebGPU sky renderer — terrain-mapped torus
   // =====================================================================
-  let gpuSky = null; // set after async init
-  let gpuSkyDirty = true;
-
   (async () => {
     if (!navigator.gpu) { console.log('WebGPU not available, using canvas fallback'); return; }
     const adapter = await navigator.gpu.requestAdapter();
