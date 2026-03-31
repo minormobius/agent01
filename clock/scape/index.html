@@ -468,6 +468,15 @@
     T.FLOWER, T.BRIDGE, T.TALL_GRASS, T.PATH,
   ]);
 
+  // Tile heights — must match shader tileHeight()
+  const TILE_HEIGHT = {
+    [T.GRASS]: 0.0, [T.GRASS2]: 0.0, [T.GRASS3]: 0.0,
+    [T.WATER]: -0.03, [T.SAND]: 0.01, [T.DIRT]: 0.02,
+    [T.TREE]: 0.15, [T.ROCK]: 0.10, [T.FLOWER]: 0.02,
+    [T.BRIDGE]: 0.03, [T.TALL_GRASS]: 0.04, [T.PATH]: 0.0,
+  };
+  const MAX_STEP_UP = 0.06; // max height difference player can step up
+
   // =====================================================================
   // Procedural world generation (seeded)
   // =====================================================================
@@ -615,81 +624,106 @@
     // ---- WGSL compute shader ----
     const shaderCode = `
 struct Params {
-  // Camera origin (3 floats) + pad
   camX: f32, camY: f32, camZ: f32, _pad0: f32,
-  // Forward direction
   fwdX: f32, fwdY: f32, fwdZ: f32, _pad1: f32,
-  // Right direction
   rightX: f32, rightY: f32, rightZ: f32, _pad2: f32,
-  // Up direction
   upX: f32, upY: f32, upZ: f32, _pad3: f32,
-  // Sun direction
   sunX: f32, sunY: f32, sunZ: f32, _pad4: f32,
-  // Torus params
   torusR: f32, torusr: f32,
-  // Screen dimensions
   width: u32, height: u32,
-  // FOV
   fovH: f32, fovV: f32,
-  // World dimensions
   worldW: u32, worldH: u32,
-  // Horizon position (0..1, fraction of screen height from top)
   horizonY: f32, _pad5: f32,
 }
 
 @group(0) @binding(0) var<uniform> params: Params;
-@group(0) @binding(1) var<storage, read> tileMap: array<u32>;  // packed tile indices
-@group(0) @binding(2) var<storage, read> palette: array<u32>;  // RGBA packed colors
-@group(0) @binding(3) var<storage, read_write> output: array<u32>; // RGBA output pixels
+@group(0) @binding(1) var<storage, read> tileMap: array<u32>;
+@group(0) @binding(2) var<storage, read> palette: array<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<u32>;
 
-fn rayTorus(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
-  let dDotD = dx*dx + dy*dy + dz*dz;
-  let oDotD = ox*dx + oy*dy + oz*dz;
-  let oDotO = ox*ox + oy*oy + oz*oz;
-  let R2 = R * R;
-  let r2 = r * r;
-  let K = oDotO - R2 - r2;
+const PI: f32 = 3.14159265359;
+const TWO_PI: f32 = 6.28318530718;
 
-  let a4 = dDotD * dDotD;
-  let a3 = 4.0 * dDotD * oDotD;
-  let a2 = 2.0 * dDotD * K + 4.0 * oDotD * oDotD + 4.0 * R2 * dy * dy;
-  let a1 = 4.0 * K * oDotD + 8.0 * R2 * oy * dy;
-  let a0 = K * K - 4.0 * R2 * (r2 - oy * oy);
+// Tile heights — how far each tile type extrudes from the torus surface
+fn tileHeight(tile: u32) -> f32 {
+  switch(tile) {
+    case 0u, 1u, 2u: { return 0.0; }    // GRASS
+    case 3u: { return -0.03; }           // WATER (depressed)
+    case 4u: { return 0.01; }            // SAND
+    case 5u: { return 0.02; }            // DIRT
+    case 6u: { return 0.15; }            // TREE
+    case 7u: { return 0.10; }            // ROCK
+    case 8u: { return 0.02; }            // FLOWER
+    case 9u: { return 0.03; }            // BRIDGE
+    case 10u: { return 0.04; }           // TALL_GRASS
+    case 11u: { return 0.0; }            // PATH
+    default: { return 0.0; }
+  }
+}
 
-  let c3 = a3 / a4;
-  let c2 = a2 / a4;
-  let c1 = a1 / a4;
-  let c0 = a0 / a4;
+// Signed distance from point to base torus surface
+fn torusSDF(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let qx = sqrt(px * px + pz * pz) - R;
+  return sqrt(qx * qx + py * py) - r;
+}
 
-  let tMin = 0.05;
-  let tMax = 50.0;
-  let steps = 80u;
-  let dt = (tMax - tMin) / f32(steps);
+// Look up tile index at a 3D point projected onto the torus surface
+fn tileAtPoint(px: f32, py: f32, pz: f32, R: f32) -> u32 {
+  let u = atan2(pz, px);
+  let distFromAxis = sqrt(px * px + pz * pz);
+  let v = atan2(py, distFromAxis - R);
+  var tu = u / TWO_PI;
+  if (tu < 0.0) { tu += 1.0; }
+  var tv = v / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  let tileX = u32(tu * f32(params.worldW)) % params.worldW;
+  let tileY = u32(tv * f32(params.worldH)) % params.worldH;
+  return tileMap[tileY * params.worldW + tileX];
+}
 
-  var prevT = tMin;
-  var prevF = (((prevT + c3) * prevT + c2) * prevT + c1) * prevT + c0;
+// Sphere-trace ray against displaced torus (base SDF - tile height)
+// Returns hit distance or -1
+fn traceDisplacedTorus(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
+  let maxH: f32 = 0.16; // must be >= max tile height
+  var t: f32 = 0.08;
 
-  for (var i = 1u; i <= steps; i++) {
-    let t = tMin + f32(i) * dt;
-    let fv = (((t + c3) * t + c2) * t + c1) * t + c0;
-    if (prevF * fv < 0.0) {
-      var lo = prevT;
-      var hi = t;
-      var fLo = prevF;
-      for (var b = 0u; b < 20u; b++) {
-        let mid = (lo + hi) * 0.5;
-        let fm = (((mid + c3) * mid + c2) * mid + c1) * mid + c0;
-        if (fm * fLo < 0.0) {
-          hi = mid;
-        } else {
-          lo = mid;
-          fLo = fm;
-        }
-      }
-      return (lo + hi) * 0.5;
+  // Phase 1: sphere trace using base SDF to get near surface quickly
+  for (var i = 0u; i < 64u; i++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+
+    if (baseDist < maxH + 0.05) {
+      // Near enough — switch to fine marching
+      break;
     }
-    prevT = t;
-    prevF = fv;
+    // Safe step: we know the surface is at least baseDist - maxH away
+    t += max(baseDist - maxH, 0.02);
+    if (t > 50.0) { return -1.0; }
+  }
+
+  // Phase 2: fine fixed steps through the displacement zone
+  for (var j = 0u; j < 48u; j++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+    let tile = tileAtPoint(px, py, pz, R);
+    let h = tileHeight(tile);
+    let dispDist = baseDist - h;
+
+    if (dispDist < 0.003) {
+      return t;
+    }
+    // If we've passed well through the torus, no hit on this crossing
+    if (baseDist < -0.5) {
+      // We went through — advance past this torus crossing to find far side
+      t += max(-baseDist - maxH, 0.02);
+      continue;
+    }
+    t += max(dispDist * 0.5, 0.008);
+    if (t > 50.0) { return -1.0; }
   }
   return -1.0;
 }
@@ -704,9 +738,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let idx = py * w + px;
 
-  // Screen coords → ray direction (full screen, centered on horizon)
   let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
-  // screenV: +1 at top of screen, -1 at bottom, 0 at horizon
   let screenV = params.horizonY - f32(py) / f32(h);
   let azAngle = screenH * params.fovH * 0.5;
   let elevAngle = screenV * params.fovV;
@@ -720,16 +752,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let right = vec3f(params.rightX, params.rightY, params.rightZ);
   let up = vec3f(params.upX, params.upY, params.upZ);
 
-  let rd = fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl;
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
 
   let cam = vec3f(params.camX, params.camY, params.camZ);
   let R = params.torusR;
   let r = params.torusr;
 
-  let t = rayTorus(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+  let t = traceDisplacedTorus(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
 
   if (t < 0.0) {
-    // No hit — deep space black (alpha 0 so we composite stars underneath)
     output[idx] = 0u;
     return;
   }
@@ -739,46 +770,40 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let hy = cam.y + t * rd.y;
   let hz = cam.z + t * rd.z;
 
-  // Map hit to (u, v) on torus surface
-  let hitU = atan2(hz, hx); // angle around main axis
-  let distFromAxis = sqrt(hx * hx + hz * hz);
-  let hitV = atan2(hy, distFromAxis - R); // angle around tube
+  // Tile at hit
+  let tile = tileAtPoint(hx, hy, hz, R);
+  let th = tileHeight(tile);
 
-  // Map (u, v) to tile coordinates
-  var tu = hitU / (2.0 * 3.14159265359);
-  if (tu < 0.0) { tu += 1.0; }
-  var tv = hitV / (2.0 * 3.14159265359);
-  if (tv < 0.0) { tv += 1.0; }
-
-  let tileX = u32(tu * f32(params.worldW)) % params.worldW;
-  let tileY = u32(tv * f32(params.worldH)) % params.worldH;
-  let tileIdx = tileY * params.worldW + tileX;
-  let tile = tileMap[tileIdx];
-
-  // Look up base color from palette
+  // Base color from palette
   let baseColor = palette[tile];
   var cr = f32((baseColor >> 0u) & 0xFFu) / 255.0;
   var cg = f32((baseColor >> 8u) & 0xFFu) / 255.0;
   var cb = f32((baseColor >> 16u) & 0xFFu) / 255.0;
 
-  // Surface normal at hit point
-  let tubeCenter = vec3f(
-    select(hx * R / distFromAxis, R, distFromAxis < 0.001),
-    0.0,
-    select(hz * R / distFromAxis, 0.0, distFromAxis < 0.001)
-  );
-  let hn = normalize(vec3f(hx, hy, hz) - tubeCenter);
+  // Surface normal — approximate via central differences of displaced SDF
+  let eps: f32 = 0.015;
+  let dR = torusSDF(hx+eps, hy, hz, R, r) - tileHeight(tileAtPoint(hx+eps, hy, hz, R))
+         - torusSDF(hx-eps, hy, hz, R, r) + tileHeight(tileAtPoint(hx-eps, hy, hz, R));
+  let dG = torusSDF(hx, hy+eps, hz, R, r) - tileHeight(tileAtPoint(hx, hy+eps, hz, R))
+         - torusSDF(hx, hy-eps, hz, R, r) + tileHeight(tileAtPoint(hx, hy-eps, hz, R));
+  let dB = torusSDF(hx, hy, hz+eps, R, r) - tileHeight(tileAtPoint(hx, hy, hz+eps, R))
+         - torusSDF(hx, hy, hz-eps, R, r) + tileHeight(tileAtPoint(hx, hy, hz-eps, R));
+  let hn = normalize(vec3f(dR, dG, dB));
+
   let sunDir = vec3f(params.sunX, params.sunY, params.sunZ);
   let sunDot = max(0.0, dot(hn, sunDir));
   let light = 0.12 + 0.88 * sunDot;
+
+  // Heightmap shading boost — elevated tiles get slight edge highlighting
+  let heightShade = 1.0 + th * 1.5;
 
   // Distance fade
   let fade = min(1.0, t / 40.0);
   let distDim = 1.0 - fade * 0.6;
 
-  cr = cr * light * distDim;
-  cg = cg * light * distDim;
-  cb = cb * light * distDim;
+  cr = cr * light * distDim * heightShade;
+  cg = cg * light * distDim * heightShade;
+  cb = cb * light * distDim * heightShade;
 
   let outR = u32(clamp(cr * 255.0, 0.0, 255.0));
   let outG = u32(clamp(cg * 255.0, 0.0, 255.0));
@@ -1043,8 +1068,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   function initCrossSectionFromSurface() {
     const v = getPlayerV();
-    csR = TORUS_R + TORUS_r * Math.cos(v);
-    csZ = TORUS_r * Math.sin(v);
+    const th = tileHeightAt(playerX, playerY);
+    csR = TORUS_R + (TORUS_r + th) * Math.cos(v);
+    csZ = (TORUS_r + th) * Math.sin(v);
     csVR = 0; csVZ = 0;
   }
 
@@ -1083,28 +1109,31 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
       const dcR = csR - tubeR, dcZ = csZ;
       const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
-      if (distTC <= TORUS_r) {
+      // Landing: check against displaced surface (torus_r + tile height)
+      const landingV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+      const landingY = wrapY(((landingV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+      const landingTileH = tileHeightAt(playerX, landingY);
+      const effectiveR = TORUS_r + landingTileH;
+      if (distTC <= effectiveR) {
         const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
-          // Landing! If on negative side, we crossed the hole — shift U by half
           if (csR < 0) {
             playerX = wrapX(playerX + WORLD_W / 2);
-            // Flip csR to positive and adjust tube-relative angle
             csR = -csR;
           }
-          const newV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
-          playerY = wrapY(((newV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+          playerY = landingY;
           airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
           return;
         }
       }
     }
-    // Height is distance from nearest tube center minus tube radius
+    // Height is distance from nearest tube center minus displaced tube radius
     const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
     const dcR = csR - tubeR, dcZ = csZ;
-    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r);
     const currentV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
     playerY = wrapY(((currentV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+    const airTileH = tileHeightAt(playerX, playerY);
+    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r - airTileH);
   }
 
   // View mode
@@ -1323,8 +1352,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     return world[Math.floor(wrapY(y)) * WORLD_W + Math.floor(wrapX(x))];
   }
 
-  function canWalk(x, y) {
-    return WALKABLE.has(tileAt(x, y));
+  function tileHeightAt(x, y) {
+    return TILE_HEIGHT[tileAt(x, y)] || 0;
+  }
+
+  function canWalk(x, y, fromX, fromY) {
+    const tile = tileAt(x, y);
+    if (!WALKABLE.has(tile)) return false;
+    // Check step-up height if we have a source position
+    if (fromX !== undefined) {
+      const dh = (TILE_HEIGHT[tile] || 0) - tileHeightAt(fromX, fromY);
+      if (dh > MAX_STEP_UP) return false;
+    }
+    return true;
   }
 
   // =====================================================================
@@ -1535,9 +1575,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       const newX = playerX + dx * speed;
       const newY = playerY + dy * speed;
 
-      // Check walkability (test a few points around the player)
-      const canX = canWalk(newX, playerY) && canWalk(newX + 0.3, playerY) && canWalk(newX - 0.3, playerY);
-      const canY = canWalk(playerX, newY) && canWalk(playerX, newY + 0.3) && canWalk(playerX, newY - 0.3);
+      // Check walkability with height-aware stepping
+      const canX = canWalk(newX, playerY, playerX, playerY) && canWalk(newX + 0.3, playerY, playerX, playerY) && canWalk(newX - 0.3, playerY, playerX, playerY);
+      const canY = canWalk(playerX, newY, playerX, playerY) && canWalk(playerX, newY + 0.3, playerX, playerY) && canWalk(playerX, newY - 0.3, playerX, playerY);
 
       if (canX) playerX = wrapX(newX);
       if (canY) playerY = wrapY(newY);
@@ -1695,7 +1735,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     const u = getPlayerU();
     const v = getPlayerV();
     const surfP = torusPos(u, v);
-    const heightOffset = playerHeight + EYE_HEIGHT;
+    const groundTileH = tileHeightAt(playerX, playerY);
+    const heightOffset = playerHeight + EYE_HEIGHT + (airborne ? 0 : groundTileH);
     let P;
     if (airborne && playerHeight > 0.01) {
       P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
