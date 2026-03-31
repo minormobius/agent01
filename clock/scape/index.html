@@ -1064,27 +1064,46 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     const substeps = 8;
     const subDt = dt / substeps;
     for (let s = 0; s < substeps; s++) {
-      const g = sampleGravity(Math.max(0.1, csR), csZ);
-      csVR += g.gR * subDt;
+      // Gravity: use |csR| for LUT lookup, flip gR if on negative side
+      const absR = Math.abs(csR);
+      const g = sampleGravity(Math.max(0.1, absR), csZ);
+      const gR = csR >= 0 ? g.gR : -g.gR;
+      csVR += gR * subDt;
       csVZ += g.gZ * subDt;
       csR += csVR * subDt;
       csZ += csVZ * subDt;
-      if (csR < 0.05) { csR = 0.05; csVR = Math.abs(csVR) * 0.15; }
-      const dcR = csR - TORUS_R, dcZ = csZ;
+
+      // Check if we crossed the axis — flip U by half the world
+      if (csR < 0 && csR + csVR * subDt >= 0 || csR >= 0 && csR - csVR * subDt < 0) {
+        // Will be handled naturally — csR can be negative
+      }
+
+      // Landing check: distance from tube center at (TORUS_R, 0) or (-TORUS_R, 0)
+      // Use the nearest tube center based on which side of axis we're on
+      const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+      const dcR = csR - tubeR, dcZ = csZ;
       const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
       if (distTC <= TORUS_r) {
         const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
-          const newV = Math.atan2(dcZ, dcR);
+          // Landing! If on negative side, we crossed the hole — shift U by half
+          if (csR < 0) {
+            playerX = wrapX(playerX + WORLD_W / 2);
+            // Flip csR to positive and adjust tube-relative angle
+            csR = -csR;
+          }
+          const newV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
           playerY = wrapY(((newV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
           airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
           return;
         }
       }
     }
-    const dcR = csR - TORUS_R, dcZ = csZ;
+    // Height is distance from nearest tube center minus tube radius
+    const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dcR = csR - tubeR, dcZ = csZ;
     playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r);
-    const currentV = Math.atan2(dcZ, dcR);
+    const currentV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
     playerY = wrapY(((currentV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
   }
 
