@@ -1131,22 +1131,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
           // Preserve world-space facing direction across frame change
-          const oldU = getPlayerU();
-          const oldV = getPlayerV();
-          // Compute world-space forward before landing
-          const cosOldV = Math.cos(oldV), sinOldV = Math.sin(oldV);
-          const cosOldU = Math.cos(oldU), sinOldU = Math.sin(oldU);
-          const oldEu = [-(TORUS_R + TORUS_r * cosOldV) * sinOldU, 0,
-                          (TORUS_R + TORUS_r * cosOldV) * cosOldU];
-          const oldEuLen = Math.sqrt(oldEu[0]**2 + oldEu[2]**2) || 1;
-          const oldEv = [-TORUS_r * sinOldV * cosOldU, TORUS_r * cosOldV,
-                         -TORUS_r * sinOldV * sinOldU];
-          const oldEvLen = Math.sqrt(oldEv[0]**2 + oldEv[1]**2 + oldEv[2]**2) || 1;
-          const worldFwd = [
-            Math.sin(playerAngle) * oldEu[0]/oldEuLen + Math.cos(playerAngle) * oldEv[0]/oldEvLen,
-            Math.sin(playerAngle) * oldEu[1]/oldEuLen + Math.cos(playerAngle) * oldEv[1]/oldEvLen,
-            Math.sin(playerAngle) * oldEu[2]/oldEuLen + Math.cos(playerAngle) * oldEv[2]/oldEvLen,
-          ];
+          // Use computeSkyCamera() to get actual world-space forward from the
+          // gravity-aligned frame (playerAngle is relative to that frame now)
+          const cam = computeSkyCamera();
+          // Project fwd onto horizontal plane to get flat facing direction
+          const worldFwd = [cam.fwd[0], cam.fwd[1], cam.fwd[2]];
 
           if (csR < 0) {
             playerX = wrapX(playerX + WORLD_W / 2);
@@ -1811,34 +1800,77 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       ];
     }
 
-    const eu = [
-      -(TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u), 0,
-      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
-    ];
-    const euLen = Math.sqrt(eu[0]*eu[0] + eu[1]*eu[1] + eu[2]*eu[2]);
-    eu[0] /= euLen; eu[1] /= euLen; eu[2] /= euLen;
+    let en; // "up" direction for the camera
 
-    const ev = [
-      -TORUS_r * Math.sin(v) * Math.cos(u),
-      TORUS_r * Math.cos(v),
-      -TORUS_r * Math.sin(v) * Math.sin(u),
-    ];
-    const evLen = Math.sqrt(ev[0]*ev[0] + ev[1]*ev[1] + ev[2]*ev[2]);
-    ev[0] /= evLen; ev[1] /= evLen; ev[2] /= evLen;
+    if (airborne && playerHeight > 0.01) {
+      // Gravity-aligned camera: "up" = anti-gravity direction
+      // sampleGravity gives (gR, gZ) in the meridional plane
+      // gR is radial (toward/away from torus axis), gZ is vertical (Y in 3D)
+      // Anti-gravity = (-gR, -gZ), then convert to 3D using the u angle
+      const absR = Math.abs(csR);
+      const g = sampleGravity(Math.max(0.1, absR), csZ);
+      const gR = csR >= 0 ? g.gR : -g.gR;
+      const gZ = g.gZ;
+      const gLen = Math.sqrt(gR * gR + gZ * gZ);
 
-    const en = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
+      if (gLen > 0.01) {
+        // Anti-gravity in meridional plane: outward from mass
+        const antiR = -gR / gLen;
+        const antiZ = -gZ / gLen;
+        // Convert to 3D: R direction = (cos(u), 0, sin(u)), Z direction = (0, 1, 0)
+        en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
+      } else {
+        // Near the saddle point (center of hole) — gravity ≈ 0
+        // Use radial direction from axis as fallback
+        const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
+        en = [P[0]/rLen, 0, P[2]/rLen];
+      }
+    } else {
+      // On surface: normal is the standard outward radial direction
+      en = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
+    }
 
-    // Yaw: rotate eu/ev to get flat forward and right
+    // Build orthonormal frame from "up" (en) and player yaw
+    // We need two tangent vectors perpendicular to en
+    // Use a reference direction to bootstrap: world Y if en isn't vertical,
+    // otherwise world X
+    let ref;
+    if (Math.abs(en[1]) < 0.95) {
+      ref = [0, 1, 0]; // world Y
+    } else {
+      ref = [1, 0, 0]; // world X fallback
+    }
+
+    // right = normalize(ref × en)
+    let rx = ref[1]*en[2] - ref[2]*en[1];
+    let ry = ref[2]*en[0] - ref[0]*en[2];
+    let rz = ref[0]*en[1] - ref[1]*en[0];
+    let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
+    rx /= rLen; ry /= rLen; rz /= rLen;
+
+    // tangent = normalize(en × right)
+    let tx = en[1]*rz - en[2]*ry;
+    let ty = en[2]*rx - en[0]*rz;
+    let tz = en[0]*ry - en[1]*rx;
+    let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+    tx /= tLen; ty /= tLen; tz /= tLen;
+
+    // Now right and tangent span the plane perpendicular to en
+    // Apply playerAngle as yaw in this plane
+    // flatFwd = sin(angle)*right + cos(angle)*tangent
+    // camRight = cos(angle)*right - sin(angle)*tangent
+    const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
     const flatFwd = [
-      Math.sin(playerAngle) * eu[0] + Math.cos(playerAngle) * ev[0],
-      Math.sin(playerAngle) * eu[1] + Math.cos(playerAngle) * ev[1],
-      Math.sin(playerAngle) * eu[2] + Math.cos(playerAngle) * ev[2],
+      sa * rx + ca * tx,
+      sa * ry + ca * ty,
+      sa * rz + ca * tz,
     ];
     const right = [
-      Math.cos(playerAngle) * eu[0] - Math.sin(playerAngle) * ev[0],
-      Math.cos(playerAngle) * eu[1] - Math.sin(playerAngle) * ev[1],
-      Math.cos(playerAngle) * eu[2] - Math.sin(playerAngle) * ev[2],
+      ca * rx - sa * tx,
+      ca * ry - sa * ty,
+      ca * rz - sa * tz,
     ];
+
     // Pitch: rotate flatFwd and en around the right axis
     const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
     const fwd = [
