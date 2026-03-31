@@ -46,10 +46,9 @@ export async function resolvePostUri({ uri, handleOrDid, rkey }) {
 }
 
 /**
- * Fetch a full thread from the public API.
- * Returns the thread tree with all replies.
+ * Fetch a single page of thread data from the public API.
  */
-export async function fetchThread(uri, { depth = 100, parentHeight = 100 } = {}) {
+async function fetchThreadPage(uri, { depth = 10, parentHeight = 100 } = {}) {
   const params = new URLSearchParams({
     uri,
     depth: String(depth),
@@ -68,14 +67,108 @@ export async function fetchThread(uri, { depth = 100, parentHeight = 100 } = {})
 }
 
 /**
- * Flatten a thread tree into a linear array of posts, ordered chronologically.
- * Each post includes: uri, cid, author, record, embed, replyCount, likeCount, repostCount, depth.
+ * Fetch a full thread, chasing the OP's deepest reply chain.
  *
- * The root is depth 0. Direct replies are depth 1, etc.
- * We walk the tree depth-first to produce a reading-order list.
+ * The API caps depth at ~10 per call. When we hit a truncated leaf
+ * where the OP has replies, we re-fetch from that post to continue
+ * deeper. Non-OP branches are kept but not chased.
+ *
+ * onProgress({ fetched, depth }) is called after each continuation fetch.
+ */
+export async function fetchThread(uri, { onProgress } = {}) {
+  const root = await fetchThreadPage(uri, { depth: 10, parentHeight: 100 });
+
+  // Determine the OP (root author of the thread)
+  let opDid = null;
+  if (root.$type === 'app.bsky.feed.defs#threadViewPost') {
+    // Walk up to the true root
+    let top = root;
+    while (top.parent && top.parent.$type === 'app.bsky.feed.defs#threadViewPost') {
+      top = top.parent;
+    }
+    opDid = top.post?.author?.did;
+  }
+
+  if (!opDid) return root;
+
+  // Chase the OP's deepest path by re-fetching from truncated leaves
+  const seen = new Set();
+  let fetches = 1;
+
+  async function chaseOpReplies(node) {
+    if (!node || node.$type !== 'app.bsky.feed.defs#threadViewPost') return;
+    if (seen.has(node.post?.uri)) return;
+    seen.add(node.post?.uri);
+
+    const replies = node.replies || [];
+
+    // Find OP's replies among children
+    const opReplies = replies.filter(
+      r => r.$type === 'app.bsky.feed.defs#threadViewPost' && r.post?.author?.did === opDid
+    );
+
+    // For each OP reply, check if it has replies that need chasing
+    for (const reply of opReplies) {
+      await chaseOpReplies(reply);
+    }
+
+    // If no OP replies but the OP has a replyCount > 0 at a leaf, or
+    // if we see OP replies that themselves have replyCount but no replies array,
+    // we need to continue fetching
+    for (let i = 0; i < replies.length; i++) {
+      const reply = replies[i];
+      if (reply.$type !== 'app.bsky.feed.defs#threadViewPost') continue;
+      if (reply.post?.author?.did !== opDid) continue;
+
+      const hasChildren = reply.replies && reply.replies.length > 0;
+      const expectsChildren = reply.post?.replyCount > 0;
+
+      if (!hasChildren && expectsChildren && !seen.has('fetched:' + reply.post.uri)) {
+        seen.add('fetched:' + reply.post.uri);
+        fetches++;
+        if (onProgress) onProgress({ fetched: fetches });
+
+        try {
+          const deeper = await fetchThreadPage(reply.post.uri, { depth: 10, parentHeight: 0 });
+          if (deeper.$type === 'app.bsky.feed.defs#threadViewPost') {
+            // Graft the deeper replies onto this node
+            reply.replies = deeper.replies || [];
+            // Continue chasing from the new data
+            await chaseOpReplies(reply);
+          }
+        } catch {
+          // If a continuation fetch fails, keep what we have
+        }
+      }
+    }
+  }
+
+  await chaseOpReplies(root);
+  return root;
+}
+
+/**
+ * Flatten a thread tree into a linear array of posts.
+ *
+ * Prioritizes the OP's self-reply chain: at each level, OP replies are
+ * walked first (sorted by date), then non-OP replies. This produces a
+ * reading order where the OP's narrative runs uninterrupted at the top,
+ * with other participants' replies collected after.
+ *
+ * The `isOp` flag on each normalized post marks OP authorship for UI styling.
  */
 export function flattenThread(thread) {
   const posts = [];
+
+  // Determine OP
+  let opDid = null;
+  let top = thread;
+  while (top.parent && top.parent.$type === 'app.bsky.feed.defs#threadViewPost') {
+    top = top.parent;
+  }
+  if (top.$type === 'app.bsky.feed.defs#threadViewPost') {
+    opDid = top.post?.author?.did;
+  }
 
   // Walk parent chain first (above the target post)
   const ancestors = [];
@@ -86,41 +179,49 @@ export function flattenThread(thread) {
   }
   ancestors.reverse();
 
-  // Add ancestors
   for (const a of ancestors) {
-    posts.push(normalizePost(a, posts.length));
+    posts.push(normalizePost(a, posts.length, opDid));
   }
 
-  // Add the target post
+  // Add the target post and walk replies
   if (thread.$type === 'app.bsky.feed.defs#threadViewPost') {
-    posts.push(normalizePost(thread, posts.length));
-
-    // Walk replies depth-first
-    walkReplies(thread, posts);
+    posts.push(normalizePost(thread, posts.length, opDid));
+    walkReplies(thread, posts, opDid);
   }
 
   return posts;
 }
 
-function walkReplies(node, posts) {
+function walkReplies(node, posts, opDid) {
   if (!node.replies || node.replies.length === 0) return;
 
-  // Sort replies by creation date
-  const sorted = [...node.replies]
-    .filter(r => r.$type === 'app.bsky.feed.defs#threadViewPost')
-    .sort((a, b) => {
-      const ta = a.post?.record?.createdAt || '';
-      const tb = b.post?.record?.createdAt || '';
-      return ta.localeCompare(tb);
-    });
+  const valid = node.replies.filter(
+    r => r.$type === 'app.bsky.feed.defs#threadViewPost'
+  );
 
-  for (const reply of sorted) {
-    posts.push(normalizePost(reply, posts.length));
-    walkReplies(reply, posts);
+  // Partition: OP replies first, then others
+  const opReplies = valid
+    .filter(r => r.post?.author?.did === opDid)
+    .sort((a, b) => (a.post?.record?.createdAt || '').localeCompare(b.post?.record?.createdAt || ''));
+
+  const otherReplies = valid
+    .filter(r => r.post?.author?.did !== opDid)
+    .sort((a, b) => (a.post?.record?.createdAt || '').localeCompare(b.post?.record?.createdAt || ''));
+
+  // Walk OP chain first (uninterrupted narrative)
+  for (const reply of opReplies) {
+    posts.push(normalizePost(reply, posts.length, opDid));
+    walkReplies(reply, posts, opDid);
+  }
+
+  // Then other replies
+  for (const reply of otherReplies) {
+    posts.push(normalizePost(reply, posts.length, opDid));
+    walkReplies(reply, posts, opDid);
   }
 }
 
-function normalizePost(node, index) {
+function normalizePost(node, index, opDid) {
   const post = node.post;
   return {
     index,
@@ -132,6 +233,7 @@ function normalizePost(node, index) {
       displayName: post.author.displayName || post.author.handle,
       avatar: post.author.avatar,
     },
+    isOp: post.author.did === opDid,
     text: post.record?.text || '',
     createdAt: post.record?.createdAt || '',
     facets: post.record?.facets || [],
@@ -139,7 +241,6 @@ function normalizePost(node, index) {
     likeCount: post.likeCount || 0,
     repostCount: post.repostCount || 0,
     replyCount: post.replyCount || 0,
-    // Preserve reply ref for threading UI
     replyTo: post.record?.reply?.parent?.uri || null,
   };
 }

@@ -25,7 +25,10 @@ export default function Thread() {
       const uri = await resolvePostUri(parsed);
       setThreadUri(uri);
 
-      const thread = await fetchThread(uri);
+      const thread = await fetchThread(uri, {
+        onProgress: ({ fetched }) => setStatus(`loading:${fetched}`),
+      });
+      setStatus('loading');
       const flat = flattenThread(thread);
       setPosts(flat);
       setStatus('ready');
@@ -68,18 +71,21 @@ export default function Thread() {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Paste a bsky.app post URL..."
-              disabled={status === 'loading'}
+              disabled={status.startsWith('loading')}
             />
           </div>
-          <button type="submit" disabled={status === 'loading' || !input.trim()}>
-            {status === 'loading' ? 'Loading...' : 'Load'}
+          <button type="submit" disabled={status.startsWith('loading') || !input.trim()}>
+            {status.startsWith('loading') ? 'Loading...' : 'Load'}
           </button>
         </form>
       </header>
 
-      {status === 'loading' && (
+      {status.startsWith('loading') && (
         <div className="photo-status">
-          <div className="photo-status-text">Fetching thread...</div>
+          <div className="photo-status-text">
+            Fetching thread...
+            {status.includes(':') && ` (${status.split(':')[1]} fetches)`}
+          </div>
           <div className="photo-status-bar">
             <div className="photo-status-fill" style={{ width: '100%', animation: 'pulse 1.5s ease-in-out infinite' }} />
           </div>
@@ -132,8 +138,13 @@ function ThreadPost({ post, isFirst, isLast, expandedMedia, onExpandMedia }) {
   const date = new Date(post.createdAt);
   const postUrl = `https://bsky.app/profile/${post.author.did}/post/${post.uri.split('/').pop()}`;
 
+  const cls = ['thread-post'];
+  if (isFirst) cls.push('thread-post-first');
+  if (post.isOp) cls.push('thread-post-op');
+  else cls.push('thread-post-other');
+
   return (
-    <div className={`thread-post${isFirst ? ' thread-post-first' : ''}`}>
+    <div className={cls.join(' ')}>
       <div className="thread-gutter">
         <img
           className="thread-avatar"
@@ -147,6 +158,7 @@ function ThreadPost({ post, isFirst, isLast, expandedMedia, onExpandMedia }) {
       <div className="thread-content">
         <div className="thread-author">
           <span className="thread-name">{post.author.displayName}</span>
+          {post.isOp && <span className="thread-op-badge">OP</span>}
           <span className="thread-handle">@{post.author.handle}</span>
           <a href={postUrl} target="_blank" rel="noopener noreferrer" className="thread-time">
             {formatTime(date)}

@@ -1024,6 +1024,27 @@ body {
   min-height: 16px;
 }
 
+/* OP vs other styling */
+.thread-post-other .thread-content {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.thread-post-other:hover .thread-content {
+  opacity: 1;
+}
+
+.thread-op-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #1a1a1a;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
 /* Content */
 .thread-content {
   flex: 1;
