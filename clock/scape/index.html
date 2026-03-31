@@ -581,31 +581,92 @@
   const PLAYER_SPEED = 3.2; // tiles per second
 
   // =====================================================================
-  // Jump physics — centrifugal gravity on a spinning torus
+  // Real Newtonian gravity for a massive torus
   // =====================================================================
-  // Gravity model: you live on a cylindrical planet wrapped into a donut.
-  // Gravity always pulls toward the tube center circle (point (R,0) in cross-section).
-  // Centrifugal spin modulates the STRENGTH based on position:
-  //   Outer surface (v=0): strong gravity — high centrifugal holds you down hard
-  //   Inner surface (v=pi): weak gravity — centrifugal nearly cancels tube gravity
-  //   Sides (v=pi/2): moderate
+  // Numerically integrate gravitational attraction from the torus volume.
+  // By rotational symmetry, field depends only on (R, Z) in meridional plane.
+  // Precomputed into a LUT at startup, sampled via bilinear interpolation.
   //
-  // This lets you walk everywhere, but inner surface = moon-like low-g.
-  // A super jump from the inner surface can escape the tube's pull and
-  // fly across the donut hole, landing on the opposite inner surface.
-  //
-  // In cross-section: tube center at (R, 0). Force toward it, magnitude varies.
-  // g(v) = BASE_G * (1 + CENTRIFUGAL_MOD * cos(v))
-  // v=0 outer: g_max. v=pi inner: g_min. v=pi/2 sides: g_base.
+  // Actual computed field (G*rho*GRAV_SCALE, R=5, r=2):
+  //   Outer surface (v=0):  |g|~24, pointing inward. Strongest — whole torus below you.
+  //   Inner surface (v=pi): |g|~12, toward tube center. ~Half outer. Still holds you.
+  //   Top of tube (v=pi/2): |g|~23, mostly downward + lateral drift toward inner side.
+  //   Center of hole:        |g|~0. Saddle point. NOT a gravity well.
+  //   On axis:               |g|~1.3, pushed toward torus. Unstable.
 
-  const BASE_G = 12.0;
-  const CENTRIFUGAL_MOD = 0.82;  // 0..1 range. Higher = bigger gravity difference
-  const JUMP_SPEED = 3.5;
-  const SUPER_JUMP_SPEED = 9.0;  // shift+space for inner traversal
+  const GRAV_SCALE = 1.8;
+  const JUMP_SPEED = 4.0;
+  const SUPER_JUMP_SPEED = 10.0;
   const EYE_HEIGHT = 0.12;
 
+  // Precompute gravity LUT in (R, Z) plane
+  const GRAV_LUT_SIZE = 48;
+  const GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  const GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
+  const gravLUT_gR = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+  const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+
+  function computeGravLUT() {
+    console.time('gravLUT');
+    const Nu = 40, Nv = 20, Ns = 5;
+    const R0 = TORUS_R, r0 = TORUS_r;
+    for (let gi = 0; gi < GRAV_LUT_SIZE; gi++) {
+      const Rp = GRAV_R_MIN + (gi / (GRAV_LUT_SIZE - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
+      for (let gj = 0; gj < GRAV_LUT_SIZE; gj++) {
+        const Zp = GRAV_Z_MIN + (gj / (GRAV_LUT_SIZE - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
+        let gR = 0, gZ = 0;
+        for (let iu = 0; iu < Nu; iu++) {
+          const u = (iu + 0.5) / Nu * Math.PI * 2;
+          const cosU = Math.cos(u), sinU = Math.sin(u);
+          for (let iv = 0; iv < Nv; iv++) {
+            const v = (iv + 0.5) / Nv * Math.PI * 2;
+            const cosV = Math.cos(v), sinV = Math.sin(v);
+            for (let is = 0; is < Ns; is++) {
+              const s = (is + 0.5) / Ns * r0;
+              const Rc = R0 + s * cosV;
+              const ex = Rc * cosU, ey = Rc * sinU, ez = s * sinV;
+              const dx = ex - Rp, dy = ey, dz = ez - Zp;
+              const distSq = dx*dx + dy*dy + dz*dz;
+              if (distSq < 0.01) continue;
+              const dist = Math.sqrt(distSq);
+              const dV = s * Rc * (r0/Ns) * (2*Math.PI/Nv) * (2*Math.PI/Nu);
+              const f3 = dV / (dist * distSq);
+              gR += dx * f3;
+              gZ += dz * f3;
+            }
+          }
+        }
+        const idx = gi * GRAV_LUT_SIZE + gj;
+        gravLUT_gR[idx] = gR * GRAV_SCALE;
+        gravLUT_gZ[idx] = gZ * GRAV_SCALE;
+      }
+    }
+    console.timeEnd('gravLUT');
+  }
+  computeGravLUT();
+
+  function sampleGravity(R, Z) {
+    const fi = (R - GRAV_R_MIN) / (GRAV_R_MAX - GRAV_R_MIN) * (GRAV_LUT_SIZE - 1);
+    const fj = (Z - GRAV_Z_MIN) / (GRAV_Z_MAX - GRAV_Z_MIN) * (GRAV_LUT_SIZE - 1);
+    const i0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fi)));
+    const j0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fj)));
+    const fr = fi - i0, fz = fj - j0;
+    const i00 = i0 * GRAV_LUT_SIZE + j0, i10 = (i0+1) * GRAV_LUT_SIZE + j0;
+    const i01 = i0 * GRAV_LUT_SIZE + (j0+1), i11 = (i0+1) * GRAV_LUT_SIZE + (j0+1);
+    return {
+      gR: gravLUT_gR[i00]*(1-fr)*(1-fz) + gravLUT_gR[i10]*fr*(1-fz) + gravLUT_gR[i01]*(1-fr)*fz + gravLUT_gR[i11]*fr*fz,
+      gZ: gravLUT_gZ[i00]*(1-fr)*(1-fz) + gravLUT_gZ[i10]*fr*(1-fz) + gravLUT_gZ[i01]*(1-fr)*fz + gravLUT_gZ[i11]*fr*fz,
+    };
+  }
+
+  function surfaceGravity() {
+    const v = getPlayerV();
+    const g = sampleGravity(TORUS_R + TORUS_r * Math.cos(v), TORUS_r * Math.sin(v));
+    return Math.sqrt(g.gR * g.gR + g.gZ * g.gZ);
+  }
+
   let airborne = false;
-  let csR = 0, csZ = 0;     // cross-section pos
+  let csR = 0, csZ = 0;
   let csVR = 0, csVZ = 0;
   let playerHeight = 0;
 
@@ -620,12 +681,8 @@
     if (airborne) return;
     airborne = true;
     initCrossSectionFromSurface();
-
     const v = getPlayerV();
-    // Jump along surface outward normal (away from tube center)
-    const nR = Math.cos(v);
-    const nZ = Math.sin(v);
-
+    const nR = Math.cos(v), nZ = Math.sin(v);
     const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
     csVR = nR * speed;
     csVZ = nZ * speed;
@@ -633,66 +690,31 @@
 
   function updateJumpPhysics(dt) {
     if (!airborne) { playerHeight = 0; return; }
-
     const substeps = 8;
     const subDt = dt / substeps;
-
     for (let s = 0; s < substeps; s++) {
-      // Direction and distance from tube center (R, 0)
-      const dcR = csR - TORUS_R;
-      const dcZ = csZ;
-      const distTC = Math.sqrt(dcR * dcR + dcZ * dcZ) || 0.001;
-
-      // Local v angle (where on tube cross-section we are)
-      const localV = Math.atan2(dcZ, dcR);
-
-      // Gravity magnitude: varies with angle
-      const gMag = BASE_G * (1 + CENTRIFUGAL_MOD * Math.cos(localV));
-
-      // Force direction: toward tube center
-      const fR = -gMag * dcR / distTC;
-      const fZ = -gMag * dcZ / distTC;
-
-      csVR += fR * subDt;
-      csVZ += fZ * subDt;
+      const g = sampleGravity(Math.max(0.1, csR), csZ);
+      csVR += g.gR * subDt;
+      csVZ += g.gZ * subDt;
       csR += csVR * subDt;
       csZ += csVZ * subDt;
-
-      // Clamp R (can't cross spin axis — bounce)
-      if (csR < 0.05) {
-        csR = 0.05;
-        csVR = Math.abs(csVR) * 0.2;
-      }
-
-      // Landing check
-      const dcR2 = csR - TORUS_R;
-      const dcZ2 = csZ;
-      const distTC2 = Math.sqrt(dcR2 * dcR2 + dcZ2 * dcZ2);
-
-      if (distTC2 <= TORUS_r) {
-        // Velocity toward tube center
-        const vDot = (csVR * dcR2 + csVZ * dcZ2) / (distTC2 || 1);
+      if (csR < 0.05) { csR = 0.05; csVR = Math.abs(csVR) * 0.15; }
+      const dcR = csR - TORUS_R, dcZ = csZ;
+      const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
+      if (distTC <= TORUS_r) {
+        const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
-          // Moving inward = landing
-          const newV = Math.atan2(dcZ2, dcR2);
-          playerY = wrapY(((newV + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * WORLD_H);
-          airborne = false;
-          playerHeight = 0;
-          csVR = 0; csVZ = 0;
+          const newV = Math.atan2(dcZ, dcR);
+          playerY = wrapY(((newV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+          airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
           return;
         }
       }
     }
-
-    // Height above surface
-    const dcR = csR - TORUS_R;
-    const dcZ = csZ;
-    const distTC = Math.sqrt(dcR * dcR + dcZ * dcZ);
-    playerHeight = Math.max(0, distTC - TORUS_r);
-
-    // Update v for rendering
+    const dcR = csR - TORUS_R, dcZ = csZ;
+    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r);
     const currentV = Math.atan2(dcZ, dcR);
-    playerY = wrapY(((currentV + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * WORLD_H);
+    playerY = wrapY(((currentV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
   }
 
   // View mode
@@ -1461,7 +1483,7 @@
     const netInfo = netMode === 'host' ? ` · hosting (${remotePlayers.size} peers)` :
                     netMode === 'peer' ? ` · ${peerDC && peerDC.readyState === 'open' ? 'connected' : 'connecting...'}` : '';
     const v = getPlayerV();
-    const gLocal = (BASE_G * (1 + CENTRIFUGAL_MOD * Math.cos(v))).toFixed(1);
+    const gLocal = surfaceGravity().toFixed(1);
     const jumpInfo = fpMode ? ` · g=${gLocal}${airborne ? ' AIRBORNE h=' + playerHeight.toFixed(1) : ''}` : '';
     const controls = fpMode ? 'wasd · space=jump · shift+space=super jump' : 'wasd / click to move';
     document.getElementById('hud').textContent =
