@@ -28,6 +28,26 @@
     background: rgba(30,30,50,0.85); color: #ddd; font: 12px monospace; cursor: pointer;
   }
   #viewToggle:hover { background: #3a3a5e; }
+  #physPanel {
+    position: fixed; bottom: 50px; left: 12px; z-index: 5;
+    background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
+    padding: 0; color: #ccc; font: 11px/1.6 monospace; min-width: 200px;
+    user-select: none;
+  }
+  #physPanel.hidden { display: none; }
+  #physToggle {
+    width: 100%; padding: 6px 12px; border: none; border-bottom: 1px solid #3a3a5a;
+    background: transparent; color: #f0e0c0; font: 12px monospace; cursor: pointer;
+    text-align: left;
+  }
+  #physToggle:hover { background: rgba(255,255,255,0.05); }
+  #physBody { padding: 8px 12px; }
+  #physBody.collapsed { display: none; }
+  #physBody label { display: block; margin-top: 6px; color: #aaa; font-size: 10px; }
+  #physBody input[type=range] {
+    width: 100%; margin: 2px 0; accent-color: #6a6aaa;
+  }
+  #physBody .val { float: right; color: #ddd; }
   #lobby {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(10,10,20,0.92); z-index: 10;
@@ -86,6 +106,17 @@
 <div id="netPanel" class="hidden"></div>
 <canvas id="c"></canvas>
 <canvas id="minimap" width="128" height="128"></canvas>
+<div id="physPanel" class="hidden">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
+    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Major Radius (R) <span class="val" id="valR">5.0</span></label>
+    <input type="range" id="slR" min="2" max="12" step="0.1" value="5">
+    <label>Minor Radius (r) <span class="val" id="valr">2.0</span></label>
+    <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2">
+  </div>
+</div>
 <button id="viewToggle">1st person [F]</button>
 <div id="hud"></div>
 <script>
@@ -594,26 +625,40 @@
   //   Center of hole:        |g|~0. Saddle point. NOT a gravity well.
   //   On axis:               |g|~1.3, pushed toward torus. Unstable.
 
-  const GRAV_SCALE = 1.8;
+  let GRAV_SCALE = 1.8;
   const JUMP_SPEED = 4.0;
   const SUPER_JUMP_SPEED = 10.0;
   const EYE_HEIGHT = 0.12;
 
   // Precompute gravity LUT in (R, Z) plane
-  const GRAV_LUT_SIZE = 48;
-  const GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
-  const GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
-  const gravLUT_gR = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
-  const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+  // Supports two resolutions: coarse (interactive) and full (on release)
+  const GRAV_LUT_FULL = 48;
+  const GRAV_LUT_COARSE = 24;
+  let GRAV_LUT_SIZE = GRAV_LUT_FULL;
+  let GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  let GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
+  let gravLUT_gR = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
+  let gravLUT_gZ = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
 
-  function computeGravLUT() {
-    console.time('gravLUT');
-    const Nu = 40, Nv = 20, Ns = 5;
+  function computeGravLUT(resolution) {
+    const size = resolution || GRAV_LUT_FULL;
+    GRAV_LUT_SIZE = size;
+    GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+    GRAV_Z_MIN = -(TORUS_r + 5);
+    GRAV_Z_MAX = TORUS_r + 5;
+    if (gravLUT_gR.length !== size * size) {
+      gravLUT_gR = new Float32Array(size * size);
+      gravLUT_gZ = new Float32Array(size * size);
+    }
+    const coarse = size <= GRAV_LUT_COARSE;
+    const Nu = coarse ? 20 : 40;
+    const Nv = coarse ? 10 : 20;
+    const Ns = coarse ? 3 : 5;
     const R0 = TORUS_R, r0 = TORUS_r;
-    for (let gi = 0; gi < GRAV_LUT_SIZE; gi++) {
-      const Rp = GRAV_R_MIN + (gi / (GRAV_LUT_SIZE - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
-      for (let gj = 0; gj < GRAV_LUT_SIZE; gj++) {
-        const Zp = GRAV_Z_MIN + (gj / (GRAV_LUT_SIZE - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
+    for (let gi = 0; gi < size; gi++) {
+      const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
+      for (let gj = 0; gj < size; gj++) {
+        const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
         let gR = 0, gZ = 0;
         for (let iu = 0; iu < Nu; iu++) {
           const u = (iu + 0.5) / Nu * Math.PI * 2;
@@ -636,14 +681,13 @@
             }
           }
         }
-        const idx = gi * GRAV_LUT_SIZE + gj;
+        const idx = gi * size + gj;
         gravLUT_gR[idx] = gR * GRAV_SCALE;
         gravLUT_gZ[idx] = gZ * GRAV_SCALE;
       }
     }
-    console.timeEnd('gravLUT');
   }
-  computeGravLUT();
+  computeGravLUT(GRAV_LUT_FULL);
 
   function sampleGravity(R, Z) {
     const fi = (R - GRAV_R_MIN) / (GRAV_R_MAX - GRAV_R_MIN) * (GRAV_LUT_SIZE - 1);
@@ -736,6 +780,69 @@
     e.preventDefault();
   });
   window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // =====================================================================
+  // Physics panel — sliders for gravity, R, r
+  // =====================================================================
+  const physPanel = document.getElementById('physPanel');
+  const physToggle = document.getElementById('physToggle');
+  const physBody = document.getElementById('physBody');
+  const slGrav = document.getElementById('slGrav');
+  const slR = document.getElementById('slR');
+  const slr = document.getElementById('slr');
+  const valGrav = document.getElementById('valGrav');
+  const valR = document.getElementById('valR');
+  const valr = document.getElementById('valr');
+  let physCollapsed = false;
+
+  physToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    physCollapsed = !physCollapsed;
+    physBody.classList.toggle('collapsed', physCollapsed);
+    physToggle.textContent = physCollapsed ? 'Physics ▶' : 'Physics ▼';
+  });
+
+  // Show panel once game starts (via mutation on lobby)
+  const lobbyObs = new MutationObserver(() => {
+    if (lobby.classList.contains('hidden')) {
+      physPanel.classList.remove('hidden');
+      lobbyObs.disconnect();
+    }
+  });
+  lobbyObs.observe(lobby, { attributes: true, attributeFilter: ['class'] });
+
+  // Coarse recompute while dragging, full on release
+  let gravRecomputeTimer = null;
+
+  function onPhysicsSliderInput() {
+    GRAV_SCALE = parseFloat(slGrav.value);
+    TORUS_R = parseFloat(slR.value);
+    TORUS_r = parseFloat(slr.value);
+    valGrav.textContent = GRAV_SCALE.toFixed(1);
+    valR.textContent = TORUS_R.toFixed(1);
+    valr.textContent = TORUS_r.toFixed(1);
+    // Coarse recompute for instant feedback
+    computeGravLUT(GRAV_LUT_COARSE);
+    // Cancel any pending full recompute
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+  }
+
+  function onPhysicsSliderRelease() {
+    // Schedule full-res recompute shortly after release
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+    gravRecomputeTimer = setTimeout(() => {
+      computeGravLUT(GRAV_LUT_FULL);
+      gravRecomputeTimer = null;
+    }, 50);
+  }
+
+  // Stop keyboard events from moving the player while dragging sliders
+  for (const sl of [slGrav, slR, slr]) {
+    sl.addEventListener('input', (e) => { e.stopPropagation(); onPhysicsSliderInput(); });
+    sl.addEventListener('change', (e) => { e.stopPropagation(); onPhysicsSliderRelease(); });
+    sl.addEventListener('keydown', (e) => e.stopPropagation());
+    sl.addEventListener('keyup', (e) => e.stopPropagation());
+  }
 
   // Click-to-move
   let moveTarget = null;
@@ -997,8 +1104,8 @@
   const VFOV = Math.PI * 0.45; // vertical FOV
 
   // Torus geometry constants
-  const TORUS_R = 5.0;  // major radius
-  const TORUS_r = 2.0;  // minor radius
+  let TORUS_R = 5.0;  // major radius
+  let TORUS_r = 2.0;  // minor radius
   function getPlayerV() {
     return (playerY / WORLD_H) * Math.PI * 2;
   }
