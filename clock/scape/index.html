@@ -1800,64 +1800,55 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       ];
     }
 
-    // Camera frame depends on whether we're airborne or on the surface
-    let en, eu, ev; // up, u-tangent, v-tangent
-
+    // Gravity-aligned camera: "up" = anti-gravity direction (unified for all states)
+    // Compute (R, Z) in the meridional plane
+    let mR, mZ;
     if (airborne && playerHeight > 0.01) {
-      // Gravity-aligned camera: "up" = anti-gravity direction
-      const absR = Math.abs(csR);
-      const g = sampleGravity(Math.max(0.1, absR), csZ);
-      const gR = csR >= 0 ? g.gR : -g.gR;
-      const gZ = g.gZ;
-      const gLen = Math.sqrt(gR * gR + gZ * gZ);
-
-      if (gLen > 0.01) {
-        const antiR = -gR / gLen;
-        const antiZ = -gZ / gLen;
-        en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
-      } else {
-        const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
-        en = [P[0]/rLen, 0, P[2]/rLen];
-      }
-
-      // For airborne frame, use the torus u-tangent as reference to avoid
-      // discontinuities (it's always perpendicular to the radial direction)
-      // u-tangent = d/du of (R cos u, 0, R sin u) = (-sin u, 0, cos u)
-      const uTan = [-Math.sin(u), 0, Math.cos(u)];
-
-      // right = normalize(uTan - (uTan·en)*en)  (Gram-Schmidt)
-      const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
-      let rx = uTan[0] - dot*en[0];
-      let ry = uTan[1] - dot*en[1];
-      let rz = uTan[2] - dot*en[2];
-      let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
-      rx /= rLen; ry /= rLen; rz /= rLen;
-
-      // tangent = en × right
-      let tx = en[1]*rz - en[2]*ry;
-      let ty = en[2]*rx - en[0]*rz;
-      let tz = en[0]*ry - en[1]*rx;
-      let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
-      tx /= tLen; ty /= tLen; tz /= tLen;
-
-      eu = [rx, ry, rz];
-      ev = [tx, ty, tz];
+      mR = csR;
+      mZ = csZ;
     } else {
-      // On surface: use actual torus tangent vectors (continuous everywhere)
-      en = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
-
-      // eu = d/du of torus position, normalized (along the ring)
-      const euRaw = [-(TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u), 0,
-                      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u)];
-      const euLen = Math.sqrt(euRaw[0]**2 + euRaw[2]**2) || 1;
-      eu = [euRaw[0]/euLen, 0, euRaw[2]/euLen];
-
-      // ev = d/dv of torus position, normalized (along the tube)
-      const evRaw = [-TORUS_r * Math.sin(v) * Math.cos(u), TORUS_r * Math.cos(v),
-                     -TORUS_r * Math.sin(v) * Math.sin(u)];
-      const evLen = Math.sqrt(evRaw[0]**2 + evRaw[1]**2 + evRaw[2]**2) || 1;
-      ev = [evRaw[0]/evLen, evRaw[1]/evLen, evRaw[2]/evLen];
+      // On surface: derive from toroidal coordinates
+      mR = TORUS_R + TORUS_r * Math.cos(v);
+      mZ = TORUS_r * Math.sin(v);
     }
+
+    const absR = Math.abs(mR);
+    const g = sampleGravity(Math.max(0.1, absR), mZ);
+    const gR = mR >= 0 ? g.gR : -g.gR;
+    const gZ = g.gZ;
+    const gLen = Math.sqrt(gR * gR + gZ * gZ);
+
+    let en;
+    if (gLen > 0.01) {
+      const antiR = -gR / gLen;
+      const antiZ = -gZ / gLen;
+      en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
+    } else {
+      const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
+      en = [P[0]/rLen, 0, P[2]/rLen];
+    }
+
+    // Build orthonormal frame via Gram-Schmidt with u-tangent as reference
+    // u-tangent = (-sin u, 0, cos u) — always perpendicular to radial, no discontinuity
+    const uTan = [-Math.sin(u), 0, Math.cos(u)];
+
+    // eu = normalize(uTan - (uTan·en)*en)
+    const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
+    let rx = uTan[0] - dot*en[0];
+    let ry = uTan[1] - dot*en[1];
+    let rz = uTan[2] - dot*en[2];
+    let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
+    rx /= rLen; ry /= rLen; rz /= rLen;
+
+    // ev = eu × en  (not en × eu — need v-tangent to point in increasing-v direction)
+    let tx = ry*en[2] - rz*en[1];
+    let ty = rz*en[0] - rx*en[2];
+    let tz = rx*en[1] - ry*en[0];
+    let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+    tx /= tLen; ty /= tLen; tz /= tLen;
+
+    const eu = [rx, ry, rz];
+    const ev = [tx, ty, tz];
 
     // Apply playerAngle as yaw: forward = sin(angle)*eu + cos(angle)*ev
     const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
