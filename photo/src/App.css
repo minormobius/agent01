@@ -1283,6 +1283,182 @@ body {
 .thread-engagement span:nth-child(2)::before { content: "\1F501"; }
 .thread-engagement span:nth-child(3)::before { content: "\2764\FE0F"; }
 
+/* Thread controls row */
+.thread-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.thread-view-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+/* Gallery mode: widen the container */
+.thread-view-wide {
+  max-width: 1400px;
+}
+
+/* Quote gallery grid */
+.quote-gallery {
+  padding: 16px 0 48px;
+}
+
+.quote-gallery-grid {
+  display: flex;
+  gap: 16px;
+}
+
+.quote-gallery-col {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Quote card */
+.quote-card {
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.quote-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.quote-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.quote-card-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+
+.quote-card-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.quote-card-author-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.quote-card-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-card-handle {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-card-text {
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.quote-card-media {
+  padding: 0 10px;
+}
+
+.quote-card-image {
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.quote-card-image img {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+}
+
+.quote-card-video {
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.quote-card-video video,
+.quote-card-video img {
+  display: block;
+  width: 100%;
+}
+
+.quote-card-external {
+  display: block;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 4px;
+}
+
+.quote-card-external img {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.quote-card-ext-body {
+  padding: 8px 10px;
+}
+
+.quote-card-ext-title {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.quote-card-ext-url {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+.quote-card-date {
+  padding: 8px 14px 12px;
+  font-size: 11px;
+  color: #aaa;
+}
+
 /* Responsive */
 @media (max-width: 680px) {
   .thread-view {

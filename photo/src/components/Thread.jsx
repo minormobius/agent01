@@ -1,13 +1,14 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { parsePostInput, resolvePostUri, fetchThread, flattenThread, extractMedia } from '../lib/thread.js';
 
 export default function Thread() {
   const [input, setInput] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | ready | error
+  const [status, setStatus] = useState('idle'); // idle | loading | loading:N | ready | error
   const [error, setError] = useState(null);
   const [posts, setPosts] = useState([]);
   const [threadUri, setThreadUri] = useState('');
-  const [expandedMedia, setExpandedMedia] = useState(null); // { postIndex, mediaIndex }
+  const [expandedMedia, setExpandedMedia] = useState(null); // { media }
+  const [view, setView] = useState('timeline'); // timeline | gallery
 
   const loadThread = useCallback(async (rawInput) => {
     const val = rawInput || input;
@@ -55,8 +56,20 @@ export default function Thread() {
     }
   }, []);
 
+  // Extract all quoted posts from OP's posts for gallery view
+  const quotes = useMemo(() => {
+    return posts
+      .filter(p => p.isOp && p.embed)
+      .flatMap(p => {
+        const media = extractMedia(p.embed);
+        return media
+          .filter(m => m.type === 'quote')
+          .map(q => ({ ...q, opPostUri: p.uri, opCreatedAt: p.createdAt }));
+      });
+  }, [posts]);
+
   return (
-    <div className="thread-view">
+    <div className={`thread-view${view === 'gallery' ? ' thread-view-wide' : ''}`}>
       <header className="photo-header">
         <div className="photo-title">
           <h1>
@@ -95,23 +108,55 @@ export default function Thread() {
       {error && <div className="photo-error">{error}</div>}
 
       {posts.length > 0 && (
-        <div className="thread-stats">
-          {posts.length} posts &middot; {countMedia(posts)} media items &middot; {countAuthors(posts)} authors
+        <div className="thread-controls">
+          <div className="thread-stats">
+            {posts.length} posts &middot; {countMedia(posts)} media items &middot; {countAuthors(posts)} authors
+            {view === 'gallery' && ` &middot; ${quotes.length} quoted posts`}
+          </div>
+          <div className="thread-view-toggle">
+            <button
+              className={`photo-sort-btn${view === 'timeline' ? ' active' : ''}`}
+              onClick={() => setView('timeline')}
+            >
+              Timeline
+            </button>
+            <button
+              className={`photo-sort-btn${view === 'gallery' ? ' active' : ''}`}
+              onClick={() => setView('gallery')}
+            >
+              Gallery
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="thread-timeline">
-        {posts.map((post, i) => (
-          <ThreadPost
-            key={post.uri}
-            post={post}
-            isFirst={i === 0}
-            isLast={i === posts.length - 1}
-            expandedMedia={expandedMedia}
-            onExpandMedia={setExpandedMedia}
-          />
-        ))}
-      </div>
+      {view === 'timeline' && (
+        <div className="thread-timeline">
+          {posts.map((post, i) => (
+            <ThreadPost
+              key={post.uri}
+              post={post}
+              isFirst={i === 0}
+              isLast={i === posts.length - 1}
+              expandedMedia={expandedMedia}
+              onExpandMedia={setExpandedMedia}
+            />
+          ))}
+        </div>
+      )}
+
+      {view === 'gallery' && quotes.length > 0 && (
+        <QuoteGallery quotes={quotes} onExpandMedia={setExpandedMedia} />
+      )}
+
+      {view === 'gallery' && posts.length > 0 && quotes.length === 0 && (
+        <div className="photo-empty">
+          <p>No quoted posts found in this thread.</p>
+          <p className="photo-empty-sub">
+            Switch to Timeline view to see the full thread.
+          </p>
+        </div>
+      )}
 
       {status === 'idle' && posts.length === 0 && (
         <div className="photo-empty">
@@ -131,6 +176,113 @@ export default function Thread() {
       )}
     </div>
   );
+}
+
+function QuoteGallery({ quotes, onExpandMedia }) {
+  // Distribute cards across columns (same round-robin as main Grid)
+  const cols = typeof window !== 'undefined' && window.innerWidth <= 500 ? 1
+    : window.innerWidth <= 800 ? 2
+    : window.innerWidth <= 1200 ? 3 : 4;
+
+  const columns = Array.from({ length: cols }, () => []);
+  quotes.forEach((q, i) => columns[i % cols].push(q));
+
+  return (
+    <div className="quote-gallery">
+      <div className="quote-gallery-grid">
+        {columns.map((col, ci) => (
+          <div key={ci} className="quote-gallery-col">
+            {col.map((q, qi) => (
+              <QuoteCard key={q.uri || `${ci}-${qi}`} quote={q} onExpandMedia={onExpandMedia} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function QuoteCard({ quote, onExpandMedia }) {
+  const postUrl = `https://bsky.app/profile/${quote.author?.did}/post/${quote.uri.split('/').pop()}`;
+  const hasMedia = quote.embeds && quote.embeds.length > 0;
+
+  return (
+    <div className="quote-card">
+      <a href={postUrl} target="_blank" rel="noopener noreferrer" className="quote-card-link">
+        <div className="quote-card-author">
+          {quote.author?.avatar && (
+            <img className="quote-card-avatar" src={quote.author.avatar} alt="" />
+          )}
+          <div className="quote-card-author-info">
+            <span className="quote-card-name">{quote.author?.displayName}</span>
+            <span className="quote-card-handle">@{quote.author?.handle}</span>
+          </div>
+        </div>
+      </a>
+
+      {quote.text && (
+        <div className="quote-card-text">{quote.text}</div>
+      )}
+
+      {hasMedia && (
+        <div className="quote-card-media">
+          {quote.embeds.map((m, i) => (
+            <QuoteMediaItem
+              key={i}
+              media={m}
+              onExpand={() => {
+                if (m.type === 'image') onExpandMedia({ media: m });
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {quote.createdAt && (
+        <div className="quote-card-date">
+          {new Date(quote.createdAt).toLocaleDateString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuoteMediaItem({ media, onExpand }) {
+  if (media.type === 'image') {
+    return (
+      <div className="quote-card-image" onClick={onExpand}>
+        <img src={media.thumb} alt={media.alt} loading="lazy" />
+      </div>
+    );
+  }
+
+  if (media.type === 'video') {
+    return (
+      <div className="quote-card-video">
+        {media.playlist ? (
+          <video src={media.playlist} poster={media.thumbnail} controls preload="metadata" playsInline />
+        ) : media.thumbnail ? (
+          <img src={media.thumbnail} alt={media.alt || 'Video'} loading="lazy" />
+        ) : null}
+      </div>
+    );
+  }
+
+  if (media.type === 'external') {
+    return (
+      <a href={media.uri} target="_blank" rel="noopener noreferrer" className="quote-card-external">
+        {media.thumb && <img src={media.thumb} alt="" loading="lazy" />}
+        <div className="quote-card-ext-body">
+          <div className="quote-card-ext-title">{media.title}</div>
+          <div className="quote-card-ext-url">{new URL(media.uri).hostname}</div>
+        </div>
+      </a>
+    );
+  }
+
+  return null;
 }
 
 function ThreadPost({ post, isFirst, isLast, expandedMedia, onExpandMedia }) {
