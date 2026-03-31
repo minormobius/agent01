@@ -580,6 +580,121 @@
   let playerMoveT = 0;
   const PLAYER_SPEED = 3.2; // tiles per second
 
+  // =====================================================================
+  // Jump physics — centrifugal gravity on a spinning torus
+  // =====================================================================
+  // Gravity model: you live on a cylindrical planet wrapped into a donut.
+  // Gravity always pulls toward the tube center circle (point (R,0) in cross-section).
+  // Centrifugal spin modulates the STRENGTH based on position:
+  //   Outer surface (v=0): strong gravity — high centrifugal holds you down hard
+  //   Inner surface (v=pi): weak gravity — centrifugal nearly cancels tube gravity
+  //   Sides (v=pi/2): moderate
+  //
+  // This lets you walk everywhere, but inner surface = moon-like low-g.
+  // A super jump from the inner surface can escape the tube's pull and
+  // fly across the donut hole, landing on the opposite inner surface.
+  //
+  // In cross-section: tube center at (R, 0). Force toward it, magnitude varies.
+  // g(v) = BASE_G * (1 + CENTRIFUGAL_MOD * cos(v))
+  // v=0 outer: g_max. v=pi inner: g_min. v=pi/2 sides: g_base.
+
+  const BASE_G = 12.0;
+  const CENTRIFUGAL_MOD = 0.82;  // 0..1 range. Higher = bigger gravity difference
+  const JUMP_SPEED = 3.5;
+  const SUPER_JUMP_SPEED = 9.0;  // shift+space for inner traversal
+  const EYE_HEIGHT = 0.12;
+
+  let airborne = false;
+  let csR = 0, csZ = 0;     // cross-section pos
+  let csVR = 0, csVZ = 0;
+  let playerHeight = 0;
+
+  function initCrossSectionFromSurface() {
+    const v = getPlayerV();
+    csR = TORUS_R + TORUS_r * Math.cos(v);
+    csZ = TORUS_r * Math.sin(v);
+    csVR = 0; csVZ = 0;
+  }
+
+  function doJump() {
+    if (airborne) return;
+    airborne = true;
+    initCrossSectionFromSurface();
+
+    const v = getPlayerV();
+    // Jump along surface outward normal (away from tube center)
+    const nR = Math.cos(v);
+    const nZ = Math.sin(v);
+
+    const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
+    csVR = nR * speed;
+    csVZ = nZ * speed;
+  }
+
+  function updateJumpPhysics(dt) {
+    if (!airborne) { playerHeight = 0; return; }
+
+    const substeps = 8;
+    const subDt = dt / substeps;
+
+    for (let s = 0; s < substeps; s++) {
+      // Direction and distance from tube center (R, 0)
+      const dcR = csR - TORUS_R;
+      const dcZ = csZ;
+      const distTC = Math.sqrt(dcR * dcR + dcZ * dcZ) || 0.001;
+
+      // Local v angle (where on tube cross-section we are)
+      const localV = Math.atan2(dcZ, dcR);
+
+      // Gravity magnitude: varies with angle
+      const gMag = BASE_G * (1 + CENTRIFUGAL_MOD * Math.cos(localV));
+
+      // Force direction: toward tube center
+      const fR = -gMag * dcR / distTC;
+      const fZ = -gMag * dcZ / distTC;
+
+      csVR += fR * subDt;
+      csVZ += fZ * subDt;
+      csR += csVR * subDt;
+      csZ += csVZ * subDt;
+
+      // Clamp R (can't cross spin axis — bounce)
+      if (csR < 0.05) {
+        csR = 0.05;
+        csVR = Math.abs(csVR) * 0.2;
+      }
+
+      // Landing check
+      const dcR2 = csR - TORUS_R;
+      const dcZ2 = csZ;
+      const distTC2 = Math.sqrt(dcR2 * dcR2 + dcZ2 * dcZ2);
+
+      if (distTC2 <= TORUS_r) {
+        // Velocity toward tube center
+        const vDot = (csVR * dcR2 + csVZ * dcZ2) / (distTC2 || 1);
+        if (vDot < 0) {
+          // Moving inward = landing
+          const newV = Math.atan2(dcZ2, dcR2);
+          playerY = wrapY(((newV + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * WORLD_H);
+          airborne = false;
+          playerHeight = 0;
+          csVR = 0; csVZ = 0;
+          return;
+        }
+      }
+    }
+
+    // Height above surface
+    const dcR = csR - TORUS_R;
+    const dcZ = csZ;
+    const distTC = Math.sqrt(dcR * dcR + dcZ * dcZ);
+    playerHeight = Math.max(0, distTC - TORUS_r);
+
+    // Update v for rendering
+    const currentV = Math.atan2(dcZ, dcR);
+    playerY = wrapY(((currentV + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * WORLD_H);
+  }
+
   // View mode
   let fpMode = false;
   document.getElementById('viewToggle').addEventListener('click', () => {
@@ -771,6 +886,9 @@
     let dx = 0, dy = 0;
 
     if (fpMode) {
+      // Jump
+      if (keys[' '] && !airborne) doJump();
+
       // First-person: WASD is relative to facing direction
       // A/D turn, W/S move forward/back
       const turnSpeed = 2.5;
@@ -834,6 +952,9 @@
     } else {
       playerFrame = 0;
     }
+
+    // Jump physics (FP mode only)
+    if (fpMode) updateJumpPhysics(dt);
   }
 
   // =====================================================================
@@ -983,8 +1104,25 @@
     const u = getPlayerU();
     const v = getPlayerV();
 
-    // Player position on torus
-    const P = torusPos(u, v);
+    // Player position on torus, offset by jump height
+    const surfP = torusPos(u, v);
+    const heightOffset = playerHeight + EYE_HEIGHT;
+    // If airborne, use cross-section position directly for accuracy
+    let P;
+    if (airborne && playerHeight > 0.01) {
+      P = [
+        csR * Math.cos(u),
+        csZ,
+        csR * Math.sin(u),
+      ];
+    } else {
+      const enLocal = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
+      P = [
+        surfP[0] + enLocal[0] * heightOffset,
+        surfP[1] + enLocal[1] * heightOffset,
+        surfP[2] + enLocal[2] * heightOffset,
+      ];
+    }
 
     // Local frame at (u, v)
     // e_u: d/du of torusPos, normalized (tangent along ring)
@@ -1156,7 +1294,9 @@
 
   function renderFP() {
     const w = canvas.width, h = canvas.height;
-    const halfH = h / 2;
+    // Horizon drops when airborne (camera is higher)
+    const horizonShift = Math.floor(playerHeight * 40);
+    const halfH = Math.floor(h / 2) + horizonShift;
 
     // Torus sky + floor
     renderTorusSky(w, h);
@@ -1320,8 +1460,12 @@
     const tileName = ['grass','grass','grass','water','sand','dirt','tree','rock','flowers','bridge','tall grass','path'][tileAt(playerX, playerY)] || '?';
     const netInfo = netMode === 'host' ? ` · hosting (${remotePlayers.size} peers)` :
                     netMode === 'peer' ? ` · ${peerDC && peerDC.readyState === 'open' ? 'connected' : 'connecting...'}` : '';
+    const v = getPlayerV();
+    const gLocal = (BASE_G * (1 + CENTRIFUGAL_MOD * Math.cos(v))).toFixed(1);
+    const jumpInfo = fpMode ? ` · g=${gLocal}${airborne ? ' AIRBORNE h=' + playerHeight.toFixed(1) : ''}` : '';
+    const controls = fpMode ? 'wasd · space=jump · shift+space=super jump' : 'wasd / click to move';
     document.getElementById('hud').textContent =
-      `${tx}, ${ty} · ${tileName}${netInfo}\nwasd / click to move`;
+      `${tx}, ${ty} · ${tileName}${jumpInfo}${netInfo}\n${controls}`;
   }
 
   function frame(t) {
