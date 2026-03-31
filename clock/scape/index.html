@@ -830,6 +830,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     });
 
     function ensureOutputSize(w, h) {
+      w = Math.floor(w); h = Math.floor(h);
       if (w === skyW && h === skyH) return;
       skyW = w; skyH = h;
       if (outputBuf) outputBuf.destroy();
@@ -1801,7 +1802,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let lastGpuSkyImage = null;
 
   function renderTorusSkyGPU(w, h) {
-    const halfH = h / 2;
+    const halfH = Math.floor(h / 2);
     const cam = computeSkyCamera();
 
     // Draw background (deep space) — GPU pixels with alpha=0 show through
@@ -1836,7 +1837,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   // Fallback canvas 2D sky renderer (4x4 strips, solid green torus)
   function renderTorusSkyFallback(w, h) {
-    const halfH = h / 2;
+    const halfH = Math.floor(h / 2);
     const cam = computeSkyCamera();
 
     ctx.fillStyle = '#06060a';
