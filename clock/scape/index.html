@@ -633,6 +633,8 @@ struct Params {
   fovH: f32, fovV: f32,
   // World dimensions
   worldW: u32, worldH: u32,
+  // Horizon position (0..1, fraction of screen height from top)
+  horizonY: f32, _pad5: f32,
 }
 
 @group(0) @binding(0) var<uniform> params: Params;
@@ -702,9 +704,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let idx = py * w + px;
 
-  // Screen coords → ray direction
+  // Screen coords → ray direction (full screen, centered on horizon)
   let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
-  let screenV = 1.0 - f32(py) / f32(h);
+  // screenV: +1 at top of screen, -1 at bottom, 0 at horizon
+  let screenV = params.horizonY - f32(py) / f32(h);
   let azAngle = screenH * params.fovH * 0.5;
   let elevAngle = screenV * params.fovV;
 
@@ -854,43 +857,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let lastSkyImageData = null;
 
     gpuSky = {
-      render: async function(w, halfH, camPos, fwd, right, up, sunDir, torusR, torusr) {
+      render: async function(w, h, horizonFrac, camPos, fwd, right, up, sunDir, torusR, torusr) {
         if (gpuBusy) return lastSkyImageData; // skip if previous frame still in flight
-        ensureOutputSize(w, halfH);
+        ensureOutputSize(w, h);
 
         // Upload params
-        const paramData = new Float32Array(24);
-        paramData[0] = camPos[0]; paramData[1] = camPos[1]; paramData[2] = camPos[2];
-        paramData[4] = fwd[0]; paramData[5] = fwd[1]; paramData[6] = fwd[2];
-        paramData[8] = right[0]; paramData[9] = right[1]; paramData[10] = right[2];
-        paramData[12] = up[0]; paramData[13] = up[1]; paramData[14] = up[2];
-        paramData[16] = sunDir[0]; paramData[17] = sunDir[1]; paramData[18] = sunDir[2];
-        paramData[20] = torusR; paramData[21] = torusr;
-        // Width/height as u32 at float positions 22,23
-        const paramView = new DataView(paramData.buffer);
-        paramView.setUint32(22 * 4, w, true);
-        paramView.setUint32(23 * 4, halfH, true);
-        // FOV at 24,25 — wait, we need more space. Let me recount.
-        // Actually params struct is:
-        // 0-3: cam (vec4 aligned), 4-7: fwd, 8-11: right, 12-15: up, 16-19: sun
-        // 20: torusR, 21: torusr, 22: width(u32), 23: height(u32)
-        // We need fovH, fovV, worldW, worldH too
-        // Total: 24 floats + 4 more = 28, round to 32 (128 bytes)
-        // Let me fix the buffer size and struct
-
-        // Actually let me use a bigger buffer
         const pd = new ArrayBuffer(128);
         const f = new Float32Array(pd);
         const u = new Uint32Array(pd);
-        f[0] = camPos[0]; f[1] = camPos[1]; f[2] = camPos[2]; // cam + pad
+        f[0] = camPos[0]; f[1] = camPos[1]; f[2] = camPos[2];
         f[4] = fwd[0]; f[5] = fwd[1]; f[6] = fwd[2];
         f[8] = right[0]; f[9] = right[1]; f[10] = right[2];
         f[12] = up[0]; f[13] = up[1]; f[14] = up[2];
         f[16] = sunDir[0]; f[17] = sunDir[1]; f[18] = sunDir[2];
         f[20] = torusR; f[21] = torusr;
-        u[22] = w; u[23] = halfH;
+        u[22] = w; u[23] = h;
         f[24] = FOV; f[25] = VFOV;
         u[26] = WORLD_W; u[27] = WORLD_H;
+        f[28] = horizonFrac;
         device.queue.writeBuffer(paramBuf, 0, pd);
 
         // Dispatch
@@ -899,9 +883,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         const pass = encoder.beginComputePass();
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, bindGroup);
-        pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(halfH / 8));
+        pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
         pass.end();
-        encoder.copyBufferToBuffer(outputBuf, 0, readbackBuf, 0, w * halfH * 4);
+        encoder.copyBufferToBuffer(outputBuf, 0, readbackBuf, 0, w * h * 4);
         device.queue.submit([encoder.finish()]);
 
         // Read back
@@ -910,7 +894,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         readbackBuf.unmap();
         gpuBusy = false;
 
-        lastSkyImageData = new ImageData(result, w, halfH);
+        lastSkyImageData = new ImageData(result, w, h);
         return lastSkyImageData;
       },
       uploadTileMap,
@@ -1797,42 +1781,39 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     ctx.fillRect(0, halfH, w, halfH);
   }
 
-  // GPU sky render — kicks off async, draws last result synchronously
+  // GPU torus render — full screen, kicks off async, draws last result synchronously
   let pendingGpuSky = null;
   let lastGpuSkyImage = null;
 
-  function renderTorusSkyGPU(w, h) {
-    const halfH = Math.floor(h / 2);
+  function renderTorusGPU(w, h, halfH) {
     const cam = computeSkyCamera();
+    const horizonFrac = halfH / h; // where horizon sits as fraction from top
 
-    // Draw background (deep space) — GPU pixels with alpha=0 show through
+    // Deep space background (visible through alpha=0 GPU pixels)
     ctx.fillStyle = '#06060a';
-    ctx.fillRect(0, 0, w, halfH);
+    ctx.fillRect(0, 0, w, h);
 
-    // Stars first (behind torus)
+    // Stars (drawn behind torus, above horizon)
     renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
 
-    // Kick off GPU render if not already in flight
+    // Kick off full-screen GPU render
     if (!pendingGpuSky && gpuSky) {
-      pendingGpuSky = gpuSky.render(w, halfH, cam.P, cam.fwd, cam.right, cam.up, SUN_DIR, TORUS_R, TORUS_r)
+      pendingGpuSky = gpuSky.render(w, h, horizonFrac, cam.P, cam.fwd, cam.right, cam.up, SUN_DIR, TORUS_R, TORUS_r)
         .then(img => { lastGpuSkyImage = img; pendingGpuSky = null; })
         .catch(err => { console.warn('GPU sky error:', err); pendingGpuSky = null; });
     }
 
-    // Draw last computed GPU sky image (composited over stars)
-    if (lastGpuSkyImage && lastGpuSkyImage.width === w && lastGpuSkyImage.height === halfH) {
-      // Use a temp canvas to composite with alpha
-      if (!renderTorusSkyGPU._tmpCanvas || renderTorusSkyGPU._tmpW !== w || renderTorusSkyGPU._tmpH !== halfH) {
-        renderTorusSkyGPU._tmpCanvas = new OffscreenCanvas(w, halfH);
-        renderTorusSkyGPU._tmpCtx = renderTorusSkyGPU._tmpCanvas.getContext('2d');
-        renderTorusSkyGPU._tmpW = w;
-        renderTorusSkyGPU._tmpH = halfH;
+    // Draw last computed GPU image (full screen — torus surface above AND below)
+    if (lastGpuSkyImage && lastGpuSkyImage.width === w && lastGpuSkyImage.height === h) {
+      if (!renderTorusGPU._tmpCanvas || renderTorusGPU._tmpW !== w || renderTorusGPU._tmpH !== h) {
+        renderTorusGPU._tmpCanvas = new OffscreenCanvas(w, h);
+        renderTorusGPU._tmpCtx = renderTorusGPU._tmpCanvas.getContext('2d');
+        renderTorusGPU._tmpW = w;
+        renderTorusGPU._tmpH = h;
       }
-      renderTorusSkyGPU._tmpCtx.putImageData(lastGpuSkyImage, 0, 0);
-      ctx.drawImage(renderTorusSkyGPU._tmpCanvas, 0, 0);
+      renderTorusGPU._tmpCtx.putImageData(lastGpuSkyImage, 0, 0);
+      ctx.drawImage(renderTorusGPU._tmpCanvas, 0, 0);
     }
-
-    renderFloor(w, h, halfH);
   }
 
   // Fallback canvas 2D sky renderer (4x4 strips, solid green torus)
@@ -1888,9 +1869,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
 
   // Main dispatcher
-  function renderTorusSky(w, h) {
+  function renderTorusSky(w, h, halfH) {
     if (gpuSky) {
-      renderTorusSkyGPU(w, h);
+      renderTorusGPU(w, h, halfH);
     } else {
       renderTorusSkyFallback(w, h);
     }
@@ -1902,8 +1883,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     const horizonShift = Math.floor(playerHeight * 40);
     const halfH = Math.floor(h / 2) + horizonShift;
 
-    // Torus sky + floor
-    renderTorusSky(w, h);
+    // Full-screen torus surface (GPU) or sky+floor (fallback)
+    renderTorusSky(w, h, halfH);
 
     // Cast one ray per N-pixel column for performance
     const stripW = isMobile ? 4 : 2;
