@@ -1583,7 +1583,7 @@ document.getElementById('btn-dbg-write-series-test').addEventListener('click', a
     };
 
     const rkey = 'TEST:2026';
-    const body = { repo: did, collection: 'com.minomobi.finance.dailySeries', rkey, record: testRecord };
+    const body = { repo: did, collection: 'com.minomobi.finance.dailySeries', rkey, record: testRecord, validate: false };
 
     out.textContent += `Writing dailySeries test record...\n`;
     out.textContent += `rkey: ${rkey}\n`;

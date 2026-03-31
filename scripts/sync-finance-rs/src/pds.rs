@@ -110,6 +110,7 @@ impl PdsClient {
             "collection": collection,
             "rkey": rkey,
             "record": record,
+            "validate": false,
         });
 
         let resp = client
