@@ -34,6 +34,17 @@
   }
   .touch-zone.left { left: 0; }
   .touch-zone.right { right: 0; }
+  #reticle {
+    position: fixed; top: 50%; left: 50%; z-index: 6;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    pointer-events: none;
+  }
+  #reticle::before, #reticle::after {
+    content: ''; position: absolute; background: rgba(255,255,200,0.5);
+  }
+  #reticle::before { width: 2px; height: 12px; top: 4px; left: 9px; }
+  #reticle::after { width: 12px; height: 2px; top: 9px; left: 4px; }
+  #reticle.hidden { display: none; }
   #touchHint {
     position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
     color: rgba(255,255,200,0.4); font: 11px monospace; pointer-events: none;
@@ -128,6 +139,7 @@
     <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2">
   </div>
 </div>
+<div id="reticle" class="hidden"></div>
 <div class="touch-zone left" id="touchLeft"></div>
 <div class="touch-zone right" id="touchRight"></div>
 <button id="viewToggle">1st person [F]</button>
@@ -959,6 +971,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let playerDir = 0; // 0=down, 1=left, 2=up, 3=right
   let playerAngle = Math.PI; // continuous angle for FP view (starts facing down=south)
+  let playerPitch = 0; // look up/down angle in radians (positive = up)
   let playerFrame = 0;
   let playerMoveT = 0;
   const PLAYER_SPEED = 3.2; // tiles per second
@@ -1117,11 +1130,46 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       if (distTC <= effectiveR) {
         const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
+          // Preserve world-space facing direction across frame change
+          const oldU = getPlayerU();
+          const oldV = getPlayerV();
+          // Compute world-space forward before landing
+          const cosOldV = Math.cos(oldV), sinOldV = Math.sin(oldV);
+          const cosOldU = Math.cos(oldU), sinOldU = Math.sin(oldU);
+          const oldEu = [-(TORUS_R + TORUS_r * cosOldV) * sinOldU, 0,
+                          (TORUS_R + TORUS_r * cosOldV) * cosOldU];
+          const oldEuLen = Math.sqrt(oldEu[0]**2 + oldEu[2]**2) || 1;
+          const oldEv = [-TORUS_r * sinOldV * cosOldU, TORUS_r * cosOldV,
+                         -TORUS_r * sinOldV * sinOldU];
+          const oldEvLen = Math.sqrt(oldEv[0]**2 + oldEv[1]**2 + oldEv[2]**2) || 1;
+          const worldFwd = [
+            Math.sin(playerAngle) * oldEu[0]/oldEuLen + Math.cos(playerAngle) * oldEv[0]/oldEvLen,
+            Math.sin(playerAngle) * oldEu[1]/oldEuLen + Math.cos(playerAngle) * oldEv[1]/oldEvLen,
+            Math.sin(playerAngle) * oldEu[2]/oldEuLen + Math.cos(playerAngle) * oldEv[2]/oldEvLen,
+          ];
+
           if (csR < 0) {
             playerX = wrapX(playerX + WORLD_W / 2);
             csR = -csR;
           }
           playerY = landingY;
+
+          // Recompute local frame at new position and back-solve angle
+          const newU = getPlayerU();
+          const newV = getPlayerV();
+          const cosNewV = Math.cos(newV), sinNewV = Math.sin(newV);
+          const cosNewU = Math.cos(newU), sinNewU = Math.sin(newU);
+          const newEu = [-(TORUS_R + TORUS_r * cosNewV) * sinNewU, 0,
+                          (TORUS_R + TORUS_r * cosNewV) * cosNewU];
+          const newEuLen = Math.sqrt(newEu[0]**2 + newEu[2]**2) || 1;
+          const newEv = [-TORUS_r * sinNewV * cosNewU, TORUS_r * cosNewV,
+                         -TORUS_r * sinNewV * sinNewU];
+          const newEvLen = Math.sqrt(newEv[0]**2 + newEv[1]**2 + newEv[2]**2) || 1;
+          // Project worldFwd onto new eu/ev to get new angle
+          const dotU = worldFwd[0]*newEu[0]/newEuLen + worldFwd[1]*newEu[1]/newEuLen + worldFwd[2]*newEu[2]/newEuLen;
+          const dotV = worldFwd[0]*newEv[0]/newEvLen + worldFwd[1]*newEv[1]/newEvLen + worldFwd[2]*newEv[2]/newEvLen;
+          playerAngle = Math.atan2(dotU, dotV);
+
           airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
           return;
         }
@@ -1158,6 +1206,30 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
   });
   window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // =====================================================================
+  // Mouse look — pointer lock
+  // =====================================================================
+  const MOUSE_SENS = 0.002;
+  const MAX_PITCH = Math.PI * 0.44; // ~80 degrees
+
+  canvas.addEventListener('click', () => {
+    if (fpMode && !document.pointerLockElement) {
+      canvas.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement !== canvas) return;
+    playerAngle += e.movementX * MOUSE_SENS;
+    playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH,
+      playerPitch - e.movementY * MOUSE_SENS));
+  });
+
+  const reticle = document.getElementById('reticle');
+  document.addEventListener('pointerlockchange', () => {
+    reticle.classList.toggle('hidden', document.pointerLockElement !== canvas);
+  });
 
   // =====================================================================
   // Physics panel — sliders for gravity, R, r
@@ -1766,7 +1838,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     const en = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
 
-    const fwd = [
+    // Yaw: rotate eu/ev to get flat forward and right
+    const flatFwd = [
       Math.sin(playerAngle) * eu[0] + Math.cos(playerAngle) * ev[0],
       Math.sin(playerAngle) * eu[1] + Math.cos(playerAngle) * ev[1],
       Math.sin(playerAngle) * eu[2] + Math.cos(playerAngle) * ev[2],
@@ -1776,7 +1849,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       Math.cos(playerAngle) * eu[1] - Math.sin(playerAngle) * ev[1],
       Math.cos(playerAngle) * eu[2] - Math.sin(playerAngle) * ev[2],
     ];
-    return { P, fwd, right, up: en };
+    // Pitch: rotate flatFwd and en around the right axis
+    const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+    const fwd = [
+      flatFwd[0] * cp + en[0] * sp,
+      flatFwd[1] * cp + en[1] * sp,
+      flatFwd[2] * cp + en[2] * sp,
+    ];
+    const up = [
+      -flatFwd[0] * sp + en[0] * cp,
+      -flatFwd[1] * sp + en[1] * cp,
+      -flatFwd[2] * sp + en[2] * cp,
+    ];
+    return { P, fwd, right, up };
   }
 
   // Project world direction to screen pixel
@@ -1939,9 +2024,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   function renderFP() {
     const w = canvas.width, h = canvas.height;
-    // Horizon drops when airborne (camera is higher)
-    const horizonShift = Math.floor(playerHeight * 40);
-    const halfH = Math.floor(h / 2) + horizonShift;
+    // Horizon shifts with pitch and jump height
+    const pitchShift = Math.floor(playerPitch / VFOV * h);
+    const heightShift = Math.floor(playerHeight * 40);
+    const halfH = Math.floor(h / 2) + pitchShift + heightShift;
 
     // Full-screen torus surface (GPU) or sky+floor (fallback)
     renderTorusSky(w, h, halfH);
@@ -2109,7 +2195,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     const v = getPlayerV();
     const gLocal = surfaceGravity().toFixed(1);
     const jumpInfo = fpMode ? ` · g=${gLocal}${airborne ? ' AIRBORNE h=' + playerHeight.toFixed(1) : ''}` : '';
-    const controls = fpMode ? 'wasd · space=jump · shift+space=super jump' : 'wasd / click to move';
+    const mouseHint = document.pointerLockElement ? '' : ' · click for mouse look';
+    const controls = fpMode ? `wasd · space=jump · shift+space=super${mouseHint}` : 'wasd / click to move';
     document.getElementById('hud').textContent =
       `${tx}, ${ty} · ${tileName}${jumpInfo}${netInfo}\n${controls}`;
   }
