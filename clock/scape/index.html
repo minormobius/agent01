@@ -589,6 +589,10 @@
   let gpuSky = null;
   let gpuSkyDirty = true;
 
+  // Torus geometry (declared early — used by gravity LUT, sky renderer, etc.)
+  let TORUS_R = 5.0;  // major radius
+  let TORUS_r = 2.0;  // minor radius
+
   function resize() {
     const maxDpr = isMobile ? 1 : 2;
     const dpr = Math.min(devicePixelRatio, maxDpr);
@@ -1560,9 +1564,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   const FOV = Math.PI * 0.6; // ~108 degrees
   const VFOV = Math.PI * 0.45; // vertical FOV
 
-  // Torus geometry constants
-  let TORUS_R = 5.0;  // major radius
-  let TORUS_r = 2.0;  // minor radius
   function getPlayerV() {
     return (playerY / WORLD_H) * Math.PI * 2;
   }
