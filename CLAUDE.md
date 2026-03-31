@@ -9,7 +9,7 @@ Content creation, research, editorial voice, and feature design happen elsewhere
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
-- **Hosting**: Cloudflare Pages (auto-deploys from `main`)
+- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`)
 - **Compute**: Cloudflare Workers + Durable Objects + D1
 - **Email**: Cloudflare Email Routing — `tips@`, `editor@`, `modulo@`, `morphyx@minomobi.com`
 - **DNS**: Cloudflare — CNAME records for subdomains → Pages deployments
@@ -28,6 +28,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | Site | Dir | Stack | Build | Deploy Target |
 |------|-----|-------|-------|---------------|
 | **Bakery** | `bakery/` | React + Vite | `npm run build` → `dist/` | Pages (bakery.mino.mobi) |
+| **ATPhoto** | `photo/` | React 19 + Vite 6 + DuckDB-WASM + Rust/WASM | `npm run build` → `dist/` | Pages (photo.mino.mobi) — deploys from `claude/atproto-arena-duckdb-8H9SQ` |
 | **ATPolls** | `poll/` | React + Vite + Workers + D1 + DO | Monorepo: shared → web → api | Pages + Worker (poll.mino.mobi) |
 
 **Poll specifics**:
