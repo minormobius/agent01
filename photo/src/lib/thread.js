@@ -67,13 +67,18 @@ async function fetchThreadPage(uri, { depth = 10, parentHeight = 100 } = {}) {
 }
 
 /**
- * Fetch a full thread, chasing the OP's deepest reply chain.
+ * Fetch a full thread, chasing the OP's deepest reply chain iteratively.
  *
- * The API caps depth at ~10 per call. When we hit a truncated leaf
- * where the OP has replies, we re-fetch from that post to continue
- * deeper. Non-OP branches are kept but not chased.
+ * The API caps depth at ~10 per call. Strategy:
+ * 1. Fetch the thread from the given URI
+ * 2. Find the deepest OP leaf in the reply tree
+ * 3. If that leaf expects more replies (replyCount > 0), re-fetch from there
+ * 4. Graft the new replies and repeat until the OP chain is exhausted
  *
- * onProgress({ fetched, depth }) is called after each continuation fetch.
+ * This handles threads hundreds of posts deep with one fetch per ~10 levels.
+ * Non-OP branches are kept from whatever depth they appeared in but not chased.
+ *
+ * onProgress({ fetched }) is called after each continuation fetch.
  */
 export async function fetchThread(uri, { onProgress } = {}) {
   const root = await fetchThreadPage(uri, { depth: 10, parentHeight: 100 });
@@ -81,7 +86,6 @@ export async function fetchThread(uri, { onProgress } = {}) {
   // Determine the OP (root author of the thread)
   let opDid = null;
   if (root.$type === 'app.bsky.feed.defs#threadViewPost') {
-    // Walk up to the true root
     let top = root;
     while (top.parent && top.parent.$type === 'app.bsky.feed.defs#threadViewPost') {
       top = top.parent;
@@ -91,60 +95,68 @@ export async function fetchThread(uri, { onProgress } = {}) {
 
   if (!opDid) return root;
 
-  // Chase the OP's deepest path by re-fetching from truncated leaves
-  const seen = new Set();
   let fetches = 1;
+  const MAX_FETCHES = 100; // safety limit (~1000 posts deep)
 
-  async function chaseOpReplies(node) {
-    if (!node || node.$type !== 'app.bsky.feed.defs#threadViewPost') return;
-    if (seen.has(node.post?.uri)) return;
-    seen.add(node.post?.uri);
+  while (fetches < MAX_FETCHES) {
+    // Walk the tree to find the deepest OP leaf that needs continuation
+    const leaf = findDeepestOpLeaf(root, opDid);
+    if (!leaf) break; // OP chain is complete
 
-    const replies = node.replies || [];
+    fetches++;
+    if (onProgress) onProgress({ fetched: fetches });
 
-    // Find OP's replies among children
-    const opReplies = replies.filter(
-      r => r.$type === 'app.bsky.feed.defs#threadViewPost' && r.post?.author?.did === opDid
-    );
-
-    // For each OP reply, check if it has replies that need chasing
-    for (const reply of opReplies) {
-      await chaseOpReplies(reply);
-    }
-
-    // If no OP replies but the OP has a replyCount > 0 at a leaf, or
-    // if we see OP replies that themselves have replyCount but no replies array,
-    // we need to continue fetching
-    for (let i = 0; i < replies.length; i++) {
-      const reply = replies[i];
-      if (reply.$type !== 'app.bsky.feed.defs#threadViewPost') continue;
-      if (reply.post?.author?.did !== opDid) continue;
-
-      const hasChildren = reply.replies && reply.replies.length > 0;
-      const expectsChildren = reply.post?.replyCount > 0;
-
-      if (!hasChildren && expectsChildren && !seen.has('fetched:' + reply.post.uri)) {
-        seen.add('fetched:' + reply.post.uri);
-        fetches++;
-        if (onProgress) onProgress({ fetched: fetches });
-
-        try {
-          const deeper = await fetchThreadPage(reply.post.uri, { depth: 10, parentHeight: 0 });
-          if (deeper.$type === 'app.bsky.feed.defs#threadViewPost') {
-            // Graft the deeper replies onto this node
-            reply.replies = deeper.replies || [];
-            // Continue chasing from the new data
-            await chaseOpReplies(reply);
-          }
-        } catch {
-          // If a continuation fetch fails, keep what we have
-        }
+    try {
+      const deeper = await fetchThreadPage(leaf.post.uri, { depth: 10, parentHeight: 0 });
+      if (deeper.$type === 'app.bsky.feed.defs#threadViewPost' && deeper.replies?.length > 0) {
+        // Graft the deeper replies onto the leaf
+        leaf.replies = deeper.replies;
+      } else {
+        // API returned no replies despite replyCount > 0 (deleted, blocked, etc.)
+        // Mark it so we don't try again
+        leaf._chased = true;
+        break;
       }
+    } catch {
+      break; // network error, keep what we have
     }
   }
 
-  await chaseOpReplies(root);
   return root;
+}
+
+/**
+ * Find the deepest OP-authored leaf node that has replyCount > 0 but no
+ * replies loaded yet (or empty replies). Returns null if the OP chain
+ * is fully loaded.
+ */
+function findDeepestOpLeaf(node, opDid) {
+  if (!node || node.$type !== 'app.bsky.feed.defs#threadViewPost') return null;
+  if (node._chased) return null;
+
+  const replies = node.replies || [];
+
+  // Find OP replies among children, sorted by date (follow the chronological chain)
+  const opReplies = replies
+    .filter(r => r.$type === 'app.bsky.feed.defs#threadViewPost' && r.post?.author?.did === opDid)
+    .sort((a, b) => (a.post?.record?.createdAt || '').localeCompare(b.post?.record?.createdAt || ''));
+
+  // Recurse into OP replies first — we want the deepest one
+  for (const reply of opReplies) {
+    const deeper = findDeepestOpLeaf(reply, opDid);
+    if (deeper) return deeper;
+  }
+
+  // Check if THIS node is an OP leaf that needs continuation
+  const isOp = node.post?.author?.did === opDid;
+  const hasLoadedReplies = replies.length > 0;
+  const expectsReplies = node.post?.replyCount > 0;
+
+  if (isOp && !hasLoadedReplies && expectsReplies) {
+    return node;
+  }
+
+  return null;
 }
 
 /**
