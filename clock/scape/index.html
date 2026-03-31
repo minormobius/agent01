@@ -28,6 +28,17 @@
     background: rgba(30,30,50,0.85); color: #ddd; font: 12px monospace; cursor: pointer;
   }
   #viewToggle:hover { background: #3a3a5e; }
+  .touch-zone {
+    position: fixed; bottom: 0; width: 50%; height: 45%;
+    z-index: 4; touch-action: none;
+  }
+  .touch-zone.left { left: 0; }
+  .touch-zone.right { right: 0; }
+  #touchHint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,200,0.4); font: 11px monospace; pointer-events: none;
+    user-select: none; z-index: 5; white-space: nowrap;
+  }
   #physPanel {
     position: fixed; bottom: 50px; left: 12px; z-index: 5;
     background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
@@ -117,10 +128,16 @@
     <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2">
   </div>
 </div>
+<div class="touch-zone left" id="touchLeft"></div>
+<div class="touch-zone right" id="touchRight"></div>
 <button id="viewToggle">1st person [F]</button>
+<div id="touchHint"></div>
 <div id="hud"></div>
 <script>
 (() => {
+  // Device detection (hoisted for use in resize/render)
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
   // =====================================================================
   // Lobby — name entry + mode selection
   // =====================================================================
@@ -569,7 +586,8 @@
   const mmCtx = mmCanvas.getContext('2d');
 
   function resize() {
-    const dpr = Math.min(devicePixelRatio, 2);
+    const maxDpr = isMobile ? 1 : 2;
+    const dpr = Math.min(devicePixelRatio, maxDpr);
     canvas.width = Math.floor(canvas.clientWidth * dpr);
     canvas.height = Math.floor(canvas.clientHeight * dpr);
     gpuSkyDirty = true;
@@ -1096,7 +1114,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       fpMode = !fpMode;
       document.getElementById('viewToggle').textContent = fpMode ? 'Top down [F]' : '1st person [F]';
     }
-    e.preventDefault();
+    // Only prevent default for game keys, not browser shortcuts
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D',' '].includes(e.key)) {
+      e.preventDefault();
+    }
   });
   window.addEventListener('keyup', e => { keys[e.key] = false; });
 
@@ -1124,7 +1145,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // Show panel once game starts (via mutation on lobby)
   const lobbyObs = new MutationObserver(() => {
     if (lobby.classList.contains('hidden')) {
-      physPanel.classList.remove('hidden');
+      if (!isMobile) physPanel.classList.remove('hidden');
       lobbyObs.disconnect();
     }
   });
@@ -1163,6 +1184,111 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     sl.addEventListener('change', (e) => { e.stopPropagation(); onPhysicsSliderRelease(); });
     sl.addEventListener('keydown', (e) => e.stopPropagation());
     sl.addEventListener('keyup', (e) => e.stopPropagation());
+  }
+
+  // =====================================================================
+  // Touch controls — dual-zone virtual joystick
+  // =====================================================================
+  const touchLeft = document.getElementById('touchLeft');
+  const touchRight = document.getElementById('touchRight');
+  const touchHint = document.getElementById('touchHint');
+
+  // Touch state: normalized -1..1 for each axis
+  let touchMoveX = 0, touchMoveY = 0; // left zone: movement
+  let touchLookX = 0; // right zone: turning
+  let touchJump = false;
+  let leftTouchId = null, rightTouchId = null;
+  let leftOrigin = null, rightOrigin = null;
+
+  if (isMobile) {
+    touchHint.textContent = 'L: move \u00b7 R: turn \u00b7 tap R: jump';
+    // Auto-enter FP mode on mobile
+    fpMode = true;
+    document.getElementById('viewToggle').textContent = 'Top down [F]';
+
+    const DEAD_ZONE = 12; // px
+    const MAX_DIST = 60; // px
+
+    touchLeft.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      leftTouchId = t.identifier;
+      leftOrigin = { x: t.clientX, y: t.clientY };
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId && leftOrigin) {
+          let dx = t.clientX - leftOrigin.x;
+          let dy = t.clientY - leftOrigin.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < DEAD_ZONE) { touchMoveX = 0; touchMoveY = 0; }
+          else {
+            const norm = Math.min(dist, MAX_DIST) / MAX_DIST;
+            touchMoveX = (dx / dist) * norm;
+            touchMoveY = (dy / dist) * norm;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId) {
+          leftTouchId = null; leftOrigin = null;
+          touchMoveX = 0; touchMoveY = 0;
+        }
+      }
+    });
+    touchLeft.addEventListener('touchcancel', e => {
+      leftTouchId = null; leftOrigin = null;
+      touchMoveX = 0; touchMoveY = 0;
+    });
+
+    let rightTapTime = 0;
+    touchRight.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      rightTouchId = t.identifier;
+      rightOrigin = { x: t.clientX, y: t.clientY };
+      rightTapTime = performance.now();
+    }, { passive: false });
+
+    touchRight.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId && rightOrigin) {
+          const dx = t.clientX - rightOrigin.x;
+          const dist = Math.abs(dx);
+          if (dist < DEAD_ZONE) { touchLookX = 0; }
+          else {
+            touchLookX = Math.sign(dx) * Math.min(dist, MAX_DIST) / MAX_DIST;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchRight.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId) {
+          // Short tap = jump
+          if (performance.now() - rightTapTime < 250 && Math.abs(touchLookX) < 0.2) {
+            touchJump = true;
+          }
+          rightTouchId = null; rightOrigin = null;
+          touchLookX = 0;
+        }
+      }
+    });
+    touchRight.addEventListener('touchcancel', e => {
+      rightTouchId = null; rightOrigin = null;
+      touchLookX = 0;
+    });
+  } else {
+    // Hide touch zones on desktop
+    touchLeft.style.display = 'none';
+    touchRight.style.display = 'none';
   }
 
   // Click-to-move
@@ -1336,17 +1462,26 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let dx = 0, dy = 0;
 
     if (fpMode) {
-      // Jump
-      if (keys[' '] && !airborne) doJump();
+      // Jump (keyboard or touch tap)
+      if ((keys[' '] || touchJump) && !airborne) doJump();
+      touchJump = false;
 
-      // First-person: WASD is relative to facing direction
-      // A/D turn, W/S move forward/back
+      // First-person: WASD + touch
       const turnSpeed = 2.5;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerAngle -= turnSpeed * dt;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) playerAngle += turnSpeed * dt;
+      // Touch turn
+      if (Math.abs(touchLookX) > 0.01) playerAngle += touchLookX * turnSpeed * 1.5 * dt;
+
       const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+      const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
       if (keys['ArrowUp'] || keys['w'] || keys['W']) { dx += fwdX; dy += fwdY; }
       if (keys['ArrowDown'] || keys['s'] || keys['S']) { dx -= fwdX; dy -= fwdY; }
+      // Touch move (left stick: Y is forward/back, X is strafe)
+      if (Math.abs(touchMoveY) > 0.01 || Math.abs(touchMoveX) > 0.01) {
+        dx += -touchMoveY * fwdX + touchMoveX * rightX;
+        dy += -touchMoveY * fwdY + touchMoveX * rightY;
+      }
       // Sync playerDir for sprite/network
       const a = ((playerAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
       if (a < Math.PI*0.25 || a >= Math.PI*1.75) playerDir = 0;      // south
@@ -1708,7 +1843,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
 
     // Torus silhouette with sun lighting (4x4 strips)
-    const skyStripW = 4, skyStripH = 4;
+    const skyStripW = isMobile ? 8 : 4, skyStripH = isMobile ? 8 : 4;
     const skyColsCount = Math.ceil(w / skyStripW);
     const skyRowsCount = Math.ceil(halfH / skyStripH);
     const { P, fwd, right, up } = cam;
@@ -1767,9 +1902,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     // Torus sky + floor
     renderTorusSky(w, h);
 
-    // Cast one ray per 2-pixel column for performance
-    const stripW = 2;
+    // Cast one ray per N-pixel column for performance
+    const stripW = isMobile ? 4 : 2;
     const numRays = Math.ceil(w / stripW);
+    const maxDDA = isMobile ? 40 : 80;
 
     for (let col = 0; col < numRays; col++) {
       const screenX = (col / numRays) * 2 - 1; // -1 to 1
@@ -1792,7 +1928,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
       let hit = false, side = 0, dist = 0, hitTile = 0, hitWX = 0, hitWY = 0;
 
-      for (let step = 0; step < 80; step++) {
+      for (let step = 0; step < maxDDA; step++) {
         if (sideDistX < sideDistY) {
           sideDistX += deltaDistX;
           mapX += stepX;
