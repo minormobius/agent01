@@ -1800,13 +1800,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       ];
     }
 
-    let en; // "up" direction for the camera
+    // Camera frame depends on whether we're airborne or on the surface
+    let en, eu, ev; // up, u-tangent, v-tangent
 
     if (airborne && playerHeight > 0.01) {
       // Gravity-aligned camera: "up" = anti-gravity direction
-      // sampleGravity gives (gR, gZ) in the meridional plane
-      // gR is radial (toward/away from torus axis), gZ is vertical (Y in 3D)
-      // Anti-gravity = (-gR, -gZ), then convert to 3D using the u angle
       const absR = Math.abs(csR);
       const g = sampleGravity(Math.max(0.1, absR), csZ);
       const gR = csR >= 0 ? g.gR : -g.gR;
@@ -1814,61 +1812,64 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       const gLen = Math.sqrt(gR * gR + gZ * gZ);
 
       if (gLen > 0.01) {
-        // Anti-gravity in meridional plane: outward from mass
         const antiR = -gR / gLen;
         const antiZ = -gZ / gLen;
-        // Convert to 3D: R direction = (cos(u), 0, sin(u)), Z direction = (0, 1, 0)
         en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
       } else {
-        // Near the saddle point (center of hole) — gravity ≈ 0
-        // Use radial direction from axis as fallback
         const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
         en = [P[0]/rLen, 0, P[2]/rLen];
       }
+
+      // For airborne frame, use the torus u-tangent as reference to avoid
+      // discontinuities (it's always perpendicular to the radial direction)
+      // u-tangent = d/du of (R cos u, 0, R sin u) = (-sin u, 0, cos u)
+      const uTan = [-Math.sin(u), 0, Math.cos(u)];
+
+      // right = normalize(uTan - (uTan·en)*en)  (Gram-Schmidt)
+      const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
+      let rx = uTan[0] - dot*en[0];
+      let ry = uTan[1] - dot*en[1];
+      let rz = uTan[2] - dot*en[2];
+      let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
+      rx /= rLen; ry /= rLen; rz /= rLen;
+
+      // tangent = en × right
+      let tx = en[1]*rz - en[2]*ry;
+      let ty = en[2]*rx - en[0]*rz;
+      let tz = en[0]*ry - en[1]*rx;
+      let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+      tx /= tLen; ty /= tLen; tz /= tLen;
+
+      eu = [rx, ry, rz];
+      ev = [tx, ty, tz];
     } else {
-      // On surface: normal is the standard outward radial direction
+      // On surface: use actual torus tangent vectors (continuous everywhere)
       en = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
+
+      // eu = d/du of torus position, normalized (along the ring)
+      const euRaw = [-(TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u), 0,
+                      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u)];
+      const euLen = Math.sqrt(euRaw[0]**2 + euRaw[2]**2) || 1;
+      eu = [euRaw[0]/euLen, 0, euRaw[2]/euLen];
+
+      // ev = d/dv of torus position, normalized (along the tube)
+      const evRaw = [-TORUS_r * Math.sin(v) * Math.cos(u), TORUS_r * Math.cos(v),
+                     -TORUS_r * Math.sin(v) * Math.sin(u)];
+      const evLen = Math.sqrt(evRaw[0]**2 + evRaw[1]**2 + evRaw[2]**2) || 1;
+      ev = [evRaw[0]/evLen, evRaw[1]/evLen, evRaw[2]/evLen];
     }
 
-    // Build orthonormal frame from "up" (en) and player yaw
-    // We need two tangent vectors perpendicular to en
-    // Use a reference direction to bootstrap: world Y if en isn't vertical,
-    // otherwise world X
-    let ref;
-    if (Math.abs(en[1]) < 0.95) {
-      ref = [0, 1, 0]; // world Y
-    } else {
-      ref = [1, 0, 0]; // world X fallback
-    }
-
-    // right = normalize(ref × en)
-    let rx = ref[1]*en[2] - ref[2]*en[1];
-    let ry = ref[2]*en[0] - ref[0]*en[2];
-    let rz = ref[0]*en[1] - ref[1]*en[0];
-    let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
-    rx /= rLen; ry /= rLen; rz /= rLen;
-
-    // tangent = normalize(en × right)
-    let tx = en[1]*rz - en[2]*ry;
-    let ty = en[2]*rx - en[0]*rz;
-    let tz = en[0]*ry - en[1]*rx;
-    let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
-    tx /= tLen; ty /= tLen; tz /= tLen;
-
-    // Now right and tangent span the plane perpendicular to en
-    // Apply playerAngle as yaw in this plane
-    // flatFwd = sin(angle)*right + cos(angle)*tangent
-    // camRight = cos(angle)*right - sin(angle)*tangent
+    // Apply playerAngle as yaw: forward = sin(angle)*eu + cos(angle)*ev
     const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
     const flatFwd = [
-      sa * rx + ca * tx,
-      sa * ry + ca * ty,
-      sa * rz + ca * tz,
+      sa * eu[0] + ca * ev[0],
+      sa * eu[1] + ca * ev[1],
+      sa * eu[2] + ca * ev[2],
     ];
     const right = [
-      ca * rx - sa * tx,
-      ca * ry - sa * ty,
-      ca * rz - sa * tz,
+      ca * eu[0] - sa * ev[0],
+      ca * eu[1] - sa * ev[1],
+      ca * eu[2] - sa * ev[2],
     ];
 
     // Pitch: rotate flatFwd and en around the right axis
