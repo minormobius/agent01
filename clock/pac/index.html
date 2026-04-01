@@ -470,14 +470,14 @@ fn tileCoords(px: f32, py: f32, pz: f32, R: f32) -> vec2f {
   return vec2f(tu * f32(p.worldW), tv * f32(p.worldH));
 }
 
-// Ghost 3D position on torus surface (sphere center, raised by radius)
+// Ghost 3D position on torus surface (sphere center, floating above surface)
 fn ghostWorldPos(gi: u32, R: f32, r: f32) -> vec3f {
   let gx = ghosts[gi * 8u];
   let gy = ghosts[gi * 8u + 1u];
   let u = gx / f32(p.worldW) * TWO_PI;
   let v = gy / f32(p.worldH) * TWO_PI;
-  let ghostR: f32 = 0.18; // sphere radius — sits on surface
-  let sr = r + ghostR;     // center raised above tube center
+  let hover: f32 = 0.35; // center height above surface (floats above walls)
+  let sr = r + hover;
   return vec3f((R + sr * cos(v)) * cos(u), sr * sin(v), (R + sr * cos(v)) * sin(u));
 }
 
@@ -583,7 +583,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
 
   // Ray-sphere test against each ghost — cheap analytical intersection
-  let ghostRad: f32 = 0.18;
+  let ghostRad: f32 = 0.30;
   var hitGhost: i32 = -1;
   for (var gi = 0u; gi < 4u; gi++) {
     let gmode = ghosts[gi * 8u + 5u];
@@ -609,7 +609,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   var cr: f32; var cg: f32; var cb: f32;
 
   if (hitGhost >= 0) {
-    // Ghost sphere hit — compute sphere normal for lighting
+    // Ghost orb — emissive with Fresnel rim glow
     let gi = u32(hitGhost);
     let gp = ghostWorldPos(gi, R, r);
     let hp = cam + t * rd;
@@ -618,20 +618,31 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let gmode = ghosts[gi * 8u + 5u];
     if (gmode > 0.5) { // frightened — pulsing blue
       let blink = 0.5 + 0.5 * sin(p.time * 8.0);
-      cr = 0.1; cg = 0.1; cb = 0.5 + 0.3 * blink;
+      cr = 0.2; cg = 0.2; cb = 0.7 + 0.3 * blink;
     } else {
       cr = ghosts[gi * 8u + 2u];
       cg = ghosts[gi * 8u + 3u];
       cb = ghosts[gi * 8u + 4u];
     }
 
+    // Emissive: always bright, no shadow side
+    // Fresnel rim: brighter at edges (grazing angle)
+    let viewDot = abs(dot(gn, rd));
+    let fresnel = pow(1.0 - viewDot, 2.0);
+    let glow = 0.7 + 0.3 * fresnel; // base brightness + rim
+    // Subtle inner shading so it reads as 3D
     let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
     let sunDot = max(0.0, dot(gn, sunDir));
-    let light = 0.2 + 0.8 * sunDot;
-    let fade = 1.0 - min(1.0, t / 40.0) * 0.6;
-    cr = clamp(cr * light * fade, 0.0, 1.0);
-    cg = clamp(cg * light * fade, 0.0, 1.0);
-    cb = clamp(cb * light * fade, 0.0, 1.0);
+    let shade = 0.8 + 0.2 * sunDot;
+    let fade = 1.0 - min(1.0, t / 40.0) * 0.4;
+
+    cr = clamp(cr * glow * shade * fade, 0.0, 1.0);
+    cg = clamp(cg * glow * shade * fade, 0.0, 1.0);
+    cb = clamp(cb * glow * shade * fade, 0.0, 1.0);
+    // Add white rim highlight
+    cr = min(1.0, cr + fresnel * 0.4);
+    cg = min(1.0, cg + fresnel * 0.4);
+    cb = min(1.0, cb + fresnel * 0.4);
 
     let outR = u32(cr * 255.0);
     let outG = u32(cg * 255.0);
@@ -683,9 +694,34 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let light = 0.15 + 0.85 * sunDot;
   let fade = 1.0 - min(1.0, t / 40.0) * 0.6;
 
-  cr = clamp(cr * light * fade, 0.0, 1.0);
-  cg = clamp(cg * light * fade, 0.0, 1.0);
-  cb = clamp(cb * light * fade, 0.0, 1.0);
+  cr = cr * light * fade;
+  cg = cg * light * fade;
+  cb = cb * light * fade;
+
+  // Ghost point lights — additive colored illumination on terrain
+  let hitPos = vec3f(hx, hy, hz);
+  for (var gli = 0u; gli < 4u; gli++) {
+    let glmode = ghosts[gli * 8u + 5u];
+    if (glmode > 1.5) { continue; }
+    let glp = ghostWorldPos(gli, R, r);
+    let toLight = glp - hitPos;
+    let dist2 = dot(toLight, toLight);
+    let dist = sqrt(dist2);
+    if (dist > 3.0) { continue; } // light range cutoff
+    let ldir = toLight / dist;
+    let ndotl = max(0.0, dot(hn, ldir));
+    let atten = ndotl / (0.3 + dist2 * 1.5); // inverse-square with softness
+    var lr: f32; var lg: f32; var lb: f32;
+    if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
+    else { lr = ghosts[gli*8u+2u]; lg = ghosts[gli*8u+3u]; lb = ghosts[gli*8u+4u]; }
+    cr += lr * atten * 1.5;
+    cg += lg * atten * 1.5;
+    cb += lb * atten * 1.5;
+  }
+
+  cr = clamp(cr, 0.0, 1.0);
+  cg = clamp(cg, 0.0, 1.0);
+  cb = clamp(cb, 0.0, 1.0);
 
   let outR = u32(cr * 255.0);
   let outG = u32(cg * 255.0);
