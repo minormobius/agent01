@@ -441,43 +441,6 @@ fn tileH(t: u32) -> f32 {
   return 0.0;
 }
 
-// Ghost as terrain: returns height and ghost index (-1 if none)
-fn ghostAt(tcx: f32, tcy: f32) -> vec2f {
-  let wf = f32(p.worldW);
-  let hf = f32(p.worldH);
-  var bestH: f32 = 0.0;
-  var bestIdx: f32 = -1.0;
-  for (var gi = 0u; gi < 4u; gi++) {
-    let gx = ghosts[gi * 8u];
-    let gy = ghosts[gi * 8u + 1u];
-    let gmode = ghosts[gi * 8u + 5u];
-    if (gmode > 1.5) { continue; }
-    var ddx = tcx - gx;
-    var ddy = tcy - gy;
-    if (ddx > wf * 0.5) { ddx -= wf; }
-    if (ddx < -wf * 0.5) { ddx += wf; }
-    if (ddy > hf * 0.5) { ddy -= hf; }
-    if (ddy < -hf * 0.5) { ddy += hf; }
-    let dist = sqrt(ddx*ddx + ddy*ddy);
-    if (dist < 0.55) {
-      // Smooth dome shape: height falls off from center
-      let falloff = 1.0 - dist / 0.55;
-      let h = 0.45 * falloff * falloff;  // same as wall height at center
-      if (h > bestH) { bestH = h; bestIdx = f32(gi); }
-    }
-  }
-  return vec2f(bestH, bestIdx);
-}
-
-// Combined height: max of tile and ghost terrain
-fn totalH(px: f32, py: f32, pz: f32, R: f32) -> f32 {
-  let tile = tileAtPos(px, py, pz, R);
-  let th = tileH(tile);
-  let tc = tileCoords(px, py, pz, R);
-  let gh = ghostAt(tc.x, tc.y);
-  return max(th, gh.x);
-}
-
 fn sdf(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
   let q = sqrt(px*px + pz*pz) - R;
   return sqrt(q*q + py*py) - r;
@@ -507,6 +470,33 @@ fn tileCoords(px: f32, py: f32, pz: f32, R: f32) -> vec2f {
   return vec2f(tu * f32(p.worldW), tv * f32(p.worldH));
 }
 
+// Ghost 3D position on torus surface (sphere center, raised by radius)
+fn ghostWorldPos(gi: u32, R: f32, r: f32) -> vec3f {
+  let gx = ghosts[gi * 8u];
+  let gy = ghosts[gi * 8u + 1u];
+  let u = gx / f32(p.worldW) * TWO_PI;
+  let v = gy / f32(p.worldH) * TWO_PI;
+  let ghostR: f32 = 0.18; // sphere radius — sits on surface
+  let sr = r + ghostR;     // center raised above tube center
+  return vec3f((R + sr * cos(v)) * cos(u), sr * sin(v), (R + sr * cos(v)) * sin(u));
+}
+
+// Ray-sphere intersection, returns t or -1
+fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
+             cx: f32, cy: f32, cz: f32, rad: f32) -> f32 {
+  let ex = ox - cx; let ey = oy - cy; let ez = oz - cz;
+  let b = ex*dx + ey*dy + ez*dz;
+  let c = ex*ex + ey*ey + ez*ez - rad*rad;
+  let disc = b*b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sq = sqrt(disc);
+  let t1 = -b - sq;
+  if (t1 > 0.01) { return t1; }
+  let t2 = -b + sq;
+  if (t2 > 0.01) { return t2; }
+  return -1.0;
+}
+
 fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
   let maxH: f32 = 0.47;
   var t: f32 = 0.05;
@@ -522,11 +512,10 @@ fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32
   for (var j = 0u; j < 96u; j++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
     let bd = sdf(px, py, pz, R, r);
-    let h = totalH(px, py, pz, R);
+    let tile = tileAtPos(px, py, pz, R);
+    let h = tileH(tile);
     let dd = bd - h;
-    // Only register hit when approaching from outside (bd >= 0)
     if (dd < 0.002 && bd >= -0.01) { return t; }
-    // Deep inside torus body — skip through
     if (bd < -0.2) {
       t += max(-bd - maxH, 0.02);
       continue;
@@ -562,7 +551,21 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let cam = vec3f(p.camX, p.camY, p.camZ);
   let R = p.torusR;
   let r = p.torusr;
-  let t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+  var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+
+  // Ray-sphere test against each ghost — cheap analytical intersection
+  let ghostRad: f32 = 0.18;
+  var hitGhost: i32 = -1;
+  for (var gi = 0u; gi < 4u; gi++) {
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 1.5) { continue; } // waiting/returning — invisible
+    let gp = ghostWorldPos(gi, R, r);
+    let gt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, gp.x, gp.y, gp.z, ghostRad);
+    if (gt > 0.0 && (t < 0.0 || gt < t)) {
+      t = gt;
+      hitGhost = i32(gi);
+    }
+  }
 
   if (t < 0.0) {
     // Dark sky
@@ -574,20 +577,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     return;
   }
 
-  let hx = cam.x + t * rd.x;
-  let hy = cam.y + t * rd.y;
-  let hz = cam.z + t * rd.z;
-  let tile = tileAtPos(hx, hy, hz, R);
-  let tc = tileCoords(hx, hy, hz, R);
-  let th = tileH(tile);
-  let gInfo = ghostAt(tc.x, tc.y);
-  let isGhost = gInfo.x > th && gInfo.y >= 0.0;
-
-  // Base color
   var cr: f32; var cg: f32; var cb: f32;
-  if (isGhost) {
-    // Ghost terrain — use ghost color
-    let gi = u32(gInfo.y);
+
+  if (hitGhost >= 0) {
+    // Ghost sphere hit — compute sphere normal for lighting
+    let gi = u32(hitGhost);
+    let gp = ghostWorldPos(gi, R, r);
+    let hp = cam + t * rd;
+    let gn = normalize(hp - gp);
+
     let gmode = ghosts[gi * 8u + 5u];
     if (gmode > 0.5) { // frightened — pulsing blue
       let blink = 0.5 + 0.5 * sin(p.time * 8.0);
@@ -597,7 +595,30 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       cg = ghosts[gi * 8u + 3u];
       cb = ghosts[gi * 8u + 4u];
     }
-  } else if (tile == 0u) { // WALL — white
+
+    let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
+    let sunDot = max(0.0, dot(gn, sunDir));
+    let light = 0.2 + 0.8 * sunDot;
+    let fade = 1.0 - min(1.0, t / 40.0) * 0.6;
+    cr = clamp(cr * light * fade, 0.0, 1.0);
+    cg = clamp(cg * light * fade, 0.0, 1.0);
+    cb = clamp(cb * light * fade, 0.0, 1.0);
+
+    let outR = u32(cr * 255.0);
+    let outG = u32(cg * 255.0);
+    let outB = u32(cb * 255.0);
+    output[idx] = outR | (outG << 8u) | (outB << 16u) | (255u << 24u);
+    return;
+  }
+
+  // Terrain hit — normal coloring
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+  let tile = tileAtPos(hx, hy, hz, R);
+  let tc = tileCoords(hx, hy, hz, R);
+
+  if (tile == 0u) { // WALL — white
     cr = 1.0; cg = 1.0; cb = 1.0;
   } else if (tile == 5u) { // DOOR — pink
     cr = 1.0; cg = 0.4; cb = 0.7;
@@ -620,12 +641,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   // Normal via central differences
   let eps: f32 = 0.012;
-  let dR = sdf(hx+eps, hy, hz, R, r) - totalH(hx+eps, hy, hz, R)
-         - sdf(hx-eps, hy, hz, R, r) + totalH(hx-eps, hy, hz, R);
-  let dG = sdf(hx, hy+eps, hz, R, r) - totalH(hx, hy+eps, hz, R)
-         - sdf(hx, hy-eps, hz, R, r) + totalH(hx, hy-eps, hz, R);
-  let dB = sdf(hx, hy, hz+eps, R, r) - totalH(hx, hy, hz+eps, R)
-         - sdf(hx, hy, hz-eps, R, r) + totalH(hx, hy, hz-eps, R);
+  let dR = sdf(hx+eps, hy, hz, R, r) - tileH(tileAtPos(hx+eps, hy, hz, R))
+         - sdf(hx-eps, hy, hz, R, r) + tileH(tileAtPos(hx-eps, hy, hz, R));
+  let dG = sdf(hx, hy+eps, hz, R, r) - tileH(tileAtPos(hx, hy+eps, hz, R))
+         - sdf(hx, hy-eps, hz, R, r) + tileH(tileAtPos(hx, hy-eps, hz, R));
+  let dB = sdf(hx, hy, hz+eps, R, r) - tileH(tileAtPos(hx, hy, hz+eps, R))
+         - sdf(hx, hy, hz-eps, R, r) + tileH(tileAtPos(hx, hy, hz-eps, R));
   let hn = normalize(vec3f(dR, dG, dB));
 
   let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
