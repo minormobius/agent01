@@ -61,6 +61,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
   <div id="physBody">
     <label>Gravity <span class="val" id="valGrav">1.8</span></label>
     <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Major Radius (R) <span class="val" id="valR">4.0</span></label>
+    <input type="range" id="slR" min="2" max="12" step="0.1" value="4.0">
+    <label>Minor Radius (r) <span class="val" id="valr">2.0</span></label>
+    <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2.0">
+    <label>Cell Size <span class="val" id="valUnit">3</span></label>
+    <input type="range" id="slUnit" min="2" max="6" step="1" value="3">
   </div>
 </div>
 <div id="start-screen">
@@ -75,8 +81,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 // =====================================================================
 // Constants
 // =====================================================================
-const WORLD_W = 28, WORLD_H = 31;
-const TORUS_R = 4.0, TORUS_r = 2.0;
+let WORLD_W = 27, WORLD_H = 30;
+let TORUS_R = 4.0, TORUS_r = 2.0;
 const WALL_H = 0.45;
 const DOOR_H = 0.20;
 const EYE_HEIGHT = 0.12;
@@ -89,64 +95,158 @@ const MAX_STEP_H = 0.06;
 
 // Tile types
 const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
-const CHAR_MAP = { '#': T.WALL, '.': T.PELLET, 'o': T.POWER, ' ': T.EMPTY, 'G': T.GHOST_HOUSE, 'D': T.DOOR };
+let CELL_UNIT = 3;
 
 let GRAV_SCALE = 1.8;
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
 // =====================================================================
-// Maze — classic Pac-Man layout (28 x 31), adapted for torus
+// Procedural maze generator (toroidal, variable cell size)
 // =====================================================================
-const MAZE_ROWS = [
-  "############################",  // 0
-  "#..........................#",  // 1
-  "#.##.#.##..#.##.#..##.#.##.#",  // 2
-  "#o...#.....#....#.....#...o#",  // 3
-  "#.##.#.###.#.##.#.###.#.##.#",  // 4
-  "#..........................#",  // 5
-  "#.##.##.#..####..#.##.##.#.#",  // 6
-  "#......#....##....#......#.#",  // 7
-  "####.#.####.##.####.#.####.#",  // 8
-  "#....#..#... .. ...#..#....#",  // 9
-  "#.##.#..#          #..#.##.#",  // 10
-  "#....#..# ###DD### #..#....#",  // 11
-  "#.####..# #GGGGGG# #..####.#",  // 12
-  "#.......  #GGGGGG#  .......#",  // 13
-  "      ..  #GGGGGG#  ..      ",  // 14
-  "#.......# #GGGGGG# #.......#",  // 15
-  "#.####..# ######## #..####.#",  // 16
-  "#....#..#          #..#....#",  // 17
-  "#.##.#..#.########.#..#.##.#",  // 18
-  "#....#.......##.......#....#",  // 19
-  "#..........................#",  // 20
-  "#.##.#.##..#.##.#..##.#.##.#",  // 21
-  "#o...#.....#....#.....#...o#",  // 22
-  "#.##.#..##.#....#.##..#.##.#",  // 23
-  "#....#..##..####..##..#....#",  // 24
-  "#..........................#",  // 25
-  "#.##.########.##.########.##",  // 26
-  "#....#.......##.......#....#",  // 27
-  "#..........................#",  // 28
-  "#..........................#",  // 29
-  "############################",  // 30
-];
+let mazeInit, maze, totalPellets;
+let ghostHouseCenter = { x: 13.5, y: 14.5 };
+let ghostEntrance = { x: 13.5, y: 11.5 };
+let playerSpawn = { x: 13.5, y: 18.5 };
 
-// Parse maze into flat array
-const mazeInit = new Uint8Array(WORLD_W * WORLD_H);
-let totalPellets = 0;
-for (let y = 0; y < WORLD_H; y++) {
-  const row = MAZE_ROWS[y];
-  if (row.length !== WORLD_W) console.error(`Row ${y} length ${row.length} != ${WORLD_W}`);
-  for (let x = 0; x < WORLD_W; x++) {
-    const t = CHAR_MAP[row[x]] ?? T.WALL;
-    mazeInit[y * WORLD_W + x] = t;
-    if (t === T.PELLET || t === T.POWER) totalPellets++;
+function generateMaze(U) {
+  const cw = Math.max(4, Math.round(28 / U));
+  const ch = Math.max(4, Math.round(30 / U));
+  WORLD_W = cw * U;
+  WORLD_H = ch * U;
+  const W = WORLD_W, H = WORLD_H;
+
+  // Cell connectivity via randomized DFS (recursive backtracker) on torus
+  const rightWall = new Uint8Array(cw * ch).fill(1);
+  const bottomWall = new Uint8Array(cw * ch).fill(1);
+  const vis = new Uint8Array(cw * ch);
+
+  const stack = [0];
+  vis[0] = 1;
+
+  while (stack.length > 0) {
+    const ci = stack[stack.length - 1];
+    const cx = ci % cw, cy = (ci / cw) | 0;
+    const nbrs = [];
+    const tryNbr = (nx, ny, d) => {
+      const ni = ny * cw + nx;
+      if (!vis[ni]) nbrs.push([nx, ny, ni, d]);
+    };
+    tryNbr((cx + 1) % cw, cy, 'r');
+    tryNbr(((cx - 1) + cw) % cw, cy, 'l');
+    tryNbr(cx, (cy + 1) % ch, 'b');
+    tryNbr(cx, ((cy - 1) + ch) % ch, 'u');
+
+    if (nbrs.length === 0) { stack.pop(); continue; }
+    const [nx, ny, ni, d] = nbrs[(Math.random() * nbrs.length) | 0];
+    if (d === 'r') rightWall[ci] = 0;
+    else if (d === 'l') rightWall[ni] = 0;
+    else if (d === 'b') bottomWall[ci] = 0;
+    else bottomWall[ni] = 0;
+    vis[ni] = 1;
+    stack.push(ni);
   }
+
+  // Extra openings (~25% of remaining walls) for more walkable space
+  for (let i = 0; i < cw * ch; i++) {
+    if (rightWall[i] && Math.random() < 0.25) rightWall[i] = 0;
+    if (bottomWall[i] && Math.random() < 0.25) bottomWall[i] = 0;
+  }
+
+  // Build tile array
+  const tiles = new Uint8Array(W * H);
+  tiles.fill(T.WALL);
+
+  for (let cy = 0; cy < ch; cy++) {
+    for (let cx = 0; cx < cw; cx++) {
+      const ci = cy * cw + cx;
+      // Cell interior → pellets
+      for (let dy = 1; dy < U; dy++)
+        for (let dx = 1; dx < U; dx++)
+          tiles[(cy * U + dy) * W + cx * U + dx] = T.PELLET;
+      // Right passage
+      if (!rightWall[ci]) {
+        const wx = ((cx + 1) * U) % W;
+        for (let dy = 1; dy < U; dy++)
+          tiles[(cy * U + dy) * W + wx] = T.PELLET;
+      }
+      // Bottom passage
+      if (!bottomWall[ci]) {
+        const wy = ((cy + 1) * U) % H;
+        for (let dx = 1; dx < U; dx++)
+          tiles[wy * W + cx * U + dx] = T.PELLET;
+      }
+    }
+  }
+
+  // Ghost house: 8×4, centered
+  const ghW = 8, ghH = 4;
+  const ghX = ((W >> 1) - (ghW >> 1) + W) % W;
+  const ghY = ((H >> 1) - (ghH >> 1) + H) % H;
+  for (let dy = 0; dy < ghH; dy++) {
+    for (let dx = 0; dx < ghW; dx++) {
+      const tx = (ghX + dx) % W, ty = (ghY + dy) % H;
+      if (dy === 0) tiles[ty * W + tx] = (dx >= 3 && dx <= 4) ? T.DOOR : T.WALL;
+      else if (dy === ghH - 1 || dx === 0 || dx === ghW - 1) tiles[ty * W + tx] = T.WALL;
+      else tiles[ty * W + tx] = T.GHOST_HOUSE;
+    }
+  }
+
+  // Clear entrance rows above ghost house
+  for (let row = 1; row <= 2; row++) {
+    const ey = (ghY - row + H) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[ey * W + tx] === T.WALL) tiles[ey * W + tx] = T.EMPTY;
+    }
+  }
+  // Clear player spawn area below ghost house
+  for (let row = 0; row <= 1; row++) {
+    const sy = (ghY + ghH + row) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[sy * W + tx] === T.WALL) tiles[sy * W + tx] = T.EMPTY;
+    }
+  }
+
+  // Store spawn coordinates
+  const gcx = (ghX + ghW / 2);
+  ghostHouseCenter = { x: gcx, y: (ghY + 1.5) };
+  ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
+  playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
+
+  // Power pellets in 4 spread-out positions
+  const corners = [
+    [Math.round(W * 0.12), Math.round(H * 0.12)],
+    [Math.round(W * 0.88), Math.round(H * 0.12)],
+    [Math.round(W * 0.12), Math.round(H * 0.88)],
+    [Math.round(W * 0.88), Math.round(H * 0.88)],
+  ];
+  for (const [px, py] of corners) {
+    outer: for (let r = 0; r < 5; r++) {
+      for (let ddy = -r; ddy <= r; ddy++) {
+        for (let ddx = -r; ddx <= r; ddx++) {
+          const ppx = ((px + ddx) % W + W) % W;
+          const ppy = ((py + ddy) % H + H) % H;
+          if (tiles[ppy * W + ppx] === T.PELLET) {
+            tiles[ppy * W + ppx] = T.POWER;
+            break outer;
+          }
+        }
+      }
+    }
+  }
+
+  // Count pellets
+  totalPellets = 0;
+  for (let i = 0; i < tiles.length; i++)
+    if (tiles[i] === T.PELLET || tiles[i] === T.POWER) totalPellets++;
+
+  mazeInit = tiles;
+  maze = new Uint8Array(tiles);
 }
 
-// Live maze state (pellets get eaten)
-const maze = new Uint8Array(mazeInit);
+generateMaze(CELL_UNIT);
 
 function getMaze(x, y) {
   const tx = ((Math.floor(x) % WORLD_W) + WORLD_W) % WORLD_W;
@@ -169,9 +269,14 @@ function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
 // Gravity LUT — Newtonian gravity from torus mass (adapted from torusworld)
 // =====================================================================
 const GRAV_LUT_SIZE = 32;
-let GRAV_R_MAX = TORUS_R + TORUS_r + 5;
 const GRAV_R_MIN = 0.1;
-let GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
+let GRAV_R_MAX, GRAV_Z_MIN, GRAV_Z_MAX;
+function updateGravBounds() {
+  GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  GRAV_Z_MIN = -(TORUS_r + 5);
+  GRAV_Z_MAX = TORUS_r + 5;
+}
+updateGravBounds();
 const gravLUT_gR = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
 const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
 
@@ -313,7 +418,7 @@ function updateJumpPhysics(dt) {
 // =====================================================================
 // Player state
 // =====================================================================
-let playerX = 13.5, playerY = 22.5;
+let playerX = playerSpawn.x, playerY = playerSpawn.y;
 let playerAngle = Math.PI; // facing up (toward ghost house)
 let playerPitch = 0;
 let airborne = false, playerHeight = 0;
@@ -365,9 +470,7 @@ canvas.addEventListener('click', () => {
     else canvas.requestPointerLock();
   }
 });
-gpuCanvas.addEventListener('click', () => {
-  if (gameRunning) gpuCanvas.requestPointerLock();
-});
+// gpuCanvas click handler added after gpuCanvas creation below
 
 function hasPointerLock() {
   return document.pointerLockElement === canvas || document.pointerLockElement === gpuCanvas;
@@ -404,6 +507,49 @@ slGrav.addEventListener('input', () => {
   computeGravLUT();
 });
 
+const slR = document.getElementById('slR');
+const valR = document.getElementById('valR');
+slR.addEventListener('input', () => {
+  TORUS_R = parseFloat(slR.value);
+  valR.textContent = TORUS_R.toFixed(1);
+  updateGravBounds(); computeGravLUT();
+});
+
+const slr = document.getElementById('slr');
+const valr = document.getElementById('valr');
+slr.addEventListener('input', () => {
+  TORUS_r = parseFloat(slr.value);
+  valr.textContent = TORUS_r.toFixed(1);
+  updateGravBounds(); computeGravLUT();
+});
+
+const slUnit = document.getElementById('slUnit');
+const valUnit = document.getElementById('valUnit');
+slUnit.addEventListener('input', () => {
+  CELL_UNIT = parseInt(slUnit.value);
+  valUnit.textContent = CELL_UNIT;
+  rebuildMaze();
+});
+
+function rebuildMaze() {
+  generateMaze(CELL_UNIT);
+  pelletsEaten = 0;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
+  playerAngle = Math.PI; playerPitch = 0;
+  airborne = false; playerHeight = 0;
+  resetGhosts();
+  resizeMinimap();
+  updateGravBounds(); computeGravLUT();
+  gpuSky?.uploadTiles();
+}
+
+function resizeMinimap() {
+  mmCanvas.width = WORLD_W * MM_SCALE;
+  mmCanvas.height = WORLD_H * MM_SCALE;
+  mmCanvas.style.width = (WORLD_W * MM_SCALE) + 'px';
+  mmCanvas.style.height = (WORLD_H * MM_SCALE) + 'px';
+}
+
 // =====================================================================
 // Canvas setup
 // =====================================================================
@@ -422,6 +568,9 @@ const gpuCanvas = document.createElement('canvas');
 gpuCanvas.id = 'gpuCanvas';
 gpuCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;display:none;z-index:1';
 document.body.insertBefore(gpuCanvas, document.getElementById('minimap'));
+gpuCanvas.addEventListener('click', () => {
+  if (gameRunning) gpuCanvas.requestPointerLock();
+});
 let gpuSky = null;
 
 const shaderCode = `
@@ -832,12 +981,13 @@ struct VOut {
 
   // Shared buffers
   const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const tileBuf = device.createBuffer({ size: WORLD_W * WORLD_H * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const MAX_TILES = 4096;
+  const tileBuf = device.createBuffer({ size: MAX_TILES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
   function uploadTiles() {
-    const data = new Uint32Array(WORLD_W * WORLD_H);
-    for (let i = 0; i < maze.length; i++) data[i] = maze[i];
+    const data = new Uint32Array(MAX_TILES);
+    for (let i = 0; i < Math.min(maze.length, MAX_TILES); i++) data[i] = maze[i];
     device.queue.writeBuffer(tileBuf, 0, data);
   }
   uploadTiles();
@@ -1191,25 +1341,31 @@ const GHOST_SPEED = 3.5;
 const GHOST_FRIGHT_SPEED = 2.0;
 
 const ghosts = [
-  { type:'blinky', x:13.5, y:10.5, dir:DIR.LEFT, mode:'scatter',
-    color:[1,0,0], scatter:{x:25,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
-  { type:'pinky', x:13.5, y:13.5, dir:DIR.UP, mode:'waiting',
-    color:[1,0.7,1], scatter:{x:2,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
-  { type:'inky', x:12.5, y:14.5, dir:DIR.UP, mode:'waiting',
-    color:[0,1,1], scatter:{x:25,y:30}, releaseTime:8, lastTx:-1, lastTy:-1 },
-  { type:'clyde', x:14.5, y:14.5, dir:DIR.UP, mode:'waiting',
-    color:[1,0.6,0], scatter:{x:2,y:30}, releaseTime:14, lastTx:-1, lastTy:-1 },
+  { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
+    color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
+  { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
+  { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
+  { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
 ];
 
-// Save initial positions for reset
-const ghostInits = ghosts.map(g => ({ ...g, scatter: { ...g.scatter } }));
-
 function resetGhosts() {
-  for (let i = 0; i < ghosts.length; i++) {
-    const init = ghostInits[i];
-    Object.assign(ghosts[i], { x: init.x, y: init.y, dir: init.dir, mode: init.mode, lastTx: -1, lastTy: -1 });
-  }
+  const gx = ghostHouseCenter.x, gy = ghostHouseCenter.y;
+  const ex = ghostEntrance.x, ey = ghostEntrance.y;
+  ghosts[0].x = ex; ghosts[0].y = ey; ghosts[0].dir = DIR.LEFT; ghosts[0].mode = 'scatter';
+  ghosts[1].x = gx; ghosts[1].y = gy; ghosts[1].dir = DIR.UP; ghosts[1].mode = 'waiting';
+  ghosts[2].x = gx - 1; ghosts[2].y = gy; ghosts[2].dir = DIR.UP; ghosts[2].mode = 'waiting';
+  ghosts[3].x = gx + 1; ghosts[3].y = gy; ghosts[3].dir = DIR.UP; ghosts[3].mode = 'waiting';
+  // Scatter targets: maze corners
+  ghosts[0].scatter = { x: WORLD_W - 3, y: 1 };
+  ghosts[1].scatter = { x: 2, y: 1 };
+  ghosts[2].scatter = { x: WORLD_W - 3, y: WORLD_H - 2 };
+  ghosts[3].scatter = { x: 2, y: WORLD_H - 2 };
+  for (const g of ghosts) { g.lastTx = -1; g.lastTy = -1; }
 }
+resetGhosts();
 
 function canGhostMove(x, y, ghost) {
   const t = getMaze(x, y);
@@ -1278,7 +1434,7 @@ function updateGhost(ghost, dt) {
 
   // Exiting ghost house — teleport to above door
   if (ghost.mode === 'exiting') {
-    const tx = 13.5, ty = 10.5;
+    const tx = ghostEntrance.x, ty = ghostEntrance.y;
     const dx = tx - ghost.x, dy = ty - ghost.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     if (dist < 0.3) { ghost.x = tx; ghost.y = ty; ghost.mode = 'chase'; return; }
@@ -1289,7 +1445,7 @@ function updateGhost(ghost, dt) {
 
   // Returning to house after being eaten
   if (ghost.mode === 'returning') {
-    const tx = 13.5, ty = 13.5;
+    const tx = ghostHouseCenter.x, ty = ghostHouseCenter.y;
     const dx = tx - ghost.x, dy = ty - ghost.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     if (dist < 0.3) { ghost.x = tx; ghost.y = ty; ghost.mode = 'exiting'; return; }
@@ -1407,7 +1563,7 @@ function checkGhostCollision() {
           document.getElementById('msg').style.display = 'none';
         }, 1500);
         // Reset positions
-        playerX = 13.5; playerY = 22.5;
+        playerX = playerSpawn.x; playerY = playerSpawn.y;
         playerAngle = Math.PI; playerPitch = 0;
         airborne = false; playerHeight = 0;
         resetGhosts();
@@ -1528,16 +1684,18 @@ function startGame() {
   gameTime = 0;
   score = 0;
   lives = 3;
-  // Reset maze
-  maze.set(mazeInit);
+  // Generate fresh maze
+  generateMaze(CELL_UNIT);
   pelletsEaten = 0;
   powerTimer = 0;
   ghostEatScore = 200;
   currentWave = 0;
-  playerX = 13.5; playerY = 22.5;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
   playerAngle = Math.PI; playerPitch = 0;
   airborne = false; playerHeight = 0;
   resetGhosts();
+  resizeMinimap();
+  updateGravBounds(); computeGravLUT();
   gpuSky?.uploadTiles();
   document.getElementById('msg').style.display = 'none';
   updateHUD();
