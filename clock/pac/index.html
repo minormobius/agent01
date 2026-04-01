@@ -1455,10 +1455,21 @@ function updateGhost(ghost, dt) {
   }
 
   const spd = (ghost.mode === 'frightened' ? GHOST_FRIGHT_SPEED : GHOST_SPEED) * dt;
-  ghost.x += DX[ghost.dir] * spd;
-  ghost.y += DY[ghost.dir] * spd;
-  ghost.x = wrapX(ghost.x);
-  ghost.y = wrapY(ghost.y);
+  const nx = wrapX(ghost.x + DX[ghost.dir] * spd);
+  const ny = wrapY(ghost.y + DY[ghost.dir] * spd);
+
+  // Collision check: don't move into wall tiles
+  if (!canGhostMove(Math.floor(nx), Math.floor(ny), ghost)) {
+    // Snap to tile center and force direction re-evaluation
+    ghost.x = Math.floor(ghost.x) + 0.5;
+    ghost.y = Math.floor(ghost.y) + 0.5;
+    ghost.lastTx = -1; ghost.lastTy = -1; // force re-choose
+    chooseGhostDir(ghost);
+    return;
+  }
+
+  ghost.x = nx;
+  ghost.y = ny;
 
   // At tile center → choose new direction (only once per tile)
   const tx = Math.floor(ghost.x);
