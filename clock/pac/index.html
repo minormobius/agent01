@@ -497,10 +497,16 @@ fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
   return -1.0;
 }
 
+fn displacedDist(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let bd = sdf(px, py, pz, R, r);
+  let tile = tileAtPos(px, py, pz, R);
+  return bd - tileH(tile);
+}
+
 fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
   let maxH: f32 = 0.47;
   var t: f32 = 0.05;
-  // Phase 1: coarse approach
+  // Phase 1: coarse approach to displacement envelope
   for (var i = 0u; i < 64u; i++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
     let bd = sdf(px, py, pz, R, r);
@@ -508,19 +514,42 @@ fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32
     t += max(bd - maxH, 0.02);
     if (t > 50.0) { return -1.0; }
   }
-  // Phase 2: fine march through displacement zone
-  for (var j = 0u; j < 96u; j++) {
+  // Phase 2: fine march with binary search on sign change
+  var prevT: f32 = t;
+  var prevDD: f32 = 1.0;
+  for (var j = 0u; j < 80u; j++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
     let bd = sdf(px, py, pz, R, r);
     let tile = tileAtPos(px, py, pz, R);
     let h = tileH(tile);
     let dd = bd - h;
-    if (dd < 0.002 && bd >= -0.01) { return t; }
-    if (bd < -0.2) {
+
+    // Sign change: overshot the surface. Binary search to find exact hit.
+    if (dd < 0.0 && prevDD > 0.0) {
+      var lo = prevT;
+      var hi = t;
+      for (var b = 0u; b < 8u; b++) {
+        let mid = (lo + hi) * 0.5;
+        let mp = vec3f(ox + mid*dx, oy + mid*dy, oz + mid*dz);
+        let md = displacedDist(mp.x, mp.y, mp.z, R, r);
+        if (md < 0.0) { hi = mid; } else { lo = mid; }
+      }
+      return (lo + hi) * 0.5;
+    }
+
+    if (dd < 0.002 && dd >= 0.0) { return t; }
+
+    // Deep inside torus — skip out
+    if (bd < -0.3) {
+      prevDD = dd;
+      prevT = t;
       t += max(-bd - maxH, 0.02);
       continue;
     }
-    t += max(dd * 0.45, 0.004);
+
+    prevDD = dd;
+    prevT = t;
+    t += max(dd * 0.5, 0.005);
     if (t > 50.0) { return -1.0; }
   }
   return -1.0;
