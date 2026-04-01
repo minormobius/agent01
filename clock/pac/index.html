@@ -1082,8 +1082,8 @@ function updateGhost(ghost, dt) {
   const cx = tx + 0.5;
   const cy = ty + 0.5;
   if (Math.abs(ghost.x - cx) + Math.abs(ghost.y - cy) < spd * 1.5) {
-    ghost.x = cx; ghost.y = cy;
     if (tx !== ghost.lastTx || ty !== ghost.lastTy) {
+      ghost.x = cx; ghost.y = cy; // snap only on new tile
       ghost.lastTx = tx; ghost.lastTy = ty;
       chooseGhostDir(ghost);
     }
