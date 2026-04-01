@@ -403,8 +403,11 @@ resize();
 // =====================================================================
 // WebGPU — ray-traced first-person torus renderer
 // =====================================================================
+// WebGPU canvas overlays the 2D canvas for FPV mode
 const gpuCanvas = document.createElement('canvas');
-const gpuCtx = gpuCanvas.getContext('2d');
+gpuCanvas.id = 'gpuCanvas';
+gpuCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;display:none;z-index:1';
+document.body.insertBefore(gpuCanvas, document.getElementById('minimap'));
 let gpuSky = null;
 
 const shaderCode = `
@@ -421,7 +424,7 @@ struct Params {
 
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var<storage, read> tiles: array<u32>;
-@group(0) @binding(2) var<storage, read_write> output: array<u32>;
+@group(0) @binding(2) var output: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(3) var<storage, read> ghosts: array<f32>;
 
 const PI: f32 = 3.14159265;
@@ -570,7 +573,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let w = p.width;
   let h = p.height;
   if (px >= w || py >= h) { return; }
-  let idx = py * w + px;
 
   let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
   let screenV = p.horizonY - f32(py) / f32(h);
@@ -639,20 +641,17 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     let pfade = 1.0 - min(1.0, t / 40.0) * 0.4;
     pcr *= 0.9 * pfade; pcg *= 0.9 * pfade; pcb *= 0.1 * pfade;
-    let outR2 = u32(clamp(pcr, 0.0, 1.0) * 255.0);
-    let outG2 = u32(clamp(pcg, 0.0, 1.0) * 255.0);
-    let outB2 = u32(clamp(pcb, 0.0, 1.0) * 255.0);
-    output[idx] = outR2 | (outG2 << 8u) | (outB2 << 16u) | (255u << 24u);
+    textureStore(output, vec2u(px, py), vec4f(clamp(pcr, 0.0, 1.0), clamp(pcg, 0.0, 1.0), clamp(pcb, 0.0, 1.0), 1.0));
     return;
   }
 
   if (t < 0.0) {
     // Dark sky
     let skyT = clamp(rd.y * 0.5 + 0.5, 0.0, 1.0);
-    let sr = u32(mix(3.0, 10.0, skyT));
-    let sg = u32(mix(3.0, 8.0, skyT));
-    let sb = u32(mix(12.0, 30.0, skyT));
-    output[idx] = sr | (sg << 8u) | (sb << 16u) | (255u << 24u);
+    let sr = mix(3.0, 10.0, skyT) / 255.0;
+    let sg = mix(3.0, 8.0, skyT) / 255.0;
+    let sb = mix(12.0, 30.0, skyT) / 255.0;
+    textureStore(output, vec2u(px, py), vec4f(sr, sg, sb, 1.0));
     return;
   }
 
@@ -694,10 +693,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     cg = min(1.0, cg + fresnel * 0.4);
     cb = min(1.0, cb + fresnel * 0.4);
 
-    let outR = u32(cr * 255.0);
-    let outG = u32(cg * 255.0);
-    let outB = u32(cb * 255.0);
-    output[idx] = outR | (outG << 8u) | (outB << 16u) | (255u << 24u);
+    textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
     return;
   }
 
@@ -760,10 +756,31 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   cg = clamp(cg, 0.0, 1.0);
   cb = clamp(cb, 0.0, 1.0);
 
-  let outR = u32(cr * 255.0);
-  let outG = u32(cg * 255.0);
-  let outB = u32(cb * 255.0);
-  output[idx] = outR | (outG << 8u) | (outB << 16u) | (255u << 24u);
+  textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  // Map clip coords to [0,1] UVs (y-flipped for texture coords)
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
 }
 `;
 
@@ -773,15 +790,36 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (!adapter) { console.warn('No GPU adapter'); return; }
   const device = await adapter.requestDevice();
 
-  const shaderModule = device.createShaderModule({ code: shaderCode });
+  // Configure WebGPU canvas
+  const gpuCtx = gpuCanvas.getContext('webgpu');
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  gpuCtx.configure({ device, format: canvasFormat, alphaMode: 'opaque' });
+
+  // Compute pipeline
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+
+  // Blit pipeline — fullscreen triangle sampling the compute output texture
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: {
+      module: blitModule, entryPoint: 'fs',
+      targets: [{ format: canvasFormat }],
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+
+  // Shared buffers
   const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const tileBuf = device.createBuffer({ size: WORLD_W * WORLD_H * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-
-  const pipeline = device.createComputePipeline({
-    layout: 'auto',
-    compute: { module: shaderModule, entryPoint: 'main' },
-  });
 
   function uploadTiles() {
     const data = new Uint32Array(WORLD_W * WORLD_H);
@@ -790,44 +828,47 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
   uploadTiles();
 
-  // Initialize ghost buffer to "all waiting" (mode=2)
   const initGhosts = new Float32Array(32);
   for (let i = 0; i < 4; i++) initGhosts[i * 8 + 5] = 2.0;
   device.queue.writeBuffer(ghostBuf, 0, initGhosts);
 
-  let outputBuf = null, readbackBuf = null, bindGroup = null;
+  // Storage texture (compute output) + blit bind group — recreated on resize
+  let outputTex = null, computeBindGroup = null, blitBindGroup = null;
   let skyW = 0, skyH = 0;
 
   function ensureSize(w, h) {
     if (w === skyW && h === skyH) return;
     skyW = w; skyH = h;
-    if (outputBuf) outputBuf.destroy();
-    if (readbackBuf) readbackBuf.destroy();
-    const sz = w * h * 4;
-    outputBuf = device.createBuffer({ size: sz, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-    readbackBuf = device.createBuffer({ size: sz, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
-    bindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
+    if (outputTex) outputTex.destroy();
+    outputTex = device.createTexture({
+      size: [w, h],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    computeBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: paramBuf } },
         { binding: 1, resource: { buffer: tileBuf } },
-        { binding: 2, resource: { buffer: outputBuf } },
+        { binding: 2, resource: outputTex.createView() },
         { binding: 3, resource: { buffer: ghostBuf } },
+      ],
+    });
+    blitBindGroup = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outputTex.createView() },
+        { binding: 1, resource: sampler },
       ],
     });
   }
 
-  let gpuBusy = false, lastImg = null;
-
   gpuSky = {
-    render: async function(w, h, cam, ghostData) {
-      if (gpuBusy) return lastImg;
+    render: function(w, h, cam, ghostData) {
       ensureSize(w, h);
 
-      // Upload ghost data
       if (ghostData) device.queue.writeBuffer(ghostBuf, 0, ghostData);
 
-      // Upload uniforms
       const pd = new ArrayBuffer(128);
       const f = new Float32Array(pd);
       const u = new Uint32Array(pd);
@@ -835,36 +876,47 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
       f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
       f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
-      f[16] = 0.4; f[17] = 0.8; f[18] = 0.3; // sun direction
-      f[19] = gameTime; // time
+      f[16] = 0.4; f[17] = 0.8; f[18] = 0.3;
+      f[19] = gameTime;
       f[20] = TORUS_R; f[21] = TORUS_r;
       u[22] = w; u[23] = h;
       f[24] = FOV; f[25] = VFOV;
       u[26] = WORLD_W; u[27] = WORLD_H;
-      f[28] = 0.5; // horizon
+      f[28] = 0.5;
       device.queue.writeBuffer(paramBuf, 0, pd);
 
-      gpuBusy = true;
+      // Resize WebGPU canvas to display size
+      gpuCanvas.width = canvas.width;
+      gpuCanvas.height = canvas.height;
+
       const enc = device.createCommandEncoder();
-      const pass = enc.beginComputePass();
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
-      pass.end();
-      enc.copyBufferToBuffer(outputBuf, 0, readbackBuf, 0, w * h * 4);
+
+      // Compute pass — raytrace into storage texture
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBindGroup);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+
+      // Render pass — blit storage texture to canvas as fullscreen quad
+      const renderPass = enc.beginRenderPass({
+        colorAttachments: [{
+          view: gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        }],
+      });
+      renderPass.setPipeline(blitPipeline);
+      renderPass.setBindGroup(0, blitBindGroup);
+      renderPass.draw(3);
+      renderPass.end();
+
       device.queue.submit([enc.finish()]);
-
-      await readbackBuf.mapAsync(GPUMapMode.READ);
-      const result = new Uint8ClampedArray(readbackBuf.getMappedRange().slice(0));
-      readbackBuf.unmap();
-      gpuBusy = false;
-
-      lastImg = new ImageData(result, w, h);
-      return lastImg;
     },
     uploadTiles,
   };
-  console.log('WebGPU initialized');
+  console.log('WebGPU initialized (storage texture + blit pipeline)');
 })();
 
 // =====================================================================
@@ -1344,9 +1396,7 @@ function showMessage(text) {
 // =====================================================================
 // FPV Render
 // =====================================================================
-let pendingRender = false;
-
-async function renderFPV() {
+function renderFPV() {
   if (!gpuSky) return;
   const w = canvas.width, h = canvas.height;
   const scale = Math.min(1, 360 / h);
@@ -1354,14 +1404,7 @@ async function renderFPV() {
   const rh = Math.max(8, Math.floor(h * scale));
 
   const cam = computeCamera();
-  // Ghost data will be populated in step 5
-  const img = await gpuSky.render(rw, rh, cam, buildGhostData());
-  if (img) {
-    gpuCanvas.width = rw; gpuCanvas.height = rh;
-    gpuCtx.putImageData(img, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(gpuCanvas, 0, 0, rw, rh, 0, 0, w, h);
-  }
+  gpuSky.render(rw, rh, cam, buildGhostData());
 }
 
 // =====================================================================
@@ -1432,10 +1475,11 @@ function gameLoop(now) {
   checkGhostCollision();
 
   // Render: FPV or top-down based on view mode
-  if (fpMode && gpuSky && !pendingRender) {
-    pendingRender = true;
-    renderFPV().then(() => { pendingRender = false; });
-  } else if (!fpMode || !gpuSky) {
+  if (fpMode && gpuSky) {
+    gpuCanvas.style.display = 'block';
+    renderFPV();
+  } else {
+    gpuCanvas.style.display = 'none';
     renderTopDown();
   }
   drawMinimap();
