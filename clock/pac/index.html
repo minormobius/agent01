@@ -55,6 +55,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="hud"><div id="score-display">0</div><div id="lives-display"></div></div>
 <div id="reticle"></div>
 <div id="msg"></div>
+<div id="autoRunIndicator" style="position:fixed;top:50px;left:50%;transform:translateX(-50%);
+  color:#0f0;font:14px monospace;z-index:5;pointer-events:none;display:none;
+  text-shadow:0 0 8px #0f0">AUTO-RUN [Q]</div>
 <button id="viewToggle">FPV [F]</button>
 <div id="physPanel">
   <button id="physToggle">Physics ▼</button>
@@ -62,9 +65,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
     <label>Gravity <span class="val" id="valGrav">1.8</span></label>
     <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
     <label>Major Radius (R) <span class="val" id="valR">4.0</span></label>
-    <input type="range" id="slR" min="2" max="12" step="0.1" value="4.0">
+    <input type="range" id="slR" min="2" max="30" step="0.1" value="4.0">
     <label>Minor Radius (r) <span class="val" id="valr">2.0</span></label>
-    <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2.0">
+    <input type="range" id="slr" min="0.3" max="8" step="0.1" value="2.0">
     <label>Cell Size <span class="val" id="valUnit">3</span></label>
     <input type="range" id="slUnit" min="2" max="6" step="1" value="3">
   </div>
@@ -72,7 +75,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="start-screen">
   <h1>PAC</h1>
   <p>Pac-Man on a Torus</p>
-  <p style="color:#666;margin-top:12px">WASD move &bull; Mouse look &bull; Space jump over walls</p>
+  <p style="color:#666;margin-top:12px">WASD move &bull; Mouse look &bull; Space jump &bull; Q auto-run</p>
   <button onclick="startGame()">START</button>
 </div>
 <script>
@@ -346,6 +349,7 @@ function initCrossSectionFromSurface() {
 function doJump() {
   if (airborne) return;
   airborne = true;
+  airborneTime = 0;
   initCrossSectionFromSurface();
   const v = getPlayerV();
   const nR = Math.cos(v), nZ = Math.sin(v);
@@ -354,8 +358,16 @@ function doJump() {
   csVZ = nZ * speed;
 }
 
+function forceLand() {
+  airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
+  jumpDxPerSec = 0; jumpDyPerSec = 0; airborneTime = 0;
+}
+
 function updateJumpPhysics(dt) {
   if (!airborne) { playerHeight = 0; return; }
+  airborneTime += dt;
+  // Safety: force land after 8 seconds (prevents stuck-airborne orbits)
+  if (airborneTime > 8) { forceLand(); return; }
   const substeps = 8;
   const subDt = dt / substeps;
   for (let s = 0; s < substeps; s++) {
@@ -379,7 +391,8 @@ function updateJumpPhysics(dt) {
 
     if (distTC <= effectiveR) {
       const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
-      if (vDot < 0) {
+      // Land if moving toward surface, OR if deeply embedded (tangential skip)
+      if (vDot < 0 || distTC < effectiveR * 0.92) {
         // Preserve facing direction using camera forward
         const cam = computeCamera();
         const worldFwd = [cam.fwd[0], cam.fwd[1], cam.fwd[2]];
@@ -402,8 +415,7 @@ function updateJumpPhysics(dt) {
         const dotV = worldFwd[0]*newEv[0]/newEvLen + worldFwd[1]*newEv[1]/newEvLen + worldFwd[2]*newEv[2]/newEvLen;
         playerAngle = Math.atan2(dotU, dotV);
 
-        airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
-        jumpDxPerSec = 0; jumpDyPerSec = 0;
+        forceLand();
         return;
       }
     }
@@ -426,6 +438,7 @@ let airborne = false, playerHeight = 0;
 // Cross-section physics (for jumping)
 let csR = 0, csZ = 0, csVR = 0, csVZ = 0;
 let jumpDxPerSec = 0, jumpDyPerSec = 0; // tile-space velocity carried into jump
+let airborneTime = 0; // safety timer
 
 function getPlayerU() { return (playerX / WORLD_W) * Math.PI * 2; }
 function getPlayerV() { return (playerY / WORLD_H) * Math.PI * 2; }
@@ -450,6 +463,7 @@ function canWalk(nx, ny) {
 // =====================================================================
 const keys = {};
 let fpMode = true; // start in FPV
+let autoRun = false;
 
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
@@ -457,6 +471,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'f' || e.key === 'F') {
     fpMode = !fpMode;
     document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+  }
+  if (e.key === 'q' || e.key === 'Q') {
+    autoRun = !autoRun;
+    document.getElementById('autoRunIndicator').style.display = autoRun ? 'block' : 'none';
   }
 });
 document.addEventListener('keyup', e => { keys[e.key] = false; });
@@ -1165,7 +1183,7 @@ function updatePlayer(dt) {
   const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
   const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
   let dx = 0, dy = 0;
-  if (keys['w'] || keys['W'] || keys['ArrowUp']) { dx += fwdX; dy += fwdY; }
+  if (autoRun || keys['w'] || keys['W'] || keys['ArrowUp']) { dx += fwdX; dy += fwdY; }
   if (keys['s'] || keys['S'] || keys['ArrowDown']) { dx -= fwdX; dy -= fwdY; }
   if (keys['a'] || keys['A']) { dx -= rightX; dy -= rightY; }
   if (keys['d'] || keys['D']) { dx += rightX; dy += rightY; }
