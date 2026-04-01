@@ -104,6 +104,29 @@ let GRAV_SCALE = 1.8;
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
+// Reference torus for Cartesian speed normalization
+// At R=4, r=2, W=27, H=30: metric factors set the baseline "feel"
+const REF_MU_U = 6.0 / 27; // (R+r) / W at v=0
+const REF_MU_V = 2.0 / 30; // r / H
+
+// Metric-correct tile speed: preserves linear (Cartesian) speed
+// regardless of torus size or grid dimensions
+function metricTileSpeed(baseTileSpd, dx, dy, tileY) {
+  const v = (tileY / WORLD_H) * Math.PI * 2;
+  const muU = (TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W;
+  const muV = TORUS_r / WORLD_H;
+  const refPhys = Math.sqrt(dx * dx * REF_MU_U * REF_MU_U + dy * dy * REF_MU_V * REF_MU_V);
+  const curPhys = Math.sqrt(dx * dx * muU * muU + dy * dy * muV * muV);
+  return baseTileSpd * refPhys / (curPhys || 1);
+}
+
+// Cardinal direction speed (for ghosts — one axis at a time)
+function cardinalTileSpeed(baseTileSpd, isU, tileY) {
+  const v = (tileY / WORLD_H) * Math.PI * 2;
+  if (isU) return baseTileSpd * REF_MU_U / ((TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W);
+  return baseTileSpd * REF_MU_V / (TORUS_r / WORLD_H);
+}
+
 // =====================================================================
 // Procedural maze generator (toroidal, variable cell size)
 // =====================================================================
@@ -113,8 +136,10 @@ let ghostEntrance = { x: 13.5, y: 11.5 };
 let playerSpawn = { x: 13.5, y: 18.5 };
 
 function generateMaze(U) {
-  const cw = Math.max(4, Math.round(28 / U));
-  const ch = Math.max(4, Math.round(30 / U));
+  // Cell count scales with torus circumference (ref: R=4→9 cells, r=2→10 cells at U=3)
+  const maxCells = Math.floor(96 / U); // cap tile dimension at ~96
+  const cw = Math.max(4, Math.min(maxCells, Math.round(TORUS_R * 2.25)));
+  const ch = Math.max(4, Math.min(maxCells, Math.round(TORUS_r * 5.0)));
   WORLD_W = cw * U;
   WORLD_H = ch * U;
   const W = WORLD_W, H = WORLD_H;
@@ -349,7 +374,6 @@ function initCrossSectionFromSurface() {
 function doJump() {
   if (airborne) return;
   airborne = true;
-  airborneTime = 0;
   initCrossSectionFromSurface();
   const v = getPlayerV();
   const nR = Math.cos(v), nZ = Math.sin(v);
@@ -360,14 +384,11 @@ function doJump() {
 
 function forceLand() {
   airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
-  jumpDxPerSec = 0; jumpDyPerSec = 0; airborneTime = 0;
+  jumpDxPerSec = 0; jumpDyPerSec = 0;
 }
 
 function updateJumpPhysics(dt) {
   if (!airborne) { playerHeight = 0; return; }
-  airborneTime += dt;
-  // Safety: force land after 8 seconds (prevents stuck-airborne orbits)
-  if (airborneTime > 8) { forceLand(); return; }
   const substeps = 8;
   const subDt = dt / substeps;
   for (let s = 0; s < substeps; s++) {
@@ -438,7 +459,6 @@ let airborne = false, playerHeight = 0;
 // Cross-section physics (for jumping)
 let csR = 0, csZ = 0, csVR = 0, csVZ = 0;
 let jumpDxPerSec = 0, jumpDyPerSec = 0; // tile-space velocity carried into jump
-let airborneTime = 0; // safety timer
 
 function getPlayerU() { return (playerX / WORLD_W) * Math.PI * 2; }
 function getPlayerV() { return (playerY / WORLD_H) * Math.PI * 2; }
@@ -999,7 +1019,7 @@ struct VOut {
 
   // Shared buffers
   const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const MAX_TILES = 4096;
+  const MAX_TILES = 16384;
   const tileBuf = device.createBuffer({ size: MAX_TILES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
@@ -1173,7 +1193,7 @@ function updatePlayer(dt) {
   if (keys['ArrowRight']) playerAngle += 2.5 * dt;
 
   if (airborne) {
-    // Apply stored momentum (u-direction drift) while airborne
+    // Apply stored momentum (u-direction drift) — already Cartesian-corrected
     playerX = wrapX(playerX + jumpDxPerSec * dt);
     // v-direction handled by cross-section physics (csR/csZ)
     return;
@@ -1191,14 +1211,15 @@ function updatePlayer(dt) {
   const len = Math.sqrt(dx * dx + dy * dy);
   if (len > 0.01) {
     dx /= len; dy /= len;
-    const speed = PLAYER_SPEED * dt;
+    // Metric-correct speed: constant linear (Cartesian) velocity on torus surface
+    const speed = metricTileSpeed(PLAYER_SPEED, dx, dy, playerY) * dt;
     const newX = playerX + dx * speed;
     const newY = playerY + dy * speed;
     if (canWalk(newX, playerY)) playerX = wrapX(newX);
     if (canWalk(playerX, newY)) playerY = wrapY(newY);
-    // Store current velocity for potential jump
-    jumpDxPerSec = dx * PLAYER_SPEED;
-    jumpDyPerSec = dy * PLAYER_SPEED;
+    // Store current velocity for potential jump (already Cartesian-corrected)
+    jumpDxPerSec = dx * metricTileSpeed(PLAYER_SPEED, 1, 0, playerY);
+    jumpDyPerSec = dy * PLAYER_SPEED; // v handled by cross-section, not used
   } else {
     jumpDxPerSec = 0;
     jumpDyPerSec = 0;
@@ -1487,7 +1508,9 @@ function updateGhost(ghost, dt) {
 
   const baseSpd = ghost.mode === 'frightened' ? GHOST_FRIGHT_SPEED :
                    ghost.mode === 'returning' ? GHOST_SPEED * 2 : GHOST_SPEED;
-  const spd = baseSpd * dt;
+  // Cartesian speed: correct for torus metric so ghosts don't race on big tori
+  const isU = DX[ghost.dir] !== 0; // horizontal = u-direction
+  const spd = cardinalTileSpeed(baseSpd, isU, ghost.y) * dt;
   const nx = wrapX(ghost.x + DX[ghost.dir] * spd);
   const ny = wrapY(ghost.y + DY[ghost.dir] * spd);
 
