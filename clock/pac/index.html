@@ -32,6 +32,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
   font:48px 'Courier New',monospace;color:#ff0;z-index:5;display:none;
   text-shadow:0 0 20px #ff0;pointer-events:none}
+#viewToggle{position:fixed;bottom:12px;left:12px;z-index:5;
+  padding:8px 14px;border:1px solid #4a4a6a;border-radius:4px;
+  background:rgba(30,30,50,0.85);color:#ddd;font:12px monospace;cursor:pointer}
+#viewToggle:hover{background:#3a3a5e}
+#physPanel{position:fixed;bottom:50px;left:12px;z-index:5;
+  background:rgba(20,20,35,0.92);border:1px solid #3a3a5a;border-radius:6px;
+  padding:0;color:#ccc;font:11px/1.6 monospace;min-width:180px;user-select:none;display:none}
+#physToggle{width:100%;padding:6px 12px;border:none;border-bottom:1px solid #3a3a5a;
+  background:transparent;color:#f0e0c0;font:12px monospace;cursor:pointer;text-align:left}
+#physToggle:hover{background:rgba(255,255,255,0.05)}
+#physBody{padding:8px 12px}
+#physBody.collapsed{display:none}
+#physBody label{display:block;margin-top:6px;color:#aaa;font-size:10px}
+#physBody input[type=range]{width:100%;margin:2px 0;accent-color:#6a6aaa}
+#physBody .val{float:right;color:#ddd}
 </style>
 </head>
 <body>
@@ -40,6 +55,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="hud"><div id="score-display">0</div><div id="lives-display"></div></div>
 <div id="reticle"></div>
 <div id="msg"></div>
+<button id="viewToggle">FPV [F]</button>
+<div id="physPanel">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
+    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+  </div>
+</div>
 <div id="start-screen">
   <h1>PAC</h1>
   <p>Pac-Man on a Torus</p>
@@ -68,7 +91,7 @@ const MAX_STEP_H = 0.06;
 const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
 const CHAR_MAP = { '#': T.WALL, '.': T.PELLET, 'o': T.POWER, ' ': T.EMPTY, 'G': T.GHOST_HOUSE, 'D': T.DOOR };
 
-const GRAV_SCALE = 1.8;
+let GRAV_SCALE = 1.8;
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
@@ -77,33 +100,33 @@ const SUPER_JUMP_SPEED = 9.0;
 // =====================================================================
 const MAZE_ROWS = [
   "############################",  // 0
-  "#............##............#",  // 1
-  "#.####.#####.##.#####.####.#",  // 2
-  "#o####.#####.##.#####.####o#",  // 3
-  "#.####.#####.##.#####.####.#",  // 4
+  "#..........................#",  // 1
+  "#.##.#.##..#.##.#..##.#.##.#",  // 2
+  "#o...#.....#....#.....#...o#",  // 3
+  "#.##.#.###.#.##.#.###.#.##.#",  // 4
   "#..........................#",  // 5
-  "#.####.##.########.##.####.#",  // 6
-  "#......##....##....##......#",  // 7
-  "######.#####.##.#####.######",  // 8
-  "######.##### ## #####.######",  // 9
-  "######.##          ##.######",  // 10
-  "######.## ###DD### ##.######",  // 11
-  "######.## #GGGGGG# ##.######",  // 12
-  "######.   #GGGGGG#   .######",  // 13
-  "      .   #GGGGGG#   .      ",  // 14  tunnel row
-  "######.## #GGGGGG# ##.######",  // 15
-  "######.## ######## ##.######",  // 16
-  "######.##          ##.######",  // 17
-  "######.## ######## ##.######",  // 18
-  "######.#####.##.#####.######",  // 19
-  "#............##............#",  // 20
-  "#.####.#####.##.#####.####.#",  // 21
-  "#o..##.......  .......##..o#",  // 22
-  "###.##.##.########.##.##.###",  // 23
-  "###.##.##.########.##.##.###",  // 24
-  "#......##....##....##......#",  // 25
-  "#.##########.##.##########.#",  // 26
-  "#.##########.##.##########.#",  // 27
+  "#.##.##.#..####..#.##.##.#.#",  // 6
+  "#......#....##....#......#.#",  // 7
+  "####.#.####.##.####.#.####.#",  // 8
+  "#....#..#... .. ...#..#....#",  // 9
+  "#.##.#..#          #..#.##.#",  // 10
+  "#....#..# ###DD### #..#....#",  // 11
+  "#.####..# #GGGGGG# #..####.#",  // 12
+  "#.......  #GGGGGG#  .......#",  // 13
+  "      ..  #GGGGGG#  ..      ",  // 14
+  "#.......# #GGGGGG# #.......#",  // 15
+  "#.####..# ######## #..####.#",  // 16
+  "#....#..#          #..#....#",  // 17
+  "#.##.#..#.########.#..#.##.#",  // 18
+  "#....#.......##.......#....#",  // 19
+  "#..........................#",  // 20
+  "#.##.#.##..#.##.#..##.#.##.#",  // 21
+  "#o...#.....#....#.....#...o#",  // 22
+  "#.##.#..##.#....#.##..#.##.#",  // 23
+  "#....#..##..####..##..#....#",  // 24
+  "#..........................#",  // 25
+  "#.##.########.##.########.##",  // 26
+  "#....#.......##.......#....#",  // 27
   "#..........................#",  // 28
   "#..........................#",  // 29
   "############################",  // 30
@@ -311,18 +334,24 @@ function torusPos(u, v) {
 function canWalk(nx, ny) {
   if (airborne) return true;
   const currentH = tileHeightAt(playerX, playerY);
-  const r = 0.25;
-  for (const [ox, oy] of [[0,0],[r,0],[-r,0],[0,r],[0,-r]]) {
-    if (tileHeightAt(nx + ox, ny + oy) > currentH + MAX_STEP_H) return false;
-  }
-  return true;
+  const destH = tileHeightAt(nx, ny);
+  return destH <= currentH + MAX_STEP_H;
 }
 
 // =====================================================================
 // Input
 // =====================================================================
 const keys = {};
-document.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ') e.preventDefault(); });
+let fpMode = true; // start in FPV
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ') e.preventDefault();
+  if (e.key === 'f' || e.key === 'F') {
+    fpMode = !fpMode;
+    document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+  }
+});
 document.addEventListener('keyup', e => { keys[e.key] = false; });
 
 const canvas = document.getElementById('game');
@@ -341,6 +370,24 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('pointerlockchange', () => {
   document.getElementById('reticle').style.display =
     document.pointerLockElement === canvas ? 'block' : 'none';
+});
+
+// View toggle button
+document.getElementById('viewToggle').addEventListener('click', () => {
+  fpMode = !fpMode;
+  document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+});
+
+// Physics panel
+document.getElementById('physToggle').addEventListener('click', () => {
+  document.getElementById('physBody').classList.toggle('collapsed');
+});
+const slGrav = document.getElementById('slGrav');
+const valGrav = document.getElementById('valGrav');
+slGrav.addEventListener('input', () => {
+  GRAV_SCALE = parseFloat(slGrav.value);
+  valGrav.textContent = GRAV_SCALE.toFixed(1);
+  computeGravLUT();
 });
 
 // =====================================================================
@@ -875,11 +922,34 @@ function renderTopDown() {
     }
   }
 
+  // Ghosts
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning') continue;
+    let gdx = g.x - playerX, gdy = g.y - playerY;
+    if (gdx > WORLD_W/2) gdx -= WORLD_W;
+    if (gdx < -WORLD_W/2) gdx += WORLD_W;
+    if (gdy > WORLD_H/2) gdy -= WORLD_H;
+    if (gdy < -WORLD_H/2) gdy += WORLD_H;
+    if (Math.abs(gdx) > 13 || Math.abs(gdy) > 13) continue;
+    const gsx = cx + gdx * tileSize, gsy = cy + gdy * tileSize;
+    ctx.fillStyle = g.mode === 'frightened' ? '#00f' :
+      `rgb(${g.color[0]*255|0},${g.color[1]*255|0},${g.color[2]*255|0})`;
+    ctx.fillRect(gsx - tileSize*0.4, gsy - tileSize*0.4, tileSize*0.8, tileSize*0.8);
+  }
+
   // Player
   ctx.fillStyle = '#ff0';
   ctx.beginPath();
   ctx.arc(cx, cy, tileSize * 0.35, 0, Math.PI * 2);
   ctx.fill();
+
+  // Direction indicator
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(playerAngle) * tileSize, cy + Math.cos(playerAngle) * tileSize);
+  ctx.stroke();
 }
 
 // =====================================================================
@@ -894,13 +964,13 @@ const GHOST_FRIGHT_SPEED = 2.0;
 
 const ghosts = [
   { type:'blinky', x:13.5, y:10.5, dir:DIR.LEFT, mode:'scatter',
-    color:[1,0,0], scatter:{x:25,y:0}, releaseTime:0 },
+    color:[1,0,0], scatter:{x:25,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
   { type:'pinky', x:13.5, y:13.5, dir:DIR.UP, mode:'waiting',
-    color:[1,0.7,1], scatter:{x:2,y:0}, releaseTime:4 },
+    color:[1,0.7,1], scatter:{x:2,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
   { type:'inky', x:12.5, y:14.5, dir:DIR.UP, mode:'waiting',
-    color:[0,1,1], scatter:{x:25,y:30}, releaseTime:8 },
+    color:[0,1,1], scatter:{x:25,y:30}, releaseTime:8, lastTx:-1, lastTy:-1 },
   { type:'clyde', x:14.5, y:14.5, dir:DIR.UP, mode:'waiting',
-    color:[1,0.6,0], scatter:{x:2,y:30}, releaseTime:14 },
+    color:[1,0.6,0], scatter:{x:2,y:30}, releaseTime:14, lastTx:-1, lastTy:-1 },
 ];
 
 // Save initial positions for reset
@@ -909,7 +979,7 @@ const ghostInits = ghosts.map(g => ({ ...g, scatter: { ...g.scatter } }));
 function resetGhosts() {
   for (let i = 0; i < ghosts.length; i++) {
     const init = ghostInits[i];
-    Object.assign(ghosts[i], { x: init.x, y: init.y, dir: init.dir, mode: init.mode });
+    Object.assign(ghosts[i], { x: init.x, y: init.y, dir: init.dir, mode: init.mode, lastTx: -1, lastTy: -1 });
   }
 }
 
@@ -1006,12 +1076,17 @@ function updateGhost(ghost, dt) {
   ghost.x = wrapX(ghost.x);
   ghost.y = wrapY(ghost.y);
 
-  // At tile center → choose new direction
-  const cx = Math.floor(ghost.x) + 0.5;
-  const cy = Math.floor(ghost.y) + 0.5;
+  // At tile center → choose new direction (only once per tile)
+  const tx = Math.floor(ghost.x);
+  const ty = Math.floor(ghost.y);
+  const cx = tx + 0.5;
+  const cy = ty + 0.5;
   if (Math.abs(ghost.x - cx) + Math.abs(ghost.y - cy) < spd * 1.5) {
     ghost.x = cx; ghost.y = cy;
-    chooseGhostDir(ghost);
+    if (tx !== ghost.lastTx || ty !== ghost.lastTy) {
+      ghost.lastTx = tx; ghost.lastTy = ty;
+      chooseGhostDir(ghost);
+    }
   }
 }
 
@@ -1209,11 +1284,11 @@ function gameLoop(now) {
   checkPellets();
   checkGhostCollision();
 
-  // Render: FPV if WebGPU available, else top-down fallback
-  if (gpuSky && !pendingRender) {
+  // Render: FPV or top-down based on view mode
+  if (fpMode && gpuSky && !pendingRender) {
     pendingRender = true;
     renderFPV().then(() => { pendingRender = false; });
-  } else if (!gpuSky) {
+  } else if (!fpMode || !gpuSky) {
     renderTopDown();
   }
   drawMinimap();
@@ -1226,6 +1301,7 @@ requestAnimationFrame(gameLoop);
 // =====================================================================
 function startGame() {
   document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('physPanel').style.display = 'block';
   canvas.requestPointerLock();
   gameRunning = true;
   lastTime = performance.now();
