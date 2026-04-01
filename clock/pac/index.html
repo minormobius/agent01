@@ -524,12 +524,14 @@ fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32
     let bd = sdf(px, py, pz, R, r);
     let h = totalH(px, py, pz, R);
     let dd = bd - h;
-    if (dd < 0.002) { return t; }
-    if (bd < -0.5) {
+    // Only register hit when approaching from outside (bd >= 0)
+    if (dd < 0.002 && bd >= -0.01) { return t; }
+    // Deep inside torus body — skip through
+    if (bd < -0.2) {
       t += max(-bd - maxH, 0.02);
       continue;
     }
-    t += max(dd * 0.45, 0.005);
+    t += max(dd * 0.45, 0.004);
     if (t > 50.0) { return -1.0; }
   }
   return -1.0;
