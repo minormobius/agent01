@@ -105,5 +105,5 @@ fi
 
 # ─── Start PTY server ──────────────────────────────────────────────
 
-echo "[startup] ready"
+echo "[startup] ready — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 exec node /home/coder/server.js
