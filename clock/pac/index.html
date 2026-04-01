@@ -441,6 +441,43 @@ fn tileH(t: u32) -> f32 {
   return 0.0;
 }
 
+// Ghost as terrain: returns height and ghost index (-1 if none)
+fn ghostAt(tcx: f32, tcy: f32) -> vec2f {
+  let wf = f32(p.worldW);
+  let hf = f32(p.worldH);
+  var bestH: f32 = 0.0;
+  var bestIdx: f32 = -1.0;
+  for (var gi = 0u; gi < 4u; gi++) {
+    let gx = ghosts[gi * 8u];
+    let gy = ghosts[gi * 8u + 1u];
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 1.5) { continue; }
+    var ddx = tcx - gx;
+    var ddy = tcy - gy;
+    if (ddx > wf * 0.5) { ddx -= wf; }
+    if (ddx < -wf * 0.5) { ddx += wf; }
+    if (ddy > hf * 0.5) { ddy -= hf; }
+    if (ddy < -hf * 0.5) { ddy += hf; }
+    let dist = sqrt(ddx*ddx + ddy*ddy);
+    if (dist < 0.55) {
+      // Smooth dome shape: height falls off from center
+      let falloff = 1.0 - dist / 0.55;
+      let h = 0.45 * falloff * falloff;  // same as wall height at center
+      if (h > bestH) { bestH = h; bestIdx = f32(gi); }
+    }
+  }
+  return vec2f(bestH, bestIdx);
+}
+
+// Combined height: max of tile and ghost terrain
+fn totalH(px: f32, py: f32, pz: f32, R: f32) -> f32 {
+  let tile = tileAtPos(px, py, pz, R);
+  let th = tileH(tile);
+  let tc = tileCoords(px, py, pz, R);
+  let gh = ghostAt(tc.x, tc.y);
+  return max(th, gh.x);
+}
+
 fn sdf(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
   let q = sqrt(px*px + pz*pz) - R;
   return sqrt(q*q + py*py) - r;
@@ -485,8 +522,7 @@ fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32
   for (var j = 0u; j < 96u; j++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
     let bd = sdf(px, py, pz, R, r);
-    let tile = tileAtPos(px, py, pz, R);
-    let h = tileH(tile);
+    let h = totalH(px, py, pz, R);
     let dd = bd - h;
     if (dd < 0.002) { return t; }
     if (bd < -0.5) {
@@ -542,10 +578,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let tile = tileAtPos(hx, hy, hz, R);
   let tc = tileCoords(hx, hy, hz, R);
   let th = tileH(tile);
+  let gInfo = ghostAt(tc.x, tc.y);
+  let isGhost = gInfo.x > th && gInfo.y >= 0.0;
 
   // Base color
   var cr: f32; var cg: f32; var cb: f32;
-  if (tile == 0u) { // WALL — white
+  if (isGhost) {
+    // Ghost terrain — use ghost color
+    let gi = u32(gInfo.y);
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 0.5) { // frightened — pulsing blue
+      let blink = 0.5 + 0.5 * sin(p.time * 8.0);
+      cr = 0.1; cg = 0.1; cb = 0.5 + 0.3 * blink;
+    } else {
+      cr = ghosts[gi * 8u + 2u];
+      cg = ghosts[gi * 8u + 3u];
+      cb = ghosts[gi * 8u + 4u];
+    }
+  } else if (tile == 0u) { // WALL — white
     cr = 1.0; cg = 1.0; cb = 1.0;
   } else if (tile == 5u) { // DOOR — pink
     cr = 1.0; cg = 0.4; cb = 0.7;
@@ -566,42 +616,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     cr = 0.03; cg = 0.03; cb = 0.1;
   }
 
-  // Ghost overlay — colored floor tiles near ghost positions
-  let wf = f32(p.worldW);
-  let hf = f32(p.worldH);
-  for (var gi = 0u; gi < 4u; gi++) {
-    let gx = ghosts[gi * 8u];
-    let gy = ghosts[gi * 8u + 1u];
-    let gmode = ghosts[gi * 8u + 5u];
-    if (gmode > 1.5) { continue; } // eaten/waiting — invisible
-    var ddx = tc.x - gx;
-    var ddy = tc.y - gy;
-    if (ddx > wf * 0.5) { ddx -= wf; }
-    if (ddx < -wf * 0.5) { ddx += wf; }
-    if (ddy > hf * 0.5) { ddy -= hf; }
-    if (ddy < -hf * 0.5) { ddy += hf; }
-    let dist = sqrt(ddx*ddx + ddy*ddy);
-    if (dist < 0.55 && tile != 0u && tile != 5u) {
-      if (gmode > 0.5) { // frightened — blue
-        let blink = 0.5 + 0.5 * sin(p.time * 8.0);
-        cr = 0.1; cg = 0.1; cb = 0.5 + 0.3 * blink;
-      } else {
-        cr = ghosts[gi * 8u + 2u];
-        cg = ghosts[gi * 8u + 3u];
-        cb = ghosts[gi * 8u + 4u];
-      }
-      break;
-    }
-  }
-
   // Normal via central differences
   let eps: f32 = 0.012;
-  let dR = sdf(hx+eps, hy, hz, R, r) - tileH(tileAtPos(hx+eps, hy, hz, R))
-         - sdf(hx-eps, hy, hz, R, r) + tileH(tileAtPos(hx-eps, hy, hz, R));
-  let dG = sdf(hx, hy+eps, hz, R, r) - tileH(tileAtPos(hx, hy+eps, hz, R))
-         - sdf(hx, hy-eps, hz, R, r) + tileH(tileAtPos(hx, hy-eps, hz, R));
-  let dB = sdf(hx, hy, hz+eps, R, r) - tileH(tileAtPos(hx, hy, hz+eps, R))
-         - sdf(hx, hy, hz-eps, R, r) + tileH(tileAtPos(hx, hy, hz-eps, R));
+  let dR = sdf(hx+eps, hy, hz, R, r) - totalH(hx+eps, hy, hz, R)
+         - sdf(hx-eps, hy, hz, R, r) + totalH(hx-eps, hy, hz, R);
+  let dG = sdf(hx, hy+eps, hz, R, r) - totalH(hx, hy+eps, hz, R)
+         - sdf(hx, hy-eps, hz, R, r) + totalH(hx, hy-eps, hz, R);
+  let dB = sdf(hx, hy, hz+eps, R, r) - totalH(hx, hy, hz+eps, R)
+         - sdf(hx, hy, hz-eps, R, r) + totalH(hx, hy, hz-eps, R);
   let hn = normalize(vec3f(dR, dG, dB));
 
   let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
