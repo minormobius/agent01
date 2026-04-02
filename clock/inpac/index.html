@@ -62,8 +62,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="physPanel">
   <button id="physToggle">Physics ▼</button>
   <div id="physBody">
-    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
-    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Gravity <span class="val" id="valGrav">1.0</span></label>
+    <input type="range" id="slGrav" min="0.1" max="5" step="0.1" value="1.0">
     <label>Major Radius (R) <span class="val" id="valR">8.0</span></label>
     <input type="range" id="slR" min="3" max="30" step="0.1" value="8.0">
     <label>Minor Radius (r) <span class="val" id="valr">3.0</span></label>
@@ -99,7 +99,7 @@ const MAX_STEP_H = 0.06;
 const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
 let CELL_UNIT = 3;
 
-let GRAV_SCALE = 1.8;
+let GRAV_SCALE = 1.0;
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
@@ -280,32 +280,34 @@ const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
 
 function computeGravLUT() {
   const size = GRAV_LUT_SIZE;
-  const Nu = 24, Nv = 12, Ns = 4;
+  // Shell integration: uniform surface mass density on torus surface
+  // No radial (s) integration — mass lives on the shell at s = r0
+  const Nu = 48, Nv = 32;
   const R0 = TORUS_R, r0 = TORUS_r;
+  const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
   for (let gi = 0; gi < size; gi++) {
     const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
     for (let gj = 0; gj < size; gj++) {
       const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
       let gR = 0, gZ = 0;
       for (let iu = 0; iu < Nu; iu++) {
-        const u = (iu + 0.5) / Nu * Math.PI * 2;
+        const u = (iu + 0.5) * du;
         const cosU = Math.cos(u), sinU = Math.sin(u);
         for (let iv = 0; iv < Nv; iv++) {
-          const v = (iv + 0.5) / Nv * Math.PI * 2;
+          const v = (iv + 0.5) * dv;
           const cosV = Math.cos(v), sinV = Math.sin(v);
-          for (let is_ = 0; is_ < Ns; is_++) {
-            const s = (is_ + 0.5) / Ns * r0;
-            const Rc = R0 + s * cosV;
-            const ex = Rc * cosU, ey = Rc * sinU, ez = s * sinV;
-            const dx = ex - Rp, dy = ey, dz = ez - Zp;
-            const distSq = dx*dx + dy*dy + dz*dz;
-            if (distSq < 0.01) continue;
-            const dist = Math.sqrt(distSq);
-            const dV = s * Rc * (r0/Ns) * (2*Math.PI/Nv) * (2*Math.PI/Nu);
-            const f3 = dV / (dist * distSq);
-            gR += dx * f3;
-            gZ += dz * f3;
-          }
+          // Point on torus shell surface
+          const Rc = R0 + r0 * cosV;
+          const ex = Rc * cosU, ey = Rc * sinU, ez = r0 * sinV;
+          const dx = ex - Rp, dy = ey, dz = ez - Zp;
+          const distSq = dx*dx + dy*dy + dz*dz;
+          if (distSq < 0.005) continue;
+          const dist = Math.sqrt(distSq);
+          // Surface area element: dA = r0 * |Rc| * du * dv
+          const dA = r0 * Math.abs(Rc) * du * dv;
+          const f3 = dA / (dist * distSq);
+          gR += dx * f3;
+          gZ += dz * f3;
         }
       }
       const idx = gi * size + gj;
@@ -369,16 +371,12 @@ function updateJumpPhysics(dt) {
   const substeps = 8;
   const subDt = dt / substeps;
   for (let s = 0; s < substeps; s++) {
-    // Tube-centric gravity: pulls OUTWARD from tube center toward wall
-    // (centripetal-style, like inside a rotating space station)
-    const gdR = csR - TORUS_R;
-    const gdZ = csZ;
-    const gDist = Math.sqrt(gdR*gdR + gdZ*gdZ);
-    if (gDist > 0.01) {
-      const gMag = GRAV_SCALE * 2.2;
-      csVR += (gdR / gDist) * gMag * subDt;
-      csVZ += (gdZ / gDist) * gMag * subDt;
-    }
+    // Gravity from toroidal shell mass — LUT gives field at (R_cyl, Z)
+    const absR = Math.abs(csR);
+    const g = sampleGravity(Math.max(0.1, absR), csZ);
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    csVR += gR * subDt;
+    csVZ += g.gZ * subDt;
     csR += csVR * subDt;
     csZ += csVZ * subDt;
 
@@ -1075,36 +1073,44 @@ function computeCamera() {
   // Inside: eye offset goes INWARD (toward tube center)
   const hOff = EYE_HEIGHT + (airborne ? 0 : groundH) + playerHeight;
 
+  // Compute anti-gravity for eye offset direction
+  const surfR = TORUS_R + TORUS_r * Math.cos(v);
+  const surfZ = TORUS_r * Math.sin(v);
+  const gSurf = sampleGravity(Math.max(0.1, surfR), surfZ);
+  const gSurfLen = Math.sqrt(gSurf.gR*gSurf.gR + gSurf.gZ*gSurf.gZ);
+  // Anti-gravity = "up" direction at this surface point
+  const eyeR = gSurfLen > 0.01 ? -gSurf.gR/gSurfLen : -Math.cos(v);
+  const eyeZ = gSurfLen > 0.01 ? -gSurf.gZ/gSurfLen : -Math.sin(v);
+  const eyeDir = [eyeR*Math.cos(u), eyeZ, eyeR*Math.sin(u)];
+
   let P;
   if (airborne && playerHeight > 0.01) {
     P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
   } else {
-    // Outward normal
-    const en = [Math.cos(v)*Math.cos(u), Math.sin(v), Math.cos(v)*Math.sin(u)];
-    // SUBTRACT to go inward from surface
-    P = [surfP[0] - en[0]*hOff, surfP[1] - en[1]*hOff, surfP[2] - en[2]*hOff];
+    // Move in anti-gravity direction from surface ("up" from floor)
+    P = [surfP[0] + eyeDir[0]*hOff, surfP[1] + eyeDir[1]*hOff, surfP[2] + eyeDir[2]*hOff];
   }
 
-  // "Up" = always toward tube center line. One formula, no thresholds.
-  // Tube center at angle u is at (R*cos(u), 0, R*sin(u)).
-  // Displacement from tube center in cross-section:
-  let dcR, dcZ;
+  // "Up" = anti-gravity direction from shell mass LUT
+  // Shell gravity is smooth (always roughly toward torus center),
+  // so anti-gravity is stable (always roughly away from torus center).
+  let mR, mZ;
   if (airborne && playerHeight > 0.01) {
-    dcR = csR - TORUS_R;  // radial displacement from tube axis
-    dcZ = csZ;            // vertical displacement from tube axis
+    mR = csR; mZ = csZ;
   } else {
-    dcR = TORUS_r * Math.cos(v);  // on surface: r*cos(v) from axis
-    dcZ = TORUS_r * Math.sin(v);  // on surface: r*sin(v) from axis
+    mR = TORUS_R + TORUS_r * Math.cos(v);
+    mZ = TORUS_r * Math.sin(v);
   }
-  const tcDist = Math.sqrt(dcR*dcR + dcZ*dcZ);
+  const absR = Math.abs(mR);
+  const g = sampleGravity(Math.max(0.1, absR), mZ);
+  const gR = mR >= 0 ? g.gR : -g.gR;
+  const gZ = g.gZ;
+  const gLen = Math.sqrt(gR*gR + gZ*gZ);
   let en;
-  if (tcDist > 0.05) {
-    // "Up" = from player toward tube center line = negative radial
-    const upR = -dcR / tcDist;
-    const upZ = -dcZ / tcDist;
-    en = [upR*Math.cos(u), upZ, upR*Math.sin(u)];
+  if (gLen > 0.01) {
+    const antiR = -gR/gLen, antiZ = -gZ/gLen;
+    en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
   } else {
-    // At tube center — no preferred "up", use last surface normal
     en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
   }
 
@@ -1115,8 +1121,8 @@ function computeCamera() {
   let rLen = Math.sqrt(rx*rx+ry*ry+rz*rz) || 1;
   rx /= rLen; ry /= rLen; rz /= rLen;
 
-  // ev = en × eu (swapped from exterior's eu × en because interior flips en)
-  let tx = en[1]*rz-en[2]*ry, ty = en[2]*rx-en[0]*rz, tz = en[0]*ry-en[1]*rx;
+  // ev = eu × en (standard right-handed frame; shell anti-gravity is consistent)
+  let tx = ry*en[2]-rz*en[1], ty = rz*en[0]-rx*en[2], tz = rx*en[1]-ry*en[0];
   let tLen = Math.sqrt(tx*tx+ty*ty+tz*tz) || 1;
   tx /= tLen; ty /= tLen; tz /= tLen;
 
