@@ -325,6 +325,17 @@ function buildAllSurfaces() {
   syncFromActiveSurface();
 }
 
+// Compute tile Y (theta index) on a surface at segment idx, facing toward target3D
+function warpTileY(surface, segIdx, target3D) {
+  const cp = surface.curvePoints[segIdx];
+  const toTarget = v3sub(target3D, cp.pos);
+  const dN = v3dot(toTarget, cp.normal);
+  const dB = v3dot(toTarget, cp.binormal);
+  const theta = Math.atan2(dB, dN);
+  const vFrac = ((theta / (2 * Math.PI)) + 1) % 1;
+  return Math.floor(vFrac * surface.worldH);
+}
+
 // Find closest-approach points between all surface pairs for warp placement
 function findWarpPoints() {
   warpPoints = [];
@@ -360,15 +371,19 @@ function findWarpPoints() {
       if (minDist < WARP_THRESHOLD) {
         const paramA = bestIA / sA.numSegs;
         const paramB = bestIB / sB.numSegs;
+        // Compute actual tile Y from the direction between approach points
+        // The warp should face the other surface — find theta on each tube
+        const posA = sA.curvePoints[bestIA].pos;
+        const posB = sB.curvePoints[bestIB].pos;
+        const tileYA = warpTileY(sA, bestIA, posB);
+        const tileYB = warpTileY(sB, bestIB, posA);
         warpPoints.push({
           surfA: a, surfB: b,
           paramA, paramB,
-          posA: sA.curvePoints[bestIA].pos,
-          posB: sB.curvePoints[bestIB].pos,
+          posA, posB,
           dist: minDist,
-          // Tile coords for warp placement (filled after maze generation)
-          tileA: { x: Math.floor(paramA * sA.worldW), y: Math.floor(sA.worldH / 2) },
-          tileB: { x: Math.floor(paramB * sB.worldW), y: Math.floor(sB.worldH / 2) },
+          tileA: { x: Math.floor(paramA * sA.worldW), y: tileYA },
+          tileB: { x: Math.floor(paramB * sB.worldW), y: tileYB },
         });
       }
     }
@@ -1518,7 +1533,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let toLight = glp - hitPos;
       let dist2 = dot(toLight, toLight);
       let dist = sqrt(dist2);
-      if (dist > 3.0) { continue; }
+      if (dist > 3.0 || dist < 0.001) { continue; }
       let ldir = toLight / dist;
       let ndotl = max(0.0, dot(hn, ldir));
       let atten = ndotl / (0.3 + dist2 * 1.5);
@@ -1689,10 +1704,11 @@ struct VOut {
         if (gi < gs.length) {
           data[base] = gs[gi].x;
           data[base + 1] = gs[gi].y;
-          data[base + 2] = gs[gi].cr;
-          data[base + 3] = gs[gi].cg;
-          data[base + 4] = gs[gi].cb;
-          data[base + 5] = gs[gi].mode === 'hidden' ? 2.0 : gs[gi].frightened ? 1.0 : 0.0;
+          data[base + 2] = gs[gi].color[0];
+          data[base + 3] = gs[gi].color[1];
+          data[base + 4] = gs[gi].color[2];
+          data[base + 5] = gs[gi].mode === 'hidden' ? 2.0 : gs[gi].mode === 'frightened' ? 1.0 :
+                           (gs[gi].mode === 'waiting' || gs[gi].mode === 'returning') ? 2.0 : 0.0;
           data[base + 6] = 0;
           data[base + 7] = 0;
         } else {
