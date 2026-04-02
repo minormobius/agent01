@@ -62,8 +62,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="physPanel">
   <button id="physToggle">Physics ▼</button>
   <div id="physBody">
-    <label>Gravity <span class="val" id="valGrav">1.0</span></label>
-    <input type="range" id="slGrav" min="0.1" max="5" step="0.1" value="1.0">
+    <label>Shell (attract) <span class="val" id="valGrav">1.0</span></label>
+    <input type="range" id="slGrav" min="0" max="5" step="0.1" value="1.0">
+    <label>Line (repel) <span class="val" id="valLine">3.0</span></label>
+    <input type="range" id="slLine" min="0" max="10" step="0.1" value="3.0">
     <label>Major Radius (R) <span class="val" id="valR">8.0</span></label>
     <input type="range" id="slR" min="3" max="30" step="0.1" value="8.0">
     <label>Minor Radius (r) <span class="val" id="valr">3.0</span></label>
@@ -100,6 +102,7 @@ const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
 let CELL_UNIT = 3;
 
 let GRAV_SCALE = 1.0;
+let LINE_SCALE = 3.0;   // centerline same-charge repulsion strength
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
@@ -280,39 +283,65 @@ const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
 
 function computeGravLUT() {
   const size = GRAV_LUT_SIZE;
-  // Shell integration: uniform surface mass density on torus surface
-  // No radial (s) integration — mass lives on the shell at s = r0
-  const Nu = 48, Nv = 32;
   const R0 = TORUS_R, r0 = TORUS_r;
-  const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
+
+  // Shell integration: oppositely-charged shell attracts player
+  const NuS = 48, NvS = 32;
+  const duS = 2 * Math.PI / NuS, dvS = 2 * Math.PI / NvS;
+
+  // Line charge integration: same-charge ring at tube centerline repels player
+  const NuL = 64;
+  const duL = 2 * Math.PI / NuL;
+
   for (let gi = 0; gi < size; gi++) {
     const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
     for (let gj = 0; gj < size; gj++) {
       const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
-      let gR = 0, gZ = 0;
-      for (let iu = 0; iu < Nu; iu++) {
-        const u = (iu + 0.5) * du;
+
+      // --- Shell contribution (attraction: field point pulled toward shell) ---
+      let sR = 0, sZ = 0;
+      for (let iu = 0; iu < NuS; iu++) {
+        const u = (iu + 0.5) * duS;
         const cosU = Math.cos(u), sinU = Math.sin(u);
-        for (let iv = 0; iv < Nv; iv++) {
-          const v = (iv + 0.5) * dv;
+        for (let iv = 0; iv < NvS; iv++) {
+          const v = (iv + 0.5) * dvS;
           const cosV = Math.cos(v), sinV = Math.sin(v);
-          // Point on torus shell surface
           const Rc = R0 + r0 * cosV;
           const ex = Rc * cosU, ey = Rc * sinU, ez = r0 * sinV;
+          // Vector FROM field point TO shell element (attraction)
           const dx = ex - Rp, dy = ey, dz = ez - Zp;
           const distSq = dx*dx + dy*dy + dz*dz;
           if (distSq < 0.005) continue;
           const dist = Math.sqrt(distSq);
-          // Surface area element: dA = r0 * |Rc| * du * dv
-          const dA = r0 * Math.abs(Rc) * du * dv;
+          const dA = r0 * Math.abs(Rc) * duS * dvS;
           const f3 = dA / (dist * distSq);
-          gR += dx * f3;
-          gZ += dz * f3;
+          sR += dx * f3;
+          sZ += dz * f3;
         }
       }
+
+      // --- Line charge contribution (repulsion: pushed away from centerline) ---
+      let lR = 0, lZ = 0;
+      for (let iu = 0; iu < NuL; iu++) {
+        const u = (iu + 0.5) * duL;
+        const cosU = Math.cos(u), sinU = Math.sin(u);
+        // Source on centerline ring: (R0*cosU, R0*sinU, 0)
+        // Vector FROM source TO field point (repulsion)
+        const dx = Rp - R0 * cosU;
+        const dy = -R0 * sinU;  // field point at y=0 by cylindrical symmetry
+        const dz = Zp;
+        const distSq = dx*dx + dy*dy + dz*dz;
+        if (distSq < 0.005) continue;
+        const dist = Math.sqrt(distSq);
+        const dl = R0 * duL;  // arc length element
+        const f3 = dl / (dist * distSq);
+        lR += dx * f3;
+        lZ += dz * f3;
+      }
+
       const idx = gi * size + gj;
-      gravLUT_gR[idx] = gR * GRAV_SCALE;
-      gravLUT_gZ[idx] = gZ * GRAV_SCALE;
+      gravLUT_gR[idx] = sR * GRAV_SCALE + lR * LINE_SCALE;
+      gravLUT_gZ[idx] = sZ * GRAV_SCALE + lZ * LINE_SCALE;
     }
   }
 }
@@ -521,6 +550,13 @@ const valGrav = document.getElementById('valGrav');
 slGrav.addEventListener('input', () => {
   GRAV_SCALE = parseFloat(slGrav.value);
   valGrav.textContent = GRAV_SCALE.toFixed(1);
+  computeGravLUT();
+});
+const slLine = document.getElementById('slLine');
+const valLine = document.getElementById('valLine');
+slLine.addEventListener('input', () => {
+  LINE_SCALE = parseFloat(slLine.value);
+  valLine.textContent = LINE_SCALE.toFixed(1);
   computeGravLUT();
 });
 const slR = document.getElementById('slR');
