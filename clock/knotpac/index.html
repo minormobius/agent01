@@ -185,7 +185,7 @@ function makeSurface(p_, q_, R, r0, tubeR) {
   }
 
   return { p: p_, q: q_, R, r0, tubeR, curvePoints: pts, numSegs: N, curveLength,
-           center: [0, 0, 0], hostR: R, hostR0: r0 };
+           center: [0, 0, 0], hostR: R, hostR0: r0, axis: [0, 1, 0] };
 }
 
 // Circle surface — arbitrary center/axis/radius (Hopf link building block)
@@ -235,7 +235,7 @@ function makeCircleSurface(center, axis, radius, tubeR, numPts) {
   }
 
   return { p: 1, q: 0, R: radius, r0: 0, tubeR, curvePoints: pts, numSegs: N, curveLength,
-           center, hostR: radius, hostR0: 0 };
+           center, hostR: radius, hostR0: 0, axis: v3norm(axis) };
 }
 
 // Maze-related globals (synced from active surface)
@@ -1032,16 +1032,18 @@ struct Params {
   horizonY: f32, numSegs: u32, hostR0: f32, _p7: f32,
 }
 
-// Per-surface metadata: 16 floats (64 bytes) each, aligned to vec4
+// Per-surface metadata: 20 floats (80 bytes) each, aligned to vec4
 // [0] centerX  [1] centerY  [2] centerZ  [3] hostR
 // [4] hostR0   [5] tubeR    [6] segOffset [7] segCount
 // [8] tileOffset [9] worldW [10] worldH  [11] ghostOffset
 // [12] tintR   [13] tintG   [14] tintB   [15] _pad
+// [16] axisX   [17] axisY   [18] axisZ   [19] _pad2
 struct SurfEntry {
   centerX: f32, centerY: f32, centerZ: f32, hostR: f32,
   hostR0: f32, tubeR: f32, segOffset: f32, segCount: f32,
   tileOffset: f32, worldW: f32, worldH: f32, ghostOffset: f32,
   tintR: f32, tintG: f32, tintB: f32, _pad: f32,
+  axisX: f32, axisY: f32, axisZ: f32, _pad2: f32,
 }
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -1076,15 +1078,19 @@ fn tileH(t: u32) -> f32 {
   return 0.0;
 }
 
-// Bounding sphere SDF for a specific surface
-// The sphere encloses the entire tube: center, radius = hostR + hostR0 + tubeR
+// Oriented torus SDF for a specific surface — tight bounding volume
 fn hostSDFS(si: u32, px: f32, py: f32, pz: f32) -> f32 {
   let s = surfTable[si];
   let dx = px - s.centerX;
   let dy = py - s.centerY;
   let dz = pz - s.centerZ;
-  let dist = sqrt(dx*dx + dy*dy + dz*dz);
-  return dist - (s.hostR + s.hostR0 + s.tubeR);
+  // Project onto axis to get height, reject to get radial distance
+  let ax = s.axisX; let ay = s.axisY; let az = s.axisZ;
+  let h = dx*ax + dy*ay + dz*az;  // signed height above plane
+  let rx = dx - h*ax; let ry = dy - h*ay; let rz = dz - h*az;
+  let radial = sqrt(rx*rx + ry*ry + rz*rz);
+  let q = radial - s.hostR;
+  return sqrt(q*q + h*h) - s.hostR0;
 }
 
 // ---- Curve buffer access (global index) ----
@@ -1163,7 +1169,7 @@ fn nearestOnCurveAll(px: f32, py: f32, pz: f32) -> vec4f {
     // Bounding volume check — skip if far from this surface's host torus
     let envelope = s.tubeR + 0.6;
     let hsd = hostSDFS(si, px, py, pz);
-    if (abs(hsd) > envelope * 2.0) { continue; }
+    if (abs(hsd) > envelope) { continue; }
 
     let result = nearestOnCurveS(si, px, py, pz);
     let d2 = dot(P - result.xyz, P - result.xyz);
@@ -1233,7 +1239,7 @@ fn knotDDAll(px: f32, py: f32, pz: f32) -> f32 {
     let s = surfTable[si];
     let envelope = s.tubeR + 0.6;
     let hsd = hostSDFS(si, px, py, pz);
-    if (abs(hsd) > envelope * 2.0) { continue; }
+    if (abs(hsd) > envelope) { continue; }
     let dd = knotDDS(si, px, py, pz);
     if (dd < minDD) {
       minDD = dd;
@@ -1343,7 +1349,7 @@ fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32) -> f32 {
   // Phase 2: fine march with polyline SDF (all surfaces)
   var prevT: f32 = t;
   var prevDD: f32 = 1.0;
-  for (var j = 0u; j < 80u; j++) {
+  for (var j = 0u; j < 64u; j++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
 
     // Quick skip if outside all host torus bounding volumes
@@ -1551,11 +1557,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     cr = 0.03; cg = 0.03; cb = 0.1;
   }
 
-  // Normal via central differences of knotDD
+  // Normal via central differences on the HIT surface only (not all surfaces)
   let eps: f32 = 0.012;
-  let dR = knotDD(hx+eps, hy, hz) - knotDD(hx-eps, hy, hz);
-  let dG = knotDD(hx, hy+eps, hz) - knotDD(hx, hy-eps, hz);
-  let dB_ = knotDD(hx, hy, hz+eps) - knotDD(hx, hy, hz-eps);
+  let dR = knotDDS(hitSi, hx+eps, hy, hz) - knotDDS(hitSi, hx-eps, hy, hz);
+  let dG = knotDDS(hitSi, hx, hy+eps, hz) - knotDDS(hitSi, hx, hy-eps, hz);
+  let dB_ = knotDDS(hitSi, hx, hy, hz+eps) - knotDDS(hitSi, hx, hy, hz-eps);
   let hn = normalize(vec3f(dR, dG, dB_));
 
   let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
@@ -1567,28 +1573,26 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   cg = cg * light * fade;
   cb = cb * light * fade;
 
-  // Ghost point lights — all surfaces
+  // Ghost point lights — hit surface only (perf: skip cross-surface lighting)
   let hitPos = vec3f(hx, hy, hz);
-  for (var glsi = 0u; glsi < nSurf; glsi++) {
-    let glOff = u32(surfTable[glsi].ghostOffset);
-    for (var gli = 0u; gli < 4u; gli++) {
-      let glmode = ghosts[(glOff + gli) * 8u + 5u];
-      if (glmode > 1.5) { continue; }
-      let glp = ghostWorldPosS(glsi, gli);
-      let toLight = glp - hitPos;
-      let dist2 = dot(toLight, toLight);
-      let dist = sqrt(dist2);
-      if (dist > 3.0 || dist < 0.001) { continue; }
-      let ldir = toLight / dist;
-      let ndotl = max(0.0, dot(hn, ldir));
-      let atten = ndotl / (0.3 + dist2 * 1.5);
-      var lr: f32; var lg: f32; var lb: f32;
-      if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
-      else { lr = ghosts[(glOff+gli)*8u+2u]; lg = ghosts[(glOff+gli)*8u+3u]; lb = ghosts[(glOff+gli)*8u+4u]; }
-      cr += lr * atten * 1.5;
-      cg += lg * atten * 1.5;
-      cb += lb * atten * 1.5;
-    }
+  let glOff = u32(hitS.ghostOffset);
+  for (var gli = 0u; gli < 4u; gli++) {
+    let glmode = ghosts[(glOff + gli) * 8u + 5u];
+    if (glmode > 1.5) { continue; }
+    let glp = ghostWorldPosS(hitSi, gli);
+    let toLight = glp - hitPos;
+    let dist2 = dot(toLight, toLight);
+    let dist = sqrt(dist2);
+    if (dist > 3.0 || dist < 0.001) { continue; }
+    let ldir = toLight / dist;
+    let ndotl = max(0.0, dot(hn, ldir));
+    let atten = ndotl / (0.3 + dist2 * 1.5);
+    var lr: f32; var lg: f32; var lb: f32;
+    if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
+    else { lr = ghosts[(glOff+gli)*8u+2u]; lg = ghosts[(glOff+gli)*8u+3u]; lb = ghosts[(glOff+gli)*8u+4u]; }
+    cr += lr * atten * 1.5;
+    cg += lg * atten * 1.5;
+    cb += lb * atten * 1.5;
   }
 
   cr = clamp(cr, 0.0, 1.0);
@@ -1664,7 +1668,7 @@ struct VOut {
   const MAX_SEGS = 2048;  // room for multiple curves
   const curveBuf = device.createBuffer({ size: MAX_SEGS * 12 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
   const MAX_SURFACES = 8;
-  const surfTableBuf = device.createBuffer({ size: MAX_SURFACES * 16 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const surfTableBuf = device.createBuffer({ size: MAX_SURFACES * 20 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
   // Per-surface tint colors
   const SURF_TINTS = [
@@ -1681,7 +1685,7 @@ struct VOut {
   // Upload all surfaces' tiles concatenated, plus surface table
   function uploadTiles() {
     const tileData = new Uint32Array(MAX_TILES);
-    const tableData = new Float32Array(MAX_SURFACES * 16);
+    const tableData = new Float32Array(MAX_SURFACES * 20);
     let tileOffset = 0, segOffset = 0, ghostOffset = 0;
 
     for (let si = 0; si < surfaces.length; si++) {
@@ -1690,9 +1694,10 @@ struct VOut {
       for (let i = 0; i < s.maze.length && (tileOffset + i) < MAX_TILES; i++) {
         tileData[tileOffset + i] = s.maze[i];
       }
-      // Surface table entry (16 floats)
-      const b = si * 16;
+      // Surface table entry (20 floats)
+      const b = si * 20;
       const tint = SURF_TINTS[si % SURF_TINTS.length];
+      const ax = s.axis || [0, 1, 0];
       tableData[b + 0] = s.center[0];  // centerX
       tableData[b + 1] = s.center[1];  // centerY
       tableData[b + 2] = s.center[2];  // centerZ
@@ -1709,6 +1714,10 @@ struct VOut {
       tableData[b + 13] = tint[1];     // tintG
       tableData[b + 14] = tint[2];     // tintB
       tableData[b + 15] = 0;           // pad
+      tableData[b + 16] = ax[0];       // axisX
+      tableData[b + 17] = ax[1];       // axisY
+      tableData[b + 18] = ax[2];       // axisZ
+      tableData[b + 19] = 0;           // pad2
 
       tileOffset += s.worldW * s.worldH;
       segOffset += s.numSegs;
@@ -2416,7 +2425,8 @@ function showMessage(text) {
 function renderFPV() {
   if (!gpuSky) return;
   const w = canvas.width, h = canvas.height;
-  const scale = Math.min(1, 360 / h);
+  const baseRes = surfaces.length > 1 ? 240 : 360;
+  const scale = Math.min(1, baseRes / h);
   const rw = Math.max(8, Math.floor(w * scale));
   const rh = Math.max(8, Math.floor(h * scale));
 
