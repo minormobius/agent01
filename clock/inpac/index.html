@@ -1109,7 +1109,8 @@ function computeCamera() {
   let rLen = Math.sqrt(rx*rx+ry*ry+rz*rz) || 1;
   rx /= rLen; ry /= rLen; rz /= rLen;
 
-  let tx = ry*en[2]-rz*en[1], ty = rz*en[0]-rx*en[2], tz = rx*en[1]-ry*en[0];
+  // ev = en × eu (swapped from exterior's eu × en because interior flips en)
+  let tx = en[1]*rz-en[2]*ry, ty = en[2]*rx-en[0]*rz, tz = en[0]*ry-en[1]*rx;
   let tLen = Math.sqrt(tx*tx+ty*ty+tz*tz) || 1;
   tx /= tLen; ty /= tLen; tz /= tLen;
 
