@@ -2276,12 +2276,18 @@ function tryWarp(tx, ty) {
     let targetSurf = -1, targetTile = null;
     const sA = surfaces[wp.surfA], sB = surfaces[wp.surfB];
 
+    // Toroidal distance check
+    const toroDistX = (w, a, b) => Math.min(Math.abs(a - b), w - Math.abs(a - b));
+    const toroDistY = (h, a, b) => Math.min(Math.abs(a - b), h - Math.abs(a - b));
+
     if (wp.surfA === activeSurface &&
-        Math.abs(tx - wp.tileA.x) <= 1 && Math.abs(ty - wp.tileA.y) <= 1) {
+        toroDistX(sA.worldW, tx, wp.tileA.x) <= 1 &&
+        toroDistY(sA.worldH, ty, wp.tileA.y) <= 1) {
       targetSurf = wp.surfB;
       targetTile = wp.tileB;
     } else if (wp.surfB === activeSurface &&
-               Math.abs(tx - wp.tileB.x) <= 1 && Math.abs(ty - wp.tileB.y) <= 1) {
+               toroDistX(sB.worldW, tx, wp.tileB.x) <= 1 &&
+               toroDistY(sB.worldH, ty, wp.tileB.y) <= 1) {
       targetSurf = wp.surfA;
       targetTile = wp.tileA;
     }
@@ -2345,7 +2351,15 @@ function checkPellets() {
     tryWarp(tx, ty);
   }
 
-  if (pelletsEaten >= totalPellets) {
+  // Win condition: all pellets eaten across ALL surfaces
+  const allCleared = surfaces.every(s => {
+    let remaining = 0;
+    for (let i = 0; i < s.maze.length; i++) {
+      if (s.maze[i] === T.PELLET || s.maze[i] === T.POWER) remaining++;
+    }
+    return remaining === 0;
+  });
+  if (allCleared) {
     showMessage('LEVEL CLEAR!');
     gameRunning = false;
   }
@@ -2458,8 +2472,15 @@ function gameLoop(now) {
     const s = surfaces[si];
     if (!s.ghosts) continue;
     for (const g of s.ghosts) {
-      if (g.mode === 'waiting' || g.mode === 'hidden') continue;
-      if (g.mode === 'waiting' && gameTime >= g.releaseTime) { g.mode = 'scatter'; }
+      if (g.mode === 'hidden' || g.mode === 'returning') continue;
+      if (g.mode === 'waiting' || g.mode === 'exiting') {
+        if (gameTime >= g.releaseTime) {
+          g.mode = 'scatter';
+          // Place ghost at entrance when releasing on inactive surface
+          g.x = s.ghostEntrance.x; g.y = s.ghostEntrance.y;
+        }
+        else continue;
+      }
       // Simple movement: drift in current direction
       const spd = 3.0 * dt;
       const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
