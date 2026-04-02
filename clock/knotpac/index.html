@@ -239,6 +239,51 @@ function makeCircleSurface(center, axis, radius, tubeR, numPts) {
 }
 
 // =====================================================================
+// Ghost AI — constants and factories (must precede buildAllSurfaces)
+// =====================================================================
+const DIR = { UP: 0, LEFT: 1, DOWN: 2, RIGHT: 3 };
+const DX = [0, -1, 0, 1];
+const DY = [-1, 0, 1, 0];
+const REVERSE_DIR = [2, 3, 0, 1];
+const GHOST_SPEED = 3.5;
+const GHOST_FRIGHT_SPEED = 2.0;
+
+function makeGhostSet(surface) {
+  return [
+    { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
+      color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
+    { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
+    { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
+    { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
+  ];
+}
+
+function resetGhostSet(ghostArr, surface) {
+  const gx = surface.ghostHouseCenter.x, gy = surface.ghostHouseCenter.y;
+  const ex = surface.ghostEntrance.x, ey = surface.ghostEntrance.y;
+  const W = surface.worldW, H = surface.worldH;
+  ghostArr[0].x = ex; ghostArr[0].y = ey; ghostArr[0].dir = DIR.LEFT; ghostArr[0].mode = 'scatter';
+  ghostArr[1].x = gx; ghostArr[1].y = gy; ghostArr[1].dir = DIR.UP; ghostArr[1].mode = 'waiting';
+  ghostArr[2].x = gx - 1; ghostArr[2].y = gy; ghostArr[2].dir = DIR.UP; ghostArr[2].mode = 'waiting';
+  ghostArr[3].x = gx + 1; ghostArr[3].y = gy; ghostArr[3].dir = DIR.UP; ghostArr[3].mode = 'waiting';
+  ghostArr[0].scatter = { x: W - 3, y: 1 };
+  ghostArr[1].scatter = { x: 2, y: 1 };
+  ghostArr[2].scatter = { x: W - 3, y: H - 2 };
+  ghostArr[3].scatter = { x: 2, y: H - 2 };
+  for (const g of ghostArr) { g.lastTx = -1; g.lastTy = -1; }
+}
+
+// Active ghost array (global alias) — reassigned by syncFromActiveSurface
+let ghosts = makeGhostSet(null);
+
+function resetGhosts() {
+  resetGhostSet(ghosts, { ghostHouseCenter, ghostEntrance, worldW: WORLD_W, worldH: WORLD_H });
+}
+
+// =====================================================================
 // Multi-surface array and active surface tracking
 // =====================================================================
 const surfaces = [];
@@ -2052,52 +2097,6 @@ function renderTopDown() {
   ctx.lineTo(cx + Math.sin(playerAngle) * tileSize, cy + Math.cos(playerAngle) * tileSize);
   ctx.stroke();
 }
-
-// =====================================================================
-// Ghost AI
-// =====================================================================
-const DIR = { UP: 0, LEFT: 1, DOWN: 2, RIGHT: 3 };
-const DX = [0, -1, 0, 1];
-const DY = [-1, 0, 1, 0];
-const REVERSE_DIR = [2, 3, 0, 1];
-const GHOST_SPEED = 3.5;
-const GHOST_FRIGHT_SPEED = 2.0;
-
-function makeGhostSet(surface) {
-  return [
-    { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
-      color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
-    { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
-      color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
-    { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
-      color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
-    { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
-      color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
-  ];
-}
-
-function resetGhostSet(ghostArr, surface) {
-  const gx = surface.ghostHouseCenter.x, gy = surface.ghostHouseCenter.y;
-  const ex = surface.ghostEntrance.x, ey = surface.ghostEntrance.y;
-  const W = surface.worldW, H = surface.worldH;
-  ghostArr[0].x = ex; ghostArr[0].y = ey; ghostArr[0].dir = DIR.LEFT; ghostArr[0].mode = 'scatter';
-  ghostArr[1].x = gx; ghostArr[1].y = gy; ghostArr[1].dir = DIR.UP; ghostArr[1].mode = 'waiting';
-  ghostArr[2].x = gx - 1; ghostArr[2].y = gy; ghostArr[2].dir = DIR.UP; ghostArr[2].mode = 'waiting';
-  ghostArr[3].x = gx + 1; ghostArr[3].y = gy; ghostArr[3].dir = DIR.UP; ghostArr[3].mode = 'waiting';
-  ghostArr[0].scatter = { x: W - 3, y: 1 };
-  ghostArr[1].scatter = { x: 2, y: 1 };
-  ghostArr[2].scatter = { x: W - 3, y: H - 2 };
-  ghostArr[3].scatter = { x: 2, y: H - 2 };
-  for (const g of ghostArr) { g.lastTx = -1; g.lastTy = -1; }
-}
-
-// Active ghost array (global alias) — points to surfaces[activeSurface].ghosts
-let ghosts = makeGhostSet(null);
-
-function resetGhosts() {
-  resetGhostSet(ghosts, { ghostHouseCenter, ghostEntrance, worldW: WORLD_W, worldH: WORLD_H });
-}
-resetGhosts();
 
 function canGhostMove(x, y, ghost) {
   const t = getMaze(x, y);
