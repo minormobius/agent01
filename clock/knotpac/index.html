@@ -504,11 +504,42 @@ function surfaceNormal(tileX, tileY) {
                        v3scale(frame.binormal, Math.sin(theta))));
 }
 
+// Analytical nearest point on circle (JS side)
+function nearestOnCircleJS(s, px, py, pz) {
+  const ax = s.axis;
+  const dx = px - s.center[0], dy = py - s.center[1], dz = pz - s.center[2];
+  const h = dx*ax[0] + dy*ax[1] + dz*ax[2];
+  const rx = dx - h*ax[0], ry = dy - h*ax[1], rz = dz - h*ax[2];
+  const radLen = Math.max(Math.sqrt(rx*rx + ry*ry + rz*rz), 1e-6);
+  const sc = s.hostR / radLen;
+  const pos = [s.center[0] + rx*sc, s.center[1] + ry*sc, s.center[2] + rz*sc];
+  const d = Math.sqrt((px-pos[0])**2 + (py-pos[1])**2 + (pz-pos[2])**2);
+  // Compute parameter
+  const cp0 = s.curvePoints[0];
+  const refN = cp0.normal, refB = cp0.binormal;
+  const dirX = rx/radLen, dirY = ry/radLen, dirZ = rz/radLen;
+  const dotN = dirX*refN[0] + dirY*refN[1] + dirZ*refN[2];
+  const dotB = dirX*refB[0] + dirY*refB[1] + dirZ*refB[2];
+  let param = Math.atan2(dotB, dotN) / (2 * Math.PI);
+  if (param < 0) param += 1;
+  return { pos, param, dist: d };
+}
+
 // Find nearest surface + curve point to a 3D position (all surfaces)
 function nearestSurfaceJS(px, py, pz) {
-  let bestDist = Infinity, bestSurf = activeSurface, bestParam = 0, bestPos = [0,0,0];
+  let bestDist2 = Infinity, bestSurf = activeSurface, bestParam = 0, bestPos = [0,0,0];
   for (let si = 0; si < surfaces.length; si++) {
     const s = surfaces[si];
+    // Analytical for circles
+    if (s.r0 === 0 || (s.p === 1 && s.q === 0)) {
+      const r = nearestOnCircleJS(s, px, py, pz);
+      const d2 = r.dist * r.dist;
+      if (d2 < bestDist2) {
+        bestDist2 = d2; bestSurf = si; bestParam = r.param; bestPos = r.pos;
+      }
+      continue;
+    }
+    // Polyline search for knots
     const cp = s.curvePoints, ns = s.numSegs;
     for (let i = 0; i < ns; i++) {
       const A = cp[i].pos;
@@ -519,12 +550,12 @@ function nearestSurfaceJS(px, py, pz) {
       const t = Math.max(0, Math.min(1, v3dot(AP, AB) / (ab2 || 1)));
       const closest = v3add(A, v3scale(AB, t));
       const d2 = (px-closest[0])**2 + (py-closest[1])**2 + (pz-closest[2])**2;
-      if (d2 < bestDist) {
-        bestDist = d2; bestSurf = si; bestParam = (i + t) / ns; bestPos = closest;
+      if (d2 < bestDist2) {
+        bestDist2 = d2; bestSurf = si; bestParam = (i + t) / ns; bestPos = closest;
       }
     }
   }
-  return { surfIdx: bestSurf, pos: bestPos, param: bestParam, dist: Math.sqrt(bestDist) };
+  return { surfIdx: bestSurf, pos: bestPos, param: bestParam, dist: Math.sqrt(bestDist2) };
 }
 
 // Find nearest point on center curve to a 3D position (brute force)
@@ -756,15 +787,26 @@ function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
 // =====================================================================
 // Tube-following gravity
 // =====================================================================
+// Cached gravity — recompute only when player moves enough
+let gravCache = { px: NaN, py: NaN, pz: NaN, gx: 0, gy: 0, gz: 0, nearPos: [0,0,0], nearSurf: 0, nearParam: 0 };
+const GRAV_CACHE_DIST2 = 0.01; // recompute threshold (0.1 units)
+
 function tubeGravity(px, py, pz) {
-  // Pull toward nearest surface (any surface, not just active)
+  const cdx = px - gravCache.px, cdy = py - gravCache.py, cdz = pz - gravCache.pz;
+  if (cdx*cdx + cdy*cdy + cdz*cdz < GRAV_CACHE_DIST2) {
+    return [gravCache.gx, gravCache.gy, gravCache.gz];
+  }
   const nearest = surfaces.length > 1
     ? nearestSurfaceJS(px, py, pz)
     : nearestCurvePointJS(px, py, pz);
   const dx = nearest.pos[0] - px, dy = nearest.pos[1] - py, dz = nearest.pos[2] - pz;
   const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-  if (dist < 0.001) return [0, 0, 0];
-  return [GRAV_SCALE * dx / dist, GRAV_SCALE * dy / dist, GRAV_SCALE * dz / dist];
+  let gx = 0, gy = 0, gz = 0;
+  if (dist > 0.001) {
+    gx = GRAV_SCALE * dx / dist; gy = GRAV_SCALE * dy / dist; gz = GRAV_SCALE * dz / dist;
+  }
+  gravCache = { px, py, pz, gx, gy, gz, nearPos: nearest.pos, nearSurf: nearest.surfIdx || activeSurface, nearParam: nearest.param };
+  return [gx, gy, gz];
 }
 
 // =====================================================================
@@ -1084,14 +1126,14 @@ struct Params {
 // [0] centerX  [1] centerY  [2] centerZ  [3] hostR
 // [4] hostR0   [5] tubeR    [6] segOffset [7] segCount
 // [8] tileOffset [9] worldW [10] worldH  [11] ghostOffset
-// [12] tintR   [13] tintG   [14] tintB   [15] _pad
-// [16] axisX   [17] axisY   [18] axisZ   [19] _pad2
+// [12] tintR   [13] tintG   [14] tintB   [15] knotP
+// [16] axisX   [17] axisY   [18] axisZ   [19] knotQ
 struct SurfEntry {
   centerX: f32, centerY: f32, centerZ: f32, hostR: f32,
   hostR0: f32, tubeR: f32, segOffset: f32, segCount: f32,
   tileOffset: f32, worldW: f32, worldH: f32, ghostOffset: f32,
-  tintR: f32, tintG: f32, tintB: f32, _pad: f32,
-  axisX: f32, axisY: f32, axisZ: f32, _pad2: f32,
+  tintR: f32, tintG: f32, tintB: f32, knotP: f32,
+  axisX: f32, axisY: f32, axisZ: f32, knotQ: f32,
 }
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -1204,27 +1246,56 @@ fn nearestOnCurveS(si: u32, px: f32, py: f32, pz: f32) -> vec4f {
     return vec4f(nearX, nearY, nearZ, param);
   }
 
-  // Polyline path for knots
+  // Narrowed search for knots: use host torus angle to find ~p candidate regions
   let P = vec3f(px, py, pz);
   var minD2: f32 = 1e20;
   var bestParam: f32 = 0.0;
   var bestPt: vec3f = vec3f(0.0);
   let N = u32(s.segCount);
   let off = u32(s.segOffset);
-  for (var i = 0u; i < N; i++) {
-    let A = getCurvePointG(off + i);
-    let B = getCurvePointG(off + ((i + 1u) % N));
-    let AB = B - A;
-    let AP = P - A;
-    let ab2 = max(dot(AB, AB), 1e-8);
-    let t = clamp(dot(AP, AB) / ab2, 0.0, 1.0);
-    let closest = A + t * AB;
-    let d = P - closest;
-    let d2 = dot(d, d);
-    if (d2 < minD2) {
-      minD2 = d2;
-      bestParam = (f32(i) + t) / f32(N);
-      bestPt = closest;
+  let kP = u32(max(s.knotP, 1.0));
+  let HALF_WIN: i32 = 4; // search ±4 segments around each candidate
+
+  // Compute angle around host torus axis (theta) to find candidate params
+  let dx = px - s.centerX;
+  let dy = py - s.centerY;
+  let dz = pz - s.centerZ;
+  let axV = vec3f(s.axisX, s.axisY, s.axisZ);
+  let h = dx*axV.x + dy*axV.y + dz*axV.z;
+  let rx = dx - h*axV.x; let ry = dy - h*axV.y; let rz = dz - h*axV.z;
+
+  // Build 2D basis in the plane perpendicular to axis (use first segment normal as ref)
+  let refPt = getCurvePointG(off);
+  let refDir = normalize(vec3f(refPt.x - s.centerX, refPt.y - s.centerY, refPt.z - s.centerZ)
+    - dot(vec3f(refPt.x - s.centerX, refPt.y - s.centerY, refPt.z - s.centerZ), axV) * axV);
+  let refPerp = cross(axV, refDir);
+  let theta = atan2(dot(vec3f(rx, ry, rz), refPerp), dot(vec3f(rx, ry, rz), refDir));
+  // theta is in [-pi, pi], normalize to [0, 1)
+  var thetaNorm = theta / TWO_PI;
+  if (thetaNorm < 0.0) { thetaNorm += 1.0; }
+
+  // For each of the p windings, compute candidate segment index
+  for (var k = 0u; k < kP; k++) {
+    var cand = (thetaNorm + f32(k)) / f32(kP);
+    if (cand >= 1.0) { cand -= 1.0; }
+    let centerSeg = i32(cand * f32(N));
+    // Search window around this candidate
+    for (var w = -HALF_WIN; w <= HALF_WIN; w++) {
+      let i = u32((centerSeg + w + i32(N)) % i32(N));
+      let A = getCurvePointG(off + i);
+      let B = getCurvePointG(off + ((i + 1u) % N));
+      let AB = B - A;
+      let AP = P - A;
+      let ab2 = max(dot(AB, AB), 1e-8);
+      let t = clamp(dot(AP, AB) / ab2, 0.0, 1.0);
+      let closest = A + t * AB;
+      let d = P - closest;
+      let d2 = dot(d, d);
+      if (d2 < minD2) {
+        minD2 = d2;
+        bestParam = (f32(i) + t) / f32(N);
+        bestPt = closest;
+      }
     }
   }
   return vec4f(bestPt, bestParam);
@@ -1791,11 +1862,11 @@ struct VOut {
       tableData[b + 12] = tint[0];     // tintR
       tableData[b + 13] = tint[1];     // tintG
       tableData[b + 14] = tint[2];     // tintB
-      tableData[b + 15] = 0;           // pad
+      tableData[b + 15] = s.p || 1;     // knotP
       tableData[b + 16] = ax[0];       // axisX
       tableData[b + 17] = ax[1];       // axisY
       tableData[b + 18] = ax[2];       // axisZ
-      tableData[b + 19] = 0;           // pad2
+      tableData[b + 19] = s.q || 0;    // knotQ
 
       tileOffset += s.worldW * s.worldH;
       segOffset += s.numSegs;
