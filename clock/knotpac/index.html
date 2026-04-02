@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>KNOTPAC — Pac-Man on Torus Knots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+#game{display:block;width:100%;height:100%;image-rendering:pixelated}
+#minimap{position:fixed;bottom:12px;right:12px;border:2px solid rgba(255,255,0,0.4);
+  image-rendering:pixelated;z-index:2}
+#hud{position:fixed;top:12px;left:12px;color:#fff;font:20px/1.4 'Courier New',monospace;
+  pointer-events:none;z-index:2}
+#score-display{font-size:28px;font-weight:bold;color:#ff0}
+#lives-display{margin-top:4px}
+.pac-life{display:inline-block;width:14px;height:14px;background:#ff0;
+  border-radius:50%;margin-right:4px}
+#reticle{position:fixed;top:50%;left:50%;z-index:3;width:20px;height:20px;
+  margin:-10px 0 0 -10px;pointer-events:none;display:none}
+#reticle::before,#reticle::after{content:'';position:absolute;background:rgba(255,255,200,0.5)}
+#reticle::before{width:2px;height:12px;top:4px;left:9px}
+#reticle::after{width:12px;height:2px;top:9px;left:4px}
+#start-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,0.95);color:#ff0;z-index:10;
+  font-family:'Courier New',monospace}
+#start-screen h1{font-size:96px;margin-bottom:10px;text-shadow:0 0 30px #ff0}
+#start-screen p{font-size:16px;color:#aaa;margin:4px}
+#start-screen button{font-size:24px;padding:15px 50px;margin-top:30px;background:#ff0;
+  color:#000;border:none;cursor:pointer;font-family:inherit;font-weight:bold}
+#start-screen button:hover{background:#ffa}
+#msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font:48px 'Courier New',monospace;color:#ff0;z-index:5;display:none;
+  text-shadow:0 0 20px #ff0;pointer-events:none}
+#viewToggle{position:fixed;bottom:12px;left:12px;z-index:5;
+  padding:8px 14px;border:1px solid #4a4a6a;border-radius:4px;
+  background:rgba(30,30,50,0.85);color:#ddd;font:12px monospace;cursor:pointer}
+#viewToggle:hover{background:#3a3a5e}
+#physPanel{position:fixed;bottom:50px;left:12px;z-index:5;
+  background:rgba(20,20,35,0.92);border:1px solid #3a3a5a;border-radius:6px;
+  padding:0;color:#ccc;font:11px/1.6 monospace;min-width:180px;user-select:none;display:none}
+#physToggle{width:100%;padding:6px 12px;border:none;border-bottom:1px solid #3a3a5a;
+  background:transparent;color:#f0e0c0;font:12px monospace;cursor:pointer;text-align:left}
+#physToggle:hover{background:rgba(255,255,255,0.05)}
+#physBody{padding:8px 12px}
+#physBody.collapsed{display:none}
+#physBody label{display:block;margin-top:6px;color:#aaa;font-size:10px}
+#physBody input[type=range]{width:100%;margin:2px 0;accent-color:#6a6aaa}
+#physBody .val{float:right;color:#ddd}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<canvas id="minimap"></canvas>
+<div id="hud"><div id="score-display">0</div><div id="lives-display"></div></div>
+<div id="reticle"></div>
+<div id="msg"></div>
+<div id="autoRunIndicator" style="position:fixed;top:50px;left:50%;transform:translateX(-50%);
+  color:#0f0;font:14px monospace;z-index:5;pointer-events:none;display:none;
+  text-shadow:0 0 8px #0f0">AUTO-RUN [Q]</div>
+<button id="viewToggle">FPV [F]</button>
+<div id="physPanel">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">4.0</span></label>
+    <input type="range" id="slGrav" min="0.1" max="20" step="0.1" value="4.0">
+    <label>p (around hole) <span class="val" id="valP">2</span></label>
+    <input type="range" id="slP" min="1" max="7" step="1" value="2">
+    <label>q (through hole) <span class="val" id="valQ">3</span></label>
+    <input type="range" id="slQ" min="0" max="9" step="1" value="3">
+    <label>Host R <span class="val" id="valR">4.0</span></label>
+    <input type="range" id="slR" min="2" max="15" step="0.1" value="4.0">
+    <label>Knot Amplitude (r0) <span class="val" id="valR0">1.0</span></label>
+    <input type="range" id="slR0" min="0" max="3" step="0.05" value="1.0">
+    <label>Tube Radius <span class="val" id="valTube">0.5</span></label>
+    <input type="range" id="slTube" min="0.15" max="2" step="0.05" value="0.5">
+    <label>Cell Size <span class="val" id="valUnit">3</span></label>
+    <input type="range" id="slUnit" min="2" max="6" step="1" value="3">
+  </div>
+</div>
+<div id="start-screen">
+  <h1>KNOTPAC</h1>
+  <p>Pac-Man on Torus Knots</p>
+  <p style="color:#666;margin-top:12px">WASD move &bull; Mouse look &bull; Space jump &bull; Q auto-run</p>
+  <button onclick="startGame()">START</button>
+</div>
+<script>
+'use strict';
+
+// =====================================================================
+// Constants
+// =====================================================================
+let WORLD_W = 27, WORLD_H = 30;
+let TORUS_R = 4.0;   // host torus major radius
+let KNOT_R0 = 1.0;   // host torus minor radius (knot amplitude)
+let TUBE_R = 0.5;    // tube radius (playable surface)
+let KNOT_P = 2;      // winding number: times around hole
+let KNOT_Q = 3;      // winding number: times through hole
+const WALL_H = 0.45;
+const DOOR_H = 0.20;
+const EYE_HEIGHT = 0.12;
+const PLAYER_SPEED = 4.5;
+const MOUSE_SENS = 0.002;
+const MAX_PITCH = Math.PI * 0.44;
+const FOV = Math.PI * 0.6;
+const VFOV = Math.PI * 0.45;
+const MAX_STEP_H = 0.06;
+
+// Tile types
+const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
+let CELL_UNIT = 3;
+
+let GRAV_SCALE = 4.0;
+const JUMP_SPEED = 3.5;
+const SUPER_JUMP_SPEED = 9.0;
+
+// Reference metric factors for Cartesian speed normalization
+const REF_MU_U = 6.0 / 27;
+const REF_MU_V = 2.0 / 30;
+
+// =====================================================================
+// Vector utilities
+// =====================================================================
+function v3add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function v3sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function v3scale(a, s) { return [a[0]*s, a[1]*s, a[2]*s]; }
+function v3dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+function v3cross(a, b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function v3len(a) { return Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]); }
+function v3norm(a) { const l = v3len(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
+function v3lerp(a, b, t) { return [a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*(b[2]-a[2])]; }
+
+// =====================================================================
+// Knot center curve computation
+// =====================================================================
+let curvePoints = []; // [{pos, tangent, normal, binormal}]
+let numSegs = 0;
+let curveLengthTotal = 0;
+
+function computeCurve() {
+  const p_ = KNOT_P, q_ = KNOT_Q;
+  const R = TORUS_R, r0 = KNOT_R0;
+  const N = Math.max(96, 48 * Math.max(p_, q_));
+  numSegs = N;
+  curvePoints = [];
+
+  // Compute positions
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const pt = p_ * t, qt = q_ * t;
+    const x = (R + r0 * Math.cos(qt)) * Math.cos(pt);
+    const y = r0 * Math.sin(qt);
+    const z = (R + r0 * Math.cos(qt)) * Math.sin(pt);
+    curvePoints.push({ pos: [x, y, z] });
+  }
+
+  // Tangents via finite differences
+  for (let i = 0; i < N; i++) {
+    const next = curvePoints[(i + 1) % N].pos;
+    const prev = curvePoints[(i - 1 + N) % N].pos;
+    curvePoints[i].tangent = v3norm(v3sub(next, prev));
+  }
+
+  // Normals: radial reference direction projected perpendicular to tangent
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const qt = q_ * t, pt = p_ * t;
+    // Outward radial from host torus tube center
+    const rad = [Math.cos(qt) * Math.cos(pt), Math.sin(qt), Math.cos(qt) * Math.sin(pt)];
+    const T = curvePoints[i].tangent;
+    const d = v3dot(rad, T);
+    const projected = v3sub(rad, v3scale(T, d));
+    const pLen = v3len(projected);
+    if (pLen < 0.001) {
+      // Fallback: use cross product with arbitrary vector
+      const arb = Math.abs(T[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const c = v3cross(T, arb);
+      curvePoints[i].normal = v3norm(c);
+    } else {
+      curvePoints[i].normal = v3scale(projected, 1 / pLen);
+    }
+    curvePoints[i].binormal = v3cross(T, curvePoints[i].normal);
+  }
+
+  // Total curve length
+  curveLengthTotal = 0;
+  for (let i = 0; i < N; i++) {
+    const next = curvePoints[(i + 1) % N].pos;
+    curveLengthTotal += v3len(v3sub(next, curvePoints[i].pos));
+  }
+}
+
+computeCurve();
+
+// Interpolate frame at parameter t in [0, 1)
+function getCurveFrame(param) {
+  param = ((param % 1) + 1) % 1;
+  const fSeg = param * numSegs;
+  const seg = Math.floor(fSeg) % numSegs;
+  const frac = fSeg - Math.floor(fSeg);
+  const c0 = curvePoints[seg], c1 = curvePoints[(seg + 1) % numSegs];
+  return {
+    pos: v3lerp(c0.pos, c1.pos, frac),
+    tangent: v3norm(v3lerp(c0.tangent, c1.tangent, frac)),
+    normal: v3norm(v3lerp(c0.normal, c1.normal, frac)),
+    binormal: v3norm(v3lerp(c0.binormal, c1.binormal, frac)),
+  };
+}
+
+// 3D position on knot tube surface
+function surfacePos(tileX, tileY, heightAbove) {
+  const param = tileX / WORLD_W;
+  const theta = (tileY / WORLD_H) * Math.PI * 2;
+  const frame = getCurveFrame(param);
+  const r = TUBE_R + (heightAbove || 0);
+  return v3add(frame.pos, v3add(v3scale(frame.normal, r * Math.cos(theta)),
+                                 v3scale(frame.binormal, r * Math.sin(theta))));
+}
+
+// Surface outward normal at tile position
+function surfaceNormal(tileX, tileY) {
+  const theta = (tileY / WORLD_H) * Math.PI * 2;
+  const frame = getCurveFrame(tileX / WORLD_W);
+  return v3norm(v3add(v3scale(frame.normal, Math.cos(theta)),
+                       v3scale(frame.binormal, Math.sin(theta))));
+}
+
+// Find nearest point on center curve to a 3D position (brute force)
+function nearestCurvePointJS(px, py, pz) {
+  let minDist2 = Infinity, bestParam = 0, bestPos = [0, 0, 0];
+  for (let i = 0; i < numSegs; i++) {
+    const A = curvePoints[i].pos;
+    const B = curvePoints[(i + 1) % numSegs].pos;
+    const AB = v3sub(B, A);
+    const AP = [px - A[0], py - A[1], pz - A[2]];
+    const ab2 = v3dot(AB, AB);
+    const t = Math.max(0, Math.min(1, v3dot(AP, AB) / (ab2 || 1)));
+    const closest = v3add(A, v3scale(AB, t));
+    const d2 = (px-closest[0])**2 + (py-closest[1])**2 + (pz-closest[2])**2;
+    if (d2 < minDist2) {
+      minDist2 = d2;
+      bestParam = (i + t) / numSegs;
+      bestPos = closest;
+    }
+  }
+  return { pos: bestPos, param: bestParam, dist: Math.sqrt(minDist2) };
+}
+
+// Convert 3D position to tile coordinates
+function worldToTile(px, py, pz) {
+  const nearest = nearestCurvePointJS(px, py, pz);
+  const frame = getCurveFrame(nearest.param);
+  const toP = [px - nearest.pos[0], py - nearest.pos[1], pz - nearest.pos[2]];
+  const dN = v3dot(toP, frame.normal);
+  const dB = v3dot(toP, frame.binormal);
+  const theta = Math.atan2(dB, dN);
+  const vFrac = ((theta / (2 * Math.PI)) + 1) % 1;
+  return { x: nearest.param * WORLD_W, y: vFrac * WORLD_H };
+}
+
+// Metric-correct tile speed using curve geometry
+function metricTileSpeed(baseTileSpd, dx, dy, tileX, tileY) {
+  const param = tileX / WORLD_W;
+  const seg = Math.floor(param * numSegs) % numSegs;
+  const p0 = curvePoints[seg].pos;
+  const p1 = curvePoints[(seg + 1) % numSegs].pos;
+  const segLen = v3len(v3sub(p1, p0));
+  const muU = segLen / (WORLD_W / numSegs);
+  const muV = TUBE_R * Math.PI * 2 / WORLD_H;
+  const refPhys = Math.sqrt(dx * dx * REF_MU_U * REF_MU_U + dy * dy * REF_MU_V * REF_MU_V);
+  const curPhys = Math.sqrt(dx * dx * muU * muU + dy * dy * muV * muV);
+  return baseTileSpd * refPhys / (curPhys || 1);
+}
+
+function cardinalTileSpeed(baseTileSpd, isU, tileX, tileY) {
+  if (isU) {
+    const param = tileX / WORLD_W;
+    const seg = Math.floor(param * numSegs) % numSegs;
+    const p0 = curvePoints[seg].pos;
+    const p1 = curvePoints[(seg + 1) % numSegs].pos;
+    const muU = v3len(v3sub(p1, p0)) / (WORLD_W / numSegs);
+    return baseTileSpd * REF_MU_U / (muU || 0.01);
+  }
+  const muV = TUBE_R * Math.PI * 2 / WORLD_H;
+  return baseTileSpd * REF_MU_V / (muV || 0.01);
+}
+
+// =====================================================================
+// Procedural maze generator (toroidal, variable cell size)
+// =====================================================================
+let mazeInit, maze, totalPellets;
+let ghostHouseCenter = { x: 13.5, y: 14.5 };
+let ghostEntrance = { x: 13.5, y: 11.5 };
+let playerSpawn = { x: 13.5, y: 18.5 };
+
+function generateMaze(U) {
+  // Cell count scales with geometry
+  const tubeCircum = 2 * Math.PI * TUBE_R;
+  const maxCells = Math.floor(96 / U);
+  // ~8 cells around tube circumference, u-cells scale to keep cells roughly square
+  const ch = Math.max(5, Math.min(16, Math.round(TUBE_R * 10.0)));
+  const physCellV = tubeCircum / ch;
+  const cw = Math.max(6, Math.min(maxCells, Math.round(curveLengthTotal / physCellV)));
+  WORLD_W = cw * U;
+  WORLD_H = ch * U;
+  const W = WORLD_W, H = WORLD_H;
+
+  // Cell connectivity via randomized DFS (recursive backtracker) on torus
+  const rightWall = new Uint8Array(cw * ch).fill(1);
+  const bottomWall = new Uint8Array(cw * ch).fill(1);
+  const vis = new Uint8Array(cw * ch);
+
+  const stack = [0];
+  vis[0] = 1;
+
+  while (stack.length > 0) {
+    const ci = stack[stack.length - 1];
+    const cx = ci % cw, cy = (ci / cw) | 0;
+    const nbrs = [];
+    const tryNbr = (nx, ny, d) => {
+      const ni = ny * cw + nx;
+      if (!vis[ni]) nbrs.push([nx, ny, ni, d]);
+    };
+    tryNbr((cx + 1) % cw, cy, 'r');
+    tryNbr(((cx - 1) + cw) % cw, cy, 'l');
+    tryNbr(cx, (cy + 1) % ch, 'b');
+    tryNbr(cx, ((cy - 1) + ch) % ch, 'u');
+
+    if (nbrs.length === 0) { stack.pop(); continue; }
+    const [nx, ny, ni, d] = nbrs[(Math.random() * nbrs.length) | 0];
+    if (d === 'r') rightWall[ci] = 0;
+    else if (d === 'l') rightWall[ni] = 0;
+    else if (d === 'b') bottomWall[ci] = 0;
+    else bottomWall[ni] = 0;
+    vis[ni] = 1;
+    stack.push(ni);
+  }
+
+  // Extra openings (~25% of remaining walls) for more walkable space
+  for (let i = 0; i < cw * ch; i++) {
+    if (rightWall[i] && Math.random() < 0.25) rightWall[i] = 0;
+    if (bottomWall[i] && Math.random() < 0.25) bottomWall[i] = 0;
+  }
+
+  // Build tile array
+  const tiles = new Uint8Array(W * H);
+  tiles.fill(T.WALL);
+
+  for (let cy = 0; cy < ch; cy++) {
+    for (let cx = 0; cx < cw; cx++) {
+      const ci = cy * cw + cx;
+      // Cell interior → pellets
+      for (let dy = 1; dy < U; dy++)
+        for (let dx = 1; dx < U; dx++)
+          tiles[(cy * U + dy) * W + cx * U + dx] = T.PELLET;
+      // Right passage
+      if (!rightWall[ci]) {
+        const wx = ((cx + 1) * U) % W;
+        for (let dy = 1; dy < U; dy++)
+          tiles[(cy * U + dy) * W + wx] = T.PELLET;
+      }
+      // Bottom passage
+      if (!bottomWall[ci]) {
+        const wy = ((cy + 1) * U) % H;
+        for (let dx = 1; dx < U; dx++)
+          tiles[wy * W + cx * U + dx] = T.PELLET;
+      }
+    }
+  }
+
+  // Ghost house: 8×4, centered
+  const ghW = 8, ghH = 4;
+  const ghX = ((W >> 1) - (ghW >> 1) + W) % W;
+  const ghY = ((H >> 1) - (ghH >> 1) + H) % H;
+  for (let dy = 0; dy < ghH; dy++) {
+    for (let dx = 0; dx < ghW; dx++) {
+      const tx = (ghX + dx) % W, ty = (ghY + dy) % H;
+      if (dy === 0) tiles[ty * W + tx] = (dx >= 3 && dx <= 4) ? T.DOOR : T.WALL;
+      else if (dy === ghH - 1 || dx === 0 || dx === ghW - 1) tiles[ty * W + tx] = T.WALL;
+      else tiles[ty * W + tx] = T.GHOST_HOUSE;
+    }
+  }
+
+  // Clear entrance rows above ghost house
+  for (let row = 1; row <= 2; row++) {
+    const ey = (ghY - row + H) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[ey * W + tx] === T.WALL) tiles[ey * W + tx] = T.EMPTY;
+    }
+  }
+  // Clear player spawn area below ghost house
+  for (let row = 0; row <= 1; row++) {
+    const sy = (ghY + ghH + row) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[sy * W + tx] === T.WALL) tiles[sy * W + tx] = T.EMPTY;
+    }
+  }
+
+  // Store spawn coordinates
+  const gcx = (ghX + ghW / 2);
+  ghostHouseCenter = { x: gcx, y: (ghY + 1.5) };
+  ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
+  playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
+
+  // Power pellets: spread across the torus, count scales with maze size
+  // ~1 power pellet per 60 walkable tiles, minimum 6
+  const walkable = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i] === T.PELLET) walkable.push(i);
+  }
+  const numPower = Math.max(6, Math.round(walkable.length / 60));
+  // Shuffle and pick evenly spaced candidates for good distribution
+  for (let i = walkable.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [walkable[i], walkable[j]] = [walkable[j], walkable[i]];
+  }
+  // Place power pellets at even intervals through the shuffled list
+  const stride = Math.max(1, (walkable.length / numPower) | 0);
+  for (let p = 0; p < numPower && p * stride < walkable.length; p++) {
+    tiles[walkable[p * stride]] = T.POWER;
+  }
+
+  // Count pellets
+  totalPellets = 0;
+  for (let i = 0; i < tiles.length; i++)
+    if (tiles[i] === T.PELLET || tiles[i] === T.POWER) totalPellets++;
+
+  mazeInit = tiles;
+  maze = new Uint8Array(tiles);
+}
+
+generateMaze(CELL_UNIT);
+
+function getMaze(x, y) {
+  const tx = ((Math.floor(x) % WORLD_W) + WORLD_W) % WORLD_W;
+  const ty = ((Math.floor(y) % WORLD_H) + WORLD_H) % WORLD_H;
+  return maze[ty * WORLD_W + tx];
+}
+
+function tileHeight(t) {
+  if (t === T.WALL) return WALL_H;
+  if (t === T.DOOR) return DOOR_H;
+  return 0.0;
+}
+
+function tileHeightAt(x, y) { return tileHeight(getMaze(x, y)); }
+
+function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+
+// =====================================================================
+// Tube-following gravity
+// =====================================================================
+function tubeGravity(px, py, pz) {
+  const nearest = nearestCurvePointJS(px, py, pz);
+  const dx = nearest.pos[0] - px, dy = nearest.pos[1] - py, dz = nearest.pos[2] - pz;
+  const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+  if (dist < 0.001) return [0, 0, 0];
+  return [GRAV_SCALE * dx / dist, GRAV_SCALE * dy / dist, GRAV_SCALE * dz / dist];
+}
+
+// =====================================================================
+// Jump physics — full 3D (no cross-section reduction)
+// =====================================================================
+let jumpPos = [0, 0, 0];
+let jumpVel = [0, 0, 0];
+
+function doJump() {
+  if (airborne) return;
+  airborne = true;
+
+  // Get current 3D position on surface
+  const groundH = tileHeightAt(playerX, playerY);
+  jumpPos = surfacePos(playerX, playerY, groundH);
+
+  // Normal = outward from tube center
+  const normal = surfaceNormal(playerX, playerY);
+  const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
+  jumpVel = v3scale(normal, speed);
+
+  // Add walking velocity (convert tile velocity to 3D)
+  const frame = getCurveFrame(playerX / WORLD_W);
+  // u-velocity: along curve tangent
+  const uPhysVel = jumpDxPerSec * curveLengthTotal / WORLD_W;
+  // v-velocity: around tube
+  const theta = (playerY / WORLD_H) * Math.PI * 2;
+  const tubeAround = v3norm(v3add(v3scale(frame.normal, -Math.sin(theta)),
+                                    v3scale(frame.binormal, Math.cos(theta))));
+  const vPhysVel = jumpDyPerSec * 2 * Math.PI * TUBE_R / WORLD_H;
+  jumpVel = v3add(jumpVel, v3add(v3scale(frame.tangent, uPhysVel),
+                                   v3scale(tubeAround, vPhysVel)));
+}
+
+function forceLand() {
+  airborne = false; playerHeight = 0;
+  jumpVel = [0, 0, 0];
+  jumpDxPerSec = 0; jumpDyPerSec = 0;
+}
+
+function updateJumpPhysics(dt) {
+  if (!airborne) { playerHeight = 0; return; }
+  const substeps = 8;
+  const subDt = dt / substeps;
+  for (let s = 0; s < substeps; s++) {
+    // Gravity
+    const g = tubeGravity(jumpPos[0], jumpPos[1], jumpPos[2]);
+    jumpVel[0] += g[0] * subDt;
+    jumpVel[1] += g[1] * subDt;
+    jumpVel[2] += g[2] * subDt;
+    jumpPos[0] += jumpVel[0] * subDt;
+    jumpPos[1] += jumpVel[1] * subDt;
+    jumpPos[2] += jumpVel[2] * subDt;
+
+    // Landing check
+    const nearest = nearestCurvePointJS(jumpPos[0], jumpPos[1], jumpPos[2]);
+    const dist = nearest.dist;
+
+    // Get tile at current position
+    const tc = worldToTile(jumpPos[0], jumpPos[1], jumpPos[2]);
+    const landingTileH = tileHeightAt(tc.x, tc.y);
+    const effectiveR = TUBE_R + landingTileH;
+
+    if (dist <= effectiveR) {
+      const toP = v3sub(jumpPos, nearest.pos);
+      const toPn = v3norm(toP);
+      const vDot = v3dot(jumpVel, toPn);
+      if (vDot < 0 || dist < effectiveR * 0.92) {
+        // Preserve camera forward for angle recovery
+        const cam = computeCamera();
+        const worldFwd = [...cam.fwd];
+
+        // Update tile coords from 3D landing position
+        playerX = wrapX(tc.x);
+        playerY = wrapY(tc.y);
+
+        // Back-solve playerAngle from worldFwd
+        const frame = getCurveFrame(playerX / WORLD_W);
+        const up = surfaceNormal(playerX, playerY);
+        const eu = v3norm(v3sub(frame.tangent, v3scale(up, v3dot(frame.tangent, up))));
+        const ev = v3cross(eu, up);
+        const dotU = v3dot(worldFwd, eu);
+        const dotV = v3dot(worldFwd, ev);
+        playerAngle = Math.atan2(dotU, dotV);
+
+        forceLand();
+        return;
+      }
+    }
+
+    playerHeight = dist - TUBE_R;
+  }
+}
+
+// =====================================================================
+// Player state
+// =====================================================================
+let playerX = playerSpawn.x, playerY = playerSpawn.y;
+let playerAngle = Math.PI; // facing up (toward ghost house)
+let playerPitch = 0;
+let airborne = false, playerHeight = 0;
+
+let jumpDxPerSec = 0, jumpDyPerSec = 0; // tile-space velocity carried into jump
+
+function canWalk(nx, ny) {
+  if (airborne) return true;
+  const currentH = tileHeightAt(playerX, playerY);
+  const destH = tileHeightAt(nx, ny);
+  return destH <= currentH + MAX_STEP_H;
+}
+
+// =====================================================================
+// Input
+// =====================================================================
+const keys = {};
+let fpMode = true; // start in FPV
+let autoRun = false;
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ') e.preventDefault();
+  if (e.key === 'f' || e.key === 'F') {
+    fpMode = !fpMode;
+    document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+  }
+  if (e.key === 'q' || e.key === 'Q') {
+    autoRun = !autoRun;
+    document.getElementById('autoRunIndicator').style.display = autoRun ? 'block' : 'none';
+  }
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  // Clear both cases to prevent stuck keys when Shift changes e.key mid-press
+  if (e.key.length === 1) { keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
+});
+// Also clear on tab/window blur (alt-tab, etc.)
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+canvas.addEventListener('click', () => {
+  if (gameRunning) {
+    if (fpMode && gpuCanvas) gpuCanvas.requestPointerLock();
+    else canvas.requestPointerLock();
+  }
+});
+// gpuCanvas click handler added after gpuCanvas creation below
+
+function hasPointerLock() {
+  return document.pointerLockElement === canvas || document.pointerLockElement === gpuCanvas;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!hasPointerLock()) return;
+  playerAngle += e.movementX * MOUSE_SENS;
+  playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, playerPitch - e.movementY * MOUSE_SENS));
+});
+
+document.addEventListener('pointerlockchange', () => {
+  const locked = hasPointerLock();
+  document.getElementById('reticle').style.display = locked ? 'block' : 'none';
+  // Clear keys on pointer lock loss to prevent sticky movement
+  if (!locked) { for (const k in keys) keys[k] = false; }
+});
+
+// View toggle button
+document.getElementById('viewToggle').addEventListener('click', () => {
+  fpMode = !fpMode;
+  document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+});
+
+// Physics panel
+document.getElementById('physToggle').addEventListener('click', () => {
+  document.getElementById('physBody').classList.toggle('collapsed');
+});
+const slGrav = document.getElementById('slGrav');
+const valGrav = document.getElementById('valGrav');
+slGrav.addEventListener('input', () => {
+  GRAV_SCALE = parseFloat(slGrav.value);
+  valGrav.textContent = GRAV_SCALE.toFixed(1);
+});
+
+const slP = document.getElementById('slP');
+const valP = document.getElementById('valP');
+slP.addEventListener('input', () => {
+  KNOT_P = parseInt(slP.value);
+  valP.textContent = KNOT_P;
+  rebuildAll();
+});
+
+const slQ = document.getElementById('slQ');
+const valQ = document.getElementById('valQ');
+slQ.addEventListener('input', () => {
+  KNOT_Q = parseInt(slQ.value);
+  valQ.textContent = KNOT_Q;
+  rebuildAll();
+});
+
+const slR = document.getElementById('slR');
+const valR = document.getElementById('valR');
+slR.addEventListener('input', () => {
+  TORUS_R = parseFloat(slR.value);
+  valR.textContent = TORUS_R.toFixed(1);
+  rebuildAll();
+});
+
+const slR0 = document.getElementById('slR0');
+const valR0 = document.getElementById('valR0');
+slR0.addEventListener('input', () => {
+  KNOT_R0 = parseFloat(slR0.value);
+  valR0.textContent = KNOT_R0.toFixed(2);
+  rebuildAll();
+});
+
+const slTube = document.getElementById('slTube');
+const valTube = document.getElementById('valTube');
+slTube.addEventListener('input', () => {
+  TUBE_R = parseFloat(slTube.value);
+  valTube.textContent = TUBE_R.toFixed(2);
+  rebuildAll();
+});
+
+const slUnit = document.getElementById('slUnit');
+const valUnit = document.getElementById('valUnit');
+slUnit.addEventListener('input', () => {
+  CELL_UNIT = parseInt(slUnit.value);
+  valUnit.textContent = CELL_UNIT;
+  rebuildAll();
+});
+
+function rebuildAll() {
+  computeCurve();
+  generateMaze(CELL_UNIT);
+  pelletsEaten = 0;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
+  playerAngle = Math.PI; playerPitch = 0;
+  airborne = false; playerHeight = 0;
+  resetGhosts();
+  resizeMinimap();
+  gpuSky?.uploadCurve();
+  gpuSky?.uploadTiles();
+}
+
+function resizeMinimap() {
+  mmCanvas.width = WORLD_W * MM_SCALE;
+  mmCanvas.height = WORLD_H * MM_SCALE;
+  mmCanvas.style.width = (WORLD_W * MM_SCALE) + 'px';
+  mmCanvas.style.height = (WORLD_H * MM_SCALE) + 'px';
+}
+
+// =====================================================================
+// Canvas setup
+// =====================================================================
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// =====================================================================
+// WebGPU — ray-traced first-person torus renderer
+// =====================================================================
+// WebGPU canvas overlays the 2D canvas for FPV mode
+const gpuCanvas = document.createElement('canvas');
+gpuCanvas.id = 'gpuCanvas';
+gpuCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;display:none;z-index:1';
+document.body.insertBefore(gpuCanvas, document.getElementById('minimap'));
+gpuCanvas.addEventListener('click', () => {
+  if (gameRunning) gpuCanvas.requestPointerLock();
+});
+let gpuSky = null;
+
+const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, _p0: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, _p1: f32,
+  rightX: f32, rightY: f32, rightZ: f32, _p2: f32,
+  upX: f32, upY: f32, upZ: f32, _p3: f32,
+  sunX: f32, sunY: f32, sunZ: f32, time: f32,
+  hostR: f32, tubeR: f32, width: u32, height: u32,
+  fovH: f32, fovV: f32, worldW: u32, worldH: u32,
+  horizonY: f32, numSegs: u32, hostR0: f32, _p7: f32,
+}
+
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> tiles: array<u32>;
+@group(0) @binding(2) var output: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(3) var<storage, read> ghosts: array<f32>;
+@group(0) @binding(4) var<storage, read> curve: array<f32>;
+
+const PI: f32 = 3.14159265;
+const TWO_PI: f32 = 6.28318531;
+
+fn getTile(x: i32, y: i32) -> u32 {
+  let w = i32(p.worldW);
+  let h = i32(p.worldH);
+  let tx = ((x % w) + w) % w;
+  let ty = ((y % h) + h) % h;
+  return tiles[ty * w + tx];
+}
+
+fn tileH(t: u32) -> f32 {
+  if (t == 0u) { return 0.45; }
+  if (t == 5u) { return 0.20; }
+  return 0.0;
+}
+
+// Host torus SDF — bounding volume for coarse ray march
+fn hostSDF(px: f32, py: f32, pz: f32) -> f32 {
+  let q = sqrt(px*px + pz*pz) - p.hostR;
+  return sqrt(q*q + py*py) - p.hostR0;
+}
+
+// ---- Curve buffer access ----
+fn getCurvePoint(i: u32) -> vec3f {
+  let b = (i % p.numSegs) * 12u;
+  return vec3f(curve[b], curve[b+1u], curve[b+2u]);
+}
+fn getCurveNormal(i: u32) -> vec3f {
+  let b = (i % p.numSegs) * 12u;
+  return vec3f(curve[b+6u], curve[b+7u], curve[b+8u]);
+}
+fn getCurveBinormal(i: u32) -> vec3f {
+  let b = (i % p.numSegs) * 12u;
+  return vec3f(curve[b+9u], curve[b+10u], curve[b+11u]);
+}
+
+// Nearest point on polyline center curve
+// Returns vec4(nearestPoint.xyz, param01)
+fn nearestOnCurve(px: f32, py: f32, pz: f32) -> vec4f {
+  let P = vec3f(px, py, pz);
+  var minD2: f32 = 1e20;
+  var bestParam: f32 = 0.0;
+  var bestPt: vec3f = vec3f(0.0);
+  let N = p.numSegs;
+  for (var i = 0u; i < N; i++) {
+    let A = getCurvePoint(i);
+    let B = getCurvePoint(i + 1u);
+    let AB = B - A;
+    let AP = P - A;
+    let ab2 = max(dot(AB, AB), 1e-8);
+    let t = clamp(dot(AP, AB) / ab2, 0.0, 1.0);
+    let closest = A + t * AB;
+    let d = P - closest;
+    let d2 = dot(d, d);
+    if (d2 < minD2) {
+      minD2 = d2;
+      bestParam = (f32(i) + t) / f32(N);
+      bestPt = closest;
+    }
+  }
+  return vec4f(bestPt, bestParam);
+}
+
+// Interpolate frame at parameter
+fn interpNormal(param: f32) -> vec3f {
+  let fSeg = param * f32(p.numSegs);
+  let seg = u32(floor(fSeg)) % p.numSegs;
+  let frac = fSeg - floor(fSeg);
+  return normalize(mix(getCurveNormal(seg), getCurveNormal(seg + 1u), frac));
+}
+fn interpBinormal(param: f32) -> vec3f {
+  let fSeg = param * f32(p.numSegs);
+  let seg = u32(floor(fSeg)) % p.numSegs;
+  let frac = fSeg - floor(fSeg);
+  return normalize(mix(getCurveBinormal(seg), getCurveBinormal(seg + 1u), frac));
+}
+
+// Combined displaced distance — base SDF minus tile height
+fn knotDD(px: f32, py: f32, pz: f32) -> f32 {
+  let result = nearestOnCurve(px, py, pz);
+  let P = vec3f(px, py, pz);
+  let dist = length(P - result.xyz);
+  let baseSDF = dist - p.tubeR;
+
+  let param = result.w;
+  let N_vec = interpNormal(param);
+  let B_vec = interpBinormal(param);
+  let toP = P - result.xyz;
+  let dN = dot(toP, N_vec);
+  let dB = dot(toP, B_vec);
+  let v_angle = atan2(dB, dN);
+  var tv = v_angle / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  let tx = i32(param * f32(p.worldW)) % i32(p.worldW);
+  let ty = i32(tv * f32(p.worldH)) % i32(p.worldH);
+  let tile = getTile(tx, ty);
+
+  return baseSDF - tileH(tile);
+}
+
+// Tile coords from 3D position
+fn knotTileCoords(px: f32, py: f32, pz: f32) -> vec2f {
+  let result = nearestOnCurve(px, py, pz);
+  let P = vec3f(px, py, pz);
+  let param = result.w;
+  let N_vec = interpNormal(param);
+  let B_vec = interpBinormal(param);
+  let toP = P - result.xyz;
+  let dN = dot(toP, N_vec);
+  let dB = dot(toP, B_vec);
+  let v_angle = atan2(dB, dN);
+  var tv = v_angle / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  return vec2f(param * f32(p.worldW), tv * f32(p.worldH));
+}
+
+fn knotTileAt(px: f32, py: f32, pz: f32) -> u32 {
+  let tc = knotTileCoords(px, py, pz);
+  return getTile(i32(tc.x) % i32(p.worldW), i32(tc.y) % i32(p.worldH));
+}
+
+// Tile center 3D position on knot tube surface
+fn tileCenterPos(tx: f32, ty: f32, height: f32) -> vec3f {
+  let param = (tx + 0.5) / f32(p.worldW);
+  let theta = (ty + 0.5) / f32(p.worldH) * TWO_PI;
+  let fSeg = param * f32(p.numSegs);
+  let seg = u32(floor(fSeg)) % p.numSegs;
+  let frac = fSeg - floor(fSeg);
+  let pos = mix(getCurvePoint(seg), getCurvePoint(seg + 1u), frac);
+  let N_vec = normalize(mix(getCurveNormal(seg), getCurveNormal(seg + 1u), frac));
+  let B_vec = normalize(mix(getCurveBinormal(seg), getCurveBinormal(seg + 1u), frac));
+  let sr = p.tubeR + height;
+  return pos + sr * (cos(theta) * N_vec + sin(theta) * B_vec);
+}
+
+fn ghostWorldPos(gi: u32) -> vec3f {
+  let gx = ghosts[gi * 8u];
+  let gy = ghosts[gi * 8u + 1u];
+  return tileCenterPos(gx, gy, 0.35);
+}
+
+fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
+             cx: f32, cy: f32, cz: f32, rad: f32) -> f32 {
+  let ex = ox - cx; let ey = oy - cy; let ez = oz - cz;
+  let b = ex*dx + ey*dy + ez*dz;
+  let c = ex*ex + ey*ey + ez*ez - rad*rad;
+  let disc = b*b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sq = sqrt(disc);
+  let t1 = -b - sq;
+  if (t1 > 0.01) { return t1; }
+  let t2 = -b + sq;
+  if (t2 > 0.01) { return t2; }
+  return -1.0;
+}
+
+fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32) -> f32 {
+  let maxH: f32 = 0.47;
+  let envelope = p.tubeR + maxH + 0.1;
+  var t: f32 = 0.05;
+
+  // Phase 1: coarse approach using host torus as bounding volume
+  for (var i = 0u; i < 64u; i++) {
+    let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
+    let hsd = abs(hostSDF(px, py, pz));
+    if (hsd < envelope) { break; }
+    t += max(hsd - envelope, 0.02);
+    if (t > 50.0) { return -1.0; }
+  }
+
+  // Phase 2: fine march with polyline SDF
+  var prevT: f32 = t;
+  var prevDD: f32 = 1.0;
+  for (var j = 0u; j < 80u; j++) {
+    let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
+
+    // Quick skip if outside host torus bounding volume
+    let hsd = abs(hostSDF(px, py, pz));
+    if (hsd > envelope) {
+      prevDD = 1.0;
+      prevT = t;
+      t += max(hsd - envelope, 0.02);
+      if (t > 50.0) { return -1.0; }
+      continue;
+    }
+
+    let dd = knotDD(px, py, pz);
+
+    if (dd < 0.0 && prevDD > 0.0) {
+      var lo = prevT;
+      var hi = t;
+      for (var b = 0u; b < 8u; b++) {
+        let mid = (lo + hi) * 0.5;
+        let mp = vec3f(ox + mid*dx, oy + mid*dy, oz + mid*dz);
+        let md = knotDD(mp.x, mp.y, mp.z);
+        if (md < 0.0) { hi = mid; } else { lo = mid; }
+      }
+      return (lo + hi) * 0.5;
+    }
+
+    if (dd < 0.002 && dd >= 0.0) { return t; }
+
+    prevDD = dd;
+    prevT = t;
+    t += max(dd * 0.5, 0.005);
+    if (t > 50.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let px = gid.x;
+  let py = gid.y;
+  let w = p.width;
+  let h = p.height;
+  if (px >= w || py >= h) { return; }
+
+  let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
+  let screenV = p.horizonY - f32(py) / f32(h);
+  let azAngle = screenH * p.fovH * 0.5;
+  let elevAngle = screenV * p.fovV;
+
+  let cosEl = cos(elevAngle); let sinEl = sin(elevAngle);
+  let cosAz = cos(azAngle); let sinAz = sin(azAngle);
+
+  let fwd = vec3f(p.fwdX, p.fwdY, p.fwdZ);
+  let right = vec3f(p.rightX, p.rightY, p.rightZ);
+  let up = vec3f(p.upX, p.upY, p.upZ);
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
+
+  let cam = vec3f(p.camX, p.camY, p.camZ);
+  var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z);
+
+  // Ray-sphere test against ghosts
+  let ghostRad: f32 = 0.30;
+  var hitGhost: i32 = -1;
+  for (var gi = 0u; gi < 4u; gi++) {
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 1.5) { continue; }
+    let gp = ghostWorldPos(gi);
+    let gt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, gp.x, gp.y, gp.z, ghostRad);
+    if (gt > 0.0 && (t < 0.0 || gt < t)) {
+      t = gt;
+      hitGhost = i32(gi);
+    }
+  }
+
+  // Ray-sphere test for pellets near camera
+  let pelletRad: f32 = 0.06;
+  let powerRad: f32 = 0.12;
+  var hitPellet: i32 = 0;
+  let camTC = knotTileCoords(cam.x, cam.y, cam.z);
+  let camTX = i32(camTC.x);
+  let camTY = i32(camTC.y);
+  for (var pdy = -4; pdy <= 4; pdy++) {
+    for (var pdx = -4; pdx <= 4; pdx++) {
+      let ttx = (camTX + pdx + i32(p.worldW)) % i32(p.worldW);
+      let tty = (camTY + pdy + i32(p.worldH)) % i32(p.worldH);
+      let tileVal = getTile(ttx, tty);
+      if (tileVal != 1u && tileVal != 2u) { continue; }
+      var prad: f32 = pelletRad;
+      var phover: f32 = 0.08;
+      if (tileVal == 2u) { prad = powerRad; phover = 0.18; }
+      let pp = tileCenterPos(f32(ttx), f32(tty), phover);
+      let pt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, pp.x, pp.y, pp.z, prad);
+      if (pt > 0.0 && (t < 0.0 || pt < t)) {
+        t = pt;
+        hitPellet = i32(tileVal);
+        hitGhost = -1;
+      }
+    }
+  }
+
+  // Pellet hit
+  if (hitPellet > 0) {
+    var pcr: f32 = 1.0; var pcg: f32 = 1.0; var pcb: f32 = 0.0;
+    if (hitPellet == 2) {
+      let pulse = 0.7 + 0.3 * sin(p.time * 6.0);
+      pcr = pulse; pcg = pulse; pcb = 0.0;
+    }
+    let pfade = 1.0 - min(1.0, t / 40.0) * 0.4;
+    pcr *= 0.9 * pfade; pcg *= 0.9 * pfade; pcb *= 0.1 * pfade;
+    textureStore(output, vec2u(px, py), vec4f(clamp(pcr, 0.0, 1.0), clamp(pcg, 0.0, 1.0), clamp(pcb, 0.0, 1.0), 1.0));
+    return;
+  }
+
+  if (t < 0.0) {
+    let skyT = clamp(rd.y * 0.5 + 0.5, 0.0, 1.0);
+    let sr = mix(3.0, 10.0, skyT) / 255.0;
+    let sg = mix(3.0, 8.0, skyT) / 255.0;
+    let sb = mix(12.0, 30.0, skyT) / 255.0;
+    textureStore(output, vec2u(px, py), vec4f(sr, sg, sb, 1.0));
+    return;
+  }
+
+  var cr: f32; var cg: f32; var cb: f32;
+
+  if (hitGhost >= 0) {
+    let gi = u32(hitGhost);
+    let gp = ghostWorldPos(gi);
+    let hp = cam + t * rd;
+    let gn = normalize(hp - gp);
+
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 0.5) {
+      let blink = 0.5 + 0.5 * sin(p.time * 8.0);
+      cr = 0.2; cg = 0.2; cb = 0.7 + 0.3 * blink;
+    } else {
+      cr = ghosts[gi * 8u + 2u];
+      cg = ghosts[gi * 8u + 3u];
+      cb = ghosts[gi * 8u + 4u];
+    }
+
+    let viewDot = abs(dot(gn, rd));
+    let fresnel = pow(1.0 - viewDot, 2.0);
+    let glow = 0.7 + 0.3 * fresnel;
+    let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
+    let sunDot = max(0.0, dot(gn, sunDir));
+    let shade = 0.8 + 0.2 * sunDot;
+    let fade = 1.0 - min(1.0, t / 40.0) * 0.4;
+
+    cr = clamp(cr * glow * shade * fade, 0.0, 1.0);
+    cg = clamp(cg * glow * shade * fade, 0.0, 1.0);
+    cb = clamp(cb * glow * shade * fade, 0.0, 1.0);
+    cr = min(1.0, cr + fresnel * 0.4);
+    cg = min(1.0, cg + fresnel * 0.4);
+    cb = min(1.0, cb + fresnel * 0.4);
+
+    textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+    return;
+  }
+
+  // Terrain hit
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+  let tile = knotTileAt(hx, hy, hz);
+  let tc = knotTileCoords(hx, hy, hz);
+
+  if (tile == 0u) {
+    cr = 1.0; cg = 1.0; cb = 1.0;
+  } else if (tile == 5u) {
+    cr = 1.0; cg = 0.4; cb = 0.7;
+  } else {
+    cr = 0.03; cg = 0.03; cb = 0.1;
+  }
+
+  // Normal via central differences of knotDD
+  let eps: f32 = 0.012;
+  let dR = knotDD(hx+eps, hy, hz) - knotDD(hx-eps, hy, hz);
+  let dG = knotDD(hx, hy+eps, hz) - knotDD(hx, hy-eps, hz);
+  let dB_ = knotDD(hx, hy, hz+eps) - knotDD(hx, hy, hz-eps);
+  let hn = normalize(vec3f(dR, dG, dB_));
+
+  let sunDir = normalize(vec3f(p.sunX, p.sunY, p.sunZ));
+  let sunDot = max(0.0, dot(hn, sunDir));
+  let light = 0.15 + 0.85 * sunDot;
+  let fade = 1.0 - min(1.0, t / 40.0) * 0.6;
+
+  cr = cr * light * fade;
+  cg = cg * light * fade;
+  cb = cb * light * fade;
+
+  // Ghost point lights
+  let hitPos = vec3f(hx, hy, hz);
+  for (var gli = 0u; gli < 4u; gli++) {
+    let glmode = ghosts[gli * 8u + 5u];
+    if (glmode > 1.5) { continue; }
+    let glp = ghostWorldPos(gli);
+    let toLight = glp - hitPos;
+    let dist2 = dot(toLight, toLight);
+    let dist = sqrt(dist2);
+    if (dist > 3.0) { continue; }
+    let ldir = toLight / dist;
+    let ndotl = max(0.0, dot(hn, ldir));
+    let atten = ndotl / (0.3 + dist2 * 1.5);
+    var lr: f32; var lg: f32; var lb: f32;
+    if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
+    else { lr = ghosts[gli*8u+2u]; lg = ghosts[gli*8u+3u]; lb = ghosts[gli*8u+4u]; }
+    cr += lr * atten * 1.5;
+    cg += lg * atten * 1.5;
+    cb += lb * atten * 1.5;
+  }
+
+  cr = clamp(cr, 0.0, 1.0);
+  cg = clamp(cg, 0.0, 1.0);
+  cb = clamp(cb, 0.0, 1.0);
+
+  textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  // Map clip coords to [0,1] UVs (y-flipped for texture coords)
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
+}
+`;
+
+(async function initWebGPU() {
+  if (!navigator.gpu) { console.warn('No WebGPU'); return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { console.warn('No GPU adapter'); return; }
+  const device = await adapter.requestDevice();
+
+  // Configure WebGPU canvas
+  const gpuCtx = gpuCanvas.getContext('webgpu');
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  gpuCtx.configure({ device, format: canvasFormat, alphaMode: 'opaque' });
+
+  // Compute pipeline
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+
+  // Blit pipeline — fullscreen triangle sampling the compute output texture
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: {
+      module: blitModule, entryPoint: 'fs',
+      targets: [{ format: canvasFormat }],
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+
+  // Shared buffers
+  const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const MAX_TILES = 16384;
+  const tileBuf = device.createBuffer({ size: MAX_TILES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const MAX_SEGS = 512;
+  const curveBuf = device.createBuffer({ size: MAX_SEGS * 12 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+  function uploadTiles() {
+    const data = new Uint32Array(MAX_TILES);
+    for (let i = 0; i < Math.min(maze.length, MAX_TILES); i++) data[i] = maze[i];
+    device.queue.writeBuffer(tileBuf, 0, data);
+  }
+  uploadTiles();
+
+  function uploadCurve() {
+    const data = new Float32Array(MAX_SEGS * 12);
+    for (let i = 0; i < Math.min(numSegs, MAX_SEGS); i++) {
+      const c = curvePoints[i];
+      const base = i * 12;
+      data[base]   = c.pos[0];     data[base+1] = c.pos[1];     data[base+2] = c.pos[2];
+      data[base+3] = c.tangent[0]; data[base+4] = c.tangent[1]; data[base+5] = c.tangent[2];
+      data[base+6] = c.normal[0];  data[base+7] = c.normal[1];  data[base+8] = c.normal[2];
+      data[base+9] = c.binormal[0]; data[base+10] = c.binormal[1]; data[base+11] = c.binormal[2];
+    }
+    device.queue.writeBuffer(curveBuf, 0, data);
+  }
+  uploadCurve();
+
+  const initGhosts = new Float32Array(32);
+  for (let i = 0; i < 4; i++) initGhosts[i * 8 + 5] = 2.0;
+  device.queue.writeBuffer(ghostBuf, 0, initGhosts);
+
+  // Storage texture (compute output) + blit bind group — recreated on resize
+  let outputTex = null, computeBindGroup = null, blitBindGroup = null;
+  let skyW = 0, skyH = 0;
+
+  function ensureSize(w, h) {
+    if (w === skyW && h === skyH) return;
+    skyW = w; skyH = h;
+    if (outputTex) outputTex.destroy();
+    outputTex = device.createTexture({
+      size: [w, h],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    computeBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: paramBuf } },
+        { binding: 1, resource: { buffer: tileBuf } },
+        { binding: 2, resource: outputTex.createView() },
+        { binding: 3, resource: { buffer: ghostBuf } },
+        { binding: 4, resource: { buffer: curveBuf } },
+      ],
+    });
+    blitBindGroup = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outputTex.createView() },
+        { binding: 1, resource: sampler },
+      ],
+    });
+  }
+
+  gpuSky = {
+    render: function(w, h, cam, ghostData) {
+      ensureSize(w, h);
+
+      if (ghostData) device.queue.writeBuffer(ghostBuf, 0, ghostData);
+
+      const pd = new ArrayBuffer(128);
+      const f = new Float32Array(pd);
+      const u = new Uint32Array(pd);
+      f[0] = cam.P[0]; f[1] = cam.P[1]; f[2] = cam.P[2];
+      f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
+      f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
+      f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
+      f[16] = 0.4; f[17] = 0.8; f[18] = 0.3;
+      f[19] = gameTime;
+      f[20] = TORUS_R; f[21] = TUBE_R;
+      u[22] = w; u[23] = h;
+      f[24] = FOV; f[25] = VFOV;
+      u[26] = WORLD_W; u[27] = WORLD_H;
+      f[28] = 0.5;
+      u[29] = numSegs; f[30] = KNOT_R0;
+      device.queue.writeBuffer(paramBuf, 0, pd);
+
+      // Resize WebGPU canvas to display size
+      gpuCanvas.width = canvas.width;
+      gpuCanvas.height = canvas.height;
+
+      const enc = device.createCommandEncoder();
+
+      // Compute pass — raytrace into storage texture
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBindGroup);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+
+      // Render pass — blit storage texture to canvas as fullscreen quad
+      const renderPass = enc.beginRenderPass({
+        colorAttachments: [{
+          view: gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        }],
+      });
+      renderPass.setPipeline(blitPipeline);
+      renderPass.setBindGroup(0, blitBindGroup);
+      renderPass.draw(3);
+      renderPass.end();
+
+      device.queue.submit([enc.finish()]);
+    },
+    uploadTiles,
+    uploadCurve,
+  };
+  console.log('WebGPU initialized (storage texture + blit pipeline)');
+})();
+
+// =====================================================================
+// Camera — curve-frame-aligned
+// =====================================================================
+function computeCamera() {
+  let P, upDir;
+
+  if (airborne && playerHeight > 0.01) {
+    P = [...jumpPos];
+    // Up = away from nearest curve center
+    const nearest = nearestCurvePointJS(P[0], P[1], P[2]);
+    const toP = v3sub(P, nearest.pos);
+    const dist = v3len(toP);
+    upDir = dist > 0.001 ? v3scale(toP, 1 / dist) : surfaceNormal(playerX, playerY);
+  } else {
+    const groundH = tileHeightAt(playerX, playerY);
+    const hOff = EYE_HEIGHT + groundH;
+    P = surfacePos(playerX, playerY, hOff);
+    upDir = surfaceNormal(playerX, playerY);
+  }
+
+  // Forward reference: curve tangent at player's u-position
+  const frame = getCurveFrame(playerX / WORLD_W);
+  const refFwd = frame.tangent;
+
+  // Gram-Schmidt: project tangent perpendicular to upDir
+  const d = v3dot(refFwd, upDir);
+  let eu = v3sub(refFwd, v3scale(upDir, d));
+  const euLen = v3len(eu);
+  eu = euLen > 0.001 ? v3scale(eu, 1 / euLen) : frame.normal;
+
+  // ev = eu × upDir
+  let ev = v3cross(eu, upDir);
+  const evLen = v3len(ev);
+  ev = evLen > 0.001 ? v3scale(ev, 1 / evLen) : frame.binormal;
+
+  const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+  const flatFwd = v3add(v3scale(eu, sa), v3scale(ev, ca));
+  const right = v3sub(v3scale(eu, ca), v3scale(ev, sa));
+
+  const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+  const fwd = v3add(v3scale(flatFwd, cp), v3scale(upDir, sp));
+  const up = v3add(v3scale(flatFwd, -sp), v3scale(upDir, cp));
+
+  return { P, fwd, right, up };
+}
+
+// =====================================================================
+// Player movement
+// =====================================================================
+function updatePlayer(dt) {
+  // Allow looking around while airborne
+  if (keys['ArrowLeft']) playerAngle -= 2.5 * dt;
+  if (keys['ArrowRight']) playerAngle += 2.5 * dt;
+
+  if (airborne) {
+    // Update tile coords from 3D jump position for camera/minimap
+    if (playerHeight > 0.01) {
+      const tc = worldToTile(jumpPos[0], jumpPos[1], jumpPos[2]);
+      playerX = wrapX(tc.x);
+      playerY = wrapY(tc.y);
+    }
+    return;
+  }
+
+  // Ground movement
+  const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+  const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
+  let dx = 0, dy = 0;
+  if (autoRun || keys['w'] || keys['W'] || keys['ArrowUp']) { dx += fwdX; dy += fwdY; }
+  if (keys['s'] || keys['S'] || keys['ArrowDown']) { dx -= fwdX; dy -= fwdY; }
+  if (keys['a'] || keys['A']) { dx -= rightX; dy -= rightY; }
+  if (keys['d'] || keys['D']) { dx += rightX; dy += rightY; }
+
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len > 0.01) {
+    dx /= len; dy /= len;
+    // Metric-correct speed: constant linear (Cartesian) velocity on tube surface
+    const speed = metricTileSpeed(PLAYER_SPEED, dx, dy, playerX, playerY) * dt;
+    const newX = playerX + dx * speed;
+    const newY = playerY + dy * speed;
+    if (canWalk(newX, playerY)) playerX = wrapX(newX);
+    if (canWalk(playerX, newY)) playerY = wrapY(newY);
+    // Store current velocity for potential jump (Cartesian-corrected)
+    jumpDxPerSec = dx * metricTileSpeed(PLAYER_SPEED, 1, 0, playerX, playerY);
+    jumpDyPerSec = dy * metricTileSpeed(PLAYER_SPEED, 0, 1, playerX, playerY);
+  } else {
+    jumpDxPerSec = 0;
+    jumpDyPerSec = 0;
+  }
+
+  // Jump (after computing velocity so momentum is captured)
+  if (keys[' ']) doJump();
+}
+
+// =====================================================================
+// Minimap
+// =====================================================================
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_SCALE = 4;
+mmCanvas.width = WORLD_W * MM_SCALE;
+mmCanvas.height = WORLD_H * MM_SCALE;
+mmCanvas.style.width = (WORLD_W * MM_SCALE) + 'px';
+mmCanvas.style.height = (WORLD_H * MM_SCALE) + 'px';
+
+function drawMinimap() {
+  const s = MM_SCALE;
+  mmCtx.fillStyle = '#000';
+  mmCtx.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
+
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const t = maze[y * WORLD_W + x];
+      if (t === T.WALL) { mmCtx.fillStyle = '#228'; }
+      else if (t === T.DOOR) { mmCtx.fillStyle = '#808'; }
+      else if (t === T.PELLET) { mmCtx.fillStyle = '#552'; }
+      else if (t === T.POWER) { mmCtx.fillStyle = '#880'; }
+      else { continue; } // skip empty/ghost house (black)
+      mmCtx.fillRect(x * s, y * s, s, s);
+    }
+  }
+
+  // Pellet dots
+  mmCtx.fillStyle = '#ff0';
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const t = maze[y * WORLD_W + x];
+      if (t === T.PELLET) mmCtx.fillRect(x*s+1, y*s+1, 2, 2);
+      else if (t === T.POWER) mmCtx.fillRect(x*s, y*s, s, s);
+    }
+  }
+
+  // Ghosts
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning') continue;
+    mmCtx.fillStyle = g.mode === 'frightened' ? '#00f' :
+      `rgb(${g.color[0]*255|0},${g.color[1]*255|0},${g.color[2]*255|0})`;
+    mmCtx.fillRect(g.x*s-2, g.y*s-2, 5, 5);
+  }
+
+  // Player
+  mmCtx.fillStyle = '#ff0';
+  mmCtx.beginPath();
+  mmCtx.arc(playerX * s, playerY * s, 3, 0, Math.PI * 2);
+  mmCtx.fill();
+
+  // Direction indicator
+  mmCtx.strokeStyle = '#ff0';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(playerX * s, playerY * s);
+  mmCtx.lineTo((playerX + Math.sin(playerAngle) * 1.5) * s,
+               (playerY + Math.cos(playerAngle) * 1.5) * s);
+  mmCtx.stroke();
+}
+
+// =====================================================================
+// HUD
+// =====================================================================
+let score = 0, lives = 3;
+
+function updateHUD() {
+  document.getElementById('score-display').textContent = score;
+  const el = document.getElementById('lives-display');
+  el.innerHTML = '';
+  for (let i = 0; i < lives; i++) {
+    const s = document.createElement('span');
+    s.className = 'pac-life';
+    el.appendChild(s);
+  }
+}
+
+// =====================================================================
+// Temporary 2D top-down renderer (placeholder until WebGPU)
+// =====================================================================
+function renderTopDown() {
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw centered on player
+  const tileSize = Math.min(w, h) / 20;
+  const cx = w / 2, cy = h / 2;
+
+  for (let dy = -12; dy <= 12; dy++) {
+    for (let dx = -12; dx <= 12; dx++) {
+      const tx = Math.floor(wrapX(playerX + dx));
+      const ty = Math.floor(wrapY(playerY + dy));
+      const t = maze[ty * WORLD_W + tx];
+      const sx = cx + (dx - (playerX % 1) + 0.5) * tileSize;
+      const sy = cy + (dy - (playerY % 1) + 0.5) * tileSize;
+
+      if (t === T.WALL) { ctx.fillStyle = '#fff'; ctx.fillRect(sx, sy, tileSize, tileSize); }
+      else if (t === T.DOOR) { ctx.fillStyle = '#f6a'; ctx.fillRect(sx, sy, tileSize, tileSize * 0.5); }
+      else if (t === T.PELLET) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(sx + tileSize/2, sy + tileSize/2, 2, 0, Math.PI*2); ctx.fill();
+      } else if (t === T.POWER) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(sx + tileSize/2, sy + tileSize/2, 5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // Ghosts
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning') continue;
+    let gdx = g.x - playerX, gdy = g.y - playerY;
+    if (gdx > WORLD_W/2) gdx -= WORLD_W;
+    if (gdx < -WORLD_W/2) gdx += WORLD_W;
+    if (gdy > WORLD_H/2) gdy -= WORLD_H;
+    if (gdy < -WORLD_H/2) gdy += WORLD_H;
+    if (Math.abs(gdx) > 13 || Math.abs(gdy) > 13) continue;
+    const gsx = cx + gdx * tileSize, gsy = cy + gdy * tileSize;
+    ctx.fillStyle = g.mode === 'frightened' ? '#00f' :
+      `rgb(${g.color[0]*255|0},${g.color[1]*255|0},${g.color[2]*255|0})`;
+    ctx.fillRect(gsx - tileSize*0.4, gsy - tileSize*0.4, tileSize*0.8, tileSize*0.8);
+  }
+
+  // Player
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.arc(cx, cy, tileSize * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Direction indicator
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(playerAngle) * tileSize, cy + Math.cos(playerAngle) * tileSize);
+  ctx.stroke();
+}
+
+// =====================================================================
+// Ghost AI
+// =====================================================================
+const DIR = { UP: 0, LEFT: 1, DOWN: 2, RIGHT: 3 };
+const DX = [0, -1, 0, 1];
+const DY = [-1, 0, 1, 0];
+const REVERSE_DIR = [2, 3, 0, 1];
+const GHOST_SPEED = 3.5;
+const GHOST_FRIGHT_SPEED = 2.0;
+
+const ghosts = [
+  { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
+    color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
+  { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
+  { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
+  { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
+];
+
+function resetGhosts() {
+  const gx = ghostHouseCenter.x, gy = ghostHouseCenter.y;
+  const ex = ghostEntrance.x, ey = ghostEntrance.y;
+  ghosts[0].x = ex; ghosts[0].y = ey; ghosts[0].dir = DIR.LEFT; ghosts[0].mode = 'scatter';
+  ghosts[1].x = gx; ghosts[1].y = gy; ghosts[1].dir = DIR.UP; ghosts[1].mode = 'waiting';
+  ghosts[2].x = gx - 1; ghosts[2].y = gy; ghosts[2].dir = DIR.UP; ghosts[2].mode = 'waiting';
+  ghosts[3].x = gx + 1; ghosts[3].y = gy; ghosts[3].dir = DIR.UP; ghosts[3].mode = 'waiting';
+  // Scatter targets: maze corners
+  ghosts[0].scatter = { x: WORLD_W - 3, y: 1 };
+  ghosts[1].scatter = { x: 2, y: 1 };
+  ghosts[2].scatter = { x: WORLD_W - 3, y: WORLD_H - 2 };
+  ghosts[3].scatter = { x: 2, y: WORLD_H - 2 };
+  for (const g of ghosts) { g.lastTx = -1; g.lastTy = -1; }
+}
+resetGhosts();
+
+function canGhostMove(x, y, ghost) {
+  const t = getMaze(x, y);
+  if (t === T.WALL) return false;
+  // Only ghosts that are exiting/in-house can enter ghost house areas
+  if ((t === T.GHOST_HOUSE || t === T.DOOR) && ghost.mode !== 'exiting' && ghost.mode !== 'returning') return false;
+  return true;
+}
+
+function getPlayerDir() {
+  const a = ((playerAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  if (a < Math.PI*0.25 || a >= Math.PI*1.75) return DIR.DOWN;
+  if (a < Math.PI*0.75) return DIR.RIGHT;
+  if (a < Math.PI*1.25) return DIR.UP;
+  return DIR.LEFT;
+}
+
+function getGhostTarget(ghost) {
+  if (ghost.mode === 'returning') return { x: ghostEntrance.x, y: ghostEntrance.y };
+  if (ghost.mode === 'scatter') return ghost.scatter;
+  if (ghost.mode === 'frightened') return { x: Math.random()*WORLD_W, y: Math.random()*WORLD_H };
+  // Chase
+  switch (ghost.type) {
+    case 'blinky': return { x: playerX, y: playerY };
+    case 'pinky': {
+      const d = getPlayerDir();
+      return { x: playerX + DX[d]*4, y: playerY + DY[d]*4 };
+    }
+    case 'inky': {
+      const d = getPlayerDir();
+      const px = playerX + DX[d]*2, py = playerY + DY[d]*2;
+      return { x: px + (px - ghosts[0].x), y: py + (py - ghosts[0].y) };
+    }
+    case 'clyde': {
+      const dx = playerX - ghost.x, dy = playerY - ghost.y;
+      return (dx*dx + dy*dy > 64) ? { x: playerX, y: playerY } : ghost.scatter;
+    }
+  }
+  return { x: playerX, y: playerY };
+}
+
+function chooseGhostDir(ghost) {
+  const target = getGhostTarget(ghost);
+  let bestDist = Infinity, bestDir = ghost.dir;
+  // Priority: UP, LEFT, DOWN, RIGHT (classic Pac-Man)
+  for (const dir of [DIR.UP, DIR.LEFT, DIR.DOWN, DIR.RIGHT]) {
+    if (dir === REVERSE_DIR[ghost.dir]) continue;
+    const nx = Math.floor(ghost.x) + DX[dir];
+    const ny = Math.floor(ghost.y) + DY[dir];
+    if (!canGhostMove(wrapX(nx), wrapY(ny), ghost)) continue;
+    let dx = wrapX(nx) + 0.5 - target.x;
+    let dy = wrapY(ny) + 0.5 - target.y;
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    const dist = dx*dx + dy*dy;
+    if (dist < bestDist) { bestDist = dist; bestDir = dir; }
+  }
+  // Dead end fallback: reverse
+  if (bestDist === Infinity) bestDir = REVERSE_DIR[ghost.dir];
+  ghost.dir = bestDir;
+}
+
+function updateGhost(ghost, dt) {
+  if (ghost.mode === 'waiting') return;
+
+  // Exiting ghost house — move up through ghost house to entrance
+  if (ghost.mode === 'exiting') {
+    const tx = ghostEntrance.x, ty = ghostEntrance.y;
+    let dx = tx - ghost.x, dy = ty - ghost.y;
+    // Toroidal shortest path
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 0.3) { ghost.x = tx; ghost.y = ty; ghost.mode = 'chase'; ghost.lastTx = -1; ghost.lastTy = -1; return; }
+    // Move directly (ghost house interior is always clear)
+    const spd = Math.min(GHOST_SPEED * dt, dist);
+    ghost.x = wrapX(ghost.x + (dx/dist)*spd);
+    ghost.y = wrapY(ghost.y + (dy/dist)*spd);
+    return;
+  }
+
+  // Returning to house — use normal tile-based movement targeting the door
+  if (ghost.mode === 'returning') {
+    // Check if near ghost house entrance — switch to exiting
+    let rdx = ghostEntrance.x - ghost.x, rdy = ghostEntrance.y - ghost.y;
+    if (rdx > WORLD_W/2) rdx -= WORLD_W;
+    if (rdx < -WORLD_W/2) rdx += WORLD_W;
+    if (rdy > WORLD_H/2) rdy -= WORLD_H;
+    if (rdy < -WORLD_H/2) rdy += WORLD_H;
+    if (rdx*rdx + rdy*rdy < 0.5) {
+      ghost.x = ghostEntrance.x; ghost.y = ghostEntrance.y;
+      ghost.mode = 'exiting'; return;
+    }
+    // Otherwise use normal movement (falls through to standard logic below)
+    // but at double speed — handled by speed calc below
+  }
+
+  const baseSpd = ghost.mode === 'frightened' ? GHOST_FRIGHT_SPEED :
+                   ghost.mode === 'returning' ? GHOST_SPEED * 2 : GHOST_SPEED;
+  // Cartesian speed: correct for tube metric
+  const isU = DX[ghost.dir] !== 0;
+  const spd = cardinalTileSpeed(baseSpd, isU, ghost.x, ghost.y) * dt;
+  const nx = wrapX(ghost.x + DX[ghost.dir] * spd);
+  const ny = wrapY(ghost.y + DY[ghost.dir] * spd);
+
+  // Collision check: don't move into wall tiles
+  if (!canGhostMove(Math.floor(nx), Math.floor(ny), ghost)) {
+    // Snap to tile center and force direction re-evaluation
+    ghost.x = Math.floor(ghost.x) + 0.5;
+    ghost.y = Math.floor(ghost.y) + 0.5;
+    ghost.lastTx = -1; ghost.lastTy = -1; // force re-choose
+    chooseGhostDir(ghost);
+    return;
+  }
+
+  ghost.x = nx;
+  ghost.y = ny;
+
+  // At tile center → choose new direction (only once per tile)
+  const tx = Math.floor(ghost.x);
+  const ty = Math.floor(ghost.y);
+  const cx = tx + 0.5;
+  const cy = ty + 0.5;
+  if (Math.abs(ghost.x - cx) + Math.abs(ghost.y - cy) < spd * 1.5) {
+    if (tx !== ghost.lastTx || ty !== ghost.lastTy) {
+      ghost.x = cx; ghost.y = cy; // snap only on new tile
+      ghost.lastTx = tx; ghost.lastTy = ty;
+      chooseGhostDir(ghost);
+    }
+  }
+}
+
+function buildGhostData() {
+  const data = new Float32Array(32);
+  for (let i = 0; i < 4; i++) {
+    const g = ghosts[i];
+    data[i*8] = g.x;
+    data[i*8+1] = g.y;
+    data[i*8+2] = g.color[0];
+    data[i*8+3] = g.color[1];
+    data[i*8+4] = g.color[2];
+    // mode: 0=chase/scatter, 1=frightened, 2=waiting/returning
+    data[i*8+5] = g.mode === 'frightened' ? 1.0 :
+                   (g.mode === 'waiting' || g.mode === 'returning') ? 2.0 : 0.0;
+  }
+  return data;
+}
+
+// =====================================================================
+// Game state — pellets, power pellets, collision
+// =====================================================================
+let pelletsEaten = 0;
+let powerTimer = 0;
+let ghostEatScore = 200; // doubles each ghost eaten per power pellet
+
+function checkPellets() {
+  const tx = Math.floor(wrapX(playerX));
+  const ty = Math.floor(wrapY(playerY));
+  const idx = ty * WORLD_W + tx;
+  const t = maze[idx];
+
+  if (t === T.PELLET) {
+    maze[idx] = T.EMPTY;
+    score += 10;
+    pelletsEaten++;
+    gpuSky?.uploadTiles();
+    updateHUD();
+  } else if (t === T.POWER) {
+    maze[idx] = T.EMPTY;
+    score += 50;
+    pelletsEaten++;
+    powerTimer = 8.0;
+    ghostEatScore = 200;
+    // Frighten active ghosts
+    for (const g of ghosts) {
+      if (g.mode === 'chase' || g.mode === 'scatter') {
+        g.mode = 'frightened';
+        g.dir = REVERSE_DIR[g.dir];
+      }
+    }
+    gpuSky?.uploadTiles();
+    updateHUD();
+  }
+
+  if (pelletsEaten >= totalPellets) {
+    showMessage('LEVEL CLEAR!');
+    gameRunning = false;
+  }
+}
+
+function checkGhostCollision() {
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning' || g.mode === 'exiting') continue;
+    // Don't collide while airborne high above ground
+    if (airborne && playerHeight > 0.3) continue;
+    let dx = playerX - g.x, dy = playerY - g.y;
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    if (dx*dx + dy*dy > 0.5) continue;
+
+    if (g.mode === 'frightened') {
+      // Eat ghost
+      g.mode = 'returning';
+      score += ghostEatScore;
+      ghostEatScore *= 2;
+      updateHUD();
+    } else {
+      // Player dies
+      lives--;
+      updateHUD();
+      if (lives <= 0) {
+        showMessage('GAME OVER');
+        gameRunning = false;
+      } else {
+        showMessage('READY!');
+        setTimeout(() => {
+          document.getElementById('msg').style.display = 'none';
+        }, 1500);
+        // Reset positions
+        playerX = playerSpawn.x; playerY = playerSpawn.y;
+        playerAngle = Math.PI; playerPitch = 0;
+        airborne = false; playerHeight = 0;
+        resetGhosts();
+      }
+    }
+  }
+}
+
+function showMessage(text) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+// =====================================================================
+// FPV Render
+// =====================================================================
+function renderFPV() {
+  if (!gpuSky) return;
+  const w = canvas.width, h = canvas.height;
+  const scale = Math.min(1, 360 / h);
+  const rw = Math.max(8, Math.floor(w * scale));
+  const rh = Math.max(8, Math.floor(h * scale));
+
+  const cam = computeCamera();
+  gpuSky.render(rw, rh, cam, buildGhostData());
+}
+
+// =====================================================================
+// Game loop
+// =====================================================================
+let gameRunning = false;
+let gameTime = 0;
+let lastTime = 0;
+
+// Scatter/chase wave timings (cumulative seconds)
+const MODE_WAVES = [
+  { mode: 'scatter', until: 7 },
+  { mode: 'chase',   until: 27 },
+  { mode: 'scatter', until: 34 },
+  { mode: 'chase',   until: 54 },
+  { mode: 'scatter', until: 59 },
+  { mode: 'chase',   until: 79 },
+  { mode: 'scatter', until: 84 },
+  // chase forever after
+];
+let currentWave = 0;
+
+function gameLoop(now) {
+  requestAnimationFrame(gameLoop);
+  if (!gameRunning) return;
+
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  gameTime += dt;
+
+  updatePlayer(dt);
+  updateJumpPhysics(dt);
+
+  // Ghost release
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' && gameTime >= g.releaseTime) {
+      g.mode = 'exiting';
+    }
+  }
+  // Ghost movement
+  for (const g of ghosts) updateGhost(g, dt);
+
+  // Scatter/chase wave switching
+  if (currentWave < MODE_WAVES.length && gameTime >= MODE_WAVES[currentWave].until) {
+    currentWave++;
+    const newMode = currentWave < MODE_WAVES.length ? MODE_WAVES[currentWave].mode : 'chase';
+    for (const g of ghosts) {
+      if (g.mode === 'chase' || g.mode === 'scatter') {
+        g.mode = newMode;
+        g.dir = REVERSE_DIR[g.dir];
+      }
+    }
+  }
+
+  // Power pellet timer
+  if (powerTimer > 0) {
+    powerTimer -= dt;
+    if (powerTimer <= 0) {
+      powerTimer = 0;
+      for (const g of ghosts) {
+        if (g.mode === 'frightened') g.mode = 'chase';
+      }
+    }
+  }
+
+  // Pellet & collision checks
+  checkPellets();
+  checkGhostCollision();
+
+  // Render: FPV or top-down based on view mode
+  if (fpMode && gpuSky) {
+    gpuCanvas.style.display = 'block';
+    renderFPV();
+  } else {
+    gpuCanvas.style.display = 'none';
+    renderTopDown();
+  }
+  drawMinimap();
+}
+
+requestAnimationFrame(gameLoop);
+
+// =====================================================================
+// Start
+// =====================================================================
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('physPanel').style.display = 'block';
+  (fpMode && gpuCanvas ? gpuCanvas : canvas).requestPointerLock();
+  gameRunning = true;
+  lastTime = performance.now();
+  gameTime = 0;
+  score = 0;
+  lives = 3;
+  // Generate fresh maze
+  computeCurve();
+  generateMaze(CELL_UNIT);
+  pelletsEaten = 0;
+  powerTimer = 0;
+  ghostEatScore = 200;
+  currentWave = 0;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
+  playerAngle = Math.PI; playerPitch = 0;
+  airborne = false; playerHeight = 0;
+  resetGhosts();
+  resizeMinimap();
+  gpuSky?.uploadCurve();
+  gpuSky?.uploadTiles();
+  document.getElementById('msg').style.display = 'none';
+  updateHUD();
+}
+// Make startGame available to onclick
+window.startGame = startGame;
+
+updateHUD();
+</script>
+</body>
+</html>
