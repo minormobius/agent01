@@ -1109,45 +1109,36 @@ function computeCamera() {
   // Inside: eye offset goes INWARD (toward tube center)
   const hOff = EYE_HEIGHT + (airborne ? 0 : groundH) + playerHeight;
 
-  // Compute anti-gravity for eye offset direction
-  const surfR = TORUS_R + TORUS_r * Math.cos(v);
-  const surfZ = TORUS_r * Math.sin(v);
-  const gSurf = sampleGravity(Math.max(0.1, surfR), surfZ);
-  const gSurfLen = Math.sqrt(gSurf.gR*gSurf.gR + gSurf.gZ*gSurf.gZ);
-  // Anti-gravity = "up" direction at this surface point
-  const eyeR = gSurfLen > 0.01 ? -gSurf.gR/gSurfLen : -Math.cos(v);
-  const eyeZ = gSurfLen > 0.01 ? -gSurf.gZ/gSurfLen : -Math.sin(v);
-  const eyeDir = [eyeR*Math.cos(u), eyeZ, eyeR*Math.sin(u)];
+  // Geometric inward normal: from wall toward tube center (always correct for interior)
+  const inR = -Math.cos(v), inZ = -Math.sin(v);
+  const inDir = [inR*Math.cos(u), inZ, inR*Math.sin(u)];
 
   let P;
   if (airborne && playerHeight > 0.01) {
     P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
   } else {
-    // Move in anti-gravity direction from surface ("up" from floor)
-    P = [surfP[0] + eyeDir[0]*hOff, surfP[1] + eyeDir[1]*hOff, surfP[2] + eyeDir[2]*hOff];
+    // Move in inward normal direction from surface ("up" from floor)
+    P = [surfP[0] + inDir[0]*hOff, surfP[1] + inDir[1]*hOff, surfP[2] + inDir[2]*hOff];
   }
 
-  // "Up" = anti-gravity direction from shell mass LUT
-  // Shell gravity is smooth (always roughly toward torus center),
-  // so anti-gravity is stable (always roughly away from torus center).
-  let mR, mZ;
-  if (airborne && playerHeight > 0.01) {
-    mR = csR; mZ = csZ;
-  } else {
-    mR = TORUS_R + TORUS_r * Math.cos(v);
-    mZ = TORUS_r * Math.sin(v);
-  }
-  const absR = Math.abs(mR);
-  const g = sampleGravity(Math.max(0.1, absR), mZ);
-  const gR = mR >= 0 ? g.gR : -g.gR;
-  const gZ = g.gZ;
-  const gLen = Math.sqrt(gR*gR + gZ*gZ);
+  // "Up" direction
   let en;
-  if (gLen > 0.01) {
-    const antiR = -gR/gLen, antiZ = -gZ/gLen;
-    en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
+  if (airborne && playerHeight > 0.01) {
+    // Airborne: use anti-gravity from LUT (combined field)
+    const absR = Math.abs(csR);
+    const g = sampleGravity(Math.max(0.1, absR), csZ);
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    const gZ = g.gZ;
+    const gLen = Math.sqrt(gR*gR + gZ*gZ);
+    if (gLen > 0.01) {
+      const antiR = -gR/gLen, antiZ = -gZ/gLen;
+      en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
+    } else {
+      en = [inDir[0], inDir[1], inDir[2]];
+    }
   } else {
-    en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
+    // Grounded: geometric inward normal (robust, independent of LUT tuning)
+    en = [inDir[0], inDir[1], inDir[2]];
   }
 
   // Gram-Schmidt with u-tangent
@@ -1157,8 +1148,8 @@ function computeCamera() {
   let rLen = Math.sqrt(rx*rx+ry*ry+rz*rz) || 1;
   rx /= rLen; ry /= rLen; rz /= rLen;
 
-  // ev = eu × en (standard right-handed frame; shell anti-gravity is consistent)
-  let tx = ry*en[2]-rz*en[1], ty = rz*en[0]-rx*en[2], tz = rx*en[1]-ry*en[0];
+  // ev = en × eu (inward normal convention: swapped from eu × en)
+  let tx = en[1]*rz-en[2]*ry, ty = en[2]*rx-en[0]*rz, tz = en[0]*ry-en[1]*rx;
   let tLen = Math.sqrt(tx*tx+ty*ty+tz*tz) || 1;
   tx /= tLen; ty /= tLen; tz /= tLen;
 
