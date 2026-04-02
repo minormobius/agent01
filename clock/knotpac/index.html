@@ -62,6 +62,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 <div id="physPanel">
   <button id="physToggle">Physics ▼</button>
   <div id="physBody">
+    <label>Topology <span class="val" id="valTopo">hopf</span></label>
+    <select id="slTopo" style="width:100%;margin-bottom:6px;background:#222;color:#fff;border:1px solid #555;padding:2px">
+      <option value="single">Single Knot</option>
+      <option value="hopf" selected>Hopf Link</option>
+      <option value="borromean">Borromean Rings</option>
+    </select>
     <label>Gravity <span class="val" id="valGrav">4.0</span></label>
     <input type="range" id="slGrav" min="0.1" max="20" step="0.1" value="4.0">
     <label>p (around hole) <span class="val" id="valP">2</span></label>
@@ -107,7 +113,7 @@ const VFOV = Math.PI * 0.45;
 const MAX_STEP_H = 0.06;
 
 // Tile types
-const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
+const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5, WARP: 8 };
 let CELL_UNIT = 3;
 
 let GRAV_SCALE = 4.0;
@@ -178,7 +184,58 @@ function makeSurface(p_, q_, R, r0, tubeR) {
     curveLength += v3len(v3sub(pts[(i + 1) % N].pos, pts[i].pos));
   }
 
-  return { p: p_, q: q_, R, r0, tubeR, curvePoints: pts, numSegs: N, curveLength };
+  return { p: p_, q: q_, R, r0, tubeR, curvePoints: pts, numSegs: N, curveLength,
+           center: [0, 0, 0], hostR: R, hostR0: r0 };
+}
+
+// Circle surface — arbitrary center/axis/radius (Hopf link building block)
+function makeCircleSurface(center, axis, radius, tubeR, numPts) {
+  const N = numPts || 96;
+  // Build orthonormal basis from axis
+  const ax = v3norm(axis);
+  const arb = Math.abs(ax[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+  const u = v3norm(v3cross(ax, arb));
+  const v = v3cross(ax, u);
+
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const x = center[0] + radius * (Math.cos(t) * u[0] + Math.sin(t) * v[0]);
+    const y = center[1] + radius * (Math.cos(t) * u[1] + Math.sin(t) * v[1]);
+    const z = center[2] + radius * (Math.cos(t) * u[2] + Math.sin(t) * v[2]);
+    pts.push({ pos: [x, y, z] });
+  }
+
+  // Tangents via finite differences
+  for (let i = 0; i < N; i++) {
+    const next = pts[(i + 1) % N].pos;
+    const prev = pts[(i - 1 + N) % N].pos;
+    pts[i].tangent = v3norm(v3sub(next, prev));
+  }
+
+  // Normals: radial direction from center toward point, projected perp to tangent
+  for (let i = 0; i < N; i++) {
+    const rad = v3norm(v3sub(pts[i].pos, center));
+    const T = pts[i].tangent;
+    const d = v3dot(rad, T);
+    const projected = v3sub(rad, v3scale(T, d));
+    const pLen = v3len(projected);
+    if (pLen < 0.001) {
+      const arb2 = Math.abs(T[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+      pts[i].normal = v3norm(v3cross(T, arb2));
+    } else {
+      pts[i].normal = v3scale(projected, 1 / pLen);
+    }
+    pts[i].binormal = v3cross(T, pts[i].normal);
+  }
+
+  let curveLength = 0;
+  for (let i = 0; i < N; i++) {
+    curveLength += v3len(v3sub(pts[(i + 1) % N].pos, pts[i].pos));
+  }
+
+  return { p: 1, q: 0, R: radius, r0: 0, tubeR, curvePoints: pts, numSegs: N, curveLength,
+           center, hostR: radius, hostR0: 0 };
 }
 
 // =====================================================================
@@ -206,6 +263,7 @@ function syncFromActiveSurface() {
   ghostEntrance = s.ghostEntrance;
   playerSpawn = s.playerSpawn;
   TUBE_R = s.tubeR;
+  if (s.ghosts) ghosts = s.ghosts;
 }
 
 function buildSurface(p_, q_, R, r0, tubeR, cellUnit) {
@@ -216,11 +274,133 @@ function buildSurface(p_, q_, R, r0, tubeR, cellUnit) {
   return s;
 }
 
+function buildSurfaceFromCurve(s, cellUnit) {
+  generateSurfaceMaze(s, cellUnit);
+  s.ghosts = makeGhostSet(s);
+  resetGhostSet(s.ghosts, s);
+  return s;
+}
+
+// Topology mode: 'single' = one knot, 'hopf' = Hopf link (2 circles), 'borromean' = 3 rings
+let topoMode = 'hopf';
+let warpPoints = [];
+
 function buildAllSurfaces() {
   surfaces.length = 0;
-  surfaces.push(buildSurface(KNOT_P, KNOT_Q, TORUS_R, KNOT_R0, TUBE_R, CELL_UNIT));
+  warpPoints = [];
+
+  if (topoMode === 'single') {
+    surfaces.push(buildSurface(KNOT_P, KNOT_Q, TORUS_R, KNOT_R0, TUBE_R, CELL_UNIT));
+  } else if (topoMode === 'hopf') {
+    // Circle A: in XZ plane, centered at origin
+    const rA = TORUS_R;
+    const sA = makeCircleSurface([0, 0, 0], [0, 1, 0], rA, TUBE_R, 96);
+    buildSurfaceFromCurve(sA, CELL_UNIT);
+    surfaces.push(sA);
+
+    // Circle B: in XY plane, centered on A's rim (+X), threads through A's hole
+    const sB = makeCircleSurface([rA, 0, 0], [0, 0, 1], rA, TUBE_R, 96);
+    buildSurfaceFromCurve(sB, CELL_UNIT);
+    surfaces.push(sB);
+
+    findWarpPoints();
+    placeWarpTiles();
+  } else if (topoMode === 'borromean') {
+    // Three circles in orthogonal planes, offset so each threads through one other
+    const rB = TORUS_R;
+    const off = rB * 0.35; // slight offset for interlinking
+    const sX = makeCircleSurface([0, 0, off], [1, 0, 0], rB, TUBE_R, 96);  // YZ plane
+    const sY = makeCircleSurface([off, 0, 0], [0, 1, 0], rB, TUBE_R, 96);  // XZ plane
+    const sZ = makeCircleSurface([0, off, 0], [0, 0, 1], rB, TUBE_R, 96);  // XY plane
+    buildSurfaceFromCurve(sX, CELL_UNIT);
+    buildSurfaceFromCurve(sY, CELL_UNIT);
+    buildSurfaceFromCurve(sZ, CELL_UNIT);
+    surfaces.push(sX, sY, sZ);
+
+    findWarpPoints();
+    placeWarpTiles();
+  }
+
   activeSurface = 0;
   syncFromActiveSurface();
+}
+
+// Find closest-approach points between all surface pairs for warp placement
+function findWarpPoints() {
+  warpPoints = [];
+  const WARP_THRESHOLD = TUBE_R * 4.0; // surfaces must be within 4× tube radius
+  for (let a = 0; a < surfaces.length; a++) {
+    for (let b = a + 1; b < surfaces.length; b++) {
+      const sA = surfaces[a], sB = surfaces[b];
+      // Brute-force: sample each curve, find closest pair
+      let minDist = Infinity, bestIA = 0, bestIB = 0;
+      const stepA = Math.max(1, Math.floor(sA.numSegs / 48));
+      const stepB = Math.max(1, Math.floor(sB.numSegs / 48));
+      // Coarse pass
+      for (let ia = 0; ia < sA.numSegs; ia += stepA) {
+        const pA = sA.curvePoints[ia].pos;
+        for (let ib = 0; ib < sB.numSegs; ib += stepB) {
+          const pB = sB.curvePoints[ib].pos;
+          const d = v3len(v3sub(pA, pB));
+          if (d < minDist) { minDist = d; bestIA = ia; bestIB = ib; }
+        }
+      }
+      // Fine pass around best coarse hit
+      const rangeA = stepA * 2, rangeB = stepB * 2;
+      for (let ia = bestIA - rangeA; ia <= bestIA + rangeA; ia++) {
+        const idxA = ((ia % sA.numSegs) + sA.numSegs) % sA.numSegs;
+        const pA = sA.curvePoints[idxA].pos;
+        for (let ib = bestIB - rangeB; ib <= bestIB + rangeB; ib++) {
+          const idxB = ((ib % sB.numSegs) + sB.numSegs) % sB.numSegs;
+          const pB = sB.curvePoints[idxB].pos;
+          const d = v3len(v3sub(pA, pB));
+          if (d < minDist) { minDist = d; bestIA = idxA; bestIB = idxB; }
+        }
+      }
+      if (minDist < WARP_THRESHOLD) {
+        const paramA = bestIA / sA.numSegs;
+        const paramB = bestIB / sB.numSegs;
+        warpPoints.push({
+          surfA: a, surfB: b,
+          paramA, paramB,
+          posA: sA.curvePoints[bestIA].pos,
+          posB: sB.curvePoints[bestIB].pos,
+          dist: minDist,
+          // Tile coords for warp placement (filled after maze generation)
+          tileA: { x: Math.floor(paramA * sA.worldW), y: Math.floor(sA.worldH / 2) },
+          tileB: { x: Math.floor(paramB * sB.worldW), y: Math.floor(sB.worldH / 2) },
+        });
+      }
+    }
+  }
+  console.log('Warp points found:', warpPoints.length, warpPoints);
+}
+
+// Place warp tiles in mazes at warp point locations
+function placeWarpTiles() {
+  for (const wp of warpPoints) {
+    const sA = surfaces[wp.surfA], sB = surfaces[wp.surfB];
+    // Place a 3×3 warp zone on each surface
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const axA = ((wp.tileA.x + dx) % sA.worldW + sA.worldW) % sA.worldW;
+        const ayA = ((wp.tileA.y + dy) % sA.worldH + sA.worldH) % sA.worldH;
+        const idxA = ayA * sA.worldW + axA;
+        if (sA.maze[idxA] !== T.GHOST_HOUSE && sA.maze[idxA] !== T.DOOR) {
+          sA.maze[idxA] = T.WARP;
+          sA.mazeInit[idxA] = T.WARP;
+        }
+
+        const axB = ((wp.tileB.x + dx) % sB.worldW + sB.worldW) % sB.worldW;
+        const ayB = ((wp.tileB.y + dy) % sB.worldH + sB.worldH) % sB.worldH;
+        const idxB = ayB * sB.worldW + axB;
+        if (sB.maze[idxB] !== T.GHOST_HOUSE && sB.maze[idxB] !== T.DOOR) {
+          sB.maze[idxB] = T.WARP;
+          sB.mazeInit[idxB] = T.WARP;
+        }
+      }
+    }
+  }
 }
 
 buildAllSurfaces();
@@ -481,6 +661,7 @@ function getMaze(x, y) {
 function tileHeight(t) {
   if (t === T.WALL) return WALL_H;
   if (t === T.DOOR) return DOOR_H;
+  if (t === T.WARP) return 0.1; // slight raised platform
   return 0.0;
 }
 
@@ -674,6 +855,14 @@ document.getElementById('viewToggle').addEventListener('click', () => {
 document.getElementById('physToggle').addEventListener('click', () => {
   document.getElementById('physBody').classList.toggle('collapsed');
 });
+const slTopo = document.getElementById('slTopo');
+const valTopo = document.getElementById('valTopo');
+slTopo.addEventListener('change', () => {
+  topoMode = slTopo.value;
+  valTopo.textContent = topoMode;
+  rebuildAll();
+});
+
 const slGrav = document.getElementById('slGrav');
 const valGrav = document.getElementById('valGrav');
 slGrav.addEventListener('input', () => {
@@ -773,8 +962,8 @@ let gpuSky = null;
 
 const shaderCode = `
 struct Params {
-  camX: f32, camY: f32, camZ: f32, _p0: f32,
-  fwdX: f32, fwdY: f32, fwdZ: f32, _p1: f32,
+  camX: f32, camY: f32, camZ: f32, numSurfaces: u32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, activeSurf: u32,
   rightX: f32, rightY: f32, rightZ: f32, _p2: f32,
   upX: f32, upY: f32, upZ: f32, _p3: f32,
   sunX: f32, sunY: f32, sunZ: f32, time: f32,
@@ -783,60 +972,104 @@ struct Params {
   horizonY: f32, numSegs: u32, hostR0: f32, _p7: f32,
 }
 
+// Per-surface metadata: 16 floats (64 bytes) each, aligned to vec4
+// [0] centerX  [1] centerY  [2] centerZ  [3] hostR
+// [4] hostR0   [5] tubeR    [6] segOffset [7] segCount
+// [8] tileOffset [9] worldW [10] worldH  [11] ghostOffset
+// [12] tintR   [13] tintG   [14] tintB   [15] _pad
+struct SurfEntry {
+  centerX: f32, centerY: f32, centerZ: f32, hostR: f32,
+  hostR0: f32, tubeR: f32, segOffset: f32, segCount: f32,
+  tileOffset: f32, worldW: f32, worldH: f32, ghostOffset: f32,
+  tintR: f32, tintG: f32, tintB: f32, _pad: f32,
+}
+
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var<storage, read> tiles: array<u32>;
 @group(0) @binding(2) var output: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(3) var<storage, read> ghosts: array<f32>;
 @group(0) @binding(4) var<storage, read> curve: array<f32>;
+@group(0) @binding(5) var<storage, read> surfTable: array<SurfEntry>;
 
 const PI: f32 = 3.14159265;
 const TWO_PI: f32 = 6.28318531;
 
-fn getTile(x: i32, y: i32) -> u32 {
-  let w = i32(p.worldW);
-  let h = i32(p.worldH);
+// Surface-aware tile lookup
+fn getTileS(si: u32, x: i32, y: i32) -> u32 {
+  let s = surfTable[si];
+  let w = i32(s.worldW);
+  let h = i32(s.worldH);
   let tx = ((x % w) + w) % w;
   let ty = ((y % h) + h) % h;
-  return tiles[ty * w + tx];
+  return tiles[i32(s.tileOffset) + ty * w + tx];
+}
+
+// Active surface tile lookup (backward compat)
+fn getTile(x: i32, y: i32) -> u32 {
+  return getTileS(p.activeSurf, x, y);
 }
 
 fn tileH(t: u32) -> f32 {
   if (t == 0u) { return 0.45; }
   if (t == 5u) { return 0.20; }
+  if (t == 8u) { return 0.10; } // warp tile
   return 0.0;
 }
 
-// Host torus SDF — bounding volume for coarse ray march
-fn hostSDF(px: f32, py: f32, pz: f32) -> f32 {
-  let q = sqrt(px*px + pz*pz) - p.hostR;
-  return sqrt(q*q + py*py) - p.hostR0;
+// Bounding sphere SDF for a specific surface
+// The sphere encloses the entire tube: center, radius = hostR + hostR0 + tubeR
+fn hostSDFS(si: u32, px: f32, py: f32, pz: f32) -> f32 {
+  let s = surfTable[si];
+  let dx = px - s.centerX;
+  let dy = py - s.centerY;
+  let dz = pz - s.centerZ;
+  let dist = sqrt(dx*dx + dy*dy + dz*dz);
+  return dist - (s.hostR + s.hostR0 + s.tubeR);
 }
 
-// ---- Curve buffer access ----
-fn getCurvePoint(i: u32) -> vec3f {
-  let b = (i % p.numSegs) * 12u;
+// ---- Curve buffer access (global index) ----
+fn getCurvePointG(i: u32) -> vec3f {
+  let b = i * 12u;
   return vec3f(curve[b], curve[b+1u], curve[b+2u]);
 }
-fn getCurveNormal(i: u32) -> vec3f {
-  let b = (i % p.numSegs) * 12u;
+fn getCurveNormalG(i: u32) -> vec3f {
+  let b = i * 12u;
   return vec3f(curve[b+6u], curve[b+7u], curve[b+8u]);
 }
-fn getCurveBinormal(i: u32) -> vec3f {
-  let b = (i % p.numSegs) * 12u;
+fn getCurveBinormalG(i: u32) -> vec3f {
+  let b = i * 12u;
   return vec3f(curve[b+9u], curve[b+10u], curve[b+11u]);
 }
 
-// Nearest point on polyline center curve
+// Per-surface curve access
+fn getCurvePointS(si: u32, i: u32) -> vec3f {
+  let s = surfTable[si];
+  let idx = u32(s.segOffset) + (i % u32(s.segCount));
+  return getCurvePointG(idx);
+}
+fn getCurveNormalS(si: u32, i: u32) -> vec3f {
+  let s = surfTable[si];
+  let idx = u32(s.segOffset) + (i % u32(s.segCount));
+  return getCurveNormalG(idx);
+}
+fn getCurveBinormalS(si: u32, i: u32) -> vec3f {
+  let s = surfTable[si];
+  let idx = u32(s.segOffset) + (i % u32(s.segCount));
+  return getCurveBinormalG(idx);
+}
+
+// Nearest point on a single surface's curve
 // Returns vec4(nearestPoint.xyz, param01)
-fn nearestOnCurve(px: f32, py: f32, pz: f32) -> vec4f {
+fn nearestOnCurveS(si: u32, px: f32, py: f32, pz: f32) -> vec4f {
   let P = vec3f(px, py, pz);
   var minD2: f32 = 1e20;
   var bestParam: f32 = 0.0;
   var bestPt: vec3f = vec3f(0.0);
-  let N = p.numSegs;
+  let N = u32(surfTable[si].segCount);
+  let off = u32(surfTable[si].segOffset);
   for (var i = 0u; i < N; i++) {
-    let A = getCurvePoint(i);
-    let B = getCurvePoint(i + 1u);
+    let A = getCurvePointG(off + i);
+    let B = getCurvePointG(off + ((i + 1u) % N));
     let AB = B - A;
     let AP = P - A;
     let ab2 = max(dot(AB, AB), 1e-8);
@@ -853,44 +1086,108 @@ fn nearestOnCurve(px: f32, py: f32, pz: f32) -> vec4f {
   return vec4f(bestPt, bestParam);
 }
 
-// Interpolate frame at parameter
-fn interpNormal(param: f32) -> vec3f {
-  let fSeg = param * f32(p.numSegs);
-  let seg = u32(floor(fSeg)) % p.numSegs;
-  let frac = fSeg - floor(fSeg);
-  return normalize(mix(getCurveNormal(seg), getCurveNormal(seg + 1u), frac));
-}
-fn interpBinormal(param: f32) -> vec3f {
-  let fSeg = param * f32(p.numSegs);
-  let seg = u32(floor(fSeg)) % p.numSegs;
-  let frac = fSeg - floor(fSeg);
-  return normalize(mix(getCurveBinormal(seg), getCurveBinormal(seg + 1u), frac));
+// Multi-surface nearest: find which surface and where
+// Returns: bestPt.xyz in .xyz, param01 in .w
+// hitSurf written to module-scope var
+var<private> hitSurfIdx: u32 = 0u;
+
+fn nearestOnCurveAll(px: f32, py: f32, pz: f32) -> vec4f {
+  let P = vec3f(px, py, pz);
+  var minD2: f32 = 1e20;
+  var bestResult: vec4f = vec4f(0.0);
+  hitSurfIdx = 0u;
+
+  let nSurf = p.numSurfaces;
+  for (var si = 0u; si < nSurf; si++) {
+    let s = surfTable[si];
+    // Bounding volume check — skip if far from this surface's host torus
+    let envelope = s.tubeR + 0.6;
+    let hsd = hostSDFS(si, px, py, pz);
+    if (abs(hsd) > envelope * 2.0) { continue; }
+
+    let result = nearestOnCurveS(si, px, py, pz);
+    let d2 = dot(P - result.xyz, P - result.xyz);
+    if (d2 < minD2) {
+      minD2 = d2;
+      bestResult = result;
+      hitSurfIdx = si;
+    }
+  }
+  return bestResult;
 }
 
-// Combined displaced distance — base SDF minus tile height
-fn knotDD(px: f32, py: f32, pz: f32) -> f32 {
-  let result = nearestOnCurve(px, py, pz);
+// Active surface only (for camera-relative lookups)
+fn nearestOnCurve(px: f32, py: f32, pz: f32) -> vec4f {
+  return nearestOnCurveS(p.activeSurf, px, py, pz);
+}
+
+// Interpolate frame at parameter on a surface
+fn interpNormalS(si: u32, param: f32) -> vec3f {
+  let N = u32(surfTable[si].segCount);
+  let fSeg = param * f32(N);
+  let seg = u32(floor(fSeg)) % N;
+  let frac = fSeg - floor(fSeg);
+  return normalize(mix(getCurveNormalS(si, seg), getCurveNormalS(si, seg + 1u), frac));
+}
+fn interpBinormalS(si: u32, param: f32) -> vec3f {
+  let N = u32(surfTable[si].segCount);
+  let fSeg = param * f32(N);
+  let seg = u32(floor(fSeg)) % N;
+  let frac = fSeg - floor(fSeg);
+  return normalize(mix(getCurveBinormalS(si, seg), getCurveBinormalS(si, seg + 1u), frac));
+}
+
+fn interpNormal(param: f32) -> vec3f { return interpNormalS(p.activeSurf, param); }
+fn interpBinormal(param: f32) -> vec3f { return interpBinormalS(p.activeSurf, param); }
+
+// Combined displaced distance for a specific surface
+fn knotDDS(si: u32, px: f32, py: f32, pz: f32) -> f32 {
+  let result = nearestOnCurveS(si, px, py, pz);
   let P = vec3f(px, py, pz);
   let dist = length(P - result.xyz);
-  let baseSDF = dist - p.tubeR;
+  let baseSDF = dist - surfTable[si].tubeR;
 
   let param = result.w;
-  let N_vec = interpNormal(param);
-  let B_vec = interpBinormal(param);
+  let N_vec = interpNormalS(si, param);
+  let B_vec = interpBinormalS(si, param);
   let toP = P - result.xyz;
   let dN = dot(toP, N_vec);
   let dB = dot(toP, B_vec);
   let v_angle = atan2(dB, dN);
   var tv = v_angle / TWO_PI;
   if (tv < 0.0) { tv += 1.0; }
-  let tx = i32(param * f32(p.worldW)) % i32(p.worldW);
-  let ty = i32(tv * f32(p.worldH)) % i32(p.worldH);
-  let tile = getTile(tx, ty);
+  let tx = i32(param * surfTable[si].worldW) % i32(surfTable[si].worldW);
+  let ty = i32(tv * surfTable[si].worldH) % i32(surfTable[si].worldH);
+  let tile = getTileS(si, tx, ty);
 
   return baseSDF - tileH(tile);
 }
 
-// Tile coords from 3D position
+// Multi-surface displaced distance — returns min across all surfaces
+// Sets hitSurfIdx as side effect
+fn knotDDAll(px: f32, py: f32, pz: f32) -> f32 {
+  var minDD: f32 = 1e20;
+  hitSurfIdx = 0u;
+  let nSurf = p.numSurfaces;
+  for (var si = 0u; si < nSurf; si++) {
+    let s = surfTable[si];
+    let envelope = s.tubeR + 0.6;
+    let hsd = hostSDFS(si, px, py, pz);
+    if (abs(hsd) > envelope * 2.0) { continue; }
+    let dd = knotDDS(si, px, py, pz);
+    if (dd < minDD) {
+      minDD = dd;
+      hitSurfIdx = si;
+    }
+  }
+  return minDD;
+}
+
+fn knotDD(px: f32, py: f32, pz: f32) -> f32 {
+  return knotDDAll(px, py, pz);
+}
+
+// Tile coords from 3D position (active surface)
 fn knotTileCoords(px: f32, py: f32, pz: f32) -> vec2f {
   let result = nearestOnCurve(px, py, pz);
   let P = vec3f(px, py, pz);
@@ -911,24 +1208,36 @@ fn knotTileAt(px: f32, py: f32, pz: f32) -> u32 {
   return getTile(i32(tc.x) % i32(p.worldW), i32(tc.y) % i32(p.worldH));
 }
 
-// Tile center 3D position on knot tube surface
-fn tileCenterPos(tx: f32, ty: f32, height: f32) -> vec3f {
-  let param = (tx + 0.5) / f32(p.worldW);
-  let theta = (ty + 0.5) / f32(p.worldH) * TWO_PI;
-  let fSeg = param * f32(p.numSegs);
-  let seg = u32(floor(fSeg)) % p.numSegs;
+// Tile center 3D position on a specific surface
+fn tileCenterPosS(si: u32, tx: f32, ty: f32, height: f32) -> vec3f {
+  let s = surfTable[si];
+  let param = (tx + 0.5) / s.worldW;
+  let theta = (ty + 0.5) / s.worldH * TWO_PI;
+  let N = u32(s.segCount);
+  let fSeg = param * f32(N);
+  let seg = u32(floor(fSeg)) % N;
   let frac = fSeg - floor(fSeg);
-  let pos = mix(getCurvePoint(seg), getCurvePoint(seg + 1u), frac);
-  let N_vec = normalize(mix(getCurveNormal(seg), getCurveNormal(seg + 1u), frac));
-  let B_vec = normalize(mix(getCurveBinormal(seg), getCurveBinormal(seg + 1u), frac));
-  let sr = p.tubeR + height;
+  let pos = mix(getCurvePointS(si, seg), getCurvePointS(si, seg + 1u), frac);
+  let N_vec = normalize(mix(getCurveNormalS(si, seg), getCurveNormalS(si, seg + 1u), frac));
+  let B_vec = normalize(mix(getCurveBinormalS(si, seg), getCurveBinormalS(si, seg + 1u), frac));
+  let sr = s.tubeR + height;
   return pos + sr * (cos(theta) * N_vec + sin(theta) * B_vec);
 }
 
+fn tileCenterPos(tx: f32, ty: f32, height: f32) -> vec3f {
+  return tileCenterPosS(p.activeSurf, tx, ty, height);
+}
+
+// Ghost world position — now surface-aware
+fn ghostWorldPosS(si: u32, gi: u32) -> vec3f {
+  let off = u32(surfTable[si].ghostOffset);
+  let gx = ghosts[(off + gi) * 8u];
+  let gy = ghosts[(off + gi) * 8u + 1u];
+  return tileCenterPosS(si, gx, gy, 0.35);
+}
+
 fn ghostWorldPos(gi: u32) -> vec3f {
-  let gx = ghosts[gi * 8u];
-  let gy = ghosts[gi * 8u + 1u];
-  return tileCenterPos(gx, gy, 0.35);
+  return ghostWorldPosS(p.activeSurf, gi);
 }
 
 fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
@@ -946,28 +1255,39 @@ fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
   return -1.0;
 }
 
+// Min host SDF across all surfaces
+fn minHostSDF(px: f32, py: f32, pz: f32) -> f32 {
+  var minH: f32 = 1e20;
+  let nSurf = p.numSurfaces;
+  for (var si = 0u; si < nSurf; si++) {
+    let h = abs(hostSDFS(si, px, py, pz));
+    if (h < minH) { minH = h; }
+  }
+  return minH;
+}
+
 fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32) -> f32 {
   let maxH: f32 = 0.47;
   let envelope = p.tubeR + maxH + 0.1;
   var t: f32 = 0.05;
 
-  // Phase 1: coarse approach using host torus as bounding volume
+  // Phase 1: coarse approach using host torus bounding volumes (all surfaces)
   for (var i = 0u; i < 64u; i++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
-    let hsd = abs(hostSDF(px, py, pz));
+    let hsd = minHostSDF(px, py, pz);
     if (hsd < envelope) { break; }
     t += max(hsd - envelope, 0.02);
     if (t > 50.0) { return -1.0; }
   }
 
-  // Phase 2: fine march with polyline SDF
+  // Phase 2: fine march with polyline SDF (all surfaces)
   var prevT: f32 = t;
   var prevDD: f32 = 1.0;
   for (var j = 0u; j < 80u; j++) {
     let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
 
-    // Quick skip if outside host torus bounding volume
-    let hsd = abs(hostSDF(px, py, pz));
+    // Quick skip if outside all host torus bounding volumes
+    let hsd = minHostSDF(px, py, pz);
     if (hsd > envelope) {
       prevDD = 1.0;
       prevT = t;
@@ -1024,17 +1344,23 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let cam = vec3f(p.camX, p.camY, p.camZ);
   var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z);
 
-  // Ray-sphere test against ghosts
+  // Ray-sphere test against ghosts on ALL surfaces
   let ghostRad: f32 = 0.30;
   var hitGhost: i32 = -1;
-  for (var gi = 0u; gi < 4u; gi++) {
-    let gmode = ghosts[gi * 8u + 5u];
-    if (gmode > 1.5) { continue; }
-    let gp = ghostWorldPos(gi);
-    let gt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, gp.x, gp.y, gp.z, ghostRad);
-    if (gt > 0.0 && (t < 0.0 || gt < t)) {
-      t = gt;
-      hitGhost = i32(gi);
+  var hitGhostSurf: u32 = 0u;
+  let nSurf = p.numSurfaces;
+  for (var gsi = 0u; gsi < nSurf; gsi++) {
+    let gOff = u32(surfTable[gsi].ghostOffset);
+    for (var gi = 0u; gi < 4u; gi++) {
+      let gmode = ghosts[(gOff + gi) * 8u + 5u];
+      if (gmode > 1.5) { continue; }
+      let gp = ghostWorldPosS(gsi, gi);
+      let gt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, gp.x, gp.y, gp.z, ghostRad);
+      if (gt > 0.0 && (t < 0.0 || gt < t)) {
+        t = gt;
+        hitGhost = i32(gi);
+        hitGhostSurf = gsi;
+      }
     }
   }
 
@@ -1090,18 +1416,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   if (hitGhost >= 0) {
     let gi = u32(hitGhost);
-    let gp = ghostWorldPos(gi);
+    let gOff2 = u32(surfTable[hitGhostSurf].ghostOffset);
+    let gp = ghostWorldPosS(hitGhostSurf, gi);
     let hp = cam + t * rd;
     let gn = normalize(hp - gp);
 
-    let gmode = ghosts[gi * 8u + 5u];
+    let gmode = ghosts[(gOff2 + gi) * 8u + 5u];
     if (gmode > 0.5) {
       let blink = 0.5 + 0.5 * sin(p.time * 8.0);
       cr = 0.2; cg = 0.2; cb = 0.7 + 0.3 * blink;
     } else {
-      cr = ghosts[gi * 8u + 2u];
-      cg = ghosts[gi * 8u + 3u];
-      cb = ghosts[gi * 8u + 4u];
+      cr = ghosts[(gOff2 + gi) * 8u + 2u];
+      cg = ghosts[(gOff2 + gi) * 8u + 3u];
+      cb = ghosts[(gOff2 + gi) * 8u + 4u];
     }
 
     let viewDot = abs(dot(gn, rd));
@@ -1123,17 +1450,43 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     return;
   }
 
-  // Terrain hit
+  // Terrain hit — determine which surface was hit via last knotDD call
   let hx = cam.x + t * rd.x;
   let hy = cam.y + t * rd.y;
   let hz = cam.z + t * rd.z;
-  let tile = knotTileAt(hx, hy, hz);
-  let tc = knotTileCoords(hx, hy, hz);
+  // Re-evaluate to get hitSurfIdx for the hit point
+  let _dd = knotDDAll(hx, hy, hz);
+  let hitSi = hitSurfIdx;
+  let hitS = surfTable[hitSi];
+
+  // Get tile on the hit surface
+  let hitResult = nearestOnCurveS(hitSi, hx, hy, hz);
+  let hitParam = hitResult.w;
+  let hitN = interpNormalS(hitSi, hitParam);
+  let hitB = interpBinormalS(hitSi, hitParam);
+  let hitToP = vec3f(hx, hy, hz) - hitResult.xyz;
+  let hitDN = dot(hitToP, hitN);
+  let hitDB = dot(hitToP, hitB);
+  let hitVangle = atan2(hitDB, hitDN);
+  var hitTV = hitVangle / TWO_PI;
+  if (hitTV < 0.0) { hitTV += 1.0; }
+  let hitTX = i32(hitParam * hitS.worldW) % i32(hitS.worldW);
+  let hitTY = i32(hitTV * hitS.worldH) % i32(hitS.worldH);
+  let tile = getTileS(hitSi, hitTX, hitTY);
+
+  // Per-surface tint
+  let tintR = hitS.tintR;
+  let tintG = hitS.tintG;
+  let tintB = hitS.tintB;
 
   if (tile == 0u) {
-    cr = 1.0; cg = 1.0; cb = 1.0;
+    cr = tintR; cg = tintG; cb = tintB;
   } else if (tile == 5u) {
     cr = 1.0; cg = 0.4; cb = 0.7;
+  } else if (tile == 8u) {
+    // Warp tile — pulsing cyan/magenta
+    let pulse = 0.6 + 0.4 * sin(p.time * 4.0);
+    cr = 0.2 * pulse; cg = 0.8 * pulse; cb = 1.0 * pulse;
   } else {
     cr = 0.03; cg = 0.03; cb = 0.1;
   }
@@ -1154,25 +1507,28 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   cg = cg * light * fade;
   cb = cb * light * fade;
 
-  // Ghost point lights
+  // Ghost point lights — all surfaces
   let hitPos = vec3f(hx, hy, hz);
-  for (var gli = 0u; gli < 4u; gli++) {
-    let glmode = ghosts[gli * 8u + 5u];
-    if (glmode > 1.5) { continue; }
-    let glp = ghostWorldPos(gli);
-    let toLight = glp - hitPos;
-    let dist2 = dot(toLight, toLight);
-    let dist = sqrt(dist2);
-    if (dist > 3.0) { continue; }
-    let ldir = toLight / dist;
-    let ndotl = max(0.0, dot(hn, ldir));
-    let atten = ndotl / (0.3 + dist2 * 1.5);
-    var lr: f32; var lg: f32; var lb: f32;
-    if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
-    else { lr = ghosts[gli*8u+2u]; lg = ghosts[gli*8u+3u]; lb = ghosts[gli*8u+4u]; }
-    cr += lr * atten * 1.5;
-    cg += lg * atten * 1.5;
-    cb += lb * atten * 1.5;
+  for (var glsi = 0u; glsi < nSurf; glsi++) {
+    let glOff = u32(surfTable[glsi].ghostOffset);
+    for (var gli = 0u; gli < 4u; gli++) {
+      let glmode = ghosts[(glOff + gli) * 8u + 5u];
+      if (glmode > 1.5) { continue; }
+      let glp = ghostWorldPosS(glsi, gli);
+      let toLight = glp - hitPos;
+      let dist2 = dot(toLight, toLight);
+      let dist = sqrt(dist2);
+      if (dist > 3.0) { continue; }
+      let ldir = toLight / dist;
+      let ndotl = max(0.0, dot(hn, ldir));
+      let atten = ndotl / (0.3 + dist2 * 1.5);
+      var lr: f32; var lg: f32; var lb: f32;
+      if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
+      else { lr = ghosts[(glOff+gli)*8u+2u]; lg = ghosts[(glOff+gli)*8u+3u]; lb = ghosts[(glOff+gli)*8u+4u]; }
+      cr += lr * atten * 1.5;
+      cg += lg * atten * 1.5;
+      cb += lb * atten * 1.5;
+    }
   }
 
   cr = clamp(cr, 0.0, 1.0);
@@ -1239,37 +1595,117 @@ struct VOut {
 
   const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
 
-  // Shared buffers
+  // Shared buffers — sized for multi-surface
   const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const MAX_TILES = 16384;
+  const MAX_TILES = 65536;  // room for multiple surface mazes
   const tileBuf = device.createBuffer({ size: MAX_TILES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-  const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-  const MAX_SEGS = 512;
+  const MAX_GHOSTS = 32;  // 8 surfaces × 4 ghosts max
+  const ghostBuf = device.createBuffer({ size: MAX_GHOSTS * 8 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const MAX_SEGS = 2048;  // room for multiple curves
   const curveBuf = device.createBuffer({ size: MAX_SEGS * 12 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const MAX_SURFACES = 8;
+  const surfTableBuf = device.createBuffer({ size: MAX_SURFACES * 16 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
+  // Per-surface tint colors
+  const SURF_TINTS = [
+    [1.0, 1.0, 1.0],    // surface 0: white walls
+    [0.6, 0.9, 1.0],    // surface 1: ice blue
+    [1.0, 0.7, 0.5],    // surface 2: warm orange
+    [0.7, 1.0, 0.7],    // surface 3: soft green
+    [1.0, 0.7, 1.0],    // surface 4: pink
+    [1.0, 1.0, 0.6],    // surface 5: yellow
+    [0.7, 0.7, 1.0],    // surface 6: lavender
+    [0.9, 0.9, 0.9],    // surface 7: light gray
+  ];
+
+  // Upload all surfaces' tiles concatenated, plus surface table
   function uploadTiles() {
-    const data = new Uint32Array(MAX_TILES);
-    for (let i = 0; i < Math.min(maze.length, MAX_TILES); i++) data[i] = maze[i];
-    device.queue.writeBuffer(tileBuf, 0, data);
+    const tileData = new Uint32Array(MAX_TILES);
+    const tableData = new Float32Array(MAX_SURFACES * 16);
+    let tileOffset = 0, segOffset = 0, ghostOffset = 0;
+
+    for (let si = 0; si < surfaces.length; si++) {
+      const s = surfaces[si];
+      // Pack tiles
+      for (let i = 0; i < s.maze.length && (tileOffset + i) < MAX_TILES; i++) {
+        tileData[tileOffset + i] = s.maze[i];
+      }
+      // Surface table entry (16 floats)
+      const b = si * 16;
+      const tint = SURF_TINTS[si % SURF_TINTS.length];
+      tableData[b + 0] = s.center[0];  // centerX
+      tableData[b + 1] = s.center[1];  // centerY
+      tableData[b + 2] = s.center[2];  // centerZ
+      tableData[b + 3] = s.hostR;      // hostR
+      tableData[b + 4] = s.hostR0;     // hostR0
+      tableData[b + 5] = s.tubeR;      // tubeR
+      tableData[b + 6] = segOffset;    // segOffset
+      tableData[b + 7] = s.numSegs;    // segCount
+      tableData[b + 8] = tileOffset;   // tileOffset
+      tableData[b + 9] = s.worldW;     // worldW
+      tableData[b + 10] = s.worldH;    // worldH
+      tableData[b + 11] = ghostOffset; // ghostOffset
+      tableData[b + 12] = tint[0];     // tintR
+      tableData[b + 13] = tint[1];     // tintG
+      tableData[b + 14] = tint[2];     // tintB
+      tableData[b + 15] = 0;           // pad
+
+      tileOffset += s.worldW * s.worldH;
+      segOffset += s.numSegs;
+      ghostOffset += 4; // 4 ghosts per surface
+    }
+    device.queue.writeBuffer(tileBuf, 0, tileData);
+    device.queue.writeBuffer(surfTableBuf, 0, tableData);
   }
   uploadTiles();
 
   function uploadCurve() {
     const data = new Float32Array(MAX_SEGS * 12);
-    for (let i = 0; i < Math.min(numSegs, MAX_SEGS); i++) {
-      const c = curvePoints[i];
-      const base = i * 12;
-      data[base]   = c.pos[0];     data[base+1] = c.pos[1];     data[base+2] = c.pos[2];
-      data[base+3] = c.tangent[0]; data[base+4] = c.tangent[1]; data[base+5] = c.tangent[2];
-      data[base+6] = c.normal[0];  data[base+7] = c.normal[1];  data[base+8] = c.normal[2];
-      data[base+9] = c.binormal[0]; data[base+10] = c.binormal[1]; data[base+11] = c.binormal[2];
+    let offset = 0;
+    for (let si = 0; si < surfaces.length; si++) {
+      const s = surfaces[si];
+      for (let i = 0; i < s.numSegs; i++) {
+        const c = s.curvePoints[i];
+        const base = (offset + i) * 12;
+        data[base]   = c.pos[0];     data[base+1] = c.pos[1];     data[base+2] = c.pos[2];
+        data[base+3] = c.tangent[0]; data[base+4] = c.tangent[1]; data[base+5] = c.tangent[2];
+        data[base+6] = c.normal[0];  data[base+7] = c.normal[1];  data[base+8] = c.normal[2];
+        data[base+9] = c.binormal[0]; data[base+10] = c.binormal[1]; data[base+11] = c.binormal[2];
+      }
+      offset += s.numSegs;
     }
     device.queue.writeBuffer(curveBuf, 0, data);
   }
   uploadCurve();
 
-  const initGhosts = new Float32Array(32);
-  for (let i = 0; i < 4; i++) initGhosts[i * 8 + 5] = 2.0;
+  // Upload all surfaces' ghosts concatenated
+  function uploadAllGhosts() {
+    const data = new Float32Array(MAX_GHOSTS * 8);
+    let offset = 0;
+    for (let si = 0; si < surfaces.length; si++) {
+      const gs = surfaces[si].ghosts || [];
+      for (let gi = 0; gi < 4; gi++) {
+        const base = (offset + gi) * 8;
+        if (gi < gs.length) {
+          data[base] = gs[gi].x;
+          data[base + 1] = gs[gi].y;
+          data[base + 2] = gs[gi].cr;
+          data[base + 3] = gs[gi].cg;
+          data[base + 4] = gs[gi].cb;
+          data[base + 5] = gs[gi].mode === 'hidden' ? 2.0 : gs[gi].frightened ? 1.0 : 0.0;
+          data[base + 6] = 0;
+          data[base + 7] = 0;
+        } else {
+          data[base + 5] = 2.0; // hidden
+        }
+      }
+      offset += 4;
+    }
+    device.queue.writeBuffer(ghostBuf, 0, data);
+  }
+
+  const initGhosts = new Float32Array(MAX_GHOSTS * 8);
+  for (let i = 0; i < MAX_GHOSTS; i++) initGhosts[i * 8 + 5] = 2.0;
   device.queue.writeBuffer(ghostBuf, 0, initGhosts);
 
   // Storage texture (compute output) + blit bind group — recreated on resize
@@ -1293,6 +1729,7 @@ struct VOut {
         { binding: 2, resource: outputTex.createView() },
         { binding: 3, resource: { buffer: ghostBuf } },
         { binding: 4, resource: { buffer: curveBuf } },
+        { binding: 5, resource: { buffer: surfTableBuf } },
       ],
     });
     blitBindGroup = device.createBindGroup({
@@ -1314,7 +1751,9 @@ struct VOut {
       const f = new Float32Array(pd);
       const u = new Uint32Array(pd);
       f[0] = cam.P[0]; f[1] = cam.P[1]; f[2] = cam.P[2];
+      u[3] = surfaces.length;  // numSurfaces
       f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
+      u[7] = activeSurface;    // activeSurf
       f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
       f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
       f[16] = 0.4; f[17] = 0.8; f[18] = 0.3;
@@ -1358,6 +1797,7 @@ struct VOut {
     },
     uploadTiles,
     uploadCurve,
+    uploadAllGhosts,
   };
   console.log('WebGPU initialized (storage texture + blit pipeline)');
 })();
@@ -1479,6 +1919,7 @@ function drawMinimap() {
       else if (t === T.DOOR) { mmCtx.fillStyle = '#808'; }
       else if (t === T.PELLET) { mmCtx.fillStyle = '#552'; }
       else if (t === T.POWER) { mmCtx.fillStyle = '#880'; }
+      else if (t === T.WARP) { mmCtx.fillStyle = '#0aa'; }
       else { continue; } // skip empty/ghost house (black)
       mmCtx.fillRect(x * s, y * s, s, s);
     }
@@ -1634,8 +2075,8 @@ function resetGhostSet(ghostArr, surface) {
   for (const g of ghostArr) { g.lastTx = -1; g.lastTy = -1; }
 }
 
-// Active ghost array (global alias)
-const ghosts = makeGhostSet(null);
+// Active ghost array (global alias) — points to surfaces[activeSurface].ghosts
+let ghosts = makeGhostSet(null);
 
 function resetGhosts() {
   resetGhostSet(ghosts, { ghostHouseCenter, ghostEntrance, worldW: WORLD_W, worldH: WORLD_H });
@@ -1778,17 +2219,27 @@ function updateGhost(ghost, dt) {
 }
 
 function buildGhostData() {
-  const data = new Float32Array(32);
-  for (let i = 0; i < 4; i++) {
-    const g = ghosts[i];
-    data[i*8] = g.x;
-    data[i*8+1] = g.y;
-    data[i*8+2] = g.color[0];
-    data[i*8+3] = g.color[1];
-    data[i*8+4] = g.color[2];
-    // mode: 0=chase/scatter, 1=frightened, 2=waiting/returning
-    data[i*8+5] = g.mode === 'frightened' ? 1.0 :
-                   (g.mode === 'waiting' || g.mode === 'returning') ? 2.0 : 0.0;
+  const maxGhosts = 32;
+  const data = new Float32Array(maxGhosts * 8);
+  let offset = 0;
+  for (let si = 0; si < surfaces.length; si++) {
+    const gs = surfaces[si].ghosts || ghosts;
+    for (let i = 0; i < 4; i++) {
+      const g = i < gs.length ? gs[i] : null;
+      const base = (offset + i) * 8;
+      if (g) {
+        data[base] = g.x;
+        data[base+1] = g.y;
+        data[base+2] = g.color[0];
+        data[base+3] = g.color[1];
+        data[base+4] = g.color[2];
+        data[base+5] = g.mode === 'frightened' ? 1.0 :
+                        (g.mode === 'waiting' || g.mode === 'returning') ? 2.0 : 0.0;
+      } else {
+        data[base+5] = 2.0; // hidden
+      }
+    }
+    offset += 4;
   }
   return data;
 }
@@ -1799,6 +2250,50 @@ function buildGhostData() {
 let pelletsEaten = 0;
 let powerTimer = 0;
 let ghostEatScore = 200; // doubles each ghost eaten per power pellet
+
+// Surface warp — teleport player to linked surface
+let warpCooldown = 0;
+function tryWarp(tx, ty) {
+  if (warpCooldown > 0) return;
+  // Find which warp point this tile belongs to
+  for (const wp of warpPoints) {
+    let targetSurf = -1, targetTile = null;
+    const sA = surfaces[wp.surfA], sB = surfaces[wp.surfB];
+
+    if (wp.surfA === activeSurface &&
+        Math.abs(tx - wp.tileA.x) <= 1 && Math.abs(ty - wp.tileA.y) <= 1) {
+      targetSurf = wp.surfB;
+      targetTile = wp.tileB;
+    } else if (wp.surfB === activeSurface &&
+               Math.abs(tx - wp.tileB.x) <= 1 && Math.abs(ty - wp.tileB.y) <= 1) {
+      targetSurf = wp.surfA;
+      targetTile = wp.tileA;
+    }
+
+    if (targetSurf >= 0) {
+      // Save current surface's ghosts
+      surfaces[activeSurface].ghosts = ghosts;
+
+      // Switch surface
+      activeSurface = targetSurf;
+      syncFromActiveSurface();
+
+      // Place player at target warp tile
+      playerX = targetTile.x + 0.5;
+      playerY = targetTile.y + 0.5;
+      playerHeight = 0;
+      airborne = false;
+
+      // Re-upload everything for new surface
+      gpuSky?.uploadCurve();
+      gpuSky?.uploadTiles();
+
+      warpCooldown = 0.5; // prevent immediate re-warp
+      console.log('Warped to surface', activeSurface);
+      return;
+    }
+  }
+}
 
 function checkPellets() {
   const tx = Math.floor(wrapX(playerX));
@@ -1827,6 +2322,11 @@ function checkPellets() {
     }
     gpuSky?.uploadTiles();
     updateHUD();
+  }
+
+  // Check for warp tile — teleport to linked surface
+  if (t === T.WARP && !airborne && surfaces.length > 1) {
+    tryWarp(tx, ty);
   }
 
   if (pelletsEaten >= totalPellets) {
@@ -1922,6 +2422,7 @@ function gameLoop(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   gameTime += dt;
+  if (warpCooldown > 0) warpCooldown -= dt;
 
   updatePlayer(dt);
   updateJumpPhysics(dt);
@@ -1932,8 +2433,33 @@ function gameLoop(now) {
       g.mode = 'exiting';
     }
   }
-  // Ghost movement
+  // Ghost movement — active surface (full AI)
   for (const g of ghosts) updateGhost(g, dt);
+
+  // Inactive surface ghosts — simple random patrol
+  for (let si = 0; si < surfaces.length; si++) {
+    if (si === activeSurface) continue;
+    const s = surfaces[si];
+    if (!s.ghosts) continue;
+    for (const g of s.ghosts) {
+      if (g.mode === 'waiting' || g.mode === 'hidden') continue;
+      if (g.mode === 'waiting' && gameTime >= g.releaseTime) { g.mode = 'scatter'; }
+      // Simple movement: drift in current direction
+      const spd = 3.0 * dt;
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      const d = dirs[g.patrolDir || 0];
+      const nx = ((g.x + d[0] * spd) % s.worldW + s.worldW) % s.worldW;
+      const ny = ((g.y + d[1] * spd) % s.worldH + s.worldH) % s.worldH;
+      const tidx = Math.floor(ny) * s.worldW + Math.floor(nx);
+      if (s.maze[tidx] !== T.WALL && s.maze[tidx] !== T.DOOR) {
+        g.x = nx; g.y = ny;
+      } else {
+        g.patrolDir = Math.floor(Math.random() * 4);
+      }
+      // Occasionally change direction
+      if (Math.random() < 0.02) g.patrolDir = Math.floor(Math.random() * 4);
+    }
+  }
 
   // Scatter/chase wave switching
   if (currentWave < MODE_WAVES.length && gameTime >= MODE_WAVES[currentWave].until) {
