@@ -243,26 +243,22 @@ function generateMaze(U) {
   ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
   playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
 
-  // Power pellets in 4 spread-out positions
-  const corners = [
-    [Math.round(W * 0.12), Math.round(H * 0.12)],
-    [Math.round(W * 0.88), Math.round(H * 0.12)],
-    [Math.round(W * 0.12), Math.round(H * 0.88)],
-    [Math.round(W * 0.88), Math.round(H * 0.88)],
-  ];
-  for (const [px, py] of corners) {
-    outer: for (let r = 0; r < 5; r++) {
-      for (let ddy = -r; ddy <= r; ddy++) {
-        for (let ddx = -r; ddx <= r; ddx++) {
-          const ppx = ((px + ddx) % W + W) % W;
-          const ppy = ((py + ddy) % H + H) % H;
-          if (tiles[ppy * W + ppx] === T.PELLET) {
-            tiles[ppy * W + ppx] = T.POWER;
-            break outer;
-          }
-        }
-      }
-    }
+  // Power pellets: spread across the torus, count scales with maze size
+  // ~1 power pellet per 60 walkable tiles, minimum 6
+  const walkable = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i] === T.PELLET) walkable.push(i);
+  }
+  const numPower = Math.max(6, Math.round(walkable.length / 60));
+  // Shuffle and pick evenly spaced candidates for good distribution
+  for (let i = walkable.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [walkable[i], walkable[j]] = [walkable[j], walkable[i]];
+  }
+  // Place power pellets at even intervals through the shuffled list
+  const stride = Math.max(1, (walkable.length / numPower) | 0);
+  for (let p = 0; p < numPower && p * stride < walkable.length; p++) {
+    tiles[walkable[p * stride]] = T.POWER;
   }
 
   // Count pellets
