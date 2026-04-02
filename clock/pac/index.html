@@ -378,8 +378,15 @@ function doJump() {
   const v = getPlayerV();
   const nR = Math.cos(v), nZ = Math.sin(v);
   const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
+  // Radial (normal) component — the actual jump impulse
   csVR = nR * speed;
   csVZ = nZ * speed;
+  // Inject walking v-momentum as tangential velocity in cross-section
+  // jumpDyPerSec is in tiles/sec; convert to physical (world-space) velocity
+  const vPhysical = jumpDyPerSec * 2 * Math.PI * TORUS_r / WORLD_H;
+  // Tube tangent in v-increasing direction: (-sin(v), cos(v)) in (R,Z) plane
+  csVR += -nZ * vPhysical;
+  csVZ += nR * vPhysical;
 }
 
 function forceLand() {
@@ -497,7 +504,13 @@ document.addEventListener('keydown', e => {
     document.getElementById('autoRunIndicator').style.display = autoRun ? 'block' : 'none';
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  // Clear both cases to prevent stuck keys when Shift changes e.key mid-press
+  if (e.key.length === 1) { keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
+});
+// Also clear on tab/window blur (alt-tab, etc.)
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -1217,9 +1230,9 @@ function updatePlayer(dt) {
     const newY = playerY + dy * speed;
     if (canWalk(newX, playerY)) playerX = wrapX(newX);
     if (canWalk(playerX, newY)) playerY = wrapY(newY);
-    // Store current velocity for potential jump (already Cartesian-corrected)
+    // Store current velocity for potential jump (Cartesian-corrected)
     jumpDxPerSec = dx * metricTileSpeed(PLAYER_SPEED, 1, 0, playerY);
-    jumpDyPerSec = dy * PLAYER_SPEED; // v handled by cross-section, not used
+    jumpDyPerSec = dy * metricTileSpeed(PLAYER_SPEED, 0, 1, playerY);
   } else {
     jumpDxPerSec = 0;
     jumpDyPerSec = 0;
