@@ -504,6 +504,29 @@ function surfaceNormal(tileX, tileY) {
                        v3scale(frame.binormal, Math.sin(theta))));
 }
 
+// Find nearest surface + curve point to a 3D position (all surfaces)
+function nearestSurfaceJS(px, py, pz) {
+  let bestDist = Infinity, bestSurf = activeSurface, bestParam = 0, bestPos = [0,0,0];
+  for (let si = 0; si < surfaces.length; si++) {
+    const s = surfaces[si];
+    const cp = s.curvePoints, ns = s.numSegs;
+    for (let i = 0; i < ns; i++) {
+      const A = cp[i].pos;
+      const B = cp[(i + 1) % ns].pos;
+      const AB = v3sub(B, A);
+      const AP = [px - A[0], py - A[1], pz - A[2]];
+      const ab2 = v3dot(AB, AB);
+      const t = Math.max(0, Math.min(1, v3dot(AP, AB) / (ab2 || 1)));
+      const closest = v3add(A, v3scale(AB, t));
+      const d2 = (px-closest[0])**2 + (py-closest[1])**2 + (pz-closest[2])**2;
+      if (d2 < bestDist) {
+        bestDist = d2; bestSurf = si; bestParam = (i + t) / ns; bestPos = closest;
+      }
+    }
+  }
+  return { surfIdx: bestSurf, pos: bestPos, param: bestParam, dist: Math.sqrt(bestDist) };
+}
+
 // Find nearest point on center curve to a 3D position (brute force)
 function nearestCurvePointJS(px, py, pz) {
   let minDist2 = Infinity, bestParam = 0, bestPos = [0, 0, 0];
@@ -734,7 +757,10 @@ function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
 // Tube-following gravity
 // =====================================================================
 function tubeGravity(px, py, pz) {
-  const nearest = nearestCurvePointJS(px, py, pz);
+  // Pull toward nearest surface (any surface, not just active)
+  const nearest = surfaces.length > 1
+    ? nearestSurfaceJS(px, py, pz)
+    : nearestCurvePointJS(px, py, pz);
   const dx = nearest.pos[0] - px, dy = nearest.pos[1] - py, dz = nearest.pos[2] - pz;
   const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
   if (dist < 0.001) return [0, 0, 0];
@@ -793,11 +819,18 @@ function updateJumpPhysics(dt) {
     jumpPos[1] += jumpVel[1] * subDt;
     jumpPos[2] += jumpVel[2] * subDt;
 
-    // Landing check
-    const nearest = nearestCurvePointJS(jumpPos[0], jumpPos[1], jumpPos[2]);
+    // Landing check — search ALL surfaces for nearest
+    const nearest = nearestSurfaceJS(jumpPos[0], jumpPos[1], jumpPos[2]);
+    const landingSurf = nearest.surfIdx;
     const dist = nearest.dist;
 
-    // Get tile at current position
+    // Temporarily switch to landing surface to check tile height
+    const wasSurf = activeSurface;
+    if (landingSurf !== activeSurface) {
+      activeSurface = landingSurf;
+      syncFromActiveSurface();
+    }
+
     const tc = worldToTile(jumpPos[0], jumpPos[1], jumpPos[2]);
     const landingTileH = tileHeightAt(tc.x, tc.y);
     const effectiveR = TUBE_R + landingTileH;
@@ -807,6 +840,15 @@ function updateJumpPhysics(dt) {
       const toPn = v3norm(toP);
       const vDot = v3dot(jumpVel, toPn);
       if (vDot < 0 || dist < effectiveR * 0.92) {
+        // Commit surface switch if landing on different surface
+        if (landingSurf !== wasSurf) {
+          surfaces[wasSurf].ghosts = ghosts;
+          // activeSurface already set above
+          gpuSky?.uploadCurve();
+          gpuSky?.uploadTiles();
+          console.log('Jumped to surface', activeSurface);
+        }
+
         // Preserve camera forward for angle recovery
         const cam = computeCamera();
         const worldFwd = [...cam.fwd];
@@ -827,6 +869,12 @@ function updateJumpPhysics(dt) {
         forceLand();
         return;
       }
+    }
+
+    // Didn't land — restore original surface if we temporarily switched
+    if (activeSurface !== wasSurf) {
+      activeSurface = wasSurf;
+      syncFromActiveSurface();
     }
 
     playerHeight = dist - TUBE_R;
@@ -1127,12 +1175,42 @@ fn getCurveBinormalS(si: u32, i: u32) -> vec3f {
 // Nearest point on a single surface's curve
 // Returns vec4(nearestPoint.xyz, param01)
 fn nearestOnCurveS(si: u32, px: f32, py: f32, pz: f32) -> vec4f {
+  let s = surfTable[si];
+
+  // Analytical path for circles (hostR0 == 0): O(1) instead of O(N)
+  if (s.hostR0 < 0.001) {
+    let dx = px - s.centerX;
+    let dy = py - s.centerY;
+    let dz = pz - s.centerZ;
+    let ax = s.axisX; let ay = s.axisY; let az = s.axisZ;
+    // Project onto plane perpendicular to axis
+    let h = dx*ax + dy*ay + dz*az;
+    let rx = dx - h*ax; let ry = dy - h*ay; let rz = dz - h*az;
+    let radLen = max(sqrt(rx*rx + ry*ry + rz*rz), 1e-6);
+    // Nearest point on circle
+    let scale = s.hostR / radLen;
+    let nearX = s.centerX + rx * scale;
+    let nearY = s.centerY + ry * scale;
+    let nearZ = s.centerZ + rz * scale;
+    // Compute parameter from angle — use first curve segment as reference basis
+    let off = u32(s.segOffset);
+    let refN = getCurveNormalG(off);   // points outward at param=0
+    let refB = getCurveBinormalG(off); // perpendicular in plane
+    let dirX = rx / radLen; let dirY = ry / radLen; let dirZ = rz / radLen;
+    let dotN = dirX*refN.x + dirY*refN.y + dirZ*refN.z;
+    let dotB = dirX*refB.x + dirY*refB.y + dirZ*refB.z;
+    var param = atan2(dotB, dotN) / TWO_PI;
+    if (param < 0.0) { param += 1.0; }
+    return vec4f(nearX, nearY, nearZ, param);
+  }
+
+  // Polyline path for knots
   let P = vec3f(px, py, pz);
   var minD2: f32 = 1e20;
   var bestParam: f32 = 0.0;
   var bestPt: vec3f = vec3f(0.0);
-  let N = u32(surfTable[si].segCount);
-  let off = u32(surfTable[si].segOffset);
+  let N = u32(s.segCount);
+  let off = u32(s.segOffset);
   for (var i = 0u; i < N; i++) {
     let A = getCurvePointG(off + i);
     let B = getCurvePointG(off + ((i + 1u) % N));
