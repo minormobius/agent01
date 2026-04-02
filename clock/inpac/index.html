@@ -1080,25 +1080,26 @@ function computeCamera() {
     P = [surfP[0] - en[0]*hOff, surfP[1] - en[1]*hOff, surfP[2] - en[2]*hOff];
   }
 
-  // "Up" direction for interior camera
-  let en;
-  if (airborne && playerHeight > 0.5) {
-    // Mid-jump: use gravity LUT for smooth transition across tube
-    const mR = csR, mZ = csZ;
-    const absR = Math.abs(mR);
-    const g = sampleGravity(Math.max(0.1, absR), mZ);
-    const gR = mR >= 0 ? g.gR : -g.gR;
-    const gZ = g.gZ;
-    const gLen = Math.sqrt(gR*gR + gZ*gZ);
-    if (gLen > 0.01) {
-      const antiR = -gR/gLen, antiZ = -gZ/gLen;
-      en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
-    } else {
-      en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
-    }
+  // "Up" = always toward tube center line. One formula, no thresholds.
+  // Tube center at angle u is at (R*cos(u), 0, R*sin(u)).
+  // Displacement from tube center in cross-section:
+  let dcR, dcZ;
+  if (airborne && playerHeight > 0.01) {
+    dcR = csR - TORUS_R;  // radial displacement from tube axis
+    dcZ = csZ;            // vertical displacement from tube axis
   } else {
-    // Grounded or near wall: "up" = INWARD normal (toward tube center)
-    // = negative of outward surface normal
+    dcR = TORUS_r * Math.cos(v);  // on surface: r*cos(v) from axis
+    dcZ = TORUS_r * Math.sin(v);  // on surface: r*sin(v) from axis
+  }
+  const tcDist = Math.sqrt(dcR*dcR + dcZ*dcZ);
+  let en;
+  if (tcDist > 0.05) {
+    // "Up" = from player toward tube center line = negative radial
+    const upR = -dcR / tcDist;
+    const upZ = -dcZ / tcDist;
+    en = [upR*Math.cos(u), upZ, upR*Math.sin(u)];
+  } else {
+    // At tube center — no preferred "up", use last surface normal
     en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
   }
 
