@@ -1080,26 +1080,26 @@ function computeCamera() {
     P = [surfP[0] - en[0]*hOff, surfP[1] - en[1]*hOff, surfP[2] - en[2]*hOff];
   }
 
-  // Gravity-aligned "up" = anti-gravity direction
-  // Inside tube, gravity pulls outward → anti-gravity = inward
-  let mR, mZ;
-  if (airborne && playerHeight > 0.01) { mR = csR; mZ = csZ; }
-  else { mR = TORUS_R + TORUS_r * Math.cos(v); mZ = TORUS_r * Math.sin(v); }
-
-  const absR = Math.abs(mR);
-  const g = sampleGravity(Math.max(0.1, absR), mZ);
-  const gR = mR >= 0 ? g.gR : -g.gR;
-  const gZ = g.gZ;
-  const gLen = Math.sqrt(gR*gR + gZ*gZ);
-
+  // "Up" direction for interior camera
   let en;
-  if (gLen > 0.01) {
-    const antiR = -gR/gLen, antiZ = -gZ/gLen;
-    en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
+  if (airborne && playerHeight > 0.5) {
+    // Mid-jump: use gravity LUT for smooth transition across tube
+    const mR = csR, mZ = csZ;
+    const absR = Math.abs(mR);
+    const g = sampleGravity(Math.max(0.1, absR), mZ);
+    const gR = mR >= 0 ? g.gR : -g.gR;
+    const gZ = g.gZ;
+    const gLen = Math.sqrt(gR*gR + gZ*gZ);
+    if (gLen > 0.01) {
+      const antiR = -gR/gLen, antiZ = -gZ/gLen;
+      en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
+    } else {
+      en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
+    }
   } else {
-    // Fallback: inward from tube center toward torus center
-    const rLen = Math.sqrt(P[0]*P[0]+P[2]*P[2]) || 1;
-    en = [-P[0]/rLen, 0, -P[2]/rLen];
+    // Grounded or near wall: "up" = INWARD normal (toward tube center)
+    // = negative of outward surface normal
+    en = [-Math.cos(v)*Math.cos(u), -Math.sin(v), -Math.cos(v)*Math.sin(u)];
   }
 
   // Gram-Schmidt with u-tangent
