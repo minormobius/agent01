@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>INPAC — Inside the Torus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+#game{display:block;width:100%;height:100%;image-rendering:pixelated}
+#minimap{position:fixed;bottom:12px;right:12px;border:2px solid rgba(255,255,0,0.4);
+  image-rendering:pixelated;z-index:2}
+#hud{position:fixed;top:12px;left:12px;color:#fff;font:20px/1.4 'Courier New',monospace;
+  pointer-events:none;z-index:2}
+#score-display{font-size:28px;font-weight:bold;color:#ff0}
+#lives-display{margin-top:4px}
+.pac-life{display:inline-block;width:14px;height:14px;background:#ff0;
+  border-radius:50%;margin-right:4px}
+#reticle{position:fixed;top:50%;left:50%;z-index:3;width:20px;height:20px;
+  margin:-10px 0 0 -10px;pointer-events:none;display:none}
+#reticle::before,#reticle::after{content:'';position:absolute;background:rgba(255,255,200,0.5)}
+#reticle::before{width:2px;height:12px;top:4px;left:9px}
+#reticle::after{width:12px;height:2px;top:9px;left:4px}
+#start-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,0.95);color:#ff0;z-index:10;
+  font-family:'Courier New',monospace}
+#start-screen h1{font-size:96px;margin-bottom:10px;text-shadow:0 0 30px #f80}
+#start-screen p{font-size:16px;color:#aaa;margin:4px}
+#start-screen button{font-size:24px;padding:15px 50px;margin-top:30px;background:#f80;
+  color:#000;border:none;cursor:pointer;font-family:inherit;font-weight:bold}
+#start-screen button:hover{background:#fa0}
+#msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font:48px 'Courier New',monospace;color:#ff0;z-index:5;display:none;
+  text-shadow:0 0 20px #ff0;pointer-events:none}
+#viewToggle{position:fixed;bottom:12px;left:12px;z-index:5;
+  padding:8px 14px;border:1px solid #4a4a6a;border-radius:4px;
+  background:rgba(30,30,50,0.85);color:#ddd;font:12px monospace;cursor:pointer}
+#viewToggle:hover{background:#3a3a5e}
+#physPanel{position:fixed;bottom:50px;left:12px;z-index:5;
+  background:rgba(20,20,35,0.92);border:1px solid #3a3a5a;border-radius:6px;
+  padding:0;color:#ccc;font:11px/1.6 monospace;min-width:180px;user-select:none;display:none}
+#physToggle{width:100%;padding:6px 12px;border:none;border-bottom:1px solid #3a3a5a;
+  background:transparent;color:#f0e0c0;font:12px monospace;cursor:pointer;text-align:left}
+#physToggle:hover{background:rgba(255,255,255,0.05)}
+#physBody{padding:8px 12px}
+#physBody.collapsed{display:none}
+#physBody label{display:block;margin-top:6px;color:#aaa;font-size:10px}
+#physBody input[type=range]{width:100%;margin:2px 0;accent-color:#6a6aaa}
+#physBody .val{float:right;color:#ddd}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<canvas id="minimap"></canvas>
+<div id="hud"><div id="score-display">0</div><div id="lives-display"></div></div>
+<div id="reticle"></div>
+<div id="msg"></div>
+<div id="autoRunIndicator" style="position:fixed;top:50px;left:50%;transform:translateX(-50%);
+  color:#0f0;font:14px monospace;z-index:5;pointer-events:none;display:none;
+  text-shadow:0 0 8px #0f0">AUTO-RUN [Q]</div>
+<button id="viewToggle">FPV [F]</button>
+<div id="physPanel">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
+    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Major Radius (R) <span class="val" id="valR">8.0</span></label>
+    <input type="range" id="slR" min="3" max="30" step="0.1" value="8.0">
+    <label>Minor Radius (r) <span class="val" id="valr">3.0</span></label>
+    <input type="range" id="slr" min="1" max="10" step="0.1" value="3.0">
+    <label>Cell Size <span class="val" id="valUnit">3</span></label>
+    <input type="range" id="slUnit" min="2" max="6" step="1" value="3">
+  </div>
+</div>
+<div id="start-screen">
+  <h1>INPAC</h1>
+  <p>Pac-Man Inside the Torus</p>
+  <p style="color:#666;margin-top:12px">WASD move &bull; Mouse look &bull; Space jump &bull; Q auto-run</p>
+  <button onclick="startGame()">START</button>
+</div>
+<script>
+'use strict';
+
+// =====================================================================
+// Constants — bigger torus for spacious interior
+// =====================================================================
+let WORLD_W = 54, WORLD_H = 45;
+let TORUS_R = 8.0, TORUS_r = 3.0;
+const WALL_H = 0.45;
+const DOOR_H = 0.20;
+const EYE_HEIGHT = 0.12;
+const PLAYER_SPEED = 4.5;
+const MOUSE_SENS = 0.002;
+const MAX_PITCH = Math.PI * 0.44;
+const FOV = Math.PI * 0.6;
+const VFOV = Math.PI * 0.45;
+const MAX_STEP_H = 0.06;
+
+const T = { WALL: 0, PELLET: 1, POWER: 2, EMPTY: 3, GHOST_HOUSE: 4, DOOR: 5 };
+let CELL_UNIT = 3;
+
+let GRAV_SCALE = 1.8;
+const JUMP_SPEED = 3.5;
+const SUPER_JUMP_SPEED = 9.0;
+
+const REF_MU_U = 11.0 / 54;
+const REF_MU_V = 3.0 / 45;
+
+function metricTileSpeed(baseTileSpd, dx, dy, tileY) {
+  const v = (tileY / WORLD_H) * Math.PI * 2;
+  const muU = (TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W;
+  const muV = TORUS_r / WORLD_H;
+  const refPhys = Math.sqrt(dx * dx * REF_MU_U * REF_MU_U + dy * dy * REF_MU_V * REF_MU_V);
+  const curPhys = Math.sqrt(dx * dx * muU * muU + dy * dy * muV * muV);
+  return baseTileSpd * refPhys / (curPhys || 1);
+}
+
+function cardinalTileSpeed(baseTileSpd, isU, tileY) {
+  const v = (tileY / WORLD_H) * Math.PI * 2;
+  if (isU) return baseTileSpd * REF_MU_U / ((TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W);
+  return baseTileSpd * REF_MU_V / (TORUS_r / WORLD_H);
+}
+
+// =====================================================================
+// Procedural maze generator (toroidal, variable cell size)
+// =====================================================================
+let mazeInit, maze, totalPellets;
+let ghostHouseCenter = { x: 13.5, y: 14.5 };
+let ghostEntrance = { x: 13.5, y: 11.5 };
+let playerSpawn = { x: 13.5, y: 18.5 };
+
+function generateMaze(U) {
+  const maxCells = Math.floor(96 / U);
+  const cw = Math.max(4, Math.min(maxCells, Math.round(TORUS_R * 2.25)));
+  const ch = Math.max(4, Math.min(maxCells, Math.round(TORUS_r * 5.0)));
+  WORLD_W = cw * U;
+  WORLD_H = ch * U;
+  const W = WORLD_W, H = WORLD_H;
+
+  const rightWall = new Uint8Array(cw * ch).fill(1);
+  const bottomWall = new Uint8Array(cw * ch).fill(1);
+  const vis = new Uint8Array(cw * ch);
+  const stack = [0];
+  vis[0] = 1;
+
+  while (stack.length > 0) {
+    const ci = stack[stack.length - 1];
+    const cx = ci % cw, cy = (ci / cw) | 0;
+    const nbrs = [];
+    const tryNbr = (nx, ny, d) => {
+      const ni = ny * cw + nx;
+      if (!vis[ni]) nbrs.push([nx, ny, ni, d]);
+    };
+    tryNbr((cx + 1) % cw, cy, 'r');
+    tryNbr(((cx - 1) + cw) % cw, cy, 'l');
+    tryNbr(cx, (cy + 1) % ch, 'b');
+    tryNbr(cx, ((cy - 1) + ch) % ch, 'u');
+    if (nbrs.length === 0) { stack.pop(); continue; }
+    const [nx, ny, ni, d] = nbrs[(Math.random() * nbrs.length) | 0];
+    if (d === 'r') rightWall[ci] = 0;
+    else if (d === 'l') rightWall[ni] = 0;
+    else if (d === 'b') bottomWall[ci] = 0;
+    else bottomWall[ni] = 0;
+    vis[ni] = 1;
+    stack.push(ni);
+  }
+
+  for (let i = 0; i < cw * ch; i++) {
+    if (rightWall[i] && Math.random() < 0.25) rightWall[i] = 0;
+    if (bottomWall[i] && Math.random() < 0.25) bottomWall[i] = 0;
+  }
+
+  const tiles = new Uint8Array(W * H);
+  tiles.fill(T.WALL);
+  for (let cy = 0; cy < ch; cy++) {
+    for (let cx = 0; cx < cw; cx++) {
+      const ci = cy * cw + cx;
+      for (let dy = 1; dy < U; dy++)
+        for (let dx = 1; dx < U; dx++)
+          tiles[(cy * U + dy) * W + cx * U + dx] = T.PELLET;
+      if (!rightWall[ci]) {
+        const wx = ((cx + 1) * U) % W;
+        for (let dy = 1; dy < U; dy++)
+          tiles[(cy * U + dy) * W + wx] = T.PELLET;
+      }
+      if (!bottomWall[ci]) {
+        const wy = ((cy + 1) * U) % H;
+        for (let dx = 1; dx < U; dx++)
+          tiles[wy * W + cx * U + dx] = T.PELLET;
+      }
+    }
+  }
+
+  const ghW = 8, ghH = 4;
+  const ghX = ((W >> 1) - (ghW >> 1) + W) % W;
+  const ghY = ((H >> 1) - (ghH >> 1) + H) % H;
+  for (let dy = 0; dy < ghH; dy++) {
+    for (let dx = 0; dx < ghW; dx++) {
+      const tx = (ghX + dx) % W, ty = (ghY + dy) % H;
+      if (dy === 0) tiles[ty * W + tx] = (dx >= 3 && dx <= 4) ? T.DOOR : T.WALL;
+      else if (dy === ghH - 1 || dx === 0 || dx === ghW - 1) tiles[ty * W + tx] = T.WALL;
+      else tiles[ty * W + tx] = T.GHOST_HOUSE;
+    }
+  }
+
+  for (let row = 1; row <= 2; row++) {
+    const ey = (ghY - row + H) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[ey * W + tx] === T.WALL) tiles[ey * W + tx] = T.EMPTY;
+    }
+  }
+  for (let row = 0; row <= 1; row++) {
+    const sy = (ghY + ghH + row) % H;
+    for (let dx = 1; dx < ghW - 1; dx++) {
+      const tx = (ghX + dx) % W;
+      if (tiles[sy * W + tx] === T.WALL) tiles[sy * W + tx] = T.EMPTY;
+    }
+  }
+
+  const gcx = (ghX + ghW / 2);
+  ghostHouseCenter = { x: gcx, y: (ghY + 1.5) };
+  ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
+  playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
+
+  const walkable = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i] === T.PELLET) walkable.push(i);
+  }
+  const numPower = Math.max(6, Math.round(walkable.length / 60));
+  for (let i = walkable.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [walkable[i], walkable[j]] = [walkable[j], walkable[i]];
+  }
+  const stride = Math.max(1, (walkable.length / numPower) | 0);
+  for (let p = 0; p < numPower && p * stride < walkable.length; p++) {
+    tiles[walkable[p * stride]] = T.POWER;
+  }
+
+  totalPellets = 0;
+  for (let i = 0; i < tiles.length; i++)
+    if (tiles[i] === T.PELLET || tiles[i] === T.POWER) totalPellets++;
+
+  mazeInit = tiles;
+  maze = new Uint8Array(tiles);
+}
+
+generateMaze(CELL_UNIT);
+
+function getMaze(x, y) {
+  const tx = ((Math.floor(x) % WORLD_W) + WORLD_W) % WORLD_W;
+  const ty = ((Math.floor(y) % WORLD_H) + WORLD_H) % WORLD_H;
+  return maze[ty * WORLD_W + tx];
+}
+
+function tileHeight(t) {
+  if (t === T.WALL) return WALL_H;
+  if (t === T.DOOR) return DOOR_H;
+  return 0.0;
+}
+
+function tileHeightAt(x, y) { return tileHeight(getMaze(x, y)); }
+function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+
+// =====================================================================
+// Gravity LUT — Newtonian gravity from solid torus mass
+// =====================================================================
+const GRAV_LUT_SIZE = 32;
+const GRAV_R_MIN = 0.1;
+let GRAV_R_MAX, GRAV_Z_MIN, GRAV_Z_MAX;
+function updateGravBounds() {
+  GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  GRAV_Z_MIN = -(TORUS_r + 5);
+  GRAV_Z_MAX = TORUS_r + 5;
+}
+updateGravBounds();
+const gravLUT_gR = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+
+function computeGravLUT() {
+  const size = GRAV_LUT_SIZE;
+  const Nu = 24, Nv = 12, Ns = 4;
+  const R0 = TORUS_R, r0 = TORUS_r;
+  for (let gi = 0; gi < size; gi++) {
+    const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
+    for (let gj = 0; gj < size; gj++) {
+      const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
+      let gR = 0, gZ = 0;
+      for (let iu = 0; iu < Nu; iu++) {
+        const u = (iu + 0.5) / Nu * Math.PI * 2;
+        const cosU = Math.cos(u), sinU = Math.sin(u);
+        for (let iv = 0; iv < Nv; iv++) {
+          const v = (iv + 0.5) / Nv * Math.PI * 2;
+          const cosV = Math.cos(v), sinV = Math.sin(v);
+          for (let is_ = 0; is_ < Ns; is_++) {
+            const s = (is_ + 0.5) / Ns * r0;
+            const Rc = R0 + s * cosV;
+            const ex = Rc * cosU, ey = Rc * sinU, ez = s * sinV;
+            const dx = ex - Rp, dy = ey, dz = ez - Zp;
+            const distSq = dx*dx + dy*dy + dz*dz;
+            if (distSq < 0.01) continue;
+            const dist = Math.sqrt(distSq);
+            const dV = s * Rc * (r0/Ns) * (2*Math.PI/Nv) * (2*Math.PI/Nu);
+            const f3 = dV / (dist * distSq);
+            gR += dx * f3;
+            gZ += dz * f3;
+          }
+        }
+      }
+      const idx = gi * size + gj;
+      gravLUT_gR[idx] = gR * GRAV_SCALE;
+      gravLUT_gZ[idx] = gZ * GRAV_SCALE;
+    }
+  }
+}
+computeGravLUT();
+
+function sampleGravity(R, Z) {
+  const fi = (R - GRAV_R_MIN) / (GRAV_R_MAX - GRAV_R_MIN) * (GRAV_LUT_SIZE - 1);
+  const fj = (Z - GRAV_Z_MIN) / (GRAV_Z_MAX - GRAV_Z_MIN) * (GRAV_LUT_SIZE - 1);
+  const i0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fi)));
+  const j0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fj)));
+  const fr = fi - i0, fz = fj - j0;
+  const i00 = i0*GRAV_LUT_SIZE+j0, i10 = (i0+1)*GRAV_LUT_SIZE+j0;
+  const i01 = i0*GRAV_LUT_SIZE+(j0+1), i11 = (i0+1)*GRAV_LUT_SIZE+(j0+1);
+  return {
+    gR: gravLUT_gR[i00]*(1-fr)*(1-fz) + gravLUT_gR[i10]*fr*(1-fz) + gravLUT_gR[i01]*(1-fr)*fz + gravLUT_gR[i11]*fr*fz,
+    gZ: gravLUT_gZ[i00]*(1-fr)*(1-fz) + gravLUT_gZ[i10]*fr*(1-fz) + gravLUT_gZ[i01]*(1-fr)*fz + gravLUT_gZ[i11]*fr*fz,
+  };
+}
+
+// =====================================================================
+// Jump physics — INTERIOR: jump inward, land on tube wall
+// =====================================================================
+function initCrossSectionFromSurface() {
+  const v = getPlayerV();
+  const th = tileHeightAt(playerX, playerY);
+  // Inside: position at inner wall, inward by wall height
+  csR = TORUS_R + (TORUS_r - th) * Math.cos(v);
+  csZ = (TORUS_r - th) * Math.sin(v);
+  csVR = 0; csVZ = 0;
+}
+
+function doJump() {
+  if (airborne) return;
+  airborne = true;
+  initCrossSectionFromSurface();
+  const v = getPlayerV();
+  // Outward normal (from tube center toward wall)
+  const nR = Math.cos(v), nZ = Math.sin(v);
+  const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
+  // Jump INWARD (away from wall, toward tube center) = opposite of outward normal
+  csVR = -nR * speed;
+  csVZ = -nZ * speed;
+  // Inject walking v-momentum as tangential velocity
+  const vPhysical = jumpDyPerSec * 2 * Math.PI * TORUS_r / WORLD_H;
+  csVR += -nZ * vPhysical;
+  csVZ += nR * vPhysical;
+}
+
+function forceLand() {
+  airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
+  jumpDxPerSec = 0; jumpDyPerSec = 0;
+}
+
+function updateJumpPhysics(dt) {
+  if (!airborne) { playerHeight = 0; return; }
+  const substeps = 8;
+  const subDt = dt / substeps;
+  for (let s = 0; s < substeps; s++) {
+    const absR = Math.abs(csR);
+    const g = sampleGravity(Math.max(0.1, absR), csZ);
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    csVR += gR * subDt;
+    csVZ += g.gZ * subDt;
+    csR += csVR * subDt;
+    csZ += csVZ * subDt;
+
+    // Landing check — INTERIOR: land when reaching tube wall from inside
+    const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dcR = csR - tubeR, dcZ = csZ;
+    const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
+
+    const landingV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+    const landingY = wrapY(((landingV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+    const landingTileH = tileHeightAt(playerX, landingY);
+    // Inner wall surface is at (r - tileH) from tube center
+    const effectiveR = TORUS_r - landingTileH;
+
+    if (distTC >= effectiveR) {
+      // Moving outward (toward wall): vDot > 0
+      const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
+      if (vDot > 0 || distTC > TORUS_r * 1.05) {
+        // Preserve facing direction
+        const cam = computeCamera();
+        const worldFwd = [cam.fwd[0], cam.fwd[1], cam.fwd[2]];
+
+        if (csR < 0) {
+          playerX = wrapX(playerX + WORLD_W / 2);
+          csR = -csR;
+        }
+        playerY = landingY;
+
+        // Back-solve playerAngle from worldFwd projected onto new surface frame
+        const newU = getPlayerU(), newV = getPlayerV();
+        const cosNV = Math.cos(newV), sinNV = Math.sin(newV);
+        const cosNU = Math.cos(newU), sinNU = Math.sin(newU);
+        const newEu = [-(TORUS_R + TORUS_r*cosNV)*sinNU, 0, (TORUS_R + TORUS_r*cosNV)*cosNU];
+        const newEuLen = Math.sqrt(newEu[0]**2 + newEu[2]**2) || 1;
+        const newEv = [-TORUS_r*sinNV*cosNU, TORUS_r*cosNV, -TORUS_r*sinNV*sinNU];
+        const newEvLen = Math.sqrt(newEv[0]**2 + newEv[1]**2 + newEv[2]**2) || 1;
+        const dotU = worldFwd[0]*newEu[0]/newEuLen + worldFwd[1]*newEu[1]/newEuLen + worldFwd[2]*newEu[2]/newEuLen;
+        const dotV = worldFwd[0]*newEv[0]/newEvLen + worldFwd[1]*newEv[1]/newEvLen + worldFwd[2]*newEv[2]/newEvLen;
+        playerAngle = Math.atan2(dotU, dotV);
+
+        forceLand();
+        return;
+      }
+    }
+
+    // Update playerHeight — INTERIOR: height = how far inward from wall
+    const tubeR2 = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dc2R = csR - tubeR2, dc2Z = csZ;
+    playerHeight = TORUS_r - Math.sqrt(dc2R*dc2R + dc2Z*dc2Z);
+  }
+}
+
+// =====================================================================
+// Player state
+// =====================================================================
+let playerX = playerSpawn.x, playerY = playerSpawn.y;
+let playerAngle = Math.PI;
+let playerPitch = 0;
+let airborne = false, playerHeight = 0;
+let csR = 0, csZ = 0, csVR = 0, csVZ = 0;
+let jumpDxPerSec = 0, jumpDyPerSec = 0;
+
+function getPlayerU() { return (playerX / WORLD_W) * Math.PI * 2; }
+function getPlayerV() { return (playerY / WORLD_H) * Math.PI * 2; }
+
+function torusPos(u, v) {
+  return [
+    (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
+    TORUS_r * Math.sin(v),
+    (TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
+  ];
+}
+
+function canWalk(nx, ny) {
+  if (airborne) return true;
+  const currentH = tileHeightAt(playerX, playerY);
+  const destH = tileHeightAt(nx, ny);
+  return destH <= currentH + MAX_STEP_H;
+}
+
+// =====================================================================
+// Input
+// =====================================================================
+const keys = {};
+let fpMode = true;
+let autoRun = false;
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ') e.preventDefault();
+  if (e.key === 'f' || e.key === 'F') {
+    fpMode = !fpMode;
+    document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+  }
+  if (e.key === 'q' || e.key === 'Q') {
+    autoRun = !autoRun;
+    document.getElementById('autoRunIndicator').style.display = autoRun ? 'block' : 'none';
+  }
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  if (e.key.length === 1) { keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+canvas.addEventListener('click', () => {
+  if (gameRunning) {
+    if (fpMode && gpuCanvas) gpuCanvas.requestPointerLock();
+    else canvas.requestPointerLock();
+  }
+});
+
+function hasPointerLock() {
+  return document.pointerLockElement === canvas || document.pointerLockElement === gpuCanvas;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!hasPointerLock()) return;
+  playerAngle += e.movementX * MOUSE_SENS;
+  playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, playerPitch - e.movementY * MOUSE_SENS));
+});
+
+document.addEventListener('pointerlockchange', () => {
+  const locked = hasPointerLock();
+  document.getElementById('reticle').style.display = locked ? 'block' : 'none';
+  if (!locked) { for (const k in keys) keys[k] = false; }
+});
+
+document.getElementById('viewToggle').addEventListener('click', () => {
+  fpMode = !fpMode;
+  document.getElementById('viewToggle').textContent = fpMode ? 'FPV [F]' : 'Top down [F]';
+});
+
+document.getElementById('physToggle').addEventListener('click', () => {
+  document.getElementById('physBody').classList.toggle('collapsed');
+});
+const slGrav = document.getElementById('slGrav');
+const valGrav = document.getElementById('valGrav');
+slGrav.addEventListener('input', () => {
+  GRAV_SCALE = parseFloat(slGrav.value);
+  valGrav.textContent = GRAV_SCALE.toFixed(1);
+  computeGravLUT();
+});
+const slR = document.getElementById('slR');
+const valR = document.getElementById('valR');
+slR.addEventListener('input', () => {
+  TORUS_R = parseFloat(slR.value);
+  valR.textContent = TORUS_R.toFixed(1);
+  updateGravBounds(); computeGravLUT();
+});
+const slr = document.getElementById('slr');
+const valr = document.getElementById('valr');
+slr.addEventListener('input', () => {
+  TORUS_r = parseFloat(slr.value);
+  valr.textContent = TORUS_r.toFixed(1);
+  updateGravBounds(); computeGravLUT();
+});
+const slUnit = document.getElementById('slUnit');
+const valUnit = document.getElementById('valUnit');
+slUnit.addEventListener('input', () => {
+  CELL_UNIT = parseInt(slUnit.value);
+  valUnit.textContent = CELL_UNIT;
+  rebuildMaze();
+});
+
+function rebuildMaze() {
+  generateMaze(CELL_UNIT);
+  pelletsEaten = 0;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
+  playerAngle = Math.PI; playerPitch = 0;
+  airborne = false; playerHeight = 0;
+  resetGhosts();
+  resizeMinimap();
+  updateGravBounds(); computeGravLUT();
+  gpuSky?.uploadTiles();
+}
+
+function resizeMinimap() {
+  mmCanvas.width = WORLD_W * MM_SCALE;
+  mmCanvas.height = WORLD_H * MM_SCALE;
+  mmCanvas.style.width = (WORLD_W * MM_SCALE) + 'px';
+  mmCanvas.style.height = (WORLD_H * MM_SCALE) + 'px';
+}
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// =====================================================================
+// WebGPU — ray-traced INTERIOR torus renderer
+// =====================================================================
+const gpuCanvas = document.createElement('canvas');
+gpuCanvas.id = 'gpuCanvas';
+gpuCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;display:none;z-index:1';
+document.body.insertBefore(gpuCanvas, document.getElementById('minimap'));
+gpuCanvas.addEventListener('click', () => {
+  if (gameRunning) gpuCanvas.requestPointerLock();
+});
+let gpuSky = null;
+
+const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, _p0: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, _p1: f32,
+  rightX: f32, rightY: f32, rightZ: f32, _p2: f32,
+  upX: f32, upY: f32, upZ: f32, _p3: f32,
+  sunX: f32, sunY: f32, sunZ: f32, time: f32,
+  torusR: f32, torusr: f32, width: u32, height: u32,
+  fovH: f32, fovV: f32, worldW: u32, worldH: u32,
+  horizonY: f32, _p5: f32, _p6: f32, _p7: f32,
+}
+
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> tiles: array<u32>;
+@group(0) @binding(2) var output: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(3) var<storage, read> ghosts: array<f32>;
+
+const PI: f32 = 3.14159265;
+const TWO_PI: f32 = 6.28318531;
+
+fn getTile(x: i32, y: i32) -> u32 {
+  let w = i32(p.worldW);
+  let h = i32(p.worldH);
+  let tx = ((x % w) + w) % w;
+  let ty = ((y % h) + h) % h;
+  return tiles[ty * w + tx];
+}
+
+fn tileH(t: u32) -> f32 {
+  if (t == 0u) { return 0.45; }
+  if (t == 5u) { return 0.20; }
+  return 0.0;
+}
+
+// Standard torus SDF (positive outside, negative inside tube)
+fn sdf(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let q = sqrt(px*px + pz*pz) - R;
+  return sqrt(q*q + py*py) - r;
+}
+
+// INTERIOR distance: positive inside tube, zero on surface
+fn innerDist(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let q = sqrt(px*px + pz*pz) - R;
+  return r - sqrt(q*q + py*py);
+}
+
+fn tileAtPos(px: f32, py: f32, pz: f32, R: f32) -> u32 {
+  let u_a = atan2(pz, px);
+  let d = sqrt(px*px + pz*pz);
+  let v_a = atan2(py, d - R);
+  var tu = u_a / TWO_PI;
+  if (tu < 0.0) { tu += 1.0; }
+  var tv = v_a / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  let tx = i32(tu * f32(p.worldW)) % i32(p.worldW);
+  let ty = i32(tv * f32(p.worldH)) % i32(p.worldH);
+  return getTile(tx, ty);
+}
+
+fn tileCoords(px: f32, py: f32, pz: f32, R: f32) -> vec2f {
+  let u_a = atan2(pz, px);
+  let d = sqrt(px*px + pz*pz);
+  let v_a = atan2(py, d - R);
+  var tu = u_a / TWO_PI;
+  if (tu < 0.0) { tu += 1.0; }
+  var tv = v_a / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  return vec2f(tu * f32(p.worldW), tv * f32(p.worldH));
+}
+
+// Tile center position INSIDE the tube (hover inward from inner surface)
+fn tileCenterPos(tx: f32, ty: f32, height: f32, R: f32, r: f32) -> vec3f {
+  let u = (tx + 0.5) / f32(p.worldW) * TWO_PI;
+  let v = (ty + 0.5) / f32(p.worldH) * TWO_PI;
+  // Inside: hover INWARD from wall (subtract height from r)
+  let sr = r - height;
+  return vec3f((R + sr * cos(v)) * cos(u), sr * sin(v), (R + sr * cos(v)) * sin(u));
+}
+
+// Ghost 3D position inside tube (floating inward from surface)
+fn ghostWorldPos(gi: u32, R: f32, r: f32) -> vec3f {
+  let gx = ghosts[gi * 8u];
+  let gy = ghosts[gi * 8u + 1u];
+  let u = gx / f32(p.worldW) * TWO_PI;
+  let v = gy / f32(p.worldH) * TWO_PI;
+  let hover: f32 = 0.35;
+  // Inside: subtract hover from r
+  let sr = r - hover;
+  return vec3f((R + sr * cos(v)) * cos(u), sr * sin(v), (R + sr * cos(v)) * sin(u));
+}
+
+fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
+             cx: f32, cy: f32, cz: f32, rad: f32) -> f32 {
+  let ex = ox - cx; let ey = oy - cy; let ez = oz - cz;
+  let b = ex*dx + ey*dy + ez*dz;
+  let c = ex*ex + ey*ey + ez*ez - rad*rad;
+  let disc = b*b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sq = sqrt(disc);
+  let t1 = -b - sq;
+  if (t1 > 0.01) { return t1; }
+  let t2 = -b + sq;
+  if (t2 > 0.01) { return t2; }
+  return -1.0;
+}
+
+// Interior displaced distance: walls protrude INWARD
+fn innerDD(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let bd = innerDist(px, py, pz, R, r);
+  let tile = tileAtPos(px, py, pz, R);
+  return bd - tileH(tile);
+}
+
+// Ray trace from INSIDE the tube
+fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
+  var t: f32 = 0.02;
+  var prevT: f32 = t;
+  var prevDD: f32 = 1.0;
+  for (var i = 0u; i < 128u; i++) {
+    let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
+    let dd = innerDD(px, py, pz, R, r);
+
+    // Sign change: overshot surface — binary search
+    if (dd < 0.0 && prevDD > 0.0) {
+      var lo = prevT;
+      var hi = t;
+      for (var b = 0u; b < 8u; b++) {
+        let mid = (lo + hi) * 0.5;
+        let mp = vec3f(ox + mid*dx, oy + mid*dy, oz + mid*dz);
+        let md = innerDD(mp.x, mp.y, mp.z, R, r);
+        if (md < 0.0) { hi = mid; } else { lo = mid; }
+      }
+      return (lo + hi) * 0.5;
+    }
+
+    if (dd < 0.002 && dd >= 0.0) { return t; }
+
+    // If we went outside the tube (innerDist < -0.3), skip back inward
+    let rawInner = innerDist(px, py, pz, R, r);
+    if (rawInner < -0.3) {
+      prevDD = dd;
+      prevT = t;
+      t += max(-rawInner, 0.02);
+      continue;
+    }
+
+    prevDD = dd;
+    prevT = t;
+    t += max(dd * 0.5, 0.005);
+    if (t > 60.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let px = gid.x;
+  let py = gid.y;
+  let w = p.width;
+  let h = p.height;
+  if (px >= w || py >= h) { return; }
+
+  let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
+  let screenV = p.horizonY - f32(py) / f32(h);
+  let azAngle = screenH * p.fovH * 0.5;
+  let elevAngle = screenV * p.fovV;
+
+  let cosEl = cos(elevAngle); let sinEl = sin(elevAngle);
+  let cosAz = cos(azAngle); let sinAz = sin(azAngle);
+
+  let fwd = vec3f(p.fwdX, p.fwdY, p.fwdZ);
+  let right = vec3f(p.rightX, p.rightY, p.rightZ);
+  let up = vec3f(p.upX, p.upY, p.upZ);
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
+  let cam = vec3f(p.camX, p.camY, p.camZ);
+  let R = p.torusR;
+  let r = p.torusr;
+  var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+
+  // Ghost sphere test
+  let ghostRad: f32 = 0.30;
+  var hitGhost: i32 = -1;
+  for (var gi = 0u; gi < 4u; gi++) {
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 1.5) { continue; }
+    let gp = ghostWorldPos(gi, R, r);
+    let gt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, gp.x, gp.y, gp.z, ghostRad);
+    if (gt > 0.0 && (t < 0.0 || gt < t)) {
+      t = gt;
+      hitGhost = i32(gi);
+    }
+  }
+
+  // Pellet sphere test
+  let pelletRad: f32 = 0.06;
+  let powerRad: f32 = 0.12;
+  var hitPellet: i32 = 0;
+  let camTC = tileCoords(cam.x, cam.y, cam.z, R);
+  let camTX = i32(camTC.x);
+  let camTY = i32(camTC.y);
+  for (var pdy = -4; pdy <= 4; pdy++) {
+    for (var pdx = -4; pdx <= 4; pdx++) {
+      let ttx = (camTX + pdx + i32(p.worldW)) % i32(p.worldW);
+      let tty = (camTY + pdy + i32(p.worldH)) % i32(p.worldH);
+      let tileVal = getTile(ttx, tty);
+      if (tileVal != 1u && tileVal != 2u) { continue; }
+      var prad: f32 = pelletRad;
+      var phover: f32 = 0.08;
+      if (tileVal == 2u) { prad = powerRad; phover = 0.18; }
+      // Inside: pellets hover inward from surface
+      let pp = tileCenterPos(f32(ttx), f32(tty), phover, R, r);
+      let pt = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, pp.x, pp.y, pp.z, prad);
+      if (pt > 0.0 && (t < 0.0 || pt < t)) {
+        t = pt;
+        hitPellet = i32(tileVal);
+        hitGhost = -1;
+      }
+    }
+  }
+
+  // Pellet rendering
+  if (hitPellet > 0) {
+    var pcr: f32 = 1.0; var pcg: f32 = 1.0; var pcb: f32 = 0.0;
+    if (hitPellet == 2) {
+      let pulse = 0.7 + 0.3 * sin(p.time * 6.0);
+      pcr = pulse; pcg = pulse; pcb = 0.0;
+    }
+    let pfade = 1.0 - min(1.0, t / 40.0) * 0.4;
+    pcr *= 0.9 * pfade; pcg *= 0.9 * pfade; pcb *= 0.1 * pfade;
+    textureStore(output, vec2u(px, py), vec4f(clamp(pcr, 0.0, 1.0), clamp(pcg, 0.0, 1.0), clamp(pcb, 0.0, 1.0), 1.0));
+    return;
+  }
+
+  if (t < 0.0) {
+    // Dark interior ambient (shouldn't happen often — we're enclosed)
+    textureStore(output, vec2u(px, py), vec4f(0.02, 0.01, 0.04, 1.0));
+    return;
+  }
+
+  var cr: f32; var cg: f32; var cb: f32;
+
+  if (hitGhost >= 0) {
+    let gi = u32(hitGhost);
+    let gp = ghostWorldPos(gi, R, r);
+    let hp = cam + t * rd;
+    let gn = normalize(hp - gp);
+    let gmode = ghosts[gi * 8u + 5u];
+    if (gmode > 0.5) {
+      let blink = 0.5 + 0.5 * sin(p.time * 8.0);
+      cr = 0.2; cg = 0.2; cb = 0.7 + 0.3 * blink;
+    } else {
+      cr = ghosts[gi * 8u + 2u];
+      cg = ghosts[gi * 8u + 3u];
+      cb = ghosts[gi * 8u + 4u];
+    }
+    let viewDot = abs(dot(gn, rd));
+    let fresnel = pow(1.0 - viewDot, 2.0);
+    let glow = 0.7 + 0.3 * fresnel;
+    let fade = 1.0 - min(1.0, t / 40.0) * 0.4;
+    cr = clamp(cr * glow * fade, 0.0, 1.0);
+    cg = clamp(cg * glow * fade, 0.0, 1.0);
+    cb = clamp(cb * glow * fade, 0.0, 1.0);
+    cr = min(1.0, cr + fresnel * 0.4);
+    cg = min(1.0, cg + fresnel * 0.4);
+    cb = min(1.0, cb + fresnel * 0.4);
+    textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+    return;
+  }
+
+  // Terrain hit — compute normal and light
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+  let tile = tileAtPos(hx, hy, hz, R);
+  let tc = tileCoords(hx, hy, hz, R);
+
+  if (tile == 0u) { // WALL — warm orange glow for interior
+    cr = 0.9; cg = 0.6; cb = 0.3;
+  } else if (tile == 5u) { // DOOR — pink
+    cr = 1.0; cg = 0.4; cb = 0.7;
+  } else { // floor — dark blue-purple
+    cr = 0.05; cg = 0.03; cb = 0.12;
+  }
+
+  // Normal via central differences of inner displaced distance
+  let eps: f32 = 0.012;
+  let dR = innerDD(hx+eps, hy, hz, R, r) - innerDD(hx-eps, hy, hz, R, r);
+  let dG = innerDD(hx, hy+eps, hz, R, r) - innerDD(hx, hy-eps, hz, R, r);
+  let dB = innerDD(hx, hy, hz+eps, R, r) - innerDD(hx, hy, hz-eps, R, r);
+  let hn = normalize(vec3f(dR, dG, dB));
+
+  // Tube center-line lighting: light emanates from the tube axis
+  let u_angle = atan2(hz, hx);
+  let tubeCenterPt = vec3f(R * cos(u_angle), 0.0, R * sin(u_angle));
+  let toCenter = normalize(tubeCenterPt - vec3f(hx, hy, hz));
+  let centerDot = max(0.0, dot(hn, toCenter));
+  // Also add a warm directional component for variety
+  let sunDir = normalize(vec3f(0.3, 0.7, 0.2));
+  let sunDot = max(0.0, dot(hn, sunDir));
+  let light = 0.12 + 0.55 * centerDot + 0.33 * sunDot;
+  let fade = 1.0 - min(1.0, t / 40.0) * 0.5;
+
+  cr = cr * light * fade;
+  cg = cg * light * fade;
+  cb = cb * light * fade;
+
+  // Ghost point lights
+  let hitPos = vec3f(hx, hy, hz);
+  for (var gli = 0u; gli < 4u; gli++) {
+    let glmode = ghosts[gli * 8u + 5u];
+    if (glmode > 1.5) { continue; }
+    let glp = ghostWorldPos(gli, R, r);
+    let toLight = glp - hitPos;
+    let dist2 = dot(toLight, toLight);
+    let dist = sqrt(dist2);
+    if (dist < 0.001 || dist > 4.0) { continue; }
+    let ldir = toLight / dist;
+    let ndotl = max(0.0, dot(hn, ldir));
+    let atten = ndotl / (0.3 + dist2 * 1.5);
+    var lr: f32; var lg: f32; var lb: f32;
+    if (glmode > 0.5) { lr = 0.3; lg = 0.3; lb = 1.0; }
+    else { lr = ghosts[gli*8u+2u]; lg = ghosts[gli*8u+3u]; lb = ghosts[gli*8u+4u]; }
+    cr += lr * atten * 2.0;
+    cg += lg * atten * 2.0;
+    cb += lb * atten * 2.0;
+  }
+
+  cr = clamp(cr, 0.0, 1.0);
+  cg = clamp(cg, 0.0, 1.0);
+  cb = clamp(cb, 0.0, 1.0);
+  textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
+}
+`;
+
+(async function initWebGPU() {
+  if (!navigator.gpu) { console.warn('No WebGPU'); return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { console.warn('No GPU adapter'); return; }
+  const device = await adapter.requestDevice();
+
+  const gpuCtx = gpuCanvas.getContext('webgpu');
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  gpuCtx.configure({ device, format: canvasFormat, alphaMode: 'opaque' });
+
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: {
+      module: blitModule, entryPoint: 'fs',
+      targets: [{ format: canvasFormat }],
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+  const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const MAX_TILES = 16384;
+  const tileBuf = device.createBuffer({ size: MAX_TILES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const ghostBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+  function uploadTiles() {
+    const data = new Uint32Array(MAX_TILES);
+    for (let i = 0; i < Math.min(maze.length, MAX_TILES); i++) data[i] = maze[i];
+    device.queue.writeBuffer(tileBuf, 0, data);
+  }
+  uploadTiles();
+
+  const initGhosts = new Float32Array(32);
+  for (let i = 0; i < 4; i++) initGhosts[i * 8 + 5] = 2.0;
+  device.queue.writeBuffer(ghostBuf, 0, initGhosts);
+
+  let outputTex = null, computeBindGroup = null, blitBindGroup = null;
+  let skyW = 0, skyH = 0;
+
+  function ensureSize(w, h) {
+    if (w === skyW && h === skyH) return;
+    skyW = w; skyH = h;
+    if (outputTex) outputTex.destroy();
+    outputTex = device.createTexture({
+      size: [w, h],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    computeBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: paramBuf } },
+        { binding: 1, resource: { buffer: tileBuf } },
+        { binding: 2, resource: outputTex.createView() },
+        { binding: 3, resource: { buffer: ghostBuf } },
+      ],
+    });
+    blitBindGroup = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outputTex.createView() },
+        { binding: 1, resource: sampler },
+      ],
+    });
+  }
+
+  gpuSky = {
+    render: function(w, h, cam, ghostData) {
+      ensureSize(w, h);
+      if (ghostData) device.queue.writeBuffer(ghostBuf, 0, ghostData);
+
+      const pd = new ArrayBuffer(128);
+      const f = new Float32Array(pd);
+      const u = new Uint32Array(pd);
+      f[0] = cam.P[0]; f[1] = cam.P[1]; f[2] = cam.P[2];
+      f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
+      f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
+      f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
+      f[16] = 0.3; f[17] = 0.7; f[18] = 0.2;
+      f[19] = gameTime;
+      f[20] = TORUS_R; f[21] = TORUS_r;
+      u[22] = w; u[23] = h;
+      f[24] = FOV; f[25] = VFOV;
+      u[26] = WORLD_W; u[27] = WORLD_H;
+      f[28] = 0.5;
+      device.queue.writeBuffer(paramBuf, 0, pd);
+
+      gpuCanvas.width = canvas.width;
+      gpuCanvas.height = canvas.height;
+
+      const enc = device.createCommandEncoder();
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBindGroup);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+
+      const renderPass = enc.beginRenderPass({
+        colorAttachments: [{
+          view: gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        }],
+      });
+      renderPass.setPipeline(blitPipeline);
+      renderPass.setBindGroup(0, blitBindGroup);
+      renderPass.draw(3);
+      renderPass.end();
+
+      device.queue.submit([enc.finish()]);
+    },
+    uploadTiles,
+  };
+  console.log('WebGPU initialized (interior torus renderer)');
+})();
+
+// =====================================================================
+// Camera — INTERIOR: gravity-aligned, offset INWARD from surface
+// =====================================================================
+function computeCamera() {
+  const u = getPlayerU();
+  const v = getPlayerV();
+  const surfP = torusPos(u, v);
+  const groundH = tileHeightAt(playerX, playerY);
+  // Inside: eye offset goes INWARD (toward tube center)
+  const hOff = EYE_HEIGHT + (airborne ? 0 : groundH) + playerHeight;
+
+  let P;
+  if (airborne && playerHeight > 0.01) {
+    P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
+  } else {
+    // Outward normal
+    const en = [Math.cos(v)*Math.cos(u), Math.sin(v), Math.cos(v)*Math.sin(u)];
+    // SUBTRACT to go inward from surface
+    P = [surfP[0] - en[0]*hOff, surfP[1] - en[1]*hOff, surfP[2] - en[2]*hOff];
+  }
+
+  // Gravity-aligned "up" = anti-gravity direction
+  // Inside tube, gravity pulls outward → anti-gravity = inward
+  let mR, mZ;
+  if (airborne && playerHeight > 0.01) { mR = csR; mZ = csZ; }
+  else { mR = TORUS_R + TORUS_r * Math.cos(v); mZ = TORUS_r * Math.sin(v); }
+
+  const absR = Math.abs(mR);
+  const g = sampleGravity(Math.max(0.1, absR), mZ);
+  const gR = mR >= 0 ? g.gR : -g.gR;
+  const gZ = g.gZ;
+  const gLen = Math.sqrt(gR*gR + gZ*gZ);
+
+  let en;
+  if (gLen > 0.01) {
+    const antiR = -gR/gLen, antiZ = -gZ/gLen;
+    en = [antiR*Math.cos(u), antiZ, antiR*Math.sin(u)];
+  } else {
+    // Fallback: inward from tube center toward torus center
+    const rLen = Math.sqrt(P[0]*P[0]+P[2]*P[2]) || 1;
+    en = [-P[0]/rLen, 0, -P[2]/rLen];
+  }
+
+  // Gram-Schmidt with u-tangent
+  const uTan = [-Math.sin(u), 0, Math.cos(u)];
+  const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
+  let rx = uTan[0]-dot*en[0], ry = uTan[1]-dot*en[1], rz = uTan[2]-dot*en[2];
+  let rLen = Math.sqrt(rx*rx+ry*ry+rz*rz) || 1;
+  rx /= rLen; ry /= rLen; rz /= rLen;
+
+  let tx = ry*en[2]-rz*en[1], ty = rz*en[0]-rx*en[2], tz = rx*en[1]-ry*en[0];
+  let tLen = Math.sqrt(tx*tx+ty*ty+tz*tz) || 1;
+  tx /= tLen; ty /= tLen; tz /= tLen;
+
+  const eu = [rx,ry,rz], ev = [tx,ty,tz];
+  const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+  const flatFwd = [sa*eu[0]+ca*ev[0], sa*eu[1]+ca*ev[1], sa*eu[2]+ca*ev[2]];
+  const right = [ca*eu[0]-sa*ev[0], ca*eu[1]-sa*ev[1], ca*eu[2]-sa*ev[2]];
+
+  const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+  const fwd = [flatFwd[0]*cp+en[0]*sp, flatFwd[1]*cp+en[1]*sp, flatFwd[2]*cp+en[2]*sp];
+  const up = [-flatFwd[0]*sp+en[0]*cp, -flatFwd[1]*sp+en[1]*cp, -flatFwd[2]*sp+en[2]*cp];
+
+  return { P, fwd, right, up };
+}
+
+// =====================================================================
+// Player movement
+// =====================================================================
+function updatePlayer(dt) {
+  if (keys['ArrowLeft']) playerAngle -= 2.5 * dt;
+  if (keys['ArrowRight']) playerAngle += 2.5 * dt;
+
+  if (airborne) {
+    playerX = wrapX(playerX + jumpDxPerSec * dt);
+    return;
+  }
+
+  const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+  const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
+  let dx = 0, dy = 0;
+  if (autoRun || keys['w'] || keys['W'] || keys['ArrowUp']) { dx += fwdX; dy += fwdY; }
+  if (keys['s'] || keys['S'] || keys['ArrowDown']) { dx -= fwdX; dy -= fwdY; }
+  if (keys['a'] || keys['A']) { dx -= rightX; dy -= rightY; }
+  if (keys['d'] || keys['D']) { dx += rightX; dy += rightY; }
+
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len > 0.01) {
+    dx /= len; dy /= len;
+    const speed = metricTileSpeed(PLAYER_SPEED, dx, dy, playerY) * dt;
+    const newX = playerX + dx * speed;
+    const newY = playerY + dy * speed;
+    if (canWalk(newX, playerY)) playerX = wrapX(newX);
+    if (canWalk(playerX, newY)) playerY = wrapY(newY);
+    jumpDxPerSec = dx * metricTileSpeed(PLAYER_SPEED, 1, 0, playerY);
+    jumpDyPerSec = dy * metricTileSpeed(PLAYER_SPEED, 0, 1, playerY);
+  } else {
+    jumpDxPerSec = 0;
+    jumpDyPerSec = 0;
+  }
+
+  if (keys[' ']) doJump();
+}
+
+// =====================================================================
+// Minimap
+// =====================================================================
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_SCALE = 4;
+mmCanvas.width = WORLD_W * MM_SCALE;
+mmCanvas.height = WORLD_H * MM_SCALE;
+mmCanvas.style.width = (WORLD_W * MM_SCALE) + 'px';
+mmCanvas.style.height = (WORLD_H * MM_SCALE) + 'px';
+
+function drawMinimap() {
+  const s = MM_SCALE;
+  mmCtx.fillStyle = '#000';
+  mmCtx.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const t = maze[y * WORLD_W + x];
+      if (t === T.WALL) { mmCtx.fillStyle = '#624'; }
+      else if (t === T.DOOR) { mmCtx.fillStyle = '#808'; }
+      else if (t === T.PELLET) { mmCtx.fillStyle = '#332'; }
+      else if (t === T.POWER) { mmCtx.fillStyle = '#880'; }
+      else { continue; }
+      mmCtx.fillRect(x * s, y * s, s, s);
+    }
+  }
+  mmCtx.fillStyle = '#ff0';
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const t = maze[y * WORLD_W + x];
+      if (t === T.PELLET) mmCtx.fillRect(x*s+1, y*s+1, 2, 2);
+      else if (t === T.POWER) mmCtx.fillRect(x*s, y*s, s, s);
+    }
+  }
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning') continue;
+    mmCtx.fillStyle = g.mode === 'frightened' ? '#00f' :
+      `rgb(${g.color[0]*255|0},${g.color[1]*255|0},${g.color[2]*255|0})`;
+    mmCtx.fillRect(g.x*s-2, g.y*s-2, 5, 5);
+  }
+  mmCtx.fillStyle = '#ff0';
+  mmCtx.beginPath();
+  mmCtx.arc(playerX * s, playerY * s, 3, 0, Math.PI * 2);
+  mmCtx.fill();
+  mmCtx.strokeStyle = '#ff0';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(playerX * s, playerY * s);
+  mmCtx.lineTo((playerX + Math.sin(playerAngle) * 1.5) * s,
+               (playerY + Math.cos(playerAngle) * 1.5) * s);
+  mmCtx.stroke();
+}
+
+// =====================================================================
+// HUD
+// =====================================================================
+let score = 0, lives = 3;
+
+function updateHUD() {
+  document.getElementById('score-display').textContent = score;
+  const el = document.getElementById('lives-display');
+  el.innerHTML = '';
+  for (let i = 0; i < lives; i++) {
+    const s = document.createElement('span');
+    s.className = 'pac-life';
+    el.appendChild(s);
+  }
+}
+
+// =====================================================================
+// Top-down renderer (fallback)
+// =====================================================================
+function renderTopDown() {
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  const tileSize = Math.min(w, h) / 20;
+  const cx = w / 2, cy = h / 2;
+  for (let dy = -12; dy <= 12; dy++) {
+    for (let dx = -12; dx <= 12; dx++) {
+      const tx = Math.floor(wrapX(playerX + dx));
+      const ty = Math.floor(wrapY(playerY + dy));
+      const t = maze[ty * WORLD_W + tx];
+      const sx = cx + (dx - (playerX % 1) + 0.5) * tileSize;
+      const sy = cy + (dy - (playerY % 1) + 0.5) * tileSize;
+      if (t === T.WALL) { ctx.fillStyle = '#964'; ctx.fillRect(sx, sy, tileSize, tileSize); }
+      else if (t === T.DOOR) { ctx.fillStyle = '#f6a'; ctx.fillRect(sx, sy, tileSize, tileSize * 0.5); }
+      else if (t === T.PELLET) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(sx + tileSize/2, sy + tileSize/2, 2, 0, Math.PI*2); ctx.fill();
+      } else if (t === T.POWER) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath(); ctx.arc(sx + tileSize/2, sy + tileSize/2, 5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning') continue;
+    let gdx = g.x - playerX, gdy = g.y - playerY;
+    if (gdx > WORLD_W/2) gdx -= WORLD_W;
+    if (gdx < -WORLD_W/2) gdx += WORLD_W;
+    if (gdy > WORLD_H/2) gdy -= WORLD_H;
+    if (gdy < -WORLD_H/2) gdy += WORLD_H;
+    if (Math.abs(gdx) > 13 || Math.abs(gdy) > 13) continue;
+    const gsx = cx + gdx * tileSize, gsy = cy + gdy * tileSize;
+    ctx.fillStyle = g.mode === 'frightened' ? '#00f' :
+      `rgb(${g.color[0]*255|0},${g.color[1]*255|0},${g.color[2]*255|0})`;
+    ctx.fillRect(gsx - tileSize*0.4, gsy - tileSize*0.4, tileSize*0.8, tileSize*0.8);
+  }
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.arc(cx, cy, tileSize * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(playerAngle) * tileSize, cy + Math.cos(playerAngle) * tileSize);
+  ctx.stroke();
+}
+
+// =====================================================================
+// Ghost AI
+// =====================================================================
+const DIR = { UP: 0, LEFT: 1, DOWN: 2, RIGHT: 3 };
+const DX = [0, -1, 0, 1];
+const DY = [-1, 0, 1, 0];
+const REVERSE_DIR = [2, 3, 0, 1];
+const GHOST_SPEED = 3.5;
+const GHOST_FRIGHT_SPEED = 2.0;
+
+const ghosts = [
+  { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
+    color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
+  { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
+  { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
+  { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
+    color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
+];
+
+function resetGhosts() {
+  const gx = ghostHouseCenter.x, gy = ghostHouseCenter.y;
+  const ex = ghostEntrance.x, ey = ghostEntrance.y;
+  ghosts[0].x = ex; ghosts[0].y = ey; ghosts[0].dir = DIR.LEFT; ghosts[0].mode = 'scatter';
+  ghosts[1].x = gx; ghosts[1].y = gy; ghosts[1].dir = DIR.UP; ghosts[1].mode = 'waiting';
+  ghosts[2].x = gx - 1; ghosts[2].y = gy; ghosts[2].dir = DIR.UP; ghosts[2].mode = 'waiting';
+  ghosts[3].x = gx + 1; ghosts[3].y = gy; ghosts[3].dir = DIR.UP; ghosts[3].mode = 'waiting';
+  ghosts[0].scatter = { x: WORLD_W - 3, y: 1 };
+  ghosts[1].scatter = { x: 2, y: 1 };
+  ghosts[2].scatter = { x: WORLD_W - 3, y: WORLD_H - 2 };
+  ghosts[3].scatter = { x: 2, y: WORLD_H - 2 };
+  for (const g of ghosts) { g.lastTx = -1; g.lastTy = -1; }
+}
+resetGhosts();
+
+function canGhostMove(x, y, ghost) {
+  const t = getMaze(x, y);
+  if (t === T.WALL) return false;
+  if ((t === T.GHOST_HOUSE || t === T.DOOR) && ghost.mode !== 'exiting' && ghost.mode !== 'returning') return false;
+  return true;
+}
+
+function getPlayerDir() {
+  const a = ((playerAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  if (a < Math.PI*0.25 || a >= Math.PI*1.75) return DIR.DOWN;
+  if (a < Math.PI*0.75) return DIR.RIGHT;
+  if (a < Math.PI*1.25) return DIR.UP;
+  return DIR.LEFT;
+}
+
+function getGhostTarget(ghost) {
+  if (ghost.mode === 'returning') return { x: ghostEntrance.x, y: ghostEntrance.y };
+  if (ghost.mode === 'scatter') return ghost.scatter;
+  if (ghost.mode === 'frightened') return { x: Math.random()*WORLD_W, y: Math.random()*WORLD_H };
+  switch (ghost.type) {
+    case 'blinky': return { x: playerX, y: playerY };
+    case 'pinky': {
+      const d = getPlayerDir();
+      return { x: playerX + DX[d]*4, y: playerY + DY[d]*4 };
+    }
+    case 'inky': {
+      const d = getPlayerDir();
+      const px = playerX + DX[d]*2, py = playerY + DY[d]*2;
+      return { x: px + (px - ghosts[0].x), y: py + (py - ghosts[0].y) };
+    }
+    case 'clyde': {
+      const dx = playerX - ghost.x, dy = playerY - ghost.y;
+      return (dx*dx + dy*dy > 64) ? { x: playerX, y: playerY } : ghost.scatter;
+    }
+  }
+  return { x: playerX, y: playerY };
+}
+
+function chooseGhostDir(ghost) {
+  const target = getGhostTarget(ghost);
+  let bestDist = Infinity, bestDir = ghost.dir;
+  for (const dir of [DIR.UP, DIR.LEFT, DIR.DOWN, DIR.RIGHT]) {
+    if (dir === REVERSE_DIR[ghost.dir]) continue;
+    const nx = Math.floor(ghost.x) + DX[dir];
+    const ny = Math.floor(ghost.y) + DY[dir];
+    if (!canGhostMove(wrapX(nx), wrapY(ny), ghost)) continue;
+    let dx = wrapX(nx) + 0.5 - target.x;
+    let dy = wrapY(ny) + 0.5 - target.y;
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    const dist = dx*dx + dy*dy;
+    if (dist < bestDist) { bestDist = dist; bestDir = dir; }
+  }
+  if (bestDist === Infinity) bestDir = REVERSE_DIR[ghost.dir];
+  ghost.dir = bestDir;
+}
+
+function updateGhost(ghost, dt) {
+  if (ghost.mode === 'waiting') return;
+  if (ghost.mode === 'exiting') {
+    const tx = ghostEntrance.x, ty = ghostEntrance.y;
+    let dx = tx - ghost.x, dy = ty - ghost.y;
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 0.3) { ghost.x = tx; ghost.y = ty; ghost.mode = 'chase'; ghost.lastTx = -1; ghost.lastTy = -1; return; }
+    const spd = Math.min(GHOST_SPEED * dt, dist);
+    ghost.x = wrapX(ghost.x + (dx/dist)*spd);
+    ghost.y = wrapY(ghost.y + (dy/dist)*spd);
+    return;
+  }
+  if (ghost.mode === 'returning') {
+    let rdx = ghostEntrance.x - ghost.x, rdy = ghostEntrance.y - ghost.y;
+    if (rdx > WORLD_W/2) rdx -= WORLD_W;
+    if (rdx < -WORLD_W/2) rdx += WORLD_W;
+    if (rdy > WORLD_H/2) rdy -= WORLD_H;
+    if (rdy < -WORLD_H/2) rdy += WORLD_H;
+    if (rdx*rdx + rdy*rdy < 0.5) {
+      ghost.x = ghostEntrance.x; ghost.y = ghostEntrance.y;
+      ghost.mode = 'exiting'; return;
+    }
+  }
+  const baseSpd = ghost.mode === 'frightened' ? GHOST_FRIGHT_SPEED :
+                   ghost.mode === 'returning' ? GHOST_SPEED * 2 : GHOST_SPEED;
+  const isU = DX[ghost.dir] !== 0;
+  const spd = cardinalTileSpeed(baseSpd, isU, ghost.y) * dt;
+  const nx = wrapX(ghost.x + DX[ghost.dir] * spd);
+  const ny = wrapY(ghost.y + DY[ghost.dir] * spd);
+  if (!canGhostMove(Math.floor(nx), Math.floor(ny), ghost)) {
+    ghost.x = Math.floor(ghost.x) + 0.5;
+    ghost.y = Math.floor(ghost.y) + 0.5;
+    ghost.lastTx = -1; ghost.lastTy = -1;
+    chooseGhostDir(ghost);
+    return;
+  }
+  ghost.x = nx;
+  ghost.y = ny;
+  const tx = Math.floor(ghost.x);
+  const ty = Math.floor(ghost.y);
+  const cx = tx + 0.5;
+  const cy = ty + 0.5;
+  if (Math.abs(ghost.x - cx) + Math.abs(ghost.y - cy) < spd * 1.5) {
+    if (tx !== ghost.lastTx || ty !== ghost.lastTy) {
+      ghost.x = cx; ghost.y = cy;
+      ghost.lastTx = tx; ghost.lastTy = ty;
+      chooseGhostDir(ghost);
+    }
+  }
+}
+
+function buildGhostData() {
+  const data = new Float32Array(32);
+  for (let i = 0; i < 4; i++) {
+    const g = ghosts[i];
+    data[i*8] = g.x;
+    data[i*8+1] = g.y;
+    data[i*8+2] = g.color[0];
+    data[i*8+3] = g.color[1];
+    data[i*8+4] = g.color[2];
+    data[i*8+5] = g.mode === 'frightened' ? 1.0 :
+                   (g.mode === 'waiting' || g.mode === 'returning') ? 2.0 : 0.0;
+  }
+  return data;
+}
+
+// =====================================================================
+// Game state — pellets, power pellets, collision
+// =====================================================================
+let pelletsEaten = 0;
+let powerTimer = 0;
+let ghostEatScore = 200;
+
+function checkPellets() {
+  const tx = Math.floor(wrapX(playerX));
+  const ty = Math.floor(wrapY(playerY));
+  const idx = ty * WORLD_W + tx;
+  const t = maze[idx];
+
+  if (t === T.PELLET) {
+    maze[idx] = T.EMPTY;
+    score += 10;
+    pelletsEaten++;
+    gpuSky?.uploadTiles();
+    updateHUD();
+  } else if (t === T.POWER) {
+    maze[idx] = T.EMPTY;
+    score += 50;
+    pelletsEaten++;
+    powerTimer = 8.0;
+    ghostEatScore = 200;
+    for (const g of ghosts) {
+      if (g.mode === 'chase' || g.mode === 'scatter') {
+        g.mode = 'frightened';
+        g.dir = REVERSE_DIR[g.dir];
+      }
+    }
+    gpuSky?.uploadTiles();
+    updateHUD();
+  }
+
+  if (pelletsEaten >= totalPellets) {
+    showMessage('LEVEL CLEAR!');
+    gameRunning = false;
+  }
+}
+
+function checkGhostCollision() {
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' || g.mode === 'returning' || g.mode === 'exiting') continue;
+    if (airborne && playerHeight > 0.3) continue;
+    let dx = playerX - g.x, dy = playerY - g.y;
+    if (dx > WORLD_W/2) dx -= WORLD_W;
+    if (dx < -WORLD_W/2) dx += WORLD_W;
+    if (dy > WORLD_H/2) dy -= WORLD_H;
+    if (dy < -WORLD_H/2) dy += WORLD_H;
+    if (dx*dx + dy*dy > 0.5) continue;
+
+    if (g.mode === 'frightened') {
+      g.mode = 'returning';
+      score += ghostEatScore;
+      ghostEatScore *= 2;
+      updateHUD();
+    } else {
+      lives--;
+      updateHUD();
+      if (lives <= 0) {
+        showMessage('GAME OVER');
+        gameRunning = false;
+      } else {
+        showMessage('READY!');
+        setTimeout(() => {
+          document.getElementById('msg').style.display = 'none';
+        }, 1500);
+        playerX = playerSpawn.x; playerY = playerSpawn.y;
+        playerAngle = Math.PI; playerPitch = 0;
+        airborne = false; playerHeight = 0;
+        resetGhosts();
+      }
+    }
+  }
+}
+
+function showMessage(text) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+// =====================================================================
+// FPV Render
+// =====================================================================
+function renderFPV() {
+  if (!gpuSky) return;
+  const w = canvas.width, h = canvas.height;
+  const scale = Math.min(1, 360 / h);
+  const rw = Math.max(8, Math.floor(w * scale));
+  const rh = Math.max(8, Math.floor(h * scale));
+  const cam = computeCamera();
+  gpuSky.render(rw, rh, cam, buildGhostData());
+}
+
+// =====================================================================
+// Game loop
+// =====================================================================
+let gameRunning = false;
+let gameTime = 0;
+let lastTime = 0;
+
+const MODE_WAVES = [
+  { mode: 'scatter', until: 7 },
+  { mode: 'chase',   until: 27 },
+  { mode: 'scatter', until: 34 },
+  { mode: 'chase',   until: 54 },
+  { mode: 'scatter', until: 59 },
+  { mode: 'chase',   until: 79 },
+  { mode: 'scatter', until: 84 },
+];
+let currentWave = 0;
+
+function gameLoop(now) {
+  requestAnimationFrame(gameLoop);
+  if (!gameRunning) return;
+
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  gameTime += dt;
+
+  updatePlayer(dt);
+  updateJumpPhysics(dt);
+
+  for (const g of ghosts) {
+    if (g.mode === 'waiting' && gameTime >= g.releaseTime) {
+      g.mode = 'exiting';
+    }
+  }
+  for (const g of ghosts) updateGhost(g, dt);
+
+  if (currentWave < MODE_WAVES.length && gameTime >= MODE_WAVES[currentWave].until) {
+    currentWave++;
+    const newMode = currentWave < MODE_WAVES.length ? MODE_WAVES[currentWave].mode : 'chase';
+    for (const g of ghosts) {
+      if (g.mode === 'chase' || g.mode === 'scatter') {
+        g.mode = newMode;
+        g.dir = REVERSE_DIR[g.dir];
+      }
+    }
+  }
+
+  if (powerTimer > 0) {
+    powerTimer -= dt;
+    if (powerTimer <= 0) {
+      powerTimer = 0;
+      for (const g of ghosts) {
+        if (g.mode === 'frightened') g.mode = 'chase';
+      }
+    }
+  }
+
+  checkPellets();
+  checkGhostCollision();
+
+  if (fpMode && gpuSky) {
+    gpuCanvas.style.display = 'block';
+    renderFPV();
+  } else {
+    gpuCanvas.style.display = 'none';
+    renderTopDown();
+  }
+  drawMinimap();
+}
+
+requestAnimationFrame(gameLoop);
+
+// =====================================================================
+// Start
+// =====================================================================
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('physPanel').style.display = 'block';
+  (fpMode && gpuCanvas ? gpuCanvas : canvas).requestPointerLock();
+  gameRunning = true;
+  lastTime = performance.now();
+  gameTime = 0;
+  score = 0;
+  lives = 3;
+  generateMaze(CELL_UNIT);
+  pelletsEaten = 0;
+  powerTimer = 0;
+  ghostEatScore = 200;
+  currentWave = 0;
+  playerX = playerSpawn.x; playerY = playerSpawn.y;
+  playerAngle = Math.PI; playerPitch = 0;
+  airborne = false; playerHeight = 0;
+  resetGhosts();
+  resizeMinimap();
+  updateGravBounds(); computeGravLUT();
+  gpuSky?.uploadTiles();
+  document.getElementById('msg').style.display = 'none';
+  updateHUD();
+}
+window.startGame = startGame;
+
+updateHUD();
+</script>
+</body>
+</html>
