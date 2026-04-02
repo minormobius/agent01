@@ -131,18 +131,11 @@ function v3norm(a) { const l = v3len(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
 function v3lerp(a, b, t) { return [a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*(b[2]-a[2])]; }
 
 // =====================================================================
-// Knot center curve computation
+// Surface factory — builds curve data for any (p,q) torus knot
 // =====================================================================
-let curvePoints = []; // [{pos, tangent, normal, binormal}]
-let numSegs = 0;
-let curveLengthTotal = 0;
-
-function computeCurve() {
-  const p_ = KNOT_P, q_ = KNOT_Q;
-  const R = TORUS_R, r0 = KNOT_R0;
+function makeSurface(p_, q_, R, r0, tubeR) {
   const N = Math.max(96, 48 * Math.max(p_, q_));
-  numSegs = N;
-  curvePoints = [];
+  const pts = [];
 
   // Compute positions
   for (let i = 0; i < N; i++) {
@@ -151,46 +144,86 @@ function computeCurve() {
     const x = (R + r0 * Math.cos(qt)) * Math.cos(pt);
     const y = r0 * Math.sin(qt);
     const z = (R + r0 * Math.cos(qt)) * Math.sin(pt);
-    curvePoints.push({ pos: [x, y, z] });
+    pts.push({ pos: [x, y, z] });
   }
 
   // Tangents via finite differences
   for (let i = 0; i < N; i++) {
-    const next = curvePoints[(i + 1) % N].pos;
-    const prev = curvePoints[(i - 1 + N) % N].pos;
-    curvePoints[i].tangent = v3norm(v3sub(next, prev));
+    const next = pts[(i + 1) % N].pos;
+    const prev = pts[(i - 1 + N) % N].pos;
+    pts[i].tangent = v3norm(v3sub(next, prev));
   }
 
   // Normals: radial reference direction projected perpendicular to tangent
   for (let i = 0; i < N; i++) {
     const t = (i / N) * Math.PI * 2;
     const qt = q_ * t, pt = p_ * t;
-    // Outward radial from host torus tube center
     const rad = [Math.cos(qt) * Math.cos(pt), Math.sin(qt), Math.cos(qt) * Math.sin(pt)];
-    const T = curvePoints[i].tangent;
+    const T = pts[i].tangent;
     const d = v3dot(rad, T);
     const projected = v3sub(rad, v3scale(T, d));
     const pLen = v3len(projected);
     if (pLen < 0.001) {
-      // Fallback: use cross product with arbitrary vector
       const arb = Math.abs(T[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
-      const c = v3cross(T, arb);
-      curvePoints[i].normal = v3norm(c);
+      pts[i].normal = v3norm(v3cross(T, arb));
     } else {
-      curvePoints[i].normal = v3scale(projected, 1 / pLen);
+      pts[i].normal = v3scale(projected, 1 / pLen);
     }
-    curvePoints[i].binormal = v3cross(T, curvePoints[i].normal);
+    pts[i].binormal = v3cross(T, pts[i].normal);
   }
 
   // Total curve length
-  curveLengthTotal = 0;
+  let curveLength = 0;
   for (let i = 0; i < N; i++) {
-    const next = curvePoints[(i + 1) % N].pos;
-    curveLengthTotal += v3len(v3sub(next, curvePoints[i].pos));
+    curveLength += v3len(v3sub(pts[(i + 1) % N].pos, pts[i].pos));
   }
+
+  return { p: p_, q: q_, R, r0, tubeR, curvePoints: pts, numSegs: N, curveLength };
 }
 
-computeCurve();
+// =====================================================================
+// Multi-surface array and active surface tracking
+// =====================================================================
+const surfaces = [];
+let activeSurface = 0;
+
+// Global aliases — always reflect surfaces[activeSurface]
+let curvePoints = [];
+let numSegs = 0;
+let curveLengthTotal = 0;
+
+function syncFromActiveSurface() {
+  const s = surfaces[activeSurface];
+  curvePoints = s.curvePoints;
+  numSegs = s.numSegs;
+  curveLengthTotal = s.curveLength;
+  WORLD_W = s.worldW;
+  WORLD_H = s.worldH;
+  mazeInit = s.mazeInit;
+  maze = s.maze;
+  totalPellets = s.totalPellets;
+  ghostHouseCenter = s.ghostHouseCenter;
+  ghostEntrance = s.ghostEntrance;
+  playerSpawn = s.playerSpawn;
+  TUBE_R = s.tubeR;
+}
+
+function buildSurface(p_, q_, R, r0, tubeR, cellUnit) {
+  const s = makeSurface(p_, q_, R, r0, tubeR);
+  generateSurfaceMaze(s, cellUnit);
+  s.ghosts = makeGhostSet(s);
+  resetGhostSet(s.ghosts, s);
+  return s;
+}
+
+function buildAllSurfaces() {
+  surfaces.length = 0;
+  surfaces.push(buildSurface(KNOT_P, KNOT_Q, TORUS_R, KNOT_R0, TUBE_R, CELL_UNIT));
+  activeSurface = 0;
+  syncFromActiveSurface();
+}
+
+buildAllSurfaces();
 
 // Interpolate frame at parameter t in [0, 1)
 function getCurveFrame(param) {
@@ -288,22 +321,13 @@ function cardinalTileSpeed(baseTileSpd, isU, tileX, tileY) {
 // =====================================================================
 // Procedural maze generator (toroidal, variable cell size)
 // =====================================================================
-let mazeInit, maze, totalPellets;
-let ghostHouseCenter = { x: 13.5, y: 14.5 };
-let ghostEntrance = { x: 13.5, y: 11.5 };
-let playerSpawn = { x: 13.5, y: 18.5 };
-
-function generateMaze(U) {
-  // Cell count scales with geometry
-  const tubeCircum = 2 * Math.PI * TUBE_R;
+function generateSurfaceMaze(surface, U) {
+  const tubeCircum = 2 * Math.PI * surface.tubeR;
   const maxCells = Math.floor(96 / U);
-  // ~8 cells around tube circumference, u-cells scale to keep cells roughly square
-  const ch = Math.max(5, Math.min(16, Math.round(TUBE_R * 10.0)));
+  const ch = Math.max(5, Math.min(16, Math.round(surface.tubeR * 10.0)));
   const physCellV = tubeCircum / ch;
-  const cw = Math.max(6, Math.min(maxCells, Math.round(curveLengthTotal / physCellV)));
-  WORLD_W = cw * U;
-  WORLD_H = ch * U;
-  const W = WORLD_W, H = WORLD_H;
+  const cw = Math.max(6, Math.min(maxCells, Math.round(surface.curveLength / physCellV)));
+  const W = cw * U, H = ch * U;
 
   // Cell connectivity via randomized DFS (recursive backtracker) on torus
   const rightWall = new Uint8Array(cw * ch).fill(1);
@@ -400,9 +424,9 @@ function generateMaze(U) {
 
   // Store spawn coordinates
   const gcx = (ghX + ghW / 2);
-  ghostHouseCenter = { x: gcx, y: (ghY + 1.5) };
-  ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
-  playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
+  const ghostHouseCenter = { x: gcx, y: (ghY + 1.5) };
+  const ghostEntrance = { x: gcx, y: (ghY - 1 + H) % H + 0.5 };
+  const playerSpawn = { x: gcx, y: (ghY + ghH) % H + 0.5 };
 
   // Power pellets: spread across the torus, count scales with maze size
   // ~1 power pellet per 60 walkable tiles, minimum 6
@@ -423,15 +447,30 @@ function generateMaze(U) {
   }
 
   // Count pellets
-  totalPellets = 0;
+  let pelletCount = 0;
   for (let i = 0; i < tiles.length; i++)
-    if (tiles[i] === T.PELLET || tiles[i] === T.POWER) totalPellets++;
+    if (tiles[i] === T.PELLET || tiles[i] === T.POWER) pelletCount++;
 
-  mazeInit = tiles;
-  maze = new Uint8Array(tiles);
+  surface.worldW = W;
+  surface.worldH = H;
+  surface.mazeInit = tiles;
+  surface.maze = new Uint8Array(tiles);
+  surface.totalPellets = pelletCount;
+  surface.ghostHouseCenter = ghostHouseCenter;
+  surface.ghostEntrance = ghostEntrance;
+  surface.playerSpawn = playerSpawn;
 }
 
-generateMaze(CELL_UNIT);
+// Maze-related globals (synced from active surface)
+let mazeInit, maze, totalPellets;
+let ghostHouseCenter = { x: 13.5, y: 14.5 };
+let ghostEntrance = { x: 13.5, y: 11.5 };
+let playerSpawn = { x: 13.5, y: 18.5 };
+
+// Legacy wrapper — rebuilds all surfaces and syncs globals
+function generateMaze(U) {
+  buildAllSurfaces();
+}
 
 function getMaze(x, y) {
   const tx = ((Math.floor(x) % WORLD_W) + WORLD_W) % WORLD_W;
@@ -691,8 +730,7 @@ slUnit.addEventListener('input', () => {
 });
 
 function rebuildAll() {
-  computeCurve();
-  generateMaze(CELL_UNIT);
+  buildAllSurfaces();
   pelletsEaten = 0;
   playerX = playerSpawn.x; playerY = playerSpawn.y;
   playerAngle = Math.PI; playerPitch = 0;
@@ -1568,30 +1606,39 @@ const REVERSE_DIR = [2, 3, 0, 1];
 const GHOST_SPEED = 3.5;
 const GHOST_FRIGHT_SPEED = 2.0;
 
-const ghosts = [
-  { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
-    color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
-  { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
-    color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
-  { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
-    color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
-  { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
-    color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
-];
+function makeGhostSet(surface) {
+  return [
+    { type:'blinky', x:0, y:0, dir:DIR.LEFT, mode:'scatter',
+      color:[1,0,0], scatter:{x:0,y:0}, releaseTime:0, lastTx:-1, lastTy:-1 },
+    { type:'pinky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[1,0.7,1], scatter:{x:0,y:0}, releaseTime:4, lastTx:-1, lastTy:-1 },
+    { type:'inky', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[0,1,1], scatter:{x:0,y:0}, releaseTime:8, lastTx:-1, lastTy:-1 },
+    { type:'clyde', x:0, y:0, dir:DIR.UP, mode:'waiting',
+      color:[1,0.6,0], scatter:{x:0,y:0}, releaseTime:14, lastTx:-1, lastTy:-1 },
+  ];
+}
+
+function resetGhostSet(ghostArr, surface) {
+  const gx = surface.ghostHouseCenter.x, gy = surface.ghostHouseCenter.y;
+  const ex = surface.ghostEntrance.x, ey = surface.ghostEntrance.y;
+  const W = surface.worldW, H = surface.worldH;
+  ghostArr[0].x = ex; ghostArr[0].y = ey; ghostArr[0].dir = DIR.LEFT; ghostArr[0].mode = 'scatter';
+  ghostArr[1].x = gx; ghostArr[1].y = gy; ghostArr[1].dir = DIR.UP; ghostArr[1].mode = 'waiting';
+  ghostArr[2].x = gx - 1; ghostArr[2].y = gy; ghostArr[2].dir = DIR.UP; ghostArr[2].mode = 'waiting';
+  ghostArr[3].x = gx + 1; ghostArr[3].y = gy; ghostArr[3].dir = DIR.UP; ghostArr[3].mode = 'waiting';
+  ghostArr[0].scatter = { x: W - 3, y: 1 };
+  ghostArr[1].scatter = { x: 2, y: 1 };
+  ghostArr[2].scatter = { x: W - 3, y: H - 2 };
+  ghostArr[3].scatter = { x: 2, y: H - 2 };
+  for (const g of ghostArr) { g.lastTx = -1; g.lastTy = -1; }
+}
+
+// Active ghost array (global alias)
+const ghosts = makeGhostSet(null);
 
 function resetGhosts() {
-  const gx = ghostHouseCenter.x, gy = ghostHouseCenter.y;
-  const ex = ghostEntrance.x, ey = ghostEntrance.y;
-  ghosts[0].x = ex; ghosts[0].y = ey; ghosts[0].dir = DIR.LEFT; ghosts[0].mode = 'scatter';
-  ghosts[1].x = gx; ghosts[1].y = gy; ghosts[1].dir = DIR.UP; ghosts[1].mode = 'waiting';
-  ghosts[2].x = gx - 1; ghosts[2].y = gy; ghosts[2].dir = DIR.UP; ghosts[2].mode = 'waiting';
-  ghosts[3].x = gx + 1; ghosts[3].y = gy; ghosts[3].dir = DIR.UP; ghosts[3].mode = 'waiting';
-  // Scatter targets: maze corners
-  ghosts[0].scatter = { x: WORLD_W - 3, y: 1 };
-  ghosts[1].scatter = { x: 2, y: 1 };
-  ghosts[2].scatter = { x: WORLD_W - 3, y: WORLD_H - 2 };
-  ghosts[3].scatter = { x: 2, y: WORLD_H - 2 };
-  for (const g of ghosts) { g.lastTx = -1; g.lastTy = -1; }
+  resetGhostSet(ghosts, { ghostHouseCenter, ghostEntrance, worldW: WORLD_W, worldH: WORLD_H });
 }
 resetGhosts();
 
@@ -1940,9 +1987,8 @@ function startGame() {
   gameTime = 0;
   score = 0;
   lives = 3;
-  // Generate fresh maze
-  computeCurve();
-  generateMaze(CELL_UNIT);
+  // Generate fresh surfaces
+  buildAllSurfaces();
   pelletsEaten = 0;
   powerTimer = 0;
   ghostEatScore = 200;
