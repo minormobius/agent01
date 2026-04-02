@@ -369,11 +369,16 @@ function updateJumpPhysics(dt) {
   const substeps = 8;
   const subDt = dt / substeps;
   for (let s = 0; s < substeps; s++) {
-    const absR = Math.abs(csR);
-    const g = sampleGravity(Math.max(0.1, absR), csZ);
-    const gR = csR >= 0 ? g.gR : -g.gR;
-    csVR += gR * subDt;
-    csVZ += g.gZ * subDt;
+    // Tube-centric gravity: pulls OUTWARD from tube center toward wall
+    // (centripetal-style, like inside a rotating space station)
+    const gdR = csR - TORUS_R;
+    const gdZ = csZ;
+    const gDist = Math.sqrt(gdR*gdR + gdZ*gdZ);
+    if (gDist > 0.01) {
+      const gMag = GRAV_SCALE * 2.2;
+      csVR += (gdR / gDist) * gMag * subDt;
+      csVZ += (gdZ / gDist) * gMag * subDt;
+    }
     csR += csVR * subDt;
     csZ += csVZ * subDt;
 
