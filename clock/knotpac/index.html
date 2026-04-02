@@ -238,6 +238,12 @@ function makeCircleSurface(center, axis, radius, tubeR, numPts) {
            center, hostR: radius, hostR0: 0 };
 }
 
+// Maze-related globals (synced from active surface)
+let mazeInit, maze, totalPellets;
+let ghostHouseCenter = { x: 13.5, y: 14.5 };
+let ghostEntrance = { x: 13.5, y: 11.5 };
+let playerSpawn = { x: 13.5, y: 18.5 };
+
 // =====================================================================
 // Ghost AI — constants and factories (must precede buildAllSurfaces)
 // =====================================================================
@@ -700,12 +706,6 @@ function generateSurfaceMaze(surface, U) {
   surface.ghostEntrance = ghostEntrance;
   surface.playerSpawn = playerSpawn;
 }
-
-// Maze-related globals (synced from active surface)
-let mazeInit, maze, totalPellets;
-let ghostHouseCenter = { x: 13.5, y: 14.5 };
-let ghostEntrance = { x: 13.5, y: 11.5 };
-let playerSpawn = { x: 13.5, y: 18.5 };
 
 // Legacy wrapper — rebuilds all surfaces and syncs globals
 function generateMaze(U) {
