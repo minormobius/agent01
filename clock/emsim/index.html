@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EMSIM — Torus Gravity</title>
+<title>EMSIM — Multi-Physics Torus Fields</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;background:#000}
@@ -14,7 +14,8 @@ canvas{display:block}
   max-height:50vh;overflow-y:auto}
 #ctl label{display:inline-block;margin-right:8px}
 #ctl input[type=range]{width:70px;vertical-align:middle;accent-color:#88f}
-#ctl input[type=number]{width:40px;background:#222;color:#ddd;border:1px solid #444;font:inherit}
+#ctl input[type=number]{width:38px;background:#222;color:#ddd;border:1px solid #444;font:inherit}
+#ctl select{background:#222;color:#ddd;border:1px solid #444;font:inherit;padding:1px}
 #ctl button{background:#333;color:#ddd;border:1px solid #555;padding:3px 8px;
   cursor:pointer;font:inherit;margin:1px}
 #ctl button:hover{background:#444}
@@ -59,17 +60,17 @@ resize();
 
 // === State ===
 const COLORS = ['#88f','#f88','#8f8','#ff8','#f8f','#8ff','#fa8','#8af'];
-let tori = []; // [{id, R, r, z, solid, color}]
+let tori = []; // [{id, R, r, z, solid, q, I, dir, color}]
 let nextId = 1;
 let GN = 14, pN = 30;
 let vcx = 4, vcy = 0, vsc = 40;
 let tp = null, trail = [];
 let armMode = 'idle', aimStart = null, aimEnd = null;
 
-function addTorus(R, r, z, solid) {
+function addTorus(R, r, z, solid, q, I, dir) {
   const id = nextId++;
   const color = COLORS[(id - 1) % COLORS.length];
-  tori.push({id, R, r, z: z||0, solid: solid||false, color});
+  tori.push({id, R, r, z: z||0, solid: solid||false, q: q||0, I: I||0, dir: dir||'t', color});
   buildUI(); draw();
 }
 function rmTorus(id) {
@@ -81,7 +82,7 @@ function rmTorus(id) {
   if (location.hash.length > 1) {
     try {
       const cfg = JSON.parse(decodeURIComponent(location.hash.slice(1)));
-      if (Array.isArray(cfg)) { cfg.forEach(t => addTorus(t.R, t.r, t.z||0, t.solid||false)); return; }
+      if (Array.isArray(cfg)) { cfg.forEach(t => addTorus(t.R, t.r, t.z||0, t.solid||false, t.q||0, t.I||0, t.dir||'t')); return; }
     } catch(e) {}
   }
   addTorus(4, 2, 0, false);
@@ -91,8 +92,8 @@ function rmTorus(id) {
 function w2s(r, z) { return [(r - vcx) * vsc + W/2, H/2 - (z - vcy) * vsc]; }
 function s2w(sx, sy) { return [(sx - W/2) / vsc + vcx, (H/2 - sy) / vsc + vcy]; }
 
-// === Field from one torus ===
-function torusField(tor, Rp, Zp) {
+// === Gravity/Electric field from one torus (inverse-square integral) ===
+function torusGravField(tor, Rp, Zp) {
   const Nu = 20, Nv = 16;
   const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
   const Nr = tor.solid ? 4 : 1;
@@ -121,14 +122,66 @@ function torusField(tor, Rp, Zp) {
   return {fr, fz};
 }
 
-// === Total field from all tori ===
-function fieldAt(Rp, Zp) {
-  let fr = 0, fz = 0;
-  for (const tor of tori) {
-    const f = torusField(tor, Rp, Zp);
-    fr += f.fr; fz += f.fz;
+// === Magnetic field from toroidal current (Biot-Savart ring at centerline) ===
+// Returns {br, bz} — poloidal B field components at (Rp, Zp)
+function torusBiotSavart(tor, Rp, Zp) {
+  if (Math.abs(tor.I) < 1e-10 || tor.dir !== 't') return {br: 0, bz: 0};
+  const Nu = 48;
+  const du = 2 * Math.PI / Nu;
+  let br = 0, bz = 0;
+  for (let iu = 0; iu < Nu; iu++) {
+    const u = (iu + 0.5) * du;
+    const cu = Math.cos(u), su = Math.sin(u);
+    // Current element dl = R*du * (-sin u, cos u, 0) (toroidal direction)
+    // Source position: (R*cos u, R*sin u, z)
+    // r = field_pt - source = (Rp - R*cos u, -R*sin u, Zp - z)
+    const rx = Rp - tor.R * cu, ry = -tor.R * su, rz = Zp - tor.z;
+    const r2 = rx*rx + ry*ry + rz*rz;
+    if (r2 < 0.01) continue;
+    const r3 = Math.pow(r2, 1.5);
+    // dl × r: (cos(u)*(Zp-z), sin(u)*(Zp-z), R - Rp*cos(u))
+    const crossX = cu * (Zp - tor.z);
+    const crossZ = tor.R - Rp * cu;
+    // B_R = crossX component, B_Z = crossZ component (by axial symmetry)
+    const sc = tor.I * tor.R * du / r3;
+    br += crossX * sc;
+    bz += crossZ * sc;
   }
-  return {fr, fz};
+  return {br, bz};
+}
+
+// === Magnetic field from poloidal current (toroidal B inside tube) ===
+// Returns bphi — toroidal B magnitude at (Rp, Zp)
+function torusPoloidalB(tor, Rp, Zp) {
+  if (Math.abs(tor.I) < 1e-10 || tor.dir !== 'p') return 0;
+  // Inside tube? Check distance from centerline circle
+  const dR = Rp - tor.R, dZ = Zp - tor.z;
+  const dist = Math.sqrt(dR*dR + dZ*dZ);
+  if (dist > tor.r) return 0; // outside tube
+  // Toroidal B = I / Rp (Ampere's law for ideal toroidal solenoid)
+  return tor.I / Math.max(Rp, 0.1);
+}
+
+// === Total fields from all tori ===
+// Returns {fr, fz, br, bz, bphi} — force + B components
+function fieldAt(Rp, Zp) {
+  let fr = 0, fz = 0, br = 0, bz = 0, bphi = 0;
+  for (const tor of tori) {
+    const g = torusGravField(tor, Rp, Zp);
+    // Gravity: always attractive
+    fr += g.fr; fz += g.fz;
+    // Electric: q > 0 on torus + positive test charge = repulsion (flip gravity)
+    if (Math.abs(tor.q) > 1e-10) {
+      fr -= tor.q * g.fr;
+      fz -= tor.q * g.fz;
+    }
+    // Magnetic: toroidal current → poloidal B
+    const bts = torusBiotSavart(tor, Rp, Zp);
+    br += bts.br; bz += bts.bz;
+    // Magnetic: poloidal current → toroidal B
+    bphi += torusPoloidalB(tor, Rp, Zp);
+  }
+  return {fr, fz, br, bz, bphi};
 }
 
 // === Dynamic UI ===
@@ -144,14 +197,19 @@ function buildUI() {
       `r:<input type="number" step="0.25" value="${tor.r}" data-id="${tor.id}" data-f="r"> ` +
       `z:<input type="number" step="0.5" value="${tor.z}" data-id="${tor.id}" data-f="z"> ` +
       `<label><input type="checkbox" ${tor.solid?'checked':''} data-id="${tor.id}" data-f="solid"> solid</label> ` +
+      `q:<input type="number" step="0.5" value="${tor.q}" data-id="${tor.id}" data-f="q" style="width:34px"> ` +
+      `I:<input type="number" step="0.5" value="${tor.I}" data-id="${tor.id}" data-f="I" style="width:34px"> ` +
+      `<select data-id="${tor.id}" data-f="dir"><option value="t"${tor.dir==='t'?' selected':''}>tor</option><option value="p"${tor.dir==='p'?' selected':''}>pol</option></select> ` +
       `<button data-rm="${tor.id}" style="color:#f66">x</button>`;
     el.appendChild(d);
   }
-  el.querySelectorAll('input[data-id]').forEach(inp => {
+  el.querySelectorAll('[data-id]').forEach(inp => {
+    if (inp.tagName === 'BUTTON') return;
     const handler = () => {
       const t = tori.find(x => x.id === +inp.dataset.id);
       if (!t) return;
       if (inp.dataset.f === 'solid') t.solid = inp.checked;
+      else if (inp.dataset.f === 'dir') t.dir = inp.value;
       else t[inp.dataset.f] = parseFloat(inp.value);
       draw();
     };
@@ -176,7 +234,7 @@ function draw() {
       const z = zMin + (gj + 0.5) / GN * (zMax - zMin);
       const f = fieldAt(r, z);
       const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-      grid.push({r, z, fr: f.fr, fz: f.fz, mag});
+      grid.push({r, z, fr: f.fr, fz: f.fz, mag, br: f.br, bz: f.bz, bphi: f.bphi});
     }
   }
   let maxMag = 0;
@@ -239,6 +297,19 @@ function draw() {
       const [tcx,tcy] = w2s(sign*tor.R, tor.z);
       ctx.fillStyle = tor.color;
       ctx.beginPath(); ctx.arc(tcx,tcy,3,0,Math.PI*2); ctx.fill();
+      // Charge indicator: + or - at center
+      if (Math.abs(tor.q) > 0.01) {
+        ctx.fillStyle = tor.q > 0 ? '#f44' : '#48f';
+        ctx.font = '10px monospace';
+        ctx.fillText(tor.q > 0 ? '+' : '−', tcx+5, tcy-2);
+      }
+      // Current indicator: arrow along centerline
+      if (Math.abs(tor.I) > 0.01) {
+        ctx.strokeStyle = '#c8f'; ctx.lineWidth = 1.5;
+        const v = (sign > 0 ? 0.25 : 0.75) * Math.PI * 2;
+        const [ax1,ay1] = w2s(sign*(tor.R + tor.r*Math.cos(v)), tor.z + tor.r*Math.sin(v));
+        ctx.beginPath(); ctx.arc(ax1,ay1,4,0,Math.PI*2); ctx.stroke();
+      }
     }
   }
 
@@ -320,8 +391,43 @@ function draw() {
     }
   }
 
+  // B-field indicators on grid (small circles where |B| > 0)
+  for (let gi = 0; gi < GN; gi++) {
+    for (let gj = 0; gj < GN; gj++) {
+      const g = grid[gi * GN + gj];
+      const bmag = Math.sqrt(g.br*g.br + g.bz*g.bz + g.bphi*g.bphi);
+      if (bmag > 1e-6) {
+        const [sx, sy] = w2s(g.r, g.z);
+        const bsz = Math.min(12, bmag * 3 + 2);
+        ctx.strokeStyle = g.bphi > 1e-6 ? 'rgba(200,100,255,.5)' : 'rgba(100,200,255,.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(sx, sy, bsz, 0, Math.PI*2); ctx.stroke();
+        // Poloidal B (from toroidal current): show as small arrows
+        if (g.br*g.br + g.bz*g.bz > 1e-12) {
+          const bn = Math.sqrt(g.br*g.br + g.bz*g.bz);
+          const bdx = g.br/bn * bsz, bdy = -g.bz/bn * bsz;
+          ctx.beginPath(); ctx.moveTo(sx-bdx, sy-bdy); ctx.lineTo(sx+bdx, sy+bdy); ctx.stroke();
+        }
+        // Toroidal B (from poloidal current): dot/cross symbol
+        if (Math.abs(g.bphi) > 1e-6) {
+          ctx.fillStyle = 'rgba(200,100,255,.6)';
+          if (g.bphi > 0) { // out of screen: dot
+            ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill();
+          } else { // into screen: X
+            ctx.beginPath();
+            ctx.moveTo(sx-3, sy-3); ctx.lineTo(sx+3, sy+3);
+            ctx.moveTo(sx+3, sy-3); ctx.lineTo(sx-3, sy+3);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+  }
+
   // Label
-  document.getElementById('lbl').textContent = tori.length + ' torus' + (tori.length!==1?'es':'');
+  const hasEM = tori.some(t => Math.abs(t.q) > 0 || Math.abs(t.I) > 0);
+  document.getElementById('lbl').textContent = tori.length + ' torus' + (tori.length!==1?'es':'') +
+    (hasEM ? ' · E&M' : ' · gravity');
 }
 
 // === Controls ===
@@ -330,7 +436,7 @@ document.getElementById('btnAdd').onclick = function() {
   addTorus(lastR + 3, 1.5, 0, false);
 };
 document.getElementById('btnCopy').onclick = function() {
-  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid}));
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid, q:t.q, I:t.I, dir:t.dir}));
   const json = JSON.stringify(cfg);
   navigator.clipboard.writeText(json).then(() => {
     this.textContent = 'Copied!';
@@ -341,7 +447,7 @@ document.getElementById('btnCopy').onclick = function() {
   });
 };
 document.getElementById('btnPlay').onclick = function() {
-  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid}));
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid, q:t.q, I:t.I, dir:t.dir}));
   const hash = encodeURIComponent(JSON.stringify(cfg));
   window.open('../torpac/#' + hash, '_blank');
 };
@@ -376,12 +482,23 @@ function tick(t) {
     const absR = Math.max(.1, Math.abs(tp.r));
     const f = fieldAt(absR, tp.z);
     const fR = tp.r>=0 ? f.fr : -f.fr;
-    tp.vr += fR*sub; tp.vz += f.fz*sub;
+    // Gravity + Electric force (already combined in f.fr, f.fz)
+    let aR = fR, aZ = f.fz;
+    // Lorentz force: F = q * v × B (test charge q=+1)
+    // v = (vr, vphi, vz), B = (br, bphi, bz)
+    // v×B = (vphi*bz - vz*bphi, vz*br - vr*bz, vr*bphi - vphi*br)
+    const vr = tp.vr, vp = tp.vphi || 0, vz = tp.vz;
+    const bR = tp.r>=0 ? f.br : -f.br;
+    aR += vp * f.bz - vz * f.bphi;
+    const aPhi = vz * bR - vr * f.bz;
+    aZ += vr * f.bphi - vp * bR;
+    tp.vr += aR*sub; tp.vz += aZ*sub; tp.vphi = (tp.vphi||0) + aPhi*sub;
     tp.r += tp.vr*sub; tp.z += tp.vz*sub;
   }
   trail.push([tp.r, tp.z]);
   if (trail.length>3000) trail.shift();
-  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2);
+  const vpStr = tp.vphi ? ' vφ='+tp.vphi.toFixed(1) : '';
+  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2)+vpStr;
   draw();
   requestAnimationFrame(tick);
 }
@@ -389,7 +506,7 @@ function tick(t) {
 function launchParticle() {
   const vdx = aimEnd ? (aimEnd.r-aimStart.r)*2 : 0;
   const vdz = aimEnd ? (aimEnd.z-aimStart.z)*2 : 0;
-  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz};
+  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0};
   trail = []; armMode = 'idle'; aimStart = aimEnd = null;
   document.getElementById('btnDrop').style.background = '';
   document.getElementById('btnDrop').textContent = 'Arm drop';
