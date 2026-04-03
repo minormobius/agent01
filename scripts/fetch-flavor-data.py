@@ -44,8 +44,8 @@ import requests
 import numpy as np
 
 
-FOODB_JSON_URL = "https://foodb.ca/public/system/downloads/foodb_2020_04_07_json.tar.gz"
-FOODB_CSV_URL = "https://foodb.ca/public/system/downloads/foodb_2020_04_07_csv.tar.gz"
+FOODB_JSON_URL = "https://foodb.ca/public/system/downloads/foodb_2020_04_07_json.zip"
+FOODB_CSV_URL = "https://foodb.ca/public/system/downloads/foodb_2020_4_7_csv.tar.gz"
 
 
 def parse_pool_js(path):
