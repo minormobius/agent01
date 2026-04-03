@@ -3,15 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EMSIM</title>
+<title>EMSIM — Torus Gravity</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;background:#000}
 canvas{display:block}
+#lbl{position:fixed;top:8px;left:8px;color:#aaa;font:13px monospace;pointer-events:none;z-index:1}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="lbl">Torus gravity · R=4 r=2</div>
 <script>
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -30,41 +32,175 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Just draw a red circle and some text to prove canvas works
-ctx.fillStyle = '#111';
-ctx.fillRect(0, 0, W, H);
+// Torus params
+const R0 = 4, r0 = 2;
+// View: centered on torus cross-section at (R0, 0)
+const viewCx = R0, viewCy = 0, viewScale = 40; // px per unit
 
-ctx.strokeStyle = '#ff0';
-ctx.lineWidth = 3;
-ctx.beginPath();
-ctx.arc(W/2, H/3, 80, 0, Math.PI * 2);
-ctx.stroke();
-
-ctx.fillStyle = '#fff';
-ctx.font = '24px monospace';
-ctx.fillText('EMSIM canvas test', 20, 40);
-
-// Draw 12 arrows in a circle
-for (let i = 0; i < 12; i++) {
-  const th = i / 12 * Math.PI * 2;
-  const cx0 = W/2, cy0 = H/3;
-  const r1 = 90, r2 = 130;
-  const x1 = cx0 + r1 * Math.cos(th);
-  const y1 = cy0 + r1 * Math.sin(th);
-  const x2 = cx0 + r2 * Math.cos(th);
-  const y2 = cy0 + r2 * Math.sin(th);
-  ctx.strokeStyle = i % 2 === 0 ? '#4f4' : '#f44';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
+function w2s(r, z) {
+  return [(r - viewCx) * viewScale + W/2, H/2 - (z - viewCy) * viewScale];
 }
 
-ctx.fillStyle = '#888';
-ctx.font = '14px monospace';
-ctx.fillText('If you see this, canvas works.', 20, H/2);
-ctx.fillText('W=' + W + ' H=' + H + ' dpr=' + dpr, 20, H/2 + 20);
+// Shell gravity field at cylindrical point (Rp, Zp)
+// Integrate over toroidal surface: u (azimuth) x v (poloidal)
+function shellField(Rp, Zp) {
+  const Nu = 20, Nv = 16;
+  const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
+  let fr = 0, fz = 0;
+  for (let iu = 0; iu < Nu; iu++) {
+    const u = (iu + 0.5) * du;
+    const cu = Math.cos(u), su = Math.sin(u);
+    for (let iv = 0; iv < Nv; iv++) {
+      const v = (iv + 0.5) * dv;
+      const Rc = R0 + r0 * Math.cos(v);
+      const ex = Rc * cu, ey = Rc * su, ez = r0 * Math.sin(v);
+      const dx = Rp - ex, dy = -ey, dz = Zp - ez;
+      const d2 = dx*dx + dy*dy + dz*dz;
+      if (d2 < 0.01) continue;
+      const dist = Math.sqrt(d2);
+      const dA = r0 * Math.abs(Rc) * du * dv;
+      // Gravity: attractive, so force points FROM field point TOWARD shell
+      const f3 = -dA / (dist * d2);
+      fr += dx * f3;
+      fz += dz * f3;
+    }
+  }
+  return { fr, fz };
+}
+
+// Precompute on a grid
+const GN = 14;
+const margin = 4; // world units visible around center
+const grid = [];
+
+for (let gi = 0; gi < GN; gi++) {
+  for (let gj = 0; gj < GN; gj++) {
+    const r = (viewCx - margin) + (gi + 0.5) / GN * margin * 2;
+    const z = (viewCy - margin) + (gj + 0.5) / GN * margin * 2;
+    const f = shellField(r, z);
+    const mag = Math.sqrt(f.fr * f.fr + f.fz * f.fz);
+    grid.push({ r, z, fr: f.fr, fz: f.fz, mag });
+  }
+}
+
+// Find max magnitude for color scaling
+let maxMag = 0;
+for (const g of grid) if (g.mag > maxMag) maxMag = g.mag;
+
+// Draw
+ctx.fillStyle = '#0a0a14';
+ctx.fillRect(0, 0, W, H);
+
+// Heatmap cells + arrows
+const cellW = W / GN, cellH = H / GN;
+for (let gi = 0; gi < GN; gi++) {
+  for (let gj = 0; gj < GN; gj++) {
+    const g = grid[gi * GN + gj];
+    const [sx, sy] = w2s(g.r, g.z);
+    // Heatmap: log scale color
+    const t = maxMag > 0 ? Math.max(0, Math.min(1, (Math.log10(g.mag + 1e-6) - Math.log10(maxMag * 0.001)) / (Math.log10(maxMag) - Math.log10(maxMag * 0.001)))) : 0;
+    const cr = t < 0.5 ? 0 : Math.min(255, (t - 0.5) * 2 * 255);
+    const cg = t < 0.25 ? t * 4 * 255 : t < 0.75 ? 255 : (1 - t) * 4 * 255;
+    const cb = t < 0.5 ? (1 - t * 2) * 255 : 0;
+    ctx.fillStyle = `rgb(${cr|0},${cg|0},${cb|0})`;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(sx - cellW/2, sy - cellH/2, cellW, cellH);
+
+    // Arrow
+    if (g.mag > 1e-8) {
+      const maxLen = Math.min(cellW, cellH) * 0.45;
+      const len = maxLen * Math.min(1, g.mag / maxMag * 3);
+      const nr = g.fr / g.mag, nz = g.fz / g.mag;
+      const dx = nr * len, dy = -nz * len;
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = `rgb(${cr|0},${cg|0},${cb|0})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + dx, sy + dy);
+      // Arrowhead
+      const ax = -dx * 0.3 + dy * 0.2, ay = -dy * 0.3 - dx * 0.2;
+      const bx = -dx * 0.3 - dy * 0.2, by = -dy * 0.3 + dx * 0.2;
+      ctx.moveTo(sx + dx, sy + dy);
+      ctx.lineTo(sx + dx + ax, sy + dy + ay);
+      ctx.moveTo(sx + dx, sy + dy);
+      ctx.lineTo(sx + dx + bx, sy + dy + by);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// Draw torus cross-section outline
+ctx.strokeStyle = '#88f';
+ctx.lineWidth = 2;
+ctx.beginPath();
+for (let i = 0; i <= 64; i++) {
+  const v = i / 64 * Math.PI * 2;
+  const pr = R0 + r0 * Math.cos(v);
+  const pz = r0 * Math.sin(v);
+  const [sx, sy] = w2s(pr, pz);
+  i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+}
+ctx.closePath();
+ctx.stroke();
+
+// Draw tube center dot
+const [tcx, tcy] = w2s(R0, 0);
+ctx.fillStyle = '#ff0';
+ctx.beginPath();
+ctx.arc(tcx, tcy, 4, 0, Math.PI * 2);
+ctx.fill();
+
+// Draw axis
+const [ax0, ay0] = w2s(0, 0);
+ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+ctx.lineWidth = 1;
+ctx.beginPath();
+ctx.moveTo(ax0, 0);
+ctx.lineTo(ax0, H);
+ctx.stroke();
+
+// Perimeter arrows: 30 points around the tube surface
+ctx.font = '9px monospace';
+for (let i = 0; i < 30; i++) {
+  const v = i / 30 * Math.PI * 2;
+  const pr = R0 + (r0 + 0.05) * Math.cos(v);
+  const pz = (r0 + 0.05) * Math.sin(v);
+  const f = shellField(pr, pz);
+  const mag = Math.sqrt(f.fr * f.fr + f.fz * f.fz);
+  if (mag < 1e-8) continue;
+  const [sx, sy] = w2s(pr, pz);
+  const len = Math.min(35, mag / maxMag * 50 + 8);
+  const nr = f.fr / mag, nz = f.fz / mag;
+  const dx = nr * len, dy = -nz * len;
+  // Green = pointing toward wall (sticking), red = away
+  const cosV = Math.cos(v), sinV = Math.sin(v);
+  const dot = nr * cosV + nz * sinV; // outward radial dot
+  const sticks = dot > 0; // force has outward component = pushes off wall
+  ctx.strokeStyle = sticks ? '#f44' : '#4f4';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + dx, sy + dy);
+  const aax = -dx * 0.25 + dy * 0.15, aay = -dy * 0.25 - dx * 0.15;
+  const bbx = -dx * 0.25 - dy * 0.15, bby = -dy * 0.25 + dx * 0.15;
+  ctx.moveTo(sx + dx, sy + dy);
+  ctx.lineTo(sx + dx + aax, sy + dy + aay);
+  ctx.moveTo(sx + dx, sy + dy);
+  ctx.lineTo(sx + dx + bbx, sy + dy + bby);
+  ctx.stroke();
+  // Magnitude label
+  ctx.fillStyle = sticks ? '#f44' : '#4f4';
+  ctx.globalAlpha = 0.7;
+  ctx.fillText(mag.toFixed(1), sx + dx + 3, sy + dy - 2);
+  ctx.globalAlpha = 1;
+}
+
+// Title
+ctx.fillStyle = '#fff';
+ctx.font = '16px monospace';
+ctx.fillText('Shell gravity inside torus (R=4, r=2)', 10, H - 20);
 </script>
 </body>
 </html>
