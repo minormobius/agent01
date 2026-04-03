@@ -1,13 +1,55 @@
 Parsed 779 foods from cards/js/yum-pool.js
 Downloading FooDB CSV dump (~953MB)...
+
+Extracting...
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1930, in gzopen
+    t = cls.taropen(name, mode, fileobj, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1907, in taropen
+    return cls(name, mode, fileobj, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1765, in __init__
+    self.firstmember = self.next()
+                       ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 2768, in next
+    raise e
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 2741, in next
+    tarinfo = self.tarinfo.fromtarfile(self)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1314, in fromtarfile
+    buf = tarfile.fileobj.read(BLOCKSIZE)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 338, in read
+    return self._buffer.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/_compression.py", line 68, in readinto
+    data = self.read(len(byte_view))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 544, in read
+    if not self._read_gzip_header():
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 513, in _read_gzip_header
+    last_mtime = _read_gzip_header(self._fp)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 473, in _read_gzip_header
+    raise BadGzipFile('Not a gzipped file (%r)' % magic)
+gzip.BadGzipFile: Not a gzipped file (b'._')
+
+The above exception was the direct cause of the following exception:
+
 Traceback (most recent call last):
   File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 544, in <module>
     main()
   File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 394, in main
     csv_dir = download_foodb_csv(args.cache_dir)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 83, in download_foodb_csv
-    resp.raise_for_status()
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/site-packages/requests/models.py", line 1028, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://foodb.ca/public/system/downloads/foodb_2020_04_07_csv.tar.gz
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 101, in download_foodb_csv
+    with tarfile.open(archive_path, "r:gz") as tar:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1875, in open
+    return func(name, filemode, fileobj, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1934, in gzopen
+    raise ReadError("not a gzip file") from e
+tarfile.ReadError: not a gzip file
