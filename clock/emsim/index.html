@@ -67,7 +67,7 @@ canvas{position:fixed;top:0;left:0}
 <script>
 'use strict';
 const C = document.getElementById('c'), X = C.getContext('2d');
-let W, H;
+let W, H, dpr;
 let cx = 4, cy = 0, sc = 60;
 let geom = 'axi', side = 'outside';
 let showArr = true, showP = true, gridN = 14, pN = 30;
@@ -394,9 +394,15 @@ function buildUI() {
 // Events
 // =====================================================================
 function resize() {
-  W=C.width=window.innerWidth;
-  H=C.height=window.innerHeight;
-  dirty=true;
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  C.width = W * dpr;
+  C.height = H * dpr;
+  C.style.width = W + 'px';
+  C.style.height = H + 'px';
+  X.setTransform(dpr, 0, 0, dpr, 0, 0);
+  dirty = true;
 }
 window.addEventListener('resize',resize);
 
