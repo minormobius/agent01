@@ -28,9 +28,10 @@ canvas{display:block}
     <input type="range" id="slG" min="8" max="22" step="2" value="14"></label>
   <label>Perim <span class="v" id="vP">30</span>
     <input type="range" id="slP" min="0" max="48" step="6" value="30"></label>
+  <label><input type="checkbox" id="chkSolid"> Solid</label>
   <br>
-  <button id="btnDrop" style="margin-top:6px">Drop particle</button>
-  <button id="btnClear">Clear trail</button>
+  <button id="btnDrop" style="margin-top:6px">Arm drop</button>
+  <button id="btnClear">Clear</button>
   <span id="tpInfo" style="color:#ff0;margin-left:10px"></span>
 </div>
 <script>
@@ -56,9 +57,14 @@ let R0 = 4, r0 = 2, GN = 14;
 // View state
 let vcx = 4, vcy = 0, vsc = 40;
 let pN = 30; // perimeter arrow count
-// Test particle: null = not active
+let solid = false; // shell vs solid torus
+// Test particle
 let tp = null; // {r, z, vr, vz}
 let trail = [];
+// Arm mode: 'idle' | 'armed' | 'aiming'
+let armMode = 'idle';
+let aimStart = null; // {r, z} where tap started
+let aimEnd = null;   // {r, z} current drag position
 
 function w2s(r, z) {
   return [(r - vcx) * vsc + W/2, H/2 - (z - vcy) * vsc];
@@ -70,22 +76,30 @@ function s2w(sx, sy) {
 function shellField(Rp, Zp) {
   const Nu = 20, Nv = 16;
   const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
+  // Solid: integrate over radial shells from 0 to r0
+  const Nr = solid ? 4 : 1;
+  const dr = r0 / Nr;
   let fr = 0, fz = 0;
-  for (let iu = 0; iu < Nu; iu++) {
-    const u = (iu + 0.5) * du;
-    const cu = Math.cos(u), su = Math.sin(u);
-    for (let iv = 0; iv < Nv; iv++) {
-      const v = (iv + 0.5) * dv;
-      const Rc = R0 + r0 * Math.cos(v);
-      const ex = Rc * cu, ey = Rc * su, ez = r0 * Math.sin(v);
-      const dx = Rp - ex, dy = -ey, dz = Zp - ez;
-      const d2 = dx*dx + dy*dy + dz*dz;
-      if (d2 < 0.01) continue;
-      const dist = Math.sqrt(d2);
-      const dA = r0 * Math.abs(Rc) * du * dv;
-      const f3 = -dA / (dist * d2);
-      fr += dx * f3;
-      fz += dz * f3;
+  for (let ir = 0; ir < Nr; ir++) {
+    const rs = solid ? (ir + 0.5) * dr : r0; // shell radius
+    for (let iu = 0; iu < Nu; iu++) {
+      const u = (iu + 0.5) * du;
+      const cu = Math.cos(u), su = Math.sin(u);
+      for (let iv = 0; iv < Nv; iv++) {
+        const v = (iv + 0.5) * dv;
+        const Rc = R0 + rs * Math.cos(v);
+        const ex = Rc * cu, ey = Rc * su, ez = rs * Math.sin(v);
+        const dx = Rp - ex, dy = -ey, dz = Zp - ez;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < 0.01) continue;
+        const dist = Math.sqrt(d2);
+        // Shell: dA = rs * |Rc| * du * dv. Solid: dV = rs * |Rc| * du * dv * dr
+        const weight = solid ? rs * Math.abs(Rc) * du * dv * dr
+                             : rs * Math.abs(Rc) * du * dv;
+        const f3 = -weight / (dist * d2);
+        fr += dx * f3;
+        fz += dz * f3;
+      }
     }
   }
   return { fr, fz };
@@ -228,8 +242,35 @@ function draw() {
     }
   }
 
+  // Aim crosshair + velocity arrow
+  if (armMode === 'armed' || armMode === 'aiming') {
+    if (aimStart) {
+      const [ax, ay] = w2s(aimStart.r, aimStart.z);
+      // Crosshair
+      ctx.strokeStyle = '#f80'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ax - 10, ay); ctx.lineTo(ax + 10, ay);
+      ctx.moveTo(ax, ay - 10); ctx.lineTo(ax, ay + 10);
+      ctx.stroke();
+      if (armMode === 'aiming' && aimEnd) {
+        // Velocity arrow: from drop point in drag direction
+        const vdx = (aimEnd.r - aimStart.r) * 2;
+        const vdz = (aimEnd.z - aimStart.z) * 2;
+        const [ex, ey] = w2s(aimStart.r + vdx, aimStart.z + vdz);
+        ctx.strokeStyle = '#f80'; ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#f80'; ctx.font = '11px monospace';
+        const spd = Math.sqrt(vdx*vdx + vdz*vdz);
+        ctx.fillText('v=' + spd.toFixed(1), ex + 5, ey - 5);
+      }
+    }
+  }
+
   // Label
-  document.getElementById('lbl').textContent = 'Torus shell gravity \u00b7 R=' + R0 + ' r=' + r0;
+  document.getElementById('lbl').textContent =
+    (solid ? 'Solid' : 'Shell') + ' gravity \u00b7 R=' + R0 + ' r=' + r0;
 }
 
 // Slider wiring
@@ -253,14 +294,19 @@ document.getElementById('slP').oninput = function() {
   document.getElementById('vP').textContent = pN;
   draw();
 };
+document.getElementById('chkSolid').onchange = function() {
+  solid = this.checked; draw();
+};
 document.getElementById('btnDrop').onclick = function() {
-  // Drop particle at outer equator of right cross-section
-  tp = {r: R0 + r0 + 0.3, z: 0, vr: 0, vz: 0.5};
-  trail = [];
-  if (!animating) startAnim();
+  armMode = 'armed';
+  this.style.background = '#a44';
+  this.textContent = 'Tap to place...';
+  document.getElementById('tpInfo').textContent = 'tap canvas, drag for velocity';
 };
 document.getElementById('btnClear').onclick = function() {
-  tp = null; trail = []; draw();
+  tp = null; trail = []; armMode = 'idle'; draw();
+  document.getElementById('btnDrop').style.background = '';
+  document.getElementById('btnDrop').textContent = 'Arm drop';
   document.getElementById('tpInfo').textContent = '';
 };
 window.addEventListener('resize', function() { resize(); draw(); });
@@ -297,10 +343,28 @@ let touches = {};
 let panStart = null;
 let pinchStart = null;
 
+function launchParticle() {
+  const vdx = aimEnd ? (aimEnd.r - aimStart.r) * 2 : 0;
+  const vdz = aimEnd ? (aimEnd.z - aimStart.z) * 2 : 0;
+  tp = {r: aimStart.r, z: aimStart.z, vr: vdx, vz: vdz};
+  trail = [];
+  armMode = 'idle'; aimStart = null; aimEnd = null;
+  document.getElementById('btnDrop').style.background = '';
+  document.getElementById('btnDrop').textContent = 'Arm drop';
+  if (!animating) startAnim();
+}
+
 canvas.addEventListener('touchstart', function(e) {
   e.preventDefault();
   for (const t of e.changedTouches) touches[t.identifier] = {x: t.clientX, y: t.clientY};
   const ids = Object.keys(touches);
+  if (armMode === 'armed' && ids.length === 1) {
+    const [r, z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
+    aimStart = {r, z}; aimEnd = null;
+    armMode = 'aiming';
+    draw();
+    return;
+  }
   if (ids.length === 1) {
     panStart = {x: touches[ids[0]].x, y: touches[ids[0]].y, vcx: vcx, vcy: vcy};
     pinchStart = null;
@@ -316,6 +380,12 @@ canvas.addEventListener('touchmove', function(e) {
   e.preventDefault();
   for (const t of e.changedTouches) touches[t.identifier] = {x: t.clientX, y: t.clientY};
   const ids = Object.keys(touches);
+  if (armMode === 'aiming' && ids.length === 1) {
+    const [r, z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
+    aimEnd = {r, z};
+    draw();
+    return;
+  }
   if (panStart && ids.length === 1) {
     const t = touches[ids[0]];
     vcx = panStart.vcx - (t.x - panStart.x) / vsc;
@@ -326,7 +396,6 @@ canvas.addEventListener('touchmove', function(e) {
     const dist = Math.hypot(a.x - b.x, a.y - b.y);
     const ratio = dist / pinchStart.dist;
     const newSc = Math.max(5, Math.min(400, pinchStart.vsc * ratio));
-    // Zoom toward pinch center
     const [wr, wz] = s2w(pinchStart.mx, pinchStart.my);
     vsc = newSc;
     vcx = wr - (pinchStart.mx - W/2) / vsc;
@@ -337,21 +406,39 @@ canvas.addEventListener('touchmove', function(e) {
 
 canvas.addEventListener('touchend', function(e) {
   for (const t of e.changedTouches) delete touches[t.identifier];
+  if (armMode === 'aiming' && Object.keys(touches).length === 0) {
+    launchParticle();
+    return;
+  }
   if (Object.keys(touches).length === 0) { panStart = null; pinchStart = null; }
 }, {passive: false});
 
-// Mouse: drag to pan, wheel to zoom
+// Mouse: drag to pan, wheel to zoom (or arm mode)
 let mouseDown = false, msx = 0, msy = 0, mvcx = 0, mvcy = 0;
 canvas.addEventListener('mousedown', function(e) {
+  if (armMode === 'armed') {
+    const [r, z] = s2w(e.clientX, e.clientY);
+    aimStart = {r, z}; aimEnd = null;
+    armMode = 'aiming'; draw();
+    return;
+  }
   mouseDown = true; msx = e.clientX; msy = e.clientY; mvcx = vcx; mvcy = vcy;
 });
 canvas.addEventListener('mousemove', function(e) {
+  if (armMode === 'aiming') {
+    const [r, z] = s2w(e.clientX, e.clientY);
+    aimEnd = {r, z}; draw();
+    return;
+  }
   if (!mouseDown) return;
   vcx = mvcx - (e.clientX - msx) / vsc;
   vcy = mvcy + (e.clientY - msy) / vsc;
   draw();
 });
-window.addEventListener('mouseup', function() { mouseDown = false; });
+window.addEventListener('mouseup', function() {
+  if (armMode === 'aiming') { launchParticle(); return; }
+  mouseDown = false;
+});
 canvas.addEventListener('wheel', function(e) {
   e.preventDefault();
   const [wr, wz] = s2w(e.clientX, e.clientY);
