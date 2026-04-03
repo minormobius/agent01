@@ -2,468 +2,69 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>EMSIM — Field Simulator</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EMSIM</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#ddd;
-  font-family:'Courier New',monospace}
-canvas{position:fixed;top:0;left:0}
-#panel{position:fixed;bottom:0;left:0;right:0;background:rgba(20,20,40,0.95);
-  border-top:1px solid #333;padding:8px 12px;max-height:45vh;overflow-y:auto;font-size:12px;z-index:2}
-#panel label{display:inline-block;margin-right:10px;color:#aaa}
-#panel input[type=range]{width:70px;vertical-align:middle;accent-color:#6a6aaa}
-#panel select{background:#222;color:#ddd;border:1px solid #444;padding:2px 4px;font:inherit;font-size:12px}
-#panel button{background:#333;color:#ddd;border:1px solid #555;padding:3px 8px;
-  cursor:pointer;font:inherit;font-size:11px;margin:2px}
-#panel button:hover{background:#444}
-#panel button.on{background:#446;border-color:#88a}
-.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:3px 0}
-.sep{border-bottom:1px solid #2a2a3a;padding-bottom:4px;margin-bottom:4px}
-.val{color:#ddd;min-width:28px;display:inline-block;text-align:right}
-#info{position:fixed;top:8px;left:8px;font-size:11px;color:#666;z-index:2;pointer-events:none}
+html,body{width:100%;height:100%;background:#000}
+canvas{display:block}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="info">Drag test charge · Scroll zoom · Shift-drag pan</div>
-<div id="panel">
-  <div class="row sep">
-    <label>Geometry: <select id="selGeom">
-      <option value="axi">Axisymmetric (r,z)</option>
-      <option value="2d">2D Cartesian (x,y)</option>
-    </select></label>
-    <label>Surface: <select id="selSurf">
-      <option value="outside">Outside</option>
-      <option value="inside">Inside</option>
-    </select></label>
-    <button id="btnReset">Reset View</button>
-  </div>
-  <div class="row sep">
-    <b style="color:#f0e0c0">Sources:</b>
-    <button id="btnAddQ">+Charge</button>
-    <button id="btnAddM">+Mass</button>
-    <button id="btnAddI">+Current</button>
-    <button id="btnAddS">+Shell</button>
-  </div>
-  <div id="srcList"></div>
-  <div class="row sep">
-    <b style="color:#f0e0c0">Display:</b>
-    <button id="btnArr" class="on">Arrows</button>
-    <button id="btnPerim" class="on">Perimeter</button>
-    <label>Grid: <input type="range" id="slGrid" min="8" max="28" value="14">
-      <span class="val" id="vGrid">14</span></label>
-    <label>Perim#: <input type="range" id="slPN" min="12" max="48" value="30">
-      <span class="val" id="vPN">30</span></label>
-  </div>
-  <div class="row">
-    <b style="color:#f0e0c0">Test q:</b>
-    <label>q=<span class="val" id="vTQ">1.0</span>
-      <input type="range" id="slTQ" min="-3" max="3" step="0.1" value="1.0"></label>
-    <button id="btnGo">Release</button>
-    <button id="btnStop">Freeze</button>
-  </div>
-</div>
 <script>
-'use strict';
-const C = document.getElementById('c'), X = C.getContext('2d');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
 let W, H, dpr;
-let cx = 4, cy = 0, sc = 60;
-let geom = 'axi', side = 'outside';
-let showArr = true, showP = true, gridN = 14, pN = 30;
 
-// Sources
-let srcs = [], nid = 1;
-function addSrc(type, r, z, str, rad) {
-  srcs.push({id:nid++, type, r, z, str, rad:rad||0});
-  buildUI(); dirty = true;
-}
-function rmSrc(id) { srcs = srcs.filter(s=>s.id!==id); buildUI(); dirty = true; }
-
-// Defaults: torus shell + centerline charge (the inpac EM model)
-addSrc('shell', 4, 0, -1, 2);   // torus at R=4, tube radius 2
-addSrc('charge', 4, 0, 1, 0);   // same-charge ring at tube center
-
-// Test particle
-let tp = {r:6.5, z:0, vr:0, vz:0, q:1, free:false}; // outside shell at outer equator
-let trail = [];
-let drag = false, pan = null;
-
-// Coord transforms
-function w2s(r,z) { return [(r-cx)*sc+W/2, H/2-(z-cy)*sc]; }
-function s2w(sx,sy) { return [(sx-W/2)/sc+cx, (H/2-sy)/sc+cy]; }
-
-// =====================================================================
-// Field computation
-// =====================================================================
-function fieldAt(pr, pz) {
-  let fr=0, fz=0;
-  for (const s of srcs) {
-    const f = srcField(s, pr, pz);
-    fr += f.r; fz += f.z;
-  }
-  return {r:fr, z:fz};
-}
-
-function srcField(s, pr, pz) {
-  if (s.type==='charge') return ringField(s, pr, pz, 1);
-  if (s.type==='mass') return ringField(s, pr, pz, -1);
-  if (s.type==='current') return currentField(s, pr, pz);
-  if (s.type==='shell') return shellField(s, pr, pz);
-  return {r:0, z:0};
-}
-
-function ringField(s, pr, pz, sign) {
-  const Q = s.str * sign;
-  if (geom==='2d') {
-    const dr=pr-s.r, dz=pz-s.z, d2=dr*dr+dz*dz;
-    if (d2<0.001) return {r:0,z:0};
-    const f = Q/(d2*Math.sqrt(d2));
-    return {r:dr*f, z:dz*f};
-  }
-  // On-axis (s.r ~ 0): treat as point charge on Z-axis
-  if (Math.abs(s.r) < 0.01) {
-    const dr=pr, dz=pz-s.z, d2=dr*dr+dz*dz;
-    if (d2<0.001) return {r:0,z:0};
-    const f=Q/(d2*Math.sqrt(d2));
-    return {r:dr*f, z:dz*f};
-  }
-  const N=32, du=2*Math.PI/N;
-  let fr=0, fz=0;
-  for (let i=0;i<N;i++) {
-    const u=(i+.5)*du, co=Math.cos(u), si=Math.sin(u);
-    const dx=pr-s.r*co, dy=-s.r*si, dz=pz-s.z;
-    const d2=dx*dx+dy*dy+dz*dz;
-    if(d2<.001)continue;
-    const f3=Q*s.r*du/(Math.sqrt(d2)*d2);
-    fr+=dx*f3; fz+=dz*f3;
-  }
-  return {r:fr, z:fz};
-}
-
-function currentField(s, pr, pz) {
-  const I=s.str;
-  if (geom==='2d') {
-    const dr=pr-s.r, dz=pz-s.z, d2=dr*dr+dz*dz;
-    if(d2<.001)return{r:0,z:0};
-    const f=I/d2;
-    return {r:-dz*f, z:dr*f};
-  }
-  const N=32, du=2*Math.PI/N;
-  let fr=0,fz=0;
-  for(let i=0;i<N;i++){
-    const u=(i+.5)*du, co=Math.cos(u), si=Math.sin(u);
-    const dlx=-si*s.r*du, dly=co*s.r*du;
-    const dx=pr-s.r*co, dy=-s.r*si, dz=pz-s.z;
-    const d2=dx*dx+dy*dy+dz*dz;
-    if(d2<.001)continue;
-    const d3=Math.pow(d2,1.5);
-    fr+=I*(dly*dz)/d3;
-    fz+=I*(dlx*dy-dly*dx)/d3;
-  }
-  return {r:fr,z:fz};
-}
-
-function shellField(s, pr, pz) {
-  const Q=s.str, R0=s.rad||1;
-  if (geom==='2d') {
-    const N=48, dt=2*Math.PI/N;
-    let fr=0,fz=0;
-    for(let i=0;i<N;i++){
-      const t=(i+.5)*dt;
-      const sx=s.r+R0*Math.cos(t), sz=s.z+R0*Math.sin(t);
-      const dx=pr-sx, dz=pz-sz, d2=dx*dx+dz*dz;
-      if(d2<.001)continue;
-      const f3=Q*R0*dt/(Math.sqrt(d2)*d2);
-      fr+=dx*f3; fz+=dz*f3;
-    }
-    return {r:fr,z:fz};
-  }
-  // Axi: torus shell
-  const Nu=20, Nv=16, du=2*Math.PI/Nu, dv=2*Math.PI/Nv;
-  let fr=0,fz=0;
-  for(let iu=0;iu<Nu;iu++){
-    const u=(iu+.5)*du, cu=Math.cos(u), su=Math.sin(u);
-    for(let iv=0;iv<Nv;iv++){
-      const v=(iv+.5)*dv;
-      const Rc=s.r+R0*Math.cos(v);
-      const ex=Rc*cu, ey=Rc*su, ez=s.z+R0*Math.sin(v);
-      const dx=pr-ex, dy=-ey, dz=pz-ez;
-      const d2=dx*dx+dy*dy+dz*dz;
-      if(d2<.005)continue;
-      const dA=R0*Math.abs(Rc)*du*dv;
-      const f3=Q*dA/(Math.sqrt(d2)*d2);
-      fr+=dx*f3; fz+=dz*f3;
-    }
-  }
-  return {r:fr,z:fz};
-}
-
-// =====================================================================
-// Drawing
-// =====================================================================
-let dirty = true;
-
-function magColor(m) {
-  const lm=Math.log10(Math.max(m,1e-6));
-  const t=Math.max(0,Math.min(1,(lm+3)/5));
-  const r=t<.5?0:Math.min(255,(t-.5)*2*255);
-  const g=t<.25?t*4*255:t<.75?255:(1-t)*4*255;
-  const b=t<.5?(1-t*2)*255:0;
-  return `rgb(${r|0},${g|0},${b|0})`;
-}
-
-function drawGrid() {
-  const step=W/gridN, mx=step*.4, h=step/2;
-  for(let sx=0;sx<W;sx+=step){
-    for(let sy=0;sy<H;sy+=step){
-      const[r,z]=s2w(sx+h,sy+h);
-      const f=fieldAt(r,z);
-      const m=Math.sqrt(f.r*f.r+f.z*f.z);
-      X.fillStyle=magColor(m); X.globalAlpha=.25;
-      X.fillRect(sx,sy,step,step);
-      if(showArr&&m>1e-8){
-        const lm=Math.log10(m+1e-6);
-        const len=Math.min(mx,Math.max(4,(lm+3)*mx/4));
-        const nr=f.r/m, nz=f.z/m;
-        const dx=nr*len, dy=-nz*len;
-        X.strokeStyle=magColor(m); X.globalAlpha=.7; X.lineWidth=1.2;
-        X.beginPath();
-        X.moveTo(sx+h-dx*.5,sy+h-dy*.5);
-        X.lineTo(sx+h+dx*.5,sy+h+dy*.5);
-        const ax=-dx*.3+dy*.2, ay=-dy*.3-dx*.2;
-        const bx=-dx*.3-dy*.2, by=-dy*.3+dx*.2;
-        X.moveTo(sx+h+dx*.5,sy+h+dy*.5);
-        X.lineTo(sx+h+dx*.5+ax,sy+h+dy*.5+ay);
-        X.moveTo(sx+h+dx*.5,sy+h+dy*.5);
-        X.lineTo(sx+h+dx*.5+bx,sy+h+dy*.5+by);
-        X.stroke();
-      }
-      X.globalAlpha=1;
-    }
-  }
-}
-
-function drawPerim() {
-  const sh=srcs.find(s=>s.type==='shell');
-  if(!sh)return;
-  const cr=sh.r, cz=sh.z, R=sh.rad||1;
-  const off=side==='inside'?-.03:.03;
-  for(let i=0;i<pN;i++){
-    const th=i/pN*2*Math.PI;
-    const ct=Math.cos(th), st=Math.sin(th);
-    const pr=cr+(R+off)*ct, pz=cz+(R+off)*st;
-    const f=fieldAt(pr,pz);
-    const m=Math.sqrt(f.r*f.r+f.z*f.z);
-    if(m<1e-8)continue;
-    const[sx,sy]=w2s(pr,pz);
-    const lm=Math.log10(m+1e-6);
-    const len=Math.min(40,Math.max(8,(lm+3)*10));
-    const nr=f.r/m, nz=f.z/m;
-    const dx=nr*len, dy=-nz*len;
-    const dot=nr*ct+nz*st;
-    const stick=side==='inside'?dot>0:dot<0;
-    X.strokeStyle=stick?'#4f4':'#f44';
-    X.lineWidth=2; X.globalAlpha=.9;
-    X.beginPath(); X.moveTo(sx,sy); X.lineTo(sx+dx,sy+dy);
-    const ax=-dx*.25+dy*.15, ay=-dy*.25-dx*.15;
-    const bx=-dx*.25-dy*.15, by=-dy*.25+dx*.15;
-    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+ax,sy+dy+ay);
-    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+bx,sy+dy+by);
-    X.stroke();
-    X.fillStyle=stick?'#4f4':'#f44';
-    X.font='9px monospace'; X.globalAlpha=.6;
-    X.fillText(m.toFixed(1),sx+dx+3,sy+dy-2);
-    X.globalAlpha=1;
-  }
-}
-
-function drawSrcs() {
-  for(const s of srcs){
-    const[sx,sy]=w2s(s.r,s.z);
-    if(s.type==='shell'){
-      const rp=s.rad*sc;
-      X.strokeStyle=s.str>0?'#f88':'#88f';
-      X.lineWidth=2; X.setLineDash([4,4]);
-      X.beginPath(); X.arc(sx,sy,rp,0,2*Math.PI); X.stroke();
-      X.setLineDash([]);
-    }
-    X.fillStyle=s.type==='current'?'#ff0':s.type==='mass'?'#888':
-      s.str>0?'#f44':'#44f';
-    X.beginPath(); X.arc(sx,sy,5,0,2*Math.PI); X.fill();
-  }
-}
-
-function drawTP() {
-  const[sx,sy]=w2s(tp.r,tp.z);
-  if(trail.length>1){
-    X.strokeStyle='rgba(255,255,100,.3)'; X.lineWidth=1;
-    X.beginPath();
-    for(let i=0;i<trail.length;i++){
-      const[tx,ty]=w2s(trail[i][0],trail[i][1]);
-      i?X.lineTo(tx,ty):X.moveTo(tx,ty);
-    }
-    X.stroke();
-  }
-  X.fillStyle=tp.q>0?'#ff4':'#4ff';
-  X.beginPath(); X.arc(sx,sy,7,0,2*Math.PI); X.fill();
-  X.strokeStyle='#fff'; X.lineWidth=1.5; X.stroke();
-  const f=fieldAt(tp.r,tp.z);
-  const m=Math.sqrt(f.r*f.r+f.z*f.z);
-  if(m>1e-8){
-    const len=Math.min(50,Math.max(12,Math.log10(m+1e-6)*15+40));
-    const sg=Math.sign(tp.q)||1;
-    const dx=f.r/m*len*sg, dy=-f.z/m*len*sg;
-    X.strokeStyle='#ff0'; X.lineWidth=2.5;
-    X.beginPath(); X.moveTo(sx,sy); X.lineTo(sx+dx,sy+dy);
-    const ax=-dx*.25+dy*.15, ay=-dy*.25-dx*.15;
-    const bx=-dx*.25-dy*.15, by=-dy*.25+dx*.15;
-    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+ax,sy+dy+ay);
-    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+bx,sy+dy+by);
-    X.stroke();
-  }
-}
-
-function drawAxes() {
-  const[ox,oy]=w2s(0,0);
-  X.strokeStyle='rgba(255,255,255,.12)'; X.lineWidth=1;
-  X.beginPath(); X.moveTo(0,oy); X.lineTo(W,oy);
-  X.moveTo(ox,0); X.lineTo(ox,H); X.stroke();
-  X.fillStyle='rgba(255,255,255,.25)'; X.font='11px monospace';
-  X.fillText(geom==='axi'?'R':'x',W-16,oy-4);
-  X.fillText(geom==='axi'?'Z':'y',ox+4,14);
-}
-
-function draw() {
-  X.clearRect(0,0,W,H);
-  X.fillStyle='#0a0a14'; X.fillRect(0,0,W,H);
-  drawAxes();
-  drawGrid();
-  drawSrcs();
-  if(showP) drawPerim();
-  drawTP();
-}
-
-// =====================================================================
-// Particle sim
-// =====================================================================
-function stepTP(dt) {
-  if(!tp.free)return;
-  const sub=dt/4;
-  for(let i=0;i<4;i++){
-    const f=fieldAt(tp.r,tp.z);
-    tp.vr+=f.r*tp.q*sub; tp.vz+=f.z*tp.q*sub;
-    tp.vr*=.999; tp.vz*=.999;
-    tp.r+=tp.vr*sub; tp.z+=tp.vz*sub;
-  }
-  trail.push([tp.r,tp.z]);
-  if(trail.length>2000)trail.shift();
-}
-
-// =====================================================================
-// Source UI
-// =====================================================================
-function buildUI() {
-  const el=document.getElementById('srcList');
-  el.innerHTML='';
-  for(const s of srcs){
-    const d=document.createElement('div');
-    d.className='row';
-    const nm={charge:'Q',mass:'M',current:'I',shell:'S'}[s.type];
-    const col=s.type==='current'?'#ff0':s.type==='mass'?'#888':s.str>0?'#f88':'#88f';
-    d.innerHTML=`<span style="color:${col}">${nm}${s.id}</span>`+
-      ` r:<input type="number" step=".1" value="${s.r}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="r">`+
-      ` z:<input type="number" step=".1" value="${s.z}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="z">`+
-      ` str:<input type="number" step=".1" value="${s.str}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="str">`+
-      (s.type==='shell'?` R:<input type="number" step=".1" value="${s.rad}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="rad">`:'')+
-      ` <button data-rm="${s.id}" style="color:#f66">x</button>`;
-    el.appendChild(d);
-  }
-  el.querySelectorAll('input[data-id]').forEach(i=>{
-    i.addEventListener('change',()=>{
-      const s=srcs.find(x=>x.id===+i.dataset.id);
-      if(s){s[i.dataset.f]=parseFloat(i.value);dirty=true;}
-    });
-  });
-  el.querySelectorAll('button[data-rm]').forEach(b=>{
-    b.addEventListener('click',()=>rmSrc(+b.dataset.rm));
-  });
-}
-
-// =====================================================================
-// Events
-// =====================================================================
 function resize() {
   dpr = window.devicePixelRatio || 1;
   W = window.innerWidth;
   H = window.innerHeight;
-  C.width = W * dpr;
-  C.height = H * dpr;
-  C.style.width = W + 'px';
-  C.style.height = H + 'px';
-  X.setTransform(dpr, 0, 0, dpr, 0, 0);
-  dirty = true;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-window.addEventListener('resize',resize);
-
-C.addEventListener('pointerdown',e=>{
-  e.preventDefault();
-  const sx=e.clientX, sy=e.clientY;
-  const[tsx,tsy]=w2s(tp.r,tp.z);
-  if(Math.hypot(sx-tsx,sy-tsy)<25){
-    drag=true; tp.free=false; tp.vr=0; tp.vz=0;
-  } else {
-    pan={sx,sy,cx,cy};
-  }
-});
-C.addEventListener('pointermove',e=>{
-  if(drag){
-    const[r,z]=s2w(e.clientX,e.clientY);
-    tp.r=r; tp.z=z; dirty=true;
-  } else if(pan){
-    cx=pan.cx-(e.clientX-pan.sx)/sc;
-    cy=pan.cy+(e.clientY-pan.sy)/sc;
-    dirty=true;
-  }
-});
-window.addEventListener('pointerup',()=>{drag=false;pan=null;});
-C.addEventListener('wheel',e=>{
-  e.preventDefault();
-  sc*=e.deltaY>0?.9:1.1;
-  sc=Math.max(5,Math.min(500,sc));
-  dirty=true;
-},{passive:false});
-
-// Buttons
-document.getElementById('selGeom').onchange=e=>{geom=e.target.value;dirty=true;};
-document.getElementById('selSurf').onchange=e=>{side=e.target.value;dirty=true;};
-document.getElementById('btnReset').onclick=()=>{cx=4;cy=0;sc=60;dirty=true;};
-document.getElementById('btnAddQ').onclick=()=>addSrc('charge',1,1,1);
-document.getElementById('btnAddM').onclick=()=>addSrc('mass',1,-1,1);
-document.getElementById('btnAddI').onclick=()=>addSrc('current',0,0,1);
-document.getElementById('btnAddS').onclick=()=>addSrc('shell',0,0,-1,1.5);
-document.getElementById('btnArr').onclick=e=>{showArr=!showArr;e.target.classList.toggle('on');dirty=true;};
-document.getElementById('btnPerim').onclick=e=>{showP=!showP;e.target.classList.toggle('on');dirty=true;};
-document.getElementById('slGrid').oninput=e=>{gridN=+e.target.value;document.getElementById('vGrid').textContent=gridN;dirty=true;};
-document.getElementById('slPN').oninput=e=>{pN=+e.target.value;document.getElementById('vPN').textContent=pN;dirty=true;};
-document.getElementById('slTQ').oninput=e=>{tp.q=+e.target.value;document.getElementById('vTQ').textContent=tp.q.toFixed(1);dirty=true;};
-document.getElementById('btnGo').onclick=()=>{tp.free=true;trail=[];};
-document.getElementById('btnStop').onclick=()=>{tp.free=false;tp.vr=0;tp.vz=0;};
-
-// =====================================================================
-// Main loop
-// =====================================================================
-let lt=0;
-function loop(t){
-  const dt=Math.min(.05,(t-lt)/1000); lt=t;
-  if(tp.free){stepTP(dt);dirty=true;}
-  if(dirty){draw();dirty=false;}
-  requestAnimationFrame(loop);
-}
-
+window.addEventListener('resize', resize);
 resize();
-buildUI();
-requestAnimationFrame(loop);
+
+// Just draw a red circle and some text to prove canvas works
+ctx.fillStyle = '#111';
+ctx.fillRect(0, 0, W, H);
+
+ctx.strokeStyle = '#ff0';
+ctx.lineWidth = 3;
+ctx.beginPath();
+ctx.arc(W/2, H/3, 80, 0, Math.PI * 2);
+ctx.stroke();
+
+ctx.fillStyle = '#fff';
+ctx.font = '24px monospace';
+ctx.fillText('EMSIM canvas test', 20, 40);
+
+// Draw 12 arrows in a circle
+for (let i = 0; i < 12; i++) {
+  const th = i / 12 * Math.PI * 2;
+  const cx0 = W/2, cy0 = H/3;
+  const r1 = 90, r2 = 130;
+  const x1 = cx0 + r1 * Math.cos(th);
+  const y1 = cy0 + r1 * Math.sin(th);
+  const x2 = cx0 + r2 * Math.cos(th);
+  const y2 = cy0 + r2 * Math.sin(th);
+  ctx.strokeStyle = i % 2 === 0 ? '#4f4' : '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+ctx.fillStyle = '#888';
+ctx.font = '14px monospace';
+ctx.fillText('If you see this, canvas works.', 20, H/2);
+ctx.fillText('W=' + W + ' H=' + H + ' dpr=' + dpr, 20, H/2 + 20);
 </script>
 </body>
 </html>
