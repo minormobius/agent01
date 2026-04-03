@@ -38,14 +38,14 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 FooDB index: 992 food names
 
 Matched: 374/779 foods, 54330 unique compounds
-Wrote cards/data/yum-compounds.json (63414KB)
+Wrote data/yum-compounds.json (63414KB)
   Built vectors: 374/779 foods, 54330 compound dims
   374 foods with compound data for PCA fitting
   PCA: 54330 → 64d, 99.7% variance explained
   Text embeddings for 405 unmatched foods...
   Got 0 Wikipedia extracts
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4207.91it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4074.94it/s]
 [1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -59,16 +59,16 @@ Wrote cards/data/yum-embeddings.bin (194KB)
 Wrote cards/data/yum-embeddings.json (16KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.856  [COMPOUND]
+  Garlic ~ Onion: 0.858  [COMPOUND]
   Chocolate ~ Vanilla: -0.944  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
   Lemon ~ Lime (fruit): 0.927  [COMPOUND]
   Salmon ~ Cinnamon: -0.944  [COMPOUND]
   Coffee ~ Tea: 0.302  [COMPOUND]
-  Butter ~ Ghee: -0.197  [text]
+  Butter ~ Ghee: -0.199  [text]
   Cheddar cheese ~ Brie: -0.006  [text]
 
-  Most similar: 'Cantaloupe' ~ 'Clementine' (1.000)
+  Most similar: 'Pie' ~ 'Pierogi' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  26/ 60 (43%)
