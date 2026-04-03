@@ -16,14 +16,9 @@
     <div class="rb-wrap">
       <div id="rb-status" class="rb-status">Loading flavor data...</div>
 
-      <!-- Hand of 6 -->
-      <div id="rb-hand" class="rb-hand"></div>
-
-      <!-- Controls -->
-      <div class="rb-controls">
-        <button id="rb-draw" class="rb-btn" disabled>Draw 6</button>
-        <button id="rb-clear" class="rb-btn rb-btn-dim" disabled>Deselect</button>
-        <button id="rb-new" class="rb-btn rb-btn-dim" disabled>New Hand</button>
+      <!-- Selected ingredients (dish in progress) -->
+      <div id="rb-selected" class="rb-selected">
+        <div class="rb-sel-empty">Click ingredients below to build a dish</div>
       </div>
 
       <!-- Score display -->
@@ -40,8 +35,30 @@
         <div id="rb-matrix-grid" class="rb-matrix-grid"></div>
       </div>
 
-      <!-- Best combos hint -->
+      <!-- Hints -->
       <div id="rb-hints" class="rb-hints hidden"></div>
+
+      <!-- Controls -->
+      <div class="rb-controls">
+        <button id="rb-save" class="rb-btn" disabled>Save Dish</button>
+        <button id="rb-clear" class="rb-btn rb-btn-dim">Deselect</button>
+      </div>
+
+      <!-- Search + Filter -->
+      <div class="rb-search-wrap">
+        <input type="text" id="rb-search" class="rb-search" placeholder="Search ingredients...">
+      </div>
+      <div class="rb-filters">
+        <div class="filter-section-head">
+          <span class="filter-label">Categories</span>
+          <button class="filter-select-btn" id="rb-cat-all">all</button>
+          <button class="filter-select-btn" id="rb-cat-none">none</button>
+        </div>
+        <div class="filter-chips" id="rb-cat-chips"></div>
+      </div>
+
+      <!-- Full ingredient deck -->
+      <div id="rb-deck" class="rb-deck"></div>
 
       <!-- History -->
       <div id="rb-history" class="rb-history"></div>

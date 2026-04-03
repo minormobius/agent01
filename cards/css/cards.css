@@ -2962,8 +2962,100 @@ main:not(:has(.tab-panel)) {
   text-align: center;
 }
 
-/* Hand of cards */
-.rb-hand {
+/* Selected ingredient chips */
+.rb-selected {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  margin-bottom: 0.8rem;
+  align-items: center;
+}
+
+.rb-sel-empty {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+  width: 100%;
+  text-align: center;
+}
+
+.rb-sel-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(230, 126, 34, 0.12);
+  border: 1px solid rgba(230, 126, 34, 0.4);
+  border-radius: 20px;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  font-size: 0.72rem;
+  animation: luckyReveal 0.2s ease-out;
+}
+
+.rb-sel-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.rb-sel-icon {
+  font-size: 0.9rem;
+  width: 22px;
+  text-align: center;
+}
+
+.rb-sel-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.rb-sel-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.rb-sel-remove:hover { color: #ef4444; }
+
+/* Search */
+.rb-search-wrap {
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+
+.rb-search {
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.rb-search:focus { border-color: #e67e22; }
+
+.rb-search::placeholder { color: var(--text-dim); }
+
+/* Filters */
+.rb-filters {
+  width: 100%;
+  margin-bottom: 0.8rem;
+}
+
+/* Ingredient deck */
+.rb-deck {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -3040,6 +3132,25 @@ main:not(:has(.tab-panel)) {
   font-family: system-ui, sans-serif;
 }
 
+/* Show more button */
+.rb-show-more {
+  grid-column: 1 / -1;
+  padding: 0.6rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rb-show-more:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
 /* Controls */
 .rb-controls {
   display: flex;
@@ -3064,10 +3175,7 @@ main:not(:has(.tab-panel)) {
   border-color: #e67e22;
 }
 
-.rb-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
+.rb-btn:disabled { opacity: 0.3; cursor: default; }
 
 .rb-btn-dim {
   color: var(--text-dim);
@@ -3094,11 +3202,7 @@ main:not(:has(.tab-panel)) {
 
 .rb-score.hidden { display: none; }
 
-.rb-score-grade {
-  font-size: 2.5rem;
-  font-weight: 700;
-  line-height: 1;
-}
+.rb-score-grade { font-size: 2.5rem; font-weight: 700; line-height: 1; }
 
 .rb-grade-s { color: #f59e0b; text-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
 .rb-grade-a { color: #10b981; }
@@ -3116,11 +3220,7 @@ main:not(:has(.tab-panel)) {
   margin: 0.3rem 0;
 }
 
-.rb-score-value {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text);
-}
+.rb-score-value { font-size: 1.3rem; font-weight: 600; color: var(--text); }
 
 .rb-score-dish {
   font-size: 0.75rem;
@@ -3130,12 +3230,7 @@ main:not(:has(.tab-panel)) {
 }
 
 /* Pairing matrix */
-.rb-matrix {
-  width: 100%;
-  margin-bottom: 1rem;
-  overflow-x: auto;
-}
-
+.rb-matrix { width: 100%; margin-bottom: 1rem; overflow-x: auto; }
 .rb-matrix.hidden { display: none; }
 
 .rb-matrix-label {
@@ -3165,15 +3260,8 @@ main:not(:has(.tab-panel)) {
   white-space: nowrap;
 }
 
-.rb-matrix-header {
-  text-align: center;
-  writing-mode: horizontal-tb;
-}
-
-.rb-matrix-row-header {
-  text-align: right;
-  padding-right: 0.5rem !important;
-}
+.rb-matrix-header { text-align: center; }
+.rb-matrix-row-header { text-align: right; padding-right: 0.5rem !important; }
 
 .rb-matrix-cell {
   text-align: center;
@@ -3184,17 +3272,10 @@ main:not(:has(.tab-panel)) {
   color: var(--text);
 }
 
-.rb-matrix-diag {
-  color: var(--text-dim);
-  opacity: 0.3;
-}
+.rb-matrix-diag { color: var(--text-dim); opacity: 0.3; }
 
 /* Hints */
-.rb-hints {
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
+.rb-hints { width: 100%; margin-bottom: 1rem; }
 .rb-hints.hidden { display: none; }
 
 .rb-hint {
@@ -3203,18 +3284,10 @@ main:not(:has(.tab-panel)) {
   padding: 0.3rem 0;
   color: var(--text-dim);
 }
-
 .rb-hint strong { color: var(--text); }
 
-.rb-hint-best::before { content: ""; color: #10b981; margin-right: 0.3rem; }
-.rb-hint-worst::before { content: ""; color: #ef4444; margin-right: 0.3rem; }
-.rb-hint-suggest::before { content: ""; color: #f59e0b; margin-right: 0.3rem; }
-
 /* History */
-.rb-history {
-  width: 100%;
-  margin-top: 1rem;
-}
+.rb-history { width: 100%; margin-top: 1rem; }
 
 .rb-hist-label {
   font-size: 0.7rem;
@@ -3234,13 +3307,7 @@ main:not(:has(.tab-panel)) {
   font-size: 0.75rem;
 }
 
-.rb-hist-grade {
-  font-weight: 700;
-  font-size: 0.8rem;
-  width: 1.5rem;
-  text-align: center;
-}
-
+.rb-hist-grade { font-weight: 700; font-size: 0.8rem; width: 1.5rem; text-align: center; }
 .rb-hist-grade.rb-grade-s { color: #f59e0b; }
 .rb-hist-grade.rb-grade-a { color: #10b981; }
 .rb-hist-grade.rb-grade-b { color: #3b82f6; }
@@ -3248,19 +3315,11 @@ main:not(:has(.tab-panel)) {
 .rb-hist-grade.rb-grade-d { color: var(--text-dim); }
 .rb-hist-grade.rb-grade-f { color: #ef4444; }
 
-.rb-hist-names {
-  flex: 1;
-  color: var(--text);
-}
-
-.rb-hist-score {
-  font-family: system-ui, sans-serif;
-  font-size: 0.7rem;
-  color: var(--text-dim);
-}
+.rb-hist-names { flex: 1; color: var(--text); }
+.rb-hist-score { font-family: system-ui, sans-serif; font-size: 0.7rem; color: var(--text-dim); }
 
 @media (max-width: 500px) {
-  .rb-hand { grid-template-columns: repeat(2, 1fr); }
+  .rb-deck { grid-template-columns: repeat(2, 1fr); }
   .rb-card-img { height: 60px; }
   .rb-card-title { font-size: 0.7rem; }
   .rb-matrix-table { font-size: 0.55rem; }

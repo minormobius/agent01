@@ -1,41 +1,66 @@
 // ── Recipe Builder — flavor compound pairing game ────────────
-// Draw 6 foods, keep drawing more to expand options.
-// Select 3-5 to build a "dish".
+// Full ingredient deck with search/filter. Select 3-5 to build a dish.
 // Score = average pairwise cosine similarity from FooDB compound embeddings.
 
 import { FOOD_CATEGORIES, FOOD_POOL } from "./yum-pool.js";
-import { fetchArticleData, RARITY_LABELS } from "./shared.js";
+import { RARITY_LABELS } from "./shared.js";
 
 let emb = null;   // Float32Array of all embeddings
 let idx = null;   // { dim, count, titles[], categories[] }
+let wiki = null;  // { foods: { title: { thumb, extract } } }
 let ready = false;
 
-let hand = [];           // accumulated cards: { title, category, stats, embIdx, page }
-let seen = new Set();    // titles already in hand (dedup)
-let selected = new Set(); // indices into hand[]
+let allCards = [];        // full deck: { title, category, stats, embIdx }
+let filteredCards = [];   // after search/filter
+let selected = new Set(); // titles of selected cards
 const history = [];
 
-// ── Embedding loading ────────────────────────────────────────
+const PAGE_SIZE = 30;
+let visibleCount = PAGE_SIZE;
+let searchTerm = "";
+let activeCategories = new Set(Object.keys(FOOD_CATEGORIES));
 
-async function loadEmb() {
+// ── Data loading ────────────────────────────────────────────
+
+async function loadData() {
   const status = document.getElementById("rb-status");
   try {
-    const [jr, br] = await Promise.all([
+    const [jr, br, wr] = await Promise.all([
       fetch("data/yum-embeddings.json"),
       fetch("data/yum-embeddings.bin"),
+      fetch("data/yum-wikipedia.json"),
     ]);
+
     if (!jr.ok || !br.ok) {
       status.textContent = "Flavor data not available yet.";
       return;
     }
+
     idx = await jr.json();
     emb = new Float32Array(await br.arrayBuffer());
+
+    if (wr.ok) {
+      wiki = await wr.json();
+      console.log(`Wikipedia data: ${wiki.matched} foods, ${wiki.with_thumbnails} thumbnails`);
+    }
+
+    // Build full card deck
+    const titleIdx = {};
+    idx.titles.forEach((t, i) => titleIdx[t] = i);
+
+    allCards = FOOD_POOL.map(entry => {
+      const [title, category, stats] = entry;
+      const embIdx = titleIdx[title] ?? -1;
+      return { title, category, stats, embIdx };
+    }).filter(c => c.embIdx >= 0);
+
     ready = true;
-    status.textContent = `${idx.count} foods · ${idx.dim}d flavor embeddings · ${idx.foodb_matched} compound-matched`;
-    document.getElementById("rb-draw").disabled = false;
+    status.textContent = `${allCards.length} ingredients · ${idx.foodb_matched} flavor-compound matched`;
+    applyFilters();
+    renderFilters();
   } catch (err) {
     console.error(err);
-    status.textContent = "Failed to load flavor data.";
+    status.textContent = "Failed to load data.";
   }
 }
 
@@ -53,12 +78,12 @@ function cos(ai, bi) {
   return denom > 0 ? dot / denom : 0;
 }
 
-function coherenceScore(indices) {
-  if (indices.length < 2) return 0;
+function coherenceScore(embIndices) {
+  if (embIndices.length < 2) return 0;
   let sum = 0, count = 0;
-  for (let i = 0; i < indices.length; i++) {
-    for (let j = i + 1; j < indices.length; j++) {
-      sum += cos(indices[i], indices[j]);
+  for (let i = 0; i < embIndices.length; i++) {
+    for (let j = i + 1; j < embIndices.length; j++) {
+      sum += cos(embIndices[i], embIndices[j]);
       count++;
     }
   }
@@ -74,119 +99,109 @@ function gradeScore(score) {
   return { grade: "F", label: "Chaotic", cls: "rb-grade-f" };
 }
 
-// ── Drawing ──────────────────────────────────────────────────
+// ── Filtering & Search ──────────────────────────────────────
 
-function titleToEmbIdx(title) {
-  if (!idx) return -1;
-  return idx.titles.indexOf(title);
-}
-
-function shuffledPool() {
-  const arr = FOOD_POOL.map((entry, i) => ({ entry, i }));
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-async function drawMore() {
-  const handEl = document.getElementById("rb-hand");
-  const isFirst = hand.length === 0;
-
-  if (isFirst) {
-    handEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Drawing...</span></div>';
-    hideScore();
-    hideMatrix();
-    hideHints();
-  }
-
-  // Pick 6 new cards that aren't already in hand
-  const pool = shuffledPool();
-  const picks = [];
-  for (const { entry } of pool) {
-    if (seen.has(entry[0])) continue;
-    const embIdx = titleToEmbIdx(entry[0]);
-    if (embIdx >= 0) {
-      picks.push({ title: entry[0], category: entry[1], stats: entry[2], embIdx });
-      seen.add(entry[0]);
-    }
-    if (picks.length >= 6) break;
-  }
-
-  if (picks.length === 0) {
-    document.getElementById("rb-status").textContent = "No more foods to draw!";
-    return;
-  }
-
-  // Fetch Wikipedia data for new cards only
-  const titles = picks.map(p => p.title);
-  let pages = {};
-  try {
-    pages = await fetchArticleData(titles);
-  } catch (e) { /* offline fallback */ }
-
-  const newCards = picks.map(p => {
-    const page = Object.values(pages).find(pg => pg.title === p.title) || {};
-    return { ...p, page };
+function applyFilters() {
+  const term = searchTerm.toLowerCase();
+  filteredCards = allCards.filter(c => {
+    if (!activeCategories.has(c.category)) return false;
+    if (term && !c.title.toLowerCase().includes(term)) return false;
+    return true;
   });
 
-  hand.push(...newCards);
-  renderHand();
+  // Sort: selected first, then alphabetical
+  filteredCards.sort((a, b) => {
+    const sa = selected.has(a.title) ? 0 : 1;
+    const sb = selected.has(b.title) ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return a.title.localeCompare(b.title);
+  });
 
-  document.getElementById("rb-clear").disabled = false;
-  document.getElementById("rb-new").disabled = false;
+  visibleCount = PAGE_SIZE;
+  renderDeck();
   updateStatusLine();
 }
 
-function resetHand() {
-  if (selected.size >= 3) saveDish();
-  hand = [];
-  seen.clear();
-  selected.clear();
-  document.getElementById("rb-hand").innerHTML = "";
-  hideScore();
-  hideMatrix();
-  hideHints();
-  updateStatusLine();
-  drawMore();
+function renderFilters() {
+  const el = document.getElementById("rb-cat-chips");
+  el.innerHTML = Object.entries(FOOD_CATEGORIES).map(([key, cat]) => {
+    const count = allCards.filter(c => c.category === key).length;
+    const active = activeCategories.has(key);
+    return `<button class="filter-chip${active ? " active" : ""}" data-cat="${key}"
+      style="--chip-color:${cat.color}">
+      <span class="filter-chip-icon">${cat.icon}</span>
+      ${cat.name}<span class="filter-chip-count">${count}</span>
+    </button>`;
+  }).join("");
+
+  el.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const key = chip.dataset.cat;
+      if (activeCategories.has(key)) activeCategories.delete(key);
+      else activeCategories.add(key);
+      chip.classList.toggle("active");
+      applyFilters();
+    });
+  });
 }
 
 // ── Rendering ────────────────────────────────────────────────
 
-function renderHand() {
-  const el = document.getElementById("rb-hand");
-  el.innerHTML = hand.map((card, i) => {
+function renderDeck() {
+  const el = document.getElementById("rb-deck");
+  const visible = filteredCards.slice(0, visibleCount);
+
+  el.innerHTML = visible.map(card => {
     const cat = FOOD_CATEGORIES[card.category] || {};
     const rarity = card.stats?.rarity || "common";
-    const sel = selected.has(i);
-    const thumb = card.page?.thumbnail?.source;
+    const sel = selected.has(card.title);
+    const w = wiki?.foods?.[card.title] || {};
     return `
-      <div class="rb-card ${sel ? "rb-selected" : ""} rarity-${rarity}" data-idx="${i}">
-        ${thumb
-          ? `<img class="rb-card-img" src="${thumb}" alt="${card.title}">`
+      <div class="rb-card ${sel ? "rb-selected" : ""} rarity-${rarity}" data-title="${card.title}">
+        ${w.thumb
+          ? `<img class="rb-card-img" src="${w.thumb}" alt="${card.title}" loading="lazy">`
           : `<div class="rb-card-icon">${cat.icon || "?"}</div>`}
         <div class="rb-card-title">${card.title}</div>
         <div class="rb-card-cat" style="color:${cat.color || '#888'}">${cat.name || card.category}</div>
       </div>`;
   }).join("");
 
+  // Show more button
+  if (visibleCount < filteredCards.length) {
+    el.innerHTML += `<button class="rb-show-more" id="rb-show-more">
+      Show more (${filteredCards.length - visibleCount} remaining)
+    </button>`;
+    document.getElementById("rb-show-more").addEventListener("click", () => {
+      visibleCount += PAGE_SIZE;
+      renderDeck();
+    });
+  }
+
   el.querySelectorAll(".rb-card").forEach(cardEl => {
     cardEl.addEventListener("click", () => {
-      const i = parseInt(cardEl.dataset.idx);
-      toggleSelect(i);
+      toggleSelect(cardEl.dataset.title);
     });
   });
 }
 
-function toggleSelect(i) {
-  if (selected.has(i)) {
-    selected.delete(i);
+function toggleSelect(title) {
+  if (selected.has(title)) {
+    selected.delete(title);
   } else {
     if (selected.size >= 5) return;
-    selected.add(i);
+    selected.add(title);
   }
-  renderHand();
+  renderDeck();
+  renderSelected();
+  updateScore();
+  updateMatrix();
+  updateHints();
+}
+
+function removeSelected(title) {
+  selected.delete(title);
+  renderDeck();
+  renderSelected();
   updateScore();
   updateMatrix();
   updateHints();
@@ -194,24 +209,49 @@ function toggleSelect(i) {
 
 function clearSelection() {
   selected.clear();
-  renderHand();
+  renderDeck();
+  renderSelected();
   hideScore();
   hideMatrix();
   hideHints();
   updateStatusLine();
 }
 
+function renderSelected() {
+  const el = document.getElementById("rb-selected");
+  if (selected.size === 0) {
+    el.innerHTML = '<div class="rb-sel-empty">Click ingredients below to build a dish</div>';
+    return;
+  }
+
+  el.innerHTML = [...selected].map(title => {
+    const card = allCards.find(c => c.title === title);
+    const cat = FOOD_CATEGORIES[card?.category] || {};
+    const w = wiki?.foods?.[title] || {};
+    return `<div class="rb-sel-chip" data-title="${title}">
+      ${w.thumb ? `<img class="rb-sel-thumb" src="${w.thumb}" alt="${title}">` : `<span class="rb-sel-icon">${cat.icon || "?"}</span>`}
+      <span class="rb-sel-name">${title}</span>
+      <button class="rb-sel-remove" data-title="${title}">&times;</button>
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".rb-sel-remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeSelected(btn.dataset.title);
+    });
+  });
+}
+
 function updateStatusLine() {
   const el = document.getElementById("rb-status");
-  if (hand.length === 0) {
-    el.textContent = ready
-      ? `${idx.count} foods · ${idx.dim}d flavor embeddings · ${idx.foodb_matched} compound-matched`
-      : "Loading...";
-  } else if (selected.size > 0) {
-    const minMsg = selected.size < 3 ? " (select at least 3)" : "";
-    el.textContent = `${selected.size}/5 selected · ${hand.length} in hand${minMsg}`;
+  if (!ready) return;
+  const showing = Math.min(visibleCount, filteredCards.length);
+  if (selected.size > 0) {
+    const minMsg = selected.size < 3 ? " — need at least 3" : "";
+    el.textContent = `${selected.size}/5 selected · ${showing}/${allCards.length} shown${minMsg}`;
   } else {
-    el.textContent = `${hand.length} foods in hand · select 3-5 to build a dish`;
+    el.textContent = `${showing}/${allCards.length} ingredients · pick 3-5 to build a dish`;
   }
 }
 
@@ -219,74 +259,58 @@ function updateStatusLine() {
 
 function updateScore() {
   const scoreEl = document.getElementById("rb-score");
+  if (selected.size < 2) { scoreEl.classList.add("hidden"); updateStatusLine(); return; }
 
-  if (selected.size < 2) {
-    scoreEl.classList.add("hidden");
-    updateStatusLine();
-    return;
-  }
-
-  const embIndices = [...selected].map(i => hand[i].embIdx);
+  const cards = [...selected].map(t => allCards.find(c => c.title === t)).filter(Boolean);
+  const embIndices = cards.map(c => c.embIdx);
   const score = coherenceScore(embIndices);
-  const { grade, label, cls } = gradeScore(score);
+  const { grade, cls } = gradeScore(score);
 
   document.getElementById("rb-grade").textContent = grade;
   document.getElementById("rb-grade").className = "rb-score-grade " + cls;
   document.getElementById("rb-score-value").textContent = `${(score * 100).toFixed(1)}%`;
-  document.getElementById("rb-dish-name").textContent =
-    [...selected].map(i => hand[i].title).join(" + ");
+  document.getElementById("rb-dish-name").textContent = [...selected].join(" + ");
 
   scoreEl.classList.remove("hidden");
   updateStatusLine();
 }
 
-function hideScore() {
-  document.getElementById("rb-score").classList.add("hidden");
-}
+function hideScore() { document.getElementById("rb-score").classList.add("hidden"); }
 
 // ── Pairing Matrix ──────────────────────────────────────────
 
 function updateMatrix() {
   const matrixEl = document.getElementById("rb-matrix");
   const gridEl = document.getElementById("rb-matrix-grid");
+  if (selected.size < 2) { matrixEl.classList.add("hidden"); return; }
 
-  if (selected.size < 2) {
-    matrixEl.classList.add("hidden");
-    return;
-  }
+  const titles = [...selected];
+  const cards = titles.map(t => allCards.find(c => c.title === t)).filter(Boolean);
+  const n = cards.length;
 
-  const sel = [...selected];
-  const n = sel.length;
-
-  let html = '<table class="rb-matrix-table">';
-  html += '<tr><th></th>';
-  for (const i of sel) {
-    const name = hand[i].title.length > 12
-      ? hand[i].title.slice(0, 11) + "..."
-      : hand[i].title;
+  let html = '<table class="rb-matrix-table"><tr><th></th>';
+  for (const c of cards) {
+    const name = c.title.length > 12 ? c.title.slice(0, 11) + "..." : c.title;
     html += `<th class="rb-matrix-header">${name}</th>`;
   }
   html += '</tr>';
 
   for (let r = 0; r < n; r++) {
-    const name = hand[sel[r]].title.length > 12
-      ? hand[sel[r]].title.slice(0, 11) + "..."
-      : hand[sel[r]].title;
+    const name = cards[r].title.length > 12 ? cards[r].title.slice(0, 11) + "..." : cards[r].title;
     html += `<tr><th class="rb-matrix-row-header">${name}</th>`;
     for (let c = 0; c < n; c++) {
       if (r === c) {
         html += '<td class="rb-matrix-cell rb-matrix-diag">-</td>';
       } else {
-        const sim = cos(hand[sel[r]].embIdx, hand[sel[c]].embIdx);
+        const sim = cos(cards[r].embIdx, cards[c].embIdx);
         const color = simColor(sim);
         const pct = (sim * 100).toFixed(0);
-        html += `<td class="rb-matrix-cell" style="background:${color}" title="${hand[sel[r]].title} × ${hand[sel[c]].title}: ${pct}%">${pct}</td>`;
+        html += `<td class="rb-matrix-cell" style="background:${color}" title="${cards[r].title} × ${cards[c].title}: ${pct}%">${pct}</td>`;
       }
     }
     html += '</tr>';
   }
   html += '</table>';
-
   gridEl.innerHTML = html;
   matrixEl.classList.remove("hidden");
 }
@@ -302,86 +326,55 @@ function simColor(sim) {
   }
 }
 
-function hideMatrix() {
-  document.getElementById("rb-matrix").classList.add("hidden");
-}
+function hideMatrix() { document.getElementById("rb-matrix").classList.add("hidden"); }
 
 // ── Hints ───────────────────────────────────────────────────
 
 function updateHints() {
   const el = document.getElementById("rb-hints");
+  if (selected.size < 3) { el.classList.add("hidden"); return; }
 
-  if (selected.size < 3) {
-    el.classList.add("hidden");
-    return;
-  }
+  const titles = [...selected];
+  const cards = titles.map(t => allCards.find(c => c.title === t)).filter(Boolean);
 
-  const sel = [...selected];
   let bestPair = null, bestSim = -2;
   let worstPair = null, worstSim = 2;
-
-  for (let i = 0; i < sel.length; i++) {
-    for (let j = i + 1; j < sel.length; j++) {
-      const sim = cos(hand[sel[i]].embIdx, hand[sel[j]].embIdx);
-      if (sim > bestSim) { bestSim = sim; bestPair = [sel[i], sel[j]]; }
-      if (sim < worstSim) { worstSim = sim; worstPair = [sel[i], sel[j]]; }
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) {
+      const sim = cos(cards[i].embIdx, cards[j].embIdx);
+      if (sim > bestSim) { bestSim = sim; bestPair = [cards[i], cards[j]]; }
+      if (sim < worstSim) { worstSim = sim; worstPair = [cards[i], cards[j]]; }
     }
   }
 
   let html = '';
   if (bestPair) {
-    html += `<div class="rb-hint rb-hint-best">Best pairing: <strong>${hand[bestPair[0]].title}</strong> + <strong>${hand[bestPair[1]].title}</strong> (${(bestSim * 100).toFixed(0)}%)</div>`;
+    html += `<div class="rb-hint rb-hint-best">Best pairing: <strong>${bestPair[0].title}</strong> + <strong>${bestPair[1].title}</strong> (${(bestSim * 100).toFixed(0)}%)</div>`;
   }
   if (worstPair && worstSim < 0) {
-    html += `<div class="rb-hint rb-hint-worst">Clash: <strong>${hand[worstPair[0]].title}</strong> + <strong>${hand[worstPair[1]].title}</strong> (${(worstSim * 100).toFixed(0)}%)</div>`;
+    html += `<div class="rb-hint rb-hint-worst">Clash: <strong>${worstPair[0].title}</strong> + <strong>${worstPair[1].title}</strong> (${(worstSim * 100).toFixed(0)}%)</div>`;
   }
-
-  // Suggest best unselected card to add
-  const unsel = hand.map((_, i) => i).filter(i => !selected.has(i));
-  if (unsel.length > 0 && selected.size < 5) {
-    let bestAdd = null, bestAddScore = -2;
-    const curScore = coherenceScore(sel.map(i => hand[i].embIdx));
-    for (const ui of unsel) {
-      const testIndices = [...sel, ui].map(i => hand[i].embIdx);
-      const testScore = coherenceScore(testIndices);
-      if (testScore > bestAddScore) {
-        bestAddScore = testScore;
-        bestAdd = ui;
-      }
-    }
-    if (bestAdd !== null) {
-      const delta = bestAddScore - curScore;
-      const arrow = delta >= 0 ? "+" : "";
-      html += `<div class="rb-hint rb-hint-suggest">Try adding: <strong>${hand[bestAdd].title}</strong> (${arrow}${(delta * 100).toFixed(1)})</div>`;
-    }
-  }
-
   el.innerHTML = html;
   el.classList.remove("hidden");
 }
 
-function hideHints() {
-  document.getElementById("rb-hints").classList.add("hidden");
-}
+function hideHints() { document.getElementById("rb-hints").classList.add("hidden"); }
 
 // ── History ─────────────────────────────────────────────────
 
 function saveDish() {
   if (selected.size < 3) return;
-  const sel = [...selected];
-  const embIndices = sel.map(i => hand[i].embIdx);
-  const score = coherenceScore(embIndices);
+  const titles = [...selected];
+  const cards = titles.map(t => allCards.find(c => c.title === t)).filter(Boolean);
+  const score = coherenceScore(cards.map(c => c.embIdx));
   const { grade } = gradeScore(score);
-  const names = sel.map(i => hand[i].title);
-
-  history.unshift({ names, score, grade });
+  history.unshift({ names: titles, score, grade });
   renderHistory();
 }
 
 function renderHistory() {
   const el = document.getElementById("rb-history");
   if (history.length === 0) { el.innerHTML = ""; return; }
-
   const items = history.slice(0, 10).map(h => {
     const { grade } = gradeScore(h.score);
     return `<div class="rb-hist-item">
@@ -390,14 +383,35 @@ function renderHistory() {
       <span class="rb-hist-score">${(h.score * 100).toFixed(0)}%</span>
     </div>`;
   }).join("");
-
   el.innerHTML = `<div class="rb-hist-label">Previous Dishes</div>${items}`;
 }
 
 // ── Init ────────────────────────────────────────────────────
 
-loadEmb();
+loadData();
 
-document.getElementById("rb-draw").addEventListener("click", drawMore);
+document.getElementById("rb-search").addEventListener("input", (e) => {
+  searchTerm = e.target.value;
+  applyFilters();
+});
+
 document.getElementById("rb-clear").addEventListener("click", clearSelection);
-document.getElementById("rb-new").addEventListener("click", resetHand);
+
+document.getElementById("rb-save").addEventListener("click", () => {
+  if (selected.size >= 3) {
+    saveDish();
+    clearSelection();
+  }
+});
+
+document.getElementById("rb-cat-all").addEventListener("click", () => {
+  activeCategories = new Set(Object.keys(FOOD_CATEGORIES));
+  document.querySelectorAll("#rb-cat-chips .filter-chip").forEach(c => c.classList.add("active"));
+  applyFilters();
+});
+
+document.getElementById("rb-cat-none").addEventListener("click", () => {
+  activeCategories.clear();
+  document.querySelectorAll("#rb-cat-chips .filter-chip").forEach(c => c.classList.remove("active"));
+  applyFilters();
+});
