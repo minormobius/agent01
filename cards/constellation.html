@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flavor Constellation — Wiki Cards</title>
+  <link rel="stylesheet" href="css/cards.css">
+  <style>
+    .cst-wrap { width: 100%; max-width: 1200px; padding: 0 1rem; }
+    .cst-canvas-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #0a0a0a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+    .cst-canvas-box:active { cursor: grabbing; }
+    .cst-canvas-box canvas { width: 100%; height: 100%; display: block; }
+
+    .cst-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(20,20,20,0.95);
+      border: 1px solid var(--gold-dim);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      color: var(--text);
+      white-space: nowrap;
+      display: none;
+      z-index: 10;
+    }
+    .cst-tooltip-title { font-weight: bold; color: var(--gold); }
+    .cst-tooltip-cat { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+
+    .cst-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      padding: 0.8rem 0;
+      justify-content: center;
+    }
+    .cst-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      opacity: 1;
+      transition: opacity 0.2s;
+      user-select: none;
+    }
+    .cst-legend-item.dim { opacity: 0.25; }
+    .cst-legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cst-controls {
+      display: flex;
+      gap: 8px;
+      padding: 0.5rem 0;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .cst-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: inherit;
+    }
+    .cst-btn:hover { border-color: var(--gold-dim); }
+
+    .cst-status {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      padding: 0.5rem 0;
+    }
+
+    .cst-search {
+      width: 100%;
+      max-width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .cst-search:focus { border-color: var(--gold-dim); }
+    .cst-search::placeholder { color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="." class="back-link">&larr; Wiki Cards</a>
+    <h1>Flavor Constellation</h1>
+    <a href="recipe.html" class="back-link" style="float:right">Recipe Builder &rarr;</a>
+  </header>
+
+  <main>
+    <div class="cst-wrap">
+      <div class="cst-status" id="cst-status">Loading flavor embeddings...</div>
+
+      <div class="cst-controls">
+        <input type="text" class="cst-search" id="cst-search" placeholder="Search ingredient...">
+        <button class="cst-btn" id="cst-reset">Reset view</button>
+        <button class="cst-btn" id="cst-all">All</button>
+        <button class="cst-btn" id="cst-none">None</button>
+      </div>
+
+      <div class="cst-legend" id="cst-legend"></div>
+
+      <div class="cst-canvas-box" id="cst-box">
+        <canvas id="cst-canvas"></canvas>
+        <div class="cst-tooltip" id="cst-tooltip">
+          <div class="cst-tooltip-title" id="cst-tt-title"></div>
+          <div class="cst-tooltip-cat" id="cst-tt-cat"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/constellation-page.js"></script>
+</body>
+</html>
