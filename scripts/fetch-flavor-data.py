@@ -96,10 +96,42 @@ def download_foodb_csv(cache_dir):
         print(f"Using cached archive at {archive_path}", file=sys.stderr)
 
     print("Extracting...", file=sys.stderr)
-    import tarfile
     os.makedirs(extract_dir, exist_ok=True)
-    with tarfile.open(archive_path, "r:gz") as tar:
-        tar.extractall(extract_dir)
+
+    # Try extraction with subprocess first (handles macOS resource forks better)
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["tar", "xzf", archive_path, "-C", extract_dir,
+             "--exclude", "._*", "--exclude", ".*"],
+            capture_output=True, text=True, timeout=300
+        )
+        if result.returncode != 0:
+            # Some tar versions don't support --exclude, try without
+            print(f"  tar with --exclude failed, retrying plain...", file=sys.stderr)
+            subprocess.run(
+                ["tar", "xzf", archive_path, "-C", extract_dir],
+                capture_output=True, text=True, timeout=300, check=True
+            )
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"  subprocess tar failed ({e}), trying Python tarfile...", file=sys.stderr)
+        import tarfile
+        # Try auto-detect mode
+        with tarfile.open(archive_path, "r:*") as tar:
+            members = [m for m in tar.getmembers()
+                       if not os.path.basename(m.name).startswith('._')]
+            tar.extractall(extract_dir, members=members)
+
+    # List what we got
+    for root, dirs, files in os.walk(extract_dir):
+        csv_files = [f for f in files if f.endswith('.csv')]
+        if csv_files:
+            print(f"  Found {len(csv_files)} CSV files in {root}", file=sys.stderr)
+            for cf in sorted(csv_files)[:10]:
+                size = os.path.getsize(os.path.join(root, cf)) // 1024
+                print(f"    {cf} ({size}KB)", file=sys.stderr)
+            break
+
     print(f"Extracted to {extract_dir}", file=sys.stderr)
     return extract_dir
 
