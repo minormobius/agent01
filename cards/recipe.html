@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recipe Builder — Yum</title>
+  <link rel="stylesheet" href="css/cards.css">
+</head>
+<body>
+  <header>
+    <a href="yum.html" class="back-link">&larr; Yum</a>
+    <h1>Recipe Builder</h1>
+  </header>
+
+  <main>
+    <div class="rb-wrap">
+      <div id="rb-status" class="rb-status">Loading flavor data...</div>
+
+      <!-- Hand of 6 -->
+      <div id="rb-hand" class="rb-hand"></div>
+
+      <!-- Controls -->
+      <div class="rb-controls">
+        <button id="rb-draw" class="rb-btn" disabled>Draw 6</button>
+        <button id="rb-clear" class="rb-btn rb-btn-dim" disabled>Clear</button>
+        <button id="rb-redraw" class="rb-btn rb-btn-dim" disabled>Mulligan</button>
+      </div>
+
+      <!-- Score display -->
+      <div id="rb-score" class="rb-score hidden">
+        <div class="rb-score-grade" id="rb-grade">-</div>
+        <div class="rb-score-label">Flavor Coherence</div>
+        <div class="rb-score-value" id="rb-score-value">-</div>
+        <div class="rb-score-dish" id="rb-dish-name"></div>
+      </div>
+
+      <!-- Pairing matrix -->
+      <div id="rb-matrix" class="rb-matrix hidden">
+        <div class="rb-matrix-label">Flavor Pairings</div>
+        <div id="rb-matrix-grid" class="rb-matrix-grid"></div>
+      </div>
+
+      <!-- Best combos hint -->
+      <div id="rb-hints" class="rb-hints hidden"></div>
+
+      <!-- History -->
+      <div id="rb-history" class="rb-history"></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Flavor data from <a href="https://foodb.ca" target="_blank">FooDB</a> (CC BY-NC 4.0) — a <a href="https://minomobi.com" target="_blank">minomobi</a> thing</p>
+  </footer>
+
+  <script type="module" src="js/recipe-page.js"></script>
+</body>
+</html>

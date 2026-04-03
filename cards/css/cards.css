@@ -2942,3 +2942,327 @@ main:not(:has(.tab-panel)) {
   .yum-card-stats { gap: 0.3rem; font-size: 0.55rem; }
   .yum-detail-stats { gap: 1rem; }
 }
+
+/* ── Recipe Builder ──────────────────────────────────────── */
+
+.rb-wrap {
+  max-width: 700px;
+  width: 100%;
+  padding: 0.8rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rb-status {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Hand of cards */
+.rb-hand {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.rb-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  position: relative;
+}
+
+.rb-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.rb-card.rb-selected {
+  border-color: #e67e22;
+  box-shadow: 0 0 12px rgba(230, 126, 34, 0.4);
+  background: rgba(230, 126, 34, 0.08);
+}
+
+.rb-card.rb-selected::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e67e22;
+  box-shadow: 0 0 6px rgba(230, 126, 34, 0.6);
+}
+
+.rb-card.rarity-uncommon { border-color: #2e7d32; }
+.rb-card.rarity-rare { border-color: #1565c0; }
+.rb-card.rarity-legendary { border-color: var(--gold); }
+.rb-card.rb-selected.rarity-uncommon { border-color: #e67e22; }
+.rb-card.rb-selected.rarity-rare { border-color: #e67e22; }
+.rb-card.rb-selected.rarity-legendary { border-color: #e67e22; }
+
+.rb-card-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+
+.rb-card-icon {
+  font-size: 2rem;
+  padding: 0.8rem 0;
+  opacity: 0.4;
+}
+
+.rb-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+}
+
+.rb-card-cat {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: system-ui, sans-serif;
+}
+
+/* Controls */
+.rb-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.rb-btn {
+  padding: 0.6rem 1.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 0.95rem;
+  background: transparent;
+  color: #e67e22;
+  border: 2px solid rgba(230, 126, 34, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.rb-btn:hover:not(:disabled) {
+  background: rgba(230, 126, 34, 0.1);
+  border-color: #e67e22;
+}
+
+.rb-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.rb-btn-dim {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.rb-btn-dim:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+  background: rgba(255,255,255,0.03);
+}
+
+/* Score display */
+.rb-score {
+  text-align: center;
+  margin-bottom: 1.2rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  width: 100%;
+  animation: luckyReveal 0.3s ease-out;
+}
+
+.rb-score.hidden { display: none; }
+
+.rb-score-grade {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rb-grade-s { color: #f59e0b; text-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+.rb-grade-a { color: #10b981; }
+.rb-grade-b { color: #3b82f6; }
+.rb-grade-c { color: #8b5cf6; }
+.rb-grade-d { color: var(--text-dim); }
+.rb-grade-f { color: #ef4444; }
+
+.rb-score-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin: 0.3rem 0;
+}
+
+.rb-score-value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rb-score-dish {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 0.4rem;
+  font-style: italic;
+}
+
+/* Pairing matrix */
+.rb-matrix {
+  width: 100%;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.rb-matrix.hidden { display: none; }
+
+.rb-matrix-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.rb-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+}
+
+.rb-matrix-table th {
+  padding: 0.3rem 0.2rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.6rem;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-matrix-header {
+  text-align: center;
+  writing-mode: horizontal-tb;
+}
+
+.rb-matrix-row-header {
+  text-align: right;
+  padding-right: 0.5rem !important;
+}
+
+.rb-matrix-cell {
+  text-align: center;
+  padding: 0.35rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.rb-matrix-diag {
+  color: var(--text-dim);
+  opacity: 0.3;
+}
+
+/* Hints */
+.rb-hints {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.rb-hints.hidden { display: none; }
+
+.rb-hint {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  padding: 0.3rem 0;
+  color: var(--text-dim);
+}
+
+.rb-hint strong { color: var(--text); }
+
+.rb-hint-best::before { content: ""; color: #10b981; margin-right: 0.3rem; }
+.rb-hint-worst::before { content: ""; color: #ef4444; margin-right: 0.3rem; }
+.rb-hint-suggest::before { content: ""; color: #f59e0b; margin-right: 0.3rem; }
+
+/* History */
+.rb-history {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.rb-hist-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.rb-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.rb-hist-grade {
+  font-weight: 700;
+  font-size: 0.8rem;
+  width: 1.5rem;
+  text-align: center;
+}
+
+.rb-hist-grade.rb-grade-s { color: #f59e0b; }
+.rb-hist-grade.rb-grade-a { color: #10b981; }
+.rb-hist-grade.rb-grade-b { color: #3b82f6; }
+.rb-hist-grade.rb-grade-c { color: #8b5cf6; }
+.rb-hist-grade.rb-grade-d { color: var(--text-dim); }
+.rb-hist-grade.rb-grade-f { color: #ef4444; }
+
+.rb-hist-names {
+  flex: 1;
+  color: var(--text);
+}
+
+.rb-hist-score {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+@media (max-width: 500px) {
+  .rb-hand { grid-template-columns: repeat(2, 1fr); }
+  .rb-card-img { height: 60px; }
+  .rb-card-title { font-size: 0.7rem; }
+  .rb-matrix-table { font-size: 0.55rem; }
+  .rb-matrix-table th { font-size: 0.5rem; }
+}
