@@ -1,51 +1,13 @@
 Parsed 779 foods from cards/js/yum-pool.js
-Fetching FlavorDB entity catalog...
-  Got 0 FlavorDB entities
-FlavorDB index: 0 searchable names
-  Progress: 50/779 foods processed, 0 matched
-  Progress: 100/779 foods processed, 0 matched
-  Progress: 150/779 foods processed, 0 matched
-  Progress: 200/779 foods processed, 0 matched
-  Progress: 250/779 foods processed, 0 matched
-  Progress: 300/779 foods processed, 0 matched
-  Progress: 350/779 foods processed, 0 matched
-  Progress: 400/779 foods processed, 0 matched
-  Progress: 450/779 foods processed, 0 matched
-  Progress: 500/779 foods processed, 0 matched
-  Progress: 550/779 foods processed, 0 matched
-  Progress: 600/779 foods processed, 0 matched
-  Progress: 650/779 foods processed, 0 matched
-  Progress: 700/779 foods processed, 0 matched
-  Progress: 750/779 foods processed, 0 matched
-
-FlavorDB matching: 0/779 foods, 0 unique compounds
-Wrote cards/data/yum-compounds.json
-No compound data available, falling back entirely to text
-
-Fetching Wikipedia extracts for 779 unmatched foods...
-  Got 0 extracts
-  Computing text embeddings for 779 unmatched foods...
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3810.35it/s]
-[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
-Key                     | Status     |  | 
-------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  | 
-
-Notes:
-- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-  Filled 779 foods with text embeddings
-
-Wrote cards/data/yum-embeddings.bin (195KB)
-Wrote cards/data/yum-embeddings.json (16KB)
-
-── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.509
-  Chocolate ~ Vanilla: 0.403
-  Soy sauce ~ Miso: -0.047
-  Lemon ~ Lime (fruit): 0.571
-  Salmon ~ Cinnamon: -0.184
-
-  Most similar pair: 'Amaranth (grain)' ~ 'Amaranth (vegetable)' (0.914)
-
-Done! 779 food embeddings in 64d
+Downloading FooDB CSV dump (~953MB)...
+Traceback (most recent call last):
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 544, in <module>
+    main()
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 394, in main
+    csv_dir = download_foodb_csv(args.cache_dir)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 83, in download_foodb_csv
+    resp.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/site-packages/requests/models.py", line 1028, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: https://foodb.ca/public/system/downloads/foodb_2020_04_07_csv.tar.gz
