@@ -291,8 +291,16 @@ function draw() {
       }
       ctx.closePath(); ctx.stroke();
       if (tor.solid) {
-        ctx.fillStyle = tor.color; ctx.globalAlpha = .08;
-        ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = tor.color; ctx.globalAlpha = .15;
+        ctx.fill();
+        // Hatch pattern to show impenetrable
+        ctx.strokeStyle = tor.color; ctx.lineWidth = 0.5; ctx.globalAlpha = .12;
+        const [cx2,cy2] = w2s(sign*tor.R, tor.z);
+        const rPx = tor.r * vsc;
+        for (let h = -rPx; h < rPx; h += 6) {
+          ctx.beginPath(); ctx.moveTo(cx2+h, cy2-rPx); ctx.lineTo(cx2+h+rPx, cy2+rPx); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
       }
       const [tcx,tcy] = w2s(sign*tor.R, tor.z);
       ctx.fillStyle = tor.color;
@@ -493,20 +501,77 @@ function tick(t) {
     const aPhi = vz * bR - vr * f.bz;
     aZ += vr * f.bphi - vp * bR;
     tp.vr += aR*sub; tp.vz += aZ*sub; tp.vphi = (tp.vphi||0) + aPhi*sub;
+    const oldR = tp.r, oldZ = tp.z;
     tp.r += tp.vr*sub; tp.z += tp.vz*sub;
+
+    // Elastic bounce off torus surfaces
+    for (const tor of tori) {
+      for (const sign of [1, -1]) {
+        const cR = sign * tor.R, cZ = tor.z;
+        const dR = tp.r - cR, dZ = tp.z - cZ;
+        const dist = Math.sqrt(dR*dR + dZ*dZ);
+        if (dist < 0.001) continue;
+        const nR = dR / dist, nZ = dZ / dist; // outward from tube center
+
+        if (tor.solid) {
+          // Solid: can't enter interior
+          if (dist < tor.r) {
+            tp.r = cR + nR * (tor.r + 0.005);
+            tp.z = cZ + nZ * (tor.r + 0.005);
+            const vn = tp.vr * nR + tp.vz * nZ;
+            if (vn < 0) { tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ; }
+            tp.bounces = (tp.bounces||0) + 1;
+          }
+        } else {
+          // Shell: bounce off surface from either side
+          const odR = oldR - cR, odZ = oldZ - cZ;
+          const oldDist = Math.sqrt(odR*odR + odZ*odZ);
+          // Crossed the shell? sign of (dist-r) flipped
+          if ((oldDist - tor.r) * (dist - tor.r) < 0) {
+            const fromInside = oldDist < tor.r;
+            const dir = fromInside ? 1 : -1; // which side to place on
+            tp.r = cR + nR * (tor.r + dir * 0.005);
+            tp.z = cZ + nZ * (tor.r + dir * 0.005);
+            const vn = tp.vr * nR + tp.vz * nZ;
+            tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ;
+            tp.bounces = (tp.bounces||0) + 1;
+          }
+        }
+      }
+    }
   }
   trail.push([tp.r, tp.z]);
   if (trail.length>3000) trail.shift();
   const vpStr = tp.vphi ? ' vφ='+tp.vphi.toFixed(1) : '';
-  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2)+vpStr;
+  const bStr = tp.bounces ? ' ×'+tp.bounces : '';
+  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2)+vpStr+bStr;
   draw();
   requestAnimationFrame(tick);
 }
 
+// Check if a point is inside any solid torus
+function insideSolid(pr, pz) {
+  for (const tor of tori) {
+    if (!tor.solid) continue;
+    for (const sign of [1, -1]) {
+      const dR = pr - sign*tor.R, dZ = pz - tor.z;
+      if (dR*dR + dZ*dZ < tor.r*tor.r) return true;
+    }
+  }
+  return false;
+}
+
 function launchParticle() {
+  if (insideSolid(aimStart.r, aimStart.z)) {
+    document.getElementById('tpInfo').textContent = 'Can\'t place inside solid!';
+    armMode = 'idle'; aimStart = aimEnd = null;
+    document.getElementById('btnDrop').style.background = '';
+    document.getElementById('btnDrop').textContent = 'Arm drop';
+    draw(); return;
+  }
   const vdx = aimEnd ? (aimEnd.r-aimStart.r)*2 : 0;
   const vdz = aimEnd ? (aimEnd.z-aimStart.z)*2 : 0;
-  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0};
+  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0, bounces:0};
   trail = []; armMode = 'idle'; aimStart = aimEnd = null;
   document.getElementById('btnDrop').style.background = '';
   document.getElementById('btnDrop').textContent = 'Arm drop';
