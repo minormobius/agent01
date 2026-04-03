@@ -21,11 +21,17 @@ canvas{display:block}
 <div id="lbl">Torus gravity</div>
 <div id="ctl">
   <label>R <span class="v" id="vR">4.0</span>
-    <input type="range" id="slR" min="1" max="12" step="0.5" value="4"></label>
+    <input type="range" id="slR" min="0" max="12" step="0.5" value="4"></label>
   <label>r <span class="v" id="vr">2.0</span>
     <input type="range" id="slr" min="0.5" max="6" step="0.25" value="2"></label>
   <label>Grid <span class="v" id="vG">14</span>
     <input type="range" id="slG" min="8" max="22" step="2" value="14"></label>
+  <label>Perim <span class="v" id="vP">30</span>
+    <input type="range" id="slP" min="0" max="48" step="6" value="30"></label>
+  <br>
+  <button id="btnDrop" style="margin-top:6px">Drop particle</button>
+  <button id="btnClear">Clear trail</button>
+  <span id="tpInfo" style="color:#ff0;margin-left:10px"></span>
 </div>
 <script>
 const canvas = document.getElementById('c');
@@ -48,7 +54,11 @@ resize();
 // Torus params (mutable via sliders)
 let R0 = 4, r0 = 2, GN = 14;
 // View state
-let vcx = 4, vcy = 0, vsc = 40; // center and pixels-per-unit
+let vcx = 4, vcy = 0, vsc = 40;
+let pN = 30; // perimeter arrow count
+// Test particle: null = not active
+let tp = null; // {r, z, vr, vz}
+let trail = [];
 
 function w2s(r, z) {
   return [(r - vcx) * vsc + W/2, H/2 - (z - vcy) * vsc];
@@ -132,60 +142,94 @@ function draw() {
     }
   }
 
-  // Torus cross-section outline
+  // Torus cross-section outlines (both sides of axis)
   ctx.strokeStyle = '#88f'; ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let i = 0; i <= 64; i++) {
-    const v = i / 64 * Math.PI * 2;
-    const [sx, sy] = w2s(R0 + r0 * Math.cos(v), r0 * Math.sin(v));
-    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  for (let side = 0; side < 2; side++) {
+    const sign = side === 0 ? 1 : -1;
+    ctx.beginPath();
+    for (let i = 0; i <= 64; i++) {
+      const v = i / 64 * Math.PI * 2;
+      const [sx, sy] = w2s(sign * (R0 + r0 * Math.cos(v)), r0 * Math.sin(v));
+      i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    }
+    ctx.closePath(); ctx.stroke();
+    // Tube center dot
+    const [tcx2, tcy2] = w2s(sign * R0, 0);
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(tcx2, tcy2, 4, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.closePath(); ctx.stroke();
-
-  // Tube center dot
-  const [tcx, tcy] = w2s(R0, 0);
-  ctx.fillStyle = '#ff0';
-  ctx.beginPath(); ctx.arc(tcx, tcy, 4, 0, Math.PI * 2); ctx.fill();
 
   // Symmetry axis
   const [ax0] = w2s(0, 0);
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(ax0, 0); ctx.lineTo(ax0, H); ctx.stroke();
 
-  // Perimeter arrows
-  ctx.font = '9px monospace';
-  for (let i = 0; i < 30; i++) {
-    const v = i / 30 * Math.PI * 2;
-    const cosV = Math.cos(v), sinV = Math.sin(v);
-    const pr = R0 + (r0 + 0.05) * cosV;
-    const pz = (r0 + 0.05) * sinV;
-    const f = shellField(pr, pz);
-    const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-    if (mag < 1e-8) continue;
-    const [sx, sy] = w2s(pr, pz);
-    const len = Math.min(35, mag / maxMag * 50 + 8);
-    const nr = f.fr / mag, nz = f.fz / mag;
-    const dx = nr * len, dy = -nz * len;
-    const dot = nr * cosV + nz * sinV;
-    const sticks = dot > 0;
-    ctx.strokeStyle = sticks ? '#f44' : '#4f4';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx+dx, sy+dy);
-    const aax=-dx*.25+dy*.15, aay=-dy*.25-dx*.15;
-    const bbx=-dx*.25-dy*.15, bby=-dy*.25+dx*.15;
-    ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+aax,sy+dy+aay);
-    ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+bbx,sy+dy+bby);
-    ctx.stroke();
-    ctx.fillStyle = sticks ? '#f44' : '#4f4';
-    ctx.globalAlpha = 0.7;
-    ctx.fillText(mag.toFixed(1), sx+dx+3, sy+dy-2);
-    ctx.globalAlpha = 1;
+  // Perimeter arrows (both sides)
+  if (pN > 0) {
+    ctx.font = '9px monospace';
+    for (let side = 0; side < 2; side++) {
+      const sign = side === 0 ? 1 : -1;
+      for (let i = 0; i < pN; i++) {
+        const v = i / pN * Math.PI * 2;
+        const cosV = Math.cos(v), sinV = Math.sin(v);
+        const pr = sign * R0 + (r0 + 0.05) * cosV;
+        const pz = (r0 + 0.05) * sinV;
+        // For mirrored side, sample at |pr| since field is symmetric
+        const f = shellField(Math.abs(pr), pz);
+        const fR = pr >= 0 ? f.fr : -f.fr;
+        const mag = Math.sqrt(fR*fR + f.fz*f.fz);
+        if (mag < 1e-8) continue;
+        const [sx, sy] = w2s(pr, pz);
+        const len = Math.min(35, mag / maxMag * 50 + 8);
+        const nr = fR / mag, nz = f.fz / mag;
+        const dx = nr * len, dy = -nz * len;
+        const dot = nr * cosV + nz * sinV;
+        const sticks = dot > 0;
+        ctx.strokeStyle = sticks ? '#f44' : '#4f4';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx+dx, sy+dy);
+        const aax=-dx*.25+dy*.15, aay=-dy*.25-dx*.15;
+        const bbx=-dx*.25-dy*.15, bby=-dy*.25+dx*.15;
+        ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+aax,sy+dy+aay);
+        ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+bbx,sy+dy+bby);
+        ctx.stroke();
+        ctx.fillStyle = sticks ? '#f44' : '#4f4';
+        ctx.globalAlpha = 0.6;
+        ctx.fillText(mag.toFixed(1), sx+dx+3, sy+dy-2);
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 
-  // Title
-  ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
-  ctx.fillText('Shell gravity  R=' + R0 + '  r=' + r0, 10, H - 50);
-  document.getElementById('lbl').textContent = 'Torus gravity \u00b7 R=' + R0 + ' r=' + r0;
+  // Test particle trail + dot
+  if (trail.length > 1) {
+    ctx.strokeStyle = 'rgba(255,255,100,0.4)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+      const [tx, ty] = w2s(trail[i][0], trail[i][1]);
+      i === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+    }
+    ctx.stroke();
+  }
+  if (tp) {
+    const [px, py] = w2s(tp.r, tp.z);
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Force arrow on particle
+    const pf = shellField(Math.abs(tp.r), tp.z);
+    const pfR = tp.r >= 0 ? pf.fr : -pf.fr;
+    const pm = Math.sqrt(pfR*pfR + pf.fz*pf.fz);
+    if (pm > 1e-8) {
+      const pl = Math.min(40, pm / maxMag * 60 + 10);
+      const pdx = pfR/pm * pl, pdy = -pf.fz/pm * pl;
+      ctx.strokeStyle = '#f80'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px+pdx, py+pdy); ctx.stroke();
+    }
+  }
+
+  // Label
+  document.getElementById('lbl').textContent = 'Torus shell gravity \u00b7 R=' + R0 + ' r=' + r0;
 }
 
 // Slider wiring
@@ -204,7 +248,48 @@ document.getElementById('slG').oninput = function() {
   document.getElementById('vG').textContent = GN;
   draw();
 };
+document.getElementById('slP').oninput = function() {
+  pN = parseInt(this.value);
+  document.getElementById('vP').textContent = pN;
+  draw();
+};
+document.getElementById('btnDrop').onclick = function() {
+  // Drop particle at outer equator of right cross-section
+  tp = {r: R0 + r0 + 0.3, z: 0, vr: 0, vz: 0.5};
+  trail = [];
+  if (!animating) startAnim();
+};
+document.getElementById('btnClear').onclick = function() {
+  tp = null; trail = []; draw();
+  document.getElementById('tpInfo').textContent = '';
+};
 window.addEventListener('resize', function() { resize(); draw(); });
+
+// Animation loop for test particle
+let animating = false, lastT = 0;
+function startAnim() { animating = true; lastT = 0; requestAnimationFrame(tick); }
+function tick(t) {
+  if (!tp) { animating = false; return; }
+  const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
+  lastT = t;
+  // Substep integration
+  for (let s = 0; s < 6; s++) {
+    const sub = dt / 6;
+    const absR = Math.max(0.1, Math.abs(tp.r));
+    const f = shellField(absR, tp.z);
+    const fR = tp.r >= 0 ? f.fr : -f.fr;
+    tp.vr += fR * sub;
+    tp.vz += f.fz * sub;
+    tp.r += tp.vr * sub;
+    tp.z += tp.vz * sub;
+  }
+  trail.push([tp.r, tp.z]);
+  if (trail.length > 3000) trail.shift();
+  document.getElementById('tpInfo').textContent =
+    'r=' + tp.r.toFixed(2) + ' z=' + tp.z.toFixed(2);
+  draw();
+  requestAnimationFrame(tick);
+}
 
 // --- Pan & Zoom ---
 // Track active touches for pinch
