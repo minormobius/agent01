@@ -81,12 +81,12 @@ async function doDraw() {
   const detailEl = document.getElementById("yum-detail");
   detailEl.classList.add("hidden");
 
-  cardsEl.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing 5 foods...</span></div>`;
+  cardsEl.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing 6 foods...</span></div>`;
 
-  // Draw 5 unique cards
+  // Draw 6 unique cards
   const drawn = [];
   const seen = new Set();
-  while (drawn.length < 5) {
+  while (drawn.length < 6) {
     if (deck.length === 0) shuffleDeck();
     if (deck.length === 0) break;
     const pick = deck.pop();
