@@ -2,54 +2,86 @@ Parsed 779 foods from cards/js/yum-pool.js
 Downloading FooDB CSV dump (~953MB)...
 
 Extracting...
-Traceback (most recent call last):
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1930, in gzopen
-    t = cls.taropen(name, mode, fileobj, **kwargs)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1907, in taropen
-    return cls(name, mode, fileobj, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1765, in __init__
-    self.firstmember = self.next()
-                       ^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 2768, in next
-    raise e
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 2741, in next
-    tarinfo = self.tarinfo.fromtarfile(self)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1314, in fromtarfile
-    buf = tarfile.fileobj.read(BLOCKSIZE)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 338, in read
-    return self._buffer.read(size)
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/_compression.py", line 68, in readinto
-    data = self.read(len(byte_view))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 544, in read
-    if not self._read_gzip_header():
-           ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 513, in _read_gzip_header
-    last_mtime = _read_gzip_header(self._fp)
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/gzip.py", line 473, in _read_gzip_header
-    raise BadGzipFile('Not a gzipped file (%r)' % magic)
-gzip.BadGzipFile: Not a gzipped file (b'._')
+  tar with --exclude failed, retrying plain...
+  subprocess tar failed (Command '['tar', 'xzf', '/tmp/foodb_cache/foodb_csv.tar.gz', '-C', '/tmp/foodb_cache/foodb_csv']' returned non-zero exit status 2.), trying Python tarfile...
+/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:123: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+  tar.extractall(extract_dir, members=members)
+  Found 29 CSV files in /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv
+    AccessionNumber.csv (97KB)
+    Compound.csv (50111KB)
+    CompoundAlternateParent.csv (4003KB)
+    CompoundExternalDescriptor.csv (400KB)
+    CompoundOntologyTerm.csv (111788KB)
+    CompoundSubstituent.csv (7414KB)
+    CompoundSynonym.csv (17683KB)
+    CompoundsEnzyme.csv (7289KB)
+    CompoundsFlavor.csv (2782KB)
+    CompoundsHealthEffect.csv (1308KB)
+Extracted to /tmp/foodb_cache/foodb_csv
+Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Food.csv...
+  Loaded 992 foods
+Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Compound.csv...
+  Loaded 70477 compounds
+Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may take a moment)...
+  ...500000 content rows processed
+  ...1000000 content rows processed
+  ...1500000 content rows processed
+  ...2000000 content rows processed
+  ...2500000 content rows processed
+  ...3000000 content rows processed
+  ...3500000 content rows processed
+  ...4000000 content rows processed
+  ...4500000 content rows processed
+  ...5000000 content rows processed
+  5145532 total rows, 987 foods with compound data
 
-The above exception was the direct cause of the following exception:
+FooDB index: 992 food names
 
-Traceback (most recent call last):
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 544, in <module>
-    main()
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 394, in main
-    csv_dir = download_foodb_csv(args.cache_dir)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 101, in download_foodb_csv
-    with tarfile.open(archive_path, "r:gz") as tar:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1875, in open
-    return func(name, filemode, fileobj, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/tarfile.py", line 1934, in gzopen
-    raise ReadError("not a gzip file") from e
-tarfile.ReadError: not a gzip file
+Matched: 374/779 foods, 54330 unique compounds
+Wrote cards/data/yum-compounds.json (63414KB)
+  Built vectors: 374/779 foods, 54330 compound dims
+  374 foods with compound data for PCA fitting
+  PCA: 54330 → 64d, 99.7% variance explained
+  Text embeddings for 405 unmatched foods...
+  Got 0 Wikipedia extracts
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4207.91it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+  Filled 405 foods with text fallback
+
+Wrote cards/data/yum-embeddings.bin (194KB)
+Wrote cards/data/yum-embeddings.json (16KB)
+
+── Flavor similarity sanity check ──
+  Garlic ~ Onion: 0.856  [COMPOUND]
+  Chocolate ~ Vanilla: -0.944  [COMPOUND]
+  Soy sauce ~ Miso: 0.999  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.927  [COMPOUND]
+  Salmon ~ Cinnamon: -0.944  [COMPOUND]
+  Coffee ~ Tea: 0.302  [COMPOUND]
+  Butter ~ Ghee: -0.197  [text]
+  Cheddar cheese ~ Brie: -0.006  [text]
+
+  Most similar: 'Cantaloupe' ~ 'Clementine' (1.000)
+
+── Match rates by category ──
+  BEVERAGE    :  26/ 60 (43%)
+  CONDIMENT   :  42/ 75 (56%)
+  DAIRY       :  26/ 55 (47%)
+  DESSERT     :  19/ 74 (25%)
+  FRUIT       :  62/ 85 (72%)
+  GRAIN       :  29/ 65 (44%)
+  LEGUME      :  33/ 40 (82%)
+  MEAT        :  18/ 60 (30%)
+  PASTA       :   9/ 60 (15%)
+  SEAFOOD     :  36/ 60 (60%)
+  SOUP        :  14/ 60 (23%)
+  VEGETABLE   :  60/ 85 (70%)
+
+Done! 779 food embeddings in 64d (374 compound-based, 405 text-based)
