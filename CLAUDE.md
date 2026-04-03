@@ -178,6 +178,14 @@ npx wrangler d1 execute atpolls-db --file=poll/apps/api/migrations/0001_init.sql
 
 ---
 
+## Sandbox Constraints
+
+- **Large file writes fail.** The Write tool chokes on files over ~800 lines in this sandbox. Use `bash cat >> file` in chunks, or build incrementally with Edit.
+- **Prefer small incremental steps.** Write a skeleton first, then add features one at a time. Don't try to write an entire app in one tool call.
+- **Test early.** Commit working increments rather than trying to land a complete feature in one shot.
+
+---
+
 ## Principles
 
 1. **Don't break what's working.** Read before changing. Test before pushing.
