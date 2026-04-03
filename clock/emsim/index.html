@@ -68,7 +68,7 @@ canvas{position:fixed;top:0;left:0}
 'use strict';
 const C = document.getElementById('c'), X = C.getContext('2d');
 let W, H;
-let cx = 0, cy = 0, sc = 60;
+let cx = 4, cy = 0, sc = 60;
 let geom = 'axi', side = 'outside';
 let showArr = true, showP = true, gridN = 14, pN = 30;
 
@@ -80,12 +80,12 @@ function addSrc(type, r, z, str, rad) {
 }
 function rmSrc(id) { srcs = srcs.filter(s=>s.id!==id); buildUI(); dirty = true; }
 
-// Defaults: shell + centerline charge
-addSrc('shell', 0, 0, -1, 2);
-addSrc('charge', 0, 0, 1, 0);
+// Defaults: torus shell + centerline charge (the inpac EM model)
+addSrc('shell', 4, 0, -1, 2);   // torus at R=4, tube radius 2
+addSrc('charge', 4, 0, 1, 0);   // same-charge ring at tube center
 
 // Test particle
-let tp = {r:2.5, z:0, vr:0, vz:0, q:1, free:false};
+let tp = {r:6.5, z:0, vr:0, vz:0, q:1, free:false}; // outside shell at outer equator
 let trail = [];
 let drag = false, pan = null;
 
@@ -119,6 +119,13 @@ function ringField(s, pr, pz, sign) {
     const dr=pr-s.r, dz=pz-s.z, d2=dr*dr+dz*dz;
     if (d2<0.001) return {r:0,z:0};
     const f = Q/(d2*Math.sqrt(d2));
+    return {r:dr*f, z:dz*f};
+  }
+  // On-axis (s.r ~ 0): treat as point charge on Z-axis
+  if (Math.abs(s.r) < 0.01) {
+    const dr=pr, dz=pz-s.z, d2=dr*dr+dz*dz;
+    if (d2<0.001) return {r:0,z:0};
+    const f=Q/(d2*Math.sqrt(d2));
     return {r:dr*f, z:dz*f};
   }
   const N=32, du=2*Math.PI/N;
@@ -213,7 +220,7 @@ function drawGrid() {
       const[r,z]=s2w(sx+h,sy+h);
       const f=fieldAt(r,z);
       const m=Math.sqrt(f.r*f.r+f.z*f.z);
-      X.fillStyle=magColor(m); X.globalAlpha=.15;
+      X.fillStyle=magColor(m); X.globalAlpha=.25;
       X.fillRect(sx,sy,step,step);
       if(showArr&&m>1e-8){
         const lm=Math.log10(m+1e-6);
@@ -424,7 +431,7 @@ C.addEventListener('wheel',e=>{
 // Buttons
 document.getElementById('selGeom').onchange=e=>{geom=e.target.value;dirty=true;};
 document.getElementById('selSurf').onchange=e=>{side=e.target.value;dirty=true;};
-document.getElementById('btnReset').onclick=()=>{cx=0;cy=0;sc=60;dirty=true;};
+document.getElementById('btnReset').onclick=()=>{cx=4;cy=0;sc=60;dirty=true;};
 document.getElementById('btnAddQ').onclick=()=>addSrc('charge',1,1,1);
 document.getElementById('btnAddM').onclick=()=>addSrc('mass',1,-1,1);
 document.getElementById('btnAddI').onclick=()=>addSrc('current',0,0,1);
