@@ -29,6 +29,8 @@ canvas{display:block}
 <div id="ctl">
   <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px">
     <button id="btnAdd">+ Torus</button>
+    <button id="btnCopy">Copy config</button>
+    <button id="btnPlay">Play ▶</button>
     <label>Grid <span class="v" id="vG">14</span>
       <input type="range" id="slG" min="8" max="22" step="2" value="14"></label>
     <label>Perim <span class="v" id="vP">30</span>
@@ -74,7 +76,16 @@ function rmTorus(id) {
   tori = tori.filter(t => t.id !== id);
   buildUI(); draw();
 }
-addTorus(4, 2, 0, false);
+// Load config from hash or default
+(function loadConfig() {
+  if (location.hash.length > 1) {
+    try {
+      const cfg = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if (Array.isArray(cfg)) { cfg.forEach(t => addTorus(t.R, t.r, t.z||0, t.solid||false)); return; }
+    } catch(e) {}
+  }
+  addTorus(4, 2, 0, false);
+})();
 
 // === Coordinate transforms ===
 function w2s(r, z) { return [(r - vcx) * vsc + W/2, H/2 - (z - vcy) * vsc]; }
@@ -317,6 +328,22 @@ function draw() {
 document.getElementById('btnAdd').onclick = function() {
   const lastR = tori.length ? tori[tori.length-1].R : 4;
   addTorus(lastR + 3, 1.5, 0, false);
+};
+document.getElementById('btnCopy').onclick = function() {
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid}));
+  const json = JSON.stringify(cfg);
+  navigator.clipboard.writeText(json).then(() => {
+    this.textContent = 'Copied!';
+    setTimeout(() => this.textContent = 'Copy config', 1200);
+  }, () => {
+    // fallback for non-https
+    prompt('Copy this:', json);
+  });
+};
+document.getElementById('btnPlay').onclick = function() {
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid}));
+  const hash = encodeURIComponent(JSON.stringify(cfg));
+  window.open('../torpac/#' + hash, '_blank');
 };
 document.getElementById('slG').oninput = function() {
   GN = +this.value; document.getElementById('vG').textContent = GN; draw();
