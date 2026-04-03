@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,16 +37,23 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache FooDB download
+        uses: actions/cache@v4
+        with:
+          path: /tmp/foodb_cache
+          key: foodb-csv-2020-04-07
+
       - name: Install dependencies
         run: pip install requests numpy scikit-learn sentence-transformers
 
-      - name: Fetch FlavorDB data and compute embeddings
-        timeout-minutes: 45
+      - name: Fetch FooDB data and compute flavor embeddings
+        timeout-minutes: 60
         run: |
           mkdir -p cards/data
           python3 scripts/fetch-flavor-data.py \
             --pool-js cards/js/yum-pool.js \
             --output-dir cards/data/ \
+            --cache-dir /tmp/foodb_cache \
             --dim ${{ inputs.dim || '64' }} \
             ${{ inputs.skip_text_fallback == 'true' && '--skip-text-fallback' || '' }} \
             2>&1 | tee cards/data/flavor-log.txt
@@ -58,7 +65,7 @@ jobs:
           if [ -f cards/data/yum-embeddings.json ]; then
             echo "- Foods: $(jq -r '.count' cards/data/yum-embeddings.json)"  >> $GITHUB_STEP_SUMMARY
             echo "- Dimensions: $(jq -r '.dim' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
-            echo "- FlavorDB matches: $(jq -r '.flavordb_matched' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- FooDB matches: $(jq -r '.foodb_matched' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
             echo "- Compounds found: $(jq -r '.compounds_count' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
           fi
           if [ -f cards/data/yum-compounds.json ]; then
@@ -66,7 +73,7 @@ jobs:
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -20 cards/data/flavor-log.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
+          tail -30 cards/data/flavor-log.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Commit results
@@ -78,9 +85,9 @@ jobs:
                  cards/data/yum-compounds.json cards/data/flavor-log.txt
           git diff --cached --quiet && echo "No changes to commit" && exit 0
 
-          MATCHED=$(jq -r '.flavordb_matched // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
+          MATCHED=$(jq -r '.foodb_matched // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
           TOTAL=$(jq -r '.count // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
-          git commit -m "yum: fetch flavor data — ${MATCHED}/${TOTAL} FlavorDB matches [auto]"
+          git commit -m "yum: flavor embeddings — ${MATCHED}/${TOTAL} FooDB compound matches [auto]"
 
           if ! git pull --rebase origin ${{ github.ref_name }}; then
             echo "Rebase conflict — keeping workflow-generated files"
