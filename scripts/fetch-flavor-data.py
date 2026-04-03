@@ -410,12 +410,15 @@ def main():
     parser = argparse.ArgumentParser(description="Build flavor embeddings from FooDB")
     parser.add_argument("--pool-js", default="cards/js/yum-pool.js")
     parser.add_argument("--output-dir", default="cards/data/")
+    parser.add_argument("--compounds-dir", default="data/",
+                        help="Directory for large yum-compounds.json (keep out of deploy path)")
     parser.add_argument("--cache-dir", default="/tmp/foodb_cache")
     parser.add_argument("--dim", type=int, default=64)
     parser.add_argument("--skip-text-fallback", action="store_true")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(args.compounds_dir, exist_ok=True)
 
     # 1. Parse food pool
     foods = parse_pool_js(args.pool_js)
@@ -463,7 +466,7 @@ def main():
             compound_names[cid] = foodb_compounds[cid]['name']
 
     # Save raw compound data
-    raw_path = os.path.join(args.output_dir, "yum-compounds.json")
+    raw_path = os.path.join(args.compounds_dir, "yum-compounds.json")
     foods_export = {}
     for title, cids in matched_titles.items():
         foods_export[title] = [compound_names.get(c, c) for c in sorted(cids)]
