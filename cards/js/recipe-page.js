@@ -1,5 +1,6 @@
 // ── Recipe Builder — flavor compound pairing game ────────────
-// Draw 6 foods, select 3-5 to build a "dish".
+// Draw 6 foods, keep drawing more to expand options.
+// Select 3-5 to build a "dish".
 // Score = average pairwise cosine similarity from FooDB compound embeddings.
 
 import { FOOD_CATEGORIES, FOOD_POOL } from "./yum-pool.js";
@@ -9,7 +10,8 @@ let emb = null;   // Float32Array of all embeddings
 let idx = null;   // { dim, count, titles[], categories[] }
 let ready = false;
 
-let hand = [];        // 6 drawn cards: { poolIdx, title, category, stats, page }
+let hand = [];           // accumulated cards: { title, category, stats, embIdx, page }
+let seen = new Set();    // titles already in hand (dedup)
 let selected = new Set(); // indices into hand[]
 const history = [];
 
@@ -52,7 +54,6 @@ function cos(ai, bi) {
 }
 
 function coherenceScore(indices) {
-  // Average pairwise cosine similarity
   if (indices.length < 2) return 0;
   let sum = 0, count = 0;
   for (let i = 0; i < indices.length; i++) {
@@ -65,7 +66,6 @@ function coherenceScore(indices) {
 }
 
 function gradeScore(score) {
-  // Score ranges roughly -1 to 1, but typical good dishes 0.3-0.9
   if (score >= 0.8) return { grade: "S", label: "Transcendent", cls: "rb-grade-s" };
   if (score >= 0.6) return { grade: "A", label: "Exquisite", cls: "rb-grade-a" };
   if (score >= 0.4) return { grade: "B", label: "Harmonious", cls: "rb-grade-b" };
@@ -76,7 +76,6 @@ function gradeScore(score) {
 
 // ── Drawing ──────────────────────────────────────────────────
 
-// Build title→embedding index mapping
 function titleToEmbIdx(title) {
   if (!idx) return -1;
   return idx.titles.indexOf(title);
@@ -91,42 +90,66 @@ function shuffledPool() {
   return arr;
 }
 
-async function drawHand() {
-  hand = [];
-  selected.clear();
-
+async function drawMore() {
   const handEl = document.getElementById("rb-hand");
-  handEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Drawing...</span></div>';
-  hideScore();
-  hideMatrix();
-  hideHints();
+  const isFirst = hand.length === 0;
 
-  // Pick 6 that have embeddings
+  if (isFirst) {
+    handEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Drawing...</span></div>';
+    hideScore();
+    hideMatrix();
+    hideHints();
+  }
+
+  // Pick 6 new cards that aren't already in hand
   const pool = shuffledPool();
   const picks = [];
   for (const { entry } of pool) {
+    if (seen.has(entry[0])) continue;
     const embIdx = titleToEmbIdx(entry[0]);
-    if (embIdx >= 0 && picks.length < 6) {
+    if (embIdx >= 0) {
       picks.push({ title: entry[0], category: entry[1], stats: entry[2], embIdx });
+      seen.add(entry[0]);
     }
     if (picks.length >= 6) break;
   }
 
-  // Fetch Wikipedia data
+  if (picks.length === 0) {
+    document.getElementById("rb-status").textContent = "No more foods to draw!";
+    return;
+  }
+
+  // Fetch Wikipedia data for new cards only
   const titles = picks.map(p => p.title);
   let pages = {};
   try {
     pages = await fetchArticleData(titles);
   } catch (e) { /* offline fallback */ }
 
-  hand = picks.map(p => {
+  const newCards = picks.map(p => {
     const page = Object.values(pages).find(pg => pg.title === p.title) || {};
     return { ...p, page };
   });
 
+  hand.push(...newCards);
   renderHand();
+
   document.getElementById("rb-clear").disabled = false;
-  document.getElementById("rb-redraw").disabled = false;
+  document.getElementById("rb-new").disabled = false;
+  updateStatusLine();
+}
+
+function resetHand() {
+  if (selected.size >= 3) saveDish();
+  hand = [];
+  seen.clear();
+  selected.clear();
+  document.getElementById("rb-hand").innerHTML = "";
+  hideScore();
+  hideMatrix();
+  hideHints();
+  updateStatusLine();
+  drawMore();
 }
 
 // ── Rendering ────────────────────────────────────────────────
@@ -160,7 +183,7 @@ function toggleSelect(i) {
   if (selected.has(i)) {
     selected.delete(i);
   } else {
-    if (selected.size >= 5) return; // max 5
+    if (selected.size >= 5) return;
     selected.add(i);
   }
   renderHand();
@@ -175,6 +198,21 @@ function clearSelection() {
   hideScore();
   hideMatrix();
   hideHints();
+  updateStatusLine();
+}
+
+function updateStatusLine() {
+  const el = document.getElementById("rb-status");
+  if (hand.length === 0) {
+    el.textContent = ready
+      ? `${idx.count} foods · ${idx.dim}d flavor embeddings · ${idx.foodb_matched} compound-matched`
+      : "Loading...";
+  } else if (selected.size > 0) {
+    const minMsg = selected.size < 3 ? " (select at least 3)" : "";
+    el.textContent = `${selected.size}/5 selected · ${hand.length} in hand${minMsg}`;
+  } else {
+    el.textContent = `${hand.length} foods in hand · select 3-5 to build a dish`;
+  }
 }
 
 // ── Score ────────────────────────────────────────────────────
@@ -184,6 +222,7 @@ function updateScore() {
 
   if (selected.size < 2) {
     scoreEl.classList.add("hidden");
+    updateStatusLine();
     return;
   }
 
@@ -191,24 +230,14 @@ function updateScore() {
   const score = coherenceScore(embIndices);
   const { grade, label, cls } = gradeScore(score);
 
-  const gradeEl = document.getElementById("rb-grade");
-  const valueEl = document.getElementById("rb-score-value");
-  const dishEl = document.getElementById("rb-dish-name");
-
-  gradeEl.textContent = grade;
-  gradeEl.className = "rb-score-grade " + cls;
-  valueEl.textContent = `${(score * 100).toFixed(1)}%`;
-
-  // Show selected ingredients as dish name
-  const names = [...selected].map(i => hand[i].title);
-  dishEl.textContent = names.join(" + ");
+  document.getElementById("rb-grade").textContent = grade;
+  document.getElementById("rb-grade").className = "rb-score-grade " + cls;
+  document.getElementById("rb-score-value").textContent = `${(score * 100).toFixed(1)}%`;
+  document.getElementById("rb-dish-name").textContent =
+    [...selected].map(i => hand[i].title).join(" + ");
 
   scoreEl.classList.remove("hidden");
-
-  // Update status with selection count
-  const minMsg = selected.size < 3 ? " (select at least 3)" : "";
-  document.getElementById("rb-status").textContent =
-    `${selected.size}/5 ingredients selected${minMsg}`;
+  updateStatusLine();
 }
 
 function hideScore() {
@@ -229,10 +258,7 @@ function updateMatrix() {
   const sel = [...selected];
   const n = sel.length;
 
-  // Build table
   let html = '<table class="rb-matrix-table">';
-
-  // Header row
   html += '<tr><th></th>';
   for (const i of sel) {
     const name = hand[i].title.length > 12
@@ -242,7 +268,6 @@ function updateMatrix() {
   }
   html += '</tr>';
 
-  // Data rows
   for (let r = 0; r < n; r++) {
     const name = hand[sel[r]].title.length > 12
       ? hand[sel[r]].title.slice(0, 11) + "..."
@@ -267,7 +292,6 @@ function updateMatrix() {
 }
 
 function simColor(sim) {
-  // -1 (red) → 0 (neutral) → 1 (green)
   if (sim >= 0) {
     const g = Math.round(80 + sim * 120);
     const r = Math.round(40 - sim * 30);
@@ -282,7 +306,7 @@ function hideMatrix() {
   document.getElementById("rb-matrix").classList.add("hidden");
 }
 
-// ── Hints: best pair / worst pair ───────────────────────────
+// ── Hints ───────────────────────────────────────────────────
 
 function updateHints() {
   const el = document.getElementById("rb-hints");
@@ -312,12 +336,12 @@ function updateHints() {
     html += `<div class="rb-hint rb-hint-worst">Clash: <strong>${hand[worstPair[0]].title}</strong> + <strong>${hand[worstPair[1]].title}</strong> (${(worstSim * 100).toFixed(0)}%)</div>`;
   }
 
-  // Suggest the best unselected card
-  const unselected = hand.map((_, i) => i).filter(i => !selected.has(i));
-  if (unselected.length > 0 && selected.size < 5) {
+  // Suggest best unselected card to add
+  const unsel = hand.map((_, i) => i).filter(i => !selected.has(i));
+  if (unsel.length > 0 && selected.size < 5) {
     let bestAdd = null, bestAddScore = -2;
-    for (const ui of unselected) {
-      // Score if we added this card
+    const curScore = coherenceScore(sel.map(i => hand[i].embIdx));
+    for (const ui of unsel) {
       const testIndices = [...sel, ui].map(i => hand[i].embIdx);
       const testScore = coherenceScore(testIndices);
       if (testScore > bestAddScore) {
@@ -326,7 +350,7 @@ function updateHints() {
       }
     }
     if (bestAdd !== null) {
-      const delta = bestAddScore - coherenceScore(sel.map(i => hand[i].embIdx));
+      const delta = bestAddScore - curScore;
       const arrow = delta >= 0 ? "+" : "";
       html += `<div class="rb-hint rb-hint-suggest">Try adding: <strong>${hand[bestAdd].title}</strong> (${arrow}${(delta * 100).toFixed(1)})</div>`;
     }
@@ -349,9 +373,8 @@ function saveDish() {
   const score = coherenceScore(embIndices);
   const { grade } = gradeScore(score);
   const names = sel.map(i => hand[i].title);
-  const cats = sel.map(i => hand[i].category);
 
-  history.unshift({ names, cats, score, grade });
+  history.unshift({ names, score, grade });
   renderHistory();
 }
 
@@ -375,15 +398,6 @@ function renderHistory() {
 
 loadEmb();
 
-document.getElementById("rb-draw").addEventListener("click", () => {
-  // Save current dish if valid
-  if (selected.size >= 3) saveDish();
-  drawHand();
-});
-
+document.getElementById("rb-draw").addEventListener("click", drawMore);
 document.getElementById("rb-clear").addEventListener("click", clearSelection);
-
-document.getElementById("rb-redraw").addEventListener("click", () => {
-  if (selected.size >= 3) saveDish();
-  drawHand();
-});
+document.getElementById("rb-new").addEventListener("click", resetHand);
