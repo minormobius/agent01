@@ -8,552 +8,378 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#ddd;
   font-family:'Courier New',monospace}
-#wrap{display:flex;flex-direction:column;height:100%}
-#canvasWrap{flex:1;position:relative;overflow:hidden}
-canvas{display:block;width:100%;height:100%}
-#panel{background:#1a1a2e;border-top:1px solid #333;padding:8px 12px;
-  max-height:40vh;overflow-y:auto;font-size:12px}
-#panel label{display:inline-block;margin-right:12px;color:#aaa}
-#panel input[type=range]{width:80px;vertical-align:middle;accent-color:#6a6aaa}
-#panel select{background:#222;color:#ddd;border:1px solid #444;padding:2px 6px;
-  font-family:inherit;font-size:12px}
-#panel button{background:#333;color:#ddd;border:1px solid #555;padding:4px 10px;
-  cursor:pointer;font-family:inherit;font-size:11px;margin:2px}
+canvas{position:fixed;top:0;left:0}
+#panel{position:fixed;bottom:0;left:0;right:0;background:rgba(20,20,40,0.95);
+  border-top:1px solid #333;padding:8px 12px;max-height:45vh;overflow-y:auto;font-size:12px;z-index:2}
+#panel label{display:inline-block;margin-right:10px;color:#aaa}
+#panel input[type=range]{width:70px;vertical-align:middle;accent-color:#6a6aaa}
+#panel select{background:#222;color:#ddd;border:1px solid #444;padding:2px 4px;font:inherit;font-size:12px}
+#panel button{background:#333;color:#ddd;border:1px solid #555;padding:3px 8px;
+  cursor:pointer;font:inherit;font-size:11px;margin:2px}
 #panel button:hover{background:#444}
-#panel button.active{background:#446;border-color:#88a}
-.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0}
-.section{border-bottom:1px solid #2a2a3a;padding:4px 0}
-.val{color:#ddd;min-width:32px;display:inline-block;text-align:right}
-#info{position:absolute;top:8px;left:8px;font-size:11px;color:#888;pointer-events:none}
+#panel button.on{background:#446;border-color:#88a}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:3px 0}
+.sep{border-bottom:1px solid #2a2a3a;padding-bottom:4px;margin-bottom:4px}
+.val{color:#ddd;min-width:28px;display:inline-block;text-align:right}
+#info{position:fixed;top:8px;left:8px;font-size:11px;color:#666;z-index:2;pointer-events:none}
 </style>
 </head>
 <body>
-<div id="wrap">
-  <div id="canvasWrap"><canvas id="c"></canvas>
-    <div id="info">Drag to move test charge. Scroll to zoom.</div>
+<canvas id="c"></canvas>
+<div id="info">Drag test charge · Scroll zoom · Shift-drag pan</div>
+<div id="panel">
+  <div class="row sep">
+    <label>Geometry: <select id="selGeom">
+      <option value="axi">Axisymmetric (r,z)</option>
+      <option value="2d">2D Cartesian (x,y)</option>
+    </select></label>
+    <label>Surface: <select id="selSurf">
+      <option value="outside">Outside</option>
+      <option value="inside">Inside</option>
+    </select></label>
+    <button id="btnReset">Reset View</button>
   </div>
-  <div id="panel">
-    <div class="section row">
-      <label>Geometry:
-        <select id="selGeom">
-          <option value="axi">Axisymmetric (r,z)</option>
-          <option value="2d">2D Cartesian (x,y)</option>
-        </select>
-      </label>
-      <label>Surface:
-        <select id="selSurf">
-          <option value="outside">Outside</option>
-          <option value="inside">Inside</option>
-        </select>
-      </label>
-      <button id="btnReset">Reset View</button>
-    </div>
-    <div class="section row">
-      <b style="color:#f0e0c0">Sources:</b>
-      <button id="btnAddCharge">+ Charge Ring</button>
-      <button id="btnAddMass">+ Mass Ring</button>
-      <button id="btnAddCurrent">+ Current Ring</button>
-      <button id="btnAddShell">+ Charged Shell</button>
-    </div>
-    <div id="sourceList"></div>
-    <div class="section row">
-      <b style="color:#f0e0c0">Display:</b>
-      <button id="btnArrows" class="active">Arrows</button>
-      <button id="btnStream">Streamlines</button>
-      <button id="btnPerim" class="active">Perimeter</button>
-      <label>Arrow density: <input type="range" id="slDensity" min="8" max="32" value="16">
-        <span class="val" id="valDensity">16</span></label>
-      <label>Perimeter arrows: <input type="range" id="slPerim" min="12" max="48" value="30">
-        <span class="val" id="valPerim">30</span></label>
-    </div>
-    <div class="section row">
-      <b style="color:#f0e0c0">Test Particle:</b>
-      <label>q=<span class="val" id="valTQ">1.0</span>
-        <input type="range" id="slTQ" min="-3" max="3" step="0.1" value="1.0"></label>
-      <button id="btnRelease">Release</button>
-      <button id="btnFreeze">Freeze</button>
-      <label>Trail <input type="checkbox" id="chkTrail" checked></label>
-    </div>
+  <div class="row sep">
+    <b style="color:#f0e0c0">Sources:</b>
+    <button id="btnAddQ">+Charge</button>
+    <button id="btnAddM">+Mass</button>
+    <button id="btnAddI">+Current</button>
+    <button id="btnAddS">+Shell</button>
+  </div>
+  <div id="srcList"></div>
+  <div class="row sep">
+    <b style="color:#f0e0c0">Display:</b>
+    <button id="btnArr" class="on">Arrows</button>
+    <button id="btnPerim" class="on">Perimeter</button>
+    <label>Grid: <input type="range" id="slGrid" min="8" max="28" value="14">
+      <span class="val" id="vGrid">14</span></label>
+    <label>Perim#: <input type="range" id="slPN" min="12" max="48" value="30">
+      <span class="val" id="vPN">30</span></label>
+  </div>
+  <div class="row">
+    <b style="color:#f0e0c0">Test q:</b>
+    <label>q=<span class="val" id="vTQ">1.0</span>
+      <input type="range" id="slTQ" min="-3" max="3" step="0.1" value="1.0"></label>
+    <button id="btnGo">Release</button>
+    <button id="btnStop">Freeze</button>
   </div>
 </div>
 <script>
 'use strict';
+const C = document.getElementById('c'), X = C.getContext('2d');
+let W, H;
+let cx = 0, cy = 0, sc = 60;
+let geom = 'axi', side = 'outside';
+let showArr = true, showP = true, gridN = 14, pN = 30;
 
-// =====================================================================
-// State
-// =====================================================================
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+// Sources
+let srcs = [], nid = 1;
+function addSrc(type, r, z, str, rad) {
+  srcs.push({id:nid++, type, r, z, str, rad:rad||0});
+  buildUI(); dirty = true;
+}
+function rmSrc(id) { srcs = srcs.filter(s=>s.id!==id); buildUI(); dirty = true; }
 
-let W = 800, H = 600;
-let viewCx = 0, viewCy = 0, viewScale = 60; // pixels per unit
-let geom = 'axi'; // 'axi' or '2d'
-let surfSide = 'outside';
-
-// Sources: {type, r, z, strength, radius?, label}
-let sources = [];
-let nextId = 1;
+// Defaults: shell + centerline charge
+addSrc('shell', 0, 0, -1, 2);
+addSrc('charge', 0, 0, 1, 0);
 
 // Test particle
-let tp = { r: 2.5, z: 0, vr: 0, vz: 0, q: 1.0, free: false };
-let tpTrail = [];
-let draggingTP = false;
+let tp = {r:2.5, z:0, vr:0, vz:0, q:1, free:false};
+let trail = [];
+let drag = false, pan = null;
 
-// Display
-let showArrows = true, showStream = false, showPerimeter = true;
-let arrowDensity = 16, perimArrows = 30;
-
-// Pointer
-let pointer = { x: 0, y: 0, down: false };
-let panStart = null;
-
-// =====================================================================
-// Default sources
-// =====================================================================
-function addSource(type, r, z, strength, radius) {
-  const id = nextId++;
-  const labels = {charge:'Q',mass:'M',current:'I',shell:'Shell'};
-  sources.push({ id, type, r, z, strength, radius: radius||0, label: labels[type]+id });
-  rebuildSourceUI();
-  scheduleRedraw();
-  return id;
-}
-
-function removeSource(id) {
-  sources = sources.filter(s => s.id !== id);
-  rebuildSourceUI();
-  scheduleRedraw();
-}
-
-// Start with a charged shell + centerline charge (the torus model!)
-addSource('shell', 0, 0, -1.0, 2.0);
-addSource('charge', 0, 0, 1.0, 0);
+// Coord transforms
+function w2s(r,z) { return [(r-cx)*sc+W/2, H/2-(z-cy)*sc]; }
+function s2w(sx,sy) { return [(sx-W/2)/sc+cx, (H/2-sy)/sc+cy]; }
 
 // =====================================================================
 // Field computation
 // =====================================================================
 function fieldAt(pr, pz) {
-  let fr = 0, fz = 0;
-  for (const src of sources) {
-    const f = sourceField(src, pr, pz);
-    fr += f.fr;
-    fz += f.fz;
+  let fr=0, fz=0;
+  for (const s of srcs) {
+    const f = srcField(s, pr, pz);
+    fr += f.r; fz += f.z;
   }
-  return { fr, fz };
+  return {r:fr, z:fz};
 }
 
-function sourceField(src, pr, pz) {
-  if (src.type === 'charge') return chargeRingField(src, pr, pz);
-  if (src.type === 'mass') return massRingField(src, pr, pz);
-  if (src.type === 'current') return currentRingField(src, pr, pz);
-  if (src.type === 'shell') return shellField(src, pr, pz);
-  return { fr: 0, fz: 0 };
+function srcField(s, pr, pz) {
+  if (s.type==='charge') return ringField(s, pr, pz, 1);
+  if (s.type==='mass') return ringField(s, pr, pz, -1);
+  if (s.type==='current') return currentField(s, pr, pz);
+  if (s.type==='shell') return shellField(s, pr, pz);
+  return {r:0, z:0};
 }
 
-// Coulomb field from a ring of charge (axisymmetric) or line charge (2D)
-function chargeRingField(src, pr, pz) {
-  const Q = src.strength;
-  if (geom === '2d') {
-    // Point charge at (src.r, src.z)
-    const dr = pr - src.r, dz = pz - src.z;
-    const d2 = dr*dr + dz*dz;
-    if (d2 < 0.001) return { fr: 0, fz: 0 };
-    const f = Q / (d2 * Math.sqrt(d2));
-    return { fr: dr * f, fz: dz * f };
+function ringField(s, pr, pz, sign) {
+  const Q = s.str * sign;
+  if (geom==='2d') {
+    const dr=pr-s.r, dz=pz-s.z, d2=dr*dr+dz*dz;
+    if (d2<0.001) return {r:0,z:0};
+    const f = Q/(d2*Math.sqrt(d2));
+    return {r:dr*f, z:dz*f};
   }
-  // Axisymmetric: ring at (src.r, src.z) — integrate around azimuth
-  const N = 32;
-  const du = 2 * Math.PI / N;
-  let fr = 0, fz = 0;
-  const Rs = src.r, Zs = src.z;
-  for (let i = 0; i < N; i++) {
-    const u = (i + 0.5) * du;
-    const cosU = Math.cos(u);
-    // Source point in 3D: (Rs*cosU, Rs*sinU, Zs)
-    // Field point at (pr, 0, pz) by symmetry
-    const dx = pr - Rs * cosU;
-    const dy = -Rs * Math.sin(u);
-    const dz = pz - Zs;
-    const d2 = dx*dx + dy*dy + dz*dz;
-    if (d2 < 0.001) continue;
-    const d = Math.sqrt(d2);
-    const dl = Rs * du;
-    const f3 = Q * dl / (d * d2);
-    fr += dx * f3;  // R-component = x-component at u=0
-    fz += dz * f3;
+  const N=32, du=2*Math.PI/N;
+  let fr=0, fz=0;
+  for (let i=0;i<N;i++) {
+    const u=(i+.5)*du, co=Math.cos(u), si=Math.sin(u);
+    const dx=pr-s.r*co, dy=-s.r*si, dz=pz-s.z;
+    const d2=dx*dx+dy*dy+dz*dz;
+    if(d2<.001)continue;
+    const f3=Q*s.r*du/(Math.sqrt(d2)*d2);
+    fr+=dx*f3; fz+=dz*f3;
   }
-  return { fr, fz };
+  return {r:fr, z:fz};
 }
 
-// Gravity: same as charge but attractive (opposite sign)
-function massRingField(src, pr, pz) {
-  const f = chargeRingField({ ...src, strength: -src.strength }, pr, pz);
-  return f;
+function currentField(s, pr, pz) {
+  const I=s.str;
+  if (geom==='2d') {
+    const dr=pr-s.r, dz=pz-s.z, d2=dr*dr+dz*dz;
+    if(d2<.001)return{r:0,z:0};
+    const f=I/d2;
+    return {r:-dz*f, z:dr*f};
+  }
+  const N=32, du=2*Math.PI/N;
+  let fr=0,fz=0;
+  for(let i=0;i<N;i++){
+    const u=(i+.5)*du, co=Math.cos(u), si=Math.sin(u);
+    const dlx=-si*s.r*du, dly=co*s.r*du;
+    const dx=pr-s.r*co, dy=-s.r*si, dz=pz-s.z;
+    const d2=dx*dx+dy*dy+dz*dz;
+    if(d2<.001)continue;
+    const d3=Math.pow(d2,1.5);
+    fr+=I*(dly*dz)/d3;
+    fz+=I*(dlx*dy-dly*dx)/d3;
+  }
+  return {r:fr,z:fz};
 }
 
-// Biot-Savart: current ring produces B-field
-// For a ring of current in the (r, phi) plane at height z:
-// B has components B_r and B_z (axial)
-function currentRingField(src, pr, pz) {
-  const I = src.strength;
-  if (geom === '2d') {
-    // Infinite wire at (src.r, src.z), current in +z (out of page)
-    // B = mu0*I/(2pi*d) in tangential direction
-    const dr = pr - src.r, dz = pz - src.z;
-    const d2 = dr*dr + dz*dz;
-    if (d2 < 0.001) return { fr: 0, fz: 0 };
-    const f = I / d2;
-    // B tangential: perpendicular to displacement, CCW
-    return { fr: -dz * f, fz: dr * f };
-  }
-  // Axisymmetric: Biot-Savart for current ring
-  const N = 32;
-  const du = 2 * Math.PI / N;
-  let fr = 0, fz = 0;
-  const Rs = src.r, Zs = src.z;
-  for (let i = 0; i < N; i++) {
-    const u = (i + 0.5) * du;
-    const cosU = Math.cos(u), sinU = Math.sin(u);
-    // dl direction: tangent to ring = (-sinU, cosU, 0) * Rs * du
-    const dlx = -sinU * Rs * du;
-    const dly = cosU * Rs * du;
-    // displacement from source to field point
-    const dx = pr - Rs * cosU;
-    const dy = -Rs * sinU;
-    const dz = pz - Zs;
-    const d2 = dx*dx + dy*dy + dz*dz;
-    if (d2 < 0.001) continue;
-    const d3 = Math.pow(d2, 1.5);
-    // dB = I * (dl x r) / |r|^3
-    // dl x r = (dly*dz - 0*dy, 0*dx - dlx*dz, dlx*dy - dly*dx)
-    const bx = (dly * dz) / d3;
-    const bz = (dlx * dy - dly * dx) / d3;
-    fr += I * bx;
-    fz += I * bz;
-  }
-  return { fr, fz };
-}
-
-// Charged shell: uniform charge on circle of given radius centered at (src.r, src.z)
-function shellField(src, pr, pz) {
-  const Q = src.strength;
-  const R0 = src.radius || 1;
-  if (geom === '2d') {
-    // 2D: charged circle
-    const N = 64;
-    const dth = 2 * Math.PI / N;
-    let fr = 0, fz = 0;
-    for (let i = 0; i < N; i++) {
-      const th = (i + 0.5) * dth;
-      const sx = src.r + R0 * Math.cos(th);
-      const sz = src.z + R0 * Math.sin(th);
-      const dx = pr - sx, dz = pz - sz;
-      const d2 = dx*dx + dz*dz;
-      if (d2 < 0.001) continue;
-      const dl = R0 * dth;
-      const f3 = Q * dl / (Math.sqrt(d2) * d2);
-      fr += dx * f3;
-      fz += dz * f3;
+function shellField(s, pr, pz) {
+  const Q=s.str, R0=s.rad||1;
+  if (geom==='2d') {
+    const N=48, dt=2*Math.PI/N;
+    let fr=0,fz=0;
+    for(let i=0;i<N;i++){
+      const t=(i+.5)*dt;
+      const sx=s.r+R0*Math.cos(t), sz=s.z+R0*Math.sin(t);
+      const dx=pr-sx, dz=pz-sz, d2=dx*dx+dz*dz;
+      if(d2<.001)continue;
+      const f3=Q*R0*dt/(Math.sqrt(d2)*d2);
+      fr+=dx*f3; fz+=dz*f3;
     }
-    return { fr, fz };
+    return {r:fr,z:fz};
   }
-  // Axisymmetric: torus shell at tube center (src.r, src.z) with tube radius R0
-  // Integrate over poloidal angle v, then over toroidal angle u
-  const Nu = 24, Nv = 16;
-  const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
-  let fr = 0, fz = 0;
-  for (let iu = 0; iu < Nu; iu++) {
-    const u = (iu + 0.5) * du;
-    const cosU = Math.cos(u), sinU = Math.sin(u);
-    for (let iv = 0; iv < Nv; iv++) {
-      const v = (iv + 0.5) * dv;
-      const Rc = src.r + R0 * Math.cos(v);
-      const ex = Rc * cosU, ey = Rc * sinU, ez = src.z + R0 * Math.sin(v);
-      const dx = pr - ex, dy = -ey, dz = pz - ez;  // field point at (pr, 0, pz)
-      const d2 = dx*dx + dy*dy + dz*dz;
-      if (d2 < 0.005) continue;
-      const dist = Math.sqrt(d2);
-      const dA = R0 * Math.abs(Rc) * du * dv;
-      const f3 = Q * dA / (dist * d2);
-      fr += dx * f3;
-      fz += dz * f3;
+  // Axi: torus shell
+  const Nu=20, Nv=16, du=2*Math.PI/Nu, dv=2*Math.PI/Nv;
+  let fr=0,fz=0;
+  for(let iu=0;iu<Nu;iu++){
+    const u=(iu+.5)*du, cu=Math.cos(u), su=Math.sin(u);
+    for(let iv=0;iv<Nv;iv++){
+      const v=(iv+.5)*dv;
+      const Rc=s.r+R0*Math.cos(v);
+      const ex=Rc*cu, ey=Rc*su, ez=s.z+R0*Math.sin(v);
+      const dx=pr-ex, dy=-ey, dz=pz-ez;
+      const d2=dx*dx+dy*dy+dz*dz;
+      if(d2<.005)continue;
+      const dA=R0*Math.abs(Rc)*du*dv;
+      const f3=Q*dA/(Math.sqrt(d2)*d2);
+      fr+=dx*f3; fz+=dz*f3;
     }
   }
-  return { fr, fz };
+  return {r:fr,z:fz};
 }
 
 // =====================================================================
-// Rendering
+// Drawing
 // =====================================================================
-let needsRedraw = true;
-function scheduleRedraw() { needsRedraw = true; }
+let dirty = true;
 
-function worldToScreen(r, z) {
-  return [(r - viewCx) * viewScale + W/2, H/2 - (z - viewCy) * viewScale];
-}
-function screenToWorld(sx, sy) {
-  return [(sx - W/2) / viewScale + viewCx, (H/2 - sy) / viewScale + viewCy];
-}
-
-function magnitudeColor(mag) {
-  // Log scale heatmap: blue → cyan → green → yellow → red
-  const lm = Math.log10(Math.max(mag, 1e-6));
-  const t = Math.max(0, Math.min(1, (lm + 3) / 5)); // -3 to +2
-  const r = t < 0.5 ? 0 : Math.min(255, (t-0.5)*2*255);
-  const g = t < 0.25 ? t*4*255 : t < 0.75 ? 255 : (1-t)*4*255;
-  const b = t < 0.5 ? (1-t*2)*255 : 0;
+function magColor(m) {
+  const lm=Math.log10(Math.max(m,1e-6));
+  const t=Math.max(0,Math.min(1,(lm+3)/5));
+  const r=t<.5?0:Math.min(255,(t-.5)*2*255);
+  const g=t<.25?t*4*255:t<.75?255:(1-t)*4*255;
+  const b=t<.5?(1-t*2)*255:0;
   return `rgb(${r|0},${g|0},${b|0})`;
 }
 
-function drawFieldGrid() {
-  // Single pass: heatmap cells + arrows on same grid (one fieldAt call per cell)
-  const step = W / arrowDensity;
-  const maxLen = step * 0.4;
-  const half = step / 2;
-  for (let sx = 0; sx < W; sx += step) {
-    for (let sy = 0; sy < H; sy += step) {
-      const cx = sx + half, cy = sy + half;
-      const [r, z] = screenToWorld(cx, cy);
-      const f = fieldAt(r, z);
-      const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-      // Heatmap cell
-      ctx.fillStyle = magnitudeColor(mag);
-      ctx.globalAlpha = 0.15;
-      ctx.fillRect(sx, sy, step, step);
-      // Arrow
-      if (showArrows && mag > 1e-8) {
-        const logMag = Math.log10(mag + 1e-6);
-        const len = Math.min(maxLen, Math.max(4, (logMag + 3) * maxLen / 4));
-        const nr = f.fr / mag, nz = f.fz / mag;
-        const dx = nr * len, dy = -nz * len;
-        ctx.strokeStyle = magnitudeColor(mag);
-        ctx.globalAlpha = 0.7;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(cx - dx*0.5, cy - dy*0.5);
-        ctx.lineTo(cx + dx*0.5, cy + dy*0.5);
-        const ax = -dx*0.3 + dy*0.2, ay = -dy*0.3 - dx*0.2;
-        const bx = -dx*0.3 - dy*0.2, by = -dy*0.3 + dx*0.2;
-        ctx.moveTo(cx + dx*0.5, cy + dy*0.5);
-        ctx.lineTo(cx + dx*0.5 + ax, cy + dy*0.5 + ay);
-        ctx.moveTo(cx + dx*0.5, cy + dy*0.5);
-        ctx.lineTo(cx + dx*0.5 + bx, cy + dy*0.5 + by);
-        ctx.stroke();
+function drawGrid() {
+  const step=W/gridN, mx=step*.4, h=step/2;
+  for(let sx=0;sx<W;sx+=step){
+    for(let sy=0;sy<H;sy+=step){
+      const[r,z]=s2w(sx+h,sy+h);
+      const f=fieldAt(r,z);
+      const m=Math.sqrt(f.r*f.r+f.z*f.z);
+      X.fillStyle=magColor(m); X.globalAlpha=.15;
+      X.fillRect(sx,sy,step,step);
+      if(showArr&&m>1e-8){
+        const lm=Math.log10(m+1e-6);
+        const len=Math.min(mx,Math.max(4,(lm+3)*mx/4));
+        const nr=f.r/m, nz=f.z/m;
+        const dx=nr*len, dy=-nz*len;
+        X.strokeStyle=magColor(m); X.globalAlpha=.7; X.lineWidth=1.2;
+        X.beginPath();
+        X.moveTo(sx+h-dx*.5,sy+h-dy*.5);
+        X.lineTo(sx+h+dx*.5,sy+h+dy*.5);
+        const ax=-dx*.3+dy*.2, ay=-dy*.3-dx*.2;
+        const bx=-dx*.3-dy*.2, by=-dy*.3+dx*.2;
+        X.moveTo(sx+h+dx*.5,sy+h+dy*.5);
+        X.lineTo(sx+h+dx*.5+ax,sy+h+dy*.5+ay);
+        X.moveTo(sx+h+dx*.5,sy+h+dy*.5);
+        X.lineTo(sx+h+dx*.5+bx,sy+h+dy*.5+by);
+        X.stroke();
       }
-      ctx.globalAlpha = 1;
+      X.globalAlpha=1;
     }
   }
 }
 
-function drawPerimeterArrows() {
-  // Find the first shell source, draw force arrows around its perimeter
-  const shell = sources.find(s => s.type === 'shell');
-  if (!shell) return;
-  const cx = shell.r, cz = shell.z, rad = shell.radius || 1;
-  const N = perimArrows;
-  const maxArrowLen = 40; // screen pixels
-
-  for (let i = 0; i < N; i++) {
-    const th = (i / N) * 2 * Math.PI;
-    const cosT = Math.cos(th), sinT = Math.sin(th);
-    // Point on surface (just outside or inside)
-    const offset = surfSide === 'inside' ? -0.02 : 0.02;
-    let pr, pz;
-    if (geom === '2d') {
-      pr = cx + (rad + offset) * cosT;
-      pz = cz + (rad + offset) * sinT;
-    } else {
-      // Axisymmetric: shell is a torus. Perimeter is the tube cross-section
-      pr = cx + (rad + offset) * cosT;
-      pz = cz + (rad + offset) * sinT;
-    }
-    const f = fieldAt(pr, pz);
-    const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-    if (mag < 1e-8) continue;
-
-    const [sx, sy] = worldToScreen(pr, pz);
-    const logMag = Math.log10(mag + 1e-6);
-    const len = Math.min(maxArrowLen, Math.max(8, (logMag + 3) * maxArrowLen / 4));
-    const nr = f.fr / mag, nz = f.fz / mag;
-    const dx = nr * len, dy = -nz * len;
-
-    // Color by whether force is inward (wall-sticking) or outward
-    const radialDot = nr * cosT + nz * sinT; // positive = outward
-    const inward = surfSide === 'inside' ? radialDot > 0 : radialDot < 0;
-    ctx.strokeStyle = inward ? '#4f4' : '#f44'; // green=sticking, red=repelling
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + dx, sy + dy);
-    // Arrowhead
-    const ax = -dx*0.25 + dy*0.15, ay = -dy*0.25 - dx*0.15;
-    const bx = -dx*0.25 - dy*0.15, by = -dy*0.25 + dx*0.15;
-    ctx.moveTo(sx + dx, sy + dy);
-    ctx.lineTo(sx + dx + ax, sy + dy + ay);
-    ctx.moveTo(sx + dx, sy + dy);
-    ctx.lineTo(sx + dx + bx, sy + dy + by);
-    ctx.stroke();
-
-    // Magnitude label
-    ctx.fillStyle = inward ? '#4f4' : '#f44';
-    ctx.font = '9px monospace';
-    ctx.globalAlpha = 0.7;
-    ctx.fillText(mag.toFixed(2), sx + dx + 4, sy + dy);
-    ctx.globalAlpha = 1;
+function drawPerim() {
+  const sh=srcs.find(s=>s.type==='shell');
+  if(!sh)return;
+  const cr=sh.r, cz=sh.z, R=sh.rad||1;
+  const off=side==='inside'?-.03:.03;
+  for(let i=0;i<pN;i++){
+    const th=i/pN*2*Math.PI;
+    const ct=Math.cos(th), st=Math.sin(th);
+    const pr=cr+(R+off)*ct, pz=cz+(R+off)*st;
+    const f=fieldAt(pr,pz);
+    const m=Math.sqrt(f.r*f.r+f.z*f.z);
+    if(m<1e-8)continue;
+    const[sx,sy]=w2s(pr,pz);
+    const lm=Math.log10(m+1e-6);
+    const len=Math.min(40,Math.max(8,(lm+3)*10));
+    const nr=f.r/m, nz=f.z/m;
+    const dx=nr*len, dy=-nz*len;
+    const dot=nr*ct+nz*st;
+    const stick=side==='inside'?dot>0:dot<0;
+    X.strokeStyle=stick?'#4f4':'#f44';
+    X.lineWidth=2; X.globalAlpha=.9;
+    X.beginPath(); X.moveTo(sx,sy); X.lineTo(sx+dx,sy+dy);
+    const ax=-dx*.25+dy*.15, ay=-dy*.25-dx*.15;
+    const bx=-dx*.25-dy*.15, by=-dy*.25+dx*.15;
+    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+ax,sy+dy+ay);
+    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+bx,sy+dy+by);
+    X.stroke();
+    X.fillStyle=stick?'#4f4':'#f44';
+    X.font='9px monospace'; X.globalAlpha=.6;
+    X.fillText(m.toFixed(1),sx+dx+3,sy+dy-2);
+    X.globalAlpha=1;
   }
 }
 
-function drawSources() {
-  for (const src of sources) {
-    const [sx, sy] = worldToScreen(src.r, src.z);
-    if (src.type === 'shell') {
-      const rpx = src.radius * viewScale;
-      ctx.strokeStyle = src.strength > 0 ? '#f88' : '#88f';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(sx, sy, rpx, 0, 2*Math.PI);
-      ctx.stroke();
-      ctx.setLineDash([]);
+function drawSrcs() {
+  for(const s of srcs){
+    const[sx,sy]=w2s(s.r,s.z);
+    if(s.type==='shell'){
+      const rp=s.rad*sc;
+      X.strokeStyle=s.str>0?'#f88':'#88f';
+      X.lineWidth=2; X.setLineDash([4,4]);
+      X.beginPath(); X.arc(sx,sy,rp,0,2*Math.PI); X.stroke();
+      X.setLineDash([]);
     }
-    // Draw center dot
-    ctx.fillStyle = src.type === 'current' ? '#ff0' :
-      src.type === 'mass' ? '#888' :
-      src.strength > 0 ? '#f44' : '#44f';
-    ctx.beginPath();
-    ctx.arc(sx, sy, 5, 0, 2*Math.PI);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '10px monospace';
-    ctx.fillText(src.label, sx + 8, sy - 8);
+    X.fillStyle=s.type==='current'?'#ff0':s.type==='mass'?'#888':
+      s.str>0?'#f44':'#44f';
+    X.beginPath(); X.arc(sx,sy,5,0,2*Math.PI); X.fill();
   }
 }
 
-function drawTestParticle() {
-  const [sx, sy] = worldToScreen(tp.r, tp.z);
-  // Trail
-  if (tpTrail.length > 1) {
-    ctx.strokeStyle = 'rgba(255,255,100,0.3)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < tpTrail.length; i++) {
-      const [tx, ty] = worldToScreen(tpTrail[i][0], tpTrail[i][1]);
-      if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+function drawTP() {
+  const[sx,sy]=w2s(tp.r,tp.z);
+  if(trail.length>1){
+    X.strokeStyle='rgba(255,255,100,.3)'; X.lineWidth=1;
+    X.beginPath();
+    for(let i=0;i<trail.length;i++){
+      const[tx,ty]=w2s(trail[i][0],trail[i][1]);
+      i?X.lineTo(tx,ty):X.moveTo(tx,ty);
     }
-    ctx.stroke();
+    X.stroke();
   }
-  // Particle
-  ctx.fillStyle = tp.q > 0 ? '#ff4' : '#4ff';
-  ctx.beginPath();
-  ctx.arc(sx, sy, 7, 0, 2*Math.PI);
-  ctx.fill();
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  // Force arrow on particle
-  const f = fieldAt(tp.r, tp.z);
-  const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-  if (mag > 1e-8) {
-    const len = Math.min(50, Math.max(12, Math.log10(mag*tp.q + 1e-6) * 15 + 40));
-    const dx = (f.fr/mag) * len * Math.sign(tp.q);
-    const dy = -(f.fz/mag) * len * Math.sign(tp.q);
-    ctx.strokeStyle = '#ff0';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + dx, sy + dy);
-    const ax = -dx*0.25 + dy*0.15, ay = -dy*0.25 - dx*0.15;
-    const bx = -dx*0.25 - dy*0.15, by = -dy*0.25 + dx*0.15;
-    ctx.moveTo(sx + dx, sy + dy);
-    ctx.lineTo(sx + dx + ax, sy + dy + ay);
-    ctx.moveTo(sx + dx, sy + dy);
-    ctx.lineTo(sx + dx + bx, sy + dy + by);
-    ctx.stroke();
+  X.fillStyle=tp.q>0?'#ff4':'#4ff';
+  X.beginPath(); X.arc(sx,sy,7,0,2*Math.PI); X.fill();
+  X.strokeStyle='#fff'; X.lineWidth=1.5; X.stroke();
+  const f=fieldAt(tp.r,tp.z);
+  const m=Math.sqrt(f.r*f.r+f.z*f.z);
+  if(m>1e-8){
+    const len=Math.min(50,Math.max(12,Math.log10(m+1e-6)*15+40));
+    const sg=Math.sign(tp.q)||1;
+    const dx=f.r/m*len*sg, dy=-f.z/m*len*sg;
+    X.strokeStyle='#ff0'; X.lineWidth=2.5;
+    X.beginPath(); X.moveTo(sx,sy); X.lineTo(sx+dx,sy+dy);
+    const ax=-dx*.25+dy*.15, ay=-dy*.25-dx*.15;
+    const bx=-dx*.25-dy*.15, by=-dy*.25+dx*.15;
+    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+ax,sy+dy+ay);
+    X.moveTo(sx+dx,sy+dy); X.lineTo(sx+dx+bx,sy+dy+by);
+    X.stroke();
   }
 }
 
 function drawAxes() {
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 1;
-  // Axis lines
-  const [ox, oy] = worldToScreen(0, 0);
-  ctx.beginPath();
-  ctx.moveTo(0, oy); ctx.lineTo(W, oy);
-  ctx.moveTo(ox, 0); ctx.lineTo(ox, H);
-  ctx.stroke();
-  // Labels
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '11px monospace';
-  ctx.fillText(geom === 'axi' ? 'R' : 'x', W - 16, oy - 4);
-  ctx.fillText(geom === 'axi' ? 'Z' : 'y', ox + 4, 14);
+  const[ox,oy]=w2s(0,0);
+  X.strokeStyle='rgba(255,255,255,.12)'; X.lineWidth=1;
+  X.beginPath(); X.moveTo(0,oy); X.lineTo(W,oy);
+  X.moveTo(ox,0); X.lineTo(ox,H); X.stroke();
+  X.fillStyle='rgba(255,255,255,.25)'; X.font='11px monospace';
+  X.fillText(geom==='axi'?'R':'x',W-16,oy-4);
+  X.fillText(geom==='axi'?'Z':'y',ox+4,14);
 }
 
 function draw() {
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#0a0a14';
-  ctx.fillRect(0, 0, W, H);
+  X.clearRect(0,0,W,H);
+  X.fillStyle='#0a0a14'; X.fillRect(0,0,W,H);
   drawAxes();
-  drawFieldGrid();
-  drawSources();
-  if (showPerimeter) drawPerimeterArrows();
-  drawTestParticle();
+  drawGrid();
+  drawSrcs();
+  if(showP) drawPerim();
+  drawTP();
 }
 
 // =====================================================================
-// Test particle simulation
+// Particle sim
 // =====================================================================
-function stepParticle(dt) {
-  if (!tp.free) return;
-  const substeps = 4;
-  const sub = dt / substeps;
-  for (let i = 0; i < substeps; i++) {
-    const f = fieldAt(tp.r, tp.z);
-    tp.vr += f.fr * tp.q * sub;
-    tp.vz += f.fz * tp.q * sub;
-    // Damping to keep things stable
-    tp.vr *= 0.999;
-    tp.vz *= 0.999;
-    tp.r += tp.vr * sub;
-    tp.z += tp.vz * sub;
+function stepTP(dt) {
+  if(!tp.free)return;
+  const sub=dt/4;
+  for(let i=0;i<4;i++){
+    const f=fieldAt(tp.r,tp.z);
+    tp.vr+=f.r*tp.q*sub; tp.vz+=f.z*tp.q*sub;
+    tp.vr*=.999; tp.vz*=.999;
+    tp.r+=tp.vr*sub; tp.z+=tp.vz*sub;
   }
-  if (document.getElementById('chkTrail').checked) {
-    tpTrail.push([tp.r, tp.z]);
-    if (tpTrail.length > 2000) tpTrail.shift();
-  }
+  trail.push([tp.r,tp.z]);
+  if(trail.length>2000)trail.shift();
 }
 
 // =====================================================================
 // Source UI
 // =====================================================================
-function rebuildSourceUI() {
-  const list = document.getElementById('sourceList');
-  list.innerHTML = '';
-  for (const src of sources) {
-    const div = document.createElement('div');
-    div.className = 'row section';
-    const typeLabel = {charge:'Charge',mass:'Mass',current:'Current',shell:'Shell'}[src.type];
-    const color = src.type === 'current' ? '#ff0' : src.type === 'mass' ? '#888' : src.strength > 0 ? '#f88' : '#88f';
-    let html = `<span style="color:${color}">${typeLabel}</span> `;
-    html += `<label>pos: <input type="number" step="0.1" value="${src.r}" style="width:48px;background:#222;color:#ddd;border:1px solid #444" data-id="${src.id}" data-field="r"></label>`;
-    html += `<label>, <input type="number" step="0.1" value="${src.z}" style="width:48px;background:#222;color:#ddd;border:1px solid #444" data-id="${src.id}" data-field="z"></label>`;
-    html += `<label> str:<input type="number" step="0.1" value="${src.strength}" style="width:48px;background:#222;color:#ddd;border:1px solid #444" data-id="${src.id}" data-field="strength"></label>`;
-    if (src.type === 'shell') {
-      html += `<label> R:<input type="number" step="0.1" value="${src.radius}" style="width:48px;background:#222;color:#ddd;border:1px solid #444" data-id="${src.id}" data-field="radius"></label>`;
-    }
-    html += `<button data-remove="${src.id}" style="color:#f66">x</button>`;
-    div.innerHTML = html;
-    list.appendChild(div);
+function buildUI() {
+  const el=document.getElementById('srcList');
+  el.innerHTML='';
+  for(const s of srcs){
+    const d=document.createElement('div');
+    d.className='row';
+    const nm={charge:'Q',mass:'M',current:'I',shell:'S'}[s.type];
+    const col=s.type==='current'?'#ff0':s.type==='mass'?'#888':s.str>0?'#f88':'#88f';
+    d.innerHTML=`<span style="color:${col}">${nm}${s.id}</span>`+
+      ` r:<input type="number" step=".1" value="${s.r}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="r">`+
+      ` z:<input type="number" step=".1" value="${s.z}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="z">`+
+      ` str:<input type="number" step=".1" value="${s.str}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="str">`+
+      (s.type==='shell'?` R:<input type="number" step=".1" value="${s.rad}" style="width:42px;background:#222;color:#ddd;border:1px solid #444" data-id="${s.id}" data-f="rad">`:'')+
+      ` <button data-rm="${s.id}" style="color:#f66">x</button>`;
+    el.appendChild(d);
   }
-  // Wire up inputs
-  list.querySelectorAll('input[data-id]').forEach(inp => {
-    inp.addEventListener('change', () => {
-      const src = sources.find(s => s.id === +inp.dataset.id);
-      if (src) { src[inp.dataset.field] = parseFloat(inp.value); scheduleRedraw(); }
+  el.querySelectorAll('input[data-id]').forEach(i=>{
+    i.addEventListener('change',()=>{
+      const s=srcs.find(x=>x.id===+i.dataset.id);
+      if(s){s[i.dataset.f]=parseFloat(i.value);dirty=true;}
     });
   });
-  list.querySelectorAll('button[data-remove]').forEach(btn => {
-    btn.addEventListener('click', () => removeSource(+btn.dataset.remove));
+  el.querySelectorAll('button[data-rm]').forEach(b=>{
+    b.addEventListener('click',()=>rmSrc(+b.dataset.rm));
   });
 }
 
@@ -561,126 +387,70 @@ function rebuildSourceUI() {
 // Events
 // =====================================================================
 function resize() {
-  const wrap = document.getElementById('canvasWrap');
-  W = canvas.width = wrap.clientWidth;
-  H = canvas.height = wrap.clientHeight;
-  scheduleRedraw();
+  W=C.width=window.innerWidth;
+  H=C.height=window.innerHeight;
+  dirty=true;
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize',resize);
 
-// Pointer: drag test particle or pan
-canvas.addEventListener('pointerdown', e => {
+C.addEventListener('pointerdown',e=>{
   e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const sx = (e.clientX - rect.left) * devicePixelRatio;
-  const sy = (e.clientY - rect.top) * devicePixelRatio;
-  const [tpsx, tpsy] = worldToScreen(tp.r, tp.z);
-  if (Math.hypot(sx - tpsx, sy - tpsy) < 20) {
-    draggingTP = true;
-    tp.free = false;
-    tp.vr = 0; tp.vz = 0;
+  const sx=e.clientX, sy=e.clientY;
+  const[tsx,tsy]=w2s(tp.r,tp.z);
+  if(Math.hypot(sx-tsx,sy-tsy)<25){
+    drag=true; tp.free=false; tp.vr=0; tp.vz=0;
   } else {
-    panStart = { sx, sy, cx: viewCx, cy: viewCy };
-  }
-  pointer.down = true;
-});
-
-canvas.addEventListener('pointermove', e => {
-  const rect = canvas.getBoundingClientRect();
-  const sx = (e.clientX - rect.left) * devicePixelRatio;
-  const sy = (e.clientY - rect.top) * devicePixelRatio;
-  if (draggingTP) {
-    const [r, z] = screenToWorld(sx, sy);
-    tp.r = r; tp.z = z;
-    scheduleRedraw();
-  } else if (panStart) {
-    viewCx = panStart.cx - (sx - panStart.sx) / viewScale;
-    viewCy = panStart.cy + (sy - panStart.sy) / viewScale;
-    scheduleRedraw();
+    pan={sx,sy,cx,cy};
   }
 });
-
-window.addEventListener('pointerup', () => {
-  draggingTP = false;
-  panStart = null;
-  pointer.down = false;
+C.addEventListener('pointermove',e=>{
+  if(drag){
+    const[r,z]=s2w(e.clientX,e.clientY);
+    tp.r=r; tp.z=z; dirty=true;
+  } else if(pan){
+    cx=pan.cx-(e.clientX-pan.sx)/sc;
+    cy=pan.cy+(e.clientY-pan.sy)/sc;
+    dirty=true;
+  }
 });
-
-canvas.addEventListener('wheel', e => {
+window.addEventListener('pointerup',()=>{drag=false;pan=null;});
+C.addEventListener('wheel',e=>{
   e.preventDefault();
-  const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  viewScale *= factor;
-  viewScale = Math.max(5, Math.min(500, viewScale));
-  scheduleRedraw();
-}, { passive: false });
+  sc*=e.deltaY>0?.9:1.1;
+  sc=Math.max(5,Math.min(500,sc));
+  dirty=true;
+},{passive:false});
 
 // Buttons
-document.getElementById('selGeom').addEventListener('change', e => {
-  geom = e.target.value; scheduleRedraw();
-});
-document.getElementById('selSurf').addEventListener('change', e => {
-  surfSide = e.target.value; scheduleRedraw();
-});
-document.getElementById('btnReset').addEventListener('click', () => {
-  viewCx = 0; viewCy = 0; viewScale = 60; scheduleRedraw();
-});
-document.getElementById('btnAddCharge').addEventListener('click', () => addSource('charge', 1, 1, 1.0));
-document.getElementById('btnAddMass').addEventListener('click', () => addSource('mass', 1, -1, 1.0));
-document.getElementById('btnAddCurrent').addEventListener('click', () => addSource('current', 0, 0, 1.0));
-document.getElementById('btnAddShell').addEventListener('click', () => addSource('shell', 0, 0, -1.0, 1.5));
-document.getElementById('btnArrows').addEventListener('click', e => {
-  showArrows = !showArrows; e.target.classList.toggle('active'); scheduleRedraw();
-});
-document.getElementById('btnStream').addEventListener('click', e => {
-  showStream = !showStream; e.target.classList.toggle('active'); scheduleRedraw();
-});
-document.getElementById('btnPerim').addEventListener('click', e => {
-  showPerimeter = !showPerimeter; e.target.classList.toggle('active'); scheduleRedraw();
-});
-document.getElementById('slDensity').addEventListener('input', e => {
-  arrowDensity = +e.target.value;
-  document.getElementById('valDensity').textContent = arrowDensity;
-  scheduleRedraw();
-});
-document.getElementById('slPerim').addEventListener('input', e => {
-  perimArrows = +e.target.value;
-  document.getElementById('valPerim').textContent = perimArrows;
-  scheduleRedraw();
-});
-document.getElementById('slTQ').addEventListener('input', e => {
-  tp.q = parseFloat(e.target.value);
-  document.getElementById('valTQ').textContent = tp.q.toFixed(1);
-  scheduleRedraw();
-});
-document.getElementById('btnRelease').addEventListener('click', () => {
-  tp.free = true; tpTrail = [];
-});
-document.getElementById('btnFreeze').addEventListener('click', () => {
-  tp.free = false; tp.vr = 0; tp.vz = 0;
-});
+document.getElementById('selGeom').onchange=e=>{geom=e.target.value;dirty=true;};
+document.getElementById('selSurf').onchange=e=>{side=e.target.value;dirty=true;};
+document.getElementById('btnReset').onclick=()=>{cx=0;cy=0;sc=60;dirty=true;};
+document.getElementById('btnAddQ').onclick=()=>addSrc('charge',1,1,1);
+document.getElementById('btnAddM').onclick=()=>addSrc('mass',1,-1,1);
+document.getElementById('btnAddI').onclick=()=>addSrc('current',0,0,1);
+document.getElementById('btnAddS').onclick=()=>addSrc('shell',0,0,-1,1.5);
+document.getElementById('btnArr').onclick=e=>{showArr=!showArr;e.target.classList.toggle('on');dirty=true;};
+document.getElementById('btnPerim').onclick=e=>{showP=!showP;e.target.classList.toggle('on');dirty=true;};
+document.getElementById('slGrid').oninput=e=>{gridN=+e.target.value;document.getElementById('vGrid').textContent=gridN;dirty=true;};
+document.getElementById('slPN').oninput=e=>{pN=+e.target.value;document.getElementById('vPN').textContent=pN;dirty=true;};
+document.getElementById('slTQ').oninput=e=>{tp.q=+e.target.value;document.getElementById('vTQ').textContent=tp.q.toFixed(1);dirty=true;};
+document.getElementById('btnGo').onclick=()=>{tp.free=true;trail=[];};
+document.getElementById('btnStop').onclick=()=>{tp.free=false;tp.vr=0;tp.vz=0;};
 
 // =====================================================================
 // Main loop
 // =====================================================================
-let lastTime = 0;
-function loop(t) {
-  const dt = Math.min(0.05, (t - lastTime) / 1000);
-  lastTime = t;
-  if (tp.free) {
-    stepParticle(dt);
-    needsRedraw = true;
-  }
-  if (needsRedraw) {
-    draw();
-    needsRedraw = false;
-  }
+let lt=0;
+function loop(t){
+  const dt=Math.min(.05,(t-lt)/1000); lt=t;
+  if(tp.free){stepTP(dt);dirty=true;}
+  if(dirty){draw();dirty=false;}
   requestAnimationFrame(loop);
 }
 
 resize();
-rebuildSourceUI();
+buildUI();
 requestAnimationFrame(loop);
-
 </script>
 </body>
 </html>
