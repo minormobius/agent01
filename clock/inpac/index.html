@@ -66,6 +66,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
     <input type="range" id="slGrav" min="0" max="5" step="0.1" value="1.0">
     <label>Line (repel) <span class="val" id="valLine">3.0</span></label>
     <input type="range" id="slLine" min="0" max="10" step="0.1" value="3.0">
+    <label>B center (current) <span class="val" id="valBcen">0.0</span></label>
+    <input type="range" id="slBcen" min="0" max="3" step="0.05" value="0.0">
+    <label>B coil (solenoid) <span class="val" id="valBcoil">0.5</span></label>
+    <input type="range" id="slBcoil" min="0" max="3" step="0.05" value="0.5">
     <label>Major Radius (R) <span class="val" id="valR">8.0</span></label>
     <input type="range" id="slR" min="3" max="30" step="0.1" value="8.0">
     <label>Minor Radius (r) <span class="val" id="valr">3.0</span></label>
@@ -103,6 +107,8 @@ let CELL_UNIT = 3;
 
 let GRAV_SCALE = 1.0;
 let LINE_SCALE = 3.0;   // centerline same-charge repulsion strength
+let B_CENTER = 0.0;     // centerline current → poloidal B (deflects along tube)
+let B_COIL = 0.5;       // toroidal coil → toroidal B (spirals around tube walls)
 const JUMP_SPEED = 3.5;
 const SUPER_JUMP_SPEED = 9.0;
 
@@ -364,13 +370,15 @@ function sampleGravity(R, Z) {
 // =====================================================================
 // Jump physics — INTERIOR: jump inward, land on tube wall
 // =====================================================================
+let csVU = 0;  // toroidal velocity during jump (physical units)
+
 function initCrossSectionFromSurface() {
   const v = getPlayerV();
   const th = tileHeightAt(playerX, playerY);
   // Inside: position at inner wall, inward by wall height
   csR = TORUS_R + (TORUS_r - th) * Math.cos(v);
   csZ = (TORUS_r - th) * Math.sin(v);
-  csVR = 0; csVZ = 0;
+  csVR = 0; csVZ = 0; csVU = 0;
 }
 
 function doJump() {
@@ -388,10 +396,12 @@ function doJump() {
   const vPhysical = jumpDyPerSec * 2 * Math.PI * TORUS_r / WORLD_H;
   csVR += -nZ * vPhysical;
   csVZ += nR * vPhysical;
+  // Toroidal velocity from walking speed along tube
+  csVU = jumpDxPerSec * 2 * Math.PI / WORLD_W * Math.abs(csR);
 }
 
 function forceLand() {
-  airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
+  airborne = false; playerHeight = 0; csVR = 0; csVZ = 0; csVU = 0;
   jumpDxPerSec = 0; jumpDyPerSec = 0;
 }
 
@@ -401,13 +411,53 @@ function updateJumpPhysics(dt) {
   const subDt = dt / substeps;
   for (let s = 0; s < substeps; s++) {
     // Gravity from toroidal shell mass — LUT gives field at (R_cyl, Z)
-    const absR = Math.abs(csR);
-    const g = sampleGravity(Math.max(0.1, absR), csZ);
+    const absR = Math.max(0.1, Math.abs(csR));
+    const g = sampleGravity(absR, csZ);
     const gR = csR >= 0 ? g.gR : -g.gR;
     csVR += gR * subDt;
     csVZ += g.gZ * subDt;
+
+    // --- Lorentz force: F = q(v × B) ---
+    // Cross-section displacement from tube centerline
+    const dR = (csR >= 0 ? csR : -csR) - TORUS_R;
+    const dZ = csZ;
+    const d2 = dR*dR + dZ*dZ;
+
+    // Option 1: Centerline current → poloidal B-field
+    // B circulates around tube centerline: B_R = -dZ/d², B_Z = dR/d²
+    if (B_CENTER !== 0 && d2 > 0.01) {
+      const bFac = B_CENTER / d2;
+      const bR = -dZ * bFac, bZ = dR * bFac;
+      // v × B in (R, Z, u) frame:
+      // F_R = -vU * B_Z,  F_Z = vU * B_R,  F_U = vR*B_Z - vZ*B_R
+      const vR = csR >= 0 ? csVR : -csVR;
+      const fR = -csVU * bZ;
+      const fZ = csVU * bR;
+      const fU = vR * bZ - csVZ * bR;
+      csVR += (csR >= 0 ? fR : -fR) * subDt;
+      csVZ += fZ * subDt;
+      csVU += fU * subDt;
+    }
+
+    // Option 2: Toroidal coil → toroidal B-field (along tube)
+    // B_u = B_COIL * R₀ / R (stronger at inner equator)
+    // F_R = vZ * B_u,  F_Z = -vR * B_u,  F_U = 0
+    if (B_COIL !== 0) {
+      const bU = B_COIL * TORUS_R / absR;
+      const vR = csR >= 0 ? csVR : -csVR;
+      const fR = csVZ * bU;
+      const fZ = -vR * bU;
+      csVR += (csR >= 0 ? fR : -fR) * subDt;
+      csVZ += fZ * subDt;
+      // F_U = 0 for toroidal coil
+    }
+
     csR += csVR * subDt;
     csZ += csVZ * subDt;
+
+    // Sync toroidal velocity back to tile movement
+    const curAbsR = Math.max(0.1, Math.abs(csR));
+    jumpDxPerSec = csVU * WORLD_W / (2 * Math.PI * curAbsR);
 
     // Landing check — INTERIOR: land when reaching tube wall from inside
     const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
@@ -558,6 +608,18 @@ slLine.addEventListener('input', () => {
   LINE_SCALE = parseFloat(slLine.value);
   valLine.textContent = LINE_SCALE.toFixed(1);
   computeGravLUT();
+});
+const slBcen = document.getElementById('slBcen');
+const valBcen = document.getElementById('valBcen');
+slBcen.addEventListener('input', () => {
+  B_CENTER = parseFloat(slBcen.value);
+  valBcen.textContent = B_CENTER.toFixed(2);
+});
+const slBcoil = document.getElementById('slBcoil');
+const valBcoil = document.getElementById('valBcoil');
+slBcoil.addEventListener('input', () => {
+  B_COIL = parseFloat(slBcoil.value);
+  valBcoil.textContent = B_COIL.toFixed(2);
 });
 const slR = document.getElementById('slR');
 const valR = document.getElementById('valR');
