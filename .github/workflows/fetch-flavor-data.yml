@@ -1,0 +1,94 @@
+name: Fetch Flavor Data
+
+on:
+  push:
+    branches:
+      - main
+      - claude/wiki-card-game-oJbLE
+    paths:
+      - 'scripts/fetch-flavor-data.py'
+      - 'cards/js/yum-pool.js'
+      - '.github/workflows/fetch-flavor-data.yml'
+
+  workflow_dispatch:
+    inputs:
+      dim:
+        description: 'Embedding dimensions (default 64)'
+        required: false
+        default: '64'
+      skip_text_fallback:
+        description: 'Skip text embedding fallback for unmatched foods'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  flavor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests numpy scikit-learn sentence-transformers
+
+      - name: Fetch FlavorDB data and compute embeddings
+        timeout-minutes: 45
+        run: |
+          mkdir -p cards/data
+          python3 scripts/fetch-flavor-data.py \
+            --pool-js cards/js/yum-pool.js \
+            --output-dir cards/data/ \
+            --dim ${{ inputs.dim || '64' }} \
+            ${{ inputs.skip_text_fallback == 'true' && '--skip-text-fallback' || '' }} \
+            2>&1 | tee cards/data/flavor-log.txt
+
+      - name: Summarize results
+        if: always()
+        run: |
+          echo "## Flavor Data Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f cards/data/yum-embeddings.json ]; then
+            echo "- Foods: $(jq -r '.count' cards/data/yum-embeddings.json)"  >> $GITHUB_STEP_SUMMARY
+            echo "- Dimensions: $(jq -r '.dim' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- FlavorDB matches: $(jq -r '.flavordb_matched' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- Compounds found: $(jq -r '.compounds_count' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f cards/data/yum-compounds.json ]; then
+            echo "- Raw compound file: $(du -h cards/data/yum-compounds.json | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 cards/data/flavor-log.txt 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
+                 cards/data/yum-compounds.json cards/data/flavor-log.txt
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+          MATCHED=$(jq -r '.flavordb_matched // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
+          TOTAL=$(jq -r '.count // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
+          git commit -m "yum: fetch flavor data — ${MATCHED}/${TOTAL} FlavorDB matches [auto]"
+
+          if ! git pull --rebase origin ${{ github.ref_name }}; then
+            echo "Rebase conflict — keeping workflow-generated files"
+            git checkout --theirs -- cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
+                                     cards/data/yum-compounds.json cards/data/flavor-log.txt 2>/dev/null || true
+            git add cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
+                    cards/data/yum-compounds.json cards/data/flavor-log.txt
+            GIT_EDITOR=true git rebase --continue
+          fi
+
+          git push origin ${{ github.ref_name }}
