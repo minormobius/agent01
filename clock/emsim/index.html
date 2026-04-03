@@ -529,12 +529,17 @@ function tick(t) {
           // Crossed the shell? sign of (dist-r) flipped
           if ((oldDist - tor.r) * (dist - tor.r) < 0) {
             const fromInside = oldDist < tor.r;
-            const dir = fromInside ? 1 : -1; // which side to place on
-            tp.r = cR + nR * (tor.r + dir * 0.005);
-            tp.z = cZ + nZ * (tor.r + dir * 0.005);
-            const vn = tp.vr * nR + tp.vz * nZ;
-            tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ;
-            tp.bounces = (tp.bounces||0) + 1;
+            // Check velocity is actually heading through the shell
+            const vn = tp.vr * nR + tp.vz * nZ; // positive = outward
+            const movingThrough = fromInside ? (vn > 0) : (vn < 0);
+            if (movingThrough) {
+              // Place back on the side we came from
+              const dir = fromInside ? -1 : 1; // stay on original side
+              tp.r = cR + nR * (tor.r + dir * 0.01);
+              tp.z = cZ + nZ * (tor.r + dir * 0.01);
+              tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ;
+              tp.bounces = (tp.bounces||0) + 1;
+            }
           }
         }
       }
