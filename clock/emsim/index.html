@@ -162,7 +162,7 @@ function chargeRingField(src, pr, pz) {
     return { fr: dr * f, fz: dz * f };
   }
   // Axisymmetric: ring at (src.r, src.z) — integrate around azimuth
-  const N = 64;
+  const N = 32;
   const du = 2 * Math.PI / N;
   let fr = 0, fz = 0;
   const Rs = src.r, Zs = src.z;
@@ -207,7 +207,7 @@ function currentRingField(src, pr, pz) {
     return { fr: -dz * f, fz: dr * f };
   }
   // Axisymmetric: Biot-Savart for current ring
-  const N = 64;
+  const N = 32;
   const du = 2 * Math.PI / N;
   let fr = 0, fz = 0;
   const Rs = src.r, Zs = src.z;
@@ -259,7 +259,7 @@ function shellField(src, pr, pz) {
   }
   // Axisymmetric: torus shell at tube center (src.r, src.z) with tube radius R0
   // Integrate over poloidal angle v, then over toroidal angle u
-  const Nu = 48, Nv = 32;
+  const Nu = 24, Nv = 16;
   const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
   let fr = 0, fz = 0;
   for (let iu = 0; iu < Nu; iu++) {
@@ -305,53 +305,44 @@ function magnitudeColor(mag) {
   return `rgb(${r|0},${g|0},${b|0})`;
 }
 
-function drawArrowField() {
-  const step = (W / arrowDensity);
+function drawFieldGrid() {
+  // Single pass: heatmap cells + arrows on same grid (one fieldAt call per cell)
+  const step = W / arrowDensity;
   const maxLen = step * 0.4;
-  for (let sx = step/2; sx < W; sx += step) {
-    for (let sy = step/2; sy < H; sy += step) {
-      const [r, z] = screenToWorld(sx, sy);
+  const half = step / 2;
+  for (let sx = 0; sx < W; sx += step) {
+    for (let sy = 0; sy < H; sy += step) {
+      const cx = sx + half, cy = sy + half;
+      const [r, z] = screenToWorld(cx, cy);
       const f = fieldAt(r, z);
       const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-      if (mag < 1e-8) continue;
-      // Arrow length: log scale, capped
-      const logMag = Math.log10(mag + 1e-6);
-      const len = Math.min(maxLen, Math.max(4, (logMag + 3) * maxLen / 4));
-      const nr = f.fr / mag, nz = f.fz / mag;
-      // Screen direction: r→right, z→up
-      const dx = nr * len, dy = -nz * len;
-      ctx.strokeStyle = magnitudeColor(mag);
-      ctx.globalAlpha = 0.7;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(sx - dx*0.5, sy - dy*0.5);
-      ctx.lineTo(sx + dx*0.5, sy + dy*0.5);
-      // Arrowhead
-      const ax = -dx*0.3 + dy*0.2, ay = -dy*0.3 - dx*0.2;
-      const bx = -dx*0.3 - dy*0.2, by = -dy*0.3 + dx*0.2;
-      ctx.moveTo(sx + dx*0.5, sy + dy*0.5);
-      ctx.lineTo(sx + dx*0.5 + ax, sy + dy*0.5 + ay);
-      ctx.moveTo(sx + dx*0.5, sy + dy*0.5);
-      ctx.lineTo(sx + dx*0.5 + bx, sy + dy*0.5 + by);
-      ctx.stroke();
+      // Heatmap cell
+      ctx.fillStyle = magnitudeColor(mag);
+      ctx.globalAlpha = 0.15;
+      ctx.fillRect(sx, sy, step, step);
+      // Arrow
+      if (showArrows && mag > 1e-8) {
+        const logMag = Math.log10(mag + 1e-6);
+        const len = Math.min(maxLen, Math.max(4, (logMag + 3) * maxLen / 4));
+        const nr = f.fr / mag, nz = f.fz / mag;
+        const dx = nr * len, dy = -nz * len;
+        ctx.strokeStyle = magnitudeColor(mag);
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - dx*0.5, cy - dy*0.5);
+        ctx.lineTo(cx + dx*0.5, cy + dy*0.5);
+        const ax = -dx*0.3 + dy*0.2, ay = -dy*0.3 - dx*0.2;
+        const bx = -dx*0.3 - dy*0.2, by = -dy*0.3 + dx*0.2;
+        ctx.moveTo(cx + dx*0.5, cy + dy*0.5);
+        ctx.lineTo(cx + dx*0.5 + ax, cy + dy*0.5 + ay);
+        ctx.moveTo(cx + dx*0.5, cy + dy*0.5);
+        ctx.lineTo(cx + dx*0.5 + bx, cy + dy*0.5 + by);
+        ctx.stroke();
+      }
       ctx.globalAlpha = 1;
     }
   }
-}
-
-function drawHeatmap() {
-  const res = 4; // pixel block size
-  for (let sx = 0; sx < W; sx += res) {
-    for (let sy = 0; sy < H; sy += res) {
-      const [r, z] = screenToWorld(sx + res/2, sy + res/2);
-      const f = fieldAt(r, z);
-      const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
-      ctx.fillStyle = magnitudeColor(mag);
-      ctx.globalAlpha = 0.15;
-      ctx.fillRect(sx, sy, res, res);
-    }
-  }
-  ctx.globalAlpha = 1;
 }
 
 function drawPerimeterArrows() {
@@ -503,8 +494,7 @@ function draw() {
   ctx.fillStyle = '#0a0a14';
   ctx.fillRect(0, 0, W, H);
   drawAxes();
-  drawHeatmap();
-  if (showArrows) drawArrowField();
+  drawFieldGrid();
   drawSources();
   if (showPerimeter) drawPerimeterArrows();
   drawTestParticle();
@@ -572,10 +562,8 @@ function rebuildSourceUI() {
 // =====================================================================
 function resize() {
   const wrap = document.getElementById('canvasWrap');
-  W = canvas.width = wrap.clientWidth * devicePixelRatio;
-  H = canvas.height = wrap.clientHeight * devicePixelRatio;
-  canvas.style.width = wrap.clientWidth + 'px';
-  canvas.style.height = wrap.clientHeight + 'px';
+  W = canvas.width = wrap.clientWidth;
+  H = canvas.height = wrap.clientHeight;
   scheduleRedraw();
 }
 window.addEventListener('resize', resize);
