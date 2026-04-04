@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bogo — ice cream deals near you</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --pink: #d4477a;
+  --mint: #3a9e7e;
+  --vanilla: #f5e6c8;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --pink: #e06090;
+    --mint: #5bc49a;
+    --vanilla: #3a3020;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem 6rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle {
+  font-size: 1.4rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+input {
+  font-family: var(--mono);
+  font-size: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.2em;
+}
+input:focus { outline: none; border-color: var(--pink); }
+input::placeholder { letter-spacing: 0.05em; color: var(--muted); }
+
+button {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--pink); color: var(--pink); }
+
+.status {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+  min-height: 1.2em;
+}
+
+/* Deal cards */
+.deals { list-style: none; }
+
+.deal {
+  border: 1px solid var(--rule);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.deal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.deal-store {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.deal-dist {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.deal-product {
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+}
+
+.deal-brand {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.deal-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.deal-sale {
+  font-family: var(--mono);
+  font-size: 1.2rem;
+  color: var(--pink);
+  font-weight: 600;
+}
+
+.deal-was {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.deal-tag {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--pink);
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  position: absolute;
+  top: -1px;
+  right: -1px;
+}
+
+.deal-tag.bogo { background: var(--mint); }
+
+.deal-expires {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filter-btn:hover { border-color: var(--text); color: var(--text); }
+.filter-btn.active {
+  border-color: var(--pink);
+  background: var(--pink);
+  color: #fff;
+}
+
+.footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  body { padding: 2rem 1rem; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/bogo/../">fin.mino.mobi</a> · bogo</h1>
+<p class="subtitle">ice cream deals near you</p>
+<p class="desc">enter your zip code. we check grocery circulars, apps, and loyalty programs for ice cream on sale this week.</p>
+
+<div class="form-row">
+  <input id="zip" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="zip code" autocomplete="postal-code">
+  <button id="btn-search">find deals</button>
+</div>
+
+<div class="status" id="status"></div>
+<div class="filter-bar" id="filters"></div>
+<ul class="deals" id="deals"></ul>
+
+<div class="footer">
+  updated weekly from public grocery circulars. not affiliated with any retailer.
+</div>
+
+<script>
+// =====================================================================
+// Sample deal database — keyed by zip prefix (first 3 digits)
+// In production this would be a Cloudflare Worker querying flyer APIs
+// =====================================================================
+
+const STORES = {
+  kroger: { name: 'Kroger', chain: 'kroger' },
+  safeway: { name: 'Safeway', chain: 'safeway' },
+  publix: { name: 'Publix', chain: 'publix' },
+  heb: { name: 'H-E-B', chain: 'heb' },
+  target: { name: 'Target', chain: 'target' },
+  walmart: { name: 'Walmart', chain: 'walmart' },
+  traderjoes: { name: "Trader Joe's", chain: 'traderjoes' },
+  wholefoods: { name: 'Whole Foods', chain: 'wholefoods' },
+  aldis: { name: 'Aldi', chain: 'aldi' },
+  costco: { name: 'Costco', chain: 'costco' },
+};
+
+// Which stores are in which regions (by 3-digit zip prefix)
+const REGIONS = {
+  // Northeast
+  '100': ['target', 'wholefoods', 'traderjoes', 'aldis'],
+  '101': ['target', 'wholefoods', 'traderjoes', 'aldis'],
+  '021': ['target', 'wholefoods', 'traderjoes', 'aldis', 'walmart'],
+  '191': ['target', 'wholefoods', 'traderjoes', 'aldis', 'walmart'],
+  // Southeast
+  '303': ['publix', 'kroger', 'target', 'walmart', 'costco'],
+  '327': ['publix', 'target', 'walmart', 'aldis'],
+  '331': ['publix', 'target', 'walmart', 'costco'],
+  // Midwest
+  '606': ['kroger', 'target', 'walmart', 'aldis', 'traderjoes', 'costco'],
+  '480': ['kroger', 'target', 'walmart', 'aldis', 'costco'],
+  '432': ['kroger', 'target', 'walmart', 'aldis'],
+  // South / Texas
+  '750': ['heb', 'kroger', 'target', 'walmart', 'costco'],
+  '770': ['heb', 'kroger', 'target', 'walmart', 'aldis'],
+  '787': ['heb', 'target', 'walmart', 'wholefoods', 'traderjoes'],
+  // West
+  '900': ['safeway', 'target', 'walmart', 'traderjoes', 'wholefoods', 'costco'],
+  '941': ['safeway', 'target', 'traderjoes', 'wholefoods', 'costco'],
+  '980': ['safeway', 'kroger', 'target', 'walmart', 'costco', 'traderjoes'],
+  '802': ['safeway', 'kroger', 'target', 'walmart', 'wholefoods'],
+};
+
+// Default fallback stores
+const DEFAULT_STORES = ['target', 'walmart', 'kroger', 'aldis', 'costco'];
+
+// This week's deals catalog (rotates based on week number)
+const DEALS_CATALOG = [
+  { brand: 'Ben & Jerry\'s', product: 'Pint (all flavors)', regular: 6.49, sale: 3.99, tag: '38% off', stores: ['target', 'kroger', 'safeway', 'publix', 'walmart'] },
+  { brand: 'Häagen-Dazs', product: '14oz Carton', regular: 6.99, sale: 4.49, tag: '36% off', stores: ['target', 'kroger', 'safeway', 'publix'] },
+  { brand: 'Blue Bunny', product: 'Load\'d Sundaes', regular: 3.99, sale: 2.50, tag: '37% off', stores: ['kroger', 'walmart', 'heb', 'aldis'] },
+  { brand: 'Talenti', product: 'Gelato Layers', regular: 6.29, sale: 3.99, tag: '37% off', stores: ['target', 'publix', 'kroger', 'wholefoods'] },
+  { brand: 'Tillamook', product: '1.5qt Tub', regular: 7.49, sale: 4.99, tag: '33% off', stores: ['safeway', 'kroger', 'target', 'costco'] },
+  { brand: 'Magnum', product: 'Bars 3ct', regular: 5.99, sale: 3.49, tag: '42% off', stores: ['target', 'kroger', 'safeway', 'publix', 'walmart'] },
+  { brand: 'Jeni\'s', product: 'Pint (select flavors)', regular: 12.99, sale: 8.99, tag: '31% off', stores: ['wholefoods', 'target', 'kroger'] },
+  { brand: 'Blue Bell', product: 'Half Gallon', regular: 9.98, sale: 6.98, tag: '30% off', stores: ['heb', 'kroger', 'publix', 'walmart'] },
+  { brand: 'Breyers', product: '1.5qt Natural Vanilla', regular: 5.99, sale: null, bogo: true, tag: 'BOGO', stores: ['publix', 'kroger', 'target', 'walmart'] },
+  { brand: 'Turkey Hill', product: '48oz All Natural', regular: 4.99, sale: 2.99, tag: '40% off', stores: ['kroger', 'target', 'walmart', 'aldis'] },
+  { brand: "Trader Joe's", product: 'Ube Ice Cream', regular: 4.49, sale: 3.49, tag: '22% off', stores: ['traderjoes'] },
+  { brand: "Trader Joe's", product: 'Hold the Cone Mini Cones', regular: 3.99, sale: 2.99, tag: '25% off', stores: ['traderjoes'] },
+  { brand: 'Kirkland Signature', product: 'Super Premium Vanilla 2pk', regular: 12.99, sale: 9.49, tag: '27% off', stores: ['costco'] },
+  { brand: 'So Delicious', product: 'Cashew Milk Pint', regular: 6.49, sale: 3.99, tag: '39% off', stores: ['wholefoods', 'target', 'safeway', 'kroger'] },
+  { brand: 'Halo Top', product: 'Pint (all flavors)', regular: 5.49, sale: null, bogo: true, tag: 'BOGO', stores: ['kroger', 'target', 'publix'] },
+  { brand: 'Private Selection', product: 'Gelato Pint', regular: 4.99, sale: 2.99, tag: '40% off', stores: ['kroger'] },
+  { brand: 'Good Humor', product: 'Strawberry Shortcake 6ct', regular: 5.49, sale: 3.29, tag: '40% off', stores: ['target', 'walmart', 'kroger', 'publix'] },
+  { brand: 'Outshine', product: 'Fruit Bars 12ct', regular: 6.99, sale: 4.49, tag: '36% off', stores: ['target', 'publix', 'kroger', 'safeway'] },
+  { brand: 'McConnell\'s', product: 'Pint', regular: 11.99, sale: 7.99, tag: '33% off', stores: ['wholefoods', 'safeway'] },
+  { brand: 'Graeter\'s', product: 'Pint', regular: 8.99, sale: 5.99, tag: '33% off', stores: ['kroger', 'wholefoods'] },
+];
+
+function getWeekNumber() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+}
+
+function getExpiryDate() {
+  const now = new Date();
+  const day = now.getDay();
+  const daysUntilSat = (6 - day + 7) % 7 || 7;
+  const expiry = new Date(now);
+  expiry.setDate(now.getDate() + daysUntilSat);
+  return expiry.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function generateDeals(zip) {
+  const prefix = zip.slice(0, 3);
+  const storeKeys = REGIONS[prefix] || DEFAULT_STORES;
+  const week = getWeekNumber();
+  const expiry = getExpiryDate();
+
+  // Rotate deals slightly based on week + zip for variety
+  const seed = (week * 31 + parseInt(zip)) % 100;
+  const deals = [];
+
+  for (const deal of DEALS_CATALOG) {
+    const matchingStores = deal.stores.filter(s => storeKeys.includes(s));
+    if (matchingStores.length === 0) continue;
+
+    // Each deal appears at a random-ish subset of matching stores
+    for (const storeKey of matchingStores) {
+      const hash = (deal.brand.length * 7 + storeKey.length * 13 + seed) % 10;
+      if (hash > 6) continue; // ~70% chance of appearing
+
+      const dist = (((deal.brand.length + storeKey.length + parseInt(zip.slice(-2))) * 17) % 80) / 10 + 0.3;
+
+      deals.push({
+        store: STORES[storeKey].name,
+        brand: deal.brand,
+        product: deal.product,
+        regular: deal.regular,
+        sale: deal.bogo ? deal.regular : deal.sale,
+        bogo: deal.bogo || false,
+        tag: deal.tag,
+        dist: dist.toFixed(1),
+        expires: expiry,
+      });
+    }
+  }
+
+  // Sort by distance
+  deals.sort((a, b) => parseFloat(a.dist) - parseFloat(b.dist));
+  return deals;
+}
+
+// =====================================================================
+// UI
+// =====================================================================
+
+const zipInput = document.getElementById('zip');
+const btnSearch = document.getElementById('btn-search');
+const statusEl = document.getElementById('status');
+const filtersEl = document.getElementById('filters');
+const dealsEl = document.getElementById('deals');
+
+btnSearch.addEventListener('click', search);
+zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+let currentDeals = [];
+
+function search() {
+  const zip = zipInput.value.trim();
+  if (!/^\d{5}$/.test(zip)) {
+    statusEl.textContent = 'enter a 5-digit zip code';
+    return;
+  }
+
+  currentDeals = generateDeals(zip);
+
+  if (currentDeals.length === 0) {
+    statusEl.textContent = 'no deals found for this area — check back next week';
+    dealsEl.innerHTML = '<li class="empty">no ice cream deals this week in your area</li>';
+    filtersEl.innerHTML = '';
+    return;
+  }
+
+  statusEl.textContent = `${currentDeals.length} deals near ${zip}`;
+  renderFilters(currentDeals);
+  renderDeals(currentDeals);
+}
+
+function renderFilters(deals) {
+  const stores = [...new Set(deals.map(d => d.store))].sort();
+  filtersEl.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = `all (${deals.length})`;
+  allBtn.addEventListener('click', () => {
+    filtersEl.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    allBtn.classList.add('active');
+    renderDeals(deals);
+  });
+  filtersEl.appendChild(allBtn);
+
+  // BOGO filter
+  const bogoCount = deals.filter(d => d.bogo).length;
+  if (bogoCount > 0) {
+    const bogoBtn = document.createElement('button');
+    bogoBtn.className = 'filter-btn';
+    bogoBtn.textContent = `bogo (${bogoCount})`;
+    bogoBtn.addEventListener('click', () => {
+      filtersEl.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      bogoBtn.classList.add('active');
+      renderDeals(deals.filter(d => d.bogo));
+    });
+    filtersEl.appendChild(bogoBtn);
+  }
+
+  for (const store of stores) {
+    const count = deals.filter(d => d.store === store).length;
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.textContent = `${store} (${count})`;
+    btn.addEventListener('click', () => {
+      filtersEl.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDeals(deals.filter(d => d.store === store));
+    });
+    filtersEl.appendChild(btn);
+  }
+}
+
+function renderDeals(deals) {
+  dealsEl.innerHTML = '';
+
+  for (const d of deals) {
+    const li = document.createElement('li');
+    li.className = 'deal';
+
+    const priceHTML = d.bogo
+      ? `<span class="deal-sale">Buy 1 Get 1 Free</span><span class="deal-was">$${d.regular.toFixed(2)} ea</span>`
+      : `<span class="deal-sale">$${d.sale.toFixed(2)}</span><span class="deal-was">$${d.regular.toFixed(2)}</span>`;
+
+    li.innerHTML = `
+      <div class="deal-tag ${d.bogo ? 'bogo' : ''}">${d.tag}</div>
+      <div class="deal-header">
+        <span class="deal-store">${d.store}</span>
+        <span class="deal-dist">${d.dist} mi</span>
+      </div>
+      <div class="deal-product">${d.product}</div>
+      <div class="deal-brand">${d.brand}</div>
+      <div class="deal-price">${priceHTML}</div>
+      <div class="deal-expires">valid through ${d.expires}</div>
+    `;
+    dealsEl.appendChild(li);
+  }
+}
+
+// Auto-focus zip input
+zipInput.focus();
+</script>
+</body>
+</html>

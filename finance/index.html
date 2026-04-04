@@ -757,7 +757,17 @@ async function loadBarsForSymbol(symbol) {
       if (r.ok) {
         const data = await r.json();
         if (data.value?.bars?.length) {
-          bars.unshift(...data.value.bars);
+          // ATProto has no float type — prices are stored as integers
+          // scaled by priceScale (default 10000). Divide to recover decimals.
+          const ps = data.value.priceScale || 10000;
+          const descaled = data.value.bars.map(b => ({
+            ...b,
+            c: typeof b.c === 'number' ? b.c / ps : b.c,
+            o: typeof b.o === 'number' ? b.o / ps : b.o,
+            h: typeof b.h === 'number' ? b.h / ps : b.h,
+            l: typeof b.l === 'number' ? b.l / ps : b.l,
+          }));
+          bars.unshift(...descaled);
           yearsFound++;
           consecutiveMisses = 0;
           chartStatus.textContent = `${symbol}: ${yearsFound} years loaded (${bars.length} bars)...`;
@@ -1573,17 +1583,18 @@ document.getElementById('btn-dbg-write-series-test').addEventListener('click', a
       name: 'Debug Test Series',
       source: 'debug-panel',
       adjusted: true,
+      priceScale: 10000,
       bars: [
-        { d: '2026-03-17', c: 100.0, o: 99.5, h: 101.0, l: 99.0, v: 1000000 },
-        { d: '2026-03-18', c: 101.5, o: 100.0, h: 102.0, l: 99.5, v: 1200000 },
-        { d: '2026-03-19', c: 102.0, o: 101.5, h: 103.0, l: 101.0, v: 900000 },
+        { d: '2026-03-17', c: 1000000, o: 995000, h: 1010000, l: 990000, v: 1000000 },
+        { d: '2026-03-18', c: 1015000, o: 1000000, h: 1020000, l: 995000, v: 1200000 },
+        { d: '2026-03-19', c: 1020000, o: 1015000, h: 1030000, l: 1010000, v: 900000 },
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     const rkey = 'TEST:2026';
-    const body = { repo: did, collection: 'com.minomobi.finance.dailySeries', rkey, record: testRecord };
+    const body = { repo: did, collection: 'com.minomobi.finance.dailySeries', rkey, record: testRecord, validate: false };
 
     out.textContent += `Writing dailySeries test record...\n`;
     out.textContent += `rkey: ${rkey}\n`;

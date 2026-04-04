@@ -64,16 +64,20 @@ struct Cli {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Bar {
     pub d: String,
-    pub c: f64,
+    /// Close price scaled by 10000 (e.g., $99.50 → 995000)
+    pub c: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub o: Option<f64>,
+    pub o: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub h: Option<f64>,
+    pub h: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub l: Option<f64>,
+    pub l: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub v: Option<i64>,
 }
+
+/// ATProto has no float type — prices are integers scaled by PRICE_SCALE.
+pub const PRICE_SCALE: f64 = 10_000.0;
 
 // ---------------------------------------------------------------------------
 // Record construction
@@ -97,6 +101,7 @@ fn make_series_record(
         "year": year,
         "seriesType": meta.series_type,
         "name": meta.name,
+        "priceScale": 10000,
         "bars": bars,
         "source": meta.source,
         "adjusted": meta.adjusted.unwrap_or(true),

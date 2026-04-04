@@ -5,7 +5,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "One year of daily OHLCV bars or rate observations for a single symbol. Record key is '{symbol}:{year}' (e.g., 'AAPL:2024', 'DGS10:2024', 'CL-F:2024').",
+      "description": "One year of daily OHLCV bars or rate observations for a single symbol. Record key is '{symbol}:{year}' (e.g., 'AAPL:2024', 'DGS10:2024', 'CL-F:2024'). Prices are stored as integers scaled by priceScale (default 10000).",
       "key": "any",
       "record": {
         "type": "object",
@@ -29,6 +29,11 @@
             "type": "string",
             "maxLength": 255,
             "description": "Human-readable name (e.g., 'Apple Inc.', '10-Year Treasury Constant Maturity')"
+          },
+          "priceScale": {
+            "type": "integer",
+            "description": "Divisor for o/h/l/c values to recover decimal prices. Default 10000.",
+            "default": 10000
           },
           "bars": {
             "type": "array",
@@ -82,27 +87,27 @@
     "bar": {
       "type": "object",
       "required": ["d"],
-      "description": "A single daily observation. For equities/commodities: OHLCV. For rates/spreads: just 'c' (value).",
+      "description": "A single daily observation. For equities/commodities: OHLCV. For rates/spreads: just 'c' (value). All price fields (o/h/l/c) are integers scaled by the record's priceScale (default 10000).",
       "properties": {
         "d": {
           "type": "string",
           "description": "Date in YYYY-MM-DD format"
         },
         "o": {
-          "type": "number",
-          "description": "Open price"
+          "type": "integer",
+          "description": "Open price (scaled integer, divide by priceScale)"
         },
         "h": {
-          "type": "number",
-          "description": "High price"
+          "type": "integer",
+          "description": "High price (scaled integer, divide by priceScale)"
         },
         "l": {
-          "type": "number",
-          "description": "Low price"
+          "type": "integer",
+          "description": "Low price (scaled integer, divide by priceScale)"
         },
         "c": {
-          "type": "number",
-          "description": "Close price or rate value"
+          "type": "integer",
+          "description": "Close price or rate value (scaled integer, divide by priceScale)"
         },
         "v": {
           "type": "integer",

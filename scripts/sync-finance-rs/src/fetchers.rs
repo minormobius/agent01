@@ -6,13 +6,14 @@ use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use serde_json::Value;
 
-use crate::Bar;
+use crate::{Bar, PRICE_SCALE};
 
 const TIINGO_BASE: &str = "https://api.tiingo.com";
 const FRED_BASE: &str = "https://api.stlouisfed.org/fred/series/observations";
 
-fn round4(v: f64) -> f64 {
-    (v * 10_000.0).round() / 10_000.0
+/// Convert a float price to a scaled integer (multiply by PRICE_SCALE and round).
+fn scale(v: f64) -> i64 {
+    (v * PRICE_SCALE).round() as i64
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +141,10 @@ pub fn fetch_tiingo_daily(
 
             Bar {
                 d: date[..10].to_string(),
-                c: round4(close),
-                o: open.map(round4),
-                h: high.map(round4),
-                l: low.map(round4),
+                c: scale(close),
+                o: open.map(scale),
+                h: high.map(scale),
+                l: low.map(scale),
                 v: vol,
             }
         })
@@ -204,7 +205,7 @@ pub fn fetch_fred_series(
             let val: f64 = val_str.parse().ok()?;
             Some(Bar {
                 d: obs["date"].as_str()?.to_string(),
-                c: round4(val),
+                c: scale(val),
                 o: None,
                 h: None,
                 l: None,
@@ -331,10 +332,10 @@ pub fn fetch_yahoo_daily(
 
         bars.push(Bar {
             d: dt,
-            c: round4(close),
-            o: open.map(round4),
-            h: high.map(round4),
-            l: low.map(round4),
+            c: scale(close),
+            o: open.map(scale),
+            h: high.map(scale),
+            l: low.map(scale),
             v: vol,
         });
     }
