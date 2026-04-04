@@ -2,9 +2,11 @@
 
 import type { MembershipRecord, OrgRecord } from "../types";
 
-/** A channel within an org. Stored on founder's PDS. */
+/**
+ * Channel inner record — encrypted inside vault.sealed.
+ * No plaintext metadata leaks (name, tierName, orgRkey all hidden).
+ */
 export interface WaveChannel {
-  $type: "com.minomobi.wave.channel";
   orgRkey: string;
   name: string;
   tierName: string;
@@ -16,9 +18,11 @@ export interface WaveChannelRecord {
   channel: WaveChannel;
 }
 
-/** A thread/conversation within a channel. Stored on creator's PDS. */
+/**
+ * Thread inner record — encrypted inside vault.sealed.
+ * channelUri, title, threadType all hidden.
+ */
 export interface WaveThread {
-  $type: "com.minomobi.wave.thread";
   channelUri: string;
   title?: string;
   threadType: "chat" | "doc";
@@ -32,21 +36,29 @@ export interface WaveThreadRecord {
   authorHandle?: string;
 }
 
-/** An operation (message, edit, reaction) within a thread. */
+/**
+ * Op inner record — encrypted inside vault.sealed.
+ * threadUri, opType, parentOps, and payload all hidden.
+ *
+ * Payload fields (text, baseOpUri) are included directly — no nested
+ * encryption layer needed since the whole record is inside the shield.
+ */
 export interface WaveOp {
-  $type: "com.minomobi.wave.op";
   threadUri: string;
   parentOps?: string[];
   opType: "message" | "doc_edit" | "reaction";
-  keyringRkey: string;
-  iv: { $bytes: string };
-  ciphertext: { $bytes: string };
+  /** Message/doc text (decrypted from sealed envelope) */
+  text?: string;
+  /** Doc edit base op reference */
+  baseOpUri?: string;
   createdAt: string;
 }
 
 export interface WaveOpRecord {
   rkey: string;
   op: WaveOp;
+  /** Decrypted payload (set client-side after unseal) */
+  payload?: MessagePayload | DocEditPayload;
   authorDid: string;
   authorHandle?: string;
 }

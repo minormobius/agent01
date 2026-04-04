@@ -10,7 +10,9 @@ import {
   deleteEvent,
   keyringRkeyForTier,
 } from "../../../src/cal/context";
+import { broadcastNotification } from "../../../src/crm/context";
 import type { CalEvent, CalEventRecord } from "../../../src/cal/types";
+import type { NotificationType } from "../../../src/types";
 import { state, requireVault } from "../state";
 
 async function loadAllEvents(): Promise<CalEventRecord[]> {
@@ -205,6 +207,26 @@ export const calendarTools = {
 
       const { rkey } = await saveEvent(vault.client, event, dek, keyringRkey);
       const orgName = orgRkey === "personal" ? "Personal" : (state.orgs.find((o) => o.rkey === orgRkey)?.org.name ?? orgRkey);
+
+      // Broadcast notification for org events
+      if (orgRkey !== "personal") {
+        const orgCtx = state.orgContexts.get(orgRkey);
+        broadcastNotification(
+          vault.client, "cal-event" as NotificationType,
+          orgRkey, orgName,
+          {
+            type: "cal-event",
+            orgRkey,
+            orgName,
+            eventTitle: event.title,
+            eventDate: event.start,
+            senderHandle: vault.handle,
+            createdAt: new Date().toISOString(),
+          } as any,
+          vault.did, vault.handle,
+          undefined, orgCtx,
+        ).catch(() => {});
+      }
 
       return {
         content: [{

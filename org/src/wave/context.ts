@@ -1,6 +1,9 @@
 /**
  * Wave org context builder — resolves keyrings, DEKs, channels, threads, and ops
  * for a selected org. Pure async functions, no React dependency.
+ *
+ * METADATA SHIELD: All Wave records (channels, threads, ops) are sealed into
+ * vault.sealed — no separate collections, no plaintext names/titles/types.
  */
 
 import { PdsClient, resolvePds } from "../pds";
@@ -8,8 +11,8 @@ import {
   importPublicKey,
   fromBase64,
   toBase64,
-  encrypt,
-  decrypt,
+  sealRecord,
+  unsealRecord,
   unwrapDekFromMember,
   generateTierDek,
   wrapDekForMember,
@@ -31,11 +34,19 @@ import type {
 // ATProto collection names
 const MEMBERSHIP_COLLECTION = "com.minomobi.vault.membership";
 const KEYRING_COLLECTION = "com.minomobi.vault.keyring";
-const CHANNEL_COLLECTION = "com.minomobi.wave.channel";
-const THREAD_COLLECTION = "com.minomobi.wave.thread";
-const OP_COLLECTION = "com.minomobi.wave.op";
+const SEALED_COLLECTION = "com.minomobi.vault.sealed";
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
+
+// Inner types — buried inside ciphertext, never visible on the wire
+const CHANNEL_INNER_TYPE = "com.minomobi.wave.channel";
+const THREAD_INNER_TYPE = "com.minomobi.wave.thread";
+const OP_INNER_TYPE = "com.minomobi.wave.op";
+
+// Legacy collection names — kept for delete/migration of old records
+const LEGACY_CHANNEL_COLLECTION = "com.minomobi.wave.channel";
+const LEGACY_THREAD_COLLECTION = "com.minomobi.wave.thread";
+const LEGACY_OP_COLLECTION = "com.minomobi.wave.op";
 
 export function keyringRkeyForTier(orgRkey: string, tierName: string, epoch: number): string {
   return epoch === 0 ? `${orgRkey}:${tierName}` : `${orgRkey}:${tierName}:${epoch}`;
@@ -140,7 +151,9 @@ export async function buildOrgContext(
   };
 }
 
-/** Load channels for an org. */
+// ── Channel CRUD (sealed) ──
+
+/** Load channels for an org from founder's sealed records. */
 export async function loadChannels(
   client: PdsClient,
   ctx: WaveOrgContext,
@@ -151,21 +164,54 @@ export async function loadChannels(
   const controlClient = ctx.founderDid === myDid ? client : new PdsClient(ctx.service);
 
   do {
-    const page = await controlClient.listRecordsFrom(ctx.founderDid, CHANNEL_COLLECTION, 100, cursor);
+    const page = await controlClient.listRecordsFrom(ctx.founderDid, SEALED_COLLECTION, 100, cursor);
     for (const rec of page.records) {
-      const val = rec.value as unknown as WaveChannel;
-      if (val.orgRkey !== ctx.org.rkey) continue;
-      const tierDef = ctx.org.org.tiers.find((t) => t.name === val.tierName);
-      if (tierDef && tierDef.level <= ctx.myTierLevel) {
-        const rkey = rec.uri.split("/").pop()!;
-        result.push({ rkey, channel: val });
-      }
+      const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+      const recKeyring = val.keyringRkey as string;
+      if (!recKeyring.startsWith(ctx.org.rkey + ":")) continue;
+      const dek = ctx.keyringDeks.get(recKeyring);
+      if (!dek) continue;
+      try {
+        const { innerType, record } = await unsealRecord<WaveChannel>(val, dek);
+        if (innerType !== CHANNEL_INNER_TYPE) continue;
+        if (record.orgRkey !== ctx.org.rkey) continue;
+        const tierDef = ctx.org.org.tiers.find((t) => t.name === record.tierName);
+        if (tierDef && tierDef.level <= ctx.myTierLevel) {
+          const rkey = rec.uri.split("/").pop()!;
+          result.push({ rkey, channel: record });
+        }
+      } catch { /* can't decrypt */ }
     }
     cursor = page.cursor;
   } while (cursor);
 
   return result;
 }
+
+/** Create a channel (founder only) — sealed into vault.sealed. */
+export async function createChannelRecord(
+  client: PdsClient,
+  ctx: WaveOrgContext,
+  name: string,
+  tierName: string,
+): Promise<void> {
+  const tierDef = ctx.org.org.tiers.find((t) => t.name === tierName);
+  const epoch = tierDef?.currentEpoch ?? 0;
+  const krkey = keyringRkeyForTier(ctx.org.rkey, tierName, epoch);
+  const dek = ctx.tierDeks.get(tierName);
+  if (!dek) throw new Error(`No DEK for tier "${tierName}"`);
+
+  const channel: WaveChannel = {
+    orgRkey: ctx.org.rkey,
+    name,
+    tierName,
+    createdAt: new Date().toISOString(),
+  };
+  const sealed = await sealRecord(CHANNEL_INNER_TYPE, channel, krkey, dek);
+  await client.createRecord(SEALED_COLLECTION, sealed);
+}
+
+// ── Thread CRUD (sealed) ──
 
 /** Load threads for a channel (scans all member PDSes). */
 export async function loadThreadsForChannel(
@@ -179,24 +225,25 @@ export async function loadThreadsForChannel(
 
   for (const did of memberDids) {
     try {
-      let memberService: string;
-      if (did === myDid) {
-        memberService = client.getService();
-      } else {
-        memberService = await resolvePds(did);
-      }
-      const memberClient = did === myDid ? client : new PdsClient(memberService);
+      const memberClient = did === myDid ? client : new PdsClient(await resolvePds(did));
 
       let cursor: string | undefined;
       do {
-        const page = await memberClient.listRecordsFrom(did, THREAD_COLLECTION, 100, cursor);
+        const page = await memberClient.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
         for (const rec of page.records) {
-          const val = rec.value as unknown as WaveThread;
-          if (val.channelUri === channelUri) {
+          const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+          const recKeyring = val.keyringRkey as string;
+          if (!recKeyring.startsWith(ctx.org.rkey + ":")) continue;
+          const dek = ctx.keyringDeks.get(recKeyring);
+          if (!dek) continue;
+          try {
+            const { innerType, record } = await unsealRecord<WaveThread>(val, dek);
+            if (innerType !== THREAD_INNER_TYPE) continue;
+            if (record.channelUri !== channelUri) continue;
             const rkey = rec.uri.split("/").pop()!;
             const handle = ctx.memberships.find((m) => m.membership.memberDid === did)?.membership.memberHandle;
-            result.push({ rkey, thread: val, authorDid: did, authorHandle: handle });
-          }
+            result.push({ rkey, thread: record, authorDid: did, authorHandle: handle });
+          } catch { /* can't decrypt */ }
         }
         cursor = page.cursor;
       } while (cursor);
@@ -208,6 +255,40 @@ export async function loadThreadsForChannel(
   result.sort((a, b) => a.thread.createdAt.localeCompare(b.thread.createdAt));
   return result;
 }
+
+/** Create a thread in a channel — sealed into vault.sealed. */
+export async function createThreadRecord(
+  client: PdsClient,
+  ctx: WaveOrgContext,
+  channelRkey: string,
+  threadType: "chat" | "doc",
+  title?: string,
+  myDid?: string,
+  myHandle?: string,
+): Promise<WaveThreadRecord> {
+  // channelUri uses the sealed collection now
+  const channelUri = `at://${ctx.founderDid}/${SEALED_COLLECTION}/${channelRkey}`;
+
+  const tierName = ctx.myTierName;
+  const tierDef = ctx.org.org.tiers.find((t) => t.name === tierName);
+  const epoch = tierDef?.currentEpoch ?? 0;
+  const krkey = keyringRkeyForTier(ctx.org.rkey, tierName, epoch);
+  const dek = ctx.tierDeks.get(tierName);
+  if (!dek) throw new Error(`No DEK for tier "${tierName}"`);
+
+  const thread: WaveThread = {
+    channelUri,
+    title,
+    threadType,
+    createdAt: new Date().toISOString(),
+  };
+  const sealed = await sealRecord(THREAD_INNER_TYPE, thread, krkey, dek);
+  const res = await client.createRecord(SEALED_COLLECTION, sealed);
+  const rkey = res.uri.split("/").pop()!;
+  return { rkey, thread, authorDid: myDid!, authorHandle: myHandle };
+}
+
+// ── Op CRUD (sealed) ──
 
 /** Load ops for a thread (scans all member PDSes). */
 export async function loadOpsForThread(
@@ -221,24 +302,32 @@ export async function loadOpsForThread(
 
   for (const did of memberDids) {
     try {
-      let memberService: string;
-      if (did === myDid) {
-        memberService = client.getService();
-      } else {
-        memberService = await resolvePds(did);
-      }
-      const memberClient = did === myDid ? client : new PdsClient(memberService);
+      const memberClient = did === myDid ? client : new PdsClient(await resolvePds(did));
 
       let cursor: string | undefined;
       do {
-        const page = await memberClient.listRecordsFrom(did, OP_COLLECTION, 100, cursor);
+        const page = await memberClient.listRecordsFrom(did, SEALED_COLLECTION, 100, cursor);
         for (const rec of page.records) {
-          const val = rec.value as unknown as WaveOp;
-          if (val.threadUri === threadUri) {
+          const val = (rec as Record<string, unknown>).value as Record<string, unknown>;
+          const recKeyring = val.keyringRkey as string;
+          if (!recKeyring.startsWith(ctx.org.rkey + ":")) continue;
+          const dek = ctx.keyringDeks.get(recKeyring);
+          if (!dek) continue;
+          try {
+            const { innerType, record } = await unsealRecord<WaveOp>(val, dek);
+            if (innerType !== OP_INNER_TYPE) continue;
+            if (record.threadUri !== threadUri) continue;
             const rkey = rec.uri.split("/").pop()!;
             const handle = ctx.memberships.find((m) => m.membership.memberDid === did)?.membership.memberHandle;
-            result.push({ rkey, op: val, authorDid: did, authorHandle: handle });
-          }
+            // Payload is already available — text/baseOpUri are on the op record
+            const payload: MessagePayload | DocEditPayload | undefined =
+              record.text != null
+                ? record.opType === "doc_edit"
+                  ? { text: record.text, baseOpUri: record.baseOpUri }
+                  : { text: record.text }
+                : undefined;
+            result.push({ rkey, op: record, payload, authorDid: did, authorHandle: handle });
+          } catch { /* can't decrypt */ }
         }
         cursor = page.cursor;
       } while (cursor);
@@ -251,27 +340,22 @@ export async function loadOpsForThread(
   return result;
 }
 
-/** Decrypt a message or doc edit op. */
+/**
+ * Decrypt an op — for ops that already went through unseal, the payload
+ * is already on the record. This function extracts it for backward compat.
+ */
 export async function decryptOp(
   op: WaveOp,
-  ctx: WaveOrgContext,
+  _ctx: WaveOrgContext,
 ): Promise<MessagePayload | DocEditPayload | null> {
-  const dek =
-    ctx.keyringDeks.get(op.keyringRkey) ??
-    ctx.tierDeks.get(op.keyringRkey.split(":").slice(1, -1).join(":") || op.keyringRkey.split(":")[1]);
-  if (!dek) return null;
-  try {
-    const iv = fromBase64(op.iv.$bytes);
-    const ciphertext = fromBase64(op.ciphertext.$bytes);
-    const plaintext = await decrypt(ciphertext, iv, dek);
-    const json = new TextDecoder().decode(plaintext);
-    return JSON.parse(json);
-  } catch {
-    return null;
+  if (op.text == null) return null;
+  if (op.opType === "doc_edit") {
+    return { text: op.text, baseOpUri: op.baseOpUri };
   }
+  return { text: op.text };
 }
 
-/** Encrypt and create a message op. */
+/** Seal and create a message op. */
 export async function sendMessageOp(
   client: PdsClient,
   ctx: WaveOrgContext,
@@ -294,27 +378,21 @@ export async function sendMessageOp(
     ctx.org.org.tiers.find((t) => t.name === channelTierName)?.currentEpoch ?? 0,
   );
 
-  const payload: MessagePayload = { text };
-  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
-  const { iv, ciphertext } = await encrypt(plaintext, dek);
-
-  const threadUri = `at://${threadAuthorDid}/${THREAD_COLLECTION}/${threadRkey}`;
-  const record: WaveOp = {
-    $type: OP_COLLECTION,
+  const threadUri = `at://${threadAuthorDid}/${SEALED_COLLECTION}/${threadRkey}`;
+  const op: WaveOp = {
     threadUri,
     opType: "message",
-    keyringRkey: krkey,
-    iv: { $bytes: toBase64(iv) },
-    ciphertext: { $bytes: toBase64(ciphertext) },
+    text,
     createdAt: new Date().toISOString(),
   };
 
-  const res = await client.createRecord(OP_COLLECTION, record);
+  const sealed = await sealRecord(OP_INNER_TYPE, op, krkey, dek);
+  const res = await client.createRecord(SEALED_COLLECTION, sealed);
   const rkey = res.uri.split("/").pop()!;
-  return { rkey, op: record, authorDid: myDid, authorHandle: myHandle };
+  return { rkey, op, payload: { text }, authorDid: myDid, authorHandle: myHandle };
 }
 
-/** Encrypt and create a doc edit op. */
+/** Seal and create a doc edit op. */
 export async function sendDocEditOp(
   client: PdsClient,
   ctx: WaveOrgContext,
@@ -335,67 +413,20 @@ export async function sendDocEditOp(
     ctx.org.org.tiers.find((t) => t.name === channelTierName)?.currentEpoch ?? 0,
   );
 
-  const payload: DocEditPayload = { text, baseOpUri };
-  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
-  const { iv, ciphertext } = await encrypt(plaintext, dek);
-
-  const threadUri = `at://${threadAuthorDid}/${THREAD_COLLECTION}/${threadRkey}`;
-  const parentOps = baseOpUri ? [baseOpUri] : undefined;
-
-  const record: WaveOp = {
-    $type: OP_COLLECTION,
+  const threadUri = `at://${threadAuthorDid}/${SEALED_COLLECTION}/${threadRkey}`;
+  const op: WaveOp = {
     threadUri,
-    parentOps,
+    parentOps: baseOpUri ? [baseOpUri] : undefined,
     opType: "doc_edit",
-    keyringRkey: krkey,
-    iv: { $bytes: toBase64(iv) },
-    ciphertext: { $bytes: toBase64(ciphertext) },
+    text,
+    baseOpUri,
     createdAt: new Date().toISOString(),
   };
 
-  const res = await client.createRecord(OP_COLLECTION, record);
+  const sealed = await sealRecord(OP_INNER_TYPE, op, krkey, dek);
+  const res = await client.createRecord(SEALED_COLLECTION, sealed);
   const rkey = res.uri.split("/").pop()!;
-  return { rkey, op: record, authorDid: myDid, authorHandle: myHandle };
-}
-
-/** Create a channel (founder only). */
-export async function createChannelRecord(
-  client: PdsClient,
-  ctx: WaveOrgContext,
-  name: string,
-  tierName: string,
-): Promise<void> {
-  const record: WaveChannel = {
-    $type: CHANNEL_COLLECTION,
-    orgRkey: ctx.org.rkey,
-    name,
-    tierName,
-    createdAt: new Date().toISOString(),
-  };
-  await client.createRecord(CHANNEL_COLLECTION, record);
-}
-
-/** Create a thread in a channel. */
-export async function createThreadRecord(
-  client: PdsClient,
-  ctx: WaveOrgContext,
-  channelRkey: string,
-  threadType: "chat" | "doc",
-  title?: string,
-  myDid?: string,
-  myHandle?: string,
-): Promise<WaveThreadRecord> {
-  const channelUri = `at://${ctx.founderDid}/${CHANNEL_COLLECTION}/${channelRkey}`;
-  const record: WaveThread = {
-    $type: THREAD_COLLECTION,
-    channelUri,
-    title,
-    threadType,
-    createdAt: new Date().toISOString(),
-  };
-  const res = await client.createRecord(THREAD_COLLECTION, record);
-  const rkey = res.uri.split("/").pop()!;
-  return { rkey, thread: record, authorDid: myDid!, authorHandle: myHandle };
+  return { rkey, op, payload: { text, baseOpUri }, authorDid: myDid, authorHandle: myHandle };
 }
 
 /** Invite a member to the active org (wraps DEKs for them). */
@@ -508,5 +539,12 @@ export async function createOrgRecord(
   }
 }
 
-// Re-export collection names for delete operations
-export { CHANNEL_COLLECTION, THREAD_COLLECTION, MEMBERSHIP_COLLECTION, KEYRING_COLLECTION, OP_COLLECTION };
+// Re-export collection names — SEALED_COLLECTION is the single collection now
+export {
+  SEALED_COLLECTION,
+  MEMBERSHIP_COLLECTION,
+  KEYRING_COLLECTION,
+  LEGACY_CHANNEL_COLLECTION as CHANNEL_COLLECTION,
+  LEGACY_THREAD_COLLECTION as THREAD_COLLECTION,
+  LEGACY_OP_COLLECTION as OP_COLLECTION,
+};

@@ -349,28 +349,42 @@ export async function unwrapDekFromMember(
 
 // --- High-level seal/unseal ---
 
-/** Seal an inner record into a vault.sealed envelope. */
+/**
+ * Seal an inner record into a vault.sealed envelope.
+ *
+ * The innerType is buried INSIDE the ciphertext — the plaintext envelope
+ * reveals only keyringRkey (needed to locate the DEK) and opaque crypto
+ * fields.  No type census, no temporal analysis.
+ */
 export async function sealRecord(
   innerType: string,
   record: object,
   keyringRkey: string,
   dek: CryptoKey
 ): Promise<object> {
-  const json = JSON.stringify(record);
+  // innerType travels inside the encrypted payload
+  const inner = { $innerType: innerType, ...(record as Record<string, unknown>) };
+  const json = JSON.stringify(inner);
   const plaintext = new TextEncoder().encode(json);
   const { iv, ciphertext } = await encrypt(plaintext, dek);
 
   return {
     $type: "com.minomobi.vault.sealed",
-    innerType,
     keyringRkey,
     iv: { $bytes: toBase64(iv) },
     ciphertext: { $bytes: toBase64(ciphertext) },
-    createdAt: new Date().toISOString(),
+    // Flatten timestamp to daily bucket — kills temporal analysis
+    createdAt: new Date().toISOString().slice(0, 10) + "T00:00:00.000Z",
   };
 }
 
-/** Unseal a vault.sealed record back to the inner record object. */
+/**
+ * Unseal a vault.sealed record back to the inner record object.
+ *
+ * Reads $innerType from inside the decrypted payload (post-shield upgrade)
+ * or falls back to the plaintext envelope.innerType for legacy records
+ * written before the metadata shield.
+ */
 export async function unsealRecord<T = unknown>(
   envelope: Record<string, unknown>,
   dek: CryptoKey
@@ -385,6 +399,11 @@ export async function unsealRecord<T = unknown>(
   const ciphertext = fromBase64(ctField.$bytes);
   const plaintext = await decrypt(ciphertext, iv, dek);
   const json = new TextDecoder().decode(plaintext);
-  const record = JSON.parse(json) as T;
-  return { innerType: envelope.innerType as string, record };
+  const parsed = JSON.parse(json) as Record<string, unknown>;
+
+  // Extract innerType: prefer embedded $innerType (new), fall back to envelope (legacy)
+  const innerType = (parsed.$innerType as string) ?? (envelope.innerType as string) ?? "unknown";
+  // Strip $innerType from the record handed to callers
+  const { $innerType: _, ...record } = parsed;
+  return { innerType, record: record as T };
 }

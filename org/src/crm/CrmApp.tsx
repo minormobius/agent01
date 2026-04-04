@@ -10,6 +10,8 @@ import type { VaultState } from "../App";
 import type {
   Deal,
   DealRecord,
+  Expense,
+  ExpenseRecord,
   OrgRecord,
   OrgContext,
   OrgFilter,
@@ -23,13 +25,17 @@ import {
   createApproval,
   applyProposal as applyProposalFn,
   keyringRkeyForTier,
+  broadcastNotification,
   SEALED_COLLECTION,
+  loadPersonalExpenses,
+  loadOrgExpenses,
+  saveExpense,
+  updateExpense as updateExpenseFn,
+  deleteExpense as deleteExpenseFn,
 } from "./context";
 import { DealsBoard } from "./components/DealsBoard";
-import { DocsPage } from "./components/DocsPage";
+import { ExpensesPanel } from "./components/ExpensesPanel";
 import { OrgSwitcher } from "./components/OrgSwitcher";
-
-type Tab = "deals" | "docs";
 
 interface Props {
   vault?: VaultState | null;
@@ -43,10 +49,11 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
 
   // CRM state — local copy of contexts so change control can update locally
   const [deals, setDeals] = useState<DealRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<Tab>("deals");
   const [filterOrg, setFilterOrg] = useState<OrgFilter>("all");
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(sharedContexts);
+  const [crmTab, setCrmTab] = useState<"deals" | "expenses">("deals");
 
   const loadedRef = useRef(false);
 
@@ -69,16 +76,19 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
       setLoading(true);
       try {
         const personalDeals = await loadPersonalDeals(pds, vault.dek, vault.session.did);
+        const personalExp = await loadPersonalExpenses(pds, vault.dek, vault.session.did);
         const allOrgDeals: DealRecord[] = [];
+        const allOrgExp: ExpenseRecord[] = [];
         for (const ctx of orgContexts.values()) {
           try {
-            const orgDeals = await loadOrgDealsForCtx(pds, ctx);
-            allOrgDeals.push(...orgDeals);
+            allOrgDeals.push(...await loadOrgDealsForCtx(pds, ctx));
+            allOrgExp.push(...await loadOrgExpenses(pds, ctx));
           } catch (err) {
-            console.warn(`Failed to load deals for ${ctx.org.org.name}:`, err);
+            console.warn(`Failed to load data for ${ctx.org.org.name}:`, err);
           }
         }
         setDeals([...personalDeals, ...allOrgDeals]);
+        setExpenses([...personalExp, ...allOrgExp]);
       } finally {
         setLoading(false);
       }
@@ -138,8 +148,40 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
           ...prev.filter((d) => !(d.rkey === existingDeal.rkey && d.authorDid === existingDeal.authorDid)),
           { rkey: newRkey, deal, authorDid: vault.session.did, previousDid: existingDeal.authorDid, previousRkey: existingDeal.rkey, orgRkey: existingDeal.orgRkey },
         ]);
+        // Broadcast deal update notification
+        if (currentActiveOrg) {
+          broadcastNotification(
+            pds, "deal-updated", currentActiveOrg.org.rkey, currentActiveOrg.org.org.name,
+            {
+              type: "deal-updated",
+              orgRkey: currentActiveOrg.org.rkey,
+              orgName: currentActiveOrg.org.org.name,
+              dealTitle: deal.title,
+              stage: deal.stage,
+              senderHandle: vault.session.handle,
+              createdAt: new Date().toISOString(),
+            },
+            vault.session.did, vault.session.handle, undefined, currentActiveOrg,
+          ).catch(() => {});
+        }
       } else {
         setDeals((prev) => [...prev, { rkey: newRkey, deal, authorDid: vault.session.did, orgRkey: targetOrgRkey }]);
+        // Broadcast new deal notification
+        if (currentActiveOrg) {
+          broadcastNotification(
+            pds, "deal-created", currentActiveOrg.org.rkey, currentActiveOrg.org.org.name,
+            {
+              type: "deal-created",
+              orgRkey: currentActiveOrg.org.rkey,
+              orgName: currentActiveOrg.org.org.name,
+              dealTitle: deal.title,
+              stage: deal.stage,
+              senderHandle: vault.session.handle,
+              createdAt: new Date().toISOString(),
+            },
+            vault.session.did, vault.session.handle, undefined, currentActiveOrg,
+          ).catch(() => {});
+        }
       }
     },
     [pds, vault, deals, filterOrg, orgContexts]
@@ -170,6 +212,20 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
         }
         return updated;
       });
+
+      // Broadcast proposal notification
+      broadcastNotification(
+        pds, "proposal-created", dealOrgCtx.org.rkey, dealOrgCtx.org.org.name,
+        {
+          type: "proposal-created",
+          orgRkey: dealOrgCtx.org.rkey,
+          orgName: dealOrgCtx.org.org.name,
+          summary,
+          senderHandle: vault.session.handle,
+          createdAt: new Date().toISOString(),
+        },
+        vault.session.did, vault.session.handle, undefined, dealOrgCtx,
+      ).catch(() => {});
 
       // If no approvals needed, apply immediately
       if (proposal.requiredOffices.length === 0) {
@@ -248,6 +304,56 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
     [pds]
   );
 
+  // --- Expense handlers ---
+  const handleSaveExpense = useCallback(
+    async (expense: Expense, existingRkey?: string) => {
+      if (!pds || !vault) throw new Error("Vault not unlocked");
+
+      let dek: CryptoKey;
+      let keyringRkey: string;
+      let orgRkey = "personal";
+
+      const currentActiveOrg = filterOrg !== "all" && filterOrg !== "personal"
+        ? orgContexts.get(filterOrg) ?? null
+        : null;
+
+      if (currentActiveOrg) {
+        const tierName = currentActiveOrg.myTierName;
+        const tierDek = currentActiveOrg.tierDeks.get(tierName);
+        if (!tierDek) throw new Error(`No access to tier: ${tierName}`);
+        dek = tierDek;
+        const tierDef = currentActiveOrg.org.org.tiers.find((t) => t.name === tierName);
+        const epoch = tierDef?.currentEpoch ?? 0;
+        keyringRkey = keyringRkeyForTier(currentActiveOrg.org.rkey, tierName, epoch);
+        orgRkey = currentActiveOrg.org.rkey;
+      } else {
+        dek = vault.dek;
+        keyringRkey = "self";
+      }
+
+      if (existingRkey) {
+        const { rkey: newRkey } = await updateExpenseFn(pds, existingRkey, expense, dek, keyringRkey);
+        setExpenses((prev) => [
+          ...prev.filter((e) => e.rkey !== existingRkey),
+          { rkey: newRkey, expense, authorDid: vault.session.did, orgRkey },
+        ]);
+      } else {
+        const { rkey } = await saveExpense(pds, expense, dek, keyringRkey);
+        setExpenses((prev) => [...prev, { rkey, expense, authorDid: vault.session.did, orgRkey }]);
+      }
+    },
+    [pds, vault, filterOrg, orgContexts],
+  );
+
+  const handleDeleteExpense = useCallback(
+    async (rkey: string) => {
+      if (!pds) return;
+      await deleteExpenseFn(pds, rkey);
+      setExpenses((prev) => prev.filter((e) => e.rkey !== rkey));
+    },
+    [pds],
+  );
+
   // --- Guard ---
   if (!vault || !pds) {
     return (
@@ -282,34 +388,58 @@ export function CrmApp({ vault, pds, orgs = [], orgContexts: sharedContexts = ne
 
   return (
     <div className="crm-container">
-      <DealsBoard
-        deals={deals}
-        filterOrg={filterOrg}
-        orgNames={orgNames}
-        onSaveDeal={handleSaveDeal}
-        onDeleteDeal={handleDeleteDeal}
-        onPropose={handlePropose}
-        onApprove={handleApprove}
-        handle={vault.session.handle}
-        myDid={vault.session.did}
-        onLogout={() => navigate("/")}
-        onBackToHub={() => navigate("/")}
-        tab={tab}
-        onTabChange={setTab}
-        orgSwitcher={
-          <OrgSwitcher
-            orgs={orgs}
-            filterOrg={filterOrg}
-            onFilterChange={handleFilterChange}
-            onManageOrgs={() => navigate("/")}
-            activeOrg={activeOrg}
-          />
-        }
-        activeOrg={activeOrg}
-        orgContexts={orgContexts}
-        availableTiers={availableTiers}
-      />
-      {tab === "docs" && <DocsPage />}
+      {crmTab === "deals" ? (
+        <DealsBoard
+          deals={deals}
+          filterOrg={filterOrg}
+          orgNames={orgNames}
+          onSaveDeal={handleSaveDeal}
+          onDeleteDeal={handleDeleteDeal}
+          onPropose={handlePropose}
+          onApprove={handleApprove}
+          handle={vault.session.handle}
+          myDid={vault.session.did}
+          onLogout={() => navigate("/")}
+          onBackToHub={() => navigate("/")}
+          orgSwitcher={
+            <OrgSwitcher
+              orgs={orgs}
+              filterOrg={filterOrg}
+              onFilterChange={handleFilterChange}
+              onManageOrgs={() => navigate("/")}
+              activeOrg={activeOrg}
+            />
+          }
+          activeOrg={activeOrg}
+          orgContexts={orgContexts}
+          availableTiers={availableTiers}
+          crmTab={crmTab}
+          onCrmTabChange={setCrmTab}
+        />
+      ) : (
+        <ExpensesPanel
+          expenses={expenses}
+          deals={deals}
+          filterOrg={filterOrg}
+          orgNames={orgNames}
+          myDid={vault.session.did}
+          handle={vault.session.handle}
+          onSaveExpense={handleSaveExpense}
+          onDeleteExpense={handleDeleteExpense}
+          onBackToHub={() => navigate("/")}
+          orgSwitcher={
+            <OrgSwitcher
+              orgs={orgs}
+              filterOrg={filterOrg}
+              onFilterChange={handleFilterChange}
+              onManageOrgs={() => navigate("/")}
+              activeOrg={activeOrg}
+            />
+          }
+          crmTab={crmTab}
+          onCrmTabChange={setCrmTab}
+        />
+      )}
     </div>
   );
 }
