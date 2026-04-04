@@ -1,6 +1,6 @@
 FROM node:22-slim
 
-# System deps: git, bash, python3 (for PDS scripts), build tools for node-pty
+# System deps: git, bash, python3, build tools for node-pty, curl for R2 sync
 RUN apt-get update && apt-get install -y \
     git \
     bash \
@@ -10,23 +10,27 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code globally
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code + GitHub MCP server globally
+RUN npm install -g @anthropic-ai/claude-code @modelcontextprotocol/server-github
 
-# Create workspace
-RUN mkdir -p /home/coder/workspace && chown -R node:node /home/coder
+# Create workspace and config dirs
+RUN mkdir -p /home/coder/workspace /home/coder/.claude && chown -R node:node /home/coder
 WORKDIR /home/coder
 
-# Copy PTY server
+# Copy server files
 COPY package.json /home/coder/package.json
 COPY server.js /home/coder/server.js
+COPY startup.sh /home/coder/startup.sh
 
 # Install server deps
 RUN npm install --production
+
+# Make startup executable
+RUN chmod +x /home/coder/startup.sh
 
 # Run as non-root
 USER node
 
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["/home/coder/startup.sh"]

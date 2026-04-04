@@ -3,7 +3,15 @@ main = "src/index.js"
 compatibility_date = "2026-02-20"
 compatibility_flags = ["nodejs_compat", "containers"]
 
-# Container definition — Docker image for the PTY shell
+[vars]
+SYNC_URL = "https://os-api.minomobi.com"
+
+# R2 bucket for persistent workspace storage
+[[r2_buckets]]
+binding = "WORKSPACE"
+bucket_name = "os-workspace"
+
+# Container definition — Docker image for PTY shell + Claude Code
 [[containers]]
 class_name = "ContainerShell"
 image = "./container/Dockerfile"
@@ -17,3 +25,9 @@ class_name = "ContainerShell"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ContainerShell"]
+
+# Secrets (set via `wrangler secret put`):
+#   SYNC_TOKEN            — shared secret for container ↔ worker sync
+#   GITHUB_TOKEN          — GitHub PAT for MCP server + git push
+#   CLOUDFLARE_API_TOKEN  — for wrangler commands inside container
+#   CLOUDFLARE_ACCOUNT_ID — for wrangler commands inside container
