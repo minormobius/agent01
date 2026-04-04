@@ -422,24 +422,54 @@ export class SurveyCoordinator implements DurableObject {
       }, 400);
     }
 
-    // Validate each choice is in range
+    // Validate each choice based on question type
     for (let i = 0; i < submission.choices.length; i++) {
       const q = state.survey.questions[i];
       const choice = submission.choices[i];
-      if (choice === -1) {
-        if (q.required) {
+      const qType = (q as any).questionType || 'single_choice';
+
+      if (qType === 'ranking') {
+        // Ranking: choice must be an array that is a permutation of [0..N-1]
+        if (!Array.isArray(choice)) {
+          if (choice === -1 && !q.required) continue; // skipped optional
           return jsonResponse({
             accepted: false,
-            rejectionReason: `Question ${i + 1} is required`,
+            rejectionReason: `Question ${i + 1} (ranking) requires an array of indices`,
           }, 400);
         }
-        continue;
-      }
-      if (choice < 0 || choice >= q.options.length) {
-        return jsonResponse({
-          accepted: false,
-          rejectionReason: `Invalid choice ${choice} for question ${i + 1} (${q.options.length} options)`,
-        }, 400);
+        const arr = choice as number[];
+        if (arr.length !== q.options.length) {
+          return jsonResponse({
+            accepted: false,
+            rejectionReason: `Question ${i + 1} (ranking) must rank all ${q.options.length} options`,
+          }, 400);
+        }
+        const sorted = [...arr].sort((a, b) => a - b);
+        for (let j = 0; j < sorted.length; j++) {
+          if (sorted[j] !== j) {
+            return jsonResponse({
+              accepted: false,
+              rejectionReason: `Question ${i + 1} (ranking) must be a permutation of [0..${q.options.length - 1}]`,
+            }, 400);
+          }
+        }
+      } else {
+        // Single choice
+        if (choice === -1) {
+          if (q.required) {
+            return jsonResponse({
+              accepted: false,
+              rejectionReason: `Question ${i + 1} is required`,
+            }, 400);
+          }
+          continue;
+        }
+        if (typeof choice !== 'number' || choice < 0 || choice >= q.options.length) {
+          return jsonResponse({
+            accepted: false,
+            rejectionReason: `Invalid choice ${choice} for question ${i + 1} (${q.options.length} options)`,
+          }, 400);
+        }
       }
     }
 
@@ -484,9 +514,22 @@ export class SurveyCoordinator implements DurableObject {
     // Update per-question tally
     for (let i = 0; i < submission.choices.length; i++) {
       const choice = submission.choices[i];
-      if (choice === -1) continue;
+      const qType = ((state.survey.questions[i] as any).questionType) || 'single_choice';
       if (!state.tally[String(i)]) state.tally[String(i)] = {};
-      state.tally[String(i)][String(choice)] = (state.tally[String(i)][String(choice)] || 0) + 1;
+
+      if (qType === 'ranking' && Array.isArray(choice)) {
+        // Borda count: position 0 (first place) gets N-1 points, last gets 0
+        const n = (choice as number[]).length;
+        for (let rank = 0; rank < n; rank++) {
+          const optionIdx = (choice as number[])[rank];
+          const bordaScore = n - 1 - rank;
+          state.tally[String(i)][String(optionIdx)] = (state.tally[String(i)][String(optionIdx)] || 0) + bordaScore;
+        }
+      } else {
+        // Single choice — count votes
+        if (choice === -1) continue;
+        state.tally[String(i)][String(choice)] = (state.tally[String(i)][String(choice)] || 0) + 1;
+      }
     }
 
     const ballotId = crypto.randomUUID();

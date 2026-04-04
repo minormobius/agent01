@@ -62,8 +62,57 @@ export function SurveyPage() {
       {/* Per-question results */}
       {survey.questions?.map((q: any, qi: number) => {
         const qTally = tally?.countsByQuestion?.[String(qi)] || {};
+        const qType = q.questionType || 'single_choice';
         const total = Object.values(qTally).reduce((a: number, b: any) => a + (b as number), 0) as number;
 
+        if (qType === 'ranking') {
+          // Ranking results: sort by Borda score descending
+          const scored = (q.options as string[]).map((opt: string, oi: number) => ({
+            opt,
+            oi,
+            score: (qTally[String(oi)] as number) || 0,
+          })).sort((a, b) => b.score - a.score);
+          const maxScore = scored[0]?.score || 1;
+
+          return (
+            <div className="card" key={qi}>
+              <h3 style={{ fontSize: 15, marginBottom: 8 }}>
+                Q{qi + 1}: {q.question}
+                <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>(ranking — Borda count)</span>
+              </h3>
+
+              {scored.map((item, rank) => {
+                const pct = maxScore > 0 ? (item.score / maxScore * 100) : 0;
+                return (
+                  <div key={item.oi} style={{ marginBottom: 8 }}>
+                    <div className="flex gap-8" style={{ justifyContent: 'space-between', fontSize: 14 }}>
+                      <span style={{ fontWeight: rank === 0 ? 600 : 400 }}>
+                        #{rank + 1} {item.opt} {rank === 0 && item.score > 0 ? ' ✓' : ''}
+                      </span>
+                      <span className="muted">{item.score} pts</span>
+                    </div>
+                    <div style={{
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'var(--border)',
+                      marginTop: 4,
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        borderRadius: 3,
+                        width: `${pct}%`,
+                        background: rank === 0 ? 'var(--accent)' : 'var(--text-muted)',
+                        transition: 'width 0.3s ease',
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+
+        // Single choice results (existing)
         return (
           <div className="card" key={qi}>
             <h3 style={{ fontSize: 15, marginBottom: 8 }}>

@@ -3,6 +3,6 @@
   "name": "mino-zoom",
   "compatibility_date": "2026-02-20",
   "assets": {
-    "directory": "."
+    "directory": "dist"
   }
 }

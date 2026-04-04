@@ -125,6 +125,8 @@ export interface Survey {
   createdAt: string;
 }
 
+export type SurveyQuestionType = 'single_choice' | 'ranking';
+
 export interface SurveyQuestion {
   id: string;
   surveyId: string;
@@ -132,6 +134,7 @@ export interface SurveyQuestion {
   options: string[];
   position: number;
   required: boolean;
+  questionType: SurveyQuestionType;
 }
 
 export interface SurveyBallot {
@@ -139,7 +142,7 @@ export interface SurveyBallot {
   surveyId: string;
   publicBallotSerial: number;
   nullifier: string;
-  choices: number[];
+  choices: (number | number[])[];  // number for single_choice, number[] for ranking
   tokenMessage: string;
   issuerSignature: string;
   credentialProof: string | null;
@@ -161,7 +164,7 @@ export interface SurveyTallySnapshot {
 export interface CreateSurveyRequest {
   title: string;
   description?: string;
-  questions: { question: string; options: string[]; required?: boolean }[];
+  questions: { question: string; options: string[]; required?: boolean; questionType?: SurveyQuestionType }[];
   opensAt: string;
   closesAt: string;
   eligibilityMode?: EligibilityMode;
@@ -170,7 +173,7 @@ export interface CreateSurveyRequest {
 }
 
 export interface SurveyBallotSubmission {
-  choices: number[];
+  choices: (number | number[])[];  // number for single_choice, number[] for ranking
   tokenMessage: string;
   issuerSignature: string;
   nullifier: string;
