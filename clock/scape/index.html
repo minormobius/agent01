@@ -28,6 +28,48 @@
     background: rgba(30,30,50,0.85); color: #ddd; font: 12px monospace; cursor: pointer;
   }
   #viewToggle:hover { background: #3a3a5e; }
+  .touch-zone {
+    position: fixed; bottom: 0; width: 50%; height: 45%;
+    z-index: 4; touch-action: none;
+  }
+  .touch-zone.left { left: 0; }
+  .touch-zone.right { right: 0; }
+  #reticle {
+    position: fixed; top: 50%; left: 50%; z-index: 6;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    pointer-events: none;
+  }
+  #reticle::before, #reticle::after {
+    content: ''; position: absolute; background: rgba(255,255,200,0.5);
+  }
+  #reticle::before { width: 2px; height: 12px; top: 4px; left: 9px; }
+  #reticle::after { width: 12px; height: 2px; top: 9px; left: 4px; }
+  #reticle.hidden { display: none; }
+  #touchHint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,200,0.4); font: 11px monospace; pointer-events: none;
+    user-select: none; z-index: 5; white-space: nowrap;
+  }
+  #physPanel {
+    position: fixed; bottom: 50px; left: 12px; z-index: 5;
+    background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
+    padding: 0; color: #ccc; font: 11px/1.6 monospace; min-width: 200px;
+    user-select: none;
+  }
+  #physPanel.hidden { display: none; }
+  #physToggle {
+    width: 100%; padding: 6px 12px; border: none; border-bottom: 1px solid #3a3a5a;
+    background: transparent; color: #f0e0c0; font: 12px monospace; cursor: pointer;
+    text-align: left;
+  }
+  #physToggle:hover { background: rgba(255,255,255,0.05); }
+  #physBody { padding: 8px 12px; }
+  #physBody.collapsed { display: none; }
+  #physBody label { display: block; margin-top: 6px; color: #aaa; font-size: 10px; }
+  #physBody input[type=range] {
+    width: 100%; margin: 2px 0; accent-color: #6a6aaa;
+  }
+  #physBody .val { float: right; color: #ddd; }
   #lobby {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(10,10,20,0.92); z-index: 10;
@@ -86,10 +128,28 @@
 <div id="netPanel" class="hidden"></div>
 <canvas id="c"></canvas>
 <canvas id="minimap" width="128" height="128"></canvas>
+<div id="physPanel" class="hidden">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
+    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Major Radius (R) <span class="val" id="valR">5.0</span></label>
+    <input type="range" id="slR" min="2" max="12" step="0.1" value="5">
+    <label>Minor Radius (r) <span class="val" id="valr">2.0</span></label>
+    <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2">
+  </div>
+</div>
+<div id="reticle" class="hidden"></div>
+<div class="touch-zone left" id="touchLeft"></div>
+<div class="touch-zone right" id="touchRight"></div>
 <button id="viewToggle">1st person [F]</button>
+<div id="touchHint"></div>
 <div id="hud"></div>
 <script>
 (() => {
+  // Device detection (hoisted for use in resize/render)
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
   // =====================================================================
   // Lobby — name entry + mode selection
   // =====================================================================
@@ -420,6 +480,15 @@
     T.FLOWER, T.BRIDGE, T.TALL_GRASS, T.PATH,
   ]);
 
+  // Tile heights — must match shader tileHeight()
+  const TILE_HEIGHT = {
+    [T.GRASS]: 0.0, [T.GRASS2]: 0.0, [T.GRASS3]: 0.0,
+    [T.WATER]: -0.03, [T.SAND]: 0.01, [T.DIRT]: 0.02,
+    [T.TREE]: 0.15, [T.ROCK]: 0.10, [T.FLOWER]: 0.02,
+    [T.BRIDGE]: 0.03, [T.TALL_GRASS]: 0.04, [T.PATH]: 0.0,
+  };
+  const MAX_STEP_UP = 0.06; // max height difference player can step up
+
   // =====================================================================
   // Procedural world generation (seeded)
   // =====================================================================
@@ -537,13 +606,339 @@
   const mmCanvas = document.getElementById('minimap');
   const mmCtx = mmCanvas.getContext('2d');
 
+  // GPU sky state (declared early so resize() can reference it)
+  let gpuSky = null;
+  let gpuSkyDirty = true;
+
+  // Torus geometry (declared early — used by gravity LUT, sky renderer, etc.)
+  let TORUS_R = 5.0;  // major radius
+  let TORUS_r = 2.0;  // minor radius
+
   function resize() {
-    const dpr = Math.min(devicePixelRatio, 2);
+    const maxDpr = isMobile ? 1 : 2;
+    const dpr = Math.min(devicePixelRatio, maxDpr);
     canvas.width = Math.floor(canvas.clientWidth * dpr);
     canvas.height = Math.floor(canvas.clientHeight * dpr);
+    gpuSkyDirty = true;
   }
   resize();
   window.addEventListener('resize', resize);
+
+  // =====================================================================
+  // WebGPU sky renderer — terrain-mapped torus
+  // =====================================================================
+  (async () => {
+    if (!navigator.gpu) { console.log('WebGPU not available, using canvas fallback'); return; }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return;
+    const device = await adapter.requestDevice();
+
+    // ---- WGSL compute shader ----
+    const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, _pad0: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, _pad1: f32,
+  rightX: f32, rightY: f32, rightZ: f32, _pad2: f32,
+  upX: f32, upY: f32, upZ: f32, _pad3: f32,
+  sunX: f32, sunY: f32, sunZ: f32, _pad4: f32,
+  torusR: f32, torusr: f32,
+  width: u32, height: u32,
+  fovH: f32, fovV: f32,
+  worldW: u32, worldH: u32,
+  horizonY: f32, _pad5: f32,
+}
+
+@group(0) @binding(0) var<uniform> params: Params;
+@group(0) @binding(1) var<storage, read> tileMap: array<u32>;
+@group(0) @binding(2) var<storage, read> palette: array<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<u32>;
+
+const PI: f32 = 3.14159265359;
+const TWO_PI: f32 = 6.28318530718;
+
+// Tile heights — how far each tile type extrudes from the torus surface
+fn tileHeight(tile: u32) -> f32 {
+  switch(tile) {
+    case 0u, 1u, 2u: { return 0.0; }    // GRASS
+    case 3u: { return -0.03; }           // WATER (depressed)
+    case 4u: { return 0.01; }            // SAND
+    case 5u: { return 0.02; }            // DIRT
+    case 6u: { return 0.15; }            // TREE
+    case 7u: { return 0.10; }            // ROCK
+    case 8u: { return 0.02; }            // FLOWER
+    case 9u: { return 0.03; }            // BRIDGE
+    case 10u: { return 0.04; }           // TALL_GRASS
+    case 11u: { return 0.0; }            // PATH
+    default: { return 0.0; }
+  }
+}
+
+// Signed distance from point to base torus surface
+fn torusSDF(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let qx = sqrt(px * px + pz * pz) - R;
+  return sqrt(qx * qx + py * py) - r;
+}
+
+// Look up tile index at a 3D point projected onto the torus surface
+fn tileAtPoint(px: f32, py: f32, pz: f32, R: f32) -> u32 {
+  let u = atan2(pz, px);
+  let distFromAxis = sqrt(px * px + pz * pz);
+  let v = atan2(py, distFromAxis - R);
+  var tu = u / TWO_PI;
+  if (tu < 0.0) { tu += 1.0; }
+  var tv = v / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  let tileX = u32(tu * f32(params.worldW)) % params.worldW;
+  let tileY = u32(tv * f32(params.worldH)) % params.worldH;
+  return tileMap[tileY * params.worldW + tileX];
+}
+
+// Sphere-trace ray against displaced torus (base SDF - tile height)
+// Returns hit distance or -1
+fn traceDisplacedTorus(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
+  let maxH: f32 = 0.16; // must be >= max tile height
+  var t: f32 = 0.08;
+
+  // Phase 1: sphere trace using base SDF to get near surface quickly
+  for (var i = 0u; i < 64u; i++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+
+    if (baseDist < maxH + 0.05) {
+      // Near enough — switch to fine marching
+      break;
+    }
+    // Safe step: we know the surface is at least baseDist - maxH away
+    t += max(baseDist - maxH, 0.02);
+    if (t > 50.0) { return -1.0; }
+  }
+
+  // Phase 2: fine fixed steps through the displacement zone
+  for (var j = 0u; j < 48u; j++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+    let tile = tileAtPoint(px, py, pz, R);
+    let h = tileHeight(tile);
+    let dispDist = baseDist - h;
+
+    if (dispDist < 0.003) {
+      return t;
+    }
+    // If we've passed well through the torus, no hit on this crossing
+    if (baseDist < -0.5) {
+      // We went through — advance past this torus crossing to find far side
+      t += max(-baseDist - maxH, 0.02);
+      continue;
+    }
+    t += max(dispDist * 0.5, 0.008);
+    if (t > 50.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let px = gid.x;
+  let py = gid.y;
+  let w = params.width;
+  let h = params.height;
+  if (px >= w || py >= h) { return; }
+
+  let idx = py * w + px;
+
+  let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
+  let screenV = params.horizonY - f32(py) / f32(h);
+  let azAngle = screenH * params.fovH * 0.5;
+  let elevAngle = screenV * params.fovV;
+
+  let cosEl = cos(elevAngle);
+  let sinEl = sin(elevAngle);
+  let cosAz = cos(azAngle);
+  let sinAz = sin(azAngle);
+
+  let fwd = vec3f(params.fwdX, params.fwdY, params.fwdZ);
+  let right = vec3f(params.rightX, params.rightY, params.rightZ);
+  let up = vec3f(params.upX, params.upY, params.upZ);
+
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
+
+  let cam = vec3f(params.camX, params.camY, params.camZ);
+  let R = params.torusR;
+  let r = params.torusr;
+
+  let t = traceDisplacedTorus(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+
+  if (t < 0.0) {
+    output[idx] = 0u;
+    return;
+  }
+
+  // Hit point
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+
+  // Tile at hit
+  let tile = tileAtPoint(hx, hy, hz, R);
+  let th = tileHeight(tile);
+
+  // Base color from palette
+  let baseColor = palette[tile];
+  var cr = f32((baseColor >> 0u) & 0xFFu) / 255.0;
+  var cg = f32((baseColor >> 8u) & 0xFFu) / 255.0;
+  var cb = f32((baseColor >> 16u) & 0xFFu) / 255.0;
+
+  // Surface normal — approximate via central differences of displaced SDF
+  let eps: f32 = 0.015;
+  let dR = torusSDF(hx+eps, hy, hz, R, r) - tileHeight(tileAtPoint(hx+eps, hy, hz, R))
+         - torusSDF(hx-eps, hy, hz, R, r) + tileHeight(tileAtPoint(hx-eps, hy, hz, R));
+  let dG = torusSDF(hx, hy+eps, hz, R, r) - tileHeight(tileAtPoint(hx, hy+eps, hz, R))
+         - torusSDF(hx, hy-eps, hz, R, r) + tileHeight(tileAtPoint(hx, hy-eps, hz, R));
+  let dB = torusSDF(hx, hy, hz+eps, R, r) - tileHeight(tileAtPoint(hx, hy, hz+eps, R))
+         - torusSDF(hx, hy, hz-eps, R, r) + tileHeight(tileAtPoint(hx, hy, hz-eps, R));
+  let hn = normalize(vec3f(dR, dG, dB));
+
+  let sunDir = vec3f(params.sunX, params.sunY, params.sunZ);
+  let sunDot = max(0.0, dot(hn, sunDir));
+  let light = 0.12 + 0.88 * sunDot;
+
+  // Heightmap shading boost — elevated tiles get slight edge highlighting
+  let heightShade = 1.0 + th * 1.5;
+
+  // Distance fade
+  let fade = min(1.0, t / 40.0);
+  let distDim = 1.0 - fade * 0.6;
+
+  cr = cr * light * distDim * heightShade;
+  cg = cg * light * distDim * heightShade;
+  cb = cb * light * distDim * heightShade;
+
+  let outR = u32(clamp(cr * 255.0, 0.0, 255.0));
+  let outG = u32(clamp(cg * 255.0, 0.0, 255.0));
+  let outB = u32(clamp(cb * 255.0, 0.0, 255.0));
+  output[idx] = outR | (outG << 8u) | (outB << 16u) | (255u << 24u);
+}
+`;
+
+    const shaderModule = device.createShaderModule({ code: shaderCode });
+
+    // Uniform buffer for params
+    const paramBufSize = 128; // 32 x f32/u32, 16-byte aligned
+    const paramBuf = device.createBuffer({ size: paramBufSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+    // Tile map buffer (128x128 u32s)
+    const tileMapBuf = device.createBuffer({ size: WORLD_W * WORLD_H * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+    // Palette buffer (12 tile types × 4 bytes)
+    const PALETTE_SIZE = 16; // pad to power of 2
+    const paletteBuf = device.createBuffer({ size: PALETTE_SIZE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+    // Upload tile map
+    function uploadTileMap() {
+      const data = new Uint32Array(WORLD_W * WORLD_H);
+      for (let i = 0; i < world.length; i++) data[i] = world[i];
+      device.queue.writeBuffer(tileMapBuf, 0, data);
+    }
+    uploadTileMap();
+
+    // Upload palette
+    function uploadPalette() {
+      const data = new Uint32Array(PALETTE_SIZE);
+      for (const [tileType, rgb] of Object.entries(TILE_COLORS)) {
+        const i = parseInt(tileType);
+        if (i < PALETTE_SIZE) data[i] = rgb[0] | (rgb[1] << 8) | (rgb[2] << 16) | (255 << 24);
+      }
+      device.queue.writeBuffer(paletteBuf, 0, data);
+    }
+    uploadPalette();
+
+    // Output buffer + readback buffer (resized on demand)
+    let outputBuf = null;
+    let readbackBuf = null;
+    let skyW = 0, skyH = 0;
+    let bindGroup = null;
+    let pipeline = null;
+
+    // Create pipeline
+    pipeline = device.createComputePipeline({
+      layout: 'auto',
+      compute: { module: shaderModule, entryPoint: 'main' },
+    });
+
+    function ensureOutputSize(w, h) {
+      w = Math.floor(w); h = Math.floor(h);
+      if (w === skyW && h === skyH) return;
+      skyW = w; skyH = h;
+      if (outputBuf) outputBuf.destroy();
+      if (readbackBuf) readbackBuf.destroy();
+      const size = w * h * 4;
+      outputBuf = device.createBuffer({ size, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+      readbackBuf = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+      bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: paramBuf } },
+          { binding: 1, resource: { buffer: tileMapBuf } },
+          { binding: 2, resource: { buffer: paletteBuf } },
+          { binding: 3, resource: { buffer: outputBuf } },
+        ],
+      });
+    }
+
+    // The render function — called from the game loop
+    let gpuBusy = false;
+    let lastSkyImageData = null;
+
+    gpuSky = {
+      render: async function(w, h, horizonFrac, camPos, fwd, right, up, sunDir, torusR, torusr) {
+        if (gpuBusy) return lastSkyImageData; // skip if previous frame still in flight
+        ensureOutputSize(w, h);
+
+        // Upload params
+        const pd = new ArrayBuffer(128);
+        const f = new Float32Array(pd);
+        const u = new Uint32Array(pd);
+        f[0] = camPos[0]; f[1] = camPos[1]; f[2] = camPos[2];
+        f[4] = fwd[0]; f[5] = fwd[1]; f[6] = fwd[2];
+        f[8] = right[0]; f[9] = right[1]; f[10] = right[2];
+        f[12] = up[0]; f[13] = up[1]; f[14] = up[2];
+        f[16] = sunDir[0]; f[17] = sunDir[1]; f[18] = sunDir[2];
+        f[20] = torusR; f[21] = torusr;
+        u[22] = w; u[23] = h;
+        f[24] = FOV; f[25] = VFOV;
+        u[26] = WORLD_W; u[27] = WORLD_H;
+        f[28] = horizonFrac;
+        device.queue.writeBuffer(paramBuf, 0, pd);
+
+        // Dispatch
+        gpuBusy = true;
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+        pass.end();
+        encoder.copyBufferToBuffer(outputBuf, 0, readbackBuf, 0, w * h * 4);
+        device.queue.submit([encoder.finish()]);
+
+        // Read back
+        await readbackBuf.mapAsync(GPUMapMode.READ);
+        const result = new Uint8ClampedArray(readbackBuf.getMappedRange().slice(0));
+        readbackBuf.unmap();
+        gpuBusy = false;
+
+        lastSkyImageData = new ImageData(result, w, h);
+        return lastSkyImageData;
+      },
+      uploadTileMap,
+      uploadPalette,
+    };
+    console.log('WebGPU sky renderer initialized');
+  })();
 
   // =====================================================================
   // Render minimap once
@@ -576,6 +971,7 @@
 
   let playerDir = 0; // 0=down, 1=left, 2=up, 3=right
   let playerAngle = Math.PI; // continuous angle for FP view (starts facing down=south)
+  let playerPitch = 0; // look up/down angle in radians (positive = up)
   let playerFrame = 0;
   let playerMoveT = 0;
   const PLAYER_SPEED = 3.2; // tiles per second
@@ -594,26 +990,40 @@
   //   Center of hole:        |g|~0. Saddle point. NOT a gravity well.
   //   On axis:               |g|~1.3, pushed toward torus. Unstable.
 
-  const GRAV_SCALE = 1.8;
+  let GRAV_SCALE = 1.8;
   const JUMP_SPEED = 4.0;
   const SUPER_JUMP_SPEED = 10.0;
   const EYE_HEIGHT = 0.12;
 
   // Precompute gravity LUT in (R, Z) plane
-  const GRAV_LUT_SIZE = 48;
-  const GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
-  const GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
-  const gravLUT_gR = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
-  const gravLUT_gZ = new Float32Array(GRAV_LUT_SIZE * GRAV_LUT_SIZE);
+  // Supports two resolutions: coarse (interactive) and full (on release)
+  const GRAV_LUT_FULL = 48;
+  const GRAV_LUT_COARSE = 24;
+  let GRAV_LUT_SIZE = GRAV_LUT_FULL;
+  let GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  let GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
+  let gravLUT_gR = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
+  let gravLUT_gZ = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
 
-  function computeGravLUT() {
-    console.time('gravLUT');
-    const Nu = 40, Nv = 20, Ns = 5;
+  function computeGravLUT(resolution) {
+    const size = resolution || GRAV_LUT_FULL;
+    GRAV_LUT_SIZE = size;
+    GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+    GRAV_Z_MIN = -(TORUS_r + 5);
+    GRAV_Z_MAX = TORUS_r + 5;
+    if (gravLUT_gR.length !== size * size) {
+      gravLUT_gR = new Float32Array(size * size);
+      gravLUT_gZ = new Float32Array(size * size);
+    }
+    const coarse = size <= GRAV_LUT_COARSE;
+    const Nu = coarse ? 20 : 40;
+    const Nv = coarse ? 10 : 20;
+    const Ns = coarse ? 3 : 5;
     const R0 = TORUS_R, r0 = TORUS_r;
-    for (let gi = 0; gi < GRAV_LUT_SIZE; gi++) {
-      const Rp = GRAV_R_MIN + (gi / (GRAV_LUT_SIZE - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
-      for (let gj = 0; gj < GRAV_LUT_SIZE; gj++) {
-        const Zp = GRAV_Z_MIN + (gj / (GRAV_LUT_SIZE - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
+    for (let gi = 0; gi < size; gi++) {
+      const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
+      for (let gj = 0; gj < size; gj++) {
+        const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
         let gR = 0, gZ = 0;
         for (let iu = 0; iu < Nu; iu++) {
           const u = (iu + 0.5) / Nu * Math.PI * 2;
@@ -636,14 +1046,13 @@
             }
           }
         }
-        const idx = gi * GRAV_LUT_SIZE + gj;
+        const idx = gi * size + gj;
         gravLUT_gR[idx] = gR * GRAV_SCALE;
         gravLUT_gZ[idx] = gZ * GRAV_SCALE;
       }
     }
-    console.timeEnd('gravLUT');
   }
-  computeGravLUT();
+  computeGravLUT(GRAV_LUT_FULL);
 
   function sampleGravity(R, Z) {
     const fi = (R - GRAV_R_MIN) / (GRAV_R_MAX - GRAV_R_MIN) * (GRAV_LUT_SIZE - 1);
@@ -672,8 +1081,9 @@
 
   function initCrossSectionFromSurface() {
     const v = getPlayerV();
-    csR = TORUS_R + TORUS_r * Math.cos(v);
-    csZ = TORUS_r * Math.sin(v);
+    const th = tileHeightAt(playerX, playerY);
+    csR = TORUS_R + (TORUS_r + th) * Math.cos(v);
+    csZ = (TORUS_r + th) * Math.sin(v);
     csVR = 0; csVZ = 0;
   }
 
@@ -693,28 +1103,74 @@
     const substeps = 8;
     const subDt = dt / substeps;
     for (let s = 0; s < substeps; s++) {
-      const g = sampleGravity(Math.max(0.1, csR), csZ);
-      csVR += g.gR * subDt;
+      // Gravity: use |csR| for LUT lookup, flip gR if on negative side
+      const absR = Math.abs(csR);
+      const g = sampleGravity(Math.max(0.1, absR), csZ);
+      const gR = csR >= 0 ? g.gR : -g.gR;
+      csVR += gR * subDt;
       csVZ += g.gZ * subDt;
       csR += csVR * subDt;
       csZ += csVZ * subDt;
-      if (csR < 0.05) { csR = 0.05; csVR = Math.abs(csVR) * 0.15; }
-      const dcR = csR - TORUS_R, dcZ = csZ;
+
+      // Check if we crossed the axis — flip U by half the world
+      if (csR < 0 && csR + csVR * subDt >= 0 || csR >= 0 && csR - csVR * subDt < 0) {
+        // Will be handled naturally — csR can be negative
+      }
+
+      // Landing check: distance from tube center at (TORUS_R, 0) or (-TORUS_R, 0)
+      // Use the nearest tube center based on which side of axis we're on
+      const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+      const dcR = csR - tubeR, dcZ = csZ;
       const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
-      if (distTC <= TORUS_r) {
+      // Landing: check against displaced surface (torus_r + tile height)
+      const landingV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+      const landingY = wrapY(((landingV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+      const landingTileH = tileHeightAt(playerX, landingY);
+      const effectiveR = TORUS_r + landingTileH;
+      if (distTC <= effectiveR) {
         const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
         if (vDot < 0) {
-          const newV = Math.atan2(dcZ, dcR);
-          playerY = wrapY(((newV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+          // Preserve world-space facing direction across frame change
+          // Use computeSkyCamera() to get actual world-space forward from the
+          // gravity-aligned frame (playerAngle is relative to that frame now)
+          const cam = computeSkyCamera();
+          // Project fwd onto horizontal plane to get flat facing direction
+          const worldFwd = [cam.fwd[0], cam.fwd[1], cam.fwd[2]];
+
+          if (csR < 0) {
+            playerX = wrapX(playerX + WORLD_W / 2);
+            csR = -csR;
+          }
+          playerY = landingY;
+
+          // Recompute local frame at new position and back-solve angle
+          const newU = getPlayerU();
+          const newV = getPlayerV();
+          const cosNewV = Math.cos(newV), sinNewV = Math.sin(newV);
+          const cosNewU = Math.cos(newU), sinNewU = Math.sin(newU);
+          const newEu = [-(TORUS_R + TORUS_r * cosNewV) * sinNewU, 0,
+                          (TORUS_R + TORUS_r * cosNewV) * cosNewU];
+          const newEuLen = Math.sqrt(newEu[0]**2 + newEu[2]**2) || 1;
+          const newEv = [-TORUS_r * sinNewV * cosNewU, TORUS_r * cosNewV,
+                         -TORUS_r * sinNewV * sinNewU];
+          const newEvLen = Math.sqrt(newEv[0]**2 + newEv[1]**2 + newEv[2]**2) || 1;
+          // Project worldFwd onto new eu/ev to get new angle
+          const dotU = worldFwd[0]*newEu[0]/newEuLen + worldFwd[1]*newEu[1]/newEuLen + worldFwd[2]*newEu[2]/newEuLen;
+          const dotV = worldFwd[0]*newEv[0]/newEvLen + worldFwd[1]*newEv[1]/newEvLen + worldFwd[2]*newEv[2]/newEvLen;
+          playerAngle = Math.atan2(dotU, dotV);
+
           airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
           return;
         }
       }
     }
-    const dcR = csR - TORUS_R, dcZ = csZ;
-    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r);
-    const currentV = Math.atan2(dcZ, dcR);
+    // Height is distance from nearest tube center minus displaced tube radius
+    const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dcR = csR - tubeR, dcZ = csZ;
+    const currentV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
     playerY = wrapY(((currentV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+    const airTileH = tileHeightAt(playerX, playerY);
+    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r - airTileH);
   }
 
   // View mode
@@ -733,9 +1189,206 @@
       fpMode = !fpMode;
       document.getElementById('viewToggle').textContent = fpMode ? 'Top down [F]' : '1st person [F]';
     }
-    e.preventDefault();
+    // Only prevent default for game keys, not browser shortcuts
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D',' '].includes(e.key)) {
+      e.preventDefault();
+    }
   });
   window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // =====================================================================
+  // Mouse look — pointer lock
+  // =====================================================================
+  const MOUSE_SENS = 0.002;
+  const MAX_PITCH = Math.PI * 0.44; // ~80 degrees
+
+  canvas.addEventListener('click', () => {
+    if (fpMode && !document.pointerLockElement) {
+      canvas.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement !== canvas) return;
+    playerAngle += e.movementX * MOUSE_SENS;
+    playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH,
+      playerPitch - e.movementY * MOUSE_SENS));
+  });
+
+  const reticle = document.getElementById('reticle');
+  document.addEventListener('pointerlockchange', () => {
+    reticle.classList.toggle('hidden', document.pointerLockElement !== canvas);
+  });
+
+  // =====================================================================
+  // Physics panel — sliders for gravity, R, r
+  // =====================================================================
+  const physPanel = document.getElementById('physPanel');
+  const physToggle = document.getElementById('physToggle');
+  const physBody = document.getElementById('physBody');
+  const slGrav = document.getElementById('slGrav');
+  const slR = document.getElementById('slR');
+  const slr = document.getElementById('slr');
+  const valGrav = document.getElementById('valGrav');
+  const valR = document.getElementById('valR');
+  const valr = document.getElementById('valr');
+  let physCollapsed = false;
+
+  physToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    physCollapsed = !physCollapsed;
+    physBody.classList.toggle('collapsed', physCollapsed);
+    physToggle.textContent = physCollapsed ? 'Physics ▶' : 'Physics ▼';
+  });
+
+  // Show panel once game starts (via mutation on lobby)
+  const lobbyObs = new MutationObserver(() => {
+    if (lobby.classList.contains('hidden')) {
+      if (!isMobile) physPanel.classList.remove('hidden');
+      lobbyObs.disconnect();
+    }
+  });
+  lobbyObs.observe(lobby, { attributes: true, attributeFilter: ['class'] });
+
+  // Coarse recompute while dragging, full on release
+  let gravRecomputeTimer = null;
+
+  function onPhysicsSliderInput() {
+    GRAV_SCALE = parseFloat(slGrav.value);
+    TORUS_R = parseFloat(slR.value);
+    TORUS_r = parseFloat(slr.value);
+    valGrav.textContent = GRAV_SCALE.toFixed(1);
+    valR.textContent = TORUS_R.toFixed(1);
+    valr.textContent = TORUS_r.toFixed(1);
+    // Coarse recompute for instant feedback
+    computeGravLUT(GRAV_LUT_COARSE);
+    // Invalidate GPU sky cache so it picks up new R/r
+    lastGpuSkyImage = null;
+    // Cancel any pending full recompute
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+  }
+
+  function onPhysicsSliderRelease() {
+    // Schedule full-res recompute shortly after release
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+    gravRecomputeTimer = setTimeout(() => {
+      computeGravLUT(GRAV_LUT_FULL);
+      gravRecomputeTimer = null;
+    }, 50);
+  }
+
+  // Stop keyboard events from moving the player while dragging sliders
+  for (const sl of [slGrav, slR, slr]) {
+    sl.addEventListener('input', (e) => { e.stopPropagation(); onPhysicsSliderInput(); });
+    sl.addEventListener('change', (e) => { e.stopPropagation(); onPhysicsSliderRelease(); });
+    sl.addEventListener('keydown', (e) => e.stopPropagation());
+    sl.addEventListener('keyup', (e) => e.stopPropagation());
+  }
+
+  // =====================================================================
+  // Touch controls — dual-zone virtual joystick
+  // =====================================================================
+  const touchLeft = document.getElementById('touchLeft');
+  const touchRight = document.getElementById('touchRight');
+  const touchHint = document.getElementById('touchHint');
+
+  // Touch state: normalized -1..1 for each axis
+  let touchMoveX = 0, touchMoveY = 0; // left zone: movement
+  let touchLookX = 0; // right zone: turning
+  let touchJump = false;
+  let leftTouchId = null, rightTouchId = null;
+  let leftOrigin = null, rightOrigin = null;
+
+  if (isMobile) {
+    touchHint.textContent = 'L: move \u00b7 R: turn \u00b7 tap R: jump';
+    // Auto-enter FP mode on mobile
+    fpMode = true;
+    document.getElementById('viewToggle').textContent = 'Top down [F]';
+
+    const DEAD_ZONE = 12; // px
+    const MAX_DIST = 60; // px
+
+    touchLeft.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      leftTouchId = t.identifier;
+      leftOrigin = { x: t.clientX, y: t.clientY };
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId && leftOrigin) {
+          let dx = t.clientX - leftOrigin.x;
+          let dy = t.clientY - leftOrigin.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < DEAD_ZONE) { touchMoveX = 0; touchMoveY = 0; }
+          else {
+            const norm = Math.min(dist, MAX_DIST) / MAX_DIST;
+            touchMoveX = (dx / dist) * norm;
+            touchMoveY = (dy / dist) * norm;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId) {
+          leftTouchId = null; leftOrigin = null;
+          touchMoveX = 0; touchMoveY = 0;
+        }
+      }
+    });
+    touchLeft.addEventListener('touchcancel', e => {
+      leftTouchId = null; leftOrigin = null;
+      touchMoveX = 0; touchMoveY = 0;
+    });
+
+    let rightTapTime = 0;
+    touchRight.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      rightTouchId = t.identifier;
+      rightOrigin = { x: t.clientX, y: t.clientY };
+      rightTapTime = performance.now();
+    }, { passive: false });
+
+    touchRight.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId && rightOrigin) {
+          const dx = t.clientX - rightOrigin.x;
+          const dist = Math.abs(dx);
+          if (dist < DEAD_ZONE) { touchLookX = 0; }
+          else {
+            touchLookX = Math.sign(dx) * Math.min(dist, MAX_DIST) / MAX_DIST;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchRight.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId) {
+          // Short tap = jump
+          if (performance.now() - rightTapTime < 250 && Math.abs(touchLookX) < 0.2) {
+            touchJump = true;
+          }
+          rightTouchId = null; rightOrigin = null;
+          touchLookX = 0;
+        }
+      }
+    });
+    touchRight.addEventListener('touchcancel', e => {
+      rightTouchId = null; rightOrigin = null;
+      touchLookX = 0;
+    });
+  } else {
+    // Hide touch zones on desktop
+    touchLeft.style.display = 'none';
+    touchRight.style.display = 'none';
+  }
 
   // Click-to-move
   let moveTarget = null;
@@ -760,8 +1413,19 @@
     return world[Math.floor(wrapY(y)) * WORLD_W + Math.floor(wrapX(x))];
   }
 
-  function canWalk(x, y) {
-    return WALKABLE.has(tileAt(x, y));
+  function tileHeightAt(x, y) {
+    return TILE_HEIGHT[tileAt(x, y)] || 0;
+  }
+
+  function canWalk(x, y, fromX, fromY) {
+    const tile = tileAt(x, y);
+    if (!WALKABLE.has(tile)) return false;
+    // Check step-up height if we have a source position
+    if (fromX !== undefined) {
+      const dh = (TILE_HEIGHT[tile] || 0) - tileHeightAt(fromX, fromY);
+      if (dh > MAX_STEP_UP) return false;
+    }
+    return true;
   }
 
   // =====================================================================
@@ -908,17 +1572,26 @@
     let dx = 0, dy = 0;
 
     if (fpMode) {
-      // Jump
-      if (keys[' '] && !airborne) doJump();
+      // Jump (keyboard or touch tap)
+      if ((keys[' '] || touchJump) && !airborne) doJump();
+      touchJump = false;
 
-      // First-person: WASD is relative to facing direction
-      // A/D turn, W/S move forward/back
+      // First-person: WASD + touch
       const turnSpeed = 2.5;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerAngle -= turnSpeed * dt;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) playerAngle += turnSpeed * dt;
+      // Touch turn
+      if (Math.abs(touchLookX) > 0.01) playerAngle += touchLookX * turnSpeed * 1.5 * dt;
+
       const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+      const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
       if (keys['ArrowUp'] || keys['w'] || keys['W']) { dx += fwdX; dy += fwdY; }
       if (keys['ArrowDown'] || keys['s'] || keys['S']) { dx -= fwdX; dy -= fwdY; }
+      // Touch move (left stick: Y is forward/back, X is strafe)
+      if (Math.abs(touchMoveY) > 0.01 || Math.abs(touchMoveX) > 0.01) {
+        dx += -touchMoveY * fwdX + touchMoveX * rightX;
+        dy += -touchMoveY * fwdY + touchMoveX * rightY;
+      }
       // Sync playerDir for sprite/network
       const a = ((playerAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
       if (a < Math.PI*0.25 || a >= Math.PI*1.75) playerDir = 0;      // south
@@ -963,9 +1636,9 @@
       const newX = playerX + dx * speed;
       const newY = playerY + dy * speed;
 
-      // Check walkability (test a few points around the player)
-      const canX = canWalk(newX, playerY) && canWalk(newX + 0.3, playerY) && canWalk(newX - 0.3, playerY);
-      const canY = canWalk(playerX, newY) && canWalk(playerX, newY + 0.3) && canWalk(playerX, newY - 0.3);
+      // Check walkability with height-aware stepping
+      const canX = canWalk(newX, playerY, playerX, playerY) && canWalk(newX + 0.3, playerY, playerX, playerY) && canWalk(newX - 0.3, playerY, playerX, playerY);
+      const canY = canWalk(playerX, newY, playerX, playerY) && canWalk(playerX, newY + 0.3, playerX, playerY) && canWalk(playerX, newY - 0.3, playerX, playerY);
 
       if (canX) playerX = wrapX(newX);
       if (canY) playerY = wrapY(newY);
@@ -982,23 +1655,10 @@
   // =====================================================================
   // Raycaster — Wolfenstein-style first-person renderer
   // =====================================================================
-  // Wall colors per tile type (darker = side face)
-  const WALL_COLORS = {
-    [T.WATER]:  { front: '#3a7abf', side: '#2a5a8f' },
-    [T.TREE]:   { front: '#2a6a30', side: '#1a4a20' },
-    [T.ROCK]:   { front: '#7a7a82', side: '#5a5a62' },
-    [T.SAND]:   { front: '#c2b280', side: '#a09060' },
-    [T.DIRT]:   { front: '#8a6a44', side: '#6a4a2e' },
-    [T.BRIDGE]: { front: '#9a7a50', side: '#7a5a30' },
-  };
-  const DEFAULT_WALL = { front: '#888', side: '#666' };
-  const FOG_DIST = 20; // tiles
+  // Raycaster constants
   const FOV = Math.PI * 0.6; // ~108 degrees
   const VFOV = Math.PI * 0.45; // vertical FOV
 
-  // Torus geometry constants
-  const TORUS_R = 5.0;  // major radius
-  const TORUS_r = 2.0;  // minor radius
   function getPlayerV() {
     return (playerY / WORLD_H) * Math.PI * 2;
   }
@@ -1121,22 +1781,16 @@
     });
   }
 
-  function renderTorusSky(w, h) {
-    const halfH = h / 2;
+  // Compute camera frame — shared by GPU and fallback sky renderers
+  function computeSkyCamera() {
     const u = getPlayerU();
     const v = getPlayerV();
-
-    // Player position on torus, offset by jump height
     const surfP = torusPos(u, v);
-    const heightOffset = playerHeight + EYE_HEIGHT;
-    // If airborne, use cross-section position directly for accuracy
+    const groundTileH = tileHeightAt(playerX, playerY);
+    const heightOffset = playerHeight + EYE_HEIGHT + (airborne ? 0 : groundTileH);
     let P;
     if (airborne && playerHeight > 0.01) {
-      P = [
-        csR * Math.cos(u),
-        csZ,
-        csR * Math.sin(u),
-      ];
+      P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
     } else {
       const enLocal = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
       P = [
@@ -1146,71 +1800,103 @@
       ];
     }
 
-    // Local frame at (u, v)
-    // e_u: d/du of torusPos, normalized (tangent along ring)
-    const eu = [
-      -(TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
-      0,
-      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
-    ];
-    const euLen = Math.sqrt(eu[0]*eu[0] + eu[1]*eu[1] + eu[2]*eu[2]);
-    eu[0] /= euLen; eu[1] /= euLen; eu[2] /= euLen;
-
-    // e_v: d/dv of torusPos, normalized (tangent along tube)
-    const ev = [
-      -TORUS_r * Math.sin(v) * Math.cos(u),
-      TORUS_r * Math.cos(v),
-      -TORUS_r * Math.sin(v) * Math.sin(u),
-    ];
-    const evLen = Math.sqrt(ev[0]*ev[0] + ev[1]*ev[1] + ev[2]*ev[2]);
-    ev[0] /= evLen; ev[1] /= evLen; ev[2] /= evLen;
-
-    // e_n: outward normal = cross(e_u, e_v) (or just the radial direction)
-    const en = [
-      Math.cos(v) * Math.cos(u),
-      Math.sin(v),
-      Math.cos(v) * Math.sin(u),
-    ];
-
-    // playerAngle: 0 = south (+Y = +v direction), pi/2 = east (+X = +u direction)
-    // On the torus surface, "forward" in the game is:
-    //   forward = sin(playerAngle) * e_u + cos(playerAngle) * e_v
-    //   right   = cos(playerAngle) * e_u - sin(playerAngle) * e_v
-    //   up      = e_n
-    const fwd = [
-      Math.sin(playerAngle) * eu[0] + Math.cos(playerAngle) * ev[0],
-      Math.sin(playerAngle) * eu[1] + Math.cos(playerAngle) * ev[1],
-      Math.sin(playerAngle) * eu[2] + Math.cos(playerAngle) * ev[2],
-    ];
-    const right = [
-      Math.cos(playerAngle) * eu[0] - Math.sin(playerAngle) * ev[0],
-      Math.cos(playerAngle) * eu[1] - Math.sin(playerAngle) * ev[1],
-      Math.cos(playerAngle) * eu[2] - Math.sin(playerAngle) * ev[2],
-    ];
-    const up = en;
-
-    // Helper: project world-space direction to screen pixel
-    function worldToScreen(dx, dy, dz) {
-      const cf = dx*fwd[0] + dy*fwd[1] + dz*fwd[2];
-      if (cf < 0.01) return null;
-      const cr = dx*right[0] + dy*right[1] + dz*right[2];
-      const cu = dx*up[0] + dy*up[1] + dz*up[2];
-      return {
-        sx: (cr / cf) / Math.tan(FOV/2) * (w/2) + w/2,
-        sy: halfH - (cu / cf) / Math.tan(VFOV/2) * halfH,
-      };
+    // Gravity-aligned camera: "up" = anti-gravity direction (unified for all states)
+    // Compute (R, Z) in the meridional plane
+    let mR, mZ;
+    if (airborne && playerHeight > 0.01) {
+      mR = csR;
+      mZ = csZ;
+    } else {
+      // On surface: derive from toroidal coordinates
+      mR = TORUS_R + TORUS_r * Math.cos(v);
+      mZ = TORUS_r * Math.sin(v);
     }
 
-    // Background: deep space
-    ctx.fillStyle = '#06060a';
-    ctx.fillRect(0, 0, w, halfH);
+    const absR = Math.abs(mR);
+    const g = sampleGravity(Math.max(0.1, absR), mZ);
+    const gR = mR >= 0 ? g.gR : -g.gR;
+    const gZ = g.gZ;
+    const gLen = Math.sqrt(gR * gR + gZ * gZ);
 
-    // Draw stars (not occluded by torus)
+    let en;
+    if (gLen > 0.01) {
+      const antiR = -gR / gLen;
+      const antiZ = -gZ / gLen;
+      en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
+    } else {
+      const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
+      en = [P[0]/rLen, 0, P[2]/rLen];
+    }
+
+    // Build orthonormal frame via Gram-Schmidt with u-tangent as reference
+    // u-tangent = (-sin u, 0, cos u) — always perpendicular to radial, no discontinuity
+    const uTan = [-Math.sin(u), 0, Math.cos(u)];
+
+    // eu = normalize(uTan - (uTan·en)*en)
+    const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
+    let rx = uTan[0] - dot*en[0];
+    let ry = uTan[1] - dot*en[1];
+    let rz = uTan[2] - dot*en[2];
+    let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
+    rx /= rLen; ry /= rLen; rz /= rLen;
+
+    // ev = eu × en  (not en × eu — need v-tangent to point in increasing-v direction)
+    let tx = ry*en[2] - rz*en[1];
+    let ty = rz*en[0] - rx*en[2];
+    let tz = rx*en[1] - ry*en[0];
+    let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+    tx /= tLen; ty /= tLen; tz /= tLen;
+
+    const eu = [rx, ry, rz];
+    const ev = [tx, ty, tz];
+
+    // Apply playerAngle as yaw: forward = sin(angle)*eu + cos(angle)*ev
+    const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+    const flatFwd = [
+      sa * eu[0] + ca * ev[0],
+      sa * eu[1] + ca * ev[1],
+      sa * eu[2] + ca * ev[2],
+    ];
+    const right = [
+      ca * eu[0] - sa * ev[0],
+      ca * eu[1] - sa * ev[1],
+      ca * eu[2] - sa * ev[2],
+    ];
+
+    // Pitch: rotate flatFwd and en around the right axis
+    const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+    const fwd = [
+      flatFwd[0] * cp + en[0] * sp,
+      flatFwd[1] * cp + en[1] * sp,
+      flatFwd[2] * cp + en[2] * sp,
+    ];
+    const up = [
+      -flatFwd[0] * sp + en[0] * cp,
+      -flatFwd[1] * sp + en[1] * cp,
+      -flatFwd[2] * sp + en[2] * cp,
+    ];
+    return { P, fwd, right, up };
+  }
+
+  // Project world direction to screen pixel
+  function worldToScreen(dx, dy, dz, fwd, right, up, w, halfH) {
+    const cf = dx*fwd[0] + dy*fwd[1] + dz*fwd[2];
+    if (cf < 0.01) return null;
+    const cr = dx*right[0] + dy*right[1] + dz*right[2];
+    const cu = dx*up[0] + dy*up[1] + dz*up[2];
+    return {
+      sx: (cr / cf) / Math.tan(FOV/2) * (w/2) + w/2,
+      sy: halfH - (cu / cf) / Math.tan(VFOV/2) * halfH,
+    };
+  }
+
+  // Draw stars and sun (canvas 2D overlay, used by both paths)
+  function renderStarsAndSun(w, halfH, P, fwd, right, up) {
     for (const star of starData) {
       const sdx = Math.cos(star.el) * Math.cos(star.az);
       const sdy = Math.sin(star.el);
       const sdz = Math.cos(star.el) * Math.sin(star.az);
-      const sp = worldToScreen(sdx, sdy, sdz);
+      const sp = worldToScreen(sdx, sdy, sdz, fwd, right, up, w, halfH);
       if (!sp || sp.sx < 0 || sp.sx >= w || sp.sy < 0 || sp.sy >= halfH) continue;
       const t = rayTorus(P[0], P[1], P[2], sdx, sdy, sdz);
       if (t > 0) continue;
@@ -1219,13 +1905,10 @@
       ctx.fillRect(sp.sx, sp.sy, star.size, star.size);
     }
 
-    // Draw sun disk + glow
-    const sunScreen = worldToScreen(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
+    const sunScreen = worldToScreen(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2], fwd, right, up, w, halfH);
     if (sunScreen && sunScreen.sy < halfH + 40) {
-      // Check if sun is occluded by torus
       const sunT = rayTorus(P[0], P[1], P[2], SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
       if (sunT < 0) {
-        // Sun is visible — draw glow then disk
         const glowR = 60;
         const grad = ctx.createRadialGradient(sunScreen.sx, sunScreen.sy, 4, sunScreen.sx, sunScreen.sy, glowR);
         grad.addColorStop(0, 'rgba(255,240,200,0.4)');
@@ -1233,8 +1916,6 @@
         grad.addColorStop(1, 'rgba(255,180,80,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(sunScreen.sx - glowR, sunScreen.sy - glowR, glowR * 2, glowR * 2);
-
-        // Sun disk
         ctx.beginPath();
         ctx.arc(sunScreen.sx, sunScreen.sy, 8, 0, Math.PI * 2);
         ctx.fillStyle = '#fff8e0';
@@ -1245,65 +1926,10 @@
         ctx.fill();
       }
     }
+  }
 
-    // Torus silhouette with sun lighting
-    const skyStripW = 4;
-    const skyStripH = 4;
-    const skyColsCount = Math.ceil(w / skyStripW);
-    const skyRowsCount = Math.ceil(halfH / skyStripH);
-
-    for (let row = 0; row < skyRowsCount; row++) {
-      const sy = row * skyStripH;
-      const screenV = 1 - sy / halfH;
-      const elevAngle = screenV * VFOV;
-
-      for (let col = 0; col < skyColsCount; col++) {
-        const sx = col * skyStripW;
-        const screenH = (sx / w) * 2 - 1;
-        const azAngle = screenH * FOV / 2;
-
-        const rd = [
-          fwd[0]*Math.cos(elevAngle)*Math.cos(azAngle) + right[0]*Math.cos(elevAngle)*Math.sin(azAngle) + up[0]*Math.sin(elevAngle),
-          fwd[1]*Math.cos(elevAngle)*Math.cos(azAngle) + right[1]*Math.cos(elevAngle)*Math.sin(azAngle) + up[1]*Math.sin(elevAngle),
-          fwd[2]*Math.cos(elevAngle)*Math.cos(azAngle) + right[2]*Math.cos(elevAngle)*Math.sin(azAngle) + up[2]*Math.sin(elevAngle),
-        ];
-
-        const t = rayTorus(P[0], P[1], P[2], rd[0], rd[1], rd[2]);
-        if (t > 0) {
-          // Hit point on torus
-          const hx = P[0] + t * rd[0];
-          const hy = P[1] + t * rd[1];
-          const hz = P[2] + t * rd[2];
-
-          // Compute surface normal at hit point
-          // For a torus: normal = (p - center_of_nearest_tube_circle) / r
-          const distFromAxis = Math.sqrt(hx * hx + hz * hz);
-          const tubeX = (distFromAxis > 0.001) ? hx * TORUS_R / distFromAxis : TORUS_R;
-          const tubeZ = (distFromAxis > 0.001) ? hz * TORUS_R / distFromAxis : 0;
-          const hnx = hx - tubeX;
-          const hny = hy;
-          const hnz = hz - tubeZ;
-          const hnLen = Math.sqrt(hnx*hnx + hny*hny + hnz*hnz) || 1;
-
-          // Sun dot normal
-          const sunDot = Math.max(0, (hnx * SUN_DIR[0] + hny * SUN_DIR[1] + hnz * SUN_DIR[2]) / hnLen);
-          const light = 0.08 + 0.92 * sunDot;
-
-          // Distance fade
-          const fade = Math.min(1, t / 40);
-          const distDim = 1 - fade * 0.7;
-
-          // Green-ish torus surface lit by sun
-          const sr = Math.floor(Math.min(255, (25 + 45 * sunDot) * distDim));
-          const sg = Math.floor(Math.min(255, (35 + 65 * sunDot) * distDim));
-          const sb = Math.floor(Math.min(255, (18 + 25 * sunDot) * distDim));
-          ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
-          ctx.fillRect(sx, sy, skyStripW, skyStripH);
-        }
-      }
-    }
-
-    // Floor with sun lighting
+  // Floor gradient (shared)
+  function renderFloor(w, h, halfH) {
     const floorSun = tileSunlight(playerX, playerY);
     const floorLit = Math.floor(42 * floorSun);
     const floorDark = Math.floor(26 * floorSun);
@@ -1314,97 +1940,111 @@
     ctx.fillRect(0, halfH, w, halfH);
   }
 
-  function renderFP() {
-    const w = canvas.width, h = canvas.height;
-    // Horizon drops when airborne (camera is higher)
-    const horizonShift = Math.floor(playerHeight * 40);
-    const halfH = Math.floor(h / 2) + horizonShift;
+  // GPU torus render — full screen, kicks off async, draws last result synchronously
+  let pendingGpuSky = null;
+  let lastGpuSkyImage = null;
 
-    // Torus sky + floor
-    renderTorusSky(w, h);
+  function renderTorusGPU(w, h, halfH) {
+    const cam = computeSkyCamera();
+    const horizonFrac = halfH / h; // where horizon sits as fraction from top
 
-    // Cast one ray per 2-pixel column for performance
-    const stripW = 2;
-    const numRays = Math.ceil(w / stripW);
+    // Deep space background (visible through alpha=0 GPU pixels)
+    ctx.fillStyle = '#06060a';
+    ctx.fillRect(0, 0, w, h);
 
-    for (let col = 0; col < numRays; col++) {
-      const screenX = (col / numRays) * 2 - 1; // -1 to 1
-      const rayAngle = playerAngle + screenX * FOV / 2;
-      const rdx = Math.sin(rayAngle);
-      const rdy = Math.cos(rayAngle);
+    // Stars (drawn behind torus, above horizon)
+    renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
 
-      // DDA ray march through tile grid (toroidal)
-      let mapX = Math.floor(playerX), mapY = Math.floor(playerY);
-      const deltaDistX = Math.abs(1 / (rdx || 1e-10));
-      const deltaDistY = Math.abs(1 / (rdy || 1e-10));
-      const stepX = rdx > 0 ? 1 : -1;
-      const stepY = rdy > 0 ? 1 : -1;
-      let sideDistX = rdx > 0
-        ? (mapX + 1 - playerX) * deltaDistX
-        : (playerX - mapX) * deltaDistX;
-      let sideDistY = rdy > 0
-        ? (mapY + 1 - playerY) * deltaDistY
-        : (playerY - mapY) * deltaDistY;
+    // Kick off full-screen GPU render
+    if (!pendingGpuSky && gpuSky) {
+      pendingGpuSky = gpuSky.render(w, h, horizonFrac, cam.P, cam.fwd, cam.right, cam.up, SUN_DIR, TORUS_R, TORUS_r)
+        .then(img => { lastGpuSkyImage = img; pendingGpuSky = null; })
+        .catch(err => { console.warn('GPU sky error:', err); pendingGpuSky = null; });
+    }
 
-      let hit = false, side = 0, dist = 0, hitTile = 0, hitWX = 0, hitWY = 0;
+    // Draw last computed GPU image (full screen — torus surface above AND below)
+    if (lastGpuSkyImage && lastGpuSkyImage.width === w && lastGpuSkyImage.height === h) {
+      if (!renderTorusGPU._tmpCanvas || renderTorusGPU._tmpW !== w || renderTorusGPU._tmpH !== h) {
+        renderTorusGPU._tmpCanvas = new OffscreenCanvas(w, h);
+        renderTorusGPU._tmpCtx = renderTorusGPU._tmpCanvas.getContext('2d');
+        renderTorusGPU._tmpW = w;
+        renderTorusGPU._tmpH = h;
+      }
+      renderTorusGPU._tmpCtx.putImageData(lastGpuSkyImage, 0, 0);
+      ctx.drawImage(renderTorusGPU._tmpCanvas, 0, 0);
+    }
+  }
 
-      for (let step = 0; step < 80; step++) {
-        if (sideDistX < sideDistY) {
-          sideDistX += deltaDistX;
-          mapX += stepX;
-          side = 0;
-        } else {
-          sideDistY += deltaDistY;
-          mapY += stepY;
-          side = 1;
-        }
+  // Fallback canvas 2D sky renderer (4x4 strips, solid green torus)
+  function renderTorusSkyFallback(w, h) {
+    const halfH = Math.floor(h / 2);
+    const cam = computeSkyCamera();
 
-        const wx = ((mapX % WORLD_W) + WORLD_W) % WORLD_W;
-        const wy = ((mapY % WORLD_H) + WORLD_H) % WORLD_H;
-        const tile = world[wy * WORLD_W + wx];
+    ctx.fillStyle = '#06060a';
+    ctx.fillRect(0, 0, w, halfH);
 
-        if (!WALKABLE.has(tile)) {
-          hit = true;
-          hitTile = tile;
-          hitWX = wx; hitWY = wy;
-          dist = side === 0
-            ? (mapX - playerX + (1 - stepX) / 2) / rdx
-            : (mapY - playerY + (1 - stepY) / 2) / rdy;
-          break;
+    renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
+
+    // Torus silhouette with sun lighting (4x4 strips)
+    const skyStripW = isMobile ? 8 : 4, skyStripH = isMobile ? 8 : 4;
+    const skyColsCount = Math.ceil(w / skyStripW);
+    const skyRowsCount = Math.ceil(halfH / skyStripH);
+    const { P, fwd, right, up } = cam;
+
+    for (let row = 0; row < skyRowsCount; row++) {
+      const sy = row * skyStripH;
+      const screenV = 1 - sy / halfH;
+      const elevAngle = screenV * VFOV;
+      for (let col = 0; col < skyColsCount; col++) {
+        const sx = col * skyStripW;
+        const screenH = (sx / w) * 2 - 1;
+        const azAngle = screenH * FOV / 2;
+        const rd = [
+          fwd[0]*Math.cos(elevAngle)*Math.cos(azAngle) + right[0]*Math.cos(elevAngle)*Math.sin(azAngle) + up[0]*Math.sin(elevAngle),
+          fwd[1]*Math.cos(elevAngle)*Math.cos(azAngle) + right[1]*Math.cos(elevAngle)*Math.sin(azAngle) + up[1]*Math.sin(elevAngle),
+          fwd[2]*Math.cos(elevAngle)*Math.cos(azAngle) + right[2]*Math.cos(elevAngle)*Math.sin(azAngle) + up[2]*Math.sin(elevAngle),
+        ];
+        const t = rayTorus(P[0], P[1], P[2], rd[0], rd[1], rd[2]);
+        if (t > 0) {
+          const hx = P[0] + t * rd[0], hy = P[1] + t * rd[1], hz = P[2] + t * rd[2];
+          const distFromAxis = Math.sqrt(hx * hx + hz * hz);
+          const tubeX = (distFromAxis > 0.001) ? hx * TORUS_R / distFromAxis : TORUS_R;
+          const tubeZ = (distFromAxis > 0.001) ? hz * TORUS_R / distFromAxis : 0;
+          const hnx = hx - tubeX, hny = hy, hnz = hz - tubeZ;
+          const hnLen = Math.sqrt(hnx*hnx + hny*hny + hnz*hnz) || 1;
+          const sunDot = Math.max(0, (hnx * SUN_DIR[0] + hny * SUN_DIR[1] + hnz * SUN_DIR[2]) / hnLen);
+          const fade = Math.min(1, t / 40);
+          const distDim = 1 - fade * 0.7;
+          const sr = Math.floor(Math.min(255, (25 + 45 * sunDot) * distDim));
+          const sg = Math.floor(Math.min(255, (35 + 65 * sunDot) * distDim));
+          const sb = Math.floor(Math.min(255, (18 + 25 * sunDot) * distDim));
+          ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
+          ctx.fillRect(sx, sy, skyStripW, skyStripH);
         }
       }
-
-      if (!hit) continue;
-
-      // Fix fisheye
-      const perpDist = dist * Math.cos(screenX * FOV / 2);
-      if (perpDist < 0.1) continue;
-
-      // Wall height
-      const wallH = Math.min(h * 2, h / perpDist);
-      const wallTop = halfH - wallH / 2;
-
-      // Wall color with sun lighting + fog
-      const wc = WALL_COLORS[hitTile] || DEFAULT_WALL;
-      const baseColor = side === 1 ? wc.side : wc.front;
-      const wallSun = tileSunlight(hitWX, hitWY);
-      const fog = Math.min(1, perpDist / FOG_DIST);
-
-      // Parse hex to RGB, apply sun, blend with fog
-      const br = parseInt(baseColor.slice(1,3), 16) * wallSun;
-      const bg = parseInt(baseColor.slice(3,5), 16) * wallSun;
-      const bb = parseInt(baseColor.slice(5,7), 16) * wallSun;
-      // Fog color also darkens on shadow side
-      const fogR = 0x06 + 0x14 * wallSun;
-      const fogG = 0x06 + 0x24 * wallSun;
-      const fogB = 0x0a + 0x1a * wallSun;
-      const fr = Math.floor(br * (1-fog) + fogR * fog);
-      const fg = Math.floor(bg * (1-fog) + fogG * fog);
-      const fb = Math.floor(bb * (1-fog) + fogB * fog);
-
-      ctx.fillStyle = `rgb(${fr},${fg},${fb})`;
-      ctx.fillRect(col * stripW, wallTop, stripW, wallH);
     }
+
+    renderFloor(w, h, halfH);
+  }
+
+  // Main dispatcher
+  function renderTorusSky(w, h, halfH) {
+    if (gpuSky) {
+      renderTorusGPU(w, h, halfH);
+    } else {
+      renderTorusSkyFallback(w, h);
+    }
+  }
+
+  function renderFP() {
+    const w = canvas.width, h = canvas.height;
+    // Horizon shifts with pitch and jump height
+    const pitchShift = Math.floor(playerPitch / VFOV * h);
+    const heightShift = Math.floor(playerHeight * 40);
+    const halfH = Math.floor(h / 2) + pitchShift + heightShift;
+
+    // Full-screen torus surface (GPU) or sky+floor (fallback)
+    renderTorusSky(w, h, halfH);
   }
 
   function render() {
@@ -1485,7 +2125,8 @@
     const v = getPlayerV();
     const gLocal = surfaceGravity().toFixed(1);
     const jumpInfo = fpMode ? ` · g=${gLocal}${airborne ? ' AIRBORNE h=' + playerHeight.toFixed(1) : ''}` : '';
-    const controls = fpMode ? 'wasd · space=jump · shift+space=super jump' : 'wasd / click to move';
+    const mouseHint = document.pointerLockElement ? '' : ' · click for mouse look';
+    const controls = fpMode ? `wasd · space=jump · shift+space=super${mouseHint}` : 'wasd / click to move';
     document.getElementById('hud').textContent =
       `${tx}, ${ty} · ${tileName}${jumpInfo}${netInfo}\n${controls}`;
   }
@@ -1504,3 +2145,4 @@
 </script>
 </body>
 </html>
+

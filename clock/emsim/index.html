@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EMSIM — Multi-Physics Torus Fields</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000}
+canvas{display:block}
+#lbl{position:fixed;top:8px;left:8px;color:#aaa;font:13px monospace;pointer-events:none;z-index:1}
+#ctl{position:fixed;bottom:0;left:0;right:0;background:rgba(15,15,30,0.95);
+  border-top:1px solid #333;padding:8px 10px;z-index:2;font:12px monospace;color:#ccc;
+  max-height:50vh;overflow-y:auto}
+#ctl label{display:inline-block;margin-right:8px}
+#ctl input[type=range]{width:70px;vertical-align:middle;accent-color:#88f}
+#ctl input[type=number]{width:38px;background:#222;color:#ddd;border:1px solid #444;font:inherit}
+#ctl select{background:#222;color:#ddd;border:1px solid #444;font:inherit;padding:1px}
+#ctl button{background:#333;color:#ddd;border:1px solid #555;padding:3px 8px;
+  cursor:pointer;font:inherit;margin:1px}
+#ctl button:hover{background:#444}
+.v{color:#fff;min-width:24px;display:inline-block;text-align:right}
+.trow{display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:3px 0;border-bottom:1px solid #222}
+.tcolor{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="lbl">Torus gravity</div>
+<div id="ctl">
+  <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px">
+    <button id="btnAdd">+ Torus</button>
+    <button id="btnCopy">Copy config</button>
+    <button id="btnPlay">Play ▶</button>
+    <label>Grid <span class="v" id="vG">14</span>
+      <input type="range" id="slG" min="8" max="22" step="2" value="14"></label>
+    <label>Perim <span class="v" id="vP">30</span>
+      <input type="range" id="slP" min="0" max="48" step="6" value="30"></label>
+    <button id="btnDrop">Arm drop</button>
+    <button id="btnClear">Clear</button>
+    <span id="tpInfo" style="color:#ff0"></span>
+  </div>
+  <div id="toriList"></div>
+</div>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// === State ===
+const COLORS = ['#88f','#f88','#8f8','#ff8','#f8f','#8ff','#fa8','#8af'];
+let tori = []; // [{id, R, r, z, solid, q, I, dir, color}]
+let nextId = 1;
+let GN = 14, pN = 30;
+let vcx = 4, vcy = 0, vsc = 40;
+let tp = null, trail = [];
+let armMode = 'idle', aimStart = null, aimEnd = null;
+
+function addTorus(R, r, z, solid, q, I, dir) {
+  const id = nextId++;
+  const color = COLORS[(id - 1) % COLORS.length];
+  tori.push({id, R, r, z: z||0, solid: solid||false, q: q||0, I: I||0, dir: dir||'t', color});
+  buildUI(); draw();
+}
+function rmTorus(id) {
+  tori = tori.filter(t => t.id !== id);
+  buildUI(); draw();
+}
+// Load config from hash or default
+(function loadConfig() {
+  if (location.hash.length > 1) {
+    try {
+      const cfg = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+      if (Array.isArray(cfg)) { cfg.forEach(t => addTorus(t.R, t.r, t.z||0, t.solid||false, t.q||0, t.I||0, t.dir||'t')); return; }
+    } catch(e) {}
+  }
+  addTorus(4, 2, 0, false);
+})();
+
+// === Coordinate transforms ===
+function w2s(r, z) { return [(r - vcx) * vsc + W/2, H/2 - (z - vcy) * vsc]; }
+function s2w(sx, sy) { return [(sx - W/2) / vsc + vcx, (H/2 - sy) / vsc + vcy]; }
+
+// === Gravity/Electric field from one torus (inverse-square integral) ===
+function torusGravField(tor, Rp, Zp) {
+  const Nu = 20, Nv = 16;
+  const du = 2 * Math.PI / Nu, dv = 2 * Math.PI / Nv;
+  const Nr = tor.solid ? 4 : 1;
+  const drs = tor.r / Nr;
+  let fr = 0, fz = 0;
+  for (let ir = 0; ir < Nr; ir++) {
+    const rs = tor.solid ? (ir + 0.5) * drs : tor.r;
+    for (let iu = 0; iu < Nu; iu++) {
+      const u = (iu + 0.5) * du;
+      const cu = Math.cos(u), su = Math.sin(u);
+      for (let iv = 0; iv < Nv; iv++) {
+        const v = (iv + 0.5) * dv;
+        const Rc = tor.R + rs * Math.cos(v);
+        const ex = Rc * cu, ey = Rc * su, ez = tor.z + rs * Math.sin(v);
+        const dx = Rp - ex, dy = -ey, dz = Zp - ez;
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < 0.01) continue;
+        const dist = Math.sqrt(d2);
+        const w = tor.solid ? rs * Math.abs(Rc) * du * dv * drs
+                            : rs * Math.abs(Rc) * du * dv;
+        const f3 = -w / (dist * d2);
+        fr += dx * f3; fz += dz * f3;
+      }
+    }
+  }
+  return {fr, fz};
+}
+
+// === Magnetic field from toroidal current (Biot-Savart ring at centerline) ===
+// Returns {br, bz} — poloidal B field components at (Rp, Zp)
+function torusBiotSavart(tor, Rp, Zp) {
+  if (Math.abs(tor.I) < 1e-10 || tor.dir !== 't') return {br: 0, bz: 0};
+  const Nu = 48;
+  const du = 2 * Math.PI / Nu;
+  let br = 0, bz = 0;
+  for (let iu = 0; iu < Nu; iu++) {
+    const u = (iu + 0.5) * du;
+    const cu = Math.cos(u), su = Math.sin(u);
+    // Current element dl = R*du * (-sin u, cos u, 0) (toroidal direction)
+    // Source position: (R*cos u, R*sin u, z)
+    // r = field_pt - source = (Rp - R*cos u, -R*sin u, Zp - z)
+    const rx = Rp - tor.R * cu, ry = -tor.R * su, rz = Zp - tor.z;
+    const r2 = rx*rx + ry*ry + rz*rz;
+    if (r2 < 0.01) continue;
+    const r3 = Math.pow(r2, 1.5);
+    // dl × r: (cos(u)*(Zp-z), sin(u)*(Zp-z), R - Rp*cos(u))
+    const crossX = cu * (Zp - tor.z);
+    const crossZ = tor.R - Rp * cu;
+    // B_R = crossX component, B_Z = crossZ component (by axial symmetry)
+    const sc = tor.I * tor.R * du / r3;
+    br += crossX * sc;
+    bz += crossZ * sc;
+  }
+  return {br, bz};
+}
+
+// === Magnetic field from poloidal current (toroidal B inside tube) ===
+// Returns bphi — toroidal B magnitude at (Rp, Zp)
+function torusPoloidalB(tor, Rp, Zp) {
+  if (Math.abs(tor.I) < 1e-10 || tor.dir !== 'p') return 0;
+  // Inside tube? Check distance from centerline circle
+  const dR = Rp - tor.R, dZ = Zp - tor.z;
+  const dist = Math.sqrt(dR*dR + dZ*dZ);
+  if (dist > tor.r) return 0; // outside tube
+  // Toroidal B = I / Rp (Ampere's law for ideal toroidal solenoid)
+  return tor.I / Math.max(Rp, 0.1);
+}
+
+// === Total fields from all tori ===
+// Returns {fr, fz, br, bz, bphi} — force + B components
+function fieldAt(Rp, Zp) {
+  let fr = 0, fz = 0, br = 0, bz = 0, bphi = 0;
+  for (const tor of tori) {
+    const g = torusGravField(tor, Rp, Zp);
+    // Gravity: always attractive
+    fr += g.fr; fz += g.fz;
+    // Electric: q > 0 on torus + positive test charge = repulsion (flip gravity)
+    if (Math.abs(tor.q) > 1e-10) {
+      fr -= tor.q * g.fr;
+      fz -= tor.q * g.fz;
+    }
+    // Magnetic: toroidal current → poloidal B
+    const bts = torusBiotSavart(tor, Rp, Zp);
+    br += bts.br; bz += bts.bz;
+    // Magnetic: poloidal current → toroidal B
+    bphi += torusPoloidalB(tor, Rp, Zp);
+  }
+  return {fr, fz, br, bz, bphi};
+}
+
+// === Dynamic UI ===
+function buildUI() {
+  const el = document.getElementById('toriList');
+  el.innerHTML = '';
+  for (const tor of tori) {
+    const d = document.createElement('div');
+    d.className = 'trow';
+    d.innerHTML =
+      `<span class="tcolor" style="background:${tor.color}"></span>` +
+      `R:<input type="number" step="0.5" value="${tor.R}" data-id="${tor.id}" data-f="R"> ` +
+      `r:<input type="number" step="0.25" value="${tor.r}" data-id="${tor.id}" data-f="r"> ` +
+      `z:<input type="number" step="0.5" value="${tor.z}" data-id="${tor.id}" data-f="z"> ` +
+      `<label><input type="checkbox" ${tor.solid?'checked':''} data-id="${tor.id}" data-f="solid"> solid</label> ` +
+      `q:<input type="number" step="0.5" value="${tor.q}" data-id="${tor.id}" data-f="q" style="width:34px"> ` +
+      `I:<input type="number" step="0.5" value="${tor.I}" data-id="${tor.id}" data-f="I" style="width:34px"> ` +
+      `<select data-id="${tor.id}" data-f="dir"><option value="t"${tor.dir==='t'?' selected':''}>tor</option><option value="p"${tor.dir==='p'?' selected':''}>pol</option></select> ` +
+      `<button data-rm="${tor.id}" style="color:#f66">x</button>`;
+    el.appendChild(d);
+  }
+  el.querySelectorAll('[data-id]').forEach(inp => {
+    if (inp.tagName === 'BUTTON') return;
+    const handler = () => {
+      const t = tori.find(x => x.id === +inp.dataset.id);
+      if (!t) return;
+      if (inp.dataset.f === 'solid') t.solid = inp.checked;
+      else if (inp.dataset.f === 'dir') t.dir = inp.value;
+      else t[inp.dataset.f] = parseFloat(inp.value);
+      draw();
+    };
+    inp.addEventListener('change', handler);
+    inp.addEventListener('input', handler);
+  });
+  el.querySelectorAll('button[data-rm]').forEach(b => {
+    b.addEventListener('click', () => rmTorus(+b.dataset.rm));
+  });
+}
+
+// === Draw ===
+function draw() {
+  const [rMin, zMax] = s2w(0, 0);
+  const [rMax, zMin] = s2w(W, H);
+  const cellW = W / GN, cellH = H / GN;
+  // Compute field grid
+  const grid = [];
+  for (let gi = 0; gi < GN; gi++) {
+    for (let gj = 0; gj < GN; gj++) {
+      const r = rMin + (gi + 0.5) / GN * (rMax - rMin);
+      const z = zMin + (gj + 0.5) / GN * (zMax - zMin);
+      const f = fieldAt(r, z);
+      const mag = Math.sqrt(f.fr*f.fr + f.fz*f.fz);
+      grid.push({r, z, fr: f.fr, fz: f.fz, mag, br: f.br, bz: f.bz, bphi: f.bphi});
+    }
+  }
+  let maxMag = 0;
+  for (const g of grid) if (g.mag > maxMag) maxMag = g.mag;
+
+  ctx.fillStyle = '#0a0a14'; ctx.fillRect(0, 0, W, H);
+
+  // Heatmap + arrows
+  for (let gi = 0; gi < GN; gi++) {
+    for (let gj = 0; gj < GN; gj++) {
+      const g = grid[gi * GN + gj];
+      const [sx, sy] = w2s(g.r, g.z);
+      const t = maxMag > 0 ? Math.max(0, Math.min(1, (Math.log10(g.mag+1e-6) - Math.log10(maxMag*.001)) / (Math.log10(maxMag) - Math.log10(maxMag*.001)))) : 0;
+      const cr = t<.5?0:Math.min(255,(t-.5)*2*255);
+      const cg = t<.25?t*4*255:t<.75?255:(1-t)*4*255;
+      const cb = t<.5?(1-t*2)*255:0;
+      ctx.fillStyle = `rgb(${cr|0},${cg|0},${cb|0})`;
+      ctx.globalAlpha = .3;
+      ctx.fillRect(sx-cellW/2, sy-cellH/2, cellW, cellH);
+      if (g.mag > 1e-8) {
+        const ml = Math.min(cellW,cellH)*.45;
+        const len = ml * Math.min(1, g.mag/maxMag*3);
+        const nr=g.fr/g.mag, nz=g.fz/g.mag;
+        const dx=nr*len, dy=-nz*len;
+        ctx.globalAlpha=.85;
+        ctx.strokeStyle=`rgb(${cr|0},${cg|0},${cb|0})`;
+        ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+dx,sy+dy);
+        const ax=-dx*.3+dy*.2,ay=-dy*.3-dx*.2;
+        const bx=-dx*.3-dy*.2,by=-dy*.3+dx*.2;
+        ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+ax,sy+dy+ay);
+        ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+bx,sy+dy+by);
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Symmetry axis
+  const [ax0] = w2s(0, 0);
+  ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(ax0,0); ctx.lineTo(ax0,H); ctx.stroke();
+
+  // Draw each torus cross-section (both sides of axis)
+  for (const tor of tori) {
+    ctx.strokeStyle = tor.color; ctx.lineWidth = 2;
+    for (let side = 0; side < 2; side++) {
+      const sign = side === 0 ? 1 : -1;
+      ctx.beginPath();
+      for (let i = 0; i <= 64; i++) {
+        const v = i/64*Math.PI*2;
+        const [sx,sy] = w2s(sign*(tor.R + tor.r*Math.cos(v)), tor.z + tor.r*Math.sin(v));
+        i===0 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
+      }
+      ctx.closePath(); ctx.stroke();
+      if (tor.solid) {
+        ctx.fillStyle = tor.color; ctx.globalAlpha = .15;
+        ctx.fill();
+        // Hatch pattern to show impenetrable
+        ctx.strokeStyle = tor.color; ctx.lineWidth = 0.5; ctx.globalAlpha = .12;
+        const [cx2,cy2] = w2s(sign*tor.R, tor.z);
+        const rPx = tor.r * vsc;
+        for (let h = -rPx; h < rPx; h += 6) {
+          ctx.beginPath(); ctx.moveTo(cx2+h, cy2-rPx); ctx.lineTo(cx2+h+rPx, cy2+rPx); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+      const [tcx,tcy] = w2s(sign*tor.R, tor.z);
+      ctx.fillStyle = tor.color;
+      ctx.beginPath(); ctx.arc(tcx,tcy,3,0,Math.PI*2); ctx.fill();
+      // Charge indicator: + or - at center
+      if (Math.abs(tor.q) > 0.01) {
+        ctx.fillStyle = tor.q > 0 ? '#f44' : '#48f';
+        ctx.font = '10px monospace';
+        ctx.fillText(tor.q > 0 ? '+' : '−', tcx+5, tcy-2);
+      }
+      // Current indicator: arrow along centerline
+      if (Math.abs(tor.I) > 0.01) {
+        ctx.strokeStyle = '#c8f'; ctx.lineWidth = 1.5;
+        const v = (sign > 0 ? 0.25 : 0.75) * Math.PI * 2;
+        const [ax1,ay1] = w2s(sign*(tor.R + tor.r*Math.cos(v)), tor.z + tor.r*Math.sin(v));
+        ctx.beginPath(); ctx.arc(ax1,ay1,4,0,Math.PI*2); ctx.stroke();
+      }
+    }
+  }
+
+  // Perimeter arrows on each torus (both sides)
+  if (pN > 0 && maxMag > 0) {
+    ctx.font='9px monospace';
+    for (const tor of tori) {
+      for (let side=0; side<2; side++) {
+        const sign = side===0?1:-1;
+        for (let i=0; i<pN; i++) {
+          const v = i/pN*Math.PI*2;
+          const cosV=Math.cos(v), sinV=Math.sin(v);
+          const pr = sign*tor.R + (tor.r+.05)*cosV;
+          const pz = tor.z + (tor.r+.05)*sinV;
+          const f = fieldAt(Math.abs(pr), pz);
+          const fR = pr>=0 ? f.fr : -f.fr;
+          const mag = Math.sqrt(fR*fR + f.fz*f.fz);
+          if (mag<1e-8) continue;
+          const [sx,sy] = w2s(pr, pz);
+          const len=Math.min(30, mag/maxMag*45+6);
+          const nr=fR/mag, nz=f.fz/mag;
+          const dx=nr*len, dy=-nz*len;
+          const dot=nr*cosV+nz*sinV;
+          const stk=dot>0;
+          ctx.strokeStyle=stk?'#f44':'#4f4'; ctx.lineWidth=2;
+          ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+dx,sy+dy);
+          const aax=-dx*.25+dy*.15,aay=-dy*.25-dx*.15;
+          const bbx=-dx*.25-dy*.15,bby=-dy*.25+dx*.15;
+          ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+aax,sy+dy+aay);
+          ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(sx+dx+bbx,sy+dy+bby);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // Trail + particle
+  if (trail.length>1) {
+    ctx.strokeStyle='rgba(255,255,100,.4)'; ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for (let i=0;i<trail.length;i++) {
+      const [tx,ty]=w2s(trail[i][0],trail[i][1]);
+      i===0?ctx.moveTo(tx,ty):ctx.lineTo(tx,ty);
+    }
+    ctx.stroke();
+  }
+  if (tp) {
+    const [px,py]=w2s(tp.r,tp.z);
+    ctx.fillStyle='#ff0';
+    ctx.beginPath(); ctx.arc(px,py,6,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+    const pf=fieldAt(Math.abs(tp.r),tp.z);
+    const pfR=tp.r>=0?pf.fr:-pf.fr;
+    const pm=Math.sqrt(pfR*pfR+pf.fz*pf.fz);
+    if (pm>1e-8 && maxMag>0) {
+      const pl=Math.min(40,pm/maxMag*60+10);
+      const pdx=pfR/pm*pl, pdy=-pf.fz/pm*pl;
+      ctx.strokeStyle='#f80'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+pdx,py+pdy); ctx.stroke();
+    }
+  }
+
+  // Aim crosshair
+  if ((armMode==='armed'||armMode==='aiming') && aimStart) {
+    const [ax2,ay2]=w2s(aimStart.r,aimStart.z);
+    ctx.strokeStyle='#f80'; ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(ax2-10,ay2); ctx.lineTo(ax2+10,ay2);
+    ctx.moveTo(ax2,ay2-10); ctx.lineTo(ax2,ay2+10);
+    ctx.stroke();
+    if (armMode==='aiming'&&aimEnd) {
+      const vdx=(aimEnd.r-aimStart.r)*2, vdz=(aimEnd.z-aimStart.z)*2;
+      const [ex2,ey2]=w2s(aimStart.r+vdx,aimStart.z+vdz);
+      ctx.strokeStyle='#f80'; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(ax2,ay2); ctx.lineTo(ex2,ey2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#f80'; ctx.font='11px monospace';
+      ctx.fillText('v='+Math.sqrt(vdx*vdx+vdz*vdz).toFixed(1),ex2+5,ey2-5);
+    }
+  }
+
+  // B-field indicators on grid (small circles where |B| > 0)
+  for (let gi = 0; gi < GN; gi++) {
+    for (let gj = 0; gj < GN; gj++) {
+      const g = grid[gi * GN + gj];
+      const bmag = Math.sqrt(g.br*g.br + g.bz*g.bz + g.bphi*g.bphi);
+      if (bmag > 1e-6) {
+        const [sx, sy] = w2s(g.r, g.z);
+        const bsz = Math.min(12, bmag * 3 + 2);
+        ctx.strokeStyle = g.bphi > 1e-6 ? 'rgba(200,100,255,.5)' : 'rgba(100,200,255,.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(sx, sy, bsz, 0, Math.PI*2); ctx.stroke();
+        // Poloidal B (from toroidal current): show as small arrows
+        if (g.br*g.br + g.bz*g.bz > 1e-12) {
+          const bn = Math.sqrt(g.br*g.br + g.bz*g.bz);
+          const bdx = g.br/bn * bsz, bdy = -g.bz/bn * bsz;
+          ctx.beginPath(); ctx.moveTo(sx-bdx, sy-bdy); ctx.lineTo(sx+bdx, sy+bdy); ctx.stroke();
+        }
+        // Toroidal B (from poloidal current): dot/cross symbol
+        if (Math.abs(g.bphi) > 1e-6) {
+          ctx.fillStyle = 'rgba(200,100,255,.6)';
+          if (g.bphi > 0) { // out of screen: dot
+            ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill();
+          } else { // into screen: X
+            ctx.beginPath();
+            ctx.moveTo(sx-3, sy-3); ctx.lineTo(sx+3, sy+3);
+            ctx.moveTo(sx+3, sy-3); ctx.lineTo(sx-3, sy+3);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+  }
+
+  // Label
+  const hasEM = tori.some(t => Math.abs(t.q) > 0 || Math.abs(t.I) > 0);
+  document.getElementById('lbl').textContent = tori.length + ' torus' + (tori.length!==1?'es':'') +
+    (hasEM ? ' · E&M' : ' · gravity');
+}
+
+// === Controls ===
+document.getElementById('btnAdd').onclick = function() {
+  const lastR = tori.length ? tori[tori.length-1].R : 4;
+  addTorus(lastR + 3, 1.5, 0, false);
+};
+document.getElementById('btnCopy').onclick = function() {
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid, q:t.q, I:t.I, dir:t.dir}));
+  const json = JSON.stringify(cfg);
+  navigator.clipboard.writeText(json).then(() => {
+    this.textContent = 'Copied!';
+    setTimeout(() => this.textContent = 'Copy config', 1200);
+  }, () => {
+    // fallback for non-https
+    prompt('Copy this:', json);
+  });
+};
+document.getElementById('btnPlay').onclick = function() {
+  const cfg = tori.map(t => ({R:t.R, r:t.r, z:t.z, solid:t.solid, q:t.q, I:t.I, dir:t.dir}));
+  const hash = encodeURIComponent(JSON.stringify(cfg));
+  window.open('../torpac/#' + hash, '_blank');
+};
+document.getElementById('slG').oninput = function() {
+  GN = +this.value; document.getElementById('vG').textContent = GN; draw();
+};
+document.getElementById('slP').oninput = function() {
+  pN = +this.value; document.getElementById('vP').textContent = pN; draw();
+};
+document.getElementById('btnDrop').onclick = function() {
+  armMode = 'armed'; this.style.background = '#a44'; this.textContent = 'Tap to place...';
+  document.getElementById('tpInfo').textContent = 'tap, drag for vel';
+};
+document.getElementById('btnClear').onclick = function() {
+  tp = null; trail = []; armMode = 'idle'; aimStart = aimEnd = null;
+  document.getElementById('btnDrop').style.background = '';
+  document.getElementById('btnDrop').textContent = 'Arm drop';
+  document.getElementById('tpInfo').textContent = '';
+  draw();
+};
+window.addEventListener('resize', function() { resize(); draw(); });
+
+// === Animation ===
+let animating = false, lastT = 0;
+function startAnim() { animating = true; lastT = 0; requestAnimationFrame(tick); }
+function tick(t) {
+  if (!tp) { animating = false; return; }
+  const dt = lastT ? Math.min(.05, (t-lastT)/1000) : .016;
+  lastT = t;
+  for (let s=0; s<6; s++) {
+    const sub = dt/6;
+    const absR = Math.max(.1, Math.abs(tp.r));
+    const f = fieldAt(absR, tp.z);
+    const fR = tp.r>=0 ? f.fr : -f.fr;
+    // Gravity + Electric force (already combined in f.fr, f.fz)
+    let aR = fR, aZ = f.fz;
+    // Lorentz force: F = q * v × B (test charge q=+1)
+    // v = (vr, vphi, vz), B = (br, bphi, bz)
+    // v×B = (vphi*bz - vz*bphi, vz*br - vr*bz, vr*bphi - vphi*br)
+    const vr = tp.vr, vp = tp.vphi || 0, vz = tp.vz;
+    const bR = tp.r>=0 ? f.br : -f.br;
+    aR += vp * f.bz - vz * f.bphi;
+    const aPhi = vz * bR - vr * f.bz;
+    aZ += vr * f.bphi - vp * bR;
+    tp.vr += aR*sub; tp.vz += aZ*sub; tp.vphi = (tp.vphi||0) + aPhi*sub;
+    const oldR = tp.r, oldZ = tp.z;
+    tp.r += tp.vr*sub; tp.z += tp.vz*sub;
+
+    // Elastic bounce off torus surfaces
+    for (const tor of tori) {
+      for (const sign of [1, -1]) {
+        const cR = sign * tor.R, cZ = tor.z;
+        const dR = tp.r - cR, dZ = tp.z - cZ;
+        const dist = Math.sqrt(dR*dR + dZ*dZ);
+        if (dist < 0.001) continue;
+        const nR = dR / dist, nZ = dZ / dist; // outward from tube center
+
+        if (tor.solid) {
+          // Solid: can't enter interior
+          if (dist < tor.r) {
+            tp.r = cR + nR * (tor.r + 0.005);
+            tp.z = cZ + nZ * (tor.r + 0.005);
+            const vn = tp.vr * nR + tp.vz * nZ;
+            if (vn < 0) { tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ; }
+            tp.bounces = (tp.bounces||0) + 1;
+          }
+        } else {
+          // Shell: bounce off surface from either side
+          const odR = oldR - cR, odZ = oldZ - cZ;
+          const oldDist = Math.sqrt(odR*odR + odZ*odZ);
+          // Crossed the shell? sign of (dist-r) flipped
+          if ((oldDist - tor.r) * (dist - tor.r) < 0) {
+            const fromInside = oldDist < tor.r;
+            // Check velocity is actually heading through the shell
+            const vn = tp.vr * nR + tp.vz * nZ; // positive = outward
+            const movingThrough = fromInside ? (vn > 0) : (vn < 0);
+            if (movingThrough) {
+              // Place back on the side we came from
+              const dir = fromInside ? -1 : 1; // stay on original side
+              tp.r = cR + nR * (tor.r + dir * 0.01);
+              tp.z = cZ + nZ * (tor.r + dir * 0.01);
+              tp.vr -= 2*vn*nR; tp.vz -= 2*vn*nZ;
+              tp.bounces = (tp.bounces||0) + 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  trail.push([tp.r, tp.z]);
+  if (trail.length>3000) trail.shift();
+  const vpStr = tp.vphi ? ' vφ='+tp.vphi.toFixed(1) : '';
+  const bStr = tp.bounces ? ' ×'+tp.bounces : '';
+  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2)+vpStr+bStr;
+  draw();
+  requestAnimationFrame(tick);
+}
+
+// Check if a point is inside any solid torus
+function insideSolid(pr, pz) {
+  for (const tor of tori) {
+    if (!tor.solid) continue;
+    for (const sign of [1, -1]) {
+      const dR = pr - sign*tor.R, dZ = pz - tor.z;
+      if (dR*dR + dZ*dZ < tor.r*tor.r) return true;
+    }
+  }
+  return false;
+}
+
+function launchParticle() {
+  if (insideSolid(aimStart.r, aimStart.z)) {
+    document.getElementById('tpInfo').textContent = 'Can\'t place inside solid!';
+    armMode = 'idle'; aimStart = aimEnd = null;
+    document.getElementById('btnDrop').style.background = '';
+    document.getElementById('btnDrop').textContent = 'Arm drop';
+    draw(); return;
+  }
+  const vdx = aimEnd ? (aimEnd.r-aimStart.r)*2 : 0;
+  const vdz = aimEnd ? (aimEnd.z-aimStart.z)*2 : 0;
+  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0, bounces:0};
+  trail = []; armMode = 'idle'; aimStart = aimEnd = null;
+  document.getElementById('btnDrop').style.background = '';
+  document.getElementById('btnDrop').textContent = 'Arm drop';
+  if (!animating) startAnim();
+}
+
+// === Pan, Zoom, Arm ===
+let touches = {}, panStart = null, pinchStart = null;
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  for (const t of e.changedTouches) touches[t.identifier] = {x:t.clientX, y:t.clientY};
+  const ids = Object.keys(touches);
+  if (armMode==='armed' && ids.length===1) {
+    const [r,z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
+    aimStart = {r,z}; aimEnd = null; armMode = 'aiming'; draw(); return;
+  }
+  if (ids.length===1) {
+    panStart = {x:touches[ids[0]].x, y:touches[ids[0]].y, vcx, vcy};
+    pinchStart = null;
+  } else if (ids.length>=2) {
+    panStart = null;
+    const a=touches[ids[0]], b=touches[ids[1]];
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    pinchStart = {dist:Math.hypot(a.x-b.x,a.y-b.y), vsc, vcx, vcy, mx, my};
+  }
+}, {passive:false});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  for (const t of e.changedTouches) touches[t.identifier] = {x:t.clientX, y:t.clientY};
+  const ids = Object.keys(touches);
+  if (armMode==='aiming' && ids.length===1) {
+    const [r,z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
+    aimEnd = {r,z}; draw(); return;
+  }
+  if (panStart && ids.length===1) {
+    const t=touches[ids[0]];
+    vcx=panStart.vcx-(t.x-panStart.x)/vsc;
+    vcy=panStart.vcy+(t.y-panStart.y)/vsc;
+    draw();
+  } else if (pinchStart && ids.length>=2) {
+    const a=touches[ids[0]], b=touches[ids[1]];
+    const dist=Math.hypot(a.x-b.x,a.y-b.y);
+    const ratio=dist/pinchStart.dist;
+    const newSc=Math.max(5,Math.min(400,pinchStart.vsc*ratio));
+    const [wr,wz]=s2w(pinchStart.mx,pinchStart.my);
+    vsc=newSc;
+    vcx=wr-(pinchStart.mx-W/2)/vsc;
+    vcy=wz+(pinchStart.my-H/2)/vsc;
+    draw();
+  }
+}, {passive:false});
+
+canvas.addEventListener('touchend', function(e) {
+  for (const t of e.changedTouches) delete touches[t.identifier];
+  if (armMode==='aiming' && !Object.keys(touches).length) { launchParticle(); return; }
+  if (!Object.keys(touches).length) { panStart=pinchStart=null; }
+}, {passive:false});
+
+let mouseDown=false, msx=0, msy=0, mvcx=0, mvcy=0;
+canvas.addEventListener('mousedown', function(e) {
+  if (armMode==='armed') {
+    const [r,z]=s2w(e.clientX,e.clientY);
+    aimStart={r,z}; aimEnd=null; armMode='aiming'; draw(); return;
+  }
+  mouseDown=true; msx=e.clientX; msy=e.clientY; mvcx=vcx; mvcy=vcy;
+});
+canvas.addEventListener('mousemove', function(e) {
+  if (armMode==='aiming') { const [r,z]=s2w(e.clientX,e.clientY); aimEnd={r,z}; draw(); return; }
+  if (!mouseDown) return;
+  vcx=mvcx-(e.clientX-msx)/vsc; vcy=mvcy+(e.clientY-msy)/vsc; draw();
+});
+window.addEventListener('mouseup', function() {
+  if (armMode==='aiming') { launchParticle(); return; }
+  mouseDown=false;
+});
+canvas.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  const [wr,wz]=s2w(e.clientX,e.clientY);
+  vsc*=e.deltaY>0?.9:1.1;
+  vsc=Math.max(5,Math.min(400,vsc));
+  vcx=wr-(e.clientX-W/2)/vsc;
+  vcy=wz+(e.clientY-H/2)/vsc;
+  draw();
+}, {passive:false});
+
+buildUI(); draw();
+</script>
+</body>
+</html>
