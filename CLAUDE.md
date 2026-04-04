@@ -23,7 +23,7 @@ Details for each follow in dedicated sections below.
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
-- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`)
+- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`; cards deploys from `claude/wiki-card-game-oJbLE`)
 - **Compute**: Cloudflare Workers + Durable Objects + D1
 - **Email**: Cloudflare Email Routing — `tips@`, `editor@`, `modulo@`, `morphyx@minomobi.com`
 - **DNS**: Cloudflare — CNAME records for subdomains -> Pages deployments

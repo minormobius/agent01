@@ -1,0 +1,69 @@
+name: Fetch Yum Wikipedia Data
+
+on:
+  push:
+    branches:
+      - main
+      - claude/wiki-card-game-oJbLE
+    paths:
+      - 'scripts/fetch-yum-wikipedia.py'
+      - 'cards/js/yum-pool.js'
+      - '.github/workflows/fetch-yum-wikipedia.yml'
+
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Wikipedia data for all foods
+        run: |
+          mkdir -p cards/data
+          python3 scripts/fetch-yum-wikipedia.py \
+            --pool-js cards/js/yum-pool.js \
+            --output cards/data/yum-wikipedia.json \
+            2>&1 | tee cards/data/yum-wiki-log.txt
+
+      - name: Summarize
+        if: always()
+        run: |
+          echo "## Yum Wikipedia Fetch" >> $GITHUB_STEP_SUMMARY
+          if [ -f cards/data/yum-wikipedia.json ]; then
+            echo "- Matched: $(jq -r '.matched' cards/data/yum-wikipedia.json) / $(jq -r '.count' cards/data/yum-wikipedia.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- Thumbnails: $(jq -r '.with_thumbnails' cards/data/yum-wikipedia.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- File size: $(du -h cards/data/yum-wikipedia.json | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cards/data/yum-wikipedia.json cards/data/yum-wiki-log.txt
+          git diff --cached --quiet && echo "No changes" && exit 0
+
+          MATCHED=$(jq -r '.matched // "?"' cards/data/yum-wikipedia.json 2>/dev/null || echo "?")
+          TOTAL=$(jq -r '.count // "?"' cards/data/yum-wikipedia.json 2>/dev/null || echo "?")
+          git commit -m "yum: prefetch Wikipedia data — ${MATCHED}/${TOTAL} foods [auto]"
+
+          if ! git pull --rebase origin ${{ github.ref_name }}; then
+            git checkout --theirs -- cards/data/yum-wikipedia.json cards/data/yum-wiki-log.txt 2>/dev/null || true
+            git add cards/data/yum-wikipedia.json cards/data/yum-wiki-log.txt
+            GIT_EDITOR=true git rebase --continue
+          fi
+
+          git push origin ${{ github.ref_name }}
