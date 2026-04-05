@@ -44,27 +44,27 @@ Matched: 473/742 foods, 55571 unique compounds
     Monterey Jack → FooDB 'Monterey Jack cheese' (id=980)
     Wine → FooDB 'Fortified wine' (id=278)
 Wrote data/yum-compounds.json (85758KB)
-  Built vectors: 473/742 foods, 55571 compound dims
+  Built TF-IDF vectors: 473/742 foods, 55571 compound dims
   473 foods with compound data for PCA fitting
-  PCA: 55571 → 64d, 99.5% variance explained
+  PCA: 55571 → 64d, 94.8% variance explained
   Filled 269 foods with category-neighbor proxy
 
 Wrote cards/data/yum-embeddings.bin (185KB)
 Wrote cards/data/yum-embeddings.json (22KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.803  [COMPOUND]
-  Chocolate ~ Vanilla: -0.943  [COMPOUND]
-  Soy sauce ~ Miso: 0.999  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.905  [COMPOUND]
-  Salmon ~ Cinnamon: -0.945  [COMPOUND]
-  Basil ~ Oregano: 0.887  [COMPOUND]
-  Coffee ~ Tea: 0.386  [COMPOUND]
-  Butter ~ Ghee: 0.993  [proxy]
-  Cheddar cheese ~ Brie: 0.981  [proxy]
-  Apple ~ Pear: 0.897  [COMPOUND]
+  Garlic ~ Onion: 0.285  [COMPOUND]
+  Chocolate ~ Vanilla: -0.393  [COMPOUND]
+  Soy sauce ~ Miso: 0.997  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.384  [COMPOUND]
+  Salmon ~ Cinnamon: -0.450  [COMPOUND]
+  Basil ~ Oregano: 0.378  [COMPOUND]
+  Coffee ~ Tea: 0.003  [COMPOUND]
+  Butter ~ Ghee: 0.693  [proxy]
+  Cheddar cheese ~ Brie: 0.729  [proxy]
+  Apple ~ Pear: 0.320  [COMPOUND]
 
-  Most similar: 'Garlic' ~ 'Black garlic' (1.000)
+  Most similar: 'Blueberry' ~ 'Cranberry' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  14/ 30 (46%)
