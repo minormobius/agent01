@@ -4,7 +4,7 @@ Downloading FooDB CSV dump (~953MB)...
 Extracting...
   tar with --exclude failed, retrying plain...
   subprocess tar failed (Command '['tar', 'xzf', '/tmp/foodb_cache/foodb_csv.tar.gz', '-C', '/tmp/foodb_cache/foodb_csv']' returned non-zero exit status 2.), trying Python tarfile...
-/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:123: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:119: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
   tar.extractall(extract_dir, members=members)
   Found 29 CSV files in /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv
     AccessionNumber.csv (97KB)
@@ -42,35 +42,24 @@ Wrote data/yum-compounds.json (86333KB)
   Built vectors: 491/754 foods, 55571 compound dims
   491 foods with compound data for PCA fitting
   PCA: 55571 → 64d, 99.5% variance explained
-  Text embeddings for 263 unmatched foods...
-  Got 0 Wikipedia extracts
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3956.46it/s]
-[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
-Key                     | Status     |  | 
-------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  | 
-
-Notes:
-- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-  Filled 263 foods with text fallback
+  Filled 263 foods with category-neighbor proxy
 
 Wrote cards/data/yum-embeddings.bin (188KB)
-Wrote cards/data/yum-embeddings.json (15KB)
+Wrote cards/data/yum-embeddings.json (23KB)
 
 ── Flavor similarity sanity check ──
   Garlic ~ Onion: 0.809  [COMPOUND]
-  Chocolate ~ Vanilla: -0.946  [COMPOUND]
+  Chocolate ~ Vanilla: -0.947  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
   Lemon ~ Lime (fruit): 0.908  [COMPOUND]
-  Salmon ~ Cinnamon: -0.949  [COMPOUND]
-  Basil ~ Oregano: 0.894  [COMPOUND]
+  Salmon ~ Cinnamon: -0.948  [COMPOUND]
+  Basil ~ Oregano: 0.893  [COMPOUND]
   Coffee ~ Tea: 0.374  [COMPOUND]
-  Butter ~ Ghee: 0.070  [text]
-  Cheddar cheese ~ Brie: -0.101  [text]
+  Butter ~ Ghee: 0.991  [proxy]
+  Cheddar cheese ~ Brie: 0.980  [proxy]
   Apple ~ Pear: 0.899  [COMPOUND]
 
-  Most similar: 'Mustard greens' ~ 'Mustard oil' (1.000)
+  Most similar: 'Watermelon' ~ 'Watermelon seed' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  14/ 30 (46%)
@@ -86,4 +75,4 @@ Wrote cards/data/yum-embeddings.json (15KB)
   SWEET       :  19/ 25 (76%)
   VEGETABLE   :  82/116 (70%)
 
-Done! 754 food embeddings in 64d (491 compound-based, 263 text-based)
+Done! 754 food embeddings in 64d (491 compound-based, 263 category-proxy)
