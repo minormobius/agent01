@@ -14,6 +14,7 @@ Pipeline:
   5. PCA reduce to 64d dense embeddings
   6. Category-neighbor proxy for unmatched foods (same PCA space)
   7. Output: yum-embeddings.json + yum-embeddings.bin + yum-compounds.json
+  8. Manual map: data/foodb-map.json (532 curated food→FooDB mappings)
 
 Usage:
     pip install requests numpy scikit-learn
