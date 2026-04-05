@@ -520,7 +520,18 @@ def main():
 
     print(f"\nFooDB index: {len(foodb_by_name)} food names", file=sys.stderr)
 
-    # 3. Match our foods to FooDB
+    # 3. Match our foods to FooDB using manual map + fallback
+    manual_map_path = os.path.join(os.path.dirname(args.pool_js), '..', 'data', 'foodb-map.json')
+    manual_map = {}
+    if os.path.exists(manual_map_path):
+        with open(manual_map_path) as f:
+            manual_map = json.load(f)
+        # Remove comment keys
+        manual_map = {k: v for k, v in manual_map.items() if not k.startswith('_')}
+        print(f"Loaded manual map: {len(manual_map)} entries "
+              f"({sum(1 for v in manual_map.values() if v)} with FooDB targets)",
+              file=sys.stderr)
+
     matched_titles = {}  # our title → set of compound IDs
     all_compound_ids = set()
     match_count = 0
@@ -529,8 +540,30 @@ def main():
     foodb_contents_norm = {str(k).strip(): v for k, v in foodb_contents.items()}
 
     name_matched_no_compounds = []
+    manual_miss = []
     for title, cat in foods:
-        foodb_entry = match_food_to_foodb(title, foodb_by_name)
+        # 1. Check manual map first
+        foodb_entry = None
+        if title in manual_map:
+            target = manual_map[title]
+            if target is None:
+                continue  # explicitly unmapped
+            if target in foodb_by_name:
+                foodb_entry = foodb_by_name[target]
+            else:
+                # Try comma-prefix match for manual map targets
+                for fn, entry in foodb_by_name.items():
+                    if fn.split(',')[0].strip() == target:
+                        foodb_entry = entry
+                        break
+                if not foodb_entry:
+                    manual_miss.append((title, target))
+                    continue
+
+        # 2. Fallback to fuzzy matcher for foods not in manual map
+        if not foodb_entry:
+            foodb_entry = match_food_to_foodb(title, foodb_by_name)
+
         if foodb_entry:
             fid = str(foodb_entry['id']).strip()
             cids = foodb_contents_norm.get(fid, set())
@@ -542,24 +575,20 @@ def main():
                 name_matched_no_compounds.append(
                     (title, foodb_entry['name'], fid,
                      f"only {len(cids)} compounds"))
-                continue
             else:
                 name_matched_no_compounds.append(
                     (title, foodb_entry['name'], fid, "no compounds in Content table"))
 
     print(f"\nMatched: {match_count}/{len(foods)} foods, "
           f"{len(all_compound_ids)} unique compounds", file=sys.stderr)
+    if manual_miss:
+        print(f"  ⚠ {len(manual_miss)} manual map targets not found in FooDB:",
+              file=sys.stderr)
+        for title, target in manual_miss[:30]:
+            print(f"    {title} → '{target}' NOT IN FOODB", file=sys.stderr)
     if name_matched_no_compounds:
-        print(f"  ⚠ {len(name_matched_no_compounds)} foods matched FooDB name "
-              f"but had no compounds in Content table:", file=sys.stderr)
-        # Show a sample of content keys for debugging
-        sample_content_keys = list(foodb_contents.keys())[:3]
-        if sample_content_keys and name_matched_no_compounds:
-            sample_fid = name_matched_no_compounds[0][2]
-            print(f"    Content key type: {type(sample_content_keys[0])}, "
-                  f"Food ID type: {type(sample_fid)}, "
-                  f"sample content key: {sample_content_keys[0]!r}, "
-                  f"sample food id: {sample_fid!r}", file=sys.stderr)
+        print(f"  ⚠ {len(name_matched_no_compounds)} foods matched but had issues:",
+              file=sys.stderr)
         for title, foodb_name, fid, reason in name_matched_no_compounds[:20]:
             print(f"    {title} → FooDB '{foodb_name}' (id={fid}) — {reason}", file=sys.stderr)
         if len(name_matched_no_compounds) > 20:

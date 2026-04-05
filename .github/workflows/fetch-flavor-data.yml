@@ -8,6 +8,7 @@ on:
     paths:
       - 'scripts/fetch-flavor-data.py'
       - 'cards/js/yum-pool.js'
+      - 'data/foodb-map.json'
       - '.github/workflows/fetch-flavor-data.yml'
 
   workflow_dispatch:
