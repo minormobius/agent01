@@ -318,21 +318,47 @@ def match_food_to_foodb(food_name, foodb_by_name):
 # ── Embedding computation ────────────────────────────────────
 
 def build_compound_vectors(foods, food_compound_ids, all_compound_ids):
-    """Build sparse binary vectors from compound profiles."""
+    """Build TF-IDF weighted vectors from compound profiles.
+
+    Binary vectors fail because FooDB coverage is wildly bimodal: garlic has
+    6,147 compounds, butter has 148. After PCA, all low-compound foods collapse
+    together. TF-IDF fixes this by:
+      - TF: 1/sqrt(n_compounds) for the food — normalizes for coverage depth
+      - IDF: log(N/df) — downweights ubiquitous compounds (common metabolites),
+        upweights rare distinctive ones (flavor/aroma molecules)
+    """
     compound_to_idx = {c: i for i, c in enumerate(all_compound_ids)}
     n = len(all_compound_ids)
-    vectors = np.zeros((len(foods), n), dtype=np.float32)
 
+    # First pass: compute document frequency (how many foods have each compound)
+    doc_freq = np.zeros(n, dtype=np.float32)
     matched = 0
+    food_cid_lists = []
     for i, (title, _cat) in enumerate(foods):
         cids = food_compound_ids.get(title, set())
+        food_cid_lists.append(cids)
         if cids:
             matched += 1
             for cid in cids:
-                if cid in compound_to_idx:
-                    vectors[i, compound_to_idx[cid]] = 1.0
+                j = compound_to_idx.get(cid)
+                if j is not None:
+                    doc_freq[j] += 1
 
-    print(f"  Built vectors: {matched}/{len(foods)} foods, {n} compound dims",
+    # IDF: log(N_matched / df), clipped to avoid log(0)
+    n_matched = max(matched, 1)
+    idf = np.log(n_matched / np.maximum(doc_freq, 1))
+
+    # Second pass: build TF-IDF vectors
+    vectors = np.zeros((len(foods), n), dtype=np.float32)
+    for i, cids in enumerate(food_cid_lists):
+        if cids:
+            tf = 1.0 / max(np.sqrt(len(cids)), 1)  # normalize for coverage depth
+            for cid in cids:
+                j = compound_to_idx.get(cid)
+                if j is not None:
+                    vectors[i, j] = tf * idf[j]
+
+    print(f"  Built TF-IDF vectors: {matched}/{len(foods)} foods, {n} compound dims",
           file=sys.stderr)
     return vectors
 
