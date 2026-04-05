@@ -2994,7 +2994,54 @@ main:not(:has(.tab-panel)) {
   padding: 0.25rem 0.5rem 0.25rem 0.25rem;
   font-size: 0.72rem;
   animation: luckyReveal 0.2s ease-out;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
+.rb-sel-chip:hover { background: rgba(230, 126, 34, 0.2); }
+.rb-sel-riffing {
+  border-color: var(--gold);
+  background: rgba(201, 168, 76, 0.15);
+}
+
+/* Riff panel — nearest neighbor swap */
+.rb-riff-panel {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  animation: luckyReveal 0.15s ease-out;
+}
+.rb-riff-header {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+.rb-riff-header strong { color: var(--gold); }
+.rb-riff-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rb-riff-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 16px;
+  padding: 3px 8px 3px 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.rb-riff-option:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+.rb-riff-option .rb-sel-thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.rb-riff-option .rb-sel-icon { font-size: 0.8rem; width: 20px; text-align: center; }
+.rb-riff-name { font-size: 0.7rem; color: var(--text); }
+.rb-riff-sim { font-size: 0.6rem; color: #60a5fa; font-family: system-ui, sans-serif; }
 
 .rb-sel-thumb {
   width: 22px;

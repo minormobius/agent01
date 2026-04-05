@@ -15,6 +15,7 @@ let ready = false;
 let allCards = [];        // full deck: { title, category, stats, embIdx }
 let filteredCards = [];   // after search/filter
 let selected = new Set(); // titles of selected cards
+let riffTarget = null;    // title of ingredient showing nearest neighbors
 const history = [];
 
 const PAGE_SIZE = 30;
@@ -238,28 +239,98 @@ function clearSelection() {
   if (sug) sug.classList.add("hidden");
 }
 
+function findNearestNeighbors(title, n = 10) {
+  const card = allCards.find(c => c.title === title);
+  if (!card || card.embIdx < 0) return [];
+
+  const scores = [];
+  for (const c of allCards) {
+    if (c.title === title || c.embIdx < 0) continue;
+    if (selected.has(c.title)) continue; // skip already selected
+    const sim = cos(card.embIdx, c.embIdx);
+    scores.push({ title: c.title, category: c.category, sim });
+  }
+  scores.sort((a, b) => b.sim - a.sim);
+  return scores.slice(0, n);
+}
+
+function swapIngredient(oldTitle, newTitle) {
+  selected.delete(oldTitle);
+  selected.add(newTitle);
+  riffTarget = newTitle; // keep riff panel open on the new ingredient
+  renderDeck();
+  renderSelected();
+  updateScore();
+  updateMatrix();
+  updateHints();
+  updateSuggestions();
+}
+
 function renderSelected() {
   const el = document.getElementById("rb-selected");
   if (selected.size === 0) {
     el.innerHTML = '<div class="rb-sel-empty">Click ingredients below to build a dish</div>';
+    riffTarget = null;
     return;
   }
 
-  el.innerHTML = [...selected].map(title => {
+  let html = [...selected].map(title => {
     const card = allCards.find(c => c.title === title);
     const cat = FOOD_CATEGORIES[card?.category] || {};
     const w = wiki?.foods?.[title] || {};
-    return `<div class="rb-sel-chip" data-title="${title}">
+    const isRiff = riffTarget === title;
+    return `<div class="rb-sel-chip ${isRiff ? "rb-sel-riffing" : ""}" data-title="${title}">
       ${w.thumb ? `<img class="rb-sel-thumb" src="${w.thumb}" alt="${title}">` : `<span class="rb-sel-icon">${cat.icon || "?"}</span>`}
       <span class="rb-sel-name">${title}</span>
       <button class="rb-sel-remove" data-title="${title}">&times;</button>
     </div>`;
   }).join("");
 
+  // Riff panel: nearest neighbors for the selected ingredient
+  if (riffTarget && selected.has(riffTarget)) {
+    const neighbors = findNearestNeighbors(riffTarget);
+    if (neighbors.length > 0) {
+      const items = neighbors.map(n => {
+        const cat = FOOD_CATEGORIES[n.category] || {};
+        const w = wiki?.foods?.[n.title] || {};
+        const pct = (n.sim * 100).toFixed(0);
+        return `<div class="rb-riff-option" data-title="${n.title}">
+          ${w.thumb ? `<img class="rb-sel-thumb" src="${w.thumb}" alt="${n.title}">` : `<span class="rb-sel-icon">${cat.icon || "?"}</span>`}
+          <span class="rb-riff-name">${n.title}</span>
+          <span class="rb-riff-sim">${pct}%</span>
+        </div>`;
+      }).join("");
+      html += `<div class="rb-riff-panel">
+        <div class="rb-riff-header">Swap <strong>${riffTarget}</strong> for:</div>
+        <div class="rb-riff-list">${items}</div>
+      </div>`;
+    }
+  }
+
+  el.innerHTML = html;
+
+  // Click chip to toggle riff panel
+  el.querySelectorAll(".rb-sel-chip").forEach(chip => {
+    chip.addEventListener("click", (e) => {
+      if (e.target.closest(".rb-sel-remove")) return;
+      const title = chip.dataset.title;
+      riffTarget = riffTarget === title ? null : title;
+      renderSelected();
+    });
+  });
+
   el.querySelectorAll(".rb-sel-remove").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (riffTarget === btn.dataset.title) riffTarget = null;
       removeSelected(btn.dataset.title);
+    });
+  });
+
+  // Click a riff option to swap
+  el.querySelectorAll(".rb-riff-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      swapIngredient(riffTarget, opt.dataset.title);
     });
   });
 }
