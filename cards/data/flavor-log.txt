@@ -1,4 +1,4 @@
-Parsed 725 foods from cards/js/yum-pool.js
+Parsed 754 foods from cards/js/yum-pool.js
 Downloading FooDB CSV dump (~953MB)...
 
 Extracting...
@@ -37,15 +37,15 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 
 FooDB index: 992 food names
 
-Matched: 470/725 foods, 55481 unique compounds
-Wrote data/yum-compounds.json (85906KB)
-  Built vectors: 470/725 foods, 55481 compound dims
-  470 foods with compound data for PCA fitting
-  PCA: 55481 → 64d, 99.5% variance explained
-  Text embeddings for 255 unmatched foods...
+Matched: 491/754 foods, 55571 unique compounds
+Wrote data/yum-compounds.json (86333KB)
+  Built vectors: 491/754 foods, 55571 compound dims
+  491 foods with compound data for PCA fitting
+  PCA: 55571 → 64d, 99.5% variance explained
+  Text embeddings for 263 unmatched foods...
   Got 0 Wikipedia extracts
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3703.94it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4825.51it/s]
 [1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -53,37 +53,37 @@ embeddings.position_ids | UNEXPECTED |  |
 
 Notes:
 - UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-  Filled 255 foods with text fallback
+  Filled 263 foods with text fallback
 
-Wrote cards/data/yum-embeddings.bin (181KB)
+Wrote cards/data/yum-embeddings.bin (188KB)
 Wrote cards/data/yum-embeddings.json (15KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.800  [COMPOUND]
-  Chocolate ~ Vanilla: -0.942  [COMPOUND]
+  Garlic ~ Onion: 0.809  [COMPOUND]
+  Chocolate ~ Vanilla: -0.947  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.903  [COMPOUND]
-  Salmon ~ Cinnamon: -0.944  [COMPOUND]
-  Basil ~ Oregano: 0.886  [COMPOUND]
-  Coffee ~ Tea: 0.390  [COMPOUND]
-  Butter ~ Ghee: 0.159  [text]
-  Cheddar cheese ~ Brie: 0.143  [text]
-  Apple ~ Pear: 0.894  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.908  [COMPOUND]
+  Salmon ~ Cinnamon: -0.949  [COMPOUND]
+  Basil ~ Oregano: 0.891  [COMPOUND]
+  Coffee ~ Tea: 0.374  [COMPOUND]
+  Butter ~ Ghee: 0.136  [text]
+  Cheddar cheese ~ Brie: 0.177  [text]
+  Apple ~ Pear: 0.899  [COMPOUND]
 
-  Most similar: 'Corn' ~ 'Corned beef' (1.000)
+  Most similar: 'Nopales' ~ 'Nopal' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  14/ 30 (46%)
-  CONDIMENT   :  33/ 55 (60%)
-  DAIRY       :  31/ 59 (52%)
+  CONDIMENT   :  42/ 67 (62%)
+  DAIRY       :  35/ 63 (55%)
   FRUIT       :  71/100 (71%)
-  GRAIN       :  34/ 50 (68%)
+  GRAIN       :  36/ 52 (69%)
   LEGUME      :  44/ 55 (80%)
   MEAT        :  22/ 55 (40%)
   OIL         :  18/ 25 (72%)
-  SEAFOOD     :  51/ 70 (72%)
-  SPICE       :  54/ 90 (60%)
+  SEAFOOD     :  51/ 71 (71%)
+  SPICE       :  57/ 95 (60%)
   SWEET       :  19/ 25 (76%)
-  VEGETABLE   :  79/111 (71%)
+  VEGETABLE   :  82/116 (70%)
 
-Done! 725 food embeddings in 64d (470 compound-based, 255 text-based)
+Done! 754 food embeddings in 64d (491 compound-based, 263 text-based)
