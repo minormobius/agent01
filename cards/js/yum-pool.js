@@ -289,7 +289,6 @@ export const FOOD_POOL = [
   f("Snow pea", "VEGETABLE"),
   f("Sugar snap pea", "VEGETABLE"),
   f("Garden pea", "VEGETABLE"),
-  f("Corn", "VEGETABLE"),
 
   // ══════════════════════════════════════════════════════════
   // GRAINS & FLOUR — 50
@@ -345,7 +344,6 @@ export const FOOD_POOL = [
   f("Cornstarch", "GRAIN"),
   f("Arrowroot", "GRAIN"),
   f("All-purpose flour", "GRAIN"),
-  f("Bread", "GRAIN"),
 
   // ══════════════════════════════════════════════════════════
   // DAIRY & EGGS — 65
@@ -409,8 +407,6 @@ export const FOOD_POOL = [
   f("Quail egg", "DAIRY"),
   f("Egg yolk", "DAIRY"),
   f("Egg white", "DAIRY"),
-  f("Heavy cream", "DAIRY"),
-  f("Sour cream", "DAIRY"),
   f("Goat cheese", "DAIRY"),
   f("Blue cheese", "DAIRY"),
 
@@ -670,10 +666,8 @@ export const FOOD_POOL = [
   f("Dried rosemary", "SPICE"),
   f("Garlic powder", "SPICE"),
   f("Onion powder", "SPICE"),
-  f("Curry leaf", "SPICE"),
   f("Salt", "SPICE"),
   f("Sea salt", "SPICE"),
-  f("Szechuan pepper", "SPICE"),
   f("Old Bay seasoning", "SPICE"),
 
   // ══════════════════════════════════════════════════════════
@@ -738,12 +732,6 @@ export const FOOD_POOL = [
   f("Pesto", "CONDIMENT"),
   f("Chimichurri", "CONDIMENT"),
   f("Hot sauce", "CONDIMENT"),
-  f("Ketchup", "CONDIMENT"),
-  f("Mustard (condiment)", "CONDIMENT"),
-  f("Apple cider vinegar", "CONDIMENT"),
-  f("Balsamic vinegar", "CONDIMENT"),
-  f("Red wine vinegar", "CONDIMENT"),
-  f("Rice vinegar", "CONDIMENT"),
   f("White wine", "CONDIMENT"),
   f("Red wine", "CONDIMENT"),
 

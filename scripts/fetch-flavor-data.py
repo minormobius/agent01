@@ -157,7 +157,7 @@ def load_foodb_foods(csv_dir):
     with open(food_csv, encoding='utf-8', errors='replace') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            fid = row.get('id') or row.get('food_id')
+            fid = (row.get('id') or row.get('food_id') or '').strip()
             if fid:
                 name = (row.get('name') or row.get('food_name') or
                         row.get('name_scientific') or '').strip()
@@ -226,19 +226,29 @@ def load_foodb_contents(csv_dir, food_ids=None):
     rows_read = 0
     with open(content_csv, encoding='utf-8', errors='replace') as f:
         reader = csv.DictReader(f)
-        for row in reader:
+        # Log actual column names for debugging
+        first_row = next(reader, None)
+        if first_row:
+            print(f"  Content.csv columns: {list(first_row.keys())[:15]}",
+                  file=sys.stderr)
+        else:
+            print("  Content.csv is empty!", file=sys.stderr)
+            return {}
+        # Process first row + rest
+        from itertools import chain
+        for row in chain([first_row], reader):
             rows_read += 1
-            fid = row.get('food_id') or row.get('source_id')
-            cid = row.get('source_id')
-
             # The Content table links foods to compounds
             # Try different column name patterns
             if 'food_id' in row and 'source_id' in row:
-                fid = row['food_id']
-                cid = row['source_id']
+                fid = row['food_id'].strip()
+                cid = row['source_id'].strip()
             elif 'food_id' in row and 'compound_id' in row:
-                fid = row['food_id']
-                cid = row['compound_id']
+                fid = row['food_id'].strip()
+                cid = row['compound_id'].strip()
+            else:
+                fid = (row.get('food_id') or row.get('source_id') or '').strip()
+                cid = (row.get('source_id') or '').strip()
 
             if fid and cid:
                 if food_ids is None or fid in food_ids:
@@ -257,7 +267,11 @@ def load_foodb_contents(csv_dir, food_ids=None):
 # ── Matching ─────────────────────────────────────────────────
 
 def match_food_to_foodb(food_name, foodb_by_name):
-    """Match a food pool title to a FooDB food entry."""
+    """Match a food pool title to a FooDB food entry.
+
+    FooDB uses names like "Butter, salted", "Common wheat", "Egg, whole"
+    so we need several strategies beyond exact match.
+    """
     name = normalize_name(food_name)
 
     # Exact
@@ -270,21 +284,32 @@ def match_food_to_foodb(food_name, foodb_by_name):
         if variant in foodb_by_name:
             return foodb_by_name[variant]
 
-    # First word (e.g., "cheddar cheese" → "cheddar")
+    # FooDB comma convention: "butter, salted" → match "butter" as prefix
+    # This handles Butter → "Butter, salted", Egg → "Egg, whole", etc.
+    for foodb_name, entry in foodb_by_name.items():
+        foodb_base = foodb_name.split(',')[0].strip()
+        if foodb_base == name:
+            return entry
+
+    # Multi-word: try first/last word (e.g., "cheddar cheese" → "cheddar")
     words = name.split()
     if len(words) > 1:
         if words[0] in foodb_by_name:
             return foodb_by_name[words[0]]
         if words[-1] in foodb_by_name:
             return foodb_by_name[words[-1]]
-        # Try without last word (e.g., "bell pepper" → just check "pepper")
+        # Also try comma-prefix match with individual words
         for w in words:
-            if w in foodb_by_name:
-                return foodb_by_name[w]
+            for foodb_name, entry in foodb_by_name.items():
+                if foodb_name.split(',')[0].strip() == w:
+                    return entry
 
-    # Substring containment
+    # Substring containment (careful: only match if our name is the
+    # longer string, to avoid "corn" matching "acorn")
     for foodb_name, entry in foodb_by_name.items():
-        if name in foodb_name or foodb_name in name:
+        if foodb_name in name and len(foodb_name) >= 4:
+            return entry
+        if name in foodb_name and len(name) >= 4:
             return entry
 
     return None
@@ -445,18 +470,41 @@ def main():
     all_compound_ids = set()
     match_count = 0
 
+    # Normalize content keys to stripped strings for reliable lookup
+    foodb_contents_norm = {str(k).strip(): v for k, v in foodb_contents.items()}
+
+    name_matched_no_compounds = []
     for title, cat in foods:
         foodb_entry = match_food_to_foodb(title, foodb_by_name)
         if foodb_entry:
-            fid = foodb_entry['id']
-            cids = foodb_contents.get(fid, set())
+            fid = str(foodb_entry['id']).strip()
+            cids = foodb_contents_norm.get(fid, set())
             if cids:
                 matched_titles[title] = cids
                 all_compound_ids.update(cids)
                 match_count += 1
+            else:
+                name_matched_no_compounds.append(
+                    (title, foodb_entry['name'], fid))
 
     print(f"\nMatched: {match_count}/{len(foods)} foods, "
           f"{len(all_compound_ids)} unique compounds", file=sys.stderr)
+    if name_matched_no_compounds:
+        print(f"  ⚠ {len(name_matched_no_compounds)} foods matched FooDB name "
+              f"but had no compounds in Content table:", file=sys.stderr)
+        # Show a sample of content keys for debugging
+        sample_content_keys = list(foodb_contents.keys())[:3]
+        if sample_content_keys and name_matched_no_compounds:
+            sample_fid = name_matched_no_compounds[0][2]
+            print(f"    Content key type: {type(sample_content_keys[0])}, "
+                  f"Food ID type: {type(sample_fid)}, "
+                  f"sample content key: {sample_content_keys[0]!r}, "
+                  f"sample food id: {sample_fid!r}", file=sys.stderr)
+        for title, foodb_name, fid in name_matched_no_compounds[:20]:
+            print(f"    {title} → FooDB '{foodb_name}' (id={fid})", file=sys.stderr)
+        if len(name_matched_no_compounds) > 20:
+            print(f"    ... and {len(name_matched_no_compounds) - 20} more",
+                  file=sys.stderr)
 
     # Build name map for compound IDs → names (for output)
     compound_names = {}
