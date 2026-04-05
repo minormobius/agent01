@@ -545,7 +545,7 @@ def main():
                 continue
             else:
                 name_matched_no_compounds.append(
-                    (title, foodb_entry['name'], fid))
+                    (title, foodb_entry['name'], fid, "no compounds in Content table"))
 
     print(f"\nMatched: {match_count}/{len(foods)} foods, "
           f"{len(all_compound_ids)} unique compounds", file=sys.stderr)
@@ -560,8 +560,8 @@ def main():
                   f"Food ID type: {type(sample_fid)}, "
                   f"sample content key: {sample_content_keys[0]!r}, "
                   f"sample food id: {sample_fid!r}", file=sys.stderr)
-        for title, foodb_name, fid in name_matched_no_compounds[:20]:
-            print(f"    {title} → FooDB '{foodb_name}' (id={fid})", file=sys.stderr)
+        for title, foodb_name, fid, reason in name_matched_no_compounds[:20]:
+            print(f"    {title} → FooDB '{foodb_name}' (id={fid}) — {reason}", file=sys.stderr)
         if len(name_matched_no_compounds) > 20:
             print(f"    ... and {len(name_matched_no_compounds) - 20} more",
                   file=sys.stderr)
