@@ -37,59 +37,96 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
   5145532 total rows, 987 foods with compound data
 
 FooDB index: 992 food names
+Wrote FooDB food list to cards/data/foodb-foods.txt
+Loaded manual map: 677 entries (539 with FooDB targets)
 
-Matched: 303/742 foods, 54786 unique compounds
-  ⚠ 15 foods matched but had issues:
+Matched: 369/742 foods, 55252 unique compounds
+  ⚠ 216 manual map targets not found in FooDB:
+    Orange → 'orange' NOT IN FOODB
+    Blueberry → 'blueberry' NOT IN FOODB
+    Raspberry → 'raspberry' NOT IN FOODB
+    Cantaloupe → 'cantaloupe' NOT IN FOODB
+    Honeydew → 'honeydew melon' NOT IN FOODB
+    Plum → 'plum' NOT IN FOODB
+    Lychee → 'litchi' NOT IN FOODB
+    Mangosteen → 'mangosteen' NOT IN FOODB
+    Cranberry → 'cranberry' NOT IN FOODB
+    Tangerine → 'mandarin orange' NOT IN FOODB
+    Clementine → 'mandarin orange' NOT IN FOODB
+    Açaí → 'acai berry' NOT IN FOODB
+    Pomelo → 'pomelo' NOT IN FOODB
+    Blood orange → 'orange' NOT IN FOODB
+    Bergamot orange → 'orange' NOT IN FOODB
+    Damson → 'plum' NOT IN FOODB
+    Ackee → 'ackee' NOT IN FOODB
+    Currant → 'black currant' NOT IN FOODB
+    Huckleberry → 'blueberry' NOT IN FOODB
+    Noni → 'noni' NOT IN FOODB
+    Tomato → 'tomato' NOT IN FOODB
+    Satsuma → 'mandarin orange' NOT IN FOODB
+    Tangelo → 'mandarin orange' NOT IN FOODB
+    Onion → 'onion' NOT IN FOODB
+    Brussels sprout → 'brussels sprouts' NOT IN FOODB
+    Artichoke → 'artichoke' NOT IN FOODB
+    Celery → 'celery' NOT IN FOODB
+    Zucchini → 'zucchini' NOT IN FOODB
+    Bell pepper → 'sweet pepper' NOT IN FOODB
+    Beetroot → 'beet greens' NOT IN FOODB
+  ⚠ 19 foods matched but had issues:
     Cheddar cheese → FooDB 'Cheddar Cheese' (id=967) — only 1 compounds
+    Mozzarella → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
     Parmesan cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
+    Gorgonzola → FooDB 'Blue cheese' (id=983) — only 1 compounds
     Cottage cheese → FooDB 'Cottage cheese' (id=982) — only 1 compounds
+    Stilton cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Monterey Jack → FooDB 'Monterey Jack cheese' (id=980) — no compounds in Content table
+    Burrata → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Scamorza → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Oaxaca cheese → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Cotija cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
     Egg yolk → FooDB 'Egg yolk' (id=951) — only 2 compounds
     Blue cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
     Clam → FooDB 'Clam' (id=984) — only 1 compounds
-    Sesame oil → FooDB 'Sesame oil' (id=979) — only 1 compounds
+    Razor clam → FooDB 'Clam' (id=984) — only 1 compounds
     Coconut oil → FooDB 'Coconut oil' (id=973) — only 1 compounds
     Peanut oil → FooDB 'Peanut oil' (id=974) — only 1 compounds
-    Sunflower oil → FooDB 'Sunflower oil' (id=972) — only 1 compounds
     Canola oil → FooDB 'Canola oil' (id=954) — only 2 compounds
     Avocado oil → FooDB 'Avocado oil' (id=977) — only 1 compounds
-    Grapeseed oil → FooDB 'Grapeseed oil' (id=978) — only 1 compounds
-    Coconut milk → FooDB 'Coconut milk' (id=970) — only 1 compounds
-    Almond milk → FooDB 'Almond milk' (id=969) — only 1 compounds
-Wrote data/yum-compounds.json (59118KB)
-  Built TF-IDF vectors: 303/742 foods, 54786 compound dims
-  303 foods with compound data for PCA fitting
-  PCA: 54786 → 64d, 95.0% variance explained
-  Filled 439 foods with category-neighbor proxy
+Wrote data/yum-compounds.json (74688KB)
+  Built TF-IDF vectors: 369/742 foods, 55252 compound dims
+  369 foods with compound data for PCA fitting
+  PCA: 55252 → 64d, 96.1% variance explained
+  Filled 373 foods with category-neighbor proxy
 
 Wrote cards/data/yum-embeddings.bin (185KB)
 Wrote cards/data/yum-embeddings.json (22KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.257  [proxy]
-  Chocolate ~ Vanilla: -0.378  [COMPOUND]
-  Soy sauce ~ Miso: 0.995  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.740  [COMPOUND]
-  Salmon ~ Cinnamon: -0.318  [proxy]
-  Basil ~ Oregano: 0.783  [proxy]
-  Coffee ~ Tea: 0.006  [COMPOUND]
+  Garlic ~ Onion: 0.339  [proxy]
+  Chocolate ~ Vanilla: -0.320  [COMPOUND]
+  Soy sauce ~ Miso: 0.996  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.327  [COMPOUND]
+  Salmon ~ Cinnamon: -0.303  [COMPOUND]
+  Basil ~ Oregano: 0.372  [proxy]
+  Coffee ~ Tea: 0.000  [COMPOUND]
   Butter ~ Ghee: 0.718  [proxy]
-  Cheddar cheese ~ Brie: 0.944  [proxy]
-  Apple ~ Pear: 0.317  [COMPOUND]
+  Cheddar cheese ~ Brie: 0.951  [proxy]
+  Apple ~ Pear: 0.311  [COMPOUND]
 
-  Most similar: 'Clementine' ~ 'Monk fruit' (1.000)
+  Most similar: 'Pomegranate' ~ 'Pomegranate molasses' (1.000)
 
 ── Match rates by category ──
-  BEVERAGE    :   9/ 30 (30%)
-  CONDIMENT   :  21/ 61 (34%)
-  DAIRY       :  10/ 61 (16%)
-  FRUIT       :  52/100 (52%)
-  GRAIN       :  25/ 51 (49%)
-  LEGUME      :  34/ 55 (61%)
-  MEAT        :  10/ 55 (18%)
+  BEVERAGE    :  13/ 30 (43%)
+  CONDIMENT   :  23/ 61 (37%)
+  DAIRY       :  14/ 61 (22%)
+  FRUIT       :  65/100 (65%)
+  GRAIN       :  43/ 51 (84%)
+  LEGUME      :  28/ 55 (50%)
+  MEAT        :  26/ 55 (47%)
   OIL         :   9/ 25 (36%)
-  SEAFOOD     :  25/ 71 (35%)
-  SPICE       :  36/ 93 (38%)
-  SWEET       :  12/ 25 (48%)
-  VEGETABLE   :  60/115 (52%)
+  SEAFOOD     :  31/ 71 (43%)
+  SPICE       :  38/ 93 (40%)
+  SWEET       :  14/ 25 (56%)
+  VEGETABLE   :  65/115 (56%)
 
-Done! 742 food embeddings in 64d (303 compound-based, 439 category-proxy)
+Done! 742 food embeddings in 64d (369 compound-based, 373 category-proxy)
