@@ -91,6 +91,9 @@ jobs:
           TOTAL=$(jq -r '.count // "?"' cards/data/yum-embeddings.json 2>/dev/null || echo "?")
           git commit -m "yum: flavor embeddings — ${MATCHED}/${TOTAL} FooDB compound matches [auto]"
 
+          # Clean unstaged files (e.g. yum-compounds.json) so rebase works
+          git stash --include-untracked || true
+
           if ! git pull --rebase origin ${{ github.ref_name }}; then
             echo "Rebase conflict — keeping workflow-generated files"
             git checkout --theirs -- cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
