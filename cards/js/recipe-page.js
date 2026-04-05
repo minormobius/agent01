@@ -568,11 +568,38 @@ let dishSearchTerm = "";
 let currentDish = null;    // { name, wiki, ingredients: [idx...] }
 let dishRiffTarget = null; // ingredient title being riffed in dish view
 let dishIngredients = [];  // current dish's ingredient titles (mutable for swaps)
+let dishRefCentroid = null; // original dish centroid for comparison scoring
+
+function centroid(embIndices) {
+  if (embIndices.length === 0) return null;
+  const d = idx.dim;
+  const c = new Float64Array(d);
+  for (const ei of embIndices) {
+    const o = ei * d;
+    for (let j = 0; j < d; j++) c[j] += emb[o + j];
+  }
+  for (let j = 0; j < d; j++) c[j] /= embIndices.length;
+  return c;
+}
+
+function cosCentroids(a, b) {
+  if (!a || !b) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (let j = 0; j < a.length; j++) {
+    dot += a[j] * b[j];
+    na += a[j] * a[j];
+    nb += b[j] * b[j];
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom > 0 ? dot / denom : 0;
+}
 
 function getDishScore(ingredientTitles) {
   const cards = ingredientTitles.map(t => allCards.find(c => c.title === t)).filter(c => c && c.embIdx >= 0);
   if (cards.length < 2) return 0;
-  return coherenceScore(cards.map(c => c.embIdx));
+  if (!dishRefCentroid) return coherenceScore(cards.map(c => c.embIdx));
+  const cur = centroid(cards.map(c => c.embIdx));
+  return cosCentroids(cur, dishRefCentroid);
 }
 
 function renderDishGrid() {
@@ -588,14 +615,10 @@ function renderDishGrid() {
 
   el.innerHTML = dishes.map((dish, i) => {
     const ingNames = dish.ingredients.map(i => idx.titles[i]).filter(Boolean);
-    const score = getDishScore(ingNames);
-    const { grade, cls } = gradeScore(score);
     return `<div class="rb-dish-tile" data-dish-idx="${comp.dishes.indexOf(dish)}">
       <div class="rb-dish-tile-name">${dish.name}</div>
       <div class="rb-dish-tile-ings">${ingNames.slice(0, 5).join(", ")}${ingNames.length > 5 ? "..." : ""}</div>
-      <div class="rb-dish-tile-score">
-        <span class="${cls}">${grade}</span> ${(score * 100).toFixed(0)}% coherence
-      </div>
+      <div class="rb-dish-tile-count">${ingNames.length} ingredients</div>
     </div>`;
   }).join("");
 
@@ -611,6 +634,10 @@ function openDish(dish) {
   currentDish = dish;
   dishRiffTarget = null;
   dishIngredients = dish.ingredients.map(i => idx.titles[i]).filter(Boolean);
+
+  // Store original centroid as reference for scoring
+  const refCards = dishIngredients.map(t => allCards.find(c => c.title === t)).filter(c => c && c.embIdx >= 0);
+  dishRefCentroid = centroid(refCards.map(c => c.embIdx));
 
   document.getElementById("rb-dish-grid").style.display = "none";
   const detail = document.getElementById("rb-dish-detail");
@@ -629,7 +656,7 @@ function renderDishCard() {
   el.innerHTML = `
     <div class="rb-dish-card-grade ${cls}">${grade}</div>
     <div class="rb-dish-card-name">${currentDish.name}</div>
-    <div class="rb-dish-card-score">${(score * 100).toFixed(1)}% flavor coherence</div>
+    <div class="rb-dish-card-score">${(score * 100).toFixed(1)}% flavor similarity</div>
     <div class="rb-dish-card-wiki"><a href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a></div>
   `;
 }

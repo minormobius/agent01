@@ -392,11 +392,12 @@ def text_fallback_embeddings(foods, matched_titles, dim=64):
 
     embeddings = model.encode(texts, batch_size=32, normalize_embeddings=True)
 
-    # PCA down to target dim
+    # Random projection to target dim (NOT PCA — PCA collapses similar
+    # short food names into 2 dominant components, destroying all contrast)
     if embeddings.shape[1] > dim:
-        from sklearn.decomposition import PCA
-        pca = PCA(n_components=dim)
-        embeddings = pca.fit_transform(embeddings)
+        from sklearn.random_projection import GaussianRandomProjection
+        rp = GaussianRandomProjection(n_components=dim, random_state=42)
+        embeddings = rp.fit_transform(embeddings)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         norms[norms == 0] = 1
         embeddings = embeddings / norms
