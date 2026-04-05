@@ -4,7 +4,7 @@ Downloading FooDB CSV dump (~953MB)...
 Extracting...
   tar with --exclude failed, retrying plain...
   subprocess tar failed (Command '['tar', 'xzf', '/tmp/foodb_cache/foodb_csv.tar.gz', '-C', '/tmp/foodb_cache/foodb_csv']' returned non-zero exit status 2.), trying Python tarfile...
-/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:119: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:120: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
   tar.extractall(extract_dir, members=members)
   Found 29 CSV files in /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv
     AccessionNumber.csv (97KB)
@@ -38,45 +38,15 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 
 FooDB index: 992 food names
 Wrote FooDB food list to cards/data/foodb-foods.txt
-Loaded manual map: 677 entries (539 with FooDB targets)
+Loaded manual map: 677 entries (532 with FooDB targets)
 
-Matched: 369/742 foods, 55252 unique compounds
-  ⚠ 216 manual map targets not found in FooDB:
-    Orange → 'orange' NOT IN FOODB
-    Blueberry → 'blueberry' NOT IN FOODB
-    Raspberry → 'raspberry' NOT IN FOODB
-    Cantaloupe → 'cantaloupe' NOT IN FOODB
-    Honeydew → 'honeydew melon' NOT IN FOODB
-    Plum → 'plum' NOT IN FOODB
-    Lychee → 'litchi' NOT IN FOODB
-    Mangosteen → 'mangosteen' NOT IN FOODB
-    Cranberry → 'cranberry' NOT IN FOODB
-    Tangerine → 'mandarin orange' NOT IN FOODB
-    Clementine → 'mandarin orange' NOT IN FOODB
-    Açaí → 'acai berry' NOT IN FOODB
-    Pomelo → 'pomelo' NOT IN FOODB
-    Blood orange → 'orange' NOT IN FOODB
-    Bergamot orange → 'orange' NOT IN FOODB
-    Damson → 'plum' NOT IN FOODB
-    Ackee → 'ackee' NOT IN FOODB
-    Currant → 'black currant' NOT IN FOODB
-    Huckleberry → 'blueberry' NOT IN FOODB
-    Noni → 'noni' NOT IN FOODB
-    Tomato → 'tomato' NOT IN FOODB
-    Satsuma → 'mandarin orange' NOT IN FOODB
-    Tangelo → 'mandarin orange' NOT IN FOODB
-    Onion → 'onion' NOT IN FOODB
-    Brussels sprout → 'brussels sprouts' NOT IN FOODB
-    Artichoke → 'artichoke' NOT IN FOODB
-    Celery → 'celery' NOT IN FOODB
-    Zucchini → 'zucchini' NOT IN FOODB
-    Bell pepper → 'sweet pepper' NOT IN FOODB
-    Beetroot → 'beet greens' NOT IN FOODB
-  ⚠ 19 foods matched but had issues:
+Matched: 577/742 foods, 58285 unique compounds
+  ⚠ 20 foods matched but had issues:
     Cheddar cheese → FooDB 'Cheddar Cheese' (id=967) — only 1 compounds
     Mozzarella → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
     Parmesan cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
     Gorgonzola → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Feta → FooDB 'Greek feta cheese' (id=988) — only 1 compounds
     Cottage cheese → FooDB 'Cottage cheese' (id=982) — only 1 compounds
     Stilton cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
     Monterey Jack → FooDB 'Monterey Jack cheese' (id=980) — no compounds in Content table
@@ -92,41 +62,41 @@ Matched: 369/742 foods, 55252 unique compounds
     Peanut oil → FooDB 'Peanut oil' (id=974) — only 1 compounds
     Canola oil → FooDB 'Canola oil' (id=954) — only 2 compounds
     Avocado oil → FooDB 'Avocado oil' (id=977) — only 1 compounds
-Wrote data/yum-compounds.json (74688KB)
-  Built TF-IDF vectors: 369/742 foods, 55252 compound dims
-  369 foods with compound data for PCA fitting
-  PCA: 55252 → 64d, 96.1% variance explained
-  Filled 373 foods with category-neighbor proxy
+Wrote data/yum-compounds.json (133989KB)
+  Built TF-IDF vectors: 577/742 foods, 58285 compound dims
+  577 foods with compound data for PCA fitting
+  PCA: 58285 → 64d, 94.4% variance explained
+  Filled 165 foods with category-neighbor proxy
 
 Wrote cards/data/yum-embeddings.bin (185KB)
-Wrote cards/data/yum-embeddings.json (22KB)
+Wrote cards/data/yum-embeddings.json (23KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.339  [proxy]
-  Chocolate ~ Vanilla: -0.320  [COMPOUND]
-  Soy sauce ~ Miso: 0.996  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.327  [COMPOUND]
-  Salmon ~ Cinnamon: -0.303  [COMPOUND]
-  Basil ~ Oregano: 0.372  [proxy]
-  Coffee ~ Tea: 0.000  [COMPOUND]
-  Butter ~ Ghee: 0.718  [proxy]
-  Cheddar cheese ~ Brie: 0.951  [proxy]
-  Apple ~ Pear: 0.311  [COMPOUND]
+  Garlic ~ Onion: 0.451  [COMPOUND]
+  Chocolate ~ Vanilla: -0.264  [COMPOUND]
+  Soy sauce ~ Miso: 0.999  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.402  [COMPOUND]
+  Salmon ~ Cinnamon: -0.253  [COMPOUND]
+  Basil ~ Oregano: 0.718  [COMPOUND]
+  Coffee ~ Tea: 0.004  [COMPOUND]
+  Butter ~ Ghee: 0.679  [COMPOUND]
+  Cheddar cheese ~ Brie: 0.798  [proxy]
+  Apple ~ Pear: 0.925  [COMPOUND]
 
-  Most similar: 'Pomegranate' ~ 'Pomegranate molasses' (1.000)
+  Most similar: 'Shrimp (food)' ~ 'Prawn' (1.000)
 
 ── Match rates by category ──
-  BEVERAGE    :  13/ 30 (43%)
-  CONDIMENT   :  23/ 61 (37%)
-  DAIRY       :  14/ 61 (22%)
-  FRUIT       :  65/100 (65%)
-  GRAIN       :  43/ 51 (84%)
-  LEGUME      :  28/ 55 (50%)
-  MEAT        :  26/ 55 (47%)
-  OIL         :   9/ 25 (36%)
-  SEAFOOD     :  31/ 71 (43%)
-  SPICE       :  38/ 93 (40%)
-  SWEET       :  14/ 25 (56%)
-  VEGETABLE   :  65/115 (56%)
+  BEVERAGE    :  21/ 30 (70%)
+  CONDIMENT   :  38/ 61 (62%)
+  DAIRY       :  35/ 61 (57%)
+  FRUIT       :  86/100 (86%)
+  GRAIN       :  51/ 51 (100%)
+  LEGUME      :  48/ 55 (87%)
+  MEAT        :  48/ 55 (87%)
+  OIL         :  19/ 25 (76%)
+  SEAFOOD     :  48/ 71 (67%)
+  SPICE       :  63/ 93 (67%)
+  SWEET       :  19/ 25 (76%)
+  VEGETABLE   : 101/115 (87%)
 
-Done! 742 food embeddings in 64d (369 compound-based, 373 category-proxy)
+Done! 742 food embeddings in 64d (577 compound-based, 165 category-proxy)
