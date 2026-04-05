@@ -2740,7 +2740,7 @@ main:not(:has(.tab-panel)) {
 .yum-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 16px rgba(201, 168, 76, 0.4); }
 
 .yum-card-inner {
-  padding: 0.8rem;
+  padding: 0.6rem;
 }
 
 .yum-card-img {
