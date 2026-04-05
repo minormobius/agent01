@@ -269,8 +269,9 @@ def load_foodb_contents(csv_dir, food_ids=None):
 def match_food_to_foodb(food_name, foodb_by_name):
     """Match a food pool title to a FooDB food entry.
 
-    FooDB uses names like "Butter, salted", "Common wheat", "Egg, whole"
-    so we need several strategies beyond exact match.
+    Conservative matching to avoid false positives like:
+      "pepperoni" → "pepper", "corned beef" → "corn",
+      "rose water" → "water", "goose" → "gooseberry"
     """
     name = normalize_name(food_name)
 
@@ -284,33 +285,61 @@ def match_food_to_foodb(food_name, foodb_by_name):
         if variant in foodb_by_name:
             return foodb_by_name[variant]
 
-    # FooDB comma convention: "butter, salted" → match "butter" as prefix
-    # This handles Butter → "Butter, salted", Egg → "Egg, whole", etc.
+    # FooDB comma convention: "butter, salted" → match "butter" as prefix before comma
     for foodb_name, entry in foodb_by_name.items():
         foodb_base = foodb_name.split(',')[0].strip()
         if foodb_base == name:
             return entry
 
-    # Multi-word: try first/last word (e.g., "cheddar cheese" → "cheddar")
+    # "Common X" / "X (Y)" convention: "common wheat" matches "wheat"
+    for foodb_name, entry in foodb_by_name.items():
+        foodb_base = foodb_name.split(',')[0].strip()
+        # "common wheat" → "wheat"
+        if foodb_base.startswith('common ') and foodb_base[7:] == name:
+            return entry
+
+    # Multi-word our side: "bell pepper" → check "bell pepper" as FooDB comma-prefix
+    # But NOT individual words — "rose water" should NOT match "water"
     words = name.split()
     if len(words) > 1:
-        if words[0] in foodb_by_name:
-            return foodb_by_name[words[0]]
-        if words[-1] in foodb_by_name:
-            return foodb_by_name[words[-1]]
-        # Also try comma-prefix match with individual words
-        for w in words:
+        # Try the full multi-word name as a comma-prefix in FooDB
+        for foodb_name, entry in foodb_by_name.items():
+            foodb_base = foodb_name.split(',')[0].strip()
+            if foodb_base == name:
+                return entry
+
+        # Try "X cheese" → "X" in FooDB (e.g., "gouda cheese" → "gouda")
+        # Only if the qualifier is a generic category word
+        generic_qualifiers = {'cheese', 'sauce', 'oil', 'seed', 'seeds',
+                              'leaf', 'leaves', 'root', 'powder', 'flour',
+                              'milk', 'cream', 'butter', 'paste', 'syrup',
+                              'water', 'juice', 'vinegar', 'noodles', 'bread'}
+        if words[-1] in generic_qualifiers and len(words) >= 2:
+            base = ' '.join(words[:-1])
+            if base in foodb_by_name:
+                return foodb_by_name[base]
+            # Also check comma-prefix
             for foodb_name, entry in foodb_by_name.items():
-                if foodb_name.split(',')[0].strip() == w:
+                if foodb_name.split(',')[0].strip() == base:
                     return entry
 
-    # Substring containment (careful: only match if our name is the
-    # longer string, to avoid "corn" matching "acorn")
-    for foodb_name, entry in foodb_by_name.items():
-        if foodb_name in name and len(foodb_name) >= 4:
-            return entry
-        if name in foodb_name and len(name) >= 4:
-            return entry
+        # Try "adjective X" → "X" in FooDB (e.g., "black pepper" → "pepper")
+        # But be careful: "corned beef" should NOT match "beef" wait yes it should
+        # The adjective patterns that are safe to strip:
+        color_adj = {'black', 'white', 'red', 'green', 'yellow', 'brown',
+                     'dark', 'light', 'wild', 'dried', 'smoked', 'roasted',
+                     'fresh', 'raw', 'cooked', 'pickled', 'fermented',
+                     'candied', 'crystallized', 'toasted', 'ground'}
+        if words[0] in color_adj and len(words) >= 2:
+            rest = ' '.join(words[1:])
+            if rest in foodb_by_name:
+                return foodb_by_name[rest]
+            for foodb_name, entry in foodb_by_name.items():
+                if foodb_name.split(',')[0].strip() == rest:
+                    return entry
+
+    # NO substring matching — it causes too many false positives
+    # ("corn" in "cornmeal", "rice" in "licorice", "pepper" in "pepperoni")
 
     return None
 
@@ -505,10 +534,15 @@ def main():
         if foodb_entry:
             fid = str(foodb_entry['id']).strip()
             cids = foodb_contents_norm.get(fid, set())
-            if cids:
+            if len(cids) >= 10:  # skip entries with too few compounds (useless data)
                 matched_titles[title] = cids
                 all_compound_ids.update(cids)
                 match_count += 1
+            elif cids:
+                name_matched_no_compounds.append(
+                    (title, foodb_entry['name'], fid,
+                     f"only {len(cids)} compounds"))
+                continue
             else:
                 name_matched_no_compounds.append(
                     (title, foodb_entry['name'], fid))
