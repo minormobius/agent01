@@ -76,6 +76,7 @@ async function loadData() {
     status.textContent = `${allCards.length} ingredients · ${idx.foodb_matched} flavor-compound matched`;
     applyFilters();
     renderFilters();
+    if (comp) renderDishGrid();
   } catch (err) {
     console.error(err);
     status.textContent = "Failed to load data.";
@@ -561,6 +562,166 @@ function renderHistory() {
   el.innerHTML = `<div class="rb-hist-label">Previous Dishes</div>${items}`;
 }
 
+// ── Dish View ──────────────────────────────────────────────
+
+let dishSearchTerm = "";
+let currentDish = null;    // { name, wiki, ingredients: [idx...] }
+let dishRiffTarget = null; // ingredient title being riffed in dish view
+let dishIngredients = [];  // current dish's ingredient titles (mutable for swaps)
+
+function getDishScore(ingredientTitles) {
+  const cards = ingredientTitles.map(t => allCards.find(c => c.title === t)).filter(c => c && c.embIdx >= 0);
+  if (cards.length < 2) return 0;
+  return coherenceScore(cards.map(c => c.embIdx));
+}
+
+function renderDishGrid() {
+  if (!comp || !comp.dishes) return;
+  const el = document.getElementById("rb-dish-grid");
+  const detail = document.getElementById("rb-dish-detail");
+  const q = dishSearchTerm.toLowerCase();
+
+  detail.classList.add("hidden");
+  el.style.display = "";
+
+  const dishes = comp.dishes.filter(d => !q || d.name.toLowerCase().includes(q));
+
+  el.innerHTML = dishes.map((dish, i) => {
+    const ingNames = dish.ingredients.map(i => idx.titles[i]).filter(Boolean);
+    const score = getDishScore(ingNames);
+    const { grade, cls } = gradeScore(score);
+    return `<div class="rb-dish-tile" data-dish-idx="${comp.dishes.indexOf(dish)}">
+      <div class="rb-dish-tile-name">${dish.name}</div>
+      <div class="rb-dish-tile-ings">${ingNames.slice(0, 5).join(", ")}${ingNames.length > 5 ? "..." : ""}</div>
+      <div class="rb-dish-tile-score">
+        <span class="${cls}">${grade}</span> ${(score * 100).toFixed(0)}% coherence
+      </div>
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".rb-dish-tile").forEach(tile => {
+    tile.addEventListener("click", () => {
+      const di = parseInt(tile.dataset.dishIdx);
+      openDish(comp.dishes[di]);
+    });
+  });
+}
+
+function openDish(dish) {
+  currentDish = dish;
+  dishRiffTarget = null;
+  dishIngredients = dish.ingredients.map(i => idx.titles[i]).filter(Boolean);
+
+  document.getElementById("rb-dish-grid").style.display = "none";
+  const detail = document.getElementById("rb-dish-detail");
+  detail.classList.remove("hidden");
+
+  renderDishCard();
+  renderDishIngredients();
+}
+
+function renderDishCard() {
+  const el = document.getElementById("rb-dish-card");
+  const score = getDishScore(dishIngredients);
+  const { grade, cls } = gradeScore(score);
+  const wikiUrl = `https://en.wikipedia.org/wiki/${currentDish.wiki}`;
+
+  el.innerHTML = `
+    <div class="rb-dish-card-grade ${cls}">${grade}</div>
+    <div class="rb-dish-card-name">${currentDish.name}</div>
+    <div class="rb-dish-card-score">${(score * 100).toFixed(1)}% flavor coherence</div>
+    <div class="rb-dish-card-wiki"><a href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a></div>
+  `;
+}
+
+function renderDishIngredients() {
+  const el = document.getElementById("rb-dish-ingredients");
+
+  el.innerHTML = dishIngredients.map(title => {
+    const card = allCards.find(c => c.title === title);
+    const cat = FOOD_CATEGORIES[card?.category] || {};
+    const w = wiki?.foods?.[title] || {};
+    const isRiff = dishRiffTarget === title;
+    return `<div class="rb-dish-ing ${isRiff ? "riffing" : ""}" data-title="${title}">
+      ${w.thumb ? `<img class="rb-dish-ing-thumb" src="${w.thumb}" alt="${title}">` : `<span class="rb-dish-ing-icon">${cat.icon || "?"}</span>`}
+      <span class="rb-dish-ing-name">${title}</span>
+      <span class="rb-dish-ing-swap">swap</span>
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".rb-dish-ing").forEach(ing => {
+    ing.addEventListener("click", () => {
+      const title = ing.dataset.title;
+      dishRiffTarget = dishRiffTarget === title ? null : title;
+      renderDishIngredients();
+      renderDishRiff();
+    });
+  });
+
+  renderDishRiff();
+}
+
+function renderDishRiff() {
+  const el = document.getElementById("rb-dish-riff");
+  if (!dishRiffTarget) { el.classList.add("hidden"); return; }
+
+  const neighbors = findNearestNeighbors(dishRiffTarget);
+  // Also exclude current dish ingredients from suggestions
+  const dishSet = new Set(dishIngredients);
+  const filtered = neighbors.filter(n => !dishSet.has(n.title));
+
+  if (filtered.length === 0) { el.classList.add("hidden"); return; }
+
+  const items = filtered.slice(0, 10).map(n => {
+    const cat = FOOD_CATEGORIES[n.category] || {};
+    const w = wiki?.foods?.[n.title] || {};
+    const pct = (n.sim * 100).toFixed(0);
+    return `<div class="rb-riff-option" data-title="${n.title}">
+      ${w.thumb ? `<img class="rb-sel-thumb" src="${w.thumb}" alt="${n.title}">` : `<span class="rb-sel-icon">${cat.icon || "?"}</span>`}
+      <span class="rb-riff-name">${n.title}</span>
+      <span class="rb-riff-sim">${pct}%</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="rb-riff-header">Swap <strong>${dishRiffTarget}</strong> for:</div>
+    <div class="rb-riff-list">${items}</div>`;
+  el.classList.remove("hidden");
+
+  el.querySelectorAll(".rb-riff-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      const oldTitle = dishRiffTarget;
+      const newTitle = opt.dataset.title;
+      const i = dishIngredients.indexOf(oldTitle);
+      if (i >= 0) dishIngredients[i] = newTitle;
+      dishRiffTarget = newTitle;
+      renderDishCard();
+      renderDishIngredients();
+    });
+  });
+}
+
+// ── View toggle ────────────────────────────────────────────
+
+function showView(view) {
+  const dishView = document.getElementById("rb-dish-view");
+  const ingView = document.getElementById("rb-ingredient-view");
+  const btnDish = document.getElementById("rb-view-dishes");
+  const btnIng = document.getElementById("rb-view-ingredients");
+
+  if (view === "dishes") {
+    dishView.classList.remove("hidden");
+    ingView.classList.add("hidden");
+    btnDish.classList.add("active");
+    btnIng.classList.remove("active");
+    if (comp) renderDishGrid();
+  } else {
+    dishView.classList.add("hidden");
+    ingView.classList.remove("hidden");
+    btnDish.classList.remove("active");
+    btnIng.classList.add("active");
+  }
+}
+
 // ── Init ────────────────────────────────────────────────────
 
 loadData();
@@ -589,4 +750,19 @@ document.getElementById("rb-cat-none").addEventListener("click", () => {
   activeCategories.clear();
   document.querySelectorAll("#rb-cat-chips .filter-chip").forEach(c => c.classList.remove("active"));
   applyFilters();
+});
+
+// ── Dish view listeners ──
+
+document.getElementById("rb-view-dishes").addEventListener("click", () => showView("dishes"));
+document.getElementById("rb-view-ingredients").addEventListener("click", () => showView("ingredients"));
+
+document.getElementById("rb-dish-search").addEventListener("input", (e) => {
+  dishSearchTerm = e.target.value;
+  renderDishGrid();
+});
+
+document.getElementById("rb-dish-back").addEventListener("click", () => {
+  document.getElementById("rb-dish-detail").classList.add("hidden");
+  document.getElementById("rb-dish-grid").style.display = "";
 });

@@ -3043,6 +3043,119 @@ main:not(:has(.tab-panel)) {
 .rb-riff-name { font-size: 0.7rem; color: var(--text); }
 .rb-riff-sim { font-size: 0.6rem; color: #60a5fa; font-family: system-ui, sans-serif; }
 
+/* View toggle */
+.rb-view-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+.rb-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.4rem 1.2rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rb-view-btn.active {
+  background: var(--gold);
+  color: #000;
+  font-weight: 600;
+}
+.rb-view-btn:hover:not(.active) { background: rgba(255,255,255,0.05); }
+
+/* Dish grid */
+.rb-dish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+.rb-dish-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.rb-dish-tile:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.rb-dish-tile-name { font-size: 0.8rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
+.rb-dish-tile-ings { font-size: 0.65rem; color: var(--text-dim); line-height: 1.4; }
+.rb-dish-tile-score {
+  font-size: 0.65rem;
+  font-family: system-ui, sans-serif;
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Dish detail */
+.rb-dish-detail.hidden { display: none; }
+.rb-dish-card {
+  text-align: center;
+  padding: 1rem 0;
+}
+.rb-dish-card-name { font-size: 1.4rem; color: var(--gold); font-weight: 600; }
+.rb-dish-card-score { font-size: 0.8rem; font-family: system-ui, sans-serif; margin-top: 0.3rem; }
+.rb-dish-card-wiki { font-size: 0.7rem; margin-top: 0.3rem; }
+.rb-dish-card-grade {
+  display: inline-block;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+.rb-dish-card-extract {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  max-width: 500px;
+  margin: 0.4rem auto 0;
+  line-height: 1.5;
+}
+.rb-dish-card-thumb {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+/* Dish ingredient ring */
+.rb-dish-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.5rem 0;
+}
+.rb-dish-ing {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(230, 126, 34, 0.12);
+  border: 1px solid rgba(230, 126, 34, 0.3);
+  border-radius: 20px;
+  padding: 5px 10px 5px 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rb-dish-ing:hover { background: rgba(230, 126, 34, 0.25); border-color: rgba(230, 126, 34, 0.5); }
+.rb-dish-ing.riffing { border-color: var(--gold); background: rgba(201, 168, 76, 0.15); }
+.rb-dish-ing-thumb { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.rb-dish-ing-icon { font-size: 1rem; width: 24px; text-align: center; }
+.rb-dish-ing-name { font-size: 0.75rem; color: var(--text); }
+.rb-dish-ing-swap { font-size: 0.6rem; color: var(--gold-dim); margin-left: 2px; }
+
+/* Riff inside dish detail — reuse existing .rb-riff-panel styles */
+.rb-dish-detail .rb-riff-panel { margin-top: 0.5rem; }
+
 .rb-sel-thumb {
   width: 22px;
   height: 22px;
