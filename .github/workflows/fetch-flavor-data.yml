@@ -69,8 +69,8 @@ jobs:
             echo "- FooDB matches: $(jq -r '.foodb_matched' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
             echo "- Compounds found: $(jq -r '.compounds_count' cards/data/yum-embeddings.json)" >> $GITHUB_STEP_SUMMARY
           fi
-          if [ -f data/yum-compounds.json ]; then
-            echo "- Raw compound file: $(du -h data/yum-compounds.json | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          if [ -f cards/data/flavor-log.txt ]; then
+            echo "- Log file: $(du -h cards/data/flavor-log.txt | cut -f1)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -83,7 +83,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
-                 data/yum-compounds.json cards/data/flavor-log.txt \
+                 cards/data/flavor-log.txt \
                  cards/data/foodb-foods.txt
           git diff --cached --quiet && echo "No changes to commit" && exit 0
 
@@ -94,9 +94,9 @@ jobs:
           if ! git pull --rebase origin ${{ github.ref_name }}; then
             echo "Rebase conflict — keeping workflow-generated files"
             git checkout --theirs -- cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
-                                     data/yum-compounds.json cards/data/flavor-log.txt 2>/dev/null || true
+                                     cards/data/flavor-log.txt 2>/dev/null || true
             git add cards/data/yum-embeddings.json cards/data/yum-embeddings.bin \
-                    data/yum-compounds.json cards/data/flavor-log.txt
+                    cards/data/flavor-log.txt
             GIT_EDITOR=true git rebase --continue
           fi
 

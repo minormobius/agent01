@@ -17,3 +17,6 @@ time/entries/figures/
 # Full scored output is too large to commit (~6MB+ and growing)
 # Only pool files (deep-pool.json, full-pool.json, pool.js) are committed
 cards/data/deep-wikipedia.json
+
+# Raw compound data too large for GitHub (130MB+)
+data/yum-compounds.json
