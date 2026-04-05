@@ -39,8 +39,7 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 FooDB index: 992 food names
 
 Matched: 303/742 foods, 54786 unique compounds
-  ⚠ 15 foods matched FooDB name but had no compounds in Content table:
-    Content key type: <class 'str'>, Food ID type: <class 'str'>, sample content key: '4', sample food id: '967'
+  ⚠ 15 foods matched but had issues:
     Cheddar cheese → FooDB 'Cheddar Cheese' (id=967) — only 1 compounds
     Parmesan cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
     Cottage cheese → FooDB 'Cottage cheese' (id=982) — only 1 compounds
@@ -66,18 +65,18 @@ Wrote cards/data/yum-embeddings.bin (185KB)
 Wrote cards/data/yum-embeddings.json (22KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.263  [proxy]
-  Chocolate ~ Vanilla: -0.379  [COMPOUND]
+  Garlic ~ Onion: 0.257  [proxy]
+  Chocolate ~ Vanilla: -0.378  [COMPOUND]
   Soy sauce ~ Miso: 0.995  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.732  [COMPOUND]
-  Salmon ~ Cinnamon: -0.316  [proxy]
-  Basil ~ Oregano: 0.782  [proxy]
+  Lemon ~ Lime (fruit): 0.740  [COMPOUND]
+  Salmon ~ Cinnamon: -0.318  [proxy]
+  Basil ~ Oregano: 0.783  [proxy]
   Coffee ~ Tea: 0.006  [COMPOUND]
-  Butter ~ Ghee: 0.723  [proxy]
+  Butter ~ Ghee: 0.718  [proxy]
   Cheddar cheese ~ Brie: 0.944  [proxy]
-  Apple ~ Pear: 0.310  [COMPOUND]
+  Apple ~ Pear: 0.317  [COMPOUND]
 
-  Most similar: 'Rice' ~ 'Rice noodles' (1.000)
+  Most similar: 'Clementine' ~ 'Monk fruit' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :   9/ 30 (30%)
