@@ -520,8 +520,23 @@ def main():
 
     print(f"\nFooDB index: {len(foodb_by_name)} food names", file=sys.stderr)
 
+    # Normalize content keys to stripped strings for reliable lookup
+    foodb_contents_norm = {str(k).strip(): v for k, v in foodb_contents.items()}
+
+    # Dump all FooDB food names + compound counts for manual map curation
+    foodb_names_path = os.path.join(args.output_dir, "foodb-foods.txt")
+    with open(foodb_names_path, "w") as f:
+        for name in sorted(foodb_by_name.keys()):
+            food = foodb_by_name[name]
+            fid = str(food['id']).strip()
+            n_compounds = len(foodb_contents_norm.get(fid, set()))
+            f.write(f"{name}\t{n_compounds}\n")
+    print(f"Wrote FooDB food list to {foodb_names_path}", file=sys.stderr)
+
     # 3. Match our foods to FooDB using manual map + fallback
-    manual_map_path = os.path.join(os.path.dirname(args.pool_js), '..', 'data', 'foodb-map.json')
+    # foodb-map.json is at repo_root/data/ — script is at repo_root/scripts/
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    manual_map_path = os.path.join(script_dir, '..', 'data', 'foodb-map.json')
     manual_map = {}
     if os.path.exists(manual_map_path):
         with open(manual_map_path) as f:
@@ -531,13 +546,12 @@ def main():
         print(f"Loaded manual map: {len(manual_map)} entries "
               f"({sum(1 for v in manual_map.values() if v)} with FooDB targets)",
               file=sys.stderr)
+    else:
+        print(f"  ⚠ Manual map not found at {manual_map_path}", file=sys.stderr)
 
     matched_titles = {}  # our title → set of compound IDs
     all_compound_ids = set()
     match_count = 0
-
-    # Normalize content keys to stripped strings for reliable lookup
-    foodb_contents_norm = {str(k).strip(): v for k, v in foodb_contents.items()}
 
     name_matched_no_compounds = []
     manual_miss = []
