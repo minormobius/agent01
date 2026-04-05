@@ -38,46 +38,13 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 
 FooDB index: 992 food names
 
-Matched: 473/742 foods, 55571 unique compounds
-  ⚠ 2 foods matched FooDB name but had no compounds in Content table:
-    Content key type: <class 'str'>, Food ID type: <class 'str'>, sample content key: '4', sample food id: '980'
-    Monterey Jack → FooDB 'Monterey Jack cheese' (id=980)
-    Wine → FooDB 'Fortified wine' (id=278)
-Wrote data/yum-compounds.json (85758KB)
-  Built TF-IDF vectors: 473/742 foods, 55571 compound dims
-  473 foods with compound data for PCA fitting
-  PCA: 55571 → 64d, 94.8% variance explained
-  Filled 269 foods with category-neighbor proxy
-
-Wrote cards/data/yum-embeddings.bin (185KB)
-Wrote cards/data/yum-embeddings.json (22KB)
-
-── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.285  [COMPOUND]
-  Chocolate ~ Vanilla: -0.393  [COMPOUND]
-  Soy sauce ~ Miso: 0.997  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.384  [COMPOUND]
-  Salmon ~ Cinnamon: -0.450  [COMPOUND]
-  Basil ~ Oregano: 0.378  [COMPOUND]
-  Coffee ~ Tea: 0.003  [COMPOUND]
-  Butter ~ Ghee: 0.693  [proxy]
-  Cheddar cheese ~ Brie: 0.729  [proxy]
-  Apple ~ Pear: 0.320  [COMPOUND]
-
-  Most similar: 'Blueberry' ~ 'Cranberry' (1.000)
-
-── Match rates by category ──
-  BEVERAGE    :  14/ 30 (46%)
-  CONDIMENT   :  36/ 61 (59%)
-  DAIRY       :  32/ 61 (52%)
-  FRUIT       :  71/100 (71%)
-  GRAIN       :  35/ 51 (68%)
-  LEGUME      :  44/ 55 (80%)
-  MEAT        :  19/ 55 (34%)
-  OIL         :  18/ 25 (72%)
-  SEAFOOD     :  49/ 71 (69%)
-  SPICE       :  56/ 93 (60%)
-  SWEET       :  19/ 25 (76%)
-  VEGETABLE   :  80/115 (69%)
-
-Done! 742 food embeddings in 64d (473 compound-based, 269 category-proxy)
+Matched: 303/742 foods, 54786 unique compounds
+  ⚠ 15 foods matched FooDB name but had no compounds in Content table:
+    Content key type: <class 'str'>, Food ID type: <class 'str'>, sample content key: '4', sample food id: '967'
+Traceback (most recent call last):
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 690, in <module>
+    main()
+  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 563, in main
+    for title, foodb_name, fid in name_matched_no_compounds[:20]:
+        ^^^^^^^^^^^^^^^^^^^^^^
+ValueError: too many values to unpack (expected 3)
