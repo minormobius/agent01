@@ -1,4 +1,4 @@
-Parsed 754 foods from cards/js/yum-pool.js
+Parsed 742 foods from cards/js/yum-pool.js
 Downloading FooDB CSV dump (~953MB)...
 
 Extracting...
@@ -23,6 +23,7 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Food.csv...
 Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Compound.csv...
   Loaded 70477 compounds
 Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may take a moment)...
+  Content.csv columns: ['id', 'source_id', 'source_type', 'food_id', 'orig_food_id', 'orig_food_common_name', 'orig_food_scientific_name', 'orig_food_part', 'orig_source_id', 'orig_source_name', 'orig_content', 'orig_min', 'orig_max', 'orig_unit', 'orig_citation']
   ...500000 content rows processed
   ...1000000 content rows processed
   ...1500000 content rows processed
@@ -37,42 +38,46 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
 
 FooDB index: 992 food names
 
-Matched: 491/754 foods, 55571 unique compounds
-Wrote data/yum-compounds.json (86333KB)
-  Built vectors: 491/754 foods, 55571 compound dims
-  491 foods with compound data for PCA fitting
+Matched: 473/742 foods, 55571 unique compounds
+  ⚠ 2 foods matched FooDB name but had no compounds in Content table:
+    Content key type: <class 'str'>, Food ID type: <class 'str'>, sample content key: '4', sample food id: '980'
+    Monterey Jack → FooDB 'Monterey Jack cheese' (id=980)
+    Wine → FooDB 'Fortified wine' (id=278)
+Wrote data/yum-compounds.json (85758KB)
+  Built vectors: 473/742 foods, 55571 compound dims
+  473 foods with compound data for PCA fitting
   PCA: 55571 → 64d, 99.5% variance explained
-  Filled 263 foods with category-neighbor proxy
+  Filled 269 foods with category-neighbor proxy
 
-Wrote cards/data/yum-embeddings.bin (188KB)
-Wrote cards/data/yum-embeddings.json (23KB)
+Wrote cards/data/yum-embeddings.bin (185KB)
+Wrote cards/data/yum-embeddings.json (22KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.809  [COMPOUND]
-  Chocolate ~ Vanilla: -0.947  [COMPOUND]
+  Garlic ~ Onion: 0.803  [COMPOUND]
+  Chocolate ~ Vanilla: -0.943  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.908  [COMPOUND]
-  Salmon ~ Cinnamon: -0.948  [COMPOUND]
-  Basil ~ Oregano: 0.893  [COMPOUND]
-  Coffee ~ Tea: 0.374  [COMPOUND]
-  Butter ~ Ghee: 0.991  [proxy]
-  Cheddar cheese ~ Brie: 0.980  [proxy]
-  Apple ~ Pear: 0.899  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.905  [COMPOUND]
+  Salmon ~ Cinnamon: -0.945  [COMPOUND]
+  Basil ~ Oregano: 0.887  [COMPOUND]
+  Coffee ~ Tea: 0.386  [COMPOUND]
+  Butter ~ Ghee: 0.993  [proxy]
+  Cheddar cheese ~ Brie: 0.981  [proxy]
+  Apple ~ Pear: 0.897  [COMPOUND]
 
-  Most similar: 'Watermelon' ~ 'Watermelon seed' (1.000)
+  Most similar: 'Garlic' ~ 'Black garlic' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  14/ 30 (46%)
-  CONDIMENT   :  42/ 67 (62%)
-  DAIRY       :  35/ 63 (55%)
+  CONDIMENT   :  36/ 61 (59%)
+  DAIRY       :  32/ 61 (52%)
   FRUIT       :  71/100 (71%)
-  GRAIN       :  36/ 52 (69%)
+  GRAIN       :  35/ 51 (68%)
   LEGUME      :  44/ 55 (80%)
-  MEAT        :  22/ 55 (40%)
+  MEAT        :  19/ 55 (34%)
   OIL         :  18/ 25 (72%)
-  SEAFOOD     :  51/ 71 (71%)
-  SPICE       :  57/ 95 (60%)
+  SEAFOOD     :  49/ 71 (69%)
+  SPICE       :  56/ 93 (60%)
   SWEET       :  19/ 25 (76%)
-  VEGETABLE   :  82/116 (70%)
+  VEGETABLE   :  80/115 (69%)
 
-Done! 754 food embeddings in 64d (491 compound-based, 263 category-proxy)
+Done! 742 food embeddings in 64d (473 compound-based, 269 category-proxy)
