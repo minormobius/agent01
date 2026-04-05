@@ -12,15 +12,11 @@ Pipeline:
   3. Match our 780 food pool titles to FooDB food entries
   4. Build sparse binary vectors over flavor/aroma compounds
   5. PCA reduce to 64d dense embeddings
-  6. Text-embedding fallback for unmatched prepared dishes
+  6. Category-neighbor proxy for unmatched foods (same PCA space)
   7. Output: yum-embeddings.json + yum-embeddings.bin + yum-compounds.json
 
 Usage:
     pip install requests numpy scikit-learn
-    python3 scripts/fetch-flavor-data.py
-
-    # With text fallback for unmatched foods
-    pip install requests numpy scikit-learn sentence-transformers
     python3 scripts/fetch-flavor-data.py
 
     # Custom paths
@@ -346,63 +342,65 @@ def reduce_dimensions(vectors, target_dim=64):
     return reduced
 
 
-def text_fallback_embeddings(foods, matched_titles, dim=64):
-    """Text embeddings for foods not matched in FooDB."""
-    try:
-        from sentence_transformers import SentenceTransformer
-    except ImportError:
-        print("  sentence-transformers not available, skipping text fallback",
-              file=sys.stderr)
-        return None
+def category_neighbor_fallback(foods, matched_titles, embeddings, k=5):
+    """For unmatched foods, average the embeddings of nearest matched neighbors in same category.
 
-    unmatched = [(i, title) for i, (title, _) in enumerate(foods)
-                 if title not in matched_titles]
+    This keeps all vectors in one coherent compound-PCA space instead of
+    stitching in a separate text-embedding space.  For each unmatched food:
+      1. Find all FooDB-matched foods in the same category
+      2. Take the centroid of those compound embeddings
+      3. If no same-category matches exist, use the global matched centroid
+    Add jitter (scaled noise) so foods aren't perfectly identical.
+    """
+    dim = embeddings.shape[1]
+    title_to_idx = {title: i for i, (title, _) in enumerate(foods)}
 
-    if not unmatched:
-        return None
+    # Group matched foods by category
+    cat_matched = {}  # category → list of indices
+    for title in matched_titles:
+        idx = title_to_idx.get(title)
+        if idx is None:
+            continue
+        cat = foods[idx][1]
+        cat_matched.setdefault(cat, []).append(idx)
 
-    print(f"  Text embeddings for {len(unmatched)} unmatched foods...", file=sys.stderr)
+    # Global matched centroid as final fallback
+    matched_indices = [title_to_idx[t] for t in matched_titles if t in title_to_idx]
+    if not matched_indices:
+        return {}
+    global_centroid = embeddings[matched_indices].mean(axis=0)
 
-    # Fetch Wikipedia extracts
-    extracts = {}
-    unmatched_titles = [t for _, t in unmatched]
-    for batch_start in range(0, len(unmatched_titles), 20):
-        batch = unmatched_titles[batch_start:batch_start + 20]
-        try:
-            resp = requests.get("https://en.wikipedia.org/w/api.php", params={
-                "action": "query", "titles": "|".join(batch),
-                "prop": "extracts", "exintro": True, "explaintext": True,
-                "format": "json", "origin": "*",
-            }, timeout=30)
-            if resp.status_code == 200:
-                for p in resp.json().get("query", {}).get("pages", {}).values():
-                    if p.get("extract"):
-                        extracts[p["title"]] = p["extract"]
-        except Exception as e:
-            print(f"    Wikipedia error: {e}", file=sys.stderr)
-        time.sleep(0.3)
+    rng = np.random.RandomState(42)
+    result = {}
 
-    print(f"  Got {len(extracts)} Wikipedia extracts", file=sys.stderr)
+    for i, (title, cat) in enumerate(foods):
+        if title in matched_titles:
+            continue  # already has compound embedding
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    texts = []
-    for _, title in unmatched:
-        ext = extracts.get(title, "")
-        texts.append(f"{title}: {ext}" if ext else title)
+        # Same-category matched neighbors
+        neighbors = cat_matched.get(cat, [])
+        if neighbors:
+            centroid = embeddings[neighbors].mean(axis=0)
+        else:
+            centroid = global_centroid.copy()
 
-    embeddings = model.encode(texts, batch_size=32, normalize_embeddings=True)
+        # Add small jitter so items aren't identical — scale relative to
+        # the typical spread within this category
+        if len(neighbors) > 1:
+            spread = embeddings[neighbors].std(axis=0).mean()
+        else:
+            spread = 0.1
+        jitter = rng.randn(dim) * spread * 0.3
+        vec = centroid + jitter
 
-    # Random projection to target dim (NOT PCA — PCA collapses similar
-    # short food names into 2 dominant components, destroying all contrast)
-    if embeddings.shape[1] > dim:
-        from sklearn.random_projection import GaussianRandomProjection
-        rp = GaussianRandomProjection(n_components=dim, random_state=42)
-        embeddings = rp.fit_transform(embeddings)
-        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        norms[norms == 0] = 1
-        embeddings = embeddings / norms
+        # L2 normalize
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
 
-    return {idx: emb for (idx, _), emb in zip(unmatched, embeddings)}
+        result[i] = vec
+
+    return result
 
 
 # ── Main ─────────────────────────────────────────────────────
@@ -497,13 +495,13 @@ def main():
         print("No compound data — falling back entirely to text", file=sys.stderr)
         embeddings = np.zeros((len(foods), args.dim), dtype=np.float32)
 
-    # 5. Text fallback for unmatched
+    # 5. Category-neighbor fallback for unmatched (stays in compound space)
     if not args.skip_text_fallback:
-        fallback = text_fallback_embeddings(foods, matched_titles, dim=args.dim)
+        fallback = category_neighbor_fallback(foods, matched_titles, embeddings)
         if fallback:
             for idx, emb in fallback.items():
                 embeddings[idx] = emb
-            print(f"  Filled {len(fallback)} foods with text fallback", file=sys.stderr)
+            print(f"  Filled {len(fallback)} foods with category-neighbor proxy", file=sys.stderr)
 
     # 6. Write outputs
     dim = embeddings.shape[1]
@@ -514,15 +512,19 @@ def main():
     size_kb = os.path.getsize(bin_path) // 1024
     print(f"\nWrote {bin_path} ({size_kb}KB)", file=sys.stderr)
 
+    # Per-food source flag: "compound" or "proxy"
+    sources = ["compound" if t in matched_titles else "proxy" for t in titles]
+
     index_path = os.path.join(args.output_dir, "yum-embeddings.json")
     index = {
         "dim": dim,
         "count": len(titles),
-        "source": "foodb-compounds+text-fallback",
+        "source": "foodb-compounds+category-proxy",
         "foodb_matched": match_count,
         "compounds_count": len(all_compound_ids),
         "titles": titles,
         "categories": categories,
+        "sources": sources,
     }
     with open(index_path, "w") as f:
         json.dump(index, f, separators=(",", ":"), ensure_ascii=False)
@@ -548,7 +550,7 @@ def main():
         if a in title_to_idx and b in title_to_idx:
             ai, bi = title_to_idx[a], title_to_idx[b]
             sim = float(np.dot(embeddings[ai], embeddings[bi]))
-            marker = "COMPOUND" if (a in matched_titles and b in matched_titles) else "text"
+            marker = "COMPOUND" if (a in matched_titles and b in matched_titles) else "proxy"
             print(f"  {a} ~ {b}: {sim:.3f}  [{marker}]", file=sys.stderr)
 
     # Most similar pair
@@ -572,7 +574,7 @@ def main():
         print(f"  {cat:12s}: {s['matched']:3d}/{s['total']:3d} ({pct}%)", file=sys.stderr)
 
     print(f"\nDone! {len(titles)} food embeddings in {dim}d "
-          f"({match_count} compound-based, {len(titles) - match_count} text-based)",
+          f"({match_count} compound-based, {len(titles) - match_count} category-proxy)",
           file=sys.stderr)
 
 
