@@ -41,10 +41,56 @@ FooDB index: 992 food names
 Matched: 303/742 foods, 54786 unique compounds
   ⚠ 15 foods matched FooDB name but had no compounds in Content table:
     Content key type: <class 'str'>, Food ID type: <class 'str'>, sample content key: '4', sample food id: '967'
-Traceback (most recent call last):
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 690, in <module>
-    main()
-  File "/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py", line 563, in main
-    for title, foodb_name, fid in name_matched_no_compounds[:20]:
-        ^^^^^^^^^^^^^^^^^^^^^^
-ValueError: too many values to unpack (expected 3)
+    Cheddar cheese → FooDB 'Cheddar Cheese' (id=967) — only 1 compounds
+    Parmesan cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
+    Cottage cheese → FooDB 'Cottage cheese' (id=982) — only 1 compounds
+    Egg yolk → FooDB 'Egg yolk' (id=951) — only 2 compounds
+    Blue cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Clam → FooDB 'Clam' (id=984) — only 1 compounds
+    Sesame oil → FooDB 'Sesame oil' (id=979) — only 1 compounds
+    Coconut oil → FooDB 'Coconut oil' (id=973) — only 1 compounds
+    Peanut oil → FooDB 'Peanut oil' (id=974) — only 1 compounds
+    Sunflower oil → FooDB 'Sunflower oil' (id=972) — only 1 compounds
+    Canola oil → FooDB 'Canola oil' (id=954) — only 2 compounds
+    Avocado oil → FooDB 'Avocado oil' (id=977) — only 1 compounds
+    Grapeseed oil → FooDB 'Grapeseed oil' (id=978) — only 1 compounds
+    Coconut milk → FooDB 'Coconut milk' (id=970) — only 1 compounds
+    Almond milk → FooDB 'Almond milk' (id=969) — only 1 compounds
+Wrote data/yum-compounds.json (59118KB)
+  Built TF-IDF vectors: 303/742 foods, 54786 compound dims
+  303 foods with compound data for PCA fitting
+  PCA: 54786 → 64d, 95.0% variance explained
+  Filled 439 foods with category-neighbor proxy
+
+Wrote cards/data/yum-embeddings.bin (185KB)
+Wrote cards/data/yum-embeddings.json (22KB)
+
+── Flavor similarity sanity check ──
+  Garlic ~ Onion: 0.263  [proxy]
+  Chocolate ~ Vanilla: -0.379  [COMPOUND]
+  Soy sauce ~ Miso: 0.995  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.732  [COMPOUND]
+  Salmon ~ Cinnamon: -0.316  [proxy]
+  Basil ~ Oregano: 0.782  [proxy]
+  Coffee ~ Tea: 0.006  [COMPOUND]
+  Butter ~ Ghee: 0.723  [proxy]
+  Cheddar cheese ~ Brie: 0.944  [proxy]
+  Apple ~ Pear: 0.310  [COMPOUND]
+
+  Most similar: 'Rice' ~ 'Rice noodles' (1.000)
+
+── Match rates by category ──
+  BEVERAGE    :   9/ 30 (30%)
+  CONDIMENT   :  21/ 61 (34%)
+  DAIRY       :  10/ 61 (16%)
+  FRUIT       :  52/100 (52%)
+  GRAIN       :  25/ 51 (49%)
+  LEGUME      :  34/ 55 (61%)
+  MEAT        :  10/ 55 (18%)
+  OIL         :   9/ 25 (36%)
+  SEAFOOD     :  25/ 71 (35%)
+  SPICE       :  36/ 93 (38%)
+  SWEET       :  12/ 25 (48%)
+  VEGETABLE   :  60/115 (52%)
+
+Done! 742 food embeddings in 64d (303 compound-based, 439 category-proxy)
