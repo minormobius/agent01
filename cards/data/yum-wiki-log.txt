@@ -1,46 +1,47 @@
-Parsed 725 foods from cards/js/yum-pool.js
-  20/725 queried, 20 found
-  40/725 queried, 40 found
-  60/725 queried, 60 found
-  80/725 queried, 80 found
-  100/725 queried, 100 found
-  120/725 queried, 120 found
-  140/725 queried, 140 found
-  160/725 queried, 160 found
-  180/725 queried, 180 found
-  200/725 queried, 200 found
-  220/725 queried, 220 found
-  240/725 queried, 239 found
-  260/725 queried, 259 found
-  280/725 queried, 279 found
-  300/725 queried, 299 found
-  320/725 queried, 319 found
-  340/725 queried, 338 found
-  360/725 queried, 358 found
-  380/725 queried, 378 found
-  400/725 queried, 398 found
-  420/725 queried, 418 found
-  440/725 queried, 437 found
-  460/725 queried, 457 found
-  480/725 queried, 477 found
-  500/725 queried, 496 found
-  520/725 queried, 516 found
-  540/725 queried, 536 found
-  560/725 queried, 550 found
-  580/725 queried, 570 found
-  600/725 queried, 588 found
-  620/725 queried, 607 found
-  640/725 queried, 627 found
-  660/725 queried, 647 found
-  680/725 queried, 667 found
-  700/725 queried, 683 found
-  720/725 queried, 703 found
-  725/725 queried, 708 found
+Parsed 754 foods from cards/js/yum-pool.js
+  20/754 queried, 20 found
+  40/754 queried, 40 found
+  60/754 queried, 60 found
+  80/754 queried, 80 found
+  100/754 queried, 100 found
+  120/754 queried, 120 found
+  140/754 queried, 140 found
+  160/754 queried, 160 found
+  180/754 queried, 180 found
+  200/754 queried, 200 found
+  220/754 queried, 219 found
+  240/754 queried, 238 found
+  260/754 queried, 258 found
+  280/754 queried, 277 found
+  300/754 queried, 297 found
+  320/754 queried, 317 found
+  340/754 queried, 334 found
+  360/754 queried, 354 found
+  380/754 queried, 374 found
+  400/754 queried, 394 found
+  420/754 queried, 414 found
+  440/754 queried, 433 found
+  460/754 queried, 453 found
+  480/754 queried, 473 found
+  500/754 queried, 492 found
+  520/754 queried, 512 found
+  540/754 queried, 532 found
+  560/754 queried, 551 found
+  580/754 queried, 563 found
+  600/754 queried, 582 found
+  620/754 queried, 600 found
+  640/754 queried, 616 found
+  660/754 queried, 634 found
+  680/754 queried, 654 found
+  700/754 queried, 674 found
+  720/754 queried, 692 found
+  740/754 queried, 710 found
+  754/754 queried, 724 found
 
-Done! 710/725 matched, 522 with thumbnails
-Wrote cards/data/yum-wikipedia.json (209KB)
+Done! 738/754 matched, 543 with thumbnails
+Wrote cards/data/yum-wikipedia.json (215KB)
 
-Missed 15 foods:
+Missed 16 foods:
   - Amaranth (grain)
   - Rabbit (food)
   - Wahoo (fish)
@@ -51,6 +52,7 @@ Missed 15 foods:
   - Dried thyme
   - Dried basil
   - Dried rosemary
+  - Old Bay seasoning
   - Yuzu kosho
   - Adobo (sauce)
   - Tamarind paste
