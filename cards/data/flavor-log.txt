@@ -45,7 +45,7 @@ Wrote data/yum-compounds.json (86333KB)
   Text embeddings for 263 unmatched foods...
   Got 0 Wikipedia extracts
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4825.51it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3956.46it/s]
 [1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -60,17 +60,17 @@ Wrote cards/data/yum-embeddings.json (15KB)
 
 ── Flavor similarity sanity check ──
   Garlic ~ Onion: 0.809  [COMPOUND]
-  Chocolate ~ Vanilla: -0.947  [COMPOUND]
+  Chocolate ~ Vanilla: -0.946  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
   Lemon ~ Lime (fruit): 0.908  [COMPOUND]
   Salmon ~ Cinnamon: -0.949  [COMPOUND]
-  Basil ~ Oregano: 0.891  [COMPOUND]
+  Basil ~ Oregano: 0.894  [COMPOUND]
   Coffee ~ Tea: 0.374  [COMPOUND]
-  Butter ~ Ghee: 0.136  [text]
-  Cheddar cheese ~ Brie: 0.177  [text]
+  Butter ~ Ghee: 0.070  [text]
+  Cheddar cheese ~ Brie: -0.101  [text]
   Apple ~ Pear: 0.899  [COMPOUND]
 
-  Most similar: 'Nopales' ~ 'Nopal' (1.000)
+  Most similar: 'Mustard greens' ~ 'Mustard oil' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  14/ 30 (46%)
