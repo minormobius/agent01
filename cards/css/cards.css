@@ -3285,6 +3285,8 @@ main:not(:has(.tab-panel)) {
   color: var(--text-dim);
 }
 .rb-hint strong { color: var(--text); }
+.rb-hint-comp { color: #4ade80; }
+.rb-hint-best { color: #60a5fa; }
 
 /* History */
 .rb-history { width: 100%; margin-top: 1rem; }
@@ -3317,6 +3319,23 @@ main:not(:has(.tab-panel)) {
 
 .rb-hist-names { flex: 1; color: var(--text); }
 .rb-hist-score { font-family: system-ui, sans-serif; font-size: 0.7rem; color: var(--text-dim); }
+
+/* Complementarity Suggestions */
+.rb-suggestions { padding: 0.8rem 0; }
+.rb-suggest-label { font-size: 0.8rem; color: var(--gold); margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+.rb-suggest-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.rb-suggest-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(34, 120, 80, 0.15);
+  border: 1px solid rgba(34, 120, 80, 0.3);
+  border-radius: 20px; padding: 4px 10px 4px 4px;
+  cursor: pointer; transition: all 0.15s;
+}
+.rb-suggest-chip:hover { background: rgba(34, 120, 80, 0.3); border-color: rgba(34, 120, 80, 0.5); }
+.rb-suggest-chip .rb-sel-thumb { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.rb-suggest-chip .rb-sel-icon { font-size: 0.9rem; width: 22px; text-align: center; }
+.rb-suggest-chip .rb-sel-name { font-size: 0.75rem; color: var(--text); }
+.rb-suggest-score { font-size: 0.65rem; color: #4ade80; font-family: system-ui, sans-serif; }
 
 @media (max-width: 500px) {
   .rb-deck { grid-template-columns: repeat(2, 1fr); }

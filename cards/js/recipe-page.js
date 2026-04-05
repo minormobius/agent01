@@ -8,6 +8,8 @@ import { RARITY_LABELS } from "./shared.js";
 let emb = null;   // Float32Array of all embeddings
 let idx = null;   // { dim, count, titles[], categories[] }
 let wiki = null;  // { foods: { title: { thumb, extract } } }
+let comp = null;  // complementarity data: { pmi, clusters, freq }
+let pmiLookup = null; // Map("a|b" → pmi_score)
 let ready = false;
 
 let allCards = [];        // full deck: { title, category, stats, embIdx }
@@ -25,10 +27,11 @@ let activeCategories = new Set(Object.keys(FOOD_CATEGORIES));
 async function loadData() {
   const status = document.getElementById("rb-status");
   try {
-    const [jr, br, wr] = await Promise.all([
+    const [jr, br, wr, cr] = await Promise.all([
       fetch("data/yum-embeddings.json"),
       fetch("data/yum-embeddings.bin"),
       fetch("data/yum-wikipedia.json"),
+      fetch("data/yum-complementarity.json"),
     ]);
 
     if (!jr.ok || !br.ok) {
@@ -42,6 +45,20 @@ async function loadData() {
     if (wr.ok) {
       wiki = await wr.json();
       console.log(`Wikipedia data: ${wiki.matched} foods, ${wiki.with_thumbnails} thumbnails`);
+    }
+
+    if (cr.ok) {
+      comp = await cr.json();
+      // Build PMI lookup: "a|b" → score (bidirectional)
+      pmiLookup = new Map();
+      for (const [ia, ib, score] of comp.pmi) {
+        const a = idx.titles[ia], b = idx.titles[ib];
+        if (a && b) {
+          pmiLookup.set(`${a}|${b}`, score);
+          pmiLookup.set(`${b}|${a}`, score);
+        }
+      }
+      console.log(`Complementarity: ${comp.n_recipes} recipes, ${comp.n_pairs} PMI pairs`);
     }
 
     // Build full card deck
@@ -188,7 +205,7 @@ function toggleSelect(title) {
   if (selected.has(title)) {
     selected.delete(title);
   } else {
-    if (selected.size >= 5) return;
+    if (selected.size >= 8) return;
     selected.add(title);
   }
   renderDeck();
@@ -196,6 +213,7 @@ function toggleSelect(title) {
   updateScore();
   updateMatrix();
   updateHints();
+  updateSuggestions();
 }
 
 function removeSelected(title) {
@@ -205,6 +223,7 @@ function removeSelected(title) {
   updateScore();
   updateMatrix();
   updateHints();
+  updateSuggestions();
 }
 
 function clearSelection() {
@@ -215,6 +234,8 @@ function clearSelection() {
   hideMatrix();
   hideHints();
   updateStatusLine();
+  const sug = document.getElementById("rb-suggestions");
+  if (sug) sug.classList.add("hidden");
 }
 
 function renderSelected() {
@@ -248,10 +269,10 @@ function updateStatusLine() {
   if (!ready) return;
   const showing = Math.min(visibleCount, filteredCards.length);
   if (selected.size > 0) {
-    const minMsg = selected.size < 3 ? " — need at least 3" : "";
-    el.textContent = `${selected.size}/5 selected · ${showing}/${allCards.length} shown${minMsg}`;
+    const minMsg = selected.size < 2 ? " — need at least 2" : "";
+    el.textContent = `${selected.size}/8 selected · ${showing}/${allCards.length} shown${minMsg}`;
   } else {
-    el.textContent = `${showing}/${allCards.length} ingredients · pick 3-5 to build a dish`;
+    el.textContent = `${showing}/${allCards.length} ingredients · pick ingredients to build a dish`;
   }
 }
 
@@ -349,16 +370,99 @@ function updateHints() {
 
   let html = '';
   if (bestPair) {
-    html += `<div class="rb-hint rb-hint-best">Best pairing: <strong>${bestPair[0].title}</strong> + <strong>${bestPair[1].title}</strong> (${(bestSim * 100).toFixed(0)}%)</div>`;
+    const pmi = getPMI(bestPair[0].title, bestPair[1].title);
+    const pmiNote = pmi > 0 ? ` · PMI +${pmi.toFixed(1)}` : '';
+    html += `<div class="rb-hint rb-hint-best">Best pairing: <strong>${bestPair[0].title}</strong> + <strong>${bestPair[1].title}</strong> (${(bestSim * 100).toFixed(0)}% similar${pmiNote})</div>`;
   }
   if (worstPair && worstSim < 0) {
     html += `<div class="rb-hint rb-hint-worst">Clash: <strong>${worstPair[0].title}</strong> + <strong>${worstPair[1].title}</strong> (${(worstSim * 100).toFixed(0)}%)</div>`;
+  }
+  // Highest PMI pair (may differ from highest similarity)
+  if (pmiLookup && cards.length >= 2) {
+    let bestPMIPair = null, bestPMI = -Infinity;
+    for (let i = 0; i < cards.length; i++) {
+      for (let j = i + 1; j < cards.length; j++) {
+        const p = getPMI(cards[i].title, cards[j].title);
+        if (p > bestPMI) { bestPMI = p; bestPMIPair = [cards[i], cards[j]]; }
+      }
+    }
+    if (bestPMIPair && bestPMI > 0) {
+      html += `<div class="rb-hint rb-hint-comp">Classic combo: <strong>${bestPMIPair[0].title}</strong> + <strong>${bestPMIPair[1].title}</strong> (PMI +${bestPMI.toFixed(1)})</div>`;
+    }
   }
   el.innerHTML = html;
   el.classList.remove("hidden");
 }
 
 function hideHints() { document.getElementById("rb-hints").classList.add("hidden"); }
+
+// ── Complementarity Suggestions ────────────────────────────
+
+function getPMI(a, b) {
+  if (!pmiLookup) return 0;
+  return pmiLookup.get(`${a}|${b}`) || 0;
+}
+
+function suggestComplements(selectedTitles) {
+  if (!pmiLookup || selectedTitles.length === 0) return [];
+
+  const selSet = new Set(selectedTitles);
+  const scores = new Map();
+
+  // For each unselected ingredient, compute average PMI with all selected
+  for (const card of allCards) {
+    if (selSet.has(card.title)) continue;
+    let sum = 0, count = 0;
+    for (const sel of selectedTitles) {
+      const pmi = getPMI(card.title, sel);
+      if (pmi !== 0) { sum += pmi; count++; }
+    }
+    if (count > 0) {
+      scores.set(card.title, sum / count);
+    }
+  }
+
+  // Sort by average PMI descending
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([title, score]) => ({ title, score }));
+}
+
+function updateSuggestions() {
+  const el = document.getElementById("rb-suggestions");
+  if (!el) return;
+  if (selected.size === 0 || !pmiLookup) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  const suggestions = suggestComplements([...selected]);
+  if (suggestions.length === 0) {
+    el.classList.add("hidden");
+    return;
+  }
+
+  const items = suggestions.map(s => {
+    const card = allCards.find(c => c.title === s.title);
+    const cat = FOOD_CATEGORIES[card?.category] || {};
+    const w = wiki?.foods?.[s.title] || {};
+    return `<div class="rb-suggest-chip" data-title="${s.title}">
+      ${w.thumb ? `<img class="rb-sel-thumb" src="${w.thumb}" alt="${s.title}">` : `<span class="rb-sel-icon">${cat.icon || "?"}</span>`}
+      <span class="rb-sel-name">${s.title}</span>
+      <span class="rb-suggest-score">+${s.score.toFixed(1)}</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="rb-suggest-label">Suggested complements</div><div class="rb-suggest-list">${items}</div>`;
+  el.classList.remove("hidden");
+
+  el.querySelectorAll(".rb-suggest-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      toggleSelect(chip.dataset.title);
+    });
+  });
+}
 
 // ── History ─────────────────────────────────────────────────
 
