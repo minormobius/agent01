@@ -366,6 +366,53 @@ footer a {
 footer a:hover {
   color: var(--text);
 }
+
+.git-timeline {
+  margin: 2rem auto;
+  max-width: 900px;
+  padding: 0 1rem;
+}
+.git-timeline h2 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.75rem 0;
+}
+.git-canvas-wrap {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--accent-faint);
+  -webkit-overflow-scrolling: touch;
+}
+.git-canvas-wrap canvas {
+  display: block;
+}
+.git-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.git-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.git-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  font-style: normal;
+}
 </style>
 </head>
 <body>
@@ -474,6 +521,14 @@ footer a:hover {
 </nav>
 
 <div class="site-count">40 sites</div>
+
+<div class="git-timeline">
+  <h2>commit history</h2>
+  <div class="git-canvas-wrap">
+    <canvas id="git-canvas"></canvas>
+  </div>
+  <div class="git-legend" id="git-legend"></div>
+</div>
 
 <hr>
 
@@ -895,6 +950,282 @@ footer a:hover {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(layout, 100);
   });
+})();
+</script>
+<script>
+(function() {
+  var canvas = document.getElementById('git-canvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var wrap = canvas.parentElement;
+
+  var LANE_H = 14;
+  var COMMIT_W = 5;
+  var PAD_TOP = 28;
+  var PAD_BOT = 14;
+  var PAD_LEFT = 10;
+  var DOT_R = 2.5;
+
+  var projectColor = {
+    poll:'#e63946', photo:'#457b9d', cards:'#2a9d8f', bakery:'#d4a030',
+    time:'#9b59b6', feed:'#1abc9c', workers:'#1abc9c', phylo:'#3498db',
+    org:'#e67e22', music:'#f1c40f', clock:'#8e44ad', zoom:'#16a085',
+    noise:'#c0392b', cluster:'#27ae60', sweat:'#e74c3c', labglass:'#2ecc71',
+    read:'#f39c12', flows:'#1e90ff', mega:'#ff6347', wars:'#ff4500',
+    wave:'#00bcd4', os:'#795548', bounty:'#ff9800', seek:'#4caf50',
+    density:'#009688', echo:'#607d8b', judge:'#9c27b0', novelty:'#673ab7',
+    ternary:'#3f51b5', finance:'#cddc39', packages:'#00acc1',
+    root:'#999', '.github':'#777'
+  };
+
+  var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var lineBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  var textCol = isDark ? '#888' : '#999';
+  var mergeCol = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+
+  fetch('git-graph.json').then(function(r) { return r.text(); }).then(function(text) {
+    var commits = JSON.parse(text.split('\n')[0]);
+    commits.reverse(); // oldest first
+    render(commits);
+  }).catch(function(e) {
+    console.error('git-graph load failed:', e);
+  });
+
+  function pickColor(dirs) {
+    for (var i = 0; i < dirs.length; i++) {
+      if (projectColor[dirs[i]]) return projectColor[dirs[i]];
+    }
+    return projectColor.root;
+  }
+
+  function render(commits) {
+    var byHash = {};
+    commits.forEach(function(c, i) { c._i = i; byHash[c.h] = c; });
+
+    // Lane assignment: process oldest-first
+    // For each commit, inherit lane from first parent or get new lane
+    var lanes = []; // which hash occupies each lane (null = free)
+    var maxLane = 0;
+
+    function freeLane(l) { lanes[l] = null; }
+    function allocLane() {
+      for (var i = 0; i < lanes.length; i++) {
+        if (lanes[i] === null) { return i; }
+      }
+      lanes.push(null);
+      return lanes.length - 1;
+    }
+
+    // First pass: build children map
+    var children = {};
+    commits.forEach(function(c) {
+      c.p.forEach(function(ph) {
+        if (!children[ph]) children[ph] = [];
+        children[ph].push(c.h);
+      });
+    });
+
+    // Assign lanes: process chronologically
+    commits.forEach(function(c) {
+      var firstParent = c.p[0] ? byHash[c.p[0]] : null;
+
+      if (firstParent && firstParent._lane !== undefined) {
+        // Inherit lane from first parent
+        c._lane = firstParent._lane;
+        // Free parent's lane only if this is its last child in this lane
+      } else {
+        c._lane = allocLane();
+      }
+      lanes[c._lane] = c.h;
+
+      if (c._lane > maxLane) maxLane = c._lane;
+
+      // For merge parents (non-first), ensure they have lanes
+      // (they should already since they're older)
+    });
+
+    // Determine which lanes to free: a lane is freed when the last
+    // commit using it has no children that continue on it
+    // Actually, let's re-do with a cleaner approach processing newest-first
+
+    // Reset and redo with reverse processing
+    commits.forEach(function(c) { delete c._lane; });
+    lanes = [];
+    maxLane = 0;
+    var commitLane = {};
+
+    // Process newest-first for proper lane assignment
+    for (var i = commits.length - 1; i >= 0; i--) {
+      var c = commits[i];
+
+      if (commitLane[c.h] !== undefined) {
+        c._lane = commitLane[c.h];
+      } else {
+        c._lane = allocLane();
+        lanes[c._lane] = c.h;
+      }
+
+      if (c._lane > maxLane) maxLane = c._lane;
+
+      // First parent inherits this lane
+      if (c.p.length > 0) {
+        var fp = c.p[0];
+        if (commitLane[fp] === undefined) {
+          commitLane[fp] = c._lane;
+          lanes[c._lane] = fp;
+        } else {
+          // First parent already has a lane (fork point)
+          // Free our lane since it ends here
+          freeLane(c._lane);
+        }
+
+        // Merge parents get new lanes
+        for (var j = 1; j < c.p.length; j++) {
+          if (commitLane[c.p[j]] === undefined) {
+            var ml = allocLane();
+            commitLane[c.p[j]] = ml;
+            lanes[ml] = c.p[j];
+            if (ml > maxLane) maxLane = ml;
+          }
+        }
+      } else {
+        // Root commit, free lane
+        freeLane(c._lane);
+      }
+    }
+
+    // Canvas sizing
+    var W = commits.length * COMMIT_W + PAD_LEFT * 2;
+    var H = (maxLane + 1) * LANE_H + PAD_TOP + PAD_BOT;
+    var dpr = window.devicePixelRatio || 1;
+
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    // Draw month labels
+    ctx.font = '9px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono');
+    ctx.fillStyle = textCol;
+    ctx.textAlign = 'center';
+
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var lastMonth = -1;
+    commits.forEach(function(c, i) {
+      var d = new Date(c.t * 1000);
+      var m = d.getFullYear() * 12 + d.getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        var x = PAD_LEFT + i * COMMIT_W;
+        ctx.fillText(months[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), x, 12);
+        ctx.strokeStyle = lineBg;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 16);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+    });
+
+    // Draw connections
+    ctx.lineWidth = 1;
+    commits.forEach(function(c, i) {
+      var x1 = PAD_LEFT + i * COMMIT_W;
+      var y1 = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
+
+      c.p.forEach(function(ph, pi) {
+        var parent = byHash[ph];
+        if (!parent) return;
+        var x0 = PAD_LEFT + parent._i * COMMIT_W;
+        var y0 = PAD_TOP + parent._lane * LANE_H + LANE_H / 2;
+
+        if (pi === 0) {
+          // First parent - solid line
+          ctx.strokeStyle = pickColor(c.d);
+          ctx.globalAlpha = 0.4;
+        } else {
+          // Merge parent - dashed
+          ctx.strokeStyle = mergeCol;
+          ctx.globalAlpha = 0.6;
+        }
+
+        ctx.beginPath();
+        if (y0 === y1) {
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+        } else {
+          ctx.moveTo(x0, y0);
+          var mx = (x0 + x1) / 2;
+          ctx.bezierCurveTo(mx, y0, mx, y1, x1, y1);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+    });
+
+    // Draw commit dots
+    commits.forEach(function(c, i) {
+      var x = PAD_LEFT + i * COMMIT_W;
+      var y = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
+      var col = pickColor(c.d);
+
+      ctx.beginPath();
+      ctx.arc(x, y, c.m ? DOT_R + 1 : DOT_R, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+
+      if (c.m) {
+        ctx.strokeStyle = isDark ? '#fff' : '#000';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    });
+
+    // Build legend from actually used colors
+    var seen = {};
+    var legendEl = document.getElementById('git-legend');
+    commits.forEach(function(c) {
+      c.d.forEach(function(d) {
+        if (!seen[d] && projectColor[d] && d !== 'root' && d !== '.github') {
+          seen[d] = projectColor[d];
+        }
+      });
+    });
+    // Sort by frequency
+    var dirCount = {};
+    commits.forEach(function(c) {
+      c.d.forEach(function(d) { dirCount[d] = (dirCount[d]||0) + 1; });
+    });
+    var entries = Object.keys(seen).sort(function(a,b) { return (dirCount[b]||0) - (dirCount[a]||0); });
+    entries.forEach(function(d) {
+      var s = document.createElement('span');
+      s.innerHTML = '<i style="background:' + seen[d] + '"></i>' + d;
+      legendEl.appendChild(s);
+    });
+
+    // Tooltip on hover
+    canvas.addEventListener('mousemove', function(e) {
+      var rect = canvas.getBoundingClientRect();
+      var sx = (e.clientX - rect.left + wrap.scrollLeft);
+      var sy = (e.clientY - rect.top);
+      var ci = Math.round((sx - PAD_LEFT) / COMMIT_W);
+      if (ci < 0 || ci >= commits.length) { canvas.title = ''; return; }
+      var c = commits[ci];
+      var cy = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
+      if (Math.abs(sy - cy) < LANE_H) {
+        var d = new Date(c.t * 1000);
+        var ds = d.toLocaleDateString();
+        canvas.title = c.h + ' ' + c.d.join(', ') + ' (' + ds + ')' + (c.m ? ' merge' : '');
+      } else {
+        canvas.title = '';
+      }
+    });
+
+    // Auto-scroll to end (most recent)
+    wrap.scrollLeft = wrap.scrollWidth;
+  }
 })();
 </script>
 </body>
