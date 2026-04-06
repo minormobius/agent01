@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="31 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="42 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 31 sites built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 42 sites built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 31 sites built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 42 sites built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png">
 <style>
 :root {
@@ -265,11 +265,11 @@ footer a:hover {
       <a href="https://time.mino.mobi">time</a>
       <a href="https://mino.mobi/mega/">mega</a>
       <a href="https://mino.mobi/finance/">finance</a>
+      <a href="https://mino.mobi/finance/bogo/">bogo</a>
       <a href="https://mino.mobi/wars/">wars</a>
       <a href="https://mino.mobi/flows/">flows</a>
       <a href="https://mino.mobi/phylo/">phylo</a>
       <a href="https://mino.mobi/cards/">cards</a>
-      <a href="https://mino.mobi/clock/">clock</a>
     </div>
   </div>
   <div class="card-grid-group">
@@ -278,11 +278,27 @@ footer a:hover {
       <a href="https://mino.mobi/labglass/">labglass</a>
       <a href="https://mino.mobi/os/">os</a>
       <a href="https://mino.mobi/read/">read</a>
+      <a href="https://mino.mobi/read/flow/">flow</a>
       <a href="https://mino.mobi/noise/">noise</a>
       <a href="https://mino.mobi/music/">music</a>
       <a href="https://bakery.mino.mobi">bakery</a>
       <a href="https://mino.mobi/sweat/">sweat</a>
       <a href="https://mino.mobi/audio/">audio</a>
+      <a href="https://mino.mobi/clock/">clock</a>
+    </div>
+  </div>
+  <div class="card-grid-group">
+    <div class="card-grid-label">games</div>
+    <div class="card-grid">
+      <a href="https://mino.mobi/cards/play/">play</a>
+      <a href="https://mino.mobi/clock/pac/">pac</a>
+      <a href="https://mino.mobi/clock/torpac/">torpac</a>
+      <a href="https://mino.mobi/clock/knotpac/">knotpac</a>
+      <a href="https://mino.mobi/clock/inpac/">inpac</a>
+      <a href="https://mino.mobi/clock/toruschess/">chess</a>
+      <a href="https://mino.mobi/clock/emsim/">emsim</a>
+      <a href="https://mino.mobi/clock/scape/">scape</a>
+      <a href="https://mino.mobi/clock/stretch/">stretch</a>
     </div>
   </div>
 </nav>
@@ -299,7 +315,7 @@ footer a:hover {
 
 <hr>
 
-<div class="site-count">31 sites</div>
+<div class="site-count">42 sites</div>
 
 <!-- ——— Bluesky ——— -->
 
@@ -456,6 +472,12 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
+      <a href="https://mino.mobi/finance/bogo/">bogo</a>
+    </div>
+    <div class="desc">Ice cream deals near you. Find discounts by zip code across major grocery chains.</div>
+  </li>
+  <li>
+    <div class="name-row">
       <a href="https://mino.mobi/wars/">wars</a>
     </div>
     <div class="desc">War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties.</div>
@@ -481,12 +503,6 @@ footer a:hover {
       <span class="tag">atproto</span>
     </div>
     <div class="desc">Wiki Cards. A deep Wikipedia card game&mdash;Lucky, Transmute, Nexus, and Library modes built on neural embeddings.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/clock/">clock</a>
-    </div>
-    <div class="desc">Helix Calendar. Interactive time visualization with tunable display parameters.</div>
   </li>
 </ul>
 
@@ -518,6 +534,13 @@ footer a:hover {
       <span class="tag">workers</span>
     </div>
     <div class="desc">Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting, memorize mode, and eye-tracking pacing.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/flow/">flow</a>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Visualize reading. Text flowing through a curved path on the canvas with Project Gutenberg integration.</div>
   </li>
   <li>
     <div class="name-row">
@@ -557,6 +580,86 @@ footer a:hover {
       <span class="tag">atproto</span>
     </div>
     <div class="desc">Audio rooms. Real-time voice channels with a Cloudflare Worker backend.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/">clock</a>
+      <span class="tag">webgpu</span>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Helix Calendar. Fractal nested helix visualization of time with drill-down zoom from years to seconds.</div>
+  </li>
+</ul>
+
+<!-- ——— Games ——— -->
+
+<div class="section-label">games</div>
+
+<ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/play/">play</a>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Critter Red. Pixel art creature battle game built on the Wiki Cards engine.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/pac/">pac</a>
+      <span class="tag">webgl</span>
+    </div>
+    <div class="desc">First-person Pac-Man on a torus. FPV view with physics simulation on a curved surface.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/torpac/">torpac</a>
+      <span class="tag">webgl</span>
+    </div>
+    <div class="desc">Multi-torus Pac-Man. Play across multiple toroidal worlds with customizable configurations.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/knotpac/">knotpac</a>
+      <span class="tag">webgl</span>
+    </div>
+    <div class="desc">Pac-Man on torus knots. Topological shapes&mdash;Hopf Link, Borromean Rings, and beyond.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/inpac/">inpac</a>
+      <span class="tag">webgl</span>
+    </div>
+    <div class="desc">Interior Pac-Man. First-person gameplay inside the hollow interior of a large torus.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/toruschess/">chess</a>
+      <span class="tag">canvas</span>
+      <span class="tag">webrtc</span>
+    </div>
+    <div class="desc">16&times;16 toroidal chess. Edges wrap, pieces move through the topology. Local and networked play.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/emsim/">emsim</a>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Multi-physics torus field simulator. Position tori with gravity, magnetic, and force field interactions.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/scape/">scape</a>
+      <span class="tag">canvas</span>
+      <span class="tag">webrtc</span>
+    </div>
+    <div class="desc">Explorable 3D landscape with first-person controls. Local and networked multiplayer.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/stretch/">stretch</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Interactive 3D deformable blob geometry rendered with GPU acceleration.</div>
   </li>
 </ul>
 
