@@ -382,34 +382,51 @@ footer a:hover {
 }
 .git-canvas-wrap {
   position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  background: var(--accent-faint);
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  justify-content: center;
 }
 .git-canvas-wrap canvas {
   display: block;
+  cursor: crosshair;
+}
+.git-tip {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  line-height: 1.5;
+}
+.git-tip b {
+  color: var(--accent);
 }
 .git-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: 0.4rem 0.8rem;
   margin-top: 0.5rem;
+  justify-content: center;
   font-family: var(--mono);
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--muted);
 }
 .git-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 .git-legend i {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   font-style: normal;
 }
@@ -526,6 +543,7 @@ footer a:hover {
   <h2>commit history</h2>
   <div class="git-canvas-wrap">
     <canvas id="git-canvas"></canvas>
+    <div class="git-tip" id="git-tip"></div>
   </div>
   <div class="git-legend" id="git-legend"></div>
 </div>
@@ -957,14 +975,10 @@ footer a:hover {
   var canvas = document.getElementById('git-canvas');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
-  var wrap = canvas.parentElement;
+  var wrap = canvas.closest('.git-canvas-wrap');
 
-  var LANE_H = 14;
-  var COMMIT_W = 5;
-  var PAD_TOP = 28;
-  var PAD_BOT = 14;
-  var PAD_LEFT = 10;
-  var DOT_R = 2.5;
+  var DOT_R = 1.8;
+  var tip = document.getElementById('git-tip');
 
   var projectColor = {
     poll:'#e63946', photo:'#457b9d', cards:'#2a9d8f', bakery:'#d4a030',
@@ -979,9 +993,7 @@ footer a:hover {
   };
 
   var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  var lineBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  var textCol = isDark ? '#888' : '#999';
-  var mergeCol = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+  var mergeCol = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
 
   fetch('git-graph.json').then(function(r) { return r.text(); }).then(function(text) {
     var commits = JSON.parse(text.split('\n')[0]);
@@ -1002,101 +1014,13 @@ footer a:hover {
     var byHash = {};
     commits.forEach(function(c, i) { c._i = i; byHash[c.h] = c; });
 
-    // Lane assignment: process oldest-first
-    // For each commit, inherit lane from first parent or get new lane
-    var lanes = []; // which hash occupies each lane (null = free)
-    var maxLane = 0;
-
-    function freeLane(l) { lanes[l] = null; }
-    function allocLane() {
-      for (var i = 0; i < lanes.length; i++) {
-        if (lanes[i] === null) { return i; }
-      }
-      lanes.push(null);
-      return lanes.length - 1;
-    }
-
-    // First pass: build children map
-    var children = {};
-    commits.forEach(function(c) {
-      c.p.forEach(function(ph) {
-        if (!children[ph]) children[ph] = [];
-        children[ph].push(c.h);
-      });
-    });
-
-    // Assign lanes: process chronologically
-    commits.forEach(function(c) {
-      var firstParent = c.p[0] ? byHash[c.p[0]] : null;
-
-      if (firstParent && firstParent._lane !== undefined) {
-        // Inherit lane from first parent
-        c._lane = firstParent._lane;
-        // Free parent's lane only if this is its last child in this lane
-      } else {
-        c._lane = allocLane();
-      }
-      lanes[c._lane] = c.h;
-
-      if (c._lane > maxLane) maxLane = c._lane;
-
-      // For merge parents (non-first), ensure they have lanes
-      // (they should already since they're older)
-    });
-
-    // Determine which lanes to free: a lane is freed when the last
-    // commit using it has no children that continue on it
-    // Actually, let's re-do with a cleaner approach processing newest-first
-
-    // Reset and redo with reverse processing
-    commits.forEach(function(c) { delete c._lane; });
-    lanes = [];
-    maxLane = 0;
-    var commitLane = {};
-
-    // Process newest-first for proper lane assignment
-    for (var i = commits.length - 1; i >= 0; i--) {
-      var c = commits[i];
-
-      if (commitLane[c.h] !== undefined) {
-        c._lane = commitLane[c.h];
-      } else {
-        c._lane = allocLane();
-        lanes[c._lane] = c.h;
-      }
-
-      if (c._lane > maxLane) maxLane = c._lane;
-
-      // First parent inherits this lane
-      if (c.p.length > 0) {
-        var fp = c.p[0];
-        if (commitLane[fp] === undefined) {
-          commitLane[fp] = c._lane;
-          lanes[c._lane] = fp;
-        } else {
-          // First parent already has a lane (fork point)
-          // Free our lane since it ends here
-          freeLane(c._lane);
-        }
-
-        // Merge parents get new lanes
-        for (var j = 1; j < c.p.length; j++) {
-          if (commitLane[c.p[j]] === undefined) {
-            var ml = allocLane();
-            commitLane[c.p[j]] = ml;
-            lanes[ml] = c.p[j];
-            if (ml > maxLane) maxLane = ml;
-          }
-        }
-      } else {
-        // Root commit, free lane
-        freeLane(c._lane);
-      }
-    }
-
-    // Canvas sizing
-    var W = commits.length * COMMIT_W + PAD_LEFT * 2;
-    var H = (maxLane + 1) * LANE_H + PAD_TOP + PAD_BOT;
+    // Spiral parameters
+    var containerW = wrap.offsetWidth || 500;
+    var size = Math.min(containerW, 520);
+    var W = size;
+    var H = size * 1.1;
+    var cx = W / 2;
+    var cy = H / 2;
     var dpr = window.devicePixelRatio || 1;
 
     canvas.width = W * dpr;
@@ -1105,126 +1029,172 @@ footer a:hover {
     canvas.style.height = H + 'px';
     ctx.scale(dpr, dpr);
 
-    // Draw month labels
-    ctx.font = '9px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono');
-    ctx.fillStyle = textCol;
-    ctx.textAlign = 'center';
+    // Archimedean spiral: r = a + b*theta
+    // Oldest at center, newest at edge
+    var a = 18;  // starting radius
+    var gap = 7; // gap between rings (tight = fingerprint ridges)
+    var b = gap / (2 * Math.PI);
+    var maxR = Math.min(cx, cy) - 16;
+    var totalTheta = (maxR - a) / b;
 
+    // Arc-length parameterization for uniform ridge spacing
+    // Arc length of Archimedean spiral ≈ a*θ + b*θ²/2
+    var totalArc = a * totalTheta + b * totalTheta * totalTheta / 2;
+    var arcStep = totalArc / (commits.length - 1 || 1);
+
+    // Place commits at equal arc-length intervals
+    var theta = 0;
+    commits.forEach(function(c, i) {
+      if (i > 0) {
+        var r = a + b * theta;
+        theta += arcStep / Math.max(r, 1);
+      }
+      c._r = a + b * theta;
+      c._x = cx + c._r * Math.cos(theta - Math.PI / 2);
+      c._y = cy + c._r * Math.sin(theta - Math.PI / 2);
+      c._theta = theta;
+    });
+
+    // Draw ridge lines (colored segments between adjacent commits)
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (var i = 1; i < commits.length; i++) {
+      var prev = commits[i - 1];
+      var curr = commits[i];
+      ctx.beginPath();
+      ctx.moveTo(prev._x, prev._y);
+
+      // Interpolate along spiral arc for smoothness
+      var dth = curr._theta - prev._theta;
+      var steps = Math.max(3, Math.ceil(dth / 0.3));
+      for (var s = 1; s <= steps; s++) {
+        var t = s / steps;
+        var theta = prev._theta + t * dth;
+        var r = a + b * theta;
+        var x = cx + r * Math.cos(theta - Math.PI / 2);
+        var y = cy + r * Math.sin(theta - Math.PI / 2);
+        ctx.lineTo(x, y);
+      }
+
+      ctx.strokeStyle = pickColor(curr.d);
+      ctx.globalAlpha = 0.55;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw merge arcs (second parent connections)
+    ctx.lineWidth = 0.7;
+    ctx.globalAlpha = 0.25;
+    commits.forEach(function(c) {
+      if (!c.m) return;
+      for (var j = 1; j < c.p.length; j++) {
+        var parent = byHash[c.p[j]];
+        if (!parent) continue;
+        ctx.strokeStyle = mergeCol;
+        ctx.beginPath();
+        ctx.moveTo(parent._x, parent._y);
+        // Curve through center for visual clarity
+        var mx = (parent._x + c._x) / 2;
+        var my = (parent._y + c._y) / 2;
+        var pull = 0.3;
+        var cpx = mx + (cx - mx) * pull;
+        var cpy = my + (cy - my) * pull;
+        ctx.quadraticCurveTo(cpx, cpy, c._x, c._y);
+        ctx.stroke();
+      }
+    });
+    ctx.globalAlpha = 1;
+
+    // Draw commit dots
+    commits.forEach(function(c) {
+      ctx.beginPath();
+      var r = c.m ? DOT_R + 1.2 : DOT_R;
+      ctx.arc(c._x, c._y, r, 0, Math.PI * 2);
+      ctx.fillStyle = pickColor(c.d);
+      ctx.fill();
+    });
+
+    // Month labels along the spiral
+    ctx.font = '8px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono');
+    ctx.fillStyle = isDark ? '#555' : '#bbb';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var lastMonth = -1;
-    commits.forEach(function(c, i) {
+    commits.forEach(function(c) {
       var d = new Date(c.t * 1000);
       var m = d.getFullYear() * 12 + d.getMonth();
       if (m !== lastMonth) {
         lastMonth = m;
-        var x = PAD_LEFT + i * COMMIT_W;
-        ctx.fillText(months[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), x, 12);
-        ctx.strokeStyle = lineBg;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x, 16);
-        ctx.lineTo(x, H);
-        ctx.stroke();
+        // Place label slightly outside the spiral at this point
+        var theta = c._theta - Math.PI / 2;
+        var lr = c._r + gap * 0.6;
+        var lx = cx + lr * Math.cos(theta);
+        var ly = cy + lr * Math.sin(theta);
+        ctx.fillText(months[d.getMonth()] + "'" + String(d.getFullYear()).slice(2), lx, ly);
       }
     });
 
-    // Draw connections
-    ctx.lineWidth = 1;
-    commits.forEach(function(c, i) {
-      var x1 = PAD_LEFT + i * COMMIT_W;
-      var y1 = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
-
-      c.p.forEach(function(ph, pi) {
-        var parent = byHash[ph];
-        if (!parent) return;
-        var x0 = PAD_LEFT + parent._i * COMMIT_W;
-        var y0 = PAD_TOP + parent._lane * LANE_H + LANE_H / 2;
-
-        if (pi === 0) {
-          // First parent - solid line
-          ctx.strokeStyle = pickColor(c.d);
-          ctx.globalAlpha = 0.4;
-        } else {
-          // Merge parent - dashed
-          ctx.strokeStyle = mergeCol;
-          ctx.globalAlpha = 0.6;
-        }
-
-        ctx.beginPath();
-        if (y0 === y1) {
-          ctx.moveTo(x0, y0);
-          ctx.lineTo(x1, y1);
-        } else {
-          ctx.moveTo(x0, y0);
-          var mx = (x0 + x1) / 2;
-          ctx.bezierCurveTo(mx, y0, mx, y1, x1, y1);
-        }
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      });
-    });
-
-    // Draw commit dots
-    commits.forEach(function(c, i) {
-      var x = PAD_LEFT + i * COMMIT_W;
-      var y = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
-      var col = pickColor(c.d);
-
-      ctx.beginPath();
-      ctx.arc(x, y, c.m ? DOT_R + 1 : DOT_R, 0, Math.PI * 2);
-      ctx.fillStyle = col;
-      ctx.fill();
-
-      if (c.m) {
-        ctx.strokeStyle = isDark ? '#fff' : '#000';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-    });
-
-    // Build legend from actually used colors
+    // Build legend (top 10 projects by frequency)
     var seen = {};
-    var legendEl = document.getElementById('git-legend');
+    var dirCount = {};
     commits.forEach(function(c) {
       c.d.forEach(function(d) {
+        dirCount[d] = (dirCount[d] || 0) + 1;
         if (!seen[d] && projectColor[d] && d !== 'root' && d !== '.github') {
           seen[d] = projectColor[d];
         }
       });
     });
-    // Sort by frequency
-    var dirCount = {};
-    commits.forEach(function(c) {
-      c.d.forEach(function(d) { dirCount[d] = (dirCount[d]||0) + 1; });
-    });
-    var entries = Object.keys(seen).sort(function(a,b) { return (dirCount[b]||0) - (dirCount[a]||0); });
-    entries.forEach(function(d) {
+    var legendEl = document.getElementById('git-legend');
+    var entries = Object.keys(seen).sort(function(a, b) { return (dirCount[b] || 0) - (dirCount[a] || 0); });
+    entries.slice(0, 12).forEach(function(d) {
       var s = document.createElement('span');
       s.innerHTML = '<i style="background:' + seen[d] + '"></i>' + d;
       legendEl.appendChild(s);
     });
 
-    // Tooltip on hover
+    // Hover tooltip
     canvas.addEventListener('mousemove', function(e) {
       var rect = canvas.getBoundingClientRect();
-      var sx = (e.clientX - rect.left + wrap.scrollLeft);
-      var sy = (e.clientY - rect.top);
-      var ci = Math.round((sx - PAD_LEFT) / COMMIT_W);
-      if (ci < 0 || ci >= commits.length) { canvas.title = ''; return; }
-      var c = commits[ci];
-      var cy = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
-      if (Math.abs(sy - cy) < LANE_H) {
+      var mx = e.clientX - rect.left;
+      var my = e.clientY - rect.top;
+
+      // Find nearest commit
+      var best = -1, bestDist = 20; // 20px detection radius
+      for (var i = 0; i < commits.length; i++) {
+        var dx = commits[i]._x - mx;
+        var dy = commits[i]._y - my;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      }
+
+      if (best >= 0) {
+        var c = commits[best];
         var d = new Date(c.t * 1000);
-        var ds = d.toLocaleDateString();
-        canvas.title = c.h + ' ' + c.d.join(', ') + ' (' + ds + ')' + (c.m ? ' merge' : '');
+        var ds = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        var dirs = c.d.filter(function(x) { return x !== 'root'; });
+        tip.innerHTML = '<b>' + (dirs.length ? dirs.join(', ') : 'root') + '</b><br>' +
+          c.h + (c.m ? ' (merge)' : '') + '<br>' + ds;
+        tip.style.display = 'block';
+        // Position tooltip
+        var tx = mx + 14;
+        var ty = my - 10;
+        if (tx + 160 > W) tx = mx - 160;
+        if (ty < 0) ty = my + 14;
+        tip.style.left = tx + 'px';
+        tip.style.top = ty + 'px';
       } else {
-        canvas.title = '';
+        tip.style.display = 'none';
       }
     });
 
-    // Auto-scroll to end (most recent)
-    wrap.scrollLeft = wrap.scrollWidth;
+    canvas.addEventListener('mouseleave', function() {
+      tip.style.display = 'none';
+    });
   }
 })();
 </script>
