@@ -67,6 +67,12 @@ let vcx = 4, vcy = 0, vsc = 40;
 let tp = null, trail = [];
 let armMode = 'idle', aimStart = null, aimEnd = null;
 
+// Rocket state
+const THRUST_MAG = 8.0;    // max thrust acceleration
+const FUEL_MAX = 30.0;     // total delta-v budget
+let keys = {};              // keyboard state
+let dragThrust = null;      // {r, z} world-space thrust direction from touch drag
+
 function addTorus(R, r, z, solid, q, I, dir) {
   const id = nextId++;
   const color = COLORS[(id - 1) % COLORS.length];
@@ -366,17 +372,55 @@ function draw() {
   }
   if (tp) {
     const [px,py]=w2s(tp.r,tp.z);
-    ctx.fillStyle='#ff0';
+    // Exhaust flame (opposite to thrust direction)
+    if (tp.thrusting && tp.thrDir) {
+      const tmag = Math.sqrt(tp.thrDir.r*tp.thrDir.r + tp.thrDir.z*tp.thrDir.z);
+      if (tmag > 0.01) {
+        const fl = 15 + Math.random()*10; // flickering flame length
+        const fdx = -tp.thrDir.r/tmag*fl, fdy = tp.thrDir.z/tmag*fl;
+        ctx.strokeStyle='rgba(255,120,20,.8)'; ctx.lineWidth=4;
+        ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+fdx,py+fdy); ctx.stroke();
+        ctx.strokeStyle='rgba(255,220,80,.6)'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+fdx*.7,py+fdy*.7); ctx.stroke();
+      }
+    }
+    // Particle body
+    ctx.fillStyle = tp.fuel > 0 ? '#ff0' : '#888';
     ctx.beginPath(); ctx.arc(px,py,6,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+    // Fuel gauge (arc around particle)
+    if (tp.fuel < FUEL_MAX) {
+      const fuelFrac = Math.max(0, tp.fuel / FUEL_MAX);
+      ctx.strokeStyle = fuelFrac > 0.25 ? '#0f0' : fuelFrac > 0 ? '#f80' : '#f00';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(px,py,10, -Math.PI/2, -Math.PI/2 + fuelFrac*Math.PI*2); ctx.stroke();
+    }
+    // Velocity vector
+    const spd = Math.sqrt(tp.vr*tp.vr + tp.vz*tp.vz);
+    if (spd > 0.1) {
+      const vl = Math.min(35, spd*3);
+      const vdx = tp.vr/spd*vl, vdy = -tp.vz/spd*vl;
+      ctx.strokeStyle='rgba(100,200,255,.5)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+vdx,py+vdy); ctx.stroke();
+    }
+    // Force vector (field only, not thrust)
     const pf=fieldAt(Math.abs(tp.r),tp.z);
     const pfR=tp.r>=0?pf.fr:-pf.fr;
     const pm=Math.sqrt(pfR*pfR+pf.fz*pf.fz);
     if (pm>1e-8 && maxMag>0) {
       const pl=Math.min(40,pm/maxMag*60+10);
       const pdx=pfR/pm*pl, pdy=-pf.fz/pm*pl;
-      ctx.strokeStyle='#f80'; ctx.lineWidth=2.5;
+      ctx.strokeStyle='#f80'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+pdx,py+pdy); ctx.stroke();
+    }
+    // Drag thrust indicator
+    if (dragThrust && (Math.abs(dragThrust.r)>0.01 || Math.abs(dragThrust.z)>0.01)) {
+      const dtm = Math.sqrt(dragThrust.r*dragThrust.r+dragThrust.z*dragThrust.z);
+      const dtl = Math.min(50, dtm*25);
+      const dtx=dragThrust.r/dtm*dtl, dty=-dragThrust.z/dtm*dtl;
+      ctx.strokeStyle='rgba(0,255,100,.6)'; ctx.lineWidth=3; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+dtx,py+dty); ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 
@@ -467,7 +511,7 @@ document.getElementById('slP').oninput = function() {
 };
 document.getElementById('btnDrop').onclick = function() {
   armMode = 'armed'; this.style.background = '#a44'; this.textContent = 'Tap to place...';
-  document.getElementById('tpInfo').textContent = 'tap, drag for vel';
+  document.getElementById('tpInfo').textContent = 'tap+drag=vel · WASD=thrust · QE=φ · shift-drag=steer';
 };
 document.getElementById('btnClear').onclick = function() {
   tp = null; trail = []; armMode = 'idle'; aimStart = aimEnd = null;
@@ -492,14 +536,42 @@ function tick(t) {
     const fR = tp.r>=0 ? f.fr : -f.fr;
     // Gravity + Electric force (already combined in f.fr, f.fz)
     let aR = fR, aZ = f.fz;
+    // Centripetal: v_phi^2 / R (outward in cylindrical coords)
+    const vp = tp.vphi || 0;
+    if (absR > 0.1) aR += vp * vp / absR * (tp.r >= 0 ? 1 : -1);
     // Lorentz force: F = q * v × B (test charge q=+1)
-    // v = (vr, vphi, vz), B = (br, bphi, bz)
-    // v×B = (vphi*bz - vz*bphi, vz*br - vr*bz, vr*bphi - vphi*br)
-    const vr = tp.vr, vp = tp.vphi || 0, vz = tp.vz;
+    const vr = tp.vr, vz = tp.vz;
     const bR = tp.r>=0 ? f.br : -f.br;
     aR += vp * f.bz - vz * f.bphi;
-    const aPhi = vz * bR - vr * f.bz;
+    let aPhi = vz * bR - vr * f.bz;
+    // Coriolis: conserve angular momentum L = R*vphi → dphi/dt includes -vphi*vr/R
+    if (absR > 0.1) aPhi -= vp * vr / absR;
     aZ += vr * f.bphi - vp * bR;
+    // Rocket thrust
+    let tR = 0, tZ = 0, tPhi = 0;
+    // Keyboard thrust
+    if (keys['KeyD']||keys['ArrowRight']) tR += 1;
+    if (keys['KeyA']||keys['ArrowLeft']) tR -= 1;
+    if (keys['KeyW']||keys['ArrowUp']) tZ += 1;
+    if (keys['KeyS']||keys['ArrowDown']) tZ -= 1;
+    if (keys['KeyE']) tPhi += 1;
+    if (keys['KeyQ']) tPhi -= 1;
+    // Drag thrust (mobile)
+    if (dragThrust) { tR += dragThrust.r; tZ += dragThrust.z; }
+    const tMag = Math.sqrt(tR*tR + tZ*tZ + tPhi*tPhi);
+    if (tMag > 0 && tp.fuel > 0) {
+      const sc = THRUST_MAG / Math.max(tMag, 1);
+      const dvUsed = THRUST_MAG * sub;
+      const fuelUse = Math.min(tp.fuel, dvUsed);
+      const frac = fuelUse / dvUsed;
+      aR += tR * sc * frac;
+      aZ += tZ * sc * frac;
+      aPhi += tPhi * sc * frac;
+      tp.fuel -= fuelUse;
+      tp.thrusting = true; tp.thrDir = {r: tR*sc, z: tZ*sc};
+    } else {
+      tp.thrusting = false;
+    }
     tp.vr += aR*sub; tp.vz += aZ*sub; tp.vphi = (tp.vphi||0) + aPhi*sub;
     const oldR = tp.r, oldZ = tp.z;
     tp.r += tp.vr*sub; tp.z += tp.vz*sub;
@@ -547,9 +619,12 @@ function tick(t) {
   }
   trail.push([tp.r, tp.z]);
   if (trail.length>3000) trail.shift();
-  const vpStr = tp.vphi ? ' vφ='+tp.vphi.toFixed(1) : '';
+  const spd = Math.sqrt(tp.vr*tp.vr+tp.vz*tp.vz+(tp.vphi||0)*(tp.vphi||0));
+  const fuelPct = Math.round(tp.fuel/FUEL_MAX*100);
   const bStr = tp.bounces ? ' ×'+tp.bounces : '';
-  document.getElementById('tpInfo').textContent = 'r='+tp.r.toFixed(2)+' z='+tp.z.toFixed(2)+vpStr+bStr;
+  document.getElementById('tpInfo').textContent =
+    'v='+spd.toFixed(1)+' fuel:'+fuelPct+'%'+bStr +
+    (tp.vphi && Math.abs(tp.vphi)>0.1 ? ' vφ='+tp.vphi.toFixed(1) : '');
   draw();
   requestAnimationFrame(tick);
 }
@@ -576,14 +651,25 @@ function launchParticle() {
   }
   const vdx = aimEnd ? (aimEnd.r-aimStart.r)*2 : 0;
   const vdz = aimEnd ? (aimEnd.z-aimStart.z)*2 : 0;
-  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0, bounces:0};
+  tp = {r:aimStart.r, z:aimStart.z, vr:vdx, vz:vdz, vphi:0, bounces:0,
+        fuel:FUEL_MAX, thrusting:false, thrDir:{r:0,z:0}};
   trail = []; armMode = 'idle'; aimStart = aimEnd = null;
   document.getElementById('btnDrop').style.background = '';
   document.getElementById('btnDrop').textContent = 'Arm drop';
   if (!animating) startAnim();
 }
 
-// === Pan, Zoom, Arm ===
+// === Keyboard ===
+window.addEventListener('keydown', function(e) {
+  keys[e.code] = true;
+  // Prevent WASD/QE/arrows from scrolling while particle is active
+  if (tp && ['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', function(e) { keys[e.code] = false; });
+
+// === Pan, Zoom, Arm, Thrust ===
 let touches = {}, panStart = null, pinchStart = null;
 
 canvas.addEventListener('touchstart', function(e) {
@@ -594,11 +680,19 @@ canvas.addEventListener('touchstart', function(e) {
     const [r,z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
     aimStart = {r,z}; aimEnd = null; armMode = 'aiming'; draw(); return;
   }
+  // If particle is flying, single touch = start drag thrust
+  if (tp && armMode==='idle' && ids.length===1) {
+    const tc = touches[ids[0]];
+    const [pr,pz] = w2s(tp.r, tp.z);
+    panStart = null; // not panning while thrusting
+    dragThrust = {r:0, z:0, sx:tc.x, sy:tc.y};
+    return;
+  }
   if (ids.length===1) {
     panStart = {x:touches[ids[0]].x, y:touches[ids[0]].y, vcx, vcy};
     pinchStart = null;
   } else if (ids.length>=2) {
-    panStart = null;
+    panStart = null; dragThrust = null;
     const a=touches[ids[0]], b=touches[ids[1]];
     const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
     pinchStart = {dist:Math.hypot(a.x-b.x,a.y-b.y), vsc, vcx, vcy, mx, my};
@@ -612,6 +706,14 @@ canvas.addEventListener('touchmove', function(e) {
   if (armMode==='aiming' && ids.length===1) {
     const [r,z] = s2w(touches[ids[0]].x, touches[ids[0]].y);
     aimEnd = {r,z}; draw(); return;
+  }
+  // Drag thrust: direction from start to current touch
+  if (dragThrust && ids.length===1) {
+    const tc = touches[ids[0]];
+    const dx = (tc.x - dragThrust.sx) / 60;
+    const dy = -(tc.y - dragThrust.sy) / 60;
+    dragThrust.r = dx; dragThrust.z = dy;
+    return;
   }
   if (panStart && ids.length===1) {
     const t=touches[ids[0]];
@@ -634,25 +736,40 @@ canvas.addEventListener('touchmove', function(e) {
 canvas.addEventListener('touchend', function(e) {
   for (const t of e.changedTouches) delete touches[t.identifier];
   if (armMode==='aiming' && !Object.keys(touches).length) { launchParticle(); return; }
-  if (!Object.keys(touches).length) { panStart=pinchStart=null; }
+  if (!Object.keys(touches).length) { panStart=pinchStart=null; dragThrust=null; }
 }, {passive:false});
 
-let mouseDown=false, msx=0, msy=0, mvcx=0, mvcy=0;
+let mouseDown=false, msx=0, msy=0, mvcx=0, mvcy=0, mouseDragThrust=false;
 canvas.addEventListener('mousedown', function(e) {
   if (armMode==='armed') {
     const [r,z]=s2w(e.clientX,e.clientY);
     aimStart={r,z}; aimEnd=null; armMode='aiming'; draw(); return;
   }
+  // Shift-click or right-click while particle is flying = drag thrust
+  if (tp && armMode==='idle' && (e.shiftKey || e.button===2)) {
+    mouseDragThrust = true;
+    dragThrust = {r:0, z:0, sx:e.clientX, sy:e.clientY};
+    e.preventDefault(); return;
+  }
   mouseDown=true; msx=e.clientX; msy=e.clientY; mvcx=vcx; mvcy=vcy;
 });
 canvas.addEventListener('mousemove', function(e) {
   if (armMode==='aiming') { const [r,z]=s2w(e.clientX,e.clientY); aimEnd={r,z}; draw(); return; }
+  if (mouseDragThrust && dragThrust) {
+    dragThrust.r = (e.clientX - dragThrust.sx) / 60;
+    dragThrust.z = -(e.clientY - dragThrust.sy) / 60;
+    return;
+  }
   if (!mouseDown) return;
   vcx=mvcx-(e.clientX-msx)/vsc; vcy=mvcy+(e.clientY-msy)/vsc; draw();
 });
 window.addEventListener('mouseup', function() {
   if (armMode==='aiming') { launchParticle(); return; }
   mouseDown=false;
+  if (mouseDragThrust) { mouseDragThrust=false; dragThrust=null; }
+});
+canvas.addEventListener('contextmenu', function(e) {
+  if (tp) e.preventDefault(); // suppress right-click menu when particle is active
 });
 canvas.addEventListener('wheel', function(e) {
   e.preventDefault();
