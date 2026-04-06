@@ -48,6 +48,25 @@ export interface DealRecord {
   orgRkey: string;
 }
 
+/** Inner record: com.minomobi.crm.expense */
+export interface Expense {
+  dealRkey?: string;
+  amount: number;         // in cents
+  currency: string;
+  category: string;
+  description?: string;
+  date: string;           // YYYY-MM-DD
+  vendor?: string;
+  createdAt: string;
+}
+
+export interface ExpenseRecord {
+  rkey: string;
+  expense: Expense;
+  authorDid: string;
+  orgRkey: string;
+}
+
 /** Filter state for the unified deals view */
 export type OrgFilter = "all" | "personal" | string;
 

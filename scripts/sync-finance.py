@@ -60,6 +60,13 @@ TIINGO_DELAY = 1.5   # seconds between Tiingo calls (50/hr free tier)
 FRED_DELAY = 0.2     # FRED is generous
 PDS_WRITE_DELAY = 0.1
 
+# ATProto has no float type — prices are integers scaled by PRICE_SCALE
+PRICE_SCALE = 10_000
+
+def scale(v):
+    """Convert a float price to a scaled integer."""
+    return round(v * PRICE_SCALE)
+
 
 # ---------------------------------------------------------------------------
 # ATProto helpers (plain requests, no SDK)
@@ -112,6 +119,7 @@ class PDSClient:
                 "collection": collection,
                 "rkey": rkey,
                 "record": record,
+                "validate": False,
             }
         )
         if r.status_code == 400 and "expired" in r.text.lower():
@@ -173,10 +181,10 @@ def fetch_tiingo_daily(symbol, api_key, start_date="1990-01-01", end_date=None):
     for d in data:
         bar = {
             "d": d["date"][:10],  # YYYY-MM-DD
-            "o": round(d.get("adjOpen", d.get("open", 0)), 4),
-            "h": round(d.get("adjHigh", d.get("high", 0)), 4),
-            "l": round(d.get("adjLow", d.get("low", 0)), 4),
-            "c": round(d.get("adjClose", d.get("close", 0)), 4),
+            "o": scale(d.get("adjOpen", d.get("open", 0))),
+            "h": scale(d.get("adjHigh", d.get("high", 0))),
+            "l": scale(d.get("adjLow", d.get("low", 0))),
+            "c": scale(d.get("adjClose", d.get("close", 0))),
         }
         vol = d.get("adjVolume", d.get("volume"))
         if vol is not None and vol > 0:
@@ -216,7 +224,7 @@ def fetch_fred_series(series_id, api_key, start_date="1950-01-01"):
             continue
         bars.append({
             "d": obs["date"],
-            "c": round(float(obs["value"]), 4),
+            "c": scale(float(obs["value"])),
         })
     return bars
 
@@ -239,10 +247,10 @@ def fetch_yfinance_daily(symbol, start_date="1990-01-01", end_date=None):
     for idx, row in df.iterrows():
         bar = {
             "d": idx.strftime("%Y-%m-%d"),
-            "o": round(float(row["Open"]), 4),
-            "h": round(float(row["High"]), 4),
-            "l": round(float(row["Low"]), 4),
-            "c": round(float(row["Close"]), 4),
+            "o": scale(float(row["Open"])),
+            "h": scale(float(row["High"])),
+            "l": scale(float(row["Low"])),
+            "c": scale(float(row["Close"])),
         }
         if row.get("Volume", 0) > 0:
             bar["v"] = int(row["Volume"])
@@ -279,6 +287,7 @@ def make_series_record(symbol, year, bars, meta):
         "year": year,
         "seriesType": meta.get("seriesType", "equity"),
         "name": meta.get("name", symbol),
+        "priceScale": PRICE_SCALE,
         "bars": bars,
         "source": meta.get("source", "unknown"),
         "adjusted": meta.get("adjusted", True),

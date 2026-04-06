@@ -29,10 +29,11 @@ import {
   createThreadRecord,
   inviteMemberToOrg,
   createOrgRecord,
-  CHANNEL_COLLECTION,
-  THREAD_COLLECTION,
+  SEALED_COLLECTION,
   MEMBERSHIP_COLLECTION,
 } from "./context";
+import { unsealRecord } from "../crypto";
+import { publishNotification, broadcastNotification } from "../crm/context";
 import { JetstreamClient, type JetstreamEvent } from "./jetstream";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
@@ -41,7 +42,6 @@ import { OrgPicker } from "./components/OrgPicker";
 
 const ORG_COLLECTION = "com.minomobi.vault.org";
 const BOOKMARK_COLLECTION = "com.minomobi.vault.orgBookmark";
-const OP_COLLECTION = "com.minomobi.wave.op";
 
 interface Props {
   vault?: VaultState | null;
@@ -206,7 +206,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       setOps([]);
       setLoading(true);
       try {
-        const channelUri = `at://${activeOrg.founderDid}/${CHANNEL_COLLECTION}/${channel.rkey}`;
+        const channelUri = `at://${activeOrg.founderDid}/${SEALED_COLLECTION}/${channel.rkey}`;
         const loaded = await loadThreadsForChannel(pds, activeOrg, channelUri, myDid);
         setThreads(loaded);
       } finally {
@@ -224,7 +224,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       setSidebarOpen(false);
       setLoading(true);
       try {
-        const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
+        const threadUri = `at://${thread.authorDid}/${SEALED_COLLECTION}/${thread.rkey}`;
         const loaded = await loadOpsForThread(pds, activeOrg, threadUri, myDid);
         setOps(loaded);
       } finally {
@@ -249,8 +249,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       await createChannelRecord(pds, activeOrg, name, resolvedTier);
       const chans = await loadChannels(pds, activeOrg, myDid);
       setChannels(chans);
+      broadcastNotification(
+        pds, "wave-channel", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-channel",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: name,
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, undefined, activeOrg,
+      ).catch(() => {});
     },
-    [pds, activeOrg, myDid],
+    [pds, activeOrg, myDid, myHandle],
   );
 
   // --- Create thread ---
@@ -260,6 +272,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       const t = await createThreadRecord(pds, activeOrg, activeChannel.rkey, "chat", title, myDid, myHandle);
       setThreads((prev) => [...prev, t]);
       selectThread(t);
+      broadcastNotification(
+        pds, "wave-thread", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-thread",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: title,
+          threadType: "chat",
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel, activeOrg,
+      ).catch(() => {});
     },
     [pds, activeOrg, activeChannel, myDid, myHandle, selectThread],
   );
@@ -271,6 +297,20 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       const t = await createThreadRecord(pds, activeOrg, activeChannel.rkey, "doc", title, myDid, myHandle);
       setThreads((prev) => [...prev, t]);
       selectThread(t);
+      broadcastNotification(
+        pds, "wave-thread", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-thread",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: title,
+          threadType: "doc",
+          senderHandle: myHandle,
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel, activeOrg,
+      ).catch(() => {});
     },
     [pds, activeOrg, activeChannel, myDid, myHandle, selectThread],
   );
@@ -280,7 +320,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
     async (ch: WaveChannelRecord) => {
       if (!pds || activeOrg?.founderDid !== myDid) return;
       if (!confirm(`Delete channel #${ch.channel.name}?`)) return;
-      await pds.deleteRecord(CHANNEL_COLLECTION, ch.rkey);
+      await pds.deleteRecord(SEALED_COLLECTION, ch.rkey);
       setChannels((prev) => prev.filter((c) => c.rkey !== ch.rkey));
       if (activeChannel?.rkey === ch.rkey) {
         setActiveChannel(null);
@@ -297,7 +337,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
     async (th: WaveThreadRecord) => {
       if (!pds || th.authorDid !== myDid) return;
       if (!confirm(`Delete thread "${th.thread.title || "Chat"}"?`)) return;
-      await pds.deleteRecord(THREAD_COLLECTION, th.rkey);
+      await pds.deleteRecord(SEALED_COLLECTION, th.rkey);
       setThreads((prev) => prev.filter((t) => !(t.rkey === th.rkey && t.authorDid === th.authorDid)));
       if (activeThread?.rkey === th.rkey && activeThread?.authorDid === th.authorDid) {
         setActiveThread(null);
@@ -316,6 +356,27 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
         const memberDid = handleOrDid.startsWith("did:") ? handleOrDid : await resolveHandle(handleOrDid);
         const memberHandle = handleOrDid.startsWith("did:") ? undefined : handleOrDid.replace(/^@/, "");
         await inviteMemberToOrg(pds, activeOrg, memberDid, memberHandle, tierName, myDid, vault.privateKey, vault.publicKey);
+        // Publish notification for the invitee
+        try {
+          await publishNotification(
+            pds, memberDid, "org-invite",
+            activeOrg.org.rkey, activeOrg.org.org.name,
+            {
+              type: "org-invite",
+              orgRkey: activeOrg.org.rkey,
+              orgName: activeOrg.org.org.name,
+              founderDid: activeOrg.founderDid,
+              founderService: activeOrg.service,
+              tierName,
+              invitedBy: myDid,
+              invitedByHandle: myHandle,
+              createdAt: new Date().toISOString(),
+            },
+            myDid, myHandle, undefined, activeOrg,
+          );
+        } catch (err) {
+          console.warn("Failed to publish notification:", err);
+        }
         // Refresh context
         const ctx = await buildOrgContext(pds, activeOrg.org, vault.privateKey, myDid);
         setActiveOrg(ctx);
@@ -363,6 +424,23 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       );
       setOps((prev) => [...prev, opRec]);
       setMessageText("");
+      // Broadcast notification (fire and forget)
+      broadcastNotification(
+        pds, "wave-message", activeOrg.org.rkey, activeOrg.org.org.name,
+        {
+          type: "wave-message",
+          orgRkey: activeOrg.org.rkey,
+          orgName: activeOrg.org.org.name,
+          channelName: activeChannel.channel.name,
+          threadTitle: activeThread.thread.title,
+          threadRkey: activeThread.rkey,
+          threadAuthorDid: activeThread.authorDid,
+          senderHandle: myHandle,
+          preview: messageText.trim().slice(0, 80),
+          createdAt: new Date().toISOString(),
+        },
+        myDid, myHandle, activeOrg.myTierLevel, activeOrg,
+      ).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Send failed");
     } finally {
@@ -377,7 +455,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
       setSending(true);
       try {
         const lastOp = ops.length > 0 ? ops[ops.length - 1] : null;
-        const baseOpUri = lastOp ? `at://${lastOp.authorDid}/${OP_COLLECTION}/${lastOp.rkey}` : undefined;
+        const baseOpUri = lastOp ? `at://${lastOp.authorDid}/${SEALED_COLLECTION}/${lastOp.rkey}` : undefined;
         const opRec = await sendDocEditOp(
           pds,
           activeOrg,
@@ -390,6 +468,22 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
           myHandle,
         );
         setOps((prev) => [...prev, opRec]);
+        // Broadcast notification (fire and forget)
+        broadcastNotification(
+          pds, "wave-doc-edit", activeOrg.org.rkey, activeOrg.org.org.name,
+          {
+            type: "wave-doc-edit",
+            orgRkey: activeOrg.org.rkey,
+            orgName: activeOrg.org.org.name,
+            channelName: activeChannel.channel.name,
+            docTitle: activeThread.thread.title,
+            threadRkey: activeThread.rkey,
+            threadAuthorDid: activeThread.authorDid,
+            senderHandle: myHandle,
+            createdAt: new Date().toISOString(),
+          },
+          myDid, myHandle, activeOrg.myTierLevel, activeOrg,
+        ).catch(() => {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Save failed");
       } finally {
@@ -417,7 +511,7 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
     [pds, vault, myDid, myHandle],
   );
 
-  // --- Jetstream (org-level: watches ops, threads, and channels) ---
+  // --- Jetstream (org-level: watches sealed records, decrypts to determine type) ---
   const startOrgJetstream = useCallback(
     (ctx: WaveOrgContext) => {
       jetstreamRef.current?.close();
@@ -425,52 +519,67 @@ export function WaveApp({ vault, pds, orgs: sharedOrgs = [] }: Props) {
 
       const client = new JetstreamClient({
         wantedDids: memberDids,
-        wantedCollections: [OP_COLLECTION, THREAD_COLLECTION, CHANNEL_COLLECTION],
+        wantedCollections: [SEALED_COLLECTION],
         onEvent: (event: JetstreamEvent) => {
           if (event.kind !== "commit" || !event.commit) return;
           const { operation, collection, rkey, record } = event.commit;
-          if (operation !== "create" || !record) return;
-          if (event.did === myDid) return; // skip own records (already added optimistically)
+          if (operation !== "create" || collection !== SEALED_COLLECTION || !record) return;
+          if (event.did === myDid) return;
+
+          // Attempt to decrypt and route the sealed record
+          const val = record as unknown as Record<string, unknown>;
+          const recKeyring = val.keyringRkey as string;
+          if (!recKeyring?.startsWith(ctx.org.rkey + ":")) return;
+          const dek = ctx.keyringDeks.get(recKeyring);
+          if (!dek) return;
 
           const handle = ctx.memberships.find(
             (m) => m.membership.memberDid === event.did,
           )?.membership.memberHandle;
 
-          if (collection === OP_COLLECTION) {
-            const op = record as unknown as import("./types").WaveOp;
-            const curThread = activeThreadRef.current;
-            if (curThread) {
-              const threadUri = `at://${curThread.authorDid}/${THREAD_COLLECTION}/${curThread.rkey}`;
-              if (op.threadUri === threadUri) {
-                setOps((prev) => [...prev, { rkey, op, authorDid: event.did, authorHandle: handle }]);
+          // Async decrypt inside sync handler
+          void (async () => {
+            try {
+              const { innerType, record: inner } = await unsealRecord<Record<string, unknown>>(val, dek);
+
+              if (innerType === "com.minomobi.wave.op") {
+                const op = inner as unknown as import("./types").WaveOp;
+                const curThread = activeThreadRef.current;
+                if (curThread) {
+                  const threadUri = `at://${curThread.authorDid}/${SEALED_COLLECTION}/${curThread.rkey}`;
+                  if (op.threadUri === threadUri) {
+                    const payload = op.text != null
+                      ? op.opType === "doc_edit" ? { text: op.text, baseOpUri: op.baseOpUri } : { text: op.text }
+                      : undefined;
+                    setOps((prev) => [...prev, { rkey, op, payload, authorDid: event.did, authorHandle: handle }]);
+                  }
+                }
+              } else if (innerType === "com.minomobi.wave.thread") {
+                const thread = inner as unknown as import("./types").WaveThread;
+                const curChannel = activeChannelRef.current;
+                if (curChannel) {
+                  const channelUri = `at://${ctx.founderDid}/${SEALED_COLLECTION}/${curChannel.rkey}`;
+                  if (thread.channelUri === channelUri) {
+                    setThreads((prev) => {
+                      if (prev.some((t) => t.rkey === rkey && t.authorDid === event.did)) return prev;
+                      return [...prev, { rkey, thread, authorDid: event.did, authorHandle: handle }];
+                    });
+                  }
+                }
+              } else if (innerType === "com.minomobi.wave.channel") {
+                const channel = inner as unknown as import("./types").WaveChannel;
+                if (channel.orgRkey === ctx.org.rkey) {
+                  const tierDef = ctx.org.org.tiers.find((t) => t.name === channel.tierName);
+                  if (tierDef && tierDef.level <= ctx.myTierLevel) {
+                    setChannels((prev) => {
+                      if (prev.some((c) => c.rkey === rkey)) return prev;
+                      return [...prev, { rkey, channel }];
+                    });
+                  }
+                }
               }
-            }
-          } else if (collection === THREAD_COLLECTION) {
-            const thread = record as unknown as import("./types").WaveThread;
-            const curChannel = activeChannelRef.current;
-            if (curChannel) {
-              const channelUri = `at://${ctx.founderDid}/${CHANNEL_COLLECTION}/${curChannel.rkey}`;
-              if (thread.channelUri === channelUri) {
-                setThreads((prev) => {
-                  // Dedupe
-                  if (prev.some((t) => t.rkey === rkey && t.authorDid === event.did)) return prev;
-                  return [...prev, { rkey, thread, authorDid: event.did, authorHandle: handle }];
-                });
-              }
-            }
-          } else if (collection === CHANNEL_COLLECTION) {
-            const channel = record as unknown as import("./types").WaveChannel;
-            if (channel.orgRkey === ctx.org.rkey) {
-              // Only add if the user has access to this tier
-              const tierDef = ctx.org.org.tiers.find((t) => t.name === channel.tierName);
-              if (tierDef && tierDef.level <= ctx.myTierLevel) {
-                setChannels((prev) => {
-                  if (prev.some((c) => c.rkey === rkey)) return prev;
-                  return [...prev, { rkey, channel }];
-                });
-              }
-            }
-          }
+            } catch { /* can't decrypt — not our org/tier */ }
+          })();
         },
         onConnect: () => setConnected(true),
         onDisconnect: () => setConnected(false),

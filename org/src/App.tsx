@@ -8,18 +8,22 @@ import {
   exportPublicKey,
   importPublicKey,
   deriveDek,
+  unsealRecord,
   fromBase64,
   toBase64,
 } from "./crypto";
-import type { Session, OrgRecord, MembershipRecord, NotificationRecord } from "./types";
+import type { Session, OrgRecord, MembershipRecord, NotificationRecord, PublishedNotification, Notification, NotificationPreferences } from "./types";
 import type { OrgContext } from "./crm/types";
 import {
   discoverOrgs as discoverOrgsFromPds,
   buildOrgContext,
   discoverPendingInvites,
   loadDismissedNotifications,
+  loadNotificationPreferences,
+  saveNotificationPreferences,
   BOOKMARK_COLLECTION,
 } from "./crm/context";
+import { JetstreamClient, type JetstreamEvent } from "./wave/jetstream";
 import { LoginScreen } from "./components/LoginScreen";
 import { AppGrid } from "./components/AppGrid";
 import { InviteOnboarding } from "./components/InviteOnboarding";
@@ -29,6 +33,12 @@ import { PmApp } from "./pm/PmApp";
 import { WaveApp } from "./wave/WaveApp";
 import { CrmApp } from "./crm/CrmApp";
 import { CalendarApp } from "./cal/CalendarApp";
+import { TodoApp } from "./todo/TodoApp";
+import { ContactsApp } from "./contacts/ContactsApp";
+import { NotesApp } from "./notes/NotesApp";
+import { StrategyApp } from "./strategy/StrategyApp";
+import { SheetsApp } from "./sheets/SheetsApp";
+import { DocsPage } from "./components/DocsPage";
 import { ThemePicker } from "./components/ThemePicker";
 import { Route } from "./router";
 
@@ -103,13 +113,142 @@ export function App() {
   const [orgContexts, setOrgContexts] = useState<Map<string, OrgContext>>(new Map());
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [view, setView] = useState<View>("home");
   const [managingOrg, setManagingOrg] = useState<OrgRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
   const restoredRef = useRef(false);
+  const hubJetstreamRef = useRef<JetstreamClient | null>(null);
+  const dismissedKeysRef = useRef<Set<string>>(dismissedKeys);
+  dismissedKeysRef.current = dismissedKeys;
+  const notifPrefsRef = useRef<NotificationPreferences | null>(notifPrefs);
+  notifPrefsRef.current = notifPrefs;
+  const orgsRef = useRef<OrgRecord[]>(orgs);
+  orgsRef.current = orgs;
+  // Hub-level DEK cache for decrypting sealed notifications in real-time
+  const hubDeksRef = useRef<Map<string, CryptoKey>>(new Map());
+  const orgContextsRef = useRef<Map<string, OrgContext>>(orgContexts);
+  orgContextsRef.current = orgContexts;
+  // Sync DEKs from loaded org contexts
+  useEffect(() => {
+    const deks = new Map<string, CryptoKey>();
+    for (const ctx of orgContexts.values()) {
+      for (const [kr, dek] of ctx.keyringDeks) deks.set(kr, dek);
+    }
+    hubDeksRef.current = deks;
+  }, [orgContexts]);
 
   const inviteParams = parseInviteUrl();
+
+  // --- Hub-level Jetstream for real-time notifications ---
+  // Watches vault.sealed from org members, decrypts to find notifications.
+  const startHubJetstream = useCallback(
+    (myDid: string, allMemberships: MembershipRecord[]) => {
+      hubJetstreamRef.current?.close();
+
+      const memberDids = new Set<string>();
+      for (const m of allMemberships) {
+        if (m.membership.memberDid !== myDid) {
+          memberDids.add(m.membership.memberDid);
+        }
+        if (m.membership.orgFounderDid && m.membership.orgFounderDid !== myDid) {
+          memberDids.add(m.membership.orgFounderDid);
+        }
+      }
+
+      if (memberDids.size === 0) return;
+
+      const myOrgRkeys = new Set<string>();
+      for (const m of allMemberships) {
+        if (m.membership.memberDid === myDid) {
+          myOrgRkeys.add(m.membership.orgRkey);
+        }
+      }
+
+      const SEALED = "com.minomobi.vault.sealed";
+      const NOTIF_TYPE = "com.minomobi.vault.notification";
+      // Also listen for legacy plaintext notifications during migration
+      const LEGACY_NOTIF = "com.minomobi.vault.notification";
+
+      const client = new JetstreamClient({
+        wantedDids: Array.from(memberDids),
+        wantedCollections: [SEALED, LEGACY_NOTIF],
+        onEvent: (event: JetstreamEvent) => {
+          if (event.kind !== "commit" || !event.commit) return;
+          const { operation, collection, record } = event.commit;
+          if (operation !== "create" || !record) return;
+
+          const processNotification = (pub: {
+            targetDid?: string;
+            notificationType?: string;
+            orgRkey?: string;
+            senderDid?: string;
+            payload?: string;
+            createdAt?: string;
+          }) => {
+            if (!pub.targetDid || !pub.notificationType || !pub.orgRkey) return;
+            if (pub.targetDid !== myDid && pub.targetDid !== "*") return;
+            if (pub.targetDid === "*" && !myOrgRkeys.has(pub.orgRkey)) return;
+            if (pub.senderDid === myDid) return;
+
+            const prefs = notifPrefsRef.current;
+            if (prefs) {
+              const orgOverride = prefs.orgOverrides?.[pub.orgRkey];
+              const enabled = orgOverride?.[pub.notificationType as keyof typeof prefs.enabled] ?? prefs.enabled[pub.notificationType as keyof typeof prefs.enabled];
+              if (enabled === false) return;
+            }
+
+            let notification: Notification;
+            try {
+              notification = JSON.parse(pub.payload ?? "{}") as Notification;
+            } catch { return; }
+
+            const key = `${pub.notificationType}:${pub.senderDid}:${pub.orgRkey}:${pub.createdAt}`;
+            if (dismissedKeysRef.current.has(key)) return;
+
+            setNotifications((prev) => {
+              if (prev.some((n) => n.rkey === key)) return prev;
+              return [...prev, { rkey: key, notification }];
+            });
+          };
+
+          if (collection === SEALED) {
+            // Try to decrypt sealed record and check if it's a notification
+            const val = record as unknown as Record<string, unknown>;
+            const recKeyring = val.keyringRkey as string;
+            if (!recKeyring) return;
+            const dek = hubDeksRef.current.get(recKeyring);
+            if (!dek) return;
+
+            void (async () => {
+              try {
+                const { innerType, record: inner } = await unsealRecord<Record<string, unknown>>(val, dek);
+                if (innerType === NOTIF_TYPE) {
+                  processNotification(inner as Record<string, string>);
+                }
+              } catch { /* can't decrypt — not our org/tier */ }
+            })();
+          } else if (collection === LEGACY_NOTIF) {
+            // Legacy plaintext notification — backward compat
+            const pub = record as unknown as PublishedNotification;
+            processNotification(pub);
+          }
+        },
+      });
+
+      client.connect();
+      hubJetstreamRef.current = client;
+    },
+    [],
+  );
+
+  // Cleanup hub Jetstream on unmount
+  useEffect(() => {
+    return () => {
+      hubJetstreamRef.current?.close();
+    };
+  }, []);
 
   // --- Core vault bootstrap (shared by login + restore) ---
   const bootstrapVault = useCallback(
@@ -217,6 +356,10 @@ export function App() {
           const dismissed = await loadDismissedNotifications(client);
           setDismissedKeys(dismissed);
 
+          // Load notification preferences
+          const prefs = await loadNotificationPreferences(client);
+          if (prefs) setNotifPrefs(prefs);
+
           // Collect unique founder DIDs from existing memberships (others' orgs we know about)
           const knownFounderDids = new Set<string>();
           for (const m of allMemberships) {
@@ -232,6 +375,9 @@ export function App() {
         } catch (err) {
           console.warn("Failed to discover pending invites:", err);
         }
+
+        // Start hub-level Jetstream for real-time notifications
+        startHubJetstream(session.did, allMemberships);
       } finally {
         setLoading(false);
       }
@@ -306,6 +452,7 @@ export function App() {
 
   const handleLogout = useCallback(() => {
     clearSession();
+    hubJetstreamRef.current?.close();
     setVault(null);
     setPds(null);
     setOrgs([]);
@@ -389,6 +536,21 @@ export function App() {
     [dismissedKeys],
   );
 
+  /** Save notification preferences */
+  const handleSaveNotifPrefs = useCallback(
+    async (prefs: NotificationPreferences) => {
+      setNotifPrefs(prefs);
+      if (pds) {
+        try {
+          await saveNotificationPreferences(pds, prefs);
+        } catch (err) {
+          console.warn("Failed to save notification preferences:", err);
+        }
+      }
+    },
+    [pds],
+  );
+
   // --- Restoring session ---
   if (restoring) {
     return (
@@ -434,6 +596,30 @@ export function App() {
         <CalendarApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
       </Route>
 
+      <Route path="/todo">
+        <TodoApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/contacts">
+        <ContactsApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/notes">
+        <NotesApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/strategy">
+        <StrategyApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/sheets">
+        <SheetsApp vault={vault} pds={pds} orgs={orgs} orgContexts={orgContexts} />
+      </Route>
+
+      <Route path="/docs">
+        <DocsPage />
+      </Route>
+
       <Route path="/" exact>
         <HubHome
           vault={vault}
@@ -456,6 +642,8 @@ export function App() {
           onAcceptInvite={handleAcceptInvite}
           onDismissNotification={handleDismissNotification}
           onNewNotifications={handleNewNotifications}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={handleSaveNotifPrefs}
         />
       </Route>
 
@@ -481,6 +669,8 @@ export function App() {
           onAcceptInvite={handleAcceptInvite}
           onDismissNotification={handleDismissNotification}
           onNewNotifications={handleNewNotifications}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={handleSaveNotifPrefs}
         />
       </Route>
     </>
@@ -510,6 +700,8 @@ function HubHome({
   onAcceptInvite,
   onDismissNotification,
   onNewNotifications,
+  notifPrefs,
+  onSaveNotifPrefs,
 }: {
   vault: VaultState;
   pds: PdsClient;
@@ -531,6 +723,8 @@ function HubHome({
   onAcceptInvite: (notif: NotificationRecord) => void;
   onDismissNotification: (notif: NotificationRecord) => void;
   onNewNotifications: (notifs: NotificationRecord[]) => void;
+  notifPrefs: NotificationPreferences | null;
+  onSaveNotifPrefs: (prefs: NotificationPreferences) => void;
 }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -570,6 +764,8 @@ function HubHome({
           onDismiss={onDismissNotification}
           onNewNotifications={onNewNotifications}
           onClose={() => setShowNotifications(false)}
+          notifPrefs={notifPrefs}
+          onSaveNotifPrefs={onSaveNotifPrefs}
         />
       )}
 

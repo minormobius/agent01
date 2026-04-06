@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import type { ProjectState, Task, Dependency, Member, Baseline, KanbanLane, PmTab } from "./types";
+import type { ProjectState, Task, Dependency, Member, Baseline, KanbanLane, PmTab, TimeEntry } from "./types";
 import { MEMBER_COLORS } from "./types";
 import {
   parseDuration,
@@ -361,6 +361,46 @@ export function useProject(scope?: string) {
     [setState],
   );
 
+  // ── Time Entries ──
+
+  const addTimeEntry = useCallback(
+    (opts: { taskId: string; memberId: string; date: string; hours: number; notes?: string }) => {
+      setState((prev) => {
+        const entry: TimeEntry = {
+          id: uuid(),
+          taskId: opts.taskId,
+          memberId: opts.memberId,
+          date: opts.date,
+          hours: opts.hours,
+          notes: opts.notes,
+          createdAt: new Date().toISOString(),
+        };
+        return { ...prev, timeEntries: [...(prev.timeEntries || []), entry] };
+      });
+    },
+    [setState],
+  );
+
+  const deleteTimeEntry = useCallback(
+    (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        timeEntries: (prev.timeEntries || []).filter((e) => e.id !== id),
+      }));
+    },
+    [setState],
+  );
+
+  const updateTimeEntry = useCallback(
+    (id: string, updates: Partial<TimeEntry>) => {
+      setState((prev) => ({
+        ...prev,
+        timeEntries: (prev.timeEntries || []).map((e) => (e.id === id ? { ...e, ...updates } : e)),
+      }));
+    },
+    [setState],
+  );
+
   // ── Replace full state (for ATProto pull) ──
 
   const replaceState = useCallback(
@@ -397,6 +437,11 @@ export function useProject(scope?: string) {
 
     // Collapse
     toggleCollapse,
+
+    // Time entries
+    addTimeEntry,
+    deleteTimeEntry,
+    updateTimeEntry,
 
     // Project
     setProjectName,

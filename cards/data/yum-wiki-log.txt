@@ -1,0 +1,60 @@
+Parsed 742 foods from cards/js/yum-pool.js
+  20/742 queried, 20 found
+  40/742 queried, 40 found
+  60/742 queried, 60 found
+  80/742 queried, 80 found
+  100/742 queried, 100 found
+  120/742 queried, 120 found
+  140/742 queried, 140 found
+  160/742 queried, 160 found
+  180/742 queried, 180 found
+  200/742 queried, 200 found
+  220/742 queried, 220 found
+  240/742 queried, 239 found
+  260/742 queried, 259 found
+  280/742 queried, 279 found
+  300/742 queried, 299 found
+  320/742 queried, 319 found
+  340/742 queried, 338 found
+  360/742 queried, 358 found
+  380/742 queried, 378 found
+  400/742 queried, 398 found
+  420/742 queried, 418 found
+  440/742 queried, 437 found
+  460/742 queried, 457 found
+  480/742 queried, 477 found
+  500/742 queried, 496 found
+  520/742 queried, 516 found
+  540/742 queried, 536 found
+  560/742 queried, 554 found
+  580/742 queried, 569 found
+  600/742 queried, 587 found
+  620/742 queried, 606 found
+  640/742 queried, 626 found
+  660/742 queried, 646 found
+  680/742 queried, 666 found
+  700/742 queried, 684 found
+  720/742 queried, 702 found
+  740/742 queried, 722 found
+  742/742 queried, 724 found
+
+Done! 726/742 matched, 536 with thumbnails
+Wrote cards/data/yum-wikipedia.json (215KB)
+
+Missed 16 foods:
+  - Amaranth (grain)
+  - Rabbit (food)
+  - Wahoo (fish)
+  - Savory (plant)
+  - Tellicherry pepper
+  - Kaffir lime leaf
+  - Dried oregano
+  - Dried thyme
+  - Dried basil
+  - Dried rosemary
+  - Old Bay seasoning
+  - Yuzu kosho
+  - Adobo (sauce)
+  - Tamarind paste
+  - Tahini paste
+  - White sesame

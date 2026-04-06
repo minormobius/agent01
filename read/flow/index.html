@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Flow — Read</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100vh; height: 100dvh;
+    overflow: hidden; background: #0d0d14;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #ccc;
+  }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* Controls overlay */
+  .controls {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: rgba(13,13,20,0.85);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; z-index: 10;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .controls button {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    color: #ccc; border-radius: 6px; padding: 6px 14px; cursor: pointer;
+    font-size: 13px; transition: background 0.15s;
+  }
+  .controls button:hover { background: rgba(255,255,255,0.14); }
+  .controls button.active { background: rgba(120,140,255,0.25); border-color: rgba(120,140,255,0.4); color: #b8c4ff; }
+  .controls .speed-display {
+    min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums;
+    color: #aaa;
+  }
+  .controls .sep { width: 1px; height: 20px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+  .controls input[type="text"] {
+    flex: 1; min-width: 0; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+    color: #ddd; font-size: 13px; outline: none;
+  }
+  .controls input[type="text"]:focus { border-color: rgba(120,140,255,0.4); }
+
+  .title-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 10px 16px; background: rgba(13,13,20,0.7);
+    font-size: 14px; color: rgba(255,255,255,0.5);
+    text-align: center; z-index: 10; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="title-bar" id="title-bar">Flow</div>
+<canvas id="c"></canvas>
+<div class="controls">
+  <button id="btn-play" title="Play/Pause">&#9654;</button>
+  <button id="btn-slower" title="Slower">&minus;</button>
+  <span class="speed-display" id="speed-display">1.0x</span>
+  <button id="btn-faster" title="Faster">+</button>
+  <div class="sep"></div>
+  <input type="text" id="text-input" placeholder="Paste text or search Gutenberg..." value="">
+  <button id="btn-load">Load</button>
+  <button id="btn-demo">Moby Dick</button>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // === State ===
+  let playing = true;
+  let speed = 1.0;
+  let words = [];
+  let topWordIndex = 0;
+  let scrollOffset = 0;
+  let totalWordsRead = 0;
+  let flyingWords = [];
+  let lastTime = 0;
+
+  // Layout
+  const BOX_PAD = 28;
+  let boxRect = { x: 0, y: 0, w: 0, h: 0 };
+  let fontSize = 20;
+  let lineHeight = 1.55;
+  let fontFamily = 'Georgia, "Palatino Linotype", serif';
+
+  // Path
+  let pathPoints = [];
+  let pathSegments = [];
+  let pathTotalLength = 0;
+
+  // Dragging control points
+  let dragIdx = -1;
+
+  // Default text
+  const DEFAULT_TEXT = `Call me Ishmael. Some years ago — never mind how long precisely — having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen and regulating the circulation. Whenever I find myself growing grim about the mouth; whenever it is a damp, drizzly November in my soul; whenever I find myself involuntarily pausing before coffin warehouses, and bringing up the rear of every funeral I meet; and especially whenever my hypos get such an upper hand of me, that it requires a strong moral principle to prevent me from deliberately stepping into the street, and methodically knocking people's hats off — then, I account it high time to get to sea as soon as I can. This is my substitute for pistol and ball. With a philosophical flourish Cato throws himself upon his sword; I quietly take to the ship. There is nothing surprising in this. If they but knew it, almost all men in their degree, some time or other, cherish very nearly the same feelings towards the ocean with me.`;
+
+  function init(text) {
+    words = text.split(/\s+/).filter(w => w.length > 0);
+    topWordIndex = 0;
+    scrollOffset = 0;
+    totalWordsRead = 0;
+    flyingWords = [];
+    playing = true;
+    updatePlayBtn();
+    resize();
+    if (!lastTime) {
+      lastTime = performance.now();
+      requestAnimationFrame(tick);
+    }
+  }
+
+  function resize() {
+    const dpr = Math.min(devicePixelRatio, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+
+    const W = rect.width;
+    const H = rect.height;
+
+    // Responsive font
+    fontSize = Math.max(16, Math.min(24, W * 0.035));
+
+    // Box: left portion, vertically padded for title bar and controls
+    const topPad = 48;
+    const botPad = 64;
+    boxRect = {
+      x: BOX_PAD,
+      y: topPad,
+      w: W * 0.52 - BOX_PAD * 2,
+      h: H - topPad - botPad
+    };
+
+    // 5 control points for the return path (right side arc)
+    const rx = boxRect.x + boxRect.w;
+    const midX = W * 0.72;
+    const farX = W * 0.90;
+    pathPoints = [
+      { x: rx + 30, y: boxRect.y + boxRect.h - 20 },  // P0: exit bottom
+      { x: farX,    y: boxRect.y + boxRect.h * 0.7 },  // P1: far bottom
+      { x: farX + 15, y: H * 0.48 },                   // P2: far middle
+      { x: farX,    y: boxRect.y + boxRect.h * 0.25 },  // P3: far top
+      { x: rx + 30, y: boxRect.y + 20 }                // P4: re-enter top
+    ];
+
+    computePathGeometry();
+  }
+
+  // === Path math ===
+  function computePathGeometry() {
+    pathSegments = [];
+    pathTotalLength = 0;
+    const pts = pathPoints;
+    const N = 300;
+    let prev = pts[0];
+    pathSegments.push({ x: prev.x, y: prev.y, dist: 0 });
+
+    for (let i = 1; i <= N; i++) {
+      const t = i / N;
+      const p = catmullRom(pts, t);
+      const dx = p.x - prev.x, dy = p.y - prev.y;
+      pathTotalLength += Math.sqrt(dx * dx + dy * dy);
+      pathSegments.push({ x: p.x, y: p.y, dist: pathTotalLength });
+      prev = p;
+    }
+  }
+
+  function catmullRom(pts, t) {
+    const n = pts.length - 1;
+    const st = t * n;
+    const seg = Math.min(Math.floor(st), n - 1);
+    const lt = st - seg;
+    const p0 = pts[Math.max(seg - 1, 0)];
+    const p1 = pts[seg];
+    const p2 = pts[Math.min(seg + 1, n)];
+    const p3 = pts[Math.min(seg + 2, n)];
+    const t2 = lt * lt, t3 = t2 * lt;
+    return {
+      x: 0.5 * ((2*p1.x) + (-p0.x+p2.x)*lt + (2*p0.x-5*p1.x+4*p2.x-p3.x)*t2 + (-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+      y: 0.5 * ((2*p1.y) + (-p0.y+p2.y)*lt + (2*p0.y-5*p1.y+4*p2.y-p3.y)*t2 + (-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+    };
+  }
+
+  function pointAtDist(dist) {
+    if (dist <= 0) return pathSegments[0];
+    if (dist >= pathTotalLength) return pathSegments[pathSegments.length - 1];
+    let lo = 0, hi = pathSegments.length - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (pathSegments[mid].dist < dist) lo = mid; else hi = mid;
+    }
+    const a = pathSegments[lo], b = pathSegments[hi];
+    const f = (dist - a.dist) / (b.dist - a.dist || 1);
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+  }
+
+  // === Animation ===
+  function tick(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+    render(dt);
+    requestAnimationFrame(tick);
+  }
+
+  function render(dt) {
+    const dpr = Math.min(devicePixelRatio, 2);
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const W = canvas.width / dpr;
+    const H = canvas.height / dpr;
+
+    // Clear
+    ctx.fillStyle = '#0d0d14';
+    ctx.fillRect(0, 0, W, H);
+
+    // Scroll
+    if (playing) {
+      scrollOffset += speed * fontSize * 1.2 * dt;
+    }
+
+    // Draw path (subtle dashed)
+    drawPath();
+
+    // Draw box outline
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    roundRect(boxRect.x, boxRect.y, boxRect.w, boxRect.h, 10);
+    ctx.stroke();
+
+    // Soft gradient at top and bottom of box
+    const gradH = fontSize * 2;
+    const topGrad = ctx.createLinearGradient(0, boxRect.y, 0, boxRect.y + gradH);
+    topGrad.addColorStop(0, '#0d0d14');
+    topGrad.addColorStop(1, 'rgba(13,13,20,0)');
+    const botGrad = ctx.createLinearGradient(0, boxRect.y + boxRect.h - gradH, 0, boxRect.y + boxRect.h);
+    botGrad.addColorStop(0, 'rgba(13,13,20,0)');
+    botGrad.addColorStop(1, '#0d0d14');
+
+    // Draw text in box (clipped)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(boxRect.x - 2, boxRect.y, boxRect.w + 4, boxRect.h);
+    ctx.clip();
+    drawBoxText(dt);
+    ctx.restore();
+
+    // Fade edges
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(boxRect.x - 2, boxRect.y, boxRect.w + 4, gradH);
+    ctx.fillStyle = botGrad;
+    ctx.fillRect(boxRect.x - 2, boxRect.y + boxRect.h - gradH, boxRect.w + 4, gradH);
+
+    // Draw flying words
+    drawFlying(dt);
+
+    // Draw draggable control points
+    for (let i = 0; i < pathPoints.length; i++) {
+      const p = pathPoints[i];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = dragIdx === i ? 'rgba(120,140,255,0.7)' : 'rgba(120,140,255,0.25)';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawPath() {
+    if (pathSegments.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(pathSegments[0].x, pathSegments[0].y);
+    for (let i = 1; i < pathSegments.length; i += 2) {
+      ctx.lineTo(pathSegments[i].x, pathSegments[i].y);
+    }
+    ctx.strokeStyle = 'rgba(120,140,255,0.1)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawBoxText(dt) {
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#e0ddd8';
+
+    const lineH = fontSize * lineHeight;
+    const maxW = boxRect.w - 16;
+    const spaceW = ctx.measureText(' ').width;
+    const linesNeeded = Math.ceil(boxRect.h / lineH) + 4;
+
+    let wi = topWordIndex;
+    let drawY = boxRect.y + 8 - (scrollOffset % lineH);
+    let linesDrawn = 0;
+
+    while (linesDrawn < linesNeeded) {
+      // Build one line
+      let lineWords = [];
+      let lineW = 0;
+      while (true) {
+        const idx = wi % words.length;
+        const w = words[idx];
+        if (!w) break;
+        const ww = ctx.measureText(w).width;
+        if (lineW > 0 && lineW + spaceW + ww > maxW) break;
+        lineWords.push({ text: w, width: ww, globalIdx: wi });
+        lineW += (lineW > 0 ? spaceW : 0) + ww;
+        wi++;
+      }
+      if (lineWords.length === 0) break;
+
+      // Draw
+      let drawX = boxRect.x + 8;
+      const inView = drawY > boxRect.y - lineH && drawY < boxRect.y + boxRect.h + lineH;
+      if (inView) {
+        for (const lw of lineWords) {
+          // Bionic bold front half
+          const boldLen = Math.ceil(lw.text.length / 2);
+          const bold = lw.text.substring(0, boldLen);
+          const rest = lw.text.substring(boldLen);
+
+          ctx.font = `bold ${fontSize}px ${fontFamily}`;
+          ctx.fillStyle = '#e8e5e0';
+          ctx.fillText(bold, drawX, drawY);
+          const bw = ctx.measureText(bold).width;
+
+          ctx.font = `${fontSize}px ${fontFamily}`;
+          ctx.fillStyle = 'rgba(232,229,224,0.55)';
+          ctx.fillText(rest, drawX + bw, drawY);
+
+          drawX += lw.width + spaceW;
+        }
+      }
+
+      drawY += lineH;
+      linesDrawn++;
+    }
+
+    // Advance top when lines scroll off
+    const scrolledLines = Math.floor(scrollOffset / lineH);
+    if (scrolledLines > 0 && playing) {
+      // Count words in the scrolled lines
+      let newTop = topWordIndex;
+      let countLines = 0;
+      let lw = 0;
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      while (countLines < scrolledLines) {
+        const idx = newTop % words.length;
+        const w = words[idx];
+        const ww = ctx.measureText(w).width;
+        if (lw > 0 && lw + spaceW + ww > maxW) {
+          countLines++;
+          lw = 0;
+          if (countLines >= scrolledLines) break;
+        }
+        lw += (lw > 0 ? spaceW : 0) + ww;
+        newTop++;
+      }
+
+      if (newTop > topWordIndex) {
+        // Launch scrolled-off words onto the path
+        const launchCount = Math.min(newTop - topWordIndex, 8); // cap launches per frame
+        for (let i = 0; i < launchCount; i++) {
+          const idx = (topWordIndex + i) % words.length;
+          flyingWords.push({
+            text: words[idx],
+            dist: 0,
+            speed: (pathTotalLength / 2.5) * (0.85 + Math.random() * 0.3),
+            alpha: 1.0
+          });
+        }
+        totalWordsRead += (newTop - topWordIndex);
+        topWordIndex = newTop;
+        scrollOffset -= scrolledLines * fontSize * lineHeight;
+      }
+    }
+
+    // Cap flying words
+    if (flyingWords.length > 50) flyingWords.splice(0, flyingWords.length - 50);
+  }
+
+  function drawFlying(dt) {
+    const keep = [];
+    for (const fw of flyingWords) {
+      if (playing) fw.dist += fw.speed * speed * dt;
+      if (fw.dist >= pathTotalLength) continue;
+
+      const p = pointAtDist(fw.dist);
+      const progress = fw.dist / pathTotalLength;
+
+      // Alpha: fade in/out at endpoints
+      let alpha = 1.0;
+      if (progress < 0.08) alpha = progress / 0.08;
+      if (progress > 0.88) alpha = (1.0 - progress) / 0.12;
+
+      // Scale: shrink slightly in the middle arc
+      const arcScale = 0.65 + 0.35 * (1.0 - Math.sin(progress * Math.PI) * 0.4);
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.scale(arcScale, arcScale);
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.font = `${fontSize * 0.7}px ${fontFamily}`;
+      ctx.fillStyle = 'rgba(140,160,255,0.9)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fw.text, 0, 0);
+      ctx.restore();
+
+      keep.push(fw);
+    }
+    flyingWords = keep;
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  // === Drag control points ===
+  function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+
+  function hitPoint(pos) {
+    for (let i = 0; i < pathPoints.length; i++) {
+      const p = pathPoints[i];
+      const dx = pos.x - p.x, dy = pos.y - p.y;
+      if (dx * dx + dy * dy < 400) return i; // 20px radius
+    }
+    return -1;
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    const pos = getCanvasPos(e);
+    dragIdx = hitPoint(pos);
+    if (dragIdx >= 0) {
+      canvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (dragIdx < 0) return;
+    const pos = getCanvasPos(e);
+    pathPoints[dragIdx].x = pos.x;
+    pathPoints[dragIdx].y = pos.y;
+    computePathGeometry();
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('pointerup', () => { dragIdx = -1; });
+  canvas.addEventListener('pointercancel', () => { dragIdx = -1; });
+
+  // === Controls ===
+  const btnPlay = document.getElementById('btn-play');
+  const speedDisplay = document.getElementById('speed-display');
+
+  function updatePlayBtn() {
+    btnPlay.textContent = playing ? '\u23F8' : '\u25B6';
+  }
+
+  btnPlay.addEventListener('click', () => {
+    playing = !playing;
+    if (playing) lastTime = performance.now();
+    updatePlayBtn();
+  });
+
+  document.getElementById('btn-slower').addEventListener('click', () => {
+    speed = Math.max(0.2, speed - 0.2);
+    speedDisplay.textContent = speed.toFixed(1) + 'x';
+  });
+
+  document.getElementById('btn-faster').addEventListener('click', () => {
+    speed = Math.min(5.0, speed + 0.2);
+    speedDisplay.textContent = speed.toFixed(1) + 'x';
+  });
+
+  // Load text
+  const textInput = document.getElementById('text-input');
+
+  document.getElementById('btn-load').addEventListener('click', () => {
+    const val = textInput.value.trim();
+    if (val.length > 20) {
+      // Treat as raw text
+      init(val);
+      document.getElementById('title-bar').textContent = 'Flow — custom text';
+    } else if (val) {
+      // Try Gutenberg search
+      loadGutenberg(val);
+    }
+  });
+
+  textInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-load').click();
+  });
+
+  document.getElementById('btn-demo').addEventListener('click', () => {
+    loadGutenberg('moby dick', 2701);
+  });
+
+  async function loadGutenberg(query, knownId) {
+    document.getElementById('title-bar').textContent = 'Loading...';
+    try {
+      let bookId = knownId;
+      if (!bookId) {
+        const res = await fetch(`https://gutendex.com/books/?search=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          bookId = data.results[0].id;
+          document.getElementById('title-bar').textContent = 'Flow — ' + data.results[0].title;
+        } else {
+          document.getElementById('title-bar').textContent = 'Not found';
+          return;
+        }
+      } else {
+        document.getElementById('title-bar').textContent = 'Flow — loading...';
+      }
+
+      const url = `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt`;
+      const res = await fetch(url);
+      const text = await res.text();
+
+      // Strip header/footer
+      const startMatch = text.match(/\*\*\*\s*START OF.*?\*\*\*/i);
+      const endMatch = text.match(/\*\*\*\s*END OF.*?\*\*\*/i);
+      let body = text;
+      if (startMatch) body = body.substring(body.indexOf(startMatch[0]) + startMatch[0].length);
+      if (endMatch) body = body.substring(0, body.indexOf(endMatch[0]));
+      body = body.trim();
+
+      init(body);
+      if (knownId === 2701) document.getElementById('title-bar').textContent = 'Flow — Moby Dick';
+    } catch (err) {
+      document.getElementById('title-bar').textContent = 'Error: ' + err.message;
+    }
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); playing = !playing; if (playing) lastTime = performance.now(); updatePlayBtn(); }
+    if (e.code === 'ArrowUp') { e.preventDefault(); speed = Math.min(5, speed + 0.2); speedDisplay.textContent = speed.toFixed(1) + 'x'; }
+    if (e.code === 'ArrowDown') { e.preventDefault(); speed = Math.max(0.2, speed - 0.2); speedDisplay.textContent = speed.toFixed(1) + 'x'; }
+  });
+
+  // Resize
+  window.addEventListener('resize', resize);
+
+  // Start with default text
+  init(DEFAULT_TEXT);
+})();
+</script>
+</body>
+</html>

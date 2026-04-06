@@ -17,6 +17,7 @@ import {
   updateEvent,
   deleteEvent,
 } from "./context";
+import { broadcastNotification } from "../crm/context";
 import { MonthView } from "./components/MonthView";
 import { QuarterView } from "./components/QuarterView";
 import { WeekView } from "./components/WeekView";
@@ -213,6 +214,23 @@ export function CalendarApp({ vault, pds, orgs: sharedOrgs = [], orgContexts: sh
       } else {
         const { rkey } = await saveEvent(pds, event, dek, keyringRkey);
         setEvents((prev) => [...prev, { rkey, event, authorDid: vault.session.did, orgRkey }]);
+      }
+
+      // Broadcast calendar event notification
+      if (activeOrg) {
+        broadcastNotification(
+          pds, "cal-event", activeOrg.org.rkey, activeOrg.org.org.name,
+          {
+            type: "cal-event",
+            orgRkey: activeOrg.org.rkey,
+            orgName: activeOrg.org.org.name,
+            eventTitle: event.title,
+            eventDate: event.start,
+            senderHandle: vault.session.handle,
+            createdAt: new Date().toISOString(),
+          },
+          vault.session.did, vault.session.handle, undefined, activeOrg,
+        ).catch(() => {});
       }
 
       setShowForm(false);

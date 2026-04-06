@@ -155,7 +155,7 @@ export const requestSurveyEligibility = (surveyId: string, blindedMessage?: stri
   });
 
 export const submitSurveyBallot = (surveyId: string, ballot: {
-  choices: number[];
+  choices: (number | number[])[];
   tokenMessage: string;
   issuerSignature: string;
   nullifier: string;

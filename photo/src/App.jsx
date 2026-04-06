@@ -12,6 +12,7 @@ import HandleTypeahead from './components/HandleTypeahead.jsx';
 import LoginButton from './components/LoginButton.jsx';
 import UploadButton from './components/UploadButton.jsx';
 import Albums from './components/Albums.jsx';
+import Thread from './components/Thread.jsx';
 import './App.css';
 
 const SORT_OPTIONS = [
@@ -39,7 +40,33 @@ const STATUS_MESSAGES = {
   extracting: 'Extracting images...',
 };
 
+function useHashRoute() {
+  const [route, setRoute] = useState(window.location.hash || '#/');
+  useEffect(() => {
+    const handler = () => setRoute(window.location.hash || '#/');
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+  return route;
+}
+
 export default function App() {
+  const route = useHashRoute();
+
+  // Thread view
+  if (route.startsWith('#/thread')) {
+    return (
+      <div className="photo">
+        <Thread />
+      </div>
+    );
+  }
+
+  // Default: gallery view
+  return <GalleryView />;
+}
+
+function GalleryView() {
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle'); // idle | resolving | downloading | parsing | loading | extracting | ready | error
   const [progress, setProgress] = useState(null);
@@ -329,6 +356,7 @@ export default function App() {
         <div className="photo-title">
           <h1>ATPhoto</h1>
           <span className="photo-subtitle">Arena</span>
+          <a href="#/thread" className="photo-nav-link">Thread</a>
         </div>
 
         <div className="photo-header-right">

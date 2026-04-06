@@ -1,0 +1,992 @@
+abalone	2014
+abiyuch	5957
+acerola	5973
+acorn	5960
+acorn squash	3970
+adobo	58
+adzuki bean	6036
+agar	2054
+agave	5969
+akutaq	31
+alaska blackfish	14
+alaska blueberry	5967
+alaska pollock	115
+alaska wild rhubarb	5942
+albacore tuna	87
+albizia gummifera	3974
+alcoholic beverages	746
+alfalfa	6070
+allium	6081
+allspice	6077
+almond	6140
+almond milk	1
+alpine sweetvetch	5942
+amaranth	6170
+american butterfish	1994
+american cranberry	6092
+american lobster	116
+american pokeweed	5996
+american shad	81
+anatidae	42549
+anchovy	120
+andean blackberry	6
+angelica	5948
+anguilliformes	121
+anise	6085
+annual wild rice	6116
+apple	6325
+apple cider	30
+apricot	6138
+arabica coffee	4610
+arctic blackberry	5939
+arepa	109
+arrowhead	5955
+arrowroot	5975
+ascidians	20
+asian pear	6064
+asparagus	6182
+asparagus fern	0
+asparagus racemosus	0
+atlantic cod	85
+atlantic croaker	81
+atlantic halibut	120
+atlantic herring	2014
+atlantic mackerel	80
+atlantic menhaden	44
+atlantic pollock	81
+atlantic salmon	88
+atlantic wolffish	128
+avocado	6120
+avocado oil	1
+babassu palm	5972
+baby food	155
+bagel	4072
+baked beans	111
+baked potato	46
+bamboo shoots	6027
+banana	6056
+barley	6364
+bayberry	5934
+bean	6002
+bearded seal	102
+beech nut	5959
+beefalo	42463
+beer	452
+beluga whale	104
+berry wine	8
+beverages	142
+bilberry	6153
+biscuit	2090
+bison	42430
+bitter gourd	6076
+bivalvia (clam, mussel, oyster)	117
+black cabbage	5977
+black chokeberry	5982
+black crowberry	5950
+black elderberry	6099
+black huckleberry	5939
+black mulberry	5974
+black plum	3969
+black radish	5935
+black raisin	3970
+black raspberry	5946
+black salsify	6014
+black tea	7475
+black walnut	6142
+black-eyed pea	6018
+blackberry	4299
+blackcurrant	6207
+blue cheese	1
+blue crab	120
+blue mussel	88
+blue whiting	114
+bluefish	69
+bog bilberry	5939
+borage	5995
+bowhead whale	18
+boysenberry	5974
+brassicas	2215
+brazil nut	6087
+breadfruit	6003
+breadnut tree seed	5972
+breakfast cereal	2854
+breakfast sandwich	104
+broad bean	6076
+broad whitefish	14
+broccoli	6227
+brussel sprouts	6092
+buffalo	42429
+buffalo currant	5934
+bulgur	4250
+burbot	2055
+burdock	6104
+burrito	116
+butter	148
+butter substitute	58
+butterfat	80
+buttermilk	140
+butternut	6008
+butternut squash	5979
+cabbage	6085
+cake	123
+calabash	5974
+canada blueberry	5950
+candy bar	79
+cannellini bean	3969
+canola	5999
+canola oil	2
+cantaloupe melon	3970
+cape gooseberry	3969
+capers	6027
+caraway	6134
+cardamom	6062
+cardoon	5964
+carob	6019
+carp bream	115
+carrot	6410
+cascade huckleberry	5938
+casein	119
+cashew nut	6112
+cassava	6032
+castanospermum australe	3979
+catfish	148
+catjang pea	5963
+cattle (beef, veal)	42596
+cauliflower	6234
+celeriac	6064
+celery leaves	6023
+celery stalks	6060
+cereals and cereal products	2740
+cetacea (dolphin, porpoise, whale)	114
+ceylon cinnamon	6071
+channel catfish	121
+chanterelle	6013
+charr	114
+chayote	6029
+cheddar cheese	1
+cheese	186
+cherimoya	6069
+cherry tomato	5996
+chervil	6028
+chestnut	6028
+chewing gum	123
+chia	5968
+chicken	42523
+chickpea	6075
+chicory	6108
+chicory leaves	5936
+chicory roots	5934
+chili	117
+chimichanga	54
+chineese plum	3969
+chinese bayberry	5934
+chinese broccoli	5974
+chinese cabbage	6063
+chinese chestnut	5960
+chinese chives	5935
+chinese cinnamon	6121
+chinese mustard	6002
+chinese water chestnut	5977
+chinook salmon	107
+chives	6077
+chocolate	187
+chocolate mousse	66
+chocolate spread	133
+chum salmon	107
+cichlidae (tilapia)	97
+cinnamon	6023
+cisco	81
+citrus	2415
+clam	1
+clawed lobster	120
+clementine	3970
+climbing bean	5937
+cloud ear fungus	5954
+cloudberry	5987
+cloves	6171
+clupeinae (herring, sardine, sprat)	128
+coalfish pollock	0
+cocktail	59
+cocoa and cocoa products	112
+cocoa bean	2205
+cocoa butter	135
+cocoa liquor	3
+cocoa powder	168
+coconut	6146
+coconut milk	1
+coconut oil	1
+coffee	226
+coffee and coffee products	364
+coffee mocha	60
+coffee substitute	90
+coho salmon	108
+cold cut	148
+colorado pinyon	5979
+columbidae (dove, pigeon)	42549
+common bean	6223
+common beet	6019
+common buckwheat	6253
+common cabbage	6060
+common carp	82
+common chokecherry	5971
+common dab	114
+common grape	6325
+common hazelnut	6037
+common ling	120
+common mushroom	6620
+common octopus	134
+common oregano	6135
+common pea	6258
+common persimmon	5979
+common sage	6188
+common salsify	5994
+common thyme	6094
+common verbena	5954
+common walnut	6068
+common wheat	6321
+conch	2011
+condensed milk	80
+cooking oil	109
+coriander	6176
+corn	6677
+corn chip	119
+corn grits	104
+corn oil	1
+corn salad	5958
+cornbread	4050
+cornmint	6017
+cottage cheese	1
+cottonseed	6069
+cottonseed oil	1
+couscous	82
+cow milk, pasteurized, vitamin a + d added, 0% fat	784
+cow milk, pasteurized, vitamin a + d added, 1% fat	791
+cow milk, pasteurized, vitamin a + d added, 2% fat	792
+cow milk, pasteurized, vitamin d added, 3.25% fat	787
+cowpea	5997
+crab	120
+cracker	166
+crayfish	134
+cream	148
+cream substitute	86
+crisp bread	136
+crosne	3970
+crustaceans	54
+cubanelle pepper	3969
+cucumber	6234
+cucurbita	6075
+cumin	6079
+cupuaçu	2014
+curry powder	4105
+cusk	49
+custard apple	5994
+cuttlefish	63
+daikon radish	6025
+dandelion	6134
+date	6112
+deer	42522
+deerberry	5937
+dessert wine	5
+devilfish	1981
+dill	6255
+dock	5960
+dolphin fish	68
+domestic goat	42504
+domestic pig	42593
+dough	0
+dragée	106
+dried milk	136
+dripping	59
+dulce de leche	98
+dumpling	103
+dungeness crab	61
+durian	5959
+eastern oyster	116
+eddoe	3969
+edible shell	98
+egg roll	111
+egg substitute	82
+egg yolk	2
+eggplant	6176
+eggs	182
+elderberry	6023
+elk	42429
+elliott's blueberry	5934
+empanada	107
+emu	42429
+enchilada	55
+endive	6086
+energy drink	61
+enokitake	5998
+epazote	5955
+european anchovy	85
+european chestnut	5998
+european cranberry	5952
+european plum	6130
+european rabbit	42429
+evaporated milk	81
+evening primrose	5987
+evergreen blackberry	292
+evergreen huckleberry	5938
+falafel	56
+fats and oils	861
+feijoa	6010
+fennel	6155
+fenugreek	6109
+fig	6208
+fireweed	5954
+fish burger	28
+fish oil	114
+fishes	121
+flatfish	159
+flaxseed	6169
+florida pompano	81
+flour	4236
+focaccia	68
+fortified wine	0
+fox grape	5943
+french plantain	6143
+french toast	102
+freshwater drum	62
+freshwater eel	81
+frozen yogurt	81
+fruit gum	114
+fruit juice	205
+fruit preserve	138
+fruit salad	65
+fruit-flavor drink	105
+fruits	4555
+frybread	66
+fudge	80
+gadiformes	115
+gadus (common cod)	129
+garden cress	6060
+garden onion	6488
+garden onion (var.)	6227
+garden rhubarb	6110
+garden tomato	6258
+garden tomato (var.)	6177
+garfish	119
+garland chrysanthemum	5980
+garlic	6147
+gefilte fish	60
+gelatin	119
+gelatin dessert	135
+gentiana lutea	3981
+german camomile	6061
+giant butterbur	5995
+gin	108
+ginger	6358
+ginkgo nuts	6084
+ginseng	5935
+globe artichoke	6058
+goji	3970
+gooseberry	6102
+gram bean	6016
+grape	6118
+grape wine	370
+grapefruit	6074
+grapefruit/pummelo hybrid	5948
+grapeseed oil	1
+grass pea	5945
+greater sturgeon	81
+greek feta cheese	1
+green apple	3969
+green bean	6168
+green bell pepper	6376
+green cabbage	3970
+green grape	3970
+green lentil	3970
+green onion	6216
+green plum	3970
+green tea	7472
+green turtle	60
+green vegetables	2880
+green zucchini	6068
+greenland halibut/turbot	134
+greenthread tea	5945
+greylag goose	42428
+groundcherry	6012
+grouper	69
+guarana	3973
+guava	6200
+guinea hen	42430
+haddock	156
+half-highbush blueberry	5938
+hamburger	116
+hard wheat	6191
+hawthorn	3969
+hazelnut	6046
+heart of palm	4050
+hedge mustard	5962
+herbal tea	7427
+herbs and spices	4494
+hibiscus tea	4028
+hickory nut	5968
+highbush blueberry	6097
+hippoglossus (common halibut)	120
+honey	126
+horchata	97
+horned melon	5951
+horse	42429
+horseradish	6116
+horseradish tree	6014
+hot chocolate	166
+hot dog	55
+hummus	93
+hushpuppy	111
+hyacinth bean	5998
+hyssop	6032
+ice cream	144
+ice cream cone	93
+iceberg lettuce	3970
+icing	106
+irish moss	2023
+italian oregano	5946
+italian sweet red pepper	6166
+jackfruit	6034
+jalapeno pepper	3970
+japanese chestnut	5962
+japanese persimmon	6008
+japanese pumpkin	6064
+japanese sea bass	1
+japanese walnut	5936
+java plum	5968
+jellyfish	60
+jerusalem artichoke	6031
+jew's ear	5953
+jicama	5994
+jostaberry	5953
+jujube	5961
+juniperus communis	3975
+junket	73
+jute	5985
+kai-lan	5935
+kale	6037
+kefir	120
+kelp	2013
+ketchup	147
+king mackerel	61
+kiwi	6080
+kohlrabi	6106
+komatsuna	5934
+kombu	2049
+kumquat	6023
+lake trout	114
+lambsquarters	5990
+lantern fruit	3969
+lard	138
+lasagna	99
+leather chiton	13
+leavening agent	136
+leek	6016
+lemon	6275
+lemon balm	6036
+lemon grass	6007
+lemon sole	120
+lemon thyme	5934
+lemon verbena	5945
+lentils	6090
+lettuce	6145
+lichee	6031
+lima bean	6039
+lime	6108
+linden	5984
+lingcod	69
+lingonberry	6068
+linseed oil	2
+liquor	143
+liquorice	123
+loganberry	6022
+longan	5950
+loquat	6101
+lotus	5960
+lovage	6029
+lowbush blueberry	5985
+lumpsucker	114
+lupine	5938
+macadamia nut	6014
+macadamia nut (m. tetraphylla)	5943
+macaroni and cheese	119
+macroalgae	5
+madeira wine	41
+maitake	6001
+malabar plum	5954
+malabar spinach	5968
+mallard duck	42428
+malus (crab apple)	6031
+mamey sapote	6004
+mammee apple	5980
+mandarin orange (clementine, tangerine)	6217
+mango	6093
+margarine	163
+margarine-like spread	168
+marine mussel	121
+marshmallow	127
+marzipan	119
+mate	3972
+meat bouillon	119
+meatball	114
+meatloaf	103
+medlar	5956
+mentha	5957
+meringue	114
+mexican groundcherry	5983
+mexican oregano	5950
+mikan	3970
+milk (cow)	2399
+milk (human)	133
+milk (other mammals)	133
+milk and milk products	206
+milk substitute	81
+milkfish	49
+milkshake	113
+millet	6225
+miso	4128
+mixed nuts	2045
+molasses	64
+mollusks	126
+monk fruit	3970
+monkfish	49
+monterey jack cheese	0
+morchella (morel)	4057
+moth bean	5970
+mountain hare	42548
+mountain yam	5966
+mozzarella cheese	1
+mugwort	6007
+mulberry	5950
+mule deer	42428
+multigrain bread	107
+mundu	3995
+mung bean	6124
+muscadine grape	5963
+mushrooms	574
+muskmelon	6132
+mustard	149
+mustard spinach	5968
+nachos	92
+nance	5969
+nanking cherry	5953
+napa cabbage	5975
+naranjilla	5964
+narrowleaf cattail	5966
+natal plum	5947
+natto	82
+nectarine	6051
+new zealand spinach	5972
+nopal	5975
+north pacific giant octopus	20
+northern bluefin tuna	81
+northern pike	134
+norway haddock	115
+norway lobster	119
+norway pout	115
+nougat	84
+nutmeg	6134
+nutritional drink	119
+nuts	2271
+nuttall cockle	12
+oat	6375
+oat bread	4048
+ocean pout	56
+ohelo berry	5946
+oil palm	6029
+oil-seed camellia	2011
+okra	6050
+olive	6173
+olive oil	26
+onion-family vegetables	2253
+opium poppy	2104
+orange bell pepper	6295
+orange mint	6012
+orange roughy	93
+oregon yampah	5953
+oriental wheat	6165
+ostrich	42430
+ostrich fern	5952
+other alcoholic beverage	125
+other animal fat	135
+other beverage	107
+other bread	2087
+other bread product	144
+other candy	172
+other cereal product	2010
+other cocoa product	9
+other dish	168
+other fermented milk	119
+other fish product	164
+other frozen dessert	139
+other fruit product	135
+other pasta dish	119
+other sandwich	121
+other snack food	172
+other soy product	2059
+other vegetable product	82
+other wine	0
+oval-leaf huckleberry	5938
+oxheart cabbage	5942
+oyster mushroom	6597
+pacific cod	117
+pacific halibut	1
+pacific herring	63
+pacific jack mackerel	81
+pacific ocean perch	115
+pacific oyster	78
+pacific rockfish	116
+pacific salmon	11
+pacific sardine	91
+painted comber	116
+pak choy	6023
+pan dulce	98
+pancake	120
+papaya	6204
+parmesan cheese	1
+parsley	6230
+parsnip	6134
+partridge berry	3971
+passion fruit	6057
+pasta	6062
+pastry	168
+pate	136
+pea shoots	3970
+peach	6164
+peach (var.)	5967
+peanut	6160
+peanut oil	1
+pear	6213
+pecan nut	6057
+pectin	62
+pepper	6353
+pepper (c. baccatum)	5934
+pepper (c. chinense)	5934
+pepper (c. frutescens)	6073
+pepper (c. pubescens)	5934
+pepper (capsicum)	5935
+pepper (spice)	6283
+peppermint	6185
+perciformes	133
+percoidei (bass and others)	81
+persian lime	5986
+persimmon	6012
+pheasant	42430
+phyllo dough	79
+pie	105
+pie crust	103
+pie filling	83
+pigeon pea	6003
+pikeperch	114
+piki bread	4058
+pili nut	5956
+pine nut	6058
+pineapple	6143
+pineappple sage	5934
+pink salmon	114
+pistachio	6104
+pita bread	4048
+pitanga	5953
+pitaya	3969
+pizza	164
+plain cream cheese	0
+plains prickly pear	5956
+plantain	3970
+pleuronectidae (dab, halibut, plaice)	120
+pollock	115
+pomegranate	6192
+pomes	2182
+popcorn	124
+poppy	2071
+port wine	88
+pot marjoram	6018
+pot pie	104
+potato	6504
+potato bread	4057
+potato chip	118
+potato gratin	71
+potato puffs	103
+prairie turnip	5967
+prickly pear	6080
+processed cheese	121
+prunus (cherry, plum)	6045
+pudding	111
+pulses	2646
+pummelo	5983
+pumpkinseed sunfish	61
+pupusa	106
+purple laver	2013
+purple mangosteen	5982
+purslane	5986
+quail	42511
+quesadilla	92
+quince	6071
+quinoa	6173
+rabbit	42564
+rabbiteye blueberry	4030
+radish	6108
+radish (var.)	5939
+rainbow smelt	81
+rainbow trout	159
+raisin bread	4048
+rambutan	5955
+rape	6022
+rapeseed oil	4
+rapini	6001
+ravioli	115
+red algae	2024
+red beetroot	6128
+red bell pepper	6359
+red champagne	5
+red clover	3970
+red grape	3969
+red grape juice	5
+red huckleberry	5938
+red king crab	65
+red onion	6215
+red raspberry	6127
+red rice	6116
+red tea	7417
+red wine	148
+redcurrant	6124
+relish	80
+remoulade	120
+rice	6343
+rice bread	4048
+rice cake	59
+ringed seal	19
+robusta coffee	4542
+rock ptarmigan	42542
+rocket salad	1978
+rocket salad (ssp.)	6022
+roe	81
+romaine lettuce	6058
+roman camomile	6055
+root vegetables	2424
+rose hip	6042
+roselle	6023
+rosemary	6222
+rosé wine	13
+rowal	5957
+rowanberry	5941
+rubus (blackberry, raspberry)	2162
+rum	116
+rye	6245
+rye bread	4134
+sablefish	69
+sacred lotus	6001
+safflower	6142
+saffron	6065
+sago palm	5935
+sake	60
+salad	117
+salad dressing	169
+salmonberry	5968
+salmonidae (salmon, trout)	134
+salt	136
+salted butter	4
+sapodilla	5981
+saskatoon berry	5957
+sauce	168
+sausage	173
+savoy cabbage	6018
+scallop	118
+scarlet bean	5993
+scombridae (bonito, mackerel, tuna)	120
+scrapple	66
+scup	81
+sea cucumber	13
+sea trout	69
+sea-buckthornberry	5991
+semolina	4104
+sesame	6100
+sesame oil	1
+sesbania flower	5950
+shallot	5980
+shark	81
+shea tree	2026
+sheefish	102
+sheep (mutton, lamb)	42522
+sheepshead	62
+sherry	141
+shiitake	6013
+shortening	102
+shrimp	160
+silver linden	5945
+skipjack tuna	62
+skunk currant	5934
+small-leaf linden	5937
+smelt	97
+snack bar	130
+snail	129
+snapper	81
+snow crab	61
+sockeye salmon	121
+soft drink	135
+soft-necked garlic	6210
+sorghum	6192
+sorrel	6030
+soup	167
+sour cherry	6081
+sour cream	81
+sour orange	3974
+sourdock	5943
+sourdough	5934
+soursop	6006
+soy bean	6569
+soy cream	3985
+soy milk	4131
+soy sauce	4123
+soy yogurt	78
+soybean oil	4
+spanish mackerel	81
+sparkleberry	5941
+spearmint	6231
+spelt	6166
+spinach	6199
+spiny dogfish	114
+spiny lobster	69
+spirit	125
+spirulina	2018
+spot croaker	69
+spotted seal	80
+spread	89
+squab	42430
+squashberry	5945
+squid	81
+star anise	6019
+star fruit	6044
+steller sea lion	42
+stew	122
+strawberry	6157
+strawberry guava	5961
+striped bass	69
+striped mullet	81
+stuffing	101
+sturgeon	121
+succotash	79
+sugar	136
+sugar apple	5999
+sugar substitute	134
+summer grape	5969
+summer savory	6001
+sunburst squash (pattypan squash)	6042
+sunflower	6269
+sunflower oil	1
+swamp cabbage	5981
+swede	6051
+sweet basil	6211
+sweet bay	6176
+sweet cherry	6156
+sweet custard	108
+sweet marjoram	6101
+sweet orange	6355
+sweet potato	6084
+sweet rowanberry	5935
+swiss chard	6068
+swiss cheese	1
+swordfish	109
+syrup	145
+taco	155
+taco shell	4067
+tallow	135
+tamale	113
+tamarind	6111
+tapioca pearl	80
+taro	5994
+tarragon	6066
+tartary buckwheat	6118
+tea	3497
+tea leaf willow	5942
+teff	6166
+thistle	6011
+thornless blackberry	6
+thunnus	143
+tilefish	69
+tinda	5959
+toffee	117
+tofu	4135
+topping	99
+tortilla	4125
+tortilla chip	196
+tostada	54
+tostada shell	4020
+towel gourd	5972
+trail mix	59
+tree fern	5971
+triticale	6144
+tronchuda cabbage	5934
+tropical highland blackberry	12
+true frog	129
+true oyster	93
+true seal	106
+true sole	94
+tunicate	12
+turbot	120
+turkey	42559
+turmeric	6104
+turnip	6100
+ucuhuba	2017
+unclassified food or beverage	150
+vaccinium (blueberry, cranberry, huckleberry)	6051
+vanilla	5977
+vegetable juice	134
+vegetarian food	104
+veggie burger	0
+velvet duck	42429
+vermouth	115
+vinegar	148
+vodka	104
+waffle	103
+wakame	2016
+walleye	68
+walnut	6026
+walrus	18
+wampee	3969
+wasabi	5973
+water	134
+water spinach	3970
+watercress	6038
+watermelon	6165
+wax apple	5935
+wax gourd	5978
+welsh onion	6247
+wheat	6267
+wheat bread	4158
+whelk	80
+whey	133
+whisky	139
+white bread	4131
+white cabbage	6127
+white champagne	3
+white grape juice	5
+white lupine	5989
+white mulberry	3970
+white mustard	6071
+white onion	0
+white sucker	62
+white wine	134
+whitefish	149
+whiting	134
+whole wheat bread	3
+wild boar	42429
+wild carrot	6198
+wild celery	6325
+wild leek	6015
+wild rice	6158
+winged bean	5975
+winter savory	6012
+winter squash	5994
+wonton wrapper	4037
+yali pear	3977
+yam	6032
+yardlong bean	5970
+yau choy	3969
+yautia	5966
+yellow bell pepper	6329
+yellow pond-lily	6000
+yellow wax bean	6116
+yellow zucchini	6052
+yellowfin tuna	109
+yellowtail amberjack	50
+ymer	120
+yogurt	155
+zwieback	4045

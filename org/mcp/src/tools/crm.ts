@@ -10,9 +10,11 @@ import {
   createProposal,
   createApproval,
   keyringRkeyForTier,
+  broadcastNotification,
 } from "../../../src/crm/context";
 import type { Deal, DealRecord, Stage } from "../../../src/crm/types";
 import { STAGES, STAGE_LABELS } from "../../../src/crm/types";
+import type { NotificationType } from "../../../src/types";
 import { state, requireVault } from "../state";
 
 export const crmTools = {
@@ -221,6 +223,26 @@ export const crmTools = {
 
       const orgName = orgRkey === "personal" ? "Personal" : (state.orgs.find((o) => o.rkey === orgRkey)?.org.name ?? orgRkey);
 
+      // Broadcast notification for org deals
+      if (orgRkey !== "personal") {
+        const orgCtx = state.orgContexts.get(orgRkey);
+        broadcastNotification(
+          vault.client, "deal-created" as NotificationType,
+          orgRkey, orgName,
+          {
+            type: "deal-created",
+            orgRkey,
+            orgName,
+            dealTitle: deal.title,
+            stage: STAGE_LABELS[deal.stage],
+            senderHandle: vault.handle,
+            createdAt: new Date().toISOString(),
+          } as any,
+          vault.did, vault.handle,
+          undefined, orgCtx,
+        ).catch(() => {});
+      }
+
       return {
         content: [{
           type: "text" as const,
@@ -297,6 +319,22 @@ export const crmTools = {
           vault.did, vault.handle
         );
 
+        // Broadcast proposal notification
+        broadcastNotification(
+          vault.client, "proposal-created" as NotificationType,
+          existing.orgRkey, ctx.org.org.name,
+          {
+            type: "proposal-created",
+            orgRkey: existing.orgRkey,
+            orgName: ctx.org.org.name,
+            summary,
+            senderHandle: vault.handle,
+            createdAt: new Date().toISOString(),
+          } as any,
+          vault.did, vault.handle,
+          undefined, ctx,
+        ).catch(() => {});
+
         return {
           content: [{
             type: "text" as const,
@@ -334,8 +372,30 @@ export const crmTools = {
         existing.rkey,
         vault.did,
         newRkey,
-        keyringRkey
+        keyringRkey,
+        dek,
       );
+
+      // Broadcast notification for org deal updates
+      if (isOrg) {
+        const orgName = state.orgs.find((o) => o.rkey === existing.orgRkey)?.org.name ?? existing.orgRkey;
+        const dealOrgCtx = state.orgContexts.get(existing.orgRkey);
+        broadcastNotification(
+          vault.client, "deal-updated" as NotificationType,
+          existing.orgRkey, orgName,
+          {
+            type: "deal-updated",
+            orgRkey: existing.orgRkey,
+            orgName,
+            dealTitle: updatedDeal.title,
+            stage: STAGE_LABELS[updatedDeal.stage],
+            senderHandle: vault.handle,
+            createdAt: new Date().toISOString(),
+          } as any,
+          vault.did, vault.handle,
+          undefined, dealOrgCtx,
+        ).catch(() => {});
+      }
 
       return {
         content: [{
@@ -406,9 +466,16 @@ export const crmTools = {
       const proposal = ctx.proposals.find((p) => p.rkey === args.proposalRkey);
       if (!proposal) throw new Error(`Proposal not found: ${args.proposalRkey}`);
 
+      // Resolve DEK for sealing the approval
+      const tierName = ctx.myTierName;
+      const tierDek = ctx.tierDeks.get(tierName);
+      const tierDef = ctx.org.org.tiers.find((t) => t.name === tierName);
+      const approvalKeyring = tierDek ? keyringRkeyForTier(ctx.org.rkey, tierName, tierDef?.currentEpoch ?? 0) : undefined;
+
       const { rkey } = await createApproval(
         vault.client, args.org, proposal.proposal.proposerDid, args.proposalRkey,
-        args.office, vault.did, vault.handle
+        args.office, vault.did, vault.handle,
+        tierDek, approvalKeyring,
       );
 
       return {

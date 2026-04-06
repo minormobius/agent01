@@ -12,5 +12,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "../src/pds.ts", "../src/crypto.ts", "../src/types.ts", "../src/crm/context.ts", "../src/crm/types.ts"]
+  "include": ["src", "../src/pds.ts", "../src/crypto.ts", "../src/types.ts", "../src/crm/context.ts", "../src/crm/types.ts", "../src/wave/context.ts", "../src/wave/types.ts", "../src/cal/context.ts", "../src/cal/types.ts"]
 }

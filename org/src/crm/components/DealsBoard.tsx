@@ -4,8 +4,6 @@ import type { Deal, DealRecord, Stage, TierDef, OrgContext, OrgFilter } from "..
 import { DealCard } from "./DealCard";
 import { DealForm } from "./DealForm";
 
-type Tab = "deals" | "docs";
-
 interface Props {
   deals: DealRecord[];
   filterOrg: OrgFilter;
@@ -23,12 +21,12 @@ interface Props {
   myDid: string;
   onLogout: () => void;
   onBackToHub?: () => void;
-  tab: Tab;
-  onTabChange: (tab: Tab) => void;
   orgSwitcher?: ReactNode;
   activeOrg?: OrgContext | null;
   orgContexts: Map<string, OrgContext>;
   availableTiers?: TierDef[] | null;
+  crmTab?: "deals" | "expenses";
+  onCrmTabChange?: (tab: "deals" | "expenses") => void;
 }
 
 export function DealsBoard({
@@ -43,12 +41,12 @@ export function DealsBoard({
   myDid,
   onLogout,
   onBackToHub,
-  tab,
-  onTabChange,
   orgSwitcher,
   activeOrg,
   orgContexts,
   availableTiers,
+  crmTab,
+  onCrmTabChange,
 }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<DealRecord | undefined>();
@@ -176,22 +174,14 @@ export function DealsBoard({
               &larr;
             </button>
           )}
+          {onCrmTabChange && (
+            <nav className="crm-tab-bar">
+              <button className={`crm-tab-btn${crmTab === "deals" ? " active" : ""}`} onClick={() => onCrmTabChange("deals")}>Deals</button>
+              <button className={`crm-tab-btn${crmTab === "expenses" ? " active" : ""}`} onClick={() => onCrmTabChange("expenses")}>Expenses</button>
+            </nav>
+          )}
           {orgSwitcher}
-          <nav className="tab-bar">
-            <button
-              className={`tab ${tab === "deals" ? "tab-active" : ""}`}
-              onClick={() => onTabChange("deals")}
-            >
-              Deals
-            </button>
-            <button
-              className={`tab ${tab === "docs" ? "tab-active" : ""}`}
-              onClick={() => onTabChange("docs")}
-            >
-              Docs
-            </button>
-          </nav>
-          {tab === "deals" && (
+          {(
             <span className="header-stat">
               {filteredDeals.length} deal{filteredDeals.length !== 1 ? "s" : ""}
               {filteredDeals.length !== deals.length && ` of ${deals.length}`}
@@ -201,7 +191,7 @@ export function DealsBoard({
         </div>
         <div className="header-right">
           <span className="header-handle">{handle}</span>
-          {tab === "deals" && canCreate && (
+          {canCreate && (
             <button onClick={() => { setEditing(undefined); setProposing(undefined); setShowForm(true); }} className="btn-primary">
               + New Deal
             </button>
@@ -212,7 +202,7 @@ export function DealsBoard({
         </div>
       </header>
 
-      {tab === "deals" && (
+      {(
         <>
           <div className="filter-bar">
             <div className="filter-group">

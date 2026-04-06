@@ -2640,3 +2640,867 @@ main:not(:has(.tab-panel)) {
 }
 
 .did-error.hidden { display: none; }
+
+/* ── Yum (Food Cards) ────────────────────────────────────── */
+
+.yum-wrap {
+  max-width: 700px;
+  width: 100%;
+  padding: 0.8rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.yum-pack {
+  margin-bottom: 1rem;
+}
+
+.yum-pack-face {
+  width: 180px;
+  height: 120px;
+  background: linear-gradient(135deg, #2d1b00 0%, #1a1a1a 50%, #2d1b00 100%);
+  border: 2px solid #8B4513;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(139, 69, 19, 0.3);
+}
+
+.yum-pack-emblem {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #e67e22;
+  text-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
+}
+
+.yum-pack-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #e67e22;
+  margin-top: 0.2rem;
+}
+
+.yum-pack-count {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 0.3rem;
+}
+
+.yum-btn {
+  margin-bottom: 1.5rem;
+  padding: 0.8rem 2.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: #e67e22;
+  border: 2px solid rgba(230, 126, 34, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.yum-btn:hover {
+  background: rgba(230, 126, 34, 0.1);
+  border-color: #e67e22;
+  box-shadow: 0 0 20px rgba(230, 126, 34, 0.2);
+  transform: scale(1.02);
+}
+
+/* Yum cards grid */
+.yum-cards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.yum-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card-bg);
+  animation: luckyReveal 0.5s ease-out;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.yum-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.yum-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 8px rgba(46, 125, 50, 0.25); }
+.yum-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 12px rgba(21, 101, 192, 0.3); }
+.yum-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 16px rgba(201, 168, 76, 0.4); }
+
+.yum-card-inner {
+  padding: 0.6rem;
+}
+
+.yum-card-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.yum-card-no-img {
+  font-size: 2.5rem;
+  text-align: center;
+  padding: 1.2rem;
+  opacity: 0.3;
+}
+
+.yum-card-cat {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.2rem;
+}
+
+.yum-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+}
+
+.yum-card-extract {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.yum-card-stats {
+  display: flex;
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+}
+
+.yum-card-link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+}
+
+/* Yum detail panel */
+.yum-detail {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.yum-detail.hidden { display: none; }
+
+.yum-detail-card {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg);
+  padding: 1.5rem;
+  position: relative;
+  animation: luckyReveal 0.3s ease-out;
+}
+
+.yum-detail-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 12px rgba(46, 125, 50, 0.3); }
+.yum-detail-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 16px rgba(21, 101, 192, 0.4); }
+.yum-detail-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 24px rgba(201, 168, 76, 0.5); }
+
+.yum-detail-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.yum-detail-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.yum-detail-no-img {
+  font-size: 4rem;
+  text-align: center;
+  padding: 2rem;
+  opacity: 0.3;
+}
+
+.yum-detail-cat {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.3rem;
+}
+
+.yum-detail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+  line-height: 1.2;
+}
+
+.yum-detail-extract {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.yum-detail-stats {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+}
+
+.yum-detail-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Yum history */
+.yum-history {
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.yum-hist-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.yum-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.yum-hist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.yum-hist-title {
+  flex: 1;
+  color: var(--text);
+}
+
+.yum-hist-rarity {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.yum-hist-rarity.rarity-uncommon { color: #2e7d32; }
+.yum-hist-rarity.rarity-rare { color: #1565c0; }
+.yum-hist-rarity.rarity-legendary { color: var(--gold); }
+
+/* Yum filters */
+.yum-filters {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 500px) {
+  .yum-cards { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+  .yum-card-stats { gap: 0.3rem; font-size: 0.55rem; }
+  .yum-detail-stats { gap: 1rem; }
+}
+
+/* ── Recipe Builder ──────────────────────────────────────── */
+
+.rb-wrap {
+  max-width: 700px;
+  width: 100%;
+  padding: 0.8rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rb-status {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Selected ingredient chips */
+.rb-selected {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  margin-bottom: 0.8rem;
+  align-items: center;
+}
+
+.rb-sel-empty {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+  width: 100%;
+  text-align: center;
+}
+
+.rb-sel-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(230, 126, 34, 0.12);
+  border: 1px solid rgba(230, 126, 34, 0.4);
+  border-radius: 20px;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  font-size: 0.72rem;
+  animation: luckyReveal 0.2s ease-out;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.rb-sel-chip:hover { background: rgba(230, 126, 34, 0.2); }
+.rb-sel-riffing {
+  border-color: var(--gold);
+  background: rgba(201, 168, 76, 0.15);
+}
+
+/* Riff panel — nearest neighbor swap */
+.rb-riff-panel {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  animation: luckyReveal 0.15s ease-out;
+}
+.rb-riff-header {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+.rb-riff-header strong { color: var(--gold); }
+.rb-riff-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rb-riff-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 16px;
+  padding: 3px 8px 3px 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.rb-riff-option:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+.rb-riff-option .rb-sel-thumb { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.rb-riff-option .rb-sel-icon { font-size: 0.8rem; width: 20px; text-align: center; }
+.rb-riff-name { font-size: 0.7rem; color: var(--text); }
+.rb-riff-sim { font-size: 0.6rem; color: #60a5fa; font-family: system-ui, sans-serif; }
+
+/* View toggle */
+.rb-view-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+.rb-view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.4rem 1.2rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rb-view-btn.active {
+  background: var(--gold);
+  color: #000;
+  font-weight: 600;
+}
+.rb-view-btn:hover:not(.active) { background: rgba(255,255,255,0.05); }
+
+/* Dish grid */
+.rb-dish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+.rb-dish-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.rb-dish-tile:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.rb-dish-tile-name { font-size: 0.8rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
+.rb-dish-tile-ings { font-size: 0.65rem; color: var(--text-dim); line-height: 1.4; }
+.rb-dish-tile-score {
+  font-size: 0.65rem;
+  font-family: system-ui, sans-serif;
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Dish detail */
+.rb-dish-detail.hidden { display: none; }
+.rb-dish-card {
+  text-align: center;
+  padding: 1rem 0;
+}
+.rb-dish-card-name { font-size: 1.4rem; color: var(--gold); font-weight: 600; }
+.rb-dish-card-score { font-size: 0.8rem; font-family: system-ui, sans-serif; margin-top: 0.3rem; }
+.rb-dish-card-wiki { font-size: 0.7rem; margin-top: 0.3rem; }
+.rb-dish-card-grade {
+  display: inline-block;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+.rb-dish-card-extract {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  max-width: 500px;
+  margin: 0.4rem auto 0;
+  line-height: 1.5;
+}
+.rb-dish-card-thumb {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+/* Dish ingredient ring */
+.rb-dish-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.5rem 0;
+}
+.rb-dish-ing {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(230, 126, 34, 0.12);
+  border: 1px solid rgba(230, 126, 34, 0.3);
+  border-radius: 20px;
+  padding: 5px 10px 5px 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rb-dish-ing:hover { background: rgba(230, 126, 34, 0.25); border-color: rgba(230, 126, 34, 0.5); }
+.rb-dish-ing.riffing { border-color: var(--gold); background: rgba(201, 168, 76, 0.15); }
+.rb-dish-ing-thumb { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.rb-dish-ing-icon { font-size: 1rem; width: 24px; text-align: center; }
+.rb-dish-ing-name { font-size: 0.75rem; color: var(--text); }
+.rb-dish-ing-swap { font-size: 0.6rem; color: var(--gold-dim); margin-left: 2px; }
+
+/* Riff inside dish detail — reuse existing .rb-riff-panel styles */
+.rb-dish-detail .rb-riff-panel { margin-top: 0.5rem; }
+
+.rb-sel-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.rb-sel-icon {
+  font-size: 0.9rem;
+  width: 22px;
+  text-align: center;
+}
+
+.rb-sel-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.rb-sel-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.rb-sel-remove:hover { color: #ef4444; }
+
+/* Search */
+.rb-search-wrap {
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+
+.rb-search {
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.rb-search:focus { border-color: #e67e22; }
+
+.rb-search::placeholder { color: var(--text-dim); }
+
+/* Filters */
+.rb-filters {
+  width: 100%;
+  margin-bottom: 0.8rem;
+}
+
+/* Ingredient deck */
+.rb-deck {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.rb-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  position: relative;
+}
+
+.rb-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.rb-card.rb-selected {
+  border-color: #e67e22;
+  box-shadow: 0 0 12px rgba(230, 126, 34, 0.4);
+  background: rgba(230, 126, 34, 0.08);
+}
+
+.rb-card.rb-selected::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e67e22;
+  box-shadow: 0 0 6px rgba(230, 126, 34, 0.6);
+}
+
+.rb-card.rarity-uncommon { border-color: #2e7d32; }
+.rb-card.rarity-rare { border-color: #1565c0; }
+.rb-card.rarity-legendary { border-color: var(--gold); }
+.rb-card.rb-selected.rarity-uncommon { border-color: #e67e22; }
+.rb-card.rb-selected.rarity-rare { border-color: #e67e22; }
+.rb-card.rb-selected.rarity-legendary { border-color: #e67e22; }
+
+.rb-card-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+
+.rb-card-icon {
+  font-size: 2rem;
+  padding: 0.8rem 0;
+  opacity: 0.4;
+}
+
+.rb-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+}
+
+.rb-card-cat {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: system-ui, sans-serif;
+}
+
+/* Show more button */
+.rb-show-more {
+  grid-column: 1 / -1;
+  padding: 0.6rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rb-show-more:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+/* Controls */
+.rb-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.rb-btn {
+  padding: 0.6rem 1.5rem;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 0.95rem;
+  background: transparent;
+  color: #e67e22;
+  border: 2px solid rgba(230, 126, 34, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.rb-btn:hover:not(:disabled) {
+  background: rgba(230, 126, 34, 0.1);
+  border-color: #e67e22;
+}
+
+.rb-btn:disabled { opacity: 0.3; cursor: default; }
+
+.rb-btn-dim {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.rb-btn-dim:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+  background: rgba(255,255,255,0.03);
+}
+
+/* Score display */
+.rb-score {
+  text-align: center;
+  margin-bottom: 1.2rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  width: 100%;
+  animation: luckyReveal 0.3s ease-out;
+}
+
+.rb-score.hidden { display: none; }
+
+.rb-score-grade { font-size: 2.5rem; font-weight: 700; line-height: 1; }
+
+.rb-grade-s { color: #f59e0b; text-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+.rb-grade-a { color: #10b981; }
+.rb-grade-b { color: #3b82f6; }
+.rb-grade-c { color: #8b5cf6; }
+.rb-grade-d { color: var(--text-dim); }
+.rb-grade-f { color: #ef4444; }
+
+.rb-score-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin: 0.3rem 0;
+}
+
+.rb-score-value { font-size: 1.3rem; font-weight: 600; color: var(--text); }
+
+.rb-score-dish {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 0.4rem;
+  font-style: italic;
+}
+
+/* Pairing matrix */
+.rb-matrix { width: 100%; margin-bottom: 1rem; overflow-x: auto; }
+.rb-matrix.hidden { display: none; }
+
+.rb-matrix-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.rb-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+}
+
+.rb-matrix-table th {
+  padding: 0.3rem 0.2rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.6rem;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-matrix-header { text-align: center; }
+.rb-matrix-row-header { text-align: right; padding-right: 0.5rem !important; }
+
+.rb-matrix-cell {
+  text-align: center;
+  padding: 0.35rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.rb-matrix-diag { color: var(--text-dim); opacity: 0.3; }
+
+/* Hints */
+.rb-hints { width: 100%; margin-bottom: 1rem; }
+.rb-hints.hidden { display: none; }
+
+.rb-hint {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  padding: 0.3rem 0;
+  color: var(--text-dim);
+}
+.rb-hint strong { color: var(--text); }
+.rb-hint-comp { color: #4ade80; }
+.rb-hint-best { color: #60a5fa; }
+
+/* History */
+.rb-history { width: 100%; margin-top: 1rem; }
+
+.rb-hist-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.rb-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.rb-hist-grade { font-weight: 700; font-size: 0.8rem; width: 1.5rem; text-align: center; }
+.rb-hist-grade.rb-grade-s { color: #f59e0b; }
+.rb-hist-grade.rb-grade-a { color: #10b981; }
+.rb-hist-grade.rb-grade-b { color: #3b82f6; }
+.rb-hist-grade.rb-grade-c { color: #8b5cf6; }
+.rb-hist-grade.rb-grade-d { color: var(--text-dim); }
+.rb-hist-grade.rb-grade-f { color: #ef4444; }
+
+.rb-hist-names { flex: 1; color: var(--text); }
+.rb-hist-score { font-family: system-ui, sans-serif; font-size: 0.7rem; color: var(--text-dim); }
+
+/* Complementarity Suggestions */
+.rb-suggestions { padding: 0.8rem 0; }
+.rb-suggest-label { font-size: 0.8rem; color: var(--gold); margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+.rb-suggest-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.rb-suggest-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(34, 120, 80, 0.15);
+  border: 1px solid rgba(34, 120, 80, 0.3);
+  border-radius: 20px; padding: 4px 10px 4px 4px;
+  cursor: pointer; transition: all 0.15s;
+}
+.rb-suggest-chip:hover { background: rgba(34, 120, 80, 0.3); border-color: rgba(34, 120, 80, 0.5); }
+.rb-suggest-chip .rb-sel-thumb { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.rb-suggest-chip .rb-sel-icon { font-size: 0.9rem; width: 22px; text-align: center; }
+.rb-suggest-chip .rb-sel-name { font-size: 0.75rem; color: var(--text); }
+.rb-suggest-score { font-size: 0.65rem; color: #4ade80; font-family: system-ui, sans-serif; }
+
+@media (max-width: 500px) {
+  .rb-deck { grid-template-columns: repeat(2, 1fr); }
+  .rb-card-img { height: 60px; }
+  .rb-card-title { font-size: 0.7rem; }
+  .rb-matrix-table { font-size: 0.55rem; }
+  .rb-matrix-table th { font-size: 0.5rem; }
+}

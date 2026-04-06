@@ -160,6 +160,7 @@ async function createSurvey(request: Request, env: Env): Promise<Response> {
       options: q.options,
       position: i,
       required: q.required !== false,
+      questionType: q.questionType || 'single_choice',
     }));
 
     const survey = {
@@ -196,9 +197,9 @@ async function createSurvey(request: Request, env: Env): Promise<Response> {
     step = 'D1 insert questions';
     const qBatch = questions.map(q =>
       env.DB.prepare(
-        `INSERT INTO survey_questions (id, survey_id, question, options, position, required)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(q.id, q.surveyId, q.question, JSON.stringify(q.options), q.position, q.required ? 1 : 0)
+        `INSERT INTO survey_questions (id, survey_id, question, options, position, required, question_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(q.id, q.surveyId, q.question, JSON.stringify(q.options), q.position, q.required ? 1 : 0, q.questionType || 'single_choice')
     );
     for (let i = 0; i < qBatch.length; i += 100) {
       await env.DB.batch(qBatch.slice(i, i + 100));
@@ -278,6 +279,7 @@ async function getSurvey(env: Env, surveyId: string): Promise<Response> {
     options: JSON.parse(q.options),
     position: q.position,
     required: !!q.required,
+    questionType: q.question_type || 'single_choice',
   }));
 
   return jsonResponse({

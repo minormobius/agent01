@@ -1,0 +1,347 @@
+/* audio.mino.mobi — matches mino.mobi aesthetic */
+
+:root {
+  --bg: #0d0d0d;
+  --bg-card: #1a1a1a;
+  --text: #e8e0d4;
+  --text-muted: #8a8278;
+  --accent: #b83a3a;
+  --accent-hover: #d44;
+  --border: #2a2a2a;
+  --green: #3a9a5c;
+  --green-dim: #2a6a3c;
+  --radius: 8px;
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+}
+
+.auth-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.handle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+
+/* Hero */
+.hero {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.hero h1 {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  letter-spacing: -1px;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+/* Forms */
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.field input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  transition: border-color 0.15s;
+}
+
+.btn:hover { border-color: var(--text-muted); }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.btn-danger { color: var(--accent); border-color: var(--accent); }
+.btn-danger:hover { background: var(--accent); color: #fff; }
+
+.btn-small { padding: 6px 12px; font-size: 12px; }
+.btn-tiny { padding: 4px 8px; font-size: 11px; }
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-round {
+  padding: 14px 28px;
+  border-radius: 32px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Room */
+.room { padding-bottom: 120px; }
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.room-header h2 {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+
+.room-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Participants */
+.participant-section {
+  margin-bottom: 24px;
+}
+
+.participant-section h3 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.participant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.participant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.participant-card.is-speaking {
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(58, 154, 92, 0.15);
+}
+
+.participant-card.is-me {
+  border-color: var(--accent);
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.hand-indicator {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 10px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+}
+
+.participant-name {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.participant-role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.participant-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.is-muted .participant-status { color: var(--text-muted); }
+.is-speaking .participant-status { color: var(--green); }
+
+.host-controls {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Controls bar — fixed at bottom */
+.room-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: linear-gradient(transparent, var(--bg) 30%);
+}
+
+.muted-btn {
+  background: var(--bg-card);
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+
+.live-btn {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.hand-raised {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Utilities */
+.muted { color: var(--text-muted); font-size: 14px; }
+.error {
+  color: var(--accent);
+  font-size: 13px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+}
+
+/* Dark mode is default — no light mode needed for this aesthetic */

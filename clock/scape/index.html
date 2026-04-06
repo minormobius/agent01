@@ -1,0 +1,2148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Scape</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+  canvas#c { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  #hud {
+    position: fixed; top: 12px; left: 12px;
+    color: rgba(255,255,200,0.7); font: 13px/1.4 monospace;
+    pointer-events: none; user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+  #minimap {
+    position: fixed; bottom: 12px; right: 12px;
+    border: 2px solid rgba(255,255,200,0.3); border-radius: 4px;
+    image-rendering: pixelated;
+    width: 128px; height: 128px;
+  }
+  @media (max-width: 600px) {
+    #minimap { width: 80px; height: 80px; }
+  }
+  #viewToggle {
+    position: fixed; bottom: 12px; left: 12px; z-index: 5;
+    padding: 8px 14px; border: 1px solid #4a4a6a; border-radius: 4px;
+    background: rgba(30,30,50,0.85); color: #ddd; font: 12px monospace; cursor: pointer;
+  }
+  #viewToggle:hover { background: #3a3a5e; }
+  .touch-zone {
+    position: fixed; bottom: 0; width: 50%; height: 45%;
+    z-index: 4; touch-action: none;
+  }
+  .touch-zone.left { left: 0; }
+  .touch-zone.right { right: 0; }
+  #reticle {
+    position: fixed; top: 50%; left: 50%; z-index: 6;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    pointer-events: none;
+  }
+  #reticle::before, #reticle::after {
+    content: ''; position: absolute; background: rgba(255,255,200,0.5);
+  }
+  #reticle::before { width: 2px; height: 12px; top: 4px; left: 9px; }
+  #reticle::after { width: 12px; height: 2px; top: 9px; left: 4px; }
+  #reticle.hidden { display: none; }
+  #touchHint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,200,0.4); font: 11px monospace; pointer-events: none;
+    user-select: none; z-index: 5; white-space: nowrap;
+  }
+  #physPanel {
+    position: fixed; bottom: 50px; left: 12px; z-index: 5;
+    background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
+    padding: 0; color: #ccc; font: 11px/1.6 monospace; min-width: 200px;
+    user-select: none;
+  }
+  #physPanel.hidden { display: none; }
+  #physToggle {
+    width: 100%; padding: 6px 12px; border: none; border-bottom: 1px solid #3a3a5a;
+    background: transparent; color: #f0e0c0; font: 12px monospace; cursor: pointer;
+    text-align: left;
+  }
+  #physToggle:hover { background: rgba(255,255,255,0.05); }
+  #physBody { padding: 8px 12px; }
+  #physBody.collapsed { display: none; }
+  #physBody label { display: block; margin-top: 6px; color: #aaa; font-size: 10px; }
+  #physBody input[type=range] {
+    width: 100%; margin: 2px 0; accent-color: #6a6aaa;
+  }
+  #physBody .val { float: right; color: #ddd; }
+  #lobby {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,20,0.92); z-index: 10;
+  }
+  #lobby.hidden { display: none; }
+  .lobby-box {
+    background: #1e1e2e; border: 1px solid #3a3a5a; border-radius: 8px;
+    padding: 28px 32px; min-width: 300px; color: #ddd; font: 15px/1.5 monospace;
+  }
+  .lobby-box h2 { margin: 0 0 16px; font-size: 20px; color: #f0e0c0; }
+  .lobby-box input[type=text] {
+    width: 100%; padding: 8px 10px; margin: 6px 0 12px;
+    background: #12121e; border: 1px solid #3a3a5a; border-radius: 4px;
+    color: #eee; font: 14px monospace; outline: none;
+  }
+  .lobby-box input:focus { border-color: #6a6aaa; }
+  .lobby-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .lobby-btns button {
+    flex: 1; padding: 10px; border: 1px solid #4a4a6a; border-radius: 4px;
+    background: #2a2a3e; color: #ddd; font: 14px monospace; cursor: pointer;
+  }
+  .lobby-btns button:hover { background: #3a3a5e; border-color: #7a7aaa; }
+  #netPanel {
+    position: fixed; top: 12px; right: 12px; z-index: 5;
+    background: rgba(20,20,35,0.92); border: 1px solid #3a3a5a; border-radius: 6px;
+    padding: 12px 14px; color: #ccc; font: 12px/1.5 monospace; max-width: 320px;
+  }
+  #netPanel.hidden { display: none; }
+  #netPanel label { display: block; color: #aaa; margin-top: 8px; }
+  #netPanel textarea {
+    width: 100%; height: 60px; margin: 4px 0 6px; padding: 6px;
+    background: #12121e; border: 1px solid #3a3a5a; border-radius: 3px;
+    color: #eee; font: 11px monospace; resize: vertical;
+  }
+  #netPanel button {
+    padding: 6px 12px; border: 1px solid #4a4a6a; border-radius: 3px;
+    background: #2a2a3e; color: #ddd; font: 12px monospace; cursor: pointer; margin-right: 4px;
+  }
+  #netPanel button:hover { background: #3a3a5e; }
+  #netPanel .status { color: #8a8; margin-top: 6px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="lobby">
+  <div class="lobby-box">
+    <h2>Scape</h2>
+    <label>name</label>
+    <input type="text" id="nameInput" maxlength="12" placeholder="wanderer" autofocus>
+    <div class="lobby-btns">
+      <button id="btnSolo">Solo</button>
+      <button id="btnHost">Host</button>
+      <button id="btnJoin">Join</button>
+    </div>
+  </div>
+</div>
+<div id="netPanel" class="hidden"></div>
+<canvas id="c"></canvas>
+<canvas id="minimap" width="128" height="128"></canvas>
+<div id="physPanel" class="hidden">
+  <button id="physToggle">Physics ▼</button>
+  <div id="physBody">
+    <label>Gravity <span class="val" id="valGrav">1.8</span></label>
+    <input type="range" id="slGrav" min="0.1" max="10" step="0.1" value="1.8">
+    <label>Major Radius (R) <span class="val" id="valR">5.0</span></label>
+    <input type="range" id="slR" min="2" max="12" step="0.1" value="5">
+    <label>Minor Radius (r) <span class="val" id="valr">2.0</span></label>
+    <input type="range" id="slr" min="0.5" max="5" step="0.1" value="2">
+  </div>
+</div>
+<div id="reticle" class="hidden"></div>
+<div class="touch-zone left" id="touchLeft"></div>
+<div class="touch-zone right" id="touchRight"></div>
+<button id="viewToggle">1st person [F]</button>
+<div id="touchHint"></div>
+<div id="hud"></div>
+<script>
+(() => {
+  // Device detection (hoisted for use in resize/render)
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  // =====================================================================
+  // Lobby — name entry + mode selection
+  // =====================================================================
+  let playerName = 'wanderer';
+  let netMode = 'solo'; // 'solo' | 'host' | 'peer'
+  let gameStarted = false;
+
+  const lobby = document.getElementById('lobby');
+  const nameInput = document.getElementById('nameInput');
+
+  // Restore last name
+  const saved = localStorage.getItem('scape-name');
+  if (saved) nameInput.value = saved;
+
+  function startGame(mode) {
+    playerName = (nameInput.value.trim() || 'wanderer').slice(0, 12);
+    localStorage.setItem('scape-name', playerName);
+    netMode = mode;
+    lobby.classList.add('hidden');
+    gameStarted = true;
+    canvas.focus();
+    console.log(`Starting as ${playerName} (${netMode})`);
+    if (mode === 'host') showHostPanel();
+    else if (mode === 'peer') showPeerPanel();
+  }
+
+  document.getElementById('btnSolo').addEventListener('click', () => startGame('solo'));
+  document.getElementById('btnHost').addEventListener('click', () => startGame('host'));
+  document.getElementById('btnJoin').addEventListener('click', () => startGame('peer'));
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') startGame('solo');
+    e.stopPropagation(); // don't trigger WASD
+  });
+
+  // =====================================================================
+  // WebRTC P2P — compact copy-paste signaling, star topology
+  // =====================================================================
+  const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const netPanel = document.getElementById('netPanel');
+
+  // Compress SDP to shorter pasteable string
+  function compressSDP(sdp) {
+    // Strip unnecessary lines, keep only essential SDP
+    const lines = sdp.split('\r\n').filter(l =>
+      l.startsWith('v=') || l.startsWith('o=') || l.startsWith('s=') ||
+      l.startsWith('t=') || l.startsWith('a=group') || l.startsWith('a=msid') ||
+      l.startsWith('m=') || l.startsWith('c=') ||
+      l.startsWith('a=ice-ufrag') || l.startsWith('a=ice-pwd') ||
+      l.startsWith('a=fingerprint') || l.startsWith('a=setup') ||
+      l.startsWith('a=mid') || l.startsWith('a=sctp') ||
+      l.startsWith('a=max-message') || l.startsWith('a=candidate')
+    );
+    return btoa(lines.join('\n'));
+  }
+
+  function decompressSDP(compressed, type) {
+    const lines = atob(compressed).split('\n');
+    // Rebuild a minimal valid SDP
+    const sdp = lines.join('\r\n') + '\r\n';
+    return new RTCSessionDescription({ type, sdp });
+  }
+
+  // -- Remote players state --
+  const remotePlayers = new Map(); // peerId → { name, x, y, dir, frame, colorIdx }
+
+  // -- Host state --
+  const hostPeers = new Map(); // peerId → { pc, dc, name }
+  let nextPeerId = 1;
+
+  async function hostCreateOffer() {
+    const peerId = nextPeerId++;
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dc = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 });
+
+    dc.onopen = () => {
+      console.log(`Peer ${peerId} connected`);
+      const info = hostPeers.get(peerId);
+      if (info) info.status = 'connected';
+      updateNetPanelHost();
+      // Send world seed so peer generates same map
+      dc.send(JSON.stringify({ type: 'welcome', peerId, seed: 7, worldW: 128, worldH: 128 }));
+    };
+    dc.onmessage = (e) => hostHandleMessage(peerId, JSON.parse(e.data));
+    dc.onclose = () => {
+      console.log(`Peer ${peerId} disconnected`);
+      hostPeers.delete(peerId);
+      remotePlayers.delete(peerId);
+      updateNetPanelHost();
+    };
+
+    hostPeers.set(peerId, { pc, dc, name: '?', status: 'waiting', peerId });
+
+    // Gather all ICE candidates before creating the offer string
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for ICE gathering to complete
+    await new Promise(resolve => {
+      if (pc.iceGatheringState === 'complete') return resolve();
+      pc.onicecandidate = (e) => { if (!e.candidate) resolve(); };
+    });
+
+    return { peerId, offerCode: compressSDP(pc.localDescription.sdp) };
+  }
+
+  async function hostAcceptAnswer(peerId, answerCode) {
+    const info = hostPeers.get(peerId);
+    if (!info) return;
+    const answer = decompressSDP(answerCode, 'answer');
+    await info.pc.setRemoteDescription(answer);
+  }
+
+  function hostHandleMessage(peerId, msg) {
+    if (msg.type === 'input') {
+      // Peer sent their input state
+      remotePlayers.set(peerId, {
+        name: msg.name || '?',
+        x: msg.x, y: msg.y,
+        dir: msg.dir, frame: msg.frame,
+        colorIdx: peerId,
+      });
+    }
+  }
+
+  function hostBroadcast() {
+    if (netMode !== 'host') return;
+    // Collect all player states
+    const players = [{ id: 0, name: playerName, x: playerX, y: playerY, dir: playerDir, frame: playerFrame }];
+    for (const [pid, p] of remotePlayers) {
+      players.push({ id: pid, name: p.name, x: p.x, y: p.y, dir: p.dir, frame: p.frame });
+    }
+    const msg = JSON.stringify({ type: 'state', players });
+    for (const [, info] of hostPeers) {
+      if (info.dc && info.dc.readyState === 'open') {
+        try { info.dc.send(msg); } catch(e) {}
+      }
+    }
+  }
+
+  // -- Peer state --
+  let peerPC = null;
+  let peerDC = null;
+  let myPeerId = -1;
+
+  async function peerConnect(offerCode) {
+    peerPC = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    peerPC.ondatachannel = (e) => {
+      peerDC = e.channel;
+      peerDC.onopen = () => {
+        console.log('Connected to host');
+        updateNetPanelPeer('connected');
+      };
+      peerDC.onmessage = (e) => peerHandleMessage(JSON.parse(e.data));
+      peerDC.onclose = () => {
+        console.log('Disconnected from host');
+        updateNetPanelPeer('disconnected');
+      };
+    };
+
+    const offer = decompressSDP(offerCode, 'offer');
+    await peerPC.setRemoteDescription(offer);
+    const answer = await peerPC.createAnswer();
+    await peerPC.setLocalDescription(answer);
+
+    // Wait for ICE
+    await new Promise(resolve => {
+      if (peerPC.iceGatheringState === 'complete') return resolve();
+      peerPC.onicecandidate = (e) => { if (!e.candidate) resolve(); };
+    });
+
+    return compressSDP(peerPC.localDescription.sdp);
+  }
+
+  function peerHandleMessage(msg) {
+    if (msg.type === 'welcome') {
+      myPeerId = msg.peerId;
+      console.log('Assigned peerId:', myPeerId);
+    } else if (msg.type === 'state') {
+      // Update all remote players (everyone except us)
+      remotePlayers.clear();
+      for (const p of msg.players) {
+        if (p.id === myPeerId) continue; // skip self
+        remotePlayers.set(p.id, {
+          name: p.name, x: p.x, y: p.y,
+          dir: p.dir, frame: p.frame,
+          colorIdx: p.id,
+        });
+      }
+    }
+  }
+
+  function peerSendInput() {
+    if (!peerDC || peerDC.readyState !== 'open') return;
+    try {
+      peerDC.send(JSON.stringify({
+        type: 'input', name: playerName,
+        x: playerX, y: playerY, dir: playerDir, frame: playerFrame,
+      }));
+    } catch(e) {}
+  }
+
+  // -- Net panel UI --
+  function showHostPanel() {
+    netPanel.classList.remove('hidden');
+    updateNetPanelHost();
+  }
+
+  function updateNetPanelHost() {
+    const peers = [...hostPeers.values()];
+    const connected = peers.filter(p => p.status === 'connected').length;
+    netPanel.innerHTML = `
+      <b>Hosting</b> (${connected} connected)
+      <button id="hostAddPeer">+ Add peer</button>
+      <div id="hostSignaling"></div>
+      <div class="status">${peers.map(p => `${p.peerId}: ${p.status}`).join(', ') || 'no peers'}</div>
+    `;
+    document.getElementById('hostAddPeer').onclick = async () => {
+      const { peerId, offerCode } = await hostCreateOffer();
+      const sigDiv = document.getElementById('hostSignaling');
+      sigDiv.innerHTML = `
+        <label>Send this code to peer ${peerId}:</label>
+        <textarea id="offerText" readonly>${offerCode}</textarea>
+        <button id="copyOffer">Copy</button>
+        <label>Paste their answer:</label>
+        <textarea id="answerText" placeholder="paste answer code here..."></textarea>
+        <button id="acceptAnswer">Connect</button>
+      `;
+      document.getElementById('copyOffer').onclick = () => {
+        navigator.clipboard.writeText(offerCode);
+        document.getElementById('copyOffer').textContent = 'Copied!';
+      };
+      document.getElementById('answerText').addEventListener('keydown', e => e.stopPropagation());
+      document.getElementById('acceptAnswer').onclick = async () => {
+        const code = document.getElementById('answerText').value.trim();
+        if (!code) return;
+        await hostAcceptAnswer(peerId, code);
+        sigDiv.innerHTML = '<div class="status">Connecting...</div>';
+      };
+    };
+  }
+
+  function showPeerPanel() {
+    netPanel.classList.remove('hidden');
+    netPanel.innerHTML = `
+      <b>Join</b>
+      <label>Paste host's code:</label>
+      <textarea id="peerOfferText" placeholder="paste offer code here..."></textarea>
+      <button id="peerDoConnect">Connect</button>
+      <div id="peerSignaling"></div>
+    `;
+    document.getElementById('peerOfferText').addEventListener('keydown', e => e.stopPropagation());
+    document.getElementById('peerDoConnect').onclick = async () => {
+      const code = document.getElementById('peerOfferText').value.trim();
+      if (!code) return;
+      const sigDiv = document.getElementById('peerSignaling');
+      sigDiv.innerHTML = '<div class="status">Generating answer...</div>';
+      try {
+        const answerCode = await peerConnect(code);
+        sigDiv.innerHTML = `
+          <label>Send this answer back to host:</label>
+          <textarea id="answerOut" readonly>${answerCode}</textarea>
+          <button id="copyAnswer">Copy</button>
+          <div class="status" id="peerStatus">Waiting for host...</div>
+        `;
+        document.getElementById('copyAnswer').onclick = () => {
+          navigator.clipboard.writeText(answerCode);
+          document.getElementById('copyAnswer').textContent = 'Copied!';
+        };
+      } catch(err) {
+        sigDiv.innerHTML = `<div class="status" style="color:#c66">Error: ${err.message}</div>`;
+      }
+    };
+  }
+
+  function updateNetPanelPeer(status) {
+    const el = document.getElementById('peerStatus');
+    if (el) {
+      el.textContent = status === 'connected' ? 'Connected!' : 'Disconnected';
+      el.style.color = status === 'connected' ? '#8a8' : '#c66';
+    }
+  }
+
+  // Net tick (runs in game loop)
+  let netTickAccum = 0;
+  function netTick(dt) {
+    netTickAccum += dt;
+    if (netTickAccum < 1/15) return; // 15 Hz
+    netTickAccum = 0;
+    if (netMode === 'host') hostBroadcast();
+    else if (netMode === 'peer') peerSendInput();
+  }
+
+  // =====================================================================
+  // Toroidal world — seamless wrapping tile map
+  // =====================================================================
+  const WORLD_W = 128;
+  const WORLD_H = 128;
+  const TILE_PX = 16;
+
+  // Tile types
+  const T = {
+    GRASS: 0, GRASS2: 1, GRASS3: 2,
+    WATER: 3, SAND: 4, DIRT: 5,
+    TREE: 6, ROCK: 7, FLOWER: 8,
+    BRIDGE: 9, TALL_GRASS: 10,
+    PATH: 11,
+  };
+
+  // Tile colors (base)
+  const TILE_COLORS = {
+    [T.GRASS]:   [0x3a, 0x7d, 0x44],
+    [T.GRASS2]:  [0x35, 0x72, 0x3f],
+    [T.GRASS3]:  [0x40, 0x88, 0x4a],
+    [T.WATER]:   [0x2a, 0x5c, 0x8f],
+    [T.SAND]:    [0xc2, 0xb2, 0x80],
+    [T.DIRT]:    [0x7a, 0x5c, 0x3e],
+    [T.TREE]:    [0x2a, 0x5a, 0x30],
+    [T.ROCK]:    [0x6a, 0x6a, 0x72],
+    [T.FLOWER]:  [0x3a, 0x7d, 0x44],
+    [T.BRIDGE]:  [0x8a, 0x6a, 0x44],
+    [T.TALL_GRASS]: [0x30, 0x70, 0x38],
+    [T.PATH]:    [0x9a, 0x82, 0x5a],
+  };
+
+  const WALKABLE = new Set([
+    T.GRASS, T.GRASS2, T.GRASS3, T.SAND, T.DIRT,
+    T.FLOWER, T.BRIDGE, T.TALL_GRASS, T.PATH,
+  ]);
+
+  // Tile heights — must match shader tileHeight()
+  const TILE_HEIGHT = {
+    [T.GRASS]: 0.0, [T.GRASS2]: 0.0, [T.GRASS3]: 0.0,
+    [T.WATER]: -0.03, [T.SAND]: 0.01, [T.DIRT]: 0.02,
+    [T.TREE]: 0.15, [T.ROCK]: 0.10, [T.FLOWER]: 0.02,
+    [T.BRIDGE]: 0.03, [T.TALL_GRASS]: 0.04, [T.PATH]: 0.0,
+  };
+  const MAX_STEP_UP = 0.06; // max height difference player can step up
+
+  // =====================================================================
+  // Procedural world generation (seeded)
+  // =====================================================================
+  let seed = 7;
+  function rng() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  function noise2d(x, y) {
+    // Simple value noise with toroidal wrapping
+    const wrap = (v, s) => ((v % s) + s) % s;
+    const ix = wrap(Math.floor(x), WORLD_W);
+    const iy = wrap(Math.floor(y), WORLD_H);
+    // Hash based on wrapped coords
+    let h = ix * 374761393 + iy * 668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    h = h ^ (h >> 16);
+    return (h & 0xffff) / 0xffff;
+  }
+
+  function smoothNoise(x, y, scale) {
+    const sx = x / scale, sy = y / scale;
+    const ix = Math.floor(sx), iy = Math.floor(sy);
+    const fx = sx - ix, fy = sy - iy;
+    // Smooth interpolation
+    const u = fx * fx * (3 - 2 * fx);
+    const v = fy * fy * (3 - 2 * fy);
+    const a = noise2d(ix, iy);
+    const b = noise2d(ix + 1, iy);
+    const c = noise2d(ix, iy + 1);
+    const d = noise2d(ix + 1, iy + 1);
+    return a * (1-u) * (1-v) + b * u * (1-v) + c * (1-u) * v + d * u * v;
+  }
+
+  function fbm(x, y, octaves) {
+    let val = 0, amp = 1, freq = 1, total = 0;
+    for (let i = 0; i < octaves; i++) {
+      val += smoothNoise(x * freq, y * freq, 16) * amp;
+      total += amp;
+      amp *= 0.5;
+      freq *= 2;
+    }
+    return val / total;
+  }
+
+  // Generate world tiles
+  const world = new Uint8Array(WORLD_W * WORLD_H);
+
+  function generateWorld() {
+    for (let y = 0; y < WORLD_H; y++) {
+      for (let x = 0; x < WORLD_W; x++) {
+        const elev = fbm(x, y, 4);
+        const moisture = fbm(x + 500, y + 500, 3);
+        const detail = smoothNoise(x * 3, y * 3, 8);
+
+        let tile;
+        if (elev < 0.32) {
+          tile = T.WATER;
+        } else if (elev < 0.37) {
+          tile = T.SAND;
+        } else if (elev > 0.7) {
+          tile = detail > 0.6 ? T.ROCK : T.DIRT;
+        } else {
+          // Grassland variations
+          if (detail < 0.3) tile = T.GRASS;
+          else if (detail < 0.6) tile = T.GRASS2;
+          else tile = T.GRASS3;
+
+          // Scatter objects
+          if (moisture > 0.55 && detail > 0.75 && rng() < 0.4) tile = T.TREE;
+          else if (detail > 0.85 && rng() < 0.15) tile = T.FLOWER;
+          else if (moisture < 0.35 && rng() < 0.05) tile = T.TALL_GRASS;
+        }
+
+        world[y * WORLD_W + x] = tile;
+      }
+    }
+
+    // Carve some paths (toroidal-safe)
+    for (let p = 0; p < 6; p++) {
+      let px = Math.floor(rng() * WORLD_W);
+      let py = Math.floor(rng() * WORLD_H);
+      for (let step = 0; step < 200; step++) {
+        const idx = ((py % WORLD_H + WORLD_H) % WORLD_H) * WORLD_W +
+                    ((px % WORLD_W + WORLD_W) % WORLD_W);
+        if (world[idx] !== T.WATER) world[idx] = T.PATH;
+        // Wander
+        const dir = rng();
+        if (dir < 0.35) px++;
+        else if (dir < 0.55) px--;
+        else if (dir < 0.8) py++;
+        else py--;
+      }
+    }
+
+    // Place bridges over water near paths
+    for (let y = 0; y < WORLD_H; y++) {
+      for (let x = 0; x < WORLD_W; x++) {
+        if (world[y * WORLD_W + x] !== T.WATER) continue;
+        // Check if adjacent to path
+        let nearPath = false;
+        for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nx = ((x+dx) % WORLD_W + WORLD_W) % WORLD_W;
+          const ny = ((y+dy) % WORLD_H + WORLD_H) % WORLD_H;
+          if (world[ny * WORLD_W + nx] === T.PATH) nearPath = true;
+        }
+        if (nearPath && rng() < 0.3) world[y * WORLD_W + x] = T.BRIDGE;
+      }
+    }
+  }
+  generateWorld();
+
+  // =====================================================================
+  // Canvas setup
+  // =====================================================================
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const mmCanvas = document.getElementById('minimap');
+  const mmCtx = mmCanvas.getContext('2d');
+
+  // GPU sky state (declared early so resize() can reference it)
+  let gpuSky = null;
+  let gpuSkyDirty = true;
+
+  // Torus geometry (declared early — used by gravity LUT, sky renderer, etc.)
+  let TORUS_R = 5.0;  // major radius
+  let TORUS_r = 2.0;  // minor radius
+
+  function resize() {
+    const maxDpr = isMobile ? 1 : 2;
+    const dpr = Math.min(devicePixelRatio, maxDpr);
+    canvas.width = Math.floor(canvas.clientWidth * dpr);
+    canvas.height = Math.floor(canvas.clientHeight * dpr);
+    gpuSkyDirty = true;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // =====================================================================
+  // WebGPU sky renderer — terrain-mapped torus
+  // =====================================================================
+  (async () => {
+    if (!navigator.gpu) { console.log('WebGPU not available, using canvas fallback'); return; }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return;
+    const device = await adapter.requestDevice();
+
+    // ---- WGSL compute shader ----
+    const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, _pad0: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, _pad1: f32,
+  rightX: f32, rightY: f32, rightZ: f32, _pad2: f32,
+  upX: f32, upY: f32, upZ: f32, _pad3: f32,
+  sunX: f32, sunY: f32, sunZ: f32, _pad4: f32,
+  torusR: f32, torusr: f32,
+  width: u32, height: u32,
+  fovH: f32, fovV: f32,
+  worldW: u32, worldH: u32,
+  horizonY: f32, _pad5: f32,
+}
+
+@group(0) @binding(0) var<uniform> params: Params;
+@group(0) @binding(1) var<storage, read> tileMap: array<u32>;
+@group(0) @binding(2) var<storage, read> palette: array<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<u32>;
+
+const PI: f32 = 3.14159265359;
+const TWO_PI: f32 = 6.28318530718;
+
+// Tile heights — how far each tile type extrudes from the torus surface
+fn tileHeight(tile: u32) -> f32 {
+  switch(tile) {
+    case 0u, 1u, 2u: { return 0.0; }    // GRASS
+    case 3u: { return -0.03; }           // WATER (depressed)
+    case 4u: { return 0.01; }            // SAND
+    case 5u: { return 0.02; }            // DIRT
+    case 6u: { return 0.15; }            // TREE
+    case 7u: { return 0.10; }            // ROCK
+    case 8u: { return 0.02; }            // FLOWER
+    case 9u: { return 0.03; }            // BRIDGE
+    case 10u: { return 0.04; }           // TALL_GRASS
+    case 11u: { return 0.0; }            // PATH
+    default: { return 0.0; }
+  }
+}
+
+// Signed distance from point to base torus surface
+fn torusSDF(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let qx = sqrt(px * px + pz * pz) - R;
+  return sqrt(qx * qx + py * py) - r;
+}
+
+// Look up tile index at a 3D point projected onto the torus surface
+fn tileAtPoint(px: f32, py: f32, pz: f32, R: f32) -> u32 {
+  let u = atan2(pz, px);
+  let distFromAxis = sqrt(px * px + pz * pz);
+  let v = atan2(py, distFromAxis - R);
+  var tu = u / TWO_PI;
+  if (tu < 0.0) { tu += 1.0; }
+  var tv = v / TWO_PI;
+  if (tv < 0.0) { tv += 1.0; }
+  let tileX = u32(tu * f32(params.worldW)) % params.worldW;
+  let tileY = u32(tv * f32(params.worldH)) % params.worldH;
+  return tileMap[tileY * params.worldW + tileX];
+}
+
+// Sphere-trace ray against displaced torus (base SDF - tile height)
+// Returns hit distance or -1
+fn traceDisplacedTorus(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
+  let maxH: f32 = 0.16; // must be >= max tile height
+  var t: f32 = 0.08;
+
+  // Phase 1: sphere trace using base SDF to get near surface quickly
+  for (var i = 0u; i < 64u; i++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+
+    if (baseDist < maxH + 0.05) {
+      // Near enough — switch to fine marching
+      break;
+    }
+    // Safe step: we know the surface is at least baseDist - maxH away
+    t += max(baseDist - maxH, 0.02);
+    if (t > 50.0) { return -1.0; }
+  }
+
+  // Phase 2: fine fixed steps through the displacement zone
+  for (var j = 0u; j < 48u; j++) {
+    let px = ox + t * dx;
+    let py = oy + t * dy;
+    let pz = oz + t * dz;
+    let baseDist = torusSDF(px, py, pz, R, r);
+    let tile = tileAtPoint(px, py, pz, R);
+    let h = tileHeight(tile);
+    let dispDist = baseDist - h;
+
+    if (dispDist < 0.003) {
+      return t;
+    }
+    // If we've passed well through the torus, no hit on this crossing
+    if (baseDist < -0.5) {
+      // We went through — advance past this torus crossing to find far side
+      t += max(-baseDist - maxH, 0.02);
+      continue;
+    }
+    t += max(dispDist * 0.5, 0.008);
+    if (t > 50.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let px = gid.x;
+  let py = gid.y;
+  let w = params.width;
+  let h = params.height;
+  if (px >= w || py >= h) { return; }
+
+  let idx = py * w + px;
+
+  let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
+  let screenV = params.horizonY - f32(py) / f32(h);
+  let azAngle = screenH * params.fovH * 0.5;
+  let elevAngle = screenV * params.fovV;
+
+  let cosEl = cos(elevAngle);
+  let sinEl = sin(elevAngle);
+  let cosAz = cos(azAngle);
+  let sinAz = sin(azAngle);
+
+  let fwd = vec3f(params.fwdX, params.fwdY, params.fwdZ);
+  let right = vec3f(params.rightX, params.rightY, params.rightZ);
+  let up = vec3f(params.upX, params.upY, params.upZ);
+
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
+
+  let cam = vec3f(params.camX, params.camY, params.camZ);
+  let R = params.torusR;
+  let r = params.torusr;
+
+  let t = traceDisplacedTorus(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+
+  if (t < 0.0) {
+    output[idx] = 0u;
+    return;
+  }
+
+  // Hit point
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+
+  // Tile at hit
+  let tile = tileAtPoint(hx, hy, hz, R);
+  let th = tileHeight(tile);
+
+  // Base color from palette
+  let baseColor = palette[tile];
+  var cr = f32((baseColor >> 0u) & 0xFFu) / 255.0;
+  var cg = f32((baseColor >> 8u) & 0xFFu) / 255.0;
+  var cb = f32((baseColor >> 16u) & 0xFFu) / 255.0;
+
+  // Surface normal — approximate via central differences of displaced SDF
+  let eps: f32 = 0.015;
+  let dR = torusSDF(hx+eps, hy, hz, R, r) - tileHeight(tileAtPoint(hx+eps, hy, hz, R))
+         - torusSDF(hx-eps, hy, hz, R, r) + tileHeight(tileAtPoint(hx-eps, hy, hz, R));
+  let dG = torusSDF(hx, hy+eps, hz, R, r) - tileHeight(tileAtPoint(hx, hy+eps, hz, R))
+         - torusSDF(hx, hy-eps, hz, R, r) + tileHeight(tileAtPoint(hx, hy-eps, hz, R));
+  let dB = torusSDF(hx, hy, hz+eps, R, r) - tileHeight(tileAtPoint(hx, hy, hz+eps, R))
+         - torusSDF(hx, hy, hz-eps, R, r) + tileHeight(tileAtPoint(hx, hy, hz-eps, R));
+  let hn = normalize(vec3f(dR, dG, dB));
+
+  let sunDir = vec3f(params.sunX, params.sunY, params.sunZ);
+  let sunDot = max(0.0, dot(hn, sunDir));
+  let light = 0.12 + 0.88 * sunDot;
+
+  // Heightmap shading boost — elevated tiles get slight edge highlighting
+  let heightShade = 1.0 + th * 1.5;
+
+  // Distance fade
+  let fade = min(1.0, t / 40.0);
+  let distDim = 1.0 - fade * 0.6;
+
+  cr = cr * light * distDim * heightShade;
+  cg = cg * light * distDim * heightShade;
+  cb = cb * light * distDim * heightShade;
+
+  let outR = u32(clamp(cr * 255.0, 0.0, 255.0));
+  let outG = u32(clamp(cg * 255.0, 0.0, 255.0));
+  let outB = u32(clamp(cb * 255.0, 0.0, 255.0));
+  output[idx] = outR | (outG << 8u) | (outB << 16u) | (255u << 24u);
+}
+`;
+
+    const shaderModule = device.createShaderModule({ code: shaderCode });
+
+    // Uniform buffer for params
+    const paramBufSize = 128; // 32 x f32/u32, 16-byte aligned
+    const paramBuf = device.createBuffer({ size: paramBufSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+    // Tile map buffer (128x128 u32s)
+    const tileMapBuf = device.createBuffer({ size: WORLD_W * WORLD_H * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+    // Palette buffer (12 tile types × 4 bytes)
+    const PALETTE_SIZE = 16; // pad to power of 2
+    const paletteBuf = device.createBuffer({ size: PALETTE_SIZE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+    // Upload tile map
+    function uploadTileMap() {
+      const data = new Uint32Array(WORLD_W * WORLD_H);
+      for (let i = 0; i < world.length; i++) data[i] = world[i];
+      device.queue.writeBuffer(tileMapBuf, 0, data);
+    }
+    uploadTileMap();
+
+    // Upload palette
+    function uploadPalette() {
+      const data = new Uint32Array(PALETTE_SIZE);
+      for (const [tileType, rgb] of Object.entries(TILE_COLORS)) {
+        const i = parseInt(tileType);
+        if (i < PALETTE_SIZE) data[i] = rgb[0] | (rgb[1] << 8) | (rgb[2] << 16) | (255 << 24);
+      }
+      device.queue.writeBuffer(paletteBuf, 0, data);
+    }
+    uploadPalette();
+
+    // Output buffer + readback buffer (resized on demand)
+    let outputBuf = null;
+    let readbackBuf = null;
+    let skyW = 0, skyH = 0;
+    let bindGroup = null;
+    let pipeline = null;
+
+    // Create pipeline
+    pipeline = device.createComputePipeline({
+      layout: 'auto',
+      compute: { module: shaderModule, entryPoint: 'main' },
+    });
+
+    function ensureOutputSize(w, h) {
+      w = Math.floor(w); h = Math.floor(h);
+      if (w === skyW && h === skyH) return;
+      skyW = w; skyH = h;
+      if (outputBuf) outputBuf.destroy();
+      if (readbackBuf) readbackBuf.destroy();
+      const size = w * h * 4;
+      outputBuf = device.createBuffer({ size, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+      readbackBuf = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+      bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: paramBuf } },
+          { binding: 1, resource: { buffer: tileMapBuf } },
+          { binding: 2, resource: { buffer: paletteBuf } },
+          { binding: 3, resource: { buffer: outputBuf } },
+        ],
+      });
+    }
+
+    // The render function — called from the game loop
+    let gpuBusy = false;
+    let lastSkyImageData = null;
+
+    gpuSky = {
+      render: async function(w, h, horizonFrac, camPos, fwd, right, up, sunDir, torusR, torusr) {
+        if (gpuBusy) return lastSkyImageData; // skip if previous frame still in flight
+        ensureOutputSize(w, h);
+
+        // Upload params
+        const pd = new ArrayBuffer(128);
+        const f = new Float32Array(pd);
+        const u = new Uint32Array(pd);
+        f[0] = camPos[0]; f[1] = camPos[1]; f[2] = camPos[2];
+        f[4] = fwd[0]; f[5] = fwd[1]; f[6] = fwd[2];
+        f[8] = right[0]; f[9] = right[1]; f[10] = right[2];
+        f[12] = up[0]; f[13] = up[1]; f[14] = up[2];
+        f[16] = sunDir[0]; f[17] = sunDir[1]; f[18] = sunDir[2];
+        f[20] = torusR; f[21] = torusr;
+        u[22] = w; u[23] = h;
+        f[24] = FOV; f[25] = VFOV;
+        u[26] = WORLD_W; u[27] = WORLD_H;
+        f[28] = horizonFrac;
+        device.queue.writeBuffer(paramBuf, 0, pd);
+
+        // Dispatch
+        gpuBusy = true;
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+        pass.end();
+        encoder.copyBufferToBuffer(outputBuf, 0, readbackBuf, 0, w * h * 4);
+        device.queue.submit([encoder.finish()]);
+
+        // Read back
+        await readbackBuf.mapAsync(GPUMapMode.READ);
+        const result = new Uint8ClampedArray(readbackBuf.getMappedRange().slice(0));
+        readbackBuf.unmap();
+        gpuBusy = false;
+
+        lastSkyImageData = new ImageData(result, w, h);
+        return lastSkyImageData;
+      },
+      uploadTileMap,
+      uploadPalette,
+    };
+    console.log('WebGPU sky renderer initialized');
+  })();
+
+  // =====================================================================
+  // Render minimap once
+  // =====================================================================
+  const mmImg = mmCtx.createImageData(WORLD_W, WORLD_H);
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const tile = world[y * WORLD_W + x];
+      const c = TILE_COLORS[tile] || [0, 0, 0];
+      const i = (y * WORLD_W + x) * 4;
+      mmImg.data[i] = c[0]; mmImg.data[i+1] = c[1]; mmImg.data[i+2] = c[2]; mmImg.data[i+3] = 255;
+    }
+  }
+  mmCtx.putImageData(mmImg, 0, 0);
+
+  // =====================================================================
+  // Player
+  // =====================================================================
+  // Find a walkable spawn
+  let playerX = 64.5, playerY = 64.5; // fractional tile coords
+  for (let tries = 0; tries < 1000; tries++) {
+    const tx = Math.floor(rng() * WORLD_W);
+    const ty = Math.floor(rng() * WORLD_H);
+    if (WALKABLE.has(world[ty * WORLD_W + tx])) {
+      playerX = tx + 0.5;
+      playerY = ty + 0.5;
+      break;
+    }
+  }
+
+  let playerDir = 0; // 0=down, 1=left, 2=up, 3=right
+  let playerAngle = Math.PI; // continuous angle for FP view (starts facing down=south)
+  let playerPitch = 0; // look up/down angle in radians (positive = up)
+  let playerFrame = 0;
+  let playerMoveT = 0;
+  const PLAYER_SPEED = 3.2; // tiles per second
+
+  // =====================================================================
+  // Real Newtonian gravity for a massive torus
+  // =====================================================================
+  // Numerically integrate gravitational attraction from the torus volume.
+  // By rotational symmetry, field depends only on (R, Z) in meridional plane.
+  // Precomputed into a LUT at startup, sampled via bilinear interpolation.
+  //
+  // Actual computed field (G*rho*GRAV_SCALE, R=5, r=2):
+  //   Outer surface (v=0):  |g|~24, pointing inward. Strongest — whole torus below you.
+  //   Inner surface (v=pi): |g|~12, toward tube center. ~Half outer. Still holds you.
+  //   Top of tube (v=pi/2): |g|~23, mostly downward + lateral drift toward inner side.
+  //   Center of hole:        |g|~0. Saddle point. NOT a gravity well.
+  //   On axis:               |g|~1.3, pushed toward torus. Unstable.
+
+  let GRAV_SCALE = 1.8;
+  const JUMP_SPEED = 4.0;
+  const SUPER_JUMP_SPEED = 10.0;
+  const EYE_HEIGHT = 0.12;
+
+  // Precompute gravity LUT in (R, Z) plane
+  // Supports two resolutions: coarse (interactive) and full (on release)
+  const GRAV_LUT_FULL = 48;
+  const GRAV_LUT_COARSE = 24;
+  let GRAV_LUT_SIZE = GRAV_LUT_FULL;
+  let GRAV_R_MIN = 0.1, GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+  let GRAV_Z_MIN = -(TORUS_r + 5), GRAV_Z_MAX = TORUS_r + 5;
+  let gravLUT_gR = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
+  let gravLUT_gZ = new Float32Array(GRAV_LUT_FULL * GRAV_LUT_FULL);
+
+  function computeGravLUT(resolution) {
+    const size = resolution || GRAV_LUT_FULL;
+    GRAV_LUT_SIZE = size;
+    GRAV_R_MAX = TORUS_R + TORUS_r + 5;
+    GRAV_Z_MIN = -(TORUS_r + 5);
+    GRAV_Z_MAX = TORUS_r + 5;
+    if (gravLUT_gR.length !== size * size) {
+      gravLUT_gR = new Float32Array(size * size);
+      gravLUT_gZ = new Float32Array(size * size);
+    }
+    const coarse = size <= GRAV_LUT_COARSE;
+    const Nu = coarse ? 20 : 40;
+    const Nv = coarse ? 10 : 20;
+    const Ns = coarse ? 3 : 5;
+    const R0 = TORUS_R, r0 = TORUS_r;
+    for (let gi = 0; gi < size; gi++) {
+      const Rp = GRAV_R_MIN + (gi / (size - 1)) * (GRAV_R_MAX - GRAV_R_MIN);
+      for (let gj = 0; gj < size; gj++) {
+        const Zp = GRAV_Z_MIN + (gj / (size - 1)) * (GRAV_Z_MAX - GRAV_Z_MIN);
+        let gR = 0, gZ = 0;
+        for (let iu = 0; iu < Nu; iu++) {
+          const u = (iu + 0.5) / Nu * Math.PI * 2;
+          const cosU = Math.cos(u), sinU = Math.sin(u);
+          for (let iv = 0; iv < Nv; iv++) {
+            const v = (iv + 0.5) / Nv * Math.PI * 2;
+            const cosV = Math.cos(v), sinV = Math.sin(v);
+            for (let is = 0; is < Ns; is++) {
+              const s = (is + 0.5) / Ns * r0;
+              const Rc = R0 + s * cosV;
+              const ex = Rc * cosU, ey = Rc * sinU, ez = s * sinV;
+              const dx = ex - Rp, dy = ey, dz = ez - Zp;
+              const distSq = dx*dx + dy*dy + dz*dz;
+              if (distSq < 0.01) continue;
+              const dist = Math.sqrt(distSq);
+              const dV = s * Rc * (r0/Ns) * (2*Math.PI/Nv) * (2*Math.PI/Nu);
+              const f3 = dV / (dist * distSq);
+              gR += dx * f3;
+              gZ += dz * f3;
+            }
+          }
+        }
+        const idx = gi * size + gj;
+        gravLUT_gR[idx] = gR * GRAV_SCALE;
+        gravLUT_gZ[idx] = gZ * GRAV_SCALE;
+      }
+    }
+  }
+  computeGravLUT(GRAV_LUT_FULL);
+
+  function sampleGravity(R, Z) {
+    const fi = (R - GRAV_R_MIN) / (GRAV_R_MAX - GRAV_R_MIN) * (GRAV_LUT_SIZE - 1);
+    const fj = (Z - GRAV_Z_MIN) / (GRAV_Z_MAX - GRAV_Z_MIN) * (GRAV_LUT_SIZE - 1);
+    const i0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fi)));
+    const j0 = Math.max(0, Math.min(GRAV_LUT_SIZE - 2, Math.floor(fj)));
+    const fr = fi - i0, fz = fj - j0;
+    const i00 = i0 * GRAV_LUT_SIZE + j0, i10 = (i0+1) * GRAV_LUT_SIZE + j0;
+    const i01 = i0 * GRAV_LUT_SIZE + (j0+1), i11 = (i0+1) * GRAV_LUT_SIZE + (j0+1);
+    return {
+      gR: gravLUT_gR[i00]*(1-fr)*(1-fz) + gravLUT_gR[i10]*fr*(1-fz) + gravLUT_gR[i01]*(1-fr)*fz + gravLUT_gR[i11]*fr*fz,
+      gZ: gravLUT_gZ[i00]*(1-fr)*(1-fz) + gravLUT_gZ[i10]*fr*(1-fz) + gravLUT_gZ[i01]*(1-fr)*fz + gravLUT_gZ[i11]*fr*fz,
+    };
+  }
+
+  function surfaceGravity() {
+    const v = getPlayerV();
+    const g = sampleGravity(TORUS_R + TORUS_r * Math.cos(v), TORUS_r * Math.sin(v));
+    return Math.sqrt(g.gR * g.gR + g.gZ * g.gZ);
+  }
+
+  let airborne = false;
+  let csR = 0, csZ = 0;
+  let csVR = 0, csVZ = 0;
+  let playerHeight = 0;
+
+  function initCrossSectionFromSurface() {
+    const v = getPlayerV();
+    const th = tileHeightAt(playerX, playerY);
+    csR = TORUS_R + (TORUS_r + th) * Math.cos(v);
+    csZ = (TORUS_r + th) * Math.sin(v);
+    csVR = 0; csVZ = 0;
+  }
+
+  function doJump() {
+    if (airborne) return;
+    airborne = true;
+    initCrossSectionFromSurface();
+    const v = getPlayerV();
+    const nR = Math.cos(v), nZ = Math.sin(v);
+    const speed = (keys['Shift'] || keys['ShiftLeft']) ? SUPER_JUMP_SPEED : JUMP_SPEED;
+    csVR = nR * speed;
+    csVZ = nZ * speed;
+  }
+
+  function updateJumpPhysics(dt) {
+    if (!airborne) { playerHeight = 0; return; }
+    const substeps = 8;
+    const subDt = dt / substeps;
+    for (let s = 0; s < substeps; s++) {
+      // Gravity: use |csR| for LUT lookup, flip gR if on negative side
+      const absR = Math.abs(csR);
+      const g = sampleGravity(Math.max(0.1, absR), csZ);
+      const gR = csR >= 0 ? g.gR : -g.gR;
+      csVR += gR * subDt;
+      csVZ += g.gZ * subDt;
+      csR += csVR * subDt;
+      csZ += csVZ * subDt;
+
+      // Check if we crossed the axis — flip U by half the world
+      if (csR < 0 && csR + csVR * subDt >= 0 || csR >= 0 && csR - csVR * subDt < 0) {
+        // Will be handled naturally — csR can be negative
+      }
+
+      // Landing check: distance from tube center at (TORUS_R, 0) or (-TORUS_R, 0)
+      // Use the nearest tube center based on which side of axis we're on
+      const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+      const dcR = csR - tubeR, dcZ = csZ;
+      const distTC = Math.sqrt(dcR*dcR + dcZ*dcZ);
+      // Landing: check against displaced surface (torus_r + tile height)
+      const landingV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+      const landingY = wrapY(((landingV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+      const landingTileH = tileHeightAt(playerX, landingY);
+      const effectiveR = TORUS_r + landingTileH;
+      if (distTC <= effectiveR) {
+        const vDot = (csVR*dcR + csVZ*dcZ) / (distTC || 1);
+        if (vDot < 0) {
+          // Preserve world-space facing direction across frame change
+          // Use computeSkyCamera() to get actual world-space forward from the
+          // gravity-aligned frame (playerAngle is relative to that frame now)
+          const cam = computeSkyCamera();
+          // Project fwd onto horizontal plane to get flat facing direction
+          const worldFwd = [cam.fwd[0], cam.fwd[1], cam.fwd[2]];
+
+          if (csR < 0) {
+            playerX = wrapX(playerX + WORLD_W / 2);
+            csR = -csR;
+          }
+          playerY = landingY;
+
+          // Recompute local frame at new position and back-solve angle
+          const newU = getPlayerU();
+          const newV = getPlayerV();
+          const cosNewV = Math.cos(newV), sinNewV = Math.sin(newV);
+          const cosNewU = Math.cos(newU), sinNewU = Math.sin(newU);
+          const newEu = [-(TORUS_R + TORUS_r * cosNewV) * sinNewU, 0,
+                          (TORUS_R + TORUS_r * cosNewV) * cosNewU];
+          const newEuLen = Math.sqrt(newEu[0]**2 + newEu[2]**2) || 1;
+          const newEv = [-TORUS_r * sinNewV * cosNewU, TORUS_r * cosNewV,
+                         -TORUS_r * sinNewV * sinNewU];
+          const newEvLen = Math.sqrt(newEv[0]**2 + newEv[1]**2 + newEv[2]**2) || 1;
+          // Project worldFwd onto new eu/ev to get new angle
+          const dotU = worldFwd[0]*newEu[0]/newEuLen + worldFwd[1]*newEu[1]/newEuLen + worldFwd[2]*newEu[2]/newEuLen;
+          const dotV = worldFwd[0]*newEv[0]/newEvLen + worldFwd[1]*newEv[1]/newEvLen + worldFwd[2]*newEv[2]/newEvLen;
+          playerAngle = Math.atan2(dotU, dotV);
+
+          airborne = false; playerHeight = 0; csVR = 0; csVZ = 0;
+          return;
+        }
+      }
+    }
+    // Height is distance from nearest tube center minus displaced tube radius
+    const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dcR = csR - tubeR, dcZ = csZ;
+    const currentV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+    playerY = wrapY(((currentV + Math.PI*2) % (Math.PI*2)) / (Math.PI*2) * WORLD_H);
+    const airTileH = tileHeightAt(playerX, playerY);
+    playerHeight = Math.max(0, Math.sqrt(dcR*dcR + dcZ*dcZ) - TORUS_r - airTileH);
+  }
+
+  // View mode
+  let fpMode = false;
+  document.getElementById('viewToggle').addEventListener('click', () => {
+    fpMode = !fpMode;
+    document.getElementById('viewToggle').textContent = fpMode ? 'Top down [F]' : '1st person [F]';
+  });
+
+  // Movement input
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === 'f' || e.key === 'F') {
+      if (document.activeElement === nameInput) return;
+      fpMode = !fpMode;
+      document.getElementById('viewToggle').textContent = fpMode ? 'Top down [F]' : '1st person [F]';
+    }
+    // Only prevent default for game keys, not browser shortcuts
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // =====================================================================
+  // Mouse look — pointer lock
+  // =====================================================================
+  const MOUSE_SENS = 0.002;
+  const MAX_PITCH = Math.PI * 0.44; // ~80 degrees
+
+  canvas.addEventListener('click', () => {
+    if (fpMode && !document.pointerLockElement) {
+      canvas.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement !== canvas) return;
+    playerAngle += e.movementX * MOUSE_SENS;
+    playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH,
+      playerPitch - e.movementY * MOUSE_SENS));
+  });
+
+  const reticle = document.getElementById('reticle');
+  document.addEventListener('pointerlockchange', () => {
+    reticle.classList.toggle('hidden', document.pointerLockElement !== canvas);
+  });
+
+  // =====================================================================
+  // Physics panel — sliders for gravity, R, r
+  // =====================================================================
+  const physPanel = document.getElementById('physPanel');
+  const physToggle = document.getElementById('physToggle');
+  const physBody = document.getElementById('physBody');
+  const slGrav = document.getElementById('slGrav');
+  const slR = document.getElementById('slR');
+  const slr = document.getElementById('slr');
+  const valGrav = document.getElementById('valGrav');
+  const valR = document.getElementById('valR');
+  const valr = document.getElementById('valr');
+  let physCollapsed = false;
+
+  physToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    physCollapsed = !physCollapsed;
+    physBody.classList.toggle('collapsed', physCollapsed);
+    physToggle.textContent = physCollapsed ? 'Physics ▶' : 'Physics ▼';
+  });
+
+  // Show panel once game starts (via mutation on lobby)
+  const lobbyObs = new MutationObserver(() => {
+    if (lobby.classList.contains('hidden')) {
+      if (!isMobile) physPanel.classList.remove('hidden');
+      lobbyObs.disconnect();
+    }
+  });
+  lobbyObs.observe(lobby, { attributes: true, attributeFilter: ['class'] });
+
+  // Coarse recompute while dragging, full on release
+  let gravRecomputeTimer = null;
+
+  function onPhysicsSliderInput() {
+    GRAV_SCALE = parseFloat(slGrav.value);
+    TORUS_R = parseFloat(slR.value);
+    TORUS_r = parseFloat(slr.value);
+    valGrav.textContent = GRAV_SCALE.toFixed(1);
+    valR.textContent = TORUS_R.toFixed(1);
+    valr.textContent = TORUS_r.toFixed(1);
+    // Coarse recompute for instant feedback
+    computeGravLUT(GRAV_LUT_COARSE);
+    // Invalidate GPU sky cache so it picks up new R/r
+    lastGpuSkyImage = null;
+    // Cancel any pending full recompute
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+  }
+
+  function onPhysicsSliderRelease() {
+    // Schedule full-res recompute shortly after release
+    if (gravRecomputeTimer) clearTimeout(gravRecomputeTimer);
+    gravRecomputeTimer = setTimeout(() => {
+      computeGravLUT(GRAV_LUT_FULL);
+      gravRecomputeTimer = null;
+    }, 50);
+  }
+
+  // Stop keyboard events from moving the player while dragging sliders
+  for (const sl of [slGrav, slR, slr]) {
+    sl.addEventListener('input', (e) => { e.stopPropagation(); onPhysicsSliderInput(); });
+    sl.addEventListener('change', (e) => { e.stopPropagation(); onPhysicsSliderRelease(); });
+    sl.addEventListener('keydown', (e) => e.stopPropagation());
+    sl.addEventListener('keyup', (e) => e.stopPropagation());
+  }
+
+  // =====================================================================
+  // Touch controls — dual-zone virtual joystick
+  // =====================================================================
+  const touchLeft = document.getElementById('touchLeft');
+  const touchRight = document.getElementById('touchRight');
+  const touchHint = document.getElementById('touchHint');
+
+  // Touch state: normalized -1..1 for each axis
+  let touchMoveX = 0, touchMoveY = 0; // left zone: movement
+  let touchLookX = 0; // right zone: turning
+  let touchJump = false;
+  let leftTouchId = null, rightTouchId = null;
+  let leftOrigin = null, rightOrigin = null;
+
+  if (isMobile) {
+    touchHint.textContent = 'L: move \u00b7 R: turn \u00b7 tap R: jump';
+    // Auto-enter FP mode on mobile
+    fpMode = true;
+    document.getElementById('viewToggle').textContent = 'Top down [F]';
+
+    const DEAD_ZONE = 12; // px
+    const MAX_DIST = 60; // px
+
+    touchLeft.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      leftTouchId = t.identifier;
+      leftOrigin = { x: t.clientX, y: t.clientY };
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId && leftOrigin) {
+          let dx = t.clientX - leftOrigin.x;
+          let dy = t.clientY - leftOrigin.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < DEAD_ZONE) { touchMoveX = 0; touchMoveY = 0; }
+          else {
+            const norm = Math.min(dist, MAX_DIST) / MAX_DIST;
+            touchMoveX = (dx / dist) * norm;
+            touchMoveY = (dy / dist) * norm;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchLeft.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === leftTouchId) {
+          leftTouchId = null; leftOrigin = null;
+          touchMoveX = 0; touchMoveY = 0;
+        }
+      }
+    });
+    touchLeft.addEventListener('touchcancel', e => {
+      leftTouchId = null; leftOrigin = null;
+      touchMoveX = 0; touchMoveY = 0;
+    });
+
+    let rightTapTime = 0;
+    touchRight.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      rightTouchId = t.identifier;
+      rightOrigin = { x: t.clientX, y: t.clientY };
+      rightTapTime = performance.now();
+    }, { passive: false });
+
+    touchRight.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId && rightOrigin) {
+          const dx = t.clientX - rightOrigin.x;
+          const dist = Math.abs(dx);
+          if (dist < DEAD_ZONE) { touchLookX = 0; }
+          else {
+            touchLookX = Math.sign(dx) * Math.min(dist, MAX_DIST) / MAX_DIST;
+          }
+        }
+      }
+    }, { passive: false });
+
+    touchRight.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === rightTouchId) {
+          // Short tap = jump
+          if (performance.now() - rightTapTime < 250 && Math.abs(touchLookX) < 0.2) {
+            touchJump = true;
+          }
+          rightTouchId = null; rightOrigin = null;
+          touchLookX = 0;
+        }
+      }
+    });
+    touchRight.addEventListener('touchcancel', e => {
+      rightTouchId = null; rightOrigin = null;
+      touchLookX = 0;
+    });
+  } else {
+    // Hide touch zones on desktop
+    touchLeft.style.display = 'none';
+    touchRight.style.display = 'none';
+  }
+
+  // Click-to-move
+  let moveTarget = null;
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / rect.width;
+    const screenX = (e.clientX - rect.left) * dpr;
+    const screenY = (e.clientY - rect.top) * dpr;
+    // Convert screen to world
+    const tilesX = canvas.width / TILE_PX;
+    const tilesY = canvas.height / TILE_PX;
+    const worldClickX = playerX + (screenX / TILE_PX - tilesX / 2);
+    const worldClickY = playerY + (screenY / TILE_PX - tilesY / 2);
+    moveTarget = { x: worldClickX, y: worldClickY };
+  });
+
+  // Wrap helper
+  function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+  function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+
+  function tileAt(x, y) {
+    return world[Math.floor(wrapY(y)) * WORLD_W + Math.floor(wrapX(x))];
+  }
+
+  function tileHeightAt(x, y) {
+    return TILE_HEIGHT[tileAt(x, y)] || 0;
+  }
+
+  function canWalk(x, y, fromX, fromY) {
+    const tile = tileAt(x, y);
+    if (!WALKABLE.has(tile)) return false;
+    // Check step-up height if we have a source position
+    if (fromX !== undefined) {
+      const dh = (TILE_HEIGHT[tile] || 0) - tileHeightAt(fromX, fromY);
+      if (dh > MAX_STEP_UP) return false;
+    }
+    return true;
+  }
+
+  // =====================================================================
+  // Tile rendering with detail
+  // =====================================================================
+  function drawTile(tileType, screenX, screenY, worldTX, worldTY) {
+    const c = TILE_COLORS[tileType];
+    if (!c) return;
+
+    // Sun lighting for this tile
+    const sun = tileSunlight(worldTX, worldTY);
+
+    // Base color with slight per-tile variation, modulated by sunlight
+    const hash = ((worldTX * 374761393 + worldTY * 668265263) ^ 0xdeadbeef) & 0xffff;
+    const vary = ((hash & 0xff) - 128) / 512;
+    const r = Math.max(0, Math.min(255, (c[0] + c[0] * vary) * sun));
+    const g = Math.max(0, Math.min(255, (c[1] + c[1] * vary) * sun));
+    const b = Math.max(0, Math.min(255, (c[2] + c[2] * vary) * sun));
+
+    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    ctx.fillRect(screenX, screenY, TILE_PX + 1, TILE_PX + 1);
+
+    // Tile decorations
+    if (tileType === T.TREE) {
+      // Trunk
+      ctx.fillStyle = '#5a3a20';
+      ctx.fillRect(screenX + 6, screenY + 10, 4, 6);
+      // Canopy
+      ctx.fillStyle = `rgb(${(0x1a + (hash & 0x1f))|0},${(0x5a + (hash & 0x1f))|0},${(0x20 + (hash & 0xf))|0})`;
+      ctx.beginPath();
+      ctx.arc(screenX + 8, screenY + 7, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (tileType === T.ROCK) {
+      ctx.fillStyle = '#8a8a92';
+      ctx.beginPath();
+      ctx.arc(screenX + 8, screenY + 9, 5 + (hash & 1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#9a9aa2';
+      ctx.beginPath();
+      ctx.arc(screenX + 7, screenY + 7, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (tileType === T.FLOWER) {
+      // Grass base already drawn
+      const flowerColors = ['#e44', '#e8e', '#ee4', '#4ae', '#f84'];
+      ctx.fillStyle = flowerColors[hash % flowerColors.length];
+      const fx = screenX + 4 + (hash & 7);
+      const fy = screenY + 4 + ((hash >> 3) & 7);
+      ctx.fillRect(fx, fy, 3, 3);
+      ctx.fillRect(fx + 1, fy - 1, 1, 1);
+      ctx.fillRect(fx + 1, fy + 3, 1, 1);
+    } else if (tileType === T.WATER) {
+      // Animated wave highlight
+      const waveT = performance.now() / 1000;
+      const wave = Math.sin(worldTX * 0.5 + worldTY * 0.3 + waveT * 2) * 0.15;
+      const wr = Math.max(0, Math.min(255, c[0] + 40 * wave));
+      const wg = Math.max(0, Math.min(255, c[1] + 50 * wave));
+      const wb = Math.max(0, Math.min(255, c[2] + 30 * wave));
+      ctx.fillStyle = `rgb(${wr|0},${wg|0},${wb|0})`;
+      ctx.fillRect(screenX, screenY, TILE_PX + 1, TILE_PX + 1);
+    } else if (tileType === T.TALL_GRASS) {
+      // Grass tufts
+      ctx.fillStyle = '#285a2e';
+      for (let i = 0; i < 3; i++) {
+        const gx = screenX + 2 + ((hash >> (i*4)) & 0xb);
+        ctx.fillRect(gx, screenY + 4, 1, 8);
+        ctx.fillRect(gx, screenY + 3, 2, 1);
+      }
+    } else if (tileType === T.PATH) {
+      // Occasional pebble
+      if ((hash & 7) === 0) {
+        ctx.fillStyle = '#8a7a5a';
+        ctx.fillRect(screenX + (hash & 7) + 3, screenY + ((hash>>4) & 7) + 3, 2, 2);
+      }
+    }
+  }
+
+  // =====================================================================
+  // Player sprite
+  // =====================================================================
+  // Player colors for multiplayer (index by peer id)
+  const PLAYER_COLORS = [
+    '#e86030', '#3080e8', '#30c050', '#c040c0',
+    '#c0a030', '#30b0b0', '#e04060', '#80a0e0',
+    '#a06020', '#60c080',
+  ];
+
+  function drawPlayer(screenX, screenY, name, dir, animFrame, colorIdx) {
+    const frame = Math.floor(animFrame) % 4;
+    const bobY = (frame === 1 || frame === 3) ? -1 : 0;
+    const x = screenX, y = screenY + bobY;
+    const bodyColor = PLAYER_COLORS[colorIdx % PLAYER_COLORS.length];
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x + 8, y + 15, 5, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(x + 4, y + 6, 8, 7);
+
+    // Head (round)
+    ctx.fillStyle = '#f0d0b0';
+    ctx.beginPath();
+    ctx.arc(x + 8, y + 4, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes (direction-dependent)
+    ctx.fillStyle = '#222';
+    if (dir === 0) { // down
+      ctx.fillRect(x + 6, y + 4, 1, 2);
+      ctx.fillRect(x + 9, y + 4, 1, 2);
+    } else if (dir === 2) { // up — no eyes visible
+    } else if (dir === 1) { // left
+      ctx.fillRect(x + 5, y + 4, 1, 2);
+    } else { // right
+      ctx.fillRect(x + 10, y + 4, 1, 2);
+    }
+
+    // Legs
+    ctx.fillStyle = '#446';
+    const legOff = (frame === 1) ? 1 : (frame === 3) ? -1 : 0;
+    ctx.fillRect(x + 5 + legOff, y + 13, 2, 3);
+    ctx.fillRect(x + 9 - legOff, y + 13, 2, 3);
+
+    // Name label
+    if (name) {
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillText(name, x + 8 + 1, y - 4 + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(name, x + 8, y - 4);
+    }
+  }
+
+  // =====================================================================
+  // Game loop
+  // =====================================================================
+  let lastTime = performance.now();
+
+  function update(dt) {
+    let dx = 0, dy = 0;
+
+    if (fpMode) {
+      // Jump (keyboard or touch tap)
+      if ((keys[' '] || touchJump) && !airborne) doJump();
+      touchJump = false;
+
+      // First-person: WASD + touch
+      const turnSpeed = 2.5;
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerAngle -= turnSpeed * dt;
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) playerAngle += turnSpeed * dt;
+      // Touch turn
+      if (Math.abs(touchLookX) > 0.01) playerAngle += touchLookX * turnSpeed * 1.5 * dt;
+
+      const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+      const rightX = Math.cos(playerAngle), rightY = -Math.sin(playerAngle);
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) { dx += fwdX; dy += fwdY; }
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) { dx -= fwdX; dy -= fwdY; }
+      // Touch move (left stick: Y is forward/back, X is strafe)
+      if (Math.abs(touchMoveY) > 0.01 || Math.abs(touchMoveX) > 0.01) {
+        dx += -touchMoveY * fwdX + touchMoveX * rightX;
+        dy += -touchMoveY * fwdY + touchMoveX * rightY;
+      }
+      // Sync playerDir for sprite/network
+      const a = ((playerAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+      if (a < Math.PI*0.25 || a >= Math.PI*1.75) playerDir = 0;      // south
+      else if (a < Math.PI*0.75) playerDir = 3;  // east
+      else if (a < Math.PI*1.25) playerDir = 2;  // north
+      else playerDir = 1;                         // west
+      moveTarget = null; // disable click-to-move in FP
+    } else {
+      // Top-down: WASD is cardinal directions
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) { dx -= 1; playerDir = 1; }
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) { dx += 1; playerDir = 3; }
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) { dy -= 1; playerDir = 2; }
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) { dy += 1; playerDir = 0; }
+
+      // Click-to-move
+      if (moveTarget && dx === 0 && dy === 0) {
+        let tdx = moveTarget.x - playerX;
+        let tdy = moveTarget.y - playerY;
+        if (tdx > WORLD_W / 2) tdx -= WORLD_W;
+        if (tdx < -WORLD_W / 2) tdx += WORLD_W;
+        if (tdy > WORLD_H / 2) tdy -= WORLD_H;
+        if (tdy < -WORLD_H / 2) tdy += WORLD_H;
+        const dist = Math.sqrt(tdx * tdx + tdy * tdy);
+        if (dist < 0.3) {
+          moveTarget = null;
+        } else {
+          dx = tdx / dist; dy = tdy / dist;
+          if (Math.abs(tdx) > Math.abs(tdy)) playerDir = tdx > 0 ? 3 : 1;
+          else playerDir = tdy > 0 ? 0 : 2;
+        }
+      }
+
+      // Sync angle from dir for when switching to FP
+      playerAngle = [Math.PI, Math.PI*1.5, 0, Math.PI*0.5][playerDir];
+    }
+
+    // Normalize diagonal
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0.01) {
+      dx /= len; dy /= len;
+      const speed = PLAYER_SPEED * dt;
+      const newX = playerX + dx * speed;
+      const newY = playerY + dy * speed;
+
+      // Check walkability with height-aware stepping
+      const canX = canWalk(newX, playerY, playerX, playerY) && canWalk(newX + 0.3, playerY, playerX, playerY) && canWalk(newX - 0.3, playerY, playerX, playerY);
+      const canY = canWalk(playerX, newY, playerX, playerY) && canWalk(playerX, newY + 0.3, playerX, playerY) && canWalk(playerX, newY - 0.3, playerX, playerY);
+
+      if (canX) playerX = wrapX(newX);
+      if (canY) playerY = wrapY(newY);
+
+      playerFrame += dt * 6;
+    } else {
+      playerFrame = 0;
+    }
+
+    // Jump physics (FP mode only)
+    if (fpMode) updateJumpPhysics(dt);
+  }
+
+  // =====================================================================
+  // Raycaster — Wolfenstein-style first-person renderer
+  // =====================================================================
+  // Raycaster constants
+  const FOV = Math.PI * 0.6; // ~108 degrees
+  const VFOV = Math.PI * 0.45; // vertical FOV
+
+  function getPlayerV() {
+    return (playerY / WORLD_H) * Math.PI * 2;
+  }
+  function getPlayerU() {
+    return (playerX / WORLD_W) * Math.PI * 2;
+  }
+
+  // Sun — tidally locked, fixed in world space
+  // Points along +X with slight elevation (above the torus plane)
+  const SUN_DIR = [0.92, 0.35, 0.17]; // normalized below
+  const sunLen = Math.sqrt(SUN_DIR[0]**2 + SUN_DIR[1]**2 + SUN_DIR[2]**2);
+  SUN_DIR[0] /= sunLen; SUN_DIR[1] /= sunLen; SUN_DIR[2] /= sunLen;
+  const SUN_RADIUS = 0.06; // angular radius for the disk (radians)
+
+  // Compute sun exposure at a torus surface point (u, v)
+  // Returns 0 (full shadow) to 1 (full sun)
+  function sunExposure(u, v) {
+    // Surface normal at (u,v)
+    const nx = Math.cos(v) * Math.cos(u);
+    const ny = Math.sin(v);
+    const nz = Math.cos(v) * Math.sin(u);
+    const dot = nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2];
+    return Math.max(0, dot);
+  }
+
+  // Sunlight tint for a tile at world position (wx, wy)
+  function tileSunlight(wx, wy) {
+    const u = (wx / WORLD_W) * Math.PI * 2;
+    const v = (wy / WORLD_H) * Math.PI * 2;
+    const exposure = sunExposure(u, v);
+    // Ambient 0.15 in shadow, up to 1.0 in full sun
+    return 0.15 + 0.85 * exposure;
+  }
+
+  // =====================================================================
+  // Torus sky — proper ray-torus intersection per pixel
+  // =====================================================================
+  // The torus surface in 3D: ((sqrt(x^2+z^2) - R)^2 + y^2 = r^2
+  // Player stands on the surface. Their local frame:
+  //   - e_u: tangent along the donut ring (X movement)
+  //   - e_v: tangent along the tube (Y movement)
+  //   - e_n: surface normal (outward)
+  // Screen maps: horizontal → mix of e_u, vertical → mix of e_n and e_v rotated by look
+
+  // Torus point from (u, v) angles
+  function torusPos(u, v) {
+    return [
+      (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
+      TORUS_r * Math.sin(v),
+      (TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
+    ];
+  }
+
+  // Ray-torus intersection via quartic solver
+  // Torus: (sqrt(x^2+z^2) - R)^2 + y^2 = r^2
+  // Ray: P + t*D
+  // Expands to a degree-4 polynomial in t.
+  function rayTorus(ox, oy, oz, dx, dy, dz) {
+    const R = TORUS_R, r = TORUS_r;
+    const R2 = R * R, r2 = r * r;
+
+    // Dot products
+    const dDotD = dx*dx + dy*dy + dz*dz;
+    const oDotD = ox*dx + oy*dy + oz*dz;
+    const oDotO = ox*ox + oy*oy + oz*oz;
+    const K = oDotO - R2 - r2;
+
+    // Quartic coefficients: a4*t^4 + a3*t^3 + a2*t^2 + a1*t + a0 = 0
+    const a4 = dDotD * dDotD;
+    const a3 = 4 * dDotD * oDotD;
+    const a2 = 2 * dDotD * K + 4 * oDotD * oDotD + 4 * R2 * dy * dy;
+    const a1 = 4 * K * oDotD + 8 * R2 * oy * dy;
+    const a0 = K * K - 4 * R2 * (r2 - oy * oy);
+
+    // Solve quartic by finding real roots via bisection on intervals
+    // Normalize
+    const c3 = a3/a4, c2 = a2/a4, c1 = a1/a4, c0 = a0/a4;
+
+    // Evaluate polynomial
+    function f(t) { return ((((t + c3) * t + c2) * t + c1) * t + c0); }
+
+    // Sample at intervals to find sign changes, then bisect
+    const tMin = 0.05; // skip self-intersection
+    const tMax = 50;
+    const steps = 80;
+    const dt = (tMax - tMin) / steps;
+    let bestT = -1;
+    let prevT = tMin, prevF = f(tMin);
+
+    for (let i = 1; i <= steps; i++) {
+      const t = tMin + i * dt;
+      const fv = f(t);
+      if (prevF * fv < 0) {
+        // Bisect
+        let lo = prevT, hi = t;
+        for (let b = 0; b < 20; b++) {
+          const mid = (lo + hi) / 2;
+          if (f(mid) * f(lo) < 0) hi = mid; else lo = mid;
+        }
+        bestT = (lo + hi) / 2;
+        break;
+      }
+      prevT = t; prevF = fv;
+    }
+    return bestT;
+  }
+
+  // Pre-generate stars (screen-space, seeded)
+  let starSeed = 12345;
+  function starRng() { starSeed = (starSeed * 16807) % 2147483647; return (starSeed - 1) / 2147483646; }
+  const STAR_COUNT = 300;
+  const starData = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    starData.push({
+      // Stars in spherical coords (azimuth, elevation) relative to camera
+      az: starRng() * Math.PI * 2,
+      el: starRng() * Math.PI * 0.48, // above horizon
+      bright: 0.3 + starRng() * 0.7,
+      size: starRng() < 0.08 ? 2 : 1,
+    });
+  }
+
+  // Compute camera frame — shared by GPU and fallback sky renderers
+  function computeSkyCamera() {
+    const u = getPlayerU();
+    const v = getPlayerV();
+    const surfP = torusPos(u, v);
+    const groundTileH = tileHeightAt(playerX, playerY);
+    const heightOffset = playerHeight + EYE_HEIGHT + (airborne ? 0 : groundTileH);
+    let P;
+    if (airborne && playerHeight > 0.01) {
+      P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
+    } else {
+      const enLocal = [Math.cos(v) * Math.cos(u), Math.sin(v), Math.cos(v) * Math.sin(u)];
+      P = [
+        surfP[0] + enLocal[0] * heightOffset,
+        surfP[1] + enLocal[1] * heightOffset,
+        surfP[2] + enLocal[2] * heightOffset,
+      ];
+    }
+
+    // Gravity-aligned camera: "up" = anti-gravity direction (unified for all states)
+    // Compute (R, Z) in the meridional plane
+    let mR, mZ;
+    if (airborne && playerHeight > 0.01) {
+      mR = csR;
+      mZ = csZ;
+    } else {
+      // On surface: derive from toroidal coordinates
+      mR = TORUS_R + TORUS_r * Math.cos(v);
+      mZ = TORUS_r * Math.sin(v);
+    }
+
+    const absR = Math.abs(mR);
+    const g = sampleGravity(Math.max(0.1, absR), mZ);
+    const gR = mR >= 0 ? g.gR : -g.gR;
+    const gZ = g.gZ;
+    const gLen = Math.sqrt(gR * gR + gZ * gZ);
+
+    let en;
+    if (gLen > 0.01) {
+      const antiR = -gR / gLen;
+      const antiZ = -gZ / gLen;
+      en = [antiR * Math.cos(u), antiZ, antiR * Math.sin(u)];
+    } else {
+      const rLen = Math.sqrt(P[0]*P[0] + P[2]*P[2]) || 1;
+      en = [P[0]/rLen, 0, P[2]/rLen];
+    }
+
+    // Build orthonormal frame via Gram-Schmidt with u-tangent as reference
+    // u-tangent = (-sin u, 0, cos u) — always perpendicular to radial, no discontinuity
+    const uTan = [-Math.sin(u), 0, Math.cos(u)];
+
+    // eu = normalize(uTan - (uTan·en)*en)
+    const dot = uTan[0]*en[0] + uTan[1]*en[1] + uTan[2]*en[2];
+    let rx = uTan[0] - dot*en[0];
+    let ry = uTan[1] - dot*en[1];
+    let rz = uTan[2] - dot*en[2];
+    let rLen = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1;
+    rx /= rLen; ry /= rLen; rz /= rLen;
+
+    // ev = eu × en  (not en × eu — need v-tangent to point in increasing-v direction)
+    let tx = ry*en[2] - rz*en[1];
+    let ty = rz*en[0] - rx*en[2];
+    let tz = rx*en[1] - ry*en[0];
+    let tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+    tx /= tLen; ty /= tLen; tz /= tLen;
+
+    const eu = [rx, ry, rz];
+    const ev = [tx, ty, tz];
+
+    // Apply playerAngle as yaw: forward = sin(angle)*eu + cos(angle)*ev
+    const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+    const flatFwd = [
+      sa * eu[0] + ca * ev[0],
+      sa * eu[1] + ca * ev[1],
+      sa * eu[2] + ca * ev[2],
+    ];
+    const right = [
+      ca * eu[0] - sa * ev[0],
+      ca * eu[1] - sa * ev[1],
+      ca * eu[2] - sa * ev[2],
+    ];
+
+    // Pitch: rotate flatFwd and en around the right axis
+    const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+    const fwd = [
+      flatFwd[0] * cp + en[0] * sp,
+      flatFwd[1] * cp + en[1] * sp,
+      flatFwd[2] * cp + en[2] * sp,
+    ];
+    const up = [
+      -flatFwd[0] * sp + en[0] * cp,
+      -flatFwd[1] * sp + en[1] * cp,
+      -flatFwd[2] * sp + en[2] * cp,
+    ];
+    return { P, fwd, right, up };
+  }
+
+  // Project world direction to screen pixel
+  function worldToScreen(dx, dy, dz, fwd, right, up, w, halfH) {
+    const cf = dx*fwd[0] + dy*fwd[1] + dz*fwd[2];
+    if (cf < 0.01) return null;
+    const cr = dx*right[0] + dy*right[1] + dz*right[2];
+    const cu = dx*up[0] + dy*up[1] + dz*up[2];
+    return {
+      sx: (cr / cf) / Math.tan(FOV/2) * (w/2) + w/2,
+      sy: halfH - (cu / cf) / Math.tan(VFOV/2) * halfH,
+    };
+  }
+
+  // Draw stars and sun (canvas 2D overlay, used by both paths)
+  function renderStarsAndSun(w, halfH, P, fwd, right, up) {
+    for (const star of starData) {
+      const sdx = Math.cos(star.el) * Math.cos(star.az);
+      const sdy = Math.sin(star.el);
+      const sdz = Math.cos(star.el) * Math.sin(star.az);
+      const sp = worldToScreen(sdx, sdy, sdz, fwd, right, up, w, halfH);
+      if (!sp || sp.sx < 0 || sp.sx >= w || sp.sy < 0 || sp.sy >= halfH) continue;
+      const t = rayTorus(P[0], P[1], P[2], sdx, sdy, sdz);
+      if (t > 0) continue;
+      const b = Math.floor(star.bright * 220);
+      ctx.fillStyle = `rgb(${b},${b},${Math.min(255, b + 40)})`;
+      ctx.fillRect(sp.sx, sp.sy, star.size, star.size);
+    }
+
+    const sunScreen = worldToScreen(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2], fwd, right, up, w, halfH);
+    if (sunScreen && sunScreen.sy < halfH + 40) {
+      const sunT = rayTorus(P[0], P[1], P[2], SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
+      if (sunT < 0) {
+        const glowR = 60;
+        const grad = ctx.createRadialGradient(sunScreen.sx, sunScreen.sy, 4, sunScreen.sx, sunScreen.sy, glowR);
+        grad.addColorStop(0, 'rgba(255,240,200,0.4)');
+        grad.addColorStop(0.3, 'rgba(255,200,120,0.15)');
+        grad.addColorStop(1, 'rgba(255,180,80,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(sunScreen.sx - glowR, sunScreen.sy - glowR, glowR * 2, glowR * 2);
+        ctx.beginPath();
+        ctx.arc(sunScreen.sx, sunScreen.sy, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff8e0';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sunScreen.sx, sunScreen.sy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffefa';
+        ctx.fill();
+      }
+    }
+  }
+
+  // Floor gradient (shared)
+  function renderFloor(w, h, halfH) {
+    const floorSun = tileSunlight(playerX, playerY);
+    const floorLit = Math.floor(42 * floorSun);
+    const floorDark = Math.floor(26 * floorSun);
+    const floorGrad = ctx.createLinearGradient(0, halfH, 0, h);
+    floorGrad.addColorStop(0, `rgb(${floorLit},${Math.floor(74*floorSun)},${Math.floor(40*floorSun)})`);
+    floorGrad.addColorStop(1, `rgb(${floorDark},${Math.floor(42*floorSun)},${Math.floor(24*floorSun)})`);
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, halfH, w, halfH);
+  }
+
+  // GPU torus render — full screen, kicks off async, draws last result synchronously
+  let pendingGpuSky = null;
+  let lastGpuSkyImage = null;
+
+  function renderTorusGPU(w, h, halfH) {
+    const cam = computeSkyCamera();
+    const horizonFrac = halfH / h; // where horizon sits as fraction from top
+
+    // Deep space background (visible through alpha=0 GPU pixels)
+    ctx.fillStyle = '#06060a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Stars (drawn behind torus, above horizon)
+    renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
+
+    // Kick off full-screen GPU render
+    if (!pendingGpuSky && gpuSky) {
+      pendingGpuSky = gpuSky.render(w, h, horizonFrac, cam.P, cam.fwd, cam.right, cam.up, SUN_DIR, TORUS_R, TORUS_r)
+        .then(img => { lastGpuSkyImage = img; pendingGpuSky = null; })
+        .catch(err => { console.warn('GPU sky error:', err); pendingGpuSky = null; });
+    }
+
+    // Draw last computed GPU image (full screen — torus surface above AND below)
+    if (lastGpuSkyImage && lastGpuSkyImage.width === w && lastGpuSkyImage.height === h) {
+      if (!renderTorusGPU._tmpCanvas || renderTorusGPU._tmpW !== w || renderTorusGPU._tmpH !== h) {
+        renderTorusGPU._tmpCanvas = new OffscreenCanvas(w, h);
+        renderTorusGPU._tmpCtx = renderTorusGPU._tmpCanvas.getContext('2d');
+        renderTorusGPU._tmpW = w;
+        renderTorusGPU._tmpH = h;
+      }
+      renderTorusGPU._tmpCtx.putImageData(lastGpuSkyImage, 0, 0);
+      ctx.drawImage(renderTorusGPU._tmpCanvas, 0, 0);
+    }
+  }
+
+  // Fallback canvas 2D sky renderer (4x4 strips, solid green torus)
+  function renderTorusSkyFallback(w, h) {
+    const halfH = Math.floor(h / 2);
+    const cam = computeSkyCamera();
+
+    ctx.fillStyle = '#06060a';
+    ctx.fillRect(0, 0, w, halfH);
+
+    renderStarsAndSun(w, halfH, cam.P, cam.fwd, cam.right, cam.up);
+
+    // Torus silhouette with sun lighting (4x4 strips)
+    const skyStripW = isMobile ? 8 : 4, skyStripH = isMobile ? 8 : 4;
+    const skyColsCount = Math.ceil(w / skyStripW);
+    const skyRowsCount = Math.ceil(halfH / skyStripH);
+    const { P, fwd, right, up } = cam;
+
+    for (let row = 0; row < skyRowsCount; row++) {
+      const sy = row * skyStripH;
+      const screenV = 1 - sy / halfH;
+      const elevAngle = screenV * VFOV;
+      for (let col = 0; col < skyColsCount; col++) {
+        const sx = col * skyStripW;
+        const screenH = (sx / w) * 2 - 1;
+        const azAngle = screenH * FOV / 2;
+        const rd = [
+          fwd[0]*Math.cos(elevAngle)*Math.cos(azAngle) + right[0]*Math.cos(elevAngle)*Math.sin(azAngle) + up[0]*Math.sin(elevAngle),
+          fwd[1]*Math.cos(elevAngle)*Math.cos(azAngle) + right[1]*Math.cos(elevAngle)*Math.sin(azAngle) + up[1]*Math.sin(elevAngle),
+          fwd[2]*Math.cos(elevAngle)*Math.cos(azAngle) + right[2]*Math.cos(elevAngle)*Math.sin(azAngle) + up[2]*Math.sin(elevAngle),
+        ];
+        const t = rayTorus(P[0], P[1], P[2], rd[0], rd[1], rd[2]);
+        if (t > 0) {
+          const hx = P[0] + t * rd[0], hy = P[1] + t * rd[1], hz = P[2] + t * rd[2];
+          const distFromAxis = Math.sqrt(hx * hx + hz * hz);
+          const tubeX = (distFromAxis > 0.001) ? hx * TORUS_R / distFromAxis : TORUS_R;
+          const tubeZ = (distFromAxis > 0.001) ? hz * TORUS_R / distFromAxis : 0;
+          const hnx = hx - tubeX, hny = hy, hnz = hz - tubeZ;
+          const hnLen = Math.sqrt(hnx*hnx + hny*hny + hnz*hnz) || 1;
+          const sunDot = Math.max(0, (hnx * SUN_DIR[0] + hny * SUN_DIR[1] + hnz * SUN_DIR[2]) / hnLen);
+          const fade = Math.min(1, t / 40);
+          const distDim = 1 - fade * 0.7;
+          const sr = Math.floor(Math.min(255, (25 + 45 * sunDot) * distDim));
+          const sg = Math.floor(Math.min(255, (35 + 65 * sunDot) * distDim));
+          const sb = Math.floor(Math.min(255, (18 + 25 * sunDot) * distDim));
+          ctx.fillStyle = `rgb(${sr},${sg},${sb})`;
+          ctx.fillRect(sx, sy, skyStripW, skyStripH);
+        }
+      }
+    }
+
+    renderFloor(w, h, halfH);
+  }
+
+  // Main dispatcher
+  function renderTorusSky(w, h, halfH) {
+    if (gpuSky) {
+      renderTorusGPU(w, h, halfH);
+    } else {
+      renderTorusSkyFallback(w, h);
+    }
+  }
+
+  function renderFP() {
+    const w = canvas.width, h = canvas.height;
+    // Horizon shifts with pitch and jump height
+    const pitchShift = Math.floor(playerPitch / VFOV * h);
+    const heightShift = Math.floor(playerHeight * 40);
+    const halfH = Math.floor(h / 2) + pitchShift + heightShift;
+
+    // Full-screen torus surface (GPU) or sky+floor (fallback)
+    renderTorusSky(w, h, halfH);
+  }
+
+  function render() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (fpMode) {
+      renderFP();
+    } else {
+      // === Top-down renderer ===
+      const tilesX = Math.ceil(w / TILE_PX) + 2;
+      const tilesY = Math.ceil(h / TILE_PX) + 2;
+      const camX = playerX, camY = playerY;
+      const offsetPxX = (camX * TILE_PX) - w / 2;
+      const offsetPxY = (camY * TILE_PX) - h / 2;
+      const startTileX = Math.floor(offsetPxX / TILE_PX);
+      const startTileY = Math.floor(offsetPxY / TILE_PX);
+      const fracX = offsetPxX - startTileX * TILE_PX;
+      const fracY = offsetPxY - startTileY * TILE_PX;
+
+      for (let ty = 0; ty < tilesY; ty++) {
+        for (let tx = 0; tx < tilesX; tx++) {
+          const worldTX = ((startTileX + tx) % WORLD_W + WORLD_W) % WORLD_W;
+          const worldTY = ((startTileY + ty) % WORLD_H + WORLD_H) % WORLD_H;
+          const tile = world[worldTY * WORLD_W + worldTX];
+          const screenX = tx * TILE_PX - fracX;
+          const screenY = ty * TILE_PX - fracY;
+          drawTile(tile, screenX, screenY, worldTX, worldTY);
+        }
+      }
+
+      // Draw remote players
+      for (const [pid, rp] of remotePlayers) {
+        let rdx = rp.x - camX, rdy = rp.y - camY;
+        if (rdx > WORLD_W / 2) rdx -= WORLD_W;
+        if (rdx < -WORLD_W / 2) rdx += WORLD_W;
+        if (rdy > WORLD_H / 2) rdy -= WORLD_H;
+        if (rdy < -WORLD_H / 2) rdy += WORLD_H;
+        const rsx = w / 2 + rdx * TILE_PX - 8;
+        const rsy = h / 2 + rdy * TILE_PX - 8;
+        if (rsx > -32 && rsx < w + 32 && rsy > -32 && rsy < h + 32) {
+          drawPlayer(rsx, rsy, rp.name, rp.dir, rp.frame, rp.colorIdx);
+        }
+      }
+
+      // Draw local player at screen center
+      drawPlayer(w / 2 - 8, h / 2 - 8, playerName, playerDir, playerFrame, 0);
+    }
+
+    // Update minimap player dot
+    mmCtx.putImageData(mmImg, 0, 0);
+    mmCtx.fillStyle = '#fff';
+    const mmx = wrapX(playerX);
+    const mmy = wrapY(playerY);
+    mmCtx.fillRect(mmx - 1, mmy - 1, 3, 3);
+    // Remote player dots on minimap
+    for (const [, rp] of remotePlayers) {
+      const rpx = wrapX(rp.x);
+      const rpy = wrapY(rp.y);
+      const pc = PLAYER_COLORS[rp.colorIdx % PLAYER_COLORS.length];
+      mmCtx.fillStyle = pc;
+      mmCtx.fillRect(rpx - 1, rpy - 1, 3, 3);
+    }
+    // Draw viewport rectangle
+    mmCtx.strokeStyle = 'rgba(255,255,200,0.5)';
+    mmCtx.lineWidth = 1;
+    const vpw = tilesX / WORLD_W * WORLD_W;
+    const vph = tilesY / WORLD_H * WORLD_H;
+    // This wraps too — draw it simply
+    mmCtx.strokeRect(mmx - vpw/2, mmy - vph/2, vpw, vph);
+
+    // HUD
+    const tx = Math.floor(wrapX(playerX));
+    const ty = Math.floor(wrapY(playerY));
+    const tileName = ['grass','grass','grass','water','sand','dirt','tree','rock','flowers','bridge','tall grass','path'][tileAt(playerX, playerY)] || '?';
+    const netInfo = netMode === 'host' ? ` · hosting (${remotePlayers.size} peers)` :
+                    netMode === 'peer' ? ` · ${peerDC && peerDC.readyState === 'open' ? 'connected' : 'connecting...'}` : '';
+    const v = getPlayerV();
+    const gLocal = surfaceGravity().toFixed(1);
+    const jumpInfo = fpMode ? ` · g=${gLocal}${airborne ? ' AIRBORNE h=' + playerHeight.toFixed(1) : ''}` : '';
+    const mouseHint = document.pointerLockElement ? '' : ' · click for mouse look';
+    const controls = fpMode ? `wasd · space=jump · shift+space=super${mouseHint}` : 'wasd / click to move';
+    document.getElementById('hud').textContent =
+      `${tx}, ${ty} · ${tileName}${jumpInfo}${netInfo}\n${controls}`;
+  }
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (!gameStarted) return;
+    const dt = Math.min((t - lastTime) / 1000, 0.05);
+    lastTime = t;
+    update(dt);
+    netTick(dt);
+    render();
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
+
