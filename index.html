@@ -84,7 +84,7 @@ hr {
   position: relative;
   width: min(92vw, 640px);
   aspect-ratio: 1;
-  margin: 0 auto 2rem;
+  margin: 0 auto 1rem;
 }
 
 .orbit {
@@ -92,7 +92,6 @@ hr {
   top: 50%; left: 50%;
   border: 1px solid var(--rule);
   border-radius: 50%;
-  transform-origin: center;
   pointer-events: none;
 }
 
@@ -112,11 +111,8 @@ hr {
   pointer-events: none;
 }
 
-.orbit-label { pointer-events: none; }
-
-.orbit a {
-  position: absolute;
-  pointer-events: auto;
+/* Shared link style for orbit items */
+.orbit a, .planet > a, .moon-ring a {
   font-family: var(--mono);
   font-size: clamp(0.55rem, 1.2vw, 0.68rem);
   letter-spacing: 0.03em;
@@ -127,12 +123,18 @@ hr {
   border: 1px solid var(--rule);
   border-radius: 3px;
   white-space: nowrap;
-  transform: translate(-50%, -50%);
   transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+/* Direct links on orbit (non-planet) */
+.orbit > a {
+  position: absolute;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
   z-index: 1;
 }
 
-.orbit a:hover {
+.orbit > a:hover, .planet > a:hover, .moon-ring a:hover {
   color: var(--link);
   border-color: var(--accent);
   background: var(--accent-faint);
@@ -140,9 +142,46 @@ hr {
   z-index: 10;
 }
 
-.orbit a[data-age="hot"]  { color: var(--c-hot);  border-color: var(--c-hot); }
-.orbit a[data-age="warm"] { color: var(--c-warm); border-color: var(--c-warm); }
-.orbit a[data-age="cold"] { color: var(--c-cold); border-color: var(--c-cold); }
+/* Planet wrapper (link + moon ring) */
+.planet {
+  position: absolute;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.planet > a {
+  position: relative;
+  display: block;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+/* Moon ring orbiting a planet */
+.moon-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  border: 1px dashed color-mix(in srgb, var(--rule) 50%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  width: var(--mr);
+  height: var(--mr);
+  margin-left: calc(var(--mr) / -2);
+  margin-top: calc(var(--mr) / -2);
+}
+
+.moon-ring a {
+  position: absolute;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  font-size: clamp(0.48rem, 1vw, 0.58rem);
+  padding: 0.15rem 0.35rem;
+  z-index: 1;
+}
+
+/* Color coding */
+[data-age="hot"]  { color: var(--c-hot)  !important; border-color: var(--c-hot)  !important; }
+[data-age="warm"] { color: var(--c-warm) !important; border-color: var(--c-warm) !important; }
+[data-age="cold"] { color: var(--c-cold) !important; border-color: var(--c-cold) !important; }
 
 .orrery-center {
   position: absolute;
@@ -152,19 +191,45 @@ hr {
   border-radius: 50%;
   background: var(--accent);
   opacity: 0.5;
+  z-index: 5;
 }
 
-/* Orbit animation */
-@keyframes drift {
-  to { transform: rotate(var(--drift-to)); }
-}
+/* Spin animations */
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.orbit[data-animated] {
-  animation: drift var(--drift-dur) linear infinite alternate;
-}
+.orbit[data-dir="cw"]  { animation: spin var(--speed) linear infinite; }
+.orbit[data-dir="ccw"] { animation: spin var(--speed) linear infinite reverse; }
+
+.orbit[data-dir="cw"]  > a,
+.orbit[data-dir="cw"]  > .planet { animation: spin var(--speed) linear infinite reverse; }
+.orbit[data-dir="ccw"] > a,
+.orbit[data-dir="ccw"] > .planet { animation: spin var(--speed) linear infinite; }
+
+.moon-ring { animation: spin var(--moon-speed) linear infinite; }
+.moon-ring a { animation: spin var(--moon-speed) linear infinite reverse; }
 
 @media (prefers-reduced-motion: reduce) {
-  .orbit[data-animated] { animation: none; }
+  .orbit, .orbit > a, .orbit > .planet,
+  .moon-ring, .moon-ring a { animation: none !important; }
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2rem;
+}
+.legend-item { display: flex; align-items: center; gap: 0.3rem; }
+.legend-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 /* Site count */
@@ -314,44 +379,39 @@ footer a:hover {
   <div class="orrery-center"></div>
 
   <!-- Ring 1: work (innermost) -->
-  <div class="orbit" data-ring="1" data-animated style="--drift-to:12deg;--drift-dur:40s">
+  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s">
     <span class="orbit-label">work</span>
-    <a href="https://mino.mobi/org/" data-age="warm">org</a>
-    <a href="https://mino.mobi/crm/">crm</a>
-    <a href="https://mino.mobi/pm/">pm</a>
-    <a href="https://mino.mobi/wave/">wave</a>
-    <a href="https://mino.mobi/bounty/">bounty</a>
+    <a href="https://mino.mobi/org/" data-age="hot">org</a>
+    <a href="https://mino.mobi/crm/" data-age="cold">crm</a>
+    <a href="https://mino.mobi/pm/" data-age="warm">pm</a>
+    <a href="https://mino.mobi/wave/" data-age="cold">wave</a>
+    <a href="https://mino.mobi/bounty/" data-age="cold">bounty</a>
   </div>
 
-  <!-- Ring 2: data -->
-  <div class="orbit" data-ring="2" data-animated style="--drift-to:-10deg;--drift-dur:50s">
+  <!-- Ring 2: data — finance has bogo moon, cards has play moon -->
+  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:110s">
     <span class="orbit-label">data</span>
     <a href="https://time.mino.mobi" data-age="cold">time</a>
-    <a href="https://mino.mobi/mega/">mega</a>
-    <a href="https://mino.mobi/finance/" data-age="hot">finance</a>
-    <a href="https://mino.mobi/finance/bogo/" data-age="hot">bogo</a>
-    <a href="https://mino.mobi/wars/">wars</a>
+    <a href="https://mino.mobi/mega/" data-age="cold">mega</a>
+    <div class="planet">
+      <a href="https://mino.mobi/finance/" data-age="hot">finance</a>
+      <div class="moon-ring" style="--mr:52px;--moon-speed:10s">
+        <a href="https://mino.mobi/finance/bogo/" data-age="hot">bogo</a>
+      </div>
+    </div>
+    <a href="https://mino.mobi/wars/" data-age="cold">wars</a>
     <a href="https://mino.mobi/flows/" data-age="cold">flows</a>
     <a href="https://mino.mobi/phylo/" data-age="cold">phylo</a>
-    <a href="https://mino.mobi/cards/" data-age="hot">cards</a>
+    <div class="planet">
+      <a href="https://mino.mobi/cards/" data-age="hot">cards</a>
+      <div class="moon-ring" style="--mr:52px;--moon-speed:9s">
+        <a href="https://mino.mobi/cards/play/" data-age="cold">play</a>
+      </div>
+    </div>
   </div>
 
-  <!-- Ring 3: games -->
-  <div class="orbit" data-ring="3" data-animated style="--drift-to:8deg;--drift-dur:55s">
-    <span class="orbit-label">games</span>
-    <a href="https://mino.mobi/cards/play/">play</a>
-    <a href="https://mino.mobi/clock/pac/" data-age="hot">pac</a>
-    <a href="https://mino.mobi/clock/torpac/" data-age="hot">torpac</a>
-    <a href="https://mino.mobi/clock/knotpac/" data-age="hot">knotpac</a>
-    <a href="https://mino.mobi/clock/inpac/" data-age="hot">inpac</a>
-    <a href="https://mino.mobi/clock/toruschess/" data-age="warm">chess</a>
-    <a href="https://mino.mobi/clock/emsim/" data-age="hot">emsim</a>
-    <a href="https://mino.mobi/clock/scape/" data-age="hot">scape</a>
-    <a href="https://mino.mobi/clock/stretch/" data-age="warm">stretch</a>
-  </div>
-
-  <!-- Ring 4: bluesky -->
-  <div class="orbit" data-ring="4" data-animated style="--drift-to:-7deg;--drift-dur:65s">
+  <!-- Ring 3: bluesky -->
+  <div class="orbit" data-ring="3" data-dir="cw" style="--speed:140s">
     <span class="orbit-label">bluesky</span>
     <a href="https://poll.mino.mobi" data-age="warm">poll</a>
     <a href="https://mino.mobi/photo/" data-age="hot">photo</a>
@@ -365,29 +425,50 @@ footer a:hover {
     <a href="https://mino.mobi/cluster/" data-age="cold">cluster</a>
   </div>
 
-  <!-- Ring 5: tools (outermost) -->
-  <div class="orbit" data-ring="5" data-animated style="--drift-to:6deg;--drift-dur:70s">
+  <!-- Ring 4: tools (outermost) — read has flow moon, clock has 8 moons -->
+  <div class="orbit" data-ring="4" data-dir="ccw" style="--speed:170s">
     <span class="orbit-label">tools</span>
     <a href="https://mino.mobi/labglass/" data-age="cold">labglass</a>
     <a href="https://mino.mobi/os/" data-age="hot">os</a>
-    <a href="https://mino.mobi/read/" data-age="hot">read</a>
-    <a href="https://mino.mobi/read/flow/" data-age="hot">flow</a>
+    <div class="planet">
+      <a href="https://mino.mobi/read/" data-age="hot">read</a>
+      <div class="moon-ring" style="--mr:52px;--moon-speed:11s">
+        <a href="https://mino.mobi/read/flow/" data-age="hot">flow</a>
+      </div>
+    </div>
     <a href="https://mino.mobi/noise/" data-age="cold">noise</a>
     <a href="https://mino.mobi/music/" data-age="cold">music</a>
-    <a href="https://bakery.mino.mobi">bakery</a>
+    <a href="https://bakery.mino.mobi" data-age="cold">bakery</a>
     <a href="https://mino.mobi/sweat/" data-age="cold">sweat</a>
     <a href="https://mino.mobi/audio/" data-age="warm">audio</a>
-    <a href="https://mino.mobi/clock/" data-age="hot">clock</a>
+    <div class="planet">
+      <a href="https://mino.mobi/clock/" data-age="hot">clock</a>
+      <div class="moon-ring" style="--mr:90px;--moon-speed:18s">
+        <a href="https://mino.mobi/clock/pac/" data-age="hot">pac</a>
+        <a href="https://mino.mobi/clock/torpac/" data-age="hot">torpac</a>
+        <a href="https://mino.mobi/clock/knotpac/" data-age="hot">knotpac</a>
+        <a href="https://mino.mobi/clock/inpac/" data-age="hot">inpac</a>
+        <a href="https://mino.mobi/clock/toruschess/" data-age="hot">chess</a>
+        <a href="https://mino.mobi/clock/emsim/" data-age="hot">emsim</a>
+        <a href="https://mino.mobi/clock/scape/" data-age="hot">scape</a>
+        <a href="https://mino.mobi/clock/stretch/" data-age="warm">stretch</a>
+      </div>
+    </div>
   </div>
+</div>
+
+<div class="legend">
+  <span class="legend-item"><span class="legend-dot" style="background:var(--c-hot)"></span> this week</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--c-warm)"></span> last week</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--c-cold)"></span> 2+ weeks</span>
 </div>
 
 <!-- Mobile fallback -->
 <nav class="orrery-fallback">
   <div class="ofb-group"><div class="ofb-label">work</div><div class="ofb-links"><a href="https://mino.mobi/org/">org</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/pm/">pm</a><a href="https://mino.mobi/wave/">wave</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">data</div><div class="ofb-links"><a href="https://time.mino.mobi">time</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/cards/">cards</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">games</div><div class="ofb-links"><a href="https://mino.mobi/cards/play/">play</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/scape/">scape</a><a href="https://mino.mobi/clock/stretch/">stretch</a></div></div>
+  <div class="ofb-group"><div class="ofb-label">data</div><div class="ofb-links"><a href="https://time.mino.mobi">time</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/play/">play</a></div></div>
   <div class="ofb-group"><div class="ofb-label">bluesky</div><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://mino.mobi/photo/">photo</a><a href="https://mino.mobi/zoom/">zoom</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/cluster/">cluster</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">tools</div><div class="ofb-links"><a href="https://mino.mobi/labglass/">labglass</a><a href="https://mino.mobi/os/">os</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/music/">music</a><a href="https://bakery.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/audio/">audio</a><a href="https://mino.mobi/clock/">clock</a></div></div>
+  <div class="ofb-group"><div class="ofb-label">tools</div><div class="ofb-links"><a href="https://mino.mobi/labglass/">labglass</a><a href="https://mino.mobi/os/">os</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/music/">music</a><a href="https://bakery.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/audio/">audio</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/scape/">scape</a><a href="https://mino.mobi/clock/stretch/">stretch</a></div></div>
 </nav>
 
 <div class="site-count">42 sites</div>
@@ -751,47 +832,53 @@ footer a:hover {
 (function() {
   var orrery = document.getElementById('orrery');
   if (!orrery) return;
-  var size = orrery.offsetWidth;
-  var rings = orrery.querySelectorAll('.orbit');
-  var count = rings.length;
 
-  // Radii as fraction of half-size: inner to outer
-  var radii = [0.16, 0.32, 0.50, 0.68, 0.88];
+  var radii = [0.18, 0.40, 0.64, 0.90];
+  var offsets = [-0.4, 0.3, -0.2, 0.5];
 
-  rings.forEach(function(ring, ri) {
-    var r = (size / 2) * radii[ri];
-    var d = r * 2;
-    ring.style.width = d + 'px';
-    ring.style.height = d + 'px';
-    ring.style.marginLeft = -r + 'px';
-    ring.style.marginTop = -r + 'px';
+  function layout() {
+    var size = orrery.offsetWidth;
+    var rings = orrery.querySelectorAll('.orbit');
 
-    var links = ring.querySelectorAll('a');
-    var n = links.length;
-    // Stagger start angle per ring so labels don't collide
-    var offsets = [-0.3, 0.4, -0.1, 0.2, -0.5];
-    links.forEach(function(a, i) {
-      var angle = (2 * Math.PI * i / n) + offsets[ri];
-      a.style.left = (50 + 50 * Math.cos(angle)) + '%';
-      a.style.top = (50 + 50 * Math.sin(angle)) + '%';
+    rings.forEach(function(ring, ri) {
+      var r = (size / 2) * radii[ri];
+      var d = r * 2;
+      ring.style.width = d + 'px';
+      ring.style.height = d + 'px';
+      ring.style.marginLeft = -r + 'px';
+      ring.style.marginTop = -r + 'px';
+
+      // Position direct children (a or .planet) evenly around the ring
+      var items = [];
+      ring.childNodes.forEach(function(n) {
+        if (n.nodeType === 1 && (n.tagName === 'A' || n.classList.contains('planet'))) items.push(n);
+      });
+      var count = items.length;
+      items.forEach(function(el, i) {
+        var angle = (2 * Math.PI * i / count) + offsets[ri];
+        el.style.left = (50 + 50 * Math.cos(angle)) + '%';
+        el.style.top = (50 + 50 * Math.sin(angle)) + '%';
+      });
     });
-  });
 
-  // Recompute on resize
+    // Position moons on moon-rings
+    orrery.querySelectorAll('.moon-ring').forEach(function(mr) {
+      var moons = mr.querySelectorAll('a');
+      var n = moons.length;
+      moons.forEach(function(m, i) {
+        var angle = (2 * Math.PI * i / n) - Math.PI / 2;
+        m.style.left = (50 + 50 * Math.cos(angle)) + '%';
+        m.style.top = (50 + 50 * Math.sin(angle)) + '%';
+      });
+    });
+  }
+
+  layout();
+
   var resizeTimer;
   window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function() {
-      var s = orrery.offsetWidth;
-      rings.forEach(function(ring, ri) {
-        var r = (s / 2) * radii[ri];
-        var d = r * 2;
-        ring.style.width = d + 'px';
-        ring.style.height = d + 'px';
-        ring.style.marginLeft = -r + 'px';
-        ring.style.marginTop = -r + 'px';
-      });
-    }, 100);
+    resizeTimer = setTimeout(layout, 100);
   });
 })();
 </script>
