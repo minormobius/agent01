@@ -389,6 +389,42 @@ footer a:hover {
   display: block;
   cursor: crosshair;
 }
+.git-branch-wrap {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--accent-faint);
+  margin-top: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+.git-branch-wrap canvas {
+  display: block;
+  cursor: crosshair;
+}
+/* Themed scrollbar */
+.git-branch-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+.git-branch-wrap::-webkit-scrollbar-track {
+  background: var(--accent-faint);
+  border-radius: 3px;
+}
+.git-branch-wrap::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+.git-branch-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--link);
+}
+@supports (scrollbar-color: auto) {
+  .git-branch-wrap {
+    scrollbar-color: var(--accent) var(--accent-faint);
+    scrollbar-width: thin;
+  }
+}
 .git-tip {
   display: none;
   position: absolute;
@@ -544,6 +580,10 @@ footer a:hover {
   <div class="git-canvas-wrap">
     <canvas id="git-canvas"></canvas>
     <div class="git-tip" id="git-tip"></div>
+  </div>
+  <div class="git-branch-wrap">
+    <canvas id="git-branches"></canvas>
+    <div class="git-tip" id="git-branch-tip"></div>
   </div>
   <div class="git-legend" id="git-legend"></div>
 </div>
@@ -972,13 +1012,16 @@ footer a:hover {
 </script>
 <script>
 (function() {
-  var canvas = document.getElementById('git-canvas');
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  var wrap = canvas.closest('.git-canvas-wrap');
+  var spiralCanvas = document.getElementById('git-canvas');
+  var branchCanvas = document.getElementById('git-branches');
+  if (!spiralCanvas || !branchCanvas) return;
 
-  var DOT_R = 1.8;
-  var tip = document.getElementById('git-tip');
+  var spiralCtx = spiralCanvas.getContext('2d');
+  var branchCtx = branchCanvas.getContext('2d');
+  var spiralWrap = spiralCanvas.closest('.git-canvas-wrap');
+  var branchWrap = branchCanvas.closest('.git-branch-wrap');
+  var spiralTip = document.getElementById('git-tip');
+  var branchTip = document.getElementById('git-branch-tip');
 
   var projectColor = {
     poll:'#e63946', photo:'#457b9d', cards:'#2a9d8f', bakery:'#d4a030',
@@ -994,14 +1037,9 @@ footer a:hover {
 
   var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   var mergeCol = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
-
-  fetch('git-graph.json').then(function(r) { return r.text(); }).then(function(text) {
-    var commits = JSON.parse(text.split('\n')[0]);
-    commits.reverse(); // oldest first
-    render(commits);
-  }).catch(function(e) {
-    console.error('git-graph load failed:', e);
-  });
+  var lineBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  var textCol = isDark ? '#888' : '#999';
+  var monoFont = getComputedStyle(document.documentElement).getPropertyValue('--mono');
 
   function pickColor(dirs) {
     for (var i = 0; i < dirs.length; i++) {
@@ -1010,132 +1048,7 @@ footer a:hover {
     return projectColor.root;
   }
 
-  function render(commits) {
-    var byHash = {};
-    commits.forEach(function(c, i) { c._i = i; byHash[c.h] = c; });
-
-    // Spiral parameters
-    var containerW = wrap.offsetWidth || 500;
-    var size = Math.min(containerW, 520);
-    var W = size;
-    var H = size * 1.1;
-    var cx = W / 2;
-    var cy = H / 2;
-    var dpr = window.devicePixelRatio || 1;
-
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.scale(dpr, dpr);
-
-    // Archimedean spiral: r = a + b*theta
-    // Oldest at center, newest at edge
-    var a = 18;  // starting radius
-    var gap = 7; // gap between rings (tight = fingerprint ridges)
-    var b = gap / (2 * Math.PI);
-    var maxR = Math.min(cx, cy) - 16;
-    var totalTheta = (maxR - a) / b;
-
-    // Arc-length parameterization for uniform ridge spacing
-    // Arc length of Archimedean spiral ≈ a*θ + b*θ²/2
-    var totalArc = a * totalTheta + b * totalTheta * totalTheta / 2;
-    var arcStep = totalArc / (commits.length - 1 || 1);
-
-    // Place commits at equal arc-length intervals
-    var theta = 0;
-    commits.forEach(function(c, i) {
-      if (i > 0) {
-        var r = a + b * theta;
-        theta += arcStep / Math.max(r, 1);
-      }
-      c._r = a + b * theta;
-      c._x = cx + c._r * Math.cos(theta - Math.PI / 2);
-      c._y = cy + c._r * Math.sin(theta - Math.PI / 2);
-      c._theta = theta;
-    });
-
-    // Draw ridge lines (colored segments between adjacent commits)
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    for (var i = 1; i < commits.length; i++) {
-      var prev = commits[i - 1];
-      var curr = commits[i];
-      ctx.beginPath();
-      ctx.moveTo(prev._x, prev._y);
-
-      // Interpolate along spiral arc for smoothness
-      var dth = curr._theta - prev._theta;
-      var steps = Math.max(3, Math.ceil(dth / 0.3));
-      for (var s = 1; s <= steps; s++) {
-        var t = s / steps;
-        var theta = prev._theta + t * dth;
-        var r = a + b * theta;
-        var x = cx + r * Math.cos(theta - Math.PI / 2);
-        var y = cy + r * Math.sin(theta - Math.PI / 2);
-        ctx.lineTo(x, y);
-      }
-
-      ctx.strokeStyle = pickColor(curr.d);
-      ctx.globalAlpha = 0.55;
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-
-    // Draw merge arcs (second parent connections)
-    ctx.lineWidth = 0.7;
-    ctx.globalAlpha = 0.25;
-    commits.forEach(function(c) {
-      if (!c.m) return;
-      for (var j = 1; j < c.p.length; j++) {
-        var parent = byHash[c.p[j]];
-        if (!parent) continue;
-        ctx.strokeStyle = mergeCol;
-        ctx.beginPath();
-        ctx.moveTo(parent._x, parent._y);
-        // Curve through center for visual clarity
-        var mx = (parent._x + c._x) / 2;
-        var my = (parent._y + c._y) / 2;
-        var pull = 0.3;
-        var cpx = mx + (cx - mx) * pull;
-        var cpy = my + (cy - my) * pull;
-        ctx.quadraticCurveTo(cpx, cpy, c._x, c._y);
-        ctx.stroke();
-      }
-    });
-    ctx.globalAlpha = 1;
-
-    // Draw commit dots
-    commits.forEach(function(c) {
-      ctx.beginPath();
-      var r = c.m ? DOT_R + 1.2 : DOT_R;
-      ctx.arc(c._x, c._y, r, 0, Math.PI * 2);
-      ctx.fillStyle = pickColor(c.d);
-      ctx.fill();
-    });
-
-    // Month labels along the spiral
-    ctx.font = '8px ' + getComputedStyle(document.documentElement).getPropertyValue('--mono');
-    ctx.fillStyle = isDark ? '#555' : '#bbb';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var lastMonth = -1;
-    commits.forEach(function(c) {
-      var d = new Date(c.t * 1000);
-      var m = d.getFullYear() * 12 + d.getMonth();
-      if (m !== lastMonth) {
-        lastMonth = m;
-        // Place label slightly outside the spiral at this point
-        var theta = c._theta - Math.PI / 2;
-        var lr = c._r + gap * 0.6;
-        var lx = cx + lr * Math.cos(theta);
-        var ly = cy + lr * Math.sin(theta);
-        ctx.fillText(months[d.getMonth()] + "'" + String(d.getFullYear()).slice(2), lx, ly);
-      }
-    });
-
-    // Build legend (top 10 projects by frequency)
+  function buildLegend(commits) {
     var seen = {};
     var dirCount = {};
     commits.forEach(function(c) {
@@ -1148,54 +1061,285 @@ footer a:hover {
     });
     var legendEl = document.getElementById('git-legend');
     var entries = Object.keys(seen).sort(function(a, b) { return (dirCount[b] || 0) - (dirCount[a] || 0); });
-    entries.slice(0, 12).forEach(function(d) {
+    entries.slice(0, 14).forEach(function(d) {
       var s = document.createElement('span');
       s.innerHTML = '<i style="background:' + seen[d] + '"></i>' + d;
       legendEl.appendChild(s);
     });
+  }
 
-    // Hover tooltip
-    canvas.addEventListener('mousemove', function(e) {
-      var rect = canvas.getBoundingClientRect();
-      var mx = e.clientX - rect.left;
+  function addTooltip(cvs, tipEl, commitsArr, xKey, yKey, wrapEl) {
+    cvs.addEventListener('mousemove', function(e) {
+      var rect = cvs.getBoundingClientRect();
+      var mx = e.clientX - rect.left + (wrapEl.scrollLeft || 0);
       var my = e.clientY - rect.top;
-
-      // Find nearest commit
-      var best = -1, bestDist = 20; // 20px detection radius
-      for (var i = 0; i < commits.length; i++) {
-        var dx = commits[i]._x - mx;
-        var dy = commits[i]._y - my;
+      var best = -1, bestDist = 16;
+      for (var i = 0; i < commitsArr.length; i++) {
+        var dx = commitsArr[i][xKey] - mx;
+        var dy = commitsArr[i][yKey] - my;
         var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = i;
-        }
+        if (dist < bestDist) { bestDist = dist; best = i; }
       }
-
       if (best >= 0) {
-        var c = commits[best];
+        var c = commitsArr[best];
         var d = new Date(c.t * 1000);
         var ds = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         var dirs = c.d.filter(function(x) { return x !== 'root'; });
-        tip.innerHTML = '<b>' + (dirs.length ? dirs.join(', ') : 'root') + '</b><br>' +
+        tipEl.innerHTML = '<b>' + (dirs.length ? dirs.join(', ') : 'root') + '</b><br>' +
           c.h + (c.m ? ' (merge)' : '') + '<br>' + ds;
-        tip.style.display = 'block';
-        // Position tooltip
-        var tx = mx + 14;
-        var ty = my - 10;
-        if (tx + 160 > W) tx = mx - 160;
-        if (ty < 0) ty = my + 14;
-        tip.style.left = tx + 'px';
-        tip.style.top = ty + 'px';
+        tipEl.style.display = 'block';
+        var tx = (e.clientX - rect.left) + 14;
+        var ty = (e.clientY - rect.top) - 10;
+        var cw = cvs.offsetWidth || 500;
+        if (tx + 160 > cw) tx = (e.clientX - rect.left) - 160;
+        if (ty < 0) ty = (e.clientY - rect.top) + 14;
+        tipEl.style.left = tx + 'px';
+        tipEl.style.top = ty + 'px';
       } else {
-        tip.style.display = 'none';
+        tipEl.style.display = 'none';
+      }
+    });
+    cvs.addEventListener('mouseleave', function() { tipEl.style.display = 'none'; });
+  }
+
+  // ── Fingerprint spiral renderer ──
+  function renderSpiral(commits, byHash) {
+    var containerW = spiralWrap.offsetWidth || 500;
+    var size = Math.min(containerW, 520);
+    var W = size, H = size * 1.1;
+    var cx = W / 2, cy = H / 2;
+    var dpr = window.devicePixelRatio || 1;
+
+    spiralCanvas.width = W * dpr;
+    spiralCanvas.height = H * dpr;
+    spiralCanvas.style.width = W + 'px';
+    spiralCanvas.style.height = H + 'px';
+    spiralCtx.scale(dpr, dpr);
+
+    var a = 18, gap = 7, b = gap / (2 * Math.PI);
+    var maxR = Math.min(cx, cy) - 16;
+    var totalTheta = (maxR - a) / b;
+    var totalArc = a * totalTheta + b * totalTheta * totalTheta / 2;
+    var arcStep = totalArc / (commits.length - 1 || 1);
+
+    var theta = 0;
+    commits.forEach(function(c, i) {
+      if (i > 0) { theta += arcStep / Math.max(a + b * theta, 1); }
+      c._r = a + b * theta;
+      c._x = cx + c._r * Math.cos(theta - Math.PI / 2);
+      c._y = cy + c._r * Math.sin(theta - Math.PI / 2);
+      c._theta = theta;
+    });
+
+    // Ridge lines
+    spiralCtx.lineWidth = 3;
+    spiralCtx.lineCap = 'round';
+    for (var i = 1; i < commits.length; i++) {
+      var prev = commits[i - 1], curr = commits[i];
+      spiralCtx.beginPath();
+      spiralCtx.moveTo(prev._x, prev._y);
+      var dth = curr._theta - prev._theta;
+      var steps = Math.max(3, Math.ceil(dth / 0.3));
+      for (var s = 1; s <= steps; s++) {
+        var t = s / steps;
+        var th = prev._theta + t * dth;
+        var r = a + b * th;
+        spiralCtx.lineTo(cx + r * Math.cos(th - Math.PI / 2), cy + r * Math.sin(th - Math.PI / 2));
+      }
+      spiralCtx.strokeStyle = pickColor(curr.d);
+      spiralCtx.globalAlpha = 0.55;
+      spiralCtx.stroke();
+    }
+    spiralCtx.globalAlpha = 1;
+
+    // Merge arcs
+    spiralCtx.lineWidth = 0.7;
+    spiralCtx.globalAlpha = 0.25;
+    commits.forEach(function(c) {
+      if (!c.m) return;
+      for (var j = 1; j < c.p.length; j++) {
+        var parent = byHash[c.p[j]];
+        if (!parent) continue;
+        spiralCtx.strokeStyle = mergeCol;
+        spiralCtx.beginPath();
+        spiralCtx.moveTo(parent._x, parent._y);
+        var mx = (parent._x + c._x) / 2, my = (parent._y + c._y) / 2;
+        spiralCtx.quadraticCurveTo(mx + (cx - mx) * 0.3, my + (cy - my) * 0.3, c._x, c._y);
+        spiralCtx.stroke();
+      }
+    });
+    spiralCtx.globalAlpha = 1;
+
+    // Dots
+    commits.forEach(function(c) {
+      spiralCtx.beginPath();
+      spiralCtx.arc(c._x, c._y, c.m ? 3 : 1.8, 0, Math.PI * 2);
+      spiralCtx.fillStyle = pickColor(c.d);
+      spiralCtx.fill();
+    });
+
+    // Month labels
+    spiralCtx.font = '8px ' + monoFont;
+    spiralCtx.fillStyle = isDark ? '#555' : '#bbb';
+    spiralCtx.textAlign = 'center';
+    spiralCtx.textBaseline = 'middle';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var lastMonth = -1;
+    commits.forEach(function(c) {
+      var d = new Date(c.t * 1000);
+      var m = d.getFullYear() * 12 + d.getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        var th = c._theta - Math.PI / 2;
+        var lr = c._r + gap * 0.6;
+        spiralCtx.fillText(months[d.getMonth()] + "'" + String(d.getFullYear()).slice(2),
+          cx + lr * Math.cos(th), cy + lr * Math.sin(th));
       }
     });
 
-    canvas.addEventListener('mouseleave', function() {
-      tip.style.display = 'none';
-    });
+    addTooltip(spiralCanvas, spiralTip, commits, '_x', '_y', spiralWrap);
   }
+
+  // ── Branch lane scroller renderer ──
+  function renderBranches(commits, byHash) {
+    var LANE_H = 14, COMMIT_W = 5, PAD_TOP = 28, PAD_BOT = 14, PAD_LEFT = 10, DOT_R = 2.5;
+
+    // Lane assignment: process newest-first
+    var lanes = [], maxLane = 0, commitLane = {};
+    function freeLane(l) { lanes[l] = null; }
+    function allocLane() {
+      for (var i = 0; i < lanes.length; i++) { if (lanes[i] === null) return i; }
+      lanes.push(null);
+      return lanes.length - 1;
+    }
+
+    for (var i = commits.length - 1; i >= 0; i--) {
+      var c = commits[i];
+      if (commitLane[c.h] !== undefined) {
+        c._lane = commitLane[c.h];
+      } else {
+        c._lane = allocLane();
+        lanes[c._lane] = c.h;
+      }
+      if (c._lane > maxLane) maxLane = c._lane;
+
+      if (c.p.length > 0) {
+        var fp = c.p[0];
+        if (commitLane[fp] === undefined) {
+          commitLane[fp] = c._lane;
+          lanes[c._lane] = fp;
+        } else {
+          freeLane(c._lane);
+        }
+        for (var j = 1; j < c.p.length; j++) {
+          if (commitLane[c.p[j]] === undefined) {
+            var ml = allocLane();
+            commitLane[c.p[j]] = ml;
+            lanes[ml] = c.p[j];
+            if (ml > maxLane) maxLane = ml;
+          }
+        }
+      } else {
+        freeLane(c._lane);
+      }
+    }
+
+    var W = commits.length * COMMIT_W + PAD_LEFT * 2;
+    var H = (maxLane + 1) * LANE_H + PAD_TOP + PAD_BOT;
+    var dpr = window.devicePixelRatio || 1;
+
+    branchCanvas.width = W * dpr;
+    branchCanvas.height = H * dpr;
+    branchCanvas.style.width = W + 'px';
+    branchCanvas.style.height = H + 'px';
+    branchCtx.scale(dpr, dpr);
+
+    // Month labels
+    branchCtx.font = '9px ' + monoFont;
+    branchCtx.fillStyle = textCol;
+    branchCtx.textAlign = 'center';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var lastMonth = -1;
+    commits.forEach(function(c, i) {
+      var d = new Date(c.t * 1000);
+      var m = d.getFullYear() * 12 + d.getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        var x = PAD_LEFT + i * COMMIT_W;
+        branchCtx.fillText(months[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2), x, 12);
+        branchCtx.strokeStyle = lineBg;
+        branchCtx.lineWidth = 1;
+        branchCtx.beginPath();
+        branchCtx.moveTo(x, 16);
+        branchCtx.lineTo(x, H);
+        branchCtx.stroke();
+      }
+    });
+
+    // Connections
+    branchCtx.lineWidth = 1;
+    commits.forEach(function(c, i) {
+      var x1 = PAD_LEFT + i * COMMIT_W;
+      var y1 = PAD_TOP + c._lane * LANE_H + LANE_H / 2;
+      // Store for tooltip
+      c._bx = x1;
+      c._by = y1;
+
+      c.p.forEach(function(ph, pi) {
+        var parent = byHash[ph];
+        if (!parent) return;
+        var x0 = PAD_LEFT + parent._i * COMMIT_W;
+        var y0 = PAD_TOP + parent._lane * LANE_H + LANE_H / 2;
+
+        branchCtx.strokeStyle = pi === 0 ? pickColor(c.d) : mergeCol;
+        branchCtx.globalAlpha = pi === 0 ? 0.4 : 0.6;
+        branchCtx.beginPath();
+        if (y0 === y1) {
+          branchCtx.moveTo(x0, y0);
+          branchCtx.lineTo(x1, y1);
+        } else {
+          branchCtx.moveTo(x0, y0);
+          var mx = (x0 + x1) / 2;
+          branchCtx.bezierCurveTo(mx, y0, mx, y1, x1, y1);
+        }
+        branchCtx.stroke();
+        branchCtx.globalAlpha = 1;
+      });
+    });
+
+    // Dots
+    commits.forEach(function(c) {
+      branchCtx.beginPath();
+      branchCtx.arc(c._bx, c._by, c.m ? DOT_R + 1 : DOT_R, 0, Math.PI * 2);
+      branchCtx.fillStyle = pickColor(c.d);
+      branchCtx.fill();
+      if (c.m) {
+        branchCtx.strokeStyle = isDark ? '#fff' : '#000';
+        branchCtx.lineWidth = 0.5;
+        branchCtx.stroke();
+        branchCtx.lineWidth = 1;
+      }
+    });
+
+    addTooltip(branchCanvas, branchTip, commits, '_bx', '_by', branchWrap);
+
+    // Scroll to end (most recent)
+    branchWrap.scrollLeft = branchWrap.scrollWidth;
+  }
+
+  // ── Load data and render both ──
+  fetch('git-graph.json').then(function(r) { return r.text(); }).then(function(text) {
+    var commits = JSON.parse(text.split('\n')[0]);
+    commits.reverse(); // oldest first
+    var byHash = {};
+    commits.forEach(function(c, i) { c._i = i; byHash[c.h] = c; });
+
+    renderSpiral(commits, byHash);
+    renderBranches(commits, byHash);
+    buildLegend(commits);
+  }).catch(function(e) {
+    console.error('git-graph load failed:', e);
+  });
 })();
 </script>
 </body>
