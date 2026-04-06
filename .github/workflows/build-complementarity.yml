@@ -1,0 +1,46 @@
+name: Build Complementarity Data
+
+on:
+  push:
+    branches:
+      - main
+      - claude/wiki-card-game-oJbLE
+    paths:
+      - 'scripts/build-complementarity.py'
+      - 'cards/js/yum-pool.js'
+      - 'cards/data/yum-embeddings.json'
+      - 'cards/data/yum-embeddings.bin'
+      - '.github/workflows/build-complementarity.yml'
+
+  workflow_dispatch:
+
+jobs:
+  complementarity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build complementarity data (PMI + clustering)
+        run: python scripts/build-complementarity.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cards/data/yum-complementarity.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "yum: rebuild complementarity data (PMI + clusters) [auto]"
+            git pull --rebase origin ${{ github.ref_name }} || true
+            git push
+          fi

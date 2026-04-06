@@ -1,10 +1,10 @@
-Parsed 725 foods from cards/js/yum-pool.js
+Parsed 742 foods from cards/js/yum-pool.js
 Downloading FooDB CSV dump (~953MB)...
 
 Extracting...
   tar with --exclude failed, retrying plain...
   subprocess tar failed (Command '['tar', 'xzf', '/tmp/foodb_cache/foodb_csv.tar.gz', '-C', '/tmp/foodb_cache/foodb_csv']' returned non-zero exit status 2.), trying Python tarfile...
-/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:123: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+/home/runner/work/agent01/agent01/scripts/fetch-flavor-data.py:120: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
   tar.extractall(extract_dir, members=members)
   Found 29 CSV files in /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv
     AccessionNumber.csv (97KB)
@@ -23,6 +23,7 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Food.csv...
 Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Compound.csv...
   Loaded 70477 compounds
 Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may take a moment)...
+  Content.csv columns: ['id', 'source_id', 'source_type', 'food_id', 'orig_food_id', 'orig_food_common_name', 'orig_food_scientific_name', 'orig_food_part', 'orig_source_id', 'orig_source_name', 'orig_content', 'orig_min', 'orig_max', 'orig_unit', 'orig_citation']
   ...500000 content rows processed
   ...1000000 content rows processed
   ...1500000 content rows processed
@@ -36,54 +37,66 @@ Loading /tmp/foodb_cache/foodb_csv/foodb_2020_04_07_csv/Content.csv (this may ta
   5145532 total rows, 987 foods with compound data
 
 FooDB index: 992 food names
+Wrote FooDB food list to cards/data/foodb-foods.txt
+Loaded manual map: 677 entries (532 with FooDB targets)
 
-Matched: 470/725 foods, 55481 unique compounds
-Wrote data/yum-compounds.json (85906KB)
-  Built vectors: 470/725 foods, 55481 compound dims
-  470 foods with compound data for PCA fitting
-  PCA: 55481 → 64d, 99.5% variance explained
-  Text embeddings for 255 unmatched foods...
-  Got 0 Wikipedia extracts
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3703.94it/s]
-[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
-Key                     | Status     |  | 
-------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  | 
+Matched: 577/742 foods, 58285 unique compounds
+  ⚠ 20 foods matched but had issues:
+    Cheddar cheese → FooDB 'Cheddar Cheese' (id=967) — only 1 compounds
+    Mozzarella → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Parmesan cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
+    Gorgonzola → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Feta → FooDB 'Greek feta cheese' (id=988) — only 1 compounds
+    Cottage cheese → FooDB 'Cottage cheese' (id=982) — only 1 compounds
+    Stilton cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Monterey Jack → FooDB 'Monterey Jack cheese' (id=980) — no compounds in Content table
+    Burrata → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Scamorza → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Oaxaca cheese → FooDB 'Mozzarella cheese' (id=965) — only 1 compounds
+    Cotija cheese → FooDB 'Parmesan cheese' (id=968) — only 1 compounds
+    Egg yolk → FooDB 'Egg yolk' (id=951) — only 2 compounds
+    Blue cheese → FooDB 'Blue cheese' (id=983) — only 1 compounds
+    Clam → FooDB 'Clam' (id=984) — only 1 compounds
+    Razor clam → FooDB 'Clam' (id=984) — only 1 compounds
+    Coconut oil → FooDB 'Coconut oil' (id=973) — only 1 compounds
+    Peanut oil → FooDB 'Peanut oil' (id=974) — only 1 compounds
+    Canola oil → FooDB 'Canola oil' (id=954) — only 2 compounds
+    Avocado oil → FooDB 'Avocado oil' (id=977) — only 1 compounds
+Wrote data/yum-compounds.json (133989KB)
+  Built TF-IDF vectors: 577/742 foods, 58285 compound dims
+  577 foods with compound data for PCA fitting
+  PCA: 58285 → 64d, 94.4% variance explained
+  Filled 165 foods with category-neighbor proxy
 
-Notes:
-- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-  Filled 255 foods with text fallback
-
-Wrote cards/data/yum-embeddings.bin (181KB)
-Wrote cards/data/yum-embeddings.json (15KB)
+Wrote cards/data/yum-embeddings.bin (185KB)
+Wrote cards/data/yum-embeddings.json (23KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.800  [COMPOUND]
-  Chocolate ~ Vanilla: -0.942  [COMPOUND]
+  Garlic ~ Onion: 0.451  [COMPOUND]
+  Chocolate ~ Vanilla: -0.264  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.903  [COMPOUND]
-  Salmon ~ Cinnamon: -0.944  [COMPOUND]
-  Basil ~ Oregano: 0.886  [COMPOUND]
-  Coffee ~ Tea: 0.390  [COMPOUND]
-  Butter ~ Ghee: 0.159  [text]
-  Cheddar cheese ~ Brie: 0.143  [text]
-  Apple ~ Pear: 0.894  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.402  [COMPOUND]
+  Salmon ~ Cinnamon: -0.253  [COMPOUND]
+  Basil ~ Oregano: 0.718  [COMPOUND]
+  Coffee ~ Tea: 0.004  [COMPOUND]
+  Butter ~ Ghee: 0.679  [COMPOUND]
+  Cheddar cheese ~ Brie: 0.798  [proxy]
+  Apple ~ Pear: 0.925  [COMPOUND]
 
-  Most similar: 'Corn' ~ 'Corned beef' (1.000)
+  Most similar: 'Shrimp (food)' ~ 'Prawn' (1.000)
 
 ── Match rates by category ──
-  BEVERAGE    :  14/ 30 (46%)
-  CONDIMENT   :  33/ 55 (60%)
-  DAIRY       :  31/ 59 (52%)
-  FRUIT       :  71/100 (71%)
-  GRAIN       :  34/ 50 (68%)
-  LEGUME      :  44/ 55 (80%)
-  MEAT        :  22/ 55 (40%)
-  OIL         :  18/ 25 (72%)
-  SEAFOOD     :  51/ 70 (72%)
-  SPICE       :  54/ 90 (60%)
+  BEVERAGE    :  21/ 30 (70%)
+  CONDIMENT   :  38/ 61 (62%)
+  DAIRY       :  35/ 61 (57%)
+  FRUIT       :  86/100 (86%)
+  GRAIN       :  51/ 51 (100%)
+  LEGUME      :  48/ 55 (87%)
+  MEAT        :  48/ 55 (87%)
+  OIL         :  19/ 25 (76%)
+  SEAFOOD     :  48/ 71 (67%)
+  SPICE       :  63/ 93 (67%)
   SWEET       :  19/ 25 (76%)
-  VEGETABLE   :  79/111 (71%)
+  VEGETABLE   : 101/115 (87%)
 
-Done! 725 food embeddings in 64d (470 compound-based, 255 text-based)
+Done! 742 food embeddings in 64d (577 compound-based, 165 category-proxy)

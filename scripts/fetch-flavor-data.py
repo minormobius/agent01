@@ -12,15 +12,12 @@ Pipeline:
   3. Match our 780 food pool titles to FooDB food entries
   4. Build sparse binary vectors over flavor/aroma compounds
   5. PCA reduce to 64d dense embeddings
-  6. Text-embedding fallback for unmatched prepared dishes
+  6. Category-neighbor proxy for unmatched foods (same PCA space)
   7. Output: yum-embeddings.json + yum-embeddings.bin + yum-compounds.json
+  8. Manual map: data/foodb-map.json (532 curated food→FooDB mappings)
 
 Usage:
     pip install requests numpy scikit-learn
-    python3 scripts/fetch-flavor-data.py
-
-    # With text fallback for unmatched foods
-    pip install requests numpy scikit-learn sentence-transformers
     python3 scripts/fetch-flavor-data.py
 
     # Custom paths
@@ -161,7 +158,7 @@ def load_foodb_foods(csv_dir):
     with open(food_csv, encoding='utf-8', errors='replace') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            fid = row.get('id') or row.get('food_id')
+            fid = (row.get('id') or row.get('food_id') or '').strip()
             if fid:
                 name = (row.get('name') or row.get('food_name') or
                         row.get('name_scientific') or '').strip()
@@ -230,19 +227,29 @@ def load_foodb_contents(csv_dir, food_ids=None):
     rows_read = 0
     with open(content_csv, encoding='utf-8', errors='replace') as f:
         reader = csv.DictReader(f)
-        for row in reader:
+        # Log actual column names for debugging
+        first_row = next(reader, None)
+        if first_row:
+            print(f"  Content.csv columns: {list(first_row.keys())[:15]}",
+                  file=sys.stderr)
+        else:
+            print("  Content.csv is empty!", file=sys.stderr)
+            return {}
+        # Process first row + rest
+        from itertools import chain
+        for row in chain([first_row], reader):
             rows_read += 1
-            fid = row.get('food_id') or row.get('source_id')
-            cid = row.get('source_id')
-
             # The Content table links foods to compounds
             # Try different column name patterns
             if 'food_id' in row and 'source_id' in row:
-                fid = row['food_id']
-                cid = row['source_id']
+                fid = row['food_id'].strip()
+                cid = row['source_id'].strip()
             elif 'food_id' in row and 'compound_id' in row:
-                fid = row['food_id']
-                cid = row['compound_id']
+                fid = row['food_id'].strip()
+                cid = row['compound_id'].strip()
+            else:
+                fid = (row.get('food_id') or row.get('source_id') or '').strip()
+                cid = (row.get('source_id') or '').strip()
 
             if fid and cid:
                 if food_ids is None or fid in food_ids:
@@ -261,7 +268,12 @@ def load_foodb_contents(csv_dir, food_ids=None):
 # ── Matching ─────────────────────────────────────────────────
 
 def match_food_to_foodb(food_name, foodb_by_name):
-    """Match a food pool title to a FooDB food entry."""
+    """Match a food pool title to a FooDB food entry.
+
+    Conservative matching to avoid false positives like:
+      "pepperoni" → "pepper", "corned beef" → "corn",
+      "rose water" → "water", "goose" → "gooseberry"
+    """
     name = normalize_name(food_name)
 
     # Exact
@@ -274,22 +286,61 @@ def match_food_to_foodb(food_name, foodb_by_name):
         if variant in foodb_by_name:
             return foodb_by_name[variant]
 
-    # First word (e.g., "cheddar cheese" → "cheddar")
+    # FooDB comma convention: "butter, salted" → match "butter" as prefix before comma
+    for foodb_name, entry in foodb_by_name.items():
+        foodb_base = foodb_name.split(',')[0].strip()
+        if foodb_base == name:
+            return entry
+
+    # "Common X" / "X (Y)" convention: "common wheat" matches "wheat"
+    for foodb_name, entry in foodb_by_name.items():
+        foodb_base = foodb_name.split(',')[0].strip()
+        # "common wheat" → "wheat"
+        if foodb_base.startswith('common ') and foodb_base[7:] == name:
+            return entry
+
+    # Multi-word our side: "bell pepper" → check "bell pepper" as FooDB comma-prefix
+    # But NOT individual words — "rose water" should NOT match "water"
     words = name.split()
     if len(words) > 1:
-        if words[0] in foodb_by_name:
-            return foodb_by_name[words[0]]
-        if words[-1] in foodb_by_name:
-            return foodb_by_name[words[-1]]
-        # Try without last word (e.g., "bell pepper" → just check "pepper")
-        for w in words:
-            if w in foodb_by_name:
-                return foodb_by_name[w]
+        # Try the full multi-word name as a comma-prefix in FooDB
+        for foodb_name, entry in foodb_by_name.items():
+            foodb_base = foodb_name.split(',')[0].strip()
+            if foodb_base == name:
+                return entry
 
-    # Substring containment
-    for foodb_name, entry in foodb_by_name.items():
-        if name in foodb_name or foodb_name in name:
-            return entry
+        # Try "X cheese" → "X" in FooDB (e.g., "gouda cheese" → "gouda")
+        # Only if the qualifier is a generic category word
+        generic_qualifiers = {'cheese', 'sauce', 'oil', 'seed', 'seeds',
+                              'leaf', 'leaves', 'root', 'powder', 'flour',
+                              'milk', 'cream', 'butter', 'paste', 'syrup',
+                              'water', 'juice', 'vinegar', 'noodles', 'bread'}
+        if words[-1] in generic_qualifiers and len(words) >= 2:
+            base = ' '.join(words[:-1])
+            if base in foodb_by_name:
+                return foodb_by_name[base]
+            # Also check comma-prefix
+            for foodb_name, entry in foodb_by_name.items():
+                if foodb_name.split(',')[0].strip() == base:
+                    return entry
+
+        # Try "adjective X" → "X" in FooDB (e.g., "black pepper" → "pepper")
+        # But be careful: "corned beef" should NOT match "beef" wait yes it should
+        # The adjective patterns that are safe to strip:
+        color_adj = {'black', 'white', 'red', 'green', 'yellow', 'brown',
+                     'dark', 'light', 'wild', 'dried', 'smoked', 'roasted',
+                     'fresh', 'raw', 'cooked', 'pickled', 'fermented',
+                     'candied', 'crystallized', 'toasted', 'ground'}
+        if words[0] in color_adj and len(words) >= 2:
+            rest = ' '.join(words[1:])
+            if rest in foodb_by_name:
+                return foodb_by_name[rest]
+            for foodb_name, entry in foodb_by_name.items():
+                if foodb_name.split(',')[0].strip() == rest:
+                    return entry
+
+    # NO substring matching — it causes too many false positives
+    # ("corn" in "cornmeal", "rice" in "licorice", "pepper" in "pepperoni")
 
     return None
 
@@ -297,21 +348,47 @@ def match_food_to_foodb(food_name, foodb_by_name):
 # ── Embedding computation ────────────────────────────────────
 
 def build_compound_vectors(foods, food_compound_ids, all_compound_ids):
-    """Build sparse binary vectors from compound profiles."""
+    """Build TF-IDF weighted vectors from compound profiles.
+
+    Binary vectors fail because FooDB coverage is wildly bimodal: garlic has
+    6,147 compounds, butter has 148. After PCA, all low-compound foods collapse
+    together. TF-IDF fixes this by:
+      - TF: 1/sqrt(n_compounds) for the food — normalizes for coverage depth
+      - IDF: log(N/df) — downweights ubiquitous compounds (common metabolites),
+        upweights rare distinctive ones (flavor/aroma molecules)
+    """
     compound_to_idx = {c: i for i, c in enumerate(all_compound_ids)}
     n = len(all_compound_ids)
-    vectors = np.zeros((len(foods), n), dtype=np.float32)
 
+    # First pass: compute document frequency (how many foods have each compound)
+    doc_freq = np.zeros(n, dtype=np.float32)
     matched = 0
+    food_cid_lists = []
     for i, (title, _cat) in enumerate(foods):
         cids = food_compound_ids.get(title, set())
+        food_cid_lists.append(cids)
         if cids:
             matched += 1
             for cid in cids:
-                if cid in compound_to_idx:
-                    vectors[i, compound_to_idx[cid]] = 1.0
+                j = compound_to_idx.get(cid)
+                if j is not None:
+                    doc_freq[j] += 1
 
-    print(f"  Built vectors: {matched}/{len(foods)} foods, {n} compound dims",
+    # IDF: log(N_matched / df), clipped to avoid log(0)
+    n_matched = max(matched, 1)
+    idf = np.log(n_matched / np.maximum(doc_freq, 1))
+
+    # Second pass: build TF-IDF vectors
+    vectors = np.zeros((len(foods), n), dtype=np.float32)
+    for i, cids in enumerate(food_cid_lists):
+        if cids:
+            tf = 1.0 / max(np.sqrt(len(cids)), 1)  # normalize for coverage depth
+            for cid in cids:
+                j = compound_to_idx.get(cid)
+                if j is not None:
+                    vectors[i, j] = tf * idf[j]
+
+    print(f"  Built TF-IDF vectors: {matched}/{len(foods)} foods, {n} compound dims",
           file=sys.stderr)
     return vectors
 
@@ -346,62 +423,65 @@ def reduce_dimensions(vectors, target_dim=64):
     return reduced
 
 
-def text_fallback_embeddings(foods, matched_titles, dim=64):
-    """Text embeddings for foods not matched in FooDB."""
-    try:
-        from sentence_transformers import SentenceTransformer
-    except ImportError:
-        print("  sentence-transformers not available, skipping text fallback",
-              file=sys.stderr)
-        return None
+def category_neighbor_fallback(foods, matched_titles, embeddings, k=5):
+    """For unmatched foods, average the embeddings of nearest matched neighbors in same category.
 
-    unmatched = [(i, title) for i, (title, _) in enumerate(foods)
-                 if title not in matched_titles]
+    This keeps all vectors in one coherent compound-PCA space instead of
+    stitching in a separate text-embedding space.  For each unmatched food:
+      1. Find all FooDB-matched foods in the same category
+      2. Take the centroid of those compound embeddings
+      3. If no same-category matches exist, use the global matched centroid
+    Add jitter (scaled noise) so foods aren't perfectly identical.
+    """
+    dim = embeddings.shape[1]
+    title_to_idx = {title: i for i, (title, _) in enumerate(foods)}
 
-    if not unmatched:
-        return None
+    # Group matched foods by category
+    cat_matched = {}  # category → list of indices
+    for title in matched_titles:
+        idx = title_to_idx.get(title)
+        if idx is None:
+            continue
+        cat = foods[idx][1]
+        cat_matched.setdefault(cat, []).append(idx)
 
-    print(f"  Text embeddings for {len(unmatched)} unmatched foods...", file=sys.stderr)
+    # Global matched centroid as final fallback
+    matched_indices = [title_to_idx[t] for t in matched_titles if t in title_to_idx]
+    if not matched_indices:
+        return {}
+    global_centroid = embeddings[matched_indices].mean(axis=0)
 
-    # Fetch Wikipedia extracts
-    extracts = {}
-    unmatched_titles = [t for _, t in unmatched]
-    for batch_start in range(0, len(unmatched_titles), 20):
-        batch = unmatched_titles[batch_start:batch_start + 20]
-        try:
-            resp = requests.get("https://en.wikipedia.org/w/api.php", params={
-                "action": "query", "titles": "|".join(batch),
-                "prop": "extracts", "exintro": True, "explaintext": True,
-                "format": "json", "origin": "*",
-            }, timeout=30)
-            if resp.status_code == 200:
-                for p in resp.json().get("query", {}).get("pages", {}).values():
-                    if p.get("extract"):
-                        extracts[p["title"]] = p["extract"]
-        except Exception as e:
-            print(f"    Wikipedia error: {e}", file=sys.stderr)
-        time.sleep(0.3)
+    rng = np.random.RandomState(42)
+    result = {}
 
-    print(f"  Got {len(extracts)} Wikipedia extracts", file=sys.stderr)
+    for i, (title, cat) in enumerate(foods):
+        if title in matched_titles:
+            continue  # already has compound embedding
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    texts = []
-    for _, title in unmatched:
-        ext = extracts.get(title, "")
-        texts.append(f"{title}: {ext}" if ext else title)
+        # Same-category matched neighbors
+        neighbors = cat_matched.get(cat, [])
+        if neighbors:
+            centroid = embeddings[neighbors].mean(axis=0)
+        else:
+            centroid = global_centroid.copy()
 
-    embeddings = model.encode(texts, batch_size=32, normalize_embeddings=True)
+        # Add small jitter so items aren't identical — scale relative to
+        # the typical spread within this category
+        if len(neighbors) > 1:
+            spread = embeddings[neighbors].std(axis=0).mean()
+        else:
+            spread = 0.1
+        jitter = rng.randn(dim) * spread * 0.3
+        vec = centroid + jitter
 
-    # PCA down to target dim
-    if embeddings.shape[1] > dim:
-        from sklearn.decomposition import PCA
-        pca = PCA(n_components=dim)
-        embeddings = pca.fit_transform(embeddings)
-        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        norms[norms == 0] = 1
-        embeddings = embeddings / norms
+        # L2 normalize
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
 
-    return {idx: emb for (idx, _), emb in zip(unmatched, embeddings)}
+        result[i] = vec
+
+    return result
 
 
 # ── Main ─────────────────────────────────────────────────────
@@ -441,23 +521,94 @@ def main():
 
     print(f"\nFooDB index: {len(foodb_by_name)} food names", file=sys.stderr)
 
-    # 3. Match our foods to FooDB
+    # Normalize content keys to stripped strings for reliable lookup
+    foodb_contents_norm = {str(k).strip(): v for k, v in foodb_contents.items()}
+
+    # Dump all FooDB food names + compound counts for manual map curation
+    foodb_names_path = os.path.join(args.output_dir, "foodb-foods.txt")
+    with open(foodb_names_path, "w") as f:
+        for name in sorted(foodb_by_name.keys()):
+            food = foodb_by_name[name]
+            fid = str(food['id']).strip()
+            n_compounds = len(foodb_contents_norm.get(fid, set()))
+            f.write(f"{name}\t{n_compounds}\n")
+    print(f"Wrote FooDB food list to {foodb_names_path}", file=sys.stderr)
+
+    # 3. Match our foods to FooDB using manual map + fallback
+    # foodb-map.json is at repo_root/data/ — script is at repo_root/scripts/
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    manual_map_path = os.path.join(script_dir, '..', 'data', 'foodb-map.json')
+    manual_map = {}
+    if os.path.exists(manual_map_path):
+        with open(manual_map_path) as f:
+            manual_map = json.load(f)
+        # Remove comment keys
+        manual_map = {k: v for k, v in manual_map.items() if not k.startswith('_')}
+        print(f"Loaded manual map: {len(manual_map)} entries "
+              f"({sum(1 for v in manual_map.values() if v)} with FooDB targets)",
+              file=sys.stderr)
+    else:
+        print(f"  ⚠ Manual map not found at {manual_map_path}", file=sys.stderr)
+
     matched_titles = {}  # our title → set of compound IDs
     all_compound_ids = set()
     match_count = 0
 
+    name_matched_no_compounds = []
+    manual_miss = []
     for title, cat in foods:
-        foodb_entry = match_food_to_foodb(title, foodb_by_name)
+        # 1. Check manual map first
+        foodb_entry = None
+        if title in manual_map:
+            target = manual_map[title]
+            if target is None:
+                continue  # explicitly unmapped
+            if target in foodb_by_name:
+                foodb_entry = foodb_by_name[target]
+            else:
+                # Try comma-prefix match for manual map targets
+                for fn, entry in foodb_by_name.items():
+                    if fn.split(',')[0].strip() == target:
+                        foodb_entry = entry
+                        break
+                if not foodb_entry:
+                    manual_miss.append((title, target))
+                    continue
+
+        # 2. Fallback to fuzzy matcher for foods not in manual map
+        if not foodb_entry:
+            foodb_entry = match_food_to_foodb(title, foodb_by_name)
+
         if foodb_entry:
-            fid = foodb_entry['id']
-            cids = foodb_contents.get(fid, set())
-            if cids:
+            fid = str(foodb_entry['id']).strip()
+            cids = foodb_contents_norm.get(fid, set())
+            if len(cids) >= 10:  # skip entries with too few compounds (useless data)
                 matched_titles[title] = cids
                 all_compound_ids.update(cids)
                 match_count += 1
+            elif cids:
+                name_matched_no_compounds.append(
+                    (title, foodb_entry['name'], fid,
+                     f"only {len(cids)} compounds"))
+            else:
+                name_matched_no_compounds.append(
+                    (title, foodb_entry['name'], fid, "no compounds in Content table"))
 
     print(f"\nMatched: {match_count}/{len(foods)} foods, "
           f"{len(all_compound_ids)} unique compounds", file=sys.stderr)
+    if manual_miss:
+        print(f"  ⚠ {len(manual_miss)} manual map targets not found in FooDB:",
+              file=sys.stderr)
+        for title, target in manual_miss[:30]:
+            print(f"    {title} → '{target}' NOT IN FOODB", file=sys.stderr)
+    if name_matched_no_compounds:
+        print(f"  ⚠ {len(name_matched_no_compounds)} foods matched but had issues:",
+              file=sys.stderr)
+        for title, foodb_name, fid, reason in name_matched_no_compounds[:20]:
+            print(f"    {title} → FooDB '{foodb_name}' (id={fid}) — {reason}", file=sys.stderr)
+        if len(name_matched_no_compounds) > 20:
+            print(f"    ... and {len(name_matched_no_compounds) - 20} more",
+                  file=sys.stderr)
 
     # Build name map for compound IDs → names (for output)
     compound_names = {}
@@ -496,13 +647,13 @@ def main():
         print("No compound data — falling back entirely to text", file=sys.stderr)
         embeddings = np.zeros((len(foods), args.dim), dtype=np.float32)
 
-    # 5. Text fallback for unmatched
+    # 5. Category-neighbor fallback for unmatched (stays in compound space)
     if not args.skip_text_fallback:
-        fallback = text_fallback_embeddings(foods, matched_titles, dim=args.dim)
+        fallback = category_neighbor_fallback(foods, matched_titles, embeddings)
         if fallback:
             for idx, emb in fallback.items():
                 embeddings[idx] = emb
-            print(f"  Filled {len(fallback)} foods with text fallback", file=sys.stderr)
+            print(f"  Filled {len(fallback)} foods with category-neighbor proxy", file=sys.stderr)
 
     # 6. Write outputs
     dim = embeddings.shape[1]
@@ -513,15 +664,19 @@ def main():
     size_kb = os.path.getsize(bin_path) // 1024
     print(f"\nWrote {bin_path} ({size_kb}KB)", file=sys.stderr)
 
+    # Per-food source flag: "compound" or "proxy"
+    sources = ["compound" if t in matched_titles else "proxy" for t in titles]
+
     index_path = os.path.join(args.output_dir, "yum-embeddings.json")
     index = {
         "dim": dim,
         "count": len(titles),
-        "source": "foodb-compounds+text-fallback",
+        "source": "foodb-compounds+category-proxy",
         "foodb_matched": match_count,
         "compounds_count": len(all_compound_ids),
         "titles": titles,
         "categories": categories,
+        "sources": sources,
     }
     with open(index_path, "w") as f:
         json.dump(index, f, separators=(",", ":"), ensure_ascii=False)
@@ -547,7 +702,7 @@ def main():
         if a in title_to_idx and b in title_to_idx:
             ai, bi = title_to_idx[a], title_to_idx[b]
             sim = float(np.dot(embeddings[ai], embeddings[bi]))
-            marker = "COMPOUND" if (a in matched_titles and b in matched_titles) else "text"
+            marker = "COMPOUND" if (a in matched_titles and b in matched_titles) else "proxy"
             print(f"  {a} ~ {b}: {sim:.3f}  [{marker}]", file=sys.stderr)
 
     # Most similar pair
@@ -571,7 +726,7 @@ def main():
         print(f"  {cat:12s}: {s['matched']:3d}/{s['total']:3d} ({pct}%)", file=sys.stderr)
 
     print(f"\nDone! {len(titles)} food embeddings in {dim}d "
-          f"({match_count} compound-based, {len(titles) - match_count} text-based)",
+          f"({match_count} compound-based, {len(titles) - match_count} category-proxy)",
           file=sys.stderr)
 
 

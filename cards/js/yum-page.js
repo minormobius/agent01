@@ -53,15 +53,6 @@ function renderCard(title, category, stats, page) {
           : `<div class="yum-card-no-img">${cat.icon || "?"}</div>`}
         <div class="yum-card-cat" style="color:${cat.color || '#888'}">${cat.name || category} — ${RARITY_LABELS[rarity]}</div>
         <div class="yum-card-title">${title}</div>
-        <div class="yum-card-extract">${page?.extract || ""}</div>
-        <div class="yum-card-stats">
-          <div class="stat"><div class="stat-label">${STAT_LABELS.atk}</div><div class="stat-value">${stats.atk}</div></div>
-          <div class="stat"><div class="stat-label">${STAT_LABELS.def}</div><div class="stat-value">${stats.def}</div></div>
-          <div class="stat"><div class="stat-label">${STAT_LABELS.spc}</div><div class="stat-value">${stats.spc}</div></div>
-          <div class="stat"><div class="stat-label">${STAT_LABELS.spd}</div><div class="stat-value">${stats.spd}</div></div>
-          <div class="stat"><div class="stat-label">${STAT_LABELS.hp}</div><div class="stat-value">${stats.hp}</div></div>
-        </div>
-        <a class="yum-card-link" href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a>
       </div>
     </div>`;
 }

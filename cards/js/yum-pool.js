@@ -285,6 +285,10 @@ export const FOOD_POOL = [
   f("Chili pepper", "VEGETABLE"),
   f("Jalapeño", "VEGETABLE"),
   f("Habanero", "VEGETABLE"),
+  f("Green bean", "VEGETABLE"),
+  f("Snow pea", "VEGETABLE"),
+  f("Sugar snap pea", "VEGETABLE"),
+  f("Garden pea", "VEGETABLE"),
 
   // ══════════════════════════════════════════════════════════
   // GRAINS & FLOUR — 50
@@ -339,6 +343,7 @@ export const FOOD_POOL = [
   f("Coconut flour", "GRAIN"),
   f("Cornstarch", "GRAIN"),
   f("Arrowroot", "GRAIN"),
+  f("All-purpose flour", "GRAIN"),
 
   // ══════════════════════════════════════════════════════════
   // DAIRY & EGGS — 65
@@ -402,6 +407,8 @@ export const FOOD_POOL = [
   f("Quail egg", "DAIRY"),
   f("Egg yolk", "DAIRY"),
   f("Egg white", "DAIRY"),
+  f("Goat cheese", "DAIRY"),
+  f("Blue cheese", "DAIRY"),
 
   // ══════════════════════════════════════════════════════════
   // MEAT & POULTRY — 55
@@ -535,6 +542,7 @@ export const FOOD_POOL = [
   f("Smelt (fish)", "SEAFOOD"),
   f("Whitebait", "SEAFOOD"),
   f("Sprat", "SEAFOOD"),
+  f("Smoked salmon", "SEAFOOD"),
 
   // ══════════════════════════════════════════════════════════
   // OILS & FATS — 25
@@ -658,6 +666,9 @@ export const FOOD_POOL = [
   f("Dried rosemary", "SPICE"),
   f("Garlic powder", "SPICE"),
   f("Onion powder", "SPICE"),
+  f("Salt", "SPICE"),
+  f("Sea salt", "SPICE"),
+  f("Old Bay seasoning", "SPICE"),
 
   // ══════════════════════════════════════════════════════════
   // FERMENTS & SAUCES — 55
@@ -717,6 +728,12 @@ export const FOOD_POOL = [
   f("Agar", "CONDIMENT"),
   f("Pectin", "CONDIMENT"),
   f("Rennet", "CONDIMENT"),
+  f("Mayonnaise", "CONDIMENT"),
+  f("Pesto", "CONDIMENT"),
+  f("Chimichurri", "CONDIMENT"),
+  f("Hot sauce", "CONDIMENT"),
+  f("White wine", "CONDIMENT"),
+  f("Red wine", "CONDIMENT"),
 
   // ══════════════════════════════════════════════════════════
   // SWEETENERS — 25
