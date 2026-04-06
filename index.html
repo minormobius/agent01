@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="42 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="41 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 42 sites built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 41 sites built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 42 sites built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 41 sites built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png">
 <style>
 :root {
@@ -95,21 +95,6 @@ hr {
   pointer-events: none;
 }
 
-.orbit-label {
-  position: absolute;
-  top: -0.5em;
-  left: 50%;
-  translate: -50% 0;
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  background: var(--bg);
-  padding: 0 0.4rem;
-  white-space: nowrap;
-  pointer-events: none;
-}
 
 /* Shared link style for orbit items */
 .orbit a, .planet > a, .moon-ring a {
@@ -156,28 +141,27 @@ hr {
   pointer-events: auto;
   translate: -50% -50%;
   z-index: 2;
+  width: 0; height: 0;
 }
 .planet > a {
-  position: relative;
+  position: absolute;
   display: block;
   z-index: 3;
   pointer-events: auto;
   translate: -50% -50%;
   scale: var(--s, 1);
-  left: 50%; top: 50%;
 }
 
 /* Moon ring orbiting a planet */
 .moon-ring {
   position: absolute;
-  top: 50%; left: 50%;
+  top: 0; left: 0;
   border: 1px dashed color-mix(in srgb, var(--rule) 50%, transparent);
   border-radius: 50%;
   pointer-events: none;
   width: var(--mr);
   height: var(--mr);
-  margin-left: calc(var(--mr) / -2);
-  margin-top: calc(var(--mr) / -2);
+  translate: -50% -50%;
 }
 
 .moon-ring a {
@@ -213,17 +197,15 @@ hr {
 .orbit[data-dir="ccw"] { animation: spin var(--speed) linear infinite reverse; }
 
 .orbit[data-dir="cw"]  > a,
-.orbit[data-dir="cw"]  > .planet,
-.orbit[data-dir="cw"]  > .orbit-label { animation: spin var(--speed) linear infinite reverse; }
+.orbit[data-dir="cw"]  > .planet { animation: spin var(--speed) linear infinite reverse; }
 .orbit[data-dir="ccw"] > a,
-.orbit[data-dir="ccw"] > .planet,
-.orbit[data-dir="ccw"] > .orbit-label { animation: spin var(--speed) linear infinite; }
+.orbit[data-dir="ccw"] > .planet { animation: spin var(--speed) linear infinite; }
 
 .moon-ring { animation: spin var(--moon-speed) linear infinite; }
 .moon-ring a { animation: spin var(--moon-speed) linear infinite reverse; }
 
 @media (prefers-reduced-motion: reduce) {
-  .orbit, .orbit > a, .orbit > .planet, .orbit > .orbit-label,
+  .orbit, .orbit > a, .orbit > .planet,
   .moon-ring, .moon-ring a { animation: none !important; }
 }
 
@@ -337,15 +319,6 @@ hr {
   margin-bottom: 1rem;
 }
 
-.orrery-fallback .ofb-label {
-  font-family: var(--mono);
-  font-size: 0.55rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 0.3rem;
-}
-
 .orrery-fallback .ofb-links {
   display: flex;
   flex-wrap: wrap;
@@ -392,51 +365,69 @@ footer a:hover {
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
-  <!-- Ring 1: work (innermost) — org has crm, pm, wave as moons -->
-  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s">
-    <span class="orbit-label">work</span>
+  <!-- Ring 1 (inner): lightweight standalone + finance -->
+  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:70s">
+    <a href="https://mino.mobi/bounty/" data-age="cold" data-commits="5">bounty</a>
+    <a href="https://time.mino.mobi" data-age="cold" data-commits="15">time</a>
+    <a href="https://mino.mobi/noise/" data-age="cold" data-commits="6">noise</a>
+    <a href="https://mino.mobi/audio/" data-age="warm" data-commits="1">audio</a>
+    <div class="planet">
+      <a href="https://mino.mobi/finance/" data-age="hot" data-commits="14">finance</a>
+      <div class="moon-ring" style="--mr:68px;--moon-speed:10s">
+        <a href="https://mino.mobi/finance/bogo/" data-age="hot" data-commits="1">bogo</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ring 2 (middle): mid-weight planets -->
+  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:120s">
+    <a href="https://poll.mino.mobi" data-age="warm" data-commits="75">poll</a>
+    <a href="https://mino.mobi/photo/" data-age="hot" data-commits="18">photo</a>
+    <a href="https://mino.mobi/zoom/" data-age="warm" data-commits="23">zoom</a>
+    <a href="https://mino.mobi/labglass/" data-age="cold" data-commits="25">labglass</a>
+    <a href="https://mino.mobi/os/" data-age="hot" data-commits="16">os</a>
+    <div class="planet">
+      <a href="https://bakery.mino.mobi" data-age="cold" data-commits="25">bakery</a>
+      <div class="moon-ring" style="--mr:76px;--moon-speed:11s">
+        <a href="https://mino.mobi/sweat/" data-age="cold" data-commits="4">sweat</a>
+        <a href="https://mino.mobi/music/" data-age="cold" data-commits="17">music</a>
+      </div>
+    </div>
+    <div class="planet">
+      <a href="https://mino.mobi/read/" data-age="hot" data-commits="37">read</a>
+      <div class="moon-ring" style="--mr:68px;--moon-speed:10s">
+        <a href="https://mino.mobi/read/flow/" data-age="hot" data-commits="1">flow</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ring 3 (outer): gas giants with moon systems -->
+  <div class="orbit" data-ring="3" data-dir="cw" style="--speed:180s">
     <div class="planet">
       <a href="https://mino.mobi/org/" data-age="hot" data-commits="40">org</a>
-      <div class="moon-ring" style="--mr:76px;--moon-speed:12s">
+      <div class="moon-ring" style="--mr:90px;--moon-speed:13s">
         <a href="https://mino.mobi/crm/" data-age="cold" data-commits="23">crm</a>
         <a href="https://mino.mobi/pm/" data-age="warm" data-commits="17">pm</a>
         <a href="https://mino.mobi/wave/" data-age="cold" data-commits="10">wave</a>
       </div>
     </div>
-    <a href="https://mino.mobi/bounty/" data-age="cold" data-commits="5">bounty</a>
-  </div>
-
-  <!-- Ring 2: data — finance has bogo moon, cards has play moon -->
-  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:110s">
-    <span class="orbit-label">data</span>
-    <a href="https://time.mino.mobi" data-age="cold" data-commits="15">time</a>
-    <a href="https://mino.mobi/mega/" data-age="cold" data-commits="11">mega</a>
     <div class="planet">
-      <a href="https://mino.mobi/finance/" data-age="hot" data-commits="14">finance</a>
-      <div class="moon-ring" style="--mr:52px;--moon-speed:10s">
-        <a href="https://mino.mobi/finance/bogo/" data-age="hot" data-commits="1">bogo</a>
+      <a href="https://mino.mobi/phylo/" data-age="cold" data-commits="28">phylo</a>
+      <div class="moon-ring" style="--mr:86px;--moon-speed:12s">
+        <a href="https://mino.mobi/mega/" data-age="cold" data-commits="11">mega</a>
+        <a href="https://mino.mobi/wars/" data-age="cold" data-commits="2">wars</a>
+        <a href="https://mino.mobi/flows/" data-age="cold" data-commits="5">flows</a>
       </div>
     </div>
-    <a href="https://mino.mobi/wars/" data-age="cold" data-commits="2">wars</a>
-    <a href="https://mino.mobi/flows/" data-age="cold" data-commits="5">flows</a>
-    <a href="https://mino.mobi/phylo/" data-age="cold" data-commits="28">phylo</a>
     <div class="planet">
       <a href="https://mino.mobi/cards/" data-age="hot" data-commits="83">cards</a>
-      <div class="moon-ring" style="--mr:52px;--moon-speed:9s">
-        <a href="https://mino.mobi/cards/play/" data-age="cold" data-commits="1">play</a>
+      <div class="moon-ring" style="--mr:68px;--moon-speed:9s">
+        <a href="https://mino.mobi/cards/yum.html" data-age="hot" data-commits="6">yum</a>
       </div>
     </div>
-  </div>
-
-  <!-- Ring 3: bluesky — cluster has 6 analysis tool moons -->
-  <div class="orbit" data-ring="3" data-dir="cw" style="--speed:140s">
-    <span class="orbit-label">bluesky</span>
-    <a href="https://poll.mino.mobi" data-age="warm" data-commits="75">poll</a>
-    <a href="https://mino.mobi/photo/" data-age="hot" data-commits="18">photo</a>
-    <a href="https://mino.mobi/zoom/" data-age="warm" data-commits="23">zoom</a>
     <div class="planet">
       <a href="https://mino.mobi/cluster/" data-age="cold" data-commits="10">cluster</a>
-      <div class="moon-ring" style="--mr:96px;--moon-speed:16s">
+      <div class="moon-ring" style="--mr:110px;--moon-speed:16s">
         <a href="https://mino.mobi/ternary/" data-age="warm" data-commits="7">ternary</a>
         <a href="https://mino.mobi/judge/" data-age="cold" data-commits="9">judge</a>
         <a href="https://mino.mobi/novelty/" data-age="cold" data-commits="12">novelty</a>
@@ -445,27 +436,9 @@ footer a:hover {
         <a href="https://mino.mobi/seek/" data-age="cold" data-commits="3">seek</a>
       </div>
     </div>
-  </div>
-
-  <!-- Ring 4: tools (outermost) — read has flow moon, clock has 8 moons -->
-  <div class="orbit" data-ring="4" data-dir="ccw" style="--speed:170s">
-    <span class="orbit-label">tools</span>
-    <a href="https://mino.mobi/labglass/" data-age="cold" data-commits="25">labglass</a>
-    <a href="https://mino.mobi/os/" data-age="hot" data-commits="16">os</a>
-    <div class="planet">
-      <a href="https://mino.mobi/read/" data-age="hot" data-commits="37">read</a>
-      <div class="moon-ring" style="--mr:52px;--moon-speed:11s">
-        <a href="https://mino.mobi/read/flow/" data-age="hot" data-commits="1">flow</a>
-      </div>
-    </div>
-    <a href="https://mino.mobi/noise/" data-age="cold" data-commits="6">noise</a>
-    <a href="https://mino.mobi/music/" data-age="cold" data-commits="17">music</a>
-    <a href="https://bakery.mino.mobi" data-age="cold" data-commits="25">bakery</a>
-    <a href="https://mino.mobi/sweat/" data-age="cold" data-commits="4">sweat</a>
-    <a href="https://mino.mobi/audio/" data-age="warm" data-commits="1">audio</a>
     <div class="planet">
       <a href="https://mino.mobi/clock/" data-age="hot" data-commits="110">clock</a>
-      <div class="moon-ring" style="--mr:100px;--moon-speed:18s">
+      <div class="moon-ring" style="--mr:116px;--moon-speed:18s">
         <a href="https://mino.mobi/clock/pac/" data-age="hot" data-commits="18">pac</a>
         <a href="https://mino.mobi/clock/torpac/" data-age="hot" data-commits="1">torpac</a>
         <a href="https://mino.mobi/clock/knotpac/" data-age="hot" data-commits="11">knotpac</a>
@@ -487,13 +460,12 @@ footer a:hover {
 
 <!-- Mobile fallback -->
 <nav class="orrery-fallback">
-  <div class="ofb-group"><div class="ofb-label">work</div><div class="ofb-links"><a href="https://mino.mobi/org/">org</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/pm/">pm</a><a href="https://mino.mobi/wave/">wave</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">data</div><div class="ofb-links"><a href="https://time.mino.mobi">time</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/play/">play</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">bluesky</div><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://mino.mobi/photo/">photo</a><a href="https://mino.mobi/zoom/">zoom</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/cluster/">cluster</a></div></div>
-  <div class="ofb-group"><div class="ofb-label">tools</div><div class="ofb-links"><a href="https://mino.mobi/labglass/">labglass</a><a href="https://mino.mobi/os/">os</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/music/">music</a><a href="https://bakery.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/audio/">audio</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/scape/">scape</a><a href="https://mino.mobi/clock/stretch/">stretch</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://mino.mobi/bounty/">bounty</a><a href="https://time.mino.mobi">time</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/audio/">audio</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://mino.mobi/photo/">photo</a><a href="https://mino.mobi/zoom/">zoom</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://mino.mobi/os/">os</a><a href="https://bakery.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/music/">music</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://mino.mobi/org/">org</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/pm/">pm</a><a href="https://mino.mobi/wave/">wave</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/yum.html">yum</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/scape/">scape</a><a href="https://mino.mobi/clock/stretch/">stretch</a></div></div>
 </nav>
 
-<div class="site-count">42 sites</div>
+<div class="site-count">41 sites</div>
 
 <hr>
 
@@ -684,6 +656,13 @@ footer a:hover {
     </div>
     <div class="desc">Wiki Cards. A deep Wikipedia card game&mdash;Lucky, Transmute, Nexus, and Library modes built on neural embeddings.</div>
   </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/yum.html">yum</a>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Flavor pairing explorer. Neural embeddings of food compounds, complementarity scores, and recipe builder.</div>
+  </li>
 </ul>
 
 <!-- ——— Tools ——— -->
@@ -778,13 +757,6 @@ footer a:hover {
 <ul class="projects">
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/cards/play/">play</a>
-      <span class="tag">canvas</span>
-    </div>
-    <div class="desc">Critter Red. Pixel art creature battle game built on the Wiki Cards engine.</div>
-  </li>
-  <li>
-    <div class="name-row">
       <a href="https://mino.mobi/clock/pac/">pac</a>
       <span class="tag">webgl</span>
     </div>
@@ -855,8 +827,8 @@ footer a:hover {
   var orrery = document.getElementById('orrery');
   if (!orrery) return;
 
-  var radii = [0.18, 0.40, 0.64, 0.90];
-  var offsets = [-0.4, 0.3, -0.2, 0.5];
+  var radii = [0.22, 0.50, 0.88];
+  var offsets = [-0.3, 0.4, -0.15];
 
   function layout() {
     var size = orrery.offsetWidth;
