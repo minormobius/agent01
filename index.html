@@ -85,6 +85,7 @@ hr {
   width: min(92vw, 640px);
   aspect-ratio: 1;
   margin: 0 auto 1rem;
+  overflow: hidden;
 }
 
 .orbit {
@@ -306,10 +307,19 @@ hr {
   margin-top: 0.2rem;
 }
 
-/* Mobile fallback */
+/* Mobile: scale the orrery down, shrink text */
 @media (max-width: 480px) {
-  .orrery { display: none; }
-  .orrery-fallback { display: block; }
+  .orrery-fallback { display: none; }
+  .orrery { width: 98vw; margin-left: -1rem; }
+  .orbit a, .planet > a, .moon-ring a {
+    font-size: 0.48rem;
+    padding: 0.15rem 0.3rem;
+    letter-spacing: 0;
+  }
+  .moon-ring a {
+    font-size: 0.42rem;
+    padding: 0.1rem 0.25rem;
+  }
 }
 @media (min-width: 481px) {
   .orrery-fallback { display: none; }
@@ -844,8 +854,16 @@ footer a:hover {
       });
     });
 
-    // Position moons on moon-rings
+    // Scale moon rings on small screens
+    var moonScale = Math.min(1, size / 500);
     orrery.querySelectorAll('.moon-ring').forEach(function(mr) {
+      var base = parseInt(mr.style.getPropertyValue('--mr'));
+      if (base) {
+        var scaled = Math.round(base * moonScale);
+        mr.style.width = scaled + 'px';
+        mr.style.height = scaled + 'px';
+        mr.style.translate = '-50% -50%';
+      }
       var moons = mr.querySelectorAll('a');
       var n = moons.length;
       moons.forEach(function(m, i) {
