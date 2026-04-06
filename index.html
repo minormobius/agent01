@@ -99,7 +99,7 @@ hr {
   position: absolute;
   top: -0.5em;
   left: 50%;
-  transform: translateX(-50%);
+  translate: -50% 0;
   font-family: var(--mono);
   font-size: 0.5rem;
   letter-spacing: 0.12em;
@@ -123,14 +123,15 @@ hr {
   border: 1px solid var(--rule);
   border-radius: 3px;
   white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, scale 0.15s;
 }
 
 /* Direct links on orbit (non-planet) */
 .orbit > a {
   position: absolute;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(var(--s, 1));
+  translate: -50% -50%;
+  scale: var(--s, 1);
   z-index: 1;
 }
 
@@ -138,13 +139,14 @@ hr {
   color: var(--link);
   border-color: var(--accent);
   background: var(--accent-faint);
-  transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.15));
+  scale: calc(var(--s, 1) * 1.15);
   z-index: 10;
 }
 .planet > a:hover, .moon-ring a:hover {
   color: var(--link);
   border-color: var(--accent);
   background: var(--accent-faint);
+  scale: calc(var(--s, 1) * 1.15);
   z-index: 10;
 }
 
@@ -152,7 +154,7 @@ hr {
 .planet {
   position: absolute;
   pointer-events: auto;
-  transform: translate(-50%, -50%);
+  translate: -50% -50%;
   z-index: 2;
 }
 .planet > a {
@@ -160,11 +162,9 @@ hr {
   display: block;
   z-index: 3;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(var(--s, 1));
+  translate: -50% -50%;
+  scale: var(--s, 1);
   left: 50%; top: 50%;
-}
-.planet > a:hover {
-  transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.15));
 }
 
 /* Moon ring orbiting a planet */
@@ -183,13 +183,11 @@ hr {
 .moon-ring a {
   position: absolute;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(var(--s, 1));
-  font-size: clamp(0.48rem, 1vw, 0.58rem);
-  padding: 0.15rem 0.35rem;
+  translate: -50% -50%;
+  scale: var(--s, 1);
+  font-size: clamp(0.52rem, 1.1vw, 0.63rem);
+  padding: 0.2rem 0.4rem;
   z-index: 1;
-}
-.moon-ring a:hover {
-  transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 1.15));
 }
 
 /* Color coding */
@@ -208,22 +206,24 @@ hr {
   z-index: 5;
 }
 
-/* Spin animations */
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Spin animations — uses 'rotate' property so translate/scale stay intact */
+@keyframes spin { to { rotate: 360deg; } }
 
 .orbit[data-dir="cw"]  { animation: spin var(--speed) linear infinite; }
 .orbit[data-dir="ccw"] { animation: spin var(--speed) linear infinite reverse; }
 
 .orbit[data-dir="cw"]  > a,
-.orbit[data-dir="cw"]  > .planet { animation: spin var(--speed) linear infinite reverse; }
+.orbit[data-dir="cw"]  > .planet,
+.orbit[data-dir="cw"]  > .orbit-label { animation: spin var(--speed) linear infinite reverse; }
 .orbit[data-dir="ccw"] > a,
-.orbit[data-dir="ccw"] > .planet { animation: spin var(--speed) linear infinite; }
+.orbit[data-dir="ccw"] > .planet,
+.orbit[data-dir="ccw"] > .orbit-label { animation: spin var(--speed) linear infinite; }
 
 .moon-ring { animation: spin var(--moon-speed) linear infinite; }
 .moon-ring a { animation: spin var(--moon-speed) linear infinite reverse; }
 
 @media (prefers-reduced-motion: reduce) {
-  .orbit, .orbit > a, .orbit > .planet,
+  .orbit, .orbit > a, .orbit > .planet, .orbit > .orbit-label,
   .moon-ring, .moon-ring a { animation: none !important; }
 }
 
@@ -392,13 +392,17 @@ footer a:hover {
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
-  <!-- Ring 1: work (innermost) -->
+  <!-- Ring 1: work (innermost) — org has crm, pm, wave as moons -->
   <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s">
     <span class="orbit-label">work</span>
-    <a href="https://mino.mobi/org/" data-age="hot" data-commits="40">org</a>
-    <a href="https://mino.mobi/crm/" data-age="cold" data-commits="23">crm</a>
-    <a href="https://mino.mobi/pm/" data-age="warm" data-commits="17">pm</a>
-    <a href="https://mino.mobi/wave/" data-age="cold" data-commits="10">wave</a>
+    <div class="planet">
+      <a href="https://mino.mobi/org/" data-age="hot" data-commits="40">org</a>
+      <div class="moon-ring" style="--mr:76px;--moon-speed:12s">
+        <a href="https://mino.mobi/crm/" data-age="cold" data-commits="23">crm</a>
+        <a href="https://mino.mobi/pm/" data-age="warm" data-commits="17">pm</a>
+        <a href="https://mino.mobi/wave/" data-age="cold" data-commits="10">wave</a>
+      </div>
+    </div>
     <a href="https://mino.mobi/bounty/" data-age="cold" data-commits="5">bounty</a>
   </div>
 
@@ -424,19 +428,23 @@ footer a:hover {
     </div>
   </div>
 
-  <!-- Ring 3: bluesky -->
+  <!-- Ring 3: bluesky — cluster has 6 analysis tool moons -->
   <div class="orbit" data-ring="3" data-dir="cw" style="--speed:140s">
     <span class="orbit-label">bluesky</span>
     <a href="https://poll.mino.mobi" data-age="warm" data-commits="75">poll</a>
     <a href="https://mino.mobi/photo/" data-age="hot" data-commits="18">photo</a>
     <a href="https://mino.mobi/zoom/" data-age="warm" data-commits="23">zoom</a>
-    <a href="https://mino.mobi/ternary/" data-age="warm" data-commits="7">ternary</a>
-    <a href="https://mino.mobi/judge/" data-age="cold" data-commits="9">judge</a>
-    <a href="https://mino.mobi/novelty/" data-age="cold" data-commits="12">novelty</a>
-    <a href="https://mino.mobi/echo/" data-age="cold" data-commits="1">echo</a>
-    <a href="https://mino.mobi/density/" data-age="cold" data-commits="5">density</a>
-    <a href="https://mino.mobi/seek/" data-age="cold" data-commits="3">seek</a>
-    <a href="https://mino.mobi/cluster/" data-age="cold" data-commits="10">cluster</a>
+    <div class="planet">
+      <a href="https://mino.mobi/cluster/" data-age="cold" data-commits="10">cluster</a>
+      <div class="moon-ring" style="--mr:96px;--moon-speed:16s">
+        <a href="https://mino.mobi/ternary/" data-age="warm" data-commits="7">ternary</a>
+        <a href="https://mino.mobi/judge/" data-age="cold" data-commits="9">judge</a>
+        <a href="https://mino.mobi/novelty/" data-age="cold" data-commits="12">novelty</a>
+        <a href="https://mino.mobi/echo/" data-age="cold" data-commits="1">echo</a>
+        <a href="https://mino.mobi/density/" data-age="cold" data-commits="5">density</a>
+        <a href="https://mino.mobi/seek/" data-age="cold" data-commits="3">seek</a>
+      </div>
+    </div>
   </div>
 
   <!-- Ring 4: tools (outermost) — read has flow moon, clock has 8 moons -->
@@ -457,7 +465,7 @@ footer a:hover {
     <a href="https://mino.mobi/audio/" data-age="warm" data-commits="1">audio</a>
     <div class="planet">
       <a href="https://mino.mobi/clock/" data-age="hot" data-commits="110">clock</a>
-      <div class="moon-ring" style="--mr:90px;--moon-speed:18s">
+      <div class="moon-ring" style="--mr:100px;--moon-speed:18s">
         <a href="https://mino.mobi/clock/pac/" data-age="hot" data-commits="18">pac</a>
         <a href="https://mino.mobi/clock/torpac/" data-age="hot" data-commits="1">torpac</a>
         <a href="https://mino.mobi/clock/knotpac/" data-age="hot" data-commits="11">knotpac</a>
