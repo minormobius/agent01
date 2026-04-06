@@ -20,6 +20,40 @@ Details for each follow in dedicated sections below.
 
 ---
 
+## Shared ATProto Library (`packages/atproto/`)
+
+**Three standalone JS modules** with no dependencies and no build step. Every project in this repo that talks to ATProto or Bluesky should import from here instead of reimplementing.
+
+### How to Use
+
+```js
+// From any project (adjust relative path):
+import { resolveHandle, resolvePds, PdsClient } from '../../packages/atproto/pds.js';
+import { getAuthorFeed, getProfiles, getFollows } from '../../packages/atproto/bsky.js';
+import { sealRecord, unsealRecord, deriveKek } from '../../packages/atproto/crypto.js';
+```
+
+### Modules
+
+| Module | Purpose | Key Exports |
+|--------|---------|-------------|
+| **`pds.js`** | Identity resolution + authenticated PDS operations | `resolveHandle`, `resolvePds`, `generateTid`, `PdsClient` (login, getRecord, putRecord, createRecord, listRecords, deleteRecord, uploadBlob, getBlob) |
+| **`bsky.js`** | Read-only Bluesky public API wrappers | `getProfiles`, `resolveHandles`, `getAuthorFeed`, `getLikes`, `getFollows`, `getListMembers`, `getPostThreadDepth` |
+| **`crypto.js`** | Vault encryption (ECDH + AES-GCM + PBKDF2) | `deriveKek`, `generateIdentityKey`, `wrapPrivateKey`, `unwrapPrivateKey`, `deriveDek`, `encrypt`, `decrypt`, `sealRecord`, `unsealRecord`, `generateTierDek`, `wrapDekForMember`, `unwrapDekFromMember`, `toBase64`, `fromBase64` |
+
+### Migration Path
+
+Existing projects (org, crm, wave, photo, labglass, bakery, time, cards, etc.) each have their own copy of this code. **Do not bulk-rewrite them.** When you're already modifying a project's ATProto layer for other reasons, switch its imports to `packages/atproto/` at that time. New projects should use the shared library from the start.
+
+### What Stays Project-Local
+
+- **Poll's RSA blind signatures** (`poll/packages/shared/src/crypto/`) — domain-specific, not shared
+- **Poll's OAuth flow** (`poll/apps/api/src/oauth/`) — unique BFF confidential client
+- **Bounty's Ed25519 minting** — separate concern
+- **Project-specific PDS collections/constants** — belong in the project
+
+---
+
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
