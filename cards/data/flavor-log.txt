@@ -72,18 +72,18 @@ Wrote cards/data/yum-embeddings.bin (185KB)
 Wrote cards/data/yum-embeddings.json (23KB)
 
 ── Flavor similarity sanity check ──
-  Garlic ~ Onion: 0.451  [COMPOUND]
+  Garlic ~ Onion: 0.454  [COMPOUND]
   Chocolate ~ Vanilla: -0.264  [COMPOUND]
   Soy sauce ~ Miso: 0.999  [COMPOUND]
-  Lemon ~ Lime (fruit): 0.402  [COMPOUND]
-  Salmon ~ Cinnamon: -0.253  [COMPOUND]
-  Basil ~ Oregano: 0.718  [COMPOUND]
+  Lemon ~ Lime (fruit): 0.399  [COMPOUND]
+  Salmon ~ Cinnamon: -0.257  [COMPOUND]
+  Basil ~ Oregano: 0.703  [COMPOUND]
   Coffee ~ Tea: 0.004  [COMPOUND]
   Butter ~ Ghee: 0.679  [COMPOUND]
-  Cheddar cheese ~ Brie: 0.798  [proxy]
+  Cheddar cheese ~ Brie: 0.797  [proxy]
   Apple ~ Pear: 0.925  [COMPOUND]
 
-  Most similar: 'Shrimp (food)' ~ 'Prawn' (1.000)
+  Most similar: 'Grapefruit' ~ 'Ugli fruit' (1.000)
 
 ── Match rates by category ──
   BEVERAGE    :  21/ 30 (70%)
