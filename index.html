@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="23 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="31 sites built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 23 sites built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 31 sites built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 23 sites built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 31 sites built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png">
 <style>
 :root {
@@ -282,6 +282,7 @@ footer a:hover {
       <a href="https://mino.mobi/music/">music</a>
       <a href="https://bakery.mino.mobi">bakery</a>
       <a href="https://mino.mobi/sweat/">sweat</a>
+      <a href="https://mino.mobi/audio/">audio</a>
     </div>
   </div>
 </nav>
@@ -298,148 +299,45 @@ footer a:hover {
 
 <hr>
 
-<div class="site-count">23 sites</div>
+<div class="site-count">31 sites</div>
 
-<!-- ——— Publications & Applications ——— -->
+<!-- ——— Bluesky ——— -->
 
-<div class="section-label">publications &amp; applications</div>
+<div class="section-label">bluesky</div>
 
 <ul class="projects">
   <li>
     <div class="name-row">
-      <a href="https://time.mino.mobi">time.mino.mobi</a>
-      <span class="tag">atproto</span>
-      <span class="tag">podcast</span>
-    </div>
-    <div class="desc">The Mino Times&mdash;agentic biotech intelligence. Research, articles, editorial panels, and podcast. Content stored as ATProto records, rendered in a newspaper broadsheet layout.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://poll.mino.mobi">poll.mino.mobi</a>
+      <a href="https://poll.mino.mobi">poll</a>
       <span class="tag">workers</span>
       <span class="tag">d1</span>
       <span class="tag">do</span>
     </div>
-    <div class="desc">Anonymous polling on Bluesky. RSA blind signatures ensure the poll host can&rsquo;t link your identity to your vote.</div>
+    <div class="desc">Anonymous polling with RSA blind signatures. The poll host can&rsquo;t link your identity to your vote.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/labglass/">labglass</a>
-      <span class="tag">duckdb</span>
-      <span class="tag">pyodide</span>
-    </div>
-    <div class="desc">Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser. Notebooks stored locally, shareable via WebRTC.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/read/">read</a>
-      <span class="tag">workers</span>
-    </div>
-    <div class="desc">Adaptive speed reader for Project Gutenberg texts. Bionic formatting, variable character chunks, color-changing frames, and eye-tracking-driven pacing.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/cards/">cards</a>
-      <span class="tag">atproto</span>
-    </div>
-    <div class="desc">Wiki Cards. A deep Wikipedia card game&mdash;Lucky, Transmute, Nexus, and Library modes built on scored and embedded articles.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/noise/">noise</a>
-      <span class="tag">pwa</span>
-    </div>
-    <div class="desc">Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/mega/">mega</a>
-      <span class="tag">maplibre</span>
-      <span class="tag">deck.gl</span>
-    </div>
-    <div class="desc">Interactive map of global megaprojects&mdash;construction, timelines, costs, and deep context rendered on a 3D globe.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/os/">os</a>
+      <a href="https://mino.mobi/photo/">photo</a>
       <span class="tag">react</span>
+      <span class="tag">duckdb</span>
       <span class="tag">wasm</span>
-      <span class="tag">atproto</span>
     </div>
-    <div class="desc">Browser-based terminal for your ATProto Personal Data Server. XRPC commands, DuckDB SQL, AI chat, and an embedded bash container.</div>
+    <div class="desc">Photo explorer. Every image from any handle, rendered as a filterable masonry grid with engagement analytics.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/finance/">finance</a>
-      <span class="tag">atproto</span>
-    </div>
-    <div class="desc">Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/wars/">wars</a>
-    </div>
-    <div class="desc">War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties.</div>
-  </li>
-</ul>
-
-<!-- ——— ATProto Tools ——— -->
-
-<div class="section-label">atproto tools</div>
-
-<ul class="projects">
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/phylo/">phylo</a>
-      <span class="tag">atproto</span>
+      <a href="https://mino.mobi/zoom/">zoom</a>
+      <span class="tag">react</span>
       <span class="tag">canvas</span>
     </div>
-    <div class="desc">Interactive phylogenetic tree explorer. Syncs taxonomic data from the Open Tree of Life into ATProto PDS records. Canvas-based zoom viewer and text tree for Mammalia, Aves, and more.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/music/">music</a>
-      <span class="tag">pwa</span>
-      <span class="tag">atproto</span>
-    </div>
-    <div class="desc">Browser-based sequencer that stores compositions as records on the personal data server.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://bakery.mino.mobi">bakery.mino.mobi</a>
-      <span class="tag">pwa</span>
-      <span class="tag">atproto</span>
-    </div>
-    <div class="desc">Flour blend calculator for bakers who mix their own blends&mdash;protein math, hydration targets, blend ratios.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/sweat/">sweat</a>
-      <span class="tag">pwa</span>
-      <span class="tag">atproto</span>
-    </div>
-    <div class="desc">Workout logging with charts, progressive overload tracking, offline-first.</div>
-  </li>
-</ul>
-
-<!-- ——— Bluesky Dashboards ——— -->
-
-<div class="section-label">bluesky dashboards</div>
-
-<ul class="projects">
-  <li>
-    <div class="name-row">
-      <a href="https://mino.mobi/flows/">flows</a>
-      <span class="tag">maplibre</span>
-    </div>
-    <div class="desc">Commodity flow maps. Geographic trade and movement data rendered as directional arcs.</div>
+    <div class="desc">SimCluster community viewer. Infinite-canvas visualization of feed communities with hex-packed profile pictures.</div>
   </li>
   <li>
     <div class="name-row">
       <a href="https://mino.mobi/ternary/">ternary</a>
       <span class="tag">embeddings</span>
     </div>
-    <div class="desc">Three lusts, one chart. Ternary plot of posting temperament&mdash;flesh, knowledge, and argument&mdash;from anchor cosine embeddings.</div>
+    <div class="desc">Three lusts, one chart. Ternary plot of posting temperament&mdash;flesh, knowledge, and argument.</div>
   </li>
   <li>
     <div class="name-row">
@@ -479,14 +377,186 @@ footer a:hover {
     </div>
     <div class="desc">Find your tightest circle. The largest group of your follows who all mutually follow each other.</div>
   </li>
+</ul>
+
+<!-- ——— Work ——— -->
+
+<div class="section-label">work</div>
+
+<ul class="projects">
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/photo/">photo</a>
+      <a href="https://mino.mobi/org/">org</a>
       <span class="tag">react</span>
-      <span class="tag">duckdb</span>
-      <span class="tag">wasm</span>
+      <span class="tag">atproto</span>
     </div>
-    <div class="desc">Bluesky photo explorer. Every image from any handle, rendered as a filterable masonry grid with engagement analytics.</div>
+    <div class="desc">Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/crm/">crm</a>
+      <span class="tag">react</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Vault CRM. Encrypted deal pipeline and contact management stored on your ATProto PDS.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/pm/">pm</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban&mdash;synced to PDS.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/wave/">wave</a>
+      <span class="tag">react</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/bounty/">bounty</a>
+      <span class="tag">workers</span>
+      <span class="tag">d1</span>
+    </div>
+    <div class="desc">Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations.</div>
+  </li>
+</ul>
+
+<!-- ——— Data ——— -->
+
+<div class="section-label">data</div>
+
+<ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://time.mino.mobi">time</a>
+      <span class="tag">atproto</span>
+      <span class="tag">podcast</span>
+    </div>
+    <div class="desc">The Mino Times&mdash;agentic biotech intelligence. Research, articles, editorial panels, and podcast.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/mega/">mega</a>
+      <span class="tag">maplibre</span>
+      <span class="tag">deck.gl</span>
+    </div>
+    <div class="desc">Interactive map of global megaprojects&mdash;construction, timelines, costs, and deep context on a 3D globe.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/finance/">finance</a>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/wars/">wars</a>
+    </div>
+    <div class="desc">War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/flows/">flows</a>
+      <span class="tag">maplibre</span>
+    </div>
+    <div class="desc">Commodity flow maps. Geographic trade and movement data rendered as directional arcs.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/phylo/">phylo</a>
+      <span class="tag">atproto</span>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Interactive phylogenetic tree explorer. Open Tree of Life data synced to ATProto PDS records.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/">cards</a>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Wiki Cards. A deep Wikipedia card game&mdash;Lucky, Transmute, Nexus, and Library modes built on neural embeddings.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/">clock</a>
+    </div>
+    <div class="desc">Helix Calendar. Interactive time visualization with tunable display parameters.</div>
+  </li>
+</ul>
+
+<!-- ——— Tools ——— -->
+
+<div class="section-label">tools</div>
+
+<ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/labglass/">labglass</a>
+      <span class="tag">duckdb</span>
+      <span class="tag">pyodide</span>
+    </div>
+    <div class="desc">Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/os/">os</a>
+      <span class="tag">react</span>
+      <span class="tag">wasm</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/">read</a>
+      <span class="tag">workers</span>
+    </div>
+    <div class="desc">Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting, memorize mode, and eye-tracking pacing.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/noise/">noise</a>
+      <span class="tag">pwa</span>
+    </div>
+    <div class="desc">Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/music/">music</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Browser-based sequencer that stores compositions as records on the personal data server.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://bakery.mino.mobi">bakery</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Flour blend calculator&mdash;protein math, hydration targets, blend ratios.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/sweat/">sweat</a>
+      <span class="tag">pwa</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Workout logging with charts, progressive overload tracking, offline-first.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/audio/">audio</a>
+      <span class="tag">workers</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Audio rooms. Real-time voice channels with a Cloudflare Worker backend.</div>
   </li>
 </ul>
 
