@@ -1358,7 +1358,9 @@ footer a:hover {
     breatheCanvas.style.width = W + 'px';
     breatheCanvas.style.height = H + 'px';
 
-    var minT = commits[0].t, maxT = commits[commits.length - 1].t;
+    // Clamp time range to Feb 2026+ (1 pre-Feb commit shouldn't compress the rest)
+    var minT = 1738368000; // 2026-02-01 UTC
+    var maxT = commits[commits.length - 1].t;
     var timeRange = maxT - minT || 1;
     var numLanes = maxLane + 1;
 
