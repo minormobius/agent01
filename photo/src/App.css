@@ -1473,3 +1473,369 @@ body {
     display: none;
   }
 }
+
+/* ====== SLEUTH ====== */
+
+.sleuth {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sleuth-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 16px;
+}
+
+.sleuth-back {
+  color: #999;
+  text-decoration: none;
+  font-size: 1.3em;
+}
+.sleuth-back:hover { color: #fff; }
+
+.sleuth-header h1 {
+  margin: 0;
+  font-size: 1.4em;
+  color: #fff;
+}
+
+.sleuth-subtitle {
+  color: #777;
+  font-size: 0.85em;
+  flex: 1;
+}
+
+.sleuth-settings-btn {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.sleuth-settings-btn:hover { border-color: #888; }
+
+.sleuth-settings {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.sleuth-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #aaa;
+  font-size: 0.85em;
+}
+
+.sleuth-settings input {
+  background: #111;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.sleuth-provider-badge {
+  display: inline-block;
+  background: #1a3a1a;
+  color: #6f6;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  margin-top: 6px;
+}
+
+.sleuth-settings-hint {
+  color: #666;
+  font-size: 0.8em;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+/* Load repo */
+.sleuth-load {
+  text-align: center;
+  padding: 60px 0;
+}
+
+.sleuth-load-form {
+  display: flex;
+  gap: 8px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.sleuth-load-form input {
+  flex: 1;
+  background: #111;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #fff;
+  font-size: 1em;
+}
+
+.sleuth-load-form button {
+  background: #2a6df0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 1em;
+}
+.sleuth-load-form button:disabled { opacity: 0.5; cursor: default; }
+
+.sleuth-progress {
+  color: #888;
+  margin-top: 12px;
+  font-size: 0.9em;
+}
+
+.sleuth-error {
+  color: #f66;
+  margin-top: 12px;
+  font-size: 0.9em;
+}
+
+/* Status bar */
+.sleuth-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #111;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.8em;
+  color: #888;
+  flex-wrap: wrap;
+}
+
+.sleuth-stat.ready { color: #6f6; }
+
+.sleuth-reload {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #888;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.sleuth-reload:hover { color: #fff; border-color: #888; }
+
+/* Search input */
+.sleuth-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sleuth-search input {
+  flex: 1;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 1em;
+}
+.sleuth-search input:focus {
+  border-color: #2a6df0;
+  outline: none;
+}
+
+.sleuth-search button {
+  background: #2a6df0;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 1em;
+  white-space: nowrap;
+}
+.sleuth-search button:disabled { opacity: 0.5; cursor: default; }
+
+.sleuth-stop {
+  background: #c33 !important;
+}
+
+/* Chat */
+.sleuth-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.sleuth-msg {
+  border-radius: 10px;
+  padding: 10px 14px;
+  max-width: 85%;
+}
+
+.sleuth-msg-user {
+  background: #1a3a5e;
+  align-self: flex-end;
+  color: #ddd;
+}
+
+.sleuth-msg-assistant {
+  background: #1a1a2e;
+  align-self: flex-start;
+  color: #ccc;
+  border: 1px solid #333;
+}
+
+.sleuth-msg-role {
+  font-size: 0.7em;
+  color: #777;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sleuth-msg-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  font-size: 0.95em;
+}
+
+.sleuth-cursor {
+  animation: blink 0.8s infinite;
+  color: #2a6df0;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Results */
+.sleuth-results {
+  flex: 1;
+}
+
+.sleuth-results h3 {
+  color: #888;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sleuth-results-count {
+  color: #555;
+  font-weight: normal;
+}
+
+.sleuth-result {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #222;
+}
+.sleuth-result:hover { background: #111; }
+
+.sleuth-result-score {
+  color: #2a6df0;
+  font-size: 0.8em;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+  padding-top: 2px;
+}
+
+.sleuth-result-body { flex: 1; min-width: 0; }
+
+.sleuth-result-text {
+  color: #ccc;
+  font-size: 0.9em;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sleuth-result-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.75em;
+  color: #666;
+}
+
+.sleuth-result-link {
+  color: #2a6df0;
+  text-decoration: none;
+}
+.sleuth-result-link:hover { text-decoration: underline; }
+
+/* Empty state */
+.sleuth-empty {
+  text-align: center;
+  padding: 60px 0;
+  color: #666;
+}
+
+.sleuth-empty-icon {
+  font-size: 3em;
+  margin-bottom: 12px;
+}
+
+.sleuth-empty p {
+  font-size: 1.1em;
+  margin: 0 0 20px;
+}
+
+.sleuth-suggestions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sleuth-suggestion {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.sleuth-suggestion:hover {
+  border-color: #2a6df0;
+  color: #ddd;
+}
+
+@media (max-width: 600px) {
+  .sleuth { padding: 10px; }
+  .sleuth-header { gap: 8px; }
+  .sleuth-subtitle { display: none; }
+  .sleuth-chat { max-height: 40vh; }
+  .sleuth-msg { max-width: 95%; }
+}
