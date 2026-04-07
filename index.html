@@ -1350,7 +1350,8 @@ footer a:hover {
     var W = size, H = size;
     var cx = W / 2, cy = H / 2;
     var dpr = window.devicePixelRatio || 1;
-    var minR = 12, maxR = (Math.min(cx, cy)) - 10;
+    var maxR = (Math.min(cx, cy)) - 10;
+    var minR = maxR / 3; // inner third empty, commits fill outer two-thirds
 
     breatheCanvas.width = W * dpr;
     breatheCanvas.height = H * dpr;
