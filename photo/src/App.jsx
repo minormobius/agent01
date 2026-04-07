@@ -13,6 +13,7 @@ import LoginButton from './components/LoginButton.jsx';
 import UploadButton from './components/UploadButton.jsx';
 import Albums from './components/Albums.jsx';
 import Thread from './components/Thread.jsx';
+import Sleuth from './components/Sleuth.jsx';
 import './App.css';
 
 const SORT_OPTIONS = [
@@ -58,6 +59,15 @@ export default function App() {
     return (
       <div className="photo">
         <Thread />
+      </div>
+    );
+  }
+
+  // Sleuth — search & chat with your posts
+  if (route.startsWith('#/sleuth')) {
+    return (
+      <div className="photo">
+        <Sleuth />
       </div>
     );
   }
