@@ -389,6 +389,15 @@ footer a:hover {
   display: block;
   cursor: crosshair;
 }
+.git-breathe-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+.git-breathe-wrap canvas {
+  display: block;
+}
 .git-branch-wrap {
   position: relative;
   overflow-x: auto;
@@ -580,6 +589,9 @@ footer a:hover {
   <div class="git-canvas-wrap">
     <canvas id="git-canvas"></canvas>
     <div class="git-tip" id="git-tip"></div>
+  </div>
+  <div class="git-breathe-wrap">
+    <canvas id="git-breathe"></canvas>
   </div>
   <div class="git-branch-wrap">
     <canvas id="git-branches"></canvas>
@@ -1014,12 +1026,15 @@ footer a:hover {
 (function() {
   var spiralCanvas = document.getElementById('git-canvas');
   var branchCanvas = document.getElementById('git-branches');
-  if (!spiralCanvas || !branchCanvas) return;
+  var breatheCanvas = document.getElementById('git-breathe');
+  if (!spiralCanvas || !branchCanvas || !breatheCanvas) return;
 
   var spiralCtx = spiralCanvas.getContext('2d');
   var branchCtx = branchCanvas.getContext('2d');
+  var breatheCtx = breatheCanvas.getContext('2d');
   var spiralWrap = spiralCanvas.closest('.git-canvas-wrap');
   var branchWrap = branchCanvas.closest('.git-branch-wrap');
+  var breatheWrap = breatheCanvas.closest('.git-breathe-wrap');
   var spiralTip = document.getElementById('git-tip');
   var branchTip = document.getElementById('git-branch-tip');
 
@@ -1200,11 +1215,8 @@ footer a:hover {
     addTooltip(spiralCanvas, spiralTip, commits, '_x', '_y', spiralWrap);
   }
 
-  // ── Branch lane scroller renderer ──
-  function renderBranches(commits, byHash) {
-    var LANE_H = 14, COMMIT_W = 5, PAD_TOP = 28, PAD_BOT = 14, PAD_LEFT = 10, DOT_R = 2.5;
-
-    // Lane assignment: process newest-first
+  // ── Shared lane assignment ──
+  function assignLanes(commits) {
     var lanes = [], maxLane = 0, commitLane = {};
     function freeLane(l) { lanes[l] = null; }
     function allocLane() {
@@ -1212,7 +1224,6 @@ footer a:hover {
       lanes.push(null);
       return lanes.length - 1;
     }
-
     for (var i = commits.length - 1; i >= 0; i--) {
       var c = commits[i];
       if (commitLane[c.h] !== undefined) {
@@ -1222,7 +1233,6 @@ footer a:hover {
         lanes[c._lane] = c.h;
       }
       if (c._lane > maxLane) maxLane = c._lane;
-
       if (c.p.length > 0) {
         var fp = c.p[0];
         if (commitLane[fp] === undefined) {
@@ -1243,6 +1253,12 @@ footer a:hover {
         freeLane(c._lane);
       }
     }
+    return maxLane;
+  }
+
+  // ── Branch lane scroller renderer ──
+  function renderBranches(commits, byHash, maxLane) {
+    var LANE_H = 14, COMMIT_W = 5, PAD_TOP = 28, PAD_BOT = 14, PAD_LEFT = 10, DOT_R = 2.5;
 
     var W = commits.length * COMMIT_W + PAD_LEFT * 2;
     var H = (maxLane + 1) * LANE_H + PAD_TOP + PAD_BOT;
@@ -1327,15 +1343,178 @@ footer a:hover {
     branchWrap.scrollLeft = branchWrap.scrollWidth;
   }
 
-  // ── Load data and render both ──
+  // ── Breathing radial animation ──
+  function renderBreathing(commits, byHash, maxLane) {
+    var containerW = breatheWrap.offsetWidth || 500;
+    var size = Math.min(containerW, 520);
+    var W = size, H = size;
+    var cx = W / 2, cy = H / 2;
+    var dpr = window.devicePixelRatio || 1;
+    var maxR = (Math.min(cx, cy)) - 10;
+    var minR = maxR / 3; // inner third empty, commits fill outer two-thirds
+
+    breatheCanvas.width = W * dpr;
+    breatheCanvas.height = H * dpr;
+    breatheCanvas.style.width = W + 'px';
+    breatheCanvas.style.height = H + 'px';
+
+    // Clamp time range to Feb 2026+ (1 pre-Feb commit shouldn't compress the rest)
+    var minT = 1769904000; // 2026-02-01 UTC
+    var maxT = commits[commits.length - 1].t;
+    var timeRange = maxT - minT || 1;
+    var numLanes = maxLane + 1;
+
+    // Pre-compute polar positions
+    commits.forEach(function(c) {
+      c._timeNorm = (c.t - minT) / timeRange;
+      c._angle = (c._lane / numLanes) * 2 * Math.PI - Math.PI / 2;
+      c._br = minR + c._timeNorm * (maxR - minR);
+      c._bx2 = cx + c._br * Math.cos(c._angle);
+      c._by2 = cy + c._br * Math.sin(c._angle);
+    });
+
+    // Group commits by lane (for drawing petal lines)
+    var byLane = {};
+    commits.forEach(function(c) {
+      if (!byLane[c._lane]) byLane[c._lane] = [];
+      byLane[c._lane].push(c);
+    });
+
+    var phase = 'inhale';
+    var phaseStart = 0;
+    var durations = { inhale: 5000, hold1: 1800, exhale: 5000, hold2: 600 };
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+    function easeIn(t) { return t * t * t; }
+
+    function animate(timestamp) {
+      if (!phaseStart) phaseStart = timestamp;
+      var elapsed = timestamp - phaseStart;
+      var dur = durations[phase];
+      var raw = Math.min(elapsed / dur, 1);
+
+      if (raw >= 1) {
+        phaseStart = timestamp;
+        if (phase === 'inhale') phase = 'hold1';
+        else if (phase === 'hold1') phase = 'exhale';
+        else if (phase === 'exhale') phase = 'hold2';
+        else phase = 'inhale';
+        raw = 0;
+      }
+
+      var progress = phase === 'inhale' ? easeOut(raw) :
+                     phase === 'exhale' ? easeIn(raw) : raw;
+
+      // Compute per-commit alpha
+      var totalStagger = 0.5;
+      commits.forEach(function(c) {
+        if (phase === 'inhale') {
+          // Reveal by time: center outward
+          var edge = progress * 1.1;
+          c._alpha = c._timeNorm <= edge ? Math.min(1, (edge - c._timeNorm) * 6) : 0;
+        } else if (phase === 'hold1') {
+          c._alpha = 1;
+        } else if (phase === 'hold2') {
+          c._alpha = 0;
+        } else {
+          // Exhale: branches fade sequentially, each retracts outside-in
+          var branchDelay = (c._lane / numLanes) * totalStagger;
+          var bp = Math.max(0, (progress - branchDelay) / (1 - totalStagger));
+          var thresh = bp * 1.1;
+          // Newest (high timeNorm) disappear first
+          c._alpha = (1 - c._timeNorm) > thresh ? Math.min(1, ((1 - c._timeNorm) - thresh) * 6) : 0;
+        }
+      });
+
+      // Draw
+      breatheCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      breatheCtx.clearRect(0, 0, W, H);
+
+      // Petal lines (radial segments within each branch)
+      breatheCtx.lineWidth = 1.5;
+      breatheCtx.lineCap = 'round';
+      Object.keys(byLane).forEach(function(lane) {
+        var lc = byLane[lane];
+        for (var i = 1; i < lc.length; i++) {
+          var prev = lc[i - 1], curr = lc[i];
+          var a = Math.min(prev._alpha, curr._alpha);
+          if (a <= 0) continue;
+          breatheCtx.globalAlpha = a * 0.5;
+          breatheCtx.strokeStyle = pickColor(curr.d);
+          breatheCtx.beginPath();
+          breatheCtx.moveTo(prev._bx2, prev._by2);
+          breatheCtx.lineTo(curr._bx2, curr._by2);
+          breatheCtx.stroke();
+        }
+      });
+
+      // Merge arcs (connective tissue between petals)
+      breatheCtx.lineWidth = 0.8;
+      commits.forEach(function(c) {
+        if (!c.m || c._alpha <= 0) return;
+        for (var j = 1; j < c.p.length; j++) {
+          var parent = byHash[c.p[j]];
+          if (!parent || parent._alpha <= 0) continue;
+          var a = Math.min(c._alpha, parent._alpha);
+          breatheCtx.globalAlpha = a * 0.3;
+          breatheCtx.strokeStyle = pickColor(c.d);
+          breatheCtx.beginPath();
+          breatheCtx.moveTo(parent._bx2, parent._by2);
+          // Arc at average radius through midpoint angle
+          var midAngle = (parent._angle + c._angle) / 2;
+          // Handle angle wrapping for better arcs
+          var da = c._angle - parent._angle;
+          if (da > Math.PI) midAngle -= Math.PI;
+          else if (da < -Math.PI) midAngle += Math.PI;
+          var midR = (parent._br + c._br) / 2 * 0.85;
+          breatheCtx.quadraticCurveTo(
+            cx + midR * Math.cos(midAngle),
+            cy + midR * Math.sin(midAngle),
+            c._bx2, c._by2
+          );
+          breatheCtx.stroke();
+        }
+      });
+
+      // Commit dots
+      commits.forEach(function(c) {
+        if (c._alpha <= 0) return;
+        breatheCtx.globalAlpha = c._alpha;
+        breatheCtx.beginPath();
+        breatheCtx.arc(c._bx2, c._by2, c.m ? 2.8 : 1.8, 0, Math.PI * 2);
+        breatheCtx.fillStyle = pickColor(c.d);
+        breatheCtx.fill();
+      });
+
+      // Wavefront circle during inhale
+      if (phase === 'inhale' && progress > 0.01 && progress < 0.99) {
+        var wr = minR + progress * (maxR - minR);
+        breatheCtx.globalAlpha = 0.15;
+        breatheCtx.strokeStyle = isDark ? '#fff' : '#000';
+        breatheCtx.lineWidth = 0.5;
+        breatheCtx.beginPath();
+        breatheCtx.arc(cx, cy, wr, 0, Math.PI * 2);
+        breatheCtx.stroke();
+      }
+
+      breatheCtx.globalAlpha = 1;
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // ── Load data and render all ──
   fetch('git-graph.json').then(function(r) { return r.text(); }).then(function(text) {
     var commits = JSON.parse(text.split('\n')[0]);
     commits.reverse(); // oldest first
     var byHash = {};
     commits.forEach(function(c, i) { c._i = i; byHash[c.h] = c; });
 
+    var maxLane = assignLanes(commits);
     renderSpiral(commits, byHash);
-    renderBranches(commits, byHash);
+    renderBranches(commits, byHash, maxLane);
+    renderBreathing(commits, byHash, maxLane);
     buildLegend(commits);
   }).catch(function(e) {
     console.error('git-graph load failed:', e);
