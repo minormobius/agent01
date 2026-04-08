@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gem Woo — Wiki Cards</title>
   <link rel="stylesheet" href="css/cards.css">
+  <link rel="stylesheet" href="css/gem.css">
   <style>
     main { max-width: 820px; padding: 0 1.5rem 4rem; width: 100%; }
     .lede { font-size: 1.1rem; line-height: 1.7; color: var(--text-dim); margin-bottom: 2.5rem; }
@@ -49,21 +50,21 @@
     sup a:hover { color: var(--gold); }
 
     /* Pull section */
-    .woo-pull { text-align: center; margin: 0 0 2.5rem; padding: 1.5rem; border: 1px solid var(--border);
-                border-radius: 8px; background: var(--surface); }
+    .woo-pull { text-align: center; margin: 0 0 2.5rem; }
     .woo-btn { font-size: 0.9rem; padding: 0.6rem 1.8rem; background: var(--gold); color: var(--bg);
                border: none; border-radius: 4px; cursor: pointer; font-weight: 700; letter-spacing: 0.06em; }
     .woo-btn:hover { opacity: 0.85; }
     .woo-result { margin-top: 1.2rem; text-align: left; }
     .woo-result.hidden { display: none; }
-    .woo-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
-    .woo-swatch { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0; }
-    .woo-name { font-size: 1.05rem; font-weight: 700; color: var(--text); }
-    .woo-props { font-size: 0.8rem; color: var(--text-dim); }
+    .woo-minicard { display: inline-block; margin-bottom: 0.8rem; }
+    .woo-minicard .gem-card { width: 180px; }
     .woo-formula { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; color: var(--text);
                    background: var(--card-bg); padding: 0.7rem 1rem; border-radius: 6px; margin-top: 0.8rem;
                    line-height: 1.6; }
     .woo-formula .dim { color: var(--text-dim); }
+    .woo-detail { margin-top: 1rem; }
+    .woo-detail .gem-detail { display: block; }
+    .woo-detail .gem-detail-close { display: none; }
   </style>
 </head>
 <body>
@@ -316,6 +317,7 @@
 
   <script type="module">
     import { GEM_POOL, CRYSTAL_SYSTEMS } from './js/gem-pool.js';
+    import { fetchArticleData, RARITY_LABELS } from './js/shared.js';
 
     const SYS_WOO = {
       cubic:        { arch: 'Order & stability',       brief: 'Structure, perfection, grounding' },
@@ -372,37 +374,81 @@
       return               { name: 'Body',   brief: 'Physical realm, grounding, boundaries, defense' };
     }
 
-    const btn = document.getElementById('woo-btn');
-    const out = document.getElementById('woo-result');
+    function renderMinicard(title, system, rarity, cssColor, thumb) {
+      const sys = CRYSTAL_SYSTEMS[system] || {};
+      return `<div class="woo-minicard"><div class="gem-card rarity-${rarity}"><div class="gem-card-inner">${
+        thumb ? `<img class="gem-card-img" src="${thumb}" alt="${title}">` :
+        `<div class="gem-card-no-img" style="color:${cssColor}">${sys.icon || '?'}</div>`
+      }<div class="gem-card-sys" style="color:${sys.color || '#888'}">${sys.name || system} \u2014 ${RARITY_LABELS[rarity]}</div><div class="gem-card-title">${title}</div></div></div></div>`;
+    }
 
-    btn.addEventListener('click', () => {
-      const [title, system, props] = GEM_POOL[Math.floor(Math.random() * GEM_POOL.length)];
+    function renderDetailCard(title, system, props, rarity, page) {
+      const sys = CRYSTAL_SYSTEMS[system] || {};
+      const [r, g, b] = props.color;
+      const cssColor = `rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})`;
+      const opLabel = props.opacity < 0.3 ? 'transparent' : props.opacity < 0.6 ? 'translucent' : 'opaque';
+      const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+      return `<div class="woo-detail"><div class="gem-detail"><div class="gem-detail-card rarity-${rarity}">${
+        page?.thumbnail ? `<img class="gem-detail-img" src="${page.thumbnail.source}" alt="${title}">` :
+        `<div class="gem-detail-no-img" style="color:${cssColor}">${sys.icon || '?'}</div>`
+      }<div class="gem-detail-sys" style="color:${sys.color || '#888'}">${sys.name || system} \u2014 ${RARITY_LABELS[rarity]}</div><div class="gem-detail-title">${title}</div><div class="gem-detail-props"><span>Mohs ${props.hardness}</span> \u00b7 <span>${props.luster}</span> \u00b7 <span>${opLabel}</span></div><div class="gem-detail-extract">${page?.extract || ''}</div><a class="gem-detail-link" href="${wikiUrl}" target="_blank">Wikipedia \u2192</a> <a class="gem-detail-link" href="grow.html?name=${encodeURIComponent(title)}&sys=${system}&c=${props.color.join(',')}&o=${props.opacity}&l=${props.luster}&h=${props.hardness}">Grow crystal \u2192</a></div></div></div>`;
+    }
+
+    function showReading(title, system, props, rarity, page) {
       const name = title.replace(/ \(.*\)$/, '');
       const [r, g, b] = props.color;
-      const css = `rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})`;
+      const cssColor = `rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})`;
       const opLabel = props.opacity < 0.3 ? 'transparent' : props.opacity < 0.6 ? 'translucent' : 'opaque';
-      const sys = CRYSTAL_SYSTEMS[system] || {};
       const ck = colorToChakra(r, g, b);
       const ar = SYS_WOO[system] || { arch: system, brief: '' };
       const pl = opacityPlane(props.opacity);
       const lu = LUSTER_WOO[props.luster] || { g: '?', n: '?', nat: '?', brief: '' };
+      const thumb = page?.thumbnail?.source;
 
       out.classList.remove('hidden');
-      out.innerHTML = `
-        <div class="woo-head">
-          <span class="woo-swatch" style="background:${css}"></span>
-          <span class="woo-name">${name}</span>
-          <span class="woo-props">${sys.name || system} \u00b7 ${props.luster} \u00b7 ${opLabel} \u00b7 Mohs\u00a0${props.hardness}</span>
-        </div>
-        <table class="map-table">
+      out.innerHTML =
+        renderMinicard(name, system, rarity, cssColor, thumb) +
+        `<table class="map-table">
           <tr><th>Axis</th><th>Maps To</th><th>Meaning</th></tr>
           <tr><td class="key" style="color:${ck.sw}">\u25cf Chakra</td><td>${ck.name}</td><td>${ck.domain}</td></tr>
           <tr><td class="key">Archetype</td><td>${ar.arch}</td><td>${ar.brief}</td></tr>
           <tr><td class="key">Plane</td><td>${pl.name}</td><td>${pl.brief}</td></tr>
           <tr><td class="key">Trigram</td><td>${lu.g} ${lu.n} \u00b7 ${lu.nat}</td><td>${lu.brief}</td></tr>
         </table>
-        <div class="woo-formula"><span class="dim">${opLabel} ${name.toLowerCase()} =</span> ${pl.name.toLowerCase()} + ${ck.name.toLowerCase().replace(/ \(.*/, '')} + ${ar.arch.toLowerCase()} + ${lu.nat.toLowerCase()}</div>`;
+        <div class="woo-formula"><span class="dim">${opLabel} ${name.toLowerCase()} =</span> ${pl.name.toLowerCase()} + ${ck.name.toLowerCase().replace(/ \(.*/, '')} + ${ar.arch.toLowerCase()} + ${lu.nat.toLowerCase()}</div>` +
+        renderDetailCard(title, system, props, rarity, page);
+    }
+
+    const btn = document.getElementById('woo-btn');
+    const out = document.getElementById('woo-result');
+
+    async function pullAndShow(title, system, props, rarity) {
+      const pages = await fetchArticleData([title]).catch(() => ({}));
+      const page = pages[title] || Object.values(pages).find(p => p.title === title);
+      showReading(title, system, props, rarity, page);
+    }
+
+    btn.addEventListener('click', () => {
+      const [title, system, props] = GEM_POOL[Math.floor(Math.random() * GEM_POOL.length)];
+      pullAndShow(title, system, props, props.rarity || 'common');
     });
+
+    // URL params: open a specific gem from /gem detail link
+    const params = new URLSearchParams(location.search);
+    const pName = params.get('name');
+    if (pName) {
+      const entry = GEM_POOL.find(g => g[0] === pName);
+      if (entry) {
+        pullAndShow(entry[0], entry[1], entry[2], entry[2].rarity || 'common');
+      } else {
+        // Reconstruct from URL params (gem not in pool — shouldn't happen, but safe)
+        const c = (params.get('c') || '0.5,0.5,0.5,1').split(',').map(Number);
+        const props = { color: c, opacity: parseFloat(params.get('o') || 0.5),
+                        luster: params.get('l') || 'vitreous', hardness: parseFloat(params.get('h') || 5),
+                        rarity: params.get('r') || 'common' };
+        pullAndShow(pName, params.get('sys') || 'cubic', props, props.rarity);
+      }
+    }
   </script>
 </body>
 </html>
