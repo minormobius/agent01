@@ -464,27 +464,29 @@ async function main() {
   const cleavagePlanes = getCleavagePlanes();
   const baseColor = [0.55, 0.25, 0.65, 1]; // amethyst purple
 
-  // Each fragment: { verts, tris, gpu, ubo, offset, vel, color, scale, scaleTarget }
+  // Each fragment: { id, verts, tris, gpu, ubo, offset, vel, color, scale, scaleTarget, parentId }
   let fragments = [];
+  let nextId = 1;
   const { verts, tris } = buildCrystal();
   fragments.push({
-    verts, tris,
+    id: nextId++, verts, tris,
     gpu: uploadMesh(device, verts, tris),
     ubo: makeUBO(),
     offset: [0,0,0], vel: [0,0,0],
     color: baseColor.slice(),
-    scale: 1, scaleTarget: 1,
+    scale: 1, scaleTarget: 1, parentId: 0,
   });
 
   function resetCrystal() {
     const { verts, tris } = buildCrystal();
+    nextId = 1;
     fragments = [{
-      verts, tris,
+      id: nextId++, verts, tris,
       gpu: uploadMesh(device, verts, tris),
       ubo: makeUBO(),
       offset: [0,0,0], vel: [0,0,0],
       color: baseColor.slice(),
-      scale: 1, scaleTarget: 1,
+      scale: 1, scaleTarget: 1, parentId: 0,
     }];
     document.getElementById('reset-btn').style.display = 'none';
   }
@@ -598,10 +600,13 @@ async function main() {
     }
     if (bestFrag < 0) return null;
 
-    // Compute face normal of hit triangle
+    // Compute face normal of hit triangle, ensure it points outward
     const frag = fragments[bestFrag];
     const va = frag.verts[bestTri[0]], vb = frag.verts[bestTri[1]], vc = frag.verts[bestTri[2]];
-    const faceNormal = normalize3(cross3(sub3(vb, va), sub3(vc, va)));
+    let faceNormal = normalize3(cross3(sub3(vb, va), sub3(vc, va)));
+    // Flip if pointing toward centroid (wrong winding)
+    const fc = centroid(frag.verts);
+    if (dot3(faceNormal, sub3(bestHit.point, fc)) < 0) faceNormal = scale3(faceNormal, -1);
 
     return { hit: bestHit, fragIdx: bestFrag, faceNormal };
   }
@@ -650,11 +655,25 @@ async function main() {
     const pushSpeed = 0.02;
     const jitter = () => (Math.random() - 0.5) * 0.005;
 
-    // Replace the hit fragment with two new ones
+    const posVel = [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()];
+    const negVel = [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()];
+    const posId = nextId++;
+    const negId = nextId++;
+
+    // Replace the hit fragment with two new ones; carry over others
     const newFrags = [];
     for (let i = 0; i < fragments.length; i++) {
       if (i === fragIdx) continue;
-      newFrags.push(fragments[i]);
+      const f = fragments[i];
+      // Children attached to the shattered parent: push with the correct half
+      if (f.parentId === frag.id) {
+        const childLocal = sub3(f.offset, frag.offset);
+        const side = dot3(childLocal, bestPlane) - planeD;
+        const vel = side >= 0 ? posVel : negVel;
+        f.vel = [f.vel[0]+vel[0], f.vel[1]+vel[1], f.vel[2]+vel[2]];
+        f.parentId = side >= 0 ? posId : negId;
+      }
+      newFrags.push(f);
     }
 
     // Slight color variation on new faces
@@ -662,22 +681,20 @@ async function main() {
     const vary = () => Math.max(0, Math.min(1, c[0] + (Math.random()-0.5)*0.08));
 
     newFrags.push({
-      verts: posMesh.verts, tris: posMesh.tris,
+      id: posId, verts: posMesh.verts, tris: posMesh.tris,
       gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
       ubo: makeUBO(),
-      offset: frag.offset.slice(),
-      vel: [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()],
+      offset: frag.offset.slice(), vel: posVel,
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
-      scale: 1, scaleTarget: 1,
+      scale: 1, scaleTarget: 1, parentId: frag.parentId,
     });
     newFrags.push({
-      verts: negMesh.verts, tris: negMesh.tris,
+      id: negId, verts: negMesh.verts, tris: negMesh.tris,
       gpu: uploadMesh(device, negMesh.verts, negMesh.tris),
       ubo: makeUBO(),
-      offset: frag.offset.slice(),
-      vel: [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()],
+      offset: frag.offset.slice(), vel: negVel,
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
-      scale: 1, scaleTarget: 1,
+      scale: 1, scaleTarget: 1, parentId: frag.parentId,
     });
 
     fragments = newFrags;
@@ -699,7 +716,7 @@ async function main() {
     const hueShift = (Math.random() - 0.5) * 0.1;
 
     fragments.push({
-      verts, tris,
+      id: nextId++, verts, tris,
       gpu: uploadMesh(device, verts, tris),
       ubo: makeUBO(),
       offset: worldOff,
@@ -711,6 +728,7 @@ async function main() {
         c[3],
       ],
       scale: 0.1, scaleTarget: 1,
+      parentId: parent.id,
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
