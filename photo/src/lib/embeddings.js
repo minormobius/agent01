@@ -5,6 +5,14 @@ const MODEL_ID = 'Xenova/bge-small-en-v1.5';
 let pipeline = null;
 let loadingPromise = null;
 
+// Detect mobile/low-memory environments
+function isMobile() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+    || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+}
+
 export async function initEmbeddings(onProgress) {
   if (pipeline) return pipeline;
   if (loadingPromise) return loadingPromise;
@@ -27,11 +35,13 @@ export async function initEmbeddings(onProgress) {
       } catch { /* fall back to wasm */ }
     }
 
-    if (onProgress) onProgress({ status: 'loading', message: `Loading model (${device})...` });
+    const mobile = isMobile();
+    if (onProgress) onProgress({ status: 'loading', message: `Loading model (${device}${mobile ? ', mobile' : ''})...` });
 
     pipeline = await createPipeline('feature-extraction', MODEL_ID, {
       device,
-      dtype: device === 'webgpu' ? 'fp32' : 'q8',
+      // Use quantized model everywhere, but on mobile without WebGPU use q4 for less memory
+      dtype: device === 'webgpu' ? 'fp32' : (mobile ? 'q4' : 'q8'),
       progress_callback: (p) => {
         if (onProgress && p.status === 'progress') {
           onProgress({
@@ -56,12 +66,14 @@ export async function initEmbeddings(onProgress) {
 }
 
 // Embed a batch of texts, returns Float32Array[] of shape [n, 384]
-export async function embedTexts(texts, { batchSize = 32, onProgress } = {}) {
+// Batch size adapts to device: 8 on mobile (avoids OOM), 32 on desktop
+export async function embedTexts(texts, { batchSize, onProgress } = {}) {
   const pipe = await initEmbeddings();
+  const effectiveBatch = batchSize || (isMobile() ? 8 : 32);
   const embeddings = [];
 
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
+  for (let i = 0; i < texts.length; i += effectiveBatch) {
+    const batch = texts.slice(i, i + effectiveBatch);
     const output = await pipe(batch, { pooling: 'mean', normalize: true });
 
     // output.tolist() returns number[][]
@@ -71,7 +83,12 @@ export async function embedTexts(texts, { batchSize = 32, onProgress } = {}) {
     }
 
     if (onProgress) {
-      onProgress({ done: Math.min(i + batchSize, texts.length), total: texts.length });
+      onProgress({ done: Math.min(i + effectiveBatch, texts.length), total: texts.length });
+    }
+
+    // Yield to the browser between batches on mobile to prevent UI freeze
+    if (isMobile() && i + effectiveBatch < texts.length) {
+      await new Promise(r => setTimeout(r, 0));
     }
   }
 

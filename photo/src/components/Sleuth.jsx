@@ -8,7 +8,7 @@ import { detectProvider, getProviders, streamChat, buildRAGMessages } from '../l
 import { generateDossier } from '../lib/dossier.js';
 import Dossier from './Dossier.jsx';
 
-export default function Sleuth() {
+export default function Sleuth({ themeToggle }) {
   // Repo state
   const [handle, setHandle] = useState('');
   const [repoStatus, setRepoStatus] = useState('idle'); // idle | loading | ready | error
@@ -159,7 +159,6 @@ export default function Sleuth() {
       const texts = docs.map(d => d.text);
 
       const embeddings = await embedTexts(texts, {
-        batchSize: 64,
         onProgress: ({ done, total }) => {
           setEmbedProgress(`Embedding: ${done.toLocaleString()}/${total.toLocaleString()} posts`);
           setEmbedCount(done);
@@ -308,6 +307,7 @@ export default function Sleuth() {
         >
           {hasLLM ? '🔑' : '⚙️'}
         </button>
+        {themeToggle}
       </header>
 
       {showSettings && (

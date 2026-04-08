@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { parsePostInput, resolvePostUri, fetchThread, flattenThread, extractMedia } from '../lib/thread.js';
 
-export default function Thread() {
+export default function Thread({ themeToggle }) {
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | loading:N | ready | error
   const [error, setError] = useState(null);
@@ -91,6 +91,7 @@ export default function Thread() {
             {status.startsWith('loading') ? 'Loading...' : 'Load'}
           </button>
         </form>
+        {themeToggle}
       </header>
 
       {status.startsWith('loading') && (

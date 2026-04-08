@@ -16,6 +16,39 @@ import Thread from './components/Thread.jsx';
 import Sleuth from './components/Sleuth.jsx';
 import './App.css';
 
+// ---- Theme toggle ----
+function useTheme() {
+  const [theme, setThemeState] = useState(() => localStorage.getItem('atphoto-theme') || 'system');
+
+  useEffect(() => {
+    const resolved = theme === 'system' ? null : theme;
+    if (resolved) {
+      document.documentElement.setAttribute('data-theme', resolved);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('atphoto-theme', theme);
+  }, [theme]);
+
+  const toggle = useCallback(() => {
+    // Determine current effective theme for cycling
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    setThemeState(isDark ? 'light' : 'dark');
+  }, [theme]);
+
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  return { theme, isDark, toggle };
+}
+
+function ThemeToggle({ isDark, onToggle }) {
+  return (
+    <button className="theme-toggle" onClick={onToggle} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+      {isDark ? '\u2600' : '\u263E'}
+    </button>
+  );
+}
+
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
@@ -53,12 +86,13 @@ function useHashRoute() {
 
 export default function App() {
   const route = useHashRoute();
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   // Thread view
   if (route.startsWith('#/thread')) {
     return (
       <div className="photo">
-        <Thread />
+        <Thread themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />} />
       </div>
     );
   }
@@ -67,16 +101,16 @@ export default function App() {
   if (route.startsWith('#/sleuth')) {
     return (
       <div className="photo">
-        <Sleuth />
+        <Sleuth themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />} />
       </div>
     );
   }
 
   // Default: gallery view
-  return <GalleryView />;
+  return <GalleryView themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />} />;
 }
 
-function GalleryView() {
+function GalleryView({ themeToggle }) {
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle'); // idle | resolving | downloading | parsing | loading | extracting | ready | error
   const [progress, setProgress] = useState(null);
@@ -387,6 +421,7 @@ function GalleryView() {
             onLogin={handleLogin}
             onLogout={handleLogout}
           />
+          {themeToggle}
         </div>
       </header>
 
