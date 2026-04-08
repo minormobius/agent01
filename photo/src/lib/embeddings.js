@@ -16,6 +16,14 @@ async function loadTransformers() {
   return transformersModule;
 }
 
+// Detect mobile/low-memory environments
+function isMobile() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+    || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+}
+
 export async function initEmbeddings(onProgress) {
   if (pipeline) return pipeline;
   if (loadingPromise) return loadingPromise;
@@ -25,11 +33,13 @@ export async function initEmbeddings(onProgress) {
 
     const { pipeline: createPipeline } = await loadTransformers();
 
-    if (onProgress) onProgress({ status: 'loading', message: 'Loading model (wasm)...' });
+    const mobile = isMobile();
+    if (onProgress) onProgress({ status: 'loading', message: `Loading model (wasm${mobile ? ', mobile' : ''})...` });
 
     pipeline = await createPipeline('feature-extraction', MODEL_ID, {
       device: 'wasm',
-      dtype: 'q8',
+      // q4 on mobile for less memory, q8 on desktop
+      dtype: mobile ? 'q4' : 'q8',
       progress_callback: (p) => {
         if (onProgress && p.status === 'progress') {
           onProgress({
@@ -55,12 +65,14 @@ export async function initEmbeddings(onProgress) {
 }
 
 // Embed a batch of texts, returns Float32Array[] of shape [n, 384]
-export async function embedTexts(texts, { batchSize = 16, onProgress } = {}) {
+// Batch size adapts to device: 8 on mobile (avoids OOM), 32 on desktop
+export async function embedTexts(texts, { batchSize, onProgress } = {}) {
   const pipe = await initEmbeddings();
+  const effectiveBatch = batchSize || (isMobile() ? 8 : 32);
   const embeddings = [];
 
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
+  for (let i = 0; i < texts.length; i += effectiveBatch) {
+    const batch = texts.slice(i, i + effectiveBatch);
     const output = await pipe(batch, { pooling: 'mean', normalize: true });
 
     const vectors = output.tolist();
@@ -72,7 +84,7 @@ export async function embedTexts(texts, { batchSize = 16, onProgress } = {}) {
     if (output.dispose) output.dispose();
 
     if (onProgress) {
-      onProgress({ done: Math.min(i + batchSize, texts.length), total: texts.length });
+      onProgress({ done: Math.min(i + effectiveBatch, texts.length), total: texts.length });
     }
 
     // Yield to UI thread every batch
