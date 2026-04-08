@@ -13,7 +13,6 @@
   height: 100px;
   margin: 1rem auto;
   perspective: 600px;
-  cursor: pointer;
 }
 
 .gem-pack-face {
@@ -129,24 +128,27 @@
   line-height: 1.2;
 }
 
-/* ── Crystal Viewer ───────────────────────────────────────── */
+/* ── Detail Panel ─────────────────────────────────────────── */
 
-.gem-viewer {
+.gem-detail {
   width: 100%;
   margin-bottom: 1rem;
-  border: 1px solid var(--border);
+}
+
+.gem-detail-card {
+  position: relative;
+  border: 1.5px solid var(--border);
   border-radius: 12px;
   background: var(--card-bg);
-  overflow: hidden;
+  padding: 1rem;
+  animation: luckyReveal 0.3s ease-out;
 }
 
-.gem-viewer-header {
-  position: relative;
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
+.gem-detail-card.rarity-uncommon { border-color: #2e7d32; }
+.gem-detail-card.rarity-rare { border-color: #1565c0; }
+.gem-detail-card.rarity-legendary { border-color: var(--gold); }
 
-.gem-viewer-close {
+.gem-detail-close {
   position: absolute;
   top: 0.5rem;
   right: 0.8rem;
@@ -157,47 +159,55 @@
   cursor: pointer;
   line-height: 1;
 }
-.gem-viewer-close:hover { color: var(--text); }
+.gem-detail-close:hover { color: var(--text); }
 
-.gem-viewer-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-.gem-viewer-meta {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  margin-top: 0.2rem;
-}
-
-#gem-canvas {
+.gem-detail-img {
   width: 100%;
-  height: 300px;
-  display: block;
-  touch-action: none;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
 }
 
-.gem-viewer-info {
-  padding: 0.8rem 1rem;
-  border-top: 1px solid var(--border);
+.gem-detail-no-img {
+  font-size: 4rem;
+  text-align: center;
+  padding: 1.5rem;
+  opacity: 0.5;
+  text-shadow: 0 0 30px currentColor;
 }
 
-.gem-info-extract {
+.gem-detail-sys {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.3rem;
+}
+
+.gem-detail-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.gem-detail-props {
   font-size: 0.75rem;
-  line-height: 1.5;
   color: var(--text-dim);
-  margin-bottom: 0.5rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin-bottom: 0.6rem;
 }
 
-.gem-info-link {
-  font-size: 0.7rem;
+.gem-detail-extract {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+.gem-detail-link {
+  font-size: 0.75rem;
   color: var(--gold);
 }
-
 
 /* ── History ──────────────────────────────────────────────── */
 
@@ -254,8 +264,5 @@
   .gem-cards {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
-  }
-  #gem-canvas {
-    height: 250px;
   }
 }

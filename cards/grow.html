@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Grow — Crystal Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
+canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+#fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; flex-direction: column; gap: 1rem; }
+#fallback a { color: #c9a84c; }
+#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.75rem; opacity: 0.5; pointer-events: none; text-align: center; line-height: 1.8; }
+#hud .name { font-size: 1rem; opacity: 0.9; letter-spacing: 0.08em; }
+#hud .meta { font-size: 0.7rem; opacity: 0.6; }
+#hud .hint { font-size: 0.65rem; opacity: 0.4; }
+#back { position: absolute; top: 1rem; left: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; text-decoration: none; letter-spacing: 0.05em; z-index: 10; }
+#back:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="fallback">
+  <div>WebGPU is not supported in this browser.</div>
+  <div style="font-size:0.85rem;opacity:0.6">Try Chrome 113+, Edge 113+, or Safari 18+</div>
+  <a href="gem.html">Back to Gem cards</a>
+</div>
+<div id="hud">
+  <div class="name">Amethyst</div>
+  <div class="meta">Trigonal · Mohs 7 · Vitreous</div>
+  <div class="hint">drag to rotate</div>
+</div>
+<a id="back" href="gem.html">&larr; Gem</a>
+<script>
+// ── Crystal Grow — single WebGPU crystal ─────────────────────
+// Amethyst (trigonal system): hexagonal prism with pyramid termination
+
+const SHADER = `
+struct U {
+  mvp: mat4x4f,
+  model: mat4x4f,
+  color: vec4f,
+  light: vec4f,
+}
+@group(0) @binding(0) var<uniform> u: U;
+
+struct V {
+  @builtin(position) pos: vec4f,
+  @location(0) n: vec3f,
+  @location(1) wp: vec3f,
+}
+
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f) -> V {
+  var o: V;
+  o.pos = u.mvp * vec4f(p, 1);
+  o.n = (u.model * vec4f(n, 0)).xyz;
+  o.wp = (u.model * vec4f(p, 1)).xyz;
+  return o;
+}
+
+@fragment fn fs(v: V) -> @location(0) vec4f {
+  let N = normalize(v.n);
+  let L = normalize(u.light.xyz);
+  let eye = normalize(vec3f(0, 0, 4) - v.wp);
+
+  // Diffuse
+  let diff = max(dot(N, L), 0.0);
+  // Specular (Blinn-Phong)
+  let H = normalize(L + eye);
+  let spec = pow(max(dot(N, H), 0.0), 80.0);
+  // Fresnel rim
+  let fresnel = pow(1.0 - max(dot(N, eye), 0.0), 3.0);
+
+  let col = u.color.rgb * (0.12 + diff * 0.65)
+          + vec3f(1.0) * spec * 0.6
+          + vec3f(0.4, 0.3, 0.6) * fresnel * 0.35;
+
+  // Gamma
+  let gc = pow(col, vec3f(1.0 / 2.2));
+  return vec4f(gc, 0.85);
+}
+`;
+
+// ── Geometry: trigonal crystal (hexagonal prism + pyramid) ───
+
+function buildCrystal() {
+  const sides = 6;
+  const r = 0.6;         // prism radius
+  const h = 1.0;         // half-height of prism body
+  const tipH = 0.7;      // pyramid tip height above prism
+  const tipR = 0.15;     // how much the tip narrows
+  const verts = [];
+
+  // Bottom ring (0..5), top ring (6..11), bottom center (12), tip (13)
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI * 2 / sides * i - Math.PI / 2;
+    verts.push([r * Math.cos(a), -h, r * Math.sin(a)]);
+  }
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI * 2 / sides * i - Math.PI / 2;
+    verts.push([r * Math.cos(a), h, r * Math.sin(a)]);
+  }
+  // Tip ring (12..17) — slightly narrower, offset alternating
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI * 2 / sides * i - Math.PI / 2;
+    const tr = r * (0.3 + 0.25 * ((i % 2 === 0) ? 1 : 0.4));
+    verts.push([tr * Math.cos(a), h + tipH * (0.6 + 0.4 * ((i % 2 === 0) ? 1 : 0.7)), tr * Math.sin(a)]);
+  }
+  verts.push([0, -h, 0]);        // 18: bottom center
+  verts.push([0, h + tipH, 0]);  // 19: apex
+
+  const tris = [];
+  for (let i = 0; i < sides; i++) {
+    const j = (i + 1) % sides;
+    // Prism side quads
+    tris.push([i, j, j + sides]);
+    tris.push([i, j + sides, i + sides]);
+    // Bottom fan
+    tris.push([18, j, i]);
+    // Pyramid sides (top ring to tip ring)
+    tris.push([i + sides, j + sides, j + 2 * sides]);
+    tris.push([i + sides, j + 2 * sides, i + 2 * sides]);
+    // Tip ring to apex
+    tris.push([i + 2 * sides, j + 2 * sides, 19]);
+  }
+  return { verts, tris };
+}
+
+function flatMesh(verts, tris) {
+  const pos = [], nrm = [], idx = [];
+  for (const [a, b, c] of tris) {
+    const va = verts[a], vb = verts[b], vc = verts[c];
+    const ux = vb[0]-va[0], uy = vb[1]-va[1], uz = vb[2]-va[2];
+    const wx = vc[0]-va[0], wy = vc[1]-va[1], wz = vc[2]-va[2];
+    let nx = uy*wz-uz*wy, ny = uz*wx-ux*wz, nz = ux*wy-uy*wx;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz) || 1;
+    nx/=len; ny/=len; nz/=len;
+    const base = pos.length / 3;
+    pos.push(...va, ...vb, ...vc);
+    nrm.push(nx,ny,nz, nx,ny,nz, nx,ny,nz);
+    idx.push(base, base+1, base+2);
+  }
+  const vd = new Float32Array(pos.length * 2);
+  for (let i = 0; i < pos.length / 3; i++) {
+    vd[i*6]   = pos[i*3];   vd[i*6+1] = pos[i*3+1]; vd[i*6+2] = pos[i*3+2];
+    vd[i*6+3] = nrm[i*3];   vd[i*6+4] = nrm[i*3+1]; vd[i*6+5] = nrm[i*3+2];
+  }
+  return { vd, idx: new Uint16Array(idx) };
+}
+
+// ── Matrix math ─────────────────────────────────────────────
+
+function persp(fov, asp, near, far) {
+  const f = 1/Math.tan(fov/2), r = 1/(near-far);
+  return new Float32Array([f/asp,0,0,0, 0,f,0,0, 0,0,(far+near)*r,-1, 0,0,2*far*near*r,0]);
+}
+function rotX(a) { const c=Math.cos(a),s=Math.sin(a); return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]; }
+function rotY(a) { const c=Math.cos(a),s=Math.sin(a); return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]; }
+function trans(x,y,z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }
+function mul(a, b) {
+  const r = new Float32Array(16);
+  for (let i=0;i<4;i++) for (let j=0;j<4;j++) for (let k=0;k<4;k++) r[i*4+j] += a[i*4+k]*b[k*4+j];
+  return r;
+}
+
+// ── Main ────────────────────────────────────────────────────
+
+async function main() {
+  const canvas = document.getElementById('c');
+
+  if (!navigator.gpu) { document.getElementById('fallback').style.display = 'flex'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { document.getElementById('fallback').style.display = 'flex'; return; }
+  const device = await adapter.requestDevice();
+
+  // Size canvas
+  const dpr = Math.min(devicePixelRatio, 2);
+  function resize() {
+    canvas.width = (innerWidth * dpr) | 0;
+    canvas.height = (innerHeight * dpr) | 0;
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  const ctx = canvas.getContext('webgpu');
+  const fmt = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format: fmt, alphaMode: 'premultiplied' });
+
+  const sm = device.createShaderModule({ code: SHADER });
+  const pipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+      module: sm, entryPoint: 'vs',
+      buffers: [{ arrayStride: 24, attributes: [
+        { shaderLocation: 0, offset: 0, format: 'float32x3' },
+        { shaderLocation: 1, offset: 12, format: 'float32x3' },
+      ]}],
+    },
+    fragment: {
+      module: sm, entryPoint: 'fs',
+      targets: [{ format: fmt, blend: {
+        color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+        alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+      }}],
+    },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    depthStencil: { depthWriteEnabled: true, depthCompare: 'less', format: 'depth24plus' },
+  });
+
+  // Crystal mesh
+  const { verts, tris } = buildCrystal();
+  const { vd, idx } = flatMesh(verts, tris);
+  const vb = device.createBuffer({ size: vd.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(vb, 0, vd);
+  const ib = device.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(ib, 0, idx);
+  const idxCount = idx.length;
+
+  // Uniforms
+  const ubo = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const bg = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
+
+  // Depth
+  let depthTex = device.createTexture({ size: [canvas.width, canvas.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+
+  // Camera
+  let rx = -0.3, ry = 0, dragging = false, lx = 0, ly = 0, autoSpin = true;
+  canvas.addEventListener('pointerdown', e => { dragging = true; autoSpin = false; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!dragging) return; ry += (e.clientX-lx)*0.008; rx += (e.clientY-ly)*0.008; rx = Math.max(-1.4, Math.min(1.4, rx)); lx=e.clientX; ly=e.clientY; });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+
+  // Amethyst color: purple translucent
+  const color = [0.55, 0.25, 0.65, 1];
+
+  function frame() {
+    if (autoSpin) ry += 0.006;
+
+    // Recreate depth if canvas resized
+    if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
+      depthTex.destroy();
+      depthTex = device.createTexture({ size: [canvas.width, canvas.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+    }
+
+    const asp = canvas.width / canvas.height;
+    const p = persp(Math.PI / 4, asp, 0.1, 100);
+    const v = trans(0, 0, -4);
+    const m = mul(rotX(rx), rotY(ry));
+    const mvp = mul(mul(p, v), m);
+
+    const f = new Float32Array(48);
+    f.set(mvp, 0);   // mvp
+    f.set(m, 16);     // model
+    f.set(color, 32); // color
+    f[36] = 0.5; f[37] = 0.8; f[38] = 0.6; f[39] = 0; // light dir
+    device.queue.writeBuffer(ubo, 0, f);
+
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        clearValue: { r: 0.04, g: 0.03, b: 0.06, a: 1 },
+        loadOp: 'clear', storeOp: 'store',
+      }],
+      depthStencilAttachment: {
+        view: depthTex.createView(),
+        depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store',
+      },
+    });
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bg);
+    pass.setVertexBuffer(0, vb);
+    pass.setIndexBuffer(ib, 'uint16');
+    pass.drawIndexed(idxCount);
+    pass.end();
+    device.queue.submit([enc.finish()]);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+main();
+</script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 // ── Gem — crystal card draw page ─────────────────────────────
 import { CRYSTAL_SYSTEMS, GEM_POOL } from "./gem-pool.js";
 import { fetchArticleData, RARITY_LABELS } from "./shared.js";
-import { initCrystalViewer, renderCrystal } from "./gem-crystal.js";
 
 let deck = [];
 let loading = false;
@@ -35,17 +34,44 @@ function renderCard(title, system, props, page) {
     </div>`;
 }
 
+function showDetail(d, page) {
+  const el = document.getElementById("gem-detail");
+  const sys = CRYSTAL_SYSTEMS[d.system] || {};
+  const rarity = d.props.rarity || "common";
+  const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(d.title.replace(/ /g, "_"))}`;
+  const displayTitle = d.title.replace(/ \(.*\)$/, "");
+  const [r, g, b] = d.props.color;
+  const cssColor = `rgb(${(r*255)|0}, ${(g*255)|0}, ${(b*255)|0})`;
+
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="gem-detail-card rarity-${rarity}">
+      <button class="gem-detail-close">&times;</button>
+      ${page?.thumbnail
+        ? `<img class="gem-detail-img" src="${page.thumbnail.source}" alt="${displayTitle}">`
+        : `<div class="gem-detail-no-img" style="color:${cssColor}">${sys.icon || "?"}</div>`}
+      <div class="gem-detail-sys" style="color:${sys.color || '#888'}">${sys.name || d.system} — ${RARITY_LABELS[rarity]}</div>
+      <div class="gem-detail-title">${displayTitle}</div>
+      <div class="gem-detail-props">
+        <span>Mohs ${d.props.hardness}</span> · <span>${d.props.luster}</span> · <span>${d.props.opacity < 0.3 ? "transparent" : d.props.opacity < 0.6 ? "translucent" : "opaque"}</span>
+      </div>
+      <div class="gem-detail-extract">${page?.extract || ""}</div>
+      <a class="gem-detail-link" href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a>
+    </div>`;
+
+  el.querySelector(".gem-detail-close").addEventListener("click", () => el.classList.add("hidden"));
+}
+
 async function doDraw() {
   if (loading) return;
   loading = true;
 
   const cardsEl = document.getElementById("gem-cards");
-  const viewerEl = document.getElementById("gem-viewer");
-  viewerEl.classList.add("hidden");
+  const detailEl = document.getElementById("gem-detail");
+  detailEl.classList.add("hidden");
 
   cardsEl.innerHTML = `<div class="loading"><div class="spinner"></div><span>Drawing 6 crystals...</span></div>`;
 
-  // Draw 6 unique
   const drawn = [];
   const seen = new Set();
   while (drawn.length < 6) {
@@ -64,7 +90,6 @@ async function doDraw() {
     return;
   }
 
-  // Fetch Wikipedia data
   try {
     const titles = drawn.map(d => d.title);
     const pages = await fetchArticleData(titles);
@@ -78,14 +103,13 @@ async function doDraw() {
       return `<div class="gem-card-wrap" data-idx="${i}">${renderCard(d.title, d.system, d.props, page)}</div>`;
     }).join("");
 
-    // Click to open crystal viewer
     cardsEl.querySelectorAll(".gem-card-wrap").forEach(wrap => {
       wrap.style.cursor = "pointer";
       wrap.addEventListener("click", () => {
         const i = parseInt(wrap.dataset.idx);
         const d = drawn[i];
         const page = pageMap[d.title] || Object.values(pages).find(p => p.title === d.title);
-        openViewer(d, page);
+        showDetail(d, page);
       });
     });
 
@@ -101,33 +125,6 @@ async function doDraw() {
   }
 
   loading = false;
-}
-
-// ── Crystal Viewer ──────────────────────────────────────────
-
-async function openViewer(d, page) {
-  const viewer = document.getElementById("gem-viewer");
-  const sys = CRYSTAL_SYSTEMS[d.system] || {};
-  const displayTitle = d.title.replace(/ \(.*\)$/, "");
-
-  document.getElementById("gem-viewer-title").textContent = displayTitle;
-  document.getElementById("gem-viewer-meta").innerHTML =
-    `<span style="color:${sys.color}">${sys.name}</span> · Mohs ${d.props.hardness} · ${d.props.luster}`;
-
-  const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(d.title.replace(/ /g, "_"))}`;
-  const extract = page?.extract || "";
-  document.getElementById("gem-viewer-info").innerHTML = `
-    <div class="gem-info-extract">${extract}</div>
-    <a class="gem-info-link" href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a>
-  `;
-
-  viewer.classList.remove("hidden");
-
-  // Initialize crystal renderer (WebGPU or Canvas 2D fallback)
-  const canvas = document.getElementById("gem-canvas");
-  canvas.style.display = "";
-  await initCrystalViewer(canvas);
-  renderCrystal(d.system, d.props);
 }
 
 function renderHistory() {
@@ -149,8 +146,3 @@ function renderHistory() {
 // ── Init ────────────────────────────────────────────────────
 document.getElementById("gem-pack-count").textContent = `${GEM_POOL.length} crystals`;
 document.getElementById("gem-draw").addEventListener("click", doDraw);
-document.getElementById("gem-viewer-close").addEventListener("click", () => {
-  document.getElementById("gem-viewer").classList.add("hidden");
-  const canvas = document.getElementById("gem-canvas");
-  canvas.style.display = "";
-});
