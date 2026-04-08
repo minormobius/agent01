@@ -31,6 +31,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
   <div class="name">Amethyst</div>
   <div class="meta">Trigonal · Mohs 7 · Vitreous</div>
   <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
+  <div class="hint" id="hud-debug"></div>
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
 <button id="reset-btn">reset</button>
@@ -356,30 +357,32 @@ async function main() {
   // ── Camera ────────────────────────────────────────────────
   let rx = -0.3, ry = 0, camDist = 4;
   let dragging = false, lx = 0, ly = 0, autoSpin = true;
-  let pointerDownTime = 0, pointerMoved = false;
+  let downX = 0, downY = 0, pointerDownTime = 0;
+  const dbg = document.getElementById('hud-debug');
 
   // Pinch zoom
-  let pinchDist0 = 0;
+  let pinchDist0 = 0, pinching = false;
 
   canvas.addEventListener('pointerdown', e => {
     dragging = true; autoSpin = false;
     lx = e.clientX; ly = e.clientY;
+    downX = e.clientX; downY = e.clientY;
     pointerDownTime = performance.now();
-    pointerMoved = false;
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
     const dx = e.clientX-lx, dy = e.clientY-ly;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pointerMoved = true;
     ry += dx*0.008; rx += dy*0.008;
     rx = Math.max(-1.4, Math.min(1.4, rx));
     lx=e.clientX; ly=e.clientY;
   });
   canvas.addEventListener('pointerup', e => {
     dragging = false;
+    if (pinching) { pinching = false; return; }
     const dt = performance.now() - pointerDownTime;
-    if (dt < 300 && !pointerMoved) {
+    const dist = Math.sqrt((e.clientX-downX)**2 + (e.clientY-downY)**2);
+    if (dt < 400 && dist < 15) {
       handleTap(e.clientX, e.clientY);
     }
   });
@@ -387,6 +390,7 @@ async function main() {
   // Touch pinch zoom
   canvas.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
+      pinching = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchDist0 = Math.sqrt(dx*dx+dy*dy);
@@ -413,37 +417,44 @@ async function main() {
   // ── Tap to shatter ────────────────────────────────────────
 
   function handleTap(clientX, clientY) {
+    dbg.textContent = 'tap!';
+
     // Unproject screen tap to world ray
     const rect = canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
 
     const asp = canvas.width / canvas.height;
-    const tanHalf = Math.tan(Math.PI / 8);
+    const tanHalf = Math.tan(Math.PI / 8); // fov/2
     const rdx = ndcX * tanHalf * asp;
     const rdy = ndcY * tanHalf;
 
     // Camera is at (0,0,camDist) looking at origin, rotated by model inverse
-    const mInv = mat4Invert(mul(rotX(rx), rotY(ry)));
+    const m = mul(rotX(rx), rotY(ry));
+    // For pure rotation, inverse = transpose
+    const mInv = mat4Invert(m);
+    // Eye in model space: mInv * (0, 0, camDist)
     const ro = [
-      mInv[0]*0 + mInv[4]*0 + mInv[8]*camDist + mInv[12],
-      mInv[1]*0 + mInv[5]*0 + mInv[9]*camDist + mInv[13],
-      mInv[2]*0 + mInv[6]*0 + mInv[10]*camDist + mInv[14],
+      mInv[8] * camDist,
+      mInv[9] * camDist,
+      mInv[10] * camDist,
     ];
+    // Direction in model space: mInv * normalize(rdx, rdy, -1)
     const rdWorld = normalize3([
-      mInv[0]*rdx + mInv[4]*rdy + mInv[8]*(-1),
-      mInv[1]*rdx + mInv[5]*rdy + mInv[9]*(-1),
-      mInv[2]*rdx + mInv[6]*rdy + mInv[10]*(-1),
+      mInv[0]*rdx + mInv[4]*rdy - mInv[8],
+      mInv[1]*rdx + mInv[5]*rdy - mInv[9],
+      mInv[2]*rdx + mInv[6]*rdy - mInv[10],
     ]);
 
     // Find nearest hit fragment
-    let bestHit = null, bestFrag = -1;
+    let bestHit = null, bestFrag = -1, trisTested = 0;
     for (let fi = 0; fi < fragments.length; fi++) {
       const frag = fragments[fi];
       if (!frag.gpu || frag.tris.length === 0) continue;
       // Offset ray origin by fragment position
       const fragRo = sub3(ro, frag.offset);
       for (const tri of frag.tris) {
+        trisTested++;
         const hit = rayTriIntersect(fragRo, rdWorld, frag.verts[tri[0]], frag.verts[tri[1]], frag.verts[tri[2]]);
         if (hit && (!bestHit || hit.t < bestHit.t)) {
           bestHit = hit;
@@ -451,6 +462,8 @@ async function main() {
         }
       }
     }
+
+    dbg.textContent = `tap ndc(${ndcX.toFixed(2)},${ndcY.toFixed(2)}) ${trisTested}tri hit=${bestFrag}`;
 
     if (bestFrag < 0) return;
 
@@ -477,13 +490,21 @@ async function main() {
       if (score > bestScore) { bestScore = score; bestPlane = pn; }
     }
 
-    // Plane passes through the hit point
-    const planeD = dot3(bestPlane, hitPoint);
+    // Plane passes through the centroid of the fragment (not hit point)
+    // This ensures a meaningful split every time
+    const fc = centroid(frag.verts);
+    const planeD = dot3(bestPlane, fc);
 
     const [posMesh, negMesh] = splitMeshByPlane(frag.verts, frag.tris, bestPlane, planeD);
 
+    dbg.textContent = `shatter: +${posMesh.tris.length}tri -${negMesh.tris.length}tri`;
+
     // Only split if both halves have substance
-    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return;
+    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) {
+      // Try next best plane
+      dbg.textContent += ' (skip, lopsided)';
+      return;
+    }
 
     // Compute push directions (away from split plane)
     const pushSpeed = 0.015;
