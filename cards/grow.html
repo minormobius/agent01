@@ -16,6 +16,8 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 #hud .hint { font-size: 0.65rem; opacity: 0.4; }
 #back { position: absolute; top: 1rem; left: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; text-decoration: none; letter-spacing: 0.05em; z-index: 10; }
 #back:hover { background: rgba(255,255,255,0.15); }
+#reset-btn { position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; display: none; }
+#reset-btn:hover { background: rgba(255,255,255,0.15); }
 </style>
 </head>
 <body>
@@ -28,12 +30,12 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 <div id="hud">
   <div class="name">Amethyst</div>
   <div class="meta">Trigonal · Mohs 7 · Vitreous</div>
-  <div class="hint">drag to rotate</div>
+  <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
+<button id="reset-btn">reset</button>
 <script>
-// ── Crystal Grow — single WebGPU crystal ─────────────────────
-// Amethyst (trigonal system): hexagonal prism with pyramid termination
+// ── Crystal Grow — WebGPU crystal with cleavage fracture ─────
 
 const SHADER = `
 struct U {
@@ -62,93 +64,56 @@ struct V {
   let N = normalize(v.n);
   let L = normalize(u.light.xyz);
   let eye = normalize(vec3f(0, 0, 4) - v.wp);
-
-  // Diffuse
   let diff = max(dot(N, L), 0.0);
-  // Specular (Blinn-Phong)
   let H = normalize(L + eye);
   let spec = pow(max(dot(N, H), 0.0), 80.0);
-  // Fresnel rim
   let fresnel = pow(1.0 - max(dot(N, eye), 0.0), 3.0);
-
   let col = u.color.rgb * (0.12 + diff * 0.65)
           + vec3f(1.0) * spec * 0.6
           + vec3f(0.4, 0.3, 0.6) * fresnel * 0.35;
-
-  // Gamma
   let gc = pow(col, vec3f(1.0 / 2.2));
   return vec4f(gc, 0.85);
 }
 `;
 
-// ── Geometry: trigonal crystal (hexagonal prism + pyramid) ───
+// ── Cleavage planes for trigonal system (amethyst/quartz) ────
+// Quartz has NO perfect cleavage — it fractures conchoidally.
+// But it has weak rhombohedral {1011} and prismatic {1010} partings.
+// We model these as the dominant fracture planes.
+// Normals in crystal-local coordinates (pre-rotation).
 
-function buildCrystal() {
-  const sides = 6;
-  const r = 0.6;         // prism radius
-  const h = 1.0;         // half-height of prism body
-  const tipH = 0.7;      // pyramid tip height above prism
-  const tipR = 0.15;     // how much the tip narrows
-  const verts = [];
-
-  // Bottom ring (0..5), top ring (6..11), bottom center (12), tip (13)
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI * 2 / sides * i - Math.PI / 2;
-    verts.push([r * Math.cos(a), -h, r * Math.sin(a)]);
+function getCleavagePlanes() {
+  // Rhombohedral {1011}: 3 planes at ~55° from c-axis
+  // Prismatic {1010}: 3 planes parallel to c-axis
+  const planes = [];
+  for (let i = 0; i < 3; i++) {
+    const a = Math.PI * 2 / 3 * i;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    // Rhombohedral — tilted planes
+    planes.push(normalize3([ca * 0.7, 0.7, sa * 0.7]));
+    // Prismatic — vertical planes
+    planes.push(normalize3([ca, 0, sa]));
   }
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI * 2 / sides * i - Math.PI / 2;
-    verts.push([r * Math.cos(a), h, r * Math.sin(a)]);
-  }
-  // Tip ring (12..17) — slightly narrower, offset alternating
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI * 2 / sides * i - Math.PI / 2;
-    const tr = r * (0.3 + 0.25 * ((i % 2 === 0) ? 1 : 0.4));
-    verts.push([tr * Math.cos(a), h + tipH * (0.6 + 0.4 * ((i % 2 === 0) ? 1 : 0.7)), tr * Math.sin(a)]);
-  }
-  verts.push([0, -h, 0]);        // 18: bottom center
-  verts.push([0, h + tipH, 0]);  // 19: apex
-
-  const tris = [];
-  for (let i = 0; i < sides; i++) {
-    const j = (i + 1) % sides;
-    // Prism side quads
-    tris.push([i, j, j + sides]);
-    tris.push([i, j + sides, i + sides]);
-    // Bottom fan
-    tris.push([18, j, i]);
-    // Pyramid sides (top ring to tip ring)
-    tris.push([i + sides, j + sides, j + 2 * sides]);
-    tris.push([i + sides, j + 2 * sides, i + 2 * sides]);
-    // Tip ring to apex
-    tris.push([i + 2 * sides, j + 2 * sides, 19]);
-  }
-  return { verts, tris };
+  return planes; // 6 plane normals
 }
 
-function flatMesh(verts, tris) {
-  const pos = [], nrm = [], idx = [];
-  for (const [a, b, c] of tris) {
-    const va = verts[a], vb = verts[b], vc = verts[c];
-    const ux = vb[0]-va[0], uy = vb[1]-va[1], uz = vb[2]-va[2];
-    const wx = vc[0]-va[0], wy = vc[1]-va[1], wz = vc[2]-va[2];
-    let nx = uy*wz-uz*wy, ny = uz*wx-ux*wz, nz = ux*wy-uy*wx;
-    const len = Math.sqrt(nx*nx+ny*ny+nz*nz) || 1;
-    nx/=len; ny/=len; nz/=len;
-    const base = pos.length / 3;
-    pos.push(...va, ...vb, ...vc);
-    nrm.push(nx,ny,nz, nx,ny,nz, nx,ny,nz);
-    idx.push(base, base+1, base+2);
-  }
-  const vd = new Float32Array(pos.length * 2);
-  for (let i = 0; i < pos.length / 3; i++) {
-    vd[i*6]   = pos[i*3];   vd[i*6+1] = pos[i*3+1]; vd[i*6+2] = pos[i*3+2];
-    vd[i*6+3] = nrm[i*3];   vd[i*6+4] = nrm[i*3+1]; vd[i*6+5] = nrm[i*3+2];
-  }
-  return { vd, idx: new Uint16Array(idx) };
-}
+// ── Vector/Matrix math ──────────────────────────────────────
 
-// ── Matrix math ─────────────────────────────────────────────
+function normalize3(v) {
+  const len = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]) || 1;
+  return [v[0]/len, v[1]/len, v[2]/len];
+}
+function dot3(a,b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function sub3(a,b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function add3(a,b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function scale3(v,s) { return [v[0]*s, v[1]*s, v[2]*s]; }
+function cross3(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function lerp3(a,b,t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+function centroid(verts) {
+  const c = [0,0,0];
+  for (const v of verts) { c[0]+=v[0]; c[1]+=v[1]; c[2]+=v[2]; }
+  return scale3(c, 1/verts.length);
+}
 
 function persp(fov, asp, near, far) {
   const f = 1/Math.tan(fov/2), r = 1/(near-far);
@@ -164,22 +129,179 @@ function mul(a, b) {
       o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
   return o;
 }
+function mat4Invert(m) {
+  // Only need inverse for 3x3 rotation part (for ray unproject)
+  // For rotation-only matrices, inverse = transpose
+  const o = new Float32Array(16);
+  o[0]=m[0]; o[1]=m[4]; o[2]=m[8];
+  o[4]=m[1]; o[5]=m[5]; o[6]=m[9];
+  o[8]=m[2]; o[9]=m[6]; o[10]=m[10];
+  o[15]=1;
+  return o;
+}
+
+// ── Geometry: trigonal crystal ──────────────────────────────
+
+function buildCrystal() {
+  const sides = 6, r = 0.6, h = 1.0, tipH = 0.7;
+  const verts = [];
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI*2/sides*i - Math.PI/2;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);
+  }
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI*2/sides*i - Math.PI/2;
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);
+  }
+  for (let i = 0; i < sides; i++) {
+    const a = Math.PI*2/sides*i - Math.PI/2;
+    const tr = r * (0.3 + 0.25*((i%2===0)?1:0.4));
+    verts.push([tr*Math.cos(a), h+tipH*(0.6+0.4*((i%2===0)?1:0.7)), tr*Math.sin(a)]);
+  }
+  verts.push([0,-h,0]); // 18: bottom center
+  verts.push([0,h+tipH,0]); // 19: apex
+  const tris = [];
+  for (let i = 0; i < sides; i++) {
+    const j = (i+1)%sides;
+    tris.push([i,j,j+sides],[i,j+sides,i+sides]);
+    tris.push([18,j,i]);
+    tris.push([i+sides,j+sides,j+2*sides],[i+sides,j+2*sides,i+2*sides]);
+    tris.push([i+2*sides,j+2*sides,19]);
+  }
+  return { verts, tris };
+}
+
+// ── Mesh splitting along a plane ────────────────────────────
+// Sutherland-Hodgman: clip each triangle by plane, producing
+// two sets of triangles (positive side and negative side).
+
+function splitMeshByPlane(verts, tris, planeN, planeD) {
+  const posVerts = [], posTris = [];
+  const negVerts = [], negTris = [];
+
+  for (const tri of tris) {
+    const v = [verts[tri[0]], verts[tri[1]], verts[tri[2]]];
+    const d = v.map(p => dot3(p, planeN) - planeD);
+
+    // All on positive side
+    if (d[0] >= 0 && d[1] >= 0 && d[2] >= 0) {
+      const base = posVerts.length;
+      posVerts.push(v[0], v[1], v[2]);
+      posTris.push([base, base+1, base+2]);
+      continue;
+    }
+    // All on negative side
+    if (d[0] <= 0 && d[1] <= 0 && d[2] <= 0) {
+      const base = negVerts.length;
+      negVerts.push(v[0], v[1], v[2]);
+      negTris.push([base, base+1, base+2]);
+      continue;
+    }
+
+    // Triangle straddles plane — clip it
+    const pos = [], neg = [];
+    for (let i = 0; i < 3; i++) {
+      const j = (i + 1) % 3;
+      const vi = v[i], vj = v[j];
+      const di = d[i], dj = d[j];
+
+      if (di >= 0) pos.push(vi); else neg.push(vi);
+
+      if ((di > 0 && dj < 0) || (di < 0 && dj > 0)) {
+        const t = di / (di - dj);
+        const mid = lerp3(vi, vj, t);
+        pos.push(mid);
+        neg.push(mid);
+      }
+    }
+
+    // Triangulate each polygon (fan from first vertex)
+    if (pos.length >= 3) {
+      const base = posVerts.length;
+      for (const p of pos) posVerts.push(p);
+      for (let i = 1; i < pos.length - 1; i++)
+        posTris.push([base, base+i, base+i+1]);
+    }
+    if (neg.length >= 3) {
+      const base = negVerts.length;
+      for (const p of neg) negVerts.push(p);
+      for (let i = 1; i < neg.length - 1; i++)
+        negTris.push([base, base+i, base+i+1]);
+    }
+  }
+
+  return [
+    { verts: posVerts, tris: posTris },
+    { verts: negVerts, tris: negTris },
+  ];
+}
+
+// ── Build GPU buffers from mesh ─────────────────────────────
+
+function flatMesh(verts, tris) {
+  const pos = [], nrm = [], idx = [];
+  for (const [a, b, c] of tris) {
+    const va = verts[a], vb = verts[b], vc = verts[c];
+    const ux=vb[0]-va[0],uy=vb[1]-va[1],uz=vb[2]-va[2];
+    const wx=vc[0]-va[0],wy=vc[1]-va[1],wz=vc[2]-va[2];
+    let nx=uy*wz-uz*wy, ny=uz*wx-ux*wz, nz=ux*wy-uy*wx;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    nx/=len;ny/=len;nz/=len;
+    const base = pos.length/3;
+    pos.push(...va,...vb,...vc);
+    nrm.push(nx,ny,nz,nx,ny,nz,nx,ny,nz);
+    idx.push(base,base+1,base+2);
+  }
+  const vd = new Float32Array(pos.length*2);
+  for (let i=0;i<pos.length/3;i++){
+    vd[i*6]=pos[i*3];vd[i*6+1]=pos[i*3+1];vd[i*6+2]=pos[i*3+2];
+    vd[i*6+3]=nrm[i*3];vd[i*6+4]=nrm[i*3+1];vd[i*6+5]=nrm[i*3+2];
+  }
+  return { vd, idx: new Uint16Array(idx) };
+}
+
+function uploadMesh(device, verts, tris) {
+  if (tris.length === 0) return null;
+  const { vd, idx } = flatMesh(verts, tris);
+  const vb = device.createBuffer({ size: vd.byteLength, usage: GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(vb, 0, vd);
+  const ib = device.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX|GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(ib, 0, idx);
+  return { vb, ib, count: idx.length };
+}
+
+// ── Ray-triangle intersection ───────────────────────────────
+
+function rayTriIntersect(ro, rd, va, vb, vc) {
+  const e1 = sub3(vb, va), e2 = sub3(vc, va);
+  const h = cross3(rd, e2);
+  const a = dot3(e1, h);
+  if (a > -1e-6 && a < 1e-6) return null;
+  const f = 1/a;
+  const s = sub3(ro, va);
+  const u = f * dot3(s, h);
+  if (u < 0 || u > 1) return null;
+  const q = cross3(s, e1);
+  const v = f * dot3(rd, q);
+  if (v < 0 || u+v > 1) return null;
+  const t = f * dot3(e2, q);
+  if (t > 1e-4) return { t, point: add3(ro, scale3(rd, t)) };
+  return null;
+}
 
 // ── Main ────────────────────────────────────────────────────
 
 async function main() {
   const canvas = document.getElementById('c');
-
-  if (!navigator.gpu) { document.getElementById('fallback').style.display = 'flex'; return; }
+  if (!navigator.gpu) { document.getElementById('fallback').style.display='flex'; return; }
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) { document.getElementById('fallback').style.display = 'flex'; return; }
+  if (!adapter) { document.getElementById('fallback').style.display='flex'; return; }
   const device = await adapter.requestDevice();
 
-  // Size canvas
   const dpr = Math.min(devicePixelRatio, 2);
   function resize() {
-    canvas.width = (innerWidth * dpr) | 0;
-    canvas.height = (innerHeight * dpr) | 0;
+    canvas.width = (innerWidth*dpr)|0;
+    canvas.height = (innerHeight*dpr)|0;
   }
   resize();
   addEventListener('resize', resize);
@@ -191,88 +313,272 @@ async function main() {
   const sm = device.createShaderModule({ code: SHADER });
   const pipeline = device.createRenderPipeline({
     layout: 'auto',
-    vertex: {
-      module: sm, entryPoint: 'vs',
-      buffers: [{ arrayStride: 24, attributes: [
-        { shaderLocation: 0, offset: 0, format: 'float32x3' },
-        { shaderLocation: 1, offset: 12, format: 'float32x3' },
-      ]}],
-    },
-    fragment: {
-      module: sm, entryPoint: 'fs',
-      targets: [{ format: fmt, blend: {
-        color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-        alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-      }}],
-    },
-    primitive: { topology: 'triangle-list', cullMode: 'back' },
-    depthStencil: { depthWriteEnabled: true, depthCompare: 'less', format: 'depth24plus' },
+    vertex: { module: sm, entryPoint: 'vs', buffers: [{ arrayStride:24, attributes:[
+      {shaderLocation:0,offset:0,format:'float32x3'},{shaderLocation:1,offset:12,format:'float32x3'}
+    ]}]},
+    fragment: { module: sm, entryPoint: 'fs', targets: [{ format: fmt, blend: {
+      color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha'},
+      alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha'},
+    }}]},
+    primitive: { topology:'triangle-list', cullMode:'back' },
+    depthStencil: { depthWriteEnabled:true, depthCompare:'less', format:'depth24plus' },
   });
 
-  // Crystal mesh
+  const ubo = device.createBuffer({ size:256, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
+  const bg = device.createBindGroup({ layout:pipeline.getBindGroupLayout(0), entries:[{binding:0,resource:{buffer:ubo}}] });
+  let depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
+
+  // ── Fragment state ──────────────────────────────────────────
+  const cleavagePlanes = getCleavagePlanes();
+  const baseColor = [0.55, 0.25, 0.65, 1]; // amethyst purple
+
+  // Each fragment: { verts, tris, gpu, offset:[x,y,z], vel:[x,y,z], color }
+  let fragments = [];
   const { verts, tris } = buildCrystal();
-  const { vd, idx } = flatMesh(verts, tris);
-  const vb = device.createBuffer({ size: vd.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(vb, 0, vd);
-  const ib = device.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(ib, 0, idx);
-  const idxCount = idx.length;
+  fragments.push({
+    verts, tris,
+    gpu: uploadMesh(device, verts, tris),
+    offset: [0,0,0], vel: [0,0,0],
+    color: baseColor.slice(),
+  });
 
-  // Uniforms
-  const ubo = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  const bg = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
+  function resetCrystal() {
+    const { verts, tris } = buildCrystal();
+    fragments = [{
+      verts, tris,
+      gpu: uploadMesh(device, verts, tris),
+      offset: [0,0,0], vel: [0,0,0],
+      color: baseColor.slice(),
+    }];
+    document.getElementById('reset-btn').style.display = 'none';
+  }
 
-  // Depth
-  let depthTex = device.createTexture({ size: [canvas.width, canvas.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+  // ── Camera ────────────────────────────────────────────────
+  let rx = -0.3, ry = 0, camDist = 4;
+  let dragging = false, lx = 0, ly = 0, autoSpin = true;
+  let pointerDownTime = 0, pointerMoved = false;
 
-  // Camera
-  let rx = -0.3, ry = 0, dragging = false, lx = 0, ly = 0, autoSpin = true;
-  canvas.addEventListener('pointerdown', e => { dragging = true; autoSpin = false; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
-  canvas.addEventListener('pointermove', e => { if (!dragging) return; ry += (e.clientX-lx)*0.008; rx += (e.clientY-ly)*0.008; rx = Math.max(-1.4, Math.min(1.4, rx)); lx=e.clientX; ly=e.clientY; });
-  canvas.addEventListener('pointerup', () => { dragging = false; });
+  // Pinch zoom
+  let pinchDist0 = 0;
 
-  // Amethyst color: purple translucent
-  const color = [0.55, 0.25, 0.65, 1];
+  canvas.addEventListener('pointerdown', e => {
+    dragging = true; autoSpin = false;
+    lx = e.clientX; ly = e.clientY;
+    pointerDownTime = performance.now();
+    pointerMoved = false;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX-lx, dy = e.clientY-ly;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pointerMoved = true;
+    ry += dx*0.008; rx += dy*0.008;
+    rx = Math.max(-1.4, Math.min(1.4, rx));
+    lx=e.clientX; ly=e.clientY;
+  });
+  canvas.addEventListener('pointerup', e => {
+    dragging = false;
+    const dt = performance.now() - pointerDownTime;
+    if (dt < 300 && !pointerMoved) {
+      handleTap(e.clientX, e.clientY);
+    }
+  });
+
+  // Touch pinch zoom
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDist0 = Math.sqrt(dx*dx+dy*dy);
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (pinchDist0 > 0) {
+        camDist *= pinchDist0 / dist;
+        camDist = Math.max(1.5, Math.min(12, camDist));
+      }
+      pinchDist0 = dist;
+    }
+  }, { passive: true });
+  canvas.addEventListener('wheel', e => {
+    camDist *= 1 + e.deltaY * 0.001;
+    camDist = Math.max(1.5, Math.min(12, camDist));
+    e.preventDefault();
+  }, { passive: false });
+
+  // ── Tap to shatter ────────────────────────────────────────
+
+  function handleTap(clientX, clientY) {
+    // Unproject screen tap to world ray
+    const rect = canvas.getBoundingClientRect();
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
+
+    const asp = canvas.width / canvas.height;
+    const tanHalf = Math.tan(Math.PI / 8);
+    const rdx = ndcX * tanHalf * asp;
+    const rdy = ndcY * tanHalf;
+
+    // Camera is at (0,0,camDist) looking at origin, rotated by model inverse
+    const mInv = mat4Invert(mul(rotX(rx), rotY(ry)));
+    const ro = [
+      mInv[0]*0 + mInv[4]*0 + mInv[8]*camDist + mInv[12],
+      mInv[1]*0 + mInv[5]*0 + mInv[9]*camDist + mInv[13],
+      mInv[2]*0 + mInv[6]*0 + mInv[10]*camDist + mInv[14],
+    ];
+    const rdWorld = normalize3([
+      mInv[0]*rdx + mInv[4]*rdy + mInv[8]*(-1),
+      mInv[1]*rdx + mInv[5]*rdy + mInv[9]*(-1),
+      mInv[2]*rdx + mInv[6]*rdy + mInv[10]*(-1),
+    ]);
+
+    // Find nearest hit fragment
+    let bestHit = null, bestFrag = -1;
+    for (let fi = 0; fi < fragments.length; fi++) {
+      const frag = fragments[fi];
+      if (!frag.gpu || frag.tris.length === 0) continue;
+      // Offset ray origin by fragment position
+      const fragRo = sub3(ro, frag.offset);
+      for (const tri of frag.tris) {
+        const hit = rayTriIntersect(fragRo, rdWorld, frag.verts[tri[0]], frag.verts[tri[1]], frag.verts[tri[2]]);
+        if (hit && (!bestHit || hit.t < bestHit.t)) {
+          bestHit = hit;
+          bestFrag = fi;
+        }
+      }
+    }
+
+    if (bestFrag < 0) return;
+
+    // Shatter the hit fragment
+    shatterFragment(bestFrag, bestHit.point);
+  }
+
+  function shatterFragment(fragIdx, hitPoint) {
+    const frag = fragments[fragIdx];
+    if (frag.tris.length < 2) return; // too small to split
+
+    // Pick the cleavage plane whose normal is most aligned with the hit direction
+    // (or closest to the hit point). Use the plane passing through hitPoint.
+    let bestPlane = cleavagePlanes[0];
+    let bestScore = -Infinity;
+    for (const pn of cleavagePlanes) {
+      // Prefer planes that pass near the centroid of the fragment
+      // and have interesting geometry split
+      const fc = centroid(frag.verts);
+      const toHit = normalize3(sub3(hitPoint, fc));
+      // Score: how perpendicular the hit direction is to the plane
+      // (we want to cleave across the crystal, not along the tap direction)
+      const score = Math.abs(dot3(pn, toHit));
+      if (score > bestScore) { bestScore = score; bestPlane = pn; }
+    }
+
+    // Plane passes through the hit point
+    const planeD = dot3(bestPlane, hitPoint);
+
+    const [posMesh, negMesh] = splitMeshByPlane(frag.verts, frag.tris, bestPlane, planeD);
+
+    // Only split if both halves have substance
+    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return;
+
+    // Compute push directions (away from split plane)
+    const pushSpeed = 0.015;
+    const posCenter = centroid(posMesh.verts);
+    const negCenter = centroid(negMesh.verts);
+    const posDir = normalize3(sub3(posCenter, negCenter));
+    const negDir = scale3(posDir, -1);
+
+    // Add slight tumble
+    const tumbleX = (Math.random() - 0.5) * 0.003;
+    const tumbleY = (Math.random() - 0.5) * 0.003;
+
+    // Replace the hit fragment with two new ones
+    const newFrags = [];
+    for (let i = 0; i < fragments.length; i++) {
+      if (i === fragIdx) continue;
+      newFrags.push(fragments[i]);
+    }
+
+    // Slight color variation on new faces
+    const c = frag.color;
+    const vary = () => Math.max(0, Math.min(1, c[0] + (Math.random()-0.5)*0.08));
+
+    newFrags.push({
+      verts: posMesh.verts, tris: posMesh.tris,
+      gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
+      offset: frag.offset.slice(),
+      vel: [posDir[0]*pushSpeed+tumbleX, posDir[1]*pushSpeed+tumbleY, posDir[2]*pushSpeed],
+      color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
+    });
+    newFrags.push({
+      verts: negMesh.verts, tris: negMesh.tris,
+      gpu: uploadMesh(device, negMesh.verts, negMesh.tris),
+      offset: frag.offset.slice(),
+      vel: [negDir[0]*pushSpeed-tumbleX, negDir[1]*pushSpeed-tumbleY, negDir[2]*pushSpeed],
+      color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
+    });
+
+    fragments = newFrags;
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', resetCrystal);
+
+  // ── Render loop ───────────────────────────────────────────
 
   function frame() {
     if (autoSpin) ry += 0.006;
 
-    // Recreate depth if canvas resized
-    if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
-      depthTex.destroy();
-      depthTex = device.createTexture({ size: [canvas.width, canvas.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+    // Update fragment physics
+    for (const f of fragments) {
+      f.offset[0] += f.vel[0];
+      f.offset[1] += f.vel[1];
+      f.offset[2] += f.vel[2];
+      // Dampen
+      f.vel[0] *= 0.985; f.vel[1] *= 0.985; f.vel[2] *= 0.985;
     }
 
-    const asp = canvas.width / canvas.height;
-    const p = persp(Math.PI / 4, asp, 0.1, 100);
-    const v = trans(0, 0, -4);
-    const m = mul(rotX(rx), rotY(ry));
-    const mvp = mul(mul(p, v), m);
+    if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
+      depthTex.destroy();
+      depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
+    }
 
-    const f = new Float32Array(48);
-    f.set(mvp, 0);   // mvp
-    f.set(m, 16);     // model
-    f.set(color, 32); // color
-    f[36] = 0.5; f[37] = 0.8; f[38] = 0.6; f[39] = 0; // light dir
-    device.queue.writeBuffer(ubo, 0, f);
+    const asp = canvas.width/canvas.height;
+    const p = persp(Math.PI/4, asp, 0.1, 100);
+    const v = trans(0, 0, -camDist);
+    const modelBase = mul(rotX(rx), rotY(ry));
 
     const enc = device.createCommandEncoder();
     const pass = enc.beginRenderPass({
-      colorAttachments: [{
-        view: ctx.getCurrentTexture().createView(),
-        clearValue: { r: 0.04, g: 0.03, b: 0.06, a: 1 },
-        loadOp: 'clear', storeOp: 'store',
-      }],
-      depthStencilAttachment: {
-        view: depthTex.createView(),
-        depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store',
-      },
+      colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:0.04,g:0.03,b:0.06,a:1},loadOp:'clear',storeOp:'store'}],
+      depthStencilAttachment:{view:depthTex.createView(),depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'},
     });
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bg);
-    pass.setVertexBuffer(0, vb);
-    pass.setIndexBuffer(ib, 'uint16');
-    pass.drawIndexed(idxCount);
+
+    for (const frag of fragments) {
+      if (!frag.gpu) continue;
+      // Per-fragment model matrix = base rotation * fragment offset translation
+      const fragTrans = trans(frag.offset[0], frag.offset[1], frag.offset[2]);
+      const m = mul(modelBase, fragTrans);
+      const mvp = mul(mul(p, v), m);
+
+      const uf = new Float32Array(48);
+      uf.set(mvp, 0);
+      uf.set(m, 16);
+      uf.set(frag.color, 32);
+      uf[36]=0.5; uf[37]=0.8; uf[38]=0.6; uf[39]=0;
+      device.queue.writeBuffer(ubo, 0, uf);
+
+      pass.setBindGroup(0, bg);
+      pass.setVertexBuffer(0, frag.gpu.vb);
+      pass.setIndexBuffer(frag.gpu.ib, 'uint16');
+      pass.drawIndexed(frag.gpu.count);
+    }
+
     pass.end();
     device.queue.submit([enc.finish()]);
     requestAnimationFrame(frame);
