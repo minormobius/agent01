@@ -31,8 +31,8 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
   <a href="gem.html">Back to Gem cards</a>
 </div>
 <div id="hud">
-  <div class="name">Amethyst</div>
-  <div class="meta">Trigonal · Mohs 7 · Vitreous</div>
+  <div class="name" id="hud-name">Amethyst</div>
+  <div class="meta" id="hud-meta">Trigonal · Mohs 7 · Vitreous</div>
   <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
@@ -80,8 +80,8 @@ struct V {
   let NdotV = max(dot(N, eye), 0.0);
   let NdotL = max(dot(N, L), 0.0);
 
-  // Fresnel (Schlick, quartz RI ~1.54 -> F0 ~ 0.045)
-  let F0 = 0.045;
+  // Fresnel (Schlick, F0 from luster/RI)
+  let F0 = u.eye_time.w;
   let fresnel = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
 
   // Chromatic dispersion: offset Fresnel exponent per channel
@@ -89,9 +89,9 @@ struct V {
   let frB = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.5);
   let dispFr = vec3f(frR, fresnel, frB);
 
-  // Specular (tight highlight for gem facets)
+  // Specular (exponent from luster)
   let H = normalize(L + eye);
-  let spec = pow(max(dot(N, H), 0.0), 120.0);
+  let spec = pow(max(dot(N, H), 0.0), u.light.w);
 
   // Procedural environment (dark space + orbiting sun + faint sky)
   let refl = reflect(-eye, N);
@@ -111,34 +111,135 @@ struct V {
   var col = mix(body, env, dispFr) + vec3f(1.0) * spec * 0.8;
   col = pow(col, vec3f(1.0 / 2.2));
 
-  // Alpha: transparent center, opaque edges
-  let alpha = select(mix(0.35, 0.9, fresnel), mix(0.5, 0.8, fresnel), !front);
+  // Alpha: opacity driven by gem data + Fresnel edges
+  let oBase = u.color.a;
+  let alpha = select(mix(oBase * 0.5 + 0.15, 0.95, fresnel), mix(oBase * 0.6 + 0.3, 0.9, fresnel), !front);
   return vec4f(col, alpha);
 }
 `;
 
-// ── Cleavage planes for trigonal system (amethyst/quartz) ────
-// Quartz has NO perfect cleavage — it fractures conchoidally.
-// But it has weak rhombohedral {1011} and prismatic {1010} partings.
-// We model these as the dominant fracture planes.
-// Normals in crystal-local coordinates (pre-rotation).
+// ── URL params ──────────────────────────────────────────────
 
-function getCleavagePlanes() {
-  // Rhombohedral {1011}: 3 planes at ~55° from c-axis
-  // Prismatic {1010}: 3 planes parallel to c-axis
-  const planes = [];
-  for (let i = 0; i < 3; i++) {
-    const a = Math.PI * 2 / 3 * i;
-    const ca = Math.cos(a), sa = Math.sin(a);
-    // Rhombohedral — tilted planes
-    planes.push(normalize3([ca * 0.7, 0.7, sa * 0.7]));
-    // Prismatic — vertical planes
-    planes.push(normalize3([ca, 0, sa]));
+const PARAMS = Object.fromEntries(new URLSearchParams(location.search));
+const GEM_NAME = PARAMS.name || 'Amethyst';
+const GEM_SYS = PARAMS.sys || 'trigonal';
+const GEM_COLOR = PARAMS.c ? PARAMS.c.split(',').map(Number) : [0.55, 0.25, 0.65, 0.35];
+const GEM_OPACITY = parseFloat(PARAMS.o ?? '0.2');
+const GEM_LUSTER = PARAMS.l || 'vitreous';
+const GEM_HARDNESS = parseFloat(PARAMS.h ?? '7');
+
+// ── Luster → shader params ──────────────────────────────────
+
+const LUSTER_MAP = {
+  adamantine: { specExp: 200, f0: 0.17 },
+  metallic:   { specExp: 80,  f0: 0.6  },
+  vitreous:   { specExp: 120, f0: 0.045 },
+  pearly:     { specExp: 40,  f0: 0.04  },
+  silky:      { specExp: 60,  f0: 0.04  },
+  waxy:       { specExp: 30,  f0: 0.03  },
+  resinous:   { specExp: 50,  f0: 0.04  },
+  earthy:     { specExp: 15,  f0: 0.02  },
+};
+const LUSTER = LUSTER_MAP[GEM_LUSTER] || LUSTER_MAP.vitreous;
+
+// ── Cleavage planes per crystal system ──────────────────────
+
+function getCleavagePlanes(sys) {
+  switch (sys) {
+    case 'cubic': // octahedral {111}
+      return [[1,1,1],[1,1,-1],[1,-1,1],[-1,1,1]].map(normalize3);
+    case 'tetragonal': // prismatic {100} + basal {001}
+      return [[1,0,0],[0,0,1],[0,1,0]].map(normalize3);
+    case 'orthorhombic': // pinacoidal {100},{010},{001}
+      return [[1,0,0],[0,1,0],[0,0,1]].map(normalize3);
+    case 'hexagonal': { // basal + prismatic
+      const p = [[0,1,0]];
+      for (let i = 0; i < 3; i++) { const a = Math.PI*2/3*i; p.push(normalize3([Math.cos(a),0,Math.sin(a)])); }
+      return p;
+    }
+    case 'trigonal': { // rhombohedral + prismatic
+      const p = [];
+      for (let i = 0; i < 3; i++) {
+        const a = Math.PI*2/3*i, ca = Math.cos(a), sa = Math.sin(a);
+        p.push(normalize3([ca*0.7, 0.7, sa*0.7]));
+        p.push(normalize3([ca, 0, sa]));
+      }
+      return p;
+    }
+    case 'monoclinic': // {001} + {010}
+      return [[0,1,0],[0,0,1],normalize3([0.3,0,1])];
+    case 'triclinic': // weak/irregular
+      return [normalize3([0.7,0.7,0]),normalize3([0,0.7,0.7]),normalize3([0.7,0,0.7])];
+    default: return [[1,0,0],[0,1,0],[0,0,1]].map(normalize3);
   }
-  return planes; // 6 plane normals
 }
 
-// ── Vector/Matrix math ──────────────────────────────────────
+// ── Crystal geometry per system ─────────────────────────────
+
+function buildCrystal(sys) {
+  // System-specific params: sides, radius, height, tipHeight, tipShrink, skewX, skewZ
+  const P = {
+    cubic:        { n:4, r:0.85, h:0.85, tH:0,    tS:0    },
+    tetragonal:   { n:4, r:0.5,  h:1.2,  tH:0.5,  tS:0.15 },
+    orthorhombic: { n:4, r:0.6,  h:1.0,  tH:0.4,  tS:0.2, ax:1.4 },
+    hexagonal:    { n:6, r:0.6,  h:1.2,  tH:0.25, tS:0.4  },
+    trigonal:     { n:6, r:0.6,  h:1.0,  tH:0.7,  tS:0.15 },
+    monoclinic:   { n:4, r:0.55, h:1.0,  tH:0.3,  tS:0.2, sx:0.25 },
+    triclinic:    { n:4, r:0.55, h:0.9,  tH:0.25, tS:0.2, sx:0.2, sz:0.15 },
+  }[sys] || { n:6, r:0.6, h:1.0, tH:0.7, tS:0.15 };
+
+  const { n, r, h, tH, tS, ax=1, sx=0, sz=0 } = P;
+  const verts = [];
+
+  // Bottom ring
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    const rr = r * (ax !== 1 && i%2 ? 1/ax : 1);
+    verts.push([rr*Math.cos(a) - h*sx, -h, rr*Math.sin(a) - h*sz]);
+  }
+  // Top ring
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    const rr = r * (ax !== 1 && i%2 ? 1/ax : 1);
+    verts.push([rr*Math.cos(a) + h*sx, h, rr*Math.sin(a) + h*sz]);
+  }
+  // Tip ring (if pyramidal)
+  if (tH > 0) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI*2/n*i - Math.PI/2;
+      const tr = r * (tS + (1-tS)*0.25*((i%2===0)?1:0.4));
+      verts.push([tr*Math.cos(a) + (h+tH*0.5)*sx, h+tH*(0.6+0.4*((i%2===0)?1:0.7)), tr*Math.sin(a) + (h+tH*0.5)*sz]);
+    }
+  }
+  const bci = verts.length;
+  verts.push([-h*sx, -h, -h*sz]); // bottom center
+  const api = tH > 0 ? verts.length : -1;
+  if (tH > 0) verts.push([(h+tH)*sx, h+tH, (h+tH)*sz]); // apex
+
+  const tris = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i+1)%n;
+    tris.push([i,j,j+n],[i,j+n,i+n]); // sides
+    tris.push([bci,j,i]); // bottom cap
+    if (tH > 0) {
+      tris.push([i+n,j+n,j+2*n],[i+n,j+2*n,i+2*n]); // upper sides
+      tris.push([i+2*n,j+2*n,api]); // tip
+    } else {
+      tris.push([i+n,j+n,bci+1>=verts.length?bci:bci]); // flat top — fan from center
+    }
+  }
+  // Flat-top cap (cubic, etc.) — need proper top center
+  if (tH <= 0) {
+    const tci = verts.length;
+    verts.push([h*sx, h, h*sz]); // top center
+    tris.length -= n; // remove the broken top tris
+    for (let i = 0; i < n; i++) {
+      const j = (i+1)%n;
+      tris.push([i+n, tci, j+n]);
+    }
+  }
+  return { verts, tris };
+}
 
 function normalize3(v) {
   const len = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]) || 1;
@@ -188,37 +289,6 @@ function mat4Invert(m) {
   return o;
 }
 
-// ── Geometry: trigonal crystal ──────────────────────────────
-
-function buildCrystal() {
-  const sides = 6, r = 0.6, h = 1.0, tipH = 0.7;
-  const verts = [];
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI*2/sides*i - Math.PI/2;
-    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);
-  }
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI*2/sides*i - Math.PI/2;
-    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);
-  }
-  for (let i = 0; i < sides; i++) {
-    const a = Math.PI*2/sides*i - Math.PI/2;
-    const tr = r * (0.3 + 0.25*((i%2===0)?1:0.4));
-    verts.push([tr*Math.cos(a), h+tipH*(0.6+0.4*((i%2===0)?1:0.7)), tr*Math.sin(a)]);
-  }
-  verts.push([0,-h,0]); // 18: bottom center
-  verts.push([0,h+tipH,0]); // 19: apex
-  const tris = [];
-  for (let i = 0; i < sides; i++) {
-    const j = (i+1)%sides;
-    tris.push([i,j,j+sides],[i,j+sides,i+sides]);
-    tris.push([18,j,i]);
-    tris.push([i+sides,j+sides,j+2*sides],[i+sides,j+2*sides,i+2*sides]);
-    tris.push([i+2*sides,j+2*sides,19]);
-  }
-  return { verts, tris };
-}
-
 // ── Oriented crystal for growth ─────────────────────────────
 // Spawns a crystal aligned so its c-axis points along `normal`,
 // with its base at the origin (grows outward from attachment point).
@@ -235,7 +305,7 @@ function rodrigues(v, axis, angle) {
 }
 
 function buildOrientedCrystal(normal, scale) {
-  const { verts, tris } = buildCrystal();
+  const { verts, tris } = buildCrystal(GEM_SYS);
   // Shift so the base (bottom) is at origin
   const minY = Math.min(...verts.map(v => v[1]));
   for (const v of verts) v[1] -= minY;
@@ -420,6 +490,11 @@ function rayTriIntersect(ro, rd, va, vb, vc) {
 // ── Main ────────────────────────────────────────────────────
 
 async function main() {
+  // Update HUD from URL params
+  const sysNames = {cubic:'Cubic',tetragonal:'Tetragonal',orthorhombic:'Orthorhombic',hexagonal:'Hexagonal',trigonal:'Trigonal',monoclinic:'Monoclinic',triclinic:'Triclinic'};
+  document.getElementById('hud-name').textContent = GEM_NAME.replace(/ \(.*\)$/, '');
+  document.getElementById('hud-meta').textContent = `${sysNames[GEM_SYS]||GEM_SYS} · Mohs ${GEM_HARDNESS} · ${GEM_LUSTER.charAt(0).toUpperCase()+GEM_LUSTER.slice(1)}`;
+
   const canvas = document.getElementById('c');
   if (!navigator.gpu) { document.getElementById('fallback').style.display='flex'; return; }
   const adapter = await navigator.gpu.requestAdapter();
@@ -467,13 +542,13 @@ async function main() {
   let depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
 
   // ── Fragment state ──────────────────────────────────────────
-  const cleavagePlanes = getCleavagePlanes();
-  const baseColor = [0.55, 0.25, 0.65, 1]; // amethyst purple
+  const cleavagePlanes = getCleavagePlanes(GEM_SYS);
+  const baseColor = GEM_COLOR.length >= 4 ? GEM_COLOR : [...GEM_COLOR, 1];
 
   // Each fragment: { id, verts, tris, gpu, ubo, offset, vel, color, scale, scaleTarget, parentId }
   let fragments = [];
   let nextId = 1;
-  const { verts, tris } = buildCrystal();
+  const { verts, tris } = buildCrystal(GEM_SYS);
   fragments.push({
     id: nextId++, verts, tris,
     gpu: uploadMesh(device, verts, tris),
@@ -484,7 +559,7 @@ async function main() {
   });
 
   function resetCrystal() {
-    const { verts, tris } = buildCrystal();
+    const { verts, tris } = buildCrystal(GEM_SYS);
     nextId = 1;
     fragments = [{
       id: nextId++, verts, tris,
@@ -794,8 +869,8 @@ async function main() {
       uf.set(mvp, 0);
       uf.set(m, 16);
       uf.set(frag.color, 32);
-      uf[36]=sunX; uf[37]=sunY; uf[38]=sunZ; uf[39]=0;
-      uf[40]=0; uf[41]=0; uf[42]=camDist; uf[43]=0;
+      uf[36]=sunX; uf[37]=sunY; uf[38]=sunZ; uf[39]=LUSTER.specExp;
+      uf[40]=0; uf[41]=0; uf[42]=camDist; uf[43]=LUSTER.f0;
       device.queue.writeBuffer(frag.ubo.buf, 0, uf);
     }
 

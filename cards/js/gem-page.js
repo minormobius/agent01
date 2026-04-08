@@ -57,6 +57,7 @@ function showDetail(d, page) {
       </div>
       <div class="gem-detail-extract">${page?.extract || ""}</div>
       <a class="gem-detail-link" href="${wikiUrl}" target="_blank">Wikipedia &rarr;</a>
+      <a class="gem-detail-link gem-grow-link" href="grow.html?name=${encodeURIComponent(d.title)}&sys=${d.system}&c=${d.props.color.join(',')}&o=${d.props.opacity}&l=${d.props.luster}&h=${d.props.hardness}">Grow crystal &rarr;</a>
     </div>`;
 
   el.querySelector(".gem-detail-close").addEventListener("click", () => el.classList.add("hidden"));
