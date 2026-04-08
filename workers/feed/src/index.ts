@@ -274,7 +274,7 @@ async function persistCommunities(
   for (const [did, cIds] of bridges) {
     bridgeStmts.push(
       db.prepare(
-        'INSERT INTO feed_bridges (did, community_ids) VALUES (?, ?)'
+        'INSERT OR REPLACE INTO feed_bridges (did, community_ids) VALUES (?, ?)'
       ).bind(did, JSON.stringify([...cIds]))
     );
   }
