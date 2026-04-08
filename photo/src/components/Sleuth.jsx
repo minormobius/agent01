@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { resolveHandle } from '../lib/resolve.js';
 import { downloadRepo, parseCar } from '../lib/repo.js';
-import { initDuckDB, ingestNdjson, filterPostsNdjson, query as duckQuery } from '../lib/duckdb.js';
 import { initEmbeddings, embedTexts, embedQuery } from '../lib/embeddings.js';
 import { VectorStore } from '../lib/vectorstore.js';
 import { detectProvider, getProviders, streamChat, buildRAGMessages } from '../lib/llm.js';
 import { generateDossier } from '../lib/dossier.js';
+import { runSleuthPipeline } from '../lib/memory.js';
 import Dossier from './Dossier.jsx';
 
 export default function Sleuth({ themeToggle }) {
@@ -74,7 +74,11 @@ export default function Sleuth({ themeToggle }) {
     }
   }, []);
 
-  // Load repo and extract all post texts
+  // Memory stats for display
+  const [memoryInfo, setMemoryInfo] = useState(null);
+  const [trimInfo, setTrimInfo] = useState(null);
+
+  // Load repo — memory-aware pipeline (no DuckDB)
   const loadRepo = useCallback(async () => {
     if (!handle.trim()) return;
     setRepoStatus('loading');
@@ -87,58 +91,39 @@ export default function Sleuth({ themeToggle }) {
     setResults([]);
     setDossierData(null);
     setDossierStatus('idle');
+    setMemoryInfo(null);
+    setTrimInfo(null);
 
     try {
       const { did, pdsUrl } = await resolveHandle(handle.trim());
       setUserDid(did);
 
-      setRepoProgress('Downloading repo...');
-      const carBytes = await downloadRepo(pdsUrl, did, {
-        onProgress: ({ received, total }) => {
-          const mb = (received / 1e6).toFixed(1);
-          setRepoProgress(total
-            ? `Downloading: ${mb}/${(total / 1e6).toFixed(1)} MB`
-            : `Downloading: ${mb} MB`);
-        },
+      // Memory-aware pipeline: download → parse → extract text → trim → done
+      // No DuckDB — parses NDJSON directly, frees CAR+NDJSON immediately
+      const result = await runSleuthPipeline({
+        pdsUrl,
+        did,
+        handle: handle.trim(),
+        downloadRepo,
+        parseCar,
+        onProgress: ({ step, message }) => setRepoProgress(message),
       });
 
-      setRepoProgress('Parsing CAR...');
-      const ndjson = await parseCar(carBytes, did);
+      setPostCount(result.totalPosts);
+      setMemoryInfo(result.memoryInfo);
+      if (result.trimmed) {
+        setTrimInfo({ kept: result.kept, dropped: result.dropped });
+      }
 
-      setRepoProgress('Filtering posts...');
-      const { filtered, totalLines } = filterPostsNdjson(ndjson);
+      storeRef.current.docs = result.docs;
 
-      setRepoProgress('Loading into DuckDB...');
-      await initDuckDB();
-      await ingestNdjson(filtered, did, totalLines);
-
-      const posts = await duckQuery(`
-        SELECT
-          rkey,
-          did,
-          json_extract_string(value, '$.text') as text,
-          json_extract_string(value, '$.createdAt') as created_at
-        FROM records
-        WHERE collection = 'app.bsky.feed.post'
-          AND json_extract_string(value, '$.text') IS NOT NULL
-          AND json_extract_string(value, '$.text') != ''
-        ORDER BY json_extract_string(value, '$.createdAt') DESC
-      `);
-
-      setPostCount(posts.length);
-
-      const docs = posts.map(p => ({
-        text: p.text,
-        rkey: p.rkey,
-        did: p.did,
-        createdAt: p.created_at,
-      }));
-      storeRef.current.docs = docs;
-
+      const label = result.trimmed
+        ? `${result.kept.toLocaleString()} posts (${result.dropped.toLocaleString()} older posts trimmed for memory)`
+        : `${result.totalPosts.toLocaleString()} posts loaded`;
       setRepoStatus('ready');
-      setRepoProgress(`${posts.length.toLocaleString()} posts loaded`);
+      setRepoProgress(label);
 
-      embedPosts(docs);
+      embedPosts(result.docs);
     } catch (err) {
       setRepoError(err.message);
       setRepoStatus('error');
@@ -357,7 +342,16 @@ export default function Sleuth({ themeToggle }) {
       {repoStatus === 'ready' && (
         <>
           <div className="sleuth-status-bar">
-            <span className="sleuth-stat">{postCount.toLocaleString()} posts</span>
+            <span className="sleuth-stat">
+              {trimInfo
+                ? `${trimInfo.kept.toLocaleString()}/${postCount.toLocaleString()} posts`
+                : `${postCount.toLocaleString()} posts`}
+            </span>
+            {trimInfo && (
+              <span className="sleuth-stat" style={{ color: 'var(--warning, #f90)' }}>
+                {trimInfo.dropped.toLocaleString()} trimmed
+              </span>
+            )}
             <span className={`sleuth-stat ${embedStatus === 'ready' ? 'ready' : ''}`}>
               {embedStatus === 'ready'
                 ? `${embedCount.toLocaleString()} embedded`
