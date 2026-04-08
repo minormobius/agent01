@@ -724,46 +724,12 @@ async function main() {
     }
   }
 
-  function seedOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
+  function seedOnFace(fragIdx, hitPoint, faceNormal) {
     const parent = fragments[fragIdx];
-    // Same scale as grow — compound from parent, same magnitude
-    let seedScale = (parent.geoScale || 1) * (0.4 + Math.random() * 0.15);
+    // Seed is a PEER crystal — same scale as root, not a child
+    const seedScale = 0.9 + Math.random() * 0.2;
 
-    // Reuse grow's footprint + sibling constraint logic
-    const probe = buildEpitaxialChild(faceNormal, 1.0);
-    let unitFootprint = 0;
-    for (const v of probe.verts) {
-      const along = dot3(v, faceNormal);
-      const lateral = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - along*along);
-      if (lateral > unitFootprint) unitFootprint = lateral;
-    }
-    if (unitFootprint < 0.001) unitFootprint = 0.5;
-
-    if (triVerts) {
-      const [va, vb, vc] = triVerts;
-      const maxR = Math.min(ptSegDist(hitPoint, va, vb), ptSegDist(hitPoint, vb, vc), ptSegDist(hitPoint, vc, va));
-      seedScale = Math.min(seedScale, maxR / unitFootprint);
-    }
-    const worldHit = add3(parent.offset, hitPoint);
-    for (const f of fragments) {
-      if (f === parent) continue;
-      const isSibling = f.parentId === parent.id;
-      const isOtherGrain = f.grain !== parent.grain;
-      if (!isSibling && !isOtherGrain) continue;
-      const sibDist = Math.sqrt(
-        (f.offset[0]-worldHit[0])**2 + (f.offset[1]-worldHit[1])**2 + (f.offset[2]-worldHit[2])**2
-      );
-      const sibRadius = (f.geoScale || 0.1) * unitFootprint;
-      const available = sibDist - sibRadius;
-      if (available > 0) {
-        seedScale = Math.min(seedScale, available / unitFootprint);
-      } else {
-        seedScale = 0;
-      }
-    }
-    if (seedScale < 0.01) return;
-
-    // Build crystal at seedScale, then apply random misorientation
+    // Build a full-size misoriented crystal
     const { verts, tris } = buildCrystal(GEM_SYS);
     for (const v of verts) { v[0] *= seedScale; v[1] *= seedScale; v[2] *= seedScale; }
     const rAxis = normalize3([Math.random()-0.5, Math.random()-0.5, Math.random()-0.5]);
@@ -802,7 +768,7 @@ async function main() {
         pc[3],
       ],
       scale: 0.1, scaleTarget: 1, geoScale: seedScale,
-      parentId: parent.id, anchorLocal: [0, 0, 0], grain: g,
+      parentId: 0, anchorLocal: null, grain: g,
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
@@ -931,7 +897,7 @@ async function main() {
     } else if (mode === 'grow') {
       growOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
     } else {
-      seedOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
+      seedOnFace(result.fragIdx, result.hit.point, result.faceNormal);
     }
   }
 
