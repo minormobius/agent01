@@ -727,7 +727,7 @@ async function main() {
   function seedOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
     const parent = fragments[fragIdx];
     // Same scale as grow — compound from parent, same magnitude
-    let seedScale = (parent.geoScale || 1) * (0.3 + Math.random() * 0.15);
+    let seedScale = (parent.geoScale || 1) * (0.4 + Math.random() * 0.15);
 
     // Reuse grow's footprint + sibling constraint logic
     const probe = buildEpitaxialChild(faceNormal, 1.0);
@@ -761,7 +761,7 @@ async function main() {
         seedScale = 0;
       }
     }
-    if (seedScale < 0.03) return;
+    if (seedScale < 0.01) return;
 
     // Build crystal at seedScale, then apply random misorientation
     const { verts, tris } = buildCrystal(GEM_SYS);
@@ -939,50 +939,58 @@ async function main() {
     const frag = fragments[fragIdx];
     if (frag.tris.length < 2) return; // too small to split
 
-    // Pick the cleavage plane whose normal is most aligned with the hit direction
-    let bestPlane = cleavagePlanes[0];
-    let bestScore = -Infinity;
-    for (const pn of cleavagePlanes) {
-      const fc = centroid(frag.verts);
-      const toHit = normalize3(sub3(hitPoint, fc));
-      const score = Math.abs(dot3(pn, toHit));
-      if (score > bestScore) { bestScore = score; bestPlane = pn; }
-    }
-
     const fc = centroid(frag.verts);
-    const planeD = dot3(bestPlane, fc);
+    const toHit = normalize3(sub3(hitPoint, fc));
 
-    // ── Co-cleavage: find children whose anchor footprint straddles the plane ──
-    // If the cleavage plane cuts through a child's anchor point, merge that
-    // child's mesh into the parent so they split as one body.
-    const coCleavedIds = new Set();
-    let mergedVerts = frag.verts.map(v => v.slice());
-    let mergedTris = frag.tris.map(t => t.slice());
+    // Score all cleavage planes by alignment with hit direction
+    const ranked = cleavagePlanes.map(pn => ({
+      pn, score: Math.abs(dot3(pn, toHit))
+    })).sort((a, b) => b.score - a.score);
 
-    for (const f of fragments) {
-      if (f.parentId !== frag.id || !f.anchorLocal) continue;
-      // Child's anchor in parent's local space
-      const anchorInParent = sub3(f.offset, frag.offset);
-      const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
-      // If anchor is close to the cleavage plane, co-cleave
-      const threshold = (f.geoScale || 0.1) * 0.3;
-      if (anchorDist < threshold) {
-        coCleavedIds.add(f.id);
-        // Transform child verts into parent local space and append
-        const childOff = sub3(f.offset, frag.offset);
-        const base = mergedVerts.length;
-        for (const v of f.verts) {
-          mergedVerts.push([v[0] + childOff[0], v[1] + childOff[1], v[2] + childOff[2]]);
-        }
-        for (const t of f.tris) {
-          mergedTris.push([t[0] + base, t[1] + base, t[2] + base]);
+    // ── Co-cleavage helper: merge children near cleavage plane ──
+    function tryCleavePlane(bestPlane) {
+      const planeD = dot3(bestPlane, fc);
+
+      const coCleavedIds = new Set();
+      let mergedVerts = frag.verts.map(v => v.slice());
+      let mergedTris = frag.tris.map(t => t.slice());
+
+      for (const f of fragments) {
+        if (f.parentId !== frag.id || !f.anchorLocal) continue;
+        const anchorInParent = sub3(f.offset, frag.offset);
+        const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
+        const threshold = (f.geoScale || 0.1) * 0.3;
+        if (anchorDist < threshold) {
+          coCleavedIds.add(f.id);
+          const childOff = sub3(f.offset, frag.offset);
+          const base = mergedVerts.length;
+          for (const v of f.verts) {
+            mergedVerts.push([v[0] + childOff[0], v[1] + childOff[1], v[2] + childOff[2]]);
+          }
+          for (const t of f.tris) {
+            mergedTris.push([t[0] + base, t[1] + base, t[2] + base]);
+          }
         }
       }
+
+      const [posMesh, negMesh] = splitMeshByPlane(mergedVerts, mergedTris, bestPlane, planeD);
+      if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return null;
+      return { posMesh, negMesh, coCleavedIds, bestPlane, planeD };
     }
 
-    const [posMesh, negMesh] = splitMeshByPlane(mergedVerts, mergedTris, bestPlane, planeD);
+    // Try each cleavage plane in ranked order; use the first that produces a valid split
+    let result = null;
+    for (const { pn } of ranked) {
+      result = tryCleavePlane(pn);
+      if (result) break;
+    }
+    // Last resort: split along hit direction itself
+    if (!result) {
+      result = tryCleavePlane(toHit);
+    }
+    if (!result) return;
 
-    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return;
+    const { posMesh, negMesh, coCleavedIds, bestPlane, planeD } = result;
 
     const pushSpeed = 0.02;
     const jitter = () => (Math.random() - 0.5) * 0.005;
@@ -1053,11 +1061,10 @@ async function main() {
 
   function growOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
     const parent = fragments[fragIdx];
-    // Compound geometric scale across generations
-    let growScale = (parent.geoScale || 1) * (0.3 + Math.random() * 0.15);
+    // Compound geometric scale — use sqrt to slow down diminishing returns
+    let growScale = (parent.geoScale || 1) * (0.4 + Math.random() * 0.15);
 
     // Cap to fit within the hit facet — measure actual epitaxial footprint
-    // Build a unit-scale probe to measure its projected footprint on parent face
     const probe = buildEpitaxialChild(faceNormal, 1.0);
     let unitFootprint = 0;
     for (const v of probe.verts) {
@@ -1073,7 +1080,7 @@ async function main() {
       growScale = Math.min(growScale, maxR / unitFootprint);
     }
 
-    // Check distance to siblings on the same parent AND fragments from other grains (grain boundary)
+    // Check distance to siblings on the same parent AND fragments from other grains
     const worldHit = add3(parent.offset, hitPoint);
     for (const f of fragments) {
       if (f === parent) continue;
@@ -1083,16 +1090,15 @@ async function main() {
       const sibDist = Math.sqrt(
         (f.offset[0]-worldHit[0])**2 + (f.offset[1]-worldHit[1])**2 + (f.offset[2]-worldHit[2])**2
       );
-      // Sibling's footprint radius (its geoScale * unitFootprint at scale=1)
       const sibRadius = (f.geoScale || 0.1) * unitFootprint;
       const available = sibDist - sibRadius;
       if (available > 0) {
         growScale = Math.min(growScale, available / unitFootprint);
       } else {
-        growScale = 0; // overlaps existing sibling
+        growScale = 0;
       }
     }
-    if (growScale < 0.03) return; // too small
+    if (growScale < 0.01) return; // too small
 
     const { verts, tris } = buildEpitaxialChild(faceNormal, growScale);
     // Offset: hit point in parent's local space + parent's world offset
