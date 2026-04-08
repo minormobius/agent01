@@ -21,9 +21,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 #mode-btn { position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; transition: all 0.2s; }
 #mode-btn:hover { background: rgba(255,255,255,0.15); }
 #mode-btn.grow-mode { border-color: rgba(100,200,100,0.4); color: #8f8; }
-#seed-btn { position: absolute; top: 1rem; right: 6rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; }
-#seed-btn:hover { background: rgba(255,255,255,0.15); }
-#seed-btn.active { border-color: rgba(200,180,100,0.4); color: #ee4; }
+#mode-btn.seed-mode { border-color: rgba(200,180,100,0.4); color: #ee4; }
 </style>
 </head>
 <body>
@@ -40,7 +38,6 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
 <button id="mode-btn">cleave</button>
-<button id="seed-btn">+ seed</button>
 <button id="reset-btn">reset</button>
 <script>
 // ── Crystal Grow — WebGPU crystal with cleavage fracture ─────
@@ -99,20 +96,20 @@ struct V {
 
   // Procedural environment (dark space + orbiting sun + faint sky)
   let refl = reflect(-eye, N);
-  let sunRefl = pow(max(dot(refl, L), 0.0), 60.0);
-  let env = vec3f(0.02, 0.01, 0.04)
-          + vec3f(1.0, 0.95, 0.85) * sunRefl * 3.0
-          + vec3f(0.06, 0.05, 0.12) * max(refl.y, 0.0);
+  let sunRefl = pow(max(dot(refl, L), 0.0), 48.0);
+  let env = vec3f(0.04, 0.03, 0.07)
+          + vec3f(1.0, 0.95, 0.85) * sunRefl * 5.0
+          + vec3f(0.1, 0.08, 0.18) * max(refl.y, 0.0);
 
-  // Crystal body color
-  var body = u.color.rgb * (0.15 + NdotL * 0.5);
+  // Crystal body color — bright and saturated
+  var body = u.color.rgb * (0.25 + NdotL * 0.75);
   if (!front) {
-    // Back face: deeper absorption color
-    body = u.color.rgb * u.color.rgb * (0.4 + NdotL * 0.4);
+    // Back face: richer absorption color, still vivid
+    body = u.color.rgb * sqrt(u.color.rgb) * (0.5 + NdotL * 0.5);
   }
 
   // Fresnel blend: reflection at edges, transmission at center
-  var col = mix(body, env, dispFr) + vec3f(1.0) * spec * 0.8;
+  var col = mix(body, env, dispFr) + vec3f(1.0) * spec * 1.2;
   col = pow(col, vec3f(1.0 / 2.2));
 
   // Alpha: opacity driven by gem data + Fresnel edges
@@ -695,32 +692,23 @@ async function main() {
     document.getElementById('reset-btn').style.display = 'none';
   }
 
-  // ── Mode toggle (cleave / grow) ─────────────────────────────
+  // ── Mode toggle (cleave / grow / seed) ──────────────────────
+  const MODES = ['cleave', 'grow', 'seed'];
+  const HINTS = {
+    cleave: 'drag to rotate · pinch to zoom · tap to shatter',
+    grow:   'drag to rotate · pinch to zoom · tap to grow',
+    seed:   'drag to rotate · pinch to zoom · tap to seed new grain',
+  };
   let mode = 'cleave';
   const modeBtn = document.getElementById('mode-btn');
   const hintEl = document.querySelector('#hud .hint');
   modeBtn.addEventListener('click', () => {
-    mode = mode === 'cleave' ? 'grow' : 'cleave';
+    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
     modeBtn.textContent = mode;
-    modeBtn.classList.toggle('grow-mode', mode === 'grow');
-    hintEl.textContent = mode === 'cleave'
-      ? 'drag to rotate · pinch to zoom · tap to shatter'
-      : 'drag to rotate · pinch to zoom · tap to grow';
-  });
-
-  // ── Seed crystal (grain boundary) ───────────────────────────
-  let seedMode = false;
-  const seedBtn = document.getElementById('seed-btn');
-  seedBtn.addEventListener('click', () => {
-    seedMode = !seedMode;
-    seedBtn.classList.toggle('active', seedMode);
-    if (seedMode) {
-      hintEl.textContent = 'tap to place a new seed crystal';
-    } else {
-      hintEl.textContent = mode === 'cleave'
-        ? 'drag to rotate · pinch to zoom · tap to shatter'
-        : 'drag to rotate · pinch to zoom · tap to grow';
-    }
+    modeBtn.className = '';
+    if (mode === 'grow') modeBtn.classList.add('grow-mode');
+    if (mode === 'seed') modeBtn.classList.add('seed-mode');
+    hintEl.textContent = HINTS[mode];
   });
 
   function rotateVerts(verts, axis, angle) {
@@ -736,60 +724,86 @@ async function main() {
     }
   }
 
-  function placeSeed(clientX, clientY) {
-    // Cast a ray and place seed near the click in world space
-    const rect = canvas.getBoundingClientRect();
-    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
-    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
-    const asp = canvas.width / canvas.height;
-    const tanHalf = Math.tan(Math.PI / 8);
+  function seedOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
+    const parent = fragments[fragIdx];
+    // Same scale as grow — compound from parent, same magnitude
+    let seedScale = (parent.geoScale || 1) * (0.3 + Math.random() * 0.15);
 
-    // Place at a depth along the view ray
-    const m = mul(rotX(rx), rotY(ry));
-    const mInv = mat4Invert(m);
-    const rdx = ndcX * tanHalf * asp;
-    const rdy = ndcY * tanHalf;
-    // Place 1.5 units from center in the tapped direction
-    const worldDir = normalize3([
-      mInv[0]*rdx + mInv[4]*rdy - mInv[8],
-      mInv[1]*rdx + mInv[5]*rdy - mInv[9],
-      mInv[2]*rdx + mInv[6]*rdy - mInv[10],
-    ]);
-    const placeDist = 1.5;
-    const pos = scale3(worldDir, placeDist);
+    // Reuse grow's footprint + sibling constraint logic
+    const probe = buildEpitaxialChild(faceNormal, 1.0);
+    let unitFootprint = 0;
+    for (const v of probe.verts) {
+      const along = dot3(v, faceNormal);
+      const lateral = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - along*along);
+      if (lateral > unitFootprint) unitFootprint = lateral;
+    }
+    if (unitFootprint < 0.001) unitFootprint = 0.5;
 
-    // Build a misoriented crystal
+    if (triVerts) {
+      const [va, vb, vc] = triVerts;
+      const maxR = Math.min(ptSegDist(hitPoint, va, vb), ptSegDist(hitPoint, vb, vc), ptSegDist(hitPoint, vc, va));
+      seedScale = Math.min(seedScale, maxR / unitFootprint);
+    }
+    const worldHit = add3(parent.offset, hitPoint);
+    for (const f of fragments) {
+      if (f === parent) continue;
+      const isSibling = f.parentId === parent.id;
+      const isOtherGrain = f.grain !== parent.grain;
+      if (!isSibling && !isOtherGrain) continue;
+      const sibDist = Math.sqrt(
+        (f.offset[0]-worldHit[0])**2 + (f.offset[1]-worldHit[1])**2 + (f.offset[2]-worldHit[2])**2
+      );
+      const sibRadius = (f.geoScale || 0.1) * unitFootprint;
+      const available = sibDist - sibRadius;
+      if (available > 0) {
+        seedScale = Math.min(seedScale, available / unitFootprint);
+      } else {
+        seedScale = 0;
+      }
+    }
+    if (seedScale < 0.03) return;
+
+    // Build crystal at seedScale, then apply random misorientation
     const { verts, tris } = buildCrystal(GEM_SYS);
-    const seedScale = 0.4 + Math.random() * 0.2;
     for (const v of verts) { v[0] *= seedScale; v[1] *= seedScale; v[2] *= seedScale; }
-    // Random misorientation axis and angle (15°–60°)
     const rAxis = normalize3([Math.random()-0.5, Math.random()-0.5, Math.random()-0.5]);
     const rAngle = (15 + Math.random() * 45) * Math.PI / 180;
     rotateVerts(verts, rAxis, rAngle);
 
+    // Find contact face (most opposing faceNormal) and position flush
+    const cc = centroid(verts);
+    let bestFace = 0, bestDot = Infinity;
+    for (let i = 0; i < tris.length; i++) {
+      const [a, b, c] = tris[i];
+      let n = normalize3(cross3(sub3(verts[b], verts[a]), sub3(verts[c], verts[a])));
+      const fc = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+      if (dot3(n, sub3(fc, cc)) < 0) n = scale3(n, -1);
+      const d = dot3(n, faceNormal);
+      if (d < bestDot) { bestDot = d; bestFace = i; }
+    }
+    const [a, b, c] = tris[bestFace];
+    const faceCenter = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+    for (const v of verts) { v[0] -= faceCenter[0]; v[1] -= faceCenter[1]; v[2] -= faceCenter[2]; }
+
     const g = nextGrain++;
     const tint = grainTint();
+    const pc = parent.color;
 
     fragments.push({
       id: nextId++, verts, tris,
       gpu: uploadMesh(device, verts, tris),
       ubo: makeUBO(),
-      offset: pos,
+      offset: add3(parent.offset, hitPoint),
       vel: [0, 0, 0],
       color: [
-        Math.max(0, Math.min(1, baseColor[0] + tint[0])),
-        Math.max(0, Math.min(1, baseColor[1] + tint[1])),
-        Math.max(0, Math.min(1, baseColor[2] + tint[2])),
-        baseColor[3],
+        Math.max(0, Math.min(1, pc[0] + tint[0])),
+        Math.max(0, Math.min(1, pc[1] + tint[1])),
+        Math.max(0, Math.min(1, pc[2] + tint[2])),
+        pc[3],
       ],
-      scale: 0.1, scaleTarget: 1, geoScale: seedScale, parentId: 0, grain: g,
+      scale: 0.1, scaleTarget: 1, geoScale: seedScale,
+      parentId: parent.id, anchorLocal: [0, 0, 0], grain: g,
     });
-
-    seedMode = false;
-    seedBtn.classList.remove('active');
-    hintEl.textContent = mode === 'cleave'
-      ? 'drag to rotate · pinch to zoom · tap to shatter'
-      : 'drag to rotate · pinch to zoom · tap to grow';
     document.getElementById('reset-btn').style.display = 'block';
   }
 
@@ -909,14 +923,15 @@ async function main() {
   }
 
   function handleTap(clientX, clientY) {
-    if (seedMode) { placeSeed(clientX, clientY); return; }
     const result = castRay(clientX, clientY);
     if (!result) return;
 
     if (mode === 'cleave') {
       shatterFragment(result.fragIdx, result.hit.point);
-    } else {
+    } else if (mode === 'grow') {
       growOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
+    } else {
+      seedOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
     }
   }
 
