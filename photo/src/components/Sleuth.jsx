@@ -159,7 +159,7 @@ export default function Sleuth() {
       const texts = docs.map(d => d.text);
 
       const embeddings = await embedTexts(texts, {
-        batchSize: 64,
+        batchSize: 16,
         onProgress: ({ done, total }) => {
           setEmbedProgress(`Embedding: ${done.toLocaleString()}/${total.toLocaleString()} posts`);
           setEmbedCount(done);
