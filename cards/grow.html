@@ -31,7 +31,6 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
   <div class="name">Amethyst</div>
   <div class="meta">Trigonal · Mohs 7 · Vitreous</div>
   <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
-  <div class="hint" id="hud-debug"></div>
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
 <button id="reset-btn">reset</button>
@@ -179,6 +178,7 @@ function buildCrystal() {
 function splitMeshByPlane(verts, tris, planeN, planeD) {
   const posVerts = [], posTris = [];
   const negVerts = [], negTris = [];
+  const cutEdges = []; // pairs of intersection points
 
   for (const tri of tris) {
     const v = [verts[tri[0]], verts[tri[1]], verts[tri[2]]];
@@ -201,6 +201,7 @@ function splitMeshByPlane(verts, tris, planeN, planeD) {
 
     // Triangle straddles plane — clip it
     const pos = [], neg = [];
+    const mids = [];
     for (let i = 0; i < 3; i++) {
       const j = (i + 1) % 3;
       const vi = v[i], vj = v[j];
@@ -213,8 +214,12 @@ function splitMeshByPlane(verts, tris, planeN, planeD) {
         const mid = lerp3(vi, vj, t);
         pos.push(mid);
         neg.push(mid);
+        mids.push(mid);
       }
     }
+
+    // Collect cut edge (the two intersection points per straddling triangle)
+    if (mids.length === 2) cutEdges.push([mids[0], mids[1]]);
 
     // Triangulate each polygon (fan from first vertex)
     if (pos.length >= 3) {
@@ -228,6 +233,43 @@ function splitMeshByPlane(verts, tris, planeN, planeD) {
       for (const p of neg) negVerts.push(p);
       for (let i = 1; i < neg.length - 1; i++)
         negTris.push([base, base+i, base+i+1]);
+    }
+  }
+
+  // ── Cap the cut face ────────────────────────────────────────
+  // Collect all unique cut vertices, sort by angle, fan-triangulate
+  if (cutEdges.length >= 2) {
+    const cutPts = [];
+    const EPS = 1e-6;
+    for (const [a, b] of cutEdges) {
+      for (const p of [a, b]) {
+        if (!cutPts.some(q => Math.abs(q[0]-p[0])<EPS && Math.abs(q[1]-p[1])<EPS && Math.abs(q[2]-p[2])<EPS))
+          cutPts.push(p);
+      }
+    }
+    if (cutPts.length >= 3) {
+      // Project onto plane's 2D coords and sort by angle
+      const cc = centroid(cutPts);
+      // Build local axes on the plane
+      let ax = sub3(cutPts[0], cc);
+      const axLen = Math.sqrt(dot3(ax, ax)) || 1;
+      ax = scale3(ax, 1/axLen);
+      const ay = normalize3(cross3(planeN, ax));
+      // Sort by angle
+      cutPts.sort((a, b) => {
+        const da = sub3(a, cc), db = sub3(b, cc);
+        return Math.atan2(dot3(da, ay), dot3(da, ax)) - Math.atan2(dot3(db, ay), dot3(db, ax));
+      });
+      // Add cap to positive side (normal faces -planeN)
+      const pBase = posVerts.length;
+      for (const p of cutPts) posVerts.push(p);
+      for (let i = 1; i < cutPts.length - 1; i++)
+        posTris.push([pBase, pBase+i+1, pBase+i]); // reversed winding for -N
+      // Add cap to negative side (normal faces +planeN)
+      const nBase = negVerts.length;
+      for (const p of cutPts) negVerts.push(p);
+      for (let i = 1; i < cutPts.length - 1; i++)
+        negTris.push([nBase, nBase+i, nBase+i+1]);
     }
   }
 
@@ -364,7 +406,6 @@ async function main() {
   let rx = -0.3, ry = 0, camDist = 4;
   let dragging = false, lx = 0, ly = 0, autoSpin = true;
   let downX = 0, downY = 0, pointerDownTime = 0;
-  const dbg = document.getElementById('hud-debug');
 
   // Pinch zoom
   let pinchDist0 = 0, pinching = false;
@@ -423,8 +464,6 @@ async function main() {
   // ── Tap to shatter ────────────────────────────────────────
 
   function handleTap(clientX, clientY) {
-    dbg.textContent = 'tap!';
-
     // Unproject screen tap to world ray
     const rect = canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -453,14 +492,13 @@ async function main() {
     ]);
 
     // Find nearest hit fragment
-    let bestHit = null, bestFrag = -1, trisTested = 0;
+    let bestHit = null, bestFrag = -1;
     for (let fi = 0; fi < fragments.length; fi++) {
       const frag = fragments[fi];
       if (!frag.gpu || frag.tris.length === 0) continue;
       // Offset ray origin by fragment position
       const fragRo = sub3(ro, frag.offset);
       for (const tri of frag.tris) {
-        trisTested++;
         const hit = rayTriIntersect(fragRo, rdWorld, frag.verts[tri[0]], frag.verts[tri[1]], frag.verts[tri[2]]);
         if (hit && (!bestHit || hit.t < bestHit.t)) {
           bestHit = hit;
@@ -468,8 +506,6 @@ async function main() {
         }
       }
     }
-
-    dbg.textContent = `tap ndc(${ndcX.toFixed(2)},${ndcY.toFixed(2)}) ${trisTested}tri hit=${bestFrag}`;
 
     if (bestFrag < 0) return;
 
@@ -503,14 +539,8 @@ async function main() {
 
     const [posMesh, negMesh] = splitMeshByPlane(frag.verts, frag.tris, bestPlane, planeD);
 
-    dbg.textContent = `shatter: +${posMesh.tris.length}tri -${negMesh.tris.length}tri`;
-
     // Only split if both halves have substance
-    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) {
-      // Try next best plane
-      dbg.textContent += ' (skip, lopsided)';
-      return;
-    }
+    if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return;
 
     // Push halves apart along the cleavage plane normal
     const pushSpeed = 0.06;
@@ -560,11 +590,6 @@ async function main() {
       f.offset[0] += f.vel[0];
       f.offset[1] += f.vel[1];
       f.offset[2] += f.vel[2];
-      // Gravity (gentle downward pull on shattered pieces)
-      if (Math.abs(f.vel[0]) > 0.0001 || Math.abs(f.vel[1]) > 0.0001 || Math.abs(f.vel[2]) > 0.0001) {
-        f.vel[1] -= 0.0008;
-      }
-      // Dampen
       f.vel[0] *= 0.98; f.vel[1] *= 0.98; f.vel[2] *= 0.98;
     }
 
