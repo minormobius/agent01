@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gem Woo — Wiki Cards</title>
+  <link rel="stylesheet" href="css/cards.css">
+  <style>
+    main { max-width: 820px; padding: 0 1.5rem 4rem; width: 100%; }
+    .lede { font-size: 1.1rem; line-height: 1.7; color: var(--text-dim); margin-bottom: 2.5rem; }
+    .lede em { color: var(--text); font-style: normal; }
+
+    h2 { font-size: 1.2rem; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase;
+         color: var(--gold); margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text);
+         margin: 1.5rem 0 0.6rem; }
+
+    p, li { font-size: 0.92rem; line-height: 1.7; color: var(--text-dim); }
+    p { margin-bottom: 0.8rem; }
+    ul { padding-left: 1.2rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.3rem; }
+
+    /* Mapping tables */
+    .map-table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.85rem; }
+    .map-table th { text-align: left; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+                    color: var(--gold-dim); font-size: 0.75rem; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); }
+    .map-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+    .map-table tr:last-child td { border-bottom: none; }
+    .map-table .key { color: var(--text); font-weight: 700; white-space: nowrap; }
+
+    /* Dimension color swatches */
+    .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
+
+    /* Tensor section */
+    .tensor-note { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+                   padding: 1.2rem 1.5rem; margin: 1.5rem 0; font-size: 0.85rem; line-height: 1.7; }
+    .tensor-note strong { color: var(--gold); font-weight: 400; }
+    .formula { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; color: var(--text);
+               background: var(--card-bg); padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0;
+               display: block; overflow-x: auto; }
+
+    /* Source citations */
+    .sources { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .sources ol { padding-left: 1.5rem; counter-reset: src; list-style: none; }
+    .sources li { margin-bottom: 0.6rem; font-size: 0.82rem; color: var(--text-dim); }
+    .sources li::before { counter-increment: src; content: "[" counter(src) "] "; color: var(--gold-dim); }
+    .sources cite { font-style: italic; color: var(--text); }
+    sup a { color: var(--gold-dim); text-decoration: none; font-size: 0.7em; }
+    sup a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="gem.html" class="back-link">&larr; Gem Pack</a>
+    <h1>Gem Woo</h1>
+  </header>
+
+  <main>
+    <p class="lede">
+      Crystal healing assigns <em>metaphysical properties</em> to gemstones &mdash; this one brings clarity,
+      that one wards off negativity. The specific claims are cultural noise, different traditions contradict
+      each other. But the <em>structure that generates the claims</em> is surprisingly systematic. Five
+      physical properties of a mineral map to five axes of metaphysical meaning, and the mappings are
+      consistent enough across traditions to reverse-engineer.
+    </p>
+
+    <h2>I. Color &rarr; Chakra</h2>
+
+    <p>
+      The most universal mapping. The seven-chakra system from Hindu tantric tradition<sup><a href="#src1">1</a></sup>
+      assigns each energy center a color, and crystal healers near-universally match gem color to chakra
+      color.<sup><a href="#src2">2</a></sup> This is the load-bearing wall of the whole edifice.
+    </p>
+
+    <table class="map-table">
+      <tr><th>Color Range</th><th>Chakra</th><th>Sanskrit</th><th>Domain</th></tr>
+      <tr><td class="key"><span class="swatch" style="background:#c44"></span>Red</td><td>Root (1st)</td><td>Muladhara</td><td>Survival, grounding, physical vitality</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#d84"></span>Orange</td><td>Sacral (2nd)</td><td>Svadhisthana</td><td>Creativity, sexuality, emotional flow</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#cc4"></span>Yellow</td><td>Solar plexus (3rd)</td><td>Manipura</td><td>Willpower, confidence, identity</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#4a4"></span>Green</td><td>Heart (4th)</td><td>Anahata</td><td>Love, compassion, connection</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#48c"></span>Blue</td><td>Throat (5th)</td><td>Vishuddha</td><td>Communication, truth, expression</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#449"></span>Indigo</td><td>Third eye (6th)</td><td>Ajna</td><td>Intuition, perception, insight</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#84c"></span>Violet / White</td><td>Crown (7th)</td><td>Sahasrara</td><td>Consciousness, transcendence, unity</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#222"></span>Black / Dark</td><td>Earth (sub-root)</td><td>&mdash;</td><td>Protection, absorption, banishing</td></tr>
+      <tr><td class="key"><span class="swatch" style="background:#daa"></span>Pink</td><td>Higher heart</td><td>&mdash;</td><td>Unconditional love, tenderness, healing</td></tr>
+    </table>
+
+    <p>
+      A gem&rsquo;s <code>[r, g, b, a]</code> color vector maps to chakra association by dominant hue.
+      Multi-colored gems (tourmaline, labradorite) span multiple chakras &mdash; this is considered a
+      feature, not a bug, in the tradition.
+    </p>
+
+    <h2>II. Crystal System &rarr; Archetype</h2>
+
+    <p>
+      This mapping has the strongest single-author provenance: <cite>Michael Gienger</cite>&rsquo;s
+      <cite>Crystal Power, Crystal Healing</cite> (1998)<sup><a href="#src3">3</a></sup> systematically
+      assigns personality archetypes to the seven crystal systems based on their symmetry properties.
+      Higher symmetry = more structured energy. The system has been widely adopted in European crystal
+      healing traditions.
+    </p>
+
+    <table class="map-table">
+      <tr><th>System</th><th>Symmetry</th><th>Archetype</th><th>Gienger&rsquo;s Principle</th></tr>
+      <tr><td class="key">Cubic</td><td>Highest (48 ops)</td><td>Order &amp; stability</td><td>Brings structure, perfection. Stabilizes situations. The &ldquo;earth&rdquo; system.</td></tr>
+      <tr><td class="key">Hexagonal</td><td>High (24 ops)</td><td>Balance &amp; efficiency</td><td>Optimal use of energy. Goal-directed flow. Productivity and purpose.</td></tr>
+      <tr><td class="key">Trigonal</td><td>Medium-high (12 ops)</td><td>Protection &amp; will</td><td>Simplicity and contentment. Deflects negativity. Calming strength.</td></tr>
+      <tr><td class="key">Tetragonal</td><td>Medium (16 ops)</td><td>Focus &amp; transformation</td><td>Absorbs, orders, and re-emits. Dissolution of stagnation. Change agent.</td></tr>
+      <tr><td class="key">Orthorhombic</td><td>Medium (8 ops)</td><td>Clearing &amp; perspective</td><td>Constant internal processing. Digestion of experience. Sobriety.</td></tr>
+      <tr><td class="key">Monoclinic</td><td>Low (4 ops)</td><td>Flow &amp; cycles</td><td>Unidirectional energy flow. Good for rhythms, habits, breaking patterns.</td></tr>
+      <tr><td class="key">Triclinic</td><td>Lowest (2 ops)</td><td>Mystery &amp; integration</td><td>No symmetry constraints. Bridges contradictions. The &ldquo;wild card&rdquo; system.</td></tr>
+    </table>
+
+    <p>
+      The symmetry-to-meaning mapping follows a real gradient: cubic crystals have the most symmetry
+      operations (48 for the holohedral class) and map to the most &ldquo;stable&rdquo; archetype.
+      Triclinic crystals have only inversion and identity, mapping to &ldquo;unconstrained.&rdquo;
+      Whether you buy the metaphysics or not, there&rsquo;s genuine mathematical structure being encoded.
+    </p>
+
+    <h2>III. Hardness &rarr; Potency</h2>
+
+    <p>
+      This mapping is more diffuse &mdash; no single author codified it &mdash; but it&rsquo;s extremely
+      consistent across the literature.<sup><a href="#src2">2</a></sup><sup><a href="#src4">4</a></sup>
+      Harder gems are described as more &ldquo;powerful,&rdquo; &ldquo;intense,&rdquo; or
+      &ldquo;amplifying.&rdquo; Softer gems are &ldquo;gentle,&rdquo; &ldquo;nurturing,&rdquo; or
+      &ldquo;soothing.&rdquo;
+    </p>
+
+    <table class="map-table">
+      <tr><th>Mohs Range</th><th>Potency</th><th>Character</th><th>Examples</th></tr>
+      <tr><td class="key">8&ndash;10</td><td>Intense</td><td>Amplifying, transformative, fast-acting. &ldquo;Master stones.&rdquo;</td><td>Diamond (10), Corundum (9), Topaz (8)</td></tr>
+      <tr><td class="key">6&ndash;7.5</td><td>Moderate</td><td>Balanced potency. Workhorses of crystal healing.</td><td>Quartz (7), Tourmaline (7), Olivine (6.5)</td></tr>
+      <tr><td class="key">4&ndash;5.5</td><td>Gentle</td><td>Gradual effects. Good for sustained, everyday use.</td><td>Fluorite (4), Apatite (5)</td></tr>
+      <tr><td class="key">1&ndash;3.5</td><td>Subtle</td><td>Nurturing, soothing, emotionally supportive. Fragile = handle with care.</td><td>Gypsum (2), Calcite (3), Halite (2.5)</td></tr>
+    </table>
+
+    <p>
+      The logic is almost tautological: hard things resist change, therefore they&rsquo;re &ldquo;strong.&rdquo;
+      But it means hardness maps to a single scalar axis of intensity, which is dimensionally clean.
+    </p>
+
+    <h2>IV. Opacity &rarr; Mode of Action</h2>
+
+    <p>
+      Transparency determines whether a stone works &ldquo;inward&rdquo; (insight, clarity) or
+      &ldquo;outward&rdquo; (shielding, protection). This appears in Melody&rsquo;s <cite>Love Is in
+      the Earth</cite><sup><a href="#src4">4</a></sup> and most subsequent reference works.
+    </p>
+
+    <table class="map-table">
+      <tr><th>Opacity</th><th>Mode</th><th>Principle</th></tr>
+      <tr><td class="key">Transparent</td><td>Clarity / insight</td><td>Light passes through &rarr; &ldquo;sees through&rdquo; problems. Mental and spiritual work. Meditation.</td></tr>
+      <tr><td class="key">Translucent</td><td>Intuition / dreams</td><td>Light diffuses &rarr; softens perception. Liminal states, dreamwork, psychic sensitivity.</td></tr>
+      <tr><td class="key">Opaque</td><td>Protection / grounding</td><td>Light blocked &rarr; shields the bearer. Physical realm, boundaries, defense.</td></tr>
+    </table>
+
+    <p>
+      This is a three-valued axis. Combined with chakra (color) it produces the core claim space:
+      a transparent red stone (ruby) = &ldquo;clarity about survival/vitality,&rdquo; an opaque
+      red stone (hematite) = &ldquo;physical protection and grounding.&rdquo;
+    </p>
+
+    <h2>V. Luster &rarr; Element</h2>
+
+    <p>
+      The loosest mapping, but it shows up consistently enough to document. Gienger<sup><a href="#src3">3</a></sup>
+      associates luster with the classical elements and their metaphysical qualities. The mapping tracks
+      how a surface interacts with light as a metaphor for how energy is received and emitted.
+    </p>
+
+    <table class="map-table">
+      <tr><th>Luster</th><th>Element</th><th>Metaphysical Quality</th></tr>
+      <tr><td class="key">Adamantine</td><td>Fire</td><td>Brilliance, intensity, passion. Commands attention. Transformative.</td></tr>
+      <tr><td class="key">Metallic</td><td>Earth</td><td>Wealth, material power, conductivity. Draws and grounds energy.</td></tr>
+      <tr><td class="key">Vitreous</td><td>Water</td><td>Emotional resonance, reflection, clarity. The most versatile luster.</td></tr>
+      <tr><td class="key">Silky</td><td>Air</td><td>Gentle movement, breath, subtle perception. Directional energy.</td></tr>
+      <tr><td class="key">Pearly</td><td>Spirit / Aether</td><td>Iridescence as bridge between realms. Moon-associated. Feminine.</td></tr>
+      <tr><td class="key">Resinous</td><td>Earth-Fire</td><td>Organic warmth. Preservation. Ancient energy (amber, etc.).</td></tr>
+      <tr><td class="key">Waxy</td><td>Earth-Water</td><td>Slow absorption. Patience. Deep, gradual healing.</td></tr>
+      <tr><td class="key">Earthy</td><td>Earth</td><td>Raw, unrefined, primal. Unprocessed earth energy. Humility.</td></tr>
+    </table>
+
+    <h2>The Tensor Problem</h2>
+
+    <div class="tensor-note">
+      <p>
+        These five axes look clean in isolation. The problem is what happens when you cross them.
+      </p>
+      <p>
+        <strong>Color</strong> maps to 9 chakra values. <strong>Crystal system</strong> maps to 7
+        archetypes. <strong>Hardness</strong> maps to a 4-tier potency scale. <strong>Opacity</strong>
+        maps to 3 modes. <strong>Luster</strong> maps to 8 elemental associations.
+      </p>
+      <code class="formula">9 &times; 7 &times; 4 &times; 3 &times; 8 = 6,048 distinct metaphysical profiles</code>
+      <p>
+        Each of the 80 gems in the pack occupies a single point in this 6,048-cell space. Most cells
+        are empty &mdash; nature doesn&rsquo;t produce green adamantine triclinic minerals at Mohs 10.
+        But even the occupied cells generate combinatorial meaning:
+      </p>
+      <code class="formula">"transparent green vitreous trigonal Mohs-7"
+= clarity + heart + water + protection + moderate
+= "clear-minded compassion, emotionally protective, steady"
+= Emerald</code>
+      <p>
+        The challenge isn&rsquo;t computing this &mdash; it&rsquo;s <em>visualizing</em> it. Five
+        categorical dimensions don&rsquo;t reduce to a 2D plot without losing most of the structure.
+        Options:
+      </p>
+      <ul>
+        <li><strong>Parallel coordinates</strong> &mdash; one axis per dimension, lines connecting each gem&rsquo;s values. Shows clustering and outliers. Gets noisy past 30 gems.</li>
+        <li><strong>Faceted small multiples</strong> &mdash; fix one or two dimensions, tile the rest. e.g., one panel per crystal system, x = hardness, y = opacity, color = chakra, glyph = luster.</li>
+        <li><strong>Radar/spider charts per gem</strong> &mdash; each gem gets a 5-axis polygon. Good for comparing 2&ndash;3 gems side by side, bad for seeing the whole space.</li>
+        <li><strong>Dimensionality reduction</strong> &mdash; encode all 5 axes numerically, run t-SNE or UMAP, project to 2D. Shows which gems are &ldquo;metaphysically similar&rdquo; without explaining why.</li>
+        <li><strong>Hierarchical treemap</strong> &mdash; nest: system &rarr; luster &rarr; chakra. Size by potency, opacity by opacity. Compact but lossy.</li>
+      </ul>
+      <p>
+        The honest answer is probably <strong>multiple linked views</strong> &mdash; a constellation plot
+        for overview, with click-to-filter that highlights the same gems across parallel coordinates
+        and a detail panel. No single chart can hold 6,048 cells without lying.
+      </p>
+    </div>
+
+    <h2>What This Means for the Card Game</h2>
+
+    <p>
+      Every gem in the pack already has <code>color</code>, <code>system</code>, <code>hardness</code>,
+      <code>opacity</code>, and <code>luster</code> as mineralogical properties. The metaphysical layer
+      is a <em>computed projection</em> of those same five values through the mappings above. No new
+      data is needed &mdash; just the lookup tables.
+    </p>
+    <p>
+      A draw of 6 gems produces a metaphysical &ldquo;spread&rdquo; that can be read like a tarot layout:
+      which chakras are represented? Which are missing? Is the potency balanced or skewed? Do the
+      archetypes conflict or reinforce? The combinatorial space is large enough that every draw
+      feels distinct, and the structure is rigid enough that the readings aren&rsquo;t random.
+    </p>
+
+    <div class="sources">
+      <h2>Sources</h2>
+      <ol>
+        <li id="src1"><cite>The Serpent Power</cite>, Arthur Avalon (Sir John Woodroffe), 1919. The foundational Western translation of the chakra system from the <cite>Sat-Cakra-Nirupana</cite> (1577). Establishes the seven-chakra model and color associations that crystal healing later adopted. <a href="https://en.wikipedia.org/wiki/The_Serpent_Power" target="_blank">Wikipedia</a></li>
+        <li id="src2">Katrina Raphaell, <cite>Crystal Enlightenment: The Transforming Properties of Crystals and Healing Stones</cite>, Aurora Press, 1985. The book that systematized chakra-color-gem correspondences into a usable framework. Introduced the crystal healing movement to coherent theory. <a href="https://en.wikipedia.org/wiki/Katrina_Raphaell" target="_blank">Wikipedia</a></li>
+        <li id="src3">Michael Gienger, <cite>Crystal Power, Crystal Healing: The Complete Handbook</cite>, Cassell, 1998. The primary source for crystal-system-to-archetype mappings. Gienger explicitly uses crystallographic symmetry groups as the basis for his metaphysical typology. <a href="https://en.wikipedia.org/wiki/Michael_Gienger" target="_blank">Wikipedia</a></li>
+        <li id="src4">Melody, <cite>Love Is in the Earth: A Kaleidoscope of Crystals</cite>, Earth-Love Publishing, 1995. Encyclopedic reference (over 700 minerals) that implicitly encodes the opacity-to-mode and hardness-to-potency mappings across hundreds of individual entries. <a href="https://en.wikipedia.org/wiki/Melody_(author)" target="_blank">Wikipedia</a></li>
+        <li id="src5">Robert Simmons &amp; Naisha Ahsian, <cite>The Book of Stones: Who They Are &amp; What They Teach</cite>, North Atlantic Books, 2005. Modern synthesis that cross-references all five axes (color, system, hardness, transparency, luster) for each stone. The closest existing work to the tensor framework described here. <a href="https://en.wikipedia.org/wiki/Robert_Simmons_(author)" target="_blank">Publisher</a></li>
+      </ol>
+    </div>
+  </main>
+
+  <footer>
+    <p>Powered by <a href="https://en.wikipedia.org" target="_blank">Wikipedia</a> &mdash; a <a href="https://minomobi.com" target="_blank">minomobi</a> thing</p>
+  </footer>
+</body>
+</html>
