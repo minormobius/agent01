@@ -154,13 +154,15 @@ function persp(fov, asp, near, far) {
   const f = 1/Math.tan(fov/2), r = 1/(near-far);
   return new Float32Array([f/asp,0,0,0, 0,f,0,0, 0,0,(far+near)*r,-1, 0,0,2*far*near*r,0]);
 }
-function rotX(a) { const c=Math.cos(a),s=Math.sin(a); return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]; }
-function rotY(a) { const c=Math.cos(a),s=Math.sin(a); return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]; }
-function trans(x,y,z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }
+function rotX(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); }
+function rotY(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]); }
+function trans(x,y,z) { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); }
 function mul(a, b) {
-  const r = new Float32Array(16);
-  for (let i=0;i<4;i++) for (let j=0;j<4;j++) for (let k=0;k<4;k++) r[i*4+j] += a[i*4+k]*b[k*4+j];
-  return r;
+  const o = new Float32Array(16);
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++)
+      o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+  return o;
 }
 
 // ── Main ────────────────────────────────────────────────────
@@ -278,7 +280,11 @@ async function main() {
   requestAnimationFrame(frame);
 }
 
-main();
+main().catch(e => {
+  console.error(e);
+  document.getElementById('fallback').style.display = 'flex';
+  document.getElementById('fallback').innerHTML += '<div style="font-size:0.7rem;opacity:0.4;margin-top:1rem">' + e.message + '</div>';
+});
 </script>
 </body>
 </html>
