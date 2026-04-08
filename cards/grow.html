@@ -177,68 +177,173 @@ function getCleavagePlanes(sys) {
 // ── Crystal geometry per system ─────────────────────────────
 
 function buildCrystal(sys) {
-  // System-specific params: sides, radius, height, tipHeight, tipShrink, skewX, skewZ
-  const P = {
-    cubic:        { n:4, r:0.85, h:0.85, tH:0,    tS:0    },
-    tetragonal:   { n:4, r:0.5,  h:1.2,  tH:0.5,  tS:0.15 },
-    orthorhombic: { n:4, r:0.6,  h:1.0,  tH:0.4,  tS:0.2, ax:1.4 },
-    hexagonal:    { n:6, r:0.6,  h:1.2,  tH:0.25, tS:0.4  },
-    trigonal:     { n:6, r:0.6,  h:1.0,  tH:0.7,  tS:0.15 },
-    monoclinic:   { n:4, r:0.55, h:1.0,  tH:0.3,  tS:0.2, sx:0.25 },
-    triclinic:    { n:4, r:0.55, h:0.9,  tH:0.25, tS:0.2, sx:0.2, sz:0.15 },
-  }[sys] || { n:6, r:0.6, h:1.0, tH:0.7, tS:0.15 };
+  switch (sys) {
+    case 'cubic': return buildOctahedron();
+    case 'tetragonal': return buildTetragonal();
+    case 'orthorhombic': return buildOrthorhombic();
+    case 'hexagonal': return buildHexPrism();
+    case 'trigonal': return buildTrigonal();
+    case 'monoclinic': return buildMonoclinic();
+    case 'triclinic': return buildTriclinic();
+    default: return buildTrigonal();
+  }
+}
 
-  const { n, r, h, tH, tS, ax=1, sx=0, sz=0 } = P;
+// Cubic: octahedron (diamond, fluorite, magnetite)
+// 6 vertices at axis tips, 8 equilateral triangular faces
+function buildOctahedron() {
+  const s = 1.0;
+  const verts = [[s,0,0],[-s,0,0],[0,s,0],[0,-s,0],[0,0,s],[0,0,-s]];
+  const tris = [
+    [0,2,4],[0,4,3],[0,3,5],[0,5,2], // +x
+    [1,4,2],[1,3,4],[1,5,3],[1,2,5], // -x
+  ];
+  return { verts, tris };
+}
+
+// Tetragonal: elongated square prism + 4-sided pyramid cap (zircon)
+function buildTetragonal() {
+  const r = 0.5, h = 1.1, tH = 0.6;
   const verts = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);     // 0-3 bottom
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);       // 4-7 top (interleaved)
+  }
+  // Reorder: bottom 0-3, top 4-7
+  const v = [], bottom = [], top = [];
+  for (let i = 0; i < 4; i++) { bottom.push(verts[i*2]); top.push(verts[i*2+1]); }
+  v.push(...bottom, ...top);
+  v.push([0, h+tH, 0]); // 8: apex
+  v.push([0, -h, 0]);    // 9: bottom center
+  const tris = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i+1)%4;
+    tris.push([i,j,j+4],[i,j+4,i+4]); // sides
+    tris.push([i+4,j+4,8]);             // pyramid
+    tris.push([9,j,i]);                  // bottom cap
+  }
+  return { verts: v, tris };
+}
 
-  // Bottom ring
-  for (let i = 0; i < n; i++) {
-    const a = Math.PI*2/n*i - Math.PI/2;
-    const rr = r * (ax !== 1 && i%2 ? 1/ax : 1);
-    verts.push([rr*Math.cos(a) - h*sx, -h, rr*Math.sin(a) - h*sz]);
+// Orthorhombic: rectangular prism + wedge/dome top (topaz, olivine)
+function buildOrthorhombic() {
+  const a = 0.75, b = 0.45, h = 1.0, dH = 0.5;
+  // Rectangular base
+  const v = [
+    [-a,-h,-b],[a,-h,-b],[a,-h,b],[-a,-h,b],  // 0-3 bottom
+    [-a,h,-b],[a,h,-b],[a,h,b],[-a,h,b],       // 4-7 top
+    [0,h+dH,0],                                  // 8: dome apex
+    [0,-h,0],                                    // 9: bottom center
+  ];
+  const tris = [];
+  const idx = [[0,1],[1,2],[2,3],[3,0]];
+  for (let i = 0; i < 4; i++) {
+    const [c,d] = idx[i];
+    tris.push([c,d,d+4],[c,d+4,c+4]); // sides
+    tris.push([c+4,d+4,8]);             // dome
+    tris.push([9,d,c]);                  // bottom
   }
-  // Top ring
-  for (let i = 0; i < n; i++) {
-    const a = Math.PI*2/n*i - Math.PI/2;
-    const rr = r * (ax !== 1 && i%2 ? 1/ax : 1);
-    verts.push([rr*Math.cos(a) + h*sx, h, rr*Math.sin(a) + h*sz]);
-  }
-  // Tip ring (if pyramidal)
-  if (tH > 0) {
-    for (let i = 0; i < n; i++) {
-      const a = Math.PI*2/n*i - Math.PI/2;
-      const tr = r * (tS + (1-tS)*0.25*((i%2===0)?1:0.4));
-      verts.push([tr*Math.cos(a) + (h+tH*0.5)*sx, h+tH*(0.6+0.4*((i%2===0)?1:0.7)), tr*Math.sin(a) + (h+tH*0.5)*sz]);
-    }
-  }
-  const bci = verts.length;
-  verts.push([-h*sx, -h, -h*sz]); // bottom center
-  const api = tH > 0 ? verts.length : -1;
-  if (tH > 0) verts.push([(h+tH)*sx, h+tH, (h+tH)*sz]); // apex
+  return { verts: v, tris };
+}
 
+// Hexagonal: stubby hexagonal prism + flat/low pyramid top (beryl/emerald)
+function buildHexPrism() {
+  const n = 6, r = 0.65, h = 0.9, tH = 0.2;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]); // bottom ring
+  }
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i;
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);  // top ring
+  }
+  verts.push([0, h+tH, 0]); // apex (low pyramid)
+  verts.push([0, -h, 0]);    // bottom center
+  const api = n*2, bci = n*2+1;
   const tris = [];
   for (let i = 0; i < n; i++) {
     const j = (i+1)%n;
     tris.push([i,j,j+n],[i,j+n,i+n]); // sides
-    tris.push([bci,j,i]); // bottom cap
-    if (tH > 0) {
-      tris.push([i+n,j+n,j+2*n],[i+n,j+2*n,i+2*n]); // upper sides
-      tris.push([i+2*n,j+2*n,api]); // tip
-    } else {
-      tris.push([i+n,j+n,bci+1>=verts.length?bci:bci]); // flat top — fan from center
-    }
-  }
-  // Flat-top cap (cubic, etc.) — need proper top center
-  if (tH <= 0) {
-    const tci = verts.length;
-    verts.push([h*sx, h, h*sz]); // top center
-    tris.length -= n; // remove the broken top tris
-    for (let i = 0; i < n; i++) {
-      const j = (i+1)%n;
-      tris.push([i+n, tci, j+n]);
-    }
+    tris.push([i+n,j+n,api]);           // top pyramid
+    tris.push([bci,j,i]);               // bottom cap
   }
   return { verts, tris };
+}
+
+// Trigonal: elongated hexagonal prism + sharp pyramidal tip (quartz/amethyst)
+function buildTrigonal() {
+  const n = 6, r = 0.6, h = 1.0, tH = 0.7;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);
+  }
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);
+  }
+  // Alternating tip heights (trigonal symmetry — every other face steeper)
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    const tr = r * (0.3 + 0.25*(i%2===0 ? 1 : 0.4));
+    const th = h + tH * (0.6 + 0.4*(i%2===0 ? 1 : 0.7));
+    verts.push([tr*Math.cos(a), th, tr*Math.sin(a)]);
+  }
+  verts.push([0,-h,0]);    // bottom center
+  verts.push([0,h+tH,0]);  // apex
+  const bci = n*3, api = n*3+1;
+  const tris = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i+1)%n;
+    tris.push([i,j,j+n],[i,j+n,i+n]);
+    tris.push([bci,j,i]);
+    tris.push([i+n,j+n,j+2*n],[i+n,j+2*n,i+2*n]);
+    tris.push([i+2*n,j+2*n,api]);
+  }
+  return { verts, tris };
+}
+
+// Monoclinic: oblique prism with slanted termination (gypsum, moonstone)
+function buildMonoclinic() {
+  const r = 0.55, h = 1.0, sk = 0.35;
+  const verts = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a) - h*sk, -h, r*Math.sin(a)]);  // bottom
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a) + h*sk, h, r*Math.sin(a)]);   // top (sheared)
+  }
+  // Slanted termination: chisel top
+  verts.push([h*sk + 0.15, h+0.4, 0]);  // 8: chisel peak
+  verts.push([-h*sk, -h, 0]);            // 9: bottom center
+  const tris = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i+1)%4;
+    tris.push([i,j,j+4],[i,j+4,i+4]); // sides
+    tris.push([i+4,j+4,8]);             // chisel top
+    tris.push([9,j,i]);                  // bottom
+  }
+  return { verts, tris };
+}
+
+// Triclinic: flat tabular parallelepiped (labradorite, kyanite)
+function buildTriclinic() {
+  // Flat slab with all oblique angles — distinctly tabular
+  const a = 0.8, b = 0.6, h = 0.35, skx = 0.2, skz = 0.15;
+  const v = [
+    [-a-skx, -h, -b-skz], [a-skx, -h, -b+skz], [a+skx, -h, b-skz], [-a+skx, -h, b+skz], // bottom
+    [-a+skx, h, -b+skz],  [a+skx, h, -b-skz],  [a-skx, h, b+skz],  [-a-skx, h, b-skz],   // top (sheared opposite)
+  ];
+  const tris = [
+    [0,1,5],[0,5,4], [1,2,6],[1,6,5], [2,3,7],[2,7,6], [3,0,4],[3,4,7], // sides
+    [0,3,2],[0,2,1], // bottom
+    [4,5,6],[4,6,7], // top
+  ];
+  return { verts: v, tris };
 }
 
 function normalize3(v) {
