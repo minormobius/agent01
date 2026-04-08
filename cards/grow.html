@@ -395,14 +395,33 @@ function mat4Invert(m) {
   return o;
 }
 
+// ── Rodrigues rotation (axis-angle) ─────────────────────────
+
+function rotateVerts(verts, axis, angle) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  const [ax, ay, az] = axis;
+  for (const v of verts) {
+    const [x, y, z] = v;
+    const d = ax*x + ay*y + az*z;
+    const cx = x*c + (ay*z - az*y)*s + ax*d*(1-c);
+    const cy = y*c + (az*x - ax*z)*s + ay*d*(1-c);
+    const cz = z*c + (ax*y - ay*x)*s + az*d*(1-c);
+    v[0] = cx; v[1] = cy; v[2] = cz;
+  }
+}
+
 // ── Epitaxial crystal growth ────────────────────────────────
 // Child crystal maintains parent's lattice orientation.
 // Finds the child face whose outward normal best opposes the
 // parent face normal (contact face), then positions the child
 // so that face sits flush at the hit point, growing outward.
 
-function buildEpitaxialChild(faceNormal, scale) {
+function buildEpitaxialChild(faceNormal, scale, latticeRot) {
   const { verts, tris } = buildCrystal(GEM_SYS);
+  // Apply grain's lattice rotation (if growing on a misoriented seed)
+  if (latticeRot) {
+    rotateVerts(verts, latticeRot.axis, latticeRot.angle);
+  }
   // Scale
   for (const v of verts) { v[0] *= scale; v[1] *= scale; v[2] *= scale; }
 
@@ -665,7 +684,7 @@ async function main() {
     ubo: makeUBO(),
     offset: [0,0,0], vel: [0,0,0],
     color: baseColor.slice(),
-    scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++,
+    scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++, latticeRot: null,
   });
 
   // Grain color offsets — subtle tint per grain for visual distinction
@@ -687,7 +706,7 @@ async function main() {
       ubo: makeUBO(),
       offset: [0,0,0], vel: [0,0,0],
       color: baseColor.slice(),
-      scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++,
+      scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++, latticeRot: null,
     }];
     document.getElementById('reset-btn').style.display = 'none';
   }
@@ -710,19 +729,6 @@ async function main() {
     if (mode === 'seed') modeBtn.classList.add('seed-mode');
     hintEl.textContent = HINTS[mode];
   });
-
-  function rotateVerts(verts, axis, angle) {
-    const c = Math.cos(angle), s = Math.sin(angle);
-    const [ax, ay, az] = axis;
-    for (const v of verts) {
-      const [x, y, z] = v;
-      const d = ax*x + ay*y + az*z;
-      const cx = x*c + (ay*z - az*y)*s + ax*d*(1-c);
-      const cy = y*c + (az*x - ax*z)*s + ay*d*(1-c);
-      const cz = z*c + (ax*y - ay*x)*s + az*d*(1-c);
-      v[0] = cx; v[1] = cy; v[2] = cz;
-    }
-  }
 
   function seedOnFace(fragIdx, hitPoint, faceNormal) {
     const parent = fragments[fragIdx];
@@ -770,6 +776,7 @@ async function main() {
       scale: 0.1, scaleTarget: 1, geoScale: seedScale,
       parentId: parent.id, anchorLocal: [0, 0, 0],
       boundaryNormal: faceNormal.slice(), grain: g,
+      latticeRot: { axis: rAxis, angle: rAngle },
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
@@ -1043,6 +1050,7 @@ async function main() {
       scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
       parentId: anchorSidePos ? frag.parentId : 0,
       anchorLocal: posAnchor, boundaryNormal: posBN, grain: frag.grain,
+      latticeRot: frag.latticeRot || null,
     });
     newFrags.push({
       id: negId, verts: negMesh.verts, tris: negMesh.tris,
@@ -1053,6 +1061,7 @@ async function main() {
       scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
       parentId: !anchorSidePos && isChild ? frag.parentId : 0,
       anchorLocal: negAnchor, boundaryNormal: negBN, grain: frag.grain,
+      latticeRot: frag.latticeRot || null,
     });
 
     fragments = newFrags;
@@ -1065,7 +1074,8 @@ async function main() {
     let growScale = (parent.geoScale || 1) * (0.4 + Math.random() * 0.15);
 
     // Cap to fit within the hit facet — measure actual epitaxial footprint
-    const probe = buildEpitaxialChild(faceNormal, 1.0);
+    const parentRot = parent.latticeRot || null;
+    const probe = buildEpitaxialChild(faceNormal, 1.0, parentRot);
     let unitFootprint = 0;
     for (const v of probe.verts) {
       const along = dot3(v, faceNormal);
@@ -1100,7 +1110,7 @@ async function main() {
     }
     if (growScale < 0.01) return; // too small
 
-    const { verts, tris } = buildEpitaxialChild(faceNormal, growScale);
+    const { verts, tris } = buildEpitaxialChild(faceNormal, growScale, parentRot);
     // Offset: hit point in parent's local space + parent's world offset
     const worldOff = add3(parent.offset, hitPoint);
     // Slight color variation
@@ -1120,7 +1130,7 @@ async function main() {
         c[3],
       ],
       scale: 0.1, scaleTarget: 1, geoScale: growScale,
-      parentId: parent.id, anchorLocal: [0, 0, 0], grain: parent.grain,
+      parentId: parent.id, anchorLocal: [0, 0, 0], grain: parent.grain, latticeRot: parentRot,
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
