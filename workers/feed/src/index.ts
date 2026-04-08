@@ -7,13 +7,14 @@
  */
 
 import { detectCommunities, detectBridges, type Community } from './graph';
-import { discoverCandidates, getAuthorFeed, getPostThreadDepth, type EngagementSignal, type FeedPost } from './constellation';
+import { discoverCandidates, getAuthorFeed, getPostThreadDepth, getActorLikes, type EngagementSignal, type FeedPost } from './constellation';
 import { scoreCandiates, type ScoredPost } from './scoring';
 
 export interface Env {
   DB: D1Database;
   STATE: KVNamespace;
   FEED_URI: string;
+  LIKED_FEED_URI: string;
   PUBLISHER_DID: string;
   HOSTNAME: string;
   CONSTELLATION_RELAY: string;
@@ -51,6 +52,83 @@ async function recomputeCommunities(env: Env): Promise<void> {
     `${communities.reduce((n, c) => n + c.core.length, 0)} core members, ` +
     `${bridges.size} bridges`
   );
+}
+
+// ─── Scheduled: Collect Liked Posts from Community Members ─────────
+
+async function collectLikedPosts(env: Env): Promise<void> {
+  // 1. Get all community member DIDs
+  const members = await env.DB.prepare(
+    'SELECT DISTINCT did FROM feed_community_members'
+  ).all<{ did: string }>();
+
+  if (!members.results || members.results.length === 0) {
+    console.log('No community members, skipping like collection');
+    return;
+  }
+
+  const allDids = members.results.map(r => r.did);
+
+  // 2. Sample members — prioritize core (shell=0), cap at 40 to stay within limits
+  const coreMembers = await env.DB.prepare(
+    'SELECT DISTINCT did FROM feed_community_members WHERE shell = 0'
+  ).all<{ did: string }>();
+  const coreDids = new Set((coreMembers.results || []).map(r => r.did));
+
+  // Core first, then shell members
+  const sorted = [...allDids].sort((a, b) => {
+    const aCore = coreDids.has(a) ? 0 : 1;
+    const bCore = coreDids.has(b) ? 0 : 1;
+    return aCore - bCore;
+  });
+  const sampled = sorted.slice(0, 40);
+
+  // 3. Fetch recent likes from each member (chunked to avoid rate limits)
+  const BATCH = 5;
+  const now = new Date().toISOString();
+  let totalLikes = 0;
+
+  for (let i = 0; i < sampled.length; i += BATCH) {
+    const batch = sampled.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(did => getActorLikes(did, 20))
+    );
+
+    const stmts: D1PreparedStatement[] = [];
+
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      if (r.status !== 'fulfilled') continue;
+      const likerDid = batch[j];
+
+      for (const like of r.value) {
+        stmts.push(
+          env.DB.prepare(
+            `INSERT OR IGNORE INTO feed_liked_posts (post_uri, liker_did, liked_at, collected_at)
+             VALUES (?, ?, ?, ?)`
+          ).bind(like.postUri, likerDid, like.likedAt, now)
+        );
+        totalLikes++;
+      }
+    }
+
+    // Batch insert
+    for (let k = 0; k < stmts.length; k += 80) {
+      await env.DB.batch(stmts.slice(k, k + 80));
+    }
+
+    // Small delay between batches
+    if (i + BATCH < sampled.length) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+  }
+
+  // 4. Prune old likes (older than 7 days)
+  await env.DB.prepare(
+    "DELETE FROM feed_liked_posts WHERE collected_at < datetime('now', '-7 days')"
+  ).run();
+
+  console.log(`Collected ${totalLikes} likes from ${sampled.length} members`);
 }
 
 async function getSeedDids(env: Env): Promise<string[]> {
@@ -230,9 +308,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
   // Describe feeds
   if (path === '/xrpc/app.bsky.feed.describeFeedGenerator') {
+    const feeds = [{ uri: env.FEED_URI }];
+    if (env.LIKED_FEED_URI) feeds.push({ uri: env.LIKED_FEED_URI });
     return Response.json({
       did: `did:web:${env.HOSTNAME}`,
-      feeds: [{ uri: env.FEED_URI }],
+      feeds,
     }, { headers: corsHeaders() });
   }
 
@@ -592,7 +672,10 @@ async function handleGetAvatars(url: URL, env: Env): Promise<Response> {
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
   const feed = url.searchParams.get('feed');
-  if (feed !== env.FEED_URI) {
+  const isLikedFeed = env.LIKED_FEED_URI && feed === env.LIKED_FEED_URI;
+  const isMainFeed = feed === env.FEED_URI;
+
+  if (!isMainFeed && !isLikedFeed) {
     return Response.json(
       { error: 'UnknownFeed', message: 'Unknown feed' },
       { status: 400, headers: corsHeaders() }
@@ -603,13 +686,16 @@ async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
   const cursor = url.searchParams.get('cursor');
 
   try {
+    if (isLikedFeed) {
+      return await handleLikedFeedSkeleton(env, limit, cursor);
+    }
+
     const posts = await generateFeed(env, limit, cursor);
 
     const response: { cursor?: string; feed: { post: string }[] } = {
       feed: posts.map(p => ({ post: p.uri })),
     };
 
-    // Cursor: encode last post's score for pagination
     if (posts.length === limit && posts.length > 0) {
       const last = posts[posts.length - 1];
       response.cursor = `${last.score}::${last.uri}`;
@@ -623,6 +709,79 @@ async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
       { status: 500, headers: corsHeaders() }
     );
   }
+}
+
+/**
+ * "Liked by SimCluster" feed: posts liked by community members,
+ * ranked by number of distinct community members who liked them.
+ * Core members' likes count 3x.
+ */
+async function handleLikedFeedSkeleton(
+  env: Env,
+  limit: number,
+  cursor: string | null
+): Promise<Response> {
+  // Pagination: cursor is "score::uri"
+  let cursorScore = Infinity;
+  let cursorUri = '';
+  if (cursor) {
+    const parts = cursor.split('::');
+    if (parts.length === 2) {
+      cursorScore = parseFloat(parts[0]);
+      cursorUri = parts[1];
+    }
+  }
+
+  // Query: count likes per post, weighting core members higher.
+  // Core members (shell=0) contribute 3 points, shell members contribute 1.
+  const rows = await env.DB.prepare(`
+    SELECT
+      lp.post_uri,
+      SUM(CASE WHEN cm.shell = 0 THEN 3 ELSE 1 END) as weighted_likes,
+      COUNT(DISTINCT lp.liker_did) as liker_count,
+      MAX(lp.liked_at) as latest_like
+    FROM feed_liked_posts lp
+    LEFT JOIN feed_community_members cm ON cm.did = lp.liker_did
+    WHERE lp.collected_at > datetime('now', '-3 days')
+    GROUP BY lp.post_uri
+    HAVING liker_count >= 2
+    ORDER BY weighted_likes DESC, latest_like DESC
+    LIMIT ?
+  `).bind(limit + 50).all<{
+    post_uri: string;
+    weighted_likes: number;
+    liker_count: number;
+    latest_like: string;
+  }>();
+
+  if (!rows.results || rows.results.length === 0) {
+    return Response.json({ feed: [] }, { headers: corsHeaders() });
+  }
+
+  // Apply cursor filtering and limit
+  let posts = rows.results;
+  if (cursor) {
+    const idx = posts.findIndex(
+      p => p.weighted_likes <= cursorScore && p.post_uri === cursorUri
+    );
+    if (idx >= 0) {
+      posts = posts.slice(idx + 1);
+    } else {
+      posts = posts.filter(p => p.weighted_likes < cursorScore);
+    }
+  }
+  posts = posts.slice(0, limit);
+
+  const response: { cursor?: string; feed: { post: string }[] } = {
+    feed: posts.map(p => ({ post: p.post_uri })),
+  };
+
+  if (posts.length === limit && posts.length > 0) {
+    const last = posts[posts.length - 1];
+    response.cursor = `${last.weighted_likes}::${last.post_uri}`;
+  }
+
+  return Response.json(response, { headers: corsHeaders() });
 }
 
 async function generateFeed(
@@ -784,6 +943,9 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(recomputeCommunities(env));
+    ctx.waitUntil(
+      recomputeCommunities(env)
+        .then(() => collectLikedPosts(env))
+    );
   },
 };

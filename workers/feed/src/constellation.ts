@@ -230,3 +230,35 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+/**
+ * Fetch recent likes from a user via the public API.
+ * Returns post URIs that this user liked, with timestamps.
+ */
+export async function getActorLikes(
+  did: string,
+  limit = 30
+): Promise<{ postUri: string; likedAt: string }[]> {
+  const params = new URLSearchParams({
+    actor: did,
+    limit: String(limit),
+  });
+
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC}/xrpc/app.bsky.feed.getActorLikes?${params}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json() as {
+      feed: {
+        post: { uri: string; indexedAt: string };
+      }[];
+    };
+    return data.feed.map(item => ({
+      postUri: item.post.uri,
+      likedAt: item.post.indexedAt,
+    }));
+  } catch {
+    return [];
+  }
+}
