@@ -319,10 +319,37 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   // Health check
   if (path === '/health') {
     const count = await env.DB.prepare('SELECT COUNT(*) as n FROM feed_communities').first<{ n: number }>();
+    const likedCount = await env.DB.prepare('SELECT COUNT(*) as n FROM feed_liked_posts').first<{ n: number }>().catch(() => ({ n: 0 }));
     return Response.json({
       ok: true,
       communities: count?.n ?? 0,
+      likedPosts: (likedCount as any)?.n ?? 0,
     }, { headers: corsHeaders() });
+  }
+
+  // Manual cron trigger — runs community recomputation + like collection
+  if (path === '/admin/refresh') {
+    const start = Date.now();
+    try {
+      await recomputeCommunities(env);
+      await collectLikedPosts(env);
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      const count = await env.DB.prepare('SELECT COUNT(*) as n FROM feed_communities').first<{ n: number }>();
+      const likedCount = await env.DB.prepare('SELECT COUNT(*) as n FROM feed_liked_posts').first<{ n: number }>().catch(() => ({ n: 0 }));
+      return Response.json({
+        ok: true,
+        elapsed: `${elapsed}s`,
+        communities: count?.n ?? 0,
+        likedPosts: (likedCount as any)?.n ?? 0,
+      }, { headers: corsHeaders() });
+    } catch (err) {
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      return Response.json({
+        ok: false,
+        elapsed: `${elapsed}s`,
+        error: String(err),
+      }, { status: 500, headers: corsHeaders() });
+    }
   }
 
   // Community graph endpoint — feeds the cluster visualizer
