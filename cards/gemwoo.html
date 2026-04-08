@@ -47,6 +47,23 @@
     .sources cite { font-style: italic; color: var(--text); }
     sup a { color: var(--gold-dim); text-decoration: none; font-size: 0.7em; }
     sup a:hover { color: var(--gold); }
+
+    /* Pull section */
+    .woo-pull { text-align: center; margin: 0 0 2.5rem; padding: 1.5rem; border: 1px solid var(--border);
+                border-radius: 8px; background: var(--surface); }
+    .woo-btn { font-size: 0.9rem; padding: 0.6rem 1.8rem; background: var(--gold); color: var(--bg);
+               border: none; border-radius: 4px; cursor: pointer; font-weight: 700; letter-spacing: 0.06em; }
+    .woo-btn:hover { opacity: 0.85; }
+    .woo-result { margin-top: 1.2rem; text-align: left; }
+    .woo-result.hidden { display: none; }
+    .woo-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .woo-swatch { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0; }
+    .woo-name { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+    .woo-props { font-size: 0.8rem; color: var(--text-dim); }
+    .woo-formula { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; color: var(--text);
+                   background: var(--card-bg); padding: 0.7rem 1rem; border-radius: 6px; margin-top: 0.8rem;
+                   line-height: 1.6; }
+    .woo-formula .dim { color: var(--text-dim); }
   </style>
 </head>
 <body>
@@ -56,6 +73,11 @@
   </header>
 
   <main>
+    <div class="woo-pull">
+      <button id="woo-btn" class="woo-btn">Pull a stone</button>
+      <div id="woo-result" class="woo-result hidden"></div>
+    </div>
+
     <p class="lede">
       Crystal healing assigns <em>metaphysical properties</em> to gemstones &mdash; this one brings clarity,
       that one wards off negativity. The specific claims are cultural noise, different traditions contradict
@@ -291,5 +313,96 @@
   <footer>
     <p>Powered by <a href="https://en.wikipedia.org" target="_blank">Wikipedia</a> &mdash; a <a href="https://minomobi.com" target="_blank">minomobi</a> thing</p>
   </footer>
+
+  <script type="module">
+    import { GEM_POOL, CRYSTAL_SYSTEMS } from './js/gem-pool.js';
+
+    const SYS_WOO = {
+      cubic:        { arch: 'Order & stability',       brief: 'Structure, perfection, grounding' },
+      hexagonal:    { arch: 'Balance & efficiency',     brief: 'Goal-directed flow, productivity' },
+      trigonal:     { arch: 'Protection & will',        brief: 'Simplicity, contentment, calming strength' },
+      tetragonal:   { arch: 'Focus & transformation',   brief: 'Dissolution of stagnation, change' },
+      orthorhombic: { arch: 'Clearing & perspective',   brief: 'Digestion of experience, sobriety' },
+      monoclinic:   { arch: 'Flow & cycles',            brief: 'Rhythms, habits, breaking patterns' },
+      triclinic:    { arch: 'Mystery & integration',    brief: 'Bridges contradictions, wild card' },
+    };
+
+    const LUSTER_WOO = {
+      adamantine: { g: '\u2632', n: 'Li',   nat: 'Fire',    brief: 'Radiance, clarity, dazzling transformation' },
+      metallic:   { g: '\u2630', n: 'Qian', nat: 'Heaven',  brief: 'Pure yang, strength, creative power' },
+      vitreous:   { g: '\u2631', n: 'Dui',  nat: 'Lake',    brief: 'Joyful openness, emotional clarity' },
+      silky:      { g: '\u2634', n: 'Xun',  nat: 'Wind',    brief: 'Gentle penetration, persistent influence' },
+      pearly:     { g: '\u2635', n: 'Kan',  nat: 'Water',   brief: 'Hidden depth, intuition, the unconscious' },
+      resinous:   { g: '\u2633', n: 'Zhen', nat: 'Thunder', brief: 'Arousing, ancient, trapped energy released' },
+      waxy:       { g: '\u2636', n: 'Gen',  nat: 'Mountain',brief: 'Stillness, patience, quiet endurance' },
+      earthy:     { g: '\u2637', n: 'Kun',  nat: 'Earth',   brief: 'Pure yin, receptive, primal ground' },
+    };
+
+    function hue(r, g, b) {
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+      if (d < 0.001) return 0;
+      let h;
+      if (mx === r) h = ((g - b) / d + 6) % 6;
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      return h * 60;
+    }
+
+    function colorToChakra(r, g, b) {
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      const l = (mx + mn) / 2, d = mx - mn;
+      const s = d < 0.001 ? 0 : d / (1 - Math.abs(2 * l - 1));
+      if (l < 0.18)                return { name: 'Earth (sub-root)',   domain: 'Protection, absorption, banishing',      sw: '#222' };
+      if (s < 0.12 && l > 0.65)    return { name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
+      const h = hue(r, g, b);
+      if ((h < 20 || h > 330) && l > 0.5 && s > 0.15)
+                                    return { name: 'Higher heart',       domain: 'Unconditional love, tenderness, healing',sw: '#daa' };
+      if (h < 15 || h > 345)       return { name: 'Root (1st)',         domain: 'Survival, grounding, vitality',          sw: '#c44' };
+      if (h < 45)                   return { name: 'Sacral (2nd)',       domain: 'Creativity, sexuality, emotional flow',  sw: '#d84' };
+      if (h < 70)                   return { name: 'Solar plexus (3rd)', domain: 'Willpower, confidence, identity',        sw: '#cc4' };
+      if (h < 165)                  return { name: 'Heart (4th)',        domain: 'Love, compassion, connection',           sw: '#4a4' };
+      if (h < 250)                  return { name: 'Throat (5th)',       domain: 'Communication, truth, expression',       sw: '#48c' };
+      if (h < 280)                  return { name: 'Third eye (6th)',    domain: 'Intuition, perception, insight',         sw: '#449' };
+                                    return { name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
+    }
+
+    function opacityPlane(o) {
+      if (o < 0.3) return { name: 'Spirit', brief: 'Transcendence, higher consciousness, sees through illusion' };
+      if (o < 0.6) return { name: 'Mind',   brief: 'Intuition, dreams, emotional intelligence' };
+      return               { name: 'Body',   brief: 'Physical realm, grounding, boundaries, defense' };
+    }
+
+    const btn = document.getElementById('woo-btn');
+    const out = document.getElementById('woo-result');
+
+    btn.addEventListener('click', () => {
+      const [title, system, props] = GEM_POOL[Math.floor(Math.random() * GEM_POOL.length)];
+      const name = title.replace(/ \(.*\)$/, '');
+      const [r, g, b] = props.color;
+      const css = `rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})`;
+      const opLabel = props.opacity < 0.3 ? 'transparent' : props.opacity < 0.6 ? 'translucent' : 'opaque';
+      const sys = CRYSTAL_SYSTEMS[system] || {};
+      const ck = colorToChakra(r, g, b);
+      const ar = SYS_WOO[system] || { arch: system, brief: '' };
+      const pl = opacityPlane(props.opacity);
+      const lu = LUSTER_WOO[props.luster] || { g: '?', n: '?', nat: '?', brief: '' };
+
+      out.classList.remove('hidden');
+      out.innerHTML = `
+        <div class="woo-head">
+          <span class="woo-swatch" style="background:${css}"></span>
+          <span class="woo-name">${name}</span>
+          <span class="woo-props">${sys.name || system} \u00b7 ${props.luster} \u00b7 ${opLabel} \u00b7 Mohs\u00a0${props.hardness}</span>
+        </div>
+        <table class="map-table">
+          <tr><th>Axis</th><th>Maps To</th><th>Meaning</th></tr>
+          <tr><td class="key" style="color:${ck.sw}">\u25cf Chakra</td><td>${ck.name}</td><td>${ck.domain}</td></tr>
+          <tr><td class="key">Archetype</td><td>${ar.arch}</td><td>${ar.brief}</td></tr>
+          <tr><td class="key">Plane</td><td>${pl.name}</td><td>${pl.brief}</td></tr>
+          <tr><td class="key">Trigram</td><td>${lu.g} ${lu.n} \u00b7 ${lu.nat}</td><td>${lu.brief}</td></tr>
+        </table>
+        <div class="woo-formula"><span class="dim">${opLabel} ${name.toLowerCase()} =</span> ${pl.name.toLowerCase()} + ${ck.name.toLowerCase().replace(/ \(.*/, '')} + ${ar.arch.toLowerCase()} + ${lu.nat.toLowerCase()}</div>`;
+    });
+  </script>
 </body>
 </html>
