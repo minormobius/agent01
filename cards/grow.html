@@ -18,6 +18,9 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 #back:hover { background: rgba(255,255,255,0.15); }
 #reset-btn { position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; display: none; }
 #reset-btn:hover { background: rgba(255,255,255,0.15); }
+#mode-btn { position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; transition: all 0.2s; }
+#mode-btn:hover { background: rgba(255,255,255,0.15); }
+#mode-btn.grow-mode { border-color: rgba(100,200,100,0.4); color: #8f8; }
 </style>
 </head>
 <body>
@@ -33,6 +36,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
   <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
 </div>
 <a id="back" href="gem.html">&larr; Gem</a>
+<button id="mode-btn">cleave</button>
 <button id="reset-btn">reset</button>
 <script>
 // ── Crystal Grow — WebGPU crystal with cleavage fracture ─────
@@ -159,6 +163,7 @@ function persp(fov, asp, near, far) {
 function rotX(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); }
 function rotY(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]); }
 function trans(x,y,z) { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); }
+function scl(s) { return new Float32Array([s,0,0,0, 0,s,0,0, 0,0,s,0, 0,0,0,1]); }
 function mul(a, b) {
   const o = new Float32Array(16);
   for (let i = 0; i < 4; i++)
@@ -204,6 +209,43 @@ function buildCrystal() {
     tris.push([18,j,i]);
     tris.push([i+sides,j+sides,j+2*sides],[i+sides,j+2*sides,i+2*sides]);
     tris.push([i+2*sides,j+2*sides,19]);
+  }
+  return { verts, tris };
+}
+
+// ── Oriented crystal for growth ─────────────────────────────
+// Spawns a crystal aligned so its c-axis points along `normal`,
+// with its base at the origin (grows outward from attachment point).
+
+function rodrigues(v, axis, angle) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  const d = dot3(v, axis);
+  const cr = cross3(axis, v);
+  return [
+    v[0]*c + cr[0]*s + axis[0]*d*(1-c),
+    v[1]*c + cr[1]*s + axis[1]*d*(1-c),
+    v[2]*c + cr[2]*s + axis[2]*d*(1-c),
+  ];
+}
+
+function buildOrientedCrystal(normal, scale) {
+  const { verts, tris } = buildCrystal();
+  // Shift so the base (bottom) is at origin
+  const minY = Math.min(...verts.map(v => v[1]));
+  for (const v of verts) v[1] -= minY;
+  // Scale
+  for (const v of verts) { v[0] *= scale; v[1] *= scale; v[2] *= scale; }
+  // Rotate c-axis (0,1,0) to align with `normal`
+  const up = [0, 1, 0];
+  const d = dot3(up, normal);
+  if (d < -0.999) {
+    for (const v of verts) { v[1] = -v[1]; }
+  } else if (d < 0.999) {
+    const axis = normalize3(cross3(up, normal));
+    const angle = Math.acos(Math.max(-1, Math.min(1, d)));
+    for (let i = 0; i < verts.length; i++) {
+      verts[i] = rodrigues(verts[i], axis, angle);
+    }
   }
   return { verts, tris };
 }
@@ -422,7 +464,7 @@ async function main() {
   const cleavagePlanes = getCleavagePlanes();
   const baseColor = [0.55, 0.25, 0.65, 1]; // amethyst purple
 
-  // Each fragment: { verts, tris, gpu, offset:[x,y,z], vel:[x,y,z], color }
+  // Each fragment: { verts, tris, gpu, ubo, offset, vel, color, scale, scaleTarget }
   let fragments = [];
   const { verts, tris } = buildCrystal();
   fragments.push({
@@ -431,6 +473,7 @@ async function main() {
     ubo: makeUBO(),
     offset: [0,0,0], vel: [0,0,0],
     color: baseColor.slice(),
+    scale: 1, scaleTarget: 1,
   });
 
   function resetCrystal() {
@@ -441,9 +484,23 @@ async function main() {
       ubo: makeUBO(),
       offset: [0,0,0], vel: [0,0,0],
       color: baseColor.slice(),
+      scale: 1, scaleTarget: 1,
     }];
     document.getElementById('reset-btn').style.display = 'none';
   }
+
+  // ── Mode toggle (cleave / grow) ─────────────────────────────
+  let mode = 'cleave';
+  const modeBtn = document.getElementById('mode-btn');
+  const hintEl = document.querySelector('#hud .hint');
+  modeBtn.addEventListener('click', () => {
+    mode = mode === 'cleave' ? 'grow' : 'cleave';
+    modeBtn.textContent = mode;
+    modeBtn.classList.toggle('grow-mode', mode === 'grow');
+    hintEl.textContent = mode === 'cleave'
+      ? 'drag to rotate · pinch to zoom · tap to shatter'
+      : 'drag to rotate · pinch to zoom · tap to grow';
+  });
 
   // ── Camera ────────────────────────────────────────────────
   let rx = -0.3, ry = 0, camDist = 4;
@@ -504,56 +561,60 @@ async function main() {
     e.preventDefault();
   }, { passive: false });
 
-  // ── Tap to shatter ────────────────────────────────────────
+  // ── Tap handler (cleave or grow) ────────────────────────────
 
-  function handleTap(clientX, clientY) {
-    // Unproject screen tap to world ray
+  function castRay(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
 
     const asp = canvas.width / canvas.height;
-    const tanHalf = Math.tan(Math.PI / 8); // fov/2
+    const tanHalf = Math.tan(Math.PI / 8);
     const rdx = ndcX * tanHalf * asp;
     const rdy = ndcY * tanHalf;
 
-    // Camera is at (0,0,camDist) looking at origin, rotated by model inverse
     const m = mul(rotX(rx), rotY(ry));
-    // For pure rotation, inverse = transpose
     const mInv = mat4Invert(m);
-    // Eye in model space: mInv * (0, 0, camDist)
-    const ro = [
-      mInv[8] * camDist,
-      mInv[9] * camDist,
-      mInv[10] * camDist,
-    ];
-    // Direction in model space: mInv * normalize(rdx, rdy, -1)
+    const ro = [mInv[8]*camDist, mInv[9]*camDist, mInv[10]*camDist];
     const rdWorld = normalize3([
       mInv[0]*rdx + mInv[4]*rdy - mInv[8],
       mInv[1]*rdx + mInv[5]*rdy - mInv[9],
       mInv[2]*rdx + mInv[6]*rdy - mInv[10],
     ]);
 
-    // Find nearest hit fragment
-    let bestHit = null, bestFrag = -1;
+    let bestHit = null, bestFrag = -1, bestTri = null;
     for (let fi = 0; fi < fragments.length; fi++) {
       const frag = fragments[fi];
       if (!frag.gpu || frag.tris.length === 0) continue;
-      // Offset ray origin by fragment position
       const fragRo = sub3(ro, frag.offset);
       for (const tri of frag.tris) {
         const hit = rayTriIntersect(fragRo, rdWorld, frag.verts[tri[0]], frag.verts[tri[1]], frag.verts[tri[2]]);
         if (hit && (!bestHit || hit.t < bestHit.t)) {
           bestHit = hit;
           bestFrag = fi;
+          bestTri = tri;
         }
       }
     }
+    if (bestFrag < 0) return null;
 
-    if (bestFrag < 0) return;
+    // Compute face normal of hit triangle
+    const frag = fragments[bestFrag];
+    const va = frag.verts[bestTri[0]], vb = frag.verts[bestTri[1]], vc = frag.verts[bestTri[2]];
+    const faceNormal = normalize3(cross3(sub3(vb, va), sub3(vc, va)));
 
-    // Shatter the hit fragment
-    shatterFragment(bestFrag, bestHit.point);
+    return { hit: bestHit, fragIdx: bestFrag, faceNormal };
+  }
+
+  function handleTap(clientX, clientY) {
+    const result = castRay(clientX, clientY);
+    if (!result) return;
+
+    if (mode === 'cleave') {
+      shatterFragment(result.fragIdx, result.hit.point);
+    } else {
+      growOnFace(result.fragIdx, result.hit.point, result.faceNormal);
+    }
   }
 
   function shatterFragment(fragIdx, hitPoint) {
@@ -607,6 +668,7 @@ async function main() {
       offset: frag.offset.slice(),
       vel: [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
+      scale: 1, scaleTarget: 1,
     });
     newFrags.push({
       verts: negMesh.verts, tris: negMesh.tris,
@@ -615,9 +677,41 @@ async function main() {
       offset: frag.offset.slice(),
       vel: [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
+      scale: 1, scaleTarget: 1,
     });
 
     fragments = newFrags;
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+
+  function growOnFace(fragIdx, hitPoint, faceNormal) {
+    const parent = fragments[fragIdx];
+    // Spawn size relative to parent (diminishing with each generation)
+    const parentScale = parent.scale || 1;
+    const growScale = parentScale * (0.3 + Math.random() * 0.15);
+    if (growScale < 0.05) return; // too small
+
+    const { verts, tris } = buildOrientedCrystal(faceNormal, growScale);
+    // Offset: hit point in parent's local space + parent's world offset
+    const worldOff = add3(parent.offset, hitPoint);
+    // Slight color variation
+    const c = parent.color;
+    const hueShift = (Math.random() - 0.5) * 0.1;
+
+    fragments.push({
+      verts, tris,
+      gpu: uploadMesh(device, verts, tris),
+      ubo: makeUBO(),
+      offset: worldOff,
+      vel: [0, 0, 0],
+      color: [
+        Math.max(0, Math.min(1, c[0] + hueShift)),
+        Math.max(0, Math.min(1, c[1] + (Math.random()-0.5)*0.06)),
+        Math.max(0, Math.min(1, c[2] + hueShift)),
+        c[3],
+      ],
+      scale: 0.1, scaleTarget: 1,
+    });
     document.getElementById('reset-btn').style.display = 'block';
   }
 
@@ -628,12 +722,17 @@ async function main() {
   function frame() {
     if (autoSpin) ry += 0.006;
 
-    // Update fragment physics
+    // Update fragment physics + growth animation
     for (const f of fragments) {
       f.offset[0] += f.vel[0];
       f.offset[1] += f.vel[1];
       f.offset[2] += f.vel[2];
       f.vel[0] *= 0.94; f.vel[1] *= 0.94; f.vel[2] *= 0.94;
+      // Animate scale toward target
+      if (f.scale < f.scaleTarget) {
+        f.scale += (f.scaleTarget - f.scale) * 0.06;
+        if (f.scaleTarget - f.scale < 0.01) f.scale = f.scaleTarget;
+      }
     }
 
     if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
@@ -656,7 +755,9 @@ async function main() {
     for (const frag of fragments) {
       if (!frag.gpu) continue;
       const fragTrans = trans(frag.offset[0], frag.offset[1], frag.offset[2]);
-      const m = mul(modelBase, fragTrans);
+      const fragScl = frag.scale < 0.999 ? scl(frag.scale) : null;
+      const fragM = fragScl ? mul(fragTrans, fragScl) : fragTrans;
+      const m = mul(modelBase, fragM);
       const mvp = mul(mul(proj, view), m);
 
       const uf = new Float32Array(44);
