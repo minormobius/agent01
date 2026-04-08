@@ -150,6 +150,12 @@ function add3(a,b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
 function scale3(v,s) { return [v[0]*s, v[1]*s, v[2]*s]; }
 function cross3(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
 function lerp3(a,b,t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+function ptSegDist(p, a, b) {
+  const ab = sub3(b, a), ap = sub3(p, a);
+  const t = Math.max(0, Math.min(1, dot3(ap, ab) / (dot3(ab, ab) || 1)));
+  const d = sub3(p, add3(a, scale3(ab, t)));
+  return Math.sqrt(dot3(d, d));
+}
 function centroid(verts) {
   const c = [0,0,0];
   for (const v of verts) { c[0]+=v[0]; c[1]+=v[1]; c[2]+=v[2]; }
@@ -474,7 +480,7 @@ async function main() {
     ubo: makeUBO(),
     offset: [0,0,0], vel: [0,0,0],
     color: baseColor.slice(),
-    scale: 1, scaleTarget: 1, parentId: 0,
+    scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0,
   });
 
   function resetCrystal() {
@@ -486,7 +492,7 @@ async function main() {
       ubo: makeUBO(),
       offset: [0,0,0], vel: [0,0,0],
       color: baseColor.slice(),
-      scale: 1, scaleTarget: 1, parentId: 0,
+      scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0,
     }];
     document.getElementById('reset-btn').style.display = 'none';
   }
@@ -604,11 +610,10 @@ async function main() {
     const frag = fragments[bestFrag];
     const va = frag.verts[bestTri[0]], vb = frag.verts[bestTri[1]], vc = frag.verts[bestTri[2]];
     let faceNormal = normalize3(cross3(sub3(vb, va), sub3(vc, va)));
-    // Flip if pointing toward centroid (wrong winding)
     const fc = centroid(frag.verts);
     if (dot3(faceNormal, sub3(bestHit.point, fc)) < 0) faceNormal = scale3(faceNormal, -1);
 
-    return { hit: bestHit, fragIdx: bestFrag, faceNormal };
+    return { hit: bestHit, fragIdx: bestFrag, faceNormal, triVerts: [va, vb, vc] };
   }
 
   function handleTap(clientX, clientY) {
@@ -618,7 +623,7 @@ async function main() {
     if (mode === 'cleave') {
       shatterFragment(result.fragIdx, result.hit.point);
     } else {
-      growOnFace(result.fragIdx, result.hit.point, result.faceNormal);
+      growOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
     }
   }
 
@@ -686,7 +691,7 @@ async function main() {
       ubo: makeUBO(),
       offset: frag.offset.slice(), vel: posVel,
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
-      scale: 1, scaleTarget: 1, parentId: frag.parentId,
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale, parentId: frag.parentId,
     });
     newFrags.push({
       id: negId, verts: negMesh.verts, tris: negMesh.tris,
@@ -694,19 +699,26 @@ async function main() {
       ubo: makeUBO(),
       offset: frag.offset.slice(), vel: negVel,
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
-      scale: 1, scaleTarget: 1, parentId: frag.parentId,
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale, parentId: frag.parentId,
     });
 
     fragments = newFrags;
     document.getElementById('reset-btn').style.display = 'block';
   }
 
-  function growOnFace(fragIdx, hitPoint, faceNormal) {
+  function growOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
     const parent = fragments[fragIdx];
-    // Spawn size relative to parent (diminishing with each generation)
-    const parentScale = parent.scale || 1;
-    const growScale = parentScale * (0.3 + Math.random() * 0.15);
-    if (growScale < 0.05) return; // too small
+    // Compound geometric scale across generations
+    let growScale = (parent.geoScale || 1) * (0.3 + Math.random() * 0.15);
+
+    // Cap to fit within the hit facet (don't overhang edges)
+    if (triVerts) {
+      const [va, vb, vc] = triVerts;
+      const maxR = Math.min(ptSegDist(hitPoint, va, vb), ptSegDist(hitPoint, vb, vc), ptSegDist(hitPoint, vc, va));
+      const baseR = 0.6; // crystal base radius from buildCrystal
+      growScale = Math.min(growScale, maxR / baseR);
+    }
+    if (growScale < 0.03) return; // too small
 
     const { verts, tris } = buildOrientedCrystal(faceNormal, growScale);
     // Offset: hit point in parent's local space + parent's world offset
@@ -727,7 +739,7 @@ async function main() {
         Math.max(0, Math.min(1, c[2] + hueShift)),
         c[3],
       ],
-      scale: 0.1, scaleTarget: 1,
+      scale: 0.1, scaleTarget: 1, geoScale: growScale,
       parentId: parent.id,
     });
     document.getElementById('reset-btn').style.display = 'block';
