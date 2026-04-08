@@ -932,6 +932,8 @@ async function main() {
     }
 
     // ── Co-cleavage helper: merge attached fragments near cleavage plane ──
+    // Seeds (grain boundaries) are NEVER co-cleaved — they detach whole.
+    // Only small children co-cleave when the plane cuts their anchor.
     function tryCleavePlane(bestPlane) {
       const planeD = dot3(bestPlane, fc);
 
@@ -941,11 +943,11 @@ async function main() {
 
       for (const f of fragments) {
         if (f.parentId !== frag.id || !f.anchorLocal) continue;
+        // Seeds (grain boundaries) never merge — they separate whole
+        if (f.boundaryNormal) continue;
         const anchorInParent = sub3(f.offset, frag.offset);
         const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
-        // Larger threshold for seeds (peer-scale) vs children
-        const scale = f.geoScale || 0.1;
-        const threshold = f.boundaryNormal ? scale * 0.5 : scale * 0.3;
+        const threshold = (f.geoScale || 0.1) * 0.3;
         if (anchorDist < threshold) {
           coCleavedIds.add(f.id);
           const childOff = sub3(f.offset, frag.offset);
