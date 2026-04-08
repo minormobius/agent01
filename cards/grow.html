@@ -768,7 +768,8 @@ async function main() {
         pc[3],
       ],
       scale: 0.1, scaleTarget: 1, geoScale: seedScale,
-      parentId: 0, anchorLocal: null, grain: g,
+      parentId: parent.id, anchorLocal: [0, 0, 0],
+      boundaryNormal: faceNormal.slice(), grain: g,
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
@@ -913,7 +914,24 @@ async function main() {
       pn, score: Math.abs(dot3(pn, toHit))
     })).sort((a, b) => b.score - a.score);
 
-    // ── Co-cleavage helper: merge children near cleavage plane ──
+    // ── Grain boundary deflection ──────────────────────────────
+    // If the hit point is near a grain boundary (attached seed contact),
+    // the cleavage preferentially follows the boundary surface.
+    // Inject the boundary normal as the top-priority cleavage plane.
+    for (const f of fragments) {
+      if (f.parentId !== frag.id || !f.boundaryNormal) continue;
+      const contactPt = sub3(f.offset, frag.offset);
+      const distToHit = Math.sqrt(
+        (hitPoint[0]-contactPt[0])**2 + (hitPoint[1]-contactPt[1])**2 + (hitPoint[2]-contactPt[2])**2
+      );
+      // If tapping near the grain boundary, deflect along it
+      const reach = (f.geoScale || 1) * 0.8;
+      if (distToHit < reach) {
+        ranked.unshift({ pn: f.boundaryNormal, score: 2.0 });
+      }
+    }
+
+    // ── Co-cleavage helper: merge attached fragments near cleavage plane ──
     function tryCleavePlane(bestPlane) {
       const planeD = dot3(bestPlane, fc);
 
@@ -925,7 +943,9 @@ async function main() {
         if (f.parentId !== frag.id || !f.anchorLocal) continue;
         const anchorInParent = sub3(f.offset, frag.offset);
         const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
-        const threshold = (f.geoScale || 0.1) * 0.3;
+        // Larger threshold for seeds (peer-scale) vs children
+        const scale = f.geoScale || 0.1;
+        const threshold = f.boundaryNormal ? scale * 0.5 : scale * 0.3;
         if (anchorDist < threshold) {
           coCleavedIds.add(f.id);
           const childOff = sub3(f.offset, frag.offset);
@@ -1004,13 +1024,23 @@ async function main() {
     const c = frag.color;
     const nudge = (v) => Math.max(0, Math.min(1, v + (Math.random()-0.5)*0.02));
 
+    // Anchored half keeps the anchor + boundary; severed half is detached
+    const anchorSidePos = isChild
+      ? (dot3(frag.anchorLocal, bestPlane) - planeD >= 0) : false;
+    const posAnchor = anchorSidePos ? frag.anchorLocal : null;
+    const negAnchor = (!anchorSidePos && isChild) ? frag.anchorLocal : null;
+    const posBN = anchorSidePos ? (frag.boundaryNormal || null) : null;
+    const negBN = (!anchorSidePos && isChild) ? (frag.boundaryNormal || null) : null;
+
     newFrags.push({
       id: posId, verts: posMesh.verts, tris: posMesh.tris,
       gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
       ubo: makeUBO(),
       offset: frag.offset.slice(), vel: posVel,
       color: [nudge(c[0]), nudge(c[1]), nudge(c[2]), c[3]],
-      scale: 1, scaleTarget: 1, geoScale: frag.geoScale, parentId: frag.parentId, grain: frag.grain,
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
+      parentId: anchorSidePos ? frag.parentId : 0,
+      anchorLocal: posAnchor, boundaryNormal: posBN, grain: frag.grain,
     });
     newFrags.push({
       id: negId, verts: negMesh.verts, tris: negMesh.tris,
@@ -1018,7 +1048,9 @@ async function main() {
       ubo: makeUBO(),
       offset: frag.offset.slice(), vel: negVel,
       color: [nudge(c[0]), nudge(c[1]), nudge(c[2]), c[3]],
-      scale: 1, scaleTarget: 1, geoScale: frag.geoScale, parentId: frag.parentId, grain: frag.grain,
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
+      parentId: !anchorSidePos && isChild ? frag.parentId : 0,
+      anchorLocal: negAnchor, boundaryNormal: negBN, grain: frag.grain,
     });
 
     fragments = newFrags;
