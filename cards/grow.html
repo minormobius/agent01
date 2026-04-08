@@ -894,12 +894,22 @@ async function main() {
     // Compound geometric scale across generations
     let growScale = (parent.geoScale || 1) * (0.3 + Math.random() * 0.15);
 
-    // Cap to fit within the hit facet (don't overhang edges)
+    // Cap to fit within the hit facet — measure actual epitaxial footprint
     if (triVerts) {
       const [va, vb, vc] = triVerts;
       const maxR = Math.min(ptSegDist(hitPoint, va, vb), ptSegDist(hitPoint, vb, vc), ptSegDist(hitPoint, vc, va));
-      const baseR = 0.6; // crystal base radius from buildCrystal
-      growScale = Math.min(growScale, maxR / baseR);
+      // Build a unit-scale probe to measure its projected footprint on parent face
+      const probe = buildEpitaxialChild(faceNormal, 1.0);
+      let unitFootprint = 0;
+      for (const v of probe.verts) {
+        // Project vertex onto plane perpendicular to faceNormal (lateral distance)
+        const along = dot3(v, faceNormal);
+        const lateral = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - along*along);
+        if (lateral > unitFootprint) unitFootprint = lateral;
+      }
+      if (unitFootprint > 0.001) {
+        growScale = Math.min(growScale, maxR / unitFootprint);
+      }
     }
     if (growScale < 0.03) return; // too small
 
