@@ -325,8 +325,12 @@ async function main() {
     depthStencil: { depthWriteEnabled:true, depthCompare:'less', format:'depth24plus' },
   });
 
-  const ubo = device.createBuffer({ size:256, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
-  const bg = device.createBindGroup({ layout:pipeline.getBindGroupLayout(0), entries:[{binding:0,resource:{buffer:ubo}}] });
+  const bgl = pipeline.getBindGroupLayout(0);
+  function makeUBO() {
+    const buf = device.createBuffer({ size:256, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
+    const bg = device.createBindGroup({ layout:bgl, entries:[{binding:0,resource:{buffer:buf}}] });
+    return { buf, bg };
+  }
   let depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
 
   // ── Fragment state ──────────────────────────────────────────
@@ -339,6 +343,7 @@ async function main() {
   fragments.push({
     verts, tris,
     gpu: uploadMesh(device, verts, tris),
+    ubo: makeUBO(),
     offset: [0,0,0], vel: [0,0,0],
     color: baseColor.slice(),
   });
@@ -348,6 +353,7 @@ async function main() {
     fragments = [{
       verts, tris,
       gpu: uploadMesh(device, verts, tris),
+      ubo: makeUBO(),
       offset: [0,0,0], vel: [0,0,0],
       color: baseColor.slice(),
     }];
@@ -524,6 +530,7 @@ async function main() {
     newFrags.push({
       verts: posMesh.verts, tris: posMesh.tris,
       gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
+      ubo: makeUBO(),
       offset: frag.offset.slice(),
       vel: [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
@@ -531,6 +538,7 @@ async function main() {
     newFrags.push({
       verts: negMesh.verts, tris: negMesh.tris,
       gpu: uploadMesh(device, negMesh.verts, negMesh.tris),
+      ubo: makeUBO(),
       offset: frag.offset.slice(),
       vel: [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
@@ -589,9 +597,9 @@ async function main() {
       uf.set(m, 16);
       uf.set(frag.color, 32);
       uf[36]=0.5; uf[37]=0.8; uf[38]=0.6; uf[39]=0;
-      device.queue.writeBuffer(ubo, 0, uf);
+      device.queue.writeBuffer(frag.ubo.buf, 0, uf);
 
-      pass.setBindGroup(0, bg);
+      pass.setBindGroup(0, frag.ubo.bg);
       pass.setVertexBuffer(0, frag.gpu.vb);
       pass.setIndexBuffer(frag.gpu.ib, 'uint16');
       pass.drawIndexed(frag.gpu.count);
