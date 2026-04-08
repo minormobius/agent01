@@ -198,21 +198,6 @@
   color: var(--gold);
 }
 
-/* Fallback when no WebGPU */
-.gem-fallback {
-  text-align: center;
-  padding: 2rem;
-}
-.gem-fallback-icon {
-  font-size: 4rem;
-  display: block;
-  text-shadow: 0 0 30px currentColor;
-  margin-bottom: 0.5rem;
-}
-.gem-fallback-label {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-}
 
 /* ── History ──────────────────────────────────────────────── */
 

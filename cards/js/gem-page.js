@@ -123,22 +123,11 @@ async function openViewer(d, page) {
 
   viewer.classList.remove("hidden");
 
-  // Initialize WebGPU crystal
+  // Initialize crystal renderer (WebGPU or Canvas 2D fallback)
   const canvas = document.getElementById("gem-canvas");
-  const ok = await initCrystalViewer(canvas);
-  if (ok) {
-    renderCrystal(d.system, d.props);
-  } else {
-    // Fallback: draw a CSS crystal placeholder
-    canvas.style.display = "none";
-    const info = document.getElementById("gem-viewer-info");
-    const [r, g, b] = d.props.color;
-    info.insertAdjacentHTML("afterbegin",
-      `<div class="gem-fallback" style="color:rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})">
-        <span class="gem-fallback-icon">${sys.icon || "?"}</span>
-        <span class="gem-fallback-label">WebGPU not available</span>
-      </div>`);
-  }
+  canvas.style.display = "";
+  await initCrystalViewer(canvas);
+  renderCrystal(d.system, d.props);
 }
 
 function renderHistory() {
