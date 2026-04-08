@@ -815,44 +815,82 @@ async function main() {
     if (frag.tris.length < 2) return; // too small to split
 
     // Pick the cleavage plane whose normal is most aligned with the hit direction
-    // (or closest to the hit point). Use the plane passing through hitPoint.
     let bestPlane = cleavagePlanes[0];
     let bestScore = -Infinity;
     for (const pn of cleavagePlanes) {
-      // Prefer planes that pass near the centroid of the fragment
-      // and have interesting geometry split
       const fc = centroid(frag.verts);
       const toHit = normalize3(sub3(hitPoint, fc));
-      // Score: how perpendicular the hit direction is to the plane
-      // (we want to cleave across the crystal, not along the tap direction)
       const score = Math.abs(dot3(pn, toHit));
       if (score > bestScore) { bestScore = score; bestPlane = pn; }
     }
 
-    // Plane passes through the centroid of the fragment (not hit point)
-    // This ensures a meaningful split every time
     const fc = centroid(frag.verts);
     const planeD = dot3(bestPlane, fc);
 
-    const [posMesh, negMesh] = splitMeshByPlane(frag.verts, frag.tris, bestPlane, planeD);
+    // ── Co-cleavage: find children whose anchor footprint straddles the plane ──
+    // If the cleavage plane cuts through a child's anchor point, merge that
+    // child's mesh into the parent so they split as one body.
+    const coCleavedIds = new Set();
+    let mergedVerts = frag.verts.map(v => v.slice());
+    let mergedTris = frag.tris.map(t => t.slice());
 
-    // Only split if both halves have substance
+    for (const f of fragments) {
+      if (f.parentId !== frag.id || !f.anchorLocal) continue;
+      // Child's anchor in parent's local space
+      const anchorInParent = sub3(f.offset, frag.offset);
+      const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
+      // If anchor is close to the cleavage plane, co-cleave
+      const threshold = (f.geoScale || 0.1) * 0.3;
+      if (anchorDist < threshold) {
+        coCleavedIds.add(f.id);
+        // Transform child verts into parent local space and append
+        const childOff = sub3(f.offset, frag.offset);
+        const base = mergedVerts.length;
+        for (const v of f.verts) {
+          mergedVerts.push([v[0] + childOff[0], v[1] + childOff[1], v[2] + childOff[2]]);
+        }
+        for (const t of f.tris) {
+          mergedTris.push([t[0] + base, t[1] + base, t[2] + base]);
+        }
+      }
+    }
+
+    const [posMesh, negMesh] = splitMeshByPlane(mergedVerts, mergedTris, bestPlane, planeD);
+
     if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return;
 
-    // Push halves apart along the cleavage plane normal
     const pushSpeed = 0.02;
     const jitter = () => (Math.random() - 0.5) * 0.005;
 
-    const posVel = [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()];
-    const negVel = [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()];
+    // ── Cleaving a child: anchored half stays, severed half gets 2x push ──
+    const isChild = frag.anchorLocal != null && frag.parentId != null;
+    let posVel, negVel;
+    if (isChild) {
+      // Determine which side the anchor point is on
+      const anchorSide = dot3(frag.anchorLocal, bestPlane) - planeD;
+      if (anchorSide >= 0) {
+        // Anchor is on positive side — pos stays, neg flies at 2x
+        posVel = [jitter(), jitter(), jitter()];
+        negVel = [-bestPlane[0]*pushSpeed*2+jitter(), -bestPlane[1]*pushSpeed*2+jitter(), -bestPlane[2]*pushSpeed*2+jitter()];
+      } else {
+        // Anchor is on negative side — neg stays, pos flies at 2x
+        posVel = [bestPlane[0]*pushSpeed*2+jitter(), bestPlane[1]*pushSpeed*2+jitter(), bestPlane[2]*pushSpeed*2+jitter()];
+        negVel = [jitter(), jitter(), jitter()];
+      }
+    } else {
+      posVel = [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()];
+      negVel = [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()];
+    }
+
     const posId = nextId++;
     const negId = nextId++;
 
-    // Replace the hit fragment with two new ones; carry over others
     const newFrags = [];
     for (let i = 0; i < fragments.length; i++) {
       if (i === fragIdx) continue;
       const f = fragments[i];
+      // Skip co-cleaved children (already merged into parent mesh)
+      if (coCleavedIds.has(f.id)) continue;
       // Children attached to the shattered parent: push with the correct half
       if (f.parentId === frag.id) {
         const childLocal = sub3(f.offset, frag.offset);
@@ -864,7 +902,6 @@ async function main() {
       newFrags.push(f);
     }
 
-    // Slight color variation on new faces
     const c = frag.color;
     const vary = () => Math.max(0, Math.min(1, c[0] + (Math.random()-0.5)*0.08));
 
@@ -933,7 +970,7 @@ async function main() {
         c[3],
       ],
       scale: 0.1, scaleTarget: 1, geoScale: growScale,
-      parentId: parent.id,
+      parentId: parent.id, anchorLocal: [0, 0, 0],
     });
     document.getElementById('reset-btn').style.display = 'block';
   }
