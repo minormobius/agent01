@@ -506,16 +506,9 @@ async function main() {
       return;
     }
 
-    // Compute push directions (away from split plane)
-    const pushSpeed = 0.015;
-    const posCenter = centroid(posMesh.verts);
-    const negCenter = centroid(negMesh.verts);
-    const posDir = normalize3(sub3(posCenter, negCenter));
-    const negDir = scale3(posDir, -1);
-
-    // Add slight tumble
-    const tumbleX = (Math.random() - 0.5) * 0.003;
-    const tumbleY = (Math.random() - 0.5) * 0.003;
+    // Push halves apart along the cleavage plane normal
+    const pushSpeed = 0.06;
+    const jitter = () => (Math.random() - 0.5) * 0.015;
 
     // Replace the hit fragment with two new ones
     const newFrags = [];
@@ -532,14 +525,14 @@ async function main() {
       verts: posMesh.verts, tris: posMesh.tris,
       gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
       offset: frag.offset.slice(),
-      vel: [posDir[0]*pushSpeed+tumbleX, posDir[1]*pushSpeed+tumbleY, posDir[2]*pushSpeed],
+      vel: [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
     });
     newFrags.push({
       verts: negMesh.verts, tris: negMesh.tris,
       gpu: uploadMesh(device, negMesh.verts, negMesh.tris),
       offset: frag.offset.slice(),
-      vel: [negDir[0]*pushSpeed-tumbleX, negDir[1]*pushSpeed-tumbleY, negDir[2]*pushSpeed],
+      vel: [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()],
       color: [vary(), c[1]+(Math.random()-0.5)*0.05, vary(), c[3]],
     });
 
@@ -559,8 +552,12 @@ async function main() {
       f.offset[0] += f.vel[0];
       f.offset[1] += f.vel[1];
       f.offset[2] += f.vel[2];
+      // Gravity (gentle downward pull on shattered pieces)
+      if (Math.abs(f.vel[0]) > 0.0001 || Math.abs(f.vel[1]) > 0.0001 || Math.abs(f.vel[2]) > 0.0001) {
+        f.vel[1] -= 0.0008;
+      }
       // Dampen
-      f.vel[0] *= 0.985; f.vel[1] *= 0.985; f.vel[2] *= 0.985;
+      f.vel[0] *= 0.98; f.vel[1] *= 0.98; f.vel[2] *= 0.98;
     }
 
     if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
