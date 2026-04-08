@@ -6,6 +6,7 @@ import { VectorStore } from '../lib/vectorstore.js';
 import { detectProvider, getProviders, streamChat, buildRAGMessages } from '../lib/llm.js';
 import { generateDossier } from '../lib/dossier.js';
 import { runSleuthPipeline } from '../lib/memory.js';
+import HandleTypeahead from './HandleTypeahead.jsx';
 import Dossier from './Dossier.jsx';
 
 export default function Sleuth({ themeToggle }) {
@@ -322,12 +323,12 @@ export default function Sleuth({ themeToggle }) {
       {repoStatus !== 'ready' && (
         <div className="sleuth-load">
           <form onSubmit={(e) => { e.preventDefault(); loadRepo(); }} className="sleuth-load-form">
-            <input
-              type="text"
+            <HandleTypeahead
               value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              placeholder="Enter a Bluesky handle"
+              onChange={setHandle}
+              onSubmit={loadRepo}
               disabled={repoStatus === 'loading'}
+              autoFocus
             />
             <button type="submit" disabled={repoStatus === 'loading' || !handle.trim()}>
               {repoStatus === 'loading' ? 'Loading...' : 'Load'}
