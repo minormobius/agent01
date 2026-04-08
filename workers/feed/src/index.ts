@@ -561,7 +561,7 @@ async function handleGetAvatars(url: URL, env: Env): Promise<Response> {
           continue;
         }
         if (!res.ok) break;
-        data = await res.json() as typeof data;
+        data = await res.json() as { profiles?: { did: string; avatar?: string }[] };
         break;
       } catch {
         break;
