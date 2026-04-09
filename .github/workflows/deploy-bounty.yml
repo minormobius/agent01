@@ -7,6 +7,10 @@ on:
       - 'bounty/**'
       - '.github/workflows/deploy-bounty.yml'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch to deploy from'
+        default: 'claude/megaproject-dashboard-uvKRo'
 
 jobs:
   deploy:
@@ -17,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:

@@ -4,7 +4,15 @@ name: Setup Bounty Board
 # Run manually ONCE before the first deploy.
 
 on:
+  push:
+    branches: ['claude/megaproject-dashboard-*']
+    paths:
+      - '.github/workflows/setup-bounty.yml'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch to run from'
+        default: 'claude/megaproject-dashboard-uvKRo'
 
 jobs:
   setup:
@@ -15,6 +23,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
