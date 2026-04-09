@@ -1,32 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { resolveHandle } from '../lib/resolve.js';
-import { downloadRepo, parseCar } from '../lib/repo.js';
-import { initEmbeddings, embedTexts, embedQuery } from '../lib/embeddings.js';
-import { VectorStore } from '../lib/vectorstore.js';
+import { fetchRecentPosts, TextIndex } from '../lib/posts.js';
 import { detectProvider, getProviders, streamChat, buildRAGMessages } from '../lib/llm.js';
 import { generateDossier } from '../lib/dossier.js';
-import { runSleuthPipeline } from '../lib/memory.js';
 import HandleTypeahead from './HandleTypeahead.jsx';
 import Dossier from './Dossier.jsx';
 
 export default function Sleuth({ themeToggle }) {
-  // Repo state
   const [handle, setHandle] = useState('');
-  const [repoStatus, setRepoStatus] = useState('idle'); // idle | loading | ready | error
+  const [repoStatus, setRepoStatus] = useState('idle');
   const [repoError, setRepoError] = useState(null);
   const [repoProgress, setRepoProgress] = useState('');
   const [postCount, setPostCount] = useState(0);
   const [userDid, setUserDid] = useState('');
 
-  // Embedding state
-  const [embedStatus, setEmbedStatus] = useState('idle'); // idle | loading-model | embedding | ready
-  const [embedProgress, setEmbedProgress] = useState('');
-  const [embedCount, setEmbedCount] = useState(0);
-
-  // View mode: search | dossier
   const [mode, setMode] = useState('search');
 
-  // Search + chat state
+  // Search + chat
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -34,9 +24,9 @@ export default function Sleuth({ themeToggle }) {
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState('');
 
-  // Dossier state
+  // Dossier
   const [dossierData, setDossierData] = useState(null);
-  const [dossierStatus, setDossierStatus] = useState('idle'); // idle | generating | done | error
+  const [dossierStatus, setDossierStatus] = useState('idle');
   const [dossierProgress, setDossierProgress] = useState('');
 
   // LLM config
@@ -44,12 +34,10 @@ export default function Sleuth({ themeToggle }) {
   const [provider, setProvider] = useState(() => localStorage.getItem('sleuth_provider') || '');
   const [showSettings, setShowSettings] = useState(false);
 
-  // Refs
-  const storeRef = useRef(new VectorStore());
+  const indexRef = useRef(new TextIndex());
   const chatEndRef = useRef(null);
   const abortRef = useRef(null);
 
-  // Persist API key
   useEffect(() => {
     if (apiKey) {
       localStorage.setItem('sleuth_api_key', apiKey);
@@ -61,127 +49,69 @@ export default function Sleuth({ themeToggle }) {
     }
   }, [apiKey]);
 
-  // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, streamText]);
 
-  // Check hash for handle
   useEffect(() => {
     const m = window.location.hash.match(/^#\/sleuth\/(.+)$/);
-    if (m) {
-      const h = decodeURIComponent(m[1]);
-      setHandle(h);
-    }
+    if (m) setHandle(decodeURIComponent(m[1]));
   }, []);
 
-  // Memory stats for display
-  const [memoryInfo, setMemoryInfo] = useState(null);
-  const [trimInfo, setTrimInfo] = useState(null);
-
-  // Load repo — memory-aware pipeline (no DuckDB)
-  const loadRepo = useCallback(async () => {
+  // Fetch posts via API — no CAR, no WASM, no model
+  const loadPosts = useCallback(async () => {
     if (!handle.trim()) return;
     setRepoStatus('loading');
     setRepoError(null);
     setRepoProgress('Resolving handle...');
-    storeRef.current.clear();
-    setEmbedStatus('idle');
-    setEmbedCount(0);
+    indexRef.current = new TextIndex();
     setChatHistory([]);
     setResults([]);
     setDossierData(null);
     setDossierStatus('idle');
-    setMemoryInfo(null);
-    setTrimInfo(null);
 
     try {
-      const { did, pdsUrl } = await resolveHandle(handle.trim());
+      const { did } = await resolveHandle(handle.trim());
       setUserDid(did);
 
-      // Memory-aware pipeline: download → parse → extract text → trim → done
-      // No DuckDB — parses NDJSON directly, frees CAR+NDJSON immediately
-      const result = await runSleuthPipeline({
-        pdsUrl,
-        did,
-        handle: handle.trim(),
-        downloadRepo,
-        parseCar,
-        onProgress: ({ step, message }) => setRepoProgress(message),
+      setRepoProgress('Fetching posts...');
+      const posts = await fetchRecentPosts(did, {
+        maxPosts: 1000,
+        onProgress: ({ fetched, calls }) => {
+          setRepoProgress(`Fetching posts: ${fetched} (${calls} API calls)`);
+        },
       });
 
-      setPostCount(result.totalPosts);
-      setMemoryInfo(result.memoryInfo);
-      if (result.trimmed) {
-        setTrimInfo({ kept: result.kept, dropped: result.dropped });
-      }
+      setPostCount(posts.length);
 
-      storeRef.current.docs = result.docs;
+      // Build text index for instant search
+      indexRef.current.build(posts);
 
-      const label = result.trimmed
-        ? `${result.kept.toLocaleString()} posts (${result.dropped.toLocaleString()} older posts trimmed for memory)`
-        : `${result.totalPosts.toLocaleString()} posts loaded`;
       setRepoStatus('ready');
-      setRepoProgress(label);
-
-      embedPosts(result.docs);
+      setRepoProgress(`${posts.length.toLocaleString()} posts indexed`);
     } catch (err) {
       setRepoError(err.message);
       setRepoStatus('error');
     }
   }, [handle]);
 
-  // Embed all posts
-  const embedPosts = useCallback(async (docs) => {
-    setEmbedStatus('loading-model');
-    setEmbedProgress('Loading embedding model...');
-
-    try {
-      await initEmbeddings((p) => {
-        setEmbedProgress(p.message);
-      });
-
-      setEmbedStatus('embedding');
-      const texts = docs.map(d => d.text);
-
-      const embeddings = await embedTexts(texts, {
-        onProgress: ({ done, total }) => {
-          setEmbedProgress(`Embedding: ${done.toLocaleString()}/${total.toLocaleString()} posts`);
-          setEmbedCount(done);
-        },
-      });
-
-      storeRef.current.clear();
-      storeRef.current.add(embeddings, docs);
-
-      setEmbedStatus('ready');
-      setEmbedProgress(`${embeddings.length.toLocaleString()} posts embedded`);
-      setEmbedCount(embeddings.length);
-    } catch (err) {
-      console.error('Embedding failed:', err);
-      setEmbedStatus('idle');
-      setEmbedProgress(`Embedding failed: ${err.message}. Using keyword search.`);
-    }
-  }, []);
-
-  // Generate dossier
+  // Dossier — uses TextIndex docs + LLM (no embeddings needed)
   const startDossier = useCallback(async () => {
-    if (embedStatus !== 'ready' || !apiKey || !provider) return;
+    if (!apiKey || !provider) return;
     setDossierStatus('generating');
     setDossierProgress('Starting analysis...');
     setMode('dossier');
 
     try {
+      const docs = indexRef.current.docs;
       const data = await generateDossier({
-        docs: storeRef.current.docs,
-        vectors: storeRef.current.vectors,
+        docs,
+        vectors: null, // no embeddings — dossier will sample chronologically
         handle: handle.trim(),
         streamChat,
         provider,
         apiKey,
-        onProgress: ({ step, detail }) => {
-          setDossierProgress(detail);
-        },
+        onProgress: ({ step, detail }) => setDossierProgress(detail),
       });
 
       setDossierData(data);
@@ -191,48 +121,29 @@ export default function Sleuth({ themeToggle }) {
       setDossierStatus('error');
       setDossierProgress(`Failed: ${err.message}`);
     }
-  }, [embedStatus, apiKey, provider, handle]);
+  }, [apiKey, provider, handle]);
 
-  // Search
-  const doSearch = useCallback(async (q) => {
+  // Search via TF-IDF index
+  const doSearch = useCallback((q) => {
     const searchQuery = q || query;
     if (!searchQuery.trim()) return;
     setSearching(true);
+    const hits = indexRef.current.search(searchQuery, 20);
+    setResults(hits);
+    setSearching(false);
+  }, [query]);
 
-    try {
-      let hits;
-      if (embedStatus === 'ready') {
-        const qVec = await embedQuery(searchQuery);
-        hits = storeRef.current.search(qVec, 20);
-      } else {
-        hits = storeRef.current.keywordSearch(searchQuery, 20);
-      }
-      setResults(hits);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setSearching(false);
-    }
-  }, [query, embedStatus]);
-
-  // Chat with RAG
+  // Chat with RAG (keyword-retrieved context)
   const doChat = useCallback(async () => {
     if (!query.trim() || !apiKey) return;
     const userQuery = query.trim();
     setQuery('');
 
-    let hits;
-    if (embedStatus === 'ready') {
-      const qVec = await embedQuery(userQuery);
-      hits = storeRef.current.search(qVec, 15);
-    } else {
-      hits = storeRef.current.keywordSearch(userQuery, 15);
-    }
+    const hits = indexRef.current.search(userQuery, 15);
     setResults(hits);
 
     const messages = buildRAGMessages(userQuery, hits, chatHistory);
-    const newHistory = [...chatHistory, { role: 'user', content: userQuery }];
-    setChatHistory(newHistory);
+    setChatHistory(h => [...h, { role: 'user', content: userQuery }]);
 
     setStreaming(true);
     setStreamText('');
@@ -240,18 +151,13 @@ export default function Sleuth({ themeToggle }) {
 
     try {
       let fullText = '';
-      const gen = streamChat({
-        provider,
-        apiKey,
-        messages,
+      for await (const chunk of streamChat({
+        provider, apiKey, messages,
         signal: abortRef.current.signal,
-      });
-
-      for await (const chunk of gen) {
+      })) {
         fullText += chunk;
         setStreamText(fullText);
       }
-
       setChatHistory(h => [...h, { role: 'assistant', content: fullText }]);
       setStreamText('');
     } catch (err) {
@@ -262,23 +168,16 @@ export default function Sleuth({ themeToggle }) {
     } finally {
       setStreaming(false);
     }
-  }, [query, apiKey, provider, chatHistory, embedStatus]);
+  }, [query, apiKey, provider, chatHistory]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (apiKey && provider) {
-      doChat();
-    } else {
-      doSearch(query);
-    }
-  };
-
-  const stopStreaming = () => {
-    abortRef.current?.abort();
+    if (apiKey && provider) doChat();
+    else doSearch(query);
   };
 
   const hasLLM = apiKey && provider;
-  const canDossier = embedStatus === 'ready' && hasLLM;
+  const canDossier = repoStatus === 'ready' && hasLLM;
 
   return (
     <div className="sleuth">
@@ -319,14 +218,13 @@ export default function Sleuth({ themeToggle }) {
         </div>
       )}
 
-      {/* Repo loading */}
       {repoStatus !== 'ready' && (
         <div className="sleuth-load">
-          <form onSubmit={(e) => { e.preventDefault(); loadRepo(); }} className="sleuth-load-form">
+          <form onSubmit={(e) => { e.preventDefault(); loadPosts(); }} className="sleuth-load-form">
             <HandleTypeahead
               value={handle}
               onChange={setHandle}
-              onSubmit={loadRepo}
+              onSubmit={loadPosts}
               disabled={repoStatus === 'loading'}
               autoFocus
             />
@@ -339,27 +237,11 @@ export default function Sleuth({ themeToggle }) {
         </div>
       )}
 
-      {/* Main interface once repo is loaded */}
       {repoStatus === 'ready' && (
         <>
           <div className="sleuth-status-bar">
-            <span className="sleuth-stat">
-              {trimInfo
-                ? `${trimInfo.kept.toLocaleString()}/${postCount.toLocaleString()} posts`
-                : `${postCount.toLocaleString()} posts`}
-            </span>
-            {trimInfo && (
-              <span className="sleuth-stat" style={{ color: 'var(--warning, #f90)' }}>
-                {trimInfo.dropped.toLocaleString()} trimmed
-              </span>
-            )}
-            <span className={`sleuth-stat ${embedStatus === 'ready' ? 'ready' : ''}`}>
-              {embedStatus === 'ready'
-                ? `${embedCount.toLocaleString()} embedded`
-                : embedStatus === 'idle'
-                  ? 'keyword search'
-                  : embedProgress}
-            </span>
+            <span className="sleuth-stat">{postCount.toLocaleString()} posts</span>
+            <span className="sleuth-stat ready">indexed</span>
             {hasLLM && <span className="sleuth-stat ready">AI on</span>}
             <button
               className="sleuth-reload"
@@ -369,7 +251,6 @@ export default function Sleuth({ themeToggle }) {
             </button>
           </div>
 
-          {/* Mode tabs */}
           <div className="sleuth-tabs">
             <button
               className={`sleuth-tab ${mode === 'search' ? 'active' : ''}`}
@@ -384,16 +265,15 @@ export default function Sleuth({ themeToggle }) {
                 if (dossierStatus === 'idle' && canDossier) startDossier();
               }}
               disabled={!canDossier && dossierStatus === 'idle'}
-              title={!canDossier ? 'Needs embeddings + API key' : 'Generate personality dossier'}
+              title={!canDossier ? 'Needs API key' : 'Generate personality dossier'}
             >
               Dossier
               {!canDossier && dossierStatus === 'idle' && (
-                <span className="sleuth-tab-hint">needs API key + embeddings</span>
+                <span className="sleuth-tab-hint">needs API key</span>
               )}
             </button>
           </div>
 
-          {/* Search mode */}
           {mode === 'search' && (
             <>
               <form onSubmit={handleSubmit} className="sleuth-search">
@@ -401,14 +281,12 @@ export default function Sleuth({ themeToggle }) {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={hasLLM
-                    ? 'Ask about your posts...'
-                    : 'Search your posts...'}
+                  placeholder={hasLLM ? 'Ask about your posts...' : 'Search your posts...'}
                   disabled={searching || streaming}
                   autoFocus
                 />
                 {streaming ? (
-                  <button type="button" onClick={stopStreaming} className="sleuth-stop">Stop</button>
+                  <button type="button" onClick={() => abortRef.current?.abort()} className="sleuth-stop">Stop</button>
                 ) : (
                   <button type="submit" disabled={!query.trim() || searching}>
                     {hasLLM ? 'Ask' : 'Search'}
@@ -448,7 +326,7 @@ export default function Sleuth({ themeToggle }) {
                       <div className="sleuth-result-body">
                         <div className="sleuth-result-text">{r.doc.text}</div>
                         <div className="sleuth-result-meta">
-                          {r.doc.createdAt && new Date(r.doc.createdAt).toLocaleDateString()}
+                          {r.doc.createdAt}
                           {r.doc.rkey && (
                             <a
                               href={`https://bsky.app/profile/${r.doc.did}/post/${r.doc.rkey}`}
@@ -469,16 +347,10 @@ export default function Sleuth({ themeToggle }) {
               {results.length === 0 && chatHistory.length === 0 && (
                 <div className="sleuth-empty">
                   <div className="sleuth-empty-icon">🔍</div>
-                  <p>
-                    {hasLLM
-                      ? 'Ask questions about your posting history'
-                      : 'Search across all your posts'}
-                  </p>
+                  <p>{hasLLM ? 'Ask questions about your posting history' : 'Search across your posts'}</p>
                   <div className="sleuth-suggestions">
                     {['What do I post about most?', 'My thoughts on AI', 'Links I\'ve shared'].map(s => (
-                      <button key={s} onClick={() => { setQuery(s); }} className="sleuth-suggestion">
-                        {s}
-                      </button>
+                      <button key={s} onClick={() => setQuery(s)} className="sleuth-suggestion">{s}</button>
                     ))}
                   </div>
                 </div>
@@ -486,7 +358,6 @@ export default function Sleuth({ themeToggle }) {
             </>
           )}
 
-          {/* Dossier mode */}
           {mode === 'dossier' && (
             <>
               {dossierStatus === 'generating' && (
@@ -494,7 +365,7 @@ export default function Sleuth({ themeToggle }) {
                   <div className="sleuth-dossier-spinner" />
                   <div className="sleuth-dossier-step">{dossierProgress}</div>
                   <p className="sleuth-dossier-explain">
-                    Clustering topics, tracing narrative arcs, and synthesizing your profile.
+                    Analyzing themes, tracing narrative arcs, synthesizing profile.
                     This takes 30-60 seconds.
                   </p>
                 </div>
@@ -514,15 +385,8 @@ export default function Sleuth({ themeToggle }) {
               {dossierStatus === 'idle' && !canDossier && (
                 <div className="sleuth-empty">
                   <div className="sleuth-empty-icon">📋</div>
-                  <p>Dossier needs two things:</p>
-                  <ol style={{ textAlign: 'left', display: 'inline-block', color: '#999' }}>
-                    <li style={{ color: embedStatus === 'ready' ? '#6f6' : '#f66' }}>
-                      Embeddings {embedStatus === 'ready' ? '(done)' : '(loading...)'}
-                    </li>
-                    <li style={{ color: hasLLM ? '#6f6' : '#f66' }}>
-                      API key {hasLLM ? '(set)' : '(click ⚙️ above)'}
-                    </li>
-                  </ol>
+                  <p>Dossier requires an API key</p>
+                  <p style={{ color: '#888', fontSize: '0.9em' }}>Click ⚙️ above to add your OpenAI or Anthropic key</p>
                 </div>
               )}
 
