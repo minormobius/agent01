@@ -71,11 +71,11 @@ export default function Sleuth({ themeToggle }) {
     setDossierStatus('idle');
 
     try {
-      const { did } = await resolveHandle(handle.trim());
+      const { did, pdsUrl } = await resolveHandle(handle.trim());
       setUserDid(did);
 
       setRepoProgress('Fetching posts...');
-      const posts = await fetchRecentPosts(did, {
+      const posts = await fetchRecentPosts(pdsUrl, did, {
         maxPosts: 1000,
         onProgress: ({ fetched, calls }) => {
           setRepoProgress(`Fetching posts: ${fetched} (${calls} API calls)`);

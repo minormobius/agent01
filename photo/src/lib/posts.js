@@ -1,12 +1,9 @@
-// Lean post fetcher for Sleuth — uses public listRecords API
+// Lean post fetcher for Sleuth — uses PDS listRecords (no auth needed)
 // No CAR, no WASM, no DuckDB, no embedding model
 // 10 API calls = 1000 posts, works on any device
 
-const PUBLIC_API = 'https://public.api.bsky.app';
-
-// Fetch recent posts via listRecords (public, no auth needed)
-// Paginates in reverse-chronological order
-export async function fetchRecentPosts(did, { maxPosts = 1000, onProgress } = {}) {
+// Fetch recent posts via PDS listRecords (public endpoint, no auth)
+export async function fetchRecentPosts(pdsUrl, did, { maxPosts = 1000, onProgress } = {}) {
   const posts = [];
   let cursor = undefined;
   let calls = 0;
@@ -17,16 +14,14 @@ export async function fetchRecentPosts(did, { maxPosts = 1000, onProgress } = {}
       repo: did,
       collection: 'app.bsky.feed.post',
       limit: String(limit),
-      reverse: 'false',
     });
     if (cursor) params.set('cursor', cursor);
 
     const res = await fetch(
-      `${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`
+      `${pdsUrl}/xrpc/com.atproto.repo.listRecords?${params}`
     );
 
     if (!res.ok) {
-      // Try PDS directly if public API fails
       throw new Error(`listRecords failed: ${res.status}`);
     }
 
@@ -59,53 +54,6 @@ export async function fetchRecentPosts(did, { maxPosts = 1000, onProgress } = {}
 
     cursor = data.cursor;
     if (!cursor || records.length < limit) break; // No more records
-  }
-
-  return posts.slice(0, maxPosts);
-}
-
-// Also try via PDS directly (if public API has issues)
-export async function fetchRecentPostsViaPds(pdsUrl, did, { maxPosts = 1000, onProgress } = {}) {
-  const posts = [];
-  let cursor = undefined;
-  let calls = 0;
-  const limit = 100;
-
-  while (posts.length < maxPosts) {
-    const params = new URLSearchParams({
-      repo: did,
-      collection: 'app.bsky.feed.post',
-      limit: String(limit),
-      reverse: 'false',
-    });
-    if (cursor) params.set('cursor', cursor);
-
-    const res = await fetch(
-      `${pdsUrl}/xrpc/com.atproto.repo.listRecords?${params}`
-    );
-
-    if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
-
-    const data = await res.json();
-    const records = data.records || [];
-    calls++;
-
-    for (const rec of records) {
-      const text = rec.value?.text;
-      if (!text || typeof text !== 'string' || text.trim().length === 0) continue;
-
-      let createdAt = rec.value.createdAt || '';
-      if (createdAt.length > 10) createdAt = createdAt.slice(0, 10);
-
-      const rkey = rec.uri?.split('/').pop() || '';
-
-      posts.push({ text, rkey, did, createdAt, uri: rec.uri });
-    }
-
-    if (onProgress) onProgress({ fetched: posts.length, calls });
-
-    cursor = data.cursor;
-    if (!cursor || records.length < limit) break;
   }
 
   return posts.slice(0, maxPosts);
