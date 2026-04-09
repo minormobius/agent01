@@ -24,8 +24,9 @@ canvas{display:block;width:100%;height:100%}
 <canvas id="c"></canvas>
 <div id="ctl">
   <select id="selMol">
-    <option value="water12">12 Waters</option>
+    <option value="water3">3 Waters</option>
     <option value="water6">6 Waters</option>
+    <option value="water12">12 Waters</option>
     <option value="methane4">4 Methanes</option>
     <option value="ethanol2">2 Ethanols</option>
     <option value="co2_6">6 CO₂</option>
@@ -102,29 +103,35 @@ function ethanolAtoms(cx,cy,cz) {
 
 function buildScene(name) {
   const atoms = [], bonds = [];
-  const sp = 3.5; // spacing between molecules
-  function addMol(fn, n, startIdx) {
-    for (let i = 0; i < n; i++) {
-      const x = (Math.random()-0.5)*BOX*0.6;
-      const y = (Math.random()-0.5)*BOX*0.6;
-      const z = (Math.random()-0.5)*BOX*0.6;
-      const base = atoms.length;
-      const mol = fn(x,y,z);
-      atoms.push(...mol);
-      // Intramolecular bonds: connect all pairs within molecule
-      for (let a=0;a<mol.length;a++) for (let b=a+1;b<mol.length;b++) {
-        const dx=mol[a].x-mol[b].x, dy=mol[a].y-mol[b].y, dz=mol[a].z-mol[b].z;
-        const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
-        if (d < 2.0) bonds.push({i:base+a, j:base+b, r0:d, k:4000});
-      }
-    }
+  // Grid placement to prevent overlaps
+  function addMol(fn, n) {
+    const side = Math.ceil(Math.cbrt(n));
+    const gap = BOX * 0.7 / Math.max(side, 1);
+    const off = -BOX * 0.35;
+    let idx = 0;
+    for (let ix = 0; ix < side && idx < n; ix++)
+      for (let iy = 0; iy < side && idx < n; iy++)
+        for (let iz = 0; iz < side && idx < n; iz++, idx++) {
+          const x = off + (ix + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const y = off + (iy + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const z = off + (iz + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const base = atoms.length;
+          const mol = fn(x,y,z);
+          atoms.push(...mol);
+          for (let a=0;a<mol.length;a++) for (let b=a+1;b<mol.length;b++) {
+            const dx=mol[a].x-mol[b].x, dy=mol[a].y-mol[b].y, dz=mol[a].z-mol[b].z;
+            const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+            if (d < 2.0) bonds.push({i:base+a, j:base+b, r0:d, k:4000});
+          }
+        }
   }
-  if (name==='water12') addMol(waterAtoms, 12);
+  if (name==='water3') addMol(waterAtoms, 3);
   else if (name==='water6') addMol(waterAtoms, 6);
+  else if (name==='water12') addMol(waterAtoms, 12);
   else if (name==='methane4') addMol(methaneAtoms, 4);
   else if (name==='ethanol2') addMol(ethanolAtoms, 2);
   else if (name==='co2_6') addMol(co2Atoms, 6);
-  else { addMol(waterAtoms,4); addMol(methaneAtoms,2); addMol(co2Atoms,2); }
+  else { addMol(waterAtoms,2); addMol(methaneAtoms,1); addMol(co2Atoms,1); }
   return {atoms, bonds};
 }
 
@@ -177,7 +184,7 @@ function computeForces() {
       if (dz > half) dz -= BOX; else if (dz < -half) dz += BOX;
       const r2 = dx*dx+dy*dy+dz*dz;
       const r = Math.sqrt(r2);
-      if (r < 0.5) continue; // too close, skip
+      if (r < 0.3) continue; // too close, skip
       let fx=0, fy=0, fz=0;
 
       // Lennard-Jones (mixing rules)
@@ -193,6 +200,9 @@ function computeForces() {
         const fC = 1389.35 * ai.q * aj.q / (r2 * r);
         fx += fC*dx; fy += fC*dy; fz += fC*dz;
       }
+      // Cap force magnitude to prevent blowup
+      const fmag = Math.sqrt(fx*fx+fy*fy+fz*fz);
+      if (fmag > 5000) { const s=5000/fmag; fx*=s; fy*=s; fz*=s; }
       force[i*3]   -= fx; force[i*3+1] -= fy; force[i*3+2] -= fz;
       force[j*3]   += fx; force[j*3+1] += fy; force[j*3+2] += fz;
     }
@@ -235,12 +245,20 @@ function stepMD() {
     const inv=dt/(2*m);
     vel[i*3]+=force[i*3]*inv; vel[i*3+1]+=force[i*3+1]*inv; vel[i*3+2]+=force[i*3+2]*inv;
   }
-  // Berendsen thermostat
+  // Velocity cap: prevent runaway
+  const vmax = 50; // Å/ps — reasonable upper bound
+  for (let i=0;i<N;i++) {
+    for (let d=0;d<3;d++) {
+      if (vel[i*3+d] > vmax) vel[i*3+d] = vmax;
+      if (vel[i*3+d] < -vmax) vel[i*3+d] = -vmax;
+    }
+  }
+  // Berendsen thermostat (strong coupling: tau=2*dt)
   let ke=0;
   for (let i=0;i<N;i++) { const m=ATOM[atoms[i].type].m; ke+=0.5*m*(vel[i*3]**2+vel[i*3+1]**2+vel[i*3+2]**2); }
   const currentT = 2*ke/(3*N*KB);
   if (currentT > 0.1) {
-    const lambda = Math.sqrt(1 + 0.1*(targetTemp/currentT - 1)); // tau=10*dt
+    const lambda = Math.sqrt(1 + 0.5*(targetTemp/currentT - 1)); // tau=2*dt
     for (let i=0;i<N*3;i++) vel[i]*=lambda;
   }
   return {ke, temp: currentT};
@@ -360,41 +378,51 @@ fn sceneNormal(wp: vec3<f32>) -> vec3<f32> {
   let ro = wn;
   let rd = normalize(wf - wn);
 
-  // March through scene
+  // Bounding sphere skip: if ray misses a 10Å sphere at origin, skip
+  let oc = ro;
+  let b = dot(oc, rd);
+  let c = dot(oc, oc) - 100.0; // r²=100 → 10Å radius
+  let disc = b*b - c;
   var t: f32 = 0.0;
-  let maxT: f32 = 40.0;
-  let step: f32 = 0.15;
-
   var hitColor = vec3<f32>(0.0);
   var hit = false;
-  for (var i = 0u; i < 200u; i++) {
-    let wp = ro + rd * t;
-    let d = sceneDensity(wp);
-    if (d > p.isoLevel) {
-      // Binary refine
-      var lo = t - step;
-      var hi = t;
-      for (var r = 0u; r < 5u; r++) {
-        let mid = (lo + hi) * 0.5;
-        if (sceneDensity(ro + rd * mid) > p.isoLevel) { hi = mid; } else { lo = mid; }
+
+  if (disc > 0.0) {
+    // Start marching from sphere entry
+    let tEntry = max(-b - sqrt(disc), 0.0);
+    t = tEntry;
+    let maxT: f32 = min(-b + sqrt(disc), 30.0);
+    let step: f32 = 0.35;
+
+    for (var i = 0u; i < 80u; i++) {
+      let wp = ro + rd * t;
+      let d = sceneDensity(wp);
+      if (d > p.isoLevel) {
+        // Binary refine
+        var lo = t - step;
+        var hi = t;
+        for (var r = 0u; r < 4u; r++) {
+          let mid = (lo + hi) * 0.5;
+          if (sceneDensity(ro + rd * mid) > p.isoLevel) { hi = mid; } else { lo = mid; }
+        }
+        t = hi;
+        let hp = ro + rd * t;
+        let dens = sceneDensity(hp);
+        let n = sceneNormal(hp);
+        let col = sceneColor(hp, dens);
+        // Lighting
+        let sun = normalize(vec3(2.0, 3.0, 1.0));
+        let diff = max(dot(n, sun), 0.0) * 0.7;
+        let spec = pow(max(dot(reflect(-sun, n), -rd), 0.0), 20.0) * 0.4;
+        let amb = 0.2;
+        let fresnel = pow(1.0 - max(dot(n, -rd), 0.0), 3.0) * 0.3;
+        hitColor = col * (diff + amb) + vec3(spec + fresnel);
+        hit = true;
+        break;
       }
-      t = hi;
-      let hp = ro + rd * t;
-      let dens = sceneDensity(hp);
-      let n = sceneNormal(hp);
-      let col = sceneColor(hp, dens);
-      // Lighting
-      let sun = normalize(vec3(2.0, 3.0, 1.0));
-      let diff = max(dot(n, sun), 0.0) * 0.7;
-      let spec = pow(max(dot(reflect(-sun, n), -rd), 0.0), 20.0) * 0.4;
-      let amb = 0.2;
-      let fresnel = pow(1.0 - max(dot(n, -rd), 0.0), 3.0) * 0.3;
-      hitColor = col * (diff + amb) + vec3(spec + fresnel);
-      hit = true;
-      break;
+      t += step;
+      if (t > maxT) { break; }
     }
-    t += step;
-    if (t > maxT) { break; }
   }
 
   if (!hit) {
@@ -475,7 +503,7 @@ async function init() {
     ],
   });
 
-  loadScene('water12');
+  loadScene('water3');
   requestAnimationFrame(frame);
 }
 
@@ -486,11 +514,10 @@ function loadScene(name) {
 }
 
 function resize() {
-  const dpr = Math.min(devicePixelRatio, 2);
+  // Cap at 1x DPR — raymarching is too expensive for retina
   const w = window.innerWidth, h = window.innerHeight;
-  const pw = w * dpr | 0, ph = h * dpr | 0;
-  if (canvas.width !== pw || canvas.height !== ph) {
-    canvas.width = pw; canvas.height = ph;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
   }
 }
 
@@ -517,7 +544,7 @@ function frame(ts) {
   resize();
 
   if (!paused) {
-    for (let s = 0; s < 5; s++) mdInfo = stepMD();
+    for (let s = 0; s < 3; s++) mdInfo = stepMD();
   }
 
   uploadAtoms();
