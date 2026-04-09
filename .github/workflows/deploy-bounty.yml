@@ -31,16 +31,107 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # ── Resolve D1 database ID (create if needed) ──
+      - name: Ensure D1 database exists
+        id: d1
+        run: |
+          db_id=$(npx wrangler d1 list --json 2>/dev/null | node -e "
+            const data = require('fs').readFileSync('/dev/stdin','utf8');
+            const dbs = JSON.parse(data);
+            const found = dbs.find(d => d.name === 'bounty-board');
+            if (found) process.stdout.write(found.uuid);
+          " 2>/dev/null || true)
+
+          if [ -z "$db_id" ]; then
+            echo "Creating D1 database bounty-board..."
+            result=$(npx wrangler d1 create bounty-board 2>&1)
+            echo "$result"
+            db_id=$(echo "$result" | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+          fi
+
+          echo "D1 database ID: $db_id"
+          echo "db_id=$db_id" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── Patch wrangler.jsonc with real database ID ──
+      - name: Patch database_id in wrangler config
+        run: |
+          sed -i 's/TODO_REPLACE_WITH_D1_DATABASE_ID/${{ steps.d1.outputs.db_id }}/' wrangler.jsonc
+          echo "Patched wrangler.jsonc:"
+          grep database_id wrangler.jsonc
+
+      # ── Run D1 migrations ──
       - name: Run D1 migrations
         run: |
           for f in migrations/*.sql; do
             echo "Running migration: $f"
-            npx wrangler d1 execute bounty-board --file="$f" --remote || echo "Migration $f returned non-zero (likely already applied), continuing..."
+            npx wrangler d1 execute bounty-board --file="$f" --remote || echo "Migration $f may already be applied, continuing..."
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # ── Generate mint keys if not yet seeded ──
+      - name: Seed mint keys (idempotent)
+        run: |
+          # Check if keys already exist
+          count=$(npx wrangler d1 execute bounty-board --remote --command "SELECT COUNT(*) as c FROM mint_keys" --json 2>/dev/null | node -e "
+            const d = require('fs').readFileSync('/dev/stdin','utf8');
+            const r = JSON.parse(d);
+            process.stdout.write(String(r[0]?.results?.[0]?.c || 0));
+          " 2>/dev/null || echo "0")
+
+          if [ "$count" -ge "4" ]; then
+            echo "Mint keys already seeded ($count denominations). Skipping."
+            exit 0
+          fi
+
+          echo "Generating RSA-PSS key pairs for denominations 1, 5, 10, 25..."
+          keys_json=$(node --input-type=module -e "
+            import { webcrypto } from 'node:crypto';
+            const DENOMS = [1, 5, 10, 25];
+            const keys = {};
+            for (const d of DENOMS) {
+              const kp = await webcrypto.subtle.generateKey(
+                { name: 'RSA-PSS', modulusLength: 2048, publicExponent: new Uint8Array([1,0,1]), hash: 'SHA-384' },
+                true, ['sign', 'verify']
+              );
+              keys[d] = {
+                privateJWK: await webcrypto.subtle.exportKey('jwk', kp.privateKey),
+                publicJWK: await webcrypto.subtle.exportKey('jwk', kp.publicKey),
+              };
+            }
+            console.log(JSON.stringify(keys));
+          ")
+
+          if [ -z "$keys_json" ]; then
+            echo "::error::Failed to generate mint keys"
+            exit 1
+          fi
+
+          for denom in 1 5 10 25; do
+            pub=$(echo "$keys_json" | node -e "
+              const d = require('fs').readFileSync('/dev/stdin','utf8');
+              console.log(JSON.stringify(JSON.parse(d)['$denom'].publicJWK));
+            ")
+            priv=$(echo "$keys_json" | node -e "
+              const d = require('fs').readFileSync('/dev/stdin','utf8');
+              console.log(JSON.stringify(JSON.parse(d)['$denom'].privateJWK));
+            ")
+            echo "Seeding ${denom}-rep key..."
+            npx wrangler d1 execute bounty-board --remote --command \
+              "INSERT OR IGNORE INTO mint_keys (denomination, public_key_jwk, private_key_jwk) VALUES ($denom, '$pub', '$priv')"
+          done
+
+          echo "Setting MINT_KEYS_JSON Worker secret..."
+          echo "$keys_json" | npx wrangler secret put MINT_KEYS_JSON
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── Deploy Worker + Assets ──
       - name: Deploy Worker + Assets
         run: npx wrangler deploy
         env:
