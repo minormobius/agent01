@@ -57,6 +57,11 @@
     .woo-result { margin-top: 1.2rem; text-align: left; }
     .woo-result.hidden { display: none; }
     .woo-minicard { display: inline-block; margin-bottom: 0.8rem; }
+    .woo-axis { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.65rem;
+                letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-dim);
+                white-space: nowrap; padding: 0.3rem 0.1rem !important; text-align: center; width: 1.2rem; }
+    .woo-trait { font-weight: 700; color: var(--text); white-space: nowrap; }
+    .woo-trait .swatch { vertical-align: middle; margin-right: 0.3rem; }
     .woo-minicard .gem-card { width: 180px; }
     .woo-formula { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; color: var(--text);
                    background: var(--card-bg); padding: 0.7rem 1rem; border-radius: 6px; margin-top: 0.8rem;
@@ -354,18 +359,18 @@
       const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
       const l = (mx + mn) / 2, d = mx - mn;
       const s = d < 0.001 ? 0 : d / (1 - Math.abs(2 * l - 1));
-      if (l < 0.18)                return { name: 'Earth (sub-root)',   domain: 'Protection, absorption, banishing',      sw: '#222' };
-      if (s < 0.12 && l > 0.65)    return { name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
+      if (l < 0.18)                return { label: 'black',  name: 'Earth (sub-root)',   domain: 'Protection, absorption, banishing',      sw: '#222' };
+      if (s < 0.12 && l > 0.65)    return { label: 'white',  name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
       const h = hue(r, g, b);
       if ((h < 20 || h > 330) && l > 0.5 && s > 0.15)
-                                    return { name: 'Higher heart',       domain: 'Unconditional love, tenderness, healing',sw: '#daa' };
-      if (h < 15 || h > 345)       return { name: 'Root (1st)',         domain: 'Survival, grounding, vitality',          sw: '#c44' };
-      if (h < 45)                   return { name: 'Sacral (2nd)',       domain: 'Creativity, sexuality, emotional flow',  sw: '#d84' };
-      if (h < 70)                   return { name: 'Solar plexus (3rd)', domain: 'Willpower, confidence, identity',        sw: '#cc4' };
-      if (h < 165)                  return { name: 'Heart (4th)',        domain: 'Love, compassion, connection',           sw: '#4a4' };
-      if (h < 250)                  return { name: 'Throat (5th)',       domain: 'Communication, truth, expression',       sw: '#48c' };
-      if (h < 280)                  return { name: 'Third eye (6th)',    domain: 'Intuition, perception, insight',         sw: '#449' };
-                                    return { name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
+                                    return { label: 'pink',   name: 'Higher heart',       domain: 'Unconditional love, tenderness, healing',sw: '#daa' };
+      if (h < 15 || h > 345)       return { label: 'red',    name: 'Root (1st)',         domain: 'Survival, grounding, vitality',          sw: '#c44' };
+      if (h < 45)                   return { label: 'orange', name: 'Sacral (2nd)',       domain: 'Creativity, sexuality, emotional flow',  sw: '#d84' };
+      if (h < 70)                   return { label: 'yellow', name: 'Solar plexus (3rd)', domain: 'Willpower, confidence, identity',        sw: '#cc4' };
+      if (h < 165)                  return { label: 'green',  name: 'Heart (4th)',        domain: 'Love, compassion, connection',           sw: '#4a4' };
+      if (h < 250)                  return { label: 'blue',   name: 'Throat (5th)',       domain: 'Communication, truth, expression',       sw: '#48c' };
+      if (h < 280)                  return { label: 'indigo', name: 'Third eye (6th)',    domain: 'Intuition, perception, insight',         sw: '#449' };
+                                    return { label: 'violet', name: 'Crown (7th)',        domain: 'Consciousness, transcendence, unity',    sw: '#84c' };
     }
 
     function opacityPlane(o) {
@@ -405,15 +410,17 @@
       const lu = LUSTER_WOO[props.luster] || { g: '?', n: '?', nat: '?', brief: '' };
       const thumb = page?.thumbnail?.source;
 
+      const sysName = (CRYSTAL_SYSTEMS[system] || {}).name || system;
+
       out.classList.remove('hidden');
       out.innerHTML =
         renderMinicard(name, system, rarity, cssColor, thumb) +
         `<table class="map-table">
-          <tr><th>Axis</th><th>Maps To</th><th>Meaning</th></tr>
-          <tr><td class="key" style="color:${ck.sw}">\u25cf Chakra</td><td>${ck.name}</td><td>${ck.domain}</td></tr>
-          <tr><td class="key">Archetype</td><td>${ar.arch}</td><td>${ar.brief}</td></tr>
-          <tr><td class="key">Plane</td><td>${pl.name}</td><td>${pl.brief}</td></tr>
-          <tr><td class="key">Trigram</td><td>${lu.g} ${lu.n} \u00b7 ${lu.nat}</td><td>${lu.brief}</td></tr>
+          <tr><th></th><th>Trait</th><th>Maps To</th><th>Meaning</th></tr>
+          <tr><td class="woo-axis">Color</td><td class="woo-trait"><span class="swatch" style="background:${ck.sw}"></span>${ck.label}</td><td>${ck.name}</td><td>${ck.domain}</td></tr>
+          <tr><td class="woo-axis">System</td><td class="woo-trait">${sysName}</td><td>${ar.arch}</td><td>${ar.brief}</td></tr>
+          <tr><td class="woo-axis">Opacity</td><td class="woo-trait">${opLabel}</td><td>${pl.name}</td><td>${pl.brief}</td></tr>
+          <tr><td class="woo-axis">Luster</td><td class="woo-trait">${props.luster}</td><td>${lu.g} ${lu.n} \u00b7 ${lu.nat}</td><td>${lu.brief}</td></tr>
         </table>
         <div class="woo-formula"><span class="dim">${opLabel} ${name.toLowerCase()} =</span> ${pl.name.toLowerCase()} + ${ck.name.toLowerCase().replace(/ \(.*/, '')} + ${ar.arch.toLowerCase()} + ${lu.nat.toLowerCase()}</div>` +
         renderDetailCard(title, system, props, rarity, page);
