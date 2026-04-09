@@ -252,7 +252,8 @@ let camAzim=0.5, camElev=0.3, camDist=20;
 // === Math (same as corn) ===
 function mat4Perspective(fov,aspect,near,far){
   const f=1/Math.tan(fov/2),nf=1/(near-far);
-  return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0]);
+  // WebGPU clip Z range [0,1]
+  return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,far*nf,-1,0,0,far*near*nf,0]);
 }
 function mat4LookAt(eye,tgt,up){
   let zx=eye[0]-tgt[0],zy=eye[1]-tgt[1],zz=eye[2]-tgt[2];

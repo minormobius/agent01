@@ -50,8 +50,9 @@ let autoRotate = true;
 function mat4Perspective(fov, aspect, near, far) {
   const f = 1.0 / Math.tan(fov / 2);
   const nf = 1.0 / (near - far);
+  // WebGPU clip Z range [0,1] (not OpenGL's [-1,1])
   return new Float32Array([
-    f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0
+    f/aspect,0,0,0, 0,f,0,0, 0,0,far*nf,-1, 0,0,far*near*nf,0
   ]);
 }
 function mat4LookAt(eye, target, up) {

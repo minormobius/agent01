@@ -1022,8 +1022,8 @@ async function main() {
     return new Float32Array([
       f/aspect, 0, 0, 0,
       0, f, 0, 0,
-      0, 0, (far+near)*nf, -1,
-      0, 0, 2*far*near*nf, 0,
+      0, 0, far*nf, -1,
+      0, 0, far*near*nf, 0,
     ]);
   }
 
