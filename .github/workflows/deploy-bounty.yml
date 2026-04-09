@@ -125,8 +125,7 @@ jobs:
               "INSERT OR IGNORE INTO mint_keys (denomination, public_key_jwk, private_key_jwk) VALUES ($denom, '$pub', '$priv')"
           done
 
-          echo "Setting MINT_KEYS_JSON Worker secret..."
-          echo "$keys_json" | npx wrangler secret put MINT_KEYS_JSON
+          echo "Mint keys seeded in D1. Worker reads from mint_keys table at runtime."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
