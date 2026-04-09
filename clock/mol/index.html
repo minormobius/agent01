@@ -25,7 +25,7 @@ canvas{display:block;width:100%;height:100%}
 <div id="ctl">
   <select id="selMol">
     <option value="water3">3 Waters</option>
-    <option value="water6">6 Waters</option>
+    <option value="water6" selected>6 Waters</option>
     <option value="water12">12 Waters</option>
     <option value="methane4">4 Methanes</option>
     <option value="ethanol2">2 Ethanols</option>
@@ -253,15 +253,36 @@ function stepMD() {
       if (vel[i*3+d] < -vmax) vel[i*3+d] = -vmax;
     }
   }
-  // Berendsen thermostat (strong coupling: tau=2*dt)
+  // Berendsen thermostat (tau=10*dt for gradual heating; visible phase transitions)
   let ke=0;
   for (let i=0;i<N;i++) { const m=ATOM[atoms[i].type].m; ke+=0.5*m*(vel[i*3]**2+vel[i*3+1]**2+vel[i*3+2]**2); }
   const currentT = 2*ke/(3*N*KB);
   if (currentT > 0.1) {
-    const lambda = Math.sqrt(1 + 0.5*(targetTemp/currentT - 1)); // tau=2*dt
+    const ratio = targetTemp / currentT;
+    // Strong coupling when far from target (prevents blowup), gentle near target (realistic dynamics)
+    const coupling = ratio > 5 || ratio < 0.2 ? 0.5 : 0.1;
+    const lambda = Math.sqrt(1 + coupling*(ratio - 1));
     for (let i=0;i<N*3;i++) vel[i]*=lambda;
   }
-  return {ke, temp: currentT};
+  // Count intermolecular H-bonds: O···H < 2.5Å across different molecules
+  let hbonds = 0;
+  const half = BOX / 2;
+  for (let i = 0; i < N; i++) {
+    if (ATOM[atoms[i].type].q >= 0) continue; // only O-like (negative) as acceptor
+    for (let j = 0; j < N; j++) {
+      if (i === j || ATOM[atoms[j].type].m > 2) continue; // only H as donor
+      // Check they're in different molecules (bond array check)
+      let bonded = false;
+      for (const b of bonds) { if ((b.i===i&&b.j===j)||(b.i===j&&b.j===i)) { bonded=true; break; } }
+      if (bonded) continue;
+      let dx=pos[j*3]-pos[i*3], dy=pos[j*3+1]-pos[i*3+1], dz=pos[j*3+2]-pos[i*3+2];
+      if (dx>half) dx-=BOX; else if (dx<-half) dx+=BOX;
+      if (dy>half) dy-=BOX; else if (dy<-half) dy+=BOX;
+      if (dz>half) dz-=BOX; else if (dz<-half) dz+=BOX;
+      if (dx*dx+dy*dy+dz*dz < 6.25) hbonds++; // 2.5² = 6.25
+    }
+  }
+  return {ke, temp: currentT, hbonds};
 }
 
 // === Camera ===
@@ -513,7 +534,7 @@ async function init() {
     ],
   });
 
-  loadScene('water3');
+  loadScene('water6');
   requestAnimationFrame(frame);
 }
 
@@ -565,7 +586,7 @@ function uploadAtoms() {
   device.queue.writeBuffer(atomBuf, 0, gpuAtomData.buffer, 0, k * 32);
 }
 
-let mdInfo = { ke: 0, temp: 0 };
+let mdInfo = { ke: 0, temp: 0, hbonds: 0 };
 let isoLevel = 0.4;
 
 function frame(ts) {
@@ -613,8 +634,9 @@ function frame(ts) {
   device.queue.submit([encoder.finish()]);
 
   // HUD
+  const phase = mdInfo.hbonds > 2 ? 'liquid' : mdInfo.hbonds > 0 ? 'breaking' : 'gas';
   document.getElementById('info').textContent =
-    `${N} atoms | T=${mdInfo.temp.toFixed(0)}K | KE=${mdInfo.ke.toFixed(1)} kJ/mol`;
+    `${N} atoms | T=${mdInfo.temp.toFixed(0)}K | H-bonds: ${mdInfo.hbonds||0} (${phase})`;
 }
 
 // === Input: mouse ===
