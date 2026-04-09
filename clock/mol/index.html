@@ -348,12 +348,22 @@ fn sceneDensity(wp: vec3<f32>) -> f32 {
 }
 
 fn sceneColor(wp: vec3<f32>, total: f32) -> vec3<f32> {
-  var col = vec3<f32>(0.0);
+  // Electrostatic potential map (ESP): sum q_i / |r - r_i|
+  var V: f32 = 0.0;
   for (var i = 0u; i < p.numAtoms; i++) {
-    let w = atomDensity(wp, i) / max(total, 0.001);
-    col += w * atoms[i].color;
+    let d = length(wp - atoms[i].pos);
+    if (d > 0.1) { V += atoms[i].charge / d; }
   }
-  return col;
+  // Red (negative / electron-rich) → White → Blue (positive / electron-poor)
+  let t = clamp(V * 2.5, -1.0, 1.0);
+  var neg = vec3(1.0, 0.12, 0.08);  // red
+  var pos = vec3(0.15, 0.35, 1.0);  // blue
+  var mid = vec3(0.95, 0.95, 0.92); // off-white
+  if (t < 0.0) {
+    return mix(mid, neg, -t);
+  } else {
+    return mix(mid, pos, t);
+  }
 }
 
 // Estimate normal from density gradient
@@ -521,19 +531,38 @@ function resize() {
   }
 }
 
+let gpuAtomCount = 0; // real + virtual (for numAtoms uniform)
+
 function uploadAtoms() {
-  for (let i = 0; i < N; i++) {
+  let k = 0;
+  // Real atoms
+  for (let i = 0; i < N; i++, k++) {
     const a = ATOM[atoms[i].type];
-    gpuAtomData[i*8]   = pos[i*3];
-    gpuAtomData[i*8+1] = pos[i*3+1];
-    gpuAtomData[i*8+2] = pos[i*3+2];
-    gpuAtomData[i*8+3] = a.vdw;
-    gpuAtomData[i*8+4] = a.col[0];
-    gpuAtomData[i*8+5] = a.col[1];
-    gpuAtomData[i*8+6] = a.col[2];
-    gpuAtomData[i*8+7] = a.q;
+    gpuAtomData[k*8]   = pos[i*3];
+    gpuAtomData[k*8+1] = pos[i*3+1];
+    gpuAtomData[k*8+2] = pos[i*3+2];
+    gpuAtomData[k*8+3] = a.vdw;
+    gpuAtomData[k*8+4] = a.col[0];
+    gpuAtomData[k*8+5] = a.col[1];
+    gpuAtomData[k*8+6] = a.col[2];
+    gpuAtomData[k*8+7] = a.q;
   }
-  device.queue.writeBuffer(atomBuf, 0, gpuAtomData.buffer, 0, N * 32);
+  // Bond midpoint virtual sites — creates electron density bridges between bonded atoms
+  for (const b of bonds) {
+    if (k >= 128) break;
+    const ai = ATOM[atoms[b.i].type], aj = ATOM[atoms[b.j].type];
+    gpuAtomData[k*8]   = (pos[b.i*3]   + pos[b.j*3])   / 2;
+    gpuAtomData[k*8+1] = (pos[b.i*3+1] + pos[b.j*3+1]) / 2;
+    gpuAtomData[k*8+2] = (pos[b.i*3+2] + pos[b.j*3+2]) / 2;
+    gpuAtomData[k*8+3] = 0.6;  // tight gaussian to bridge atoms
+    gpuAtomData[k*8+4] = (ai.col[0]+aj.col[0])/2;
+    gpuAtomData[k*8+5] = (ai.col[1]+aj.col[1])/2;
+    gpuAtomData[k*8+6] = (ai.col[2]+aj.col[2])/2;
+    gpuAtomData[k*8+7] = (ai.q+aj.q)/2; // avg charge for ESP
+    k++;
+  }
+  gpuAtomCount = k;
+  device.queue.writeBuffer(atomBuf, 0, gpuAtomData.buffer, 0, k * 32);
 }
 
 let mdInfo = { ke: 0, temp: 0 };
@@ -565,7 +594,7 @@ function frame(ts) {
   pb[19] = ts * 0.001;
   pb[20] = isoLevel;
   const pu = new Uint32Array(pb.buffer);
-  pu[21] = N;
+  pu[21] = gpuAtomCount;
   device.queue.writeBuffer(paramBuf, 0, pb);
 
   // Draw
