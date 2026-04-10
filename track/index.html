@@ -51,6 +51,7 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <button id="load-btn">load</button>
   <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
   <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
+  <label>crossings <input type="range" id="max-cross" min="0" max="20" value="0" style="width:80px;accent-color:var(--accent);vertical-align:middle"><span id="cross-val">0</span></label>
   <span id="status"></span>
 </div>
 <canvas id="metro"></canvas>
@@ -65,7 +66,14 @@ var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
 var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var cam={x:0,y:0,zoom:1};
+var dragging=false,dragX=0,dragY=0;
 var API='https://public.api.bsky.app/xrpc/';
+
+// Slider label
+document.getElementById('max-cross').addEventListener('input',function(){
+  document.getElementById('cross-val').textContent=this.value;
+});
 
 function resize(){
   dpr=window.devicePixelRatio||1;
@@ -75,6 +83,49 @@ function resize(){
   if(loaded)draw();
 }
 window.addEventListener('resize',resize);resize();
+
+// World <-> screen transforms
+function toScreen(wx,wy){return{x:(wx-cam.x)*cam.zoom+W/2,y:(wy-cam.y)*cam.zoom+H/2}}
+function toWorld(sx,sy){return{x:(sx-W/2)/cam.zoom+cam.x,y:(sy-H/2)/cam.zoom+cam.y}}
+
+// Pan/zoom
+canvas.addEventListener('mousedown',function(e){
+  if(e.button===0){dragging=true;dragX=e.clientX;dragY=e.clientY}
+});
+canvas.addEventListener('mousemove',function(e){
+  if(!dragging)return;
+  cam.x-=(e.clientX-dragX)/cam.zoom;
+  cam.y-=(e.clientY-dragY)/cam.zoom;
+  dragX=e.clientX;dragY=e.clientY;
+  if(loaded)draw();
+});
+canvas.addEventListener('mouseup',function(){dragging=false});
+canvas.addEventListener('mouseleave',function(){dragging=false});
+canvas.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var factor=e.deltaY>0?0.9:1.1;
+  cam.zoom*=factor;
+  cam.zoom=Math.max(0.1,Math.min(10,cam.zoom));
+  if(loaded)draw();
+},{passive:false});
+// Touch pan/zoom
+var lastTouches=null;
+canvas.addEventListener('touchstart',function(e){lastTouches=e.touches});
+canvas.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  if(!lastTouches)return;
+  if(e.touches.length===1&&lastTouches.length===1){
+    cam.x-=(e.touches[0].clientX-lastTouches[0].clientX)/cam.zoom;
+    cam.y-=(e.touches[0].clientY-lastTouches[0].clientY)/cam.zoom;
+  }else if(e.touches.length===2&&lastTouches.length===2){
+    var d1=Math.hypot(lastTouches[0].clientX-lastTouches[1].clientX,lastTouches[0].clientY-lastTouches[1].clientY);
+    var d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    cam.zoom*=d2/d1;cam.zoom=Math.max(0.1,Math.min(10,cam.zoom));
+  }
+  lastTouches=e.touches;
+  if(loaded)draw();
+},{passive:false});
+canvas.addEventListener('touchend',function(){lastTouches=null});
 
 function status(msg){document.getElementById('status').textContent=msg}
 
@@ -234,64 +285,59 @@ function countCrossings(){
 
 // Force-directed layout with Lennard-Jones potential
 function forceLayout(){
-  var PAD=90,N=members.length;
+  var N=members.length;
   if(N===0)return;
+  var targetCross=parseInt(document.getElementById('max-cross').value)||0;
 
-  // Target separation: fit N nodes with comfortable spacing
-  var area=(W-PAD*2)*(H-PAD*2-50);
-  var sigma=Math.min(180,Math.max(80,Math.sqrt(area/N)*0.7)); // equilibrium distance
+  // Sigma: comfortable separation distance (unbounded canvas, use fixed value)
+  var sigma=120;
 
-  // Initialize on hex lattice
-  var cols=Math.ceil(Math.sqrt(N*((W-PAD*2)/(H-PAD*2-50))));
+  // Initialize on hex lattice centered at origin
+  var cols=Math.ceil(Math.sqrt(N*1.3));
   var rows=Math.ceil(N/cols);
-  var spacingX=(W-PAD*2)/(cols+1);
-  var spacingY=(H-PAD*2-50)/(rows+1);
+  var sp=sigma*1.1;
   members.forEach(function(m,i){
     var col=i%cols,row=Math.floor(i/cols);
-    m.x=PAD+spacingX*(col+1)+(row%2?spacingX*0.5:0);
-    m.y=PAD+50+spacingY*(row+1);
+    m.x=(col-(cols-1)/2)*sp+(row%2?sp*0.5:0);
+    m.y=(row-(rows-1)/2)*sp;
     m.vx=0;m.vy=0;
   });
 
   var maxW=edges.length?edges[0].weight:1;
-  var eps=sigma*0.5; // LJ well depth scaling
+  var eps=sigma*0.5;
 
   for(var iter=0;iter<500;iter++){
     var cool=Math.max(0.02,1-iter/500);
     var temp=cool*2;
 
-    // Lennard-Jones pairwise: F = 24*eps/r * [2*(sigma/r)^12 - (sigma/r)^6]
-    // Simplified: strong repulsion below sigma, mild attraction above, zero far away
+    // Lennard-Jones pairwise (unbounded — no clamping)
     for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
       var dx=members[i].x-members[j].x,dy=members[i].y-members[j].y;
-      var d=Math.sqrt(dx*dx+dy*dy);
-      if(d<1)d=1;
+      var d=Math.sqrt(dx*dx+dy*dy);if(d<1)d=1;
       var ratio=sigma/d;
       var r6=ratio*ratio*ratio*ratio*ratio*ratio;
       var r12=r6*r6;
-      // Force magnitude: positive = repulsive, negative = attractive
       var f=24*eps/d*(2*r12-r6)*temp;
-      // Clamp to prevent explosions
       f=Math.max(-50,Math.min(50,f));
       var ux=dx/d,uy=dy/d;
       members[i].vx+=ux*f;members[i].vy+=uy*f;
       members[j].vx-=ux*f;members[j].vy-=uy*f;
     }}
 
-    // Edge attraction (spring toward ~0.8*sigma for connected nodes)
-    var restLen=sigma*0.8;
+    // Edge springs (rest length shorter than sigma)
+    var restLen=sigma*0.7;
     for(var e=0;e<edges.length;e++){
       var edge=edges[e],a=members[edge.from],b=members[edge.to];
       var dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
-      var strength=0.03*(0.3+0.7*edge.weight/maxW)*temp;
+      var strength=0.04*(0.3+0.7*edge.weight/maxW)*temp;
       var f=(d-restLen)*strength;
       var ux=dx/d,uy=dy/d;
-      a.vx+=ux*f;a.vy+=uy*f;
-      b.vx-=ux*f;b.vy-=uy*f;
+      a.vx+=ux*f;a.vy+=uy*f;b.vx-=ux*f;b.vy-=uy*f;
     }
 
-    // Crossing avoidance (after initial settling)
-    if(iter>150){
+    // Crossing avoidance (stronger when target is low)
+    if(iter>100){
+      var crossForce=(targetCross===0)?12:Math.max(2,10-targetCross);
       for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
         var ei=edges[i],ej=edges[j];
         if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
@@ -301,112 +347,130 @@ function forceLayout(){
         var mx2=(c.x+d.x)/2,my2=(c.y+d.y)/2;
         var ddx=mx1-mx2,ddy=my1-my2;
         var dd=Math.sqrt(ddx*ddx+ddy*ddy)||1;
-        var cf=6*temp/dd;
-        a.vx+=ddx/dd*cf;a.vy+=ddy/dd*cf;
-        b.vx+=ddx/dd*cf;b.vy+=ddy/dd*cf;
-        c.vx-=ddx/dd*cf;c.vy-=ddy/dd*cf;
-        d.vx-=ddx/dd*cf;d.vy-=ddy/dd*cf;
+        var cf=crossForce*temp/dd;
+        a.vx+=ddx/dd*cf;a.vy+=ddy/dd*cf;b.vx+=ddx/dd*cf;b.vy+=ddy/dd*cf;
+        c.vx-=ddx/dd*cf;c.vy-=ddy/dd*cf;d.vx-=ddx/dd*cf;d.vy-=ddy/dd*cf;
       }}
     }
 
-    // Center gravity
+    // Gentle center gravity (toward centroid, not screen center)
+    var cx=0,cy=0;
+    for(var i=0;i<N;i++){cx+=members[i].x;cy+=members[i].y}
+    cx/=N;cy/=N;
     for(var i=0;i<N;i++){
-      members[i].vx+=(W/2-members[i].x)*0.003*temp;
-      members[i].vy+=(H/2-members[i].y)*0.003*temp;
+      members[i].vx+=(cx-members[i].x)*0.001*temp;
+      members[i].vy+=(cy-members[i].y)*0.001*temp;
     }
 
-    // Apply with velocity damping
+    // Apply (no bounds)
     for(var i=0;i<N;i++){
       members[i].vx*=0.75;members[i].vy*=0.75;
       members[i].x+=members[i].vx;members[i].y+=members[i].vy;
-      members[i].x=Math.max(PAD,Math.min(W-PAD,members[i].x));
-      members[i].y=Math.max(PAD+50,Math.min(H-PAD,members[i].y));
     }
   }
 
-  // Greedy swap pass to mop up remaining crossings
+  // Greedy swap pass
   var crossings=countCrossings();
-  if(crossings>0){
+  if(crossings>targetCross){
     var improved=true,passes=0;
     while(improved&&passes<20){
       improved=false;passes++;
-      var cur=countCrossings();if(cur===0)break;
+      var cur=countCrossings();if(cur<=targetCross)break;
       for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
         var tx=members[i].x,ty=members[i].y;
         members[i].x=members[j].x;members[i].y=members[j].y;
         members[j].x=tx;members[j].y=ty;
         var after=countCrossings();
-        if(after<cur){cur=after;improved=true;if(cur===0)break}
+        if(after<cur){cur=after;improved=true;if(cur<=targetCross)break}
         else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
-      }if(cur===0)break}
+      }if(cur<=targetCross)break}
     }
     crossings=countCrossings();
   }
   status(edges.length+' connections, '+crossings+' crossings');
+
+  // Auto-fit camera to contain all nodes
+  autoFit();
+}
+
+function autoFit(){
+  if(!members.length)return;
+  var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  members.forEach(function(m){
+    if(m.x<minX)minX=m.x;if(m.x>maxX)maxX=m.x;
+    if(m.y<minY)minY=m.y;if(m.y>maxY)maxY=m.y;
+  });
+  cam.x=(minX+maxX)/2;
+  cam.y=(minY+maxY)/2;
+  var spanX=maxX-minX+200,spanY=maxY-minY+200;
+  cam.zoom=Math.min((W-40)/spanX,(H-80)/spanY,2);
+  cam.zoom=Math.max(0.1,cam.zoom);
 }
 
 
 function draw(){
   ctx.clearRect(0,0,W,H);
+  var z=cam.zoom;
 
   // Metro lines
   edges.forEach(function(e){
     var a=members[e.from],b=members[e.to];
-    var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2));
+    var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+    var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2))*z;
     ctx.strokeStyle=e.color;ctx.lineWidth=thick;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.globalAlpha=0.6;ctx.beginPath();
 
-    // Metro-style routing
+    // Metro-style routing (in world coords, then project)
     var dx=b.x-a.x,dy=b.y-a.y;
-    var ax=Math.abs(dx),ay=Math.abs(dy);
-    ctx.moveTo(a.x,a.y);
-    if(ay<20||ax<20||Math.abs(ax-ay)<25){
-      ctx.lineTo(b.x,b.y);
-    }else if(ax>ay){
-      // Horizontal first, then diagonal
-      var diag=ay,sx=dx>0?1:-1,sy=dy>0?1:-1;
-      ctx.lineTo(a.x+sx*(ax-diag),a.y);
-      ctx.lineTo(b.x,b.y);
+    var adx=Math.abs(dx),ady=Math.abs(dy);
+    ctx.moveTo(sa.x,sa.y);
+    if(ady<20||adx<20||Math.abs(adx-ady)<25){
+      ctx.lineTo(sb.x,sb.y);
+    }else if(adx>ady){
+      var diag=ady,sx=dx>0?1:-1;
+      var mid=toScreen(a.x+sx*(adx-diag),a.y);
+      ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y);
     }else{
-      // Vertical first, then diagonal
-      var diag=ax,sx=dx>0?1:-1,sy=dy>0?1:-1;
-      ctx.lineTo(a.x,a.y+sy*(ay-diag));
-      ctx.lineTo(b.x,b.y);
+      var diag=adx,sy=dy>0?1:-1;
+      var mid=toScreen(a.x,a.y+sy*(ady-diag));
+      ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y);
     }
     ctx.stroke();
   });
   ctx.globalAlpha=1;
 
-  // Animated dots
+  // Animated dots (world coords interpolated in animate(), project here)
   dots.forEach(function(dot){
+    var sd=toScreen(dot.x,dot.y);
     ctx.globalAlpha=dot.alpha;
-    ctx.beginPath();ctx.arc(dot.x,dot.y,6,0,Math.PI*2);
+    ctx.beginPath();ctx.arc(sd.x,sd.y,6*z,0,Math.PI*2);
     ctx.fillStyle=dot.color;ctx.fill();
-    ctx.beginPath();ctx.arc(dot.x,dot.y,12,0,Math.PI*2);
+    ctx.beginPath();ctx.arc(sd.x,sd.y,12*z,0,Math.PI*2);
     ctx.fillStyle=dot.color;ctx.globalAlpha=dot.alpha*0.25;ctx.fill();
   });
   ctx.globalAlpha=1;
 
   // Stations
-  var R=20;
+  var R=20*z;
   members.forEach(function(m){
+    var s=toScreen(m.x,m.y);
     // Ring
-    ctx.beginPath();ctx.arc(m.x,m.y,R+3,0,Math.PI*2);
+    ctx.beginPath();ctx.arc(s.x,s.y,R+3*z,0,Math.PI*2);
     ctx.fillStyle='#fff';ctx.fill();
     // Avatar
     if(m.img){
-      ctx.save();ctx.beginPath();ctx.arc(m.x,m.y,R,0,Math.PI*2);ctx.clip();
-      ctx.drawImage(m.img,m.x-R,m.y-R,R*2,R*2);ctx.restore();
+      ctx.save();ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.clip();
+      ctx.drawImage(m.img,s.x-R,s.y-R,R*2,R*2);ctx.restore();
     }else{
-      ctx.beginPath();ctx.arc(m.x,m.y,R,0,Math.PI*2);ctx.fillStyle='#333';ctx.fill();
-      ctx.fillStyle='#999';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(m.handle[0].toUpperCase(),m.x,m.y);
+      ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.fillStyle='#333';ctx.fill();
+      ctx.fillStyle='#999';ctx.font=(10*z)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(m.handle[0].toUpperCase(),s.x,s.y);
     }
     // Label
-    ctx.fillStyle='#ccc';ctx.font='9px monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillStyle='#ccc';ctx.font=Math.max(7,9*z)+'px monospace';ctx.textAlign='center';ctx.textBaseline='top';
     var label=m.handle.replace('.bsky.social','');
-    ctx.fillText(label,m.x,m.y+R+6);
+    ctx.fillText(label,s.x,s.y+R+6*z);
   });
 }
 
