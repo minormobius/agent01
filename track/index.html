@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>track — bluesky interaction metro</title>
+<script type="importmap">{"imports":{"apache-arrow":"https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"}}</script>
 <style>
 :root {
   --bg: #1a1a2e;
@@ -68,16 +69,35 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <span><i style="background:#457b9d"></i>reply</span>
   <span><i style="background:#2a9d8f"></i>repost</span>
 </div>
-<script>
-(function(){
+<script type="module">
 var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
-var members=[],edges=[],memberIdx={},dots=[],events=[],ws=null,loaded=false,animating=false;
-var playback=null; // {events,idx,startReal,startSim,speed,range,raf}
+var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var playback=null;
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
 var API='https://public.api.bsky.app/xrpc/';
+var db=null,conn=null;
+
+// DuckDB-WASM init
+var DUCK_CDN='https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist';
+async function initDuck(){
+  if(conn)return;
+  status('loading duckdb...');
+  var mod=await import(DUCK_CDN+'/duckdb-browser.mjs');
+  var bundle=await mod.selectBundle({
+    mvp:{mainModule:DUCK_CDN+'/duckdb-mvp.wasm',mainWorker:DUCK_CDN+'/duckdb-browser-mvp.worker.js'},
+    eh:{mainModule:DUCK_CDN+'/duckdb-eh.wasm',mainWorker:DUCK_CDN+'/duckdb-browser-eh.worker.js'}
+  });
+  var w=await fetch(bundle.mainWorker).then(function(r){return r.blob()});
+  var worker=new Worker(URL.createObjectURL(w),{type:'module'});
+  db=new mod.AsyncDuckDB(new mod.ConsoleLogger(),worker);
+  await db.instantiate(bundle.mainModule);
+  conn=await db.connect();
+  await conn.query("CREATE TABLE IF NOT EXISTS interactions(from_idx INT,to_idx INT,ts BIGINT,type VARCHAR)");
+  status('duckdb ready');
+}
 
 // Slider label
 document.getElementById('max-cross').addEventListener('input',function(){
@@ -204,15 +224,15 @@ async function loadList(uri){
 }
 
 async function scrapeInteractions(){
-  edges=[];events=[];
-  var matrix={};
-  function add(a,b,ts,type){
-    if(a===b)return;
-    var fi=memberIdx[a],ti=memberIdx[b];
-    if(fi===undefined||ti===undefined)return;
-    var lo=Math.min(fi,ti),hi=Math.max(fi,ti),key=lo+':'+hi;
-    matrix[key]=(matrix[key]||0)+1;
-    if(ts)events.push({t:new Date(ts).getTime(),fi:fi,ti:ti,type:type||'reply'});
+  edges=[];
+  await conn.query("DELETE FROM interactions");
+  var batch=[];
+
+  function flush(){
+    if(!batch.length)return;
+    var vals=batch.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
+    batch=[];
+    return conn.query("INSERT INTO interactions VALUES "+vals);
   }
 
   for(var mi=0;mi<members.length;mi++){
@@ -226,9 +246,17 @@ async function scrapeInteractions(){
         var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
         for(var item of(data.feed||[])){
           var ts=(item.post||{}).indexedAt||((item.post||{}).record||{}).createdAt||null;
+          var tsMs=ts?new Date(ts).getTime():0;
           // Replies
           if(item.reply&&item.reply.parent&&item.reply.parent.author){
-            add(m.did,item.reply.parent.author.did,ts,'reply');
+            var toDid=item.reply.parent.author.did;
+            if(toDid!==m.did){
+              var ti=memberIdx[toDid],fi=memberIdx[m.did];
+              if(ti!==undefined&&fi!==undefined){
+                var lo=Math.min(fi,ti),hi=Math.max(fi,ti);
+                batch.push({fi:lo,ti:hi,ts:tsMs,type:'reply'});
+              }
+            }
           }
           // Quotes
           var rec=(item.post||{}).record||{},emb=rec.embed;
@@ -236,41 +264,41 @@ async function scrapeInteractions(){
             var qu=null;
             if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
             else if(emb.$type==='app.bsky.embed.recordWithMedia'&&emb.record&&emb.record.record)qu=emb.record.record.uri;
-            if(qu){var qd=qu.split('/')[2];add(m.did,qd,ts,'quote')}
+            if(qu){
+              var qd=qu.split('/')[2],qi=memberIdx[qd],fi2=memberIdx[m.did];
+              if(qd!==m.did&&qi!==undefined&&fi2!==undefined){
+                var lo2=Math.min(fi2,qi),hi2=Math.max(fi2,qi);
+                batch.push({fi:lo2,ti:hi2,ts:tsMs,type:'quote'});
+              }
+            }
           }
         }
+        if(batch.length>=500)await flush();
         cursor=data.cursor;pages++;
       }while(cursor&&pages<3);
     }catch(e){}
     await new Promise(function(r){setTimeout(r,150)});
   }
-  events.sort(function(a,b){return a.t-b.t});
+  await flush();
 
-  for(var key in matrix){
-    var p=key.split(':');
-    edges.push({from:+p[0],to:+p[1],weight:matrix[key],color:null});
-  }
-  edges.sort(function(a,b){return b.weight-a.weight});
-
-  // Prune to max degree per station (0 = no limit, auto = floor(sqrt(N))+1)
+  // Aggregate edges via SQL
   var maxDeg=parseInt(document.getElementById('max-deg').value)||0;
-  if(maxDeg>0){
-    var deg={};
-    var kept=[];
-    for(var i=0;i<edges.length;i++){
-      var e=edges[i];
-      var df=(deg[e.from]||0),dt=(deg[e.to]||0);
-      if(df<maxDeg&&dt<maxDeg){
-        kept.push(e);
-        deg[e.from]=(deg[e.from]||0)+1;
-        deg[e.to]=(deg[e.to]||0)+1;
-      }
+  var result=await conn.query("SELECT from_idx,to_idx,COUNT(*) as w FROM interactions GROUP BY from_idx,to_idx ORDER BY w DESC");
+  var rows=result.toArray();
+  var deg={};
+  for(var r of rows){
+    var fi=Number(r.from_idx),ti=Number(r.to_idx),w=Number(r.w);
+    if(maxDeg>0){
+      if((deg[fi]||0)>=maxDeg||(deg[ti]||0)>=maxDeg)continue;
+      deg[fi]=(deg[fi]||0)+1;deg[ti]=(deg[ti]||0)+1;
     }
-    edges=kept;
+    edges.push({from:fi,to:ti,weight:w,color:null});
   }
-
   for(var i=0;i<edges.length;i++)edges[i].color=LINE_COLORS[i%LINE_COLORS.length];
-  status(edges.length+' connections found');
+
+  var total=await conn.query("SELECT COUNT(*) as n FROM interactions");
+  var n=Number(total.toArray()[0].n);
+  status(edges.length+' connections from '+n+' events');
 }
 
 // Segment intersection test (returns true if segments cross, excluding shared endpoints)
@@ -295,48 +323,65 @@ function countCrossings(){
   return n;
 }
 
-// Force-directed layout with Lennard-Jones potential
+// Force-directed layout with Lennard-Jones potential + spatial grid
 function forceLayout(){
   var N=members.length;
   if(N===0)return;
+  status('computing layout...');
   var targetCross=parseInt(document.getElementById('max-cross').value)||0;
-
-  // Sigma: comfortable separation distance (unbounded canvas, use fixed value)
   var sigma=120;
 
-  // Initialize on hex lattice centered at origin
-  var cols=Math.ceil(Math.sqrt(N*1.3));
-  var rows=Math.ceil(N/cols);
-  var sp=sigma*1.1;
+  // Hex lattice init
+  var cols=Math.ceil(Math.sqrt(N*1.3)),rows=Math.ceil(N/cols),sp=sigma*1.1;
   members.forEach(function(m,i){
     var col=i%cols,row=Math.floor(i/cols);
     m.x=(col-(cols-1)/2)*sp+(row%2?sp*0.5:0);
-    m.y=(row-(rows-1)/2)*sp;
-    m.vx=0;m.vy=0;
+    m.y=(row-(rows-1)/2)*sp;m.vx=0;m.vy=0;
   });
 
   var maxW=edges.length?edges[0].weight:1;
   var eps=sigma*0.5;
+  var cutoff=sigma*3; // LJ negligible beyond 3*sigma
+  var iters=Math.min(500,150+N*3); // scale iterations with size
 
-  for(var iter=0;iter<500;iter++){
-    var cool=Math.max(0.02,1-iter/500);
+  for(var iter=0;iter<iters;iter++){
+    var cool=Math.max(0.02,1-iter/iters);
     var temp=cool*2;
 
-    // Lennard-Jones pairwise (unbounded — no clamping)
-    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
-      var dx=members[i].x-members[j].x,dy=members[i].y-members[j].y;
-      var d=Math.sqrt(dx*dx+dy*dy);if(d<1)d=1;
-      var ratio=sigma/d;
-      var r6=ratio*ratio*ratio*ratio*ratio*ratio;
-      var r12=r6*r6;
-      var f=24*eps/d*(2*r12-r6)*temp;
-      f=Math.max(-50,Math.min(50,f));
-      var ux=dx/d,uy=dy/d;
-      members[i].vx+=ux*f;members[i].vy+=uy*f;
-      members[j].vx-=ux*f;members[j].vy-=uy*f;
-    }}
+    // Spatial grid for LJ — only check neighbors within cutoff
+    var cell=cutoff;
+    var grid={};
+    for(var i=0;i<N;i++){
+      var gx=Math.floor(members[i].x/cell),gy=Math.floor(members[i].y/cell);
+      var gk=gx+','+gy;
+      if(!grid[gk])grid[gk]=[];
+      grid[gk].push(i);
+    }
+    for(var gk in grid){
+      var parts=gk.split(','),gx=+parts[0],gy=+parts[1];
+      for(var ox=-1;ox<=1;ox++){for(var oy=-1;oy<=1;oy++){
+        var nk=(gx+ox)+','+(gy+oy);
+        var nb=grid[nk];if(!nb)continue;
+        var cur=grid[gk];
+        for(var ci=0;ci<cur.length;ci++){
+          var jStart=(gk===nk)?ci+1:0;
+          for(var cj=jStart;cj<nb.length;cj++){
+            var ii=cur[ci],jj=nb[cj];if(ii===jj)continue;
+            var dx=members[ii].x-members[jj].x,dy=members[ii].y-members[jj].y;
+            var d=Math.sqrt(dx*dx+dy*dy);if(d<1)d=1;
+            if(d>cutoff)continue;
+            var ratio=sigma/d,r6=ratio*ratio*ratio*ratio*ratio*ratio,r12=r6*r6;
+            var f=24*eps/d*(2*r12-r6)*temp;
+            f=Math.max(-50,Math.min(50,f));
+            var ux=dx/d,uy=dy/d;
+            members[ii].vx+=ux*f;members[ii].vy+=uy*f;
+            members[jj].vx-=ux*f;members[jj].vy-=uy*f;
+          }
+        }
+      }}
+    }
 
-    // Edge springs (rest length shorter than sigma)
+    // Edge springs
     var restLen=sigma*0.7;
     for(var e=0;e<edges.length;e++){
       var edge=edges[e],a=members[edge.from],b=members[edge.to];
@@ -347,10 +392,14 @@ function forceLayout(){
       a.vx+=ux*f;a.vy+=uy*f;b.vx-=ux*f;b.vy-=uy*f;
     }
 
-    // Crossing avoidance (stronger when target is low)
-    if(iter>100){
+    // Crossing avoidance — sample edges for large graphs
+    if(iter>80&&edges.length>0){
       var crossForce=(targetCross===0)?12:Math.max(2,10-targetCross);
+      var maxPairs=Math.min(edges.length*(edges.length-1)/2,2000);
+      var step=Math.max(1,Math.floor(edges.length*edges.length/2/maxPairs));
+      var pair=0;
       for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
+        if((pair++)%step!==0)continue;
         var ei=edges[i],ej=edges[j];
         if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
         var a=members[ei.from],b=members[ei.to],c=members[ej.from],d=members[ej.to];
@@ -365,7 +414,7 @@ function forceLayout(){
       }}
     }
 
-    // Gentle center gravity (toward centroid, not screen center)
+    // Center gravity
     var cx=0,cy=0;
     for(var i=0;i<N;i++){cx+=members[i].x;cy+=members[i].y}
     cx/=N;cy/=N;
@@ -374,34 +423,36 @@ function forceLayout(){
       members[i].vy+=(cy-members[i].y)*0.001*temp;
     }
 
-    // Apply (no bounds)
     for(var i=0;i<N;i++){
       members[i].vx*=0.75;members[i].vy*=0.75;
       members[i].x+=members[i].vx;members[i].y+=members[i].vy;
     }
   }
 
-  // Greedy swap pass
+  // Greedy swap — capped for large graphs (only try random sample of swaps)
   var crossings=countCrossings();
-  if(crossings>targetCross){
+  if(crossings>targetCross&&N<=60){
+    var maxSwapAttempts=Math.min(N*(N-1)/2,500);
     var improved=true,passes=0;
-    while(improved&&passes<20){
+    while(improved&&passes<5){
       improved=false;passes++;
       var cur=countCrossings();if(cur<=targetCross)break;
-      for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
-        var tx=members[i].x,ty=members[i].y;
-        members[i].x=members[j].x;members[i].y=members[j].y;
-        members[j].x=tx;members[j].y=ty;
-        var after=countCrossings();
-        if(after<cur){cur=after;improved=true;if(cur<=targetCross)break}
-        else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
-      }if(cur<=targetCross)break}
+      var attempts=0;
+      for(var i=0;i<N&&attempts<maxSwapAttempts;i++){
+        for(var j=i+1;j<N&&attempts<maxSwapAttempts;j++){
+          attempts++;
+          var tx=members[i].x,ty=members[i].y;
+          members[i].x=members[j].x;members[i].y=members[j].y;
+          members[j].x=tx;members[j].y=ty;
+          var after=countCrossings();
+          if(after<cur){cur=after;improved=true;if(cur<=targetCross)break}
+          else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
+        }if(cur<=targetCross)break;
+      }
     }
     crossings=countCrossings();
   }
   status(edges.length+' connections, '+crossings+' crossings');
-
-  // Auto-fit camera to contain all nodes
   autoFit();
 }
 
@@ -538,14 +589,15 @@ function connectJetstream(){
 // Playback engine
 var EVT_COLORS={reply:'#457b9d',quote:'#2a9d8f',like:'#e63946',repost:'#2a9d8f'};
 
-function startPlayback(){
+async function startPlayback(){
   stopPlayback();
   var days=parseInt(document.getElementById('play-range').value)||7;
   var speed=parseInt(document.getElementById('play-speed').value)||200;
   var cutoff=Date.now()-days*86400000;
-  var evts=events.filter(function(e){return e.t>=cutoff});
+  // Query DuckDB for events in range
+  var result=await conn.query("SELECT from_idx,to_idx,ts,type FROM interactions WHERE ts>="+cutoff+" ORDER BY ts");
+  var evts=result.toArray().map(function(r){return{fi:Number(r.from_idx),ti:Number(r.to_idx),t:Number(r.ts),type:r.type}});
   if(!evts.length){status('no events in range');return}
-  // Pause live stream during playback
   if(ws){ws.close();ws=null}
   playback={evts:evts,idx:0,startReal:Date.now(),startSim:evts[0].t,speed:speed};
   document.getElementById('play-btn').textContent='\u23F9 stop';
@@ -557,7 +609,6 @@ function stopPlayback(){
   playback=null;
   document.getElementById('play-btn').textContent='\u25B6 replay';
   document.getElementById('play-time').textContent='';
-  // Reconnect live
   if(loaded)connectJetstream();
 }
 
@@ -566,16 +617,13 @@ function tickPlayback(){
   var pb=playback;
   var elapsed=(Date.now()-pb.startReal)*pb.speed;
   var simNow=pb.startSim+elapsed;
-  // Spawn all events up to simNow
   while(pb.idx<pb.evts.length&&pb.evts[pb.idx].t<=simNow){
     var ev=pb.evts[pb.idx];
     spawnDot(ev.fi,ev.ti,EVT_COLORS[ev.type]||'#fff');
     pb.idx++;
   }
-  // Time display
   var d=new Date(simNow);
   document.getElementById('play-time').textContent=d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  // Progress status
   var pct=Math.round(pb.idx/pb.evts.length*100);
   status('replay '+pct+'% ('+pb.idx+'/'+pb.evts.length+')');
   if(pb.idx>=pb.evts.length){
@@ -594,6 +642,7 @@ document.getElementById('load-btn').addEventListener('click',async function(){
   var input=document.getElementById('list-uri').value;if(!input)return;
   btn.disabled=true;
   try{
+    await initDuck();
     var uri=parseListUri(input);
     await loadList(uri);
     await scrapeInteractions();
@@ -603,10 +652,9 @@ document.getElementById('load-btn').addEventListener('click',async function(){
     document.getElementById('play-btn').disabled=false;
     if(!animating){animating=true;requestAnimationFrame(animate)}
     connectJetstream();
-  }catch(e){status('error: '+e.message)}
+  }catch(e){status('error: '+e.message);console.error(e)}
   btn.disabled=false;
 });
-})();
 </script>
 </body>
 </html>
