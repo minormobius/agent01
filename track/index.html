@@ -53,6 +53,7 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
   <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
   <label>crossings <input type="range" id="max-cross" min="0" max="20" value="0" style="width:80px;accent-color:var(--accent);vertical-align:middle"><span id="cross-val">0</span></label>
+  <button id="metro-btn" disabled style="padding:6px 12px;background:#2a9d8f;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">design metro</button>
   <button id="play-btn" disabled style="padding:6px 12px;background:#457b9d;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">&#9654; replay</button>
   <select id="play-range" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
     <option value="1">last 24h</option><option value="7" selected>last 7d</option><option value="30">last 30d</option>
@@ -74,6 +75,7 @@ var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
 var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var metroMode=false,metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
 var playback=null;
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
@@ -301,6 +303,127 @@ async function scrapeInteractions(){
   status(edges.length+' connections from '+n+' events');
 }
 
+// Maximum spanning tree (Kruskal's — favor high-traffic corridors)
+function buildMST(){
+  var N=members.length;
+  var par=new Array(N),rnk=new Array(N).fill(0);
+  for(var i=0;i<N;i++)par[i]=i;
+  function find(x){while(par[x]!==x)x=par[x]=par[par[x]];return x}
+  function unite(a,b){a=find(a);b=find(b);if(a===b)return false;
+    if(rnk[a]<rnk[b]){var t=a;a=b;b=t}par[b]=a;if(rnk[a]===rnk[b])rnk[a]++;return true}
+  var sorted=edges.slice().sort(function(a,b){return b.weight-a.weight});
+  var mst=[];
+  for(var i=0;i<sorted.length;i++){
+    if(unite(sorted[i].from,sorted[i].to))mst.push(sorted[i]);
+    if(mst.length===N-1)break;
+  }
+  return mst;
+}
+
+// Decompose MST into metro lines (leaf-pairing via diameter spine)
+function designLines(mst){
+  var N=members.length;
+  var adj=[];for(var i=0;i<N;i++)adj[i]=[];
+  mst.forEach(function(e,i){adj[e.from].push({to:e.to,ei:i});adj[e.to].push({to:e.from,ei:i})});
+  // BFS helper
+  function bfs(start){
+    var dist=new Array(N).fill(-1),prev=new Array(N).fill(-1);
+    dist[start]=0;var q=[start],qi=0;
+    while(qi<q.length){var u=q[qi++];
+      for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;if(dist[v]<0){dist[v]=dist[u]+1;prev[v]=u;q.push(v)}}}
+    var far=start,maxD=0;
+    for(var i=0;i<N;i++)if(dist[i]>maxD){maxD=dist[i];far=i}
+    return{far:far,dist:dist,prev:prev};
+  }
+  // Find leaves
+  var leaves=[];for(var i=0;i<N;i++)if(adj[i].length<=1)leaves.push(i);
+  if(leaves.length<2)return[{nodes:[0],color:LINE_COLORS[0]}];
+  // Diameter = Line 1 spine
+  var first=bfs(leaves[0]),second=bfs(first.far);
+  var spine=[];for(var v=second.far;v>=0;v=second.prev[v])spine.push(v);
+  var spineSet={};spine.forEach(function(v){spineSet[v]=true});
+  var lines=[{nodes:spine,color:LINE_COLORS[0]}];
+  // Branch lines: leaf → junction on spine → extend along spine
+  leaves.forEach(function(leaf){
+    if(spineSet[leaf])return;
+    var path=[leaf],vis={};vis[leaf]=true;var cur=leaf;
+    while(!spineSet[cur]){
+      var next=null;
+      for(var j=0;j<adj[cur].length;j++)if(!vis[adj[cur][j].to]){next=adj[cur][j].to;break}
+      if(!next)break;cur=next;path.push(cur);vis[cur]=true;
+    }
+    if(path.length<2)return;
+    var jIdx=spine.indexOf(cur);
+    // Extend along the longer spine direction
+    if(jIdx<=spine.length/2){
+      var ext=spine.slice(0,jIdx).reverse();
+      lines.push({nodes:path.concat(ext),color:LINE_COLORS[lines.length%LINE_COLORS.length]});
+    }else{
+      var ext=spine.slice(jIdx+1);
+      lines.push({nodes:path.concat(ext),color:LINE_COLORS[lines.length%LINE_COLORS.length]});
+    }
+  });
+  return lines;
+}
+
+// Build the designed metro from traffic data
+function designMetro(){
+  mstEdges=buildMST();
+  metroLines=designLines(mstEdges);
+  // Map each MST edge → which lines use it
+  edgeLineMap={};
+  var mstAdj={};
+  mstEdges.forEach(function(e,i){
+    var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+    mstAdj[k]=i;
+  });
+  metroLines.forEach(function(line,li){
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      if(!edgeLineMap[k])edgeLineMap[k]=[];
+      edgeLineMap[k].push(li);
+    }
+  });
+  // Spawn trains on each line
+  trains=[];
+  metroLines.forEach(function(line,li){
+    if(line.nodes.length<2)return;
+    // Traffic on this line = sum of MST edge weights along it
+    var traffic=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var ei=mstAdj[k];
+      if(ei!==undefined)traffic+=mstEdges[ei].weight;
+    }
+    // More trains for busier lines (min 1, max 4)
+    var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
+    var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
+    for(var t=0;t<nTrains;t++){
+      trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
+    }
+  });
+  // Build legend from lines
+  var legend=document.getElementById('legend');
+  legend.innerHTML='';
+  metroLines.forEach(function(line,i){
+    var sp=document.createElement('span');
+    var ic=document.createElement('i');ic.style.background=line.color;
+    sp.appendChild(ic);
+    sp.appendChild(document.createTextNode(' L'+(i+1)));
+    legend.appendChild(sp);
+  });
+  // Precompute lines-per-station for junction markers
+  members.forEach(function(m){m._nLines=0});
+  metroLines.forEach(function(line){
+    var seen={};
+    line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
+  });
+  metroMode=true;
+  status(metroLines.length+' lines, '+mstEdges.length+' track segments');
+}
+
 // Segment intersection test (returns true if segments cross, excluding shared endpoints)
 function segsX(ax,ay,bx,by,cx,cy,dx,dy){
   var d1x=bx-ax,d1y=by-ay,d2x=dx-cx,d2y=dy-cy;
@@ -475,35 +598,71 @@ function draw(){
   ctx.clearRect(0,0,W,H);
   var z=cam.zoom;
 
-  // Metro lines
-  edges.forEach(function(e){
-    var a=members[e.from],b=members[e.to];
-    var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
-    var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2))*z;
-    ctx.strokeStyle=e.color;ctx.lineWidth=thick;
-    ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.globalAlpha=0.6;ctx.beginPath();
+  if(metroMode){
+    // --- METRO VIEW: designed infrastructure ---
+    // Base track (gray rail bed for all MST edges)
+    mstEdges.forEach(function(e){
+      var a=members[e.from],b=members[e.to];
+      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+      var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+      var nLines=(edgeLineMap[k]||[]).length;
+      ctx.strokeStyle='rgba(255,255,255,0.12)';
+      ctx.lineWidth=Math.max(6,(4+nLines*4))*z;
+      ctx.lineCap='round';ctx.beginPath();
+      ctx.moveTo(sa.x,sa.y);ctx.lineTo(sb.x,sb.y);ctx.stroke();
+    });
+    // Colored line stripes (offset from center for each line sharing an edge)
+    mstEdges.forEach(function(e){
+      var a=members[e.from],b=members[e.to];
+      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+      var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+      var lineIds=edgeLineMap[k]||[];if(!lineIds.length)return;
+      var dx=sb.x-sa.x,dy=sb.y-sa.y,len=Math.sqrt(dx*dx+dy*dy)||1;
+      var nx=-dy/len,ny=dx/len; // perpendicular
+      var gap=3.5*z,total=lineIds.length;
+      var off=-(total-1)*gap/2;
+      lineIds.forEach(function(li,idx){
+        var o=off+idx*gap;
+        ctx.strokeStyle=metroLines[li].color;ctx.lineWidth=2.5*z;
+        ctx.lineCap='round';ctx.globalAlpha=0.85;ctx.beginPath();
+        ctx.moveTo(sa.x+nx*o,sa.y+ny*o);ctx.lineTo(sb.x+nx*o,sb.y+ny*o);ctx.stroke();
+      });
+    });
+    ctx.globalAlpha=1;
+    // Trains
+    trains.forEach(function(tr){
+      var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
+      var seg=Math.floor(tr.pos),frac=tr.pos-seg;
+      if(seg>=line.nodes.length-1){seg=line.nodes.length-2;frac=1}
+      var a=members[line.nodes[seg]],b=members[line.nodes[seg+1]];
+      var wx=a.x+(b.x-a.x)*frac,wy=a.y+(b.y-a.y)*frac;
+      var s=toScreen(wx,wy);
+      ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
+      ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
+      ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
+      ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
+    });
+    ctx.globalAlpha=1;
+  }else{
+    // --- TRAFFIC VIEW: raw interaction edges ---
+    edges.forEach(function(e){
+      var a=members[e.from],b=members[e.to];
+      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+      var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2))*z;
+      ctx.strokeStyle=e.color;ctx.lineWidth=thick;
+      ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.globalAlpha=0.6;ctx.beginPath();
+      var dx=b.x-a.x,dy=b.y-a.y,adx=Math.abs(dx),ady=Math.abs(dy);
+      ctx.moveTo(sa.x,sa.y);
+      if(ady<20||adx<20||Math.abs(adx-ady)<25){ctx.lineTo(sb.x,sb.y)}
+      else if(adx>ady){var diag=ady,sx=dx>0?1:-1;var mid=toScreen(a.x+sx*(adx-diag),a.y);ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y)}
+      else{var diag=adx,sy=dy>0?1:-1;var mid=toScreen(a.x,a.y+sy*(ady-diag));ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y)}
+      ctx.stroke();
+    });
+    ctx.globalAlpha=1;
+  }
 
-    // Metro-style routing (in world coords, then project)
-    var dx=b.x-a.x,dy=b.y-a.y;
-    var adx=Math.abs(dx),ady=Math.abs(dy);
-    ctx.moveTo(sa.x,sa.y);
-    if(ady<20||adx<20||Math.abs(adx-ady)<25){
-      ctx.lineTo(sb.x,sb.y);
-    }else if(adx>ady){
-      var diag=ady,sx=dx>0?1:-1;
-      var mid=toScreen(a.x+sx*(adx-diag),a.y);
-      ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y);
-    }else{
-      var diag=adx,sy=dy>0?1:-1;
-      var mid=toScreen(a.x,a.y+sy*(ady-diag));
-      ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y);
-    }
-    ctx.stroke();
-  });
-  ctx.globalAlpha=1;
-
-  // Animated dots (world coords interpolated in animate(), project here)
+  // Animated dots (shared between both views)
   dots.forEach(function(dot){
     var sd=toScreen(dot.x,dot.y);
     ctx.globalAlpha=dot.alpha;
@@ -518,10 +677,8 @@ function draw(){
   var R=20*z;
   members.forEach(function(m){
     var s=toScreen(m.x,m.y);
-    // Ring
     ctx.beginPath();ctx.arc(s.x,s.y,R+3*z,0,Math.PI*2);
     ctx.fillStyle='#fff';ctx.fill();
-    // Avatar
     if(m.img){
       ctx.save();ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.clip();
       ctx.drawImage(m.img,s.x-R,s.y-R,R*2,R*2);ctx.restore();
@@ -530,10 +687,13 @@ function draw(){
       ctx.fillStyle='#999';ctx.font=(10*z)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(m.handle[0].toUpperCase(),s.x,s.y);
     }
-    // Label
     ctx.fillStyle='#ccc';ctx.font=Math.max(7,9*z)+'px monospace';ctx.textAlign='center';ctx.textBaseline='top';
-    var label=m.handle.replace('.bsky.social','');
-    ctx.fillText(label,s.x,s.y+R+6*z);
+    ctx.fillText(m.handle.replace('.bsky.social',''),s.x,s.y+R+6*z);
+    // Junction marker in metro mode (station served by 2+ lines)
+    if(metroMode&&m._nLines>1){
+      ctx.strokeStyle='#fff';ctx.lineWidth=2*z;
+      ctx.beginPath();ctx.arc(s.x,s.y,R+6*z,0,Math.PI*2);ctx.stroke();
+    }
   });
 }
 
@@ -546,6 +706,16 @@ function animate(ts){
     d.alpha=t<0.1?t/0.1:t>0.8?(1-t)/0.2:1;
     return true;
   });
+  // Advance trains
+  if(metroMode){
+    trains.forEach(function(tr){
+      var line=metroLines[tr.line];if(!line)return;
+      var maxPos=line.nodes.length-1;
+      tr.pos+=tr.speed*tr.dir;
+      if(tr.pos>=maxPos){tr.pos=maxPos;tr.dir=-1}
+      if(tr.pos<=0){tr.pos=0;tr.dir=1}
+    });
+  }
   draw();
   requestAnimationFrame(animate);
 }
@@ -637,6 +807,21 @@ document.getElementById('play-btn').addEventListener('click',function(){
   if(playback)stopPlayback();else startPlayback();
 });
 
+document.getElementById('metro-btn').addEventListener('click',function(){
+  if(!loaded)return;
+  if(metroMode){
+    metroMode=false;trains=[];
+    this.textContent='design metro';this.style.background='#2a9d8f';
+    // Restore traffic legend
+    var legend=document.getElementById('legend');
+    legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
+  }else{
+    designMetro();
+    this.textContent='show traffic';this.style.background='var(--accent)';
+  }
+  draw();
+});
+
 document.getElementById('load-btn').addEventListener('click',async function(){
   var btn=this;
   var input=document.getElementById('list-uri').value;if(!input)return;
@@ -650,6 +835,7 @@ document.getElementById('load-btn').addEventListener('click',async function(){
     loaded=true;
     document.getElementById('legend').classList.add('show');
     document.getElementById('play-btn').disabled=false;
+    document.getElementById('metro-btn').disabled=false;
     if(!animating){animating=true;requestAnimationFrame(animate)}
     connectJetstream();
   }catch(e){status('error: '+e.message);console.error(e)}
