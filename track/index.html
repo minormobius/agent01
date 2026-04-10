@@ -78,7 +78,7 @@ var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
 var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
 var viewMode='traffic',metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
-var MAX_TURN_DEG=60,lineSplines=[],violations=[];
+var lineSplines=[],railPlan=[],railStep=0,railTree=[];
 var playback=null;
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
@@ -444,32 +444,51 @@ function designMetro(){
   status(metroLines.length+' lines, '+mstEdges.length+' track segments');
 }
 
-// Metro scoring — crow-flies baseline vs rail infrastructure
+// Scoring — speed-penalized routing vs crow-flies
 function showScores(){
   var N=members.length;
-  // MST adjacency with euclidean distances for tree-path routing
+  // Build adjacency from current built edges
   var adj=[];for(var i=0;i<N;i++)adj[i]=[];
   mstEdges.forEach(function(e){
-    var d=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
-    adj[e.from].push({to:e.to,dist:d});adj[e.to].push({to:e.from,dist:d});
+    adj[e.from].push({to:e.to});adj[e.to].push({to:e.from});
   });
-  function treeDist(a,b){
-    if(a===b)return 0;
-    var d=new Array(N).fill(-1);d[a]=0;var q=[a],qi=0;
+  // Speed-penalized route cost (turns slow you down)
+  function routeCost(start,end){
+    if(start===end)return 0;
+    var prev=new Array(N).fill(-1),vis=new Array(N).fill(false);
+    vis[start]=true;var q=[start],qi=0;
     while(qi<q.length){var u=q[qi++];
       for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;
-        if(d[v]<0){d[v]=d[u]+adj[u][j].dist;q.push(v)}}}
-    return d[b]>=0?d[b]:Infinity;
+        if(!vis[v]){vis[v]=true;prev[v]=u;q.push(v)}}}
+    if(!vis[end])return-1; // unreachable
+    var path=[];for(var v=end;v>=0;v=prev[v])path.push(v);path.reverse();
+    var cost=0;
+    for(var i=0;i<path.length-1;i++){
+      var a=members[path[i]],b=members[path[i+1]];
+      var d=Math.hypot(a.x-b.x,a.y-b.y),speed=1;
+      if(i>0){ // turn penalty at path[i]
+        var p=members[path[i-1]];
+        var dx1=a.x-p.x,dy1=a.y-p.y,dx2=b.x-a.x,dy2=b.y-a.y;
+        var dot=dx1*dx2+dy1*dy2;
+        var m1=Math.sqrt(dx1*dx1+dy1*dy1)||1,m2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
+        var turn=Math.acos(Math.max(-1,Math.min(1,dot/(m1*m2)))); // 0=straight PI=U-turn
+        speed=Math.max(0.2,Math.cos(turn/2));
+      }
+      cost+=d/speed;
+    }
+    return cost;
   }
-  // Package routing costs
-  var crowTotal=0,metroTotal=0,packages=0;
+  // Compute scores
+  var crowTotal=0,routeTotal=0,packages=0,servedPkg=0;
   edges.forEach(function(e){
     var d=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
     crowTotal+=e.weight*d;
-    metroTotal+=e.weight*treeDist(e.from,e.to);
+    var rc=routeCost(e.from,e.to);
+    if(rc>=0){routeTotal+=e.weight*rc;servedPkg+=e.weight}
+    else{routeTotal+=e.weight*d} // unserved = crow-flies
     packages+=e.weight;
   });
-  // Infrastructure costs
+  // Infrastructure
   var trackLen=0;
   mstEdges.forEach(function(e){
     trackLen+=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
@@ -478,28 +497,33 @@ function showScores(){
   var stationCost=N*STATION_COST;
   var junctionCost=0;
   members.forEach(function(m){if(m._nLines>1)junctionCost+=(m._nLines-1)*JUNCTION_COST});
-  var eff=metroTotal>0?(crowTotal/metroTotal*100).toFixed(0):'--';
+  var eff=routeTotal>0?(crowTotal/routeTotal*100).toFixed(0):'--';
   var infra=Math.round(trackLen)+stationCost+junctionCost;
-  var total=Math.round(metroTotal)+infra;
+  var total=Math.round(routeTotal)+infra;
   var isRail=viewMode==='rail';
   var label=isRail?'RAIL SCORE':'METRO SCORE';
   var accent=isRail?'#c8f':'#8af';
+  var coverage=packages>0?Math.round(servedPkg/packages*100):0;
   var el=document.getElementById('score');
   el.style.display='block';
   el.innerHTML=
     '<div style="color:#fff;margin-bottom:4px;font-size:0.75rem;letter-spacing:0.5px">'+label+'</div>'+
-    (isRail?'<div style="color:#2a9d8f">0 crossings / capture ON</div>':'')+
-    '<div>packages: <span style="color:#fff">'+packages+'</span></div>'+
+    (isRail&&railPlan.length?'<div style="color:#2a9d8f">line '+railStep+' / '+railPlan.length+
+      (railStep>1?' <span id="undo-rail" style="color:#e63946;cursor:pointer;text-decoration:underline;margin-left:6px">undo</span>':'')+
+    '</div>':'')+
+    '<div>packages: <span style="color:#fff">'+packages+'</span>'+
+    (isRail?' <span style="color:'+(coverage>=90?'#2a9d8f':coverage>=50?'#e9c46a':'#e63946')+'">'+coverage+'% served</span>':'')+
+    '</div>'+
     '<div style="margin-top:4px;color:'+accent+'">--- routing ---</div>'+
     '<div>crow flies: <span style="color:#fff">'+Math.round(crowTotal)+'</span></div>'+
-    '<div>rail route: <span style="color:#fff">'+Math.round(metroTotal)+'</span></div>'+
-    '<div>efficiency: <span style="color:'+(eff>=80?'#2a9d8f':eff>=50?'#e9c46a':'#e63946')+'">'+eff+'%</span></div>'+
+    '<div>rail route: <span style="color:#fff">'+Math.round(routeTotal)+'</span> <span style="color:'+(eff>=80?'#2a9d8f':eff>=50?'#e9c46a':'#e63946')+'">'+eff+'%</span></div>'+
     '<div style="margin-top:4px;color:'+accent+'">--- infra ---</div>'+
-    '<div>track laid: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
-    '<div>stations: <span style="color:#fff">'+N+' x '+STATION_COST+' = '+stationCost+'</span></div>'+
-    '<div>junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
-    (isRail&&violations.length?'<div style="margin-top:4px;color:#e63946">turns >'+MAX_TURN_DEG+'\u00B0: <span style="color:#fff">'+violations.length+'</span></div>':'')+
+    '<div>track: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
+    '<div>stations: <span style="color:#fff">'+stationCost+'</span> junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
     '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;color:#fff;font-size:0.8rem;letter-spacing:0.5px">TOTAL: '+total+'</div>';
+  // Wire undo button
+  var undoBtn=document.getElementById('undo-rail');
+  if(undoBtn)undoBtn.onclick=function(){if(railStep>1)applyRailStep(railStep-1)};
 }
 
 // Build constrained rail — planar (zero crossings) + proximity capture
@@ -595,17 +619,35 @@ function buildRail(){
     }
   }
 
-  // --- Phase 3: line decomposition + metro setup (reuse designLines) ---
-  mstEdges=tree;
-  metroLines=designLines(tree);
-
-  // Edge→line map
-  edgeLineMap={};
-  var mstAdj={};
+  // --- Phase 3: plan lines, sort by traffic, apply step 1 ---
+  railTree=tree;
+  var allLines=designLines(tree);
+  // Sort lines by total traffic (highest first)
+  var treeAdj={};
   tree.forEach(function(e,i){
     var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
-    mstAdj[k]={idx:i,weight:e.weight};
+    treeAdj[k]={idx:i,weight:e.weight};
   });
+  allLines.forEach(function(line){
+    var traffic=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var info=treeAdj[k];if(info)traffic+=info.weight;
+    }
+    line._traffic=traffic;
+  });
+  allLines.sort(function(a,b){return b._traffic-a._traffic});
+  railPlan=allLines;
+  applyRailStep(1);
+}
+
+// Apply N rail lines from plan — builds metro state from railPlan[0..n-1]
+function applyRailStep(n){
+  railStep=Math.max(1,Math.min(n,railPlan.length));
+  metroLines=railPlan.slice(0,railStep);
+  // Determine built edges (covered by active lines)
+  edgeLineMap={};
   metroLines.forEach(function(line,li){
     for(var i=0;i<line.nodes.length-1;i++){
       var a=line.nodes[i],b=line.nodes[i+1];
@@ -614,24 +656,21 @@ function buildRail(){
       edgeLineMap[k].push(li);
     }
   });
-
+  var builtKeys={};for(var k in edgeLineMap)builtKeys[k]=true;
+  mstEdges=railTree.filter(function(e){
+    return builtKeys[Math.min(e.from,e.to)+':'+Math.max(e.from,e.to)];
+  });
   // Trains
   trains=[];
-  var maxTraffic=1;tree.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
+  var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
   metroLines.forEach(function(line,li){
     if(line.nodes.length<2)return;
-    var traffic=0;
-    for(var i=0;i<line.nodes.length-1;i++){
-      var a=line.nodes[i],b=line.nodes[i+1];
-      var k=Math.min(a,b)+':'+Math.max(a,b);
-      var info=mstAdj[k];if(info)traffic+=info.weight;
-    }
+    var traffic=line._traffic||1;
     var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
     for(var t=0;t<nTrains;t++){
       trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
     }
   });
-
   // Legend
   var legend=document.getElementById('legend');
   legend.innerHTML='';
@@ -642,25 +681,21 @@ function buildRail(){
     sp.appendChild(document.createTextNode(' L'+(i+1)));
     legend.appendChild(sp);
   });
-
   // Junction markers
   members.forEach(function(m){m._nLines=0});
   metroLines.forEach(function(line){
     var seen={};
     line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
   });
-
-  // Precompute splines and curvature violations for rail lines
+  // Splines
   lineSplines=metroLines.map(function(line){return catmullRomLine(line,12)});
-  violations=[];
-  metroLines.forEach(function(line,li){
-    findCurvatureViolations(line).forEach(function(v){v.line=li;violations.push(v)});
-  });
-
   viewMode='rail';
   autoFit();
   showScores();
-  status(metroLines.length+' lines, '+tree.length+' segments (0 crossings, capture='+Math.round(captureR)+'px)');
+  var btn=document.getElementById('rail-btn');
+  btn.textContent=railStep<railPlan.length?'+ line '+(railStep+1):'show traffic';
+  btn.style.background=railStep<railPlan.length?'#8338ec':'var(--accent)';
+  draw();
 }
 
 // Segment intersection test (returns true if segments cross, excluding shared endpoints)
@@ -856,23 +891,6 @@ function catmullRomLine(line,steps){
   return out;
 }
 
-// Compute turn angles at each interior station of a line
-// Returns array of {ni, angle} for stations where turn > MAX_TURN_DEG
-function findCurvatureViolations(line){
-  var violations=[];
-  for(var i=1;i<line.nodes.length-1;i++){
-    var a=members[line.nodes[i-1]],b=members[line.nodes[i]],c=members[line.nodes[i+1]];
-    var dx1=b.x-a.x,dy1=b.y-a.y,dx2=c.x-b.x,dy2=c.y-b.y;
-    var dot=dx1*dx2+dy1*dy2;
-    var mag1=Math.sqrt(dx1*dx1+dy1*dy1)||1,mag2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
-    var cos=Math.max(-1,Math.min(1,dot/(mag1*mag2)));
-    var angle=Math.acos(cos)*180/Math.PI; // 0=straight, 180=U-turn
-    var turn=180-angle; // deviation from straight
-    if(turn>MAX_TURN_DEG)violations.push({ni:line.nodes[i],turn:turn,idx:i});
-  }
-  return violations;
-}
-
 // Get position along a spline curve at fractional distance
 function splinePos(splinePts,frac){
   var idx=frac*(splinePts.length-1);
@@ -907,21 +925,6 @@ function draw(){
         var s0=toScreen(spl[0].x,spl[0].y);ctx.moveTo(s0.x,s0.y);
         for(var i=1;i<spl.length;i++){var s=toScreen(spl[i].x,spl[i].y);ctx.lineTo(s.x,s.y)}
         ctx.stroke();
-      });
-      ctx.globalAlpha=1;
-      // Curvature violations — red arcs at offending stations
-      violations.forEach(function(v){
-        var m=members[v.ni],s=toScreen(m.x,m.y);
-        var severity=Math.min(1,(v.turn-MAX_TURN_DEG)/60);
-        var pulse=0.5+0.5*Math.sin(Date.now()/300); // breathing
-        ctx.beginPath();ctx.arc(s.x,s.y,26*z,0,Math.PI*2);
-        ctx.strokeStyle='#e63946';ctx.lineWidth=2.5*z;
-        ctx.globalAlpha=0.3+severity*0.5*pulse;ctx.stroke();
-        // Turn angle label
-        ctx.globalAlpha=0.7+0.3*pulse;
-        ctx.fillStyle='#e63946';ctx.font=Math.max(7,8*z)+'px monospace';
-        ctx.textAlign='center';ctx.textBaseline='bottom';
-        ctx.fillText(Math.round(v.turn)+'°',s.x,s.y-28*z);
       });
       ctx.globalAlpha=1;
       // Trains follow splines
@@ -1147,7 +1150,7 @@ document.getElementById('play-btn').addEventListener('click',function(){
 });
 
 function exitToTraffic(){
-  viewMode='traffic';trains=[];lineSplines=[];violations=[];
+  viewMode='traffic';trains=[];lineSplines=[];railPlan=[];railStep=0;railTree=[];
   document.getElementById('score').style.display='none';
   document.getElementById('metro-btn').textContent='design metro';
   document.getElementById('metro-btn').style.background='#2a9d8f';
@@ -1169,11 +1172,14 @@ document.getElementById('metro-btn').addEventListener('click',function(){
 
 document.getElementById('rail-btn').addEventListener('click',function(){
   if(!loaded)return;
-  if(viewMode==='rail'){exitToTraffic();return}
+  if(viewMode==='rail'){
+    // Already in rail mode — add next line or exit
+    if(railStep<railPlan.length){applyRailStep(railStep+1)}
+    else{exitToTraffic()}
+    return;
+  }
   if(viewMode==='metro')exitToTraffic();
-  buildRail();
-  this.textContent='show traffic';this.style.background='var(--accent)';
-  draw();
+  buildRail(); // enters rail mode at step 1
 });
 
 document.getElementById('load-btn').addEventListener('click',async function(){
