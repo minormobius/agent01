@@ -52,6 +52,14 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
   <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
   <label>crossings <input type="range" id="max-cross" min="0" max="20" value="0" style="width:80px;accent-color:var(--accent);vertical-align:middle"><span id="cross-val">0</span></label>
+  <button id="play-btn" disabled style="padding:6px 12px;background:#457b9d;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">&#9654; replay</button>
+  <select id="play-range" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="1">last 24h</option><option value="7" selected>last 7d</option><option value="30">last 30d</option>
+  </select>
+  <select id="play-speed" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="50">50x</option><option value="200" selected>200x</option><option value="1000">1000x</option>
+  </select>
+  <span id="play-time" style="font-size:0.65rem;color:var(--muted);min-width:100px"></span>
   <span id="status"></span>
 </div>
 <canvas id="metro"></canvas>
@@ -65,7 +73,8 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
 var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
-var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var members=[],edges=[],memberIdx={},dots=[],events=[],ws=null,loaded=false,animating=false;
+var playback=null; // {events,idx,startReal,startSim,speed,range,raf}
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
 var API='https://public.api.bsky.app/xrpc/';
@@ -195,14 +204,15 @@ async function loadList(uri){
 }
 
 async function scrapeInteractions(){
-  edges=[];
+  edges=[];events=[];
   var matrix={};
-  function add(a,b){
+  function add(a,b,ts,type){
     if(a===b)return;
     var fi=memberIdx[a],ti=memberIdx[b];
     if(fi===undefined||ti===undefined)return;
     var lo=Math.min(fi,ti),hi=Math.max(fi,ti),key=lo+':'+hi;
     matrix[key]=(matrix[key]||0)+1;
+    if(ts)events.push({t:new Date(ts).getTime(),fi:fi,ti:ti,type:type||'reply'});
   }
 
   for(var mi=0;mi<members.length;mi++){
@@ -215,9 +225,10 @@ async function scrapeInteractions(){
         if(cursor)params.cursor=cursor;
         var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
         for(var item of(data.feed||[])){
+          var ts=item.post.indexedAt||item.post.record.createdAt;
           // Replies
           if(item.reply&&item.reply.parent&&item.reply.parent.author){
-            add(m.did,item.reply.parent.author.did);
+            add(m.did,item.reply.parent.author.did,ts,'reply');
           }
           // Quotes
           var rec=item.post.record||{},emb=rec.embed;
@@ -225,7 +236,7 @@ async function scrapeInteractions(){
             var qu=null;
             if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
             else if(emb.$type==='app.bsky.embed.recordWithMedia'&&emb.record&&emb.record.record)qu=emb.record.record.uri;
-            if(qu){var qd=qu.split('/')[2];add(m.did,qd)}
+            if(qu){var qd=qu.split('/')[2];add(m.did,qd,ts,'quote')}
           }
         }
         cursor=data.cursor;pages++;
@@ -233,6 +244,7 @@ async function scrapeInteractions(){
     }catch(e){}
     await new Promise(function(r){setTimeout(r,150)});
   }
+  events.sort(function(a,b){return a.t-b.t});
 
   for(var key in matrix){
     var p=key.split(':');
@@ -523,6 +535,60 @@ function connectJetstream(){
   status('live \u2014 watching '+dids.length+' members');
 }
 
+// Playback engine
+var EVT_COLORS={reply:'#457b9d',quote:'#2a9d8f',like:'#e63946',repost:'#2a9d8f'};
+
+function startPlayback(){
+  stopPlayback();
+  var days=parseInt(document.getElementById('play-range').value)||7;
+  var speed=parseInt(document.getElementById('play-speed').value)||200;
+  var cutoff=Date.now()-days*86400000;
+  var evts=events.filter(function(e){return e.t>=cutoff});
+  if(!evts.length){status('no events in range');return}
+  // Pause live stream during playback
+  if(ws){ws.close();ws=null}
+  playback={evts:evts,idx:0,startReal:Date.now(),startSim:evts[0].t,speed:speed};
+  document.getElementById('play-btn').textContent='\u23F9 stop';
+  tickPlayback();
+}
+
+function stopPlayback(){
+  if(!playback)return;
+  playback=null;
+  document.getElementById('play-btn').textContent='\u25B6 replay';
+  document.getElementById('play-time').textContent='';
+  // Reconnect live
+  if(loaded)connectJetstream();
+}
+
+function tickPlayback(){
+  if(!playback)return;
+  var pb=playback;
+  var elapsed=(Date.now()-pb.startReal)*pb.speed;
+  var simNow=pb.startSim+elapsed;
+  // Spawn all events up to simNow
+  while(pb.idx<pb.evts.length&&pb.evts[pb.idx].t<=simNow){
+    var ev=pb.evts[pb.idx];
+    spawnDot(ev.fi,ev.ti,EVT_COLORS[ev.type]||'#fff');
+    pb.idx++;
+  }
+  // Time display
+  var d=new Date(simNow);
+  document.getElementById('play-time').textContent=d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  // Progress status
+  var pct=Math.round(pb.idx/pb.evts.length*100);
+  status('replay '+pct+'% ('+pb.idx+'/'+pb.evts.length+')');
+  if(pb.idx>=pb.evts.length){
+    setTimeout(stopPlayback,2000);
+  }else{
+    requestAnimationFrame(tickPlayback);
+  }
+}
+
+document.getElementById('play-btn').addEventListener('click',function(){
+  if(playback)stopPlayback();else startPlayback();
+});
+
 document.getElementById('load-btn').addEventListener('click',async function(){
   var btn=this;
   var input=document.getElementById('list-uri').value;if(!input)return;
@@ -534,6 +600,7 @@ document.getElementById('load-btn').addEventListener('click',async function(){
     forceLayout();
     loaded=true;
     document.getElementById('legend').classList.add('show');
+    document.getElementById('play-btn').disabled=false;
     if(!animating){animating=true;requestAnimationFrame(animate)}
     connectJetstream();
   }catch(e){status('error: '+e.message)}
