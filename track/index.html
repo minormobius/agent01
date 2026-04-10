@@ -78,6 +78,7 @@ var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
 var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
 var viewMode='traffic',metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
+var MAX_TURN_DEG=60,lineSplines=[],violations=[];
 var playback=null;
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
@@ -497,6 +498,7 @@ function showScores(){
     '<div>track laid: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
     '<div>stations: <span style="color:#fff">'+N+' x '+STATION_COST+' = '+stationCost+'</span></div>'+
     '<div>junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
+    (isRail&&violations.length?'<div style="margin-top:4px;color:#e63946">turns >'+MAX_TURN_DEG+'\u00B0: <span style="color:#fff">'+violations.length+'</span></div>':'')+
     '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;color:#fff;font-size:0.8rem;letter-spacing:0.5px">TOTAL: '+total+'</div>';
 }
 
@@ -646,6 +648,13 @@ function buildRail(){
   metroLines.forEach(function(line){
     var seen={};
     line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
+  });
+
+  // Precompute splines and curvature violations for rail lines
+  lineSplines=metroLines.map(function(line){return catmullRomLine(line,12)});
+  violations=[];
+  metroLines.forEach(function(line,li){
+    findCurvatureViolations(line).forEach(function(v){v.line=li;violations.push(v)});
   });
 
   viewMode='rail';
@@ -823,6 +832,55 @@ function autoFit(){
   cam.zoom=Math.max(0.1,cam.zoom);
 }
 
+// Catmull-Rom spline: returns array of {x,y} points along a line's stations
+// tension 0.5 = standard centripetal, steps = subdivisions per segment
+function catmullRomLine(line,steps){
+  var pts=line.nodes.map(function(ni){return{x:members[ni].x,y:members[ni].y}});
+  if(pts.length<2)return pts;
+  // Pad endpoints by mirroring
+  var pStart={x:2*pts[0].x-pts[1].x,y:2*pts[0].y-pts[1].y};
+  var pEnd={x:2*pts[pts.length-1].x-pts[pts.length-2].x,y:2*pts[pts.length-1].y-pts[pts.length-2].y};
+  var padded=[pStart].concat(pts).concat([pEnd]);
+  var out=[];
+  for(var i=1;i<padded.length-2;i++){
+    var q0=padded[i-1],q1=padded[i],q2=padded[i+1],q3=padded[i+2];
+    for(var s=0;s<steps;s++){
+      var t=s/steps;
+      var t2=t*t,t3=t2*t;
+      var x=0.5*((2*q1.x)+(-q0.x+q2.x)*t+(2*q0.x-5*q1.x+4*q2.x-q3.x)*t2+(-q0.x+3*q1.x-3*q2.x+q3.x)*t3);
+      var y=0.5*((2*q1.y)+(-q0.y+q2.y)*t+(2*q0.y-5*q1.y+4*q2.y-q3.y)*t2+(-q0.y+3*q1.y-3*q2.y+q3.y)*t3);
+      out.push({x:x,y:y});
+    }
+  }
+  out.push(pts[pts.length-1]); // last point
+  return out;
+}
+
+// Compute turn angles at each interior station of a line
+// Returns array of {ni, angle} for stations where turn > MAX_TURN_DEG
+function findCurvatureViolations(line){
+  var violations=[];
+  for(var i=1;i<line.nodes.length-1;i++){
+    var a=members[line.nodes[i-1]],b=members[line.nodes[i]],c=members[line.nodes[i+1]];
+    var dx1=b.x-a.x,dy1=b.y-a.y,dx2=c.x-b.x,dy2=c.y-b.y;
+    var dot=dx1*dx2+dy1*dy2;
+    var mag1=Math.sqrt(dx1*dx1+dy1*dy1)||1,mag2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
+    var cos=Math.max(-1,Math.min(1,dot/(mag1*mag2)));
+    var angle=Math.acos(cos)*180/Math.PI; // 0=straight, 180=U-turn
+    var turn=180-angle; // deviation from straight
+    if(turn>MAX_TURN_DEG)violations.push({ni:line.nodes[i],turn:turn,idx:i});
+  }
+  return violations;
+}
+
+// Get position along a spline curve at fractional distance
+function splinePos(splinePts,frac){
+  var idx=frac*(splinePts.length-1);
+  var i=Math.floor(idx),t=idx-i;
+  if(i>=splinePts.length-1)return splinePts[splinePts.length-1];
+  var a=splinePts[i],b=splinePts[i+1];
+  return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+}
 
 function draw(){
   ctx.clearRect(0,0,W,H);
@@ -830,48 +888,99 @@ function draw(){
 
   if(viewMode!=='traffic'){
     // --- METRO/RAIL VIEW: designed infrastructure ---
-    // Base track (gray rail bed for all MST edges)
-    mstEdges.forEach(function(e){
-      var a=members[e.from],b=members[e.to];
-      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
-      var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
-      var nLines=(edgeLineMap[k]||[]).length;
-      ctx.strokeStyle='rgba(255,255,255,0.12)';
-      ctx.lineWidth=Math.max(6,(4+nLines*4))*z;
-      ctx.lineCap='round';ctx.beginPath();
-      ctx.moveTo(sa.x,sa.y);ctx.lineTo(sb.x,sb.y);ctx.stroke();
-    });
-    // Colored line stripes (offset from center for each line sharing an edge)
-    mstEdges.forEach(function(e){
-      var a=members[e.from],b=members[e.to];
-      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
-      var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
-      var lineIds=edgeLineMap[k]||[];if(!lineIds.length)return;
-      var dx=sb.x-sa.x,dy=sb.y-sa.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-      var nx=-dy/len,ny=dx/len; // perpendicular
-      var gap=3.5*z,total=lineIds.length;
-      var off=-(total-1)*gap/2;
-      lineIds.forEach(function(li,idx){
-        var o=off+idx*gap;
-        ctx.strokeStyle=metroLines[li].color;ctx.lineWidth=2.5*z;
-        ctx.lineCap='round';ctx.globalAlpha=0.85;ctx.beginPath();
-        ctx.moveTo(sa.x+nx*o,sa.y+ny*o);ctx.lineTo(sb.x+nx*o,sb.y+ny*o);ctx.stroke();
+    if(viewMode==='rail'&&lineSplines.length){
+      // RAIL: spline-based rendering per line
+      // Gray rail bed per line (wide spline)
+      metroLines.forEach(function(line,li){
+        var spl=lineSplines[li];if(!spl||spl.length<2)return;
+        ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=10*z;
+        ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+        var s0=toScreen(spl[0].x,spl[0].y);ctx.moveTo(s0.x,s0.y);
+        for(var i=1;i<spl.length;i++){var s=toScreen(spl[i].x,spl[i].y);ctx.lineTo(s.x,s.y)}
+        ctx.stroke();
       });
-    });
-    ctx.globalAlpha=1;
-    // Trains
-    trains.forEach(function(tr){
-      var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
-      var seg=Math.floor(tr.pos),frac=tr.pos-seg;
-      if(seg>=line.nodes.length-1){seg=line.nodes.length-2;frac=1}
-      var a=members[line.nodes[seg]],b=members[line.nodes[seg+1]];
-      var wx=a.x+(b.x-a.x)*frac,wy=a.y+(b.y-a.y)*frac;
-      var s=toScreen(wx,wy);
-      ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
-      ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
-      ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
-      ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
-    });
+      // Colored spline strokes per line
+      metroLines.forEach(function(line,li){
+        var spl=lineSplines[li];if(!spl||spl.length<2)return;
+        ctx.strokeStyle=line.color;ctx.lineWidth=2.5*z;
+        ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=0.85;ctx.beginPath();
+        var s0=toScreen(spl[0].x,spl[0].y);ctx.moveTo(s0.x,s0.y);
+        for(var i=1;i<spl.length;i++){var s=toScreen(spl[i].x,spl[i].y);ctx.lineTo(s.x,s.y)}
+        ctx.stroke();
+      });
+      ctx.globalAlpha=1;
+      // Curvature violations — red arcs at offending stations
+      violations.forEach(function(v){
+        var m=members[v.ni],s=toScreen(m.x,m.y);
+        var severity=Math.min(1,(v.turn-MAX_TURN_DEG)/60);
+        var pulse=0.5+0.5*Math.sin(Date.now()/300); // breathing
+        ctx.beginPath();ctx.arc(s.x,s.y,26*z,0,Math.PI*2);
+        ctx.strokeStyle='#e63946';ctx.lineWidth=2.5*z;
+        ctx.globalAlpha=0.3+severity*0.5*pulse;ctx.stroke();
+        // Turn angle label
+        ctx.globalAlpha=0.7+0.3*pulse;
+        ctx.fillStyle='#e63946';ctx.font=Math.max(7,8*z)+'px monospace';
+        ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillText(Math.round(v.turn)+'°',s.x,s.y-28*z);
+      });
+      ctx.globalAlpha=1;
+      // Trains follow splines
+      trains.forEach(function(tr){
+        var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
+        var spl=lineSplines[tr.line];if(!spl||spl.length<2)return;
+        var frac=tr.pos/(line.nodes.length-1);
+        var wp=splinePos(spl,frac);
+        var s=toScreen(wp.x,wp.y);
+        ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
+        ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
+      });
+    }else{
+      // METRO: straight segment rendering per edge
+      // Gray rail bed
+      mstEdges.forEach(function(e){
+        var a=members[e.from],b=members[e.to];
+        var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+        var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+        var nLines=(edgeLineMap[k]||[]).length;
+        ctx.strokeStyle='rgba(255,255,255,0.12)';
+        ctx.lineWidth=Math.max(6,(4+nLines*4))*z;
+        ctx.lineCap='round';ctx.beginPath();
+        ctx.moveTo(sa.x,sa.y);ctx.lineTo(sb.x,sb.y);ctx.stroke();
+      });
+      // Colored line stripes (offset from center for shared edges)
+      mstEdges.forEach(function(e){
+        var a=members[e.from],b=members[e.to];
+        var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+        var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+        var lineIds=edgeLineMap[k]||[];if(!lineIds.length)return;
+        var dx=sb.x-sa.x,dy=sb.y-sa.y,len=Math.sqrt(dx*dx+dy*dy)||1;
+        var nx=-dy/len,ny=dx/len;
+        var gap=3.5*z,total=lineIds.length;
+        var off=-(total-1)*gap/2;
+        lineIds.forEach(function(li,idx){
+          var o=off+idx*gap;
+          ctx.strokeStyle=metroLines[li].color;ctx.lineWidth=2.5*z;
+          ctx.lineCap='round';ctx.globalAlpha=0.85;ctx.beginPath();
+          ctx.moveTo(sa.x+nx*o,sa.y+ny*o);ctx.lineTo(sb.x+nx*o,sb.y+ny*o);ctx.stroke();
+        });
+      });
+      ctx.globalAlpha=1;
+      // Trains (linear interpolation)
+      trains.forEach(function(tr){
+        var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
+        var seg=Math.floor(tr.pos),frac=tr.pos-seg;
+        if(seg>=line.nodes.length-1){seg=line.nodes.length-2;frac=1}
+        var a=members[line.nodes[seg]],b=members[line.nodes[seg+1]];
+        var wx=a.x+(b.x-a.x)*frac,wy=a.y+(b.y-a.y)*frac;
+        var s=toScreen(wx,wy);
+        ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
+        ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
+      });
+    }
     ctx.globalAlpha=1;
   }else{
     // --- TRAFFIC VIEW: raw interaction edges ---
@@ -1038,7 +1147,7 @@ document.getElementById('play-btn').addEventListener('click',function(){
 });
 
 function exitToTraffic(){
-  viewMode='traffic';trains=[];
+  viewMode='traffic';trains=[];lineSplines=[];violations=[];
   document.getElementById('score').style.display='none';
   document.getElementById('metro-btn').textContent='design metro';
   document.getElementById('metro-btn').style.background='#2a9d8f';
