@@ -365,55 +365,17 @@ function designLines(mst){
   return lines;
 }
 
-// Build the designed metro from traffic data — line-driven layout
+// Build the designed metro — lines routed over force layout positions
 function designMetro(){
   mstEdges=buildMST();
   metroLines=designLines(mstEdges);
-  // Save force layout positions before overwriting
-  members.forEach(function(m){m.fx=m.x;m.fy=m.y});
-  // --- Line-driven node placement ---
-  var N=members.length,K=metroLines.length;
+  // Node positions stay as-is (force layout already solved spacing)
   // MST edge weight lookup
   var mstAdj={};
   mstEdges.forEach(function(e,i){
     var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
     mstAdj[k]={idx:i,weight:e.weight};
   });
-  var maxW=1;
-  mstEdges.forEach(function(e){if(e.weight>maxW)maxW=e.weight});
-  var baseSpacing=100;
-  // Assign evenly-spaced direction angles
-  metroLines.forEach(function(line,i){line.angle=i*Math.PI/K});
-  // Accumulate position contributions per node from each line
-  var posSum=[];for(var i=0;i<N;i++)posSum[i]={x:0,y:0,n:0};
-  metroLines.forEach(function(line){
-    var angle=line.angle;
-    // Compute segment spacings (high weight → close, low weight → far)
-    var segLens=[],totalLen=0;
-    for(var i=0;i<line.nodes.length-1;i++){
-      var a=line.nodes[i],b=line.nodes[i+1];
-      var k=Math.min(a,b)+':'+Math.max(a,b);
-      var info=mstAdj[k];
-      var w=info?info.weight:1;
-      var spacing=baseSpacing/Math.sqrt(w/maxW*4+0.5);
-      segLens.push(spacing);totalLen+=spacing;
-    }
-    // Center line at origin, walk along line's angle
-    var pos=-totalLen/2;
-    posSum[line.nodes[0]].x+=pos*Math.cos(angle);
-    posSum[line.nodes[0]].y+=pos*Math.sin(angle);
-    posSum[line.nodes[0]].n++;
-    for(var i=0;i<segLens.length;i++){
-      pos+=segLens[i];
-      posSum[line.nodes[i+1]].x+=pos*Math.cos(angle);
-      posSum[line.nodes[i+1]].y+=pos*Math.sin(angle);
-      posSum[line.nodes[i+1]].n++;
-    }
-  });
-  // Apply averaged positions
-  for(var i=0;i<N;i++){
-    if(posSum[i].n>0){members[i].x=posSum[i].x/posSum[i].n;members[i].y=posSum[i].y/posSum[i].n}
-  }
   // Map each MST edge → which lines use it
   edgeLineMap={};
   metroLines.forEach(function(line,li){
@@ -849,12 +811,9 @@ document.getElementById('metro-btn').addEventListener('click',function(){
   if(!loaded)return;
   if(metroMode){
     metroMode=false;trains=[];
-    // Restore force layout positions
-    members.forEach(function(m){if(m.fx!==undefined){m.x=m.fx;m.y=m.fy}});
     this.textContent='design metro';this.style.background='#2a9d8f';
     var legend=document.getElementById('legend');
     legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
-    autoFit();
   }else{
     designMetro();
     this.textContent='show traffic';this.style.background='var(--accent)';
