@@ -320,63 +320,102 @@ function buildMST(){
   return mst;
 }
 
-// Decompose MST into metro lines (leaf-pairing via diameter spine)
+// Decompose MST into metro lines (farthest-first leaf pairing)
 function designLines(mst){
   var N=members.length;
   var adj=[];for(var i=0;i<N;i++)adj[i]=[];
   mst.forEach(function(e,i){adj[e.from].push({to:e.to,ei:i});adj[e.to].push({to:e.from,ei:i})});
-  // BFS helper
   function bfs(start){
     var dist=new Array(N).fill(-1),prev=new Array(N).fill(-1);
     dist[start]=0;var q=[start],qi=0;
     while(qi<q.length){var u=q[qi++];
       for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;if(dist[v]<0){dist[v]=dist[u]+1;prev[v]=u;q.push(v)}}}
-    var far=start,maxD=0;
-    for(var i=0;i<N;i++)if(dist[i]>maxD){maxD=dist[i];far=i}
-    return{far:far,dist:dist,prev:prev};
+    return{dist:dist,prev:prev};
   }
-  // Find leaves
+  // Find leaves (degree ≤1 in MST)
   var leaves=[];for(var i=0;i<N;i++)if(adj[i].length<=1)leaves.push(i);
-  if(leaves.length<2)return[{nodes:[0],color:LINE_COLORS[0]}];
-  // Diameter = Line 1 spine
-  var first=bfs(leaves[0]),second=bfs(first.far);
-  var spine=[];for(var v=second.far;v>=0;v=second.prev[v])spine.push(v);
-  var spineSet={};spine.forEach(function(v){spineSet[v]=true});
-  var lines=[{nodes:spine,color:LINE_COLORS[0]}];
-  // Branch lines: leaf → junction on spine → extend along spine
-  leaves.forEach(function(leaf){
-    if(spineSet[leaf])return;
-    var path=[leaf],vis={};vis[leaf]=true;var cur=leaf;
-    while(!spineSet[cur]){
-      var next=null;
-      for(var j=0;j<adj[cur].length;j++)if(!vis[adj[cur][j].to]){next=adj[cur][j].to;break}
-      if(!next)break;cur=next;path.push(cur);vis[cur]=true;
-    }
-    if(path.length<2)return;
-    var jIdx=spine.indexOf(cur);
-    // Extend along the longer spine direction
-    if(jIdx<=spine.length/2){
-      var ext=spine.slice(0,jIdx).reverse();
-      lines.push({nodes:path.concat(ext),color:LINE_COLORS[lines.length%LINE_COLORS.length]});
-    }else{
-      var ext=spine.slice(jIdx+1);
-      lines.push({nodes:path.concat(ext),color:LINE_COLORS[lines.length%LINE_COLORS.length]});
-    }
+  if(leaves.length<2)return[{nodes:members.map(function(_,i){return i}),color:LINE_COLORS[0]}];
+  // BFS from each leaf for pairwise distances
+  var leafBfs={};
+  leaves.forEach(function(l){leafBfs[l]=bfs(l)});
+  // Farthest-first greedy pairing
+  var remaining=leaves.slice(),pairs=[];
+  while(remaining.length>=2){
+    var bestD=-1,bestI=-1,bestJ=-1;
+    for(var i=0;i<remaining.length;i++){for(var j=i+1;j<remaining.length;j++){
+      var d=leafBfs[remaining[i]].dist[remaining[j]];
+      if(d>bestD){bestD=d;bestI=i;bestJ=j}
+    }}
+    pairs.push([remaining[bestI],remaining[bestJ]]);
+    remaining.splice(bestJ,1);remaining.splice(bestI,1);
+  }
+  // Odd leaf → stub line to its MST neighbor
+  if(remaining.length===1){
+    var stub=remaining[0];
+    if(adj[stub].length>0)pairs.push([stub,adj[stub][0].to]);
+  }
+  // Build lines: path between each pair via BFS prev-chain
+  var lines=[];
+  pairs.forEach(function(pair,i){
+    var info=bfs(pair[0]);
+    var path=[];for(var v=pair[1];v>=0;v=info.prev[v])path.push(v);
+    path.reverse();
+    lines.push({nodes:path,color:LINE_COLORS[i%LINE_COLORS.length]});
   });
   return lines;
 }
 
-// Build the designed metro from traffic data
+// Build the designed metro from traffic data — line-driven layout
 function designMetro(){
   mstEdges=buildMST();
   metroLines=designLines(mstEdges);
-  // Map each MST edge → which lines use it
-  edgeLineMap={};
+  // Save force layout positions before overwriting
+  members.forEach(function(m){m.fx=m.x;m.fy=m.y});
+  // --- Line-driven node placement ---
+  var N=members.length,K=metroLines.length;
+  // MST edge weight lookup
   var mstAdj={};
   mstEdges.forEach(function(e,i){
     var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
-    mstAdj[k]=i;
+    mstAdj[k]={idx:i,weight:e.weight};
   });
+  var maxW=1;
+  mstEdges.forEach(function(e){if(e.weight>maxW)maxW=e.weight});
+  var baseSpacing=100;
+  // Assign evenly-spaced direction angles
+  metroLines.forEach(function(line,i){line.angle=i*Math.PI/K});
+  // Accumulate position contributions per node from each line
+  var posSum=[];for(var i=0;i<N;i++)posSum[i]={x:0,y:0,n:0};
+  metroLines.forEach(function(line){
+    var angle=line.angle;
+    // Compute segment spacings (high weight → close, low weight → far)
+    var segLens=[],totalLen=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var info=mstAdj[k];
+      var w=info?info.weight:1;
+      var spacing=baseSpacing/Math.sqrt(w/maxW*4+0.5);
+      segLens.push(spacing);totalLen+=spacing;
+    }
+    // Center line at origin, walk along line's angle
+    var pos=-totalLen/2;
+    posSum[line.nodes[0]].x+=pos*Math.cos(angle);
+    posSum[line.nodes[0]].y+=pos*Math.sin(angle);
+    posSum[line.nodes[0]].n++;
+    for(var i=0;i<segLens.length;i++){
+      pos+=segLens[i];
+      posSum[line.nodes[i+1]].x+=pos*Math.cos(angle);
+      posSum[line.nodes[i+1]].y+=pos*Math.sin(angle);
+      posSum[line.nodes[i+1]].n++;
+    }
+  });
+  // Apply averaged positions
+  for(var i=0;i<N;i++){
+    if(posSum[i].n>0){members[i].x=posSum[i].x/posSum[i].n;members[i].y=posSum[i].y/posSum[i].n}
+  }
+  // Map each MST edge → which lines use it
+  edgeLineMap={};
   metroLines.forEach(function(line,li){
     for(var i=0;i<line.nodes.length-1;i++){
       var a=line.nodes[i],b=line.nodes[i+1];
@@ -387,24 +426,22 @@ function designMetro(){
   });
   // Spawn trains on each line
   trains=[];
+  var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
   metroLines.forEach(function(line,li){
     if(line.nodes.length<2)return;
-    // Traffic on this line = sum of MST edge weights along it
     var traffic=0;
     for(var i=0;i<line.nodes.length-1;i++){
       var a=line.nodes[i],b=line.nodes[i+1];
       var k=Math.min(a,b)+':'+Math.max(a,b);
-      var ei=mstAdj[k];
-      if(ei!==undefined)traffic+=mstEdges[ei].weight;
+      var info=mstAdj[k];
+      if(info)traffic+=info.weight;
     }
-    // More trains for busier lines (min 1, max 4)
-    var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
     var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
     for(var t=0;t<nTrains;t++){
       trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
     }
   });
-  // Build legend from lines
+  // Build legend
   var legend=document.getElementById('legend');
   legend.innerHTML='';
   metroLines.forEach(function(line,i){
@@ -414,13 +451,14 @@ function designMetro(){
     sp.appendChild(document.createTextNode(' L'+(i+1)));
     legend.appendChild(sp);
   });
-  // Precompute lines-per-station for junction markers
+  // Junction markers (station served by 2+ lines)
   members.forEach(function(m){m._nLines=0});
   metroLines.forEach(function(line){
     var seen={};
     line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
   });
   metroMode=true;
+  autoFit();
   status(metroLines.length+' lines, '+mstEdges.length+' track segments');
 }
 
@@ -811,10 +849,12 @@ document.getElementById('metro-btn').addEventListener('click',function(){
   if(!loaded)return;
   if(metroMode){
     metroMode=false;trains=[];
+    // Restore force layout positions
+    members.forEach(function(m){if(m.fx!==undefined){m.x=m.fx;m.y=m.fy}});
     this.textContent='design metro';this.style.background='#2a9d8f';
-    // Restore traffic legend
     var legend=document.getElementById('legend');
     legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
+    autoFit();
   }else{
     designMetro();
     this.textContent='show traffic';this.style.background='var(--accent)';
