@@ -225,13 +225,13 @@ async function scrapeInteractions(){
         if(cursor)params.cursor=cursor;
         var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
         for(var item of(data.feed||[])){
-          var ts=item.post.indexedAt||item.post.record.createdAt;
+          var ts=(item.post||{}).indexedAt||((item.post||{}).record||{}).createdAt||null;
           // Replies
           if(item.reply&&item.reply.parent&&item.reply.parent.author){
             add(m.did,item.reply.parent.author.did,ts,'reply');
           }
           // Quotes
-          var rec=item.post.record||{},emb=rec.embed;
+          var rec=(item.post||{}).record||{},emb=rec.embed;
           if(emb){
             var qu=null;
             if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
