@@ -54,6 +54,7 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
   <label>crossings <input type="range" id="max-cross" min="0" max="20" value="0" style="width:80px;accent-color:var(--accent);vertical-align:middle"><span id="cross-val">0</span></label>
   <button id="metro-btn" disabled style="padding:6px 12px;background:#2a9d8f;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">design metro</button>
+  <button id="rail-btn" disabled style="padding:6px 12px;background:#8338ec;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">build rail</button>
   <button id="play-btn" disabled style="padding:6px 12px;background:#457b9d;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">&#9654; replay</button>
   <select id="play-range" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
     <option value="1">last 24h</option><option value="7" selected>last 7d</option><option value="30">last 30d</option>
@@ -76,7 +77,7 @@ var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
 var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
 var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
-var metroMode=false,metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
+var viewMode='traffic',metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
 var playback=null;
 var cam={x:0,y:0,zoom:1};
 var dragging=false,dragX=0,dragY=0;
@@ -436,7 +437,7 @@ function designMetro(){
     var seen={};
     line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
   });
-  metroMode=true;
+  viewMode='metro';
   autoFit();
   showScores();
   status(metroLines.length+' lines, '+mstEdges.length+' track segments');
@@ -479,20 +480,178 @@ function showScores(){
   var eff=metroTotal>0?(crowTotal/metroTotal*100).toFixed(0):'--';
   var infra=Math.round(trackLen)+stationCost+junctionCost;
   var total=Math.round(metroTotal)+infra;
+  var isRail=viewMode==='rail';
+  var label=isRail?'RAIL SCORE':'METRO SCORE';
+  var accent=isRail?'#c8f':'#8af';
   var el=document.getElementById('score');
   el.style.display='block';
   el.innerHTML=
-    '<div style="color:#fff;margin-bottom:4px;font-size:0.75rem;letter-spacing:0.5px">METRO SCORE</div>'+
+    '<div style="color:#fff;margin-bottom:4px;font-size:0.75rem;letter-spacing:0.5px">'+label+'</div>'+
+    (isRail?'<div style="color:#2a9d8f">0 crossings / capture ON</div>':'')+
     '<div>packages: <span style="color:#fff">'+packages+'</span></div>'+
-    '<div style="margin-top:4px;color:#8af">--- routing ---</div>'+
+    '<div style="margin-top:4px;color:'+accent+'">--- routing ---</div>'+
     '<div>crow flies: <span style="color:#fff">'+Math.round(crowTotal)+'</span></div>'+
-    '<div>metro route: <span style="color:#fff">'+Math.round(metroTotal)+'</span></div>'+
+    '<div>rail route: <span style="color:#fff">'+Math.round(metroTotal)+'</span></div>'+
     '<div>efficiency: <span style="color:'+(eff>=80?'#2a9d8f':eff>=50?'#e9c46a':'#e63946')+'">'+eff+'%</span></div>'+
-    '<div style="margin-top:4px;color:#8af">--- infra ---</div>'+
+    '<div style="margin-top:4px;color:'+accent+'">--- infra ---</div>'+
     '<div>track laid: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
     '<div>stations: <span style="color:#fff">'+N+' x '+STATION_COST+' = '+stationCost+'</span></div>'+
     '<div>junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
     '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;color:#fff;font-size:0.8rem;letter-spacing:0.5px">TOTAL: '+total+'</div>';
+}
+
+// Build constrained rail — planar (zero crossings) + proximity capture
+function buildRail(){
+  var N=members.length;
+  // Sort all interaction edges by weight descending
+  var sorted=edges.slice().sort(function(a,b){return b.weight-a.weight});
+
+  // --- Phase 1: expand edges for proximity capture ---
+  // Compute capture radius from average edge length
+  var sumLen=0,nLen=0;
+  sorted.forEach(function(e){
+    sumLen+=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);nLen++;
+  });
+  var captureR=(sumLen/(nLen||1))*0.3;
+
+  // Point-to-segment distance helper
+  function ptSegDist(px,py,ax,ay,bx,by){
+    var dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+    if(len2<1)return{d:Math.hypot(px-ax,py-ay),t:0};
+    var t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2));
+    return{d:Math.hypot(px-(ax+t*dx),py-(ay+t*dy)),t:t};
+  }
+
+  // Expand: if a node is within captureR of an edge segment, split the edge through it
+  var expanded=[];
+  sorted.forEach(function(e){
+    var ax=members[e.from].x,ay=members[e.from].y,bx=members[e.to].x,by=members[e.to].y;
+    var caps=[];
+    for(var ni=0;ni<N;ni++){
+      if(ni===e.from||ni===e.to)continue;
+      var info=ptSegDist(members[ni].x,members[ni].y,ax,ay,bx,by);
+      if(info.d<captureR&&info.t>0.05&&info.t<0.95)caps.push({ni:ni,t:info.t});
+    }
+    if(!caps.length){expanded.push(e);return}
+    caps.sort(function(a,b){return a.t-b.t});
+    var chain=[e.from];caps.forEach(function(c){chain.push(c.ni)});chain.push(e.to);
+    for(var i=0;i<chain.length-1;i++){
+      expanded.push({from:chain[i],to:chain[i+1],weight:e.weight,color:null});
+    }
+  });
+
+  // --- Phase 2: greedy planar spanning tree (Kruskal + no-crossing) ---
+  var par=new Array(N),rnk=new Array(N).fill(0);
+  for(var i=0;i<N;i++)par[i]=i;
+  function find(x){while(par[x]!==x)x=par[x]=par[par[x]];return x}
+  function unite(a,b){a=find(a);b=find(b);if(a===b)return false;
+    if(rnk[a]<rnk[b]){var t=a;a=b;b=t}par[b]=a;if(rnk[a]===rnk[b])rnk[a]++;return true}
+
+  // Deduplicate expanded edges (keep max weight per pair)
+  var edgeMap={};
+  expanded.forEach(function(e){
+    var lo=Math.min(e.from,e.to),hi=Math.max(e.from,e.to),k=lo+':'+hi;
+    if(!edgeMap[k]||e.weight>edgeMap[k].weight)edgeMap[k]={from:lo,to:hi,weight:e.weight};
+  });
+  var candidates=Object.values(edgeMap).sort(function(a,b){return b.weight-a.weight});
+
+  var tree=[];
+  function crossesTree(e){
+    for(var j=0;j<tree.length;j++){
+      var te=tree[j];
+      if(te.from===e.from||te.from===e.to||te.to===e.from||te.to===e.to)continue;
+      if(segsX(members[e.from].x,members[e.from].y,members[e.to].x,members[e.to].y,
+               members[te.from].x,members[te.from].y,members[te.to].x,members[te.to].y))return true;
+    }
+    return false;
+  }
+
+  for(var i=0;i<candidates.length;i++){
+    var e=candidates[i];
+    if(find(e.from)===find(e.to))continue;
+    if(crossesTree(e))continue;
+    unite(e.from,e.to);
+    tree.push(e);
+    if(tree.length===N-1)break;
+  }
+
+  // Fill gaps with zero-weight Euclidean edges for disconnected components
+  if(tree.length<N-1){
+    var gaps=[];
+    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
+      if(find(i)===find(j))continue;
+      gaps.push({from:i,to:j,weight:0,
+        dist:Math.hypot(members[i].x-members[j].x,members[i].y-members[j].y)});
+    }}
+    gaps.sort(function(a,b){return a.dist-b.dist});
+    for(var i=0;i<gaps.length&&tree.length<N-1;i++){
+      var e=gaps[i];
+      if(find(e.from)===find(e.to))continue;
+      if(crossesTree(e))continue;
+      unite(e.from,e.to);
+      tree.push({from:e.from,to:e.to,weight:0});
+    }
+  }
+
+  // --- Phase 3: line decomposition + metro setup (reuse designLines) ---
+  mstEdges=tree;
+  metroLines=designLines(tree);
+
+  // Edge→line map
+  edgeLineMap={};
+  var mstAdj={};
+  tree.forEach(function(e,i){
+    var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+    mstAdj[k]={idx:i,weight:e.weight};
+  });
+  metroLines.forEach(function(line,li){
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      if(!edgeLineMap[k])edgeLineMap[k]=[];
+      edgeLineMap[k].push(li);
+    }
+  });
+
+  // Trains
+  trains=[];
+  var maxTraffic=1;tree.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
+  metroLines.forEach(function(line,li){
+    if(line.nodes.length<2)return;
+    var traffic=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var info=mstAdj[k];if(info)traffic+=info.weight;
+    }
+    var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
+    for(var t=0;t<nTrains;t++){
+      trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
+    }
+  });
+
+  // Legend
+  var legend=document.getElementById('legend');
+  legend.innerHTML='';
+  metroLines.forEach(function(line,i){
+    var sp=document.createElement('span');
+    var ic=document.createElement('i');ic.style.background=line.color;
+    sp.appendChild(ic);
+    sp.appendChild(document.createTextNode(' L'+(i+1)));
+    legend.appendChild(sp);
+  });
+
+  // Junction markers
+  members.forEach(function(m){m._nLines=0});
+  metroLines.forEach(function(line){
+    var seen={};
+    line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
+  });
+
+  viewMode='rail';
+  autoFit();
+  showScores();
+  status(metroLines.length+' lines, '+tree.length+' segments (0 crossings, capture='+Math.round(captureR)+'px)');
 }
 
 // Segment intersection test (returns true if segments cross, excluding shared endpoints)
@@ -669,8 +828,8 @@ function draw(){
   ctx.clearRect(0,0,W,H);
   var z=cam.zoom;
 
-  if(metroMode){
-    // --- METRO VIEW: designed infrastructure ---
+  if(viewMode!=='traffic'){
+    // --- METRO/RAIL VIEW: designed infrastructure ---
     // Base track (gray rail bed for all MST edges)
     mstEdges.forEach(function(e){
       var a=members[e.from],b=members[e.to];
@@ -760,8 +919,8 @@ function draw(){
     }
     ctx.fillStyle='#ccc';ctx.font=Math.max(7,9*z)+'px monospace';ctx.textAlign='center';ctx.textBaseline='top';
     ctx.fillText(m.handle.replace('.bsky.social',''),s.x,s.y+R+6*z);
-    // Junction marker in metro mode (station served by 2+ lines)
-    if(metroMode&&m._nLines>1){
+    // Junction marker (station served by 2+ lines)
+    if(viewMode!=='traffic'&&m._nLines>1){
       ctx.strokeStyle='#fff';ctx.lineWidth=2*z;
       ctx.beginPath();ctx.arc(s.x,s.y,R+6*z,0,Math.PI*2);ctx.stroke();
     }
@@ -778,7 +937,7 @@ function animate(ts){
     return true;
   });
   // Advance trains
-  if(metroMode){
+  if(viewMode!=='traffic'){
     trains.forEach(function(tr){
       var line=metroLines[tr.line];if(!line)return;
       var maxPos=line.nodes.length-1;
@@ -878,18 +1037,33 @@ document.getElementById('play-btn').addEventListener('click',function(){
   if(playback)stopPlayback();else startPlayback();
 });
 
+function exitToTraffic(){
+  viewMode='traffic';trains=[];
+  document.getElementById('score').style.display='none';
+  document.getElementById('metro-btn').textContent='design metro';
+  document.getElementById('metro-btn').style.background='#2a9d8f';
+  document.getElementById('rail-btn').textContent='build rail';
+  document.getElementById('rail-btn').style.background='#8338ec';
+  var legend=document.getElementById('legend');
+  legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
+  draw();
+}
+
 document.getElementById('metro-btn').addEventListener('click',function(){
   if(!loaded)return;
-  if(metroMode){
-    metroMode=false;trains=[];
-    document.getElementById('score').style.display='none';
-    this.textContent='design metro';this.style.background='#2a9d8f';
-    var legend=document.getElementById('legend');
-    legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
-  }else{
-    designMetro();
-    this.textContent='show traffic';this.style.background='var(--accent)';
-  }
+  if(viewMode==='metro'){exitToTraffic();return}
+  if(viewMode==='rail')exitToTraffic();
+  designMetro();
+  this.textContent='show traffic';this.style.background='var(--accent)';
+  draw();
+});
+
+document.getElementById('rail-btn').addEventListener('click',function(){
+  if(!loaded)return;
+  if(viewMode==='rail'){exitToTraffic();return}
+  if(viewMode==='metro')exitToTraffic();
+  buildRail();
+  this.textContent='show traffic';this.style.background='var(--accent)';
   draw();
 });
 
@@ -941,6 +1115,7 @@ document.getElementById('load-btn').addEventListener('click',async function(){
     document.getElementById('legend').classList.add('show');
     document.getElementById('play-btn').disabled=false;
     document.getElementById('metro-btn').disabled=false;
+    document.getElementById('rail-btn').disabled=false;
     if(!animating){animating=true;requestAnimationFrame(animate)}
     connectJetstream();
   }catch(e){status('error: '+e.message);console.error(e)}
