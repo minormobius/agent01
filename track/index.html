@@ -50,6 +50,7 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <input type="text" id="list-uri" placeholder="paste bsky list url or at:// uri">
   <button id="load-btn">load</button>
   <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
+  <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
   <span id="status"></span>
 </div>
 <canvas id="metro"></canvas>
@@ -134,7 +135,7 @@ async function loadList(uri){
   await Promise.all(members.map(function(m){
     if(!m.avatar)return Promise.resolve();
     return new Promise(function(ok){
-      var img=new Image();img.crossOrigin='anonymous';
+      var img=new Image();
       img.onload=function(){m.img=img;ok()};img.onerror=ok;
       img.src=m.avatar;
     });
@@ -187,6 +188,24 @@ async function scrapeInteractions(){
     edges.push({from:+p[0],to:+p[1],weight:matrix[key],color:null});
   }
   edges.sort(function(a,b){return b.weight-a.weight});
+
+  // Prune to max degree per station (0 = no limit, auto = floor(sqrt(N))+1)
+  var maxDeg=parseInt(document.getElementById('max-deg').value)||0;
+  if(maxDeg>0){
+    var deg={};
+    var kept=[];
+    for(var i=0;i<edges.length;i++){
+      var e=edges[i];
+      var df=(deg[e.from]||0),dt=(deg[e.to]||0);
+      if(df<maxDeg&&dt<maxDeg){
+        kept.push(e);
+        deg[e.from]=(deg[e.from]||0)+1;
+        deg[e.to]=(deg[e.to]||0)+1;
+      }
+    }
+    edges=kept;
+  }
+
   for(var i=0;i<edges.length;i++)edges[i].color=LINE_COLORS[i%LINE_COLORS.length];
   status(edges.length+' connections found');
 }
