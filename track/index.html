@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>track — bluesky interaction metro</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --text: #e0e0e0;
+  --muted: #666;
+  --accent: #e63946;
+  --panel: rgba(30,30,50,0.92);
+  --mono: 'SF Mono','Cascadia Code',Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono)}
+#controls{
+  position:fixed;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 16px;background:var(--panel);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
+#controls input[type=text]{
+  flex:1;min-width:200px;max-width:500px;padding:6px 10px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+  border-radius:4px;color:var(--text);font-family:var(--mono);font-size:0.8rem;
+}
+#controls button{
+  padding:6px 16px;background:var(--accent);border:none;
+  border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer;
+}
+#controls button:hover{opacity:0.85}
+#controls button:disabled{opacity:0.4;cursor:default}
+#controls label{font-size:0.7rem;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+#controls label input{accent-color:var(--accent)}
+#status{font-size:0.7rem;color:var(--muted)}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%}
+.legend{
+  position:fixed;bottom:12px;left:12px;z-index:10;
+  display:none;gap:14px;font-size:0.65rem;color:var(--muted);
+}
+.legend.show{display:flex}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<div id="controls">
+  <input type="text" id="list-uri" placeholder="paste bsky list url or at:// uri">
+  <button id="load-btn">load</button>
+  <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
+  <span id="status"></span>
+</div>
+<canvas id="metro"></canvas>
+<div class="legend" id="legend">
+  <span><i style="background:#e63946"></i>like</span>
+  <span><i style="background:#457b9d"></i>reply</span>
+  <span><i style="background:#2a9d8f"></i>repost</span>
+</div>
+<script>
+(function(){
+var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
+var W,H,dpr;
+var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
+var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var API='https://public.api.bsky.app/xrpc/';
+
+function resize(){
+  dpr=window.devicePixelRatio||1;
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(loaded)draw();
+}
+window.addEventListener('resize',resize);resize();
+
+function status(msg){document.getElementById('status').textContent=msg}
+
+function parseListUri(input){
+  input=input.trim();
+  if(input.startsWith('at://'))return input;
+  var m=input.match(/bsky\.app\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+  if(m)return'at://'+m[1]+'/app.bsky.graph.list/'+m[2];
+  return input;
+}
+
+async function apiGet(method,params){
+  var qs=new URLSearchParams(params).toString();
+  var res=await fetch(API+method+'?'+qs);
+  if(!res.ok)throw new Error(method+' '+res.status);
+  return res.json();
+}
+
+async function apiGetMulti(method,key,values,otherParams){
+  var qs=values.map(function(v){return key+'='+encodeURIComponent(v)}).join('&');
+  if(otherParams){for(var k in otherParams)qs+='&'+k+'='+encodeURIComponent(otherParams[k])}
+  var res=await fetch(API+method+'?'+qs);
+  if(!res.ok)throw new Error(method+' '+res.status);
+  return res.json();
+}
+
+async function loadList(uri){
+  status('loading list...');
+  var dids=[],ownerDid=null;
+  var cursor;
+  do{
+    var params={list:uri,limit:'100'};
+    if(cursor)params.cursor=cursor;
+    var data=await apiGet('app.bsky.graph.getList',params);
+    if(!ownerDid&&data.list)ownerDid=data.list.creator.did;
+    for(var item of data.items)dids.push(item.subject.did);
+    cursor=data.cursor;
+  }while(cursor);
+
+  // Include list owner if checked
+  if(document.getElementById('inc-owner').checked&&ownerDid&&dids.indexOf(ownerDid)===-1){
+    dids.unshift(ownerDid);
+  }
+
+  status(dids.length+' members, loading profiles...');
+  members=[];memberIdx={};
+  for(var i=0;i<dids.length;i+=25){
+    var batch=dids.slice(i,i+25);
+    var data=await apiGetMulti('app.bsky.actor.getProfiles','actors',batch);
+    for(var p of data.profiles){
+      memberIdx[p.did]=members.length;
+      members.push({did:p.did,handle:p.handle,displayName:p.displayName||p.handle,
+        avatar:p.avatar||null,x:0,y:0,vx:0,vy:0,img:null});
+    }
+  }
+
+  // Preload avatars
+  await Promise.all(members.map(function(m){
+    if(!m.avatar)return Promise.resolve();
+    return new Promise(function(ok){
+      var img=new Image();img.crossOrigin='anonymous';
+      img.onload=function(){m.img=img;ok()};img.onerror=ok;
+      img.src=m.avatar;
+    });
+  }));
+  status(members.length+' profiles loaded, scraping interactions...');
+}
+
+async function scrapeInteractions(){
+  edges=[];
+  var matrix={};
+  function add(a,b){
+    if(a===b)return;
+    var fi=memberIdx[a],ti=memberIdx[b];
+    if(fi===undefined||ti===undefined)return;
+    var lo=Math.min(fi,ti),hi=Math.max(fi,ti),key=lo+':'+hi;
+    matrix[key]=(matrix[key]||0)+1;
+  }
+
+  for(var mi=0;mi<members.length;mi++){
+    var m=members[mi];
+    status('scanning '+m.handle+' ('+(mi+1)+'/'+members.length+')');
+    try{
+      var cursor,pages=0;
+      do{
+        var params={actor:m.did,limit:'100',filter:'posts_with_replies'};
+        if(cursor)params.cursor=cursor;
+        var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
+        for(var item of(data.feed||[])){
+          // Replies
+          if(item.reply&&item.reply.parent&&item.reply.parent.author){
+            add(m.did,item.reply.parent.author.did);
+          }
+          // Quotes
+          var rec=item.post.record||{},emb=rec.embed;
+          if(emb){
+            var qu=null;
+            if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
+            else if(emb.$type==='app.bsky.embed.recordWithMedia'&&emb.record&&emb.record.record)qu=emb.record.record.uri;
+            if(qu){var qd=qu.split('/')[2];add(m.did,qd)}
+          }
+        }
+        cursor=data.cursor;pages++;
+      }while(cursor&&pages<3);
+    }catch(e){}
+    await new Promise(function(r){setTimeout(r,150)});
+  }
+
+  for(var key in matrix){
+    var p=key.split(':');
+    edges.push({from:+p[0],to:+p[1],weight:matrix[key],color:null});
+  }
+  edges.sort(function(a,b){return b.weight-a.weight});
+  for(var i=0;i<edges.length;i++)edges[i].color=LINE_COLORS[i%LINE_COLORS.length];
+  status(edges.length+' connections found');
+}
+
+// Force-directed layout
+function forceLayout(){
+  var PAD=90,cw=W-PAD*2,ch=H-PAD*2;
+  members.forEach(function(m){
+    m.x=PAD+Math.random()*cw;
+    m.y=PAD+50+Math.random()*(ch-50);
+    m.vx=0;m.vy=0;
+  });
+  var N=members.length,maxW=edges.length?edges[0].weight:1;
+
+  for(var iter=0;iter<400;iter++){
+    var cool=Math.max(0.05,1-iter/400);
+    // Repulsion
+    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
+      var dx=members[i].x-members[j].x,dy=members[i].y-members[j].y;
+      var d2=dx*dx+dy*dy;if(d2<1)d2=1;
+      var f=10000/d2,d=Math.sqrt(d2);
+      var fx=dx/d*f*cool,fy=dy/d*f*cool;
+      members[i].vx+=fx;members[i].vy+=fy;
+      members[j].vx-=fx;members[j].vy-=fy;
+    }}
+    // Attraction
+    for(var e=0;e<edges.length;e++){
+      var edge=edges[e],a=members[edge.from],b=members[edge.to];
+      var dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+      var str=0.02*(edge.weight/maxW)*cool;
+      var f=(d-100)*str;
+      var fx=dx/d*f,fy=dy/d*f;
+      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;
+    }
+    // Center gravity
+    for(var i=0;i<N;i++){
+      members[i].vx+=(W/2-members[i].x)*0.002*cool;
+      members[i].vy+=(H/2-members[i].y)*0.002*cool;
+    }
+    // Apply
+    for(var i=0;i<N;i++){
+      members[i].vx*=0.8;members[i].vy*=0.8;
+      members[i].x+=members[i].vx;members[i].y+=members[i].vy;
+      members[i].x=Math.max(PAD,Math.min(W-PAD,members[i].x));
+      members[i].y=Math.max(PAD+50,Math.min(H-PAD,members[i].y));
+    }
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // Metro lines
+  edges.forEach(function(e){
+    var a=members[e.from],b=members[e.to];
+    var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2));
+    ctx.strokeStyle=e.color;ctx.lineWidth=thick;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.globalAlpha=0.6;ctx.beginPath();
+
+    // Metro-style routing
+    var dx=b.x-a.x,dy=b.y-a.y;
+    var ax=Math.abs(dx),ay=Math.abs(dy);
+    ctx.moveTo(a.x,a.y);
+    if(ay<20||ax<20||Math.abs(ax-ay)<25){
+      ctx.lineTo(b.x,b.y);
+    }else if(ax>ay){
+      // Horizontal first, then diagonal
+      var diag=ay,sx=dx>0?1:-1,sy=dy>0?1:-1;
+      ctx.lineTo(a.x+sx*(ax-diag),a.y);
+      ctx.lineTo(b.x,b.y);
+    }else{
+      // Vertical first, then diagonal
+      var diag=ax,sx=dx>0?1:-1,sy=dy>0?1:-1;
+      ctx.lineTo(a.x,a.y+sy*(ay-diag));
+      ctx.lineTo(b.x,b.y);
+    }
+    ctx.stroke();
+  });
+  ctx.globalAlpha=1;
+
+  // Animated dots
+  dots.forEach(function(dot){
+    ctx.globalAlpha=dot.alpha;
+    ctx.beginPath();ctx.arc(dot.x,dot.y,6,0,Math.PI*2);
+    ctx.fillStyle=dot.color;ctx.fill();
+    ctx.beginPath();ctx.arc(dot.x,dot.y,12,0,Math.PI*2);
+    ctx.fillStyle=dot.color;ctx.globalAlpha=dot.alpha*0.25;ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Stations
+  var R=20;
+  members.forEach(function(m){
+    // Ring
+    ctx.beginPath();ctx.arc(m.x,m.y,R+3,0,Math.PI*2);
+    ctx.fillStyle='#fff';ctx.fill();
+    // Avatar
+    if(m.img){
+      ctx.save();ctx.beginPath();ctx.arc(m.x,m.y,R,0,Math.PI*2);ctx.clip();
+      ctx.drawImage(m.img,m.x-R,m.y-R,R*2,R*2);ctx.restore();
+    }else{
+      ctx.beginPath();ctx.arc(m.x,m.y,R,0,Math.PI*2);ctx.fillStyle='#333';ctx.fill();
+      ctx.fillStyle='#999';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(m.handle[0].toUpperCase(),m.x,m.y);
+    }
+    // Label
+    ctx.fillStyle='#ccc';ctx.font='9px monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    var label=m.handle.replace('.bsky.social','');
+    ctx.fillText(label,m.x,m.y+R+6);
+  });
+}
+
+function animate(ts){
+  var now=Date.now();
+  dots=dots.filter(function(d){
+    var t=(now-d.start)/d.duration;if(t>=1)return false;
+    var e=t<0.5?2*t*t:-1+(4-2*t)*t;
+    d.x=d.x0+(d.x1-d.x0)*e;d.y=d.y0+(d.y1-d.y0)*e;
+    d.alpha=t<0.1?t/0.1:t>0.8?(1-t)/0.2:1;
+    return true;
+  });
+  draw();
+  requestAnimationFrame(animate);
+}
+
+function spawnDot(fi,ti,color){
+  var a=members[fi],b=members[ti];if(!a||!b)return;
+  dots.push({x0:a.x,y0:a.y,x1:b.x,y1:b.y,x:a.x,y:a.y,alpha:1,
+    color:color||'#fff',start:Date.now(),duration:1500});
+}
+
+function connectJetstream(){
+  if(ws)ws.close();
+  var dids=members.map(function(m){return m.did});if(!dids.length)return;
+  var params=dids.map(function(d){return'wantedDids='+encodeURIComponent(d)});
+  params.push('wantedCollections=app.bsky.feed.like');
+  params.push('wantedCollections=app.bsky.feed.post');
+  params.push('wantedCollections=app.bsky.feed.repost');
+  ws=new WebSocket('wss://jetstream2.us-east.bsky.network/subscribe?'+params.join('&'));
+
+  ws.onmessage=function(ev){
+    try{
+      var msg=JSON.parse(ev.data);
+      if(msg.kind!=='commit'||msg.commit.operation!=='create')return;
+      var from=msg.did,to=null,col=msg.commit.collection,rec=msg.commit.record,color='#fff';
+      if(col==='app.bsky.feed.like'&&rec&&rec.subject){
+        to=rec.subject.uri.split('/')[2];color='#e63946';
+      }else if(col==='app.bsky.feed.post'&&rec&&rec.reply){
+        to=rec.reply.parent.uri.split('/')[2];color='#457b9d';
+      }else if(col==='app.bsky.feed.repost'&&rec&&rec.subject){
+        to=rec.subject.uri.split('/')[2];color='#2a9d8f';
+      }
+      if(to&&memberIdx[from]!==undefined&&memberIdx[to]!==undefined){
+        spawnDot(memberIdx[from],memberIdx[to],color);
+      }
+    }catch(e){}
+  };
+  ws.onclose=function(){setTimeout(connectJetstream,5000)};
+  status('live \u2014 watching '+dids.length+' members');
+}
+
+document.getElementById('load-btn').addEventListener('click',async function(){
+  var btn=this;
+  var input=document.getElementById('list-uri').value;if(!input)return;
+  btn.disabled=true;
+  try{
+    var uri=parseListUri(input);
+    await loadList(uri);
+    await scrapeInteractions();
+    forceLayout();
+    loaded=true;
+    document.getElementById('legend').classList.add('show');
+    if(!animating){animating=true;requestAnimationFrame(animate)}
+    connectJetstream();
+  }catch(e){status('error: '+e.message)}
+  btn.disabled=false;
+});
+})();
+</script>
+</body>
+</html>
