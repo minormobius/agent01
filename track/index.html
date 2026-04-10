@@ -232,123 +232,119 @@ function countCrossings(){
   return n;
 }
 
-// Force-directed layout
+// Force-directed layout with Lennard-Jones potential
 function forceLayout(){
-  var PAD=90,cw=W-PAD*2,ch=H-PAD*2;
-  members.forEach(function(m){
-    m.x=PAD+Math.random()*cw;
-    m.y=PAD+50+Math.random()*(ch-50);
+  var PAD=90,N=members.length;
+  if(N===0)return;
+
+  // Target separation: fit N nodes with comfortable spacing
+  var area=(W-PAD*2)*(H-PAD*2-50);
+  var sigma=Math.min(180,Math.max(80,Math.sqrt(area/N)*0.7)); // equilibrium distance
+
+  // Initialize on hex lattice
+  var cols=Math.ceil(Math.sqrt(N*((W-PAD*2)/(H-PAD*2-50))));
+  var rows=Math.ceil(N/cols);
+  var spacingX=(W-PAD*2)/(cols+1);
+  var spacingY=(H-PAD*2-50)/(rows+1);
+  members.forEach(function(m,i){
+    var col=i%cols,row=Math.floor(i/cols);
+    m.x=PAD+spacingX*(col+1)+(row%2?spacingX*0.5:0);
+    m.y=PAD+50+spacingY*(row+1);
     m.vx=0;m.vy=0;
   });
-  var N=members.length,maxW=edges.length?edges[0].weight:1;
 
-  for(var iter=0;iter<400;iter++){
-    var cool=Math.max(0.05,1-iter/400);
-    // Repulsion
+  var maxW=edges.length?edges[0].weight:1;
+  var eps=sigma*0.5; // LJ well depth scaling
+
+  for(var iter=0;iter<500;iter++){
+    var cool=Math.max(0.02,1-iter/500);
+    var temp=cool*2;
+
+    // Lennard-Jones pairwise: F = 24*eps/r * [2*(sigma/r)^12 - (sigma/r)^6]
+    // Simplified: strong repulsion below sigma, mild attraction above, zero far away
     for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
       var dx=members[i].x-members[j].x,dy=members[i].y-members[j].y;
-      var d2=dx*dx+dy*dy;if(d2<1)d2=1;
-      var f=10000/d2,d=Math.sqrt(d2);
-      var fx=dx/d*f*cool,fy=dy/d*f*cool;
-      members[i].vx+=fx;members[i].vy+=fy;
-      members[j].vx-=fx;members[j].vy-=fy;
+      var d=Math.sqrt(dx*dx+dy*dy);
+      if(d<1)d=1;
+      var ratio=sigma/d;
+      var r6=ratio*ratio*ratio*ratio*ratio*ratio;
+      var r12=r6*r6;
+      // Force magnitude: positive = repulsive, negative = attractive
+      var f=24*eps/d*(2*r12-r6)*temp;
+      // Clamp to prevent explosions
+      f=Math.max(-50,Math.min(50,f));
+      var ux=dx/d,uy=dy/d;
+      members[i].vx+=ux*f;members[i].vy+=uy*f;
+      members[j].vx-=ux*f;members[j].vy-=uy*f;
     }}
-    // Attraction
+
+    // Edge attraction (spring toward ~0.8*sigma for connected nodes)
+    var restLen=sigma*0.8;
     for(var e=0;e<edges.length;e++){
       var edge=edges[e],a=members[edge.from],b=members[edge.to];
       var dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
-      var str=0.02*(edge.weight/maxW)*cool;
-      var f=(d-100)*str;
-      var fx=dx/d*f,fy=dy/d*f;
-      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;
+      var strength=0.03*(0.3+0.7*edge.weight/maxW)*temp;
+      var f=(d-restLen)*strength;
+      var ux=dx/d,uy=dy/d;
+      a.vx+=ux*f;a.vy+=uy*f;
+      b.vx-=ux*f;b.vy-=uy*f;
     }
-    // Center gravity
-    for(var i=0;i<N;i++){
-      members[i].vx+=(W/2-members[i].x)*0.002*cool;
-      members[i].vy+=(H/2-members[i].y)*0.002*cool;
+
+    // Crossing avoidance (after initial settling)
+    if(iter>150){
+      for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
+        var ei=edges[i],ej=edges[j];
+        if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
+        var a=members[ei.from],b=members[ei.to],c=members[ej.from],d=members[ej.to];
+        if(!segsX(a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y))continue;
+        var mx1=(a.x+b.x)/2,my1=(a.y+b.y)/2;
+        var mx2=(c.x+d.x)/2,my2=(c.y+d.y)/2;
+        var ddx=mx1-mx2,ddy=my1-my2;
+        var dd=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+        var cf=6*temp/dd;
+        a.vx+=ddx/dd*cf;a.vy+=ddy/dd*cf;
+        b.vx+=ddx/dd*cf;b.vy+=ddy/dd*cf;
+        c.vx-=ddx/dd*cf;c.vy-=ddy/dd*cf;
+        d.vx-=ddx/dd*cf;d.vy-=ddy/dd*cf;
+      }}
     }
-    // Apply
-    for(var i=0;i<N;i++){
-      members[i].vx*=0.8;members[i].vy*=0.8;
-      members[i].x+=members[i].vx;members[i].y+=members[i].vy;
-      members[i].x=Math.max(PAD,Math.min(W-PAD,members[i].x));
-      members[i].y=Math.max(PAD+50,Math.min(H-PAD,members[i].y));
-    }
-  }
-}
-
-// Crossing reduction: move nodes to reduce edge crossings
-function reduceCrossings(){
-  var PAD=90,N=members.length;
-  if(edges.length<2)return;
-  var before=countCrossings();
-  if(before===0)return;
-
-  // Phase 1: force-based uncrossing (200 iterations)
-  for(var iter=0;iter<200;iter++){
-    var cool=Math.max(0.02,1-iter/200);
-    // Reset velocities
-    members.forEach(function(m){m.vx=0;m.vy=0});
-
-    // Crossing forces: push crossing edge midpoints apart
-    for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
-      var ei=edges[i],ej=edges[j];
-      if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
-      var a=members[ei.from],b=members[ei.to],c=members[ej.from],d=members[ej.to];
-      if(!segsX(a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y))continue;
-      var mx1=(a.x+b.x)/2,my1=(a.y+b.y)/2;
-      var mx2=(c.x+d.x)/2,my2=(c.y+d.y)/2;
-      var dx=mx1-mx2,dy=my1-my2;
-      var dist=Math.sqrt(dx*dx+dy*dy)||1;
-      var f=8*cool/dist;
-      var fx=dx/dist*f,fy=dy/dist*f;
-      a.vx+=fx;a.vy+=fy;b.vx+=fx;b.vy+=fy;
-      c.vx-=fx;c.vy-=fy;d.vx-=fx;d.vy-=fy;
-    }}
-
-    // Gentle repulsion to maintain spacing
-    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
-      var dx=members[i].x-members[j].x,dy=members[i].y-members[j].y;
-      var d2=dx*dx+dy*dy;if(d2<1)d2=1;
-      var f=2000*cool/d2,d=Math.sqrt(d2);
-      members[i].vx+=dx/d*f;members[i].vy+=dy/d*f;
-      members[j].vx-=dx/d*f;members[j].vy-=dy/d*f;
-    }}
 
     // Center gravity
     for(var i=0;i<N;i++){
-      members[i].vx+=(W/2-members[i].x)*0.001*cool;
-      members[i].vy+=(H/2-members[i].y)*0.001*cool;
+      members[i].vx+=(W/2-members[i].x)*0.003*temp;
+      members[i].vy+=(H/2-members[i].y)*0.003*temp;
     }
 
+    // Apply with velocity damping
     for(var i=0;i<N;i++){
-      members[i].vx*=0.7;members[i].vy*=0.7;
+      members[i].vx*=0.75;members[i].vy*=0.75;
       members[i].x+=members[i].vx;members[i].y+=members[i].vy;
       members[i].x=Math.max(PAD,Math.min(W-PAD,members[i].x));
       members[i].y=Math.max(PAD+50,Math.min(H-PAD,members[i].y));
     }
   }
 
-  // Phase 2: greedy node swaps
-  var improved=true,passes=0;
-  while(improved&&passes<20){
-    improved=false;passes++;
-    var cur=countCrossings();
-    if(cur===0)break;
-    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
-      // Try swapping positions
-      var tx=members[i].x,ty=members[i].y;
-      members[i].x=members[j].x;members[i].y=members[j].y;
-      members[j].x=tx;members[j].y=ty;
-      var after=countCrossings();
-      if(after<cur){cur=after;improved=true;if(cur===0)break}
-      else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
-    }if(cur===0)break}
+  // Greedy swap pass to mop up remaining crossings
+  var crossings=countCrossings();
+  if(crossings>0){
+    var improved=true,passes=0;
+    while(improved&&passes<20){
+      improved=false;passes++;
+      var cur=countCrossings();if(cur===0)break;
+      for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
+        var tx=members[i].x,ty=members[i].y;
+        members[i].x=members[j].x;members[i].y=members[j].y;
+        members[j].x=tx;members[j].y=ty;
+        var after=countCrossings();
+        if(after<cur){cur=after;improved=true;if(cur===0)break}
+        else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
+      }if(cur===0)break}
+    }
+    crossings=countCrossings();
   }
-
-  var after=countCrossings();
-  status(edges.length+' connections, '+after+' crossings (was '+before+')');
+  status(edges.length+' connections, '+crossings+' crossings');
 }
+
 
 function draw(){
   ctx.clearRect(0,0,W,H);
@@ -472,7 +468,6 @@ document.getElementById('load-btn').addEventListener('click',async function(){
     await loadList(uri);
     await scrapeInteractions();
     forceLayout();
-    reduceCrossings();
     loaded=true;
     document.getElementById('legend').classList.add('show');
     if(!animating){animating=true;requestAnimationFrame(animate)}
