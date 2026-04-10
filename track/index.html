@@ -70,6 +70,7 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%}
   <span><i style="background:#457b9d"></i>reply</span>
   <span><i style="background:#2a9d8f"></i>repost</span>
 </div>
+<div id="score" style="position:fixed;bottom:12px;right:12px;z-index:10;display:none;background:var(--panel);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:10px 14px;font-size:0.65rem;line-height:1.7;color:var(--muted)"></div>
 <script type="module">
 var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
 var W,H,dpr;
@@ -99,6 +100,27 @@ async function initDuck(){
   conn=await db.connect();
   await conn.query("CREATE TABLE IF NOT EXISTS interactions(from_idx INT,to_idx INT,ts BIGINT,type VARCHAR)");
   status('duckdb ready');
+}
+
+// IndexedDB cache for scan results (1hr TTL)
+var CACHE_TTL=3600000;
+function openCacheDB(){
+  return new Promise(function(ok,no){
+    var req=indexedDB.open('track-cache',1);
+    req.onupgradeneeded=function(){req.result.createObjectStore('scans')};
+    req.onsuccess=function(){ok(req.result)};
+    req.onerror=function(){no(req.error)};
+  });
+}
+async function getCached(uri){
+  try{var cdb=await openCacheDB();
+    return new Promise(function(ok){var tx=cdb.transaction('scans','readonly');
+      var req=tx.objectStore('scans').get(uri);req.onsuccess=function(){ok(req.result||null)};req.onerror=function(){ok(null)}});
+  }catch(e){return null}
+}
+async function setCache(uri,data){
+  try{var cdb=await openCacheDB();var tx=cdb.transaction('scans','readwrite');
+    tx.objectStore('scans').put(data,uri)}catch(e){}
 }
 
 // Slider label
@@ -226,20 +248,11 @@ async function loadList(uri){
 }
 
 async function scrapeInteractions(){
-  edges=[];
   await conn.query("DELETE FROM interactions");
-  var batch=[];
+  var done=0,CONC=6;
 
-  function flush(){
-    if(!batch.length)return;
-    var vals=batch.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
-    batch=[];
-    return conn.query("INSERT INTO interactions VALUES "+vals);
-  }
-
-  for(var mi=0;mi<members.length;mi++){
-    var m=members[mi];
-    status('scanning '+m.handle+' ('+(mi+1)+'/'+members.length+')');
+  async function scrapeMember(mi){
+    var m=members[mi],local=[];
     try{
       var cursor,pages=0;
       do{
@@ -249,18 +262,15 @@ async function scrapeInteractions(){
         for(var item of(data.feed||[])){
           var ts=(item.post||{}).indexedAt||((item.post||{}).record||{}).createdAt||null;
           var tsMs=ts?new Date(ts).getTime():0;
-          // Replies
           if(item.reply&&item.reply.parent&&item.reply.parent.author){
             var toDid=item.reply.parent.author.did;
             if(toDid!==m.did){
               var ti=memberIdx[toDid],fi=memberIdx[m.did];
               if(ti!==undefined&&fi!==undefined){
-                var lo=Math.min(fi,ti),hi=Math.max(fi,ti);
-                batch.push({fi:lo,ti:hi,ts:tsMs,type:'reply'});
+                local.push({fi:Math.min(fi,ti),ti:Math.max(fi,ti),ts:tsMs,type:'reply'});
               }
             }
           }
-          // Quotes
           var rec=(item.post||{}).record||{},emb=rec.embed;
           if(emb){
             var qu=null;
@@ -269,25 +279,33 @@ async function scrapeInteractions(){
             if(qu){
               var qd=qu.split('/')[2],qi=memberIdx[qd],fi2=memberIdx[m.did];
               if(qd!==m.did&&qi!==undefined&&fi2!==undefined){
-                var lo2=Math.min(fi2,qi),hi2=Math.max(fi2,qi);
-                batch.push({fi:lo2,ti:hi2,ts:tsMs,type:'quote'});
+                local.push({fi:Math.min(fi2,qi),ti:Math.max(fi2,qi),ts:tsMs,type:'quote'});
               }
             }
           }
         }
-        if(batch.length>=500)await flush();
         cursor=data.cursor;pages++;
       }while(cursor&&pages<3);
     }catch(e){}
-    await new Promise(function(r){setTimeout(r,150)});
+    if(local.length){
+      var vals=local.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
+      await conn.query("INSERT INTO interactions VALUES "+vals);
+    }
+    status('scanning '+(++done)+'/'+members.length);
   }
-  await flush();
 
-  // Aggregate edges via SQL
+  // Parallel fan-out with semaphore
+  var idx=0;
+  async function worker(){while(idx<members.length){var mi=idx++;await scrapeMember(mi)}}
+  var workers=[];for(var i=0;i<Math.min(CONC,members.length);i++)workers.push(worker());
+  await Promise.all(workers);
+}
+
+async function aggregateEdges(){
+  edges=[];
   var maxDeg=parseInt(document.getElementById('max-deg').value)||0;
   var result=await conn.query("SELECT from_idx,to_idx,COUNT(*) as w FROM interactions GROUP BY from_idx,to_idx ORDER BY w DESC");
-  var rows=result.toArray();
-  var deg={};
+  var rows=result.toArray(),deg={};
   for(var r of rows){
     var fi=Number(r.from_idx),ti=Number(r.to_idx),w=Number(r.w);
     if(maxDeg>0){
@@ -297,7 +315,6 @@ async function scrapeInteractions(){
     edges.push({from:fi,to:ti,weight:w,color:null});
   }
   for(var i=0;i<edges.length;i++)edges[i].color=LINE_COLORS[i%LINE_COLORS.length];
-
   var total=await conn.query("SELECT COUNT(*) as n FROM interactions");
   var n=Number(total.toArray()[0].n);
   status(edges.length+' connections from '+n+' events');
@@ -421,7 +438,61 @@ function designMetro(){
   });
   metroMode=true;
   autoFit();
+  showScores();
   status(metroLines.length+' lines, '+mstEdges.length+' track segments');
+}
+
+// Metro scoring — crow-flies baseline vs rail infrastructure
+function showScores(){
+  var N=members.length;
+  // MST adjacency with euclidean distances for tree-path routing
+  var adj=[];for(var i=0;i<N;i++)adj[i]=[];
+  mstEdges.forEach(function(e){
+    var d=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
+    adj[e.from].push({to:e.to,dist:d});adj[e.to].push({to:e.from,dist:d});
+  });
+  function treeDist(a,b){
+    if(a===b)return 0;
+    var d=new Array(N).fill(-1);d[a]=0;var q=[a],qi=0;
+    while(qi<q.length){var u=q[qi++];
+      for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;
+        if(d[v]<0){d[v]=d[u]+adj[u][j].dist;q.push(v)}}}
+    return d[b]>=0?d[b]:Infinity;
+  }
+  // Package routing costs
+  var crowTotal=0,metroTotal=0,packages=0;
+  edges.forEach(function(e){
+    var d=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
+    crowTotal+=e.weight*d;
+    metroTotal+=e.weight*treeDist(e.from,e.to);
+    packages+=e.weight;
+  });
+  // Infrastructure costs
+  var trackLen=0;
+  mstEdges.forEach(function(e){
+    trackLen+=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
+  });
+  var STATION_COST=10,JUNCTION_COST=5;
+  var stationCost=N*STATION_COST;
+  var junctionCost=0;
+  members.forEach(function(m){if(m._nLines>1)junctionCost+=(m._nLines-1)*JUNCTION_COST});
+  var eff=metroTotal>0?(crowTotal/metroTotal*100).toFixed(0):'--';
+  var infra=Math.round(trackLen)+stationCost+junctionCost;
+  var total=Math.round(metroTotal)+infra;
+  var el=document.getElementById('score');
+  el.style.display='block';
+  el.innerHTML=
+    '<div style="color:#fff;margin-bottom:4px;font-size:0.75rem;letter-spacing:0.5px">METRO SCORE</div>'+
+    '<div>packages: <span style="color:#fff">'+packages+'</span></div>'+
+    '<div style="margin-top:4px;color:#8af">--- routing ---</div>'+
+    '<div>crow flies: <span style="color:#fff">'+Math.round(crowTotal)+'</span></div>'+
+    '<div>metro route: <span style="color:#fff">'+Math.round(metroTotal)+'</span></div>'+
+    '<div>efficiency: <span style="color:'+(eff>=80?'#2a9d8f':eff>=50?'#e9c46a':'#e63946')+'">'+eff+'%</span></div>'+
+    '<div style="margin-top:4px;color:#8af">--- infra ---</div>'+
+    '<div>track laid: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
+    '<div>stations: <span style="color:#fff">'+N+' x '+STATION_COST+' = '+stationCost+'</span></div>'+
+    '<div>junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
+    '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;color:#fff;font-size:0.8rem;letter-spacing:0.5px">TOTAL: '+total+'</div>';
 }
 
 // Segment intersection test (returns true if segments cross, excluding shared endpoints)
@@ -811,6 +882,7 @@ document.getElementById('metro-btn').addEventListener('click',function(){
   if(!loaded)return;
   if(metroMode){
     metroMode=false;trains=[];
+    document.getElementById('score').style.display='none';
     this.textContent='design metro';this.style.background='#2a9d8f';
     var legend=document.getElementById('legend');
     legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
@@ -828,8 +900,42 @@ document.getElementById('load-btn').addEventListener('click',async function(){
   try{
     await initDuck();
     var uri=parseListUri(input);
-    await loadList(uri);
-    await scrapeInteractions();
+    var cached=await getCached(uri);
+    if(cached&&Date.now()-cached.ts<CACHE_TTL){
+      status('restoring from cache...');
+      members=[];memberIdx={};
+      cached.members.forEach(function(cm,i){
+        memberIdx[cm.did]=i;
+        members.push({did:cm.did,handle:cm.handle,displayName:cm.displayName,
+          avatar:cm.avatar,x:0,y:0,vx:0,vy:0,img:null});
+      });
+      await Promise.all(members.map(function(m){
+        if(!m.avatar)return Promise.resolve();
+        return new Promise(function(ok){
+          var img=new Image();img.onload=function(){m.img=img;ok()};img.onerror=ok;img.src=m.avatar;
+        });
+      }));
+      await conn.query("DELETE FROM interactions");
+      for(var ci=0;ci<cached.interactions.length;ci+=500){
+        var chunk=cached.interactions.slice(ci,ci+500);
+        var vals=chunk.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
+        await conn.query("INSERT INTO interactions VALUES "+vals);
+      }
+      await aggregateEdges();
+      status(edges.length+' connections (cached '+Math.round((Date.now()-cached.ts)/60000)+'m ago)');
+    }else{
+      await loadList(uri);
+      await scrapeInteractions();
+      await aggregateEdges();
+      // Save to cache
+      var allRows=await conn.query("SELECT from_idx,to_idx,ts,type FROM interactions");
+      var ints=allRows.toArray().map(function(r){
+        return{fi:Number(r.from_idx),ti:Number(r.to_idx),ts:Number(r.ts),type:r.type};
+      });
+      await setCache(uri,{ts:Date.now(),
+        members:members.map(function(m){return{did:m.did,handle:m.handle,displayName:m.displayName,avatar:m.avatar}}),
+        interactions:ints});
+    }
     forceLayout();
     loaded=true;
     document.getElementById('legend').classList.add('show');
