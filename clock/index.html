@@ -148,19 +148,21 @@ fn march(ro:vec3f,rd:vec3f)->vec3f{
   let cy=cos(p.yaw);let sy=sin(p.yaw);let cp=cos(p.pitch);let sp=sin(p.pitch);
   let fwd=vec3f(sy*cp,sp,cy*cp);
   let right=vec3f(cy,0.0,-sy);
-  let up=cross(right,fwd);
+  let up=cross(fwd,right);
   let ro=vec3f(0.0,1.2,0.0);
   let rd=normalize(fwd+right*uv.x*1.2+up*uv.y*1.2);
 
   let hit=march(ro,rd);
   if(hit.z<0.5){
-    let sky=max(rd.y,0.0)*0.015;
-    return vec4f(vec3f(0.003+sky*0.2,0.003+sky*0.15,0.008+sky),1.0);
+    let sky=max(rd.y,0.0)*0.12;
+    var sc=vec3f(0.008+sky*0.15,0.008+sky*0.1,0.02+sky);
+    sc=pow(max(sc,vec3f(0.0)),vec3f(0.4545));
+    return vec4f(sc,1.0);
   }
 
   let pos=ro+rd*hit.x;
   let nor=calcN(pos);
-  let id=i32(hit.y+0.5);
+  let id=i32(round(hit.y));
   let sun=normalize(vec3f(0.3,1.0,0.5));
   let diff=max(dot(nor,sun),0.0);
   let viewDir=normalize(ro-pos);
@@ -183,7 +185,7 @@ fn march(ro:vec3f,rd:vec3f)->vec3f{
   }else{
     let sc=sculptCol(id);
     col=sc*0.25+sc*diff*0.5+vec3f(1.0)*spec*0.15;
-    if(id==i32(p.target+0.5)){col+=sc*0.4;}
+    if(p.target>=0.0 && id==i32(round(p.target))){col+=sc*0.4;}
   }
 
   let fog=1.0-exp(-hit.x*hit.x*0.004);
@@ -225,12 +227,25 @@ async function init(){
 
   const paramBuf=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const module=device.createShaderModule({code:shader});
-  const pipeline=device.createRenderPipeline({
-    layout:'auto',
-    vertex:{module,entryPoint:'vs'},
-    fragment:{module,entryPoint:'fs',targets:[{format}]},
-    primitive:{topology:'triangle-list'},
-  });
+  const info=await module.getCompilationInfo();
+  for(const m of info.messages){console.error('WGSL',m.type,m.lineNum,m.message);}
+  if(info.messages.some(m=>m.type==='error')){
+    document.getElementById('noGPU').textContent='Shader error \u2014 check console';
+    document.getElementById('noGPU').style.display='flex';return;
+  }
+  let pipeline;
+  try{
+    pipeline=await device.createRenderPipelineAsync({
+      layout:'auto',
+      vertex:{module,entryPoint:'vs'},
+      fragment:{module,entryPoint:'fs',targets:[{format}]},
+      primitive:{topology:'triangle-list'},
+    });
+  }catch(e){
+    console.error('Pipeline:',e);
+    document.getElementById('noGPU').textContent='Pipeline failed \u2014 check console';
+    document.getElementById('noGPU').style.display='flex';return;
+  }
   const bg=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),
     entries:[{binding:0,resource:{buffer:paramBuf}}]});
 
@@ -273,7 +288,7 @@ async function init(){
     const enc=device.createCommandEncoder();
     const pass=enc.beginRenderPass({colorAttachments:[{
       view:ctx.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',
-      clearValue:{r:0.003,g:0.003,b:0.008,a:1}}]});
+      clearValue:{r:0.008,g:0.008,b:0.02,a:1}}]});
     pass.setPipeline(pipeline);pass.setBindGroup(0,bg);pass.draw(3);pass.end();
     device.queue.submit([enc.finish()]);
   }
