@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scope — Ray Traced Lens</title>
+<style>
+*{margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,0.25);font:11px monospace;pointer-events:none;z-index:2}
+#err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:16px monospace;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">drag to pan sample · scroll to focus</div>
+<div id="err">WebGPU not available.</div>
+<script>
+'use strict';
+const canvas=document.getElementById('c');
+const shader=`
+struct Params { res:vec2f, tm:f32, foc:f32, pan:vec2f, _a:f32, _b:f32 }
+@group(0)@binding(0) var<uniform> u:Params;
+
+const RC=2.5;
+const HT=0.2;
+const AP=1.0;
+const NG=1.52;
+const FCTR=vec3f(0.0,0.0,RC-HT);
+const BCTR=vec3f(0.0,0.0,HT-RC);
+
+fn rSph(ro:vec3f,rd:vec3f,c:vec3f,r:f32)->vec2f{
+  let oc=ro-c;let b=dot(oc,rd);let d=b*b-dot(oc,oc)+r*r;
+  if(d<0.0){return vec2f(-1.0);}
+  let s=sqrt(d);return vec2f(-b-s,-b+s);
+}
+
+fn cell(p:vec2f,ct:vec2f,r:f32,col:vec3f)->vec3f{
+  let d=length(p-ct);
+  if(d>r){return vec3f(0.0);}
+  let fill=col*0.12;
+  let ring=smoothstep(r,r-0.006,d)*(1.0-smoothstep(r-0.006,r-0.012,d));
+  return fill+col*ring*0.8;
+}
+
+fn specimen(p:vec2f)->vec3f{
+  var c=vec3f(0.005,0.008,0.005);
+  let g=abs(fract(p*20.0)-vec2f(0.5));
+  c+=vec3f(0.02)*step(min(g.x,g.y),0.015);
+  c=max(c,cell(p,vec2f(0.0),0.06,vec3f(0.1,0.9,0.2)));
+  c=max(c,cell(p,vec2f(0.15,0.08),0.04,vec3f(0.9,0.15,0.1)));
+  c=max(c,cell(p,vec2f(-0.1,0.12),0.05,vec3f(0.15,0.3,1.0)));
+  c=max(c,cell(p,vec2f(-0.05,-0.1),0.035,vec3f(0.9,0.7,0.1)));
+  c=max(c,cell(p,vec2f(0.12,-0.06),0.045,vec3f(0.1,0.8,0.9)));
+  c=max(c,cell(p,vec2f(-0.14,-0.05),0.03,vec3f(0.8,0.2,0.8)));
+  c=max(c,cell(p,vec2f(0.08,0.14),0.025,vec3f(1.0,0.6,0.1)));
+  return c;
+}
+
+@vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
+  let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  return vec4f(p[v],0,1);
+}
+
+@fragment fn fs(@builtin(position) fc:vec4f)->@location(0) vec4f{
+  let uv=(fc.xy-u.res*0.5)/u.res.y;
+  let ro0=vec3f(0.0,0.0,-4.0);
+  let rd0=normalize(vec3f(uv,1.5));
+  var ro=ro0;var rd=rd0;
+  var tr=1.0;var thru=false;
+
+  // Front lens surface
+  let ft=rSph(ro,rd,FCTR,RC);
+  if(ft.x>0.0){
+    let hp=ro+rd*ft.x;
+    if(length(hp.xy)<AP){
+      let n=normalize(hp-FCTR);
+      let ci=abs(dot(rd,n));
+      tr*=1.0-(0.04+0.96*pow(1.0-ci,5.0));
+      let rf=refract(rd,n,1.0/NG);
+      if(dot(rf,rf)>0.0){ro=hp+rf*0.001;rd=rf;thru=true;}
+    }
+  }
+
+  // Back lens surface
+  if(thru){
+    let bt=rSph(ro,rd,BCTR,RC);
+    if(bt.y>0.0){
+      let hp=ro+rd*bt.y;
+      let n=normalize(BCTR-hp);
+      let ci=abs(dot(rd,n));
+      tr*=1.0-(0.04+0.96*pow(1.0-ci,5.0));
+      let rf=refract(rd,n,NG);
+      if(dot(rf,rf)>0.0){ro=hp+rf*0.001;rd=rf;}
+      else{tr=0.0;}
+    }
+  }
+
+  // Sample plane
+  var col=vec3f(0.0);
+  if(rd.z>0.001){
+    let t=(u.foc-ro.z)/rd.z;
+    if(t>0.0){
+      let sp=ro+rd*t;
+      col=specimen(sp.xy-u.pan)*tr;
+    }
+  }
+
+  // Lens edge ring
+  if(!thru && ft.x>0.0){
+    let hp=ro0+rd0*ft.x;
+    let ed=abs(length(hp.xy)-AP);
+    col+=vec3f(0.04,0.04,0.06)*smoothstep(0.04,0.0,ed);
+  }
+
+  // Glass tint for through-lens rays
+  if(thru){col*=vec3f(0.98,0.99,1.0);}
+
+  col=pow(max(col,vec3f(0.0)),vec3f(0.4545));
+  return vec4f(col,1.0);
+}
+`;
+
+async function init(){
+  if(!navigator.gpu){document.getElementById('err').style.display='flex';return;}
+  const adapter=await navigator.gpu.requestAdapter();
+  if(!adapter){document.getElementById('err').style.display='flex';return;}
+  const device=await adapter.requestDevice();
+  const ctx=canvas.getContext('webgpu');
+  const fmt=navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({device,format:fmt,alphaMode:'opaque'});
+
+  let w,h;
+  function resize(){const d=Math.min(devicePixelRatio,1.5);
+    w=canvas.clientWidth*d|0;h=canvas.clientHeight*d|0;canvas.width=w;canvas.height=h;}
+  resize();addEventListener('resize',resize);
+
+  const ub=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const mod=device.createShaderModule({code:shader});
+  const ci=await mod.getCompilationInfo();
+  const errs=ci.messages.filter(m=>m.type==='error');
+  if(errs.length){const el=document.getElementById('err');
+    el.textContent='Shader: '+errs.map(m=>'L'+m.lineNum+': '+m.message).join(' | ');
+    el.style.display='flex';return;}
+  let pipe;
+  try{pipe=await device.createRenderPipelineAsync({layout:'auto',
+    vertex:{module:mod,entryPoint:'vs'},
+    fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]},
+    primitive:{topology:'triangle-list'}});}
+  catch(e){document.getElementById('err').textContent='Pipeline: '+e.message;
+    document.getElementById('err').style.display='flex';return;}
+  const bg=device.createBindGroup({layout:pipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:ub}}]});
+
+  let px=0,py=0,foc=3.0,drag=false,ds=null;
+  canvas.addEventListener('pointerdown',e=>{drag=true;
+    ds={x:e.clientX,y:e.clientY,px,py};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag||!ds)return;
+    px=ds.px+(e.clientX-ds.x)*0.002;py=ds.py-(e.clientY-ds.y)*0.002;});
+  canvas.addEventListener('pointerup',()=>{drag=false;ds=null;});
+  canvas.addEventListener('pointercancel',()=>{drag=false;ds=null;});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();
+    foc=Math.max(1.5,Math.min(8.0,foc+e.deltaY*0.003));},{passive:false});
+
+  function frame(ts){
+    requestAnimationFrame(frame);
+    const pb=new Float32Array(8);
+    pb[0]=w;pb[1]=h;pb[2]=ts*0.001;pb[3]=foc;pb[4]=px;pb[5]=py;
+    device.queue.writeBuffer(ub,0,pb);
+    const enc=device.createCommandEncoder();
+    const pass=enc.beginRenderPass({colorAttachments:[{
+      view:ctx.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',
+      clearValue:{r:0,g:0,b:0,a:1}}]});
+    pass.setPipeline(pipe);pass.setBindGroup(0,bg);pass.draw(3);pass.end();
+    device.queue.submit([enc.finish()]);
+  }
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>
