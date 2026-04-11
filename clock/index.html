@@ -50,7 +50,7 @@ const N=P.length, RAD=5.0, CAM_Y=1.2, SC_Y=1.35;
 let yaw=0, pitch=0.12, autoRot=true;
 
 const shader = `
-struct Params { res:vec2f, yaw:f32, pitch:f32, time:f32, target:f32, _a:f32, _b:f32 }
+struct Params { res:vec2f, yaw:f32, pitch:f32, time:f32, tgt:f32, _a:f32, _b:f32 }
 @group(0) @binding(0) var<uniform> p: Params;
 
 fn sdSphere(q:vec3f,r:f32)->f32{return length(q)-r;}
@@ -185,7 +185,7 @@ fn march(ro:vec3f,rd:vec3f)->vec3f{
   }else{
     let sc=sculptCol(id);
     col=sc*0.25+sc*diff*0.5+vec3f(1.0)*spec*0.15;
-    if(p.target>=0.0 && id==i32(round(p.target))){col+=sc*0.4;}
+    if(p.tgt>=0.0 && id==i32(round(p.tgt))){col+=sc*0.4;}
   }
 
   let fog=1.0-exp(-hit.x*hit.x*0.004);
