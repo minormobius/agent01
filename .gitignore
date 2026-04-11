@@ -20,3 +20,6 @@ cards/data/deep-wikipedia.json
 
 # Raw compound data too large for GitHub (130MB+)
 data/yum-compounds.json
+
+# Wrangler local state
+.wrangler/
