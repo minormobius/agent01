@@ -2,50 +2,70 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scope — Ray Traced Lens</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Scope — Ray Traced Microscope</title>
 <style>
-*{margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#000}
-canvas{display:block;width:100%;height:100%}
-#hud{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
-  color:rgba(255,255,255,0.25);font:11px monospace;pointer-events:none;z-index:2}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#08080e}
+#diag{display:block;width:100%;height:30vh;background:#08080e}
+#c{display:block;width:100%;height:70vh;touch-action:none}
+#mag{position:fixed;right:14px;bottom:14px;width:52px;height:52px;border-radius:50%;
+  border:2px solid;font:bold 13px monospace;cursor:pointer;z-index:5;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.7);-webkit-tap-highlight-color:transparent}
+#focLbl{position:fixed;left:14px;bottom:14px;color:rgba(255,255,255,0.3);
+  font:11px monospace;pointer-events:none;z-index:2}
 #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-  color:#f88;font:16px monospace;text-align:center;padding:20px}
+  color:#f88;font:16px monospace;text-align:center;padding:20px;z-index:10}
 </style>
 </head>
 <body>
+<canvas id="diag"></canvas>
 <canvas id="c"></canvas>
-<div id="hud">drag to pan sample · scroll to focus</div>
+<div id="mag" onclick="cycleObj()">10x</div>
+<div id="focLbl"></div>
 <div id="err">WebGPU not available.</div>
 <script>
 'use strict';
-const canvas=document.getElementById('c');
-const shader=`
-struct Params { res:vec2f, tm:f32, foc:f32, pan:vec2f, _a:f32, _b:f32 }
-@group(0)@binding(0) var<uniform> u:Params;
+const canvas=document.getElementById('c'),diag=document.getElementById('diag');
+const magEl=document.getElementById('mag'),focEl=document.getElementById('focLbl');
+const dc=diag.getContext('2d');
 
-const RC=2.5;
-const HT=0.2;
-const AP=1.0;
+const OBJ=[
+  {label:'4x',  na:0.10,rc:5.5,ap:1.5,ht:0.12,wd:5.0,camz:-8.7,fov:1.6,color:'#e44'},
+  {label:'10x', na:0.25,rc:2.5,ap:1.0,ht:0.20,wd:3.0,camz:-5.5,fov:1.5,color:'#fa0'},
+  {label:'20x', na:0.40,rc:1.3,ap:0.7,ht:0.15,wd:1.8,camz:-3.6,fov:1.4,color:'#2b5'},
+  {label:'40x', na:0.65,rc:0.7,ap:0.45,ht:0.10,wd:1.0,camz:-2.1,fov:1.3,color:'#38f'},
+  {label:'100x',na:1.25,rc:0.3,ap:0.25,ht:0.05,wd:0.45,camz:-1.0,fov:1.1,color:'#ddd'},
+];
+let objIdx=1,focTgt=3.0,px=0,py=0;
+let cur={rc:2.5,ap:1.0,ht:0.20,camz:-5.5,fov:1.5,wd:3.0,foc:3.0};
+
+window.cycleObj=function(){
+  objIdx=(objIdx+1)%OBJ.length;
+  const o=OBJ[objIdx];
+  focTgt=o.wd; px=0; py=0;
+  magEl.textContent=o.label;
+  magEl.style.color=o.color;
+  magEl.style.borderColor=o.color;
+};
+magEl.style.color=OBJ[1].color;magEl.style.borderColor=OBJ[1].color;
+
+const shader=`
+struct Params{res:vec2f,tm:f32,foc:f32,pan:vec2f,rc:f32,ap:f32,ht:f32,camz:f32,fov:f32,_p:f32}
+@group(0)@binding(0) var<uniform> u:Params;
 const NG=1.52;
-const FCTR=vec3f(0.0,0.0,RC-HT);
-const BCTR=vec3f(0.0,0.0,HT-RC);
 
 fn rSph(ro:vec3f,rd:vec3f,c:vec3f,r:f32)->vec2f{
   let oc=ro-c;let b=dot(oc,rd);let d=b*b-dot(oc,oc)+r*r;
-  if(d<0.0){return vec2f(-1.0);}
-  let s=sqrt(d);return vec2f(-b-s,-b+s);
+  if(d<0.0){return vec2f(-1.0);}let s=sqrt(d);return vec2f(-b-s,-b+s);
 }
-
 fn cell(p:vec2f,ct:vec2f,r:f32,col:vec3f)->vec3f{
-  let d=length(p-ct);
-  if(d>r){return vec3f(0.0);}
+  let d=length(p-ct);if(d>r){return vec3f(0.0);}
   let fill=col*0.12;
   let ring=smoothstep(r,r-0.006,d)*(1.0-smoothstep(r-0.006,r-0.012,d));
   return fill+col*ring*0.8;
 }
-
 fn specimen(p:vec2f)->vec3f{
   var c=vec3f(0.005,0.008,0.005);
   let g=abs(fract(p*20.0)-vec2f(0.5));
@@ -59,71 +79,115 @@ fn specimen(p:vec2f)->vec3f{
   c=max(c,cell(p,vec2f(0.08,0.14),0.025,vec3f(1.0,0.6,0.1)));
   return c;
 }
-
 @vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
   let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
   return vec4f(p[v],0,1);
 }
-
 @fragment fn fs(@builtin(position) fc:vec4f)->@location(0) vec4f{
   let uv=(fc.xy-u.res*0.5)/u.res.y;
-  let ro0=vec3f(0.0,0.0,-4.0);
-  let rd0=normalize(vec3f(uv,1.5));
-  var ro=ro0;var rd=rd0;
+  let fctr=vec3f(0.0,0.0,u.rc-u.ht);
+  let bctr=vec3f(0.0,0.0,u.ht-u.rc);
+  var ro=vec3f(0.0,0.0,u.camz);var rd=normalize(vec3f(uv,u.fov));
+  let ro0=ro;let rd0=rd;
   var tr=1.0;var thru=false;
 
-  // Front lens surface
-  let ft=rSph(ro,rd,FCTR,RC);
-  if(ft.x>0.0){
-    let hp=ro+rd*ft.x;
-    if(length(hp.xy)<AP){
-      let n=normalize(hp-FCTR);
-      let ci=abs(dot(rd,n));
+  let ft=rSph(ro,rd,fctr,u.rc);
+  if(ft.x>0.0){let hp=ro+rd*ft.x;
+    if(length(hp.xy)<u.ap){
+      let n=normalize(hp-fctr);let ci=abs(dot(rd,n));
       tr*=1.0-(0.04+0.96*pow(1.0-ci,5.0));
       let rf=refract(rd,n,1.0/NG);
       if(dot(rf,rf)>0.0){ro=hp+rf*0.001;rd=rf;thru=true;}
     }
   }
-
-  // Back lens surface
-  if(thru){
-    let bt=rSph(ro,rd,BCTR,RC);
-    if(bt.y>0.0){
-      let hp=ro+rd*bt.y;
-      let n=normalize(BCTR-hp);
-      let ci=abs(dot(rd,n));
+  if(thru){let bt=rSph(ro,rd,bctr,u.rc);
+    if(bt.y>0.0){let hp=ro+rd*bt.y;
+      let n=normalize(bctr-hp);let ci=abs(dot(rd,n));
       tr*=1.0-(0.04+0.96*pow(1.0-ci,5.0));
       let rf=refract(rd,n,NG);
-      if(dot(rf,rf)>0.0){ro=hp+rf*0.001;rd=rf;}
-      else{tr=0.0;}
+      if(dot(rf,rf)>0.0){ro=hp+rf*0.001;rd=rf;}else{tr=0.0;}
     }
   }
-
-  // Sample plane
   var col=vec3f(0.0);
-  if(rd.z>0.001){
-    let t=(u.foc-ro.z)/rd.z;
-    if(t>0.0){
-      let sp=ro+rd*t;
-      col=specimen(sp.xy-u.pan)*tr;
-    }
+  if(rd.z>0.001){let t=(u.foc-ro.z)/rd.z;
+    if(t>0.0){let sp=ro+rd*t;col=specimen(sp.xy-u.pan)*tr;}
   }
-
-  // Lens edge ring
-  if(!thru && ft.x>0.0){
-    let hp=ro0+rd0*ft.x;
-    let ed=abs(length(hp.xy)-AP);
+  if(!thru&&ft.x>0.0){let hp=ro0+rd0*ft.x;
+    let ed=abs(length(hp.xy)-u.ap);
     col+=vec3f(0.04,0.04,0.06)*smoothstep(0.04,0.0,ed);
   }
-
-  // Glass tint for through-lens rays
   if(thru){col*=vec3f(0.98,0.99,1.0);}
-
   col=pow(max(col,vec3f(0.0)),vec3f(0.4545));
   return vec4f(col,1.0);
 }
 `;
 
+/* ── Diagram ── */
+function dLens(x,y,hw,hh,col){
+  dc.fillStyle=col+'20';dc.strokeStyle=col+'90';dc.lineWidth=1.5;
+  dc.beginPath();dc.moveTo(x,y-hh);
+  dc.quadraticCurveTo(x+hw,y,x,y+hh);
+  dc.quadraticCurveTo(x-hw,y,x,y-hh);
+  dc.fill();dc.stroke();
+}
+function drawDiag(){
+  const W=diag.width,H=diag.height;dc.clearRect(0,0,W,H);
+  const cy=H*0.48,pad=W*0.06,ax=W-pad*2;
+  const o=OBJ[objIdx];
+  const exF=0.06,txF=0.30,oxF=0.58;
+  const smpF=Math.max(0.73,Math.min(0.93,0.83+(cur.foc-cur.wd)*0.04));
+  const ex=pad+exF*ax,tx=pad+txF*ax,ox=pad+oxF*ax,sx=pad+smpF*ax;
+  const fs=Math.max(8,H*0.075);
+
+  // axis
+  dc.strokeStyle='rgba(255,255,255,0.08)';dc.lineWidth=1;
+  dc.setLineDash([3,3]);dc.beginPath();dc.moveTo(ex,cy);dc.lineTo(sx,cy);dc.stroke();
+  dc.setLineDash([]);
+
+  // rays
+  const oh=H*0.17,th=H*0.20,sh=H*0.10;
+  dc.lineWidth=1;
+  [-0.7,-0.3,0.3,0.7].forEach(r=>{
+    dc.strokeStyle=o.color+'25';
+    dc.beginPath();dc.moveTo(sx,cy+r*sh);dc.lineTo(ox,cy+r*oh*0.35);
+    dc.lineTo(tx,cy+r*th*0.15);dc.lineTo(ex,cy);dc.stroke();
+  });
+
+  // tube lens
+  dLens(tx,cy,5,th*0.7,'#667');
+  // objective
+  const omag=Math.sqrt(o.na)*1.4;
+  dLens(ox,cy,3+omag*4,oh*(0.3+omag*0.5),o.color);
+
+  // eye
+  dc.fillStyle='#999';dc.beginPath();dc.arc(ex,cy,3,0,Math.PI*2);dc.fill();
+  // sample line
+  dc.strokeStyle='#6a6';dc.lineWidth=2;
+  dc.beginPath();dc.moveTo(sx,cy-sh*1.2);dc.lineTo(sx,cy+sh*1.2);dc.stroke();
+  // sample ticks
+  dc.lineWidth=1;
+  for(let i=-2;i<=2;i++){
+    const ty=cy+i*sh*0.4;
+    dc.beginPath();dc.moveTo(sx-3,ty);dc.lineTo(sx+3,ty);dc.stroke();
+  }
+
+  // labels
+  dc.textAlign='center';dc.font=fs+'px monospace';
+  dc.fillStyle='rgba(255,255,255,0.35)';
+  const ly=cy+oh+fs+4;
+  dc.fillText('Eye',ex,ly);dc.fillText('Tube',tx,ly);
+  dc.fillStyle=o.color;dc.fillText(o.label,ox,ly);
+  dc.fillStyle='#6a6';dc.fillText('Sample',sx,ly);
+  // NA
+  dc.font=(fs*0.8)+'px monospace';dc.fillStyle='rgba(255,255,255,0.25)';
+  dc.fillText('NA '+o.na.toFixed(2),ox,cy-oh-4);
+  // focus indicator
+  dc.fillStyle='rgba(255,255,255,0.15)';dc.font=(fs*0.7)+'px monospace';
+  const fd=cur.foc-cur.wd;
+  dc.fillText((fd>=0?'+':'')+fd.toFixed(2),sx,cy+sh*1.2+fs+2);
+}
+
+/* ── WebGPU ── */
 async function init(){
   if(!navigator.gpu){document.getElementById('err').style.display='flex';return;}
   const adapter=await navigator.gpu.requestAdapter();
@@ -134,8 +198,13 @@ async function init(){
   ctx.configure({device,format:fmt,alphaMode:'opaque'});
 
   let w,h;
-  function resize(){const d=Math.min(devicePixelRatio,1.5);
-    w=canvas.clientWidth*d|0;h=canvas.clientHeight*d|0;canvas.width=w;canvas.height=h;}
+  function resize(){
+    const d=Math.min(devicePixelRatio,1.5);
+    w=canvas.clientWidth*d|0;h=canvas.clientHeight*d|0;
+    canvas.width=w;canvas.height=h;
+    const dd=Math.min(devicePixelRatio,2);
+    diag.width=diag.clientWidth*dd|0;diag.height=diag.clientHeight*dd|0;
+  }
   resize();addEventListener('resize',resize);
 
   const ub=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
@@ -155,20 +224,53 @@ async function init(){
   const bg=device.createBindGroup({layout:pipe.getBindGroupLayout(0),
     entries:[{binding:0,resource:{buffer:ub}}]});
 
-  let px=0,py=0,foc=3.0,drag=false,ds=null;
-  canvas.addEventListener('pointerdown',e=>{drag=true;
-    ds={x:e.clientX,y:e.clientY,px,py};canvas.setPointerCapture(e.pointerId);});
-  canvas.addEventListener('pointermove',e=>{if(!drag||!ds)return;
-    px=ds.px+(e.clientX-ds.x)*0.002;py=ds.py-(e.clientY-ds.y)*0.002;});
-  canvas.addEventListener('pointerup',()=>{drag=false;ds=null;});
-  canvas.addEventListener('pointercancel',()=>{drag=false;ds=null;});
-  canvas.addEventListener('wheel',e=>{e.preventDefault();
-    foc=Math.max(1.5,Math.min(8.0,foc+e.deltaY*0.003));},{passive:false});
+  /* ── Input ── */
+  const ptrs=new Map();
+  let ds=null,pinchD0=0,focAtPinch=0;
 
+  canvas.addEventListener('pointerdown',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    canvas.setPointerCapture(e.pointerId);
+    if(ptrs.size===1){ds={x:e.clientX,y:e.clientY,px,py};}
+    if(ptrs.size===2){ds=null;
+      const[a,b]=[...ptrs.values()];
+      pinchD0=Math.hypot(a.x-b.x,a.y-b.y);focAtPinch=focTgt;}
+  });
+  canvas.addEventListener('pointermove',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1&&ds){
+      const o=OBJ[objIdx],s=0.001*(o.wd/3);
+      px=ds.px+(e.clientX-ds.x)*s;py=ds.py-(e.clientY-ds.y)*s;
+    }
+    if(ptrs.size>=2){
+      const vs=[...ptrs.values()];
+      const d=Math.hypot(vs[0].x-vs[1].x,vs[0].y-vs[1].y);
+      const o=OBJ[objIdx];
+      focTgt=Math.max(o.wd*0.5,Math.min(o.wd*2,focAtPinch+(pinchD0-d)*0.002*o.wd));
+    }
+  });
+  canvas.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);ds=null;});
+  canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);ds=null;});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();
+    const o=OBJ[objIdx];
+    focTgt=Math.max(o.wd*0.5,Math.min(o.wd*2,focTgt+e.deltaY*0.001*o.wd));},{passive:false});
+
+  /* ── Loop ── */
   function frame(ts){
     requestAnimationFrame(frame);
-    const pb=new Float32Array(8);
-    pb[0]=w;pb[1]=h;pb[2]=ts*0.001;pb[3]=foc;pb[4]=px;pb[5]=py;
+    const o=OBJ[objIdx],lr=0.07;
+    cur.rc+=(o.rc-cur.rc)*lr;cur.ap+=(o.ap-cur.ap)*lr;
+    cur.ht+=(o.ht-cur.ht)*lr;cur.camz+=(o.camz-cur.camz)*lr;
+    cur.fov+=(o.fov-cur.fov)*lr;cur.wd+=(o.wd-cur.wd)*lr;
+    cur.foc+=(focTgt-cur.foc)*0.1;
+
+    focEl.textContent=o.label+' · f '+cur.foc.toFixed(2);
+    drawDiag();
+
+    const pb=new Float32Array(12);
+    pb[0]=w;pb[1]=h;pb[2]=ts*0.001;pb[3]=cur.foc;
+    pb[4]=px;pb[5]=py;pb[6]=cur.rc;pb[7]=cur.ap;
+    pb[8]=cur.ht;pb[9]=cur.camz;pb[10]=cur.fov;
     device.queue.writeBuffer(ub,0,pb);
     const enc=device.createCommandEncoder();
     const pass=enc.beginRenderPass({colorAttachments:[{
