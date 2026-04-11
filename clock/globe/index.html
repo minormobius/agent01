@@ -146,23 +146,29 @@ struct VSOut {
   let latR = asin(n.y);
   let lonR = atan2(n.z, n.x);
 
-  // Sample full-color map texture
   let uv = vec2(1.0 - (lonR + 3.14159) / 6.28318, (1.5708 - latR) / 3.14159);
-  let texCol = textureSample(mapTex, mapSamp, uv).rgb;
+  let glow = textureSample(mapTex, mapSamp, uv).r;
 
-  // Subtle grid
-  let latLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(latR * 6.0)));
-  let lonLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(lonR * 6.0))) * step(abs(n.y), 0.95);
-  let grid = max(latLine, lonLine) * 0.025;
+  // Dark base
+  let base = vec3(0.015, 0.02, 0.035);
 
-  // Lighting
+  // Border glow: teal halo + white-hot core
+  let borderCol = vec3(0.12, 0.5, 0.7) * glow + vec3(0.7, 0.85, 1.0) * pow(glow, 3.0);
+
+  // Subtle lighting for 3D shape
   let sun = normalize(vec3(2.0, 1.5, 3.0));
-  let diff = max(dot(n, sun), 0.0) * 0.35;
-  let spec = pow(max(dot(reflect(-sun, n), viewDir), 0.0), 40.0) * 0.1;
-  let VdotN = max(dot(viewDir, n), 0.0);
-  let atmo = vec3(0.12, 0.30, 0.7) * pow(1.0 - VdotN, 4.0) * 0.35;
+  let diff = max(dot(n, sun), 0.0) * 0.06;
 
-  let col = texCol * (0.55 + diff) + spec + grid + atmo;
+  // Atmosphere rim
+  let VdotN = max(dot(viewDir, n), 0.0);
+  let atmo = vec3(0.06, 0.12, 0.3) * pow(1.0 - VdotN, 4.0) * 0.4;
+
+  // Very faint grid
+  let latLine = 1.0 - smoothstep(0.0, 0.015, abs(sin(latR * 6.0)));
+  let lonLine = 1.0 - smoothstep(0.0, 0.015, abs(sin(lonR * 6.0))) * step(abs(n.y), 0.95);
+  let grid = max(latLine, lonLine) * 0.012;
+
+  let col = base * (1.0 + diff) + borderCol + grid + atmo;
   return vec4(col, 1.0);
 }
 `;
@@ -258,86 +264,42 @@ function drawPolys(ctx, arcs, geom, W, H) {
 }
 async function buildMapTexture() {
   const W=1024, H=512;
-  // Step 1: land mask
-  const mask = document.createElement('canvas'); mask.width=W; mask.height=H;
-  const mc = mask.getContext('2d');
-  mc.fillStyle='#000'; mc.fillRect(0,0,W,H);
-  let arcs=null, topo=null;
-  try {
-    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
-    topo = await resp.json(); arcs = decodeArcs(topo);
-    mc.fillStyle='#fff';
-    drawPolys(mc, arcs, topo.objects.land.geometries[0], W, H);
-  } catch(e) { console.warn('Map fetch failed:', e); }
-  const mD = mc.getImageData(0,0,W,H).data;
-
-  // Step 2: full-color pixel rendering
   const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
   const c = cv.getContext('2d');
-  const img = c.createImageData(W,H);
-  const d = img.data;
-  const h13 = x=>((Math.imul(x,0x45d9f3b)>>>0)^((Math.imul(x,0x45d9f3b)>>>0)>>16))&255;
-  for (let y=0;y<H;y++) {
-    const lat=90-y/H*180, aL=Math.abs(lat), t=aL/90;
-    for (let x=0;x<W;x++) {
-      const i=(y*W+x)*4, land=mD[i]>128;
-      const n=(h13(y*1031+x*773)-128)*0.0006;
-      let r,g,b;
-      if (!land) {
-        const warm=1-t;
-        r=6+warm*6+n*3e3; g=14+warm*22+n*2e3; b=50+warm*35+n*2e3;
-      } else if (aL>74) {
-        const f=Math.min((aL-74)/16,1);
-        r=165+f*85+n*6e3; g=175+f*75+n*6e3; b=185+f*65+n*5e3;
-      } else if (aL>60) {
-        const f=(aL-60)/14;
-        r=45+f*120+n*5e3; g=62+f*113+n*4e3; b=38+f*147+n*4e3;
-      } else if (aL>45) {
-        const f=(aL-45)/15;
-        r=28+f*17+n*4e3; g=58+f*4+n*3e3; b=20+f*18+n*3e3;
-      } else if (aL>25) {
-        const f=(aL-25)/20;
-        r=38+f*(-10)+n*4e3; g=55+f*3+n*3e3; b=18+f*2+n*3e3;
-      } else if (aL>8) {
-        r=30+n*4e3; g=52+n*3e3; b=14+n*2e3;
-      } else {
-        r=18+n*3e3; g=48+n*2e3; b=10+n*2e3;
-      }
-      d[i]=Math.max(0,Math.min(255,r));
-      d[i+1]=Math.max(0,Math.min(255,g));
-      d[i+2]=Math.max(0,Math.min(255,b));
-      d[i+3]=255;
-    }
-  }
-  c.putImageData(img,0,0);
-
-  // Step 3: coastline glow + borders
-  if (arcs&&topo) {
+  c.fillStyle='#000'; c.fillRect(0,0,W,H);
+  try {
+    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const topo = await resp.json();
+    const arcs = decodeArcs(topo);
     const px=lon=>(lon+180)/360*W, py=lat=>(90-lat)/180*H;
-    // Coastline glow
-    c.strokeStyle='rgba(60,120,160,0.25)'; c.lineWidth=2.5;
-    const landG=topo.objects.land.geometries[0];
-    const lArcs=landG.type==='MultiPolygon'?landG.arcs:landG.type==='Polygon'?[landG.arcs]:[];
-    for (const poly of lArcs) {
-      for (const ring of poly) {
+    // Stroke all coastlines + country borders
+    function strokeAll(style, width) {
+      c.strokeStyle=style; c.lineWidth=width;
+      const land=topo.objects.land.geometries[0];
+      const lA=land.type==='MultiPolygon'?land.arcs:land.type==='Polygon'?[land.arcs]:[];
+      for (const poly of lA) { for (const ring of poly) {
         const cr=ringCoords(arcs,ring); c.beginPath();
         c.moveTo(px(cr[0][0]),py(cr[0][1]));
         for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]),py(cr[i][1]));
         c.closePath(); c.stroke();
+      }}
+      for (const geo of topo.objects.countries.geometries) {
+        const rings=geo.type==='Polygon'?[geo.arcs]:geo.type==='MultiPolygon'?geo.arcs:[];
+        for (const poly of rings) {
+          const cr=ringCoords(arcs,poly[0]); c.beginPath();
+          c.moveTo(px(cr[0][0]),py(cr[0][1]));
+          for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]),py(cr[i][1]));
+          c.closePath(); c.stroke();
+        }
       }
     }
-    // Country borders
-    c.strokeStyle='rgba(30,40,50,0.5)'; c.lineWidth=0.7;
-    for (const geo of topo.objects.countries.geometries) {
-      const rings=geo.type==='Polygon'?[geo.arcs]:geo.type==='MultiPolygon'?geo.arcs:[];
-      for (const poly of rings) {
-        const cr=ringCoords(arcs,poly[0]); c.beginPath();
-        c.moveTo(px(cr[0][0]),py(cr[0][1]));
-        for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]),py(cr[i][1]));
-        c.closePath(); c.stroke();
-      }
-    }
-  }
+    // Multi-pass glow: wide dim halo → narrow bright core
+    strokeAll('rgba(100,210,255,0.06)', 7);
+    strokeAll('rgba(100,210,255,0.12)', 4);
+    strokeAll('rgba(140,225,255,0.25)', 2.2);
+    strokeAll('rgba(200,240,255,0.55)', 1.1);
+    strokeAll('rgba(255,255,255,0.85)', 0.5);
+  } catch(e) { console.warn('Map fetch failed:', e); }
   return cv;
 }
 
