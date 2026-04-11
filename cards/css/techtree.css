@@ -1,233 +1,76 @@
-/* ── Tech Tree — Civilization-style dependency visualization ── */
+/* ── Tech Tree — infinite canvas ──────────────────────────── */
 
-.tt-subtitle {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-  letter-spacing: 0.1em;
-  margin-top: -0.4rem;
-}
-
-.tt-main {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+body.tt-body {
+  overflow: hidden;
   min-height: 0;
+  height: 100vh;
+  width: 100vw;
+  display: block;
+  padding: 0;
+  margin: 0;
 }
 
-/* ── Controls ─────────────────────────────────────────────── */
-
-.tt-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.4rem 0.8rem;
-  border-bottom: 1px solid var(--border);
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.tt-filters {
-  display: flex;
-  gap: 0.3rem;
-  flex-wrap: wrap;
-}
-
-.tt-filter-btn {
-  font-size: 0.65rem;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: system-ui, sans-serif;
-}
-
-.tt-filter-btn:hover { color: var(--text); border-color: var(--text-dim); }
-.tt-filter-btn.active { color: var(--gold); border-color: var(--gold-dim); background: rgba(201,168,76,0.08); }
-
-.tt-zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.tt-zoom-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tt-zoom-btn:hover { color: var(--text); border-color: var(--text-dim); }
-
-.tt-zoom-label {
-  font-size: 0.65rem;
-  color: var(--text-dim);
-  min-width: 36px;
-  text-align: center;
-  font-family: system-ui, sans-serif;
-}
-
-/* ── Viewport ─────────────────────────────────────────────── */
-
-.tt-viewport {
-  flex: 1;
-  overflow: auto;
-  position: relative;
-  min-height: 400px;
-  cursor: grab;
-}
-.tt-viewport:active { cursor: grabbing; }
-
-.tt-canvas {
-  position: relative;
-  transform-origin: 0 0;
-}
-
-.tt-svg {
-  position: absolute;
-  top: 0;
-  left: 0;
+#tree-canvas {
+  display: block;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  overflow: visible;
+  cursor: grab;
 }
+#tree-canvas:active { cursor: grabbing; }
 
-.tt-nodes {
-  position: relative;
-}
+/* ── HUD ──────────────────────────────────────────────────── */
 
-/* ── Era columns ──────────────────────────────────────────── */
-
-.tt-era-band {
-  position: absolute;
+.tt-hud {
+  position: fixed;
   top: 0;
-  border-right: 1px solid var(--border);
-  opacity: 0.12;
-}
-
-.tt-era-label {
-  position: absolute;
-  top: 4px;
-  font-size: 0.6rem;
-  font-family: system-ui, sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  white-space: nowrap;
-  z-index: 2;
-  pointer-events: none;
-  padding: 0.2rem 0.4rem;
-  background: var(--bg);
-  border-radius: 3px;
-}
-
-/* ── Nodes ────────────────────────────────────────────────── */
-
-.tt-node {
-  position: absolute;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px 3px 6px;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  background: linear-gradient(var(--bg), transparent);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tt-back {
+  pointer-events: auto;
+  color: var(--gold);
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.tt-hud-title {
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.tt-hud-count {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  font-family: system-ui, sans-serif;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────── */
+
+.tt-tip {
+  position: fixed;
+  padding: 0.25rem 0.5rem;
+  background: #222;
   border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--card-bg);
+  border-radius: 4px;
   font-size: 0.65rem;
   color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-  z-index: 1;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tt-node:hover {
-  z-index: 10;
-  border-color: var(--gold-dim);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-  transform: scale(1.05);
-}
-
-.tt-node .tt-node-icon {
-  font-size: 0.75rem;
-  flex-shrink: 0;
-}
-
-.tt-node .tt-node-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Node states */
-.tt-node.dead { opacity: 0.55; }
-.tt-node.dead .tt-node-name { text-decoration: line-through; text-decoration-color: rgba(200,50,50,0.4); }
-
-.tt-node.rarity-uncommon { border-color: #2e7d3288; }
-.tt-node.rarity-rare { border-color: #1565c088; }
-.tt-node.rarity-legendary { border-color: rgba(201,168,76,0.5); }
-
-/* Highlight states */
-.tt-node.ancestor {
-  border-color: var(--gold) !important;
-  box-shadow: 0 0 8px rgba(201,168,76,0.4);
-  z-index: 5;
-}
-
-.tt-node.descendant {
-  border-color: #4682B4 !important;
-  box-shadow: 0 0 8px rgba(70,130,180,0.4);
-  z-index: 5;
-}
-
-.tt-node.selected {
-  border-color: #fff !important;
-  box-shadow: 0 0 12px rgba(255,255,255,0.3);
-  z-index: 20;
-  transform: scale(1.1);
-}
-
-.tt-node.dimmed {
-  opacity: 0.15;
-}
-
-/* ── SVG connections ──────────────────────────────────────── */
-
-.tt-svg path.tt-edge {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 1;
-  opacity: 0.5;
   pointer-events: none;
+  z-index: 20;
+  white-space: nowrap;
+  font-family: system-ui, sans-serif;
 }
 
-.tt-svg path.tt-edge.highlighted {
-  stroke: var(--gold);
-  stroke-width: 2;
-  opacity: 1;
-}
-
-.tt-svg path.tt-edge.highlighted-desc {
-  stroke: #4682B4;
-  stroke-width: 2;
-  opacity: 1;
-}
-
-.tt-svg path.tt-edge.dimmed {
-  opacity: 0.06;
-}
+.tt-tip.hidden { display: none; }
 
 /* ── Detail panel ─────────────────────────────────────────── */
 
@@ -236,35 +79,30 @@
   bottom: 0;
   left: 0;
   right: 0;
-  max-height: 45vh;
+  max-height: 42vh;
   overflow-y: auto;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 0.8rem 1rem;
-  z-index: 100;
-  animation: tt-slide-up 0.2s ease-out;
+  padding: 0.6rem 0.8rem;
+  z-index: 30;
+  animation: tt-up 0.2s ease-out;
 }
-
-@keyframes tt-slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
 .tt-detail.hidden { display: none; }
+@keyframes tt-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-.tt-detail-header {
+.tt-d-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
 }
 
-.tt-detail-title {
-  font-size: 1.1rem;
+.tt-d-title {
+  font-size: 1rem;
   font-weight: 700;
 }
 
-.tt-detail-close {
+.tt-d-close {
   background: none;
   border: none;
   color: var(--text-dim);
@@ -273,92 +111,81 @@
   padding: 0 0.3rem;
   line-height: 1;
 }
-.tt-detail-close:hover { color: var(--text); }
+.tt-d-close:hover { color: var(--text); }
 
-.tt-detail-meta {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-  margin-bottom: 0.4rem;
-  font-family: system-ui, sans-serif;
-}
-
-.tt-detail-status {
-  font-size: 0.6rem;
+.tt-d-status {
+  font-size: 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 0.1rem 0.4rem;
+  padding: 0.1rem 0.35rem;
   border-radius: 3px;
   margin-left: 0.3rem;
   vertical-align: middle;
 }
-.tt-detail-status.alive { background: rgba(50,200,50,0.15); color: #4a4; }
-.tt-detail-status.dead { background: rgba(200,50,50,0.15); color: #c44; }
-.tt-detail-status.evolved { background: rgba(200,180,50,0.15); color: #cc4; }
+.tt-d-status.alive { background: rgba(50,200,50,0.15); color: #4a4; }
+.tt-d-status.dead { background: rgba(200,50,50,0.15); color: #c44; }
+.tt-d-status.evolved { background: rgba(200,180,50,0.15); color: #cc4; }
 
-.tt-detail-deps {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.4rem;
-}
-
-.tt-detail-dep-section h4 {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.tt-d-meta {
+  font-size: 0.65rem;
   color: var(--text-dim);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.3rem;
   font-family: system-ui, sans-serif;
 }
 
-.tt-dep-tag {
+.tt-d-chain {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+  font-family: system-ui, sans-serif;
+  font-style: italic;
+}
+
+.tt-d-deps { margin-bottom: 0.3rem; }
+
+.tt-d-deps h4 {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin: 0.3rem 0 0.15rem;
+  font-family: system-ui, sans-serif;
+}
+
+.tt-dep {
   display: inline-block;
   font-size: 0.6rem;
-  padding: 0.1rem 0.4rem;
+  padding: 0.1rem 0.35rem;
   border: 1px solid var(--border);
   border-radius: 3px;
-  margin: 0.1rem 0.15rem 0.1rem 0;
+  margin: 0.1rem 0.1rem 0.1rem 0;
   cursor: pointer;
-  color: var(--text-dim);
   transition: all 0.15s;
 }
-.tt-dep-tag:hover { border-color: var(--gold-dim); color: var(--gold); }
-.tt-dep-tag.req { border-color: rgba(201,168,76,0.3); color: var(--gold); }
-.tt-dep-tag.enables { border-color: rgba(70,130,180,0.3); color: #6ba3d0; }
+.tt-dep:hover { border-color: var(--gold-dim); color: var(--gold); }
+.tt-dep.req { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+.tt-dep.ena { border-color: rgba(70,130,180,0.3); color: #6ba3d0; }
 
-.tt-detail-extract {
-  font-size: 0.75rem;
+.tt-d-extract {
+  font-size: 0.7rem;
   line-height: 1.5;
   color: var(--text-dim);
-  margin-top: 0.4rem;
-}
-
-.tt-detail-link {
-  font-size: 0.7rem;
-  color: var(--gold);
-  display: inline-block;
   margin-top: 0.3rem;
 }
 
-/* ── Responsive ───────────────────────────────────────────── */
-
-@media (max-width: 600px) {
-  .tt-node { font-size: 0.58rem; padding: 2px 5px 2px 4px; max-width: 140px; }
-  .tt-detail { max-height: 55vh; }
-  .tt-controls { padding: 0.3rem 0.5rem; }
+.tt-d-link {
+  font-size: 0.65rem;
+  color: var(--gold);
+  display: inline-block;
+  margin-top: 0.25rem;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 900px) {
   .tt-detail {
-    position: fixed;
-    right: 0;
-    top: auto;
-    bottom: 0;
     left: auto;
-    width: 360px;
-    max-height: 60vh;
+    width: 340px;
+    max-height: 55vh;
     border-left: 1px solid var(--border);
-    border-top: 1px solid var(--border);
     border-radius: 8px 0 0 0;
   }
 }
