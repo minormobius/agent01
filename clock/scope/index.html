@@ -55,7 +55,7 @@ let cur={f_obj:OBJ[1].f_obj, z_obj:OBJ[1].z_obj, z_tube:OBJ[1].z_tube,
   z_image:OBJ[1].z_image, ap_obj:OBJ[1].ap_obj, na:OBJ[1].na, foc:0};
 
 window.cycleObj=function(){
-  objIdx=(objIdx+1)%OBJ.length; focTgt=0; px=0; py=0;
+  objIdx=(objIdx+1)%OBJ.length; focTgt=0;
   const o=OBJ[objIdx];
   magEl.textContent=o.label; magEl.style.color=o.color; magEl.style.borderColor=o.color;
 };
@@ -283,7 +283,7 @@ async function init(){
     ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptrs.size===1&&ds){
       const o=OBJ[objIdx], s=0.0003*o.fov;
-      px=ds.px+(e.clientX-ds.x)*s; py=ds.py-(e.clientY-ds.y)*s;}
+      px=ds.px+(e.clientX-ds.x)*s; py=ds.py+(e.clientY-ds.y)*s;}
     if(ptrs.size>=2){const vs=[...ptrs.values()];
       const d=Math.hypot(vs[0].x-vs[1].x,vs[0].y-vs[1].y);
       const o=OBJ[objIdx], sens=o.dof*0.02;
