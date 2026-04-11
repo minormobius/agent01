@@ -95,7 +95,7 @@ function mat4LookAt(eye,tgt,up){
 }
 function mat4Mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[i+k*4]*b[k+j*4];o[i+j*4]=s;}return o;}
 
-// === WGSL: Globe (procedural sphere from vertex_index) ===
+// === WGSL: Globe (procedural sphere + map texture) ===
 const globeShader = `
 struct Params {
   viewProj: mat4x4<f32>,
@@ -103,6 +103,8 @@ struct Params {
   time: f32,
 }
 @group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var mapTex: texture_2d<f32>;
+@group(0) @binding(2) var mapSamp: sampler;
 
 struct VSOut {
   @builtin(position) pos: vec4<f32>,
@@ -138,110 +140,59 @@ struct VSOut {
   return out;
 }
 
-// Gaussian blob with longitude wrapping
-fn gblob(lat: f32, lon: f32, clat: f32, clon: f32, rlat: f32, rlon: f32) -> f32 {
-  var dlon = lon - clon;
-  if (dlon > 180.0) { dlon -= 360.0; }
-  if (dlon < -180.0) { dlon += 360.0; }
-  return exp(-pow((lat - clat) / rlat, 2.0) - pow(dlon / rlon, 2.0));
-}
-
 @fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
   let n = normalize(in.normal);
   let viewDir = normalize(p.camPos - in.wpos);
   let latR = asin(n.y);
   let lonR = atan2(n.z, n.x);
-  let lat = latR * 57.2958;  // degrees
-  let lon = lonR * 57.2958;
+  let lat = latR * 57.2958;
 
-  // === Procedural continents: gaussian blobs ===
-  var d: f32 = 0.0;
-  // Africa
-  d = max(d, gblob(lat,lon, 8.0, 20.0, 20.0, 14.0));   // central
-  d = max(d, gblob(lat,lon, 30.0, 10.0, 8.0, 18.0));    // north (Sahara)
-  d = max(d, gblob(lat,lon, -5.0, 30.0, 12.0, 8.0));    // east (Horn)
-  d = max(d, gblob(lat,lon, -28.0, 25.0, 7.0, 6.0));    // south
-  // Europe
-  d = max(d, gblob(lat,lon, 48.0, 10.0, 8.0, 18.0));
-  d = max(d, gblob(lat,lon, 62.0, 15.0, 6.0, 12.0));    // Scandinavia
-  d = max(d, gblob(lat,lon, 56.0, 40.0, 5.0, 12.0));    // Eastern Europe
-  // Asia
-  d = max(d, gblob(lat,lon, 50.0, 70.0, 15.0, 30.0));   // Central/Siberia
-  d = max(d, gblob(lat,lon, 65.0, 110.0, 7.0, 30.0));   // Northern Siberia
-  d = max(d, gblob(lat,lon, 35.0, 105.0, 10.0, 15.0));  // China
-  d = max(d, gblob(lat,lon, 22.0, 78.0, 10.0, 6.0));    // India
-  d = max(d, gblob(lat,lon, 15.0, 102.0, 12.0, 8.0));   // SE Asia
-  d = max(d, gblob(lat,lon, 30.0, 50.0, 10.0, 12.0));   // Middle East
-  d = max(d, gblob(lat,lon, 37.0, 138.0, 5.0, 3.0));    // Japan
-  d = max(d, gblob(lat,lon, 40.0, 130.0, 4.0, 4.0));    // Korea
-  // North America
-  d = max(d, gblob(lat,lon, 50.0, -95.0, 12.0, 22.0));  // Canada/northern US
-  d = max(d, gblob(lat,lon, 35.0, -100.0, 8.0, 15.0));  // US south
-  d = max(d, gblob(lat,lon, 65.0, -100.0, 7.0, 25.0));  // Northern Canada
-  d = max(d, gblob(lat,lon, 23.0, -102.0, 6.0, 6.0));   // Mexico
-  d = max(d, gblob(lat,lon, 12.0, -84.0, 4.0, 4.0));    // Central America
-  d = max(d, gblob(lat,lon, 72.0, -42.0, 8.0, 10.0));   // Greenland
-  // South America
-  d = max(d, gblob(lat,lon, -5.0, -58.0, 10.0, 12.0));  // Amazon
-  d = max(d, gblob(lat,lon, -20.0, -55.0, 10.0, 8.0));  // Brazil south
-  d = max(d, gblob(lat,lon, -35.0, -65.0, 8.0, 5.0));   // Argentina
-  d = max(d, gblob(lat,lon, 5.0, -72.0, 6.0, 5.0));     // Colombia/Venezuela
-  // Australia
-  d = max(d, gblob(lat,lon, -25.0, 134.0, 10.0, 14.0));
-  // Indonesia
-  d = max(d, gblob(lat,lon, -3.0, 115.0, 4.0, 15.0));
-  d = max(d, gblob(lat,lon, -6.0, 140.0, 3.0, 8.0));    // Papua
-  // New Zealand
-  d = max(d, gblob(lat,lon, -42.0, 173.0, 4.0, 2.0));
-  // UK/Ireland
-  d = max(d, gblob(lat,lon, 54.0, -3.0, 4.0, 3.0));
-  // Antarctica
-  d = max(d, gblob(lat,lon, -82.0, 0.0, 7.0, 80.0));
+  // Sample map texture: R=land, G=border
+  let uv = vec2((lonR + 3.14159) / 6.28318, (1.5708 - latR) / 3.14159);
+  let mapVal = textureSample(mapTex, mapSamp, uv);
+  let land = mapVal.r;
+  let border = mapVal.g;
 
-  let land = smoothstep(0.32, 0.48, d);
-
-  // === Biome coloring by latitude ===
+  // Biome coloring by latitude
   let absLat = abs(lat);
   var biome: vec3<f32>;
-  if (land < 0.5) {
-    // Ocean: darker near equator, slightly lighter at high latitudes
+  if (land < 0.3) {
     let depth = mix(0.08, 0.04, absLat / 90.0);
     biome = vec3(0.02, 0.03 + depth * 0.3, depth + 0.06);
   } else if (absLat > 70.0) {
-    biome = vec3(0.65, 0.70, 0.75); // ice/snow
+    biome = vec3(0.65, 0.70, 0.75);
   } else if (absLat > 58.0) {
-    biome = mix(vec3(0.12, 0.16, 0.10), vec3(0.50, 0.55, 0.55), (absLat - 58.0) / 12.0); // tundra
+    biome = mix(vec3(0.12, 0.16, 0.10), vec3(0.50, 0.55, 0.55), (absLat - 58.0) / 12.0);
   } else if (absLat > 42.0) {
-    biome = vec3(0.08, 0.18, 0.06); // boreal/temperate forest
+    biome = vec3(0.08, 0.18, 0.06);
   } else if (absLat > 25.0) {
-    // Desert belt + some temperate — blend by longitude hint
     let desert = smoothstep(20.0, 30.0, absLat) * (1.0 - smoothstep(30.0, 42.0, absLat));
     biome = mix(vec3(0.10, 0.22, 0.07), vec3(0.35, 0.28, 0.15), desert);
   } else {
-    biome = vec3(0.05, 0.22, 0.04); // tropical forest
+    biome = vec3(0.05, 0.22, 0.04);
   }
 
   // Coastline highlight
-  let coast = smoothstep(0.30, 0.38, d) * (1.0 - smoothstep(0.42, 0.50, d));
-  biome += vec3(0.06, 0.10, 0.14) * coast;
+  let coast = smoothstep(0.2, 0.4, land) * (1.0 - smoothstep(0.5, 0.7, land));
+  biome += vec3(0.04, 0.08, 0.12) * coast;
+  // Border overlay
+  biome += vec3(0.06, 0.08, 0.12) * border * land;
 
-  // Grid lines (subtler now)
+  // Grid lines (very subtle)
   let latLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(latR * 6.0)));
   let lonLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(lonR * 6.0))) * step(abs(n.y), 0.95);
-  let grid = max(latLine, lonLine) * 0.06;
-  let equator = (1.0 - smoothstep(0.0, 0.006, abs(latR))) * 0.05;
+  let grid = max(latLine, lonLine) * 0.03;
 
   // Lighting
   let sun = normalize(vec3(2.0, 1.5, 3.0));
   let diff = max(dot(n, sun), 0.0) * 0.25;
   let spec = pow(max(dot(reflect(-sun, n), viewDir), 0.0), 40.0) * 0.12;
 
-  // Atmospheric fresnel glow
   let VdotN = max(dot(viewDir, n), 0.0);
   let fresnel = pow(1.0 - VdotN, 4.0);
   let atmo = vec3(0.12, 0.30, 0.7) * fresnel * 0.35;
 
-  let col = biome * (0.6 + diff) + spec + grid + equator + atmo;
+  let col = biome * (0.6 + diff) + spec + grid + atmo;
   return vec4(col, 1.0);
 }
 `;
@@ -304,6 +255,69 @@ struct VSOut {
 }
 `;
 
+// === TopoJSON decoder + map renderer ===
+function decodeArcs(topo) {
+  const {scale:[sx,sy], translate:[tx,ty]} = topo.transform;
+  return topo.arcs.map(arc => {
+    let x=0,y=0;
+    return arc.map(([dx,dy]) => { x+=dx; y+=dy; return [x*sx+tx, y*sy+ty]; });
+  });
+}
+function ringCoords(arcs, indices) {
+  let coords = [];
+  for (const i of indices) {
+    const a = i >= 0 ? arcs[i] : arcs[~i].slice().reverse();
+    coords.push(...(coords.length ? a.slice(1) : a));
+  }
+  return coords;
+}
+function drawPolys(ctx, arcs, geom, W, H) {
+  const px = lon => (lon+180)/360*W;
+  const py = lat => (90-lat)/180*H;
+  const rings = geom.type === 'Polygon' ? [geom.arcs] : geom.type === 'MultiPolygon' ? geom.arcs : [];
+  for (const poly of rings) {
+    ctx.beginPath();
+    for (const ring of poly) {
+      const c = ringCoords(arcs, ring);
+      ctx.moveTo(px(c[0][0]), py(c[0][1]));
+      for (let i=1;i<c.length;i++) ctx.lineTo(px(c[i][0]), py(c[i][1]));
+      ctx.closePath();
+    }
+    ctx.fill();
+  }
+}
+async function buildMapTexture() {
+  const W=1024, H=512;
+  const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c = cv.getContext('2d');
+  // Ocean (black = no land)
+  c.fillStyle='#000'; c.fillRect(0,0,W,H);
+  try {
+    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const topo = await resp.json();
+    const arcs = decodeArcs(topo);
+    // Fill land (red channel)
+    c.fillStyle='rgb(255,0,0)';
+    const land = topo.objects.land.geometries[0];
+    drawPolys(c, arcs, land, W, H);
+    // Stroke borders (green channel)
+    c.strokeStyle='rgb(0,255,0)'; c.lineWidth=1.0;
+    const px = lon => (lon+180)/360*W;
+    const py = lat => (90-lat)/180*H;
+    for (const geo of topo.objects.countries.geometries) {
+      const rings = geo.type==='Polygon' ? [geo.arcs] : geo.type==='MultiPolygon' ? geo.arcs : [];
+      for (const poly of rings) {
+        const cr = ringCoords(arcs, poly[0]);
+        c.beginPath();
+        c.moveTo(px(cr[0][0]), py(cr[0][1]));
+        for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]), py(cr[i][1]));
+        c.closePath(); c.stroke();
+      }
+    }
+  } catch(e) { console.warn('Map data fetch failed:', e); }
+  return cv;
+}
+
 // === WebGPU Init ===
 async function init() {
   if (!navigator.gpu) { document.getElementById('noGPU').style.display='flex'; return; }
@@ -342,17 +356,39 @@ async function init() {
   }
   device.queue.writeBuffer(markerBuf, 0, markerData);
 
+  // Map texture from TopoJSON
+  const mapCanvas = await buildMapTexture();
+  const mapTex = device.createTexture({
+    size: [mapCanvas.width, mapCanvas.height], format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: mapCanvas }, { texture: mapTex }, [mapCanvas.width, mapCanvas.height]
+  );
+  const mapSampler = device.createSampler({
+    magFilter: 'linear', minFilter: 'linear',
+    addressModeU: 'repeat', addressModeV: 'clamp-to-edge',
+  });
+
   // Depth texture
   let depthTex = device.createTexture({
     size: [w, h], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT
   });
 
-  // Globe pipeline
+  // Globe pipeline (with map texture)
   const globeModule = device.createShaderModule({ code: globeShader });
   const globeBGL = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }]
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+    ]
   });
-  const globeBG = device.createBindGroup({ layout: globeBGL, entries: [{ binding: 0, resource: { buffer: paramBuf } }] });
+  const globeBG = device.createBindGroup({ layout: globeBGL, entries: [
+    { binding: 0, resource: { buffer: paramBuf } },
+    { binding: 1, resource: mapTex.createView() },
+    { binding: 2, resource: mapSampler },
+  ] });
   const globePipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [globeBGL] }),
     vertex: { module: globeModule, entryPoint: 'vs' },
