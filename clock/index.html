@@ -78,6 +78,7 @@ fn sdStar(q:vec3f,s:f32)->f32{
 fn sdRBox(q:vec3f,b:f32,r:f32)->f32{let d=abs(q)-vec3f(b);return length(max(d,vec3f(0.)))+min(max(d.x,max(d.y,d.z)),0.)-r;}
 
 fn rotY(a:f32)->mat3x3f{let c=cos(a);let s=sin(a);return mat3x3f(vec3f(c,0,s),vec3f(0,1,0),vec3f(-s,0,c));}
+fn rotX(a:f32)->mat3x3f{let c=cos(a);let s=sin(a);return mat3x3f(vec3f(1,0,0),vec3f(0,c,-s),vec3f(0,s,c));}
 
 fn sculptSDF(q:vec3f,id:i32)->f32{
   switch(id){
@@ -114,7 +115,9 @@ fn scene(pos:vec3f)->vec2f{
     if(pedD<d){d=pedD;id=-2.0;}
     let bob=sin(p.time*1.2+f32(i)*0.7)*0.05;
     let sp=pos-vec3f(cx,1.35+bob,cz);
-    let rsp=rotY(p.time*(0.3+f32(i%3)*0.15)+f32(i)*0.5)*sp;
+    let spin=p.time*(0.3+f32(i%3)*0.15)+f32(i)*0.5;
+    let a1=ang+1.5708;
+    let rsp=rotY(a1-spin)*rotX(-0.7)*rotY(-a1)*sp;
     let sD=sculptSDF(rsp,i);
     if(sD<d){d=sD;id=f32(i);}
   }
@@ -184,8 +187,9 @@ fn march(ro:vec3f,rd:vec3f)->vec3f{
     col=vec3f(0.04,0.04,0.045)*(0.6+diff*0.4)+vec3f(spec*0.02);
   }else{
     let sc=sculptCol(id);
-    col=sc*0.25+sc*diff*0.5+vec3f(1.0)*spec*0.15;
-    if(p.tgt>=0.0 && id==i32(round(p.tgt))){col+=sc*0.4;}
+    let fres=pow(1.0-abs(dot(nor,viewDir)),2.5);
+    col=sc*0.12+sc*diff*0.35+vec3f(1.0)*spec*0.15+sc*fres*1.2;
+    if(p.tgt>=0.0 && id==i32(round(p.tgt))){col+=sc*0.5;}
   }
 
   let fog=1.0-exp(-hit.x*hit.x*0.004);
