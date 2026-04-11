@@ -181,7 +181,7 @@ fn march(ro:vec3f,rd:vec3f)->vec3f{
       col+=sculptCol(li)/(1.0+d2*0.12)*0.06;
     }
   }else if(id==-2){
-    col=vec3f(0.04,0.04,0.045)*(0.6+diff*0.4)+spec*0.02;
+    col=vec3f(0.04,0.04,0.045)*(0.6+diff*0.4)+vec3f(spec*0.02);
   }else{
     let sc=sculptCol(id);
     col=sc*0.25+sc*diff*0.5+vec3f(1.0)*spec*0.15;
@@ -228,10 +228,11 @@ async function init(){
   const paramBuf=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const module=device.createShaderModule({code:shader});
   const info=await module.getCompilationInfo();
-  for(const m of info.messages){console.error('WGSL',m.type,m.lineNum,m.message);}
-  if(info.messages.some(m=>m.type==='error')){
-    document.getElementById('noGPU').textContent='Shader error \u2014 check console';
-    document.getElementById('noGPU').style.display='flex';return;
+  const errs=info.messages.filter(m=>m.type==='error');
+  if(errs.length){
+    const el=document.getElementById('noGPU');
+    el.textContent='Shader: '+errs.map(m=>'L'+m.lineNum+': '+m.message).join(' | ');
+    el.style.display='flex';return;
   }
   let pipeline;
   try{
