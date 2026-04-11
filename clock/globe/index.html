@@ -138,31 +138,110 @@ struct VSOut {
   return out;
 }
 
+// Gaussian blob with longitude wrapping
+fn gblob(lat: f32, lon: f32, clat: f32, clon: f32, rlat: f32, rlon: f32) -> f32 {
+  var dlon = lon - clon;
+  if (dlon > 180.0) { dlon -= 360.0; }
+  if (dlon < -180.0) { dlon += 360.0; }
+  return exp(-pow((lat - clat) / rlat, 2.0) - pow(dlon / rlon, 2.0));
+}
+
 @fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
   let n = normalize(in.normal);
   let viewDir = normalize(p.camPos - in.wpos);
+  let latR = asin(n.y);
+  let lonR = atan2(n.z, n.x);
+  let lat = latR * 57.2958;  // degrees
+  let lon = lonR * 57.2958;
 
-  // Lat/lon grid every 30 degrees
-  let lat = asin(n.y);
-  let lon = atan2(n.z, n.x);
-  let latLine = 1.0 - smoothstep(0.0, 0.025, abs(sin(lat * 6.0)));
-  let lonLine = 1.0 - smoothstep(0.0, 0.025, abs(sin(lon * 6.0))) * step(abs(n.y), 0.95);
-  let grid = max(latLine, lonLine) * 0.12;
-  // Brighter equator
-  let equator = (1.0 - smoothstep(0.0, 0.008, abs(lat))) * 0.08;
+  // === Procedural continents: gaussian blobs ===
+  var d: f32 = 0.0;
+  // Africa
+  d = max(d, gblob(lat,lon, 8.0, 20.0, 20.0, 14.0));   // central
+  d = max(d, gblob(lat,lon, 30.0, 10.0, 8.0, 18.0));    // north (Sahara)
+  d = max(d, gblob(lat,lon, -5.0, 30.0, 12.0, 8.0));    // east (Horn)
+  d = max(d, gblob(lat,lon, -28.0, 25.0, 7.0, 6.0));    // south
+  // Europe
+  d = max(d, gblob(lat,lon, 48.0, 10.0, 8.0, 18.0));
+  d = max(d, gblob(lat,lon, 62.0, 15.0, 6.0, 12.0));    // Scandinavia
+  d = max(d, gblob(lat,lon, 56.0, 40.0, 5.0, 12.0));    // Eastern Europe
+  // Asia
+  d = max(d, gblob(lat,lon, 50.0, 70.0, 15.0, 30.0));   // Central/Siberia
+  d = max(d, gblob(lat,lon, 65.0, 110.0, 7.0, 30.0));   // Northern Siberia
+  d = max(d, gblob(lat,lon, 35.0, 105.0, 10.0, 15.0));  // China
+  d = max(d, gblob(lat,lon, 22.0, 78.0, 10.0, 6.0));    // India
+  d = max(d, gblob(lat,lon, 15.0, 102.0, 12.0, 8.0));   // SE Asia
+  d = max(d, gblob(lat,lon, 30.0, 50.0, 10.0, 12.0));   // Middle East
+  d = max(d, gblob(lat,lon, 37.0, 138.0, 5.0, 3.0));    // Japan
+  d = max(d, gblob(lat,lon, 40.0, 130.0, 4.0, 4.0));    // Korea
+  // North America
+  d = max(d, gblob(lat,lon, 50.0, -95.0, 12.0, 22.0));  // Canada/northern US
+  d = max(d, gblob(lat,lon, 35.0, -100.0, 8.0, 15.0));  // US south
+  d = max(d, gblob(lat,lon, 65.0, -100.0, 7.0, 25.0));  // Northern Canada
+  d = max(d, gblob(lat,lon, 23.0, -102.0, 6.0, 6.0));   // Mexico
+  d = max(d, gblob(lat,lon, 12.0, -84.0, 4.0, 4.0));    // Central America
+  d = max(d, gblob(lat,lon, 72.0, -42.0, 8.0, 10.0));   // Greenland
+  // South America
+  d = max(d, gblob(lat,lon, -5.0, -58.0, 10.0, 12.0));  // Amazon
+  d = max(d, gblob(lat,lon, -20.0, -55.0, 10.0, 8.0));  // Brazil south
+  d = max(d, gblob(lat,lon, -35.0, -65.0, 8.0, 5.0));   // Argentina
+  d = max(d, gblob(lat,lon, 5.0, -72.0, 6.0, 5.0));     // Colombia/Venezuela
+  // Australia
+  d = max(d, gblob(lat,lon, -25.0, 134.0, 10.0, 14.0));
+  // Indonesia
+  d = max(d, gblob(lat,lon, -3.0, 115.0, 4.0, 15.0));
+  d = max(d, gblob(lat,lon, -6.0, 140.0, 3.0, 8.0));    // Papua
+  // New Zealand
+  d = max(d, gblob(lat,lon, -42.0, 173.0, 4.0, 2.0));
+  // UK/Ireland
+  d = max(d, gblob(lat,lon, 54.0, -3.0, 4.0, 3.0));
+  // Antarctica
+  d = max(d, gblob(lat,lon, -82.0, 0.0, 7.0, 80.0));
 
-  // Dark base + lighting
-  let base = vec3(0.05, 0.06, 0.10);
+  let land = smoothstep(0.32, 0.48, d);
+
+  // === Biome coloring by latitude ===
+  let absLat = abs(lat);
+  var biome: vec3<f32>;
+  if (land < 0.5) {
+    // Ocean: darker near equator, slightly lighter at high latitudes
+    let depth = mix(0.08, 0.04, absLat / 90.0);
+    biome = vec3(0.02, 0.03 + depth * 0.3, depth + 0.06);
+  } else if (absLat > 70.0) {
+    biome = vec3(0.65, 0.70, 0.75); // ice/snow
+  } else if (absLat > 58.0) {
+    biome = mix(vec3(0.12, 0.16, 0.10), vec3(0.50, 0.55, 0.55), (absLat - 58.0) / 12.0); // tundra
+  } else if (absLat > 42.0) {
+    biome = vec3(0.08, 0.18, 0.06); // boreal/temperate forest
+  } else if (absLat > 25.0) {
+    // Desert belt + some temperate — blend by longitude hint
+    let desert = smoothstep(20.0, 30.0, absLat) * (1.0 - smoothstep(30.0, 42.0, absLat));
+    biome = mix(vec3(0.10, 0.22, 0.07), vec3(0.35, 0.28, 0.15), desert);
+  } else {
+    biome = vec3(0.05, 0.22, 0.04); // tropical forest
+  }
+
+  // Coastline highlight
+  let coast = smoothstep(0.30, 0.38, d) * (1.0 - smoothstep(0.42, 0.50, d));
+  biome += vec3(0.06, 0.10, 0.14) * coast;
+
+  // Grid lines (subtler now)
+  let latLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(latR * 6.0)));
+  let lonLine = 1.0 - smoothstep(0.0, 0.02, abs(sin(lonR * 6.0))) * step(abs(n.y), 0.95);
+  let grid = max(latLine, lonLine) * 0.06;
+  let equator = (1.0 - smoothstep(0.0, 0.006, abs(latR))) * 0.05;
+
+  // Lighting
   let sun = normalize(vec3(2.0, 1.5, 3.0));
-  let diff = max(dot(n, sun), 0.0) * 0.12;
-  let spec = pow(max(dot(reflect(-sun, n), viewDir), 0.0), 40.0) * 0.15;
+  let diff = max(dot(n, sun), 0.0) * 0.25;
+  let spec = pow(max(dot(reflect(-sun, n), viewDir), 0.0), 40.0) * 0.12;
 
   // Atmospheric fresnel glow
   let VdotN = max(dot(viewDir, n), 0.0);
   let fresnel = pow(1.0 - VdotN, 4.0);
-  let atmo = vec3(0.15, 0.35, 0.8) * fresnel * 0.35;
+  let atmo = vec3(0.12, 0.30, 0.7) * fresnel * 0.35;
 
-  let col = base + diff + spec + grid + equator + atmo;
+  let col = biome * (0.6 + diff) + spec + grid + equator + atmo;
   return vec4(col, 1.0);
 }
 `;
