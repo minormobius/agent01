@@ -42,8 +42,10 @@ export const TECH_POOL = [
   ["Pottery", "prehistoric", { domain: "materials", year: -29000, status: "alive", complexity: 2, prereqs: ["Control of fire by early humans"], rarity: "common" }],
   ["Neolithic Revolution", "prehistoric", { domain: "agriculture", year: -10000, status: "alive", complexity: 2, prereqs: [], rarity: "legendary" }],
   ["Animal husbandry", "prehistoric", { domain: "agriculture", year: -10000, status: "alive", complexity: 2, prereqs: ["Neolithic Revolution"], rarity: "uncommon" }],
+  ["Selective breeding", "prehistoric", { domain: "agriculture", year: -9000, status: "alive", complexity: 2, prereqs: ["Neolithic Revolution", "Animal husbandry"], rarity: "uncommon" }],
   ["Irrigation", "prehistoric", { domain: "agriculture", year: -6000, status: "alive", complexity: 3, prereqs: ["Neolithic Revolution"], rarity: "rare" }],
   ["Weaving", "prehistoric", { domain: "materials", year: -5000, status: "alive", complexity: 2, prereqs: ["Rope"], rarity: "common" }],
+  ["Loom", "prehistoric", { domain: "materials", year: -4000, status: "alive", complexity: 3, prereqs: ["Weaving"], rarity: "uncommon" }],
   ["Leather", "prehistoric", { domain: "materials", year: -5000, status: "alive", complexity: 2, prereqs: ["Animal husbandry", "Stone tool"], rarity: "common" }],
   ["Wheel", "prehistoric", { domain: "transportation", year: -3500, status: "alive", complexity: 2, prereqs: [], rarity: "legendary" }],
   ["Fermentation in food processing", "prehistoric", { domain: "agriculture", year: -7000, status: "alive", complexity: 1, prereqs: ["Pottery"], rarity: "uncommon" }],
@@ -90,6 +92,13 @@ export const TECH_POOL = [
   ["Water clock", "ancient", { domain: "computing", year: -1500, status: "dead", complexity: 2, prereqs: ["Sundial", "Pottery"], rarity: "uncommon" }],
   ["Surgical suture", "ancient", { domain: "medicine", year: -3000, status: "alive", complexity: 2, prereqs: [], rarity: "common" }],
   ["Prosthesis", "ancient", { domain: "medicine", year: -1500, status: "evolved", complexity: 3, prereqs: ["Leather", "Bronze"], rarity: "uncommon" }],
+  ["Dam", "ancient", { domain: "construction", year: -3000, status: "alive", complexity: 4, prereqs: ["Irrigation", "Mudbrick"], rarity: "uncommon" }],
+  ["Soap", "ancient", { domain: "materials", year: -2800, status: "alive", complexity: 2, prereqs: ["Animal husbandry", "Control of fire by early humans"], rarity: "common" }],
+  ["Forging", "ancient", { domain: "materials", year: -2000, status: "alive", complexity: 3, prereqs: ["Bronze", "Bellows"], rarity: "uncommon" }],
+  ["Casting", "ancient", { domain: "materials", year: -3000, status: "alive", complexity: 3, prereqs: ["Smelting", "Pottery"], rarity: "uncommon" }],
+  ["Surveying", "ancient", { domain: "construction", year: -2600, status: "alive", complexity: 3, prereqs: ["Geometry", "Rope"], rarity: "uncommon" }],
+  ["Plumbing", "ancient", { domain: "construction", year: -2500, status: "alive", complexity: 3, prereqs: ["Pottery", "Mudbrick"], rarity: "uncommon" }],
+  ["Screw (simple machine)", "ancient", { domain: "construction", year: -300, status: "alive", complexity: 2, prereqs: ["Bronze"], rarity: "common" }],
 
   // ── Medieval ───────────────────────────────────────────────
   ["Heavy plough", "medieval", { domain: "agriculture", year: 600, status: "evolved", complexity: 3, prereqs: ["Iron", "Animal husbandry"], rarity: "uncommon" }],
@@ -118,6 +127,7 @@ export const TECH_POOL = [
   ["Paper money", "medieval", { domain: "finance", year: 1024, status: "alive", complexity: 3, prereqs: ["Paper", "Coin", "Woodblock printing"], rarity: "rare" }],
   ["Insurance", "medieval", { domain: "finance", year: 1347, status: "alive", complexity: 3, prereqs: ["Cartography", "Coin"], rarity: "uncommon" }],
   ["Quarantine", "medieval", { domain: "medicine", year: 1377, status: "alive", complexity: 2, prereqs: [], rarity: "uncommon" }],
+  ["Mining", "medieval", { domain: "materials", year: 1000, status: "alive", complexity: 4, prereqs: ["Iron", "Rope"], rarity: "uncommon" }],
 
   // ── Renaissance ────────────────────────────────────────────
   ["Printing press", "renaissance", { domain: "communication", year: 1440, status: "alive", complexity: 5, prereqs: ["Woodblock printing", "Paper", "Steel"], rarity: "legendary" }],
@@ -141,6 +151,8 @@ export const TECH_POOL = [
   ["Joint-stock company", "renaissance", { domain: "finance", year: 1602, status: "alive", complexity: 4, prereqs: ["Insurance", "Galleon"], rarity: "uncommon" }],
   ["Leyden jar", "renaissance", { domain: "electronics", year: 1745, status: "evolved", complexity: 3, prereqs: ["Glassblowing"], rarity: "uncommon" }],
   ["Blood transfusion", "renaissance", { domain: "medicine", year: 1665, status: "alive", complexity: 4, prereqs: ["Microscope"], rarity: "uncommon" }],
+  ["Scientific method", "renaissance", { domain: "communication", year: 1620, status: "alive", complexity: 5, prereqs: ["University", "Printing press"], rarity: "legendary" }],
+  ["Lathe", "renaissance", { domain: "materials", year: 1550, status: "alive", complexity: 4, prereqs: ["Iron", "Gear"], rarity: "uncommon" }],
 
   // ── Industrial ─────────────────────────────────────────────
   ["Steam engine", "industrial", { domain: "energy", year: 1712, status: "evolved", complexity: 6, prereqs: ["Iron", "Bellows"], rarity: "legendary" }],
@@ -189,6 +201,15 @@ export const TECH_POOL = [
   ["Gold standard", "industrial", { domain: "finance", year: 1821, status: "dead", complexity: 4, prereqs: ["Coin", "Central banking"], rarity: "uncommon" }],
   ["Wire transfer", "industrial", { domain: "finance", year: 1872, status: "evolved", complexity: 5, prereqs: ["Electrical telegraph", "Central banking"], rarity: "uncommon" }],
   ["Futures exchange", "industrial", { domain: "finance", year: 1848, status: "alive", complexity: 5, prereqs: ["Stock exchange", "Steam locomotive"], rarity: "uncommon" }],
+  ["Lightning rod", "industrial", { domain: "electronics", year: 1752, status: "alive", complexity: 3, prereqs: ["Iron", "Leyden jar"], rarity: "uncommon" }],
+  ["Safety valve", "industrial", { domain: "energy", year: 1681, status: "alive", complexity: 2, prereqs: ["Iron"], rarity: "common" }],
+  ["Gas lighting", "industrial", { domain: "energy", year: 1792, status: "evolved", complexity: 4, prereqs: ["Iron", "Distillation"], rarity: "uncommon" }],
+  ["Canning", "industrial", { domain: "agriculture", year: 1810, status: "alive", complexity: 3, prereqs: ["Steel", "Glassblowing"], rarity: "uncommon" }],
+  ["Interchangeable parts", "industrial", { domain: "materials", year: 1801, status: "alive", complexity: 5, prereqs: ["Lathe", "Steel"], rarity: "rare" }],
+  ["Oil well", "industrial", { domain: "energy", year: 1859, status: "alive", complexity: 5, prereqs: ["Steel", "Steam engine"], rarity: "uncommon" }],
+  ["Oil refinery", "industrial", { domain: "energy", year: 1861, status: "alive", complexity: 6, prereqs: ["Distillation", "Oil well"], rarity: "uncommon" }],
+  ["Welding", "industrial", { domain: "materials", year: 1881, status: "alive", complexity: 5, prereqs: ["Dynamo", "Steel"], rarity: "uncommon" }],
+  ["Pipeline transport", "industrial", { domain: "transportation", year: 1865, status: "alive", complexity: 4, prereqs: ["Iron", "Oil well"], rarity: "uncommon" }],
 
   // ── Modern (1900–1970) ─────────────────────────────────────
   ["Radio", "modern", { domain: "communication", year: 1895, status: "alive", complexity: 6, prereqs: ["Electrical telegraph", "Dynamo"], rarity: "rare" }],
@@ -250,6 +271,7 @@ export const TECH_POOL = [
   ["Fluorescent lamp", "modern", { domain: "energy", year: 1926, status: "evolved", complexity: 5, prereqs: ["Vacuum tube", "Incandescent light bulb"], rarity: "common" }],
   ["Containerization", "modern", { domain: "transportation", year: 1956, status: "alive", complexity: 5, prereqs: ["Steel", "Sextant", "Steam locomotive"], rarity: "uncommon" }],
   ["Credit card", "modern", { domain: "finance", year: 1950, status: "alive", complexity: 4, prereqs: ["Telephone", "Central banking"], rarity: "uncommon" }],
+  ["Water purification", "modern", { domain: "medicine", year: 1908, status: "alive", complexity: 5, prereqs: ["Germ theory of disease"], rarity: "uncommon" }],
 
   // ── Information (1970–2010) ────────────────────────────────
   ["Atomic clock", "information", { domain: "computing", year: 1955, status: "alive", complexity: 8, prereqs: ["Chronometer", "Radar"], rarity: "rare" }],
