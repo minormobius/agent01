@@ -4,10 +4,11 @@ import { fetchArticleData } from "./shared.js";
 
 /* ── Config ──────────────────────────────────────────────── */
 const NODE_R = 30;          // image circle radius (world px)
-const GAP = 16;             // min gap between node edges
+const GAP = 16;             // min gap between node edges (arc-length)
+const RING_GAP = 50;        // min gap between rings (radial direction)
 const SPAN = Math.PI * 1.5; // 270° fan (3/4 circle, open at bottom)
 const HALF = SPAN / 2;      // 135° each side of vertical
-const DOM_GRAVITY = 0.30;   // how strongly nodes cling to domain sector
+const DOM_GRAVITY = 0.45;   // how strongly nodes cling to domain sector
 
 /* ── Build graph ─────────────────────────────────────────── */
 const nodes = TECH_POOL.map((t, i) => ({
@@ -37,12 +38,12 @@ nodes.forEach(n => levels[n.depth].push(n));
 
 // Ring radii — sized so arc-length per node ≥ diameter + gap
 const radii = [];
-{ let rv = 140;
+{ let rv = 180;
   for (let d = 0; d <= maxDepth; d++) {
     const count = levels[d].length;
     rv = Math.max(rv, (count * (NODE_R * 2 + GAP)) / SPAN);
     radii[d] = rv;
-    rv += NODE_R * 2 + GAP;
+    rv += NODE_R * 2 + RING_GAP;
   }
 }
 
