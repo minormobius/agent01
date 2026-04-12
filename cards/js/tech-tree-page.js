@@ -7,7 +7,7 @@ const NODE_R = 30;          // image circle radius (world px)
 const GAP = 16;             // min gap between node edges (arc-length)
 const SPAN = Math.PI * 1.5; // 270° fan (3/4 circle, open at bottom)
 const HALF = SPAN / 2;      // 135° each side of vertical
-const DOM_GRAVITY = 0.45;   // how strongly nodes cling to domain sector
+const DOM_GRAVITY = 0.70;   // how strongly nodes cling to domain sector
 const INNER_R = 600;        // innermost node radius (year-based)
 const OUTER_R = 6000;       // outermost node radius
 
@@ -113,22 +113,33 @@ function separate(pos, minGap, lo, hi) {
   }
 }
 
-// Deeper levels: gravity toward parents + soft domain sector pull
+// Deeper levels: gravity toward parents + domain sector pull, clamped per sector
 for (let d = 1; d <= maxDepth; d++) {
-  const avgR = levels[d].reduce((s, n) => s + n.rv, 0) / levels[d].length;
-  const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
-
+  // Compute pull targets and clamp to sector bounds
   levels[d].forEach(n => {
+    const sec = domSectors[n.props.domain];
     const pa = n.props.prereqs.map(p => ang[p]).filter(a => a != null);
     const parentPull = pa.length ? pa.reduce((s, v) => s + v, 0) / pa.length : 0;
-    const domPull = domSectors[n.props.domain].mid;
-    n._pull = parentPull * (1 - DOM_GRAVITY) + domPull * DOM_GRAVITY;
+    const domPull = sec.mid;
+    const raw = parentPull * (1 - DOM_GRAVITY) + domPull * DOM_GRAVITY;
+    // Hard-clamp to own sector so cards never leave their pie slice
+    n._pull = Math.max(sec.start, Math.min(sec.end, raw));
   });
-  levels[d].sort((a, b) => a._pull - b._pull);
 
-  const pos = levels[d].map(n => n._pull);
-  separate(pos, minGap);
-  levels[d].forEach((n, i) => { ang[n.title] = pos[i]; });
+  // Separate within each sector independently (polar-aware)
+  for (const dom of domKeys) {
+    const sec = domSectors[dom];
+    const group = levels[d].filter(n => n.props.domain === dom);
+    if (!group.length) continue;
+    const avgR = group.reduce((s, n) => s + n.rv, 0) / group.length;
+    const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
+    group.sort((a, b) => a._pull - b._pull);
+    const pos = group.map(n => n._pull);
+    // Use sector bounds as hard limits for separation
+    const pad = minGap * 0.4;
+    separate(pos, minGap, sec.start + pad, sec.end - pad);
+    group.forEach((n, i) => { ang[n.title] = pos[i]; });
+  }
 }
 
 // ── Bend relaxation (reduce deflections > 60°) ─────────────
@@ -149,33 +160,43 @@ function bendRad(parent, node, child) {
 for (let iter = 0; iter < 12; iter++) {
   let worst = 0;
   for (let d = 1; d < maxDepth; d++) {
-    const avgR = levels[d].reduce((s, n) => s + n.rv, 0) / levels[d].length;
-    const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
-    const pos = levels[d].map(n => ang[n.title]);
+    // Bend-relax per sector so cards stay in their pie slice
+    for (const dom of domKeys) {
+      const sec = domSectors[dom];
+      const group = levels[d].filter(n => n.props.domain === dom);
+      if (!group.length) continue;
+      const avgR = group.reduce((s, n) => s + n.rv, 0) / group.length;
+      const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
+      const pos = group.map(n => ang[n.title]);
 
-    for (let i = 0; i < levels[d].length; i++) {
-      const n = levels[d][i];
-      const kids = childOf[n.title] || [];
-      if (!kids.length) continue;
-      for (const pT of n.props.prereqs) {
-        if (!byTitle[pT]) continue;
-        for (const cT of kids) {
-          if (!byTitle[cT]) continue;
-          const b = bendRad(pT, n.title, cT);
-          if (b > MAX_BEND) {
-            worst = Math.max(worst, b);
-            pos[i] += ((ang[pT] + ang[cT]) / 2 - pos[i]) * 0.2;
+      for (let i = 0; i < group.length; i++) {
+        const n = group[i];
+        const kids = childOf[n.title] || [];
+        if (!kids.length) continue;
+        for (const pT of n.props.prereqs) {
+          if (!byTitle[pT]) continue;
+          for (const cT of kids) {
+            if (!byTitle[cT]) continue;
+            const b = bendRad(pT, n.title, cT);
+            if (b > MAX_BEND) {
+              worst = Math.max(worst, b);
+              let target = (ang[pT] + ang[cT]) / 2;
+              // Clamp bend target to sector
+              target = Math.max(sec.start, Math.min(sec.end, target));
+              pos[i] += (target - pos[i]) * 0.2;
+            }
           }
         }
       }
+      const pad = minGap * 0.4;
+      separate(pos, minGap, sec.start + pad, sec.end - pad);
+      group.forEach((n, j) => { ang[n.title] = pos[j]; });
     }
-    separate(pos, minGap);
-    levels[d].forEach((n, j) => { ang[n.title] = pos[j]; });
   }
   if (worst <= MAX_BEND) break;
 }
 
-// ── Global overlap resolution (cross-depth collisions) ───────
+// ── Global overlap resolution (cross-depth collisions, sector-clamped) ───────
 for (let pass = 0; pass < 12; pass++) {
   let moved = false;
   for (let i = 0; i < nodes.length; i++) {
@@ -192,8 +213,13 @@ for (let pass = 0; pass < 12; pass++) {
         const nudge = Math.abs(dAng) < 0.001 ? 0.005
           : (minDist - dist) / (ni.rv + nj.rv) * 0.4;
         const sign = dAng >= 0 ? 1 : -1;
-        ang[ni.title] -= nudge * sign;
-        ang[nj.title] += nudge * sign;
+        let newAi = ang[ni.title] - nudge * sign;
+        let newAj = ang[nj.title] + nudge * sign;
+        // Clamp to each node's sector bounds
+        const secI = domSectors[ni.props.domain];
+        const secJ = domSectors[nj.props.domain];
+        ang[ni.title] = Math.max(secI.start, Math.min(secI.end, newAi));
+        ang[nj.title] = Math.max(secJ.start, Math.min(secJ.end, newAj));
         moved = true;
       }
     }
