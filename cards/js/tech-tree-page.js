@@ -5,8 +5,8 @@ import { fetchArticleData } from "./shared.js";
 /* ── Config ──────────────────────────────────────────────── */
 const NODE_R = 30;          // image circle radius (world px)
 const GAP = 16;             // min gap between node edges (arc-length)
-const SPAN = Math.PI * 1.5; // 270° fan (3/4 circle, open at bottom)
-const HALF = SPAN / 2;      // 135° each side of vertical
+const SPAN = Math.PI * (2 / 3); // 120° fan (tight wedge, open at bottom)
+const HALF = SPAN / 2;          // 60° each side of vertical
 const DOM_GRAVITY = 0.70;   // how strongly nodes cling to domain sector
 const INNER_R = 600;        // innermost node radius (year-based)
 const OUTER_R = 6000;       // outermost node radius
