@@ -506,25 +506,21 @@ function drawEdges(hlOnly) {
       if (hlOnly && !hl) continue;
       if (!hlOnly && hl && sel) continue;
 
-      // Polar arc: sweep at parent radius, then radial to child
+      // Polar-straight edge: r = mθ + b  (Archimedean spiral segment)
       const pA = ang[p.title], nA = ang[n.title];
       const pR = p.rv, nR = n.rv;
+      const dA = nA - pA;
 
       ctx.beginPath();
       ctx.moveTo(p.wx, p.wy);
 
-      // Arc from parent angle to child angle at parent radius
-      // Canvas arc angles: 0 = right, π/2 = down
-      // Our polar: angle a → canvas angle = a - π/2
-      const canvasStart = pA - Math.PI / 2;
-      const canvasEnd   = nA - Math.PI / 2;
-      const sweep = nA - pA;
-      // Only arc if there's meaningful angular difference
-      if (Math.abs(sweep) > 0.005) {
-        ctx.arc(0, 0, pR, canvasStart, canvasEnd, sweep < 0);
+      const STEPS = 24;
+      for (let i = 1; i <= STEPS; i++) {
+        const t = i / STEPS;
+        const a = pA + dA * t;
+        const r = pR + (nR - pR) * t;
+        ctx.lineTo(r * Math.sin(a), -r * Math.cos(a));
       }
-      // Radial segment to child
-      ctx.lineTo(n.wx, n.wy);
 
       if (isAnc_ && sel) {
         ctx.strokeStyle = "rgba(201,168,76,0.7)";
