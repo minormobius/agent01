@@ -376,10 +376,11 @@ function computeHexPositions() {
     hy: row * rowH + ((col & 1) ? rowH * 0.5 : 0),
   });
 
-  // Deterministic priority: rarity then complexity (no selection bias
-  // so the grid stays stable while clicking around)
+  // Deterministic priority: TEMPORAL FIRST (oldest nodes fill trunk inward),
+  // then rarity, then complexity.  Ensures strict time ordering radially.
   const sorted = [...nodes].sort((a, b) =>
-    (RARITY_PRI[a.props.rarity] ?? 3) - (RARITY_PRI[b.props.rarity] ?? 3)
+    a.props.year - b.props.year
+    || (RARITY_PRI[a.props.rarity] ?? 3) - (RARITY_PRI[b.props.rarity] ?? 3)
     || b.props.complexity - a.props.complexity
     || a.id - b.id);
 
@@ -387,8 +388,10 @@ function computeHexPositions() {
     const ideal = toHex(n.wx, n.wy);
     let bestCol = ideal.col, bestRow = ideal.row;
     const idealPos = toWorld(ideal.col, ideal.row);
+    const idealR = Math.hypot(idealPos.hx, idealPos.hy);
     const idealFree = !occupied.has(cellKey(ideal.col, ideal.row))
-                      && inFunnel(idealPos.hx, idealPos.hy);
+                      && inFunnel(idealPos.hx, idealPos.hy)
+                      && idealR >= n.rv - wR;
 
     if (!idealFree) {
       let bestDist = Infinity;
@@ -400,7 +403,9 @@ function computeHexPositions() {
             const c = ideal.col + dc, r = ideal.row + dr;
             if (occupied.has(cellKey(c, r))) continue;
             const pos = toWorld(c, r);
-            if (!inFunnel(pos.hx, pos.hy)) continue;   // hard boundary
+            if (!inFunnel(pos.hx, pos.hy)) continue;   // funnel boundary
+            const cellR = Math.hypot(pos.hx, pos.hy);
+            if (cellR < n.rv - wR) continue;            // can't go back in time
             const dist = Math.hypot(pos.hx - idealPos.hx, pos.hy - idealPos.hy);
             if (dist < bestDist) {
               bestDist = dist; bestCol = c; bestRow = r; found = true;
