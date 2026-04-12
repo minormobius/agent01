@@ -24,13 +24,13 @@
       <p>An interactive map of <strong>310 technologies</strong> spanning 3.3 million years of human invention, from stone tools to artificial general intelligence.</p>
 
       <h3>Layout</h3>
-      <p>The tree uses <strong>polar coordinates</strong>. Distance from the center is time &mdash; prehistoric origins sit near the hub, modern and AI-era technologies ring the outer edge. The 120&deg; fan is divided into <strong>12 domain sectors</strong> (Materials, Energy, Computing, Medicine, etc.), each sized proportionally to its number of technologies.</p>
+      <p>The tree uses <strong>polar coordinates</strong>. Distance from the center is time &mdash; prehistoric origins sit near the hub, modern and AI-era technologies ring the outer edge. A narrow 45&deg; fan is divided into <strong>12 domain sectors</strong> (Materials, Energy, Computing, Medicine, etc.); hex packing naturally grows the tree outward as nodes compete for space, producing a trunk-to-canopy shape.</p>
 
       <h3>Nodes</h3>
       <p>Each circle is a Wikipedia article. Nodes maintain a <strong>constant pixel size</strong> at any zoom level and <strong>hex-pack</strong> to avoid overlap when zoomed out. Wikipedia thumbnails load automatically. Border color indicates the technology's domain; legendary-rarity nodes glow.</p>
 
       <h3>Edges</h3>
-      <p>Lines connecting nodes are <strong>prerequisite relationships</strong> &mdash; you need the parent technology before the child becomes possible. Edges follow <strong>polar-straight paths</strong> (Archimedean spiral segments, linear in r vs. &theta;).</p>
+      <p>Lines connecting nodes are <strong>prerequisite relationships</strong> &mdash; you need the parent technology before the child becomes possible. Edges connect the displayed hex windows directly, so they track the actual visual positions at any zoom level.</p>
 
       <h3>Interaction</h3>
       <ul>

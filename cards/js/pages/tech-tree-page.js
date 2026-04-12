@@ -6,8 +6,8 @@ import { fetchArticleData } from "../core/shared.js";
 const NODE_R = 30;          // world-space radius for layout spacing
 const HEX_R = 16;           // constant screen-pixel radius for rendering
 const GAP = 16;             // min gap between node edges (arc-length)
-const SPAN = Math.PI * (2 / 3); // 120° fan (tight wedge, open at bottom)
-const HALF = SPAN / 2;          // 60° each side of vertical
+const SPAN = Math.PI / 4;       // 45° fan (narrow tree, grows outward via hex packing)
+const HALF = SPAN / 2;          // 22.5° each side of vertical
 const DOM_GRAVITY = 0.70;   // how strongly nodes cling to domain sector
 const INNER_R = 600;        // innermost node radius (year-based)
 const OUTER_R = 6000;       // outermost node radius
@@ -427,59 +427,54 @@ function draw() {
   }
 
   // ── Domain sector separators + labels ───────────────────
-  const outerR = OUTER_R + NODE_R * 2;
-  const labelR = outerR + 18;
+  // Extend sector lines to the visible viewport edge, not just OUTER_R
+  const corners = [[-panX / zm, -panY / zm],
+    [(innerWidth - panX) / zm, -panY / zm],
+    [(innerWidth - panX) / zm, (innerHeight - panY) / zm],
+    [-panX / zm, (innerHeight - panY) / zm]];
+  const maxVisR = Math.max(OUTER_R, ...corners.map(([x, y]) => Math.hypot(x, y)));
+  const labelR = maxVisR + 30 / zm;
+
   for (const dom of domKeys) {
     const sec = domSectors[dom];
     const info = TECH_DOMAINS[dom];
 
-    // Sector boundary line (faint radial)
+    // Sector boundary line — extends to viewport edge
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    const bx = outerR * Math.sin(sec.start);
-    const by = -outerR * Math.cos(sec.start);
-    ctx.lineTo(bx, by);
+    ctx.lineTo(maxVisR * Math.sin(sec.start), -maxVisR * Math.cos(sec.start));
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1 / zm;
     ctx.stroke();
 
-    // Sector tint arc (very faint color wash along the outer ring)
+    // Sector tint arc at the outer visible radius
     ctx.beginPath();
-    ctx.arc(0, 0, outerR - 4, -Math.PI / 2 + sec.start, -Math.PI / 2 + sec.end);
+    ctx.arc(0, 0, maxVisR - 4 / zm, -Math.PI / 2 + sec.start, -Math.PI / 2 + sec.end);
     ctx.strokeStyle = (info.color || "#888") + "18";
     ctx.lineWidth = 8 / zm;
     ctx.stroke();
 
-    // Domain label at sector midpoint (only when zoomed out enough to see the full tree)
-    if (zm < 0.9) {
-      const la = sec.mid;
-      const lx = labelR * Math.sin(la);
-      const ly = -labelR * Math.cos(la);
-      ctx.save();
-      ctx.translate(lx, ly);
-      // Rotate text to follow the arc
-      const rot = la;
-      ctx.rotate(rot);
-      // Flip text if on the left half so it reads left-to-right
-      if (la < -Math.PI / 2 || la > Math.PI / 2) {
-        ctx.rotate(Math.PI);
-      }
-      const fs = Math.max(8, 12 / zm);
-      ctx.font = `${fs}px system-ui, sans-serif`;
-      ctx.fillStyle = "rgba(232,228,220,0.35)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`${info.icon} ${info.name}`, 0, 0);
-      ctx.restore();
-    }
+    // Domain label at sector midpoint, pushed to viewport edge
+    const la = sec.mid;
+    const lx = labelR * Math.sin(la);
+    const ly = -labelR * Math.cos(la);
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(la);
+    if (la < -Math.PI / 2 || la > Math.PI / 2) ctx.rotate(Math.PI);
+    const fs = Math.max(8, 14 / zm);
+    ctx.font = `${fs}px system-ui, sans-serif`;
+    ctx.fillStyle = "rgba(232,228,220,0.35)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${info.icon} ${info.name}`, 0, 0);
+    ctx.restore();
   }
   // Closing boundary line for last sector
   { const lastSec = domSectors[domKeys[domKeys.length - 1]];
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    const ex = outerR * Math.sin(lastSec.end);
-    const ey = -outerR * Math.cos(lastSec.end);
-    ctx.lineTo(ex, ey);
+    ctx.lineTo(maxVisR * Math.sin(lastSec.end), -maxVisR * Math.cos(lastSec.end));
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1 / zm;
     ctx.stroke();
@@ -491,14 +486,15 @@ function draw() {
   ctx.fillStyle = "#c9a84c";
   ctx.fill();
 
-  // --- Edges (two passes: dimmed, then highlighted) ---
-  drawEdges(false);
-  if (sel) drawEdges(true);
-
-  // --- Nodes (screen-space hex tiles, world-space grid) ---
+  // --- Hex positions (must compute before edges or nodes) ---
   computeHexPositions();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  // --- Edges (screen-space, between hex windows) ---
+  drawEdges(false);
+  if (sel) drawEdges(true);
+
+  // --- Nodes ---
   for (const n of nodes) {
     // Cull off-screen nodes
     if (n.sx < -HEX_R * 2 || n.sx > innerWidth + HEX_R * 2 ||
@@ -574,6 +570,7 @@ function draw() {
 }
 
 function drawEdges(hlOnly) {
+  // Edges connect hex window centers in screen space
   for (const n of nodes) {
     for (const pTitle of n.props.prereqs) {
       const p = byTitle[pTitle];
@@ -584,34 +581,22 @@ function drawEdges(hlOnly) {
       if (hlOnly && !hl) continue;
       if (!hlOnly && hl && sel) continue;
 
-      // Polar-straight edge: r = mθ + b  (Archimedean spiral segment)
-      const pA = ang[p.title], nA = ang[n.title];
-      const pR = p.rv, nR = n.rv;
-      const dA = nA - pA;
-
       ctx.beginPath();
-      ctx.moveTo(p.wx, p.wy);
-
-      const STEPS = 24;
-      for (let i = 1; i <= STEPS; i++) {
-        const t = i / STEPS;
-        const a = pA + dA * t;
-        const r = pR + (nR - pR) * t;
-        ctx.lineTo(r * Math.sin(a), -r * Math.cos(a));
-      }
+      ctx.moveTo(p.sx, p.sy);
+      ctx.lineTo(n.sx, n.sy);
 
       if (isAnc_ && sel) {
         ctx.strokeStyle = "rgba(201,168,76,0.7)";
-        ctx.lineWidth = 2.5 / zm;
+        ctx.lineWidth = 2;
       } else if (isDesc_ && sel) {
         ctx.strokeStyle = "rgba(70,130,180,0.7)";
-        ctx.lineWidth = 2.5 / zm;
+        ctx.lineWidth = 2;
       } else if (sel) {
         ctx.strokeStyle = "rgba(100,100,100,0.05)";
-        ctx.lineWidth = 0.5 / zm;
+        ctx.lineWidth = 0.5;
       } else {
         ctx.strokeStyle = "rgba(140,130,120,0.18)";
-        ctx.lineWidth = 1 / zm;
+        ctx.lineWidth = 1;
       }
       ctx.stroke();
     }
