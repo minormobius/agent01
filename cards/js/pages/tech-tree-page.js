@@ -12,6 +12,19 @@ const DOM_GRAVITY = 0.70;   // how strongly nodes cling to domain sector
 const INNER_R = 600;        // innermost node radius (year-based)
 const OUTER_R = 6000;       // outermost node radius
 
+/* ── Funnel boundary: θ_max ∝ r² (parabolic tree envelope) ── */
+function funnelHalf(r) {
+  const t = Math.min(1.3, Math.max(0, r / OUTER_R));
+  return HALF * Math.max(0.08, t * t);   // 0.08 = min trunk width
+}
+
+function inFunnel(wx, wy) {
+  const r = Math.hypot(wx, wy);
+  if (r < 1) return true;
+  const theta = Math.atan2(wx, -wy);     // angle from north (our convention)
+  return Math.abs(theta) <= funnelHalf(r);
+}
+
 /* ── Build graph ─────────────────────────────────────────── */
 const nodes = TECH_POOL.map((t, i) => ({
   id: i, title: t[0], era: t[1], props: t[2], wx: 0, wy: 0, sx: 0, sy: 0, depth: 0,
@@ -373,10 +386,13 @@ function computeHexPositions() {
   for (const n of sorted) {
     const ideal = toHex(n.wx, n.wy);
     let bestCol = ideal.col, bestRow = ideal.row;
+    const idealPos = toWorld(ideal.col, ideal.row);
+    const idealFree = !occupied.has(cellKey(ideal.col, ideal.row))
+                      && inFunnel(idealPos.hx, idealPos.hy);
 
-    if (occupied.has(cellKey(ideal.col, ideal.row))) {
+    if (!idealFree) {
       let bestDist = Infinity;
-      for (let ring = 1; ring <= 30; ring++) {
+      for (let ring = 1; ring <= 40; ring++) {
         let found = false;
         for (let dc = -ring; dc <= ring; dc++) {
           for (let dr = -ring; dr <= ring; dr++) {
@@ -384,7 +400,7 @@ function computeHexPositions() {
             const c = ideal.col + dc, r = ideal.row + dr;
             if (occupied.has(cellKey(c, r))) continue;
             const pos = toWorld(c, r);
-            const idealPos = toWorld(ideal.col, ideal.row);
+            if (!inFunnel(pos.hx, pos.hy)) continue;   // hard boundary
             const dist = Math.hypot(pos.hx - idealPos.hx, pos.hy - idealPos.hy);
             if (dist < bestDist) {
               bestDist = dist; bestCol = c; bestRow = r; found = true;
@@ -413,16 +429,31 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(dpr * zm, 0, 0, dpr * zm, dpr * panX, dpr * panY);
 
-  // Era arcs at temporal breakpoints
+  // Era arcs at temporal breakpoints (width follows funnel)
   ctx.strokeStyle = "rgba(255,255,255,0.025)";
   ctx.lineWidth = 1 / zm;
-  const arcStart = -Math.PI / 2 - HALF;  // canvas angle for fan start
-  const arcEnd   = -Math.PI / 2 + HALF;  // canvas angle for fan end
   for (const [, frac] of TIME_BREAKS) {
     if (frac <= 0) continue;
     const r = INNER_R + frac * (OUTER_R - INNER_R);
+    const fh = funnelHalf(r);
     ctx.beginPath();
-    ctx.arc(0, 0, r, arcStart, arcEnd);
+    ctx.arc(0, 0, r, -Math.PI / 2 - fh, -Math.PI / 2 + fh);
+    ctx.stroke();
+  }
+
+  // ── Funnel envelope (parabolic boundary) ─────────────────
+  const FSTEPS = 48;
+  for (const side of [1, -1]) {
+    ctx.beginPath();
+    for (let i = 0; i <= FSTEPS; i++) {
+      const r = INNER_R * 0.2 + (OUTER_R * 1.3 - INNER_R * 0.2) * (i / FSTEPS);
+      const a = side * funnelHalf(r);
+      const fx = r * Math.sin(a);
+      const fy = -r * Math.cos(a);
+      i === 0 ? ctx.moveTo(fx, fy) : ctx.lineTo(fx, fy);
+    }
+    ctx.strokeStyle = "rgba(201,168,76,0.06)";
+    ctx.lineWidth = 1.5 / zm;
     ctx.stroke();
   }
 
