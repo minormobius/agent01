@@ -189,3 +189,87 @@ body.tt-body {
     border-radius: 8px 0 0 0;
   }
 }
+
+/* ── Help button ─────────────────────────────────────────── */
+
+.tt-help-btn {
+  pointer-events: auto;
+  margin-left: auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.tt-help-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+/* ── Docs overlay ────────────────────────────────────────── */
+
+.tt-docs {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 10, 10, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: tt-fade 0.2s ease-out;
+}
+.tt-docs.hidden { display: none; }
+@keyframes tt-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.tt-docs-inner {
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.2rem 1.4rem;
+  position: relative;
+}
+
+.tt-docs-inner h2 {
+  font-size: 1rem;
+  color: var(--gold);
+  margin: 0 0 0.6rem;
+}
+
+.tt-docs-inner h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-dim);
+  margin: 0.8rem 0 0.3rem;
+}
+
+.tt-docs-inner p,
+.tt-docs-inner li {
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.tt-docs-inner ul {
+  padding-left: 1rem;
+  margin: 0.2rem 0;
+}
+
+.tt-docs-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.tt-docs-close:hover { color: var(--text); }

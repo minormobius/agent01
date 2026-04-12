@@ -14,8 +14,35 @@
     <a href=".." class="tt-back">&larr;</a>
     <span class="tt-hud-title">Tech Tree</span>
     <span class="tt-hud-count" id="tt-count"></span>
+    <button class="tt-help-btn" id="tt-help-btn" title="How this works">?</button>
   </div>
   <div id="tt-detail" class="tt-detail hidden"></div>
+  <div id="tt-docs" class="tt-docs hidden">
+    <div class="tt-docs-inner">
+      <button class="tt-docs-close" id="tt-docs-close">&times;</button>
+      <h2>Tech Tree</h2>
+      <p>An interactive map of <strong>310 technologies</strong> spanning 3.3 million years of human invention, from stone tools to artificial general intelligence.</p>
+
+      <h3>Layout</h3>
+      <p>The tree uses <strong>polar coordinates</strong>. Distance from the center is time &mdash; prehistoric origins sit near the hub, modern and AI-era technologies ring the outer edge. The 120&deg; fan is divided into <strong>12 domain sectors</strong> (Materials, Energy, Computing, Medicine, etc.), each sized proportionally to its number of technologies.</p>
+
+      <h3>Nodes</h3>
+      <p>Each circle is a Wikipedia article. Nodes maintain a <strong>constant pixel size</strong> at any zoom level and <strong>hex-pack</strong> to avoid overlap when zoomed out. Wikipedia thumbnails load automatically. Border color indicates the technology's domain; legendary-rarity nodes glow.</p>
+
+      <h3>Edges</h3>
+      <p>Lines connecting nodes are <strong>prerequisite relationships</strong> &mdash; you need the parent technology before the child becomes possible. Edges follow <strong>polar-straight paths</strong> (Archimedean spiral segments, linear in r vs. &theta;).</p>
+
+      <h3>Interaction</h3>
+      <ul>
+        <li><strong>Click</strong> a node to select it. Ancestors highlight gold, descendants highlight blue.</li>
+        <li><strong>Scroll</strong> to zoom, <strong>drag</strong> to pan. Pinch-zoom works on touch.</li>
+        <li>The detail panel shows the Wikipedia extract, prerequisite chain depth, and links to navigate ancestors/descendants.</li>
+      </ul>
+
+      <h3>Data</h3>
+      <p>Each technology has an era, domain, year, status (alive/dead/evolved), complexity (1&ndash;10), rarity, and a list of prerequisite technologies. The pool is curated for a &ldquo;rebuild civilization&rdquo; scenario &mdash; what would you need to reinvent if starting from scratch on another planet?</p>
+    </div>
+  </div>
   <script type="module" src="../js/pages/tech-tree-page.js"></script>
 </body>
 </html>

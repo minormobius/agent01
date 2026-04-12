@@ -3,7 +3,8 @@ import { TECH_ERAS, TECH_DOMAINS, TECH_POOL } from "../pools/tech-pool.js";
 import { fetchArticleData } from "../core/shared.js";
 
 /* ── Config ──────────────────────────────────────────────── */
-const NODE_R = 30;          // image circle radius (world px)
+const NODE_R = 30;          // world-space radius for layout spacing
+const HEX_R = 16;           // constant screen-pixel radius for rendering
 const GAP = 16;             // min gap between node edges (arc-length)
 const SPAN = Math.PI * (2 / 3); // 120° fan (tight wedge, open at bottom)
 const HALF = SPAN / 2;          // 60° each side of vertical
@@ -13,7 +14,7 @@ const OUTER_R = 6000;       // outermost node radius
 
 /* ── Build graph ─────────────────────────────────────────── */
 const nodes = TECH_POOL.map((t, i) => ({
-  id: i, title: t[0], era: t[1], props: t[2], wx: 0, wy: 0, depth: 0,
+  id: i, title: t[0], era: t[1], props: t[2], wx: 0, wy: 0, sx: 0, sy: 0, depth: 0,
 }));
 const byTitle = Object.fromEntries(nodes.map(n => [n.title, n]));
 const childOf = {};
@@ -324,6 +325,67 @@ async function loadImages() {
   }
 }
 
+/* ── Hex packing (constant-pixel nodes, no overlap) ──────── */
+const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
+const hexColW = 1.5 * HEX_R;
+const hexRowH = Math.sqrt(3) * HEX_R;
+
+function computeHexPositions() {
+  const occupied = new Set();
+  const cellKey = (c, r) => c + "," + r;
+  const toHex = (sx, sy) => {
+    const col = Math.round(sx / hexColW);
+    const row = Math.round((sy - ((col & 1) ? hexRowH * 0.5 : 0)) / hexRowH);
+    return { col, row };
+  };
+  const toScreen = (col, row) => ({
+    cx: col * hexColW,
+    cy: row * hexRowH + ((col & 1) ? hexRowH * 0.5 : 0),
+  });
+
+  // Priority: selected lineage first, then rarity, then complexity
+  const sorted = [...nodes].sort((a, b) => {
+    const aHl = sel && (a.title === sel || anc.has(a.title) || desc.has(a.title)) ? 0 : 1;
+    const bHl = sel && (b.title === sel || anc.has(b.title) || desc.has(b.title)) ? 0 : 1;
+    return aHl - bHl
+      || (RARITY_PRI[a.props.rarity] ?? 3) - (RARITY_PRI[b.props.rarity] ?? 3)
+      || b.props.complexity - a.props.complexity;
+  });
+
+  for (const n of sorted) {
+    const sx = n.wx * zm + panX;
+    const sy = n.wy * zm + panY;
+    const ideal = toHex(sx, sy);
+
+    let bestCol = ideal.col, bestRow = ideal.row;
+    if (occupied.has(cellKey(ideal.col, ideal.row))) {
+      let bestDist = Infinity;
+      for (let ring = 1; ring <= 30; ring++) {
+        let found = false;
+        for (let dc = -ring; dc <= ring; dc++) {
+          for (let dr = -ring; dr <= ring; dr++) {
+            if (Math.abs(dc) !== ring && Math.abs(dr) !== ring) continue;
+            const c = ideal.col + dc, r = ideal.row + dr;
+            if (occupied.has(cellKey(c, r))) continue;
+            const pos = toScreen(c, r);
+            const idealPos = toScreen(ideal.col, ideal.row);
+            const dist = Math.hypot(pos.cx - idealPos.cx, pos.cy - idealPos.cy);
+            if (dist < bestDist) {
+              bestDist = dist; bestCol = c; bestRow = r; found = true;
+            }
+          }
+        }
+        if (found) break;
+      }
+    }
+
+    occupied.add(cellKey(bestCol, bestRow));
+    const pos = toScreen(bestCol, bestRow);
+    n.sx = pos.cx;
+    n.sy = pos.cy;
+  }
+}
+
 /* ── Draw ─────────────────────────────────────────────────── */
 function draw() {
   dirty = false;
@@ -332,8 +394,6 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(dpr * zm, 0, 0, dpr * zm, dpr * panX, dpr * panY);
-
-  const sR = NODE_R * zm;  // screen-space node radius
 
   // Era arcs at temporal breakpoints
   ctx.strokeStyle = "rgba(255,255,255,0.025)";
@@ -373,7 +433,7 @@ function draw() {
     ctx.stroke();
 
     // Domain label at sector midpoint (only when zoomed out enough to see the full tree)
-    if (sR < 28) {
+    if (zm < 0.9) {
       const la = sec.mid;
       const lx = labelR * Math.sin(la);
       const ly = -labelR * Math.cos(la);
@@ -414,81 +474,84 @@ function draw() {
   ctx.fill();
 
   // --- Edges (two passes: dimmed, then highlighted) ---
-  drawEdges(false, sR);
-  if (sel) drawEdges(true, sR);
+  drawEdges(false);
+  if (sel) drawEdges(true);
 
-  // --- Nodes ---
+  // --- Nodes (screen-space, hex-packed) ---
+  computeHexPositions();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   for (const n of nodes) {
+    // Cull off-screen nodes
+    if (n.sx < -HEX_R * 2 || n.sx > innerWidth + HEX_R * 2 ||
+        n.sy < -HEX_R * 2 || n.sy > innerHeight + HEX_R * 2) continue;
+
     const isSel = n.title === sel;
-    const isAnc = sel && anc.has(n.title);
-    const isDesc = sel && desc.has(n.title);
-    const dimmed = sel && !isSel && !isAnc && !isDesc;
+    const isAnc_ = sel && anc.has(n.title);
+    const isDesc_ = sel && desc.has(n.title);
+    const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
 
     ctx.globalAlpha = dimmed ? 0.1 : 1;
     const era = TECH_ERAS[n.era];
     const dom = TECH_DOMAINS[n.props.domain];
     const img = images.get(n.title);
 
-    // Image or placeholder
-    if (sR > 10 && img) {
+    // Image or icon placeholder (constant pixel size)
+    if (img) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(n.wx, n.wy, NODE_R - 1, 0, Math.PI * 2);
+      ctx.arc(n.sx, n.sy, HEX_R - 1, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(img, n.wx - NODE_R, n.wy - NODE_R, NODE_R * 2, NODE_R * 2);
+      ctx.drawImage(img, n.sx - HEX_R, n.sy - HEX_R, HEX_R * 2, HEX_R * 2);
       ctx.restore();
     } else {
       ctx.beginPath();
-      ctx.arc(n.wx, n.wy, NODE_R - 1, 0, Math.PI * 2);
+      ctx.arc(n.sx, n.sy, HEX_R - 1, 0, Math.PI * 2);
       ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
       ctx.fill();
-      if (sR > 6) {
-        ctx.font = `${Math.max(10, NODE_R * 0.55)}px sans-serif`;
-        ctx.fillStyle = dom.color || era.color;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(dom.icon, n.wx, n.wy);
-      }
+      ctx.font = `${Math.max(8, HEX_R * 0.7)}px sans-serif`;
+      ctx.fillStyle = dom.color || era.color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(dom.icon, n.sx, n.sy);
     }
 
-    // Border ring with glow for selection states
+    // Border ring
     ctx.beginPath();
-    ctx.arc(n.wx, n.wy, NODE_R, 0, Math.PI * 2);
-    ctx.lineWidth = (isSel ? 3 : 2) / zm;
+    ctx.arc(n.sx, n.sy, HEX_R, 0, Math.PI * 2);
+    ctx.lineWidth = isSel ? 2.5 : 1.5;
 
     if (isSel) {
       ctx.shadowColor = "rgba(255,255,255,0.6)";
-      ctx.shadowBlur = 16 / zm;
+      ctx.shadowBlur = 12;
       ctx.strokeStyle = "#fff";
-    } else if (isAnc) {
+    } else if (isAnc_) {
       ctx.shadowColor = "rgba(201,168,76,0.6)";
-      ctx.shadowBlur = 10 / zm;
+      ctx.shadowBlur = 8;
       ctx.strokeStyle = "#c9a84c";
-    } else if (isDesc) {
+    } else if (isDesc_) {
       ctx.shadowColor = "rgba(70,130,180,0.6)";
-      ctx.shadowBlur = 10 / zm;
+      ctx.shadowBlur = 8;
       ctx.strokeStyle = "#4682B4";
     } else {
       ctx.shadowBlur = 0;
       ctx.strokeStyle = dom.color || era.color;
-      // Rarity glow (unselected)
       if (n.props.rarity === "legendary" && !dimmed) {
         ctx.shadowColor = (dom.color || era.color) + "66";
-        ctx.shadowBlur = 8 / zm;
+        ctx.shadowBlur = 6;
       }
     }
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Title label (only when zoomed in enough)
-    if (sR > 20 && !dimmed) {
-      const fs = Math.min(11, NODE_R * 0.38);
-      ctx.font = `${fs}px system-ui, sans-serif`;
+    // Title label (show when zoomed in enough that there's room)
+    if (zm > 0.25 && !dimmed) {
+      ctx.font = "9px system-ui, sans-serif";
       ctx.fillStyle = "#e8e4dc";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const label = n.title.replace(/ \(.*\)$/, "");
-      ctx.fillText(label.length > 28 ? label.slice(0, 26) + "..." : label, n.wx, n.wy + NODE_R + 4);
+      ctx.fillText(label.length > 22 ? label.slice(0, 20) + "..." : label, n.sx, n.sy + HEX_R + 2);
     }
 
     ctx.globalAlpha = 1;
@@ -548,10 +611,9 @@ function screenToWorld(sx, sy) {
 }
 
 function hitTest(sx, sy) {
-  const { x, y } = screenToWorld(sx, sy);
-  let best = null, bestD = NODE_R + 4;
+  let best = null, bestD = HEX_R + 4;
   for (const n of nodes) {
-    const d = Math.hypot(n.wx - x, n.wy - y);
+    const d = Math.hypot(n.sx - sx, n.sy - sy);
     if (d < bestD) { best = n; bestD = d; }
   }
   return best;
@@ -731,5 +793,11 @@ document.getElementById("tt-count").textContent =
 resize();
 fitView();
 loadImages();
+
+// Docs overlay
+const docsEl = document.getElementById("tt-docs");
+document.getElementById("tt-help-btn").onclick = () => docsEl.classList.toggle("hidden");
+document.getElementById("tt-docs-close").onclick = () => docsEl.classList.add("hidden");
+docsEl.addEventListener("click", e => { if (e.target === docsEl) docsEl.classList.add("hidden"); });
 
 window.addEventListener("resize", () => { resize(); fitView(); });
