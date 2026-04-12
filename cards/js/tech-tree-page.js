@@ -5,8 +5,9 @@ import { fetchArticleData } from "./shared.js";
 /* ── Config ──────────────────────────────────────────────── */
 const NODE_R = 30;          // image circle radius (world px)
 const GAP = 16;             // min gap between node edges
-const SPAN = Math.PI / 2;   // 90° fan
-const HALF = SPAN / 2;      // 45° each side of vertical
+const SPAN = Math.PI * 1.5; // 270° fan (3/4 circle, open at bottom)
+const HALF = SPAN / 2;      // 135° each side of vertical
+const DOM_GRAVITY = 0.30;   // how strongly nodes cling to domain sector
 
 /* ── Build graph ─────────────────────────────────────────── */
 const nodes = TECH_POOL.map((t, i) => ({
@@ -28,9 +29,7 @@ function depth(t) {
 nodes.forEach(n => (n.depth = depth(n.title)));
 const maxDepth = Math.max(...nodes.map(n => n.depth));
 
-/* ── Polar fan layout — momentum + arc-length spacing ────── */
-// Arc-length parameterization: θ_gap = s / r  (uniform spacing
-// along the ring arc, technique from the /track fingerprint spiral)
+/* ── Polar fan layout — domain sectors + arc-length spacing ── */
 const MAX_BEND = Math.PI / 3;           // 60° bend ceiling
 const domKeys = Object.keys(TECH_DOMAINS);
 const levels = Array.from({ length: maxDepth + 1 }, () => []);
@@ -49,17 +48,43 @@ const radii = [];
 
 const ang = {};
 
-// Level 0: domain+year sort, uniform arc-length spacing
-levels[0].sort((a, b) =>
-  (domKeys.indexOf(a.props.domain) - domKeys.indexOf(b.props.domain)) || a.props.year - b.props.year);
-levels[0].forEach((n, i) => {
-  ang[n.title] = -HALF + ((i + 0.5) / levels[0].length) * SPAN;
+// ── Domain sector calculation ──────────────────────────────
+// Each domain gets proportional angular width based on node count
+const SECTOR_PAD = 0.015;  // radians gap between sectors
+const domCount = {};
+domKeys.forEach(k => { domCount[k] = nodes.filter(n => n.props.domain === k).length; });
+const totalCards = nodes.length;
+const padTotal = SECTOR_PAD * domKeys.length;
+const usableSpan = SPAN - padTotal;
+
+const domSectors = {};
+let runAngle = -HALF;
+domKeys.forEach(k => {
+  const width = (domCount[k] / totalCards) * usableSpan;
+  domSectors[k] = { start: runAngle, end: runAngle + width, mid: runAngle + width / 2, width };
+  runAngle += width + SECTOR_PAD;
 });
 
+// Level 0: place roots within their domain sector, sorted by year
+levels[0].sort((a, b) =>
+  (domKeys.indexOf(a.props.domain) - domKeys.indexOf(b.props.domain)) || a.props.year - b.props.year);
+
+const rootsByDom = {};
+levels[0].forEach(n => (rootsByDom[n.props.domain] ??= []).push(n));
+for (const dom of domKeys) {
+  const roots = rootsByDom[dom] || [];
+  const sec = domSectors[dom];
+  roots.forEach((n, i) => {
+    ang[n.title] = sec.start + ((i + 0.5) / Math.max(roots.length, 1)) * sec.width;
+  });
+}
+
 // Helper: push sorted angle array apart to maintain min arc-length gap
-function separate(pos, minGap) {
+function separate(pos, minGap, lo, hi) {
+  if (lo == null) lo = -HALF + minGap * 0.4;
+  if (hi == null) hi = HALF - minGap * 0.4;
   if (pos.length < 2) {
-    if (pos.length === 1) pos[0] = Math.max(-HALF, Math.min(HALF, pos[0]));
+    if (pos.length === 1) pos[0] = Math.max(lo, Math.min(hi, pos[0]));
     return;
   }
   for (let pass = 0; pass < 40; pass++) {
@@ -70,19 +95,20 @@ function separate(pos, minGap) {
         pos[i - 1] -= half;  pos[i] += half;  ok = false;
       }
     }
-    const lo = -HALF + minGap * 0.4, hi = HALF - minGap * 0.4;
     for (let i = 0; i < pos.length; i++) pos[i] = Math.max(lo, Math.min(hi, pos[i]));
     if (ok) break;
   }
 }
 
-// Deeper levels: gravity toward parent angles, arc-length separation
+// Deeper levels: gravity toward parents + soft domain sector pull
 for (let d = 1; d <= maxDepth; d++) {
-  const minGap = (NODE_R * 2 + GAP) / radii[d];  // θ = s / r
+  const minGap = (NODE_R * 2 + GAP) / radii[d];
 
   levels[d].forEach(n => {
     const pa = n.props.prereqs.map(p => ang[p]).filter(a => a != null);
-    n._pull = pa.length ? pa.reduce((s, v) => s + v, 0) / pa.length : 0;
+    const parentPull = pa.length ? pa.reduce((s, v) => s + v, 0) / pa.length : 0;
+    const domPull = domSectors[n.props.domain].mid;
+    n._pull = parentPull * (1 - DOM_GRAVITY) + domPull * DOM_GRAVITY;
   });
   levels[d].sort((a, b) => a._pull - b._pull);
 
@@ -242,12 +268,73 @@ function draw() {
 
   const sR = NODE_R * zm;  // screen-space node radius
 
-  // Depth arcs
-  ctx.strokeStyle = "rgba(255,255,255,0.035)";
+  // Depth arcs (span full fan)
+  ctx.strokeStyle = "rgba(255,255,255,0.025)";
   ctx.lineWidth = 1 / zm;
+  const arcStart = -Math.PI / 2 - HALF;  // canvas angle for fan start
+  const arcEnd   = -Math.PI / 2 + HALF;  // canvas angle for fan end
   for (let d = 0; d <= maxDepth; d++) {
     ctx.beginPath();
-    ctx.arc(0, 0, radii[d], -3 * Math.PI / 4, -Math.PI / 4);
+    ctx.arc(0, 0, radii[d], arcStart, arcEnd);
+    ctx.stroke();
+  }
+
+  // ── Domain sector separators + labels ───────────────────
+  const outerR = radii[maxDepth] + NODE_R * 2;
+  const labelR = outerR + 18;
+  for (const dom of domKeys) {
+    const sec = domSectors[dom];
+    const info = TECH_DOMAINS[dom];
+
+    // Sector boundary line (faint radial)
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    const bx = outerR * Math.sin(sec.start);
+    const by = -outerR * Math.cos(sec.start);
+    ctx.lineTo(bx, by);
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1 / zm;
+    ctx.stroke();
+
+    // Sector tint arc (very faint color wash along the outer ring)
+    ctx.beginPath();
+    ctx.arc(0, 0, outerR - 4, -Math.PI / 2 + sec.start, -Math.PI / 2 + sec.end);
+    ctx.strokeStyle = (info.color || "#888") + "18";
+    ctx.lineWidth = 8 / zm;
+    ctx.stroke();
+
+    // Domain label at sector midpoint (only when zoomed out enough to see the full tree)
+    if (sR < 28) {
+      const la = sec.mid;
+      const lx = labelR * Math.sin(la);
+      const ly = -labelR * Math.cos(la);
+      ctx.save();
+      ctx.translate(lx, ly);
+      // Rotate text to follow the arc
+      const rot = la;
+      ctx.rotate(rot);
+      // Flip text if on the left half so it reads left-to-right
+      if (la < -Math.PI / 2 || la > Math.PI / 2) {
+        ctx.rotate(Math.PI);
+      }
+      const fs = Math.max(8, 12 / zm);
+      ctx.font = `${fs}px system-ui, sans-serif`;
+      ctx.fillStyle = "rgba(232,228,220,0.35)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${info.icon} ${info.name}`, 0, 0);
+      ctx.restore();
+    }
+  }
+  // Closing boundary line for last sector
+  { const lastSec = domSectors[domKeys[domKeys.length - 1]];
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    const ex = outerR * Math.sin(lastSec.end);
+    const ey = -outerR * Math.cos(lastSec.end);
+    ctx.lineTo(ex, ey);
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1 / zm;
     ctx.stroke();
   }
 
@@ -284,11 +371,11 @@ function draw() {
     } else {
       ctx.beginPath();
       ctx.arc(n.wx, n.wy, NODE_R - 1, 0, Math.PI * 2);
-      ctx.fillStyle = era.color + (dimmed ? "11" : "33");
+      ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
       ctx.fill();
       if (sR > 6) {
         ctx.font = `${Math.max(10, NODE_R * 0.55)}px sans-serif`;
-        ctx.fillStyle = era.color;
+        ctx.fillStyle = dom.color || era.color;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(dom.icon, n.wx, n.wy);
@@ -314,10 +401,10 @@ function draw() {
       ctx.strokeStyle = "#4682B4";
     } else {
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = era.color;
+      ctx.strokeStyle = dom.color || era.color;
       // Rarity glow (unselected)
       if (n.props.rarity === "legendary" && !dimmed) {
-        ctx.shadowColor = era.color + "66";
+        ctx.shadowColor = (dom.color || era.color) + "66";
         ctx.shadowBlur = 8 / zm;
       }
     }
@@ -501,8 +588,8 @@ async function showDetail(title) {
       <div class="tt-d-title">${display}<span class="tt-d-status ${n.props.status}">${n.props.status}</span></div>
       <button class="tt-d-close">&times;</button>
     </div>
-    <div class="tt-d-meta" style="color:${era.color}">
-      ${era.icon} ${era.name} · ${dom.icon} ${dom.name} · ${fmtYear(n.props.year)} · Complexity ${n.props.complexity}/10
+    <div class="tt-d-meta">
+      <span style="color:${era.color}">${era.icon} ${era.name}</span> · <span style="color:${dom.color || era.color}">${dom.icon} ${dom.name}</span> · ${fmtYear(n.props.year)} · Complexity ${n.props.complexity}/10
     </div>
     <div class="tt-d-chain">Depth ${n.depth} — ${anc.size} ancestor${anc.size !== 1 ? "s" : ""} · ${desc.size} descendant${desc.size !== 1 ? "s" : ""}</div>
     <div class="tt-d-deps">
