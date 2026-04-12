@@ -52,6 +52,7 @@ export const TECH_POOL = [
   ["Mudbrick", "prehistoric", { domain: "construction", year: -7500, status: "alive", complexity: 2, prereqs: ["Neolithic Revolution"], rarity: "common" }],
   ["Post and lintel", "prehistoric", { domain: "construction", year: -3500, status: "alive", complexity: 1, prereqs: [], rarity: "common" }],
   ["Corbel arch", "prehistoric", { domain: "construction", year: -3000, status: "evolved", complexity: 2, prereqs: ["Mudbrick"], rarity: "common" }],
+  ["Trepanning", "prehistoric", { domain: "medicine", year: -5000, status: "evolved", complexity: 2, prereqs: ["Stone tool"], rarity: "uncommon" }],
 
   // ── Ancient ────────────────────────────────────────────────
   ["Kiln", "ancient", { domain: "materials", year: -6000, status: "alive", complexity: 3, prereqs: ["Control of fire by early humans", "Pottery"], rarity: "uncommon" }],
@@ -87,6 +88,8 @@ export const TECH_POOL = [
   ["Chainmail", "ancient", { domain: "warfare", year: -300, status: "dead", complexity: 4, prereqs: ["Iron"], rarity: "uncommon" }],
   ["Cartography", "ancient", { domain: "communication", year: -600, status: "alive", complexity: 3, prereqs: ["History of writing", "Geometry"], rarity: "uncommon" }],
   ["Water clock", "ancient", { domain: "computing", year: -1500, status: "dead", complexity: 2, prereqs: ["Sundial", "Pottery"], rarity: "uncommon" }],
+  ["Surgical suture", "ancient", { domain: "medicine", year: -3000, status: "alive", complexity: 2, prereqs: [], rarity: "common" }],
+  ["Prosthesis", "ancient", { domain: "medicine", year: -1500, status: "evolved", complexity: 3, prereqs: ["Leather", "Bronze"], rarity: "uncommon" }],
 
   // ── Medieval ───────────────────────────────────────────────
   ["Heavy plough", "medieval", { domain: "agriculture", year: 600, status: "evolved", complexity: 3, prereqs: ["Iron", "Animal husbandry"], rarity: "uncommon" }],
@@ -114,6 +117,7 @@ export const TECH_POOL = [
   ["Hourglass", "medieval", { domain: "optics", year: 1300, status: "dead", complexity: 2, prereqs: ["Glassblowing"], rarity: "common" }],
   ["Paper money", "medieval", { domain: "finance", year: 1024, status: "alive", complexity: 3, prereqs: ["Paper", "Coin", "Woodblock printing"], rarity: "rare" }],
   ["Insurance", "medieval", { domain: "finance", year: 1347, status: "alive", complexity: 3, prereqs: ["Cartography", "Coin"], rarity: "uncommon" }],
+  ["Quarantine", "medieval", { domain: "medicine", year: 1377, status: "alive", complexity: 2, prereqs: [], rarity: "uncommon" }],
 
   // ── Renaissance ────────────────────────────────────────────
   ["Printing press", "renaissance", { domain: "communication", year: 1440, status: "alive", complexity: 5, prereqs: ["Woodblock printing", "Paper", "Steel"], rarity: "legendary" }],
@@ -136,6 +140,7 @@ export const TECH_POOL = [
   ["Central banking", "renaissance", { domain: "finance", year: 1694, status: "alive", complexity: 5, prereqs: ["Paper money", "Stock exchange"], rarity: "rare" }],
   ["Joint-stock company", "renaissance", { domain: "finance", year: 1602, status: "alive", complexity: 4, prereqs: ["Insurance", "Galleon"], rarity: "uncommon" }],
   ["Leyden jar", "renaissance", { domain: "electronics", year: 1745, status: "evolved", complexity: 3, prereqs: ["Glassblowing"], rarity: "uncommon" }],
+  ["Blood transfusion", "renaissance", { domain: "medicine", year: 1665, status: "alive", complexity: 4, prereqs: ["Microscope"], rarity: "uncommon" }],
 
   // ── Industrial ─────────────────────────────────────────────
   ["Steam engine", "industrial", { domain: "energy", year: 1712, status: "evolved", complexity: 6, prereqs: ["Iron", "Bellows"], rarity: "legendary" }],
@@ -170,6 +175,9 @@ export const TECH_POOL = [
   ["Reinforced concrete", "industrial", { domain: "materials", year: 1867, status: "alive", complexity: 5, prereqs: ["Portland cement", "Iron"], rarity: "uncommon" }],
   ["Refrigeration", "industrial", { domain: "energy", year: 1834, status: "alive", complexity: 5, prereqs: ["Steam engine", "Thermometer"], rarity: "uncommon" }],
   ["Stethoscope", "industrial", { domain: "medicine", year: 1816, status: "alive", complexity: 2, prereqs: [], rarity: "common" }],
+  ["Hypodermic needle", "industrial", { domain: "medicine", year: 1853, status: "alive", complexity: 3, prereqs: ["Glassblowing", "Steel"], rarity: "common" }],
+  ["Germ theory of disease", "industrial", { domain: "medicine", year: 1861, status: "alive", complexity: 5, prereqs: ["Microscope"], rarity: "rare" }],
+  ["Pasteurization", "industrial", { domain: "medicine", year: 1864, status: "alive", complexity: 4, prereqs: ["Germ theory of disease", "Thermometer"], rarity: "uncommon" }],
   ["Rifling", "industrial", { domain: "warfare", year: 1710, status: "alive", complexity: 4, prereqs: ["Musket", "Steel"], rarity: "uncommon" }],
   ["Electromagnet", "industrial", { domain: "electronics", year: 1824, status: "alive", complexity: 5, prereqs: ["Voltaic pile", "Iron"], rarity: "rare" }],
   ["Electromagnetic induction", "industrial", { domain: "electronics", year: 1831, status: "alive", complexity: 6, prereqs: ["Electromagnet", "Calculus"], rarity: "rare" }],
@@ -222,6 +230,16 @@ export const TECH_POOL = [
   ["Helicopter", "modern", { domain: "transportation", year: 1939, status: "alive", complexity: 7, prereqs: ["Fixed-wing aircraft"], rarity: "uncommon" }],
   ["Air conditioning", "modern", { domain: "energy", year: 1902, status: "alive", complexity: 5, prereqs: ["Refrigeration", "Electric motor"], rarity: "uncommon" }],
   ["Insulin", "modern", { domain: "medicine", year: 1921, status: "alive", complexity: 6, prereqs: ["Microscope", "Anesthesia"], rarity: "rare" }],
+  ["Electrocardiography", "modern", { domain: "medicine", year: 1903, status: "alive", complexity: 5, prereqs: ["Dynamo"], rarity: "uncommon" }],
+  ["Blood bank", "modern", { domain: "medicine", year: 1937, status: "alive", complexity: 5, prereqs: ["Blood transfusion", "Refrigeration"], rarity: "uncommon" }],
+  ["Chemotherapy", "modern", { domain: "medicine", year: 1946, status: "alive", complexity: 6, prereqs: ["Microscope", "Alchemy"], rarity: "uncommon" }],
+  ["Defibrillation", "modern", { domain: "medicine", year: 1947, status: "alive", complexity: 5, prereqs: ["Electrocardiography"], rarity: "uncommon" }],
+  ["Cardiopulmonary bypass", "modern", { domain: "medicine", year: 1953, status: "alive", complexity: 8, prereqs: ["Anesthesia", "Blood bank"], rarity: "rare" }],
+  ["Organ transplantation", "modern", { domain: "medicine", year: 1954, status: "alive", complexity: 8, prereqs: ["Anesthesia", "Antiseptic", "Blood bank"], rarity: "rare" }],
+  ["Polio vaccine", "modern", { domain: "medicine", year: 1955, status: "alive", complexity: 6, prereqs: ["Vaccination", "Microscope"], rarity: "rare" }],
+  ["Medical ultrasound", "modern", { domain: "medicine", year: 1958, status: "alive", complexity: 6, prereqs: ["Sonar"], rarity: "uncommon" }],
+  ["Artificial cardiac pacemaker", "modern", { domain: "medicine", year: 1958, status: "alive", complexity: 7, prereqs: ["Transistor", "Electrocardiography"], rarity: "rare" }],
+  ["Cochlear implant", "modern", { domain: "medicine", year: 1961, status: "alive", complexity: 7, prereqs: ["Transistor"], rarity: "uncommon" }],
   ["Printed circuit board", "modern", { domain: "electronics", year: 1936, status: "alive", complexity: 5, prereqs: ["Vacuum tube"], rarity: "uncommon" }],
   ["Magnetic tape", "modern", { domain: "communication", year: 1928, status: "dead", complexity: 5, prereqs: ["Dynamo", "Steel"], rarity: "uncommon" }],
   ["Haber process", "modern", { domain: "agriculture", year: 1909, status: "alive", complexity: 7, prereqs: ["Steam engine", "Alchemy"], rarity: "rare" }],
@@ -268,6 +286,11 @@ export const TECH_POOL = [
   ["Communication satellite", "information", { domain: "communication", year: 1962, status: "alive", complexity: 8, prereqs: ["Rocket", "Radio", "Solar cell"], rarity: "rare" }],
   ["Light-emitting diode", "information", { domain: "optics", year: 1962, status: "alive", complexity: 6, prereqs: ["Transistor"], rarity: "uncommon" }],
   ["MRI", "information", { domain: "medicine", year: 1977, status: "alive", complexity: 8, prereqs: ["Microprocessor", "Nuclear power"], rarity: "rare" }],
+  ["CT scan", "information", { domain: "medicine", year: 1971, status: "alive", complexity: 8, prereqs: ["X-ray", "Microprocessor"], rarity: "rare" }],
+  ["Pulse oximetry", "information", { domain: "medicine", year: 1974, status: "alive", complexity: 5, prereqs: ["Light-emitting diode", "Microprocessor"], rarity: "uncommon" }],
+  ["In vitro fertilisation", "information", { domain: "medicine", year: 1978, status: "alive", complexity: 8, prereqs: ["Microscope", "Penicillin"], rarity: "rare" }],
+  ["Stent", "information", { domain: "medicine", year: 1986, status: "alive", complexity: 5, prereqs: ["Stainless steel", "X-ray"], rarity: "uncommon" }],
+  ["Laparoscopic surgery", "information", { domain: "medicine", year: 1987, status: "alive", complexity: 7, prereqs: ["Optical fiber", "Charge-coupled device"], rarity: "uncommon" }],
   ["Lithium-ion battery", "information", { domain: "energy", year: 1991, status: "alive", complexity: 7, prereqs: ["Voltaic pile", "Alchemy"], rarity: "rare" }],
   ["Compact disc", "information", { domain: "communication", year: 1982, status: "dead", complexity: 6, prereqs: ["Laser", "Integrated circuit"], rarity: "uncommon" }],
   ["Digital camera", "information", { domain: "optics", year: 1975, status: "alive", complexity: 7, prereqs: ["Integrated circuit", "Photography"], rarity: "uncommon" }],
@@ -307,6 +330,8 @@ export const TECH_POOL = [
   ["Augmented reality", "ai", { domain: "optics", year: 2016, status: "alive", complexity: 8, prereqs: ["Smartphone", "Deep learning"], rarity: "uncommon" }],
   ["Nuclear fusion", "ai", { domain: "energy", year: 2022, status: "alive", complexity: 10, prereqs: ["Nuclear power", "Laser"], rarity: "rare" }],
   ["Reusable rocket", "ai", { domain: "transportation", year: 2015, status: "alive", complexity: 9, prereqs: ["Rocket", "Microprocessor"], rarity: "uncommon" }],
+  ["Robot-assisted surgery", "ai", { domain: "medicine", year: 2000, status: "alive", complexity: 8, prereqs: ["Robotics", "Laparoscopic surgery"], rarity: "uncommon" }],
+  ["Chimeric antigen receptor T cell", "ai", { domain: "medicine", year: 2017, status: "alive", complexity: 9, prereqs: ["Genetic engineering"], rarity: "rare" }],
   ["Brain-computer interface", "ai", { domain: "medicine", year: 2024, status: "alive", complexity: 10, prereqs: ["Deep learning", "MRI"], rarity: "rare" }],
   ["Autonomous robot", "ai", { domain: "computing", year: 2024, status: "alive", complexity: 9, prereqs: ["Robotics", "Deep learning"], rarity: "uncommon" }],
   ["Artificial general intelligence", "ai", { domain: "computing", year: 2025, status: "alive", complexity: 10, prereqs: ["Intelligent agent", "Quantum computing"], rarity: "legendary" }],
