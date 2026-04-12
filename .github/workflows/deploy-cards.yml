@@ -2,7 +2,7 @@ name: Deploy Cards
 
 on:
   push:
-    branches: [main, 'claude/wiki-card-game-oJbLE']
+    branches: [main, 'claude/*']
     paths:
       - 'cards/**'
       - '.github/workflows/deploy-cards.yml'
