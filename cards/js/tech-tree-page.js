@@ -5,10 +5,11 @@ import { fetchArticleData } from "./shared.js";
 /* ── Config ──────────────────────────────────────────────── */
 const NODE_R = 30;          // image circle radius (world px)
 const GAP = 16;             // min gap between node edges (arc-length)
-const RING_GAP = 50;        // min gap between rings (radial direction)
 const SPAN = Math.PI * 1.5; // 270° fan (3/4 circle, open at bottom)
 const HALF = SPAN / 2;      // 135° each side of vertical
 const DOM_GRAVITY = 0.45;   // how strongly nodes cling to domain sector
+const INNER_R = 600;        // innermost node radius (year-based)
+const OUTER_R = 6000;       // outermost node radius
 
 /* ── Build graph ─────────────────────────────────────────── */
 const nodes = TECH_POOL.map((t, i) => ({
@@ -30,22 +31,33 @@ function depth(t) {
 nodes.forEach(n => (n.depth = depth(n.title)));
 const maxDepth = Math.max(...nodes.map(n => n.depth));
 
+/* ── Year-to-radius mapping (temporal layout) ────────────── */
+const TIME_BREAKS = [
+  [-3500000, 0.00], [-100000, 0.04], [-10000, 0.10], [-3000, 0.18],
+  [0, 0.28], [500, 0.33], [1400, 0.42], [1700, 0.52],
+  [1800, 0.60], [1900, 0.70], [1950, 0.78], [1970, 0.84],
+  [1990, 0.90], [2010, 0.95], [2030, 1.00],
+];
+
+function yearToRadius(year) {
+  if (year <= TIME_BREAKS[0][0]) return INNER_R;
+  for (let i = 1; i < TIME_BREAKS.length; i++) {
+    if (year <= TIME_BREAKS[i][0]) {
+      const t = (year - TIME_BREAKS[i-1][0]) / (TIME_BREAKS[i][0] - TIME_BREAKS[i-1][0]);
+      const frac = TIME_BREAKS[i-1][1] + t * (TIME_BREAKS[i][1] - TIME_BREAKS[i-1][1]);
+      return INNER_R + frac * (OUTER_R - INNER_R);
+    }
+  }
+  return OUTER_R;
+}
+
+nodes.forEach(n => { n.rv = yearToRadius(n.props.year); });
+
 /* ── Polar fan layout — domain sectors + arc-length spacing ── */
 const MAX_BEND = Math.PI / 3;           // 60° bend ceiling
 const domKeys = Object.keys(TECH_DOMAINS);
 const levels = Array.from({ length: maxDepth + 1 }, () => []);
 nodes.forEach(n => levels[n.depth].push(n));
-
-// Ring radii — sized so arc-length per node ≥ diameter + gap
-const radii = [];
-{ let rv = 180;
-  for (let d = 0; d <= maxDepth; d++) {
-    const count = levels[d].length;
-    rv = Math.max(rv, (count * (NODE_R * 2 + GAP)) / SPAN);
-    radii[d] = rv;
-    rv += NODE_R * 2 + RING_GAP;
-  }
-}
 
 const ang = {};
 
@@ -103,7 +115,8 @@ function separate(pos, minGap, lo, hi) {
 
 // Deeper levels: gravity toward parents + soft domain sector pull
 for (let d = 1; d <= maxDepth; d++) {
-  const minGap = (NODE_R * 2 + GAP) / radii[d];
+  const avgR = levels[d].reduce((s, n) => s + n.rv, 0) / levels[d].length;
+  const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
 
   levels[d].forEach(n => {
     const pa = n.props.prereqs.map(p => ang[p]).filter(a => a != null);
@@ -120,8 +133,8 @@ for (let d = 1; d <= maxDepth; d++) {
 
 // ── Bend relaxation (reduce deflections > 60°) ─────────────
 function _xy(title) {
-  const n = byTitle[title], a = ang[title], rv = radii[n.depth];
-  return [rv * Math.sin(a), -rv * Math.cos(a)];
+  const n = byTitle[title], a = ang[title];
+  return [n.rv * Math.sin(a), -n.rv * Math.cos(a)];
 }
 
 function bendRad(parent, node, child) {
@@ -136,7 +149,8 @@ function bendRad(parent, node, child) {
 for (let iter = 0; iter < 12; iter++) {
   let worst = 0;
   for (let d = 1; d < maxDepth; d++) {
-    const minGap = (NODE_R * 2 + GAP) / radii[d];
+    const avgR = levels[d].reduce((s, n) => s + n.rv, 0) / levels[d].length;
+    const minGap = (NODE_R * 2 + GAP) / Math.max(avgR, 200);
     const pos = levels[d].map(n => ang[n.title]);
 
     for (let i = 0; i < levels[d].length; i++) {
@@ -161,11 +175,37 @@ for (let iter = 0; iter < 12; iter++) {
   if (worst <= MAX_BEND) break;
 }
 
+// ── Global overlap resolution (cross-depth collisions) ───────
+for (let pass = 0; pass < 12; pass++) {
+  let moved = false;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const ni = nodes[i], nj = nodes[j];
+      if (Math.abs(ni.rv - nj.rv) > NODE_R * 3) continue;
+      const ai = ang[ni.title], aj = ang[nj.title];
+      const dx = ni.rv * Math.sin(ai) - nj.rv * Math.sin(aj);
+      const dy = ni.rv * Math.cos(ai) - nj.rv * Math.cos(aj);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = NODE_R * 2 + GAP * 0.5;
+      if (dist < minDist && dist > 0.1) {
+        const dAng = aj - ai;
+        const nudge = Math.abs(dAng) < 0.001 ? 0.005
+          : (minDist - dist) / (ni.rv + nj.rv) * 0.4;
+        const sign = dAng >= 0 ? 1 : -1;
+        ang[ni.title] -= nudge * sign;
+        ang[nj.title] += nudge * sign;
+        moved = true;
+      }
+    }
+  }
+  if (!moved) break;
+}
+
 // World positions (origin at 0,0 — Y-up = negative canvas Y)
 nodes.forEach(n => {
-  const a = ang[n.title], rv = radii[n.depth];
-  n.wx = rv * Math.sin(a);
-  n.wy = -rv * Math.cos(a);
+  const a = ang[n.title];
+  n.wx = n.rv * Math.sin(a);
+  n.wy = -n.rv * Math.cos(a);
 });
 
 /* ── Canvas state ────────────────────────────────────────── */
@@ -269,19 +309,21 @@ function draw() {
 
   const sR = NODE_R * zm;  // screen-space node radius
 
-  // Depth arcs (span full fan)
+  // Era arcs at temporal breakpoints
   ctx.strokeStyle = "rgba(255,255,255,0.025)";
   ctx.lineWidth = 1 / zm;
   const arcStart = -Math.PI / 2 - HALF;  // canvas angle for fan start
   const arcEnd   = -Math.PI / 2 + HALF;  // canvas angle for fan end
-  for (let d = 0; d <= maxDepth; d++) {
+  for (const [, frac] of TIME_BREAKS) {
+    if (frac <= 0) continue;
+    const r = INNER_R + frac * (OUTER_R - INNER_R);
     ctx.beginPath();
-    ctx.arc(0, 0, radii[d], arcStart, arcEnd);
+    ctx.arc(0, 0, r, arcStart, arcEnd);
     ctx.stroke();
   }
 
   // ── Domain sector separators + labels ───────────────────
-  const outerR = radii[maxDepth] + NODE_R * 2;
+  const outerR = OUTER_R + NODE_R * 2;
   const labelR = outerR + 18;
   for (const dom of domKeys) {
     const sec = domSectors[dom];
