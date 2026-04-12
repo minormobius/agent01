@@ -27,14 +27,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#08080e}
 <div id="err">WebGPU not available.</div>
 <script>
 'use strict';
-/* ── Infinity-corrected microscope optics ──
+/* ── Infinity-corrected brightfield microscope ──
    Scale: 1 unit = 10 mm
-   f_tube = 200mm → 20.0   gap (infinity space) = 160mm → 16.0
-   FN = 22mm → half = 1.1  M = f_tube / f_obj
-   Layout (light path): Sample(z=0) → Obj(z=f_obj) → ∞ space → Tube(z=f_obj+gap) → Image(z=f_obj+gap+f_tube)
-   Camera ray-traces in reverse: Image → Tube → Obj → Sample */
+   Light path: Source → Condenser → Sample(z=0) → Obj(z=f_obj) → ∞ → Tube → Image
+   Condenser collimates point source (Köhler-like).
+   Camera traces reverse: Image → Tube → Obj → Sample → Condenser → Source */
 
 const F_TUBE=20.0, GAP=16.0, FN_H=1.1, AP_TUBE=1.2;
+const F_COND=1.5, R_SRC=0.01; // condenser f=15mm, source radius ~100μm
 const canvas=document.getElementById('c'),diag=document.getElementById('diag');
 const magEl=document.getElementById('mag'),focEl=document.getElementById('focLbl');
 const dc=diag.getContext('2d');
@@ -48,11 +48,13 @@ const OBJ=[
   {label:'100x', M:100, na:1.25, color:'#ddd'},
 ].map(o=>{const f=F_TUBE/o.M; return{...o, f_obj:f, ap_obj:f*o.na,
   z_obj:f, z_tube:f+GAP, z_image:f+GAP+F_TUBE,
-  fov:2.2/o.M, dof:2*0.000055/(o.na*o.na)};});
+  fov:2.2/o.M, dof:2*0.000055/(o.na*o.na),
+  ap_cond:Math.max(FN_H*1.5, F_COND*o.na)};});
 
 let objIdx=1, focTgt=0, px=0, py=0;
 let cur={f_obj:OBJ[1].f_obj, z_obj:OBJ[1].z_obj, z_tube:OBJ[1].z_tube,
-  z_image:OBJ[1].z_image, ap_obj:OBJ[1].ap_obj, na:OBJ[1].na, foc:0};
+  z_image:OBJ[1].z_image, ap_obj:OBJ[1].ap_obj, na:OBJ[1].na,
+  ap_cond:OBJ[1].ap_cond, foc:0};
 
 window.cycleObj=function(){
   objIdx=(objIdx+1)%OBJ.length; focTgt=0;
@@ -61,42 +63,63 @@ window.cycleObj=function(){
 };
 magEl.style.color=OBJ[1].color; magEl.style.borderColor=OBJ[1].color;
 
-/* ── WGSL: two-lens thin-lens ray trace ── */
+/* ── WGSL: brightfield two-lens + condenser ray trace ── */
 const shader=`
 struct P{res:vec2f,tm:f32,foc:f32,pan:vec2f,f_obj:f32,f_tube:f32,
-  z_tube:f32,z_obj:f32,ap_obj:f32,ap_tube:f32,na:f32,zi:f32,fn_h:f32,_p:f32}
+  z_tube:f32,z_obj:f32,ap_obj:f32,ap_tube:f32,
+  na:f32,zi:f32,fn_h:f32,f_cond:f32,
+  ap_cond:f32,r_src:f32,_p1:f32,_p2:f32}
 @group(0)@binding(0) var<uniform> u:P;
 
-fn cell(p:vec2f,ct:vec2f,r:f32,col:vec3f,bl:f32)->vec3f{
-  let d=length(p-ct);let e=max(0.001,bl);
-  if(d>r+e*2.0){return vec3f(0.0);}
-  let fill=col*0.15*smoothstep(r+e,r-e*0.5,d);
-  let ring=smoothstep(r+e,r,d)*(1.0-smoothstep(r,r-e,d));
-  return fill+col*ring*0.7;
+// Brightfield transmittance: 1.0 = fully transparent, 0.0 = opaque
+fn cell_t(p:vec2f,ct:vec2f,r:f32,dn:f32,bl:f32)->vec3f{
+  let d=length(p-ct); let e=max(0.001,bl);
+  if(d>r+e*3.0){return vec3f(1.0);}
+  let fill=smoothstep(r+e, r-e, d);
+  let ring=smoothstep(r+e, r, d)*(1.0-smoothstep(r, r-e*2.0, d));
+  var t=mix(vec3f(1.0), vec3f(0.92,0.82,0.88), fill*dn);
+  t=mix(t, vec3f(0.45,0.22,0.38), ring*dn);
+  return t;
 }
-fn nuc(p:vec2f,ct:vec2f,r:f32,col:vec3f,bl:f32)->vec3f{
-  let d=length(p-ct);let e=max(0.001,bl);
-  if(d>r+e){return vec3f(0.0);}
-  return col*0.25*smoothstep(r+e,r-e,d);
+fn nuc_t(p:vec2f,ct:vec2f,r:f32,dn:f32,bl:f32)->vec3f{
+  let d=length(p-ct); let e=max(0.001,bl);
+  if(d>r+e*2.0){return vec3f(1.0);}
+  let mask=smoothstep(r+e, r-e, d);
+  return mix(vec3f(1.0), vec3f(0.28,0.18,0.52), mask*dn);
 }
-fn specimen(p:vec2f,bl:f32)->vec3f{
-  var c=vec3f(0.005,0.008,0.005);
+fn specimen_t(p:vec2f,bl:f32)->vec3f{
+  var t=vec3f(1.0);
+  // Fine grid 100um
   let gf=abs(fract(p*100.0)-vec2f(0.5));
-  c+=vec3f(0.015)*step(min(gf.x,gf.y),0.015)*max(0.0,1.0-bl*100.0);
+  let gs=max(0.0,1.0-bl*100.0);
+  t*=mix(vec3f(1.0),vec3f(0.45),vec3f(step(min(gf.x,gf.y),0.015)*gs));
+  // Coarse grid 1mm
   let gc=abs(fract(p*10.0)-vec2f(0.5));
-  c+=vec3f(0.025)*step(min(gc.x,gc.y),0.02)*max(0.0,1.0-bl*10.0);
-  c=max(c,cell(p,vec2f(0.0),0.06,vec3f(0.1,0.9,0.2),bl));
-  c=max(c,nuc(p,vec2f(0.008,0.005),0.018,vec3f(0.2,1.0,0.4),bl));
-  c=max(c,cell(p,vec2f(0.15,0.08),0.04,vec3f(0.9,0.15,0.1),bl));
-  c=max(c,nuc(p,vec2f(0.155,0.084),0.012,vec3f(1.0,0.3,0.2),bl));
-  c=max(c,cell(p,vec2f(-0.1,0.12),0.05,vec3f(0.15,0.3,1.0),bl));
-  c=max(c,nuc(p,vec2f(-0.095,0.115),0.015,vec3f(0.3,0.5,1.0),bl));
-  c=max(c,cell(p,vec2f(-0.05,-0.1),0.035,vec3f(0.9,0.7,0.1),bl));
-  c=max(c,cell(p,vec2f(0.12,-0.06),0.045,vec3f(0.1,0.8,0.9),bl));
-  c=max(c,nuc(p,vec2f(0.125,-0.055),0.013,vec3f(0.2,0.9,1.0),bl));
-  c=max(c,cell(p,vec2f(-0.14,-0.05),0.03,vec3f(0.8,0.2,0.8),bl));
-  c=max(c,cell(p,vec2f(0.08,0.14),0.025,vec3f(1.0,0.6,0.1),bl));
-  return c;
+  let gcs=max(0.0,1.0-bl*10.0);
+  t*=mix(vec3f(1.0),vec3f(0.25),vec3f(step(min(gc.x,gc.y),0.02)*gcs));
+  // Cells with H&E stain
+  t*=cell_t(p,vec2f(0.0),0.06,0.9,bl);
+  t*=nuc_t(p,vec2f(0.008,0.005),0.018,0.85,bl);
+  t*=cell_t(p,vec2f(0.15,0.08),0.04,0.7,bl);
+  t*=nuc_t(p,vec2f(0.155,0.084),0.012,0.9,bl);
+  t*=cell_t(p,vec2f(-0.1,0.12),0.05,0.8,bl);
+  t*=nuc_t(p,vec2f(-0.095,0.115),0.015,0.75,bl);
+  t*=cell_t(p,vec2f(-0.05,-0.1),0.035,0.85,bl);
+  t*=cell_t(p,vec2f(0.12,-0.06),0.045,0.65,bl);
+  t*=nuc_t(p,vec2f(0.125,-0.055),0.013,0.8,bl);
+  t*=cell_t(p,vec2f(-0.14,-0.05),0.03,0.9,bl);
+  t*=cell_t(p,vec2f(0.08,0.14),0.025,0.7,bl);
+  // Wiggly resolution test — coarse (40um period, 150um amplitude, A/λ≈3.75)
+  let w1=0.015*sin(6.2832*p.y/0.004);
+  let d1=abs(p.x-0.05-w1);
+  let e1=max(0.0008,bl*0.5);
+  t*=mix(vec3f(1.0),vec3f(0.08,0.08,0.18),vec3f(smoothstep(e1*2.0,0.0,d1)));
+  // Wiggly resolution test — fine (20um period, 50um amplitude, A/λ≈2.5)
+  let w2=0.005*sin(6.2832*p.y/0.002);
+  let d2=abs(p.x+0.06-w2);
+  let e2=max(0.0004,bl*0.5);
+  t*=mix(vec3f(1.0),vec3f(0.18,0.08,0.08),vec3f(smoothstep(e2*2.0,0.0,d2)));
+  return t;
 }
 
 @vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
@@ -106,24 +129,22 @@ fn specimen(p:vec2f,bl:f32)->vec3f{
 
 @fragment fn fs(@builtin(position) fc:vec4f)->@location(0) vec4f{
   let uv=(fc.xy-u.res*0.5)/u.res.y;
-
-  // Telecentric camera at intermediate image plane (negate uv for upright image)
+  // Telecentric camera at image plane
   var ro=vec3f(-uv*u.fn_h*2.0, u.zi);
   var rd=vec3f(0.0, 0.0, -1.0);
   var tr=1.0;
 
-  // ── Tube lens (thin lens at z_tube) ──
+  // ── Tube lens ──
   let t1=(u.z_tube-ro.z)/rd.z;
   ro=ro+rd*t1;
   let h1=ro.xy; let r1=length(h1);
   tr*=smoothstep(u.ap_tube, u.ap_tube*0.82, r1);
   if(r1<u.ap_tube){
     let sl=vec2f(rd.x,rd.y)/(-rd.z);
-    let sn=sl - h1/u.f_tube;
-    rd=normalize(vec3f(sn, -1.0));
+    rd=normalize(vec3f(sl-h1/u.f_tube, -1.0));
   }
 
-  // ── Objective (thin lens at z_obj) ──
+  // ── Objective ──
   if(tr>0.01){
     let t2=(u.z_obj-ro.z)/rd.z;
     if(t2>0.0){
@@ -132,13 +153,12 @@ fn specimen(p:vec2f,bl:f32)->vec3f{
       tr*=smoothstep(u.ap_obj, u.ap_obj*0.8, r2);
       if(r2<u.ap_obj){
         let sl=vec2f(rd.x,rd.y)/(-rd.z);
-        let sn=sl - h2/u.f_obj;
-        rd=normalize(vec3f(sn, -1.0));
-      }else{ tr=0.0; }
+        rd=normalize(vec3f(sl-h2/u.f_obj, -1.0));
+      }else{tr=0.0;}
     }
   }
 
-  // ── Sample plane (z=0 is perfect focus, foc offsets it) ──
+  // ── Sample plane ──
   var col=vec3f(0.0);
   if(tr>0.01){
     let zs=u.foc;
@@ -146,19 +166,27 @@ fn specimen(p:vec2f,bl:f32)->vec3f{
     if(t3>0.0){
       let sp=ro+rd*t3;
       let blur=abs(u.foc)*u.na*3.0;
-      col=specimen(sp.xy - u.pan, blur)*tr;
+      let T=specimen_t(sp.xy-u.pan, blur);
+
+      // ── Condenser: collimated illumination from point source ──
+      // Trace illumination ray straight down from specimen through condenser to source
+      // For collimated Köhler: every point in condenser aperture traces to source
+      let cond_r=length(sp.xy);
+      let illum=smoothstep(u.ap_cond, u.ap_cond*0.85, cond_r);
+
+      // Brightfield: warm halogen illumination × transmittance
+      col=vec3f(1.0,0.97,0.92)*T*tr*illum;
     }
   }
 
-  // Circular eyepiece field stop
-  let mask=smoothstep(0.50, 0.47, length(uv));
-  col*=mask;
+  // Eyepiece field stop
+  col=col*smoothstep(0.50,0.47,length(uv));
   col=pow(max(col,vec3f(0.0)),vec3f(0.4545));
   return vec4f(col,1.0);
 }
 `;
 
-/* ── Optical chain diagram (2D canvas) ── */
+/* ── Optical chain diagram ── */
 function dLens(x,y,hw,hh,col){
   dc.fillStyle=col+'20'; dc.strokeStyle=col+'90'; dc.lineWidth=1.5;
   dc.beginPath(); dc.moveTo(x,y-hh);
@@ -168,70 +196,89 @@ function dLens(x,y,hw,hh,col){
 }
 function drawDiag(){
   const W=diag.width, H=diag.height; dc.clearRect(0,0,W,H);
-  const cy=H*0.48, pad=W*0.06, ax=W-pad*2;
+  const cy=H*0.48, pad=W*0.05, ax=W-pad*2;
   const o=OBJ[objIdx];
-  const tot=F_TUBE+GAP+o.f_obj+2;
-  const xI=pad, xT=pad+(F_TUBE/tot)*ax, xO=pad+((F_TUBE+GAP)/tot)*ax;
-  const xS=pad+((F_TUBE+GAP+o.f_obj)/tot)*ax;
+  // Layout: Image(0) .. Tube .. ∞ .. Obj .. Sample .. Cond .. Source(1)
+  const img_tot=F_TUBE+GAP+o.f_obj;
+  const imgF=0.58; // imaging side fraction of axis
+  const xI=pad, xT=pad+(F_TUBE/img_tot)*ax*imgF;
+  const xO=pad+((F_TUBE+GAP)/img_tot)*ax*imgF;
+  const xS=pad+ax*imgF;
+  // Illumination side
+  const xC=pad+ax*0.72, xSrc=pad+ax*0.90;
   const focNorm=cur.foc/(o.dof*15+0.0001);
-  const xSf=Math.min(pad+ax, Math.max(xO+10, xS+focNorm*ax*0.02));
-  const fs=Math.max(8,H*0.075), oh=H*0.15, rh=oh*0.6;
+  const xSf=Math.min(xC-10, Math.max(xO+10, xS+focNorm*ax*0.02));
+  const fs=Math.max(8,H*0.07), oh=H*0.14, rh=oh*0.55;
 
-  // optical axis
-  dc.strokeStyle='rgba(255,255,255,0.08)'; dc.lineWidth=1;
+  // Optical axis
+  dc.strokeStyle='rgba(255,255,255,0.06)'; dc.lineWidth=1;
   dc.setLineDash([3,3]);
-  dc.beginPath(); dc.moveTo(xI,cy); dc.lineTo(xSf,cy); dc.stroke();
+  dc.beginPath(); dc.moveTo(xI,cy); dc.lineTo(xSrc,cy); dc.stroke();
   dc.setLineDash([]);
 
-  // rays: diverge from sample → collimate after objective → converge after tube → image
+  // Imaging rays: sample → obj (diverge) → tube (parallel) → image (converge)
   [0.35,-0.35,0.15,-0.15].forEach((r,i)=>{
-    dc.strokeStyle=o.color+(i<2?'28':'15'); dc.lineWidth=1;
+    dc.strokeStyle=o.color+(i<2?'25':'12'); dc.lineWidth=1;
     dc.beginPath();
-    dc.moveTo(xSf,cy);                    // sample point
-    dc.lineTo(xO, cy+r*rh);              // objective (diverging)
-    dc.lineTo(xT, cy+r*rh);              // infinity space (PARALLEL — key feature)
-    dc.lineTo(xI, cy);                    // converge to image
+    dc.moveTo(xSf,cy); dc.lineTo(xO,cy+r*rh);
+    dc.lineTo(xT,cy+r*rh); dc.lineTo(xI,cy);
     dc.stroke();
   });
 
-  // infinity label
-  dc.fillStyle='rgba(255,255,255,0.12)'; dc.textAlign='center';
-  dc.font=(fs*1.2)+'px serif';
-  dc.fillText('\u221E',(xT+xO)/2, cy-rh-4);
+  // Illumination rays: source (diverge) → condenser → sample (collimated)
+  [0.3,-0.3,0.12,-0.12].forEach((r,i)=>{
+    dc.strokeStyle='rgba(255,220,120,'+(i<2?'0.18':'0.09')+')'; dc.lineWidth=1;
+    dc.beginPath();
+    dc.moveTo(xSrc,cy); dc.lineTo(xC,cy+r*rh);
+    dc.lineTo(xSf,cy+r*rh);
+    dc.stroke();
+  });
 
-  // tube lens
-  dLens(xT,cy,5,oh*0.65,'#667');
-  // objective
+  // ∞ label
+  dc.fillStyle='rgba(255,255,255,0.10)'; dc.textAlign='center';
+  dc.font=(fs*1.1)+'px serif';
+  dc.fillText('\u221E',(xT+xO)/2,cy-rh-3);
+
+  // Lenses
+  dLens(xT,cy,5,oh*0.6,'#667');
   const omag=Math.sqrt(o.na)*1.4;
-  dLens(xO,cy,3+omag*4, oh*(0.3+omag*0.5), o.color);
-  // image plane marker
-  dc.strokeStyle='#666'; dc.lineWidth=1;
-  dc.beginPath(); dc.moveTo(xI,cy-oh*0.5); dc.lineTo(xI,cy+oh*0.5); dc.stroke();
-  // sample line + ticks
-  dc.strokeStyle='#6a6'; dc.lineWidth=2;
-  dc.beginPath(); dc.moveTo(xSf,cy-oh*0.8); dc.lineTo(xSf,cy+oh*0.8); dc.stroke();
-  dc.lineWidth=1;
-  for(let i=-2;i<=2;i++){const ty=cy+i*oh*0.3;
-    dc.beginPath(); dc.moveTo(xSf-3,ty); dc.lineTo(xSf+3,ty); dc.stroke();}
+  dLens(xO,cy,3+omag*4,oh*(0.3+omag*0.5),o.color);
+  dLens(xC,cy,4,oh*0.45,'#996');
 
-  // labels
+  // Image plane
+  dc.strokeStyle='#555'; dc.lineWidth=1;
+  dc.beginPath(); dc.moveTo(xI,cy-oh*0.4); dc.lineTo(xI,cy+oh*0.4); dc.stroke();
+  // Sample line
+  dc.strokeStyle='#6a6'; dc.lineWidth=2;
+  dc.beginPath(); dc.moveTo(xSf,cy-oh*0.7); dc.lineTo(xSf,cy+oh*0.7); dc.stroke();
+  dc.lineWidth=1;
+  for(let i=-2;i<=2;i++){const ty=cy+i*oh*0.25;
+    dc.beginPath(); dc.moveTo(xSf-3,ty); dc.lineTo(xSf+3,ty); dc.stroke();}
+  // Source dot
+  dc.fillStyle='#fda'; dc.beginPath(); dc.arc(xSrc,cy,3.5,0,6.2832); dc.fill();
+  dc.fillStyle='#ff84'; dc.beginPath(); dc.arc(xSrc,cy,7,0,6.2832); dc.fill();
+
+  // Labels
   dc.textAlign='center'; dc.font=fs+'px monospace';
-  const ly=cy+oh+fs+4;
-  dc.fillStyle='rgba(255,255,255,0.3)'; dc.fillText('Image',xI,ly);
-  dc.fillText('Tube',xT,ly);
+  const ly=cy+oh+fs+2;
+  dc.fillStyle='rgba(255,255,255,0.25)';
+  dc.fillText('Image',xI,ly); dc.fillText('Tube',xT,ly);
   dc.fillStyle=o.color; dc.fillText(o.label,xO,ly);
-  dc.fillStyle='#6a6'; dc.fillText('Sample',xSf,ly);
-  // focal lengths
-  dc.font=(fs*0.65)+'px monospace'; dc.fillStyle='rgba(255,255,255,0.18)';
-  dc.fillText('f='+(o.f_obj*10).toFixed(0)+'mm',xO,cy-oh-2);
-  dc.fillText('f=200mm',xT,cy-oh*0.6-2);
+  dc.fillStyle='#6a6'; dc.fillText('Smp',xSf,ly);
+  dc.fillStyle='#aa8'; dc.fillText('Cond',xC,ly);
+  dc.fillStyle='#fda'; dc.fillText('Src',xSrc,ly);
+  // Focal lengths
+  dc.font=(fs*0.6)+'px monospace'; dc.fillStyle='rgba(255,255,255,0.15)';
+  dc.fillText('f='+(o.f_obj*10).toFixed(0)+'mm',xO,cy-oh-1);
+  dc.fillText('f=200mm',xT,cy-oh*0.55-1);
+  dc.fillText('f=15mm',xC,cy-oh*0.5-1);
   // NA
-  dc.fillStyle='rgba(255,255,255,0.22)';
-  dc.fillText('NA '+o.na.toFixed(2),xO,ly+fs*0.8);
-  // focus offset
-  dc.fillStyle='rgba(255,255,255,0.15)'; dc.font=(fs*0.7)+'px monospace';
+  dc.fillStyle='rgba(255,255,255,0.18)';
+  dc.fillText('NA '+o.na.toFixed(2),xO,ly+fs*0.7);
+  // Focus
+  dc.fillStyle='rgba(255,255,255,0.12)'; dc.font=(fs*0.6)+'px monospace';
   const fu=cur.foc*10000;
-  dc.fillText('\u0394f '+(fu>=0?'+':'')+fu.toFixed(1)+'\u03BCm', xSf, cy+oh*0.8+fs+2);
+  dc.fillText('\u0394f '+(fu>=0?'+':'')+fu.toFixed(1)+'\u03BCm',xSf,cy+oh*0.7+fs+1);
 }
 
 /* ── WebGPU ── */
@@ -303,14 +350,15 @@ async function init(){
     cur.f_obj+=(o.f_obj-cur.f_obj)*lr; cur.z_obj+=(o.z_obj-cur.z_obj)*lr;
     cur.z_tube+=(o.z_tube-cur.z_tube)*lr; cur.z_image+=(o.z_image-cur.z_image)*lr;
     cur.ap_obj+=(o.ap_obj-cur.ap_obj)*lr; cur.na+=(o.na-cur.na)*lr;
-    cur.foc+=(focTgt-cur.foc)*0.1;
+    cur.ap_cond+=(o.ap_cond-cur.ap_cond)*lr; cur.foc+=(focTgt-cur.foc)*0.1;
     focEl.textContent=o.label+' \u00B7 NA '+o.na.toFixed(2)+' \u00B7 FOV '+(o.fov*10).toFixed(1)+'mm';
     drawDiag();
-    const pb=new Float32Array(16);
+    const pb=new Float32Array(20);
     pb[0]=w; pb[1]=h; pb[2]=ts*0.001; pb[3]=cur.foc;
     pb[4]=px; pb[5]=py; pb[6]=cur.f_obj; pb[7]=F_TUBE;
     pb[8]=cur.z_tube; pb[9]=cur.z_obj; pb[10]=cur.ap_obj; pb[11]=AP_TUBE;
-    pb[12]=cur.na; pb[13]=cur.z_image; pb[14]=FN_H; pb[15]=0;
+    pb[12]=cur.na; pb[13]=cur.z_image; pb[14]=FN_H; pb[15]=F_COND;
+    pb[16]=cur.ap_cond; pb[17]=R_SRC; pb[18]=0; pb[19]=0;
     device.queue.writeBuffer(ub,0,pb);
     const enc=device.createCommandEncoder();
     const pass=enc.beginRenderPass({colorAttachments:[{
