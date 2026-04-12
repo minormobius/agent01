@@ -28,44 +28,113 @@ function depth(t) {
 nodes.forEach(n => (n.depth = depth(n.title)));
 const maxDepth = Math.max(...nodes.map(n => n.depth));
 
-/* ── Polar fan layout ────────────────────────────────────── */
+/* ── Polar fan layout — momentum + arc-length spacing ────── */
+// Arc-length parameterization: θ_gap = s / r  (uniform spacing
+// along the ring arc, technique from the /track fingerprint spiral)
+const MAX_BEND = Math.PI / 3;           // 60° bend ceiling
 const domKeys = Object.keys(TECH_DOMAINS);
 const levels = Array.from({ length: maxDepth + 1 }, () => []);
 nodes.forEach(n => levels[n.depth].push(n));
 
-// Level 0: sort by domain + year
-levels[0].sort((a, b) =>
-  (domKeys.indexOf(a.props.domain) - domKeys.indexOf(b.props.domain)) || a.props.year - b.props.year);
+// Ring radii — sized so arc-length per node ≥ diameter + gap
+const radii = [];
+{ let rv = 140;
+  for (let d = 0; d <= maxDepth; d++) {
+    const count = levels[d].length;
+    rv = Math.max(rv, (count * (NODE_R * 2 + GAP)) / SPAN);
+    radii[d] = rv;
+    rv += NODE_R * 2 + GAP;
+  }
+}
 
 const ang = {};
+
+// Level 0: domain+year sort, uniform arc-length spacing
+levels[0].sort((a, b) =>
+  (domKeys.indexOf(a.props.domain) - domKeys.indexOf(b.props.domain)) || a.props.year - b.props.year);
 levels[0].forEach((n, i) => {
   ang[n.title] = -HALF + ((i + 0.5) / levels[0].length) * SPAN;
 });
 
-// Deeper levels: sort by average parent angle (keeps children near parents)
+// Helper: push sorted angle array apart to maintain min arc-length gap
+function separate(pos, minGap) {
+  if (pos.length < 2) {
+    if (pos.length === 1) pos[0] = Math.max(-HALF, Math.min(HALF, pos[0]));
+    return;
+  }
+  for (let pass = 0; pass < 40; pass++) {
+    let ok = true;
+    for (let i = 1; i < pos.length; i++) {
+      if (pos[i] - pos[i - 1] < minGap) {
+        const half = (minGap - (pos[i] - pos[i - 1])) / 2 + 1e-4;
+        pos[i - 1] -= half;  pos[i] += half;  ok = false;
+      }
+    }
+    const lo = -HALF + minGap * 0.4, hi = HALF - minGap * 0.4;
+    for (let i = 0; i < pos.length; i++) pos[i] = Math.max(lo, Math.min(hi, pos[i]));
+    if (ok) break;
+  }
+}
+
+// Deeper levels: gravity toward parent angles, arc-length separation
 for (let d = 1; d <= maxDepth; d++) {
+  const minGap = (NODE_R * 2 + GAP) / radii[d];  // θ = s / r
+
   levels[d].forEach(n => {
     const pa = n.props.prereqs.map(p => ang[p]).filter(a => a != null);
-    n._ta = pa.length ? pa.reduce((s, a) => s + a, 0) / pa.length : 0;
+    n._pull = pa.length ? pa.reduce((s, v) => s + v, 0) / pa.length : 0;
   });
-  levels[d].sort((a, b) => a._ta - b._ta);
-  levels[d].forEach((n, i) => {
-    ang[n.title] = -HALF + ((i + 0.5) / levels[d].length) * SPAN;
-  });
+  levels[d].sort((a, b) => a._pull - b._pull);
+
+  const pos = levels[d].map(n => n._pull);
+  separate(pos, minGap);
+  levels[d].forEach((n, i) => { ang[n.title] = pos[i]; });
 }
 
-// Compute ring radii — each ring just large enough to avoid overlap
-const radii = [];
-let r = 140;
-for (let d = 0; d <= maxDepth; d++) {
-  const count = levels[d].length;
-  const minR = (count * (NODE_R * 2 + GAP)) / SPAN;
-  r = Math.max(r, minR);
-  radii[d] = r;
-  r += NODE_R * 2 + GAP;
+// ── Bend relaxation (reduce deflections > 60°) ─────────────
+function _xy(title) {
+  const n = byTitle[title], a = ang[title], rv = radii[n.depth];
+  return [rv * Math.sin(a), -rv * Math.cos(a)];
 }
 
-// World positions (origin at 0,0; Y-up = negative canvas Y)
+function bendRad(parent, node, child) {
+  const [px, py] = _xy(parent), [nx, ny] = _xy(node), [cx, cy] = _xy(child);
+  const ax = px - nx, ay = py - ny, bx = cx - nx, by = cy - ny;
+  const mag = Math.sqrt((ax * ax + ay * ay) * (bx * bx + by * by));
+  if (mag < 1e-10) return 0;
+  const cosA = Math.max(-1, Math.min(1, (ax * bx + ay * by) / mag));
+  return Math.PI - Math.acos(cosA);  // deflection: 0 = straight, π = U-turn
+}
+
+for (let iter = 0; iter < 12; iter++) {
+  let worst = 0;
+  for (let d = 1; d < maxDepth; d++) {
+    const minGap = (NODE_R * 2 + GAP) / radii[d];
+    const pos = levels[d].map(n => ang[n.title]);
+
+    for (let i = 0; i < levels[d].length; i++) {
+      const n = levels[d][i];
+      const kids = childOf[n.title] || [];
+      if (!kids.length) continue;
+      for (const pT of n.props.prereqs) {
+        if (!byTitle[pT]) continue;
+        for (const cT of kids) {
+          if (!byTitle[cT]) continue;
+          const b = bendRad(pT, n.title, cT);
+          if (b > MAX_BEND) {
+            worst = Math.max(worst, b);
+            pos[i] += ((ang[pT] + ang[cT]) / 2 - pos[i]) * 0.2;
+          }
+        }
+      }
+    }
+    separate(pos, minGap);
+    levels[d].forEach((n, j) => { ang[n.title] = pos[j]; });
+  }
+  if (worst <= MAX_BEND) break;
+}
+
+// World positions (origin at 0,0 — Y-up = negative canvas Y)
 nodes.forEach(n => {
   const a = ang[n.title], rv = radii[n.depth];
   n.wx = rv * Math.sin(a);
