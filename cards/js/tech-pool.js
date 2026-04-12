@@ -22,6 +22,7 @@ export const TECH_DOMAINS = {
   warfare:        { name: "Warfare",        icon: "☄" },
   construction:   { name: "Construction",   icon: "△" },
   optics:         { name: "Optics",         icon: "◎" },
+  finance:        { name: "Finance",        icon: "⚖" },
 };
 
 // [title, era, { domain, year, status, complexity, prereqs, rarity }]
@@ -102,6 +103,8 @@ export const TECH_POOL = [
   ["University", "medieval", { domain: "communication", year: 1088, status: "alive", complexity: 3, prereqs: ["Alphabet", "Paper"], rarity: "rare" }],
   ["Plate armour", "medieval", { domain: "warfare", year: 1350, status: "dead", complexity: 4, prereqs: ["Steel"], rarity: "uncommon" }],
   ["Hourglass", "medieval", { domain: "optics", year: 1300, status: "dead", complexity: 2, prereqs: ["Glassblowing"], rarity: "common" }],
+  ["Paper money", "medieval", { domain: "finance", year: 1024, status: "alive", complexity: 3, prereqs: ["Paper", "Coin", "Woodblock printing"], rarity: "rare" }],
+  ["Insurance", "medieval", { domain: "finance", year: 1347, status: "alive", complexity: 3, prereqs: ["Cartography", "Coin"], rarity: "uncommon" }],
 
   // ── Renaissance ────────────────────────────────────────────
   ["Printing press", "renaissance", { domain: "communication", year: 1440, status: "alive", complexity: 5, prereqs: ["Woodblock printing", "Paper", "Steel"], rarity: "legendary" }],
@@ -119,6 +122,10 @@ export const TECH_POOL = [
   ["Lock (water navigation)", "renaissance", { domain: "construction", year: 1495, status: "alive", complexity: 3, prereqs: ["Gear"], rarity: "common" }],
   ["Sextant", "renaissance", { domain: "optics", year: 1600, status: "alive", complexity: 5, prereqs: ["Telescope", "Astrolabe"], rarity: "uncommon" }],
   ["Slide rule", "renaissance", { domain: "computing", year: 1622, status: "dead", complexity: 4, prereqs: ["Geometry", "Printing press"], rarity: "uncommon" }],
+  ["Double-entry bookkeeping", "renaissance", { domain: "finance", year: 1494, status: "alive", complexity: 4, prereqs: ["Alphabet", "Coin", "Printing press"], rarity: "rare" }],
+  ["Stock exchange", "renaissance", { domain: "finance", year: 1602, status: "alive", complexity: 5, prereqs: ["Double-entry bookkeeping", "Insurance"], rarity: "rare" }],
+  ["Central banking", "renaissance", { domain: "finance", year: 1694, status: "alive", complexity: 5, prereqs: ["Paper money", "Stock exchange"], rarity: "rare" }],
+  ["Joint-stock company", "renaissance", { domain: "finance", year: 1602, status: "alive", complexity: 4, prereqs: ["Insurance", "Galleon"], rarity: "uncommon" }],
 
   // ── Industrial ─────────────────────────────────────────────
   ["Steam engine", "industrial", { domain: "energy", year: 1712, status: "evolved", complexity: 6, prereqs: ["Iron", "Bellows"], rarity: "legendary" }],
@@ -152,6 +159,9 @@ export const TECH_POOL = [
   ["Turbine", "industrial", { domain: "energy", year: 1849, status: "alive", complexity: 6, prereqs: ["Water wheel", "Steam engine"], rarity: "rare" }],
   ["Chronometer", "industrial", { domain: "computing", year: 1761, status: "alive", complexity: 5, prereqs: ["Pendulum clock"], rarity: "uncommon" }],
   ["Bicycle", "industrial", { domain: "transportation", year: 1885, status: "alive", complexity: 3, prereqs: ["Wheel", "Vulcanization", "Steel"], rarity: "common" }],
+  ["Gold standard", "industrial", { domain: "finance", year: 1821, status: "dead", complexity: 4, prereqs: ["Coin", "Central banking"], rarity: "uncommon" }],
+  ["Wire transfer", "industrial", { domain: "finance", year: 1872, status: "evolved", complexity: 5, prereqs: ["Electrical telegraph", "Central banking"], rarity: "uncommon" }],
+  ["Futures exchange", "industrial", { domain: "finance", year: 1848, status: "alive", complexity: 5, prereqs: ["Stock exchange", "Steam locomotive"], rarity: "uncommon" }],
 
   // ── Modern (1900–1970) ─────────────────────────────────────
   ["Radio", "modern", { domain: "communication", year: 1895, status: "alive", complexity: 6, prereqs: ["Electrical telegraph", "Dynamo"], rarity: "rare" }],
@@ -186,6 +196,8 @@ export const TECH_POOL = [
   ["Submarine", "modern", { domain: "transportation", year: 1900, status: "alive", complexity: 7, prereqs: ["Steam engine", "Sonar", "Steel"], rarity: "uncommon" }],
   ["Hydroelectric power", "modern", { domain: "energy", year: 1882, status: "alive", complexity: 6, prereqs: ["Turbine", "Dynamo"], rarity: "rare" }],
   ["Fluorescent lamp", "modern", { domain: "energy", year: 1926, status: "evolved", complexity: 5, prereqs: ["Vacuum tube", "Incandescent light bulb"], rarity: "common" }],
+  ["Containerization", "modern", { domain: "transportation", year: 1956, status: "alive", complexity: 5, prereqs: ["Steel", "Sextant", "Steam locomotive"], rarity: "uncommon" }],
+  ["Credit card", "modern", { domain: "finance", year: 1950, status: "alive", complexity: 4, prereqs: ["Telephone", "Central banking"], rarity: "uncommon" }],
 
   // ── Information (1970–2010) ────────────────────────────────
   ["Atomic clock", "information", { domain: "computing", year: 1955, status: "alive", complexity: 8, prereqs: ["Chronometer", "Radar"], rarity: "rare" }],
@@ -223,11 +235,13 @@ export const TECH_POOL = [
   ["Genetic engineering", "information", { domain: "medicine", year: 1973, status: "alive", complexity: 8, prereqs: ["Microscope", "Personal computer"], rarity: "rare" }],
   ["Search engine", "information", { domain: "computing", year: 1993, status: "alive", complexity: 7, prereqs: ["World Wide Web"], rarity: "rare" }],
   ["Machine learning", "information", { domain: "computing", year: 1959, status: "alive", complexity: 8, prereqs: ["Personal computer", "Calculus"], rarity: "rare" }],
+  ["E-commerce", "information", { domain: "finance", year: 1995, status: "alive", complexity: 7, prereqs: ["World Wide Web", "Credit card"], rarity: "rare" }],
+  ["Algorithmic trading", "information", { domain: "finance", year: 1998, status: "alive", complexity: 8, prereqs: ["Stock exchange", "Microprocessor"], rarity: "uncommon" }],
 
   // ── AI Era (2010–) ────────────────────────────────────────
   ["Smartphone", "ai", { domain: "communication", year: 2007, status: "alive", complexity: 9, prereqs: ["Mobile phone", "Touchscreen", "Wi-Fi"], rarity: "rare" }],
   ["Deep learning", "ai", { domain: "computing", year: 2012, status: "alive", complexity: 9, prereqs: ["Machine learning", "Cloud computing"], rarity: "rare" }],
-  ["Blockchain", "ai", { domain: "computing", year: 2008, status: "alive", complexity: 7, prereqs: ["Internet"], rarity: "uncommon" }],
+  ["Blockchain", "ai", { domain: "finance", year: 2008, status: "alive", complexity: 7, prereqs: ["Internet", "E-commerce"], rarity: "uncommon" }],
   ["Transformer (deep learning architecture)", "ai", { domain: "computing", year: 2017, status: "alive", complexity: 10, prereqs: ["Deep learning"], rarity: "legendary" }],
   ["Large language model", "ai", { domain: "computing", year: 2018, status: "alive", complexity: 10, prereqs: ["Transformer (deep learning architecture)", "Internet"], rarity: "rare" }],
   ["Google Glass", "ai", { domain: "optics", year: 2013, status: "dead", complexity: 7, prereqs: ["Smartphone"], rarity: "common" }],
