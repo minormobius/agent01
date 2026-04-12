@@ -325,39 +325,55 @@ async function loadImages() {
   }
 }
 
-/* ── Hex packing (constant-pixel nodes, no overlap) ──────── */
+/* ── Hex packing (world-space grid, deterministic) ───────── */
 const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
-const hexColW = 1.5 * HEX_R;
-const hexRowH = Math.sqrt(3) * HEX_R;
+let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
+
+// Flat-top hexagon path (screen-space)
+function hexPath(ctx, cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
 
 function computeHexPositions() {
+  // Grid lives in world space; cell size scales with zoom so hexes are
+  // always HEX_R pixels on screen.  Pan moves the viewport over a fixed
+  // grid, so node-to-cell assignments are deterministic at a given zoom.
+  const wR = HEX_R / zm;
+  const colW = 1.5 * wR;
+  const rowH = Math.sqrt(3) * wR;
+
   const occupied = new Set();
+  cellMap = new Map();
   const cellKey = (c, r) => c + "," + r;
-  const toHex = (sx, sy) => {
-    const col = Math.round(sx / hexColW);
-    const row = Math.round((sy - ((col & 1) ? hexRowH * 0.5 : 0)) / hexRowH);
+
+  const toHex = (wx, wy) => {
+    const col = Math.round(wx / colW);
+    const row = Math.round((wy - ((col & 1) ? rowH * 0.5 : 0)) / rowH);
     return { col, row };
   };
-  const toScreen = (col, row) => ({
-    cx: col * hexColW,
-    cy: row * hexRowH + ((col & 1) ? hexRowH * 0.5 : 0),
+  const toWorld = (col, row) => ({
+    hx: col * colW,
+    hy: row * rowH + ((col & 1) ? rowH * 0.5 : 0),
   });
 
-  // Priority: selected lineage first, then rarity, then complexity
-  const sorted = [...nodes].sort((a, b) => {
-    const aHl = sel && (a.title === sel || anc.has(a.title) || desc.has(a.title)) ? 0 : 1;
-    const bHl = sel && (b.title === sel || anc.has(b.title) || desc.has(b.title)) ? 0 : 1;
-    return aHl - bHl
-      || (RARITY_PRI[a.props.rarity] ?? 3) - (RARITY_PRI[b.props.rarity] ?? 3)
-      || b.props.complexity - a.props.complexity;
-  });
+  // Deterministic priority: rarity then complexity (no selection bias
+  // so the grid stays stable while clicking around)
+  const sorted = [...nodes].sort((a, b) =>
+    (RARITY_PRI[a.props.rarity] ?? 3) - (RARITY_PRI[b.props.rarity] ?? 3)
+    || b.props.complexity - a.props.complexity
+    || a.id - b.id);
 
   for (const n of sorted) {
-    const sx = n.wx * zm + panX;
-    const sy = n.wy * zm + panY;
-    const ideal = toHex(sx, sy);
-
+    const ideal = toHex(n.wx, n.wy);
     let bestCol = ideal.col, bestRow = ideal.row;
+
     if (occupied.has(cellKey(ideal.col, ideal.row))) {
       let bestDist = Infinity;
       for (let ring = 1; ring <= 30; ring++) {
@@ -367,9 +383,9 @@ function computeHexPositions() {
             if (Math.abs(dc) !== ring && Math.abs(dr) !== ring) continue;
             const c = ideal.col + dc, r = ideal.row + dr;
             if (occupied.has(cellKey(c, r))) continue;
-            const pos = toScreen(c, r);
-            const idealPos = toScreen(ideal.col, ideal.row);
-            const dist = Math.hypot(pos.cx - idealPos.cx, pos.cy - idealPos.cy);
+            const pos = toWorld(c, r);
+            const idealPos = toWorld(ideal.col, ideal.row);
+            const dist = Math.hypot(pos.hx - idealPos.hx, pos.hy - idealPos.hy);
             if (dist < bestDist) {
               bestDist = dist; bestCol = c; bestRow = r; found = true;
             }
@@ -380,9 +396,11 @@ function computeHexPositions() {
     }
 
     occupied.add(cellKey(bestCol, bestRow));
-    const pos = toScreen(bestCol, bestRow);
-    n.sx = pos.cx;
-    n.sy = pos.cy;
+    cellMap.set(cellKey(bestCol, bestRow), n);
+    const pos = toWorld(bestCol, bestRow);
+    // World-space hex center → screen position
+    n.sx = pos.hx * zm + panX;
+    n.sy = pos.hy * zm + panY;
   }
 }
 
@@ -477,7 +495,7 @@ function draw() {
   drawEdges(false);
   if (sel) drawEdges(true);
 
-  // --- Nodes (screen-space, hex-packed) ---
+  // --- Nodes (screen-space hex tiles, world-space grid) ---
   computeHexPositions();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -496,17 +514,15 @@ function draw() {
     const dom = TECH_DOMAINS[n.props.domain];
     const img = images.get(n.title);
 
-    // Image or icon placeholder (constant pixel size)
+    // Hex fill: image clipped to hex, or domain-tinted hex
     if (img) {
       ctx.save();
-      ctx.beginPath();
-      ctx.arc(n.sx, n.sy, HEX_R - 1, 0, Math.PI * 2);
+      hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
       ctx.clip();
       ctx.drawImage(img, n.sx - HEX_R, n.sy - HEX_R, HEX_R * 2, HEX_R * 2);
       ctx.restore();
     } else {
-      ctx.beginPath();
-      ctx.arc(n.sx, n.sy, HEX_R - 1, 0, Math.PI * 2);
+      hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
       ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
       ctx.fill();
       ctx.font = `${Math.max(8, HEX_R * 0.7)}px sans-serif`;
@@ -516,10 +532,9 @@ function draw() {
       ctx.fillText(dom.icon, n.sx, n.sy);
     }
 
-    // Border ring
-    ctx.beginPath();
-    ctx.arc(n.sx, n.sy, HEX_R, 0, Math.PI * 2);
-    ctx.lineWidth = isSel ? 2.5 : 1.5;
+    // Hex border
+    hexPath(ctx, n.sx, n.sy, HEX_R);
+    ctx.lineWidth = isSel ? 2.5 : 1;
 
     if (isSel) {
       ctx.shadowColor = "rgba(255,255,255,0.6)";
@@ -611,10 +626,27 @@ function screenToWorld(sx, sy) {
 }
 
 function hitTest(sx, sy) {
-  let best = null, bestD = HEX_R + 4;
-  for (const n of nodes) {
-    const d = Math.hypot(n.sx - sx, n.sy - sy);
-    if (d < bestD) { best = n; bestD = d; }
+  // Convert screen click → world → hex cell → O(1) lookup
+  const wx = (sx - panX) / zm;
+  const wy = (sy - panY) / zm;
+  const wR = HEX_R / zm;
+  const colW = 1.5 * wR;
+  const rowH = Math.sqrt(3) * wR;
+  const col0 = Math.round(wx / colW);
+  const row0 = Math.round((wy - ((col0 & 1) ? rowH * 0.5 : 0)) / rowH);
+
+  // Check candidate cell and immediate neighbors (handles hex boundary ambiguity)
+  let best = null, bestD = wR * 1.1;
+  for (let dc = -1; dc <= 1; dc++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      const c = col0 + dc, r = row0 + dr;
+      const n = cellMap.get(c + "," + r);
+      if (!n) continue;
+      const cx = c * colW;
+      const cy = r * rowH + ((c & 1) ? rowH * 0.5 : 0);
+      const d = Math.hypot(wx - cx, wy - cy);
+      if (d < bestD) { best = n; bestD = d; }
+    }
   }
   return best;
 }
