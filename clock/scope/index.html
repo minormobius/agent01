@@ -15,6 +15,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#08080e}
   background:rgba(0,0,0,0.7);-webkit-tap-highlight-color:transparent}
 #focLbl{position:fixed;left:14px;bottom:14px;color:rgba(255,255,255,0.3);
   font:11px monospace;pointer-events:none;z-index:2}
+#modeBtn{position:fixed;left:14px;bottom:36px;padding:4px 10px;border-radius:4px;
+  border:1px solid;font:bold 12px monospace;cursor:pointer;z-index:5;
+  background:rgba(0,0,0,0.7);-webkit-tap-highlight-color:transparent}
 #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
   color:#f88;font:16px monospace;text-align:center;padding:20px;z-index:10}
 </style>
@@ -24,6 +27,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#08080e}
 <canvas id="c"></canvas>
 <div id="mag" onclick="cycleObj()">10x</div>
 <div id="focLbl"></div>
+<div id="modeBtn" onclick="toggleMode()">BF</div>
 <div id="err">WebGPU not available.</div>
 <script>
 'use strict';
@@ -62,13 +66,22 @@ window.cycleObj=function(){
   magEl.textContent=o.label; magEl.style.color=o.color; magEl.style.borderColor=o.color;
 };
 magEl.style.color=OBJ[1].color; magEl.style.borderColor=OBJ[1].color;
+let mode=0; // 0=brightfield, 1=darkfield
+const modeBtn=document.getElementById('modeBtn');
+modeBtn.style.color='#fa0'; modeBtn.style.borderColor='#fa0';
+window.toggleMode=function(){
+  mode=1-mode;
+  modeBtn.textContent=mode?'DF':'BF';
+  modeBtn.style.color=mode?'#0cf':'#fa0';
+  modeBtn.style.borderColor=mode?'#0cf':'#fa0';
+};
 
 /* ── WGSL: brightfield two-lens + condenser ray trace ── */
 const shader=`
 struct P{res:vec2f,tm:f32,foc:f32,pan:vec2f,f_obj:f32,f_tube:f32,
   z_tube:f32,z_obj:f32,ap_obj:f32,ap_tube:f32,
   na:f32,zi:f32,fn_h:f32,f_cond:f32,
-  ap_cond:f32,r_src:f32,_p1:f32,_p2:f32}
+  ap_cond:f32,r_src:f32,mode:f32,_p2:f32}
 @group(0)@binding(0) var<uniform> u:P;
 
 // Brightfield transmittance: 1.0 = fully transparent, 0.0 = opaque
@@ -122,6 +135,18 @@ fn specimen_t(p:vec2f,bl:f32)->vec3f{
   return t;
 }
 
+// Darkfield: scattering from refractive-index gradients
+fn specimen_scatter(p:vec2f,bl:f32)->vec3f{
+  let e=max(0.0003,bl+0.0001);
+  let tc=specimen_t(p,bl);
+  let tx=specimen_t(p+vec2f(e,0.0),bl);
+  let ty=specimen_t(p+vec2f(0.0,e),bl);
+  let gx=tc-tx; let gy=tc-ty;
+  let edge=sqrt(gx*gx+gy*gy);
+  let fwd=(vec3f(1.0)-tc)*0.05;
+  return edge*8.0+fwd;
+}
+
 @vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
   let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
   return vec4f(p[v],0,1);
@@ -166,16 +191,19 @@ fn specimen_t(p:vec2f,bl:f32)->vec3f{
     if(t3>0.0){
       let sp=ro+rd*t3;
       let blur=abs(u.foc)*u.na*3.0;
-      let T=specimen_t(sp.xy-u.pan, blur);
-
-      // ── Condenser: collimated illumination from point source ──
-      // Trace illumination ray straight down from specimen through condenser to source
-      // For collimated Köhler: every point in condenser aperture traces to source
       let cond_r=length(sp.xy);
       let illum=smoothstep(u.ap_cond, u.ap_cond*0.85, cond_r);
 
-      // Brightfield: warm halogen illumination × transmittance
-      col=vec3f(1.0,0.97,0.92)*T*tr*illum;
+      if(u.mode<0.5){
+        // Brightfield: warm halogen × transmittance
+        let T=specimen_t(sp.xy-u.pan, blur);
+        col=vec3f(1.0,0.97,0.92)*T*tr*illum;
+      }else{
+        // Darkfield: annular condenser blocks direct light,
+        // only scattered light enters objective
+        let S=specimen_scatter(sp.xy-u.pan, blur);
+        col=vec3f(1.0,0.95,0.85)*S*tr*illum;
+      }
     }
   }
 
@@ -225,12 +253,15 @@ function drawDiag(){
     dc.stroke();
   });
 
-  // Illumination rays: source (diverge) → condenser → sample (collimated)
-  [0.3,-0.3,0.12,-0.12].forEach((r,i)=>{
-    dc.strokeStyle='rgba(255,220,120,'+(i<2?'0.18':'0.09')+')'; dc.lineWidth=1;
+  // Illumination rays
+  const illR=mode?[0.4,-0.4,0.25,-0.25]:[0.3,-0.3,0.12,-0.12];
+  const illC=mode?[0,200,255]:[255,220,120];
+  illR.forEach((r,i)=>{
+    dc.strokeStyle=`rgba(${illC},${i<2?0.22:0.1})`; dc.lineWidth=1;
     dc.beginPath();
     dc.moveTo(xSrc,cy); dc.lineTo(xC,cy+r*rh);
     dc.lineTo(xSf,cy+r*rh);
+    if(mode){dc.lineTo(xO-15,cy+r*rh);} // oblique rays bypass objective
     dc.stroke();
   });
 
@@ -243,7 +274,9 @@ function drawDiag(){
   dLens(xT,cy,5,oh*0.6,'#667');
   const omag=Math.sqrt(o.na)*1.4;
   dLens(xO,cy,3+omag*4,oh*(0.3+omag*0.5),o.color);
-  dLens(xC,cy,4,oh*0.45,'#996');
+  dLens(xC,cy,4,oh*0.45,mode?'#069':'#996');
+  if(mode){dc.strokeStyle='rgba(0,200,255,0.5)'; dc.lineWidth=2;
+    dc.beginPath(); dc.moveTo(xC,cy-oh*0.15); dc.lineTo(xC,cy+oh*0.15); dc.stroke();}
 
   // Image plane
   dc.strokeStyle='#555'; dc.lineWidth=1;
@@ -265,13 +298,13 @@ function drawDiag(){
   dc.fillText('Image',xI,ly); dc.fillText('Tube',xT,ly);
   dc.fillStyle=o.color; dc.fillText(o.label,xO,ly);
   dc.fillStyle='#6a6'; dc.fillText('Smp',xSf,ly);
-  dc.fillStyle='#aa8'; dc.fillText('Cond',xC,ly);
+  dc.fillStyle=mode?'#0af':'#aa8'; dc.fillText(mode?'DF':'Cond',xC,ly);
   dc.fillStyle='#fda'; dc.fillText('Src',xSrc,ly);
   // Focal lengths
   dc.font=(fs*0.6)+'px monospace'; dc.fillStyle='rgba(255,255,255,0.15)';
   dc.fillText('f='+(o.f_obj*10).toFixed(0)+'mm',xO,cy-oh-1);
   dc.fillText('f=200mm',xT,cy-oh*0.55-1);
-  dc.fillText('f=15mm',xC,cy-oh*0.5-1);
+  dc.fillText(mode?'annular':'f=15mm',xC,cy-oh*0.5-1);
   // NA
   dc.fillStyle='rgba(255,255,255,0.18)';
   dc.fillText('NA '+o.na.toFixed(2),xO,ly+fs*0.7);
@@ -351,14 +384,14 @@ async function init(){
     cur.z_tube+=(o.z_tube-cur.z_tube)*lr; cur.z_image+=(o.z_image-cur.z_image)*lr;
     cur.ap_obj+=(o.ap_obj-cur.ap_obj)*lr; cur.na+=(o.na-cur.na)*lr;
     cur.ap_cond+=(o.ap_cond-cur.ap_cond)*lr; cur.foc+=(focTgt-cur.foc)*0.1;
-    focEl.textContent=o.label+' \u00B7 NA '+o.na.toFixed(2)+' \u00B7 FOV '+(o.fov*10).toFixed(1)+'mm';
+    focEl.textContent=o.label+' \u00B7 '+(mode?'DF':'BF')+' \u00B7 NA '+o.na.toFixed(2)+' \u00B7 FOV '+(o.fov*10).toFixed(1)+'mm';
     drawDiag();
     const pb=new Float32Array(20);
     pb[0]=w; pb[1]=h; pb[2]=ts*0.001; pb[3]=cur.foc;
     pb[4]=px; pb[5]=py; pb[6]=cur.f_obj; pb[7]=F_TUBE;
     pb[8]=cur.z_tube; pb[9]=cur.z_obj; pb[10]=cur.ap_obj; pb[11]=AP_TUBE;
     pb[12]=cur.na; pb[13]=cur.z_image; pb[14]=FN_H; pb[15]=F_COND;
-    pb[16]=cur.ap_cond; pb[17]=R_SRC; pb[18]=0; pb[19]=0;
+    pb[16]=cur.ap_cond; pb[17]=R_SRC; pb[18]=mode; pb[19]=0;
     device.queue.writeBuffer(ub,0,pb);
     const enc=device.createCommandEncoder();
     const pass=enc.beginRenderPass({colorAttachments:[{
