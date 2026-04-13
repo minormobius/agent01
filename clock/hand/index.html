@@ -39,6 +39,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12}
 <div id="err">WebGPU not available.</div>
 <script>
 'use strict';
+/* ── Biomechanical hand model ──
+   Bone lengths: ANSUR II (2012), Buchholz et al. (1992), NASA-STD-3000/HIDH
+   Male 50th percentile, scale ~3mm per unit
+   FK: Rodrigues rotation at MCP(2DOF) + PIP(1DOF) + DIP(1DOF) per finger */
+
 /* ── Vector math ── */
 const V={
   add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
@@ -52,13 +57,14 @@ const V={
     return[v[0]*c+cr[0]*s+ax[0]*d*(1-c),v[1]*c+cr[1]*s+ax[1]*d*(1-c),v[2]*c+cr[2]*s+ax[2]*d*(1-c)]},
 };
 
-/* ── Hand model: [base_x, base_y, mc_len, pp_len, mp_len, dp_len, width, splay] ── */
+/* ── Hand model: ANSUR II / Buchholz 1992, male 50th %ile, ~3mm/unit ── */
+/* [base_x, base_y, mc_len, pp_len, mp_len, dp_len, radius, splay] */
 const FD=[
-  [-0.07,-0.01, 0.11,0.08,0,   0.06, 0.015,-1.0],
-  [-0.03, 0.0,  0.19,0.11,0.07,0.05, 0.012,-0.10],
-  [ 0.0,  0.0,  0.20,0.12,0.08,0.05, 0.013, 0.0],
-  [ 0.03, 0.0,  0.19,0.11,0.07,0.05, 0.012, 0.08],
-  [ 0.055,-0.01,0.17,0.09,0.05,0.04, 0.010, 0.18],
+  [-0.06,-0.01, 0.130,0.096,0,    0.066, 0.014,-1.0],  // thumb: MC43 PP32 DP22
+  [-0.035,0.0,  0.190,0.117,0.068,0.053, 0.013,-0.15], // index: MC63 PP39 MP23 DP18
+  [ 0.0,  0.0,  0.195,0.126,0.078,0.056, 0.013, 0.0],  // middle: MC65 PP42 MP26 DP19
+  [ 0.030,0.0,  0.175,0.114,0.077,0.054, 0.012, 0.12], // ring: MC58 PP38 MP26 DP18
+  [ 0.055,-0.01,0.160,0.090,0.054,0.048, 0.011, 0.25], // little: MC53 PP30 MP18 DP16
 ];
 
 /* ── Grip presets: [mcp_flex, mcp_abd, pip_flex, dip_flex] x5 fingers ── */
@@ -90,7 +96,7 @@ function fk(ang){
     if(mpL>0){fl(pf);bone(mpL,w*.8);}
     fl(df); bone(dpL,w*.7);
   }
-  B.push(-.03,-.04,0,.035, .03,-.04,0,0);
+  B.push(-.04,-.04,0,.038, .04,-.04,0,0);
   return B;
 }
 
@@ -268,15 +274,26 @@ async function init(){
   const bg=device.createBindGroup({layout:pipe.getBindGroupLayout(0),
     entries:[{binding:0,resource:{buffer:ub}}]});
 
-  /* ── Input ── */
-  let drag=null;
+  /* ── Input: orbit + pinch-to-zoom ── */
+  const ptrs=new Map();let drag=null,pinchD0=0,distP=0;
   canvas.addEventListener('pointerdown',e=>{
-    drag={x:e.clientX,y:e.clientY,yaw,pitch};canvas.setPointerCapture(e.pointerId);});
-  canvas.addEventListener('pointermove',e=>{if(!drag)return;
-    yaw=drag.yaw+(e.clientX-drag.x)*0.008;
-    pitch=Math.max(-1.2,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*0.008));});
-  canvas.addEventListener('pointerup',()=>{drag=null;});
-  canvas.addEventListener('pointercancel',()=>{drag=null;});
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    canvas.setPointerCapture(e.pointerId);
+    if(ptrs.size===1){drag={x:e.clientX,y:e.clientY,yaw,pitch};}
+    if(ptrs.size===2){drag=null;const[a,b]=[...ptrs.values()];
+      pinchD0=Math.hypot(a.x-b.x,a.y-b.y);distP=dist;}
+  });
+  canvas.addEventListener('pointermove',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1&&drag){
+      yaw=drag.yaw+(e.clientX-drag.x)*0.008;
+      pitch=Math.max(-1.2,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*0.008));}
+    if(ptrs.size>=2){const vs=[...ptrs.values()];
+      const d=Math.hypot(vs[0].x-vs[1].x,vs[0].y-vs[1].y);
+      dist=Math.max(0.3,Math.min(2.0,distP*pinchD0/d));}
+  });
+  canvas.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);drag=null;});
+  canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;});
   canvas.addEventListener('wheel',e=>{e.preventDefault();
     dist=Math.max(0.3,Math.min(2.0,dist+e.deltaY*0.001));},{passive:false});
 
