@@ -184,8 +184,19 @@ fn phoneSD(p:vec3f)->f32{
   return sdRBox(rp,vec3f(hx,hy,hz),cr);
 }
 
+// Fat collision volume: thicker toward screen (+Z), narrower in X so thumb passes
+fn phoneFat(p:vec3f)->f32{
+  let pp=u.d[2].xyz;let pa=u.d[2].w;
+  let lp=p-pp;
+  let ca=cos(pa);let sa=sin(pa);
+  let rp=vec3f(lp.x, lp.y*ca-lp.z*sa, lp.y*sa+lp.z*ca);
+  return sdRBox(vec3f(rp.x,rp.y,rp.z-0.05),vec3f(0.10,u.d[3].y,0.065),u.d[3].w);
+}
+
 fn scene(p:vec3f)->vec2f{
   var d=100.0;var st=0.0;
+  let pd=phoneSD(p);
+  let pf=phoneFat(p);
   let nb=u32(u.d[1].w);
   for(var i=0u;i<52u;i++){
     if(i>=nb){break;}
@@ -193,9 +204,9 @@ fn scene(p:vec3f)->vec2f{
     let a=u.d[idx];let b=u.d[idx+1u];
     if(a.w<0.0001){continue;}
     let sd=sdCap(p,a.xyz,b.xyz,a.w);
-    if(sd<d){d=sd;st=b.w;}
+    let bd=max(sd,-pf);
+    if(bd<d){d=bd;st=b.w;}
   }
-  let pd=phoneSD(p);
   if(pd<d){d=pd;st=-1.0;}
   return vec2f(d,st);
 }
