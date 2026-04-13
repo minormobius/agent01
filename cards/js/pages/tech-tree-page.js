@@ -934,6 +934,81 @@ function animStep() {
   }
 }
 
+/* ── Innovation timeline ─────────────────────────────────── */
+const TL_BINS = [
+  [-3500000, -10000, "Pre-10k BCE"],
+  [-10000, -3000,    "Neolithic"],
+  [-3000, 0,         "Ancient"],
+  [0, 500,           "0–500"],
+  [500, 1000,        "500–1000"],
+  [1000, 1400,       "Medieval"],
+  [1400, 1600,       "1400–1600"],
+  [1600, 1700,       "1600s"],
+  [1700, 1750,       "1700–50"],
+  [1750, 1800,       "1750–1800"],
+  [1800, 1850,       "1800–50"],
+  [1850, 1900,       "1850–1900"],
+  [1900, 1935,       "1900–35"],
+  [1935, 1960,       "1935–60"],
+  [1960, 1990,       "1960–90"],
+  [1990, 2010,       "1990–2010"],
+  [2010, 2030,       "2010+"],
+];
+
+function buildTimeline() {
+  const chart = document.getElementById("tt-tl-chart");
+  chart.innerHTML = "";
+
+  const bins = TL_BINS.map(([lo, hi, label]) => {
+    const techs = nodes.filter(n => n.props.year >= lo && n.props.year < hi);
+    const total = techs.reduce((s, n) => s + n.props.complexity, 0);
+    return { lo, hi, label, count: techs.length, total, techs };
+  });
+
+  const maxTotal = Math.max(...bins.map(b => b.total), 1);
+
+  for (const bin of bins) {
+    const bar = document.createElement("div");
+    bar.className = "tt-tl-bar";
+
+    const val = document.createElement("div");
+    val.className = "tt-tl-val";
+    val.textContent = bin.total || "";
+
+    const fill = document.createElement("div");
+    fill.className = "tt-tl-fill";
+    const pct = (bin.total / maxTotal) * 100;
+    fill.style.height = Math.max(pct, bin.count ? 2 : 0) + "%";
+    // Gold intensity scales with density
+    const a = 0.35 + 0.65 * (bin.total / maxTotal);
+    fill.style.background = `rgba(201,168,76,${a.toFixed(2)})`;
+
+    const lbl = document.createElement("div");
+    lbl.className = "tt-tl-lbl";
+    lbl.textContent = bin.label;
+
+    bar.appendChild(val);
+    bar.appendChild(fill);
+    bar.appendChild(lbl);
+
+    bar.title = `${bin.label}: ${bin.count} techs, complexity ${bin.total}`;
+    bar.addEventListener("click", () => {
+      if (!bin.techs.length) return;
+      const xs = bin.techs.map(n => n.wx), ys = bin.techs.map(n => n.wy);
+      const pad = NODE_R * 5;
+      const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad;
+      const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+      const bw = x1 - x0, bh = y1 - y0;
+      zm = Math.min(innerWidth / bw, (innerHeight - 160) / bh) * 0.88;
+      panX = innerWidth / 2 - (x0 + bw / 2) * zm;
+      panY = (innerHeight - 160) / 2 - (y0 + bh / 2) * zm;
+      scheduleDraw();
+    });
+
+    chart.appendChild(bar);
+  }
+}
+
 /* ── Init ────────────────────────────────────────────────── */
 document.getElementById("tt-count").textContent =
   `${nodes.length} technologies · depth ${maxDepth} · ${nodes.filter(n => !n.props.prereqs.length).length} roots`;
@@ -958,11 +1033,26 @@ function toggleMode() {
   scheduleDraw();
 }
 modeBtn.onclick = toggleMode;
+
+// Timeline chart
+const tlEl = document.getElementById("tt-timeline");
+const chartBtn = document.getElementById("tt-chart-btn");
+function toggleTimeline() {
+  const opening = tlEl.classList.contains("hidden");
+  tlEl.classList.toggle("hidden");
+  chartBtn.classList.toggle("active", opening);
+  if (opening) buildTimeline();
+}
+chartBtn.onclick = toggleTimeline;
+document.getElementById("tt-tl-close").onclick = () => {
+  tlEl.classList.add("hidden");
+  chartBtn.classList.remove("active");
+};
+
 window.addEventListener("keydown", e => {
-  if (e.key === "h" || e.key === "H") {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-    toggleMode();
-  }
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "h" || e.key === "H") toggleMode();
+  if (e.key === "t" || e.key === "T") toggleTimeline();
 });
 
 window.addEventListener("resize", () => { resize(); fitView(); });
