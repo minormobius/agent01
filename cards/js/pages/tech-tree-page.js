@@ -341,6 +341,7 @@ async function loadImages() {
 /* ── Hex packing (world-space grid, deterministic) ───────── */
 const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
+let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
 // Flat-top hexagon path (screen-space)
 function hexPath(ctx, cx, cy, r) {
@@ -434,36 +435,39 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(dpr * zm, 0, 0, dpr * zm, dpr * panX, dpr * panY);
 
-  // Era arcs at temporal breakpoints (width follows funnel)
+  const sR = NODE_R * zm;  // screen-space node radius (polar mode)
+
+  // Era arcs at temporal breakpoints
   ctx.strokeStyle = "rgba(255,255,255,0.025)";
   ctx.lineWidth = 1 / zm;
   for (const [, frac] of TIME_BREAKS) {
     if (frac <= 0) continue;
     const r = INNER_R + frac * (OUTER_R - INNER_R);
-    const fh = funnelHalf(r);
+    const fh = hexMode ? funnelHalf(r) : HALF;
     ctx.beginPath();
     ctx.arc(0, 0, r, -Math.PI / 2 - fh, -Math.PI / 2 + fh);
     ctx.stroke();
   }
 
-  // ── Funnel envelope (parabolic boundary) ─────────────────
-  const FSTEPS = 48;
-  for (const side of [1, -1]) {
-    ctx.beginPath();
-    for (let i = 0; i <= FSTEPS; i++) {
-      const r = INNER_R * 0.2 + (OUTER_R * 1.3 - INNER_R * 0.2) * (i / FSTEPS);
-      const a = side * funnelHalf(r);
-      const fx = r * Math.sin(a);
-      const fy = -r * Math.cos(a);
-      i === 0 ? ctx.moveTo(fx, fy) : ctx.lineTo(fx, fy);
+  // ── Funnel envelope (hex mode only) ─────────────────────
+  if (hexMode) {
+    const FSTEPS = 48;
+    for (const side of [1, -1]) {
+      ctx.beginPath();
+      for (let i = 0; i <= FSTEPS; i++) {
+        const r = INNER_R * 0.2 + (OUTER_R * 1.3 - INNER_R * 0.2) * (i / FSTEPS);
+        const a = side * funnelHalf(r);
+        const fx = r * Math.sin(a);
+        const fy = -r * Math.cos(a);
+        i === 0 ? ctx.moveTo(fx, fy) : ctx.lineTo(fx, fy);
+      }
+      ctx.strokeStyle = "rgba(201,168,76,0.06)";
+      ctx.lineWidth = 1.5 / zm;
+      ctx.stroke();
     }
-    ctx.strokeStyle = "rgba(201,168,76,0.06)";
-    ctx.lineWidth = 1.5 / zm;
-    ctx.stroke();
   }
 
   // ── Domain sector separators + labels ───────────────────
-  // Extend sector lines to the visible viewport edge, not just OUTER_R
   const corners = [[-panX / zm, -panY / zm],
     [(innerWidth - panX) / zm, -panY / zm],
     [(innerWidth - panX) / zm, (innerHeight - panY) / zm],
@@ -475,7 +479,6 @@ function draw() {
     const sec = domSectors[dom];
     const info = TECH_DOMAINS[dom];
 
-    // Sector boundary line — extends to viewport edge
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(maxVisR * Math.sin(sec.start), -maxVisR * Math.cos(sec.start));
@@ -483,14 +486,12 @@ function draw() {
     ctx.lineWidth = 1 / zm;
     ctx.stroke();
 
-    // Sector tint arc at the outer visible radius
     ctx.beginPath();
     ctx.arc(0, 0, maxVisR - 4 / zm, -Math.PI / 2 + sec.start, -Math.PI / 2 + sec.end);
     ctx.strokeStyle = (info.color || "#888") + "18";
     ctx.lineWidth = 8 / zm;
     ctx.stroke();
 
-    // Domain label at sector midpoint, pushed to viewport edge
     const la = sec.mid;
     const lx = labelR * Math.sin(la);
     const ly = -labelR * Math.cos(la);
@@ -506,7 +507,6 @@ function draw() {
     ctx.fillText(`${info.icon} ${info.name}`, 0, 0);
     ctx.restore();
   }
-  // Closing boundary line for last sector
   { const lastSec = domSectors[domKeys[domKeys.length - 1]];
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -522,86 +522,170 @@ function draw() {
   ctx.fillStyle = "#c9a84c";
   ctx.fill();
 
-  // --- Hex positions (must compute before edges or nodes) ---
-  computeHexPositions();
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (hexMode) {
+    // ── HEX MODE: constant-pixel hex tiles, world-space grid ──
+    computeHexPositions();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // --- Edges (screen-space, between hex windows) ---
-  drawEdges(false);
-  if (sel) drawEdges(true);
+    drawEdges(false);
+    if (sel) drawEdges(true);
 
-  // --- Nodes ---
-  for (const n of nodes) {
-    // Cull off-screen nodes
-    if (n.sx < -HEX_R * 2 || n.sx > innerWidth + HEX_R * 2 ||
-        n.sy < -HEX_R * 2 || n.sy > innerHeight + HEX_R * 2) continue;
+    for (const n of nodes) {
+      if (n.sx < -HEX_R * 2 || n.sx > innerWidth + HEX_R * 2 ||
+          n.sy < -HEX_R * 2 || n.sy > innerHeight + HEX_R * 2) continue;
 
-    const isSel = n.title === sel;
-    const isAnc_ = sel && anc.has(n.title);
-    const isDesc_ = sel && desc.has(n.title);
-    const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
+      const isSel = n.title === sel;
+      const isAnc_ = sel && anc.has(n.title);
+      const isDesc_ = sel && desc.has(n.title);
+      const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
 
-    ctx.globalAlpha = dimmed ? 0.1 : 1;
-    const era = TECH_ERAS[n.era];
-    const dom = TECH_DOMAINS[n.props.domain];
-    const img = images.get(n.title);
+      ctx.globalAlpha = dimmed ? 0.1 : 1;
+      const era = TECH_ERAS[n.era];
+      const dom = TECH_DOMAINS[n.props.domain];
+      const img = images.get(n.title);
 
-    // Hex fill: image clipped to hex, or domain-tinted hex
-    if (img) {
-      ctx.save();
-      hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
-      ctx.clip();
-      ctx.drawImage(img, n.sx - HEX_R, n.sy - HEX_R, HEX_R * 2, HEX_R * 2);
-      ctx.restore();
-    } else {
-      hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
-      ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
-      ctx.fill();
-      ctx.font = `${Math.max(8, HEX_R * 0.7)}px sans-serif`;
-      ctx.fillStyle = dom.color || era.color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(dom.icon, n.sx, n.sy);
-    }
-
-    // Hex border
-    hexPath(ctx, n.sx, n.sy, HEX_R);
-    ctx.lineWidth = isSel ? 2.5 : 1;
-
-    if (isSel) {
-      ctx.shadowColor = "rgba(255,255,255,0.6)";
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = "#fff";
-    } else if (isAnc_) {
-      ctx.shadowColor = "rgba(201,168,76,0.6)";
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = "#c9a84c";
-    } else if (isDesc_) {
-      ctx.shadowColor = "rgba(70,130,180,0.6)";
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = "#4682B4";
-    } else {
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = dom.color || era.color;
-      if (n.props.rarity === "legendary" && !dimmed) {
-        ctx.shadowColor = (dom.color || era.color) + "66";
-        ctx.shadowBlur = 6;
+      if (img) {
+        ctx.save();
+        hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
+        ctx.clip();
+        ctx.drawImage(img, n.sx - HEX_R, n.sy - HEX_R, HEX_R * 2, HEX_R * 2);
+        ctx.restore();
+      } else {
+        hexPath(ctx, n.sx, n.sy, HEX_R - 0.5);
+        ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
+        ctx.fill();
+        ctx.font = `${Math.max(8, HEX_R * 0.7)}px sans-serif`;
+        ctx.fillStyle = dom.color || era.color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dom.icon, n.sx, n.sy);
       }
-    }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // Title label (show when zoomed in enough that there's room)
-    if (zm > 0.25 && !dimmed) {
-      ctx.font = "9px system-ui, sans-serif";
-      ctx.fillStyle = "#e8e4dc";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      const label = n.title.replace(/ \(.*\)$/, "");
-      ctx.fillText(label.length > 22 ? label.slice(0, 20) + "..." : label, n.sx, n.sy + HEX_R + 2);
-    }
+      hexPath(ctx, n.sx, n.sy, HEX_R);
+      ctx.lineWidth = isSel ? 2.5 : 1;
+      if (isSel) { ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 12; ctx.strokeStyle = "#fff"; }
+      else if (isAnc_) { ctx.shadowColor = "rgba(201,168,76,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#c9a84c"; }
+      else if (isDesc_) { ctx.shadowColor = "rgba(70,130,180,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#4682B4"; }
+      else { ctx.shadowBlur = 0; ctx.strokeStyle = dom.color || era.color;
+        if (n.props.rarity === "legendary" && !dimmed) { ctx.shadowColor = (dom.color || era.color) + "66"; ctx.shadowBlur = 6; }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
 
-    ctx.globalAlpha = 1;
+      if (zm > 0.25 && !dimmed) {
+        ctx.font = "9px system-ui, sans-serif";
+        ctx.fillStyle = "#e8e4dc";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        const label = n.title.replace(/ \(.*\)$/, "");
+        ctx.fillText(label.length > 22 ? label.slice(0, 20) + "..." : label, n.sx, n.sy + HEX_R + 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+  } else {
+    // ── POLAR MODE: world-space circles, Archimedean spiral edges ──
+    drawEdgesPolar(false);
+    if (sel) drawEdgesPolar(true);
+
+    for (const n of nodes) {
+      const isSel = n.title === sel;
+      const isAnc_ = sel && anc.has(n.title);
+      const isDesc_ = sel && desc.has(n.title);
+      const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
+
+      ctx.globalAlpha = dimmed ? 0.1 : 1;
+      const era = TECH_ERAS[n.era];
+      const dom = TECH_DOMAINS[n.props.domain];
+      const img = images.get(n.title);
+
+      if (sR > 10 && img) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(n.wx, n.wy, NODE_R - 1, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, n.wx - NODE_R, n.wy - NODE_R, NODE_R * 2, NODE_R * 2);
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(n.wx, n.wy, NODE_R - 1, 0, Math.PI * 2);
+        ctx.fillStyle = (dom.color || era.color) + (dimmed ? "11" : "33");
+        ctx.fill();
+        if (sR > 6) {
+          ctx.font = `${Math.max(10, NODE_R * 0.55)}px sans-serif`;
+          ctx.fillStyle = dom.color || era.color;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(dom.icon, n.wx, n.wy);
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(n.wx, n.wy, NODE_R, 0, Math.PI * 2);
+      ctx.lineWidth = (isSel ? 3 : 2) / zm;
+      if (isSel) { ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 16 / zm; ctx.strokeStyle = "#fff"; }
+      else if (isAnc_) { ctx.shadowColor = "rgba(201,168,76,0.6)"; ctx.shadowBlur = 10 / zm; ctx.strokeStyle = "#c9a84c"; }
+      else if (isDesc_) { ctx.shadowColor = "rgba(70,130,180,0.6)"; ctx.shadowBlur = 10 / zm; ctx.strokeStyle = "#4682B4"; }
+      else { ctx.shadowBlur = 0; ctx.strokeStyle = dom.color || era.color;
+        if (n.props.rarity === "legendary" && !dimmed) { ctx.shadowColor = (dom.color || era.color) + "66"; ctx.shadowBlur = 8 / zm; }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (sR > 20 && !dimmed) {
+        const fs = Math.min(11, NODE_R * 0.38);
+        ctx.font = `${fs}px system-ui, sans-serif`;
+        ctx.fillStyle = "#e8e4dc";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        const label = n.title.replace(/ \(.*\)$/, "");
+        ctx.fillText(label.length > 28 ? label.slice(0, 26) + "..." : label, n.wx, n.wy + NODE_R + 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawEdgesPolar(hlOnly) {
+  // Archimedean spiral edges in world space: linearly interpolate θ and r
+  const STEPS = 24;
+  for (const n of nodes) {
+    for (const pTitle of n.props.prereqs) {
+      const p = byTitle[pTitle];
+      if (!p) continue;
+      const isAnc_ = anc.has(n.title) || n.title === sel;
+      const isDesc_ = desc.has(n.title) && (pTitle === sel || desc.has(pTitle));
+      const hl = sel && (isAnc_ || isDesc_);
+      if (hlOnly && !hl) continue;
+      if (!hlOnly && hl && sel) continue;
+
+      const a0 = ang[pTitle], r0 = p.rv;
+      const a1 = ang[n.title], r1 = n.rv;
+
+      ctx.beginPath();
+      for (let i = 0; i <= STEPS; i++) {
+        const t = i / STEPS;
+        const a = a0 + (a1 - a0) * t;
+        const r = r0 + (r1 - r0) * t;
+        const x = r * Math.sin(a);
+        const y = -r * Math.cos(a);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+
+      if (isAnc_ && sel) {
+        ctx.strokeStyle = "rgba(201,168,76,0.7)";
+        ctx.lineWidth = 2 / zm;
+      } else if (isDesc_ && sel) {
+        ctx.strokeStyle = "rgba(70,130,180,0.7)";
+        ctx.lineWidth = 2 / zm;
+      } else if (sel) {
+        ctx.strokeStyle = "rgba(100,100,100,0.05)";
+        ctx.lineWidth = 0.5 / zm;
+      } else {
+        ctx.strokeStyle = "rgba(140,130,120,0.18)";
+        ctx.lineWidth = 1 / zm;
+      }
+      ctx.stroke();
+    }
   }
 }
 
@@ -647,9 +731,20 @@ function screenToWorld(sx, sy) {
 }
 
 function hitTest(sx, sy) {
-  // Convert screen click → world → hex cell → O(1) lookup
   const wx = (sx - panX) / zm;
   const wy = (sy - panY) / zm;
+
+  if (!hexMode) {
+    // Polar mode: world-space distance check
+    let best = null, bestD = NODE_R * 1.5;
+    for (const n of nodes) {
+      const d = Math.hypot(n.wx - wx, n.wy - wy);
+      if (d < bestD) { best = n; bestD = d; }
+    }
+    return best;
+  }
+
+  // Hex mode: screen click → world → hex cell → O(1) lookup
   const wR = HEX_R / zm;
   const colW = 1.5 * wR;
   const rowH = Math.sqrt(3) * wR;
@@ -852,5 +947,22 @@ const docsEl = document.getElementById("tt-docs");
 document.getElementById("tt-help-btn").onclick = () => docsEl.classList.toggle("hidden");
 document.getElementById("tt-docs-close").onclick = () => docsEl.classList.add("hidden");
 docsEl.addEventListener("click", e => { if (e.target === docsEl) docsEl.classList.add("hidden"); });
+
+// Hex/polar toggle
+const modeBtn = document.getElementById("tt-mode-btn");
+modeBtn.classList.add("active");  // hex mode starts active
+function toggleMode() {
+  hexMode = !hexMode;
+  modeBtn.textContent = hexMode ? "\u2B21" : "\u25C9";
+  modeBtn.classList.toggle("active", hexMode);
+  scheduleDraw();
+}
+modeBtn.onclick = toggleMode;
+window.addEventListener("keydown", e => {
+  if (e.key === "h" || e.key === "H") {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    toggleMode();
+  }
+});
 
 window.addEventListener("resize", () => { resize(); fitView(); });
