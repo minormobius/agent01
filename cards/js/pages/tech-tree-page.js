@@ -977,8 +977,8 @@ function buildTimeline() {
 
     const fill = document.createElement("div");
     fill.className = "tt-tl-fill";
-    const pct = (bin.total / maxTotal) * 100;
-    fill.style.height = Math.max(pct, bin.count ? 2 : 0) + "%";
+    const h = bin.total ? Math.max(3, (bin.total / maxTotal) * 90) : 0;
+    fill.style.height = h + "px";
     // Gold intensity scales with density
     const a = 0.35 + 0.65 * (bin.total / maxTotal);
     fill.style.background = `rgba(201,168,76,${a.toFixed(2)})`;
