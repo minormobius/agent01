@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Hand — Biomechanical Force Analysis</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12}
+#c{display:block;width:100%;height:100vh;touch-action:none}
+#ui{position:fixed;left:14px;bottom:14px;z-index:5;display:flex;flex-direction:column;gap:6px}
+#grips{display:flex;gap:5px;flex-wrap:wrap}
+#grips button{padding:4px 10px;border-radius:4px;border:1px solid #555;
+  font:bold 11px monospace;cursor:pointer;background:rgba(0,0,0,0.7);
+  color:#888;-webkit-tap-highlight-color:transparent}
+#grips button.on{color:#fa0;border-color:#fa0}
+#loadBtn{padding:4px 10px;border-radius:4px;border:1px solid #555;
+  font:bold 11px monospace;cursor:pointer;background:rgba(0,0,0,0.7);
+  color:#888;-webkit-tap-highlight-color:transparent;align-self:flex-start}
+#info{position:fixed;right:14px;bottom:14px;color:rgba(255,255,255,0.3);
+  font:11px monospace;pointer-events:none;z-index:2;text-align:right;white-space:pre}
+#err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:16px monospace;text-align:center;padding:20px;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="grips">
+    <button class="on" onclick="setGrip(0)">Open</button>
+    <button onclick="setGrip(1)">Power</button>
+    <button onclick="setGrip(2)">Pinch</button>
+    <button onclick="setGrip(3)">Point</button>
+    <button onclick="setGrip(4)">Hook</button>
+  </div>
+  <button id="loadBtn" onclick="cycleLoad()">Load: off</button>
+</div>
+<div id="info"></div>
+<div id="err">WebGPU not available.</div>
+<script>
+'use strict';
+/* ── Vector math ── */
+const V={
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+  scl:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]),
+  norm:a=>{const l=V.len(a)||1;return[a[0]/l,a[1]/l,a[2]/l]},
+  rot:(v,ax,ang)=>{const c=Math.cos(ang),s=Math.sin(ang),d=V.dot(ax,v),cr=V.cross(ax,v);
+    return[v[0]*c+cr[0]*s+ax[0]*d*(1-c),v[1]*c+cr[1]*s+ax[1]*d*(1-c),v[2]*c+cr[2]*s+ax[2]*d*(1-c)]},
+};
+
+/* ── Hand model: [base_x, base_y, mc_len, pp_len, mp_len, dp_len, width, splay] ── */
+const FD=[
+  [-0.07,-0.01, 0.11,0.08,0,   0.06, 0.015,-1.0],
+  [-0.03, 0.0,  0.19,0.11,0.07,0.05, 0.012,-0.10],
+  [ 0.0,  0.0,  0.20,0.12,0.08,0.05, 0.013, 0.0],
+  [ 0.03, 0.0,  0.19,0.11,0.07,0.05, 0.012, 0.08],
+  [ 0.055,-0.01,0.17,0.09,0.05,0.04, 0.010, 0.18],
+];
+
+/* ── Grip presets: [mcp_flex, mcp_abd, pip_flex, dip_flex] x5 fingers ── */
+const GP=[
+  [[.1,.3,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+  [[.8,.3,.5,.3],[1.3,0,1.5,1.1],[1.3,0,1.5,1.1],[1.4,0,1.5,1.1],[1.4,0,1.5,1.1]],
+  [[.5,.2,.3,.2],[.7,0,.8,.6],[.2,0,.2,.1],[.1,0,.1,.1],[.1,0,.1,.1]],
+  [[.7,.3,.4,.2],[0,0,0,0],[1.4,0,1.5,1.1],[1.4,0,1.5,1.1],[1.4,0,1.5,1.1]],
+  [[.1,.3,0,0],[.1,0,1.4,.9],[.1,0,1.4,.9],[.1,0,1.4,.9],[.1,0,1.4,.9]],
+];
+const GRIP_NAMES=['Open','Power','Pinch','Point','Hook'];
+
+/* ── Forward kinematics ── */
+function fk(ang){
+  const B=[];
+  for(let f=0;f<5;f++){
+    const[bx,by,mcL,ppL,mpL,dpL,w,sp]=FD[f];
+    const[mf,ma,pf,df]=ang[f];
+    let dir,nrm;
+    if(f===0){dir=V.norm([Math.sin(sp),Math.cos(sp)*.8,.3]);nrm=[0,0,1];}
+    else{dir=V.norm([Math.sin(sp),Math.cos(sp),0]);nrm=[0,0,1];}
+    let lat=V.norm(V.cross(dir,nrm));nrm=V.cross(lat,dir);
+    let p=[bx,by,0];
+    const bone=(len,r)=>{const e=V.add(p,V.scl(dir,len));
+      B.push(p[0],p[1],p[2],r,e[0],e[1],e[2],0);p=[...e];};
+    const fl=(a)=>{lat=V.norm(V.cross(dir,nrm));dir=V.rot(dir,lat,a);nrm=V.rot(nrm,lat,a);};
+    const ab=(a)=>{dir=V.rot(dir,nrm,a);lat=V.norm(V.cross(dir,nrm));};
+    bone(mcL,w); ab(ma); fl(mf); bone(ppL,w*.9);
+    if(mpL>0){fl(pf);bone(mpL,w*.8);}
+    fl(df); bone(dpL,w*.7);
+  }
+  B.push(-.03,-.04,0,.035, .03,-.04,0,0);
+  return B;
+}
+
+/* ── Palm cross-struts ── */
+function addPalm(B){
+  const mc=[0,3,7,11,15];
+  const mcpE=mc.map(i=>[B[i*8+4],B[i*8+5],B[i*8+6]]);
+  for(let i=1;i<4;i++) B.push(mcpE[i][0],mcpE[i][1],mcpE[i][2],.013,
+    mcpE[i+1][0],mcpE[i+1][1],mcpE[i+1][2],0);
+  B.push(mcpE[0][0],mcpE[0][1],mcpE[0][2],.011,
+    mcpE[1][0],mcpE[1][1],mcpE[1][2],0);
+}
+
+/* ── Force analysis: torque-based stress ── */
+function calcStress(B,gi,lm){
+  if(lm===0)return;
+  const ld=[0,-lm,0];
+  let bi=0;const tips=[],ranges=[];
+  for(let f=0;f<5;f++){
+    const s=bi;bi++;bi++;if(FD[f][4]>0)bi++;bi++;
+    ranges.push([s,bi]);
+    const li=bi-1;tips.push([B[li*8+4],B[li*8+5],B[li*8+6]]);
+  }
+  const ct=[[],[0,1,2,3,4],[0,1],[],[1,2,3,4]][gi]||[];
+  for(const fi of ct){
+    const tip=tips[fi];const[s,e]=ranges[fi];
+    for(let b=s;b<e;b++){
+      const j=[B[b*8],B[b*8+1],B[b*8+2]];
+      const r=V.sub(tip,j);const tq=V.cross(r,ld);
+      const tm=V.len(tq);const bw=B[b*8+3];
+      B[b*8+7]=Math.min(1.0,tm/(bw*bw*600));
+    }
+  }
+}
+
+/* ── WGSL shader ── */
+const shader=`
+struct U{d:array<vec4f,128>}
+@group(0)@binding(0) var<uniform> u:U;
+
+fn sdCap(p:vec3f,a:vec3f,b:vec3f,r:f32)->f32{
+  let pa=p-a;let ba=b-a;
+  let h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
+  return length(pa-ba*h)-r;
+}
+
+fn scene(p:vec3f)->vec2f{
+  var d=100.0;var st=0.0;
+  let nb=u32(u.d[1].w);
+  for(var i=0u;i<52u;i++){
+    if(i>=nb){break;}
+    let idx=2u+i*2u;
+    let a=u.d[idx];let b=u.d[idx+1u];
+    if(a.w<0.0001){continue;}
+    let sd=sdCap(p,a.xyz,b.xyz,a.w);
+    if(sd<d){d=sd;st=b.w;}
+  }
+  return vec2f(d,st);
+}
+
+fn sdf(p:vec3f)->f32{return scene(p).x;}
+
+fn calcN(p:vec3f)->vec3f{
+  let e=vec2f(0.0008,0.0);
+  return normalize(vec3f(
+    sdf(p+e.xyy)-sdf(p-e.xyy),
+    sdf(p+e.yxy)-sdf(p-e.yxy),
+    sdf(p+e.yyx)-sdf(p-e.yyx)));
+}
+
+@vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
+  let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  return vec4f(p[v],0,1);
+}
+
+@fragment fn fs(@builtin(position) fc:vec4f)->@location(0) vec4f{
+  let res=u.d[0].xy;let yaw=u.d[0].z;let pitch=u.d[0].w;
+  let dist=u.d[1].x;
+  let uv=(fc.xy-res*0.5)/res.y;
+
+  // Orbit camera
+  let tgt=vec3f(0.0,0.15,0.0);
+  let ro=tgt+dist*vec3f(cos(pitch)*sin(yaw),sin(pitch),cos(pitch)*cos(yaw));
+  let look=normalize(tgt-ro);
+  let rt=normalize(cross(look,vec3f(0.0,1.0,0.0)));
+  let up=cross(rt,look);
+  let rd=normalize(look*1.5+rt*uv.x+up*uv.y);
+
+  // Raymarch
+  var t=0.0;var hit=vec2f(100.0,0.0);
+  for(var i=0;i<80;i++){
+    let p=ro+rd*t;hit=scene(p);
+    if(hit.x<0.0004||t>3.0){break;}
+    t+=hit.x;
+  }
+
+  var col=vec3f(0.04,0.04,0.06);
+
+  if(hit.x<0.001&&t<3.0){
+    let p=ro+rd*t;let n=calcN(p);
+    let st=hit.y;
+    // Stress color: ivory → gold → red
+    let base=mix(mix(vec3f(0.88,0.84,0.78),vec3f(0.95,0.7,0.2),clamp(st*2.0,0.0,1.0)),
+                 vec3f(1.0,0.15,0.05),clamp(st*2.0-1.0,0.0,1.0));
+    let l1=normalize(vec3f(0.5,0.8,0.6));
+    let l2=normalize(vec3f(-0.3,0.4,-0.5));
+    let diff=max(dot(n,l1),0.0)*0.65+max(dot(n,l2),0.0)*0.2;
+    let spec=pow(max(dot(reflect(-l1,n),-rd),0.0),24.0)*0.25;
+    let amb=0.15+0.08*n.y;
+    col=base*(diff+amb)+vec3f(spec);
+    col+=vec3f(0.12,0.05,0.03)*max(0.0,0.5-dot(n,-rd));
+    col=mix(col,vec3f(0.04,0.04,0.06),1.0-exp(-t*t*0.3));
+  }else{
+    // Ground plane
+    let tg=(-0.06-ro.y)/rd.y;
+    if(tg>0.0){
+      let gp=ro+rd*tg;
+      let grid=abs(fract(gp.xz*8.0)-vec2f(0.5));
+      let gl=smoothstep(0.48,0.46,min(grid.x,grid.y));
+      col=(vec3f(0.05)+vec3f(gl*0.04))*smoothstep(1.2,0.0,length(gp.xz));
+    }
+  }
+
+  col=pow(max(col,vec3f(0.0)),vec3f(0.4545));
+  return vec4f(col,1.0);
+}`;
+
+/* ── Globals ── */
+const canvas=document.getElementById('c'),infoEl=document.getElementById('info');
+const gBtns=document.querySelectorAll('#grips button');
+const loadBtn=document.getElementById('loadBtn');
+let gripIdx=0,loadLvl=0,yaw=0.4,pitch=0.35,dist=0.8;
+let curAng=GP[0].map(a=>[...a]);
+const LOADS=[0,1,3,8];
+
+window.setGrip=function(i){
+  gripIdx=i;gBtns.forEach((b,j)=>b.classList.toggle('on',j===i));
+};
+window.cycleLoad=function(){
+  loadLvl=(loadLvl+1)%LOADS.length;
+  loadBtn.textContent='Load: '+(LOADS[loadLvl]?LOADS[loadLvl]+'N':'off');
+  loadBtn.style.color=LOADS[loadLvl]?'#f55':'#888';
+  loadBtn.style.borderColor=LOADS[loadLvl]?'#f55':'#555';
+};
+
+/* ── WebGPU ── */
+async function init(){
+  if(!navigator.gpu){document.getElementById('err').style.display='flex';return;}
+  const adapter=await navigator.gpu.requestAdapter();
+  if(!adapter){document.getElementById('err').style.display='flex';return;}
+  const device=await adapter.requestDevice();
+  const ctx=canvas.getContext('webgpu');
+  const fmt=navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({device,format:fmt,alphaMode:'opaque'});
+  let w,h;
+  function resize(){const d=Math.min(devicePixelRatio,1.5);
+    w=canvas.clientWidth*d|0;h=canvas.clientHeight*d|0;canvas.width=w;canvas.height=h;}
+  resize();addEventListener('resize',resize);
+
+  const BUF=128*16;
+  const ub=device.createBuffer({size:BUF,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const mod=device.createShaderModule({code:shader});
+  const ci=await mod.getCompilationInfo();
+  const errs=ci.messages.filter(m=>m.type==='error');
+  if(errs.length){const el=document.getElementById('err');
+    el.textContent='Shader: '+errs.map(m=>'L'+m.lineNum+': '+m.message).join(' | ');
+    el.style.display='flex';return;}
+  let pipe;
+  try{pipe=await device.createRenderPipelineAsync({layout:'auto',
+    vertex:{module:mod,entryPoint:'vs'},
+    fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]},
+    primitive:{topology:'triangle-list'}});}
+  catch(e){document.getElementById('err').textContent='Pipeline: '+e.message;
+    document.getElementById('err').style.display='flex';return;}
+  const bg=device.createBindGroup({layout:pipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:ub}}]});
+
+  /* ── Input ── */
+  let drag=null;
+  canvas.addEventListener('pointerdown',e=>{
+    drag={x:e.clientX,y:e.clientY,yaw,pitch};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag)return;
+    yaw=drag.yaw+(e.clientX-drag.x)*0.008;
+    pitch=Math.max(-1.2,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*0.008));});
+  canvas.addEventListener('pointerup',()=>{drag=null;});
+  canvas.addEventListener('pointercancel',()=>{drag=null;});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();
+    dist=Math.max(0.3,Math.min(2.0,dist+e.deltaY*0.001));},{passive:false});
+
+  /* ── Render loop ── */
+  function frame(ts){
+    requestAnimationFrame(frame);
+    const tgt=GP[gripIdx];
+    for(let f=0;f<5;f++)for(let j=0;j<4;j++)
+      curAng[f][j]+=(tgt[f][j]-curAng[f][j])*0.08;
+
+    const bones=fk(curAng);
+    addPalm(bones);
+    calcStress(bones,gripIdx,LOADS[loadLvl]);
+
+    const nPH=bones.length/8;
+    const off=0.16;
+    const pb=new Float32Array(128*4);
+    pb[0]=w;pb[1]=h;pb[2]=yaw;pb[3]=pitch;
+    pb[4]=dist;pb[5]=ts*0.001;pb[6]=LOADS[loadLvl];pb[7]=nPH*2;
+
+    // Right hand
+    for(let i=0;i<bones.length;i+=8){
+      const o=8+i;
+      pb[o]=bones[i]+off;pb[o+1]=bones[i+1];pb[o+2]=bones[i+2];pb[o+3]=bones[i+3];
+      pb[o+4]=bones[i+4]+off;pb[o+5]=bones[i+5];pb[o+6]=bones[i+6];pb[o+7]=bones[i+7];
+    }
+    // Left hand (mirror X)
+    const lo=bones.length;
+    for(let i=0;i<bones.length;i+=8){
+      const o=8+lo+i;
+      pb[o]=-bones[i]-off;pb[o+1]=bones[i+1];pb[o+2]=bones[i+2];pb[o+3]=bones[i+3];
+      pb[o+4]=-bones[i+4]-off;pb[o+5]=bones[i+5];pb[o+6]=bones[i+6];pb[o+7]=bones[i+7];
+    }
+
+    device.queue.writeBuffer(ub,0,pb);
+    const enc=device.createCommandEncoder();
+    const pass=enc.beginRenderPass({colorAttachments:[{
+      view:ctx.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',
+      clearValue:{r:0.04,g:0.04,b:0.06,a:1}}]});
+    pass.setPipeline(pipe);pass.setBindGroup(0,bg);pass.draw(3);pass.end();
+    device.queue.submit([enc.finish()]);
+
+    let maxSt=0;for(let i=7;i<bones.length;i+=8)maxSt=Math.max(maxSt,bones[i]);
+    infoEl.textContent=GRIP_NAMES[gripIdx]+' grip\n'+
+      (nPH*2)+' bones \u00B7 40 DOF\n'+
+      'Peak stress: '+(maxSt*100).toFixed(0)+'%';
+  }
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>
