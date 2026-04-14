@@ -351,20 +351,20 @@ const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
 
 const PK_R = HEX_R;
-const PK_GRAV = 0.18;            // radial gravity toward cone apex
-let   pkDamp = 0.88;             // velocity damping per frame (slider-adjustable)
+const PK_GRAV = 0.18;            // downward gravity
+let   pkDamp = 0.50;             // velocity damping per frame (slider-adjustable)
 const PK_PREREQ = 0.03;          // grappling-hook strength
 const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
 const PK_MAXV = PK_R * 0.25;     // velocity cap — limits penetration to <1px
 const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
 const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
-let   pkSlope = 1.0;             // cone width factor (slider-adjustable): 1 = 60° included
+let   pkSlope = 3.0;             // cone width factor (slider-adjustable): 3 = 120° included
 
-// Cone geometry
+// Cone geometry — true V-point at bottom
 let pkCx, pkBotY, pkRowH, pkNRows;
 
 function pkHW(y) {
-  return Math.max(PK_R, ((pkBotY - y) / pkRowH * pkSlope + 1) * PK_R);
+  return Math.max(0, (pkBotY - y) * pkSlope / Math.sqrt(3));
 }
 function pkWallL(y) { return pkCx - pkHW(y); }
 function pkWallR(y) { return pkCx + pkHW(y); }
@@ -373,8 +373,8 @@ function pkWallR(y) { return pkCx + pkHW(y); }
 const pkPanel = document.createElement("div");
 pkPanel.className = "tt-pk-sliders hidden";
 pkPanel.innerHTML = [
-  '<label>Angle <input type="range" id="pk-angle" min="0.3" max="3" step="0.1" value="1"> <span id="pk-angle-v">60°</span></label>',
-  '<label>Damp <input type="range" id="pk-damp" min="0.50" max="0.99" step="0.01" value="0.88"> <span id="pk-damp-v">0.88</span></label>',
+  '<label>Angle <input type="range" id="pk-angle" min="0.3" max="4" step="0.1" value="3"> <span id="pk-angle-v">120°</span></label>',
+  '<label>Damp <input type="range" id="pk-damp" min="0.30" max="0.99" step="0.01" value="0.50"> <span id="pk-damp-v">0.50</span></label>',
 ].join("");
 document.body.appendChild(pkPanel);
 const pkAngleIn = document.getElementById("pk-angle");
@@ -424,15 +424,10 @@ function stepPlinko() {
   const D = PK_R * 2;
   for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
 
-  // Radial gravity + prereq springs → accumulate forces
+  // Downward gravity + prereq springs
   for (const n of active) {
     const s = pkState.get(n.title);
-    const dx = pkCx - s.x, dy = pkBotY - s.y;
-    const d = Math.hypot(dx, dy);
-    if (d > 1) {
-      s.vx += (dx / d) * PK_GRAV;
-      s.vy += (dy / d) * PK_GRAV;
-    }
+    s.vy += PK_GRAV;
     // Prereq springs — unidirectional: child pulled toward ancestor, ancestor unaffected.
     // Only active beyond contact distance D so spring can't fight LJ repulsion (no temperature).
     for (const pT of n.props.prereqs) {
@@ -565,29 +560,48 @@ function drawPlinko(dpr) {
   const running = stepPlinko();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // 60° hex-aligned cone boundary
+  // Cone boundary — true V-point with hex-textured walls
   const topRowY = pkBotY - (pkNRows - 1) * pkRowH;
+  const topHW = pkHW(topRowY - PK_R);
+  const zigStep = PK_R;                       // zigzag turn every R vertically
+  const zigIn = PK_R * Math.sqrt(3) * 0.5;   // indent depth = hex apothem
+
+  // Faint fill
   ctx.beginPath();
-  ctx.moveTo(pkCx - PK_R, pkBotY + PK_R);
-  ctx.lineTo(pkCx - pkNRows * PK_R, topRowY - PK_R);
-  ctx.lineTo(pkCx + pkNRows * PK_R, topRowY - PK_R);
-  ctx.lineTo(pkCx + PK_R, pkBotY + PK_R);
+  ctx.moveTo(pkCx, pkBotY);
+  ctx.lineTo(pkCx - topHW, topRowY - PK_R);
+  ctx.lineTo(pkCx + topHW, topRowY - PK_R);
   ctx.closePath();
   ctx.fillStyle = "rgba(201,168,76,0.02)";
   ctx.fill();
+
+  // Left wall — hex-scalloped zigzag
+  ctx.beginPath();
+  ctx.moveTo(pkCx, pkBotY);
+  for (let y = pkBotY - zigStep, zi = 0; y >= topRowY - PK_R * 2; y -= zigStep, zi++) {
+    ctx.lineTo(pkWallL(y) + (zi % 2 ? zigIn : 0), y);
+  }
   ctx.strokeStyle = "rgba(201,168,76,0.25)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Domain lane guides (converging toward cone point)
+  // Right wall — hex-scalloped zigzag (mirror)
+  ctx.beginPath();
+  ctx.moveTo(pkCx, pkBotY);
+  for (let y = pkBotY - zigStep, zi = 0; y >= topRowY - PK_R * 2; y -= zigStep, zi++) {
+    ctx.lineTo(pkWallR(y) - (zi % 2 ? zigIn : 0), y);
+  }
+  ctx.strokeStyle = "rgba(201,168,76,0.25)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Domain lane guides (converging toward apex)
   for (const dom of domKeys) {
     const sec = domSectors[dom];
     const frac = (sec.mid + HALF) / SPAN;
-    const topW = pkNRows * PK_R * 2;
-    const botW = PK_R * 2;
-    const xt = pkCx - pkNRows * PK_R + frac * topW;
-    const xb = pkCx - PK_R + frac * botW;
-    ctx.beginPath(); ctx.moveTo(xt, topRowY); ctx.lineTo(xb, pkBotY);
+    const tw = topHW * 2;
+    const xt = pkCx - topHW + frac * tw;
+    ctx.beginPath(); ctx.moveTo(xt, topRowY); ctx.lineTo(pkCx, pkBotY);
     ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "0a";
     ctx.lineWidth = 1; ctx.stroke();
   }
@@ -627,18 +641,19 @@ function drawPlinko(dpr) {
     const dom = TECH_DOMAINS[n.props.domain];
     const era = TECH_ERAS[n.era];
     const img = images.get(n.title);
+    const HP = Math.PI / 6;  // pointed-top rotation
     if (img) {
-      ctx.save(); hexPath(ctx, s.x, s.y, PK_R - 0.5); ctx.clip();
+      ctx.save(); hexPath(ctx, s.x, s.y, PK_R - 0.5, HP); ctx.clip();
       ctx.drawImage(img, s.x - PK_R, s.y - PK_R, PK_R * 2, PK_R * 2); ctx.restore();
     } else {
-      hexPath(ctx, s.x, s.y, PK_R - 0.5);
+      hexPath(ctx, s.x, s.y, PK_R - 0.5, HP);
       ctx.fillStyle = (dom.color || era.color) + "33"; ctx.fill();
       ctx.font = `${Math.max(8, PK_R * 0.7)}px sans-serif`;
       ctx.fillStyle = dom.color || era.color;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(dom.icon, s.x, s.y);
     }
-    hexPath(ctx, s.x, s.y, PK_R);
+    hexPath(ctx, s.x, s.y, PK_R, HP);
     ctx.lineWidth = isSel ? 2.5 : 1;
     if (isSel) { ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 12; ctx.strokeStyle = "#fff"; }
     else if (isAnc_) { ctx.shadowColor = "rgba(201,168,76,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#c9a84c"; }
@@ -652,11 +667,12 @@ function drawPlinko(dpr) {
   if (running) scheduleDraw();
 }
 
-// Flat-top hexagon path (screen-space)
-function hexPath(ctx, cx, cy, r) {
+// Hexagon path — rot=0 flat-top, rot=π/6 pointed-top
+function hexPath(ctx, cx, cy, r, rot) {
   ctx.beginPath();
+  const r0 = rot || 0;
   for (let i = 0; i < 6; i++) {
-    const a = i * Math.PI / 3;
+    const a = i * Math.PI / 3 + r0;
     const x = cx + r * Math.cos(a);
     const y = cy + r * Math.sin(a);
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
