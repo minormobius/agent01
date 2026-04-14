@@ -351,11 +351,13 @@ const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
 
 const PK_R = HEX_R;
-const PK_GRAV = 0.32;            // gravity (px/frame²)
-const PK_DAMP = 0.92;            // strong air friction — kills jiggle
-const PK_BOUNCE = 0.08;          // very low restitution
-const PK_PREREQ = 0.04;          // gentle grappling-hook pull
-const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
+const PK_GRAV = 0.22;            // gravity (px/frame²)
+const PK_DAMP = 0.86;            // heavy damping — kills thermal jiggle
+const PK_BOUNCE = 0.02;          // near-zero restitution
+const PK_PREREQ = 0.03;          // gentle grappling-hook pull
+const PK_VKILL = 0.05;           // velocity snap-to-zero threshold
+const LJ_EPS = 2.5;              // Lennard-Jones well depth
+const LJ_FMAX = 3.0;             // cap repulsive force per pair
 
 // Funnel: V-cone — wide at top, narrow at bottom
 let pkCx, pkTopY, pkBotY, pkTopHW, pkBotHW;
@@ -374,29 +376,31 @@ function initPlinko() {
   pkTopY = PK_R * 2;
   pkBotY = H - PK_R;
   pkTopHW = W * 0.44;             // wide opening at top
-  pkBotHW = PK_R * 5;             // narrow point at bottom (~5 disks)
+  pkBotHW = PK_R * 2;             // 2-disk-wide point at bottom
   for (const n of nodes) {
     const sec = domSectors[n.props.domain];
     const frac = (sec.mid + HALF) / SPAN;
     const x = pkWallL(pkTopY) + frac * (pkWallR(pkTopY) - pkWallL(pkTopY));
     pkState.set(n.title, {
       x, y: pkTopY - PK_R * 4 - Math.random() * PK_R * 2,
-      vx: (Math.random() - 0.5) * 0.2, vy: 0
+      vx: (Math.random() - 0.5) * 0.1, vy: 0
     });
   }
 }
 
 function stepPlinko() {
   pkFrame++;
-  // Release 1 disk per frame (~8 s for 500 disks at 60 fps)
-  if (pkTime < pkSorted.length)
+  // Release 1 disk per 4 frames (~33 s for 500 at 60 fps)
+  if (pkFrame % 4 === 0 && pkTime < pkSorted.length)
     pkBirth.set(pkSorted[pkTime++].title, pkFrame);
 
   const active = [];
   const D = PK_R * 2;
+  const LJ_SIG = D * 0.8909;      // equilibrium at r = D (contact)
+  const LJ_CUT2 = D * D * 4;      // cutoff at 2D
   for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
 
-  // Forces: gravity + prerequisite springs
+  // Gravity + prerequisite springs → velocity
   for (const n of active) {
     const s = pkState.get(n.title);
     s.vy += PK_GRAV;
@@ -406,50 +410,76 @@ function stepPlinko() {
       if (!ps) continue;
       const dx = ps.x - s.x, dy = ps.y - s.y;
       const d = Math.hypot(dx, dy);
-      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.2; }
+      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.15; }
     }
+  }
+
+  // Lennard-Jones inter-disk potential → velocity
+  // Repulsive core prevents overlap; attractive well encourages hex packing
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dx = si.x - sj.x, dy = si.y - sj.y;
+      const r2 = dx * dx + dy * dy;
+      if (r2 > LJ_CUT2 || r2 < 1) continue;
+      const r = Math.sqrt(r2);
+      const inv = LJ_SIG / r;
+      const inv3 = inv * inv * inv;
+      const inv6 = inv3 * inv3;
+      // F = 24ε/r · [2(σ/r)^12 − (σ/r)^6]  (+ve = repulsive)
+      let f = 24 * LJ_EPS / r * (2 * inv6 * inv6 - inv6);
+      f = Math.max(-0.12, Math.min(LJ_FMAX, f));   // cap attraction gently
+      const fx = f * dx / r, fy = f * dy / r;
+      si.vx += fx; si.vy += fy;
+      sj.vx -= fx; sj.vy -= fy;
+    }
+  }
+
+  // Damping + integration
+  for (const n of active) {
+    const s = pkState.get(n.title);
     s.vx *= PK_DAMP; s.vy *= PK_DAMP;
     s.x += s.vx; s.y += s.vy;
   }
 
-  // Wall + floor clamping (pre-collision)
-  function clampWalls(s) {
+  // Wall + floor clamping
+  for (const n of active) {
+    const s = pkState.get(n.title);
     const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
     if (lw >= rw) { s.x = pkCx; s.vx = 0; }
     else {
       if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; }
       if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; }
     }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= 0.85; }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= 0.8; }
     if (s.y < pkTopY - PK_R * 8) { s.y = pkTopY - PK_R * 8; s.vy = 0; }
   }
-  for (const n of active) clampWalls(pkState.get(n.title));
 
-  // Disk-disk collisions — 4 passes for stable packed bed
-  for (let pass = 0; pass < 4; pass++) {
+  // Position correction safety net — 2 passes for deep piles
+  for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < active.length; i++) {
       const si = pkState.get(active[i].title);
       for (let j = i + 1; j < active.length; j++) {
         const sj = pkState.get(active[j].title);
-        const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
-        const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
-        const dist = Math.hypot(dx, dy);
-        if (dist < D && dist > 0.01) {
-          const nx = dx / dist, ny = dy / dist;
-          const ov = (D - dist) * 0.52;
-          si.x += nx * ov; si.y += ny * ov;
-          sj.x -= nx * ov; sj.y -= ny * ov;
-          const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
-          if (rv > 0) {
-            si.vx -= nx * rv * 0.5; si.vy -= ny * rv * 0.5;
-            sj.vx += nx * rv * 0.5; sj.vy += ny * rv * 0.5;
-          }
+        const dx = si.x - sj.x, dy = si.y - sj.y;
+        const r2 = dx * dx + dy * dy;
+        if (r2 >= D * D || r2 < 0.01) continue;
+        const r = Math.sqrt(r2);
+        const nx = dx / r, ny = dy / r;
+        const ov = (D - r) * 0.52;
+        si.x += nx * ov; si.y += ny * ov;
+        sj.x -= nx * ov; sj.y -= ny * ov;
+        const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
+        if (rv < 0) {
+          si.vx -= nx * rv * 0.5; si.vy -= ny * rv * 0.5;
+          sj.vx += nx * rv * 0.5; sj.vy += ny * rv * 0.5;
         }
       }
     }
   }
 
-  // Post-collision wall clamp (collisions can push disks outside)
+  // Post-correction wall clamp
   for (const n of active) {
     const s = pkState.get(n.title);
     const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
@@ -468,7 +498,7 @@ function stepPlinko() {
   }
   if (!moving && pkTime >= pkSorted.length) {
     pkSettled++;
-    return pkSettled < 3;          // stop after 3 quiet frames
+    return pkSettled < 3;
   }
   pkSettled = 0;
   return true;
