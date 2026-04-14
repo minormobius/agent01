@@ -343,7 +343,7 @@ const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
 let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
-/* ── Plinko mode — physics in hex-aligned 60° cone ──────── */
+/* ── Plinko mode — radial gravity into hex-aligned cone ─── */
 let plinkoMode = false;
 let pkTime = 0, pkFrame = 0, pkSettled = 0;
 const pkSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
@@ -351,16 +351,14 @@ const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
 
 const PK_R = HEX_R;
-const PK_GRAV = 0.25;            // gravity (px/frame²)
-const PK_DAMP = 0.87;            // damping
-const PK_BOUNCE = 0.04;          // wall/floor restitution
-const PK_PREREQ = 0.04;          // grappling-hook strength
-const PK_VKILL = 0.05;           // velocity snap-to-zero threshold
+const PK_GRAV = 0.22;            // radial gravity toward cone apex
+const PK_DAMP = 0.90;            // velocity damping per frame
+const PK_PREREQ = 0.03;          // grappling-hook strength
+const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
 
-// Cone: 60° angle = atan(1/√3) half-angle — matches hex close-packing
+// Cone: 60° angle matching hex close-packing
 let pkCx, pkBotY, pkRowH, pkNRows;
 
-// Wall half-width at height y: grows by PK_R per hex row
 function pkHW(y) {
   return Math.max(PK_R, ((pkBotY - y) / pkRowH + 1) * PK_R);
 }
@@ -373,20 +371,18 @@ function initPlinko() {
   const W = innerWidth, H = innerHeight;
   pkCx = W / 2;
   pkBotY = H - PK_R * 2;
-  pkRowH = PK_R * Math.sqrt(3);   // natural hex row spacing ≈ 27.7px
+  pkRowH = PK_R * Math.sqrt(3);
   pkNRows = Math.ceil((-1 + Math.sqrt(1 + 8 * nodes.length)) / 2);
-
-  // Compress row height if cone overflows viewport
   const idealH = (pkNRows - 1) * pkRowH;
   const availH = H - PK_R * 6;
   if (idealH > availH) pkRowH = availH / (pkNRows - 1);
 
-  // Spawn all disks above the cone, spread by domain sector
   for (const n of nodes) {
     const sec = domSectors[n.props.domain];
     const frac = (sec.mid + HALF) / SPAN;
+    const topW = pkNRows * PK_R;
     pkState.set(n.title, {
-      x: pkCx + (frac - 0.5) * W * 0.7,
+      x: pkCx + (frac - 0.5) * topW * 1.6,
       y: -PK_R * 3 - Math.random() * PK_R * 4,
       vx: 0, vy: 0
     });
@@ -395,7 +391,6 @@ function initPlinko() {
 
 function stepPlinko() {
   pkFrame++;
-  // Release 1 disk per 4 frames (~33 s for 500 at 60 fps)
   if (pkFrame % 4 === 0 && pkTime < pkSorted.length)
     pkBirth.set(pkSorted[pkTime++].title, pkFrame);
 
@@ -403,37 +398,43 @@ function stepPlinko() {
   const D = PK_R * 2;
   for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
 
-  // Forces: gravity + prereq springs → velocity
+  // Radial gravity — pulls every disk toward cone apex (pkCx, pkBotY)
   for (const n of active) {
     const s = pkState.get(n.title);
-    s.vy += PK_GRAV;
+    const dx = pkCx - s.x, dy = pkBotY - s.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 1) {
+      s.vx += (dx / d) * PK_GRAV;
+      s.vy += (dy / d) * PK_GRAV;
+    }
+    // Prereq grappling hooks (gentle lateral bias)
     for (const pT of n.props.prereqs) {
       if (!pkBirth.has(pT)) continue;
       const ps = pkState.get(pT);
       if (!ps) continue;
-      const dx = ps.x - s.x, dy = ps.y - s.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.2; }
+      const px = ps.x - s.x, py = ps.y - s.y;
+      const pd = Math.hypot(px, py);
+      if (pd > 1) { s.vx += (px / pd) * PK_PREREQ; s.vy += (py / pd) * PK_PREREQ * 0.2; }
     }
     s.vx *= PK_DAMP; s.vy *= PK_DAMP;
     s.x += s.vx; s.y += s.vy;
   }
 
-  // Wall + floor clamping (hex-aligned 60° walls = no shear)
+  // Wall + floor: full velocity kill on contact (max friction)
   for (const n of active) {
     const s = pkState.get(n.title);
     const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
-    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; s.vy = 0; }
     else {
-      if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; }
-      if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; }
+      if (s.x < lw) { s.x = lw; s.vx = 0; s.vy = 0; }
+      if (s.x > rw) { s.x = rw; s.vx = 0; s.vy = 0; }
     }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= 0.8; }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vx = 0; s.vy = 0; }
     if (s.y < -PK_R * 10) { s.y = -PK_R * 10; s.vy = 0; }
   }
 
-  // Disk-disk position correction — 3 passes
-  for (let pass = 0; pass < 3; pass++) {
+  // Hard hex collisions — 4 passes, fully inelastic
+  for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < active.length; i++) {
       const si = pkState.get(active[i].title);
       for (let j = i + 1; j < active.length; j++) {
@@ -444,25 +445,29 @@ function stepPlinko() {
         if (r2 >= D * D || r2 < 0.01) continue;
         const r = Math.sqrt(r2);
         const nx = dx / r, ny = dy / r;
-        const ov = (D - r) * 0.52;
+        // Push to exact contact distance
+        const ov = (D - r) * 0.5;
         si.x += nx * ov; si.y += ny * ov;
         sj.x -= nx * ov; sj.y -= ny * ov;
-        const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
-        if (rv < 0) {
-          si.vx -= nx * rv * 0.5; si.vy -= ny * rv * 0.5;
-          sj.vx += nx * rv * 0.5; sj.vy += ny * rv * 0.5;
-        }
+        // Fully inelastic: average velocities (zero restitution)
+        const avx = (si.vx + sj.vx) * 0.5;
+        const avy = (si.vy + sj.vy) * 0.5;
+        si.vx = avx; si.vy = avy;
+        sj.vx = avx; sj.vy = avy;
       }
     }
   }
 
-  // Post-correction wall clamp
+  // Post-collision wall clamp (full stop)
   for (const n of active) {
     const s = pkState.get(n.title);
     const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
-    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
-    else { if (s.x < lw) { s.x = lw; s.vx = 0; } if (s.x > rw) { s.x = rw; s.vx = 0; } }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = 0; }
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; s.vy = 0; }
+    else {
+      if (s.x < lw) { s.x = lw; s.vx = 0; s.vy = 0; }
+      if (s.x > rw) { s.x = rw; s.vx = 0; s.vy = 0; }
+    }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vx = 0; s.vy = 0; }
   }
 
   // Velocity kill + settle detection
