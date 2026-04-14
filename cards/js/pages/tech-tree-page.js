@@ -345,49 +345,59 @@ let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
 /* ── Plinko mode — gravity-driven packed bed ────────────── */
 let plinkoMode = false;
-let pkTime = 0, pkFrame = 0;
+let pkTime = 0, pkFrame = 0, pkSettled = 0;
 const pkSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
 const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
 
-// Physics
-const PK_R = HEX_R;              // disk radius = hex tile size
-const PK_GRAV = 0.28;            // gravity (px/frame²)
-const PK_DAMP = 0.985;           // air friction
-const PK_BOUNCE = 0.3;           // restitution
-const PK_PREREQ = 0.06;          // grappling-hook strength
-const PK_FLOOR_FRIC = 0.92;      // tangential friction on collision
+const PK_R = HEX_R;
+const PK_GRAV = 0.32;            // gravity (px/frame²)
+const PK_DAMP = 0.92;            // strong air friction — kills jiggle
+const PK_BOUNCE = 0.08;          // very low restitution
+const PK_PREREQ = 0.04;          // gentle grappling-hook pull
+const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
 
-// Funnel geometry (set in initPlinko)
+// Funnel: V-cone — wide at top, narrow at bottom
 let pkCx, pkTopY, pkBotY, pkTopHW, pkBotHW;
-function pkWallL(y) { const t = (y - pkTopY) / (pkBotY - pkTopY); return pkCx - pkTopHW - t * (pkBotHW - pkTopHW); }
-function pkWallR(y) { const t = (y - pkTopY) / (pkBotY - pkTopY); return pkCx + pkTopHW + t * (pkBotHW - pkTopHW); }
+function pkHW(y) {
+  const t = Math.max(0, Math.min(1, (y - pkTopY) / (pkBotY - pkTopY)));
+  return pkTopHW + t * (pkBotHW - pkTopHW);
+}
+function pkWallL(y) { return pkCx - pkHW(y); }
+function pkWallR(y) { return pkCx + pkHW(y); }
 
 function initPlinko() {
-  pkTime = 0; pkFrame = 0;
+  pkTime = 0; pkFrame = 0; pkSettled = 0;
   pkState.clear(); pkBirth.clear();
   const W = innerWidth, H = innerHeight;
-  pkCx = W / 2; pkTopY = PK_R * 3; pkBotY = H - PK_R * 2;
-  pkTopHW = PK_R * 4; pkBotHW = W * 0.44;
+  pkCx = W / 2;
+  pkTopY = PK_R * 2;
+  pkBotY = H - PK_R;
+  pkTopHW = W * 0.44;             // wide opening at top
+  pkBotHW = PK_R * 5;             // narrow point at bottom (~5 disks)
   for (const n of nodes) {
     const sec = domSectors[n.props.domain];
     const frac = (sec.mid + HALF) / SPAN;
-    pkState.set(n.title, { x: pkCx - pkTopHW + frac * pkTopHW * 2,
-      y: pkTopY - PK_R * 2, vx: (Math.random() - 0.5) * 0.8, vy: 0 });
+    const x = pkWallL(pkTopY) + frac * (pkWallR(pkTopY) - pkWallL(pkTopY));
+    pkState.set(n.title, {
+      x, y: pkTopY - PK_R * 4 - Math.random() * PK_R * 2,
+      vx: (Math.random() - 0.5) * 0.2, vy: 0
+    });
   }
 }
 
 function stepPlinko() {
   pkFrame++;
-  const rate = Math.max(2, Math.ceil(nodes.length / 260));
-  for (let i = 0; i < rate && pkTime < pkSorted.length; i++)
+  // Release 1 disk per frame (~8 s for 500 disks at 60 fps)
+  if (pkTime < pkSorted.length)
     pkBirth.set(pkSorted[pkTime++].title, pkFrame);
-  let moving = false;
+
   const active = [];
   const D = PK_R * 2;
-  for (const n of nodes) {
-    if (!pkBirth.has(n.title)) continue;
-    active.push(n);
+  for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
+
+  // Forces: gravity + prerequisite springs
+  for (const n of active) {
     const s = pkState.get(n.title);
     s.vy += PK_GRAV;
     for (const pT of n.props.prereqs) {
@@ -396,43 +406,76 @@ function stepPlinko() {
       if (!ps) continue;
       const dx = ps.x - s.x, dy = ps.y - s.y;
       const d = Math.hypot(dx, dy);
-      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.4; }
+      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.2; }
     }
     s.vx *= PK_DAMP; s.vy *= PK_DAMP;
     s.x += s.vx; s.y += s.vy;
-    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
-    if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; s.vy *= PK_FLOOR_FRIC; }
-    if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; s.vy *= PK_FLOOR_FRIC; }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= PK_FLOOR_FRIC; }
-    if (s.y < pkTopY + PK_R) { s.y = pkTopY + PK_R; s.vy = Math.abs(s.vy) * PK_BOUNCE; }
-    if (Math.abs(s.vx) > 0.08 || Math.abs(s.vy) > 0.08) moving = true;
   }
-  // Disk-disk collisions
-  for (let i = 0; i < active.length; i++) {
-    const si = pkState.get(active[i].title);
-    for (let j = i + 1; j < active.length; j++) {
-      const sj = pkState.get(active[j].title);
-      const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
-      const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
-      const dist = Math.hypot(dx, dy);
-      if (dist < D && dist > 0.01) {
-        const nx = dx / dist, ny = dy / dist, ov = (D - dist) * 0.5;
-        si.x += nx * ov; si.y += ny * ov;
-        sj.x -= nx * ov; sj.y -= ny * ov;
-        const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
-        if (rv > 0) {
-          si.vx -= nx * rv * PK_BOUNCE; si.vy -= ny * rv * PK_BOUNCE;
-          sj.vx += nx * rv * PK_BOUNCE; sj.vy += ny * rv * PK_BOUNCE;
+
+  // Wall + floor clamping (pre-collision)
+  function clampWalls(s) {
+    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
+    else {
+      if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; }
+      if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; }
+    }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= 0.85; }
+    if (s.y < pkTopY - PK_R * 8) { s.y = pkTopY - PK_R * 8; s.vy = 0; }
+  }
+  for (const n of active) clampWalls(pkState.get(n.title));
+
+  // Disk-disk collisions — 4 passes for stable packed bed
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < active.length; i++) {
+      const si = pkState.get(active[i].title);
+      for (let j = i + 1; j < active.length; j++) {
+        const sj = pkState.get(active[j].title);
+        const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
+        const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
+        const dist = Math.hypot(dx, dy);
+        if (dist < D && dist > 0.01) {
+          const nx = dx / dist, ny = dy / dist;
+          const ov = (D - dist) * 0.52;
+          si.x += nx * ov; si.y += ny * ov;
+          sj.x -= nx * ov; sj.y -= ny * ov;
+          const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
+          if (rv > 0) {
+            si.vx -= nx * rv * 0.5; si.vy -= ny * rv * 0.5;
+            sj.vx += nx * rv * 0.5; sj.vy += ny * rv * 0.5;
+          }
         }
-        moving = true;
       }
     }
   }
-  return moving || pkTime < pkSorted.length;
+
+  // Post-collision wall clamp (collisions can push disks outside)
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
+    else { if (s.x < lw) { s.x = lw; s.vx = 0; } if (s.x > rw) { s.x = rw; s.vx = 0; } }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = 0; }
+  }
+
+  // Velocity kill + settle detection
+  let moving = false;
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    if (Math.abs(s.vx) < PK_VKILL) s.vx = 0;
+    if (Math.abs(s.vy) < PK_VKILL) s.vy = 0;
+    if (s.vx !== 0 || s.vy !== 0) moving = true;
+  }
+  if (!moving && pkTime >= pkSorted.length) {
+    pkSettled++;
+    return pkSettled < 3;          // stop after 3 quiet frames
+  }
+  pkSettled = 0;
+  return true;
 }
 
 function endPlinko() {
-  const a_ = ang; // restore polar world positions
+  const a_ = ang;
   nodes.forEach(n => { n.wx = n.rv * Math.sin(a_[n.title]); n.wy = -n.rv * Math.cos(a_[n.title]); });
   pkState.clear(); pkBirth.clear();
 }
@@ -441,23 +484,31 @@ function drawPlinko(dpr) {
   const running = stepPlinko();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Funnel walls
+  // Cone fill
   ctx.beginPath();
   ctx.moveTo(pkWallL(pkTopY), pkTopY);
   ctx.lineTo(pkWallL(pkBotY), pkBotY);
-  ctx.moveTo(pkWallR(pkTopY), pkTopY);
   ctx.lineTo(pkWallR(pkBotY), pkBotY);
-  ctx.moveTo(pkWallL(pkBotY), pkBotY);
+  ctx.lineTo(pkWallR(pkTopY), pkTopY);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(201,168,76,0.03)";
+  ctx.fill();
+
+  // Cone outline
+  ctx.beginPath();
+  ctx.moveTo(pkWallL(pkTopY), pkTopY);
+  ctx.lineTo(pkWallL(pkBotY), pkBotY);
   ctx.lineTo(pkWallR(pkBotY), pkBotY);
-  ctx.strokeStyle = "rgba(201,168,76,0.18)";
-  ctx.lineWidth = 1.5;
+  ctx.lineTo(pkWallR(pkTopY), pkTopY);
+  ctx.strokeStyle = "rgba(201,168,76,0.35)";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Domain lane guides
+  // Domain lane guides (converging toward bottom)
   for (const dom of domKeys) {
     const sec = domSectors[dom];
     const frac = (sec.mid + HALF) / SPAN;
-    const x1 = pkCx - pkTopHW + frac * pkTopHW * 2;
+    const x1 = pkWallL(pkTopY) + frac * (pkWallR(pkTopY) - pkWallL(pkTopY));
     const x2 = pkWallL(pkBotY) + frac * (pkWallR(pkBotY) - pkWallL(pkBotY));
     ctx.beginPath(); ctx.moveTo(x1, pkTopY); ctx.lineTo(x2, pkBotY);
     ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "12";
@@ -480,8 +531,8 @@ function drawPlinko(dpr) {
       else if (isDesc_ && sel) { ctx.strokeStyle = "rgba(70,130,180,0.65)"; ctx.lineWidth = 1.5; }
       else {
         const age = pkFrame - Math.max(pkBirth.get(n.title), pkBirth.get(pTitle));
-        const br = Math.max(0.06, 0.45 * Math.exp(-age / 15));
-        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`; ctx.lineWidth = br > 0.15 ? 1 : 0.5;
+        const br = Math.max(0.04, 0.4 * Math.exp(-age / 12));
+        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`; ctx.lineWidth = br > 0.12 ? 1 : 0.5;
       }
       ctx.stroke();
     }
