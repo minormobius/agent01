@@ -343,6 +343,86 @@ const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
 let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
+/* ── Plinko mode — spring-physics chronological drop ────── */
+let plinkoMode = false;
+let plinkoTime = 0;           // nodes released so far
+let plinkoFrame = 0;          // frame counter
+const plinkoSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
+const plinkoBirth = new Map();   // title → frame when released
+const plinkoVel = new Map();     // title → {vx, vy}
+const savedPos = new Map();      // title → {x, y} (target positions)
+
+function initPlinko() {
+  plinkoTime = 0; plinkoFrame = 0;
+  plinkoBirth.clear(); plinkoVel.clear(); savedPos.clear();
+  nodes.forEach(n => {
+    savedPos.set(n.title, { x: n.wx, y: n.wy });
+    const sec = domSectors[n.props.domain];
+    const r0 = INNER_R * 0.08;
+    n.wx = r0 * Math.sin(sec.mid);
+    n.wy = -r0 * Math.cos(sec.mid);
+    plinkoVel.set(n.title, { vx: 0, vy: 0 });
+  });
+}
+
+function stepPlinko() {
+  plinkoFrame++;
+  const rate = Math.max(2, Math.ceil(nodes.length / 280));
+  for (let i = 0; i < rate && plinkoTime < plinkoSorted.length; i++) {
+    plinkoBirth.set(plinkoSorted[plinkoTime].title, plinkoFrame);
+    plinkoTime++;
+  }
+  let moving = false;
+  for (const n of nodes) {
+    if (!plinkoBirth.has(n.title)) continue;
+    const tgt = savedPos.get(n.title), vel = plinkoVel.get(n.title);
+    const dx = tgt.x - n.wx, dy = tgt.y - n.wy;
+    let fx = dx * 0.035, fy = dy * 0.035;
+    for (const pT of n.props.prereqs) {
+      if (!plinkoBirth.has(pT)) continue;
+      const p = byTitle[pT];
+      if (p) { fx += (p.wx - n.wx) * 0.012; fy += (p.wy - n.wy) * 0.012; }
+    }
+    vel.vx = (vel.vx + fx) * 0.86; vel.vy = (vel.vy + fy) * 0.86;
+    n.wx += vel.vx; n.wy += vel.vy;
+    if (Math.abs(vel.vx) + Math.abs(vel.vy) < 0.02 && Math.hypot(dx, dy) < 0.3) {
+      n.wx = tgt.x; n.wy = tgt.y; vel.vx = 0; vel.vy = 0;
+    } else { moving = true; }
+  }
+  return moving || plinkoTime < plinkoSorted.length;
+}
+
+function endPlinko() {
+  nodes.forEach(n => { const t = savedPos.get(n.title); if (t) { n.wx = t.x; n.wy = t.y; } });
+  plinkoBirth.clear(); plinkoVel.clear(); savedPos.clear();
+}
+
+function drawEdgesPlinko(hlOnly) {
+  for (const n of nodes) {
+    if (!plinkoBirth.has(n.title)) continue;
+    for (const pTitle of n.props.prereqs) {
+      const p = byTitle[pTitle];
+      if (!p || !plinkoBirth.has(pTitle)) continue;
+      const isAnc_ = anc.has(n.title) || n.title === sel;
+      const isDesc_ = desc.has(n.title) && (pTitle === sel || desc.has(pTitle));
+      const hl = sel && (isAnc_ || isDesc_);
+      if (hlOnly && !hl) continue;
+      if (!hlOnly && hl && sel) continue;
+      ctx.beginPath(); ctx.moveTo(p.wx, p.wy); ctx.lineTo(n.wx, n.wy);
+      if (isAnc_ && sel) { ctx.strokeStyle = "rgba(201,168,76,0.7)"; ctx.lineWidth = 2 / zm; }
+      else if (isDesc_ && sel) { ctx.strokeStyle = "rgba(70,130,180,0.7)"; ctx.lineWidth = 2 / zm; }
+      else if (sel) { ctx.strokeStyle = "rgba(100,100,100,0.05)"; ctx.lineWidth = 0.5 / zm; }
+      else {
+        const age = plinkoFrame - Math.max(plinkoBirth.get(n.title), plinkoBirth.get(pTitle));
+        const br = Math.max(0.10, 0.55 * Math.exp(-age / 18));
+        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`;
+        ctx.lineWidth = (br > 0.2 ? 1.2 : 0.7) / zm;
+      }
+      ctx.stroke();
+    }
+  }
+}
+
 // Flat-top hexagon path (screen-space)
 function hexPath(ctx, cx, cy, r) {
   ctx.beginPath();
@@ -522,7 +602,10 @@ function draw() {
   ctx.fillStyle = "#c9a84c";
   ctx.fill();
 
-  if (hexMode) {
+  let _plinkoRunning = false;
+  if (plinkoMode) _plinkoRunning = stepPlinko();
+
+  if (hexMode && !plinkoMode) {
     // ── HEX MODE: constant-pixel hex tiles, world-space grid ──
     computeHexPositions();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -583,11 +666,12 @@ function draw() {
       ctx.globalAlpha = 1;
     }
   } else {
-    // ── POLAR MODE: world-space circles, Archimedean spiral edges ──
-    drawEdgesPolar(false);
-    if (sel) drawEdgesPolar(true);
+    // ── POLAR / PLINKO MODE ──
+    if (plinkoMode) { drawEdgesPlinko(false); if (sel) drawEdgesPlinko(true); }
+    else { drawEdgesPolar(false); if (sel) drawEdgesPolar(true); }
 
     for (const n of nodes) {
+      if (plinkoMode && !plinkoBirth.has(n.title)) continue;
       const isSel = n.title === sel;
       const isAnc_ = sel && anc.has(n.title);
       const isDesc_ = sel && desc.has(n.title);
@@ -643,6 +727,8 @@ function draw() {
       ctx.globalAlpha = 1;
     }
   }
+
+  if (_plinkoRunning) scheduleDraw();
 }
 
 function drawEdgesPolar(hlOnly) {
@@ -735,9 +821,10 @@ function hitTest(sx, sy) {
   const wy = (sy - panY) / zm;
 
   if (!hexMode) {
-    // Polar mode: world-space distance check
+    // Polar / Plinko mode: world-space distance check
     let best = null, bestD = NODE_R * 1.5;
     for (const n of nodes) {
+      if (plinkoMode && !plinkoBirth.has(n.title)) continue;
       const d = Math.hypot(n.wx - wx, n.wy - wy);
       if (d < bestD) { best = n; bestD = d; }
     }
@@ -1027,12 +1114,31 @@ docsEl.addEventListener("click", e => { if (e.target === docsEl) docsEl.classLis
 const modeBtn = document.getElementById("tt-mode-btn");
 modeBtn.classList.add("active");  // hex mode starts active
 function toggleMode() {
+  if (plinkoMode) { plinkoMode = false; endPlinko(); }
   hexMode = !hexMode;
   modeBtn.textContent = hexMode ? "\u2B21" : "\u25C9";
   modeBtn.classList.toggle("active", hexMode);
   scheduleDraw();
 }
 modeBtn.onclick = toggleMode;
+
+// Plinko toggle
+const plinkoBtn = document.getElementById("tt-plinko-btn");
+function togglePlinko() {
+  plinkoMode = !plinkoMode;
+  if (plinkoMode) {
+    hexMode = false;
+    modeBtn.textContent = "\u25C9";
+    modeBtn.classList.remove("active");
+    initPlinko();
+    fitView();
+  } else {
+    endPlinko();
+  }
+  plinkoBtn.classList.toggle("active", plinkoMode);
+  scheduleDraw();
+}
+plinkoBtn.onclick = togglePlinko;
 
 // Timeline chart
 const tlEl = document.getElementById("tt-timeline");
@@ -1053,6 +1159,7 @@ window.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.key === "h" || e.key === "H") toggleMode();
   if (e.key === "t" || e.key === "T") toggleTimeline();
+  if (e.key === "p" || e.key === "P") togglePlinko();
 });
 
 window.addEventListener("resize", () => { resize(); fitView(); });
