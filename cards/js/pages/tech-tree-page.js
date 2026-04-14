@@ -343,159 +343,113 @@ const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
 let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
-/* ── Plinko mode — gravity-driven packed bed ────────────── */
+/* ── Plinko mode — gravity drop into hex-packed cone ────── */
 let plinkoMode = false;
 let pkTime = 0, pkFrame = 0, pkSettled = 0;
 const pkSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
 const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
+const pkTarget = new Map();  // title → {x, y} lattice slot
+const pkFrozen = new Set();  // titles snapped into position
+const pkSlots = [];          // pre-computed hex lattice positions
+let pkNextSlot = 0;
 
 const PK_R = HEX_R;
-const PK_GRAV = 0.22;            // gravity (px/frame²)
-const PK_DAMP = 0.86;            // heavy damping — kills thermal jiggle
-const PK_BOUNCE = 0.02;          // near-zero restitution
-const PK_PREREQ = 0.03;          // gentle grappling-hook pull
-const PK_VKILL = 0.05;           // velocity snap-to-zero threshold
-const LJ_EPS = 2.5;              // Lennard-Jones well depth
-const LJ_FMAX = 3.0;             // cap repulsive force per pair
+const PK_GRAV = 0.28;            // gravity (px/frame²)
+const PK_DAMP = 0.88;            // damping during free fall
+const PK_SNAP = 0.45;            // snap-to-slot interpolation speed
+const PK_GUIDE = 0.01;           // lateral guidance toward target column
+const PK_PREREQ = 0.004;         // lateral grappling-hook pull toward ancestors
 
-// Funnel: V-cone — wide at top, narrow at bottom
-let pkCx, pkTopY, pkBotY, pkTopHW, pkBotHW;
-function pkHW(y) {
-  const t = Math.max(0, Math.min(1, (y - pkTopY) / (pkBotY - pkTopY)));
-  return pkTopHW + t * (pkBotHW - pkTopHW);
-}
-function pkWallL(y) { return pkCx - pkHW(y); }
-function pkWallR(y) { return pkCx + pkHW(y); }
+// Cone geometry — derived from hex lattice (60° natural angle)
+let pkCx, pkBotY, pkRowH, pkNRows;
 
 function initPlinko() {
-  pkTime = 0; pkFrame = 0; pkSettled = 0;
-  pkState.clear(); pkBirth.clear();
+  pkTime = 0; pkFrame = 0; pkSettled = 0; pkNextSlot = 0;
+  pkState.clear(); pkBirth.clear(); pkTarget.clear();
+  pkFrozen.clear(); pkSlots.length = 0;
+
   const W = innerWidth, H = innerHeight;
   pkCx = W / 2;
-  pkTopY = PK_R * 2;
-  pkBotY = H - PK_R;
-  pkTopHW = W * 0.44;             // wide opening at top
-  pkBotHW = PK_R * 2;             // 2-disk-wide point at bottom
+  pkBotY = H - PK_R * 2;
+  pkRowH = PK_R * Math.sqrt(3);   // natural hex row spacing
+  pkNRows = Math.ceil((-1 + Math.sqrt(1 + 8 * nodes.length)) / 2);
+
+  // If cone overflows viewport, compress row height to fit
+  const idealH = (pkNRows - 1) * pkRowH;
+  const availH = H - PK_R * 6;
+  if (idealH > availH) pkRowH = availH / (pkNRows - 1);
+
+  // Build hex lattice — triangle, point at bottom, row 0 = 1 disk
+  for (let row = 0; row < pkNRows; row++) {
+    const nInRow = row + 1;
+    const y = pkBotY - row * pkRowH;
+    for (let i = 0; i < nInRow && pkSlots.length < nodes.length; i++)
+      pkSlots.push({ x: pkCx + (-row + 2 * i) * PK_R, y });
+  }
+
+  // Spawn all disks above the cone, spread by domain sector
   for (const n of nodes) {
     const sec = domSectors[n.props.domain];
     const frac = (sec.mid + HALF) / SPAN;
-    const x = pkWallL(pkTopY) + frac * (pkWallR(pkTopY) - pkWallL(pkTopY));
     pkState.set(n.title, {
-      x, y: pkTopY - PK_R * 4 - Math.random() * PK_R * 2,
-      vx: (Math.random() - 0.5) * 0.1, vy: 0
+      x: pkCx + (frac - 0.5) * W * 0.7,
+      y: -PK_R * 3 - Math.random() * PK_R * 4,
+      vx: 0, vy: 0
     });
   }
 }
 
 function stepPlinko() {
   pkFrame++;
+
   // Release 1 disk per 4 frames (~33 s for 500 at 60 fps)
-  if (pkFrame % 4 === 0 && pkTime < pkSorted.length)
-    pkBirth.set(pkSorted[pkTime++].title, pkFrame);
+  if (pkFrame % 4 === 0 && pkTime < pkSorted.length) {
+    const nd = pkSorted[pkTime++];
+    pkBirth.set(nd.title, pkFrame);
+    if (pkNextSlot < pkSlots.length)
+      pkTarget.set(nd.title, pkSlots[pkNextSlot++]);
+  }
 
-  const active = [];
-  const D = PK_R * 2;
-  const LJ_SIG = D * 0.8909;      // equilibrium at r = D (contact)
-  const LJ_CUT2 = D * D * 4;      // cutoff at 2D
-  for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
+  let moving = false;
 
-  // Gravity + prerequisite springs → velocity
-  for (const n of active) {
+  for (const n of nodes) {
+    if (!pkBirth.has(n.title) || pkFrozen.has(n.title)) continue;
     const s = pkState.get(n.title);
+    const tgt = pkTarget.get(n.title);
+    if (!tgt) continue;
+
+    // Snap phase — disk has reached its target row
+    if (s.y >= tgt.y - PK_R * 0.5) {
+      s.x += (tgt.x - s.x) * PK_SNAP;
+      s.y += (tgt.y - s.y) * PK_SNAP;
+      s.vx = 0; s.vy = 0;
+      if (Math.abs(s.x - tgt.x) < 0.3 && Math.abs(s.y - tgt.y) < 0.3) {
+        s.x = tgt.x; s.y = tgt.y;
+        pkFrozen.add(n.title);
+      } else { moving = true; }
+      continue;
+    }
+
+    // Free fall phase
     s.vy += PK_GRAV;
+
+    // Lateral guidance toward target x
+    s.vx += (tgt.x - s.x) * PK_GUIDE;
+
+    // Prereq grappling hooks — lateral pull toward frozen ancestors
     for (const pT of n.props.prereqs) {
-      if (!pkBirth.has(pT)) continue;
+      if (!pkFrozen.has(pT)) continue;
       const ps = pkState.get(pT);
       if (!ps) continue;
-      const dx = ps.x - s.x, dy = ps.y - s.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.15; }
+      s.vx += (ps.x - s.x) * PK_PREREQ;
     }
-  }
 
-  // Lennard-Jones inter-disk potential → velocity
-  // Repulsive core prevents overlap; attractive well encourages hex packing
-  for (let i = 0; i < active.length; i++) {
-    const si = pkState.get(active[i].title);
-    for (let j = i + 1; j < active.length; j++) {
-      const sj = pkState.get(active[j].title);
-      const dx = si.x - sj.x, dy = si.y - sj.y;
-      const r2 = dx * dx + dy * dy;
-      if (r2 > LJ_CUT2 || r2 < 1) continue;
-      const r = Math.sqrt(r2);
-      const inv = LJ_SIG / r;
-      const inv3 = inv * inv * inv;
-      const inv6 = inv3 * inv3;
-      // F = 24ε/r · [2(σ/r)^12 − (σ/r)^6]  (+ve = repulsive)
-      let f = 24 * LJ_EPS / r * (2 * inv6 * inv6 - inv6);
-      f = Math.max(-0.12, Math.min(LJ_FMAX, f));   // cap attraction gently
-      const fx = f * dx / r, fy = f * dy / r;
-      si.vx += fx; si.vy += fy;
-      sj.vx -= fx; sj.vy -= fy;
-    }
-  }
-
-  // Damping + integration
-  for (const n of active) {
-    const s = pkState.get(n.title);
     s.vx *= PK_DAMP; s.vy *= PK_DAMP;
     s.x += s.vx; s.y += s.vy;
+    moving = true;
   }
 
-  // Wall + floor clamping
-  for (const n of active) {
-    const s = pkState.get(n.title);
-    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
-    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
-    else {
-      if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; }
-      if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; }
-    }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= 0.8; }
-    if (s.y < pkTopY - PK_R * 8) { s.y = pkTopY - PK_R * 8; s.vy = 0; }
-  }
-
-  // Position correction safety net — 2 passes for deep piles
-  for (let pass = 0; pass < 2; pass++) {
-    for (let i = 0; i < active.length; i++) {
-      const si = pkState.get(active[i].title);
-      for (let j = i + 1; j < active.length; j++) {
-        const sj = pkState.get(active[j].title);
-        const dx = si.x - sj.x, dy = si.y - sj.y;
-        const r2 = dx * dx + dy * dy;
-        if (r2 >= D * D || r2 < 0.01) continue;
-        const r = Math.sqrt(r2);
-        const nx = dx / r, ny = dy / r;
-        const ov = (D - r) * 0.52;
-        si.x += nx * ov; si.y += ny * ov;
-        sj.x -= nx * ov; sj.y -= ny * ov;
-        const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
-        if (rv < 0) {
-          si.vx -= nx * rv * 0.5; si.vy -= ny * rv * 0.5;
-          sj.vx += nx * rv * 0.5; sj.vy += ny * rv * 0.5;
-        }
-      }
-    }
-  }
-
-  // Post-correction wall clamp
-  for (const n of active) {
-    const s = pkState.get(n.title);
-    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
-    if (lw >= rw) { s.x = pkCx; s.vx = 0; }
-    else { if (s.x < lw) { s.x = lw; s.vx = 0; } if (s.x > rw) { s.x = rw; s.vx = 0; } }
-    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = 0; }
-  }
-
-  // Velocity kill + settle detection
-  let moving = false;
-  for (const n of active) {
-    const s = pkState.get(n.title);
-    if (Math.abs(s.vx) < PK_VKILL) s.vx = 0;
-    if (Math.abs(s.vy) < PK_VKILL) s.vy = 0;
-    if (s.vx !== 0 || s.vy !== 0) moving = true;
-  }
   if (!moving && pkTime >= pkSorted.length) {
     pkSettled++;
     return pkSettled < 3;
@@ -507,41 +461,38 @@ function stepPlinko() {
 function endPlinko() {
   const a_ = ang;
   nodes.forEach(n => { n.wx = n.rv * Math.sin(a_[n.title]); n.wy = -n.rv * Math.cos(a_[n.title]); });
-  pkState.clear(); pkBirth.clear();
+  pkState.clear(); pkBirth.clear(); pkTarget.clear();
+  pkFrozen.clear(); pkSlots.length = 0; pkNextSlot = 0;
 }
 
 function drawPlinko(dpr) {
   const running = stepPlinko();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Cone fill
+  // Cone boundary — derived from hex lattice (60° natural angle)
+  const topRowY = pkBotY - (pkNRows - 1) * pkRowH;
   ctx.beginPath();
-  ctx.moveTo(pkWallL(pkTopY), pkTopY);
-  ctx.lineTo(pkWallL(pkBotY), pkBotY);
-  ctx.lineTo(pkWallR(pkBotY), pkBotY);
-  ctx.lineTo(pkWallR(pkTopY), pkTopY);
+  ctx.moveTo(pkCx - PK_R, pkBotY + PK_R);
+  ctx.lineTo(pkCx - pkNRows * PK_R, topRowY - PK_R);
+  ctx.lineTo(pkCx + pkNRows * PK_R, topRowY - PK_R);
+  ctx.lineTo(pkCx + PK_R, pkBotY + PK_R);
   ctx.closePath();
-  ctx.fillStyle = "rgba(201,168,76,0.03)";
+  ctx.fillStyle = "rgba(201,168,76,0.02)";
   ctx.fill();
-
-  // Cone outline
-  ctx.beginPath();
-  ctx.moveTo(pkWallL(pkTopY), pkTopY);
-  ctx.lineTo(pkWallL(pkBotY), pkBotY);
-  ctx.lineTo(pkWallR(pkBotY), pkBotY);
-  ctx.lineTo(pkWallR(pkTopY), pkTopY);
-  ctx.strokeStyle = "rgba(201,168,76,0.35)";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(201,168,76,0.25)";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Domain lane guides (converging toward bottom)
+  // Domain lane guides (converging toward cone point)
   for (const dom of domKeys) {
     const sec = domSectors[dom];
     const frac = (sec.mid + HALF) / SPAN;
-    const x1 = pkWallL(pkTopY) + frac * (pkWallR(pkTopY) - pkWallL(pkTopY));
-    const x2 = pkWallL(pkBotY) + frac * (pkWallR(pkBotY) - pkWallL(pkBotY));
-    ctx.beginPath(); ctx.moveTo(x1, pkTopY); ctx.lineTo(x2, pkBotY);
-    ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "12";
+    const topW = pkNRows * PK_R * 2;
+    const botW = PK_R * 2;
+    const xt = pkCx - pkNRows * PK_R + frac * topW;
+    const xb = pkCx - PK_R + frac * botW;
+    ctx.beginPath(); ctx.moveTo(xt, topRowY); ctx.lineTo(xb, pkBotY);
+    ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "0a";
     ctx.lineWidth = 1; ctx.stroke();
   }
 
