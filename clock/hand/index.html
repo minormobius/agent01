@@ -175,34 +175,24 @@ fn sdRBox(p:vec3f,b:vec3f,r:f32)->f32{
   return length(max(q,vec3f(0.0)))+min(max(q.x,max(q.y,q.z)),0.0)-r;
 }
 
-fn phoneSD(p:vec3f)->f32{
-  let pp=u.d[2].xyz;let pa=u.d[2].w;
-  let hx=u.d[3].x;let hy=u.d[3].y;let hz=u.d[3].z;let cr=u.d[3].w;
-  let lp=p-pp;
-  let ca=cos(pa);let sa=sin(pa);
-  let rp=vec3f(lp.x, lp.y*ca-lp.z*sa, lp.y*sa+lp.z*ca);
-  return sdRBox(rp,vec3f(hx,hy,hz),cr);
-}
-
-// Fat collision volume: thicker toward screen (+Z), narrower in X so thumb passes
-fn phoneFat(p:vec3f)->f32{
-  let pp=u.d[2].xyz;let pa=u.d[2].w;
-  let lp=p-pp;
-  let ca=cos(pa);let sa=sin(pa);
-  let rp=vec3f(lp.x, lp.y*ca-lp.z*sa, lp.y*sa+lp.z*ca);
-  return sdRBox(vec3f(rp.x,rp.y,rp.z-0.05),vec3f(0.10,u.d[3].y,0.065),u.d[3].w);
-}
-
 fn scene(p:vec3f)->vec2f{
   var d=100.0;var st=0.0;
-  let pd=phoneSD(p);
-  let pf=phoneFat(p);
+  // Phone: single transform → visual SDF + fat collision SDF
+  let pp=u.d[2].xyz;let pa=u.d[2].w;
+  let lp=p-pp;
+  let ca=cos(pa);let sa=sin(pa);
+  let rp=vec3f(lp.x,lp.y*ca-lp.z*sa,lp.y*sa+lp.z*ca);
+  let pd=sdRBox(rp,vec3f(u.d[3].x,u.d[3].y,u.d[3].z),u.d[3].w);
+  let pf=sdRBox(vec3f(rp.x,rp.y,rp.z-0.05),vec3f(0.10,u.d[3].y,0.065),u.d[3].w);
+
   let nb=u32(u.d[1].w);
   for(var i=0u;i<52u;i++){
     if(i>=nb){break;}
     let idx=4u+i*2u;
     let a=u.d[idx];let b=u.d[idx+1u];
     if(a.w<0.0001){continue;}
+    let m=(a.xyz+b.xyz)*0.5;let dd=p-m;
+    if(dot(dd,dd)>0.09){continue;}
     let sd=sdCap(p,a.xyz,b.xyz,a.w);
     let bd=max(sd,-pf);
     if(bd<d){d=bd;st=b.w;}
@@ -214,11 +204,10 @@ fn scene(p:vec3f)->vec2f{
 fn sdf(p:vec3f)->f32{return scene(p).x;}
 
 fn calcN(p:vec3f)->vec3f{
-  let e=vec2f(0.0008,0.0);
-  return normalize(vec3f(
-    sdf(p+e.xyy)-sdf(p-e.xyy),
-    sdf(p+e.yxy)-sdf(p-e.yxy),
-    sdf(p+e.yyx)-sdf(p-e.yyx)));
+  let e=vec2f(1.0,-1.0)*0.0008;
+  return normalize(
+    e.xyy*sdf(p+e.xyy)+e.yyx*sdf(p+e.yyx)+
+    e.yxy*sdf(p+e.yxy)+e.xxx*sdf(p+e.xxx));
 }
 
 @vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
@@ -241,7 +230,7 @@ fn calcN(p:vec3f)->vec3f{
 
   // Raymarch
   var t=0.0;var hit=vec2f(100.0,0.0);
-  for(var i=0;i<80;i++){
+  for(var i=0;i<64;i++){
     let p=ro+rd*t;hit=scene(p);
     if(hit.x<0.0004||t>3.0){break;}
     t+=hit.x;
