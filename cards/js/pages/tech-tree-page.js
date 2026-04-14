@@ -359,6 +359,8 @@ const PK_MAXV = PK_R * 0.25;     // velocity cap — limits penetration to <1px
 const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
 const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
 let   pkSlope = 3.0;             // cone width factor (slider-adjustable): 3 = 120° included
+let   pkLJBuf = 1.2;             // LJ buffer (slider): repulsion starts at D × pkLJBuf
+const PK_CRYSTAL = 0.05;         // crystal lattice basin strength
 
 // Cone geometry — true V-point at bottom
 let pkCx, pkBotY, pkRowH, pkNRows;
@@ -375,12 +377,15 @@ pkPanel.className = "tt-pk-sliders hidden";
 pkPanel.innerHTML = [
   '<label>Angle <input type="range" id="pk-angle" min="0.3" max="4" step="0.1" value="3"> <span id="pk-angle-v">120°</span></label>',
   '<label>Damp <input type="range" id="pk-damp" min="0.30" max="0.99" step="0.01" value="0.50"> <span id="pk-damp-v">0.50</span></label>',
+  '<label>LJ buf <input type="range" id="pk-ljbuf" min="1.00" max="1.50" step="0.05" value="1.20"> <span id="pk-ljbuf-v">1.20</span></label>',
 ].join("");
 document.body.appendChild(pkPanel);
 const pkAngleIn = document.getElementById("pk-angle");
 const pkAngleV  = document.getElementById("pk-angle-v");
 const pkDampIn  = document.getElementById("pk-damp");
 const pkDampV   = document.getElementById("pk-damp-v");
+const pkLJBufIn = document.getElementById("pk-ljbuf");
+const pkLJBufV  = document.getElementById("pk-ljbuf-v");
 pkAngleIn.oninput = () => {
   pkSlope = +pkAngleIn.value;
   const deg = Math.round(2 * Math.atan(pkSlope / Math.sqrt(3)) * 180 / Math.PI);
@@ -389,6 +394,10 @@ pkAngleIn.oninput = () => {
 pkDampIn.oninput = () => {
   pkDamp = +pkDampIn.value;
   pkDampV.textContent = pkDamp.toFixed(2);
+};
+pkLJBufIn.oninput = () => {
+  pkLJBuf = +pkLJBufIn.value;
+  pkLJBufV.textContent = pkLJBuf.toFixed(2);
 };
 
 function initPlinko() {
@@ -440,12 +449,34 @@ function stepPlinko() {
     }
   }
 
-  // LJ spring + dashpot — deformable inelastic contacts
-  // Spring: LJ potential (σ = D×2^(-1/6), zero-crossing at r = D)
-  // Dashpot: dissipation ∝ approaching relative velocity along contact normal
-  //   → every collision destroys kinetic energy, no elastic rebound
-  const LJ_SIG = D * 0.8909;
-  const LJ_CUT = D * 2;             // ignore pairs beyond 2D
+  // Crystal lattice — energy basins at ideal hex-pack positions
+  // Each disk attracted to its nearest lattice site; LJ handles exclusion
+  const effD = D * pkLJBuf;                    // effective spacing matches LJ equilibrium
+  const latRowH = effD * Math.sqrt(3) / 2;     // close-pack row height at effective spacing
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    const rowF = (pkBotY - PK_R - s.y) / latRowH;
+    const row = Math.max(0, Math.round(rowF));
+    const yLat = pkBotY - PK_R - row * latRowH;
+    const offset = (row % 2) ? effD / 2 : 0;
+    const col = Math.round((s.x - pkCx - offset) / effD);
+    const xLat = pkCx + offset + col * effD;
+    // Only attract to sites inside cone walls
+    const lw = pkWallL(yLat) + PK_R, rw = pkWallR(yLat) - PK_R;
+    if (xLat >= lw - 1 && xLat <= rw + 1) {
+      const cdx = xLat - s.x, cdy = yLat - s.y;
+      const cd = Math.hypot(cdx, cdy);
+      if (cd > 0.5 && cd < effD) {
+        s.vx += cdx * PK_CRYSTAL;   // harmonic basin: force ∝ displacement
+        s.vy += cdy * PK_CRYSTAL;
+      }
+    }
+  }
+
+  // LJ repulsion + dashpot — buffered boundary, purely repulsive (no attractive well)
+  // Zero-crossing at r = D × pkLJBuf; crystal lattice handles positioning
+  const LJ_SIG = effD * 0.8909;     // σ so zero-crossing at effD
+  const LJ_CUT = effD * 2;          // ignore pairs beyond 2 × effD
   const LJ_GAMMA = 0.7;             // dashpot dissipation strength
   for (let i = 0; i < active.length; i++) {
     const si = pkState.get(active[i].title);
@@ -457,18 +488,17 @@ function stepPlinko() {
       if (r2 >= LJ_CUT * LJ_CUT || r2 < 0.01) continue;
       const r = Math.sqrt(r2);
       const nx = dx / r, ny = dy / r;
-      // LJ spring force
+      // LJ repulsive force only (WCA-style: zero for r > effD)
       const sr = LJ_SIG / r;
       const sr6 = sr * sr * sr * sr * sr * sr;
       const sr12 = sr6 * sr6;
       let fmag = (24 * LJ_EPS / r) * (2 * sr12 - sr6);
       if (fmag > LJ_FMAX) fmag = LJ_FMAX;
-      if (fmag < -0.2) fmag = -0.2;
+      if (fmag < 0) fmag = 0;        // purely repulsive — no attractive well
       // Dashpot: dissipate approaching relative velocity along normal
-      // v_rel_n > 0 means separating (no damping), < 0 means approaching (add damping)
       const dvx = si.vx - sj.vx, dvy = si.vy - sj.vy;
       const vrel = dvx * nx + dvy * ny;
-      if (vrel < 0) fmag -= vrel * LJ_GAMMA;  // opposing approaching motion
+      if (vrel < 0) fmag -= vrel * LJ_GAMMA;
       const fx = nx * fmag;
       const fy = ny * fmag;
       si.vx += fx; si.vy += fy;
