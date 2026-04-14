@@ -360,7 +360,8 @@ const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
 const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
 let   pkSlope = 3.0;             // cone width factor (slider-adjustable): 3 = 120° included
 let   pkLJBuf = 1.2;             // LJ buffer (slider): repulsion starts at D × pkLJBuf
-const PK_CRYSTAL = 0.05;         // crystal lattice basin strength
+let   pkCrystal = 0.05;          // crystal lattice basin depth (slider-adjustable)
+let   pkPitch = 1.0;             // lattice pitch multiplier (slider): 1.0 = hex-touching
 
 // Cone geometry — true V-point at bottom
 let pkCx, pkBotY, pkRowH, pkNRows;
@@ -378,14 +379,20 @@ pkPanel.innerHTML = [
   '<label>Angle <input type="range" id="pk-angle" min="0.3" max="4" step="0.1" value="3"> <span id="pk-angle-v">120°</span></label>',
   '<label>Damp <input type="range" id="pk-damp" min="0.30" max="0.99" step="0.01" value="0.50"> <span id="pk-damp-v">0.50</span></label>',
   '<label>LJ buf <input type="range" id="pk-ljbuf" min="1.00" max="1.50" step="0.05" value="1.20"> <span id="pk-ljbuf-v">1.20</span></label>',
+  '<label>Well <input type="range" id="pk-crystal" min="0" max="0.20" step="0.01" value="0.05"> <span id="pk-crystal-v">0.05</span></label>',
+  '<label>Pitch <input type="range" id="pk-pitch" min="0.80" max="1.50" step="0.05" value="1.00"> <span id="pk-pitch-v">1.00</span></label>',
 ].join("");
 document.body.appendChild(pkPanel);
-const pkAngleIn = document.getElementById("pk-angle");
-const pkAngleV  = document.getElementById("pk-angle-v");
-const pkDampIn  = document.getElementById("pk-damp");
-const pkDampV   = document.getElementById("pk-damp-v");
-const pkLJBufIn = document.getElementById("pk-ljbuf");
-const pkLJBufV  = document.getElementById("pk-ljbuf-v");
+const pkAngleIn   = document.getElementById("pk-angle");
+const pkAngleV    = document.getElementById("pk-angle-v");
+const pkDampIn    = document.getElementById("pk-damp");
+const pkDampV     = document.getElementById("pk-damp-v");
+const pkLJBufIn   = document.getElementById("pk-ljbuf");
+const pkLJBufV    = document.getElementById("pk-ljbuf-v");
+const pkCrystalIn = document.getElementById("pk-crystal");
+const pkCrystalV  = document.getElementById("pk-crystal-v");
+const pkPitchIn   = document.getElementById("pk-pitch");
+const pkPitchV    = document.getElementById("pk-pitch-v");
 pkAngleIn.oninput = () => {
   pkSlope = +pkAngleIn.value;
   const deg = Math.round(2 * Math.atan(pkSlope / Math.sqrt(3)) * 180 / Math.PI);
@@ -398,6 +405,14 @@ pkDampIn.oninput = () => {
 pkLJBufIn.oninput = () => {
   pkLJBuf = +pkLJBufIn.value;
   pkLJBufV.textContent = pkLJBuf.toFixed(2);
+};
+pkCrystalIn.oninput = () => {
+  pkCrystal = +pkCrystalIn.value;
+  pkCrystalV.textContent = pkCrystal.toFixed(2);
+};
+pkPitchIn.oninput = () => {
+  pkPitch = +pkPitchIn.value;
+  pkPitchV.textContent = pkPitch.toFixed(2);
 };
 
 function initPlinko() {
@@ -450,33 +465,33 @@ function stepPlinko() {
   }
 
   // Crystal lattice — energy basins at ideal hex-pack positions
-  // Each disk attracted to its nearest lattice site; LJ handles exclusion
-  const effD = D * pkLJBuf;                    // effective spacing matches LJ equilibrium
-  const latRowH = effD * Math.sqrt(3) / 2;     // close-pack row height at effective spacing
+  // Pitch controls lattice spacing (1.0 = hex-touching); LJ buffer is separate
+  const latD = D * pkPitch;                    // lattice constant
+  const latRowH = latD * Math.sqrt(3) / 2;    // close-pack row height
   for (const n of active) {
     const s = pkState.get(n.title);
     const rowF = (pkBotY - PK_R - s.y) / latRowH;
     const row = Math.max(0, Math.round(rowF));
     const yLat = pkBotY - PK_R - row * latRowH;
-    const offset = (row % 2) ? effD / 2 : 0;
-    const col = Math.round((s.x - pkCx - offset) / effD);
-    const xLat = pkCx + offset + col * effD;
+    const offset = (row % 2) ? latD / 2 : 0;
+    const col = Math.round((s.x - pkCx - offset) / latD);
+    const xLat = pkCx + offset + col * latD;
     // Only attract to sites inside cone walls
     const lw = pkWallL(yLat) + PK_R, rw = pkWallR(yLat) - PK_R;
     if (xLat >= lw - 1 && xLat <= rw + 1) {
       const cdx = xLat - s.x, cdy = yLat - s.y;
       const cd = Math.hypot(cdx, cdy);
-      if (cd > 0.5 && cd < effD) {
-        s.vx += cdx * PK_CRYSTAL;   // harmonic basin: force ∝ displacement
-        s.vy += cdy * PK_CRYSTAL;
+      if (cd > 0.5 && cd < latD) {
+        s.vx += cdx * pkCrystal;   // harmonic basin: force ∝ displacement
+        s.vy += cdy * pkCrystal;
       }
     }
   }
 
-  // LJ repulsion + dashpot — buffered boundary, purely repulsive (no attractive well)
-  // Zero-crossing at r = D × pkLJBuf; crystal lattice handles positioning
-  const LJ_SIG = effD * 0.8909;     // σ so zero-crossing at effD
-  const LJ_CUT = effD * 2;          // ignore pairs beyond 2 × effD
+  // LJ repulsion + dashpot — buffered boundary, purely repulsive
+  const ljD = D * pkLJBuf;            // LJ effective distance (independent of pitch)
+  const LJ_SIG = ljD * 0.8909;        // σ so zero-crossing at ljD
+  const LJ_CUT = ljD * 2;             // ignore pairs beyond 2 × ljD
   const LJ_GAMMA = 0.7;             // dashpot dissipation strength
   for (let i = 0; i < active.length; i++) {
     const si = pkState.get(active[i].title);
@@ -590,13 +605,14 @@ function drawPlinko(dpr) {
   const running = stepPlinko();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Cone boundary — true V-point with hex-textured walls
+  // Cone boundary — hex-edge wall profile traced from lattice
   const topRowY = pkBotY - (pkNRows - 1) * pkRowH;
   const topHW = pkHW(topRowY - PK_R);
-  const zigStep = PK_R;                       // zigzag turn every R vertically
-  const zigIn = PK_R * Math.sqrt(3) * 0.5;   // indent depth = hex apothem
+  const wLatD = D * pkPitch;                       // lattice constant for wall shape
+  const wRowH = wLatD * Math.sqrt(3) / 2;          // lattice row height
+  const wApo = PK_R * Math.sqrt(3) / 2;            // hex apothem (center to flat edge)
 
-  // Faint fill
+  // Faint fill (smooth V)
   ctx.beginPath();
   ctx.moveTo(pkCx, pkBotY);
   ctx.lineTo(pkCx - topHW, topRowY - PK_R);
@@ -605,25 +621,35 @@ function drawPlinko(dpr) {
   ctx.fillStyle = "rgba(201,168,76,0.02)";
   ctx.fill();
 
-  // Left wall — hex-scalloped zigzag
-  ctx.beginPath();
-  ctx.moveTo(pkCx, pkBotY);
-  for (let y = pkBotY - zigStep, zi = 0; y >= topRowY - PK_R * 2; y -= zigStep, zi++) {
-    ctx.lineTo(pkWallL(y) + (zi % 2 ? zigIn : 0), y);
+  // Hex-edge wall — trace outermost hex flat-edges per lattice row
+  // For pointed-top hex: left flat edge = vertical segment at cx - apothem,
+  //   from (cx - apo, cy + R/2) to (cx - apo, cy - R/2)
+  // Diagonals between rows follow hex edge angles naturally.
+  for (const side of [-1, 1]) {  // -1 = left, +1 = right
+    ctx.beginPath();
+    ctx.moveTo(pkCx, pkBotY);   // apex
+    for (let row = 0; ; row++) {
+      const y = pkBotY - PK_R - row * wRowH;
+      if (y < topRowY - PK_R * 3) break;
+      const hw = pkHW(y);
+      const offset = (row % 2) ? wLatD / 2 : 0;
+      // Find outermost hex center on this side within cone
+      let col;
+      if (side < 0) {
+        col = Math.ceil((-hw + wApo - offset) / wLatD);
+      } else {
+        col = Math.floor((hw - wApo - offset) / wLatD);
+      }
+      const cx = pkCx + offset + col * wLatD;
+      // Pointed-top hex flat-edge vertices facing outward
+      const ex = cx + side * wApo;   // flat edge x (left or right of center)
+      ctx.lineTo(ex, y + PK_R / 2);
+      ctx.lineTo(ex, y - PK_R / 2);
+    }
+    ctx.strokeStyle = "rgba(201,168,76,0.25)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
-  ctx.strokeStyle = "rgba(201,168,76,0.25)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  // Right wall — hex-scalloped zigzag (mirror)
-  ctx.beginPath();
-  ctx.moveTo(pkCx, pkBotY);
-  for (let y = pkBotY - zigStep, zi = 0; y >= topRowY - PK_R * 2; y -= zigStep, zi++) {
-    ctx.lineTo(pkWallR(y) - (zi % 2 ? zigIn : 0), y);
-  }
-  ctx.strokeStyle = "rgba(201,168,76,0.25)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
 
   // Domain lane guides (converging toward apex)
   for (const dom of domKeys) {
