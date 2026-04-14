@@ -445,11 +445,13 @@ function stepPlinko() {
     }
   }
 
-  // LJ inter-disk forces — σ chosen so equilibrium = contact distance D
-  // F_LJ = 24ε/r × [2(σ/r)^12 − (σ/r)^6]
-  // σ = D × 2^(-1/6) ≈ 0.8909 × D  →  zero-crossing at r = D
+  // LJ spring + dashpot — deformable inelastic contacts
+  // Spring: LJ potential (σ = D×2^(-1/6), zero-crossing at r = D)
+  // Dashpot: dissipation ∝ approaching relative velocity along contact normal
+  //   → every collision destroys kinetic energy, no elastic rebound
   const LJ_SIG = D * 0.8909;
   const LJ_CUT = D * 2;             // ignore pairs beyond 2D
+  const LJ_GAMMA = 0.7;             // dashpot dissipation strength
   for (let i = 0; i < active.length; i++) {
     const si = pkState.get(active[i].title);
     for (let j = i + 1; j < active.length; j++) {
@@ -459,15 +461,21 @@ function stepPlinko() {
       const r2 = dx * dx + dy * dy;
       if (r2 >= LJ_CUT * LJ_CUT || r2 < 0.01) continue;
       const r = Math.sqrt(r2);
+      const nx = dx / r, ny = dy / r;
+      // LJ spring force
       const sr = LJ_SIG / r;
       const sr6 = sr * sr * sr * sr * sr * sr;
       const sr12 = sr6 * sr6;
       let fmag = (24 * LJ_EPS / r) * (2 * sr12 - sr6);
-      // Clamp: strong repulsion capped at LJ_FMAX, weak attraction capped at -0.2
       if (fmag > LJ_FMAX) fmag = LJ_FMAX;
       if (fmag < -0.2) fmag = -0.2;
-      const fx = (dx / r) * fmag;
-      const fy = (dy / r) * fmag;
+      // Dashpot: dissipate approaching relative velocity along normal
+      // v_rel_n > 0 means separating (no damping), < 0 means approaching (add damping)
+      const dvx = si.vx - sj.vx, dvy = si.vy - sj.vy;
+      const vrel = dvx * nx + dvy * ny;
+      if (vrel < 0) fmag -= vrel * LJ_GAMMA;  // opposing approaching motion
+      const fx = nx * fmag;
+      const fy = ny * fmag;
       si.vx += fx; si.vy += fy;
       sj.vx -= fx; sj.vy -= fy;
     }
