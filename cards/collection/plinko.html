@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Plinko — Wiki Cards</title>
+  <link rel="stylesheet" href="../css/cards.css">
+  <link rel="stylesheet" href="../css/techtree.css">
+</head>
+<body class="tt-body">
+  <canvas id="tree-canvas"></canvas>
+  <div id="tt-tooltip" class="tt-tip hidden"></div>
+  <div id="tt-hud" class="tt-hud">
+    <a href=".." class="tt-back">&larr;</a>
+    <span class="tt-hud-title">Plinko</span>
+    <span class="tt-hud-count" id="tt-count"></span>
+    <button class="tt-mode-btn" id="tt-mode-btn" title="Toggle hex / polar view (H)">&#x2B21;</button>
+    <button class="tt-plinko-btn" id="tt-plinko-btn" title="Plinko drop animation (P)">&#x25BD;</button>
+    <button class="tt-chart-btn" id="tt-chart-btn" title="Innovation timeline (T)">&#x2582;&#x2585;&#x2587;</button>
+    <button class="tt-help-btn" id="tt-help-btn" title="How this works">?</button>
+  </div>
+  <div id="tt-timeline" class="tt-timeline hidden">
+    <div class="tt-tl-head">
+      <span class="tt-tl-title">Innovation Scale</span>
+      <button class="tt-tl-close" id="tt-tl-close">&times;</button>
+    </div>
+    <div class="tt-tl-chart" id="tt-tl-chart"></div>
+  </div>
+  <div id="tt-detail" class="tt-detail hidden"></div>
+  <div id="tt-docs" class="tt-docs hidden">
+    <div class="tt-docs-inner">
+      <button class="tt-docs-close" id="tt-docs-close">&times;</button>
+      <h2>Plinko</h2>
+      <p><strong>500 technologies</strong> drop chronologically into a hex-packed funnel. WIP physics simulation — crystal lattice energy basins, Lennard-Jones repulsion, inelastic dashpot contacts.</p>
+      <p>Use the sliders (top-right) to tune cone angle, damping, LJ buffer, crystal well depth, and lattice pitch.</p>
+    </div>
+  </div>
+  <script type="module" src="../js/pages/plinko-page.js"></script>
+</body>
+</html>

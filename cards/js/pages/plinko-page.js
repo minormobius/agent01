@@ -343,8 +343,385 @@ const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
 let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
-/* ── Plinko removed — see collection/plinko.html ───────── */
+/* ── Plinko mode — radial gravity into hex-aligned cone ─── */
+let plinkoMode = false;
+let pkTime = 0, pkFrame = 0, pkSettled = 0;
+const pkSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
+const pkState = new Map();   // title → {x, y, vx, vy}
+const pkBirth = new Map();   // title → frame released
 
+const PK_R = HEX_R;
+const PK_GRAV = 0.18;            // downward gravity
+let   pkDamp = 0.50;             // velocity damping per frame (slider-adjustable)
+const PK_PREREQ = 0.03;          // grappling-hook strength
+const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
+const PK_MAXV = PK_R * 0.25;     // velocity cap — limits penetration to <1px
+const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
+const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
+let   pkSlope = 3.0;             // cone width factor (slider-adjustable): 3 = 120° included
+let   pkLJBuf = 1.2;             // LJ buffer (slider): repulsion starts at D × pkLJBuf
+let   pkCrystal = 0.05;          // crystal lattice basin depth (slider-adjustable)
+let   pkPitch = 1.0;             // lattice pitch multiplier (slider): 1.0 = hex-touching
+
+// Cone geometry — true V-point at bottom
+let pkCx, pkBotY, pkRowH, pkNRows;
+
+function pkHW(y) {
+  return Math.max(0, (pkBotY - y) * pkSlope / Math.sqrt(3));
+}
+function pkWallL(y) { return pkCx - pkHW(y); }
+function pkWallR(y) { return pkCx + pkHW(y); }
+
+// Plinko slider panel (created once, shown/hidden with mode)
+const pkPanel = document.createElement("div");
+pkPanel.className = "tt-pk-sliders hidden";
+pkPanel.innerHTML = [
+  '<label>Angle <input type="range" id="pk-angle" min="0.3" max="4" step="0.1" value="3"> <span id="pk-angle-v">120°</span></label>',
+  '<label>Damp <input type="range" id="pk-damp" min="0.30" max="0.99" step="0.01" value="0.50"> <span id="pk-damp-v">0.50</span></label>',
+  '<label>LJ buf <input type="range" id="pk-ljbuf" min="1.00" max="1.50" step="0.05" value="1.20"> <span id="pk-ljbuf-v">1.20</span></label>',
+  '<label>Well <input type="range" id="pk-crystal" min="0" max="0.20" step="0.01" value="0.05"> <span id="pk-crystal-v">0.05</span></label>',
+  '<label>Pitch <input type="range" id="pk-pitch" min="0.80" max="1.50" step="0.05" value="1.00"> <span id="pk-pitch-v">1.00</span></label>',
+].join("");
+document.body.appendChild(pkPanel);
+const pkAngleIn   = document.getElementById("pk-angle");
+const pkAngleV    = document.getElementById("pk-angle-v");
+const pkDampIn    = document.getElementById("pk-damp");
+const pkDampV     = document.getElementById("pk-damp-v");
+const pkLJBufIn   = document.getElementById("pk-ljbuf");
+const pkLJBufV    = document.getElementById("pk-ljbuf-v");
+const pkCrystalIn = document.getElementById("pk-crystal");
+const pkCrystalV  = document.getElementById("pk-crystal-v");
+const pkPitchIn   = document.getElementById("pk-pitch");
+const pkPitchV    = document.getElementById("pk-pitch-v");
+pkAngleIn.oninput = () => {
+  pkSlope = +pkAngleIn.value;
+  const deg = Math.round(2 * Math.atan(pkSlope / Math.sqrt(3)) * 180 / Math.PI);
+  pkAngleV.textContent = deg + "\u00B0";
+};
+pkDampIn.oninput = () => {
+  pkDamp = +pkDampIn.value;
+  pkDampV.textContent = pkDamp.toFixed(2);
+};
+pkLJBufIn.oninput = () => {
+  pkLJBuf = +pkLJBufIn.value;
+  pkLJBufV.textContent = pkLJBuf.toFixed(2);
+};
+pkCrystalIn.oninput = () => {
+  pkCrystal = +pkCrystalIn.value;
+  pkCrystalV.textContent = pkCrystal.toFixed(2);
+};
+pkPitchIn.oninput = () => {
+  pkPitch = +pkPitchIn.value;
+  pkPitchV.textContent = pkPitch.toFixed(2);
+};
+
+function initPlinko() {
+  pkTime = 0; pkFrame = 0; pkSettled = 0;
+  pkState.clear(); pkBirth.clear();
+  const W = innerWidth, H = innerHeight;
+  pkCx = W / 2;
+  pkBotY = H - PK_R * 2;
+  pkRowH = PK_R * Math.sqrt(3);
+  pkNRows = Math.ceil((-1 + Math.sqrt(1 + 8 * nodes.length)) / 2);
+  const idealH = (pkNRows - 1) * pkRowH;
+  const availH = H - PK_R * 6;
+  if (idealH > availH) pkRowH = availH / (pkNRows - 1);
+
+  for (const n of nodes) {
+    const sec = domSectors[n.props.domain];
+    const frac = (sec.mid + HALF) / SPAN;
+    const topW = pkNRows * PK_R;
+    pkState.set(n.title, {
+      x: pkCx + (frac - 0.5) * topW * 1.6,
+      y: -PK_R * 3 - Math.random() * PK_R * 4,
+      vx: 0, vy: 0
+    });
+  }
+}
+
+function stepPlinko() {
+  pkFrame++;
+  if (pkFrame % 4 === 0 && pkTime < pkSorted.length)
+    pkBirth.set(pkSorted[pkTime++].title, pkFrame);
+
+  const active = [];
+  const D = PK_R * 2;
+  for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
+
+  // Downward gravity + prereq springs
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    s.vy += PK_GRAV;
+    // Prereq springs — unidirectional: child pulled toward ancestor, ancestor unaffected.
+    // Only active beyond contact distance D so spring can't fight LJ repulsion (no temperature).
+    for (const pT of n.props.prereqs) {
+      if (!pkBirth.has(pT)) continue;
+      const ps = pkState.get(pT);
+      if (!ps) continue;
+      const px = ps.x - s.x, py = ps.y - s.y;
+      const pd = Math.hypot(px, py);
+      if (pd > D) { s.vx += (px / pd) * PK_PREREQ; s.vy += (py / pd) * PK_PREREQ * 0.2; }
+    }
+  }
+
+  // Crystal lattice — energy basins at ideal hex-pack positions
+  // Pitch controls lattice spacing (1.0 = hex-touching); LJ buffer is separate
+  const latD = D * pkPitch;                    // lattice constant
+  const latRowH = latD * Math.sqrt(3) / 2;    // close-pack row height
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    const rowF = (pkBotY - PK_R - s.y) / latRowH;
+    const row = Math.max(0, Math.round(rowF));
+    const yLat = pkBotY - PK_R - row * latRowH;
+    const offset = (row % 2) ? latD / 2 : 0;
+    const col = Math.round((s.x - pkCx - offset) / latD);
+    const xLat = pkCx + offset + col * latD;
+    // Only attract to sites inside cone walls
+    const lw = pkWallL(yLat) + PK_R, rw = pkWallR(yLat) - PK_R;
+    if (xLat >= lw - 1 && xLat <= rw + 1) {
+      const cdx = xLat - s.x, cdy = yLat - s.y;
+      const cd = Math.hypot(cdx, cdy);
+      if (cd > 0.5 && cd < latD) {
+        s.vx += cdx * pkCrystal;   // harmonic basin: force ∝ displacement
+        s.vy += cdy * pkCrystal;
+      }
+    }
+  }
+
+  // LJ repulsion + dashpot — buffered boundary, purely repulsive
+  const ljD = D * pkLJBuf;            // LJ effective distance (independent of pitch)
+  const LJ_SIG = ljD * 0.8909;        // σ so zero-crossing at ljD
+  const LJ_CUT = ljD * 2;             // ignore pairs beyond 2 × ljD
+  const LJ_GAMMA = 0.7;             // dashpot dissipation strength
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dx = si.x - sj.x; if (Math.abs(dx) > LJ_CUT) continue;
+      const dy = si.y - sj.y; if (Math.abs(dy) > LJ_CUT) continue;
+      const r2 = dx * dx + dy * dy;
+      if (r2 >= LJ_CUT * LJ_CUT || r2 < 0.01) continue;
+      const r = Math.sqrt(r2);
+      const nx = dx / r, ny = dy / r;
+      // LJ repulsive force only (WCA-style: zero for r > effD)
+      const sr = LJ_SIG / r;
+      const sr6 = sr * sr * sr * sr * sr * sr;
+      const sr12 = sr6 * sr6;
+      let fmag = (24 * LJ_EPS / r) * (2 * sr12 - sr6);
+      if (fmag > LJ_FMAX) fmag = LJ_FMAX;
+      if (fmag < 0) fmag = 0;        // purely repulsive — no attractive well
+      // Dashpot: dissipate approaching relative velocity along normal
+      const dvx = si.vx - sj.vx, dvy = si.vy - sj.vy;
+      const vrel = dvx * nx + dvy * ny;
+      if (vrel < 0) fmag -= vrel * LJ_GAMMA;
+      const fx = nx * fmag;
+      const fy = ny * fmag;
+      si.vx += fx; si.vy += fy;
+      sj.vx -= fx; sj.vy -= fy;
+    }
+  }
+
+  // Damping + velocity clamping (prevent tunneling through LJ barrier)
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    s.vx *= pkDamp; s.vy *= pkDamp;
+    const spd = Math.hypot(s.vx, s.vy);
+    if (spd > PK_MAXV) { const sc = PK_MAXV / spd; s.vx *= sc; s.vy *= sc; }
+    s.x += s.vx; s.y += s.vy;
+  }
+
+  // Wall + floor: full velocity kill on contact (max friction)
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; s.vy = 0; }
+    else {
+      if (s.x < lw) { s.x = lw; s.vx = 0; s.vy = 0; }
+      if (s.x > rw) { s.x = rw; s.vx = 0; s.vy = 0; }
+    }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vx = 0; s.vy = 0; }
+    if (s.y < -PK_R * 10) { s.y = -PK_R * 10; s.vy = 0; }
+  }
+
+  // Safety-net position correction — single pass, bilateral push-apart
+  // This should rarely fire if LJ barrier is working; just prevents any residual overlap
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
+      const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
+      const r2 = dx * dx + dy * dy;
+      if (r2 >= D * D || r2 < 0.01) continue;
+      const r = Math.sqrt(r2);
+      const nx = dx / r, ny = dy / r;
+      const ov = (D - r) * 0.5;
+      si.x += nx * ov; si.y += ny * ov;
+      sj.x -= nx * ov; sj.y -= ny * ov;
+      // Kill approaching relative velocity along contact normal
+      const rvn = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
+      if (rvn < 0) {
+        si.vx -= rvn * nx * 0.5; si.vy -= rvn * ny * 0.5;
+        sj.vx += rvn * nx * 0.5; sj.vy += rvn * ny * 0.5;
+      }
+    }
+  }
+
+  // Post-correction wall clamp (full stop)
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
+    if (lw >= rw) { s.x = pkCx; s.vx = 0; s.vy = 0; }
+    else {
+      if (s.x < lw) { s.x = lw; s.vx = 0; s.vy = 0; }
+      if (s.x > rw) { s.x = rw; s.vx = 0; s.vy = 0; }
+    }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vx = 0; s.vy = 0; }
+  }
+
+  // Velocity kill + settle detection
+  let moving = false;
+  for (const n of active) {
+    const s = pkState.get(n.title);
+    if (Math.abs(s.vx) < PK_VKILL) s.vx = 0;
+    if (Math.abs(s.vy) < PK_VKILL) s.vy = 0;
+    if (s.vx !== 0 || s.vy !== 0) moving = true;
+  }
+  if (!moving && pkTime >= pkSorted.length) {
+    pkSettled++;
+    return pkSettled < 3;
+  }
+  pkSettled = 0;
+  return true;
+}
+
+function endPlinko() {
+  const a_ = ang;
+  nodes.forEach(n => { n.wx = n.rv * Math.sin(a_[n.title]); n.wy = -n.rv * Math.cos(a_[n.title]); });
+  pkState.clear(); pkBirth.clear();
+}
+
+function drawPlinko(dpr) {
+  const running = stepPlinko();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Cone boundary — hex-edge wall profile traced from lattice
+  const topRowY = pkBotY - (pkNRows - 1) * pkRowH;
+  const topHW = pkHW(topRowY - PK_R);
+  const wLatD = D * pkPitch;                       // lattice constant for wall shape
+  const wRowH = wLatD * Math.sqrt(3) / 2;          // lattice row height
+  const wApo = PK_R * Math.sqrt(3) / 2;            // hex apothem (center to flat edge)
+
+  // Faint fill (smooth V)
+  ctx.beginPath();
+  ctx.moveTo(pkCx, pkBotY);
+  ctx.lineTo(pkCx - topHW, topRowY - PK_R);
+  ctx.lineTo(pkCx + topHW, topRowY - PK_R);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(201,168,76,0.02)";
+  ctx.fill();
+
+  // Hex-edge wall — trace outermost hex flat-edges per lattice row
+  // For pointed-top hex: left flat edge = vertical segment at cx - apothem,
+  //   from (cx - apo, cy + R/2) to (cx - apo, cy - R/2)
+  // Diagonals between rows follow hex edge angles naturally.
+  for (const side of [-1, 1]) {  // -1 = left, +1 = right
+    ctx.beginPath();
+    ctx.moveTo(pkCx, pkBotY);   // apex
+    for (let row = 0; ; row++) {
+      const y = pkBotY - PK_R - row * wRowH;
+      if (y < topRowY - PK_R * 3) break;
+      const hw = pkHW(y);
+      const offset = (row % 2) ? wLatD / 2 : 0;
+      // Find outermost hex center on this side within cone
+      let col;
+      if (side < 0) {
+        col = Math.ceil((-hw + wApo - offset) / wLatD);
+      } else {
+        col = Math.floor((hw - wApo - offset) / wLatD);
+      }
+      const cx = pkCx + offset + col * wLatD;
+      // Pointed-top hex flat-edge vertices facing outward
+      const ex = cx + side * wApo;   // flat edge x (left or right of center)
+      ctx.lineTo(ex, y + PK_R / 2);
+      ctx.lineTo(ex, y - PK_R / 2);
+    }
+    ctx.strokeStyle = "rgba(201,168,76,0.25)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Domain lane guides (converging toward apex)
+  for (const dom of domKeys) {
+    const sec = domSectors[dom];
+    const frac = (sec.mid + HALF) / SPAN;
+    const tw = topHW * 2;
+    const xt = pkCx - topHW + frac * tw;
+    ctx.beginPath(); ctx.moveTo(xt, topRowY); ctx.lineTo(pkCx, pkBotY);
+    ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "0a";
+    ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // Edges (grappling hooks)
+  for (const n of nodes) {
+    if (!pkBirth.has(n.title)) continue;
+    const sn = pkState.get(n.title);
+    for (const pTitle of n.props.prereqs) {
+      if (!pkBirth.has(pTitle)) continue;
+      const sp = pkState.get(pTitle);
+      if (!sp) continue;
+      const isAnc_ = anc.has(n.title) || n.title === sel;
+      const isDesc_ = desc.has(n.title) && (pTitle === sel || desc.has(pTitle));
+      if (sel && !isAnc_ && !isDesc_) continue;
+      ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(sn.x, sn.y);
+      if (isAnc_ && sel) { ctx.strokeStyle = "rgba(201,168,76,0.65)"; ctx.lineWidth = 1.5; }
+      else if (isDesc_ && sel) { ctx.strokeStyle = "rgba(70,130,180,0.65)"; ctx.lineWidth = 1.5; }
+      else {
+        const age = pkFrame - Math.max(pkBirth.get(n.title), pkBirth.get(pTitle));
+        const br = Math.max(0.04, 0.4 * Math.exp(-age / 12));
+        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`; ctx.lineWidth = br > 0.12 ? 1 : 0.5;
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Disks
+  for (const n of nodes) {
+    if (!pkBirth.has(n.title)) continue;
+    const s = pkState.get(n.title);
+    const isSel = n.title === sel;
+    const isAnc_ = sel && anc.has(n.title);
+    const isDesc_ = sel && desc.has(n.title);
+    const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
+    ctx.globalAlpha = dimmed ? 0.1 : 1;
+    const dom = TECH_DOMAINS[n.props.domain];
+    const era = TECH_ERAS[n.era];
+    const img = images.get(n.title);
+    const HP = Math.PI / 6;  // pointed-top rotation
+    if (img) {
+      ctx.save(); hexPath(ctx, s.x, s.y, PK_R - 0.5, HP); ctx.clip();
+      ctx.drawImage(img, s.x - PK_R, s.y - PK_R, PK_R * 2, PK_R * 2); ctx.restore();
+    } else {
+      hexPath(ctx, s.x, s.y, PK_R - 0.5, HP);
+      ctx.fillStyle = (dom.color || era.color) + "33"; ctx.fill();
+      ctx.font = `${Math.max(8, PK_R * 0.7)}px sans-serif`;
+      ctx.fillStyle = dom.color || era.color;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(dom.icon, s.x, s.y);
+    }
+    hexPath(ctx, s.x, s.y, PK_R, HP);
+    ctx.lineWidth = isSel ? 2.5 : 1;
+    if (isSel) { ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 12; ctx.strokeStyle = "#fff"; }
+    else if (isAnc_) { ctx.shadowColor = "rgba(201,168,76,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#c9a84c"; }
+    else if (isDesc_) { ctx.shadowColor = "rgba(70,130,180,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#4682B4"; }
+    else { ctx.shadowBlur = 0; ctx.strokeStyle = dom.color || era.color;
+      if (n.props.rarity === "legendary" && !dimmed) { ctx.shadowColor = (dom.color || era.color) + "66"; ctx.shadowBlur = 6; }
+    }
+    ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+  if (running) scheduleDraw();
+}
 
 // Hexagon path — rot=0 flat-top, rot=π/6 pointed-top
 function hexPath(ctx, cx, cy, r, rot) {
@@ -525,6 +902,8 @@ function draw() {
   ctx.arc(0, 0, 5, 0, Math.PI * 2);
   ctx.fillStyle = "#c9a84c";
   ctx.fill();
+
+  if (plinkoMode) { drawPlinko(dpr); return; }
 
   if (hexMode) {
     // ── HEX MODE: constant-pixel hex tiles, world-space grid ──
@@ -737,6 +1116,18 @@ function screenToWorld(sx, sy) {
 function hitTest(sx, sy) {
   const wx = (sx - panX) / zm;
   const wy = (sy - panY) / zm;
+
+  if (plinkoMode) {
+    // Plinko mode: screen-space distance check
+    let best = null, bestD = PK_R * 1.3;
+    for (const n of nodes) {
+      if (!pkBirth.has(n.title)) continue;
+      const s = pkState.get(n.title);
+      const d = Math.hypot(s.x - sx, s.y - sy);
+      if (d < bestD) { best = n; bestD = d; }
+    }
+    return best;
+  }
 
   if (!hexMode) {
     // Polar mode: world-space distance check
@@ -1031,12 +1422,34 @@ docsEl.addEventListener("click", e => { if (e.target === docsEl) docsEl.classLis
 const modeBtn = document.getElementById("tt-mode-btn");
 modeBtn.classList.add("active");  // hex mode starts active
 function toggleMode() {
+  if (plinkoMode) { plinkoMode = false; endPlinko(); }
   hexMode = !hexMode;
   modeBtn.textContent = hexMode ? "\u2B21" : "\u25C9";
   modeBtn.classList.toggle("active", hexMode);
   scheduleDraw();
 }
 modeBtn.onclick = toggleMode;
+
+// Plinko toggle
+const plinkoBtn = document.getElementById("tt-plinko-btn");
+function togglePlinko() {
+  plinkoMode = !plinkoMode;
+  if (plinkoMode) {
+    hexMode = false;
+    modeBtn.textContent = "\u25C9";
+    modeBtn.classList.remove("active");
+    initPlinko();
+  } else {
+    endPlinko();
+  }
+  plinkoBtn.classList.toggle("active", plinkoMode);
+  pkPanel.classList.toggle("hidden", !plinkoMode);
+  scheduleDraw();
+}
+plinkoBtn.onclick = togglePlinko;
+
+// Auto-start plinko mode
+togglePlinko();
 
 // Timeline chart
 const tlEl = document.getElementById("tt-timeline");
@@ -1057,6 +1470,7 @@ window.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.key === "h" || e.key === "H") toggleMode();
   if (e.key === "t" || e.key === "T") toggleTimeline();
+  if (e.key === "p" || e.key === "P") togglePlinko();
 });
 
 window.addEventListener("resize", () => { resize(); fitView(); });
