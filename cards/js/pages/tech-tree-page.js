@@ -351,10 +351,13 @@ const pkState = new Map();   // title → {x, y, vx, vy}
 const pkBirth = new Map();   // title → frame released
 
 const PK_R = HEX_R;
-const PK_GRAV = 0.22;            // radial gravity toward cone apex
-const PK_DAMP = 0.90;            // velocity damping per frame
+const PK_GRAV = 0.18;            // radial gravity toward cone apex
+const PK_DAMP = 0.88;            // velocity damping per frame
 const PK_PREREQ = 0.03;          // grappling-hook strength
 const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
+const PK_MAXV = PK_R * 0.25;     // velocity cap — limits penetration to <1px
+const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
+const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
 
 // Cone: 60° angle matching hex close-packing
 let pkCx, pkBotY, pkRowH, pkNRows;
@@ -398,7 +401,7 @@ function stepPlinko() {
   const D = PK_R * 2;
   for (const n of nodes) { if (pkBirth.has(n.title)) active.push(n); }
 
-  // Radial gravity — pulls every disk toward cone apex (pkCx, pkBotY)
+  // Radial gravity + prereq springs → accumulate forces
   for (const n of active) {
     const s = pkState.get(n.title);
     const dx = pkCx - s.x, dy = pkBotY - s.y;
@@ -407,7 +410,6 @@ function stepPlinko() {
       s.vx += (dx / d) * PK_GRAV;
       s.vy += (dy / d) * PK_GRAV;
     }
-    // Prereq grappling hooks (gentle lateral bias)
     for (const pT of n.props.prereqs) {
       if (!pkBirth.has(pT)) continue;
       const ps = pkState.get(pT);
@@ -416,7 +418,42 @@ function stepPlinko() {
       const pd = Math.hypot(px, py);
       if (pd > 1) { s.vx += (px / pd) * PK_PREREQ; s.vy += (py / pd) * PK_PREREQ * 0.2; }
     }
+  }
+
+  // LJ inter-disk forces — σ chosen so equilibrium = contact distance D
+  // F_LJ = 24ε/r × [2(σ/r)^12 − (σ/r)^6]
+  // σ = D × 2^(-1/6) ≈ 0.8909 × D  →  zero-crossing at r = D
+  const LJ_SIG = D * 0.8909;
+  const LJ_CUT = D * 2;             // ignore pairs beyond 2D
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dx = si.x - sj.x; if (Math.abs(dx) > LJ_CUT) continue;
+      const dy = si.y - sj.y; if (Math.abs(dy) > LJ_CUT) continue;
+      const r2 = dx * dx + dy * dy;
+      if (r2 >= LJ_CUT * LJ_CUT || r2 < 0.01) continue;
+      const r = Math.sqrt(r2);
+      const sr = LJ_SIG / r;
+      const sr6 = sr * sr * sr * sr * sr * sr;
+      const sr12 = sr6 * sr6;
+      let fmag = (24 * LJ_EPS / r) * (2 * sr12 - sr6);
+      // Clamp: strong repulsion capped at LJ_FMAX, weak attraction capped at -0.2
+      if (fmag > LJ_FMAX) fmag = LJ_FMAX;
+      if (fmag < -0.2) fmag = -0.2;
+      const fx = (dx / r) * fmag;
+      const fy = (dy / r) * fmag;
+      si.vx += fx; si.vy += fy;
+      sj.vx -= fx; sj.vy -= fy;
+    }
+  }
+
+  // Damping + velocity clamping (prevent tunneling through LJ barrier)
+  for (const n of active) {
+    const s = pkState.get(n.title);
     s.vx *= PK_DAMP; s.vy *= PK_DAMP;
+    const spd = Math.hypot(s.vx, s.vy);
+    if (spd > PK_MAXV) { const sc = PK_MAXV / spd; s.vx *= sc; s.vy *= sc; }
     s.x += s.vx; s.y += s.vy;
   }
 
@@ -433,32 +470,31 @@ function stepPlinko() {
     if (s.y < -PK_R * 10) { s.y = -PK_R * 10; s.vy = 0; }
   }
 
-  // Hard hex collisions — 4 passes, fully inelastic
-  for (let pass = 0; pass < 4; pass++) {
-    for (let i = 0; i < active.length; i++) {
-      const si = pkState.get(active[i].title);
-      for (let j = i + 1; j < active.length; j++) {
-        const sj = pkState.get(active[j].title);
-        const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
-        const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
-        const r2 = dx * dx + dy * dy;
-        if (r2 >= D * D || r2 < 0.01) continue;
-        const r = Math.sqrt(r2);
-        const nx = dx / r, ny = dy / r;
-        // Push to exact contact distance
-        const ov = (D - r) * 0.5;
-        si.x += nx * ov; si.y += ny * ov;
-        sj.x -= nx * ov; sj.y -= ny * ov;
-        // Fully inelastic: average velocities (zero restitution)
-        const avx = (si.vx + sj.vx) * 0.5;
-        const avy = (si.vy + sj.vy) * 0.5;
-        si.vx = avx; si.vy = avy;
-        sj.vx = avx; sj.vy = avy;
+  // Safety-net position correction — single pass, bilateral push-apart
+  // This should rarely fire if LJ barrier is working; just prevents any residual overlap
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
+      const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
+      const r2 = dx * dx + dy * dy;
+      if (r2 >= D * D || r2 < 0.01) continue;
+      const r = Math.sqrt(r2);
+      const nx = dx / r, ny = dy / r;
+      const ov = (D - r) * 0.5;
+      si.x += nx * ov; si.y += ny * ov;
+      sj.x -= nx * ov; sj.y -= ny * ov;
+      // Kill approaching relative velocity along contact normal
+      const rvn = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
+      if (rvn < 0) {
+        si.vx -= rvn * nx * 0.5; si.vy -= rvn * ny * 0.5;
+        sj.vx += rvn * nx * 0.5; sj.vy += rvn * ny * 0.5;
       }
     }
   }
 
-  // Post-collision wall clamp (full stop)
+  // Post-correction wall clamp (full stop)
   for (const n of active) {
     const s = pkState.get(n.title);
     const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
