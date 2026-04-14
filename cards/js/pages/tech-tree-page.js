@@ -410,13 +410,15 @@ function stepPlinko() {
       s.vx += (dx / d) * PK_GRAV;
       s.vy += (dy / d) * PK_GRAV;
     }
+    // Prereq springs — unidirectional: child pulled toward ancestor, ancestor unaffected.
+    // Only active beyond contact distance D so spring can't fight LJ repulsion (no temperature).
     for (const pT of n.props.prereqs) {
       if (!pkBirth.has(pT)) continue;
       const ps = pkState.get(pT);
       if (!ps) continue;
       const px = ps.x - s.x, py = ps.y - s.y;
       const pd = Math.hypot(px, py);
-      if (pd > 1) { s.vx += (px / pd) * PK_PREREQ; s.vy += (py / pd) * PK_PREREQ * 0.2; }
+      if (pd > D) { s.vx += (px / pd) * PK_PREREQ; s.vy += (py / pd) * PK_PREREQ * 0.2; }
     }
   }
 
