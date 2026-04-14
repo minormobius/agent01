@@ -343,84 +343,185 @@ const RARITY_PRI = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
 let cellMap = new Map();   // "col,row" → node (for O(1) hit testing)
 let hexMode = true;        // toggle: hex-packed tree vs. polar map
 
-/* ── Plinko mode — spring-physics chronological drop ────── */
+/* ── Plinko mode — gravity-driven packed bed ────────────── */
 let plinkoMode = false;
-let plinkoTime = 0;           // nodes released so far
-let plinkoFrame = 0;          // frame counter
-const plinkoSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
-const plinkoBirth = new Map();   // title → frame when released
-const plinkoVel = new Map();     // title → {vx, vy}
-const savedPos = new Map();      // title → {x, y} (target positions)
+let pkTime = 0, pkFrame = 0;
+const pkSorted = [...nodes].sort((a, b) => a.props.year - b.props.year || a.id - b.id);
+const pkState = new Map();   // title → {x, y, vx, vy}
+const pkBirth = new Map();   // title → frame released
+
+// Physics
+const PK_R = HEX_R;              // disk radius = hex tile size
+const PK_GRAV = 0.28;            // gravity (px/frame²)
+const PK_DAMP = 0.985;           // air friction
+const PK_BOUNCE = 0.3;           // restitution
+const PK_PREREQ = 0.06;          // grappling-hook strength
+const PK_FLOOR_FRIC = 0.92;      // tangential friction on collision
+
+// Funnel geometry (set in initPlinko)
+let pkCx, pkTopY, pkBotY, pkTopHW, pkBotHW;
+function pkWallL(y) { const t = (y - pkTopY) / (pkBotY - pkTopY); return pkCx - pkTopHW - t * (pkBotHW - pkTopHW); }
+function pkWallR(y) { const t = (y - pkTopY) / (pkBotY - pkTopY); return pkCx + pkTopHW + t * (pkBotHW - pkTopHW); }
 
 function initPlinko() {
-  plinkoTime = 0; plinkoFrame = 0;
-  plinkoBirth.clear(); plinkoVel.clear(); savedPos.clear();
-  nodes.forEach(n => {
-    savedPos.set(n.title, { x: n.wx, y: n.wy });
+  pkTime = 0; pkFrame = 0;
+  pkState.clear(); pkBirth.clear();
+  const W = innerWidth, H = innerHeight;
+  pkCx = W / 2; pkTopY = PK_R * 3; pkBotY = H - PK_R * 2;
+  pkTopHW = PK_R * 4; pkBotHW = W * 0.44;
+  for (const n of nodes) {
     const sec = domSectors[n.props.domain];
-    const r0 = INNER_R * 0.08;
-    n.wx = r0 * Math.sin(sec.mid);
-    n.wy = -r0 * Math.cos(sec.mid);
-    plinkoVel.set(n.title, { vx: 0, vy: 0 });
-  });
+    const frac = (sec.mid + HALF) / SPAN;
+    pkState.set(n.title, { x: pkCx - pkTopHW + frac * pkTopHW * 2,
+      y: pkTopY - PK_R * 2, vx: (Math.random() - 0.5) * 0.8, vy: 0 });
+  }
 }
 
 function stepPlinko() {
-  plinkoFrame++;
-  const rate = Math.max(2, Math.ceil(nodes.length / 280));
-  for (let i = 0; i < rate && plinkoTime < plinkoSorted.length; i++) {
-    plinkoBirth.set(plinkoSorted[plinkoTime].title, plinkoFrame);
-    plinkoTime++;
-  }
+  pkFrame++;
+  const rate = Math.max(2, Math.ceil(nodes.length / 260));
+  for (let i = 0; i < rate && pkTime < pkSorted.length; i++)
+    pkBirth.set(pkSorted[pkTime++].title, pkFrame);
   let moving = false;
+  const active = [];
+  const D = PK_R * 2;
   for (const n of nodes) {
-    if (!plinkoBirth.has(n.title)) continue;
-    const tgt = savedPos.get(n.title), vel = plinkoVel.get(n.title);
-    const dx = tgt.x - n.wx, dy = tgt.y - n.wy;
-    let fx = dx * 0.035, fy = dy * 0.035;
+    if (!pkBirth.has(n.title)) continue;
+    active.push(n);
+    const s = pkState.get(n.title);
+    s.vy += PK_GRAV;
     for (const pT of n.props.prereqs) {
-      if (!plinkoBirth.has(pT)) continue;
-      const p = byTitle[pT];
-      if (p) { fx += (p.wx - n.wx) * 0.012; fy += (p.wy - n.wy) * 0.012; }
+      if (!pkBirth.has(pT)) continue;
+      const ps = pkState.get(pT);
+      if (!ps) continue;
+      const dx = ps.x - s.x, dy = ps.y - s.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 1) { s.vx += (dx / d) * PK_PREREQ; s.vy += (dy / d) * PK_PREREQ * 0.4; }
     }
-    vel.vx = (vel.vx + fx) * 0.86; vel.vy = (vel.vy + fy) * 0.86;
-    n.wx += vel.vx; n.wy += vel.vy;
-    if (Math.abs(vel.vx) + Math.abs(vel.vy) < 0.02 && Math.hypot(dx, dy) < 0.3) {
-      n.wx = tgt.x; n.wy = tgt.y; vel.vx = 0; vel.vy = 0;
-    } else { moving = true; }
+    s.vx *= PK_DAMP; s.vy *= PK_DAMP;
+    s.x += s.vx; s.y += s.vy;
+    const lw = pkWallL(s.y) + PK_R, rw = pkWallR(s.y) - PK_R;
+    if (s.x < lw) { s.x = lw; s.vx = Math.abs(s.vx) * PK_BOUNCE; s.vy *= PK_FLOOR_FRIC; }
+    if (s.x > rw) { s.x = rw; s.vx = -Math.abs(s.vx) * PK_BOUNCE; s.vy *= PK_FLOOR_FRIC; }
+    if (s.y > pkBotY - PK_R) { s.y = pkBotY - PK_R; s.vy = -Math.abs(s.vy) * PK_BOUNCE; s.vx *= PK_FLOOR_FRIC; }
+    if (s.y < pkTopY + PK_R) { s.y = pkTopY + PK_R; s.vy = Math.abs(s.vy) * PK_BOUNCE; }
+    if (Math.abs(s.vx) > 0.08 || Math.abs(s.vy) > 0.08) moving = true;
   }
-  return moving || plinkoTime < plinkoSorted.length;
+  // Disk-disk collisions
+  for (let i = 0; i < active.length; i++) {
+    const si = pkState.get(active[i].title);
+    for (let j = i + 1; j < active.length; j++) {
+      const sj = pkState.get(active[j].title);
+      const dy = si.y - sj.y; if (Math.abs(dy) > D) continue;
+      const dx = si.x - sj.x; if (Math.abs(dx) > D) continue;
+      const dist = Math.hypot(dx, dy);
+      if (dist < D && dist > 0.01) {
+        const nx = dx / dist, ny = dy / dist, ov = (D - dist) * 0.5;
+        si.x += nx * ov; si.y += ny * ov;
+        sj.x -= nx * ov; sj.y -= ny * ov;
+        const rv = (si.vx - sj.vx) * nx + (si.vy - sj.vy) * ny;
+        if (rv > 0) {
+          si.vx -= nx * rv * PK_BOUNCE; si.vy -= ny * rv * PK_BOUNCE;
+          sj.vx += nx * rv * PK_BOUNCE; sj.vy += ny * rv * PK_BOUNCE;
+        }
+        moving = true;
+      }
+    }
+  }
+  return moving || pkTime < pkSorted.length;
 }
 
 function endPlinko() {
-  nodes.forEach(n => { const t = savedPos.get(n.title); if (t) { n.wx = t.x; n.wy = t.y; } });
-  plinkoBirth.clear(); plinkoVel.clear(); savedPos.clear();
+  const a_ = ang; // restore polar world positions
+  nodes.forEach(n => { n.wx = n.rv * Math.sin(a_[n.title]); n.wy = -n.rv * Math.cos(a_[n.title]); });
+  pkState.clear(); pkBirth.clear();
 }
 
-function drawEdgesPlinko(hlOnly) {
+function drawPlinko(dpr) {
+  const running = stepPlinko();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Funnel walls
+  ctx.beginPath();
+  ctx.moveTo(pkWallL(pkTopY), pkTopY);
+  ctx.lineTo(pkWallL(pkBotY), pkBotY);
+  ctx.moveTo(pkWallR(pkTopY), pkTopY);
+  ctx.lineTo(pkWallR(pkBotY), pkBotY);
+  ctx.moveTo(pkWallL(pkBotY), pkBotY);
+  ctx.lineTo(pkWallR(pkBotY), pkBotY);
+  ctx.strokeStyle = "rgba(201,168,76,0.18)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Domain lane guides
+  for (const dom of domKeys) {
+    const sec = domSectors[dom];
+    const frac = (sec.mid + HALF) / SPAN;
+    const x1 = pkCx - pkTopHW + frac * pkTopHW * 2;
+    const x2 = pkWallL(pkBotY) + frac * (pkWallR(pkBotY) - pkWallL(pkBotY));
+    ctx.beginPath(); ctx.moveTo(x1, pkTopY); ctx.lineTo(x2, pkBotY);
+    ctx.strokeStyle = (TECH_DOMAINS[dom].color || "#888") + "12";
+    ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // Edges (grappling hooks)
   for (const n of nodes) {
-    if (!plinkoBirth.has(n.title)) continue;
+    if (!pkBirth.has(n.title)) continue;
+    const sn = pkState.get(n.title);
     for (const pTitle of n.props.prereqs) {
-      const p = byTitle[pTitle];
-      if (!p || !plinkoBirth.has(pTitle)) continue;
+      if (!pkBirth.has(pTitle)) continue;
+      const sp = pkState.get(pTitle);
+      if (!sp) continue;
       const isAnc_ = anc.has(n.title) || n.title === sel;
       const isDesc_ = desc.has(n.title) && (pTitle === sel || desc.has(pTitle));
-      const hl = sel && (isAnc_ || isDesc_);
-      if (hlOnly && !hl) continue;
-      if (!hlOnly && hl && sel) continue;
-      ctx.beginPath(); ctx.moveTo(p.wx, p.wy); ctx.lineTo(n.wx, n.wy);
-      if (isAnc_ && sel) { ctx.strokeStyle = "rgba(201,168,76,0.7)"; ctx.lineWidth = 2 / zm; }
-      else if (isDesc_ && sel) { ctx.strokeStyle = "rgba(70,130,180,0.7)"; ctx.lineWidth = 2 / zm; }
-      else if (sel) { ctx.strokeStyle = "rgba(100,100,100,0.05)"; ctx.lineWidth = 0.5 / zm; }
+      if (sel && !isAnc_ && !isDesc_) continue;
+      ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(sn.x, sn.y);
+      if (isAnc_ && sel) { ctx.strokeStyle = "rgba(201,168,76,0.65)"; ctx.lineWidth = 1.5; }
+      else if (isDesc_ && sel) { ctx.strokeStyle = "rgba(70,130,180,0.65)"; ctx.lineWidth = 1.5; }
       else {
-        const age = plinkoFrame - Math.max(plinkoBirth.get(n.title), plinkoBirth.get(pTitle));
-        const br = Math.max(0.10, 0.55 * Math.exp(-age / 18));
-        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`;
-        ctx.lineWidth = (br > 0.2 ? 1.2 : 0.7) / zm;
+        const age = pkFrame - Math.max(pkBirth.get(n.title), pkBirth.get(pTitle));
+        const br = Math.max(0.06, 0.45 * Math.exp(-age / 15));
+        ctx.strokeStyle = `rgba(201,168,76,${br.toFixed(2)})`; ctx.lineWidth = br > 0.15 ? 1 : 0.5;
       }
       ctx.stroke();
     }
   }
+
+  // Disks
+  for (const n of nodes) {
+    if (!pkBirth.has(n.title)) continue;
+    const s = pkState.get(n.title);
+    const isSel = n.title === sel;
+    const isAnc_ = sel && anc.has(n.title);
+    const isDesc_ = sel && desc.has(n.title);
+    const dimmed = sel && !isSel && !isAnc_ && !isDesc_;
+    ctx.globalAlpha = dimmed ? 0.1 : 1;
+    const dom = TECH_DOMAINS[n.props.domain];
+    const era = TECH_ERAS[n.era];
+    const img = images.get(n.title);
+    if (img) {
+      ctx.save(); hexPath(ctx, s.x, s.y, PK_R - 0.5); ctx.clip();
+      ctx.drawImage(img, s.x - PK_R, s.y - PK_R, PK_R * 2, PK_R * 2); ctx.restore();
+    } else {
+      hexPath(ctx, s.x, s.y, PK_R - 0.5);
+      ctx.fillStyle = (dom.color || era.color) + "33"; ctx.fill();
+      ctx.font = `${Math.max(8, PK_R * 0.7)}px sans-serif`;
+      ctx.fillStyle = dom.color || era.color;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(dom.icon, s.x, s.y);
+    }
+    hexPath(ctx, s.x, s.y, PK_R);
+    ctx.lineWidth = isSel ? 2.5 : 1;
+    if (isSel) { ctx.shadowColor = "rgba(255,255,255,0.6)"; ctx.shadowBlur = 12; ctx.strokeStyle = "#fff"; }
+    else if (isAnc_) { ctx.shadowColor = "rgba(201,168,76,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#c9a84c"; }
+    else if (isDesc_) { ctx.shadowColor = "rgba(70,130,180,0.6)"; ctx.shadowBlur = 8; ctx.strokeStyle = "#4682B4"; }
+    else { ctx.shadowBlur = 0; ctx.strokeStyle = dom.color || era.color;
+      if (n.props.rarity === "legendary" && !dimmed) { ctx.shadowColor = (dom.color || era.color) + "66"; ctx.shadowBlur = 6; }
+    }
+    ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+  if (running) scheduleDraw();
 }
 
 // Flat-top hexagon path (screen-space)
@@ -602,10 +703,9 @@ function draw() {
   ctx.fillStyle = "#c9a84c";
   ctx.fill();
 
-  let _plinkoRunning = false;
-  if (plinkoMode) _plinkoRunning = stepPlinko();
+  if (plinkoMode) { drawPlinko(dpr); return; }
 
-  if (hexMode && !plinkoMode) {
+  if (hexMode) {
     // ── HEX MODE: constant-pixel hex tiles, world-space grid ──
     computeHexPositions();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -666,12 +766,10 @@ function draw() {
       ctx.globalAlpha = 1;
     }
   } else {
-    // ── POLAR / PLINKO MODE ──
-    if (plinkoMode) { drawEdgesPlinko(false); if (sel) drawEdgesPlinko(true); }
-    else { drawEdgesPolar(false); if (sel) drawEdgesPolar(true); }
+    // ── POLAR MODE ──
+    drawEdgesPolar(false); if (sel) drawEdgesPolar(true);
 
     for (const n of nodes) {
-      if (plinkoMode && !plinkoBirth.has(n.title)) continue;
       const isSel = n.title === sel;
       const isAnc_ = sel && anc.has(n.title);
       const isDesc_ = sel && desc.has(n.title);
@@ -728,7 +826,6 @@ function draw() {
     }
   }
 
-  if (_plinkoRunning) scheduleDraw();
 }
 
 function drawEdgesPolar(hlOnly) {
@@ -820,11 +917,22 @@ function hitTest(sx, sy) {
   const wx = (sx - panX) / zm;
   const wy = (sy - panY) / zm;
 
+  if (plinkoMode) {
+    // Plinko mode: screen-space distance check
+    let best = null, bestD = PK_R * 1.3;
+    for (const n of nodes) {
+      if (!pkBirth.has(n.title)) continue;
+      const s = pkState.get(n.title);
+      const d = Math.hypot(s.x - sx, s.y - sy);
+      if (d < bestD) { best = n; bestD = d; }
+    }
+    return best;
+  }
+
   if (!hexMode) {
-    // Polar / Plinko mode: world-space distance check
+    // Polar mode: world-space distance check
     let best = null, bestD = NODE_R * 1.5;
     for (const n of nodes) {
-      if (plinkoMode && !plinkoBirth.has(n.title)) continue;
       const d = Math.hypot(n.wx - wx, n.wy - wy);
       if (d < bestD) { best = n; bestD = d; }
     }
@@ -1131,7 +1239,6 @@ function togglePlinko() {
     modeBtn.textContent = "\u25C9";
     modeBtn.classList.remove("active");
     initPlinko();
-    fitView();
   } else {
     endPlinko();
   }
