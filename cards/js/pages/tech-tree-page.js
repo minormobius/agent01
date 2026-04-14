@@ -352,21 +352,44 @@ const pkBirth = new Map();   // title → frame released
 
 const PK_R = HEX_R;
 const PK_GRAV = 0.18;            // radial gravity toward cone apex
-const PK_DAMP = 0.88;            // velocity damping per frame
+let   pkDamp = 0.88;             // velocity damping per frame (slider-adjustable)
 const PK_PREREQ = 0.03;          // grappling-hook strength
 const PK_VKILL = 0.04;           // velocity snap-to-zero threshold
 const PK_MAXV = PK_R * 0.25;     // velocity cap — limits penetration to <1px
 const LJ_EPS = 30;               // LJ well depth — strong repulsive barrier
 const LJ_FMAX = 6.0;             // repulsive force cap (prevents explosions)
+let   pkSlope = 1.0;             // cone width factor (slider-adjustable): 1 = 60° included
 
-// Cone: 60° angle matching hex close-packing
+// Cone geometry
 let pkCx, pkBotY, pkRowH, pkNRows;
 
 function pkHW(y) {
-  return Math.max(PK_R, ((pkBotY - y) / pkRowH + 1) * PK_R);
+  return Math.max(PK_R, ((pkBotY - y) / pkRowH * pkSlope + 1) * PK_R);
 }
 function pkWallL(y) { return pkCx - pkHW(y); }
 function pkWallR(y) { return pkCx + pkHW(y); }
+
+// Plinko slider panel (created once, shown/hidden with mode)
+const pkPanel = document.createElement("div");
+pkPanel.className = "tt-pk-sliders hidden";
+pkPanel.innerHTML = [
+  '<label>Angle <input type="range" id="pk-angle" min="0.3" max="3" step="0.1" value="1"> <span id="pk-angle-v">60°</span></label>',
+  '<label>Damp <input type="range" id="pk-damp" min="0.50" max="0.99" step="0.01" value="0.88"> <span id="pk-damp-v">0.88</span></label>',
+].join("");
+document.body.appendChild(pkPanel);
+const pkAngleIn = document.getElementById("pk-angle");
+const pkAngleV  = document.getElementById("pk-angle-v");
+const pkDampIn  = document.getElementById("pk-damp");
+const pkDampV   = document.getElementById("pk-damp-v");
+pkAngleIn.oninput = () => {
+  pkSlope = +pkAngleIn.value;
+  const deg = Math.round(2 * Math.atan(pkSlope / Math.sqrt(3)) * 180 / Math.PI);
+  pkAngleV.textContent = deg + "\u00B0";
+};
+pkDampIn.oninput = () => {
+  pkDamp = +pkDampIn.value;
+  pkDampV.textContent = pkDamp.toFixed(2);
+};
 
 function initPlinko() {
   pkTime = 0; pkFrame = 0; pkSettled = 0;
@@ -453,7 +476,7 @@ function stepPlinko() {
   // Damping + velocity clamping (prevent tunneling through LJ barrier)
   for (const n of active) {
     const s = pkState.get(n.title);
-    s.vx *= PK_DAMP; s.vy *= PK_DAMP;
+    s.vx *= pkDamp; s.vy *= pkDamp;
     const spd = Math.hypot(s.vx, s.vy);
     if (spd > PK_MAXV) { const sc = PK_MAXV / spd; s.vx *= sc; s.vy *= sc; }
     s.x += s.vx; s.y += s.vy;
@@ -1340,6 +1363,7 @@ function togglePlinko() {
     endPlinko();
   }
   plinkoBtn.classList.toggle("active", plinkoMode);
+  pkPanel.classList.toggle("hidden", !plinkoMode);
   scheduleDraw();
 }
 plinkoBtn.onclick = togglePlinko;
