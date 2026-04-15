@@ -382,7 +382,6 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
 // ============================================================
 //  AT PROTOCOL CLIENT
 // ============================================================
-const PUBLIC_API = "https://public.api.bsky.app";
 const AUTH_URL = "https://auth.mino.mobi";
 const COLLECTION = "com.minomobi.workout";
 const SESSION_KEY = "mino_auth_session";
@@ -445,12 +444,9 @@ async function createRecord(session, record) {
   return r.json();
 }
 
-async function listRecords(did, pds, limit = 100) {
-  const params = `repo=${encodeURIComponent(did)}&collection=${COLLECTION}&limit=${limit}`;
-  let r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
-  if (!r.ok && pds) {
-    r = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
-  }
+async function listRecords(limit = 100) {
+  const params = new URLSearchParams({ collection: COLLECTION, limit: String(limit) });
+  const r = await pdsRequest(`/pds/repo/listRecords?${params}`);
   if (!r.ok) throw new Error(`Could not list records (${r.status})`);
   return (await r.json()).records || [];
 }
@@ -983,7 +979,7 @@ async function loadHistory() {
   hide(emptyEl);
   listEl.innerHTML = "";
   try {
-    const records = await listRecords(session.did);
+    const records = await listRecords();
     workouts = records.sort((a, b) => {
       const da = a.value?.createdAt || "";
       const db = b.value?.createdAt || "";
