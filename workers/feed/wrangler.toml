@@ -12,6 +12,7 @@ custom_domain = true
 
 [vars]
 FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster"
+LIKED_FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster-liked"
 PUBLISHER_DID = "did:plc:oqyev6xmuwgbtpr6jgxh5xg3"
 HOSTNAME = "feed.mino.mobi"
 CONSTELLATION_RELAY = "https://constellation.us-east.host.bsky.network"
