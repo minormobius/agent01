@@ -8,7 +8,6 @@
 import { startOAuth, handleOAuthCallback, refreshOAuthToken } from './oauth/flow.js';
 import { getClientPublicJWK } from './oauth/keypair.js';
 import { createDPoPProof, deserializeDPoPKeyPair } from './oauth/jwt.js';
-import { discoverAuthServer } from './oauth/discovery.js';
 
 export interface Env {
   DB: D1Database;
@@ -133,31 +132,31 @@ export default {
     try {
       // --- Client metadata (dynamic) ---
       if (path === '/client-metadata.json' && request.method === 'GET') {
-        return handleClientMetadata(env);
+        return await handleClientMetadata(env);
       }
 
       // --- OAuth flow ---
       if (path === '/oauth/start' && request.method === 'POST') {
-        return handleOAuthStart(request, env, origin);
+        return await handleOAuthStart(request, env, origin);
       }
       if (path === '/oauth/callback' && request.method === 'GET') {
-        return handleCallback(request, env);
+        return await handleCallback(request, env);
       }
 
       // --- Session management ---
       if (path === '/api/me' && request.method === 'GET') {
-        return handleGetMe(request, env, origin);
+        return await handleGetMe(request, env, origin);
       }
       if (path === '/api/refresh' && request.method === 'POST') {
-        return handleRefresh(request, env, origin);
+        return await handleRefresh(request, env, origin);
       }
       if (path === '/api/logout' && request.method === 'POST') {
-        return handleLogout(request, env, origin);
+        return await handleLogout(request, env, origin);
       }
 
       // --- PDS proxy ---
       if (path.startsWith('/pds/') && (request.method === 'POST' || request.method === 'GET')) {
-        return handlePdsProxy(request, env, path, origin);
+        return await handlePdsProxy(request, env, path, origin);
       }
 
       // --- Health ---

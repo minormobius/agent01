@@ -94,16 +94,23 @@ export class AuthClient {
     const returnTo = opts?.returnTo || window.location.href;
     const origin = window.location.origin;
 
-    const res = await fetch(`${this.authUrl}/oauth/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        handle: handle.replace(/^@/, '').trim(),
-        origin,
-        returnTo,
-        scope: opts?.scope,
-      }),
-    });
+    let res;
+    try {
+      res = await fetch(`${this.authUrl}/oauth/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: handle.replace(/^@/, '').trim(),
+          origin,
+          returnTo,
+          scope: opts?.scope,
+        }),
+      });
+    } catch (fetchErr) {
+      throw new Error(
+        `Could not reach auth service at ${this.authUrl} — check that the domain is accessible`
+      );
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
