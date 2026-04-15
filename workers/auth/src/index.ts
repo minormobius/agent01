@@ -182,7 +182,7 @@ async function handleClientMetadata(env: Env): Promise<Response> {
   const metadata = {
     client_id: clientId,
     client_name: 'mino.mobi',
-    client_uri: 'https://minomobi.com',
+    client_uri: 'https://auth.mino.mobi',
     redirect_uris: ['https://auth.mino.mobi/oauth/callback'],
     scope: 'atproto transition:generic',
     grant_types: ['authorization_code', 'refresh_token'],
