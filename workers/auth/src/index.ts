@@ -19,6 +19,7 @@ export interface Env {
 const ALLOWED_ORIGINS = [
   'https://minomobi.com',
   'https://www.minomobi.com',
+  'https://mino.mobi',
   'https://bakery.mino.mobi',
   'https://photo.mino.mobi',
   'https://labglass.minomobi.com',
@@ -33,7 +34,7 @@ function isAllowedOrigin(origin: string | null): boolean {
   // Wildcard: any *.mino.mobi
   try {
     const url = new URL(origin);
-    return url.hostname.endsWith('.mino.mobi') || url.hostname === 'minomobi.com';
+    return url.hostname.endsWith('.mino.mobi') || url.hostname === 'mino.mobi' || url.hostname === 'minomobi.com';
   } catch {
     return false;
   }
