@@ -1,6 +1,10 @@
 name: Register Feed Generator
 
 on:
+  push:
+    branches: [main, 'claude/document-projects-oPse6']
+    paths:
+      - '.github/workflows/register-feed-generator.yml'
   workflow_dispatch:
     inputs:
       feed_rkey:
@@ -113,3 +117,70 @@ jobs:
           echo ""
           echo "Feed URI: at://${DID}/app.bsky.feed.generator/${FEED_RKEY}"
           echo "Service DID: did:web:${FEED_HOSTNAME}"
+
+  # Register all known feeds on push (idempotent — putRecord is safe to re-run)
+  register-all:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rkey: simcluster
+            name: SimCluster
+            desc: Posts that resonate across communities in the minomobi network
+          - rkey: simcluster-liked
+            name: Liked by SimCluster
+            desc: Posts liked by members of the minomobi community network
+    steps:
+      - name: Register ${{ matrix.rkey }}
+        run: |
+          set -euo pipefail
+
+          HANDLE="${{ secrets.BLUESKY_HANDLE }}"
+          PASSWORD="${{ secrets.BLUESKY_APP_PASSWORD }}"
+          FEED_RKEY="${{ matrix.rkey }}"
+          DISPLAY_NAME="${{ matrix.name }}"
+          DESCRIPTION="${{ matrix.desc }}"
+          FEED_HOSTNAME="feed.mino.mobi"
+
+          DID=$(curl -sf "https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${HANDLE}" | jq -r '.did')
+          echo "DID: ${DID}"
+
+          PDS_URL=$(curl -sf "https://plc.directory/${DID}" | jq -r '.service[] | select(.type=="AtprotoPersonalDataServer") | .serviceEndpoint')
+          echo "PDS: ${PDS_URL}"
+
+          SESSION=$(curl -sf -X POST "${PDS_URL}/xrpc/com.atproto.server.createSession" \
+            -H 'Content-Type: application/json' \
+            -d "{\"identifier\": \"${HANDLE}\", \"password\": \"${PASSWORD}\"}")
+          ACCESS_JWT=$(echo "$SESSION" | jq -r '.accessJwt')
+
+          RECORD=$(jq -n \
+            --arg did "did:web:${FEED_HOSTNAME}" \
+            --arg name "$DISPLAY_NAME" \
+            --arg desc "$DESCRIPTION" \
+            --arg now "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+            '{
+              "$type": "app.bsky.feed.generator",
+              did: $did,
+              displayName: $name,
+              description: $desc,
+              createdAt: $now
+            }')
+
+          RESULT=$(curl -sf -X POST "${PDS_URL}/xrpc/com.atproto.repo.putRecord" \
+            -H "Authorization: Bearer ${ACCESS_JWT}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg repo "$DID" \
+              --arg rkey "$FEED_RKEY" \
+              --argjson record "$RECORD" \
+              '{
+                repo: $repo,
+                collection: "app.bsky.feed.generator",
+                rkey: $rkey,
+                record: $record
+              }')")
+
+          echo "Registered ${FEED_RKEY}:"
+          echo "$RESULT" | jq .
+          echo "Feed URI: at://${DID}/app.bsky.feed.generator/${FEED_RKEY}"

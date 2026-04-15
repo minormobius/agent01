@@ -1,0 +1,268 @@
+/* ── Gem — Crystal Card Styles ─────────────────────────────── */
+
+.gem-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* ── Pack ──────────────────────────────────────────────────── */
+
+.gem-pack {
+  width: 160px;
+  height: 100px;
+  margin: 1rem auto;
+  perspective: 600px;
+}
+
+.gem-pack-face {
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--gold-dim);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.gem-pack-emblem {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(201, 168, 76, 0.5);
+}
+
+.gem-pack-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gold-dim);
+}
+
+.gem-pack-count {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+/* ── Draw Button ──────────────────────────────────────────── */
+
+.gem-btn {
+  display: block;
+  margin: 0.5rem auto 1.5rem;
+  padding: 0.5rem 2rem;
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gold);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.gem-btn:hover {
+  background: rgba(201, 168, 76, 0.1);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+}
+
+/* ── Cards Grid ───────────────────────────────────────────── */
+
+.gem-cards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.gem-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card-bg);
+  animation: luckyReveal 0.5s ease-out;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.gem-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.gem-card.rarity-uncommon { border-color: #2e7d32; box-shadow: 0 0 8px rgba(46, 125, 50, 0.25); }
+.gem-card.rarity-rare { border-color: #1565c0; box-shadow: 0 0 12px rgba(21, 101, 192, 0.3); }
+.gem-card.rarity-legendary { border-color: var(--gold); box-shadow: 0 0 16px rgba(201, 168, 76, 0.4); }
+
+.gem-card-inner {
+  padding: 0.6rem;
+}
+
+.gem-card-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.gem-card-no-img {
+  font-size: 2.5rem;
+  text-align: center;
+  padding: 1.2rem;
+  opacity: 0.6;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.gem-card-sys {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.2rem;
+}
+
+.gem-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ── Detail Panel ─────────────────────────────────────────── */
+
+.gem-detail {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.gem-detail-card {
+  position: relative;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  padding: 1rem;
+  animation: luckyReveal 0.3s ease-out;
+}
+
+.gem-detail-card.rarity-uncommon { border-color: #2e7d32; }
+.gem-detail-card.rarity-rare { border-color: #1565c0; }
+.gem-detail-card.rarity-legendary { border-color: var(--gold); }
+
+.gem-detail-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.gem-detail-close:hover { color: var(--text); }
+
+.gem-detail-img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+}
+
+.gem-detail-no-img {
+  font-size: 4rem;
+  text-align: center;
+  padding: 1.5rem;
+  opacity: 0.5;
+  text-shadow: 0 0 30px currentColor;
+}
+
+.gem-detail-sys {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 0.3rem;
+}
+
+.gem-detail-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.gem-detail-props {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+.gem-detail-extract {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+.gem-detail-link {
+  font-size: 0.75rem;
+  color: var(--gold);
+}
+
+/* ── History ──────────────────────────────────────────────── */
+
+.gem-history {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+}
+
+.gem-hist-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.gem-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.75rem;
+}
+
+.gem-hist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gem-hist-title { flex: 1; }
+
+.gem-hist-rarity {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+/* ── Loading ──────────────────────────────────────────────── */
+
+.gem-cards .loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-dim);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .gem-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}

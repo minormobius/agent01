@@ -1,0 +1,25 @@
+name: Deploy Clock Sculptures
+
+on:
+  push:
+    branches: [main, 'claude/*']
+    paths:
+      - 'clock/**'
+      - '.github/workflows/deploy-clock.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clock
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy static site
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

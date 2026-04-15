@@ -160,16 +160,73 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   border-bottom: 1px solid var(--rule);
 }
 
+/* Chart toolbar */
+.chart-toolbar {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.toolbar-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: 0.25rem;
+}
+.tb-btn {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  min-width: 1.8rem;
+  text-align: center;
+}
+.tb-btn:hover { border-color: var(--link); color: var(--text); }
+.tb-btn.active { border-color: var(--link); color: var(--link); background: var(--vanilla); }
+
 /* Chart */
 #chart-wrap {
   width: 100%;
   height: 400px;
+  margin-bottom: 0;
+  position: relative;
+  cursor: crosshair;
+}
+#vol-wrap {
+  width: 100%;
+  height: 80px;
   margin-bottom: 1.5rem;
   position: relative;
 }
 canvas {
   width: 100%;
   height: 100%;
+}
+.chart-tooltip {
+  display: none;
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 0.3rem 0.5rem;
+  pointer-events: none;
+  z-index: 10;
+  white-space: pre;
 }
 
 /* Stats grid */
@@ -368,10 +425,36 @@ canvas {
     <button id="btn-chart">draw</button>
   </div>
 
+  <div class="chart-toolbar">
+    <div class="toolbar-group">
+      <span class="toolbar-label">candle</span>
+      <button class="tb-btn active" data-tf="D">D</button>
+      <button class="tb-btn" data-tf="W">W</button>
+      <button class="tb-btn" data-tf="M">M</button>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">draw</span>
+      <button class="tb-btn" id="tool-cursor" title="crosshair">+</button>
+      <button class="tb-btn" id="tool-trendline" title="trendline">╱</button>
+      <button class="tb-btn" id="tool-fib" title="fib retracement">fib</button>
+      <button class="tb-btn" id="tool-clear" title="clear drawings">✕</button>
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">zoom</span>
+      <button class="tb-btn" id="zoom-in" title="zoom in">+</button>
+      <button class="tb-btn" id="zoom-out" title="zoom out">−</button>
+      <button class="tb-btn" id="zoom-reset" title="fit all">⊡</button>
+    </div>
+  </div>
+
   <div class="status" id="chart-status"></div>
 
   <div id="chart-wrap">
     <canvas id="chart-canvas"></canvas>
+    <div id="chart-tooltip" class="chart-tooltip"></div>
+  </div>
+  <div id="vol-wrap">
+    <canvas id="vol-bars-canvas"></canvas>
   </div>
 
   <div class="stats-grid" id="chart-stats"></div>
@@ -714,6 +797,8 @@ const btnChart = document.getElementById('btn-chart');
 const chartStatus = document.getElementById('chart-status');
 const chartCanvas = document.getElementById('chart-canvas');
 const chartStats = document.getElementById('chart-stats');
+const chartTooltip = document.getElementById('chart-tooltip');
+const volCanvas = document.getElementById('vol-bars-canvas');
 
 // Populate year dropdown
 const curYear = new Date().getFullYear();
@@ -725,6 +810,108 @@ for (let y = curYear; y >= 1960; y--) {
 
 btnChart.addEventListener('click', drawChart);
 chartSymbol.addEventListener('keydown', e => { if (e.key === 'Enter') drawChart(); });
+
+// ── Chart state ──
+const chart = {
+  rawBars: [],       // daily bars as loaded
+  bars: [],          // aggregated bars currently displayed
+  symbol: '',
+  timeframe: 'D',    // D, W, M
+  // viewport (index range into bars[])
+  viewStart: 0,
+  viewEnd: 0,
+  // layout
+  pad: { top: 20, right: 60, bottom: 4, left: 10 },
+  volPad: { top: 4, right: 60, bottom: 20, left: 10 },
+  // drawing tools
+  tool: null,        // null, 'trendline', 'fib'
+  drawings: [],      // [{type, p1:{idx,price}, p2:{idx,price}}]
+  drawStart: null,   // temp start point while dragging
+  // drag state
+  dragging: false,
+  dragLastX: 0,
+};
+
+// ── Timeframe aggregation ──
+function aggregateBars(daily, tf) {
+  if (tf === 'D') return daily;
+  const groups = new Map();
+  for (const b of daily) {
+    let key;
+    if (tf === 'W') {
+      // ISO week: Monday-based
+      const d = new Date(b.d + 'T00:00:00');
+      const day = (d.getDay() + 6) % 7; // Mon=0
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - day);
+      key = mon.toISOString().slice(0, 10);
+    } else {
+      // Month
+      key = b.d.slice(0, 7) + '-01';
+    }
+    if (!groups.has(key)) {
+      groups.set(key, { d: key, o: b.o ?? b.c, h: b.h ?? b.c, l: b.l ?? b.c, c: b.c, v: b.v || 0 });
+    } else {
+      const g = groups.get(key);
+      if (b.h != null) g.h = Math.max(g.h, b.h);
+      if (b.l != null) g.l = Math.min(g.l, b.l);
+      g.c = b.c;
+      g.v = (g.v || 0) + (b.v || 0);
+    }
+  }
+  return [...groups.values()];
+}
+
+// ── Timeframe buttons ──
+document.querySelectorAll('[data-tf]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    chart.timeframe = btn.dataset.tf;
+    if (chart.rawBars.length) {
+      chart.bars = aggregateBars(chart.rawBars, chart.timeframe);
+      chart.viewStart = 0;
+      chart.viewEnd = chart.bars.length;
+      renderAll();
+    }
+  });
+});
+
+// ── Zoom buttons ──
+document.getElementById('zoom-in').addEventListener('click', () => zoomChart(0.7));
+document.getElementById('zoom-out').addEventListener('click', () => zoomChart(1.4));
+document.getElementById('zoom-reset').addEventListener('click', () => {
+  chart.viewStart = 0;
+  chart.viewEnd = chart.bars.length;
+  renderAll();
+});
+
+function zoomChart(factor) {
+  const len = chart.viewEnd - chart.viewStart;
+  const mid = (chart.viewStart + chart.viewEnd) / 2;
+  const newLen = Math.max(10, Math.min(chart.bars.length, Math.round(len * factor)));
+  chart.viewStart = Math.max(0, Math.round(mid - newLen / 2));
+  chart.viewEnd = Math.min(chart.bars.length, chart.viewStart + newLen);
+  if (chart.viewEnd - chart.viewStart < 10) chart.viewEnd = Math.min(chart.bars.length, chart.viewStart + 10);
+  renderAll();
+}
+
+// ── Drawing tool buttons ──
+document.getElementById('tool-cursor').addEventListener('click', () => setTool(null));
+document.getElementById('tool-trendline').addEventListener('click', () => setTool('trendline'));
+document.getElementById('tool-fib').addEventListener('click', () => setTool('fib'));
+document.getElementById('tool-clear').addEventListener('click', () => {
+  chart.drawings = [];
+  renderAll();
+});
+
+function setTool(t) {
+  chart.tool = t;
+  document.getElementById('tool-cursor').classList.toggle('active', t === null);
+  document.getElementById('tool-trendline').classList.toggle('active', t === 'trendline');
+  document.getElementById('tool-fib').classList.toggle('active', t === 'fib');
+}
+setTool(null); // default
 
 async function loadBarsForSymbol(symbol) {
   if (state.seriesCache[symbol]) return state.seriesCache[symbol];
@@ -813,8 +1000,15 @@ async function drawChart() {
       return;
     }
 
-    chartStatus.textContent = `${bars.length} bars loaded`;
-    renderChart(bars, symbol);
+    chart.rawBars = bars;
+    chart.symbol = symbol;
+    chart.bars = aggregateBars(bars, chart.timeframe);
+    chart.viewStart = 0;
+    chart.viewEnd = chart.bars.length;
+    chart.drawings = [];
+
+    chartStatus.textContent = `${bars.length} daily bars → ${chart.bars.length} ${chart.timeframe} candles`;
+    renderAll();
     renderStats(bars, symbol);
   } catch (err) {
     chartStatus.textContent = err.message;
@@ -822,7 +1016,60 @@ async function drawChart() {
   }
 }
 
-function renderChart(bars, symbol) {
+function renderAll() {
+  renderChart();
+  renderVolume();
+}
+
+function chartColors() {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return {
+    bg: isDark ? '#0f0f0f' : '#faf9f6',
+    text: isDark ? '#d4d4d4' : '#1a1a1a',
+    muted: '#777',
+    rule: isDark ? '#333' : '#ccc',
+    green: isDark ? '#5bc49a' : '#2d6a2e',
+    red: isDark ? '#e06090' : '#8b0000',
+    crosshair: isDark ? '#555' : '#aaa',
+    fib: isDark ? '#8888cc' : '#5555aa',
+    trendline: isDark ? '#cc8844' : '#996633',
+    volUp: isDark ? 'rgba(91,196,154,0.4)' : 'rgba(45,106,46,0.3)',
+    volDn: isDark ? 'rgba(224,96,144,0.4)' : 'rgba(139,0,0,0.3)',
+  };
+}
+
+// ── Coordinate helpers (depend on current viewport) ──
+function chartLayout(canvas) {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const p = chart.pad;
+  const cW = W - p.left - p.right;
+  const cH = H - p.top - p.bottom;
+  const vBars = chart.bars.slice(chart.viewStart, chart.viewEnd);
+  const n = vBars.length;
+
+  const hasOHLC = vBars[0]?.o != null;
+  const allVals = hasOHLC
+    ? vBars.flatMap(b => [b.h, b.l])
+    : vBars.map(b => b.c);
+  const minV = Math.min(...allVals);
+  const maxV = Math.max(...allVals);
+  const margin = (maxV - minV) * 0.03 || 1;
+  const lo = minV - margin, hi = maxV + margin;
+  const range = hi - lo;
+
+  const x = i => p.left + ((i + 0.5) / n) * cW;
+  const y = v => p.top + (1 - (v - lo) / range) * cH;
+  const barW = Math.max(1, (cW / n) * 0.7);
+
+  // Inverse: pixel → bar index and price
+  const pxToIdx = px => Math.floor(((px - p.left) / cW) * n);
+  const pxToPrice = py => lo + (1 - (py - p.top) / cH) * range;
+
+  return { W, H, cW, cH, p, vBars, n, hasOHLC, lo, hi, range, x, y, barW, pxToIdx, pxToPrice };
+}
+
+function renderChart() {
   const canvas = chartCanvas;
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -833,62 +1080,36 @@ function renderChart(bars, symbol) {
 
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const W = rect.width;
-  const H = rect.height;
+  const colors = chartColors();
+  const L = chartLayout(canvas);
+  const { W, H, p, vBars, n, hasOHLC, x, y, barW } = L;
 
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const colors = {
-    bg: isDark ? '#0f0f0f' : '#faf9f6',
-    text: isDark ? '#d4d4d4' : '#1a1a1a',
-    muted: '#777',
-    rule: isDark ? '#333' : '#ccc',
-    green: isDark ? '#5a5' : '#2d6a2e',
-    red: isDark ? '#c45' : '#8b0000',
-  };
-
+  // Background
   ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, W, H);
 
-  const pad = { top: 20, right: 60, bottom: 30, left: 10 };
-  const cW = W - pad.left - pad.right;
-  const cH = H - pad.top - pad.bottom;
-
-  const hasOHLC = bars[0].o != null;
-  const closes = bars.map(b => b.c);
-  const allVals = hasOHLC
-    ? bars.flatMap(b => [b.h, b.l])
-    : closes;
-  const minV = Math.min(...allVals);
-  const maxV = Math.max(...allVals);
-  const range = maxV - minV || 1;
-
-  const x = i => pad.left + (i / (bars.length - 1 || 1)) * cW;
-  const y = v => pad.top + (1 - (v - minV) / range) * cH;
-
-  // Grid lines
+  // Grid lines + price axis
   ctx.strokeStyle = colors.rule;
   ctx.lineWidth = 0.5;
   const gridLines = 5;
   for (let i = 0; i <= gridLines; i++) {
-    const gy = pad.top + (i / gridLines) * cH;
-    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
-    const val = maxV - (i / gridLines) * range;
+    const gy = p.top + (i / gridLines) * L.cH;
+    ctx.beginPath(); ctx.moveTo(p.left, gy); ctx.lineTo(W - p.right, gy); ctx.stroke();
+    const val = L.hi - (i / gridLines) * L.range;
     ctx.fillStyle = colors.muted;
     ctx.font = '10px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(val.toFixed(2), W - pad.right + 4, gy + 3);
+    ctx.fillText(val.toFixed(2), W - p.right + 4, gy + 3);
   }
 
-  if (hasOHLC && bars.length <= 500) {
-    // Candlestick chart
-    const barW = Math.max(1, (cW / bars.length) * 0.7);
-    for (let i = 0; i < bars.length; i++) {
-      const b = bars[i];
+  // Candles or line
+  if (hasOHLC && n <= 600) {
+    for (let i = 0; i < n; i++) {
+      const b = vBars[i];
       const up = b.c >= b.o;
       ctx.strokeStyle = up ? colors.green : colors.red;
       ctx.fillStyle = up ? colors.green : colors.red;
 
-      // Wick
       const cx = x(i);
       ctx.beginPath();
       ctx.moveTo(cx, y(b.h));
@@ -896,40 +1117,246 @@ function renderChart(bars, symbol) {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Body
       const top = y(Math.max(b.o, b.c));
       const bot = y(Math.min(b.o, b.c));
       const bodyH = Math.max(1, bot - top);
       if (up) {
-        ctx.strokeRect(cx - barW/2, top, barW, bodyH);
+        ctx.strokeRect(cx - barW / 2, top, barW, bodyH);
       } else {
-        ctx.fillRect(cx - barW/2, top, barW, bodyH);
+        ctx.fillRect(cx - barW / 2, top, barW, bodyH);
       }
     }
   } else {
-    // Line chart for rates/large datasets
     ctx.strokeStyle = colors.text;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let i = 0; i < bars.length; i++) {
-      const px = x(i);
-      const py = y(bars[i].c);
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+    for (let i = 0; i < n; i++) {
+      const px = x(i), py = y(vBars[i].c);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.stroke();
   }
 
-  // Date labels
+  // Drawings (trendlines & fib)
+  for (const d of chart.drawings) {
+    drawOverlay(ctx, d, L, colors);
+  }
+  // Active drawing in progress
+  if (chart.drawStart && chart.drawEnd) {
+    drawOverlay(ctx, { type: chart.tool, p1: chart.drawStart, p2: chart.drawEnd }, L, colors);
+  }
+}
+
+function drawOverlay(ctx, d, L, colors) {
+  const { x, y } = L;
+  const x1 = x(d.p1.idx - chart.viewStart), y1 = y(d.p1.price);
+  const x2 = x(d.p2.idx - chart.viewStart), y2 = y(d.p2.price);
+
+  if (d.type === 'trendline') {
+    ctx.strokeStyle = colors.trendline;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]);
+  } else if (d.type === 'fib') {
+    const high = Math.max(d.p1.price, d.p2.price);
+    const low = Math.min(d.p1.price, d.p2.price);
+    const fibs = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+    const fibLabels = ['0%', '23.6%', '38.2%', '50%', '61.8%', '78.6%', '100%'];
+
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    for (let i = 0; i < fibs.length; i++) {
+      const price = high - fibs[i] * (high - low);
+      const fy = y(price);
+      ctx.strokeStyle = colors.fib;
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash(i === 0 || i === fibs.length - 1 ? [] : [4, 2]);
+      ctx.beginPath(); ctx.moveTo(L.p.left, fy); ctx.lineTo(L.W - L.p.right, fy); ctx.stroke();
+      ctx.fillStyle = colors.fib;
+      ctx.fillText(`${fibLabels[i]} ${price.toFixed(2)}`, L.W - L.p.right - 2, fy - 3);
+    }
+    ctx.setLineDash([]);
+  }
+}
+
+// ── Volume bars ──
+function renderVolume() {
+  const canvas = volCanvas;
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const colors = chartColors();
+  const W = rect.width, H = rect.height;
+  const vp = chart.volPad;
+
+  const vBars = chart.bars.slice(chart.viewStart, chart.viewEnd);
+  const n = vBars.length;
+  if (n === 0) return;
+
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const hasVol = vBars.some(b => b.v > 0);
+  if (!hasVol) {
+    ctx.fillStyle = colors.muted;
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('no volume data', W / 2, H / 2);
+    return;
+  }
+
+  const cW = W - vp.left - vp.right;
+  const cH = H - vp.top - vp.bottom;
+  const maxVol = Math.max(...vBars.map(b => b.v || 0));
+  const bw = Math.max(1, (cW / n) * 0.7);
+
+  for (let i = 0; i < n; i++) {
+    const b = vBars[i];
+    if (!b.v) continue;
+    const up = b.c >= b.o;
+    ctx.fillStyle = up ? colors.volUp : colors.volDn;
+    const bx = vp.left + ((i + 0.5) / n) * cW;
+    const bh = (b.v / maxVol) * cH;
+    ctx.fillRect(bx - bw / 2, vp.top + cH - bh, bw, bh);
+  }
+
+  // Date labels on volume axis
   ctx.fillStyle = colors.muted;
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  const labelCount = Math.min(6, bars.length);
+  const labelCount = Math.min(6, n);
   for (let i = 0; i < labelCount; i++) {
-    const idx = Math.floor(i / (labelCount - 1 || 1) * (bars.length - 1));
-    ctx.fillText(bars[idx].d, x(idx), H - 8);
+    const idx = Math.floor(i / (labelCount - 1 || 1) * (n - 1));
+    const bx = vp.left + ((idx + 0.5) / n) * cW;
+    ctx.fillText(vBars[idx].d, bx, H - 4);
   }
 }
+
+// ── Mouse interactions ──
+chartCanvas.addEventListener('mousemove', e => {
+  const rect = chartCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  if (chart.bars.length === 0) return;
+  const L = chartLayout(chartCanvas);
+  const idx = L.pxToIdx(mx);
+  if (idx < 0 || idx >= L.n) { chartTooltip.style.display = 'none'; return; }
+
+  const b = L.vBars[idx];
+  // Crosshair tooltip
+  let tip = `${b.d}`;
+  if (b.o != null) tip += `\nO ${b.o.toFixed(2)}  H ${b.h.toFixed(2)}`;
+  if (b.l != null) tip += `\nL ${b.l.toFixed(2)}  C ${b.c.toFixed(2)}`;
+  else tip += `\nC ${b.c.toFixed(2)}`;
+  if (b.v) tip += `\nV ${b.v.toLocaleString()}`;
+  chartTooltip.textContent = tip;
+  chartTooltip.style.display = 'block';
+
+  // Render crosshair
+  renderChart();
+  const ctx = chartCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const colors = chartColors();
+  ctx.strokeStyle = colors.crosshair;
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([4, 3]);
+  // Vertical line
+  const cx = L.x(idx);
+  ctx.beginPath(); ctx.moveTo(cx, L.p.top); ctx.lineTo(cx, L.H - L.p.bottom); ctx.stroke();
+  // Horizontal line
+  ctx.beginPath(); ctx.moveTo(L.p.left, my); ctx.lineTo(L.W - L.p.right, my); ctx.stroke();
+  // Price label at cursor
+  ctx.setLineDash([]);
+  const price = L.pxToPrice(my);
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(L.W - L.p.right, my - 7, L.p.right, 14);
+  ctx.fillStyle = colors.text;
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(price.toFixed(2), L.W - L.p.right + 4, my + 3);
+  ctx.restore();
+
+  // Drawing tool drag
+  if (chart.tool && chart.drawStart) {
+    chart.drawEnd = { idx: idx + chart.viewStart, price: L.pxToPrice(my) };
+    renderChart(); // re-render with active drawing
+  }
+});
+
+chartCanvas.addEventListener('mouseleave', () => {
+  chartTooltip.style.display = 'none';
+  if (chart.bars.length) renderChart();
+});
+
+// Wheel zoom
+chartCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.15 : 0.87;
+  const rect = chartCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const frac = (mx - chart.pad.left) / (rect.width - chart.pad.left - chart.pad.right);
+  const len = chart.viewEnd - chart.viewStart;
+  const newLen = Math.max(10, Math.min(chart.bars.length, Math.round(len * factor)));
+  const pivot = chart.viewStart + frac * len;
+  chart.viewStart = Math.max(0, Math.round(pivot - frac * newLen));
+  chart.viewEnd = Math.min(chart.bars.length, chart.viewStart + newLen);
+  renderAll();
+}, { passive: false });
+
+// Drag to pan
+chartCanvas.addEventListener('mousedown', e => {
+  if (chart.tool) {
+    // Start drawing
+    const rect = chartCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const L = chartLayout(chartCanvas);
+    const idx = Math.max(0, Math.min(L.n - 1, L.pxToIdx(mx)));
+    chart.drawStart = { idx: idx + chart.viewStart, price: L.pxToPrice(my) };
+    chart.drawEnd = null;
+  } else {
+    chart.dragging = true;
+    chart.dragLastX = e.clientX;
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!chart.dragging) return;
+  const dx = e.clientX - chart.dragLastX;
+  chart.dragLastX = e.clientX;
+  const rect = chartCanvas.getBoundingClientRect();
+  const barsPerPx = (chart.viewEnd - chart.viewStart) / (rect.width - chart.pad.left - chart.pad.right);
+  const shift = Math.round(-dx * barsPerPx);
+  const len = chart.viewEnd - chart.viewStart;
+  let ns = chart.viewStart + shift;
+  if (ns < 0) ns = 0;
+  if (ns + len > chart.bars.length) ns = chart.bars.length - len;
+  chart.viewStart = ns;
+  chart.viewEnd = ns + len;
+  renderAll();
+});
+
+window.addEventListener('mouseup', e => {
+  if (chart.dragging) {
+    chart.dragging = false;
+  }
+  if (chart.tool && chart.drawStart && chart.drawEnd) {
+    chart.drawings.push({ type: chart.tool, p1: chart.drawStart, p2: chart.drawEnd });
+    chart.drawStart = null;
+    chart.drawEnd = null;
+    renderChart();
+  }
+});
 
 function renderStats(bars, symbol) {
   chartStats.innerHTML = '';

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Hand — Biomechanical Force Analysis</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12}
+#c{display:block;width:100%;height:100vh;touch-action:none}
+#ui{position:fixed;left:14px;bottom:14px;z-index:5;display:flex;flex-direction:column;gap:6px}
+#grips{display:flex;gap:5px;flex-wrap:wrap}
+#grips button{padding:4px 10px;border-radius:4px;border:1px solid #555;
+  font:bold 11px monospace;cursor:pointer;background:rgba(0,0,0,0.7);
+  color:#888;-webkit-tap-highlight-color:transparent}
+#grips button.on{color:#fa0;border-color:#fa0}
+#loadBtn{padding:4px 10px;border-radius:4px;border:1px solid #555;
+  font:bold 11px monospace;cursor:pointer;background:rgba(0,0,0,0.7);
+  color:#888;-webkit-tap-highlight-color:transparent;align-self:flex-start}
+#info{position:fixed;right:14px;bottom:14px;color:rgba(255,255,255,0.3);
+  font:11px monospace;pointer-events:none;z-index:2;text-align:right;white-space:pre}
+#err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:16px monospace;text-align:center;padding:20px;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="grips">
+    <button class="on" onclick="setGrip(0)">Scroll</button>
+    <button onclick="setGrip(1)">Reach</button>
+    <button onclick="setGrip(2)">Type</button>
+    <button onclick="setGrip(3)">Pinch</button>
+    <button onclick="setGrip(4)">Call</button>
+    <button onclick="setGrip(5)">Cradle</button>
+  </div>
+  <button id="loadBtn" onclick="cycleLoad()">Load: off</button>
+</div>
+<div id="info"></div>
+<div id="err">WebGPU not available.</div>
+<script>
+'use strict';
+/* ── Biomechanical hand model ──
+   Bone lengths: ANSUR II (2012), Buchholz et al. (1992), NASA-STD-3000/HIDH
+   Male 50th percentile, scale ~3mm per unit
+   FK: Rodrigues rotation at MCP(2DOF) + PIP(1DOF) + DIP(1DOF) per finger */
+
+/* ── Vector math ── */
+const V={
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+  scl:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]),
+  norm:a=>{const l=V.len(a)||1;return[a[0]/l,a[1]/l,a[2]/l]},
+  rot:(v,ax,ang)=>{const c=Math.cos(ang),s=Math.sin(ang),d=V.dot(ax,v),cr=V.cross(ax,v);
+    return[v[0]*c+cr[0]*s+ax[0]*d*(1-c),v[1]*c+cr[1]*s+ax[1]*d*(1-c),v[2]*c+cr[2]*s+ax[2]*d*(1-c)]},
+};
+
+/* ── Hand model: ANSUR II / Buchholz 1992, male 50th %ile, ~3mm/unit ── */
+/* [base_x, base_y, mc_len, pp_len, mp_len, dp_len, radius, splay] */
+const FD=[
+  [-0.06,-0.01, 0.130,0.096,0,    0.066, 0.014,-1.0],  // thumb: MC43 PP32 DP22
+  [-0.035,0.0,  0.190,0.117,0.068,0.053, 0.013,-0.15], // index: MC63 PP39 MP23 DP18
+  [ 0.0,  0.0,  0.195,0.126,0.078,0.056, 0.013, 0.0],  // middle: MC65 PP42 MP26 DP19
+  [ 0.030,0.0,  0.175,0.114,0.077,0.054, 0.012, 0.12], // ring: MC58 PP38 MP26 DP18
+  [ 0.055,-0.01,0.160,0.090,0.054,0.048, 0.011, 0.25], // little: MC53 PP30 MP18 DP16
+];
+
+/* ── Phone grip presets ──
+   R/L: [mcp_flex, mcp_abd, pip_flex, dip_flex] x5 fingers
+   rOff/lOff: hand X offsets, pPos: phone center, pPit: phone pitch */
+const PH=[0.108, 0.222, 0.012, 0.024]; // phone half-extents + corner radius
+const GRIPS=[
+  {name:'Scroll',hands:1, rOff:0.05, lOff:-0.50,
+   pPos:[0,0.22,0.08], pPit:0.0,
+   R:[[.3,.2,.2,.1],[1.0,-.1,.9,.6],[1.0,0,.9,.6],[1.1,0,.9,.6],[1.1,.1,.9,.6]],
+   L:[[.1,.3,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+   ct:[1,2,3,4]},
+  {name:'Reach',hands:1, rOff:0.05, lOff:-0.50,
+   pPos:[0,0.22,0.08], pPit:0.0,
+   R:[[.6,.4,.3,.15],[1.2,-.1,1.0,.7],[1.2,0,1.0,.7],[1.3,0,1.0,.7],[1.3,.1,1.0,.7]],
+   L:[[.1,.3,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+   ct:[1,2,3,4]},
+  {name:'Type',hands:2, rOff:0.10, lOff:-0.10,
+   pPos:[0,0.22,0.08], pPit:0.0,
+   R:[[.3,.2,.15,.1],[.9,-.1,.8,.5],[.9,0,.8,.5],[1.0,0,.8,.5],[1.0,.1,.8,.5]],
+   L:[[.3,.2,.15,.1],[.9,-.1,.8,.5],[.9,0,.8,.5],[1.0,0,.8,.5],[1.0,.1,.8,.5]],
+   ct:[1,2,3,4]},
+  {name:'Pinch',hands:2, rOff:0.12, lOff:-0.12,
+   pPos:[0,0.22,0.08], pPit:0.0,
+   R:[[.5,.2,.3,.2],[.6,0,.4,.3],[.2,0,.1,.1],[.1,0,.1,.1],[.1,0,.1,.1]],
+   L:[[.5,.2,.3,.2],[.6,0,.4,.3],[.2,0,.1,.1],[.1,0,.1,.1],[.1,0,.1,.1]],
+   ct:[0,1]},
+  {name:'Call',hands:1, rOff:0.05, lOff:-0.50,
+   pPos:[0,0.22,0.08], pPit:0.4,
+   R:[[.2,.2,.1,.1],[.7,-.05,.5,.4],[.7,0,.5,.4],[.8,0,.5,.4],[.8,.1,.5,.4]],
+   L:[[.1,.3,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+   ct:[1,2,3,4]},
+  {name:'Cradle',hands:2, rOff:0.10, lOff:-0.10,
+   pPos:[0,0.22,0.08], pPit:-0.3,
+   R:[[.2,.2,.1,.05],[.6,-.05,.5,.3],[.6,0,.5,.3],[.7,0,.5,.3],[.7,.1,.5,.3]],
+   L:[[.2,.2,.1,.05],[.6,-.05,.5,.3],[.6,0,.5,.3],[.7,0,.5,.3],[.7,.1,.5,.3]],
+   ct:[1,2,3,4]},
+];
+
+/* ── Forward kinematics ── */
+function fk(ang){
+  const B=[];
+  for(let f=0;f<5;f++){
+    const[bx,by,mcL,ppL,mpL,dpL,w,sp]=FD[f];
+    const[mf,ma,pf,df]=ang[f];
+    let dir,nrm;
+    if(f===0){dir=V.norm([Math.sin(sp),Math.cos(sp)*.8,.3]);nrm=[0,0,1];}
+    else{dir=V.norm([Math.sin(sp),Math.cos(sp),0]);nrm=[0,0,1];}
+    let lat=V.norm(V.cross(dir,nrm));nrm=V.cross(lat,dir);
+    let p=[bx,by,0];
+    const bone=(len,r)=>{const e=V.add(p,V.scl(dir,len));
+      B.push(p[0],p[1],p[2],r,e[0],e[1],e[2],0);p=[...e];};
+    const fl=(a)=>{lat=V.norm(V.cross(dir,nrm));dir=V.rot(dir,lat,a);nrm=V.rot(nrm,lat,a);};
+    const ab=(a)=>{dir=V.rot(dir,nrm,a);lat=V.norm(V.cross(dir,nrm));};
+    bone(mcL,w); ab(ma); fl(mf); bone(ppL,w*.9);
+    if(mpL>0){fl(pf);bone(mpL,w*.8);}
+    fl(df); bone(dpL,w*.7);
+  }
+  B.push(-.04,-.04,0,.038, .04,-.04,0,0);
+  return B;
+}
+
+/* ── Palm cross-struts ── */
+function addPalm(B){
+  const mc=[0,3,7,11,15];
+  const mcpE=mc.map(i=>[B[i*8+4],B[i*8+5],B[i*8+6]]);
+  for(let i=1;i<4;i++) B.push(mcpE[i][0],mcpE[i][1],mcpE[i][2],.013,
+    mcpE[i+1][0],mcpE[i+1][1],mcpE[i+1][2],0);
+  B.push(mcpE[0][0],mcpE[0][1],mcpE[0][2],.011,
+    mcpE[1][0],mcpE[1][1],mcpE[1][2],0);
+}
+
+/* ── Force analysis: torque-based stress ── */
+function calcStress(B,ct,lm){
+  if(lm===0||!ct.length)return;
+  const ld=[0,-lm,0];
+  let bi=0;const tips=[],ranges=[];
+  for(let f=0;f<5;f++){
+    const s=bi;bi++;bi++;if(FD[f][4]>0)bi++;bi++;
+    ranges.push([s,bi]);
+    const li=bi-1;tips.push([B[li*8+4],B[li*8+5],B[li*8+6]]);
+  }
+  for(const fi of ct){
+    const tip=tips[fi];const[s,e]=ranges[fi];
+    for(let b=s;b<e;b++){
+      const j=[B[b*8],B[b*8+1],B[b*8+2]];
+      const r=V.sub(tip,j);const tq=V.cross(r,ld);
+      const tm=V.len(tq);const bw=B[b*8+3];
+      B[b*8+7]=Math.min(1.0,tm/(bw*bw*600));
+    }
+  }
+}
+
+/* ── WGSL shader ── */
+const shader=`
+struct U{d:array<vec4f,128>}
+@group(0)@binding(0) var<uniform> u:U;
+
+fn sdCap(p:vec3f,a:vec3f,b:vec3f,r:f32)->f32{
+  let pa=p-a;let ba=b-a;
+  let h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
+  return length(pa-ba*h)-r;
+}
+
+fn sdRBox(p:vec3f,b:vec3f,r:f32)->f32{
+  let q=abs(p)-b+vec3f(r);
+  return length(max(q,vec3f(0.0)))+min(max(q.x,max(q.y,q.z)),0.0)-r;
+}
+
+fn scene(p:vec3f)->vec2f{
+  var d=100.0;var st=0.0;
+  // Phone: single transform → visual SDF + fat collision SDF
+  let pp=u.d[2].xyz;let pa=u.d[2].w;
+  let lp=p-pp;
+  let ca=cos(pa);let sa=sin(pa);
+  let rp=vec3f(lp.x,lp.y*ca-lp.z*sa,lp.y*sa+lp.z*ca);
+  let pd=sdRBox(rp,vec3f(u.d[3].x,u.d[3].y,u.d[3].z),u.d[3].w);
+  let pf=sdRBox(vec3f(rp.x,rp.y,rp.z-0.05),vec3f(0.10,u.d[3].y,0.065),u.d[3].w);
+
+  let nb=u32(u.d[1].w);
+  for(var i=0u;i<52u;i++){
+    if(i>=nb){break;}
+    let idx=4u+i*2u;
+    let a=u.d[idx];let b=u.d[idx+1u];
+    if(a.w<0.0001){continue;}
+    let m=(a.xyz+b.xyz)*0.5;let dd=p-m;
+    if(dot(dd,dd)>0.09){continue;}
+    let sd=sdCap(p,a.xyz,b.xyz,a.w);
+    let bd=max(sd,-pf);
+    if(bd<d){d=bd;st=b.w;}
+  }
+  if(pd<d){d=pd;st=-1.0;}
+  return vec2f(d,st);
+}
+
+fn sdf(p:vec3f)->f32{return scene(p).x;}
+
+fn calcN(p:vec3f)->vec3f{
+  let e=vec2f(1.0,-1.0)*0.0008;
+  return normalize(
+    e.xyy*sdf(p+e.xyy)+e.yyx*sdf(p+e.yyx)+
+    e.yxy*sdf(p+e.yxy)+e.xxx*sdf(p+e.xxx));
+}
+
+@vertex fn vs(@builtin(vertex_index) v:u32)->@builtin(position) vec4f{
+  let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  return vec4f(p[v],0,1);
+}
+
+@fragment fn fs(@builtin(position) fc:vec4f)->@location(0) vec4f{
+  let res=u.d[0].xy;let yaw=u.d[0].z;let pitch=u.d[0].w;
+  let dist=u.d[1].x;
+  let uv=(fc.xy-res*0.5)/res.y;
+
+  // Orbit camera
+  let tgt=vec3f(0.0,0.15,0.0);
+  let ro=tgt+dist*vec3f(cos(pitch)*sin(yaw),sin(pitch),cos(pitch)*cos(yaw));
+  let look=normalize(tgt-ro);
+  let rt=normalize(cross(look,vec3f(0.0,1.0,0.0)));
+  let up=cross(rt,look);
+  let rd=normalize(look*1.5+rt*uv.x+up*uv.y);
+
+  // Raymarch
+  var t=0.0;var hit=vec2f(100.0,0.0);
+  for(var i=0;i<64;i++){
+    let p=ro+rd*t;hit=scene(p);
+    if(hit.x<0.0004||t>3.0){break;}
+    t+=hit.x;
+  }
+
+  var col=vec3f(0.04,0.04,0.06);
+
+  if(hit.x<0.001&&t<3.0){
+    let p=ro+rd*t;let n=calcN(p);
+    let st=hit.y;
+    let l1=normalize(vec3f(0.5,0.8,0.6));
+    let l2=normalize(vec3f(-0.3,0.4,-0.5));
+    if(st<0.0){
+      // Phone: transform hit to local space to detect screen face
+      let pp=u.d[2].xyz;let pa2=u.d[2].w;
+      let lp=p-pp;let ca2=cos(pa2);let sa2=sin(pa2);
+      let rp=vec3f(lp.x,lp.y*ca2-lp.z*sa2,lp.y*sa2+lp.z*ca2);
+      let hx=u.d[3].x;let hy=u.d[3].y;let hz=u.d[3].z;
+      let isScr=select(0.0,1.0,rp.z>hz*0.5 && abs(rp.x)<hx*0.85 && abs(rp.y)<hy*0.9);
+      let body=vec3f(0.18,0.18,0.20);
+      let screen=vec3f(0.02,0.02,0.04);
+      let base=mix(body,screen,isScr);
+      let diff=max(dot(n,l1),0.0)*0.5+max(dot(n,l2),0.0)*0.15;
+      let spec=pow(max(dot(reflect(-l1,n),-rd),0.0),48.0)*(0.4+isScr*0.5);
+      col=base*(diff+0.12+0.06*n.y)+vec3f(spec);
+    }else{
+      // Bone: stress color ivory → gold → red
+      let base=mix(mix(vec3f(0.88,0.84,0.78),vec3f(0.95,0.7,0.2),clamp(st*2.0,0.0,1.0)),
+                   vec3f(1.0,0.15,0.05),clamp(st*2.0-1.0,0.0,1.0));
+      let diff=max(dot(n,l1),0.0)*0.65+max(dot(n,l2),0.0)*0.2;
+      let spec=pow(max(dot(reflect(-l1,n),-rd),0.0),24.0)*0.25;
+      col=base*(diff+0.15+0.08*n.y)+vec3f(spec);
+      col+=vec3f(0.12,0.05,0.03)*max(0.0,0.5-dot(n,-rd));
+    }
+    col=mix(col,vec3f(0.04,0.04,0.06),1.0-exp(-t*t*0.3));
+  }else{
+    // Ground plane
+    let tg=(-0.06-ro.y)/rd.y;
+    if(tg>0.0){
+      let gp=ro+rd*tg;
+      let grid=abs(fract(gp.xz*8.0)-vec2f(0.5));
+      let gl=smoothstep(0.48,0.46,min(grid.x,grid.y));
+      col=(vec3f(0.05)+vec3f(gl*0.04))*smoothstep(1.2,0.0,length(gp.xz));
+    }
+  }
+
+  col=pow(max(col,vec3f(0.0)),vec3f(0.4545));
+  return vec4f(col,1.0);
+}`;
+
+/* ── Globals ── */
+const canvas=document.getElementById('c'),infoEl=document.getElementById('info');
+const gBtns=document.querySelectorAll('#grips button');
+const loadBtn=document.getElementById('loadBtn');
+let gripIdx=0,loadLvl=0,yaw=0.4,pitch=0.35,dist=0.8;
+let curAngR=GRIPS[0].R.map(a=>[...a]);
+let curAngL=GRIPS[0].L.map(a=>[...a]);
+let curROff=GRIPS[0].rOff, curLOff=GRIPS[0].lOff;
+let curPPos=[...GRIPS[0].pPos], curPPit=GRIPS[0].pPit;
+const LOADS=[0,1,3,8];
+
+window.setGrip=function(i){
+  gripIdx=i;gBtns.forEach((b,j)=>b.classList.toggle('on',j===i));
+};
+window.cycleLoad=function(){
+  loadLvl=(loadLvl+1)%LOADS.length;
+  loadBtn.textContent='Load: '+(LOADS[loadLvl]?LOADS[loadLvl]+'N':'off');
+  loadBtn.style.color=LOADS[loadLvl]?'#f55':'#888';
+  loadBtn.style.borderColor=LOADS[loadLvl]?'#f55':'#555';
+};
+
+/* ── WebGPU ── */
+async function init(){
+  if(!navigator.gpu){document.getElementById('err').style.display='flex';return;}
+  const adapter=await navigator.gpu.requestAdapter();
+  if(!adapter){document.getElementById('err').style.display='flex';return;}
+  const device=await adapter.requestDevice();
+  const ctx=canvas.getContext('webgpu');
+  const fmt=navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({device,format:fmt,alphaMode:'opaque'});
+  let w,h;
+  function resize(){const d=Math.min(devicePixelRatio,1.5);
+    w=canvas.clientWidth*d|0;h=canvas.clientHeight*d|0;canvas.width=w;canvas.height=h;}
+  resize();addEventListener('resize',resize);
+
+  const BUF=128*16;
+  const ub=device.createBuffer({size:BUF,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const mod=device.createShaderModule({code:shader});
+  const ci=await mod.getCompilationInfo();
+  const errs=ci.messages.filter(m=>m.type==='error');
+  if(errs.length){const el=document.getElementById('err');
+    el.textContent='Shader: '+errs.map(m=>'L'+m.lineNum+': '+m.message).join(' | ');
+    el.style.display='flex';return;}
+  let pipe;
+  try{pipe=await device.createRenderPipelineAsync({layout:'auto',
+    vertex:{module:mod,entryPoint:'vs'},
+    fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]},
+    primitive:{topology:'triangle-list'}});}
+  catch(e){document.getElementById('err').textContent='Pipeline: '+e.message;
+    document.getElementById('err').style.display='flex';return;}
+  const bg=device.createBindGroup({layout:pipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:ub}}]});
+
+  /* ── Input: orbit + pinch-to-zoom ── */
+  const ptrs=new Map();let drag=null,pinchD0=0,distP=0;
+  canvas.addEventListener('pointerdown',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    canvas.setPointerCapture(e.pointerId);
+    if(ptrs.size===1){drag={x:e.clientX,y:e.clientY,yaw,pitch};}
+    if(ptrs.size===2){drag=null;const[a,b]=[...ptrs.values()];
+      pinchD0=Math.hypot(a.x-b.x,a.y-b.y);distP=dist;}
+  });
+  canvas.addEventListener('pointermove',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1&&drag){
+      yaw=drag.yaw+(e.clientX-drag.x)*0.008;
+      pitch=Math.max(-1.2,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*0.008));}
+    if(ptrs.size>=2){const vs=[...ptrs.values()];
+      const d=Math.hypot(vs[0].x-vs[1].x,vs[0].y-vs[1].y);
+      dist=Math.max(0.3,Math.min(2.0,distP*pinchD0/d));}
+  });
+  canvas.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);drag=null;});
+  canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();
+    dist=Math.max(0.3,Math.min(2.0,dist+e.deltaY*0.001));},{passive:false});
+
+  /* ── Render loop ── */
+  function frame(ts){
+    requestAnimationFrame(frame);
+    const g=GRIPS[gripIdx];
+    const sp=0.08;
+
+    // Animate joint angles independently per hand
+    for(let f=0;f<5;f++)for(let j=0;j<4;j++){
+      curAngR[f][j]+=(g.R[f][j]-curAngR[f][j])*sp;
+      curAngL[f][j]+=(g.L[f][j]-curAngL[f][j])*sp;
+    }
+    // Animate hand offsets + phone transform
+    curROff+=(g.rOff-curROff)*sp;
+    curLOff+=(g.lOff-curLOff)*sp;
+    for(let i=0;i<3;i++) curPPos[i]+=(g.pPos[i]-curPPos[i])*sp;
+    curPPit+=(g.pPit-curPPit)*sp;
+
+    const bR=fk(curAngR); addPalm(bR);
+    calcStress(bR,g.ct,LOADS[loadLvl]);
+    const bL=fk(curAngL); addPalm(bL);
+    if(g.hands===2) calcStress(bL,g.ct,LOADS[loadLvl]);
+
+    const nR=bR.length/8, nL=bL.length/8;
+    const pb=new Float32Array(128*4);
+    pb[0]=w;pb[1]=h;pb[2]=yaw;pb[3]=pitch;
+    pb[4]=dist;pb[5]=ts*0.001;pb[6]=LOADS[loadLvl];pb[7]=nR+nL;
+
+    // Phone transform (u.d[2], u.d[3])
+    pb[8]=curPPos[0];pb[9]=curPPos[1];pb[10]=curPPos[2];pb[11]=curPPit;
+    pb[12]=PH[0];pb[13]=PH[1];pb[14]=PH[2];pb[15]=PH[3];
+
+    // Right hand
+    for(let i=0;i<bR.length;i+=8){
+      const o=16+i;
+      pb[o]=bR[i]+curROff;pb[o+1]=bR[i+1];pb[o+2]=bR[i+2];pb[o+3]=bR[i+3];
+      pb[o+4]=bR[i+4]+curROff;pb[o+5]=bR[i+5];pb[o+6]=bR[i+6];pb[o+7]=bR[i+7];
+    }
+    // Left hand (mirror X)
+    const lo=bR.length;
+    for(let i=0;i<bL.length;i+=8){
+      const o=16+lo+i;
+      pb[o]=-bL[i]+curLOff;pb[o+1]=bL[i+1];pb[o+2]=bL[i+2];pb[o+3]=bL[i+3];
+      pb[o+4]=-bL[i+4]+curLOff;pb[o+5]=bL[i+5];pb[o+6]=bL[i+6];pb[o+7]=bL[i+7];
+    }
+
+    device.queue.writeBuffer(ub,0,pb);
+    const enc=device.createCommandEncoder();
+    const pass=enc.beginRenderPass({colorAttachments:[{
+      view:ctx.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',
+      clearValue:{r:0.04,g:0.04,b:0.06,a:1}}]});
+    pass.setPipeline(pipe);pass.setBindGroup(0,bg);pass.draw(3);pass.end();
+    device.queue.submit([enc.finish()]);
+
+    let maxSt=0;
+    for(let i=7;i<bR.length;i+=8) maxSt=Math.max(maxSt,bR[i]);
+    if(g.hands===2) for(let i=7;i<bL.length;i+=8) maxSt=Math.max(maxSt,bL[i]);
+    infoEl.textContent=g.name+' grip\n'+
+      (g.hands===1?'one-hand':'two-hand')+' \u00B7 '+(nR+nL)+' bones\n'+
+      'Peak stress: '+(maxSt*100).toFixed(0)+'%';
+  }
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>

@@ -230,3 +230,41 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+/**
+ * Fetch recent likes from a user by listing their like records directly.
+ * Uses com.atproto.repo.listRecords on the public API — no auth needed.
+ * Like records have a subject.uri pointing to the liked post.
+ */
+export async function getActorLikes(
+  did: string,
+  limit = 30
+): Promise<{ postUri: string; likedAt: string }[]> {
+  const params = new URLSearchParams({
+    repo: did,
+    collection: 'app.bsky.feed.like',
+    limit: String(limit),
+  });
+
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC}/xrpc/com.atproto.repo.listRecords?${params}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json() as {
+      records: {
+        uri: string;
+        value: {
+          subject: { uri: string; cid: string };
+          createdAt: string;
+        };
+      }[];
+    };
+    return (data.records || []).map(rec => ({
+      postUri: rec.value.subject.uri,
+      likedAt: rec.value.createdAt,
+    }));
+  } catch {
+    return [];
+  }
+}

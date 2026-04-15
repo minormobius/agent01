@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Helix Calendar — clock.mino.mobi</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
+canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+#fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; }
+#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; opacity: 0.5; pointer-events: none; letter-spacing: 0.05em; text-align: center; line-height: 1.6; }
+#hud .time { font-size: 0.95rem; opacity: 0.8; letter-spacing: 0.12em; }
+#hud .hint { font-size: 0.7rem; opacity: 0.5; }
+#year-label { position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 1.1rem; opacity: 0.7; pointer-events: none; letter-spacing: 0.1em; }
+#docs-tab { position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; transition: background 0.2s; z-index: 10; }
+#docs-tab:hover { background: rgba(255,255,255,0.15); }
+#docs-panel { display: none; position: absolute; top: 0; right: 0; width: min(420px, 90vw); height: 100%; background: rgba(10,10,18,0.95); border-left: 1px solid rgba(255,255,255,0.1); z-index: 20; overflow-y: auto; padding: 2rem 1.5rem; font-size: 0.82rem; line-height: 1.65; }
+#docs-panel.open { display: block; }
+#docs-panel h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: #fff; letter-spacing: 0.08em; }
+#docs-panel h2:first-child { margin-top: 0; }
+#docs-panel p { color: #aaa; margin: 0.4rem 0; }
+#docs-panel code { background: rgba(255,255,255,0.08); padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.78rem; }
+#docs-panel .close-btn { position: absolute; top: 1rem; right: 1rem; cursor: pointer; color: #666; font-size: 1.2rem; background: none; border: none; }
+#docs-panel .close-btn:hover { color: #fff; }
+#docs-panel .color-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0; }
+#docs-panel .color-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+#docs-panel .section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; margin-top: 1rem; }
+#info-tip { position: absolute; display: none; background: rgba(10,10,18,0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; pointer-events: none; z-index: 15; white-space: nowrap; letter-spacing: 0.04em; color: #ddd; backdrop-filter: blur(8px); }
+#info-tip .date { font-size: 0.88rem; color: #fff; font-weight: 600; }
+#info-tip .detail { color: #999; font-size: 0.7rem; margin-top: 0.15rem; }
+
+/* Tuning panel */
+#tune-tab { position: absolute; top: 1rem; right: 5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; transition: background 0.2s; z-index: 10; }
+#tune-tab:hover { background: rgba(255,255,255,0.15); }
+#tune-panel { display: none; position: absolute; top: 3.5rem; right: 1rem; width: 280px; max-height: calc(100vh - 5rem); overflow-y: auto; background: rgba(10,10,18,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 25; padding: 1rem; font-size: 0.75rem; backdrop-filter: blur(12px); touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+@media (max-width: 480px) { #tune-panel { right: 0; left: 0; width: auto; top: 0; max-height: 100vh; border-radius: 0; padding: 1rem 1rem 2rem; } }
+#tune-panel.open { display: block; }
+#tune-panel .tune-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+#tune-panel .tune-header h3 { font-size: 0.8rem; margin: 0; color: #fff; letter-spacing: 0.06em; }
+#tune-panel .tune-close { background: none; border: none; color: #666; font-size: 1.3rem; cursor: pointer; padding: 0.2rem 0.4rem; line-height: 1; }
+#tune-panel .tune-close:hover { color: #fff; }
+#tune-panel label { display: flex; justify-content: space-between; align-items: center; margin: 0.35rem 0; color: #aaa; }
+#tune-panel label span { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; color: #ddd; }
+#tune-panel input[type=range] { flex: 1; margin: 0 0.5rem; accent-color: #7a9; height: 3px; }
+#tune-panel .level-toggles { margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; }
+#tune-panel .level-toggle { display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0; color: #aaa; cursor: pointer; }
+#tune-panel .level-toggle input { accent-color: #7a9; }
+#tune-panel .level-toggle.active { color: #fff; }
+#tune-panel .geom-readout { margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.4rem; font-size: 0.65rem; color: #666; font-variant-numeric: tabular-nums; line-height: 1.5; }
+
+/* Breadcrumb nav */
+#breadcrumb { position: absolute; top: 3.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.15rem; align-items: center; z-index: 15; font-size: 0.72rem; pointer-events: auto; }
+#breadcrumb .crumb { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 0.2rem 0.5rem; color: #bbb; cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+#breadcrumb .crumb:hover { background: rgba(255,255,255,0.18); color: #fff; }
+#breadcrumb .crumb.current { background: rgba(122,153,122,0.25); border-color: rgba(122,153,122,0.4); color: #afd4af; }
+#breadcrumb .sep { color: #444; padding: 0 0.1rem; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="fallback">WebGPU is not supported in this browser.<br>Try Chrome 113+ or Edge 113+.</div>
+<div id="hud">drag to orbit · scroll to zoom</div>
+<div id="year-label"></div>
+<div id="info-tip"></div>
+<div id="breadcrumb"></div>
+<button id="tune-tab" onclick="document.getElementById('tune-panel').classList.toggle('open')">tune</button>
+<div id="tune-panel">
+  <div class="tune-header"><h3>Fractal Geometry</h3><button class="tune-close" onclick="this.closest('#tune-panel').classList.remove('open')">&times;</button></div>
+  <label>orbit <input type="range" id="sl-orbit" min="1.2" max="5.0" step="0.1"> <span id="v-orbit"></span></label>
+  <label>tube  <input type="range" id="sl-tube" min="0.02" max="0.30" step="0.01"> <span id="v-tube"></span></label>
+  <label>extent <input type="range" id="sl-extent" min="1" max="100" step="1"> <span id="v-extent"></span></label>
+  <label>fade  <input type="range" id="sl-fade" min="20" max="300" step="5"> <span id="v-fade"></span></label>
+  <label>range <input type="range" id="sl-range" min="0.05" max="0.8" step="0.05"> <span id="v-range"></span></label>
+  <div class="level-toggles" id="level-toggles"></div>
+  <div class="geom-readout" id="geom-readout"></div>
+</div>
+<button id="docs-tab" onclick="document.getElementById('docs-panel').classList.toggle('open')">docs</button>
+<div id="docs-panel">
+  <button class="close-btn" onclick="this.parentElement.classList.remove('open')">&times;</button>
+  <h2>Helix Calendar</h2>
+  <p>A parametric fractal visualization of time. Nested helices at every scale — each zoom level reveals the next layer of coils.</p>
+
+  <h2>Topology</h2>
+  <p><strong>Level 0 — Year helix</strong> &mdash; One revolution per year. Color encodes month.</p>
+  <p><strong>Level 1 — Quarters</strong> (×4) &mdash; 4 coils per year.</p>
+  <p><strong>Level 2 — Weeks</strong> (×13) &mdash; 13 coils per quarter.</p>
+  <p><strong>Level 3 — Days</strong> (×7) &mdash; 7 coils per week.</p>
+  <p><strong>Level 4 — Hours</strong> (×24) &mdash; 24 coils per day.</p>
+  <p><strong>Level 5 — 6-min</strong> (×10) &mdash; 10 blocks per hour.</p>
+  <p><strong>Level 6 — 30-sec</strong> (×12) &mdash; 12 ticks per 6-min block.</p>
+  <p>Tap to focus, scroll/pinch to zoom. Use the <strong>tune</strong> panel to adjust fractal geometry live. Toggle individual levels on/off.</p>
+
+  <div class="section">
+  <h2>Reading the time</h2>
+  <p><strong>Brightness</strong> encodes time of day &mdash; midnight is dimmest, noon is brightest, with dawn/dusk transitions between.</p>
+  <p><strong>Gold ring</strong> pulses at the current moment — tracks your position on the helix in real time.</p>
+  <p><strong>Color</strong> encodes the month:</p>
+  <div class="color-row"><span class="color-swatch" style="background:#8cbff2"></span> Jan</div>
+  <div class="color-row"><span class="color-swatch" style="background:#99b3e6"></span> Feb</div>
+  <div class="color-row"><span class="color-swatch" style="background:#80d98c"></span> Mar</div>
+  <div class="color-row"><span class="color-swatch" style="background:#66e673"></span> Apr</div>
+  <div class="color-row"><span class="color-swatch" style="background:#59eb99"></span> May</div>
+  <div class="color-row"><span class="color-swatch" style="background:#f2e659"></span> Jun</div>
+  <div class="color-row"><span class="color-swatch" style="background:#f2b340"></span> Jul</div>
+  <div class="color-row"><span class="color-swatch" style="background:#f28c40"></span> Aug</div>
+  <div class="color-row"><span class="color-swatch" style="background:#e6734d"></span> Sep</div>
+  <div class="color-row"><span class="color-swatch" style="background:#d96666"></span> Oct</div>
+  <div class="color-row"><span class="color-swatch" style="background:#a67399"></span> Nov</div>
+  <div class="color-row"><span class="color-swatch" style="background:#7380cc"></span> Dec</div>
+  </div>
+
+  <div class="section">
+  <h2>Controls</h2>
+  <p><strong>Drag</strong> to orbit the camera around the helix.</p>
+  <p><strong>Scroll</strong> to zoom in and out.</p>
+  <p>The view auto-rotates gently until you first interact.</p>
+  </div>
+
+  <div class="section">
+  <h2>Technical</h2>
+  <p>Rendered with <strong>WebGPU</strong>. No frameworks, no build step, no backend. Parametric fractal — each level's geometry is derived from <code>orbitRatio</code> and <code>tubeFrac</code>, tunable in real time.</p>
+  <p>7 LOD levels with smooth crossfade. Level 0 always loaded; deeper levels generated on-demand around the selected point. Click breadcrumbs to jump between zoom levels.</p>
+  <p>Requires Chrome 113+ or Edge 113+.</p>
+  </div>
+
+  <div class="section" style="color:#555; font-size:0.72rem; margin-top:1.5rem;">
+    clock.mino.mobi
+  </div>
+</div>
+<script type="module">
+
+const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
+const MONTH_COLORS = [
+  [0.55, 0.75, 0.95], // Jan
+  [0.60, 0.70, 0.90], // Feb
+  [0.50, 0.85, 0.55], // Mar
+  [0.40, 0.90, 0.45], // Apr
+  [0.35, 0.92, 0.60], // May
+  [0.95, 0.90, 0.35], // Jun
+  [0.95, 0.70, 0.25], // Jul
+  [0.95, 0.55, 0.25], // Aug
+  [0.90, 0.45, 0.30], // Sep
+  [0.85, 0.40, 0.40], // Oct
+  [0.65, 0.45, 0.60], // Nov
+  [0.45, 0.50, 0.80], // Dec
+];
+
+// --- Vector helpers ---
+function v3add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function v3sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function v3scale(a, s) { return [a[0]*s, a[1]*s, a[2]*s]; }
+function v3dot(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function v3len(a) { return Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]); }
+function v3normalize(a) {
+  const l = v3len(a);
+  return l > 1e-8 ? [a[0]/l, a[1]/l, a[2]/l] : [0,0,0];
+}
+function v3cross(a, b) {
+  return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+}
+function v3lerp(a, b, t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+
+// Smooth interpolation for crossfade
+function smoothstep(lo, hi, x) {
+  const t = Math.max(0, Math.min(1, (x - lo) / (hi - lo)));
+  return t * t * (3 - 2 * t);
+}
+
+async function main() {
+  if (!navigator.gpu) {
+    document.getElementById('fallback').style.display = 'flex';
+    return;
+  }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    document.getElementById('fallback').style.display = 'flex';
+    return;
+  }
+  const device = await adapter.requestDevice();
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  // === PARAMETRIC FRACTAL HELIX SYSTEM ===
+  //
+  // Three rules govern all geometry:
+  //   orbitRatio  — child coil center = parent tube radius × this
+  //   fillFactor  — child tube fills this fraction of arc between siblings
+  //   subdivisions[] — number of child coils per parent coil at each level
+  //
+  // Everything else is derived.
+
+  // --- Tunable parameters (mutated by UI sliders) ---
+  let ORBIT_RATIO = 4.0;
+  let TUBE_FRAC = 0.10;
+  let FADE_SCALE = 80;
+  let FADE_RANGE = 0.40;
+  let COIL_EXTENT = 100;  // how many parent-revolutions of children to render (1 = just the selected parent coil)
+  const SAMPLES_PER_COIL = 14;
+  const TUBE_SIDES = 6;
+
+  // Level hierarchy: big subdivision jumps so each level lives in its own scale
+  const LEVELS = [
+    { name: 'year',    subs: 1,  label: 'Years',   enabled: true },
+    { name: 'quarter', subs: 4,  label: 'Quarters', enabled: false },
+    { name: 'week',    subs: 13, label: 'Weeks',    enabled: true },
+    { name: 'day',     subs: 7,  label: 'Days',     enabled: true },
+    { name: 'hour',    subs: 24, label: 'Hours',    enabled: true },
+    { name: '6min',    subs: 10, label: '6-min',    enabled: false },
+    { name: '30s',     subs: 12, label: '30-sec',   enabled: false },
+  ];
+
+  const MAX_VISIBLE_LEVELS = 2;
+
+  // Track which levels are active (skip disabled ones in rendering)
+  function getActiveLevels() {
+    return LEVELS.map((l, i) => i === 0 || l.enabled);
+  }
+
+  // --- Calendar parameters ---
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const startYear = currentYear - 2;
+  const endYear = currentYear + 2;
+  const totalYears = endYear - startYear + 1;
+
+  document.getElementById('year-label').textContent = `${startYear} — ${endYear}`;
+
+  // --- Derive tube radii for each level from rules ---
+  // Level 0 (macro helix): tubeRadius is the base size
+  const BASE_TUBE_RADIUS = 0.18;
+  const macroRadius = 3.0;   // radius of the outermost helix
+  const pitchPerYear = 1.5;
+  const yCenter = (totalYears * pitchPerYear) / 2;
+
+  // Recompute coilRadius and tubeRadius for each level (called when sliders change)
+  let levelGeom = [];
+  let geomGeneration = 0; // bumped on slider change to invalidate caches
+
+  function recomputeGeom() {
+    levelGeom = [{ coilRadius: macroRadius, tubeRadius: BASE_TUBE_RADIUS }];
+    for (let i = 1; i < LEVELS.length; i++) {
+      const parentTube = levelGeom[i - 1].tubeRadius;
+      const coilR = parentTube * ORBIT_RATIO;
+      const tubeR = coilR * TUBE_FRAC;
+      levelGeom.push({ coilRadius: coilR, tubeRadius: tubeR });
+    }
+    updateGeomReadout();
+  }
+
+  function updateGeomReadout() {
+    const el = document.getElementById('geom-readout');
+    if (!el) return;
+    const shrink = (ORBIT_RATIO * TUBE_FRAC).toFixed(3);
+    el.innerHTML = `shrink=${shrink}/level<br>` +
+      levelGeom.map((g, i) =>
+        `${LEVELS[i].name}: r=${g.coilRadius < 0.01 ? g.coilRadius.toExponential(1) : g.coilRadius.toFixed(3)} t=${g.tubeRadius < 0.01 ? g.tubeRadius.toExponential(1) : g.tubeRadius.toFixed(4)}`
+      ).join('<br>');
+  }
+
+  recomputeGeom();
+
+  console.log('Level geometry:', levelGeom.map((g, i) =>
+    `${LEVELS[i].name}: coilR=${g.coilRadius.toFixed(4)} tubeR=${g.tubeRadius.toFixed(4)}`
+  ));
+
+  // --- Macro helix (Level 0 backbone) ---
+  function macroPoint(yearOffset, frac) {
+    const angle = frac * Math.PI * 2;
+    return [
+      macroRadius * Math.cos(angle),
+      (yearOffset + frac) * pitchPerYear - yCenter,
+      macroRadius * Math.sin(angle),
+    ];
+  }
+
+  function macroTangent(yearOffset, frac) {
+    const angle = frac * Math.PI * 2;
+    return v3normalize([
+      -macroRadius * Math.sin(angle) * Math.PI * 2,
+      pitchPerYear,
+      macroRadius * Math.cos(angle) * Math.PI * 2,
+    ]);
+  }
+
+  function macroFrame(yearOffset, frac) {
+    const T = macroTangent(yearOffset, frac);
+    let up = [0, 1, 0];
+    if (Math.abs(T[1]) > 0.95) up = [1, 0, 0];
+    const B = v3normalize(v3cross(T, up));
+    const N = v3normalize(v3cross(B, T));
+    return { T, N, B };
+  }
+
+  // --- Generic tube mesh generator ---
+  // Given a path (array of {pos, normal, color}), extrude a tube around it
+  function generateTubeMesh(path, tubeRadius, tubeSegments) {
+    const verts = [];
+    const idxs = [];
+    let vOff = 0;
+
+    for (let i = 0; i < path.length; i++) {
+      const { pos, T, N, B, color } = path[i];
+
+      for (let t = 0; t < tubeSegments; t++) {
+        const theta = (t / tubeSegments) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+
+        const vx = pos[0] + tubeRadius * (cosT * N[0] + sinT * B[0]);
+        const vy = pos[1] + tubeRadius * (cosT * N[1] + sinT * B[1]);
+        const vz = pos[2] + tubeRadius * (cosT * N[2] + sinT * B[2]);
+
+        const nx = cosT * N[0] + sinT * B[0];
+        const ny = cosT * N[1] + sinT * B[1];
+        const nz = cosT * N[2] + sinT * B[2];
+
+        verts.push(vx, vy, vz, color[0], color[1], color[2], nx, ny, nz);
+      }
+
+      if (i > 0) {
+        const curr = vOff;
+        const prev = vOff - tubeSegments;
+        for (let t = 0; t < tubeSegments; t++) {
+          const t1 = (t + 1) % tubeSegments;
+          idxs.push(prev + t, curr + t, curr + t1);
+          idxs.push(prev + t, curr + t1, prev + t1);
+        }
+      }
+      vOff += tubeSegments;
+    }
+
+    return { vertices: new Float32Array(verts), indices: new Uint32Array(idxs) };
+  }
+
+  // --- LOD Level management ---
+  // Each level is { vertexBuffer, indexBuffer, indexCount, alpha }
+  // We'll manage up to 3 levels, each with its own GPU buffers
+
+  function createGPUMesh(device, mesh) {
+    const vb = device.createBuffer({
+      size: mesh.vertices.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(vb, 0, mesh.vertices);
+
+    const ib = device.createBuffer({
+      size: mesh.indices.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(ib, 0, mesh.indices);
+
+    return { vertexBuffer: vb, indexBuffer: ib, indexCount: mesh.indices.length };
+  }
+
+  // ============================================================
+  // PARAMETRIC COIL GENERATOR
+  //
+  // Given a parent path (array of {pos, T, N, B, frac}), generate
+  // child coils wound around it. Each child is one revolution.
+  // Returns a tube mesh path array.
+  // ============================================================
+
+  // Get color for a fractional year position (frac ∈ [0,1) within a year)
+  function getMonthColor(yearFrac) {
+    const monthFrac = yearFrac * 12;
+    const m = Math.min(11, Math.floor(monthFrac));
+    const t = monthFrac - m;
+    const next = (m + 1) % 12;
+    return v3lerp(MONTH_COLORS[m], MONTH_COLORS[next], t);
+  }
+
+  // Sample the macro helix at a given yearFrac (spanning all years)
+  // globalFrac ∈ [0, totalYears) — integer part = year index, fractional = position in year
+  function sampleMacroPath(globalFrac) {
+    const yr = Math.floor(Math.max(0, Math.min(totalYears - 0.001, globalFrac)));
+    const frac = globalFrac - yr;
+    const pos = macroPoint(yr, frac);
+    const frame = macroFrame(yr, frac);
+    const color = getMonthColor(frac);
+    return { pos, T: frame.T, N: frame.N, B: frame.B, color, globalFrac };
+  }
+
+  // Generate a coil mesh at a given level around a parent path
+  // parentPath: array of { pos, T, N, B, color, globalFrac }
+  // levelIdx: which level we're generating (1-based, since 0 is macro)
+  // childStart, childCount: which children to generate
+  // parentSpan: how many "revolutions" the parent path covers (default 1)
+  function generateCoilLevel(parentPath, levelIdx, childStart, childCount, parentSpan) {
+    const geom = levelGeom[levelIdx];
+    const coilR = geom.coilRadius;
+    const tubeR = geom.tubeRadius;
+    const subs = LEVELS[levelIdx].subs;
+    const totalChildren = childCount !== undefined ? childCount : subs;
+    const startChild = childStart !== undefined ? childStart : 0;
+    const span = parentSpan || 1;
+
+    const path = [];
+
+    // For each child coil
+    for (let c = 0; c < totalChildren; c++) {
+      const childIdx = startChild + c;
+      // Sample along the parent path for this child
+      for (let s = 0; s <= SAMPLES_PER_COIL; s++) {
+        const sFrac = s / SAMPLES_PER_COIL; // 0..1 within this coil revolution
+        // Position along parent: child maps to fraction of the full parent span
+        const parentFrac = (childIdx + sFrac) / (subs * span);
+        // Clamp to valid parent path range
+        const pf = Math.max(0, Math.min(1 - 1e-8, parentFrac));
+
+        // Interpolate parent path at this fraction
+        const pIdx = pf * (parentPath.length - 1);
+        const pi = Math.min(parentPath.length - 2, Math.floor(pIdx));
+        const pt = pIdx - pi;
+        const p0 = parentPath[pi], p1 = parentPath[pi + 1];
+
+        const parentPos = v3lerp(p0.pos, p1.pos, pt);
+        // Interpolate and re-orthogonalize frame (Gram-Schmidt)
+        // Naive v3lerp of T/N/B loses orthogonality at each level
+        const parentT = v3normalize(v3lerp(p0.T, p1.T, pt));
+        let parentN = v3normalize(v3lerp(p0.N, p1.N, pt));
+        let parentB = v3normalize(v3lerp(p0.B, p1.B, pt));
+        // Remove T component from N, then rebuild B
+        parentN = v3normalize(v3sub(parentN, v3scale(parentT, v3dot(parentN, parentT))));
+        parentB = v3normalize(v3cross(parentT, parentN));
+        const parentColor = v3lerp(p0.color, p1.color, pt);
+
+        // Coil angle: one full revolution per child
+        const angle = sFrac * Math.PI * 2;
+
+        // Offset from parent center
+        const offset = v3add(
+          v3scale(parentN, coilR * Math.cos(angle)),
+          v3scale(parentB, coilR * Math.sin(angle))
+        );
+        const pos = v3add(parentPos, offset);
+
+        // Frame for tube extrusion
+        const radialN = v3normalize(offset);
+        // Tangent: combination of parent tangent + coiling motion
+        const coilTangent = v3normalize(v3add(
+          v3scale(parentT, 1.0 / subs),
+          v3add(
+            v3scale(parentN, -coilR * Math.sin(angle) * Math.PI * 2 / SAMPLES_PER_COIL),
+            v3scale(parentB, coilR * Math.cos(angle) * Math.PI * 2 / SAMPLES_PER_COIL)
+          )
+        ));
+        const tubeB = v3normalize(v3cross(coilTangent, radialN));
+        const tubeN = v3normalize(v3cross(tubeB, coilTangent));
+
+        // Brightness variation within coil (subtle)
+        const bright = 0.7 + 0.3 * (0.5 + 0.5 * Math.cos(angle));
+        const color = parentColor.map(c => Math.min(1.0, c * bright));
+
+        // Inherit globalFrac for time-mapping
+        const gf = p0.globalFrac !== undefined
+          ? p0.globalFrac + (p1.globalFrac - p0.globalFrac) * pt
+          : parentFrac;
+
+        path.push({ pos, T: coilTangent, N: tubeN, B: tubeB, color, globalFrac: gf });
+      }
+    }
+
+    return {
+      path,
+      mesh: generateTubeMesh(path, tubeR, Math.max(4, TUBE_SIDES - levelIdx)),
+    };
+  }
+
+  // ============================================================
+  // LEVEL MANAGER: generates and caches GPU meshes per level
+  // Level 0: macro helix (always loaded)
+  // Level 1+: generated on-demand around selection
+  // ============================================================
+
+  // Generate Level 0 (macro helix) path and mesh
+  function generateLevel0() {
+    const path = [];
+    const samplesPerYear = 12 * 8; // 96 samples per year (8 per month)
+
+    for (let yr = 0; yr < totalYears; yr++) {
+      for (let s = 0; s <= samplesPerYear; s++) {
+        const frac = s / samplesPerYear;
+        const gf = yr + frac;
+        const frame = macroFrame(yr, frac);
+        path.push({
+          pos: macroPoint(yr, frac),
+          T: frame.T, N: frame.N, B: frame.B,
+          color: getMonthColor(frac),
+          globalFrac: gf,
+        });
+      }
+    }
+
+    const mesh = generateTubeMesh(path, levelGeom[0].tubeRadius, 8);
+    return { path, mesh };
+  }
+
+  // NOW MARKER: torus ring at current time
+  function generateNowMarker() {
+    const nowDate = new Date();
+    const yr = nowDate.getFullYear();
+    const yrIdx = yr - startYear;
+    if (yrIdx < 0 || yrIdx >= totalYears) return null;
+
+    const isLeap = (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0;
+    const daysInYear = isLeap ? 366 : 365;
+    const dayOfYear = Math.floor((nowDate - new Date(yr, 0, 0)) / 86400000) - 1;
+    const hourFrac = (nowDate.getHours() + nowDate.getMinutes() / 60 + nowDate.getSeconds() / 3600) / 24;
+    const dayFrac = (dayOfYear + hourFrac) / daysInYear;
+
+    const macroPos = macroPoint(yrIdx, dayFrac);
+    const frame = macroFrame(yrIdx, dayFrac);
+
+    const ringRadius = levelGeom[0].tubeRadius * ORBIT_RATIO * 1.2;
+    const tubeRadius = levelGeom[0].tubeRadius * 0.15;
+    const path = [];
+
+    for (let i = 0; i <= 16; i++) {
+      const theta = (i / 16) * Math.PI * 2;
+      const pos = v3add(macroPos, v3add(
+        v3scale(frame.N, ringRadius * Math.cos(theta)),
+        v3scale(frame.B, ringRadius * Math.sin(theta))
+      ));
+      const radial = v3normalize(v3sub(pos, macroPos));
+      const T = v3normalize(v3cross(frame.T, radial));
+      const N = radial;
+      const B = v3normalize(v3cross(T, N));
+      path.push({ pos, T, N, B, color: [1.0, 0.95, 0.7] });
+    }
+
+    return generateTubeMesh(path, tubeRadius, 6);
+  }
+
+  let nowGPU = null;
+  let lastNowSec = -1;
+
+  // --- Build initial geometry ---
+  console.time('geometry');
+  const level0 = generateLevel0();
+  const level0GPU = createGPUMesh(device, level0.mesh);
+
+  // Level state: array of { gpu, path, cachedKey, parentPath }
+  // Index 0 = level 1 (quarters), etc.
+  const levelState = [];
+  for (let i = 1; i < LEVELS.length; i++) {
+    levelState.push({ gpu: null, path: null, cachedKey: null });
+  }
+
+  console.timeEnd('geometry');
+  console.log(`Level 0 (${LEVELS[0].name}): ${level0GPU.indexCount / 3} tris`);
+
+  // === TUNING PANEL WIRING ===
+  const slOrbit  = document.getElementById('sl-orbit');
+  const slTube   = document.getElementById('sl-tube');
+  const slExtent = document.getElementById('sl-extent');
+  const slFade   = document.getElementById('sl-fade');
+  const slRange  = document.getElementById('sl-range');
+  const vOrbit   = document.getElementById('v-orbit');
+  const vTube    = document.getElementById('v-tube');
+  const vExtent  = document.getElementById('v-extent');
+  const vFade    = document.getElementById('v-fade');
+  const vRange   = document.getElementById('v-range');
+
+  // Init slider positions
+  slOrbit.value = ORBIT_RATIO; slTube.value = TUBE_FRAC;
+  slExtent.value = COIL_EXTENT;
+  slFade.value = FADE_SCALE;   slRange.value = FADE_RANGE;
+  vOrbit.textContent = ORBIT_RATIO.toFixed(1);
+  vTube.textContent = TUBE_FRAC.toFixed(2);
+  vExtent.textContent = COIL_EXTENT + '×';
+  vFade.textContent = FADE_SCALE;
+  vRange.textContent = FADE_RANGE.toFixed(2);
+
+  function invalidateLevels() {
+    geomGeneration++;
+    for (const ls of levelState) ls.cachedKey = null;
+  }
+
+  slOrbit.addEventListener('input', () => {
+    ORBIT_RATIO = parseFloat(slOrbit.value);
+    vOrbit.textContent = ORBIT_RATIO.toFixed(1);
+    recomputeGeom(); invalidateLevels();
+  });
+  slTube.addEventListener('input', () => {
+    TUBE_FRAC = parseFloat(slTube.value);
+    vTube.textContent = TUBE_FRAC.toFixed(2);
+    recomputeGeom(); invalidateLevels();
+  });
+  slExtent.addEventListener('input', () => {
+    COIL_EXTENT = parseInt(slExtent.value);
+    vExtent.textContent = COIL_EXTENT + '×';
+    invalidateLevels();
+  });
+  slFade.addEventListener('input', () => {
+    FADE_SCALE = parseFloat(slFade.value);
+    vFade.textContent = FADE_SCALE;
+  });
+  slRange.addEventListener('input', () => {
+    FADE_RANGE = parseFloat(slRange.value);
+    vRange.textContent = FADE_RANGE.toFixed(2);
+  });
+
+  // Level toggles
+  const togglesEl = document.getElementById('level-toggles');
+  LEVELS.forEach((lv, i) => {
+    if (i === 0) return; // L0 always on
+    const label = document.createElement('label');
+    label.className = 'level-toggle active';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true;
+    cb.addEventListener('change', () => {
+      lv.enabled = cb.checked;
+      label.className = 'level-toggle' + (cb.checked ? ' active' : '');
+      invalidateLevels();
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`L${i} ${lv.name} (×${lv.subs})`));
+    togglesEl.appendChild(label);
+  });
+  updateGeomReadout();
+
+  // Prevent tune panel touches from orbiting/zooming the canvas
+  document.getElementById('tune-panel').addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+  document.getElementById('tune-panel').addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
+
+  // === BREADCRUMB NAV ===
+  const breadcrumbEl = document.getElementById('breadcrumb');
+
+  function updateBreadcrumb() {
+    breadcrumbEl.innerHTML = '';
+    if (selectedGlobalFrac < 0) return;
+
+    const yr = startYear + Math.floor(selectedGlobalFrac);
+    const yearFrac = selectedGlobalFrac % 1;
+
+    // Build crumbs: Year > Q > W > D > H > 6m > 30s
+    const crumbs = [{ label: `${yr}`, level: 0, zoomTo: levelGeom[0].tubeRadius * FADE_SCALE * 1.5 }];
+
+    let frac = yearFrac;
+    for (let i = 1; i < LEVELS.length; i++) {
+      if (!LEVELS[i].enabled) continue;
+      if (i - 1 >= selectionPath.length) break;
+      const subs = LEVELS[i].subs;
+      const childIdx = selectionPath[i - 1];
+      const childLabel = LEVELS[i].name === 'quarter' ? `Q${childIdx + 1}` :
+                          LEVELS[i].name === 'week' ? `W${childIdx + 1}` :
+                          LEVELS[i].name === 'day' ? DAY_NAMES_SHORT[new Date(yr, 0, 1 + Math.floor(yearFrac * 365)).getDay()] || `D${childIdx + 1}` :
+                          LEVELS[i].name === 'hour' ? `${childIdx}h` :
+                          LEVELS[i].name === '6min' ? `${childIdx * 6}m` :
+                          LEVELS[i].name === '30s' ? `${childIdx * 30}s` :
+                          `${LEVELS[i].label} ${childIdx + 1}`;
+      const zoomTo = levelGeom[Math.min(i, levelGeom.length - 1)].tubeRadius * FADE_SCALE * 0.6;
+      crumbs.push({ label: childLabel, level: i, zoomTo });
+      frac = (frac * subs) - childIdx;
+    }
+
+    crumbs.forEach((c, idx) => {
+      if (idx > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '›';
+        breadcrumbEl.appendChild(sep);
+      }
+      const el = document.createElement('span');
+      el.className = 'crumb' + (idx === crumbs.length - 1 ? ' current' : '');
+      el.textContent = c.label;
+      el.addEventListener('click', () => {
+        camDistTarget = Math.max(0.005, c.zoomTo);
+      });
+      breadcrumbEl.appendChild(el);
+    });
+  }
+
+  const DAY_NAMES_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  // --- Shader with alpha uniform for crossfade ---
+  const shaderCode = /* wgsl */`
+    struct Uniforms {
+      mvp: mat4x4f,
+      model: mat4x4f,
+      lightDir: vec3f,
+      alpha: f32,
+      eye: vec3f,
+      _pad2: f32,
+    };
+    @group(0) @binding(0) var<uniform> u: Uniforms;
+
+    struct VSOut {
+      @builtin(position) pos: vec4f,
+      @location(0) color: vec3f,
+      @location(1) normal: vec3f,
+      @location(2) worldPos: vec3f,
+    };
+
+    @vertex fn vs(
+      @location(0) position: vec3f,
+      @location(1) color: vec3f,
+      @location(2) normal: vec3f,
+    ) -> VSOut {
+      var out: VSOut;
+      out.pos = u.mvp * vec4f(position, 1.0);
+      out.color = color;
+      out.normal = (u.model * vec4f(normal, 0.0)).xyz;
+      out.worldPos = (u.model * vec4f(position, 1.0)).xyz;
+      return out;
+    }
+
+    @fragment fn fs(in: VSOut) -> @location(0) vec4f {
+      let N = normalize(in.normal);
+      let L = normalize(u.lightDir);
+      let V = normalize(u.eye - in.worldPos);
+      let H = normalize(L + V);
+
+      let ambient = 0.12;
+      let diffuse = max(dot(N, L), 0.0) * 0.65;
+      let spec = pow(max(dot(N, H), 0.0), 40.0) * 0.5;
+      let rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.15;
+
+      let lighting = ambient + diffuse + spec + rim;
+      let col = in.color * lighting * u.alpha;
+
+      return vec4f(pow(col, vec3f(1.0/2.2)), 1.0);
+    }
+  `;
+
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+
+  const uniformBuffer = device.createBuffer({
+    size: 256 * 8, // 8 draw slots (up to 6 levels + now marker + spare)
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [{
+      binding: 0,
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+      buffer: { type: 'uniform', hasDynamicOffset: true },
+    }],
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [{ binding: 0, resource: { buffer: uniformBuffer, size: 256 } }],
+  });
+
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+  });
+
+  let depthTexture;
+  function createDepthTexture() {
+    if (depthTexture) depthTexture.destroy();
+    depthTexture = device.createTexture({
+      size: [canvas.width, canvas.height],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+  }
+
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: {
+      module: shaderModule,
+      entryPoint: 'vs',
+      buffers: [{
+        arrayStride: 9 * 4,
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: 'float32x3' },
+          { shaderLocation: 1, offset: 12, format: 'float32x3' },
+          { shaderLocation: 2, offset: 24, format: 'float32x3' },
+        ],
+      }],
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fs',
+      targets: [{ format }],
+    },
+    depthStencil: {
+      format: 'depth24plus',
+      depthWriteEnabled: true,
+      depthCompare: 'less',
+    },
+    primitive: {
+      topology: 'triangle-list',
+      cullMode: 'back',
+    },
+  });
+
+  // --- Camera ---
+  let camTheta = 0.4;
+  let camPhi = 0.8;
+  let camDist = 14.0;
+  let camDistTarget = 14.0;
+
+  // Orbit center — starts at world origin, blends toward selected point as you zoom
+  let lookTarget = [0, 0, 0];
+  let lookTargetGoal = [0, 0, 0];
+  let selectedPos = null; // world position of selected point on L0
+
+  // Selection: which child index is focused at each level
+  // selectionPath[i] = child index at level i+1 (e.g. which quarter, which month, ...)
+  let selectionPath = [];
+  let selectedGlobalFrac = -1; // position on macro helix
+
+  // --- Input: unified pointer (mouse) + touch (mobile) ---
+  // Mouse orbit + wheel zoom
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return; // handled by touch events
+    canvas.setPointerCapture(e.pointerId);
+    autoRotate = false;
+    let lastX = e.clientX, lastY = e.clientY;
+    const move = (ev) => {
+      camTheta -= (ev.clientX - lastX) * 0.005;
+      camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi - (ev.clientY - lastY) * 0.005));
+      lastX = ev.clientX; lastY = ev.clientY;
+    };
+    const up = () => {
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+    };
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = Math.max(-0.15, Math.min(0.15, e.deltaY * 0.001));
+    camDistTarget = Math.max(0.005, Math.min(30, camDistTarget * (1 + delta)));
+  }, { passive: false });
+
+  // Touch: single-finger orbit, two-finger pinch-to-zoom, tap-to-select
+  let touchStartDist = 0;
+  let touchStartCamDist = 0;
+  let lastTouchX = 0, lastTouchY = 0;
+  let touchMoved = false;
+  let tapStartTime = 0;
+  let tapStartPos = [0, 0];
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    autoRotate = false;
+    touchMoved = false;
+    tapStartTime = Date.now();
+
+    if (e.touches.length === 1) {
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+      tapStartPos = [lastTouchX, lastTouchY];
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartDist = Math.sqrt(dx * dx + dy * dy);
+      touchStartCamDist = camDistTarget;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+
+    if (e.touches.length === 1) {
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      const dx = x - lastTouchX, dy = y - lastTouchY;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) touchMoved = true;
+      camTheta -= dx * 0.005;
+      camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi - dy * 0.005));
+      lastTouchX = x; lastTouchY = y;
+    } else if (e.touches.length === 2) {
+      touchMoved = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (touchStartDist > 0) {
+        const scale = touchStartDist / dist;
+        camDistTarget = Math.max(0.005, Math.min(30, touchStartCamDist * scale));
+      }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    // Detect tap (short, no movement)
+    const elapsed = Date.now() - tapStartTime;
+    if (!touchMoved && elapsed < 300 && e.changedTouches.length === 1) {
+      handleTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+  }, { passive: false });
+
+  // Also handle mouse click for tap-to-select on desktop
+  {
+    let mouseDownPos = null;
+    canvas.addEventListener('mousedown', (e) => { mouseDownPos = [e.clientX, e.clientY]; });
+    canvas.addEventListener('mouseup', (e) => {
+      if (mouseDownPos) {
+        const dx = e.clientX - mouseDownPos[0], dy = e.clientY - mouseDownPos[1];
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) handleTap(e.clientX, e.clientY);
+        mouseDownPos = null;
+      }
+    });
+  }
+
+  // --- Tap-to-select: ray cast against macro helix ---
+  const infoTip = document.getElementById('info-tip');
+  let selectedInfo = null; // { screenX, screenY, text }
+
+  function mat4Invert(m) {
+    // 4x4 matrix inverse (column-major)
+    const a00=m[0],a01=m[1],a02=m[2],a03=m[3],a10=m[4],a11=m[5],a12=m[6],a13=m[7];
+    const a20=m[8],a21=m[9],a22=m[10],a23=m[11],a30=m[12],a31=m[13],a32=m[14],a33=m[15];
+    const b00=a00*a11-a01*a10,b01=a00*a12-a02*a10,b02=a00*a13-a03*a10,b03=a01*a12-a02*a11;
+    const b04=a01*a13-a03*a11,b05=a02*a13-a03*a12,b06=a20*a31-a21*a30,b07=a20*a32-a22*a30;
+    const b08=a20*a33-a23*a30,b09=a21*a32-a22*a31,b10=a21*a33-a23*a31,b11=a22*a33-a23*a32;
+    let det=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+    if (Math.abs(det) < 1e-8) return null;
+    det = 1.0 / det;
+    return new Float32Array([
+      (a11*b11-a12*b10+a13*b09)*det,(a02*b10-a01*b11-a03*b09)*det,(a31*b05-a32*b04+a33*b03)*det,(a22*b04-a21*b05-a23*b03)*det,
+      (a12*b08-a10*b11-a13*b07)*det,(a00*b11-a02*b08+a03*b07)*det,(a32*b02-a30*b05-a33*b01)*det,(a20*b05-a22*b02+a23*b01)*det,
+      (a10*b10-a11*b08+a13*b06)*det,(a01*b08-a00*b10-a03*b06)*det,(a30*b04-a31*b02+a33*b00)*det,(a21*b02-a20*b04-a23*b00)*det,
+      (a11*b07-a10*b09-a12*b06)*det,(a00*b09-a01*b07+a02*b06)*det,(a31*b01-a30*b03-a32*b00)*det,(a20*b03-a21*b01+a22*b00)*det,
+    ]);
+  }
+
+  function handleTap(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
+
+    const eye = v3add(lookTarget, [
+      camDist * Math.sin(camPhi) * Math.cos(camTheta),
+      camDist * Math.cos(camPhi),
+      camDist * Math.sin(camPhi) * Math.sin(camTheta),
+    ]);
+    const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
+    const nearClip = Math.max(0.0001, camDist * 0.005);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, nearClip, 100);
+    const mvp = mat4Mul(proj, view);
+    const invMVP = mat4Invert(mvp);
+    if (!invMVP) return;
+
+    function unproject(x, y, z) {
+      const w = [x, y, z, 1];
+      const r = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++)
+        r[i] = invMVP[i]*w[0] + invMVP[4+i]*w[1] + invMVP[8+i]*w[2] + invMVP[12+i]*w[3];
+      return [r[0]/r[3], r[1]/r[3], r[2]/r[3]];
+    }
+    const nearPt = unproject(ndcX, ndcY, -1);
+    const farPt = unproject(ndcX, ndcY, 1);
+    const rayDir = v3normalize(v3sub(farPt, nearPt));
+
+    // Test against macro helix path (level 0)
+    let bestDist = Infinity;
+    let bestPos = null;
+    let bestGlobalFrac = 0;
+
+    for (let i = 0; i < level0.path.length; i++) {
+      const pt = level0.path[i].pos;
+      const toPoint = v3sub(pt, nearPt);
+      const projLen = v3dot(toPoint, rayDir);
+      if (projLen < 0) continue;
+      const closest = v3add(nearPt, v3scale(rayDir, projLen));
+      const dist = v3len(v3sub(pt, closest));
+      const threshold = Math.max(0.4, camDist * 0.06);
+      if (dist < threshold && dist < bestDist) {
+        bestDist = dist;
+        bestPos = pt;
+        bestGlobalFrac = level0.path[i].globalFrac;
+      }
+    }
+
+    if (bestPos) {
+      selectedPos = [...bestPos];
+      selectedGlobalFrac = bestGlobalFrac;
+
+      // Derive selection path: which child at each level
+      selectionPath = [];
+      let frac = bestGlobalFrac % 1; // fraction within year
+      for (let i = 1; i < LEVELS.length; i++) {
+        const subs = LEVELS[i].subs;
+        const childIdx = Math.floor(frac * subs);
+        selectionPath.push(childIdx);
+        frac = (frac * subs) - childIdx; // remaining fraction within this child
+      }
+
+      // Invalidate cached levels
+      for (let i = 0; i < levelState.length; i++) {
+        levelState[i].cachedKey = null;
+      }
+
+      // Build label
+      const yr = startYear + Math.floor(bestGlobalFrac);
+      const yearFrac = bestGlobalFrac % 1;
+      const monthIdx = Math.min(11, Math.floor(yearFrac * 12));
+      const dayInMonth = Math.floor((yearFrac * 12 - monthIdx) * 30) + 1;
+      const tip = infoTip;
+      tip.innerHTML = `<div class="date">${dayInMonth} ${MONTH_NAMES[monthIdx]} ${yr}</div><div class="detail">Q${selectionPath[0]+1} · pinch to zoom in</div>`;
+      tip.style.display = 'block';
+      tip.style.left = `${Math.min(clientX + 12, window.innerWidth - 200)}px`;
+      tip.style.top = `${Math.max(clientY - 40, 8)}px`;
+      clearTimeout(tip._hideTimer);
+      tip._hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 4000);
+    } else {
+      lookTargetGoal = [0, 0, 0];
+      selectedPos = null;
+      selectedGlobalFrac = -1;
+      selectionPath = [];
+      for (let i = 0; i < levelState.length; i++) {
+        levelState[i].cachedKey = null;
+      }
+      infoTip.style.display = 'none';
+    }
+  }
+
+  // --- Matrix helpers ---
+  function mat4Perspective(fov, aspect, near, far) {
+    const f = 1 / Math.tan(fov / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f/aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, far*nf, -1,
+      0, 0, far*near*nf, 0,
+    ]);
+  }
+
+  function mat4LookAt(eye, center, up) {
+    const zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+    let len = Math.sqrt(zx*zx+zy*zy+zz*zz);
+    const z = [zx/len, zy/len, zz/len];
+    const xx = up[1]*z[2]-up[2]*z[1], xy = up[2]*z[0]-up[0]*z[2], xz = up[0]*z[1]-up[1]*z[0];
+    len = Math.sqrt(xx*xx+xy*xy+xz*xz);
+    const x = [xx/len, xy/len, xz/len];
+    const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+    return new Float32Array([
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]),
+      -(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]),
+      -(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]),
+      1,
+    ]);
+  }
+
+  function mat4Mul(a, b) {
+    const o = new Float32Array(16);
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 4; j++)
+        o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+    return o;
+  }
+
+  const identity = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    createDepthTexture();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let autoRotate = true;
+  const hud = document.getElementById('hud');
+
+  let drawSlot = 0;
+
+  function drawMesh(pass, gpu, mvp, eye, lightDir, alpha) {
+    if (alpha < 0.01) return; // skip invisible
+
+    const offset = drawSlot * 256;
+
+    const uniformData = new Float32Array(32);
+    uniformData.set(mvp, 0);
+    uniformData.set(identity, 16);
+    device.queue.writeBuffer(uniformBuffer, offset, uniformData);
+
+    const lightEyeData = new Float32Array(8);
+    lightEyeData.set(lightDir, 0);
+    lightEyeData[3] = alpha;
+    lightEyeData.set(eye, 4);
+    lightEyeData[7] = 0;
+    device.queue.writeBuffer(uniformBuffer, offset + 128, lightEyeData);
+
+    pass.setBindGroup(0, bindGroup, [offset]);
+    pass.setVertexBuffer(0, gpu.vertexBuffer);
+    pass.setIndexBuffer(gpu.indexBuffer, 'uint32');
+    pass.drawIndexed(gpu.indexCount);
+
+    drawSlot++;
+  }
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function frame(t) {
+    if (autoRotate) camTheta += 0.0008;
+
+    // Smooth zoom interpolation (matched rate with lookTarget for stability)
+    camDist += (camDistTarget - camDist) * 0.1;
+
+    // Blend orbit center toward selected point proportional to zoom depth.
+    // Track the deepest visible level's selected segment as the zoom target,
+    // so the camera automatically recenters on sub-level geometry as you zoom in.
+    if (selectedPos && selectedGlobalFrac >= 0) {
+      const zoomBlend = 1.0 - smoothstep(
+        levelGeom[0].tubeRadius * FADE_SCALE * (1 - FADE_RANGE),
+        levelGeom[0].tubeRadius * FADE_SCALE,
+        camDist
+      );
+      lookTargetGoal = v3lerp([0, 0, 0], selectedPos, zoomBlend);
+    }
+    lookTarget = v3lerp(lookTarget, lookTargetGoal, 0.08);
+
+    const eye = v3add(lookTarget, [
+      camDist * Math.sin(camPhi) * Math.cos(camTheta),
+      camDist * Math.cos(camPhi),
+      camDist * Math.sin(camPhi) * Math.sin(camTheta),
+    ]);
+
+    const view = mat4LookAt(eye, lookTarget, [0, 1, 0]);
+    const nearClip = Math.max(0.0001, camDist * 0.005);
+    const proj = mat4Perspective(Math.PI / 4, canvas.width / canvas.height, nearClip, 100);
+    const mvp = mat4Mul(proj, view);
+    const lightDir = v3normalize([0.5, 0.8, 0.3]);
+
+    // === PARAMETRIC LOD SYSTEM ===
+    // Each level fades based on camDist thresholds.
+    // FADE_SCALE / FADE_RANGE are live-tunable via the tune panel.
+
+    // Compute alpha for each level (disabled levels get 0)
+    // Build list of enabled level indices for correct fade thresholds
+    const enabledLevels = [0]; // L0 always enabled
+    for (let i = 1; i < LEVELS.length; i++) {
+      if (LEVELS[i].enabled) enabledLevels.push(i);
+    }
+
+    // LOD alpha: each level fades IN as you zoom closer.
+    // Each sub-level gets a minimum alpha when its parent is visible,
+    // so the fractal structure is always hinted at (you can see what to zoom into).
+    const levelAlphas = new Array(LEVELS.length).fill(0);
+    for (let ei = 0; ei < enabledLevels.length; ei++) {
+      const i = enabledLevels[ei];
+      if (i === 0) {
+        levelAlphas[0] = 1.0;
+      } else if (selectedGlobalFrac < 0) {
+        levelAlphas[i] = 0;
+      } else {
+        // Fade in when camera is close enough to resolve this level
+        const prevEnabledIdx = enabledLevels[ei - 1];
+        const myThresh = levelGeom[prevEnabledIdx].tubeRadius * FADE_SCALE;
+        let fadeIn = 1.0 - smoothstep(myThresh * (1 - FADE_RANGE), myThresh, camDist);
+        // When parent level is visible, hint this level at min alpha
+        const parentAlpha = levelAlphas[prevEnabledIdx];
+        if (parentAlpha > 0.3) {
+          const minAlpha = ei === 1 ? 0.5 : 0.35;
+          fadeIn = Math.max(fadeIn, minAlpha);
+        }
+        levelAlphas[i] = fadeIn;
+      }
+    }
+
+    // Generate deeper levels on-demand when they become visible
+    if (selectedGlobalFrac >= 0) {
+      let parentPath = level0.path;
+      let parentSpan = 1; // how many "revolutions" the parent path covers
+      const selectedYear = Math.floor(selectedGlobalFrac);
+
+      // For level 1: parent is the selected year (1 revolution of L0).
+      // COIL_EXTENT expands to neighboring years for context.
+      const halfExt = Math.floor((COIL_EXTENT - 1) / 2);
+      const yearLo = Math.max(0, selectedYear - halfExt);
+      const yearHi = Math.min(totalYears, selectedYear + halfExt + 1);
+      const yearPath = level0.path.filter(p =>
+        p.globalFrac >= yearLo && p.globalFrac <= yearHi
+      );
+      // Track which revolution within the expanded parent holds the selection
+      let parentChildOffset = 0;
+      if (yearPath.length > 2) {
+        parentPath = yearPath;
+        parentSpan = yearHi - yearLo;
+        parentChildOffset = selectedYear - yearLo;
+      }
+
+      for (let i = 0; i < levelState.length; i++) {
+        const lvl = i + 1; // level index (1-based)
+        if (i >= selectionPath.length) break;   // no selection at this depth
+
+        const childIdx = selectionPath[i];
+        const subs = LEVELS[lvl].subs;
+
+        // If this level is disabled, skip rendering but still subdivide the
+        // parent path so deeper levels get the right parent segment.
+        if (!LEVELS[lvl].enabled || levelAlphas[lvl] < 0.01) {
+          // Free any stale GPU buffers
+          if (levelState[i].gpu) {
+            levelState[i].gpu.vertexBuffer.destroy();
+            levelState[i].gpu.indexBuffer.destroy();
+            levelState[i].gpu = null;
+            levelState[i].cachedKey = null;
+          }
+          // For the next level's parent, we can't generate a real path,
+          // so just keep the current parentPath and shrink the span
+          // proportionally to this child's segment.
+          // This is approximate but preserves the chain.
+          continue;
+        }
+
+        // Render subs × parentSpan children to fill the full parent path.
+        // parentSpan > 1 when COIL_EXTENT expanded the parent at a previous level.
+        // The selected child's absolute index within this set:
+        //   (selectedParentOffset * subs) + childIdx
+        // where selectedParentOffset = which parent revolution holds the selection.
+        const totalCoils = subs * parentSpan;
+        const extentStart = 0;
+
+        // The selected child's position in the expanded set.
+        // parentChildOffset tracks which of the parentSpan revolutions
+        // contains the selected parent child (set when expanding below).
+        const selectedChildAbsolute = (parentChildOffset || 0) * subs + childIdx;
+
+        const key = `${selectedYear}-${selectionPath.slice(0, i + 1).join('-')}-e${COIL_EXTENT}-s${parentSpan}`;
+
+        if (key !== levelState[i].cachedKey) {
+          // Free old buffers
+          if (levelState[i].gpu) {
+            levelState[i].gpu.vertexBuffer.destroy();
+            levelState[i].gpu.indexBuffer.destroy();
+          }
+
+          // Generate children filling the entire expanded parent
+          const result = generateCoilLevel(parentPath, lvl, extentStart, totalCoils, parentSpan);
+          levelState[i].gpu = createGPUMesh(device, result.mesh);
+          levelState[i].path = result.path;
+          levelState[i].cachedKey = key;
+          levelState[i].startChild = extentStart;
+          console.log(`Level ${lvl} (${LEVELS[lvl].name}): ${levelState[i].gpu.indexCount / 3} tris, coils=${totalCoils}, span=${parentSpan}`);
+        }
+
+        // For the next level's parent: expand COIL_EXTENT children centered
+        // on the selected child within this level's rendered coils.
+        if (levelState[i].path) {
+          const samplesPerChild = SAMPLES_PER_COIL + 1;
+          const halfExt = Math.floor((COIL_EXTENT - 1) / 2);
+          const extLo = Math.max(0, selectedChildAbsolute - halfExt);
+          const extHi = Math.min(totalCoils, selectedChildAbsolute + halfExt + 1);
+          const sliceStart = extLo * samplesPerChild;
+          const sliceEnd = extHi * samplesPerChild;
+
+          if (sliceStart >= 0 && sliceEnd <= levelState[i].path.length) {
+            parentPath = levelState[i].path.slice(sliceStart, sliceEnd);
+            parentSpan = extHi - extLo;
+            // Track where the selected child sits within the new expanded parent
+            parentChildOffset = selectedChildAbsolute - extLo;
+          } else {
+            // Fallback: just the selected child
+            const s0 = selectedChildAbsolute * samplesPerChild;
+            const s1 = s0 + samplesPerChild;
+            if (s0 >= 0 && s1 <= levelState[i].path.length) {
+              parentPath = levelState[i].path.slice(s0, s1);
+            }
+            parentSpan = 1;
+            parentChildOffset = 0;
+          }
+        }
+      }
+
+      // Update selectedPos to the selected child's midpoint within the deepest level.
+      // parentPath may be expanded (parentSpan > 1). Use parentChildOffset to find
+      // the selected revolution's midpoint.
+      if (parentPath.length > 0 && parentSpan > 0) {
+        const samplesPerRev = Math.floor(parentPath.length / parentSpan);
+        const revStart = (parentChildOffset || 0) * samplesPerRev;
+        const midIdx = Math.min(parentPath.length - 1, revStart + Math.floor(samplesPerRev / 2));
+        selectedPos = [...parentPath[midIdx].pos];
+      }
+    }
+
+    // Update HUD
+    const nowHud = new Date();
+    const timeStr = `${DAY_NAMES[nowHud.getDay()]} ${nowHud.getDate()} ${MONTH_NAMES[nowHud.getMonth()]} ${nowHud.getFullYear()} · ${String(nowHud.getHours()).padStart(2,'0')}:${String(nowHud.getMinutes()).padStart(2,'0')}:${String(nowHud.getSeconds()).padStart(2,'0')}`;
+    // Find deepest visible level name
+    let deepest = LEVELS[0].label;
+    for (let i = LEVELS.length - 1; i >= 0; i--) {
+      if (levelAlphas[i] > 0.1) { deepest = LEVELS[i].label; break; }
+    }
+    const selDebug = selectedGlobalFrac >= 0
+      ? ` · sel=${startYear + Math.floor(selectedGlobalFrac)} d=${camDist.toFixed(1)}`
+      : '';
+    hud.innerHTML = `<div class="time">${timeStr}</div><div class="hint">drag to orbit · pinch to zoom — ${deepest}${selDebug}</div>`;
+
+    // Update breadcrumb nav
+    updateBreadcrumb();
+
+    // === RENDER ===
+    const commandEncoder = device.createCommandEncoder();
+    const pass = commandEncoder.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        loadOp: 'clear',
+        storeOp: 'store',
+        clearValue: { r: 0.03, g: 0.03, b: 0.05, a: 1 },
+      }],
+      depthStencilAttachment: {
+        view: depthTexture.createView(),
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+        depthClearValue: 1.0,
+      },
+    });
+
+    pass.setPipeline(pipeline);
+    drawSlot = 0;
+
+    // Draw level 0 (macro helix)
+    drawMesh(pass, level0GPU, mvp, eye, lightDir, levelAlphas[0]);
+
+    // Draw deeper levels
+    for (let i = 0; i < levelState.length; i++) {
+      const lvl = i + 1;
+      if (levelState[i].gpu && levelAlphas[lvl] > 0.01) {
+        drawMesh(pass, levelState[i].gpu, mvp, eye, lightDir, levelAlphas[lvl]);
+      }
+    }
+
+    // Draw NOW marker
+    {
+      const nowSec = Math.floor(t / 1000);
+      if (nowSec !== lastNowSec) {
+        lastNowSec = nowSec;
+        if (nowGPU) { nowGPU.vertexBuffer.destroy(); nowGPU.indexBuffer.destroy(); }
+        const nowMesh = generateNowMarker();
+        if (nowMesh) nowGPU = createGPUMesh(device, nowMesh);
+      }
+      if (nowGPU) {
+        const pulse = 0.75 + 0.25 * Math.sin(t * 0.004);
+        drawMesh(pass, nowGPU, mvp, eye, lightDir, pulse);
+      }
+    }
+
+    pass.end();
+    device.queue.submit([commandEncoder.finish()]);
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+main().catch(err => {
+  console.error(err);
+  document.getElementById('fallback').style.display = 'flex';
+  document.getElementById('fallback').textContent = 'Error: ' + err.message;
+});
+</script>
+</body>
+</html>

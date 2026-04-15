@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech — Wiki Cards</title>
+  <link rel="stylesheet" href="../css/cards.css">
+  <link rel="stylesheet" href="../css/gem.css">
+  <style>
+    .tech-status { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.1rem 0.4rem;
+                   border-radius: 3px; margin-left: 0.4rem; vertical-align: middle; }
+    .tech-status.alive { background: rgba(50,200,50,0.15); color: #4a4; }
+    .tech-status.dead { background: rgba(200,50,50,0.15); color: #c44; }
+    .tech-status.evolved { background: rgba(200,180,50,0.15); color: #cc4; }
+    .gem-detail-prereqs { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.6rem; }
+    .gem-detail-prereqs span { color: var(--gold); }
+    .gem-detail-year { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href=".." class="back-link">&larr; Wiki Cards</a>
+    <h1>Tech</h1>
+  </header>
+
+  <main>
+    <div class="gem-wrap">
+      <!-- Pack -->
+      <div id="gem-pack" class="gem-pack">
+        <div class="gem-pack-face">
+          <div class="gem-pack-emblem">T</div>
+          <div class="gem-pack-label">Technology Pack</div>
+          <div class="gem-pack-count" id="gem-pack-count"></div>
+        </div>
+      </div>
+      <button id="gem-draw" class="gem-btn">Draw 6</button>
+      <a href="techtree.html" class="gem-btn" style="text-align:center;display:block;text-decoration:none;font-size:0.75rem;margin-top:-0.5rem">View Tech Tree &rarr;</a>
+
+      <!-- Drawn cards -->
+      <div id="gem-cards" class="gem-cards"></div>
+
+      <!-- Detail view -->
+      <div id="gem-detail" class="gem-detail hidden"></div>
+
+      <!-- History -->
+      <div id="gem-history" class="gem-history"></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Powered by <a href="https://en.wikipedia.org" target="_blank">Wikipedia</a> — a <a href="https://minomobi.com" target="_blank">minomobi</a> thing</p>
+  </footer>
+
+  <script type="module" src="../js/pages/tech-page.js"></script>
+</body>
+</html>

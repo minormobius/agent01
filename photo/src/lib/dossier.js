@@ -176,7 +176,37 @@ function formatPosts(docs) {
   }).join('\n\n');
 }
 
-// Pass 1: Identify themes from cluster samples
+// Pass 1 (no embeddings): Identify themes from a broad chronological sample
+export function buildThemePromptFromSample(posts, handle) {
+  const formatted = formatPosts(posts);
+
+  return {
+    role: 'user',
+    content: `You are analyzing the Bluesky posting history for @${handle}. Below is a representative sample of ${posts.length} posts spanning their full history, from earliest to most recent.
+
+Identify the 5-8 main themes/topics this person posts about.
+
+For each theme:
+1. A short theme label (2-5 words)
+2. A one-sentence description
+
+Then provide their 3-5 dominant interests.
+
+Posts:
+${formatted}
+
+Respond in this exact JSON format:
+{
+  "themes": [
+    { "cluster": 1, "label": "...", "description": "..." },
+    ...
+  ],
+  "dominant_interests": ["...", "...", "..."]
+}`
+  };
+}
+
+// Pass 1 (with embeddings): Identify themes from cluster samples
 export function buildThemePrompt(clusters, handle) {
   const clusterSummaries = clusters.slice(0, 12).map((cluster, i) => {
     const samples = sampleCluster(cluster, 6);
@@ -319,15 +349,29 @@ export async function generateDossier({
     peakCount: peakBucket?.posts.length || 0,
   };
 
-  // Step 2: Cluster
-  progress('clustering', 'Discovering topic clusters...');
-  const k = Math.min(12, Math.max(5, Math.floor(docs.length / 100)));
-  const clusters = kmeansCluster(vectors, docs, k);
-  progress('clustering', `Found ${clusters.length} topic clusters`);
+  // Step 2: Discover themes
+  // If we have embeddings, cluster. Otherwise, sample broadly and let the LLM find themes.
+  let clusters = null;
+
+  if (vectors && vectors.length > 0) {
+    progress('clustering', 'Discovering topic clusters...');
+    const k = Math.min(12, Math.max(5, Math.floor(docs.length / 100)));
+    clusters = kmeansCluster(vectors, docs, k);
+    progress('clustering', `Found ${clusters.length} topic clusters`);
+  }
 
   // Step 3: LLM Pass 1 — Themes
   progress('themes', 'Identifying themes...');
-  const themePrompt = buildThemePrompt(clusters, handle);
+
+  let themePrompt;
+  if (clusters && clusters.length > 0) {
+    themePrompt = buildThemePrompt(clusters, handle);
+  } else {
+    // No embeddings — send a broad chronological sample to the LLM
+    const sample = sampleTimeline(sorted, 80);
+    themePrompt = buildThemePromptFromSample(sample, handle);
+  }
+
   const themeMessages = [
     { role: 'system', content: 'You are a perceptive analyst creating a personality profile from social media posts. Always respond with valid JSON only, no markdown fences.' },
     themePrompt,
@@ -342,11 +386,7 @@ export async function generateDossier({
     dominantInterests = parsed.dominant_interests || [];
   } catch (e) {
     console.error('Theme parse failed:', e, themeText);
-    themes = clusters.slice(0, 8).map((c, i) => ({
-      cluster: i + 1,
-      label: `Topic ${i + 1}`,
-      description: `Cluster of ${c.docs.length} related posts`,
-    }));
+    themes = [];
   }
 
   // Step 4: LLM Pass 2 — Narrative arcs (top 4 themes)
@@ -357,15 +397,25 @@ export async function generateDossier({
     const theme = topThemes[i];
     progress('arcs', `Tracing arc ${i + 1}/${topThemes.length}: "${theme.label}"...`);
 
-    // Get chronological posts for this cluster
-    const cluster = clusters[theme.cluster - 1] || clusters[i];
-    if (!cluster) continue;
+    // Find posts related to this theme via keyword match from its label/description
+    const themeTerms = (theme.label + ' ' + (theme.description || ''))
+      .toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+    const related = sorted.filter(d => {
+      const text = d.text.toLowerCase();
+      return themeTerms.some(t => text.includes(t));
+    });
 
-    const chronPosts = [...cluster.docs]
-      .filter(d => d.createdAt)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    // If we had clusters, use those; otherwise use keyword-matched posts
+    let chronPosts;
+    if (clusters && clusters.length > 0) {
+      const cluster = clusters[theme.cluster - 1] || clusters[i];
+      chronPosts = cluster
+        ? [...cluster.docs].filter(d => d.createdAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        : related;
+    } else {
+      chronPosts = related.length >= 5 ? related : sorted;
+    }
 
-    // Sample: first few, middle, last few (up to 20 posts)
     const arcSample = sampleTimeline(chronPosts, 20);
     const arcPrompt = buildArcPrompt(theme.label, arcSample, handle);
     const arcMessages = [
@@ -427,7 +477,7 @@ export async function generateDossier({
     dominantInterests,
     arcs,
     profile,
-    clusters: clusters.map(c => ({ size: c.docs.length })),
+    clusters: clusters ? clusters.map(c => ({ size: c.docs.length })) : [],
     generatedAt: new Date().toISOString(),
   };
 }

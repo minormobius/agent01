@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Grow — Crystal Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
+canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+#fallback { display: none; position: absolute; inset: 0; justify-content: center; align-items: center; font-size: 1.2rem; text-align: center; padding: 2rem; background: #0a0a0f; flex-direction: column; gap: 1rem; }
+#fallback a { color: #c9a84c; }
+#hud { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-size: 0.75rem; opacity: 0.5; pointer-events: none; text-align: center; line-height: 1.8; }
+#hud .name { font-size: 1rem; opacity: 0.9; letter-spacing: 0.08em; }
+#hud .meta { font-size: 0.7rem; opacity: 0.6; }
+#hud .hint { font-size: 0.65rem; opacity: 0.4; }
+#back { position: absolute; top: 1rem; left: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; text-decoration: none; letter-spacing: 0.05em; z-index: 10; }
+#back:hover { background: rgba(255,255,255,0.15); }
+#reset-btn { position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; display: none; }
+#reset-btn:hover { background: rgba(255,255,255,0.15); }
+#mode-btn { position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.75rem; cursor: pointer; color: #ccc; letter-spacing: 0.05em; z-index: 10; transition: all 0.2s; }
+#mode-btn:hover { background: rgba(255,255,255,0.15); }
+#mode-btn.grow-mode { border-color: rgba(100,200,100,0.4); color: #8f8; }
+#mode-btn.seed-mode { border-color: rgba(200,180,100,0.4); color: #ee4; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="fallback">
+  <div>WebGPU is not supported in this browser.</div>
+  <div style="font-size:0.85rem;opacity:0.6">Try Chrome 113+, Edge 113+, or Safari 18+</div>
+  <a href="gem.html">Back to Gem cards</a>
+</div>
+<div id="hud">
+  <div class="name" id="hud-name">Amethyst</div>
+  <div class="meta" id="hud-meta">Trigonal · Mohs 7 · Vitreous</div>
+  <div class="hint">drag to rotate · pinch to zoom · tap to shatter</div>
+</div>
+<a id="back" href="gem.html">&larr; Gem</a>
+<button id="mode-btn">cleave</button>
+<button id="reset-btn">reset</button>
+<script>
+// ── Crystal Grow — WebGPU crystal with cleavage fracture ─────
+
+// TODO (medium-tier enhancements):
+// - Environment cubemap: procedural or baked space scene for richer reflections
+// - Back-face tinting: thicker crystal paths = deeper color (absorption)
+// - Screen-space refraction: sample back-face render target with refracted UVs
+// - Caustic highlights: fake light focusing on nearby surfaces
+
+const SHADER = `
+struct U {
+  mvp: mat4x4f,
+  model: mat4x4f,
+  color: vec4f,
+  light: vec4f,
+  eye_time: vec4f,
+}
+@group(0) @binding(0) var<uniform> u: U;
+
+struct V {
+  @builtin(position) pos: vec4f,
+  @location(0) n: vec3f,
+  @location(1) wp: vec3f,
+}
+
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f) -> V {
+  var o: V;
+  o.pos = u.mvp * vec4f(p, 1);
+  o.n = (u.model * vec4f(n, 0)).xyz;
+  o.wp = (u.model * vec4f(p, 1)).xyz;
+  return o;
+}
+
+@fragment fn fs(v: V, @builtin(front_facing) front: bool) -> @location(0) vec4f {
+  var N = normalize(v.n);
+  if (!front) { N = -N; }
+
+  let L = normalize(u.light.xyz);
+  let eye = normalize(u.eye_time.xyz - v.wp);
+  let NdotV = max(dot(N, eye), 0.0);
+  let NdotL = max(dot(N, L), 0.0);
+
+  // Fresnel (Schlick, F0 from luster/RI)
+  let F0 = u.eye_time.w;
+  let fresnel = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+  // Chromatic dispersion: offset Fresnel exponent per channel
+  let frR = F0 + (1.0 - F0) * pow(1.0 - NdotV, 4.5);
+  let frB = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.5);
+  let dispFr = vec3f(frR, fresnel, frB);
+
+  // Specular (exponent from luster)
+  let H = normalize(L + eye);
+  let spec = pow(max(dot(N, H), 0.0), u.light.w);
+
+  // Procedural environment (dark space + orbiting sun + faint sky)
+  let refl = reflect(-eye, N);
+  let sunRefl = pow(max(dot(refl, L), 0.0), 48.0);
+  let env = vec3f(0.04, 0.03, 0.07)
+          + vec3f(1.0, 0.95, 0.85) * sunRefl * 5.0
+          + vec3f(0.1, 0.08, 0.18) * max(refl.y, 0.0);
+
+  // Crystal body color — bright and saturated
+  var body = u.color.rgb * (0.25 + NdotL * 0.75);
+  if (!front) {
+    // Back face: richer absorption color, still vivid
+    body = u.color.rgb * sqrt(u.color.rgb) * (0.5 + NdotL * 0.5);
+  }
+
+  // Fresnel blend: reflection at edges, transmission at center
+  var col = mix(body, env, dispFr) + vec3f(1.0) * spec * 1.2;
+  col = pow(col, vec3f(1.0 / 2.2));
+
+  // Alpha: opacity driven by gem data + Fresnel edges
+  let oBase = u.color.a;
+  let alpha = select(mix(oBase * 0.5 + 0.15, 0.95, fresnel), mix(oBase * 0.6 + 0.3, 0.9, fresnel), !front);
+  return vec4f(col, alpha);
+}
+`;
+
+// ── URL params ──────────────────────────────────────────────
+
+const PARAMS = Object.fromEntries(new URLSearchParams(location.search));
+const GEM_NAME = PARAMS.name || 'Amethyst';
+const GEM_SYS = PARAMS.sys || 'trigonal';
+const GEM_COLOR = PARAMS.c ? PARAMS.c.split(',').map(Number) : [0.55, 0.25, 0.65, 0.35];
+const GEM_OPACITY = parseFloat(PARAMS.o ?? '0.2');
+const GEM_LUSTER = PARAMS.l || 'vitreous';
+const GEM_HARDNESS = parseFloat(PARAMS.h ?? '7');
+
+// ── Luster → shader params ──────────────────────────────────
+
+const LUSTER_MAP = {
+  adamantine: { specExp: 200, f0: 0.17 },
+  metallic:   { specExp: 80,  f0: 0.6  },
+  vitreous:   { specExp: 120, f0: 0.045 },
+  pearly:     { specExp: 40,  f0: 0.04  },
+  silky:      { specExp: 60,  f0: 0.04  },
+  waxy:       { specExp: 30,  f0: 0.03  },
+  resinous:   { specExp: 50,  f0: 0.04  },
+  earthy:     { specExp: 15,  f0: 0.02  },
+};
+const LUSTER = LUSTER_MAP[GEM_LUSTER] || LUSTER_MAP.vitreous;
+
+// ── Cleavage planes per crystal system ──────────────────────
+
+function getCleavagePlanes(sys) {
+  switch (sys) {
+    case 'cubic': // octahedral {111}
+      return [[1,1,1],[1,1,-1],[1,-1,1],[-1,1,1]].map(normalize3);
+    case 'tetragonal': // prismatic {100} + basal {001}
+      return [[1,0,0],[0,0,1],[0,1,0]].map(normalize3);
+    case 'orthorhombic': // pinacoidal {100},{010},{001}
+      return [[1,0,0],[0,1,0],[0,0,1]].map(normalize3);
+    case 'hexagonal': { // basal + prismatic
+      const p = [[0,1,0]];
+      for (let i = 0; i < 3; i++) { const a = Math.PI*2/3*i; p.push(normalize3([Math.cos(a),0,Math.sin(a)])); }
+      return p;
+    }
+    case 'trigonal': { // rhombohedral + prismatic
+      const p = [];
+      for (let i = 0; i < 3; i++) {
+        const a = Math.PI*2/3*i, ca = Math.cos(a), sa = Math.sin(a);
+        p.push(normalize3([ca*0.7, 0.7, sa*0.7]));
+        p.push(normalize3([ca, 0, sa]));
+      }
+      return p;
+    }
+    case 'monoclinic': // {001} + {010}
+      return [[0,1,0],[0,0,1],normalize3([0.3,0,1])];
+    case 'triclinic': // weak/irregular
+      return [normalize3([0.7,0.7,0]),normalize3([0,0.7,0.7]),normalize3([0.7,0,0.7])];
+    default: return [[1,0,0],[0,1,0],[0,0,1]].map(normalize3);
+  }
+}
+
+// ── Crystal geometry per system ─────────────────────────────
+
+function buildCrystal(sys) {
+  switch (sys) {
+    case 'cubic': return buildOctahedron();
+    case 'tetragonal': return buildTetragonal();
+    case 'orthorhombic': return buildOrthorhombic();
+    case 'hexagonal': return buildHexPrism();
+    case 'trigonal': return buildTrigonal();
+    case 'monoclinic': return buildMonoclinic();
+    case 'triclinic': return buildTriclinic();
+    default: return buildTrigonal();
+  }
+}
+
+// Cubic: octahedron (diamond, fluorite, magnetite)
+// 6 vertices at axis tips, 8 equilateral triangular faces
+function buildOctahedron() {
+  const s = 1.0;
+  const verts = [[s,0,0],[-s,0,0],[0,s,0],[0,-s,0],[0,0,s],[0,0,-s]];
+  const tris = [
+    [0,2,4],[0,4,3],[0,3,5],[0,5,2], // +x
+    [1,4,2],[1,3,4],[1,5,3],[1,2,5], // -x
+  ];
+  return { verts, tris };
+}
+
+// Tetragonal: elongated square prism + 4-sided pyramid cap (zircon)
+function buildTetragonal() {
+  const r = 0.5, h = 1.1, tH = 0.6;
+  const verts = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);     // 0-3 bottom
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);       // 4-7 top (interleaved)
+  }
+  // Reorder: bottom 0-3, top 4-7
+  const v = [], bottom = [], top = [];
+  for (let i = 0; i < 4; i++) { bottom.push(verts[i*2]); top.push(verts[i*2+1]); }
+  v.push(...bottom, ...top);
+  v.push([0, h+tH, 0]); // 8: apex
+  v.push([0, -h, 0]);    // 9: bottom center
+  const tris = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i+1)%4;
+    tris.push([i,j,j+4],[i,j+4,i+4]); // sides
+    tris.push([i+4,j+4,8]);             // pyramid
+    tris.push([9,j,i]);                  // bottom cap
+  }
+  return { verts: v, tris };
+}
+
+// Orthorhombic: rectangular prism + wedge/dome top (topaz, olivine)
+function buildOrthorhombic() {
+  const a = 0.75, b = 0.45, h = 1.0, dH = 0.5;
+  // Rectangular base
+  const v = [
+    [-a,-h,-b],[a,-h,-b],[a,-h,b],[-a,-h,b],  // 0-3 bottom
+    [-a,h,-b],[a,h,-b],[a,h,b],[-a,h,b],       // 4-7 top
+    [0,h+dH,0],                                  // 8: dome apex
+    [0,-h,0],                                    // 9: bottom center
+  ];
+  const tris = [];
+  const idx = [[0,1],[1,2],[2,3],[3,0]];
+  for (let i = 0; i < 4; i++) {
+    const [c,d] = idx[i];
+    tris.push([c,d,d+4],[c,d+4,c+4]); // sides
+    tris.push([c+4,d+4,8]);             // dome
+    tris.push([9,d,c]);                  // bottom
+  }
+  return { verts: v, tris };
+}
+
+// Hexagonal: stubby hexagonal prism + flat/low pyramid top (beryl/emerald)
+function buildHexPrism() {
+  const n = 6, r = 0.65, h = 0.9, tH = 0.2;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]); // bottom ring
+  }
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i;
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);  // top ring
+  }
+  verts.push([0, h+tH, 0]); // apex (low pyramid)
+  verts.push([0, -h, 0]);    // bottom center
+  const api = n*2, bci = n*2+1;
+  const tris = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i+1)%n;
+    tris.push([i,j,j+n],[i,j+n,i+n]); // sides
+    tris.push([i+n,j+n,api]);           // top pyramid
+    tris.push([bci,j,i]);               // bottom cap
+  }
+  return { verts, tris };
+}
+
+// Trigonal: elongated hexagonal prism + sharp pyramidal tip (quartz/amethyst)
+function buildTrigonal() {
+  const n = 6, r = 0.6, h = 1.0, tH = 0.7;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    verts.push([r*Math.cos(a), -h, r*Math.sin(a)]);
+  }
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    verts.push([r*Math.cos(a), h, r*Math.sin(a)]);
+  }
+  // Alternating tip heights (trigonal symmetry — every other face steeper)
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI*2/n*i - Math.PI/2;
+    const tr = r * (0.3 + 0.25*(i%2===0 ? 1 : 0.4));
+    const th = h + tH * (0.6 + 0.4*(i%2===0 ? 1 : 0.7));
+    verts.push([tr*Math.cos(a), th, tr*Math.sin(a)]);
+  }
+  verts.push([0,-h,0]);    // bottom center
+  verts.push([0,h+tH,0]);  // apex
+  const bci = n*3, api = n*3+1;
+  const tris = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i+1)%n;
+    tris.push([i,j,j+n],[i,j+n,i+n]);
+    tris.push([bci,j,i]);
+    tris.push([i+n,j+n,j+2*n],[i+n,j+2*n,i+2*n]);
+    tris.push([i+2*n,j+2*n,api]);
+  }
+  return { verts, tris };
+}
+
+// Monoclinic: oblique prism with slanted termination (gypsum, moonstone)
+function buildMonoclinic() {
+  const r = 0.55, h = 1.0, sk = 0.35;
+  const verts = [];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a) - h*sk, -h, r*Math.sin(a)]);  // bottom
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI/2*i + Math.PI/4;
+    verts.push([r*Math.cos(a) + h*sk, h, r*Math.sin(a)]);   // top (sheared)
+  }
+  // Slanted termination: chisel top
+  verts.push([h*sk + 0.15, h+0.4, 0]);  // 8: chisel peak
+  verts.push([-h*sk, -h, 0]);            // 9: bottom center
+  const tris = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i+1)%4;
+    tris.push([i,j,j+4],[i,j+4,i+4]); // sides
+    tris.push([i+4,j+4,8]);             // chisel top
+    tris.push([9,j,i]);                  // bottom
+  }
+  return { verts, tris };
+}
+
+// Triclinic: flat tabular parallelepiped (labradorite, kyanite)
+function buildTriclinic() {
+  // Flat slab with all oblique angles — distinctly tabular
+  const a = 0.8, b = 0.6, h = 0.35, skx = 0.2, skz = 0.15;
+  const v = [
+    [-a-skx, -h, -b-skz], [a-skx, -h, -b+skz], [a+skx, -h, b-skz], [-a+skx, -h, b+skz], // bottom
+    [-a+skx, h, -b+skz],  [a+skx, h, -b-skz],  [a-skx, h, b+skz],  [-a-skx, h, b-skz],   // top (sheared opposite)
+  ];
+  const tris = [
+    [0,1,5],[0,5,4], [1,2,6],[1,6,5], [2,3,7],[2,7,6], [3,0,4],[3,4,7], // sides
+    [0,3,2],[0,2,1], // bottom
+    [4,5,6],[4,6,7], // top
+  ];
+  return { verts: v, tris };
+}
+
+function normalize3(v) {
+  const len = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]) || 1;
+  return [v[0]/len, v[1]/len, v[2]/len];
+}
+function dot3(a,b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function sub3(a,b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function add3(a,b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function scale3(v,s) { return [v[0]*s, v[1]*s, v[2]*s]; }
+function cross3(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function lerp3(a,b,t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+function ptSegDist(p, a, b) {
+  const ab = sub3(b, a), ap = sub3(p, a);
+  const t = Math.max(0, Math.min(1, dot3(ap, ab) / (dot3(ab, ab) || 1)));
+  const d = sub3(p, add3(a, scale3(ab, t)));
+  return Math.sqrt(dot3(d, d));
+}
+function centroid(verts) {
+  const c = [0,0,0];
+  for (const v of verts) { c[0]+=v[0]; c[1]+=v[1]; c[2]+=v[2]; }
+  return scale3(c, 1/verts.length);
+}
+
+function persp(fov, asp, near, far) {
+  const f = 1/Math.tan(fov/2), r = 1/(near-far);
+  return new Float32Array([f/asp,0,0,0, 0,f,0,0, 0,0,(far+near)*r,-1, 0,0,2*far*near*r,0]);
+}
+function rotX(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); }
+function rotY(a) { const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]); }
+function trans(x,y,z) { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); }
+function scl(s) { return new Float32Array([s,0,0,0, 0,s,0,0, 0,0,s,0, 0,0,0,1]); }
+function mul(a, b) {
+  const o = new Float32Array(16);
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++)
+      o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+  return o;
+}
+function mat4Invert(m) {
+  // Only need inverse for 3x3 rotation part (for ray unproject)
+  // For rotation-only matrices, inverse = transpose
+  const o = new Float32Array(16);
+  o[0]=m[0]; o[1]=m[4]; o[2]=m[8];
+  o[4]=m[1]; o[5]=m[5]; o[6]=m[9];
+  o[8]=m[2]; o[9]=m[6]; o[10]=m[10];
+  o[15]=1;
+  return o;
+}
+
+// ── Rodrigues rotation (axis-angle) ─────────────────────────
+
+function rotateVerts(verts, axis, angle) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  const [ax, ay, az] = axis;
+  for (const v of verts) {
+    const [x, y, z] = v;
+    const d = ax*x + ay*y + az*z;
+    const cx = x*c + (ay*z - az*y)*s + ax*d*(1-c);
+    const cy = y*c + (az*x - ax*z)*s + ay*d*(1-c);
+    const cz = z*c + (ax*y - ay*x)*s + az*d*(1-c);
+    v[0] = cx; v[1] = cy; v[2] = cz;
+  }
+}
+
+// ── Epitaxial crystal growth ────────────────────────────────
+// Child crystal maintains parent's lattice orientation.
+// Finds the child face whose outward normal best opposes the
+// parent face normal (contact face), then positions the child
+// so that face sits flush at the hit point, growing outward.
+
+function buildEpitaxialChild(faceNormal, scale, latticeRot) {
+  const { verts, tris } = buildCrystal(GEM_SYS);
+  // Apply grain's lattice rotation (if growing on a misoriented seed)
+  if (latticeRot) {
+    rotateVerts(verts, latticeRot.axis, latticeRot.angle);
+  }
+  // Scale
+  for (const v of verts) { v[0] *= scale; v[1] *= scale; v[2] *= scale; }
+
+  // Compute centroid for outward-normal determination
+  const cc = centroid(verts);
+
+  // Find the face whose outward normal best opposes the parent face normal
+  // (the contact face points INTO the parent)
+  let bestFace = 0, bestDot = Infinity;
+  for (let i = 0; i < tris.length; i++) {
+    const [a, b, c] = tris[i];
+    let n = normalize3(cross3(sub3(verts[b], verts[a]), sub3(verts[c], verts[a])));
+    // Ensure outward: should point away from centroid
+    const fc = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+    if (dot3(n, sub3(fc, cc)) < 0) n = scale3(n, -1);
+    // Best match: outward normal most opposite to parent face normal
+    const d = dot3(n, faceNormal);
+    if (d < bestDot) { bestDot = d; bestFace = i; }
+  }
+
+  // Translate so the contact face center sits at origin
+  const [a, b, c] = tris[bestFace];
+  const faceCenter = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+  for (const v of verts) {
+    v[0] -= faceCenter[0];
+    v[1] -= faceCenter[1];
+    v[2] -= faceCenter[2];
+  }
+
+  return { verts, tris };
+}
+
+// ── Mesh splitting along a plane ────────────────────────────
+// Sutherland-Hodgman: clip each triangle by plane, producing
+// two sets of triangles (positive side and negative side).
+
+function splitMeshByPlane(verts, tris, planeN, planeD) {
+  const posVerts = [], posTris = [];
+  const negVerts = [], negTris = [];
+  const cutEdges = []; // pairs of intersection points
+
+  for (const tri of tris) {
+    const v = [verts[tri[0]], verts[tri[1]], verts[tri[2]]];
+    const d = v.map(p => dot3(p, planeN) - planeD);
+
+    // All on positive side
+    if (d[0] >= 0 && d[1] >= 0 && d[2] >= 0) {
+      const base = posVerts.length;
+      posVerts.push(v[0], v[1], v[2]);
+      posTris.push([base, base+1, base+2]);
+      continue;
+    }
+    // All on negative side
+    if (d[0] <= 0 && d[1] <= 0 && d[2] <= 0) {
+      const base = negVerts.length;
+      negVerts.push(v[0], v[1], v[2]);
+      negTris.push([base, base+1, base+2]);
+      continue;
+    }
+
+    // Triangle straddles plane — clip it
+    const pos = [], neg = [];
+    const mids = [];
+    for (let i = 0; i < 3; i++) {
+      const j = (i + 1) % 3;
+      const vi = v[i], vj = v[j];
+      const di = d[i], dj = d[j];
+
+      if (di >= 0) pos.push(vi); else neg.push(vi);
+
+      if ((di > 0 && dj < 0) || (di < 0 && dj > 0)) {
+        const t = di / (di - dj);
+        const mid = lerp3(vi, vj, t);
+        pos.push(mid);
+        neg.push(mid);
+        mids.push(mid);
+      }
+    }
+
+    // Collect cut edge (the two intersection points per straddling triangle)
+    if (mids.length === 2) cutEdges.push([mids[0], mids[1]]);
+
+    // Triangulate each polygon (fan from first vertex)
+    if (pos.length >= 3) {
+      const base = posVerts.length;
+      for (const p of pos) posVerts.push(p);
+      for (let i = 1; i < pos.length - 1; i++)
+        posTris.push([base, base+i, base+i+1]);
+    }
+    if (neg.length >= 3) {
+      const base = negVerts.length;
+      for (const p of neg) negVerts.push(p);
+      for (let i = 1; i < neg.length - 1; i++)
+        negTris.push([base, base+i, base+i+1]);
+    }
+  }
+
+  // ── Cap the cut face ────────────────────────────────────────
+  // Collect all unique cut vertices, sort by angle, fan-triangulate
+  if (cutEdges.length >= 2) {
+    const cutPts = [];
+    const EPS = 1e-6;
+    for (const [a, b] of cutEdges) {
+      for (const p of [a, b]) {
+        if (!cutPts.some(q => Math.abs(q[0]-p[0])<EPS && Math.abs(q[1]-p[1])<EPS && Math.abs(q[2]-p[2])<EPS))
+          cutPts.push(p);
+      }
+    }
+    if (cutPts.length >= 3) {
+      // Project onto plane's 2D coords and sort by angle
+      const cc = centroid(cutPts);
+      // Build local axes on the plane
+      let ax = sub3(cutPts[0], cc);
+      const axLen = Math.sqrt(dot3(ax, ax)) || 1;
+      ax = scale3(ax, 1/axLen);
+      const ay = normalize3(cross3(planeN, ax));
+      // Sort by angle
+      cutPts.sort((a, b) => {
+        const da = sub3(a, cc), db = sub3(b, cc);
+        return Math.atan2(dot3(da, ay), dot3(da, ax)) - Math.atan2(dot3(db, ay), dot3(db, ax));
+      });
+      // Add cap to positive side (normal faces -planeN)
+      const pBase = posVerts.length;
+      for (const p of cutPts) posVerts.push(p);
+      for (let i = 1; i < cutPts.length - 1; i++)
+        posTris.push([pBase, pBase+i+1, pBase+i]); // reversed winding for -N
+      // Add cap to negative side (normal faces +planeN)
+      const nBase = negVerts.length;
+      for (const p of cutPts) negVerts.push(p);
+      for (let i = 1; i < cutPts.length - 1; i++)
+        negTris.push([nBase, nBase+i, nBase+i+1]);
+    }
+  }
+
+  return [
+    { verts: posVerts, tris: posTris },
+    { verts: negVerts, tris: negTris },
+  ];
+}
+
+// ── Build GPU buffers from mesh ─────────────────────────────
+
+function flatMesh(verts, tris) {
+  const pos = [], nrm = [], idx = [];
+  for (const [a, b, c] of tris) {
+    const va = verts[a], vb = verts[b], vc = verts[c];
+    const ux=vb[0]-va[0],uy=vb[1]-va[1],uz=vb[2]-va[2];
+    const wx=vc[0]-va[0],wy=vc[1]-va[1],wz=vc[2]-va[2];
+    let nx=uy*wz-uz*wy, ny=uz*wx-ux*wz, nz=ux*wy-uy*wx;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    nx/=len;ny/=len;nz/=len;
+    const base = pos.length/3;
+    pos.push(...va,...vb,...vc);
+    nrm.push(nx,ny,nz,nx,ny,nz,nx,ny,nz);
+    idx.push(base,base+1,base+2);
+  }
+  const vd = new Float32Array(pos.length*2);
+  for (let i=0;i<pos.length/3;i++){
+    vd[i*6]=pos[i*3];vd[i*6+1]=pos[i*3+1];vd[i*6+2]=pos[i*3+2];
+    vd[i*6+3]=nrm[i*3];vd[i*6+4]=nrm[i*3+1];vd[i*6+5]=nrm[i*3+2];
+  }
+  return { vd, idx: new Uint16Array(idx) };
+}
+
+function uploadMesh(device, verts, tris) {
+  if (tris.length === 0) return null;
+  const { vd, idx } = flatMesh(verts, tris);
+  const vb = device.createBuffer({ size: vd.byteLength, usage: GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(vb, 0, vd);
+  const ib = device.createBuffer({ size: idx.byteLength, usage: GPUBufferUsage.INDEX|GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(ib, 0, idx);
+  return { vb, ib, count: idx.length };
+}
+
+// ── Ray-triangle intersection ───────────────────────────────
+
+function rayTriIntersect(ro, rd, va, vb, vc) {
+  const e1 = sub3(vb, va), e2 = sub3(vc, va);
+  const h = cross3(rd, e2);
+  const a = dot3(e1, h);
+  if (a > -1e-6 && a < 1e-6) return null;
+  const f = 1/a;
+  const s = sub3(ro, va);
+  const u = f * dot3(s, h);
+  if (u < 0 || u > 1) return null;
+  const q = cross3(s, e1);
+  const v = f * dot3(rd, q);
+  if (v < 0 || u+v > 1) return null;
+  const t = f * dot3(e2, q);
+  if (t > 1e-4) return { t, point: add3(ro, scale3(rd, t)) };
+  return null;
+}
+
+// ── Main ────────────────────────────────────────────────────
+
+async function main() {
+  // Update HUD from URL params
+  const sysNames = {cubic:'Cubic',tetragonal:'Tetragonal',orthorhombic:'Orthorhombic',hexagonal:'Hexagonal',trigonal:'Trigonal',monoclinic:'Monoclinic',triclinic:'Triclinic'};
+  document.getElementById('hud-name').textContent = GEM_NAME.replace(/ \(.*\)$/, '');
+  document.getElementById('hud-meta').textContent = `${sysNames[GEM_SYS]||GEM_SYS} · Mohs ${GEM_HARDNESS} · ${GEM_LUSTER.charAt(0).toUpperCase()+GEM_LUSTER.slice(1)}`;
+
+  const canvas = document.getElementById('c');
+  if (!navigator.gpu) { document.getElementById('fallback').style.display='flex'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { document.getElementById('fallback').style.display='flex'; return; }
+  const device = await adapter.requestDevice();
+
+  const dpr = Math.min(devicePixelRatio, 2);
+  function resize() {
+    canvas.width = (innerWidth*dpr)|0;
+    canvas.height = (innerHeight*dpr)|0;
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  const ctx = canvas.getContext('webgpu');
+  const fmt = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format: fmt, alphaMode: 'premultiplied' });
+
+  const sm = device.createShaderModule({ code: SHADER });
+  const bgl = device.createBindGroupLayout({
+    entries:[{ binding:0, visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT, buffer:{type:'uniform'} }],
+  });
+  const pipeLayout = device.createPipelineLayout({ bindGroupLayouts:[bgl] });
+  function makePipe(cullMode) {
+    return device.createRenderPipeline({
+      layout: pipeLayout,
+      vertex: { module:sm, entryPoint:'vs', buffers:[{arrayStride:24, attributes:[
+        {shaderLocation:0,offset:0,format:'float32x3'},{shaderLocation:1,offset:12,format:'float32x3'}
+      ]}]},
+      fragment: { module:sm, entryPoint:'fs', targets:[{format:fmt, blend:{
+        color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha'},
+        alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha'},
+      }}]},
+      primitive: { topology:'triangle-list', cullMode },
+      depthStencil: { depthWriteEnabled:true, depthCompare:'less', format:'depth24plus' },
+    });
+  }
+  const backPipe = makePipe('front');  // cull front = render back faces
+  const frontPipe = makePipe('back');  // cull back = render front faces
+  function makeUBO() {
+    const buf = device.createBuffer({ size:256, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
+    const bg = device.createBindGroup({ layout:bgl, entries:[{binding:0,resource:{buffer:buf}}] });
+    return { buf, bg };
+  }
+  let depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
+
+  // ── Fragment state ──────────────────────────────────────────
+  const cleavagePlanes = getCleavagePlanes(GEM_SYS);
+  const baseColor = GEM_COLOR.length >= 4 ? GEM_COLOR : [...GEM_COLOR, 1];
+
+  // Each fragment: { id, verts, tris, gpu, ubo, offset, vel, color, scale, scaleTarget, parentId }
+  let fragments = [];
+  let nextId = 1;
+  let nextGrain = 0;
+  const { verts, tris } = buildCrystal(GEM_SYS);
+  fragments.push({
+    id: nextId++, verts, tris,
+    gpu: uploadMesh(device, verts, tris),
+    ubo: makeUBO(),
+    offset: [0,0,0], vel: [0,0,0],
+    color: baseColor.slice(),
+    scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++, latticeRot: null,
+  });
+
+  // Grain color offsets — subtle tint per grain for visual distinction
+  const grainTints = [[0,0,0]]; // grain 0 = no tint
+  function grainTint() {
+    const t = [(Math.random()-0.5)*0.12, (Math.random()-0.5)*0.12, (Math.random()-0.5)*0.12];
+    grainTints.push(t);
+    return t;
+  }
+
+  function resetCrystal() {
+    const { verts, tris } = buildCrystal(GEM_SYS);
+    nextId = 1;
+    nextGrain = 0;
+    grainTints.length = 1;
+    fragments = [{
+      id: nextId++, verts, tris,
+      gpu: uploadMesh(device, verts, tris),
+      ubo: makeUBO(),
+      offset: [0,0,0], vel: [0,0,0],
+      color: baseColor.slice(),
+      scale: 1, scaleTarget: 1, geoScale: 1, parentId: 0, grain: nextGrain++, latticeRot: null,
+    }];
+    document.getElementById('reset-btn').style.display = 'none';
+  }
+
+  // ── Mode toggle (cleave / grow / seed) ──────────────────────
+  const MODES = ['cleave', 'grow', 'seed'];
+  const HINTS = {
+    cleave: 'drag to rotate · pinch to zoom · tap to shatter',
+    grow:   'drag to rotate · pinch to zoom · tap to grow',
+    seed:   'drag to rotate · pinch to zoom · tap to seed new grain',
+  };
+  let mode = 'cleave';
+  const modeBtn = document.getElementById('mode-btn');
+  const hintEl = document.querySelector('#hud .hint');
+  modeBtn.addEventListener('click', () => {
+    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+    modeBtn.textContent = mode;
+    modeBtn.className = '';
+    if (mode === 'grow') modeBtn.classList.add('grow-mode');
+    if (mode === 'seed') modeBtn.classList.add('seed-mode');
+    hintEl.textContent = HINTS[mode];
+  });
+
+  function seedOnFace(fragIdx, hitPoint, faceNormal) {
+    const parent = fragments[fragIdx];
+    // Seed is a PEER crystal — same scale as root, not a child
+    const seedScale = 0.9 + Math.random() * 0.2;
+
+    // Build a full-size misoriented crystal
+    const { verts, tris } = buildCrystal(GEM_SYS);
+    for (const v of verts) { v[0] *= seedScale; v[1] *= seedScale; v[2] *= seedScale; }
+    const rAxis = normalize3([Math.random()-0.5, Math.random()-0.5, Math.random()-0.5]);
+    const rAngle = (15 + Math.random() * 45) * Math.PI / 180;
+    rotateVerts(verts, rAxis, rAngle);
+
+    // Find contact face (most opposing faceNormal) and position flush
+    const cc = centroid(verts);
+    let bestFace = 0, bestDot = Infinity;
+    for (let i = 0; i < tris.length; i++) {
+      const [a, b, c] = tris[i];
+      let n = normalize3(cross3(sub3(verts[b], verts[a]), sub3(verts[c], verts[a])));
+      const fc = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+      if (dot3(n, sub3(fc, cc)) < 0) n = scale3(n, -1);
+      const d = dot3(n, faceNormal);
+      if (d < bestDot) { bestDot = d; bestFace = i; }
+    }
+    const [a, b, c] = tris[bestFace];
+    const faceCenter = scale3(add3(add3(verts[a], verts[b]), verts[c]), 1/3);
+    for (const v of verts) { v[0] -= faceCenter[0]; v[1] -= faceCenter[1]; v[2] -= faceCenter[2]; }
+
+    const g = nextGrain++;
+    const tint = grainTint();
+    const pc = parent.color;
+
+    fragments.push({
+      id: nextId++, verts, tris,
+      gpu: uploadMesh(device, verts, tris),
+      ubo: makeUBO(),
+      offset: add3(parent.offset, hitPoint),
+      vel: [0, 0, 0],
+      color: [
+        Math.max(0, Math.min(1, pc[0] + tint[0])),
+        Math.max(0, Math.min(1, pc[1] + tint[1])),
+        Math.max(0, Math.min(1, pc[2] + tint[2])),
+        pc[3],
+      ],
+      scale: 0.1, scaleTarget: 1, geoScale: seedScale,
+      parentId: parent.id, anchorLocal: [0, 0, 0],
+      boundaryNormal: faceNormal.slice(), grain: g,
+      latticeRot: { axis: rAxis, angle: rAngle },
+    });
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+
+  // ── Camera ────────────────────────────────────────────────
+  let rx = -0.3, ry = 0, camDist = 4;
+  let dragging = false, lx = 0, ly = 0, autoSpin = true;
+  let downX = 0, downY = 0, pointerDownTime = 0;
+
+  // Pinch zoom
+  let pinchDist0 = 0, pinching = false;
+
+  canvas.addEventListener('pointerdown', e => {
+    dragging = true; autoSpin = false;
+    lx = e.clientX; ly = e.clientY;
+    downX = e.clientX; downY = e.clientY;
+    pointerDownTime = performance.now();
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX-lx, dy = e.clientY-ly;
+    ry += dx*0.008; rx += dy*0.008;
+    rx = Math.max(-1.4, Math.min(1.4, rx));
+    lx=e.clientX; ly=e.clientY;
+  });
+  canvas.addEventListener('pointerup', e => {
+    dragging = false;
+    if (pinching) { pinching = false; return; }
+    const dt = performance.now() - pointerDownTime;
+    const dist = Math.sqrt((e.clientX-downX)**2 + (e.clientY-downY)**2);
+    if (dt < 400 && dist < 15) {
+      handleTap(e.clientX, e.clientY);
+    }
+  });
+
+  // Touch pinch zoom
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinching = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDist0 = Math.sqrt(dx*dx+dy*dy);
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (pinchDist0 > 0) {
+        camDist *= pinchDist0 / dist;
+        camDist = Math.max(1.5, Math.min(12, camDist));
+      }
+      pinchDist0 = dist;
+    }
+  }, { passive: true });
+  canvas.addEventListener('wheel', e => {
+    camDist *= 1 + e.deltaY * 0.001;
+    camDist = Math.max(1.5, Math.min(12, camDist));
+    e.preventDefault();
+  }, { passive: false });
+
+  // ── Tap handler (cleave or grow) ────────────────────────────
+
+  function castRay(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
+
+    const asp = canvas.width / canvas.height;
+    const tanHalf = Math.tan(Math.PI / 8);
+    const rdx = ndcX * tanHalf * asp;
+    const rdy = ndcY * tanHalf;
+
+    const m = mul(rotX(rx), rotY(ry));
+    const mInv = mat4Invert(m);
+    const ro = [mInv[8]*camDist, mInv[9]*camDist, mInv[10]*camDist];
+    const rdWorld = normalize3([
+      mInv[0]*rdx + mInv[4]*rdy - mInv[8],
+      mInv[1]*rdx + mInv[5]*rdy - mInv[9],
+      mInv[2]*rdx + mInv[6]*rdy - mInv[10],
+    ]);
+
+    let bestHit = null, bestFrag = -1, bestTri = null;
+    for (let fi = 0; fi < fragments.length; fi++) {
+      const frag = fragments[fi];
+      if (!frag.gpu || frag.tris.length === 0) continue;
+      const fragRo = sub3(ro, frag.offset);
+      const s = frag.scale;
+      for (const tri of frag.tris) {
+        // Scale vertices by frag.scale so hitbox matches visual during grow-in
+        const a = s < 0.999 ? scale3(frag.verts[tri[0]], s) : frag.verts[tri[0]];
+        const b = s < 0.999 ? scale3(frag.verts[tri[1]], s) : frag.verts[tri[1]];
+        const c = s < 0.999 ? scale3(frag.verts[tri[2]], s) : frag.verts[tri[2]];
+        const hit = rayTriIntersect(fragRo, rdWorld, a, b, c);
+        if (hit && (!bestHit || hit.t < bestHit.t)) {
+          bestHit = hit;
+          bestFrag = fi;
+          bestTri = tri;
+        }
+      }
+    }
+    if (bestFrag < 0) return null;
+
+    // Compute face normal of hit triangle, ensure it points outward
+    const frag = fragments[bestFrag];
+    const va = frag.verts[bestTri[0]], vb = frag.verts[bestTri[1]], vc = frag.verts[bestTri[2]];
+    let faceNormal = normalize3(cross3(sub3(vb, va), sub3(vc, va)));
+    const fc = centroid(frag.verts);
+    // Unscale hit point from visual space back to model space
+    const hitPt = frag.scale < 0.999
+      ? scale3(bestHit.point, 1 / frag.scale)
+      : bestHit.point;
+    if (dot3(faceNormal, sub3(hitPt, fc)) < 0) faceNormal = scale3(faceNormal, -1);
+
+    return { hit: { t: bestHit.t, point: hitPt }, fragIdx: bestFrag, faceNormal, triVerts: [va, vb, vc] };
+  }
+
+  function handleTap(clientX, clientY) {
+    const result = castRay(clientX, clientY);
+    if (!result) return;
+
+    if (mode === 'cleave') {
+      shatterFragment(result.fragIdx, result.hit.point);
+    } else if (mode === 'grow') {
+      growOnFace(result.fragIdx, result.hit.point, result.faceNormal, result.triVerts);
+    } else {
+      seedOnFace(result.fragIdx, result.hit.point, result.faceNormal);
+    }
+  }
+
+  function shatterFragment(fragIdx, hitPoint) {
+    const frag = fragments[fragIdx];
+    if (frag.tris.length < 2) return; // too small to split
+
+    const fc = centroid(frag.verts);
+    const toHit = normalize3(sub3(hitPoint, fc));
+
+    // Score all cleavage planes by alignment with hit direction
+    const ranked = cleavagePlanes.map(pn => ({
+      pn, score: Math.abs(dot3(pn, toHit))
+    })).sort((a, b) => b.score - a.score);
+
+    // ── Grain boundary deflection ──────────────────────────────
+    // If the hit point is near a grain boundary (attached seed contact),
+    // the cleavage preferentially follows the boundary surface.
+    // Inject the boundary normal as the top-priority cleavage plane.
+    for (const f of fragments) {
+      if (f.parentId !== frag.id || !f.boundaryNormal) continue;
+      const contactPt = sub3(f.offset, frag.offset);
+      const distToHit = Math.sqrt(
+        (hitPoint[0]-contactPt[0])**2 + (hitPoint[1]-contactPt[1])**2 + (hitPoint[2]-contactPt[2])**2
+      );
+      // If tapping near the grain boundary, deflect along it
+      const reach = (f.geoScale || 1) * 0.8;
+      if (distToHit < reach) {
+        ranked.unshift({ pn: f.boundaryNormal, score: 2.0 });
+      }
+    }
+
+    // ── Co-cleavage helper: merge attached fragments near cleavage plane ──
+    // Seeds (grain boundaries) are NEVER co-cleaved — they detach whole.
+    // Only small children co-cleave when the plane cuts their anchor.
+    function tryCleavePlane(bestPlane) {
+      const planeD = dot3(bestPlane, fc);
+
+      const coCleavedIds = new Set();
+      let mergedVerts = frag.verts.map(v => v.slice());
+      let mergedTris = frag.tris.map(t => t.slice());
+
+      for (const f of fragments) {
+        if (f.parentId !== frag.id || !f.anchorLocal) continue;
+        // Seeds (grain boundaries) never merge — they separate whole
+        if (f.boundaryNormal) continue;
+        const anchorInParent = sub3(f.offset, frag.offset);
+        const anchorDist = Math.abs(dot3(anchorInParent, bestPlane) - planeD);
+        const threshold = (f.geoScale || 0.1) * 0.3;
+        if (anchorDist < threshold) {
+          coCleavedIds.add(f.id);
+          const childOff = sub3(f.offset, frag.offset);
+          const base = mergedVerts.length;
+          for (const v of f.verts) {
+            mergedVerts.push([v[0] + childOff[0], v[1] + childOff[1], v[2] + childOff[2]]);
+          }
+          for (const t of f.tris) {
+            mergedTris.push([t[0] + base, t[1] + base, t[2] + base]);
+          }
+        }
+      }
+
+      const [posMesh, negMesh] = splitMeshByPlane(mergedVerts, mergedTris, bestPlane, planeD);
+      if (posMesh.tris.length < 1 || negMesh.tris.length < 1) return null;
+      return { posMesh, negMesh, coCleavedIds, bestPlane, planeD };
+    }
+
+    // Try each cleavage plane in ranked order; use the first that produces a valid split
+    let result = null;
+    for (const { pn } of ranked) {
+      result = tryCleavePlane(pn);
+      if (result) break;
+    }
+    // Last resort: split along hit direction itself
+    if (!result) {
+      result = tryCleavePlane(toHit);
+    }
+    if (!result) return;
+
+    const { posMesh, negMesh, coCleavedIds, bestPlane, planeD } = result;
+
+    const pushSpeed = 0.02;
+    const jitter = () => (Math.random() - 0.5) * 0.005;
+
+    // ── Cleaving a child: anchored half stays, severed half gets 2x push ──
+    const isChild = frag.anchorLocal != null && frag.parentId != null;
+    let posVel, negVel;
+    if (isChild) {
+      // Determine which side the anchor point is on
+      const anchorSide = dot3(frag.anchorLocal, bestPlane) - planeD;
+      if (anchorSide >= 0) {
+        // Anchor is on positive side — pos stays, neg flies at 2x
+        posVel = [jitter(), jitter(), jitter()];
+        negVel = [-bestPlane[0]*pushSpeed*2+jitter(), -bestPlane[1]*pushSpeed*2+jitter(), -bestPlane[2]*pushSpeed*2+jitter()];
+      } else {
+        // Anchor is on negative side — neg stays, pos flies at 2x
+        posVel = [bestPlane[0]*pushSpeed*2+jitter(), bestPlane[1]*pushSpeed*2+jitter(), bestPlane[2]*pushSpeed*2+jitter()];
+        negVel = [jitter(), jitter(), jitter()];
+      }
+    } else {
+      posVel = [bestPlane[0]*pushSpeed+jitter(), bestPlane[1]*pushSpeed+jitter(), bestPlane[2]*pushSpeed+jitter()];
+      negVel = [-bestPlane[0]*pushSpeed+jitter(), -bestPlane[1]*pushSpeed+jitter(), -bestPlane[2]*pushSpeed+jitter()];
+    }
+
+    const posId = nextId++;
+    const negId = nextId++;
+
+    const newFrags = [];
+    for (let i = 0; i < fragments.length; i++) {
+      if (i === fragIdx) continue;
+      const f = fragments[i];
+      // Skip co-cleaved children (already merged into parent mesh)
+      if (coCleavedIds.has(f.id)) continue;
+      // Children attached to the shattered parent: push with the correct half
+      if (f.parentId === frag.id) {
+        const childLocal = sub3(f.offset, frag.offset);
+        const side = dot3(childLocal, bestPlane) - planeD;
+        const vel = side >= 0 ? posVel : negVel;
+        f.vel = [f.vel[0]+vel[0], f.vel[1]+vel[1], f.vel[2]+vel[2]];
+        f.parentId = side >= 0 ? posId : negId;
+      }
+      newFrags.push(f);
+    }
+
+    const c = frag.color;
+    const nudge = (v) => Math.max(0, Math.min(1, v + (Math.random()-0.5)*0.02));
+
+    // Anchored half keeps the anchor + boundary; severed half is detached
+    const anchorSidePos = isChild
+      ? (dot3(frag.anchorLocal, bestPlane) - planeD >= 0) : false;
+    const posAnchor = anchorSidePos ? frag.anchorLocal : null;
+    const negAnchor = (!anchorSidePos && isChild) ? frag.anchorLocal : null;
+    const posBN = anchorSidePos ? (frag.boundaryNormal || null) : null;
+    const negBN = (!anchorSidePos && isChild) ? (frag.boundaryNormal || null) : null;
+
+    newFrags.push({
+      id: posId, verts: posMesh.verts, tris: posMesh.tris,
+      gpu: uploadMesh(device, posMesh.verts, posMesh.tris),
+      ubo: makeUBO(),
+      offset: frag.offset.slice(), vel: posVel,
+      color: [nudge(c[0]), nudge(c[1]), nudge(c[2]), c[3]],
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
+      parentId: anchorSidePos ? frag.parentId : 0,
+      anchorLocal: posAnchor, boundaryNormal: posBN, grain: frag.grain,
+      latticeRot: frag.latticeRot || null,
+    });
+    newFrags.push({
+      id: negId, verts: negMesh.verts, tris: negMesh.tris,
+      gpu: uploadMesh(device, negMesh.verts, negMesh.tris),
+      ubo: makeUBO(),
+      offset: frag.offset.slice(), vel: negVel,
+      color: [nudge(c[0]), nudge(c[1]), nudge(c[2]), c[3]],
+      scale: 1, scaleTarget: 1, geoScale: frag.geoScale,
+      parentId: !anchorSidePos && isChild ? frag.parentId : 0,
+      anchorLocal: negAnchor, boundaryNormal: negBN, grain: frag.grain,
+      latticeRot: frag.latticeRot || null,
+    });
+
+    fragments = newFrags;
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+
+  function growOnFace(fragIdx, hitPoint, faceNormal, triVerts) {
+    const parent = fragments[fragIdx];
+    // Compound geometric scale — use sqrt to slow down diminishing returns
+    let growScale = (parent.geoScale || 1) * (0.4 + Math.random() * 0.15);
+
+    // Cap to fit within the hit facet — measure actual epitaxial footprint
+    const parentRot = parent.latticeRot || null;
+    const probe = buildEpitaxialChild(faceNormal, 1.0, parentRot);
+    let unitFootprint = 0;
+    for (const v of probe.verts) {
+      const along = dot3(v, faceNormal);
+      const lateral = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - along*along);
+      if (lateral > unitFootprint) unitFootprint = lateral;
+    }
+    if (unitFootprint < 0.001) unitFootprint = 0.5;
+
+    if (triVerts) {
+      const [va, vb, vc] = triVerts;
+      const maxR = Math.min(ptSegDist(hitPoint, va, vb), ptSegDist(hitPoint, vb, vc), ptSegDist(hitPoint, vc, va));
+      growScale = Math.min(growScale, maxR / unitFootprint);
+    }
+
+    // Check distance to siblings on the same parent AND fragments from other grains
+    const worldHit = add3(parent.offset, hitPoint);
+    for (const f of fragments) {
+      if (f === parent) continue;
+      const isSibling = f.parentId === parent.id;
+      const isOtherGrain = f.grain !== parent.grain;
+      if (!isSibling && !isOtherGrain) continue;
+      const sibDist = Math.sqrt(
+        (f.offset[0]-worldHit[0])**2 + (f.offset[1]-worldHit[1])**2 + (f.offset[2]-worldHit[2])**2
+      );
+      const sibRadius = (f.geoScale || 0.1) * unitFootprint;
+      const available = sibDist - sibRadius;
+      if (available > 0) {
+        growScale = Math.min(growScale, available / unitFootprint);
+      } else {
+        growScale = 0;
+      }
+    }
+    if (growScale < 0.01) return; // too small
+
+    const { verts, tris } = buildEpitaxialChild(faceNormal, growScale, parentRot);
+    // Offset: hit point in parent's local space + parent's world offset
+    const worldOff = add3(parent.offset, hitPoint);
+    // Slight color variation
+    const c = parent.color;
+    const hueShift = (Math.random() - 0.5) * 0.03;
+
+    fragments.push({
+      id: nextId++, verts, tris,
+      gpu: uploadMesh(device, verts, tris),
+      ubo: makeUBO(),
+      offset: worldOff,
+      vel: [0, 0, 0],
+      color: [
+        Math.max(0, Math.min(1, c[0] + hueShift)),
+        Math.max(0, Math.min(1, c[1] + (Math.random()-0.5)*0.06)),
+        Math.max(0, Math.min(1, c[2] + hueShift)),
+        c[3],
+      ],
+      scale: 0.1, scaleTarget: 1, geoScale: growScale,
+      parentId: parent.id, anchorLocal: [0, 0, 0], grain: parent.grain, latticeRot: parentRot,
+    });
+    document.getElementById('reset-btn').style.display = 'block';
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', resetCrystal);
+
+  // ── Render loop ───────────────────────────────────────────
+
+  function frame() {
+    if (autoSpin) ry += 0.006;
+
+    // Update fragment physics + growth animation
+    for (const f of fragments) {
+      f.offset[0] += f.vel[0];
+      f.offset[1] += f.vel[1];
+      f.offset[2] += f.vel[2];
+      f.vel[0] *= 0.94; f.vel[1] *= 0.94; f.vel[2] *= 0.94;
+      // Animate scale toward target
+      if (f.scale < f.scaleTarget) {
+        f.scale += (f.scaleTarget - f.scale) * 0.06;
+        if (f.scaleTarget - f.scale < 0.01) f.scale = f.scaleTarget;
+      }
+    }
+
+    if (depthTex.width !== canvas.width || depthTex.height !== canvas.height) {
+      depthTex.destroy();
+      depthTex = device.createTexture({ size:[canvas.width,canvas.height], format:'depth24plus', usage:GPUTextureUsage.RENDER_ATTACHMENT });
+    }
+
+    const asp = canvas.width/canvas.height;
+    const proj = persp(Math.PI/4, asp, 0.1, 100);
+    const view = trans(0, 0, -camDist);
+    const modelBase = mul(rotX(rx), rotY(ry));
+
+    // Orbiting sun (full rotation ~31s)
+    const t = performance.now() * 0.001;
+    const sunX = Math.cos(t * 0.2);
+    const sunY = 0.6;
+    const sunZ = Math.sin(t * 0.2);
+
+    // Write all uniforms up front (before command buffer)
+    for (const frag of fragments) {
+      if (!frag.gpu) continue;
+      const fragTrans = trans(frag.offset[0], frag.offset[1], frag.offset[2]);
+      const fragScl = frag.scale < 0.999 ? scl(frag.scale) : null;
+      const fragM = fragScl ? mul(fragTrans, fragScl) : fragTrans;
+      const m = mul(modelBase, fragM);
+      const mvp = mul(mul(proj, view), m);
+
+      const uf = new Float32Array(44);
+      uf.set(mvp, 0);
+      uf.set(m, 16);
+      uf.set(frag.color, 32);
+      uf[36]=sunX; uf[37]=sunY; uf[38]=sunZ; uf[39]=LUSTER.specExp;
+      uf[40]=0; uf[41]=0; uf[42]=camDist; uf[43]=LUSTER.f0;
+      device.queue.writeBuffer(frag.ubo.buf, 0, uf);
+    }
+
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:0.04,g:0.03,b:0.06,a:1},loadOp:'clear',storeOp:'store'}],
+      depthStencilAttachment:{view:depthTex.createView(),depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'},
+    });
+
+    // Pass 1: back faces (crystal interior, seen through transparency)
+    pass.setPipeline(backPipe);
+    for (const frag of fragments) {
+      if (!frag.gpu) continue;
+      pass.setBindGroup(0, frag.ubo.bg);
+      pass.setVertexBuffer(0, frag.gpu.vb);
+      pass.setIndexBuffer(frag.gpu.ib, 'uint16');
+      pass.drawIndexed(frag.gpu.count);
+    }
+    // Pass 2: front faces (outer surface with Fresnel + specular)
+    pass.setPipeline(frontPipe);
+    for (const frag of fragments) {
+      if (!frag.gpu) continue;
+      pass.setBindGroup(0, frag.ubo.bg);
+      pass.setVertexBuffer(0, frag.gpu.vb);
+      pass.setIndexBuffer(frag.gpu.ib, 'uint16');
+      pass.drawIndexed(frag.gpu.count);
+    }
+
+    pass.end();
+    device.queue.submit([enc.finish()]);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+main().catch(e => {
+  console.error(e);
+  document.getElementById('fallback').style.display = 'flex';
+  document.getElementById('fallback').innerHTML += '<div style="font-size:0.7rem;opacity:0.4;margin-top:1rem">' + e.message + '</div>';
+});
+</script>
+</body>
+</html>
