@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createSession, refreshSession, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
+import { auth, publishRecipe, listRecipes, fetchRecipe, deleteRecipe } from "./atproto";
 import { calculatorToRecipe, recipeToCalculator, parseAtUri, formatDuration } from "./recipeTransform";
 
 function buildShareUrl(handle, rkey) {
@@ -15,21 +15,7 @@ function shareToBluesky(name, handle, rkey) {
   );
 }
 
-const SESSION_KEY = "bakery-atproto-session";
 const HANDLE_KEY = "bakery-atproto-handle";
-
-function loadSession() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(session) {
-  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  else localStorage.removeItem(SESSION_KEY);
-}
 
 const sectionCard = {
   background: "#fff",
@@ -75,7 +61,6 @@ const inputStyle = {
 
 function LoginPanel({ onLogin }) {
   const [handle, setHandle] = useState(() => localStorage.getItem(HANDLE_KEY) || "");
-  const [appPassword, setAppPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -84,27 +69,20 @@ function LoginPanel({ onLogin }) {
     setLoading(true);
     setError("");
     try {
-      const session = await createSession(handle, appPassword);
       localStorage.setItem(HANDLE_KEY, handle);
-      saveSession(session);
-      onLogin(session);
+      await auth.login(handle);
+      // Page will redirect to Bluesky — onLogin fires after redirect back via init()
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div style={sectionCard}>
-      <h3 style={{ margin: "0 0 8px", color: "#3e2723", fontSize: 16 }}>Sign in with AT Protocol</h3>
+      <h3 style={{ margin: "0 0 8px", color: "#3e2723", fontSize: 16 }}>Sign in with Bluesky</h3>
       <p style={{ color: "#795548", fontSize: 13, margin: "0 0 12px" }}>
-        Use your Bluesky handle and an{" "}
-        <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer"
-          style={{ color: "#8d6e63" }}>
-          app password
-        </a>{" "}
-        to publish recipes to your Personal Data Server.
+        Log in with your Bluesky account to publish recipes to your Personal Data Server.
       </p>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <input
@@ -115,16 +93,8 @@ function LoginPanel({ onLogin }) {
           style={inputStyle}
           required
         />
-        <input
-          type="password"
-          placeholder="App password (xxxx-xxxx-xxxx-xxxx)"
-          value={appPassword}
-          onChange={(e) => setAppPassword(e.target.value)}
-          style={inputStyle}
-          required
-        />
         <button type="submit" disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>
-          {loading ? "Connecting..." : "Sign In"}
+          {loading ? "Redirecting..." : "Sign in with Bluesky"}
         </button>
         {error && (
           <p style={{ color: "#c62828", fontSize: 13, margin: 0 }}>{error}</p>
@@ -165,7 +135,7 @@ function PublishPanel({ session, recipeState, flours, enrichments, starterFlours
     setResult(null);
     try {
       const record = buildRecord();
-      const res = await publishRecipe(session, record);
+      const res = await publishRecipe(record);
       setResult(res);
       const publishedRkey = parseAtUri(res.uri)?.rkey;
       if (onRecipeSourceChange && publishedRkey) {
@@ -429,7 +399,7 @@ function BrowsePanel({ session, onLoadToBuilder }) {
   const handleDelete = async (rkey) => {
     if (!session) return;
     try {
-      await deleteRecipe(session, rkey);
+      await deleteRecipe(rkey);
       setRecipes((prev) => prev.filter((r) => !r.uri.endsWith(`/${rkey}`)));
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
@@ -499,28 +469,19 @@ function BrowsePanel({ session, onLoadToBuilder }) {
 // --- Main ATProto Panel ---
 
 export default function ATProtoPanel({ recipeState, flours, enrichments, starterFlours, nutrition, recipeName, onLoadToBuilder, onRecipeSourceChange }) {
-  const [session, setSession] = useState(loadSession);
+  const [session, setSession] = useState(null); // { did, handle, scope }
   const [view, setView] = useState("publish"); // "publish" | "browse"
 
-  // On mount, silently refresh the access token if we have a stored session
+  // On mount, initialize the OAuth client (picks up session from URL or localStorage)
   useEffect(() => {
-    const stored = loadSession();
-    if (!stored?.refreshJwt) return;
-    refreshSession(stored)
-      .then((refreshed) => {
-        saveSession(refreshed);
-        setSession(refreshed);
-      })
-      .catch(() => {
-        // Refresh token expired — clear and force re-login
-        saveSession(null);
-        setSession(null);
-      });
+    auth.init().then((user) => {
+      if (user) setSession(user);
+    });
+    return auth.onAuthChange((user) => setSession(user));
   }, []);
 
   const handleLogout = () => {
-    saveSession(null);
-    setSession(null);
+    auth.logout();
   };
 
   const handleLoadToBuilder = onLoadToBuilder

@@ -1,10 +1,17 @@
 /**
  * ATProto client for recipe publishing and reading.
- * Uses plain fetch — no SDK dependencies needed.
- * Works from static pages (Cloudflare Pages, etc.)
+ * Auth via shared OAuth worker (auth.mino.mobi).
+ * Read-only operations use plain fetch — no auth needed.
  */
 
+import { AuthClient } from '../../packages/oauth-client/auth.js';
+
 const PUBLIC_API = "https://public.api.bsky.app";
+const RECIPE_COLLECTION = "exchange.recipe.recipe";
+
+// --- Shared auth client (singleton) ---
+
+export const auth = new AuthClient();
 
 // --- Identity resolution ---
 
@@ -24,7 +31,6 @@ export async function resolvePDS(did) {
     if (!res.ok) throw new Error(`Could not resolve DID document: ${did}`);
     doc = await res.json();
   } else if (did.startsWith("did:web:")) {
-    // did:web:example.com → https://example.com/.well-known/did.json
     const host = did.slice("did:web:".length).replaceAll(":", "/");
     const res = await fetch(`https://${host}/.well-known/did.json`);
     if (!res.ok) throw new Error(`Could not resolve DID document: ${did}`);
@@ -37,92 +43,14 @@ export async function resolvePDS(did) {
   return svc.serviceEndpoint;
 }
 
-// --- Authentication (app password) ---
+// --- Recipe CRUD (authenticated via OAuth) ---
 
-export async function createSession(handle, appPassword) {
-  const did = await resolveHandle(handle);
-  const pds = await resolvePDS(did);
-
-  const res = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: handle, password: appPassword }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Authentication failed (${res.status})`);
-  }
-
-  const session = await res.json();
-  return { ...session, pds };
+export async function publishRecipe(record) {
+  return auth.pds.createRecord(RECIPE_COLLECTION, record);
 }
 
-// --- Session refresh ---
-
-export async function refreshSession(session) {
-  const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${session.refreshJwt}` },
-  });
-
-  if (!res.ok) {
-    throw new Error("Session expired — please sign in again");
-  }
-
-  const refreshed = await res.json();
-  return { ...refreshed, pds: session.pds };
-}
-
-// --- Recipe CRUD ---
-
-export async function publishRecipe(session, record) {
-  const res = await fetch(
-    `${session.pds}/xrpc/com.atproto.repo.createRecord`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessJwt}`,
-      },
-      body: JSON.stringify({
-        repo: session.did,
-        collection: "exchange.recipe.recipe",
-        record,
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = [err.error, err.message].filter(Boolean).join(": ");
-    throw new Error(detail || `Publish failed (${res.status})`);
-  }
-
-  return res.json();
-}
-
-export async function deleteRecipe(session, rkey) {
-  const res = await fetch(
-    `${session.pds}/xrpc/com.atproto.repo.deleteRecord`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessJwt}`,
-      },
-      body: JSON.stringify({
-        repo: session.did,
-        collection: "exchange.recipe.recipe",
-        rkey,
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Delete failed (${res.status})`);
-  }
+export async function deleteRecipe(rkey) {
+  return auth.pds.deleteRecord(RECIPE_COLLECTION, rkey);
 }
 
 // --- Reading recipes (no auth needed) ---
