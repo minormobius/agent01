@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>GLOBE — Megaprojects</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050508;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#popup{position:fixed;padding:8px 14px;background:rgba(10,12,20,.92);border:1px solid #445;
+  border-radius:6px;color:#eee;font:13px monospace;pointer-events:none;z-index:3;display:none;
+  max-width:260px;white-space:nowrap}
+#popup .ptype{font-size:11px;opacity:.7}
+#hud{position:fixed;bottom:10px;left:10px;color:#668;font:11px monospace;pointer-events:none;z-index:1}
+#noGPU{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:18px monospace;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="popup"><span id="pname"></span><br><span id="ptype" class="ptype"></span></div>
+<div id="hud">GLOBE</div>
+<div id="noGPU">WebGPU not available.<br>Try Chrome 121+ or Safari 18+.</div>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+
+// Type: [name, r, g, b]
+const TYPES = [
+  ['Transport',  1.0,0.55,0.0],
+  ['Energy',     0.27,0.8,0.53],
+  ['Urban',      0.0,0.78,1.0],
+  ['Water',      0.0,0.63,1.0],
+  ['Industrial', 0.55,0.39,1.0],
+  ['Aerospace',  1.0,0.27,0.4],
+  ['Digital',    0.78,0.63,0.0],
+];
+// [name, typeIdx, lat, lon]
+const P = [
+  ['Fehmarn Belt Fixed Link',0,54.55,11.25],['California HSR',0,36.75,-119.77],
+  ['Grand Paris Express',0,48.86,2.35],['Chuo Shinkansen Maglev',0,35.36,138.73],
+  ['HS2',0,52.48,-1.90],['Mumbai–Ahmedabad HSR',0,20.59,72.96],
+  ['Canal Istanbul',0,41.15,28.65],['Tuas Mega Port',0,1.27,103.64],
+  ['Al Maktoum Airport',0,24.90,55.16],['Sichuan–Tibet Railway',0,30.0,97.0],
+  ['CR450 HSR Network',0,31.23,121.47],['Taihu Lake Tunnel',0,31.20,120.20],
+  ['NEOM / The Line',2,27.95,35.60],['King Abdullah Economic City',2,22.39,39.11],
+  ['Silk City',2,29.57,47.80],['Nusantara',2,-1.10,116.85],
+  ['Xiong\'an New Area',2,38.95,116.0],['Forest City',2,1.37,103.63],
+  ['Jeddah Tower',2,21.76,39.05],
+  ['ITER Fusion',1,43.71,5.78],['Hinkley Point C',1,51.21,-3.13],
+  ['Grand Ethiopian Renaissance Dam',1,11.22,35.09],['Barakah Nuclear',1,23.96,52.26],
+  ['Hornsea Wind Farm',1,53.88,1.80],['IceLink Subsea Cable',1,63.5,-19.0],
+  ['Yarlung Tsangpo Hydro',1,29.5,95.0],['Ordos Desert Solar',1,39.6,109.8],
+  ['South–North Water Transfer',3,33.0,112.0],['MOSE Flood Barrier',3,45.33,12.33],
+  ['Diamer-Bhasha Dam',3,35.52,73.70],['Shuangjiangkou Dam',3,31.45,101.80],
+  ['Yangqu AI-Built Dam',3,36.1,100.6],
+  ['TSMC Arizona',4,33.67,-112.04],['Micron Megafab',4,43.08,-76.15],
+  ['Intel Ohio',4,40.10,-82.77],['Tesla Gigafactory Berlin',4,52.39,13.79],
+  ['SpaceX Starbase',5,25.99,-97.16],['Artemis / Gateway',5,28.57,-80.65],
+  ['Meta Louisiana AI',6,32.5,-91.8],['xAI Memphis',6,32.38,-88.70],
+  ['Microsoft / Stargate TX',6,32.4,-97.3],['Meta Richburg SC',6,32.87,-99.35],
+  ['CoreWeave PA',6,41.1,-76.4],['UK AI Datacenters',6,52.0,-1.0],
+  ['Brenner Base Tunnel',0,47.0,11.5],['Lyon–Turin Tunnel',0,45.18,6.67],
+  ['Silvertown Tunnel',0,51.52,-0.07],['Nairobi Expressway',0,-1.29,36.82],
+  ['Morocco–Nigeria Pipeline',1,30.0,-8.0],['Padma Bridge Rail',0,24.07,89.05],
+  ['Singapore MRT Expansion',0,1.37,103.63],['Alibaba AI Infra',6,30.27,120.15],
+];
+const NP = P.length;
+
+// === Lat/Lon to 3D ===
+const DEG = Math.PI / 180;
+function llTo3D(lat, lon, R) {
+  const la = lat * DEG, lo = lon * DEG;
+  return [R*Math.cos(la)*Math.cos(lo), R*Math.sin(la), -R*Math.cos(la)*Math.sin(lo)];
+}
+
+// === Camera ===
+let camAzim = -0.3, camElev = 0.35, camDist = 2.8;
+let autoRotate = true;
+
+function mat4Perspective(fov,aspect,near,far){
+  const f=1/Math.tan(fov/2),nf=1/(near-far);
+  return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,far*nf,-1,0,0,far*near*nf,0]);
+}
+function mat4LookAt(eye,tgt,up){
+  let zx=eye[0]-tgt[0],zy=eye[1]-tgt[1],zz=eye[2]-tgt[2];
+  let l=Math.sqrt(zx*zx+zy*zy+zz*zz)||1;zx/=l;zy/=l;zz/=l;
+  let rx=up[1]*zz-up[2]*zy,ry=up[2]*zx-up[0]*zz,rz=up[0]*zy-up[1]*zx;
+  l=Math.sqrt(rx*rx+ry*ry+rz*rz)||1;rx/=l;ry/=l;rz/=l;
+  const ux=zy*rz-zz*ry,uy=zz*rx-zx*rz,uz=zx*ry-zy*rx;
+  return new Float32Array([rx,ux,zx,0,ry,uy,zy,0,rz,uz,zz,0,
+    -(rx*eye[0]+ry*eye[1]+rz*eye[2]),-(ux*eye[0]+uy*eye[1]+uz*eye[2]),
+    -(zx*eye[0]+zy*eye[1]+zz*eye[2]),1]);
+}
+function mat4Mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[i+k*4]*b[k+j*4];o[i+j*4]=s;}return o;}
+
+// === WGSL: Globe (procedural sphere + map texture) ===
+const globeShader = `
+struct Params {
+  viewProj: mat4x4<f32>,
+  camPos: vec3<f32>,
+  time: f32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var mapTex: texture_2d<f32>;
+@group(0) @binding(2) var mapSamp: sampler;
+
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) normal: vec3<f32>,
+  @location(1) wpos: vec3<f32>,
+}
+
+@vertex fn vs(@builtin(vertex_index) vid: u32) -> VSOut {
+  let Nu = 80u; let Nv = 40u;
+  let quadIdx = vid / 6u;
+  let vertIdx = vid % 6u;
+  let qu = quadIdx % Nu;
+  let qv = quadIdx / Nu;
+  let offsets = array<vec2<u32>, 6>(
+    vec2(0u,0u), vec2(1u,0u), vec2(0u,1u),
+    vec2(0u,1u), vec2(1u,0u), vec2(1u,1u)
+  );
+  let o = offsets[vertIdx];
+  let ui = qu + o.x;
+  let vi = qv + o.y;
+  let u = f32(ui) / f32(Nu) * 6.283185;
+  let v = f32(vi) / f32(Nv) * 3.141593;
+
+  let x = sin(v) * cos(u);
+  let y = cos(v);
+  let z = sin(v) * sin(u);
+  let n = vec3(x, y, z);
+
+  var out: VSOut;
+  out.pos = p.viewProj * vec4(n, 1.0);
+  out.normal = n;
+  out.wpos = n;
+  return out;
+}
+
+@fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
+  let n = normalize(in.normal);
+  let viewDir = normalize(p.camPos - in.wpos);
+  let latR = asin(n.y);
+  let lonR = atan2(n.z, n.x);
+
+  let uv = vec2(1.0 - (lonR + 3.14159) / 6.28318, (1.5708 - latR) / 3.14159);
+  let glow = textureSample(mapTex, mapSamp, uv).r;
+
+  // Dark base
+  let base = vec3(0.015, 0.02, 0.035);
+
+  // Border glow: teal halo + white-hot core
+  let borderCol = vec3(0.12, 0.5, 0.7) * glow + vec3(0.7, 0.85, 1.0) * pow(glow, 3.0);
+
+  // Subtle lighting for 3D shape
+  let sun = normalize(vec3(2.0, 1.5, 3.0));
+  let diff = max(dot(n, sun), 0.0) * 0.06;
+
+  // Atmosphere rim
+  let VdotN = max(dot(viewDir, n), 0.0);
+  let atmo = vec3(0.06, 0.12, 0.3) * pow(1.0 - VdotN, 4.0) * 0.4;
+
+  // Geographic parallels: equator, tropics (23.44°), arctic circles (66.56°)
+  let eq = 1.0 - smoothstep(0.0, 0.012, abs(latR));
+  let tropic = 1.0 - smoothstep(0.0, 0.010, abs(abs(latR) - 0.4091));
+  let arctic = 1.0 - smoothstep(0.0, 0.010, abs(abs(latR) - 1.1615));
+  let latLine = eq * 0.018 + max(tropic, arctic) * 0.012;
+
+  // Longitude lines every 30°
+  let lonLine = (1.0 - smoothstep(0.0, 0.012, abs(sin(lonR * 6.0)))) * step(abs(n.y), 0.95) * 0.012;
+
+  let grid = max(latLine, lonLine);
+
+  let col = base * (1.0 + diff) + borderCol + grid + atmo;
+  return vec4(col, 1.0);
+}
+`;
+
+const GLOBE_VERTS = 80 * 40 * 6;
+
+// === WGSL: Markers (instanced billboarded quads) ===
+const markerShader = `
+struct Params {
+  viewProj: mat4x4<f32>,
+  camPos: vec3<f32>,
+  time: f32,
+}
+struct Marker {
+  pos: vec3<f32>,
+  size: f32,
+  color: vec3<f32>,
+  _pad: f32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> markers: array<Marker>;
+
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+  @location(1) color: vec3<f32>,
+}
+
+@vertex fn vs(@builtin(vertex_index) vid: u32, @builtin(instance_index) iid: u32) -> VSOut {
+  let qp = array<vec2<f32>, 4>(vec2(-1,-1), vec2(1,-1), vec2(-1,1), vec2(1,1));
+  let ti = array<u32, 6>(0u, 1u, 2u, 2u, 1u, 3u);
+  let quv = qp[ti[vid]];
+
+  let m = markers[iid];
+  let toC = normalize(p.camPos - m.pos);
+  var right = normalize(cross(vec3(0.0, 1.0, 0.0), toC));
+  let up = cross(toC, right);
+
+  // Pulse size
+  let pulse = 1.0 + sin(p.time * 2.0 + f32(iid) * 0.7) * 0.15;
+  let sz = m.size * pulse;
+  let worldPos = m.pos + right * quv.x * sz + up * quv.y * sz;
+
+  var out: VSOut;
+  out.pos = p.viewProj * vec4(worldPos, 1.0);
+  out.uv = quv;
+  out.color = m.color;
+  return out;
+}
+
+@fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
+  let d = length(in.uv);
+  if (d > 1.0) { discard; }
+  // Glowing circle: bright core, soft edge
+  let core = 1.0 - smoothstep(0.0, 0.5, d);
+  let glow = 1.0 - smoothstep(0.3, 1.0, d);
+  let alpha = glow;
+  let col = in.color * (core * 0.7 + 0.3);
+  return vec4(col * alpha + in.color * (1.0 - core) * glow * 0.4, alpha);
+}
+`;
+
+// === TopoJSON decoder + map renderer ===
+function decodeArcs(topo) {
+  const {scale:[sx,sy], translate:[tx,ty]} = topo.transform;
+  return topo.arcs.map(arc => {
+    let x=0,y=0;
+    return arc.map(([dx,dy]) => { x+=dx; y+=dy; return [x*sx+tx, y*sy+ty]; });
+  });
+}
+function ringCoords(arcs, indices) {
+  let coords = [];
+  for (const i of indices) {
+    const a = i >= 0 ? arcs[i] : arcs[~i].slice().reverse();
+    coords.push(...(coords.length ? a.slice(1) : a));
+  }
+  return coords;
+}
+function drawPolys(ctx, arcs, geom, W, H) {
+  const px = lon => (lon+180)/360*W;
+  const py = lat => (90-lat)/180*H;
+  const rings = geom.type === 'Polygon' ? [geom.arcs] : geom.type === 'MultiPolygon' ? geom.arcs : [];
+  for (const poly of rings) {
+    ctx.beginPath();
+    for (const ring of poly) {
+      const c = ringCoords(arcs, ring);
+      ctx.moveTo(px(c[0][0]), py(c[0][1]));
+      for (let i=1;i<c.length;i++) ctx.lineTo(px(c[i][0]), py(c[i][1]));
+      ctx.closePath();
+    }
+    ctx.fill();
+  }
+}
+async function buildMapTexture() {
+  const W=1024, H=512;
+  const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c = cv.getContext('2d');
+  c.fillStyle='#000'; c.fillRect(0,0,W,H);
+  try {
+    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    const topo = await resp.json();
+    const arcs = decodeArcs(topo);
+    const px=lon=>(lon+180)/360*W, py=lat=>(90-lat)/180*H;
+    // Stroke all coastlines + country borders
+    function strokeAll(style, width) {
+      c.strokeStyle=style; c.lineWidth=width;
+      const land=topo.objects.land.geometries[0];
+      const lA=land.type==='MultiPolygon'?land.arcs:land.type==='Polygon'?[land.arcs]:[];
+      for (const poly of lA) { for (const ring of poly) {
+        const cr=ringCoords(arcs,ring); c.beginPath();
+        c.moveTo(px(cr[0][0]),py(cr[0][1]));
+        for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]),py(cr[i][1]));
+        c.closePath(); c.stroke();
+      }}
+      for (const geo of topo.objects.countries.geometries) {
+        const rings=geo.type==='Polygon'?[geo.arcs]:geo.type==='MultiPolygon'?geo.arcs:[];
+        for (const poly of rings) {
+          const cr=ringCoords(arcs,poly[0]); c.beginPath();
+          c.moveTo(px(cr[0][0]),py(cr[0][1]));
+          for (let i=1;i<cr.length;i++) c.lineTo(px(cr[i][0]),py(cr[i][1]));
+          c.closePath(); c.stroke();
+        }
+      }
+    }
+    // Multi-pass glow: wide dim halo → narrow bright core
+    strokeAll('rgba(100,210,255,0.06)', 7);
+    strokeAll('rgba(100,210,255,0.12)', 4);
+    strokeAll('rgba(140,225,255,0.25)', 2.2);
+    strokeAll('rgba(200,240,255,0.55)', 1.1);
+    strokeAll('rgba(255,255,255,0.85)', 0.5);
+  } catch(e) { console.warn('Map fetch failed:', e); }
+  return cv;
+}
+
+// === WebGPU Init ===
+async function init() {
+  if (!navigator.gpu) { document.getElementById('noGPU').style.display='flex'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { document.getElementById('noGPU').style.display='flex'; return; }
+  const device = await adapter.requestDevice();
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  let w, h;
+  function resize() {
+    const dpr = Math.min(devicePixelRatio, 2);
+    w = canvas.clientWidth * dpr | 0;
+    h = canvas.clientHeight * dpr | 0;
+    canvas.width = w; canvas.height = h;
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // Shared params buffer (80 bytes = 20 floats: mat4 + vec3 + f32)
+  const paramBuf = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+  // Marker storage buffer
+  const markerBuf = device.createBuffer({ size: NP * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const markerData = new Float32Array(NP * 8);
+  const markerPos3D = []; // for raycasting
+  for (let i = 0; i < NP; i++) {
+    const [name, ti, lat, lon] = P[i];
+    const [x, y, z] = llTo3D(lat, lon, 1.025); // slightly above surface
+    markerPos3D.push([x, y, z]);
+    const tc = TYPES[ti];
+    markerData[i*8]   = x; markerData[i*8+1] = y; markerData[i*8+2] = z;
+    markerData[i*8+3] = 0.028;
+    markerData[i*8+4] = tc[1]; markerData[i*8+5] = tc[2]; markerData[i*8+6] = tc[3];
+    markerData[i*8+7] = 0;
+  }
+  device.queue.writeBuffer(markerBuf, 0, markerData);
+
+  // Map texture from TopoJSON
+  const mapCanvas = await buildMapTexture();
+  const mapTex = device.createTexture({
+    size: [mapCanvas.width, mapCanvas.height], format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: mapCanvas }, { texture: mapTex }, [mapCanvas.width, mapCanvas.height]
+  );
+  const mapSampler = device.createSampler({
+    magFilter: 'linear', minFilter: 'linear',
+    addressModeU: 'repeat', addressModeV: 'clamp-to-edge',
+  });
+
+  // Depth texture
+  let depthTex = device.createTexture({
+    size: [w, h], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT
+  });
+
+  // Globe pipeline (with map texture)
+  const globeModule = device.createShaderModule({ code: globeShader });
+  const globeBGL = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+    ]
+  });
+  const globeBG = device.createBindGroup({ layout: globeBGL, entries: [
+    { binding: 0, resource: { buffer: paramBuf } },
+    { binding: 1, resource: mapTex.createView() },
+    { binding: 2, resource: mapSampler },
+  ] });
+  const globePipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [globeBGL] }),
+    vertex: { module: globeModule, entryPoint: 'vs' },
+    fragment: { module: globeModule, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+
+  // Marker pipeline
+  const markerModule = device.createShaderModule({ code: markerShader });
+  const markerBGL = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+    ]
+  });
+  const markerBG = device.createBindGroup({
+    layout: markerBGL,
+    entries: [
+      { binding: 0, resource: { buffer: paramBuf } },
+      { binding: 1, resource: { buffer: markerBuf } },
+    ]
+  });
+  const markerPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [markerBGL] }),
+    vertex: { module: markerModule, entryPoint: 'vs' },
+    fragment: { module: markerModule, entryPoint: 'fs',
+      targets: [{ format, blend: {
+        color: { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' },
+        alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+      }}]
+    },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'less' },
+  });
+
+  // === Raycasting for tap ===
+  let selectedIdx = -1;
+  function hitMarker(sx, sy) {
+    const aspect = w / h;
+    const fov = Math.PI * 0.4;
+    const ndcX = (sx / canvas.clientWidth) * 2 - 1;
+    const ndcY = 1 - (sy / canvas.clientHeight) * 2;
+    const ce=Math.cos(camElev),se=Math.sin(camElev),ca=Math.cos(camAzim),sa=Math.sin(camAzim);
+    const eye = [camDist*ce*sa, camDist*se, camDist*ce*ca];
+    const fwd = [-ce*sa,-se,-ce*ca];
+    const fl=Math.sqrt(fwd[0]**2+fwd[1]**2+fwd[2]**2)||1;
+    fwd[0]/=fl;fwd[1]/=fl;fwd[2]/=fl;
+    const right=[fwd[2],0,-fwd[0]];
+    const rl=Math.sqrt(right[0]**2+right[2]**2)||1;
+    right[0]/=rl;right[2]/=rl;
+    const up=[fwd[1]*right[2]-fwd[2]*right[1],fwd[2]*right[0]-fwd[0]*right[2],fwd[0]*right[1]-fwd[1]*right[0]];
+    const tanH=Math.tan(fov/2), tanW=tanH*aspect;
+    const dir=[
+      fwd[0]+right[0]*ndcX*tanW+up[0]*ndcY*tanH,
+      fwd[1]+right[1]*ndcX*tanW+up[1]*ndcY*tanH,
+      fwd[2]+right[2]*ndcX*tanW+up[2]*ndcY*tanH,
+    ];
+    const dl=Math.sqrt(dir[0]**2+dir[1]**2+dir[2]**2);
+    dir[0]/=dl;dir[1]/=dl;dir[2]/=dl;
+
+    let bestIdx=-1, bestDist=Infinity;
+    for (let i=0;i<NP;i++) {
+      const [mx,my,mz]=markerPos3D[i];
+      const ex=mx-eye[0],ey=my-eye[1],ez=mz-eye[2];
+      const t=ex*dir[0]+ey*dir[1]+ez*dir[2];
+      if (t<0) continue;
+      const px=eye[0]+t*dir[0]-mx,py=eye[1]+t*dir[1]-my,pz=eye[2]+t*dir[2]-mz;
+      const d2=px*px+py*py+pz*pz;
+      if (d2<0.005 && t<bestDist) { bestDist=t; bestIdx=i; }
+    }
+    return bestIdx;
+  }
+
+  // === Input ===
+  let dragging=false, dragStart=null, tapped=false, tapX=0, tapY=0;
+
+  canvas.addEventListener('pointerdown', e => {
+    dragging=true;
+    dragStart={x:e.clientX,y:e.clientY,az:camAzim,el:camElev,moved:false};
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging||!dragStart) return;
+    const dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;
+    if (Math.abs(dx)>3||Math.abs(dy)>3) dragStart.moved=true;
+    camAzim=dragStart.az-dx*0.006;
+    camElev=Math.max(-1.3,Math.min(1.3,dragStart.el+dy*0.006));
+    autoRotate=false;
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (dragStart&&!dragStart.moved) { tapped=true; tapX=e.clientX; tapY=e.clientY; }
+    dragging=false; dragStart=null;
+  });
+  canvas.addEventListener('pointercancel', () => { dragging=false; dragStart=null; });
+  canvas.addEventListener('wheel', e => {
+    camDist=Math.max(1.5,Math.min(8,camDist*(e.deltaY>0?1.06:0.94)));
+    e.preventDefault();
+  }, {passive:false});
+
+  // Pinch zoom
+  let pinchD0=0;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length===2) {
+      const dx=e.touches[0].clientX-e.touches[1].clientX;
+      const dy=e.touches[0].clientY-e.touches[1].clientY;
+      pinchD0=Math.sqrt(dx*dx+dy*dy);
+    }
+  },{passive:true});
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length===2&&pinchD0>0) {
+      const dx=e.touches[0].clientX-e.touches[1].clientX;
+      const dy=e.touches[0].clientY-e.touches[1].clientY;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      camDist=Math.max(1.5,Math.min(8,camDist*(pinchD0/d)));
+      pinchD0=d;
+    }
+  },{passive:true});
+
+  // Popup
+  const popup=document.getElementById('popup');
+  const pname=document.getElementById('pname');
+  const ptype=document.getElementById('ptype');
+  function showPopup(idx, sx, sy) {
+    if (idx<0) { popup.style.display='none'; selectedIdx=-1; return; }
+    selectedIdx=idx;
+    const [name,ti]=P[idx];
+    pname.textContent=name;
+    ptype.textContent=TYPES[ti][0];
+    ptype.style.color=`rgb(${TYPES[ti][1]*255|0},${TYPES[ti][2]*255|0},${TYPES[ti][3]*255|0})`;
+    popup.style.display='block';
+    popup.style.left=Math.min(sx+12,window.innerWidth-270)+'px';
+    popup.style.top=(sy-40)+'px';
+  }
+
+  // === Render loop ===
+  function frame(ts) {
+    requestAnimationFrame(frame);
+
+    if (autoRotate) camAzim += 0.002;
+
+    // Handle tap
+    if (tapped) {
+      const idx = hitMarker(tapX, tapY);
+      showPopup(idx, tapX, tapY);
+      tapped = false;
+    }
+
+    // Camera
+    const ce=Math.cos(camElev),se=Math.sin(camElev),ca=Math.cos(camAzim),sa=Math.sin(camAzim);
+    const eye = [camDist*ce*sa, camDist*se, camDist*ce*ca];
+    const proj = mat4Perspective(Math.PI*0.4, w/h, 0.1, 50);
+    const view = mat4LookAt(eye, [0,0,0], [0,1,0]);
+    const vp = mat4Mul(proj, view);
+
+    // Resize depth if needed
+    if (depthTex.width!==w||depthTex.height!==h) {
+      depthTex.destroy();
+      depthTex=device.createTexture({size:[w,h],format:'depth24plus',usage:GPUTextureUsage.RENDER_ATTACHMENT});
+    }
+
+    // Upload params
+    const pb = new ArrayBuffer(256);
+    const f = new Float32Array(pb);
+    for (let i=0;i<16;i++) f[i]=vp[i];
+    f[16]=eye[0]; f[17]=eye[1]; f[18]=eye[2];
+    f[19]=ts*0.001;
+    device.queue.writeBuffer(paramBuf, 0, pb);
+
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        loadOp:'clear', storeOp:'store',
+        clearValue:{r:0.02,g:0.02,b:0.04,a:1},
+      }],
+      depthStencilAttachment: {
+        view: depthTex.createView(),
+        depthLoadOp:'clear', depthStoreOp:'store', depthClearValue:1.0,
+      },
+    });
+
+    // Globe
+    pass.setPipeline(globePipeline);
+    pass.setBindGroup(0, globeBG);
+    pass.draw(GLOBE_VERTS);
+
+    // Markers
+    pass.setPipeline(markerPipeline);
+    pass.setBindGroup(0, markerBG);
+    pass.draw(6, NP);
+
+    pass.end();
+    device.queue.submit([enc.finish()]);
+
+    // HUD
+    document.getElementById('hud').textContent = `GLOBE · ${NP} megaprojects`;
+  }
+
+  requestAnimationFrame(frame);
+}
+
+init();
+</script>
+</body>
+</html>

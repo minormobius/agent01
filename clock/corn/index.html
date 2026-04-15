@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>CORN — Pop the Torus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a0e05;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;top:10px;left:10px;color:#fc0;font:14px monospace;pointer-events:none;z-index:1;
+  text-shadow:0 0 6px #f80}
+#msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;font:13px monospace;
+  pointer-events:none;z-index:1;opacity:.6}
+#noGPU{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#f88;font:18px monospace;text-align:center;padding:20px;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">CORN</div>
+<div id="msg">tap the corn</div>
+<div id="noGPU">WebGPU not available.<br>Try Chrome 121+ or Safari 18+.</div>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+
+// === Torus params ===
+const R = 2.0, r = 0.8;       // major, minor radius
+const NU = 48, NV = 24;       // kernel grid
+const TOTAL = NU * NV;
+const POP_SPEED = 0.15;       // seconds per kernel pop animation
+const SPREAD_DELAY = 0.06;    // seconds before spreading to neighbor
+const SPREAD_PROB = 0.92;     // probability of spreading
+
+// === Kernel state (JS side) ===
+// state: 0=unpopped, >0 && <1 = popping (progress), 1=popped
+const kernelState = new Float32Array(TOTAL * 4); // [state, popTime, randSeed, pad] per kernel
+for (let i = 0; i < TOTAL; i++) {
+  kernelState[i * 4 + 2] = Math.random(); // randSeed for visual variation
+}
+let poppedCount = 0;
+let gameTime = 0;
+
+// === Camera ===
+let camAzim = 0, camElev = 0.4, camDist = 6.0;
+let autoRotate = true;
+
+// === Math helpers ===
+function mat4Perspective(fov, aspect, near, far) {
+  const f = 1.0 / Math.tan(fov / 2);
+  const nf = 1.0 / (near - far);
+  // WebGPU clip Z range [0,1] (not OpenGL's [-1,1])
+  return new Float32Array([
+    f/aspect,0,0,0, 0,f,0,0, 0,0,far*nf,-1, 0,0,far*near*nf,0
+  ]);
+}
+function mat4LookAt(eye, target, up) {
+  let zx=eye[0]-target[0], zy=eye[1]-target[1], zz=eye[2]-target[2];
+  let l=Math.sqrt(zx*zx+zy*zy+zz*zz)||1;
+  zx/=l; zy/=l; zz/=l;
+  let rx=up[1]*zz-up[2]*zy, ry=up[2]*zx-up[0]*zz, rz=up[0]*zy-up[1]*zx;
+  l=Math.sqrt(rx*rx+ry*ry+rz*rz)||1;
+  rx/=l; ry/=l; rz/=l;
+  const ux=zy*rz-zz*ry, uy=zz*rx-zx*rz, uz=zx*ry-zy*rx;
+  return new Float32Array([
+    rx,ux,zx,0, ry,uy,zy,0, rz,uz,zz,0,
+    -(rx*eye[0]+ry*eye[1]+rz*eye[2]),
+    -(ux*eye[0]+uy*eye[1]+uz*eye[2]),
+    -(zx*eye[0]+zy*eye[1]+zz*eye[2]),1
+  ]);
+}
+function mat4Mul(a, b) {
+  const o = new Float32Array(16);
+  for (let i=0;i<4;i++) for (let j=0;j<4;j++) {
+    let s=0; for (let k=0;k<4;k++) s+=a[i+k*4]*b[k+j*4]; o[i+j*4]=s;
+  }
+  return o;
+}
+
+// === WGSL Shaders ===
+const shaderCode = `
+struct Params {
+  viewProj: mat4x4<f32>,
+  camPos: vec3<f32>,
+  time: f32,
+  torusR: f32,
+  torusR2: f32,
+  Nu: u32,
+  Nv: u32,
+}
+struct Kernel {
+  state: f32,
+  popTime: f32,
+  seed: f32,
+  pad: f32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> kernels: array<Kernel>;
+
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+  @location(1) state: f32,
+  @location(2) normal: vec3<f32>,
+  @location(3) seed: f32,
+}
+
+@vertex fn vs(@builtin(vertex_index) vid: u32, @builtin(instance_index) iid: u32) -> VSOut {
+  let qp = array<vec2<f32>, 4>(vec2(-1.0,-1.0), vec2(1.0,-1.0), vec2(-1.0,1.0), vec2(1.0,1.0));
+  let ti = array<u32, 6>(0u, 1u, 2u, 2u, 1u, 3u);
+  let qi = ti[vid];
+  let quv = qp[qi];
+
+  let kernel = kernels[iid];
+  let ui = iid / p.Nv;
+  let vi = iid % p.Nv;
+  let u = f32(ui) / f32(p.Nu) * 6.283185;
+  let v = f32(vi) / f32(p.Nv) * 6.283185;
+
+  let cr = p.torusR + p.torusR2 * cos(v);
+  let cx = cr * cos(u);
+  let cy = p.torusR2 * sin(v);
+  let cz = cr * sin(u);
+  let center = vec3(cx, cy, cz);
+
+  let nx = cos(v) * cos(u);
+  let ny = sin(v);
+  let nz = cos(v) * sin(u);
+  let normal = normalize(vec3(nx, ny, nz));
+
+  // Billboard toward camera
+  let toC = normalize(p.camPos - center);
+  var right = normalize(cross(vec3(0.0, 1.0, 0.0), toC));
+  let upV = cross(toC, right);
+
+  // Size: unpopped=small kernel, popped=big fluffy
+  let baseSize = 0.055 * p.torusR2;
+  let popFrac = clamp(kernel.state, 0.0, 1.0);
+  let popScale = 1.0 + popFrac * 2.5;
+  let sz = baseSize * popScale;
+
+  // Slight wobble during pop
+  let wobble = sin(kernel.state * 12.0 + kernel.seed * 6.28) * 0.2 * (1.0 - popFrac);
+  let offset = normal * sz * 0.3 + right * (quv.x + wobble) * sz + upV * quv.y * sz;
+  let worldPos = center + offset;
+
+  var out: VSOut;
+  out.pos = p.viewProj * vec4(worldPos, 1.0);
+  out.uv = quv * 0.5 + 0.5;
+  out.state = popFrac;
+  out.normal = normal;
+  out.seed = kernel.seed;
+  return out;
+}
+
+@fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
+  let cx = in.uv.x - 0.5;
+  let cy = in.uv.y - 0.5;
+  let light = max(dot(in.normal, normalize(vec3(1.0, 2.0, 1.0))), 0.15) + 0.15;
+
+  if (in.state < 0.01) {
+    // Unpopped: elongated kernel shape
+    let dx = cx * 1.8;
+    let dy = cy;
+    let d2 = dx*dx + dy*dy;
+    if (d2 > 0.18) { discard; }
+    let shade = 1.0 - d2 * 2.5;
+    let gold = vec3(0.95, 0.75, 0.12) * shade;
+    return vec4(gold * light, 1.0);
+  }
+
+  // Popping / popped
+  let angle = atan2(cy, cx);
+  let bump = 0.42 + in.seed * 0.04 + 0.05 * sin(angle * (5.0 + in.seed * 3.0));
+  let d = length(vec2(cx, cy));
+  if (d > bump) { discard; }
+
+  let t = in.state;
+  let white = vec3(1.0, 0.98, 0.92);
+  let gold = vec3(0.95, 0.75, 0.12);
+  let col = mix(gold, white, smoothstep(0.0, 0.6, t));
+  // Inner shadow for depth
+  let shadow = 1.0 - smoothstep(0.15, bump, d) * 0.25;
+  // Crease lines
+  let crease = abs(sin(angle * 3.0 + in.seed * 10.0));
+  let cFactor = smoothstep(0.92, 1.0, crease) * 0.1 * t;
+  return vec4((col * shadow - cFactor) * light, 1.0);
+}
+`;
+
+// Background torus mesh shader (subtle golden surface)
+const torusShader = `
+struct Params {
+  viewProj: mat4x4<f32>,
+  camPos: vec3<f32>,
+  time: f32,
+  torusR: f32,
+  torusR2: f32,
+  Nu: u32,
+  Nv: u32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) normal: vec3<f32>,
+  @location(1) wpos: vec3<f32>,
+}
+
+@vertex fn vs(@builtin(vertex_index) vid: u32) -> VSOut {
+  let Nu = 80u; let Nv = 40u;
+  let quadsPerRow = Nu;
+  let quadIdx = vid / 6u;
+  let vertIdx = vid % 6u;
+  let qu = quadIdx % quadsPerRow;
+  let qv = quadIdx / quadsPerRow;
+  let offsets = array<vec2<u32>, 6>(
+    vec2(0u,0u), vec2(1u,0u), vec2(0u,1u),
+    vec2(0u,1u), vec2(1u,0u), vec2(1u,1u)
+  );
+  let o = offsets[vertIdx];
+  let ui = (qu + o.x) % Nu;
+  let vi = (qv + o.y) % Nv;
+  let u = f32(ui) / f32(Nu) * 6.283185;
+  let v = f32(vi) / f32(Nv) * 6.283185;
+
+  let cr = p.torusR + (p.torusR2 - 0.02) * cos(v);
+  let x = cr * cos(u);
+  let y = (p.torusR2 - 0.02) * sin(v);
+  let z = cr * sin(u);
+
+  let nx = cos(v)*cos(u);
+  let ny = sin(v);
+  let nz = cos(v)*sin(u);
+
+  var out: VSOut;
+  out.pos = p.viewProj * vec4(x, y, z, 1.0);
+  out.normal = normalize(vec3(nx, ny, nz));
+  out.wpos = vec3(x, y, z);
+  return out;
+}
+
+@fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
+  let light = max(dot(in.normal, normalize(vec3(1.0, 2.0, 1.0))), 0.1) + 0.05;
+  let col = vec3(0.35, 0.22, 0.08) * light;
+  return vec4(col, 1.0);
+}
+`;
+
+const TORUS_MESH_VERTS = 80 * 40 * 6; // quads * 6 verts each
+
+// === WebGPU Init ===
+async function init() {
+  if (!navigator.gpu) {
+    document.getElementById('noGPU').style.display = 'flex';
+    return;
+  }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { document.getElementById('noGPU').style.display = 'flex'; return; }
+  const device = await adapter.requestDevice();
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  // Resize
+  let w, h;
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    w = Math.floor(canvas.clientWidth * dpr);
+    h = Math.floor(canvas.clientHeight * dpr);
+    canvas.width = w; canvas.height = h;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Buffers
+  const paramBuf = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const kernelBuf = device.createBuffer({ size: TOTAL * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(kernelBuf, 0, kernelState);
+
+  // Depth texture
+  let depthTex = device.createTexture({
+    size: [w, h], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT
+  });
+
+  // Kernel pipeline (instanced quads)
+  const kernelModule = device.createShaderModule({ code: shaderCode });
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+    ]
+  });
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: paramBuf } },
+      { binding: 1, resource: { buffer: kernelBuf } },
+    ]
+  });
+  const kernelPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+    vertex: { module: kernelModule, entryPoint: 'vs' },
+    fragment: { module: kernelModule, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+
+  // Torus background pipeline
+  const torusModule = device.createShaderModule({ code: torusShader });
+  const torusBGL = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+    ]
+  });
+  const torusBG = device.createBindGroup({
+    layout: torusBGL,
+    entries: [{ binding: 0, resource: { buffer: paramBuf } }],
+  });
+  const torusPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [torusBGL] }),
+    vertex: { module: torusModule, entryPoint: 'vs' },
+    fragment: { module: torusModule, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+
+  // === Chain reaction update ===
+  function updateChainReaction(dt) {
+    gameTime += dt;
+    let changed = false;
+    for (let i = 0; i < TOTAL; i++) {
+      const st = kernelState[i * 4];
+      if (st > 0 && st < 1) {
+        // Advance pop animation
+        kernelState[i * 4] = Math.min(1.0, st + dt / POP_SPEED);
+        changed = true;
+        // Try to spread to neighbors
+        if (st > SPREAD_DELAY / POP_SPEED) {
+          const ui = Math.floor(i / NV), vi = i % NV;
+          const neighbors = [
+            ((ui + 1) % NU) * NV + vi,
+            ((ui - 1 + NU) % NU) * NV + vi,
+            ui * NV + (vi + 1) % NV,
+            ui * NV + (vi - 1 + NV) % NV,
+          ];
+          for (const ni of neighbors) {
+            if (kernelState[ni * 4] === 0 && Math.random() < SPREAD_PROB * dt * 15) {
+              kernelState[ni * 4] = 0.001; // start popping
+              poppedCount++;
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+    if (changed) device.queue.writeBuffer(kernelBuf, 0, kernelState);
+    return changed;
+  }
+
+  // === Pop a kernel by index ===
+  function popKernel(idx) {
+    if (idx >= 0 && idx < TOTAL && kernelState[idx * 4] === 0) {
+      kernelState[idx * 4] = 0.001;
+      poppedCount++;
+      device.queue.writeBuffer(kernelBuf, 0, kernelState);
+    }
+  }
+
+  // === Reset ===
+  function resetCorn() {
+    for (let i = 0; i < TOTAL; i++) {
+      kernelState[i * 4] = 0;
+      kernelState[i * 4 + 1] = 0;
+    }
+    poppedCount = 0;
+    device.queue.writeBuffer(kernelBuf, 0, kernelState);
+  }
+
+  // === Raycast: find kernel under screen point ===
+  function hitKernel(sx, sy) {
+    // Build ray from camera through screen point
+    const aspect = w / h;
+    const fov = Math.PI * 0.45;
+    const ndcX = (sx / canvas.clientWidth) * 2 - 1;
+    const ndcY = 1 - (sy / canvas.clientHeight) * 2;
+
+    const ce = Math.cos(camElev), se = Math.sin(camElev);
+    const ca = Math.cos(camAzim), sa = Math.sin(camAzim);
+    const eye = [camDist*ce*ca, camDist*se, camDist*ce*sa];
+    const fwd = [-ce*ca, -se, -ce*sa];
+    const fl = Math.sqrt(fwd[0]**2+fwd[1]**2+fwd[2]**2);
+    fwd[0]/=fl; fwd[1]/=fl; fwd[2]/=fl;
+    const right = [fwd[2], 0, -fwd[0]];
+    const rl = Math.sqrt(right[0]**2+right[2]**2)||1;
+    right[0]/=rl; right[2]/=rl;
+    const up = [
+      fwd[1]*right[2]-fwd[2]*right[1],
+      fwd[2]*right[0]-fwd[0]*right[2],
+      fwd[0]*right[1]-fwd[1]*right[0]
+    ];
+    const tanH = Math.tan(fov/2);
+    const tanW = tanH * aspect;
+    const dir = [
+      fwd[0] + right[0]*ndcX*tanW + up[0]*ndcY*tanH,
+      fwd[1] + right[1]*ndcX*tanW + up[1]*ndcY*tanH,
+      fwd[2] + right[2]*ndcX*tanW + up[2]*ndcY*tanH,
+    ];
+    const dl = Math.sqrt(dir[0]**2+dir[1]**2+dir[2]**2);
+    dir[0]/=dl; dir[1]/=dl; dir[2]/=dl;
+
+    // Check each kernel
+    let bestIdx = -1, bestDist = Infinity;
+    for (let i = 0; i < TOTAL; i++) {
+      if (kernelState[i * 4] > 0) continue; // already popping/popped
+      const ui = Math.floor(i / NV), vi = i % NV;
+      const u = ui / NU * Math.PI * 2;
+      const v = vi / NV * Math.PI * 2;
+      const cr = R + r * Math.cos(v);
+      const kx = cr * Math.cos(u), ky = r * Math.sin(v), kz = cr * Math.sin(u);
+      // Point-ray distance
+      const ex = kx-eye[0], ey = ky-eye[1], ez = kz-eye[2];
+      const t = ex*dir[0]+ey*dir[1]+ez*dir[2];
+      if (t < 0) continue;
+      const px=eye[0]+t*dir[0]-kx, py=eye[1]+t*dir[1]-ky, pz=eye[2]+t*dir[2]-kz;
+      const d2 = px*px+py*py+pz*pz;
+      const hitR = 0.08 * r; // hit radius
+      if (d2 < hitR*hitR && t < bestDist) { bestDist = t; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
+  // === Input: touch + mouse ===
+  let touches = {}, dragStart = null;
+  let tapped = false, tapX = 0, tapY = 0;
+
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    autoRotate = false;
+    const ct = e.changedTouches;
+    for (let i = 0; i < ct.length; i++) touches[ct[i].identifier] = {x:ct[i].clientX, y:ct[i].clientY};
+    const ids = Object.keys(touches);
+    if (ids.length === 1) {
+      dragStart = {x:touches[ids[0]].x, y:touches[ids[0]].y, az:camAzim, el:camElev, moved:false};
+    } else if (ids.length >= 2) {
+      const a=touches[ids[0]], b=touches[ids[1]];
+      dragStart = {pinch:true, dist:Math.hypot(a.x-b.x,a.y-b.y), camDist};
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    const ct = e.changedTouches;
+    for (let i = 0; i < ct.length; i++) touches[ct[i].identifier] = {x:ct[i].clientX, y:ct[i].clientY};
+    const ids = Object.keys(touches);
+    if (dragStart && !dragStart.pinch && ids.length === 1) {
+      const t = touches[ids[0]];
+      const dx = t.x - dragStart.x, dy = t.y - dragStart.y;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragStart.moved = true;
+      camAzim = dragStart.az - dx * 0.008;
+      camElev = Math.max(-1.2, Math.min(1.2, dragStart.el + dy * 0.008));
+    } else if (dragStart && dragStart.pinch && ids.length >= 2) {
+      const a=touches[ids[0]], b=touches[ids[1]];
+      const d = Math.hypot(a.x-b.x, a.y-b.y);
+      camDist = Math.max(3, Math.min(15, dragStart.camDist * dragStart.dist / d));
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', function(e) {
+    const ct = e.changedTouches;
+    for (let i = 0; i < ct.length; i++) {
+      // Detect tap (no drag)
+      if (dragStart && !dragStart.pinch && !dragStart.moved) {
+        tapped = true; tapX = ct[i].clientX; tapY = ct[i].clientY;
+      }
+      delete touches[ct[i].identifier];
+    }
+    if (!Object.keys(touches).length) dragStart = null;
+  }, {passive:false});
+
+  // Mouse
+  let mouseDown = false;
+  canvas.addEventListener('mousedown', function(e) {
+    autoRotate = false;
+    mouseDown = true;
+    dragStart = {x:e.clientX, y:e.clientY, az:camAzim, el:camElev, moved:false};
+  });
+  canvas.addEventListener('mousemove', function(e) {
+    if (!mouseDown || !dragStart) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragStart.moved = true;
+    camAzim = dragStart.az - dx * 0.005;
+    camElev = Math.max(-1.2, Math.min(1.2, dragStart.el + dy * 0.005));
+  });
+  window.addEventListener('mouseup', function(e) {
+    if (dragStart && !dragStart.moved) {
+      tapped = true; tapX = e.clientX; tapY = e.clientY;
+    }
+    mouseDown = false; dragStart = null;
+  });
+  canvas.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    camDist = Math.max(3, Math.min(15, camDist * (e.deltaY > 0 ? 1.08 : 0.93)));
+  }, {passive:false});
+
+  // Keyboard
+  window.addEventListener('keydown', function(e) {
+    if (e.code === 'KeyR') resetCorn();
+  });
+
+  // === Render loop ===
+  let lastT = 0;
+  function frame(t) {
+    requestAnimationFrame(frame);
+    const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
+    lastT = t;
+
+    // Auto-rotate
+    if (autoRotate) camAzim += dt * 0.3;
+
+    // Handle tap
+    if (tapped) {
+      const idx = hitKernel(tapX, tapY);
+      if (idx >= 0) popKernel(idx);
+      tapped = false;
+    }
+
+    // Update chain reaction
+    updateChainReaction(dt);
+
+    // HUD
+    const pct = Math.round(poppedCount / TOTAL * 100);
+    document.getElementById('hud').textContent =
+      poppedCount === 0 ? 'CORN' :
+      pct >= 100 ? 'ALL POPPED!' :
+      pct + '% popped (' + poppedCount + '/' + TOTAL + ')';
+    if (pct >= 100) document.getElementById('msg').textContent = 'R to reset';
+    else if (poppedCount > 0) document.getElementById('msg').textContent = '';
+
+    // Camera
+    const ce = Math.cos(camElev), se = Math.sin(camElev);
+    const ca = Math.cos(camAzim), sa = Math.sin(camAzim);
+    const eye = [camDist*ce*ca, camDist*se, camDist*ce*sa];
+    const view = mat4LookAt(eye, [0,0,0], [0,1,0]);
+    const proj = mat4Perspective(Math.PI * 0.45, w/h, 0.1, 50);
+    const vp = mat4Mul(proj, view);
+
+    // Recreate depth tex if size changed
+    if (depthTex.width !== w || depthTex.height !== h) {
+      depthTex.destroy();
+      depthTex = device.createTexture({
+        size: [w, h], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT
+      });
+    }
+
+    // Upload params — must match WGSL struct alignment
+    // mat4x4 = 64 bytes at offset 0
+    // vec3+pad = 16 bytes at offset 64 (camPos.xyz + time as 4th)
+    // BUT: WGSL vec3 is 16-byte aligned, so camPos at 64, time at 76? No:
+    // Actually in WGSL structs, vec3<f32> takes 12 bytes but aligns to 16.
+    // The next f32 (time) packs into the remaining 4 bytes of that 16-byte slot.
+    // So: camPos at f[16,17,18], time at f[19], torusR at f[20], torusR2 at f[21]
+    // Nu at u[22], Nv at u[23]
+    const pd = new ArrayBuffer(256);
+    const f = new Float32Array(pd);
+    const u32 = new Uint32Array(pd);
+    for (let i = 0; i < 16; i++) f[i] = vp[i];
+    f[16] = eye[0]; f[17] = eye[1]; f[18] = eye[2];
+    f[19] = gameTime;
+    f[20] = R; f[21] = r;
+    u32[22] = NU; u32[23] = NV;
+    device.queue.writeBuffer(paramBuf, 0, pd);
+
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        loadOp: 'clear', storeOp: 'store',
+        clearValue: { r: 0.10, g: 0.06, b: 0.02, a: 1 },
+      }],
+      depthStencilAttachment: {
+        view: depthTex.createView(),
+        depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1.0,
+      },
+    });
+
+    // Draw torus surface
+    pass.setPipeline(torusPipeline);
+    pass.setBindGroup(0, torusBG);
+    pass.draw(TORUS_MESH_VERTS);
+
+    // Draw kernels
+    pass.setPipeline(kernelPipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(6, TOTAL); // 6 verts per quad, TOTAL instances
+
+    pass.end();
+    device.queue.submit([enc.finish()]);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MOL — Molecular Dynamics</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#080810;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#ctl{position:fixed;top:0;left:0;right:0;padding:8px 12px;z-index:2;
+  background:rgba(10,10,20,.85);border-bottom:1px solid #333;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;font:12px monospace;color:#ccc}
+#ctl select,#ctl button{background:#222;color:#ddd;border:1px solid #555;padding:3px 8px;
+  font:inherit;cursor:pointer}
+#ctl input[type=range]{width:80px;accent-color:#4af}
+#ctl .v{color:#fff;min-width:30px;display:inline-block}
+#info{position:fixed;bottom:10px;left:10px;color:#8af;font:11px monospace;z-index:1;pointer-events:none}
+#noGPU{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:18px monospace;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ctl">
+  <select id="selMol">
+    <option value="water3">3 Waters</option>
+    <option value="water6" selected>6 Waters</option>
+    <option value="water12">12 Waters</option>
+    <option value="methane4">4 Methanes</option>
+    <option value="ethanol2">2 Ethanols</option>
+    <option value="co2_6">6 CO₂</option>
+    <option value="mix">Mix</option>
+  </select>
+  <label>T <span class="v" id="vT">300</span>K
+    <input type="range" id="slT" min="10" max="800" value="300"></label>
+  <label>Cloud <span class="v" id="vC">0.4</span>
+    <input type="range" id="slC" min="0.1" max="1.0" step="0.05" value="0.4"></label>
+  <button id="btnReset">Reset</button>
+  <button id="btnPause">⏸</button>
+</div>
+<div id="info"></div>
+<div id="noGPU">WebGPU not available.<br>Try Chrome 121+ or Safari 18+.</div>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+
+// === Atom types: [name, mass(amu), charge(e), sigma(Å), epsilon(kJ/mol), vdwR(Å), color(rgb)] ===
+const ATOM = {
+  O:  {m:16.0, q:-0.834, sig:3.151, eps:0.636, vdw:1.52, col:[1.0,0.2,0.2]},
+  H:  {m:1.008, q:0.417,  sig:0.0,   eps:0.0,   vdw:1.09, col:[0.9,0.9,0.95]},
+  C:  {m:12.0,  q:0.0,    sig:3.40,  eps:0.460, vdw:1.70, col:[0.3,0.3,0.3]},
+  Cs: {m:12.0,  q:-0.18,  sig:3.40,  eps:0.460, vdw:1.70, col:[0.3,0.3,0.3]}, // C in CO2
+  Os: {m:16.0,  q:-0.326, sig:2.96,  eps:0.878, vdw:1.52, col:[1.0,0.2,0.2]}, // O in CO2/ethanol
+  N:  {m:14.0,  q:-1.02,  sig:3.25,  eps:0.711, vdw:1.55, col:[0.2,0.2,1.0]},
+  Cc: {m:12.0,  q:0.652,  sig:3.40,  eps:0.460, vdw:1.70, col:[0.3,0.3,0.3]}, // C in CO2 center
+};
+const KB = 0.00831446; // kJ/(mol·K) Boltzmann
+const DT = 0.002;      // picoseconds timestep
+const BOX = 12.0;      // simulation box size in Å
+
+// === Molecule templates ===
+function waterAtoms(cx,cy,cz) {
+  // TIP3P geometry: O at center, H at 0.9572Å, 104.52° angle
+  const bl=0.9572, ang=104.52*Math.PI/180;
+  return [
+    {type:'O', x:cx, y:cy, z:cz},
+    {type:'H', x:cx+bl*Math.sin(ang/2), y:cy+bl*Math.cos(ang/2), z:cz},
+    {type:'H', x:cx-bl*Math.sin(ang/2), y:cy+bl*Math.cos(ang/2), z:cz},
+  ];
+}
+function methaneAtoms(cx,cy,cz) {
+  const d=1.09; // C-H bond
+  return [
+    {type:'C', x:cx, y:cy, z:cz},
+    {type:'H', x:cx+d*0.577, y:cy+d*0.577, z:cz+d*0.577},
+    {type:'H', x:cx+d*0.577, y:cy-d*0.577, z:cz-d*0.577},
+    {type:'H', x:cx-d*0.577, y:cy+d*0.577, z:cz-d*0.577},
+    {type:'H', x:cx-d*0.577, y:cy-d*0.577, z:cz+d*0.577},
+  ];
+}
+function co2Atoms(cx,cy,cz) {
+  return [
+    {type:'Cc', x:cx, y:cy, z:cz},
+    {type:'Os', x:cx+1.16, y:cy, z:cz},
+    {type:'Os', x:cx-1.16, y:cy, z:cz},
+  ];
+}
+function ethanolAtoms(cx,cy,cz) {
+  // Simplified: CH3-CH2-OH
+  return [
+    {type:'C', x:cx-0.77, y:cy, z:cz},       // methyl C
+    {type:'C', x:cx+0.77, y:cy, z:cz},        // methylene C
+    {type:'Os',x:cx+1.97, y:cy+0.4, z:cz},    // O
+    {type:'H', x:cx+2.5,  y:cy-0.2, z:cz},    // OH hydrogen
+    {type:'H', x:cx-1.2,  y:cy+0.9, z:cz},    // methyl H
+    {type:'H', x:cx-1.2,  y:cy-0.5, z:cz+0.8},
+    {type:'H', x:cx-1.2,  y:cy-0.5, z:cz-0.8},
+    {type:'H', x:cx+0.77, y:cy+1.0, z:cz},
+    {type:'H', x:cx+0.77, y:cy-0.5, z:cz+0.9},
+  ];
+}
+
+function buildScene(name) {
+  const atoms = [], bonds = [];
+  // Grid placement to prevent overlaps
+  function addMol(fn, n) {
+    const side = Math.ceil(Math.cbrt(n));
+    const gap = BOX * 0.7 / Math.max(side, 1);
+    const off = -BOX * 0.35;
+    let idx = 0;
+    for (let ix = 0; ix < side && idx < n; ix++)
+      for (let iy = 0; iy < side && idx < n; iy++)
+        for (let iz = 0; iz < side && idx < n; iz++, idx++) {
+          const x = off + (ix + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const y = off + (iy + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const z = off + (iz + 0.5) * gap + (Math.random()-0.5)*0.5;
+          const base = atoms.length;
+          const mol = fn(x,y,z);
+          atoms.push(...mol);
+          for (let a=0;a<mol.length;a++) for (let b=a+1;b<mol.length;b++) {
+            const dx=mol[a].x-mol[b].x, dy=mol[a].y-mol[b].y, dz=mol[a].z-mol[b].z;
+            const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+            if (d < 2.0) bonds.push({i:base+a, j:base+b, r0:d, k:4000});
+          }
+        }
+  }
+  if (name==='water3') addMol(waterAtoms, 3);
+  else if (name==='water6') addMol(waterAtoms, 6);
+  else if (name==='water12') addMol(waterAtoms, 12);
+  else if (name==='methane4') addMol(methaneAtoms, 4);
+  else if (name==='ethanol2') addMol(ethanolAtoms, 2);
+  else if (name==='co2_6') addMol(co2Atoms, 6);
+  else { addMol(waterAtoms,2); addMol(methaneAtoms,1); addMol(co2Atoms,1); }
+  return {atoms, bonds};
+}
+
+// === MD Engine ===
+let atoms = [], bonds = [], N = 0;
+let pos, vel, force; // Float64Arrays: [x,y,z] per atom
+let targetTemp = 300;
+let paused = false;
+
+function initMD(scene) {
+  atoms = scene.atoms; bonds = scene.bonds; N = atoms.length;
+  pos = new Float64Array(N * 3);
+  vel = new Float64Array(N * 3);
+  force = new Float64Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    pos[i*3] = atoms[i].x; pos[i*3+1] = atoms[i].y; pos[i*3+2] = atoms[i].z;
+  }
+  // Maxwell-Boltzmann initial velocities
+  thermalizeVelocities();
+}
+
+function thermalizeVelocities() {
+  for (let i = 0; i < N; i++) {
+    const m = ATOM[atoms[i].type].m;
+    const sigma = Math.sqrt(KB * targetTemp / m); // Å/ps
+    for (let d = 0; d < 3; d++) {
+      // Box-Muller
+      const u1 = Math.random(), u2 = Math.random();
+      vel[i*3+d] = sigma * Math.sqrt(-2*Math.log(u1)) * Math.cos(2*Math.PI*u2);
+    }
+  }
+  // Remove center-of-mass velocity
+  let vx=0,vy=0,vz=0,tm=0;
+  for (let i=0;i<N;i++) { const m=ATOM[atoms[i].type].m; vx+=m*vel[i*3]; vy+=m*vel[i*3+1]; vz+=m*vel[i*3+2]; tm+=m; }
+  for (let i=0;i<N;i++) { vel[i*3]-=vx/tm; vel[i*3+1]-=vy/tm; vel[i*3+2]-=vz/tm; }
+}
+
+function computeForces() {
+  force.fill(0);
+  const half = BOX / 2;
+  // Pairwise: LJ + Coulomb
+  for (let i = 0; i < N; i++) {
+    const ai = ATOM[atoms[i].type];
+    for (let j = i+1; j < N; j++) {
+      const aj = ATOM[atoms[j].type];
+      let dx=pos[j*3]-pos[i*3], dy=pos[j*3+1]-pos[i*3+1], dz=pos[j*3+2]-pos[i*3+2];
+      // Minimum image convention
+      if (dx > half) dx -= BOX; else if (dx < -half) dx += BOX;
+      if (dy > half) dy -= BOX; else if (dy < -half) dy += BOX;
+      if (dz > half) dz -= BOX; else if (dz < -half) dz += BOX;
+      const r2 = dx*dx+dy*dy+dz*dz;
+      const r = Math.sqrt(r2);
+      if (r < 0.3) continue; // too close, skip
+      let fx=0, fy=0, fz=0;
+
+      // Lennard-Jones (mixing rules)
+      const sig = (ai.sig + aj.sig) / 2;
+      const eps = Math.sqrt(ai.eps * aj.eps);
+      if (sig > 0 && eps > 0 && r < 10) {
+        const sr6 = Math.pow(sig/r, 6);
+        const fLJ = 24 * eps * (2*sr6*sr6 - sr6) / r2;
+        fx += fLJ*dx; fy += fLJ*dy; fz += fLJ*dz;
+      }
+      // Coulomb: F = k*qi*qj/r² (k=1389.35 kJ·Å/(mol·e²))
+      if (ai.q !== 0 && aj.q !== 0) {
+        const fC = 1389.35 * ai.q * aj.q / (r2 * r);
+        fx += fC*dx; fy += fC*dy; fz += fC*dz;
+      }
+      // Cap force magnitude to prevent blowup
+      const fmag = Math.sqrt(fx*fx+fy*fy+fz*fz);
+      if (fmag > 5000) { const s=5000/fmag; fx*=s; fy*=s; fz*=s; }
+      force[i*3]   -= fx; force[i*3+1] -= fy; force[i*3+2] -= fz;
+      force[j*3]   += fx; force[j*3+1] += fy; force[j*3+2] += fz;
+    }
+  }
+  // Harmonic bonds
+  for (const b of bonds) {
+    let dx=pos[b.j*3]-pos[b.i*3], dy=pos[b.j*3+1]-pos[b.i*3+1], dz=pos[b.j*3+2]-pos[b.i*3+2];
+    if (dx > half) dx-=BOX; else if (dx<-half) dx+=BOX;
+    if (dy > half) dy-=BOX; else if (dy<-half) dy+=BOX;
+    if (dz > half) dz-=BOX; else if (dz<-half) dz+=BOX;
+    const r = Math.sqrt(dx*dx+dy*dy+dz*dz) || 0.001;
+    const f = b.k * (r - b.r0) / r;
+    force[b.i*3]+=f*dx; force[b.i*3+1]+=f*dy; force[b.i*3+2]+=f*dz;
+    force[b.j*3]-=f*dx; force[b.j*3+1]-=f*dy; force[b.j*3+2]-=f*dz;
+  }
+}
+
+function stepMD() {
+  const dt = DT;
+  // Velocity Verlet: half-step velocity
+  for (let i=0;i<N;i++) {
+    const m = ATOM[atoms[i].type].m;
+    const inv = dt/(2*m);
+    vel[i*3]+=force[i*3]*inv; vel[i*3+1]+=force[i*3+1]*inv; vel[i*3+2]+=force[i*3+2]*inv;
+  }
+  // Update positions
+  for (let i=0;i<N;i++) {
+    pos[i*3]+=vel[i*3]*dt; pos[i*3+1]+=vel[i*3+1]*dt; pos[i*3+2]+=vel[i*3+2]*dt;
+    // Periodic boundary
+    for (let d=0;d<3;d++) {
+      if (pos[i*3+d] > BOX/2) pos[i*3+d]-=BOX;
+      if (pos[i*3+d] < -BOX/2) pos[i*3+d]+=BOX;
+    }
+  }
+  // New forces
+  computeForces();
+  // Half-step velocity
+  for (let i=0;i<N;i++) {
+    const m=ATOM[atoms[i].type].m;
+    const inv=dt/(2*m);
+    vel[i*3]+=force[i*3]*inv; vel[i*3+1]+=force[i*3+1]*inv; vel[i*3+2]+=force[i*3+2]*inv;
+  }
+  // Velocity cap: prevent runaway
+  const vmax = 50; // Å/ps — reasonable upper bound
+  for (let i=0;i<N;i++) {
+    for (let d=0;d<3;d++) {
+      if (vel[i*3+d] > vmax) vel[i*3+d] = vmax;
+      if (vel[i*3+d] < -vmax) vel[i*3+d] = -vmax;
+    }
+  }
+  // Berendsen thermostat (tau=10*dt for gradual heating; visible phase transitions)
+  let ke=0;
+  for (let i=0;i<N;i++) { const m=ATOM[atoms[i].type].m; ke+=0.5*m*(vel[i*3]**2+vel[i*3+1]**2+vel[i*3+2]**2); }
+  const currentT = 2*ke/(3*N*KB);
+  if (currentT > 0.1) {
+    const ratio = targetTemp / currentT;
+    // Strong coupling when far from target (prevents blowup), gentle near target (realistic dynamics)
+    const coupling = ratio > 5 || ratio < 0.2 ? 0.5 : 0.1;
+    const lambda = Math.sqrt(1 + coupling*(ratio - 1));
+    for (let i=0;i<N*3;i++) vel[i]*=lambda;
+  }
+  // Count intermolecular H-bonds: O···H < 2.5Å across different molecules
+  let hbonds = 0;
+  const half = BOX / 2;
+  for (let i = 0; i < N; i++) {
+    if (ATOM[atoms[i].type].q >= 0) continue; // only O-like (negative) as acceptor
+    for (let j = 0; j < N; j++) {
+      if (i === j || ATOM[atoms[j].type].m > 2) continue; // only H as donor
+      // Check they're in different molecules (bond array check)
+      let bonded = false;
+      for (const b of bonds) { if ((b.i===i&&b.j===j)||(b.i===j&&b.j===i)) { bonded=true; break; } }
+      if (bonded) continue;
+      let dx=pos[j*3]-pos[i*3], dy=pos[j*3+1]-pos[i*3+1], dz=pos[j*3+2]-pos[i*3+2];
+      if (dx>half) dx-=BOX; else if (dx<-half) dx+=BOX;
+      if (dy>half) dy-=BOX; else if (dy<-half) dy+=BOX;
+      if (dz>half) dz-=BOX; else if (dz<-half) dz+=BOX;
+      if (dx*dx+dy*dy+dz*dz < 6.25) hbonds++; // 2.5² = 6.25
+    }
+  }
+  return {ke, temp: currentT, hbonds};
+}
+
+// === Camera ===
+let camAzim=0.5, camElev=0.3, camDist=20;
+
+// === Math (same as corn) ===
+function mat4Perspective(fov,aspect,near,far){
+  const f=1/Math.tan(fov/2),nf=1/(near-far);
+  // WebGPU clip Z range [0,1]
+  return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,far*nf,-1,0,0,far*near*nf,0]);
+}
+function mat4LookAt(eye,tgt,up){
+  let zx=eye[0]-tgt[0],zy=eye[1]-tgt[1],zz=eye[2]-tgt[2];
+  let l=Math.sqrt(zx*zx+zy*zy+zz*zz)||1; zx/=l;zy/=l;zz/=l;
+  let rx=up[1]*zz-up[2]*zy,ry=up[2]*zx-up[0]*zz,rz=up[0]*zy-up[1]*zx;
+  l=Math.sqrt(rx*rx+ry*ry+rz*rz)||1; rx/=l;ry/=l;rz/=l;
+  const ux=zy*rz-zz*ry,uy=zz*rx-zx*rz,uz=zx*ry-zy*rx;
+  return new Float32Array([rx,ux,zx,0,ry,uy,zy,0,rz,uz,zz,0,
+    -(rx*eye[0]+ry*eye[1]+rz*eye[2]),-(ux*eye[0]+uy*eye[1]+uz*eye[2]),
+    -(zx*eye[0]+zy*eye[1]+zz*eye[2]),1]);
+}
+function mat4Mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[i+k*4]*b[k+j*4];o[i+j*4]=s;}return o;}
+function mat4Inv(m){
+  // Simple 4x4 inverse for view matrix
+  const o=new Float32Array(16);
+  // Rotation transpose
+  o[0]=m[0];o[1]=m[4];o[2]=m[8];o[3]=0;
+  o[4]=m[1];o[5]=m[5];o[6]=m[9];o[7]=0;
+  o[8]=m[2];o[9]=m[6];o[10]=m[10];o[11]=0;
+  o[12]=-(m[0]*m[12]+m[1]*m[13]+m[2]*m[14]);
+  o[13]=-(m[4]*m[12]+m[5]*m[13]+m[6]*m[14]);
+  o[14]=-(m[8]*m[12]+m[9]*m[13]+m[10]*m[14]);
+  o[15]=1;
+  return o;
+}
+
+// === WGSL: Fullscreen raymarching of electron density ===
+const shaderCode = `
+struct Params {
+  invViewProj: mat4x4<f32>,
+  camPos: vec3<f32>,
+  time: f32,
+  isoLevel: f32,
+  numAtoms: u32,
+  pad0: u32,
+  pad1: u32,
+}
+struct Atom {
+  pos: vec3<f32>,
+  radius: f32,    // vdW radius
+  color: vec3<f32>,
+  charge: f32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> atoms: array<Atom>;
+
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+}
+@vertex fn vs(@builtin(vertex_index) vid: u32) -> VSOut {
+  let positions = array<vec2<f32>, 3>(vec2(-1,-1), vec2(3,-1), vec2(-1,3));
+  var out: VSOut;
+  out.pos = vec4(positions[vid], 0, 1);
+  out.uv = positions[vid];
+  return out;
+}
+
+// Gaussian electron density at point p from atom i
+fn atomDensity(wp: vec3<f32>, ai: u32) -> f32 {
+  let d = wp - atoms[ai].pos;
+  let r2 = dot(d, d);
+  let sigma = atoms[ai].radius * 0.8;
+  return exp(-r2 / (2.0 * sigma * sigma));
+}
+
+// Total density + weighted color at point
+fn sceneDensity(wp: vec3<f32>) -> f32 {
+  var total: f32 = 0.0;
+  for (var i = 0u; i < p.numAtoms; i++) {
+    total += atomDensity(wp, i);
+  }
+  return total;
+}
+
+fn sceneColor(wp: vec3<f32>, total: f32) -> vec3<f32> {
+  // Electrostatic potential map (ESP): sum q_i / |r - r_i|
+  var V: f32 = 0.0;
+  for (var i = 0u; i < p.numAtoms; i++) {
+    let d = length(wp - atoms[i].pos);
+    if (d > 0.1) { V += atoms[i].charge / d; }
+  }
+  // Red (negative / electron-rich) → White → Blue (positive / electron-poor)
+  let t = clamp(V * 2.5, -1.0, 1.0);
+  var neg = vec3(1.0, 0.12, 0.08);  // red
+  var pos = vec3(0.15, 0.35, 1.0);  // blue
+  var mid = vec3(0.95, 0.95, 0.92); // off-white
+  if (t < 0.0) {
+    return mix(mid, neg, -t);
+  } else {
+    return mix(mid, pos, t);
+  }
+}
+
+// Estimate normal from density gradient
+fn sceneNormal(wp: vec3<f32>) -> vec3<f32> {
+  let e = 0.05;
+  let d = sceneDensity(wp);
+  return normalize(vec3(
+    sceneDensity(wp + vec3(e,0,0)) - d,
+    sceneDensity(wp + vec3(0,e,0)) - d,
+    sceneDensity(wp + vec3(0,0,e)) - d
+  ));
+}
+
+@fragment fn fs(in: VSOut) -> @location(0) vec4<f32> {
+  // Ray from camera through pixel
+  let ndc = vec4(in.uv.x, in.uv.y, 0.0, 1.0);
+  let ndcFar = vec4(in.uv.x, in.uv.y, 1.0, 1.0);
+  let worldNear = p.invViewProj * ndc;
+  let worldFar = p.invViewProj * ndcFar;
+  let wn = worldNear.xyz / worldNear.w;
+  let wf = worldFar.xyz / worldFar.w;
+  let ro = wn;
+  let rd = normalize(wf - wn);
+
+  // Bounding sphere skip: if ray misses a 10Å sphere at origin, skip
+  let oc = ro;
+  let b = dot(oc, rd);
+  let c = dot(oc, oc) - 100.0; // r²=100 → 10Å radius
+  let disc = b*b - c;
+  var t: f32 = 0.0;
+  var hitColor = vec3<f32>(0.0);
+  var hit = false;
+
+  if (disc > 0.0) {
+    // Start marching from sphere entry
+    let tEntry = max(-b - sqrt(disc), 0.0);
+    t = tEntry;
+    let maxT: f32 = min(-b + sqrt(disc), 30.0);
+    let step: f32 = 0.35;
+
+    for (var i = 0u; i < 80u; i++) {
+      let wp = ro + rd * t;
+      let d = sceneDensity(wp);
+      if (d > p.isoLevel) {
+        // Binary refine
+        var lo = t - step;
+        var hi = t;
+        for (var r = 0u; r < 4u; r++) {
+          let mid = (lo + hi) * 0.5;
+          if (sceneDensity(ro + rd * mid) > p.isoLevel) { hi = mid; } else { lo = mid; }
+        }
+        t = hi;
+        let hp = ro + rd * t;
+        let dens = sceneDensity(hp);
+        let n = sceneNormal(hp);
+        let col = sceneColor(hp, dens);
+        // Lighting
+        let sun = normalize(vec3(2.0, 3.0, 1.0));
+        let diff = max(dot(n, sun), 0.0) * 0.7;
+        let spec = pow(max(dot(reflect(-sun, n), -rd), 0.0), 20.0) * 0.4;
+        let amb = 0.2;
+        let fresnel = pow(1.0 - max(dot(n, -rd), 0.0), 3.0) * 0.3;
+        hitColor = col * (diff + amb) + vec3(spec + fresnel);
+        hit = true;
+        break;
+      }
+      t += step;
+      if (t > maxT) { break; }
+    }
+  }
+
+  if (!hit) {
+    // Background gradient
+    let bg = mix(vec3(0.03, 0.03, 0.06), vec3(0.06, 0.04, 0.08), in.uv.y * 0.5 + 0.5);
+    return vec4(bg, 1.0);
+  }
+  // Depth fog
+  let fog = exp(-t * 0.02);
+  return vec4(hitColor * fog, 1.0);
+}
+`;
+
+// General 4x4 matrix inverse (cofactor method)
+function mat4InvGeneral(m) {
+  const o = new Float32Array(16);
+  const m00=m[0],m01=m[1],m02=m[2],m03=m[3],
+        m10=m[4],m11=m[5],m12=m[6],m13=m[7],
+        m20=m[8],m21=m[9],m22=m[10],m23=m[11],
+        m30=m[12],m31=m[13],m32=m[14],m33=m[15];
+  const b00=m00*m11-m01*m10, b01=m00*m12-m02*m10, b02=m00*m13-m03*m10,
+        b03=m01*m12-m02*m11, b04=m01*m13-m03*m11, b05=m02*m13-m03*m12,
+        b06=m20*m31-m21*m30, b07=m20*m32-m22*m30, b08=m20*m33-m23*m30,
+        b09=m21*m32-m22*m31, b10=m21*m33-m23*m31, b11=m22*m33-m23*m32;
+  let det=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+  if(!det) return o;
+  det=1/det;
+  o[0]=(m11*b11-m12*b10+m13*b09)*det;
+  o[1]=(m02*b10-m01*b11-m03*b09)*det;
+  o[2]=(m31*b05-m32*b04+m33*b03)*det;
+  o[3]=(m22*b04-m21*b05-m23*b03)*det;
+  o[4]=(m12*b08-m10*b11-m13*b07)*det;
+  o[5]=(m00*b11-m02*b08+m03*b07)*det;
+  o[6]=(m32*b02-m30*b05-m33*b01)*det;
+  o[7]=(m20*b05-m22*b02+m23*b01)*det;
+  o[8]=(m10*b10-m11*b08+m13*b06)*det;
+  o[9]=(m01*b08-m00*b10-m03*b06)*det;
+  o[10]=(m30*b04-m31*b02+m33*b00)*det;
+  o[11]=(m21*b02-m20*b04-m23*b00)*det;
+  o[12]=(m11*b07-m10*b09-m12*b06)*det;
+  o[13]=(m00*b09-m01*b07+m02*b06)*det;
+  o[14]=(m31*b01-m30*b03-m32*b00)*det;
+  o[15]=(m20*b03-m21*b01+m22*b00)*det;
+  return o;
+}
+
+// === WebGPU Init & Render ===
+let device, context, pipeline, paramBuf, atomBuf, bindGroup;
+let gpuAtomData;
+
+async function init() {
+  if (!navigator.gpu) { document.getElementById('noGPU').style.display='flex'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { document.getElementById('noGPU').style.display='flex'; return; }
+  device = await adapter.requestDevice();
+
+  context = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({ device, format, alphaMode: 'opaque' });
+
+  const module = device.createShaderModule({ code: shaderCode });
+  pipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module, entryPoint: 'vs' },
+    fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  paramBuf = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  atomBuf = device.createBuffer({ size: 128 * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  gpuAtomData = new Float32Array(128 * 8);
+
+  bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: paramBuf } },
+      { binding: 1, resource: { buffer: atomBuf } },
+    ],
+  });
+
+  loadScene('water6');
+  requestAnimationFrame(frame);
+}
+
+function loadScene(name) {
+  const scene = buildScene(name);
+  initMD(scene);
+  computeForces();
+}
+
+function resize() {
+  // Cap at 1x DPR — raymarching is too expensive for retina
+  const w = window.innerWidth, h = window.innerHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+}
+
+let gpuAtomCount = 0; // real + virtual (for numAtoms uniform)
+
+function uploadAtoms() {
+  let k = 0;
+  // Real atoms
+  for (let i = 0; i < N; i++, k++) {
+    const a = ATOM[atoms[i].type];
+    gpuAtomData[k*8]   = pos[i*3];
+    gpuAtomData[k*8+1] = pos[i*3+1];
+    gpuAtomData[k*8+2] = pos[i*3+2];
+    gpuAtomData[k*8+3] = a.vdw;
+    gpuAtomData[k*8+4] = a.col[0];
+    gpuAtomData[k*8+5] = a.col[1];
+    gpuAtomData[k*8+6] = a.col[2];
+    gpuAtomData[k*8+7] = a.q;
+  }
+  // Bond midpoint virtual sites — creates electron density bridges between bonded atoms
+  for (const b of bonds) {
+    if (k >= 128) break;
+    const ai = ATOM[atoms[b.i].type], aj = ATOM[atoms[b.j].type];
+    gpuAtomData[k*8]   = (pos[b.i*3]   + pos[b.j*3])   / 2;
+    gpuAtomData[k*8+1] = (pos[b.i*3+1] + pos[b.j*3+1]) / 2;
+    gpuAtomData[k*8+2] = (pos[b.i*3+2] + pos[b.j*3+2]) / 2;
+    gpuAtomData[k*8+3] = 0.6;  // tight gaussian to bridge atoms
+    gpuAtomData[k*8+4] = (ai.col[0]+aj.col[0])/2;
+    gpuAtomData[k*8+5] = (ai.col[1]+aj.col[1])/2;
+    gpuAtomData[k*8+6] = (ai.col[2]+aj.col[2])/2;
+    gpuAtomData[k*8+7] = (ai.q+aj.q)/2; // avg charge for ESP
+    k++;
+  }
+  gpuAtomCount = k;
+  device.queue.writeBuffer(atomBuf, 0, gpuAtomData.buffer, 0, k * 32);
+}
+
+let mdInfo = { ke: 0, temp: 0, hbonds: 0 };
+let isoLevel = 0.4;
+
+function frame(ts) {
+  requestAnimationFrame(frame);
+  resize();
+
+  if (!paused) {
+    for (let s = 0; s < 3; s++) mdInfo = stepMD();
+  }
+
+  uploadAtoms();
+
+  // Camera orbit
+  const cx = camDist * Math.cos(camElev) * Math.sin(camAzim);
+  const cy = camDist * Math.sin(camElev);
+  const cz = camDist * Math.cos(camElev) * Math.cos(camAzim);
+  const aspect = canvas.width / canvas.height;
+  const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
+  const view = mat4LookAt([cx, cy, cz], [0, 0, 0], [0, 1, 0]);
+  const ivp = mat4InvGeneral(mat4Mul(proj, view));
+
+  // Upload params (96 bytes = 24 floats)
+  const pb = new Float32Array(24);
+  pb.set(ivp, 0);
+  pb[16] = cx; pb[17] = cy; pb[18] = cz;
+  pb[19] = ts * 0.001;
+  pb[20] = isoLevel;
+  const pu = new Uint32Array(pb.buffer);
+  pu[21] = gpuAtomCount;
+  device.queue.writeBuffer(paramBuf, 0, pb);
+
+  // Draw
+  const encoder = device.createCommandEncoder();
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [{
+      view: context.getCurrentTexture().createView(),
+      loadOp: 'clear', clearValue: { r: 0.03, g: 0.03, b: 0.06, a: 1 },
+      storeOp: 'store',
+    }],
+  });
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(3);
+  pass.end();
+  device.queue.submit([encoder.finish()]);
+
+  // HUD
+  const phase = mdInfo.hbonds > 2 ? 'liquid' : mdInfo.hbonds > 0 ? 'breaking' : 'gas';
+  document.getElementById('info').textContent =
+    `${N} atoms | T=${mdInfo.temp.toFixed(0)}K | H-bonds: ${mdInfo.hbonds||0} (${phase})`;
+}
+
+// === Input: mouse ===
+let dragging = false, lastMX = 0, lastMY = 0;
+canvas.addEventListener('pointerdown', e => {
+  dragging = true; lastMX = e.clientX; lastMY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
+  camAzim += dx * 0.008;
+  camElev = Math.max(-1.4, Math.min(1.4, camElev + dy * 0.008));
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+canvas.addEventListener('pointerup', () => { dragging = false; });
+canvas.addEventListener('pointercancel', () => { dragging = false; });
+canvas.addEventListener('wheel', e => {
+  camDist = Math.max(5, Math.min(60, camDist + e.deltaY * 0.03));
+  e.preventDefault();
+}, { passive: false });
+
+// === Input: touch pinch zoom ===
+let pinchDist0 = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchDist0 = Math.sqrt(dx*dx + dy*dy);
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (pinchDist0 > 0) {
+      camDist = Math.max(5, Math.min(60, camDist * (pinchDist0 / d)));
+      pinchDist0 = d;
+    }
+  }
+}, { passive: true });
+
+// === UI wiring ===
+document.getElementById('selMol').addEventListener('change', e => {
+  loadScene(e.target.value);
+});
+document.getElementById('slT').addEventListener('input', e => {
+  targetTemp = +e.target.value;
+  document.getElementById('vT').textContent = e.target.value;
+});
+document.getElementById('slC').addEventListener('input', e => {
+  isoLevel = +e.target.value;
+  document.getElementById('vC').textContent = e.target.value;
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  loadScene(document.getElementById('selMol').value);
+});
+document.getElementById('btnPause').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('btnPause').textContent = paused ? '▶' : '⏸';
+});
+
+init();
+</script>
+</body>
+</html>

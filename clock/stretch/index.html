@@ -55,7 +55,7 @@
   function mat4Identity() { return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]; }
   function mat4Perspective(fov, aspect, near, far) {
     const f = 1/Math.tan(fov/2), ri = 1/(near-far);
-    return [f/aspect,0,0,0, 0,f,0,0, 0,0,(near+far)*ri,-1, 0,0,near*far*ri*2,0];
+    return [f/aspect,0,0,0, 0,f,0,0, 0,0,far*ri,-1, 0,0,near*far*ri,0];
   }
   function mat4LookAt(eye, target, up) {
     const z = v3normalize(v3sub(eye, target));
