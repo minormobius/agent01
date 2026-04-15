@@ -24,6 +24,14 @@ function isMobile() {
     || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 }
 
+// Detect mobile/low-memory environments
+function isMobile() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+    || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+}
+
 export async function initEmbeddings(onProgress) {
   if (pipeline) return pipeline;
   if (loadingPromise) return loadingPromise;
@@ -33,13 +41,22 @@ export async function initEmbeddings(onProgress) {
 
     const { pipeline: createPipeline } = await loadTransformers();
 
+    // Prefer WebGPU, fall back to WASM
+    let device = 'wasm';
+    if (typeof navigator !== 'undefined' && navigator.gpu) {
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (adapter) device = 'webgpu';
+      } catch { /* fall back to wasm */ }
+    }
+
     const mobile = isMobile();
-    if (onProgress) onProgress({ status: 'loading', message: `Loading model (wasm${mobile ? ', mobile' : ''})...` });
+    if (onProgress) onProgress({ status: 'loading', message: `Loading model (${device}${mobile ? ', mobile' : ''})...` });
 
     pipeline = await createPipeline('feature-extraction', MODEL_ID, {
-      device: 'wasm',
-      // q4 on mobile for less memory, q8 on desktop
-      dtype: mobile ? 'q4' : 'q8',
+      device,
+      // Use quantized model everywhere, but on mobile without WebGPU use q4 for less memory
+      dtype: device === 'webgpu' ? 'fp32' : (mobile ? 'q4' : 'q8'),
       progress_callback: (p) => {
         if (onProgress && p.status === 'progress') {
           onProgress({
