@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>track — bluesky interaction metro</title>
+<script type="importmap">{"imports":{"apache-arrow":"https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"}}</script>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --text: #e0e0e0;
+  --muted: #666;
+  --accent: #e63946;
+  --panel: rgba(30,30,50,0.92);
+  --mono: 'SF Mono','Cascadia Code',Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono)}
+#controls{
+  position:fixed;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 16px;background:var(--panel);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
+#controls input[type=text]{
+  flex:1;min-width:200px;max-width:500px;padding:6px 10px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+  border-radius:4px;color:var(--text);font-family:var(--mono);font-size:0.8rem;
+}
+#controls button{
+  padding:6px 16px;background:var(--accent);border:none;
+  border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer;
+}
+#controls button:hover{opacity:0.85}
+#controls button:disabled{opacity:0.4;cursor:default}
+#controls label{font-size:0.7rem;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+#controls label input{accent-color:var(--accent)}
+#status{font-size:0.7rem;color:var(--muted)}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%}
+.legend{
+  position:fixed;bottom:12px;left:12px;z-index:10;
+  display:none;gap:14px;font-size:0.65rem;color:var(--muted);
+}
+.legend.show{display:flex}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<div id="controls">
+  <input type="text" id="list-uri" placeholder="paste bsky list url or at:// uri">
+  <button id="load-btn">load</button>
+  <label><input type="checkbox" id="inc-owner" checked> include list owner</label>
+  <label>max lines/station <input type="number" id="max-deg" value="0" min="0" max="20" style="width:40px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
+  <label>crossings <input type="range" id="max-cross" min="0" max="20" value="0" style="width:80px;accent-color:var(--accent);vertical-align:middle"><span id="cross-val">0</span></label>
+  <button id="metro-btn" disabled style="padding:6px 12px;background:#2a9d8f;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">design metro</button>
+  <button id="rail-btn" disabled style="padding:6px 12px;background:#8338ec;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">build rail</button>
+  <button id="play-btn" disabled style="padding:6px 12px;background:#457b9d;border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer">&#9654; replay</button>
+  <select id="play-range" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="1">last 24h</option><option value="7" selected>last 7d</option><option value="30">last 30d</option>
+  </select>
+  <select id="play-speed" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="50">50x</option><option value="200" selected>200x</option><option value="1000">1000x</option>
+  </select>
+  <span id="play-time" style="font-size:0.65rem;color:var(--muted);min-width:100px"></span>
+  <span id="status"></span>
+</div>
+<canvas id="metro"></canvas>
+<div class="legend" id="legend">
+  <span><i style="background:#e63946"></i>like</span>
+  <span><i style="background:#457b9d"></i>reply</span>
+  <span><i style="background:#2a9d8f"></i>repost</span>
+</div>
+<div id="score" style="position:fixed;bottom:12px;right:12px;z-index:10;display:none;background:var(--panel);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:10px 14px;font-size:0.65rem;line-height:1.7;color:var(--muted)"></div>
+<script type="module">
+var canvas=document.getElementById('metro'),ctx=canvas.getContext('2d');
+var W,H,dpr;
+var LINE_COLORS=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
+var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var viewMode='traffic',metroLines=[],mstEdges=[],edgeLineMap={},trains=[];
+var lineSplines=[],railPlan=[],railStep=0,railTree=[];
+var playback=null;
+var cam={x:0,y:0,zoom:1};
+var dragging=false,dragX=0,dragY=0;
+var API='https://public.api.bsky.app/xrpc/';
+var db=null,conn=null;
+
+// DuckDB-WASM init
+var DUCK_CDN='https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist';
+async function initDuck(){
+  if(conn)return;
+  status('loading duckdb...');
+  var mod=await import(DUCK_CDN+'/duckdb-browser.mjs');
+  var bundle=await mod.selectBundle({
+    mvp:{mainModule:DUCK_CDN+'/duckdb-mvp.wasm',mainWorker:DUCK_CDN+'/duckdb-browser-mvp.worker.js'},
+    eh:{mainModule:DUCK_CDN+'/duckdb-eh.wasm',mainWorker:DUCK_CDN+'/duckdb-browser-eh.worker.js'}
+  });
+  var w=await fetch(bundle.mainWorker).then(function(r){return r.blob()});
+  var worker=new Worker(URL.createObjectURL(w),{type:'module'});
+  db=new mod.AsyncDuckDB(new mod.ConsoleLogger(),worker);
+  await db.instantiate(bundle.mainModule);
+  conn=await db.connect();
+  await conn.query("CREATE TABLE IF NOT EXISTS interactions(from_idx INT,to_idx INT,ts BIGINT,type VARCHAR)");
+  status('duckdb ready');
+}
+
+// IndexedDB cache for scan results (1hr TTL)
+var CACHE_TTL=3600000;
+function openCacheDB(){
+  return new Promise(function(ok,no){
+    var req=indexedDB.open('track-cache',1);
+    req.onupgradeneeded=function(){req.result.createObjectStore('scans')};
+    req.onsuccess=function(){ok(req.result)};
+    req.onerror=function(){no(req.error)};
+  });
+}
+async function getCached(uri){
+  try{var cdb=await openCacheDB();
+    return new Promise(function(ok){var tx=cdb.transaction('scans','readonly');
+      var req=tx.objectStore('scans').get(uri);req.onsuccess=function(){ok(req.result||null)};req.onerror=function(){ok(null)}});
+  }catch(e){return null}
+}
+async function setCache(uri,data){
+  try{var cdb=await openCacheDB();var tx=cdb.transaction('scans','readwrite');
+    tx.objectStore('scans').put(data,uri)}catch(e){}
+}
+
+// Slider label
+document.getElementById('max-cross').addEventListener('input',function(){
+  document.getElementById('cross-val').textContent=this.value;
+});
+
+function resize(){
+  dpr=window.devicePixelRatio||1;
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(loaded)draw();
+}
+window.addEventListener('resize',resize);resize();
+
+// World <-> screen transforms
+function toScreen(wx,wy){return{x:(wx-cam.x)*cam.zoom+W/2,y:(wy-cam.y)*cam.zoom+H/2}}
+function toWorld(sx,sy){return{x:(sx-W/2)/cam.zoom+cam.x,y:(sy-H/2)/cam.zoom+cam.y}}
+
+// Pan/zoom
+canvas.addEventListener('mousedown',function(e){
+  if(e.button===0){dragging=true;dragX=e.clientX;dragY=e.clientY}
+});
+canvas.addEventListener('mousemove',function(e){
+  if(!dragging)return;
+  cam.x-=(e.clientX-dragX)/cam.zoom;
+  cam.y-=(e.clientY-dragY)/cam.zoom;
+  dragX=e.clientX;dragY=e.clientY;
+  if(loaded)draw();
+});
+canvas.addEventListener('mouseup',function(){dragging=false});
+canvas.addEventListener('mouseleave',function(){dragging=false});
+canvas.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var factor=e.deltaY>0?0.9:1.1;
+  cam.zoom*=factor;
+  cam.zoom=Math.max(0.1,Math.min(10,cam.zoom));
+  if(loaded)draw();
+},{passive:false});
+// Touch pan/zoom
+var lastTouches=null;
+canvas.addEventListener('touchstart',function(e){lastTouches=e.touches});
+canvas.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  if(!lastTouches)return;
+  if(e.touches.length===1&&lastTouches.length===1){
+    cam.x-=(e.touches[0].clientX-lastTouches[0].clientX)/cam.zoom;
+    cam.y-=(e.touches[0].clientY-lastTouches[0].clientY)/cam.zoom;
+  }else if(e.touches.length===2&&lastTouches.length===2){
+    var d1=Math.hypot(lastTouches[0].clientX-lastTouches[1].clientX,lastTouches[0].clientY-lastTouches[1].clientY);
+    var d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    cam.zoom*=d2/d1;cam.zoom=Math.max(0.1,Math.min(10,cam.zoom));
+  }
+  lastTouches=e.touches;
+  if(loaded)draw();
+},{passive:false});
+canvas.addEventListener('touchend',function(){lastTouches=null});
+
+function status(msg){document.getElementById('status').textContent=msg}
+
+function parseListUri(input){
+  input=input.trim();
+  if(input.startsWith('at://'))return input;
+  var m=input.match(/bsky\.app\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+  if(m)return'at://'+m[1]+'/app.bsky.graph.list/'+m[2];
+  return input;
+}
+
+async function apiGet(method,params){
+  var qs=new URLSearchParams(params).toString();
+  var res=await fetch(API+method+'?'+qs);
+  if(!res.ok)throw new Error(method+' '+res.status);
+  return res.json();
+}
+
+async function apiGetMulti(method,key,values,otherParams){
+  var qs=values.map(function(v){return key+'='+encodeURIComponent(v)}).join('&');
+  if(otherParams){for(var k in otherParams)qs+='&'+k+'='+encodeURIComponent(otherParams[k])}
+  var res=await fetch(API+method+'?'+qs);
+  if(!res.ok)throw new Error(method+' '+res.status);
+  return res.json();
+}
+
+async function loadList(uri){
+  status('loading list...');
+  var dids=[],ownerDid=null;
+  var cursor;
+  do{
+    var params={list:uri,limit:'100'};
+    if(cursor)params.cursor=cursor;
+    var data=await apiGet('app.bsky.graph.getList',params);
+    if(!ownerDid&&data.list)ownerDid=data.list.creator.did;
+    for(var item of data.items)dids.push(item.subject.did);
+    cursor=data.cursor;
+  }while(cursor);
+
+  // Include list owner if checked
+  if(document.getElementById('inc-owner').checked&&ownerDid&&dids.indexOf(ownerDid)===-1){
+    dids.unshift(ownerDid);
+  }
+
+  status(dids.length+' members, loading profiles...');
+  members=[];memberIdx={};
+  for(var i=0;i<dids.length;i+=25){
+    var batch=dids.slice(i,i+25);
+    var data=await apiGetMulti('app.bsky.actor.getProfiles','actors',batch);
+    for(var p of data.profiles){
+      memberIdx[p.did]=members.length;
+      members.push({did:p.did,handle:p.handle,displayName:p.displayName||p.handle,
+        avatar:p.avatar||null,x:0,y:0,vx:0,vy:0,img:null});
+    }
+  }
+
+  // Preload avatars
+  await Promise.all(members.map(function(m){
+    if(!m.avatar)return Promise.resolve();
+    return new Promise(function(ok){
+      var img=new Image();
+      img.onload=function(){m.img=img;ok()};img.onerror=ok;
+      img.src=m.avatar;
+    });
+  }));
+  status(members.length+' profiles loaded, scraping interactions...');
+}
+
+async function scrapeInteractions(){
+  await conn.query("DELETE FROM interactions");
+  var done=0,CONC=6;
+
+  async function scrapeMember(mi){
+    var m=members[mi],local=[];
+    try{
+      var cursor,pages=0;
+      do{
+        var params={actor:m.did,limit:'100',filter:'posts_with_replies'};
+        if(cursor)params.cursor=cursor;
+        var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
+        for(var item of(data.feed||[])){
+          var ts=(item.post||{}).indexedAt||((item.post||{}).record||{}).createdAt||null;
+          var tsMs=ts?new Date(ts).getTime():0;
+          if(item.reply&&item.reply.parent&&item.reply.parent.author){
+            var toDid=item.reply.parent.author.did;
+            if(toDid!==m.did){
+              var ti=memberIdx[toDid],fi=memberIdx[m.did];
+              if(ti!==undefined&&fi!==undefined){
+                local.push({fi:Math.min(fi,ti),ti:Math.max(fi,ti),ts:tsMs,type:'reply'});
+              }
+            }
+          }
+          var rec=(item.post||{}).record||{},emb=rec.embed;
+          if(emb){
+            var qu=null;
+            if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
+            else if(emb.$type==='app.bsky.embed.recordWithMedia'&&emb.record&&emb.record.record)qu=emb.record.record.uri;
+            if(qu){
+              var qd=qu.split('/')[2],qi=memberIdx[qd],fi2=memberIdx[m.did];
+              if(qd!==m.did&&qi!==undefined&&fi2!==undefined){
+                local.push({fi:Math.min(fi2,qi),ti:Math.max(fi2,qi),ts:tsMs,type:'quote'});
+              }
+            }
+          }
+        }
+        cursor=data.cursor;pages++;
+      }while(cursor&&pages<3);
+    }catch(e){}
+    if(local.length){
+      var vals=local.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
+      await conn.query("INSERT INTO interactions VALUES "+vals);
+    }
+    status('scanning '+(++done)+'/'+members.length);
+  }
+
+  // Parallel fan-out with semaphore
+  var idx=0;
+  async function worker(){while(idx<members.length){var mi=idx++;await scrapeMember(mi)}}
+  var workers=[];for(var i=0;i<Math.min(CONC,members.length);i++)workers.push(worker());
+  await Promise.all(workers);
+}
+
+async function aggregateEdges(){
+  edges=[];
+  var maxDeg=parseInt(document.getElementById('max-deg').value)||0;
+  var result=await conn.query("SELECT from_idx,to_idx,COUNT(*) as w FROM interactions GROUP BY from_idx,to_idx ORDER BY w DESC");
+  var rows=result.toArray(),deg={};
+  for(var r of rows){
+    var fi=Number(r.from_idx),ti=Number(r.to_idx),w=Number(r.w);
+    if(maxDeg>0){
+      if((deg[fi]||0)>=maxDeg||(deg[ti]||0)>=maxDeg)continue;
+      deg[fi]=(deg[fi]||0)+1;deg[ti]=(deg[ti]||0)+1;
+    }
+    edges.push({from:fi,to:ti,weight:w,color:null});
+  }
+  for(var i=0;i<edges.length;i++)edges[i].color=LINE_COLORS[i%LINE_COLORS.length];
+  var total=await conn.query("SELECT COUNT(*) as n FROM interactions");
+  var n=Number(total.toArray()[0].n);
+  status(edges.length+' connections from '+n+' events');
+}
+
+// Maximum spanning tree (Kruskal's — favor high-traffic corridors)
+function buildMST(){
+  var N=members.length;
+  var par=new Array(N),rnk=new Array(N).fill(0);
+  for(var i=0;i<N;i++)par[i]=i;
+  function find(x){while(par[x]!==x)x=par[x]=par[par[x]];return x}
+  function unite(a,b){a=find(a);b=find(b);if(a===b)return false;
+    if(rnk[a]<rnk[b]){var t=a;a=b;b=t}par[b]=a;if(rnk[a]===rnk[b])rnk[a]++;return true}
+  var sorted=edges.slice().sort(function(a,b){return b.weight-a.weight});
+  var mst=[];
+  for(var i=0;i<sorted.length;i++){
+    if(unite(sorted[i].from,sorted[i].to))mst.push(sorted[i]);
+    if(mst.length===N-1)break;
+  }
+  return mst;
+}
+
+// Decompose MST into metro lines (farthest-first leaf pairing)
+function designLines(mst){
+  var N=members.length;
+  var adj=[];for(var i=0;i<N;i++)adj[i]=[];
+  mst.forEach(function(e,i){adj[e.from].push({to:e.to,ei:i});adj[e.to].push({to:e.from,ei:i})});
+  function bfs(start){
+    var dist=new Array(N).fill(-1),prev=new Array(N).fill(-1);
+    dist[start]=0;var q=[start],qi=0;
+    while(qi<q.length){var u=q[qi++];
+      for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;if(dist[v]<0){dist[v]=dist[u]+1;prev[v]=u;q.push(v)}}}
+    return{dist:dist,prev:prev};
+  }
+  // Find leaves (degree ≤1 in MST)
+  var leaves=[];for(var i=0;i<N;i++)if(adj[i].length<=1)leaves.push(i);
+  if(leaves.length<2)return[{nodes:members.map(function(_,i){return i}),color:LINE_COLORS[0]}];
+  // BFS from each leaf for pairwise distances
+  var leafBfs={};
+  leaves.forEach(function(l){leafBfs[l]=bfs(l)});
+  // Farthest-first greedy pairing
+  var remaining=leaves.slice(),pairs=[];
+  while(remaining.length>=2){
+    var bestD=-1,bestI=-1,bestJ=-1;
+    for(var i=0;i<remaining.length;i++){for(var j=i+1;j<remaining.length;j++){
+      var d=leafBfs[remaining[i]].dist[remaining[j]];
+      if(d>bestD){bestD=d;bestI=i;bestJ=j}
+    }}
+    pairs.push([remaining[bestI],remaining[bestJ]]);
+    remaining.splice(bestJ,1);remaining.splice(bestI,1);
+  }
+  // Odd leaf → stub line to its MST neighbor
+  if(remaining.length===1){
+    var stub=remaining[0];
+    if(adj[stub].length>0)pairs.push([stub,adj[stub][0].to]);
+  }
+  // Build lines: path between each pair via BFS prev-chain
+  var lines=[];
+  pairs.forEach(function(pair,i){
+    var info=bfs(pair[0]);
+    var path=[];for(var v=pair[1];v>=0;v=info.prev[v])path.push(v);
+    path.reverse();
+    lines.push({nodes:path,color:LINE_COLORS[i%LINE_COLORS.length]});
+  });
+  return lines;
+}
+
+// Build the designed metro — lines routed over force layout positions
+function designMetro(){
+  mstEdges=buildMST();
+  metroLines=designLines(mstEdges);
+  // Node positions stay as-is (force layout already solved spacing)
+  // MST edge weight lookup
+  var mstAdj={};
+  mstEdges.forEach(function(e,i){
+    var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+    mstAdj[k]={idx:i,weight:e.weight};
+  });
+  // Map each MST edge → which lines use it
+  edgeLineMap={};
+  metroLines.forEach(function(line,li){
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      if(!edgeLineMap[k])edgeLineMap[k]=[];
+      edgeLineMap[k].push(li);
+    }
+  });
+  // Spawn trains on each line
+  trains=[];
+  var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
+  metroLines.forEach(function(line,li){
+    if(line.nodes.length<2)return;
+    var traffic=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var info=mstAdj[k];
+      if(info)traffic+=info.weight;
+    }
+    var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
+    for(var t=0;t<nTrains;t++){
+      trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
+    }
+  });
+  // Build legend
+  var legend=document.getElementById('legend');
+  legend.innerHTML='';
+  metroLines.forEach(function(line,i){
+    var sp=document.createElement('span');
+    var ic=document.createElement('i');ic.style.background=line.color;
+    sp.appendChild(ic);
+    sp.appendChild(document.createTextNode(' L'+(i+1)));
+    legend.appendChild(sp);
+  });
+  // Junction markers (station served by 2+ lines)
+  members.forEach(function(m){m._nLines=0});
+  metroLines.forEach(function(line){
+    var seen={};
+    line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
+  });
+  viewMode='metro';
+  autoFit();
+  showScores();
+  status(metroLines.length+' lines, '+mstEdges.length+' track segments');
+}
+
+// Scoring — speed-penalized routing vs crow-flies
+function showScores(){
+  var N=members.length;
+  // Build adjacency from current built edges
+  var adj=[];for(var i=0;i<N;i++)adj[i]=[];
+  mstEdges.forEach(function(e){
+    adj[e.from].push({to:e.to});adj[e.to].push({to:e.from});
+  });
+  // Speed-penalized route cost (turns slow you down)
+  function routeCost(start,end){
+    if(start===end)return 0;
+    var prev=new Array(N).fill(-1),vis=new Array(N).fill(false);
+    vis[start]=true;var q=[start],qi=0;
+    while(qi<q.length){var u=q[qi++];
+      for(var j=0;j<adj[u].length;j++){var v=adj[u][j].to;
+        if(!vis[v]){vis[v]=true;prev[v]=u;q.push(v)}}}
+    if(!vis[end])return-1; // unreachable
+    var path=[];for(var v=end;v>=0;v=prev[v])path.push(v);path.reverse();
+    var cost=0;
+    for(var i=0;i<path.length-1;i++){
+      var a=members[path[i]],b=members[path[i+1]];
+      var d=Math.hypot(a.x-b.x,a.y-b.y),speed=1;
+      if(i>0){ // turn penalty at path[i]
+        var p=members[path[i-1]];
+        var dx1=a.x-p.x,dy1=a.y-p.y,dx2=b.x-a.x,dy2=b.y-a.y;
+        var dot=dx1*dx2+dy1*dy2;
+        var m1=Math.sqrt(dx1*dx1+dy1*dy1)||1,m2=Math.sqrt(dx2*dx2+dy2*dy2)||1;
+        var turn=Math.acos(Math.max(-1,Math.min(1,dot/(m1*m2)))); // 0=straight PI=U-turn
+        speed=Math.max(0.2,Math.cos(turn/2));
+      }
+      cost+=d/speed;
+    }
+    return cost;
+  }
+  // Compute scores
+  var crowTotal=0,routeTotal=0,packages=0,servedPkg=0;
+  edges.forEach(function(e){
+    var d=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
+    crowTotal+=e.weight*d;
+    var rc=routeCost(e.from,e.to);
+    if(rc>=0){routeTotal+=e.weight*rc;servedPkg+=e.weight}
+    else{routeTotal+=e.weight*d} // unserved = crow-flies
+    packages+=e.weight;
+  });
+  // Infrastructure
+  var trackLen=0;
+  mstEdges.forEach(function(e){
+    trackLen+=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);
+  });
+  var STATION_COST=10,JUNCTION_COST=5;
+  var stationCost=N*STATION_COST;
+  var junctionCost=0;
+  members.forEach(function(m){if(m._nLines>1)junctionCost+=(m._nLines-1)*JUNCTION_COST});
+  var eff=routeTotal>0?(crowTotal/routeTotal*100).toFixed(0):'--';
+  var infra=Math.round(trackLen)+stationCost+junctionCost;
+  var total=Math.round(routeTotal)+infra;
+  var isRail=viewMode==='rail';
+  var label=isRail?'RAIL SCORE':'METRO SCORE';
+  var accent=isRail?'#c8f':'#8af';
+  var coverage=packages>0?Math.round(servedPkg/packages*100):0;
+  var el=document.getElementById('score');
+  el.style.display='block';
+  el.innerHTML=
+    '<div style="color:#fff;margin-bottom:4px;font-size:0.75rem;letter-spacing:0.5px">'+label+'</div>'+
+    (isRail&&railPlan.length?'<div style="color:#2a9d8f">line '+railStep+' / '+railPlan.length+
+      (railStep>1?' <span id="undo-rail" style="color:#e63946;cursor:pointer;text-decoration:underline;margin-left:6px">undo</span>':'')+
+    '</div>':'')+
+    '<div>packages: <span style="color:#fff">'+packages+'</span>'+
+    (isRail?' <span style="color:'+(coverage>=90?'#2a9d8f':coverage>=50?'#e9c46a':'#e63946')+'">'+coverage+'% served</span>':'')+
+    '</div>'+
+    '<div style="margin-top:4px;color:'+accent+'">--- routing ---</div>'+
+    '<div>crow flies: <span style="color:#fff">'+Math.round(crowTotal)+'</span></div>'+
+    '<div>rail route: <span style="color:#fff">'+Math.round(routeTotal)+'</span> <span style="color:'+(eff>=80?'#2a9d8f':eff>=50?'#e9c46a':'#e63946')+'">'+eff+'%</span></div>'+
+    '<div style="margin-top:4px;color:'+accent+'">--- infra ---</div>'+
+    '<div>track: <span style="color:#fff">'+Math.round(trackLen)+'</span></div>'+
+    '<div>stations: <span style="color:#fff">'+stationCost+'</span> junctions: <span style="color:#fff">'+junctionCost+'</span></div>'+
+    '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;color:#fff;font-size:0.8rem;letter-spacing:0.5px">TOTAL: '+total+'</div>';
+  // Wire undo button
+  var undoBtn=document.getElementById('undo-rail');
+  if(undoBtn)undoBtn.onclick=function(){if(railStep>1)applyRailStep(railStep-1)};
+}
+
+// Build constrained rail — planar (zero crossings) + proximity capture
+function buildRail(){
+  var N=members.length;
+  // Sort all interaction edges by weight descending
+  var sorted=edges.slice().sort(function(a,b){return b.weight-a.weight});
+
+  // --- Phase 1: expand edges for proximity capture ---
+  // Compute capture radius from average edge length
+  var sumLen=0,nLen=0;
+  sorted.forEach(function(e){
+    sumLen+=Math.hypot(members[e.from].x-members[e.to].x,members[e.from].y-members[e.to].y);nLen++;
+  });
+  var captureR=(sumLen/(nLen||1))*0.3;
+
+  // Point-to-segment distance helper
+  function ptSegDist(px,py,ax,ay,bx,by){
+    var dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+    if(len2<1)return{d:Math.hypot(px-ax,py-ay),t:0};
+    var t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2));
+    return{d:Math.hypot(px-(ax+t*dx),py-(ay+t*dy)),t:t};
+  }
+
+  // Expand: if a node is within captureR of an edge segment, split the edge through it
+  var expanded=[];
+  sorted.forEach(function(e){
+    var ax=members[e.from].x,ay=members[e.from].y,bx=members[e.to].x,by=members[e.to].y;
+    var caps=[];
+    for(var ni=0;ni<N;ni++){
+      if(ni===e.from||ni===e.to)continue;
+      var info=ptSegDist(members[ni].x,members[ni].y,ax,ay,bx,by);
+      if(info.d<captureR&&info.t>0.05&&info.t<0.95)caps.push({ni:ni,t:info.t});
+    }
+    if(!caps.length){expanded.push(e);return}
+    caps.sort(function(a,b){return a.t-b.t});
+    var chain=[e.from];caps.forEach(function(c){chain.push(c.ni)});chain.push(e.to);
+    for(var i=0;i<chain.length-1;i++){
+      expanded.push({from:chain[i],to:chain[i+1],weight:e.weight,color:null});
+    }
+  });
+
+  // --- Phase 2: greedy planar spanning tree (Kruskal + no-crossing) ---
+  var par=new Array(N),rnk=new Array(N).fill(0);
+  for(var i=0;i<N;i++)par[i]=i;
+  function find(x){while(par[x]!==x)x=par[x]=par[par[x]];return x}
+  function unite(a,b){a=find(a);b=find(b);if(a===b)return false;
+    if(rnk[a]<rnk[b]){var t=a;a=b;b=t}par[b]=a;if(rnk[a]===rnk[b])rnk[a]++;return true}
+
+  // Deduplicate expanded edges (keep max weight per pair)
+  var edgeMap={};
+  expanded.forEach(function(e){
+    var lo=Math.min(e.from,e.to),hi=Math.max(e.from,e.to),k=lo+':'+hi;
+    if(!edgeMap[k]||e.weight>edgeMap[k].weight)edgeMap[k]={from:lo,to:hi,weight:e.weight};
+  });
+  var candidates=Object.values(edgeMap).sort(function(a,b){return b.weight-a.weight});
+
+  var tree=[];
+  function crossesTree(e){
+    for(var j=0;j<tree.length;j++){
+      var te=tree[j];
+      if(te.from===e.from||te.from===e.to||te.to===e.from||te.to===e.to)continue;
+      if(segsX(members[e.from].x,members[e.from].y,members[e.to].x,members[e.to].y,
+               members[te.from].x,members[te.from].y,members[te.to].x,members[te.to].y))return true;
+    }
+    return false;
+  }
+
+  for(var i=0;i<candidates.length;i++){
+    var e=candidates[i];
+    if(find(e.from)===find(e.to))continue;
+    if(crossesTree(e))continue;
+    unite(e.from,e.to);
+    tree.push(e);
+    if(tree.length===N-1)break;
+  }
+
+  // Fill gaps with zero-weight Euclidean edges for disconnected components
+  if(tree.length<N-1){
+    var gaps=[];
+    for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
+      if(find(i)===find(j))continue;
+      gaps.push({from:i,to:j,weight:0,
+        dist:Math.hypot(members[i].x-members[j].x,members[i].y-members[j].y)});
+    }}
+    gaps.sort(function(a,b){return a.dist-b.dist});
+    for(var i=0;i<gaps.length&&tree.length<N-1;i++){
+      var e=gaps[i];
+      if(find(e.from)===find(e.to))continue;
+      if(crossesTree(e))continue;
+      unite(e.from,e.to);
+      tree.push({from:e.from,to:e.to,weight:0});
+    }
+  }
+
+  // --- Phase 3: plan lines, sort by traffic, apply step 1 ---
+  railTree=tree;
+  var allLines=designLines(tree);
+  // Sort lines by total traffic (highest first)
+  var treeAdj={};
+  tree.forEach(function(e,i){
+    var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+    treeAdj[k]={idx:i,weight:e.weight};
+  });
+  allLines.forEach(function(line){
+    var traffic=0;
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      var info=treeAdj[k];if(info)traffic+=info.weight;
+    }
+    line._traffic=traffic;
+  });
+  allLines.sort(function(a,b){return b._traffic-a._traffic});
+  railPlan=allLines;
+  applyRailStep(1);
+}
+
+// Apply N rail lines from plan — builds metro state from railPlan[0..n-1]
+function applyRailStep(n){
+  railStep=Math.max(1,Math.min(n,railPlan.length));
+  metroLines=railPlan.slice(0,railStep);
+  // Determine built edges (covered by active lines)
+  edgeLineMap={};
+  metroLines.forEach(function(line,li){
+    for(var i=0;i<line.nodes.length-1;i++){
+      var a=line.nodes[i],b=line.nodes[i+1];
+      var k=Math.min(a,b)+':'+Math.max(a,b);
+      if(!edgeLineMap[k])edgeLineMap[k]=[];
+      edgeLineMap[k].push(li);
+    }
+  });
+  var builtKeys={};for(var k in edgeLineMap)builtKeys[k]=true;
+  mstEdges=railTree.filter(function(e){
+    return builtKeys[Math.min(e.from,e.to)+':'+Math.max(e.from,e.to)];
+  });
+  // Trains
+  trains=[];
+  var maxTraffic=1;mstEdges.forEach(function(e){if(e.weight>maxTraffic)maxTraffic=e.weight});
+  metroLines.forEach(function(line,li){
+    if(line.nodes.length<2)return;
+    var traffic=line._traffic||1;
+    var nTrains=Math.max(1,Math.min(4,Math.round(traffic/(line.nodes.length*maxTraffic)*4)));
+    for(var t=0;t<nTrains;t++){
+      trains.push({line:li,pos:t/nTrains*(line.nodes.length-1),dir:1,speed:0.008+Math.random()*0.004});
+    }
+  });
+  // Legend
+  var legend=document.getElementById('legend');
+  legend.innerHTML='';
+  metroLines.forEach(function(line,i){
+    var sp=document.createElement('span');
+    var ic=document.createElement('i');ic.style.background=line.color;
+    sp.appendChild(ic);
+    sp.appendChild(document.createTextNode(' L'+(i+1)));
+    legend.appendChild(sp);
+  });
+  // Junction markers
+  members.forEach(function(m){m._nLines=0});
+  metroLines.forEach(function(line){
+    var seen={};
+    line.nodes.forEach(function(ni){if(!seen[ni]){seen[ni]=true;members[ni]._nLines++}});
+  });
+  // Splines
+  lineSplines=metroLines.map(function(line){return catmullRomLine(line,12)});
+  viewMode='rail';
+  autoFit();
+  showScores();
+  var btn=document.getElementById('rail-btn');
+  btn.textContent=railStep<railPlan.length?'+ line '+(railStep+1):'show traffic';
+  btn.style.background=railStep<railPlan.length?'#8338ec':'var(--accent)';
+  draw();
+}
+
+// Segment intersection test (returns true if segments cross, excluding shared endpoints)
+function segsX(ax,ay,bx,by,cx,cy,dx,dy){
+  var d1x=bx-ax,d1y=by-ay,d2x=dx-cx,d2y=dy-cy;
+  var cross=d1x*d2y-d1y*d2x;
+  if(Math.abs(cross)<1e-10)return false;
+  var ex=cx-ax,ey=cy-ay;
+  var t=(ex*d2y-ey*d2x)/cross;
+  var u=(ex*d1y-ey*d1x)/cross;
+  return t>0.02&&t<0.98&&u>0.02&&u<0.98;
+}
+
+function countCrossings(){
+  var n=0;
+  for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
+    var ei=edges[i],ej=edges[j];
+    if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
+    var a=members[ei.from],b=members[ei.to],c=members[ej.from],d=members[ej.to];
+    if(segsX(a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y))n++;
+  }}
+  return n;
+}
+
+// Force-directed layout with Lennard-Jones potential + spatial grid
+function forceLayout(){
+  var N=members.length;
+  if(N===0)return;
+  status('computing layout...');
+  var targetCross=parseInt(document.getElementById('max-cross').value)||0;
+  var sigma=120;
+
+  // Hex lattice init
+  var cols=Math.ceil(Math.sqrt(N*1.3)),rows=Math.ceil(N/cols),sp=sigma*1.1;
+  members.forEach(function(m,i){
+    var col=i%cols,row=Math.floor(i/cols);
+    m.x=(col-(cols-1)/2)*sp+(row%2?sp*0.5:0);
+    m.y=(row-(rows-1)/2)*sp;m.vx=0;m.vy=0;
+  });
+
+  var maxW=edges.length?edges[0].weight:1;
+  var eps=sigma*0.5;
+  var cutoff=sigma*3; // LJ negligible beyond 3*sigma
+  var iters=Math.min(500,150+N*3); // scale iterations with size
+
+  for(var iter=0;iter<iters;iter++){
+    var cool=Math.max(0.02,1-iter/iters);
+    var temp=cool*2;
+
+    // Spatial grid for LJ — only check neighbors within cutoff
+    var cell=cutoff;
+    var grid={};
+    for(var i=0;i<N;i++){
+      var gx=Math.floor(members[i].x/cell),gy=Math.floor(members[i].y/cell);
+      var gk=gx+','+gy;
+      if(!grid[gk])grid[gk]=[];
+      grid[gk].push(i);
+    }
+    for(var gk in grid){
+      var parts=gk.split(','),gx=+parts[0],gy=+parts[1];
+      for(var ox=-1;ox<=1;ox++){for(var oy=-1;oy<=1;oy++){
+        var nk=(gx+ox)+','+(gy+oy);
+        var nb=grid[nk];if(!nb)continue;
+        var cur=grid[gk];
+        for(var ci=0;ci<cur.length;ci++){
+          var jStart=(gk===nk)?ci+1:0;
+          for(var cj=jStart;cj<nb.length;cj++){
+            var ii=cur[ci],jj=nb[cj];if(ii===jj)continue;
+            var dx=members[ii].x-members[jj].x,dy=members[ii].y-members[jj].y;
+            var d=Math.sqrt(dx*dx+dy*dy);if(d<1)d=1;
+            if(d>cutoff)continue;
+            var ratio=sigma/d,r6=ratio*ratio*ratio*ratio*ratio*ratio,r12=r6*r6;
+            var f=24*eps/d*(2*r12-r6)*temp;
+            f=Math.max(-50,Math.min(50,f));
+            var ux=dx/d,uy=dy/d;
+            members[ii].vx+=ux*f;members[ii].vy+=uy*f;
+            members[jj].vx-=ux*f;members[jj].vy-=uy*f;
+          }
+        }
+      }}
+    }
+
+    // Edge springs
+    var restLen=sigma*0.7;
+    for(var e=0;e<edges.length;e++){
+      var edge=edges[e],a=members[edge.from],b=members[edge.to];
+      var dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+      var strength=0.04*(0.3+0.7*edge.weight/maxW)*temp;
+      var f=(d-restLen)*strength;
+      var ux=dx/d,uy=dy/d;
+      a.vx+=ux*f;a.vy+=uy*f;b.vx-=ux*f;b.vy-=uy*f;
+    }
+
+    // Crossing avoidance — sample edges for large graphs
+    if(iter>80&&edges.length>0){
+      var crossForce=(targetCross===0)?12:Math.max(2,10-targetCross);
+      var maxPairs=Math.min(edges.length*(edges.length-1)/2,2000);
+      var step=Math.max(1,Math.floor(edges.length*edges.length/2/maxPairs));
+      var pair=0;
+      for(var i=0;i<edges.length;i++){for(var j=i+1;j<edges.length;j++){
+        if((pair++)%step!==0)continue;
+        var ei=edges[i],ej=edges[j];
+        if(ei.from===ej.from||ei.from===ej.to||ei.to===ej.from||ei.to===ej.to)continue;
+        var a=members[ei.from],b=members[ei.to],c=members[ej.from],d=members[ej.to];
+        if(!segsX(a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y))continue;
+        var mx1=(a.x+b.x)/2,my1=(a.y+b.y)/2;
+        var mx2=(c.x+d.x)/2,my2=(c.y+d.y)/2;
+        var ddx=mx1-mx2,ddy=my1-my2;
+        var dd=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+        var cf=crossForce*temp/dd;
+        a.vx+=ddx/dd*cf;a.vy+=ddy/dd*cf;b.vx+=ddx/dd*cf;b.vy+=ddy/dd*cf;
+        c.vx-=ddx/dd*cf;c.vy-=ddy/dd*cf;d.vx-=ddx/dd*cf;d.vy-=ddy/dd*cf;
+      }}
+    }
+
+    // Center gravity
+    var cx=0,cy=0;
+    for(var i=0;i<N;i++){cx+=members[i].x;cy+=members[i].y}
+    cx/=N;cy/=N;
+    for(var i=0;i<N;i++){
+      members[i].vx+=(cx-members[i].x)*0.001*temp;
+      members[i].vy+=(cy-members[i].y)*0.001*temp;
+    }
+
+    for(var i=0;i<N;i++){
+      members[i].vx*=0.75;members[i].vy*=0.75;
+      members[i].x+=members[i].vx;members[i].y+=members[i].vy;
+    }
+  }
+
+  // Greedy swap — capped for large graphs (only try random sample of swaps)
+  var crossings=countCrossings();
+  if(crossings>targetCross&&N<=60){
+    var maxSwapAttempts=Math.min(N*(N-1)/2,500);
+    var improved=true,passes=0;
+    while(improved&&passes<5){
+      improved=false;passes++;
+      var cur=countCrossings();if(cur<=targetCross)break;
+      var attempts=0;
+      for(var i=0;i<N&&attempts<maxSwapAttempts;i++){
+        for(var j=i+1;j<N&&attempts<maxSwapAttempts;j++){
+          attempts++;
+          var tx=members[i].x,ty=members[i].y;
+          members[i].x=members[j].x;members[i].y=members[j].y;
+          members[j].x=tx;members[j].y=ty;
+          var after=countCrossings();
+          if(after<cur){cur=after;improved=true;if(cur<=targetCross)break}
+          else{members[j].x=members[i].x;members[j].y=members[i].y;members[i].x=tx;members[i].y=ty}
+        }if(cur<=targetCross)break;
+      }
+    }
+    crossings=countCrossings();
+  }
+  status(edges.length+' connections, '+crossings+' crossings');
+  autoFit();
+}
+
+function autoFit(){
+  if(!members.length)return;
+  var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  members.forEach(function(m){
+    if(m.x<minX)minX=m.x;if(m.x>maxX)maxX=m.x;
+    if(m.y<minY)minY=m.y;if(m.y>maxY)maxY=m.y;
+  });
+  cam.x=(minX+maxX)/2;
+  cam.y=(minY+maxY)/2;
+  var spanX=maxX-minX+200,spanY=maxY-minY+200;
+  cam.zoom=Math.min((W-40)/spanX,(H-80)/spanY,2);
+  cam.zoom=Math.max(0.1,cam.zoom);
+}
+
+// Catmull-Rom spline: returns array of {x,y} points along a line's stations
+// tension 0.5 = standard centripetal, steps = subdivisions per segment
+function catmullRomLine(line,steps){
+  var pts=line.nodes.map(function(ni){return{x:members[ni].x,y:members[ni].y}});
+  if(pts.length<2)return pts;
+  // Pad endpoints by mirroring
+  var pStart={x:2*pts[0].x-pts[1].x,y:2*pts[0].y-pts[1].y};
+  var pEnd={x:2*pts[pts.length-1].x-pts[pts.length-2].x,y:2*pts[pts.length-1].y-pts[pts.length-2].y};
+  var padded=[pStart].concat(pts).concat([pEnd]);
+  var out=[];
+  for(var i=1;i<padded.length-2;i++){
+    var q0=padded[i-1],q1=padded[i],q2=padded[i+1],q3=padded[i+2];
+    for(var s=0;s<steps;s++){
+      var t=s/steps;
+      var t2=t*t,t3=t2*t;
+      var x=0.5*((2*q1.x)+(-q0.x+q2.x)*t+(2*q0.x-5*q1.x+4*q2.x-q3.x)*t2+(-q0.x+3*q1.x-3*q2.x+q3.x)*t3);
+      var y=0.5*((2*q1.y)+(-q0.y+q2.y)*t+(2*q0.y-5*q1.y+4*q2.y-q3.y)*t2+(-q0.y+3*q1.y-3*q2.y+q3.y)*t3);
+      out.push({x:x,y:y});
+    }
+  }
+  out.push(pts[pts.length-1]); // last point
+  return out;
+}
+
+// Get position along a spline curve at fractional distance
+function splinePos(splinePts,frac){
+  var idx=frac*(splinePts.length-1);
+  var i=Math.floor(idx),t=idx-i;
+  if(i>=splinePts.length-1)return splinePts[splinePts.length-1];
+  var a=splinePts[i],b=splinePts[i+1];
+  return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  var z=cam.zoom;
+
+  if(viewMode!=='traffic'){
+    // --- METRO/RAIL VIEW: designed infrastructure ---
+    if(viewMode==='rail'&&lineSplines.length){
+      // RAIL: spline-based rendering per line
+      // Gray rail bed per line (wide spline)
+      metroLines.forEach(function(line,li){
+        var spl=lineSplines[li];if(!spl||spl.length<2)return;
+        ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=10*z;
+        ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+        var s0=toScreen(spl[0].x,spl[0].y);ctx.moveTo(s0.x,s0.y);
+        for(var i=1;i<spl.length;i++){var s=toScreen(spl[i].x,spl[i].y);ctx.lineTo(s.x,s.y)}
+        ctx.stroke();
+      });
+      // Colored spline strokes per line
+      metroLines.forEach(function(line,li){
+        var spl=lineSplines[li];if(!spl||spl.length<2)return;
+        ctx.strokeStyle=line.color;ctx.lineWidth=2.5*z;
+        ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=0.85;ctx.beginPath();
+        var s0=toScreen(spl[0].x,spl[0].y);ctx.moveTo(s0.x,s0.y);
+        for(var i=1;i<spl.length;i++){var s=toScreen(spl[i].x,spl[i].y);ctx.lineTo(s.x,s.y)}
+        ctx.stroke();
+      });
+      ctx.globalAlpha=1;
+      // Trains follow splines
+      trains.forEach(function(tr){
+        var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
+        var spl=lineSplines[tr.line];if(!spl||spl.length<2)return;
+        var frac=tr.pos/(line.nodes.length-1);
+        var wp=splinePos(spl,frac);
+        var s=toScreen(wp.x,wp.y);
+        ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
+        ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
+      });
+    }else{
+      // METRO: straight segment rendering per edge
+      // Gray rail bed
+      mstEdges.forEach(function(e){
+        var a=members[e.from],b=members[e.to];
+        var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+        var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+        var nLines=(edgeLineMap[k]||[]).length;
+        ctx.strokeStyle='rgba(255,255,255,0.12)';
+        ctx.lineWidth=Math.max(6,(4+nLines*4))*z;
+        ctx.lineCap='round';ctx.beginPath();
+        ctx.moveTo(sa.x,sa.y);ctx.lineTo(sb.x,sb.y);ctx.stroke();
+      });
+      // Colored line stripes (offset from center for shared edges)
+      mstEdges.forEach(function(e){
+        var a=members[e.from],b=members[e.to];
+        var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+        var k=Math.min(e.from,e.to)+':'+Math.max(e.from,e.to);
+        var lineIds=edgeLineMap[k]||[];if(!lineIds.length)return;
+        var dx=sb.x-sa.x,dy=sb.y-sa.y,len=Math.sqrt(dx*dx+dy*dy)||1;
+        var nx=-dy/len,ny=dx/len;
+        var gap=3.5*z,total=lineIds.length;
+        var off=-(total-1)*gap/2;
+        lineIds.forEach(function(li,idx){
+          var o=off+idx*gap;
+          ctx.strokeStyle=metroLines[li].color;ctx.lineWidth=2.5*z;
+          ctx.lineCap='round';ctx.globalAlpha=0.85;ctx.beginPath();
+          ctx.moveTo(sa.x+nx*o,sa.y+ny*o);ctx.lineTo(sb.x+nx*o,sb.y+ny*o);ctx.stroke();
+        });
+      });
+      ctx.globalAlpha=1;
+      // Trains (linear interpolation)
+      trains.forEach(function(tr){
+        var line=metroLines[tr.line];if(!line||line.nodes.length<2)return;
+        var seg=Math.floor(tr.pos),frac=tr.pos-seg;
+        if(seg>=line.nodes.length-1){seg=line.nodes.length-2;frac=1}
+        var a=members[line.nodes[seg]],b=members[line.nodes[seg+1]];
+        var wx=a.x+(b.x-a.x)*frac,wy=a.y+(b.y-a.y)*frac;
+        var s=toScreen(wx,wy);
+        ctx.beginPath();ctx.arc(s.x,s.y,5*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.9;ctx.fill();
+        ctx.beginPath();ctx.arc(s.x,s.y,9*z,0,Math.PI*2);
+        ctx.fillStyle=line.color;ctx.globalAlpha=0.2;ctx.fill();
+      });
+    }
+    ctx.globalAlpha=1;
+  }else{
+    // --- TRAFFIC VIEW: raw interaction edges ---
+    edges.forEach(function(e){
+      var a=members[e.from],b=members[e.to];
+      var sa=toScreen(a.x,a.y),sb=toScreen(b.x,b.y);
+      var thick=Math.max(2,Math.min(10,Math.sqrt(e.weight)*2))*z;
+      ctx.strokeStyle=e.color;ctx.lineWidth=thick;
+      ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.globalAlpha=0.6;ctx.beginPath();
+      var dx=b.x-a.x,dy=b.y-a.y,adx=Math.abs(dx),ady=Math.abs(dy);
+      ctx.moveTo(sa.x,sa.y);
+      if(ady<20||adx<20||Math.abs(adx-ady)<25){ctx.lineTo(sb.x,sb.y)}
+      else if(adx>ady){var diag=ady,sx=dx>0?1:-1;var mid=toScreen(a.x+sx*(adx-diag),a.y);ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y)}
+      else{var diag=adx,sy=dy>0?1:-1;var mid=toScreen(a.x,a.y+sy*(ady-diag));ctx.lineTo(mid.x,mid.y);ctx.lineTo(sb.x,sb.y)}
+      ctx.stroke();
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // Animated dots (shared between both views)
+  dots.forEach(function(dot){
+    var sd=toScreen(dot.x,dot.y);
+    ctx.globalAlpha=dot.alpha;
+    ctx.beginPath();ctx.arc(sd.x,sd.y,6*z,0,Math.PI*2);
+    ctx.fillStyle=dot.color;ctx.fill();
+    ctx.beginPath();ctx.arc(sd.x,sd.y,12*z,0,Math.PI*2);
+    ctx.fillStyle=dot.color;ctx.globalAlpha=dot.alpha*0.25;ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Stations
+  var R=20*z;
+  members.forEach(function(m){
+    var s=toScreen(m.x,m.y);
+    ctx.beginPath();ctx.arc(s.x,s.y,R+3*z,0,Math.PI*2);
+    ctx.fillStyle='#fff';ctx.fill();
+    if(m.img){
+      ctx.save();ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.clip();
+      ctx.drawImage(m.img,s.x-R,s.y-R,R*2,R*2);ctx.restore();
+    }else{
+      ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.fillStyle='#333';ctx.fill();
+      ctx.fillStyle='#999';ctx.font=(10*z)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(m.handle[0].toUpperCase(),s.x,s.y);
+    }
+    ctx.fillStyle='#ccc';ctx.font=Math.max(7,9*z)+'px monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(m.handle.replace('.bsky.social',''),s.x,s.y+R+6*z);
+    // Junction marker (station served by 2+ lines)
+    if(viewMode!=='traffic'&&m._nLines>1){
+      ctx.strokeStyle='#fff';ctx.lineWidth=2*z;
+      ctx.beginPath();ctx.arc(s.x,s.y,R+6*z,0,Math.PI*2);ctx.stroke();
+    }
+  });
+}
+
+function animate(ts){
+  var now=Date.now();
+  dots=dots.filter(function(d){
+    var t=(now-d.start)/d.duration;if(t>=1)return false;
+    var e=t<0.5?2*t*t:-1+(4-2*t)*t;
+    d.x=d.x0+(d.x1-d.x0)*e;d.y=d.y0+(d.y1-d.y0)*e;
+    d.alpha=t<0.1?t/0.1:t>0.8?(1-t)/0.2:1;
+    return true;
+  });
+  // Advance trains
+  if(viewMode!=='traffic'){
+    trains.forEach(function(tr){
+      var line=metroLines[tr.line];if(!line)return;
+      var maxPos=line.nodes.length-1;
+      tr.pos+=tr.speed*tr.dir;
+      if(tr.pos>=maxPos){tr.pos=maxPos;tr.dir=-1}
+      if(tr.pos<=0){tr.pos=0;tr.dir=1}
+    });
+  }
+  draw();
+  requestAnimationFrame(animate);
+}
+
+function spawnDot(fi,ti,color){
+  var a=members[fi],b=members[ti];if(!a||!b)return;
+  dots.push({x0:a.x,y0:a.y,x1:b.x,y1:b.y,x:a.x,y:a.y,alpha:1,
+    color:color||'#fff',start:Date.now(),duration:1500});
+}
+
+function connectJetstream(){
+  if(ws)ws.close();
+  var dids=members.map(function(m){return m.did});if(!dids.length)return;
+  var params=dids.map(function(d){return'wantedDids='+encodeURIComponent(d)});
+  params.push('wantedCollections=app.bsky.feed.like');
+  params.push('wantedCollections=app.bsky.feed.post');
+  params.push('wantedCollections=app.bsky.feed.repost');
+  ws=new WebSocket('wss://jetstream2.us-east.bsky.network/subscribe?'+params.join('&'));
+
+  ws.onmessage=function(ev){
+    try{
+      var msg=JSON.parse(ev.data);
+      if(msg.kind!=='commit'||msg.commit.operation!=='create')return;
+      var from=msg.did,to=null,col=msg.commit.collection,rec=msg.commit.record,color='#fff';
+      if(col==='app.bsky.feed.like'&&rec&&rec.subject){
+        to=rec.subject.uri.split('/')[2];color='#e63946';
+      }else if(col==='app.bsky.feed.post'&&rec&&rec.reply){
+        to=rec.reply.parent.uri.split('/')[2];color='#457b9d';
+      }else if(col==='app.bsky.feed.repost'&&rec&&rec.subject){
+        to=rec.subject.uri.split('/')[2];color='#2a9d8f';
+      }
+      if(to&&memberIdx[from]!==undefined&&memberIdx[to]!==undefined){
+        spawnDot(memberIdx[from],memberIdx[to],color);
+      }
+    }catch(e){}
+  };
+  ws.onclose=function(){setTimeout(connectJetstream,5000)};
+  status('live \u2014 watching '+dids.length+' members');
+}
+
+// Playback engine
+var EVT_COLORS={reply:'#457b9d',quote:'#2a9d8f',like:'#e63946',repost:'#2a9d8f'};
+
+async function startPlayback(){
+  stopPlayback();
+  var days=parseInt(document.getElementById('play-range').value)||7;
+  var speed=parseInt(document.getElementById('play-speed').value)||200;
+  var cutoff=Date.now()-days*86400000;
+  // Query DuckDB for events in range
+  var result=await conn.query("SELECT from_idx,to_idx,ts,type FROM interactions WHERE ts>="+cutoff+" ORDER BY ts");
+  var evts=result.toArray().map(function(r){return{fi:Number(r.from_idx),ti:Number(r.to_idx),t:Number(r.ts),type:r.type}});
+  if(!evts.length){status('no events in range');return}
+  if(ws){ws.close();ws=null}
+  playback={evts:evts,idx:0,startReal:Date.now(),startSim:evts[0].t,speed:speed};
+  document.getElementById('play-btn').textContent='\u23F9 stop';
+  tickPlayback();
+}
+
+function stopPlayback(){
+  if(!playback)return;
+  playback=null;
+  document.getElementById('play-btn').textContent='\u25B6 replay';
+  document.getElementById('play-time').textContent='';
+  if(loaded)connectJetstream();
+}
+
+function tickPlayback(){
+  if(!playback)return;
+  var pb=playback;
+  var elapsed=(Date.now()-pb.startReal)*pb.speed;
+  var simNow=pb.startSim+elapsed;
+  while(pb.idx<pb.evts.length&&pb.evts[pb.idx].t<=simNow){
+    var ev=pb.evts[pb.idx];
+    spawnDot(ev.fi,ev.ti,EVT_COLORS[ev.type]||'#fff');
+    pb.idx++;
+  }
+  var d=new Date(simNow);
+  document.getElementById('play-time').textContent=d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  var pct=Math.round(pb.idx/pb.evts.length*100);
+  status('replay '+pct+'% ('+pb.idx+'/'+pb.evts.length+')');
+  if(pb.idx>=pb.evts.length){
+    setTimeout(stopPlayback,2000);
+  }else{
+    requestAnimationFrame(tickPlayback);
+  }
+}
+
+document.getElementById('play-btn').addEventListener('click',function(){
+  if(playback)stopPlayback();else startPlayback();
+});
+
+function exitToTraffic(){
+  viewMode='traffic';trains=[];lineSplines=[];railPlan=[];railStep=0;railTree=[];
+  document.getElementById('score').style.display='none';
+  document.getElementById('metro-btn').textContent='design metro';
+  document.getElementById('metro-btn').style.background='#2a9d8f';
+  document.getElementById('rail-btn').textContent='build rail';
+  document.getElementById('rail-btn').style.background='#8338ec';
+  var legend=document.getElementById('legend');
+  legend.innerHTML='<span><i style="background:#e63946"></i>like</span><span><i style="background:#457b9d"></i>reply</span><span><i style="background:#2a9d8f"></i>repost</span>';
+  draw();
+}
+
+document.getElementById('metro-btn').addEventListener('click',function(){
+  if(!loaded)return;
+  if(viewMode==='metro'){exitToTraffic();return}
+  if(viewMode==='rail')exitToTraffic();
+  designMetro();
+  this.textContent='show traffic';this.style.background='var(--accent)';
+  draw();
+});
+
+document.getElementById('rail-btn').addEventListener('click',function(){
+  if(!loaded)return;
+  if(viewMode==='rail'){
+    // Already in rail mode — add next line or exit
+    if(railStep<railPlan.length){applyRailStep(railStep+1)}
+    else{exitToTraffic()}
+    return;
+  }
+  if(viewMode==='metro')exitToTraffic();
+  buildRail(); // enters rail mode at step 1
+});
+
+document.getElementById('load-btn').addEventListener('click',async function(){
+  var btn=this;
+  var input=document.getElementById('list-uri').value;if(!input)return;
+  btn.disabled=true;
+  try{
+    await initDuck();
+    var uri=parseListUri(input);
+    var cached=await getCached(uri);
+    if(cached&&Date.now()-cached.ts<CACHE_TTL){
+      status('restoring from cache...');
+      members=[];memberIdx={};
+      cached.members.forEach(function(cm,i){
+        memberIdx[cm.did]=i;
+        members.push({did:cm.did,handle:cm.handle,displayName:cm.displayName,
+          avatar:cm.avatar,x:0,y:0,vx:0,vy:0,img:null});
+      });
+      await Promise.all(members.map(function(m){
+        if(!m.avatar)return Promise.resolve();
+        return new Promise(function(ok){
+          var img=new Image();img.onload=function(){m.img=img;ok()};img.onerror=ok;img.src=m.avatar;
+        });
+      }));
+      await conn.query("DELETE FROM interactions");
+      for(var ci=0;ci<cached.interactions.length;ci+=500){
+        var chunk=cached.interactions.slice(ci,ci+500);
+        var vals=chunk.map(function(r){return'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')"}).join(',');
+        await conn.query("INSERT INTO interactions VALUES "+vals);
+      }
+      await aggregateEdges();
+      status(edges.length+' connections (cached '+Math.round((Date.now()-cached.ts)/60000)+'m ago)');
+    }else{
+      await loadList(uri);
+      await scrapeInteractions();
+      await aggregateEdges();
+      // Save to cache
+      var allRows=await conn.query("SELECT from_idx,to_idx,ts,type FROM interactions");
+      var ints=allRows.toArray().map(function(r){
+        return{fi:Number(r.from_idx),ti:Number(r.to_idx),ts:Number(r.ts),type:r.type};
+      });
+      await setCache(uri,{ts:Date.now(),
+        members:members.map(function(m){return{did:m.did,handle:m.handle,displayName:m.displayName,avatar:m.avatar}}),
+        interactions:ints});
+    }
+    forceLayout();
+    loaded=true;
+    document.getElementById('legend').classList.add('show');
+    document.getElementById('play-btn').disabled=false;
+    document.getElementById('metro-btn').disabled=false;
+    document.getElementById('rail-btn').disabled=false;
+    if(!animating){animating=true;requestAnimationFrame(animate)}
+    connectJetstream();
+  }catch(e){status('error: '+e.message);console.error(e)}
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>

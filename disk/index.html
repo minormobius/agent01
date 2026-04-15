@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>disk — poincaré interaction map</title>
+<script type="importmap">{"imports":{"apache-arrow":"https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"}}</script>
+<style>
+:root{--bg:#0a0a1a;--text:#e0e0e0;--muted:#555;--accent:#e63946;--panel:rgba(15,15,30,0.92);--mono:'SF Mono','Cascadia Code',Menlo,monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono)}
+#controls{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid rgba(255,255,255,0.08)}
+#controls input[type=text]{flex:1;min-width:180px;max-width:400px;padding:6px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:0.8rem}
+#controls button{padding:6px 14px;background:var(--accent);border:none;border-radius:4px;color:#fff;font-family:var(--mono);font-size:0.8rem;cursor:pointer}
+#controls button:hover{opacity:0.85}
+#controls button:disabled{opacity:0.4;cursor:default}
+#controls label{font-size:0.7rem;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+#controls label input{accent-color:var(--accent)}
+#status{font-size:0.7rem;color:var(--muted)}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%}
+.legend{position:fixed;bottom:12px;left:12px;z-index:10;display:none;gap:14px;font-size:0.65rem;color:var(--muted)}
+.legend.show{display:flex}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+.hint{position:fixed;bottom:12px;right:16px;z-index:10;font-size:0.6rem;color:rgba(255,255,255,0.25);display:none}
+.hint.show{display:block}
+</style>
+</head>
+<body>
+<div id="controls">
+  <input type="text" id="list-uri" placeholder="paste bsky list url or at:// uri">
+  <button id="load-btn">load</button>
+  <label><input type="checkbox" id="inc-owner" checked> +owner</label>
+  <label>max lines <input type="number" id="max-deg" value="0" min="0" max="20" style="width:36px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem;text-align:center"></label>
+  <button id="play-btn" disabled style="padding:6px 12px;background:#457b9d">&#9654; replay</button>
+  <select id="play-range" style="padding:4px 6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="1">24h</option><option value="7" selected>7d</option><option value="30">30d</option>
+  </select>
+  <select id="play-speed" style="padding:4px 6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:0.75rem">
+    <option value="50">50x</option><option value="200" selected>200x</option><option value="1000">1000x</option>
+  </select>
+  <span id="play-time" style="font-size:0.65rem;color:var(--muted);min-width:80px"></span>
+  <span id="status"></span>
+</div>
+<canvas id="cv"></canvas>
+<div class="legend" id="legend">
+  <span><i style="background:#e63946"></i>like</span>
+  <span><i style="background:#457b9d"></i>reply</span>
+  <span><i style="background:#2a9d8f"></i>repost</span>
+</div>
+<div class="hint" id="hint">click a node to recenter &middot; poincaré disk model</div>
+<script type="module">
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var W,H,dpr,diskR=1,diskCx=0,diskCy=0;
+var LINE_C=['#e63946','#457b9d','#2a9d8f','#e9c46a','#f4a261','#8338ec','#ff006e','#3a86ff','#fb5607','#06d6a0'];
+var members=[],edges=[],memberIdx={},dots=[],ws=null,loaded=false,animating=false;
+var playback=null,focusIdx=-1;
+var API='https://public.api.bsky.app/xrpc/';
+var db=null,conn=null;
+var DUCK='https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist';
+
+async function initDuck(){
+  if(conn)return;status('loading duckdb...');
+  var mod=await import(DUCK+'/duckdb-browser.mjs');
+  var bundle=await mod.selectBundle({
+    mvp:{mainModule:DUCK+'/duckdb-mvp.wasm',mainWorker:DUCK+'/duckdb-browser-mvp.worker.js'},
+    eh:{mainModule:DUCK+'/duckdb-eh.wasm',mainWorker:DUCK+'/duckdb-browser-eh.worker.js'}
+  });
+  var w=await fetch(bundle.mainWorker).then(r=>r.blob());
+  var worker=new Worker(URL.createObjectURL(w),{type:'module'});
+  db=new mod.AsyncDuckDB(new mod.ConsoleLogger(),worker);
+  await db.instantiate(bundle.mainModule);conn=await db.connect();
+  await conn.query("CREATE TABLE IF NOT EXISTS interactions(from_idx INT,to_idx INT,ts BIGINT,type VARCHAR)");
+  status('duckdb ready');
+}
+
+function setDisk(){diskR=Math.min(W,H-80)*0.44;diskCx=W/2;diskCy=H/2+20}
+function dts(hx,hy){return{x:diskCx+hx*diskR,y:diskCy+hy*diskR}}
+function std(sx,sy){return{x:(sx-diskCx)/diskR,y:(sy-diskCy)/diskR}}
+
+function resize(){
+  dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  setDisk();if(loaded)draw();
+}
+addEventListener('resize',resize);resize();
+
+function status(m){document.getElementById('status').textContent=m}
+
+// Möbius: T(z)=(z-a)/(1-ā·z)
+function mob(zx,zy,ax,ay){
+  var nx=zx-ax,ny=zy-ay,dx=1-ax*zx-ay*zy,dy=ay*zx-ax*zy;
+  var d2=dx*dx+dy*dy;if(d2<1e-20)return{x:0,y:0};
+  return{x:(nx*dx+ny*dy)/d2,y:(ny*dx-nx*dy)/d2};
+}
+
+// Geodesic arc between two disk points
+function geoArc(x1,y1,x2,y2){
+  var cr=x1*y2-x2*y1,r1=x1*x1+y1*y1;
+  if(Math.abs(cr)<0.01||r1<1e-10)return null;
+  var ix=x1/r1,iy=y1/r1;
+  var D=2*(x1*(y2-iy)+x2*(iy-y1)+ix*(y1-y2));
+  if(Math.abs(D)<1e-10)return null;
+  var a2=r1,b2=x2*x2+y2*y2,c2=ix*ix+iy*iy;
+  var ux=(a2*(y2-iy)+b2*(iy-y1)+c2*(y1-y2))/D;
+  var uy=(a2*(ix-x2)+b2*(x1-ix)+c2*(x2-x1))/D;
+  var gR=Math.hypot(x1-ux,y1-uy);
+  var a1=Math.atan2(y1-uy,x1-ux),a2a=Math.atan2(y2-uy,x2-ux);
+  var da=a2a-a1;
+  while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+  var midA=a1+da/2,mx=ux+gR*Math.cos(midA),my=uy+gR*Math.sin(midA);
+  if(mx*mx+my*my>1)da=da>0?da-2*Math.PI:da+2*Math.PI;
+  return{cx:ux,cy:uy,r:gR,a1:a1,da:da};
+}
+
+// Draw geodesic on canvas
+function drawGeo(x1,y1,x2,y2){
+  var g=geoArc(x1,y1,x2,y2);
+  if(!g){var s1=dts(x1,y1),s2=dts(x2,y2);ctx.moveTo(s1.x,s1.y);ctx.lineTo(s2.x,s2.y);return}
+  var sc=dts(g.cx,g.cy);
+  ctx.arc(sc.x,sc.y,g.r*diskR,g.a1,g.a1+g.da,g.da<0);
+}
+
+// Map Euclidean force layout → Poincaré disk
+function mapToDisk(){
+  if(!members.length)return;
+  var cx=0,cy=0;
+  members.forEach(m=>{cx+=m.x;cy+=m.y});
+  cx/=members.length;cy/=members.length;
+  var maxR=0;
+  members.forEach(m=>{m.x-=cx;m.y-=cy;var r=Math.hypot(m.x,m.y);if(r>maxR)maxR=r});
+  if(maxR<1)maxR=1;
+  var K=1.8;
+  members.forEach(m=>{
+    var r=Math.hypot(m.x,m.y);
+    if(r<0.001){m.hx=0;m.hy=0;return}
+    var rD=Math.tanh(r/maxR*K);m.hx=m.x/r*rD;m.hy=m.y/r*rD;
+  });
+  // Möbius-center the most connected node
+  if(focusIdx<0){
+    var deg=new Array(members.length).fill(0);
+    edges.forEach(e=>{deg[e.from]++;deg[e.to]++});
+    var best=0;deg.forEach((d,i)=>{if(d>deg[best])best=i});
+    focusIdx=best;
+  }
+  var a=members[focusIdx];
+  if(a&&a.hx*a.hx+a.hy*a.hy>0.001){
+    var ax=a.hx,ay=a.hy;
+    members.forEach(m=>{var t=mob(m.hx,m.hy,ax,ay);m.hx=t.x;m.hy=t.y});
+  }
+  setDisk();
+}
+
+// Click to recenter via Möbius
+cv.addEventListener('click',function(e){
+  if(!loaded)return;
+  var r=cv.getBoundingClientRect(),dp=std(e.clientX-r.left,e.clientY-r.top);
+  if(dp.x*dp.x+dp.y*dp.y>1)return;
+  var bi=-1,bd=Infinity;
+  members.forEach((m,i)=>{var d=(m.hx-dp.x)**2+(m.hy-dp.y)**2;if(d<bd){bd=d;bi=i}});
+  if(bi>=0&&bd<0.04){
+    var ax=members[bi].hx,ay=members[bi].hy;
+    members.forEach(m=>{var t=mob(m.hx,m.hy,ax,ay);m.hx=t.x;m.hy=t.y});
+    focusIdx=bi;draw();
+  }
+});
+
+function parseListUri(input){
+  input=input.trim();if(input.startsWith('at://'))return input;
+  var m=input.match(/bsky\.app\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+  if(m)return'at://'+m[1]+'/app.bsky.graph.list/'+m[2];return input;
+}
+async function apiGet(method,params){
+  var qs=new URLSearchParams(params).toString();
+  var res=await fetch(API+method+'?'+qs);if(!res.ok)throw new Error(method+' '+res.status);return res.json();
+}
+async function apiGetMulti(method,key,values){
+  var qs=values.map(v=>key+'='+encodeURIComponent(v)).join('&');
+  var res=await fetch(API+method+'?'+qs);if(!res.ok)throw new Error(method+' '+res.status);return res.json();
+}
+
+async function loadList(uri){
+  status('loading list...');var dids=[],ownerDid=null,cursor;
+  do{var params={list:uri,limit:'100'};if(cursor)params.cursor=cursor;
+    var data=await apiGet('app.bsky.graph.getList',params);
+    if(!ownerDid&&data.list)ownerDid=data.list.creator.did;
+    for(var item of data.items)dids.push(item.subject.did);cursor=data.cursor;
+  }while(cursor);
+  if(document.getElementById('inc-owner').checked&&ownerDid&&dids.indexOf(ownerDid)===-1)dids.unshift(ownerDid);
+  status(dids.length+' members...');members=[];memberIdx={};
+  for(var i=0;i<dids.length;i+=25){
+    var batch=dids.slice(i,i+25);
+    var data=await apiGetMulti('app.bsky.actor.getProfiles','actors',batch);
+    for(var p of data.profiles){
+      memberIdx[p.did]=members.length;
+      members.push({did:p.did,handle:p.handle,displayName:p.displayName||p.handle,
+        avatar:p.avatar||null,x:0,y:0,vx:0,vy:0,hx:0,hy:0,img:null});
+    }
+  }
+  await Promise.all(members.map(m=>{
+    if(!m.avatar)return;
+    return new Promise(ok=>{var img=new Image();img.onload=()=>{m.img=img;ok()};img.onerror=ok;img.src=m.avatar});
+  }));
+  status(members.length+' profiles, scraping...');
+}
+
+async function scrapeInteractions(){
+  edges=[];await conn.query("DELETE FROM interactions");var batch=[];
+  function flush(){
+    if(!batch.length)return;
+    var vals=batch.map(r=>'('+r.fi+','+r.ti+','+r.ts+",'"+r.type+"')").join(',');
+    batch=[];return conn.query("INSERT INTO interactions VALUES "+vals);
+  }
+  for(var mi=0;mi<members.length;mi++){
+    var m=members[mi];status('scanning '+m.handle+' ('+(mi+1)+'/'+members.length+')');
+    try{var cursor,pages=0;do{
+      var params={actor:m.did,limit:'100',filter:'posts_with_replies'};if(cursor)params.cursor=cursor;
+      var data=await apiGet('app.bsky.feed.getAuthorFeed',params);
+      for(var item of(data.feed||[])){
+        var ts=(item.post||{}).indexedAt||((item.post||{}).record||{}).createdAt||null;
+        var tsMs=ts?new Date(ts).getTime():0;
+        if(item.reply&&item.reply.parent&&item.reply.parent.author){
+          var toDid=item.reply.parent.author.did;
+          if(toDid!==m.did){var ti=memberIdx[toDid],fi=memberIdx[m.did];
+            if(ti!==undefined&&fi!==undefined){batch.push({fi:Math.min(fi,ti),ti:Math.max(fi,ti),ts:tsMs,type:'reply'})}}}
+        var rec=(item.post||{}).record||{},emb=rec.embed;
+        if(emb){var qu=null;
+          if(emb.$type==='app.bsky.embed.record'&&emb.record)qu=emb.record.uri;
+          else if(emb.$type==='app.bsky.embed.recordWithMedia'&&emb.record&&emb.record.record)qu=emb.record.record.uri;
+          if(qu){var qd=qu.split('/')[2],qi=memberIdx[qd],fi2=memberIdx[m.did];
+            if(qd!==m.did&&qi!==undefined&&fi2!==undefined){batch.push({fi:Math.min(fi2,qi),ti:Math.max(fi2,qi),ts:tsMs,type:'quote'})}}}
+      }
+      if(batch.length>=500)await flush();cursor=data.cursor;pages++;
+    }while(cursor&&pages<3)}catch(e){}
+    await new Promise(r=>setTimeout(r,150));
+  }
+  await flush();
+  var maxDeg=parseInt(document.getElementById('max-deg').value)||0;
+  var result=await conn.query("SELECT from_idx,to_idx,COUNT(*) as w FROM interactions GROUP BY from_idx,to_idx ORDER BY w DESC");
+  var rows=result.toArray(),deg={};
+  for(var r of rows){
+    var fi=Number(r.from_idx),ti=Number(r.to_idx),w=Number(r.w);
+    if(maxDeg>0){if((deg[fi]||0)>=maxDeg||(deg[ti]||0)>=maxDeg)continue;deg[fi]=(deg[fi]||0)+1;deg[ti]=(deg[ti]||0)+1}
+    edges.push({from:fi,to:ti,weight:w,color:null});
+  }
+  for(var i=0;i<edges.length;i++)edges[i].color=LINE_C[i%LINE_C.length];
+  var total=await conn.query("SELECT COUNT(*) as n FROM interactions");
+  status(edges.length+' connections from '+Number(total.toArray()[0].n)+' events');
+}
+
+// Force layout (Euclidean, then project to disk)
+function forceLayout(){
+  var N=members.length;if(N===0)return;status('computing layout...');
+  var sigma=120,cols=Math.ceil(Math.sqrt(N*1.3)),rows=Math.ceil(N/cols),sp=sigma*1.1;
+  members.forEach((m,i)=>{var col=i%cols,row=Math.floor(i/cols);
+    m.x=(col-(cols-1)/2)*sp+(row%2?sp*0.5:0);m.y=(row-(rows-1)/2)*sp;m.vx=0;m.vy=0});
+  var maxW=edges.length?edges[0].weight:1,eps=sigma*0.5,cut=sigma*3;
+  var iters=Math.min(500,150+N*3);
+  for(var iter=0;iter<iters;iter++){
+    var cool=Math.max(0.02,1-iter/iters),temp=cool*2;
+    var cell=cut,grid={};
+    for(var i=0;i<N;i++){var gk=Math.floor(members[i].x/cell)+','+Math.floor(members[i].y/cell);if(!grid[gk])grid[gk]=[];grid[gk].push(i)}
+    for(var gk in grid){var p=gk.split(','),gx=+p[0],gy=+p[1];
+      for(var ox=-1;ox<=1;ox++){for(var oy=-1;oy<=1;oy++){
+        var nk=(gx+ox)+','+(gy+oy),nb=grid[nk];if(!nb)continue;var cur=grid[gk];
+        for(var ci=0;ci<cur.length;ci++){var jS=gk===nk?ci+1:0;
+          for(var cj=jS;cj<nb.length;cj++){var ii=cur[ci],jj=nb[cj];if(ii===jj)continue;
+            var dx=members[ii].x-members[jj].x,dy=members[ii].y-members[jj].y;
+            var d=Math.hypot(dx,dy);if(d<1)d=1;if(d>cut)continue;
+            var ratio=sigma/d,r6=ratio**6,r12=r6*r6;
+            var f=Math.max(-50,Math.min(50,24*eps/d*(2*r12-r6)*temp));
+            var ux=dx/d,uy=dy/d;
+            members[ii].vx+=ux*f;members[ii].vy+=uy*f;members[jj].vx-=ux*f;members[jj].vy-=uy*f;
+          }}
+      }}}
+    var restLen=sigma*0.7;
+    for(var e=0;e<edges.length;e++){var edge=edges[e],a=members[edge.from],b=members[edge.to];
+      var dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
+      var f=(d-restLen)*0.04*(0.3+0.7*edge.weight/maxW)*temp;
+      var ux=dx/d,uy=dy/d;a.vx+=ux*f;a.vy+=uy*f;b.vx-=ux*f;b.vy-=uy*f}
+    var cx=0,cy=0;for(var i=0;i<N;i++){cx+=members[i].x;cy+=members[i].y}cx/=N;cy/=N;
+    for(var i=0;i<N;i++){members[i].vx+=(cx-members[i].x)*0.001*temp;members[i].vy+=(cy-members[i].y)*0.001*temp}
+    for(var i=0;i<N;i++){members[i].vx*=0.75;members[i].vy*=0.75;members[i].x+=members[i].vx;members[i].y+=members[i].vy}
+  }
+  mapToDisk();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // Disk boundary with subtle glow
+  ctx.save();ctx.shadowColor='rgba(100,130,255,0.15)';ctx.shadowBlur=40;
+  ctx.beginPath();ctx.arc(diskCx,diskCy,diskR,0,Math.PI*2);
+  ctx.fillStyle='rgba(8,8,25,0.6)';ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+  // Concentric hyperbolic rings
+  [0.3,0.55,0.75,0.88].forEach(r=>{
+    ctx.beginPath();ctx.arc(diskCx,diskCy,r*diskR,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;ctx.stroke()});
+  // Geodesic metro lines
+  edges.forEach(e=>{
+    var a=members[e.from],b=members[e.to];
+    var thick=Math.max(1.5,Math.min(7,Math.sqrt(e.weight)*1.5));
+    ctx.strokeStyle=e.color;ctx.lineWidth=thick;ctx.lineCap='round';ctx.globalAlpha=0.55;
+    ctx.beginPath();drawGeo(a.hx,a.hy,b.hx,b.hy);ctx.stroke()});
+  ctx.globalAlpha=1;
+  // Animated dots
+  dots.forEach(dot=>{
+    var sd=dts(dot.hx,dot.hy);
+    var rr=dot.hx*dot.hx+dot.hy*dot.hy,sc=Math.max(0.4,1-rr*0.5);
+    ctx.globalAlpha=dot.alpha;
+    ctx.beginPath();ctx.arc(sd.x,sd.y,5*sc,0,Math.PI*2);ctx.fillStyle=dot.color;ctx.fill();
+    ctx.beginPath();ctx.arc(sd.x,sd.y,11*sc,0,Math.PI*2);ctx.fillStyle=dot.color;ctx.globalAlpha=dot.alpha*0.2;ctx.fill()});
+  ctx.globalAlpha=1;
+  // Station nodes
+  members.forEach(m=>{
+    var s=dts(m.hx,m.hy),rr=m.hx*m.hx+m.hy*m.hy;
+    var sc=Math.max(0.25,1-rr*0.65),R=20*sc;
+    ctx.beginPath();ctx.arc(s.x,s.y,R+2*sc,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+    if(m.img){ctx.save();ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.clip();
+      ctx.drawImage(m.img,s.x-R,s.y-R,R*2,R*2);ctx.restore()}
+    else{ctx.beginPath();ctx.arc(s.x,s.y,R,0,Math.PI*2);ctx.fillStyle='#222';ctx.fill();
+      ctx.fillStyle='#888';ctx.font=Math.round(10*sc)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(m.handle[0].toUpperCase(),s.x,s.y)}
+    if(sc>0.35){ctx.fillStyle='rgba(200,200,220,'+Math.min(1,sc*1.2)+')';
+      ctx.font=Math.max(7,Math.round(9*sc))+'px monospace';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(m.handle.replace('.bsky.social',''),s.x,s.y+R+3*sc)}
+  });
+}
+
+function animate(){
+  var now=Date.now();
+  dots=dots.filter(d=>{
+    var t=(now-d.start)/d.dur;if(t>=1)return false;
+    var e=t<0.5?2*t*t:-1+(4-2*t)*t;
+    d.alpha=t<0.1?t/0.1:t>0.8?(1-t)/0.2:1;
+    if(d.arc){var angle=d.a1+d.da*e;d.hx=d.gcx+d.gr*Math.cos(angle);d.hy=d.gcy+d.gr*Math.sin(angle)}
+    else{d.hx=d.hx0+(d.hx1-d.hx0)*e;d.hy=d.hy0+(d.hy1-d.hy0)*e}
+    return true;
+  });
+  draw();requestAnimationFrame(animate);
+}
+
+function spawnDot(fi,ti,color){
+  var a=members[fi],b=members[ti];if(!a||!b)return;
+  var g=geoArc(a.hx,a.hy,b.hx,b.hy);
+  if(g){dots.push({arc:true,gcx:g.cx,gcy:g.cy,gr:g.r,a1:g.a1,da:g.da,
+    hx:a.hx,hy:a.hy,alpha:1,color:color||'#fff',start:Date.now(),dur:1500})}
+  else{dots.push({arc:false,hx0:a.hx,hy0:a.hy,hx1:b.hx,hy1:b.hy,
+    hx:a.hx,hy:a.hy,alpha:1,color:color||'#fff',start:Date.now(),dur:1500})}
+}
+
+function connectJetstream(){
+  if(ws)ws.close();
+  var dids=members.map(m=>m.did);if(!dids.length)return;
+  var params=dids.map(d=>'wantedDids='+encodeURIComponent(d));
+  params.push('wantedCollections=app.bsky.feed.like','wantedCollections=app.bsky.feed.post','wantedCollections=app.bsky.feed.repost');
+  ws=new WebSocket('wss://jetstream2.us-east.bsky.network/subscribe?'+params.join('&'));
+  ws.onmessage=function(ev){try{
+    var msg=JSON.parse(ev.data);if(msg.kind!=='commit'||msg.commit.operation!=='create')return;
+    var from=msg.did,to=null,col=msg.commit.collection,rec=msg.commit.record,color='#fff';
+    if(col==='app.bsky.feed.like'&&rec&&rec.subject){to=rec.subject.uri.split('/')[2];color='#e63946'}
+    else if(col==='app.bsky.feed.post'&&rec&&rec.reply){to=rec.reply.parent.uri.split('/')[2];color='#457b9d'}
+    else if(col==='app.bsky.feed.repost'&&rec&&rec.subject){to=rec.subject.uri.split('/')[2];color='#2a9d8f'}
+    if(to&&memberIdx[from]!==undefined&&memberIdx[to]!==undefined)spawnDot(memberIdx[from],memberIdx[to],color);
+  }catch(e){}};
+  ws.onclose=()=>setTimeout(connectJetstream,5000);
+  status('live \u2014 '+dids.length+' members');
+}
+
+var EVT_C={reply:'#457b9d',quote:'#2a9d8f',like:'#e63946',repost:'#2a9d8f'};
+async function startPlayback(){
+  stopPlayback();
+  var days=parseInt(document.getElementById('play-range').value)||7;
+  var speed=parseInt(document.getElementById('play-speed').value)||200;
+  var cutoff=Date.now()-days*86400000;
+  var result=await conn.query("SELECT from_idx,to_idx,ts,type FROM interactions WHERE ts>="+cutoff+" ORDER BY ts");
+  var evts=result.toArray().map(r=>({fi:Number(r.from_idx),ti:Number(r.to_idx),t:Number(r.ts),type:r.type}));
+  if(!evts.length){status('no events in range');return}
+  if(ws){ws.close();ws=null}
+  playback={evts,idx:0,startReal:Date.now(),startSim:evts[0].t,speed};
+  document.getElementById('play-btn').textContent='\u23F9 stop';tickPlayback();
+}
+function stopPlayback(){
+  if(!playback)return;playback=null;
+  document.getElementById('play-btn').textContent='\u25B6 replay';
+  document.getElementById('play-time').textContent='';if(loaded)connectJetstream();
+}
+function tickPlayback(){
+  if(!playback)return;var pb=playback;
+  var simNow=pb.startSim+(Date.now()-pb.startReal)*pb.speed;
+  while(pb.idx<pb.evts.length&&pb.evts[pb.idx].t<=simNow){
+    var ev=pb.evts[pb.idx];spawnDot(ev.fi,ev.ti,EVT_C[ev.type]||'#fff');pb.idx++}
+  var d=new Date(simNow);
+  document.getElementById('play-time').textContent=d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  status('replay '+Math.round(pb.idx/pb.evts.length*100)+'%');
+  if(pb.idx>=pb.evts.length)setTimeout(stopPlayback,2000);else requestAnimationFrame(tickPlayback);
+}
+
+document.getElementById('play-btn').addEventListener('click',()=>{if(playback)stopPlayback();else startPlayback()});
+document.getElementById('load-btn').addEventListener('click',async function(){
+  var btn=this,input=document.getElementById('list-uri').value;if(!input)return;
+  btn.disabled=true;focusIdx=-1;
+  try{
+    await initDuck();await loadList(parseListUri(input));await scrapeInteractions();
+    forceLayout();loaded=true;
+    document.getElementById('legend').classList.add('show');
+    document.getElementById('hint').classList.add('show');
+    document.getElementById('play-btn').disabled=false;
+    if(!animating){animating=true;requestAnimationFrame(animate)}
+    connectJetstream();
+  }catch(e){status('error: '+e.message);console.error(e)}
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>
