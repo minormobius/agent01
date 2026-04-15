@@ -23,14 +23,8 @@ const ALLOWED_ORIGINS = [
   'https://photo.mino.mobi',
   'https://labglass.minomobi.com',
   'https://zoom.mino.mobi',
-  'https://music.mino.mobi',
-  'https://sweat.mino.mobi',
-  'https://time.mino.mobi',
-  'https://phylo.mino.mobi',
   'https://read.mino.mobi',
   'https://cards.mino.mobi',
-  'https://noise.mino.mobi',
-  'https://flows.mino.mobi',
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {
