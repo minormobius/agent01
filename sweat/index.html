@@ -243,16 +243,8 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
         <label>Handle</label>
         <input type="text" id="login-handle" placeholder="handle.bsky.social" />
       </div>
-      <div class="form-group">
-        <label>App password</label>
-        <input type="password" id="login-password" placeholder="xxxx-xxxx-xxxx-xxxx" />
-      </div>
-      <button class="btn btn-primary" id="login-btn">Sign In</button>
+      <button class="btn btn-primary" id="login-btn">Sign in with Bluesky</button>
       <div id="login-error" class="msg msg-error hidden"></div>
-      <p style="color: var(--text2); font-size: 12px; margin-top: 10px; text-align: center;">
-        Create an app password at
-        <a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">bsky.app/settings</a>
-      </p>
     </div>
   </div>
 
@@ -391,58 +383,60 @@ label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); 
 //  AT PROTOCOL CLIENT
 // ============================================================
 const PUBLIC_API = "https://public.api.bsky.app";
+const AUTH_URL = "https://auth.mino.mobi";
 const COLLECTION = "com.minomobi.workout";
-const SESSION_KEY = "sweat-session";
+const SESSION_KEY = "mino_auth_session";
 const HANDLE_KEY = "sweat-handle";
 
-async function resolveHandle(handle) {
-  const r = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
-  if (!r.ok) throw new Error(`Could not resolve handle: ${handle}`);
-  return (await r.json()).did;
+// ============================================================
+//  AUTH (via shared OAuth worker at auth.mino.mobi)
+// ============================================================
+function getToken() { return localStorage.getItem(SESSION_KEY); }
+function saveToken(t) { if (t) localStorage.setItem(SESSION_KEY, t); else localStorage.removeItem(SESSION_KEY); }
+
+async function authInit() {
+  const url = new URL(location.href);
+  const token = url.searchParams.get("__auth_session");
+  if (token) { saveToken(token); url.searchParams.delete("__auth_session"); history.replaceState({}, "", url); }
+  const t = getToken();
+  if (!t) return null;
+  try {
+    const r = await fetch(`${AUTH_URL}/api/me`, { headers: { Authorization: `Bearer ${t}` } });
+    if (!r.ok) { saveToken(null); return null; }
+    return await r.json();
+  } catch { saveToken(null); return null; }
 }
 
-async function resolvePDS(did) {
-  let doc;
-  if (did.startsWith("did:plc:")) {
-    const r = await fetch(`https://plc.directory/${did}`);
-    if (!r.ok) throw new Error(`Could not resolve DID: ${did}`);
-    doc = await r.json();
-  } else if (did.startsWith("did:web:")) {
-    const host = did.slice("did:web:".length).replaceAll(":", "/");
-    const r = await fetch(`https://${host}/.well-known/did.json`);
-    if (!r.ok) throw new Error(`Could not resolve DID: ${did}`);
-    doc = await r.json();
-  } else {
-    throw new Error(`Unsupported DID method: ${did}`);
-  }
-  const svc = doc.service?.find(s => s.type === "AtprotoPersonalDataServer");
-  if (!svc) throw new Error("No PDS endpoint in DID document");
-  return svc.serviceEndpoint;
-}
-
-async function createSession(handle, appPassword) {
-  const did = await resolveHandle(handle);
-  const pds = await resolvePDS(did);
-  const r = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+async function authLogin(handle) {
+  const r = await fetch(`${AUTH_URL}/oauth/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: handle, password: appPassword }),
+    body: JSON.stringify({ handle: handle.replace(/^@/, "").trim(), origin: location.origin, returnTo: location.href }),
   });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.message || `Auth failed (${r.status})`);
-  }
-  return { ...(await r.json()), pds };
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || "Login failed"); }
+  location.href = (await r.json()).authUrl;
+}
+
+async function authLogout() {
+  const t = getToken();
+  if (t) fetch(`${AUTH_URL}/api/logout`, { method: "POST", headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+  saveToken(null);
+}
+
+async function pdsRequest(path, opts) {
+  const t = getToken();
+  if (!t) throw new Error("Not logged in");
+  const headers = { Authorization: `Bearer ${t}`, ...opts?.headers };
+  const r = await fetch(`${AUTH_URL}${path}`, { method: opts?.method || "GET", headers, body: opts?.body });
+  if (r.status === 401) { saveToken(null); throw new Error("Session expired"); }
+  return r;
 }
 
 async function createRecord(session, record) {
-  const r = await fetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
+  const r = await pdsRequest("/pds/repo/createRecord", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.accessJwt}`,
-    },
-    body: JSON.stringify({ repo: session.did, collection: COLLECTION, record }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collection: COLLECTION, record }),
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
@@ -462,13 +456,10 @@ async function listRecords(did, pds, limit = 100) {
 }
 
 async function deleteRecord(session, rkey) {
-  const r = await fetch(`${session.pds}/xrpc/com.atproto.repo.deleteRecord`, {
+  const r = await pdsRequest("/pds/repo/deleteRecord", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.accessJwt}`,
-    },
-    body: JSON.stringify({ repo: session.did, collection: COLLECTION, rkey }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collection: COLLECTION, rkey }),
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
@@ -476,27 +467,7 @@ async function deleteRecord(session, rkey) {
   }
 }
 
-async function refreshSession(s) {
-  const r = await fetch(`${s.pds}/xrpc/com.atproto.server.refreshSession`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${s.refreshJwt}` },
-  });
-  if (!r.ok) throw new Error("Session expired");
-  return { ...(await r.json()), pds: s.pds };
-}
-
-// ============================================================
-//  SESSION MANAGEMENT
-// ============================================================
-function saveSession(s) {
-  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  else localStorage.removeItem(SESSION_KEY);
-}
-function loadSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
-}
-
-let session = loadSession();
+let session = null;
 let workouts = [];
 
 // ============================================================
@@ -616,26 +587,23 @@ function initAuth() {
 
   $("login-btn").onclick = async () => {
     const handle = $("login-handle").value.trim();
-    const pw = $("login-password").value.trim();
-    if (!handle || !pw) return;
+    if (!handle) return;
     $("login-btn").disabled = true;
     $("login-btn").textContent = "Connecting...";
     hide($("login-error"));
     try {
-      session = await createSession(handle, pw);
       localStorage.setItem(HANDLE_KEY, handle);
-      saveSession(session);
-      enterApp();
+      await authLogin(handle);
+      // Browser redirects to Bluesky — won't reach here
     } catch (e) {
       $("login-error").textContent = e.message;
       show($("login-error"));
-    } finally {
       $("login-btn").disabled = false;
-      $("login-btn").textContent = "Sign In";
+      $("login-btn").textContent = "Sign in with Bluesky";
     }
   };
 
-  $("login-password").addEventListener("keydown", e => {
+  $("login-handle").addEventListener("keydown", e => {
     if (e.key === "Enter") $("login-btn").click();
   });
 }
@@ -650,9 +618,9 @@ function enterApp() {
   loadHistory();
 }
 
-$("logout-btn").onclick = () => {
+$("logout-btn").onclick = async () => {
+  await authLogout();
   session = null;
-  saveSession(null);
   show($("login-view"));
   hide($("app-view"));
 };
@@ -1015,7 +983,7 @@ async function loadHistory() {
   hide(emptyEl);
   listEl.innerHTML = "";
   try {
-    const records = await listRecords(session.did, session.pds);
+    const records = await listRecords(session.did);
     workouts = records.sort((a, b) => {
       const da = a.value?.createdAt || "";
       const db = b.value?.createdAt || "";
@@ -1534,16 +1502,9 @@ async function init() {
   await loadDateAdapter();
   initAuth();
 
-  if (session?.refreshJwt) {
-    try {
-      session = await refreshSession(session);
-      saveSession(session);
-      enterApp();
-    } catch {
-      session = null;
-      saveSession(null);
-    }
-  } else if (session) {
+  const user = await authInit();
+  if (user) {
+    session = user;
     enterApp();
   }
 }
