@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PdsClient, resolvePds } from "../pds";
+import { PdsClient, resolvePds, authLogin } from "../pds";
 import {
   deriveKek,
   generateIdentityKey,
@@ -9,6 +9,7 @@ import {
   fromBase64,
   toBase64,
 } from "../crypto";
+import type { Session } from "../types";
 
 const IDENTITY_COLLECTION = "com.minomobi.vault.wrappedIdentity";
 const PUBKEY_COLLECTION = "com.minomobi.vault.encryptionKey";
@@ -19,42 +20,97 @@ interface Props {
   orgRkey: string;
   founderDid: string;
   founderService: string;
-  /** Called after all 3 steps complete so the parent can proceed with full login */
-  onComplete: (service: string, handle: string, appPassword: string, passphrase: string) => Promise<void>;
+  /** Pre-existing OAuth session (after redirect). Null = needs sign-in first. */
+  session: Session | null;
+  /** Called after all steps complete so the parent can proceed with full login */
+  onComplete: (passphrase: string) => Promise<void>;
 }
 
 type Step = 1 | 2 | 3;
 
-export function InviteOnboarding({ orgRkey, founderDid, founderService, onComplete }: Props) {
-  const [step, setStep] = useState<Step>(1);
+export function InviteOnboarding({ orgRkey, founderDid, founderService, session, onComplete }: Props) {
+  // If we already have an OAuth session, start at step 2
+  const [step, setStep] = useState<Step>(session ? 2 : 1);
   const [orgName, setOrgName] = useState<string | null>(null);
 
-  // Step 1: ATProto sign-in
-  const [service, setService] = useState("https://bsky.social");
+  // Step 1: handle entry (OAuth redirect)
   const [handle, setHandle] = useState("");
-  const [appPassword, setAppPassword] = useState("");
 
   // Step 2: Passphrase
   const [passphrase, setPassphrase] = useState("");
   const [passphraseConfirm, setPassphraseConfirm] = useState("");
 
-  // Internal state
-  const [pds, setPds] = useState<PdsClient | null>(null);
-  const [session, setSession] = useState<{ did: string; handle: string } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // --- Step 1: Sign in ---
+  // --- Step 1: Sign in via OAuth ---
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!handle.trim() || !appPassword.trim()) return;
+    if (!handle.trim()) return;
     setError("");
     setLoading(true);
     try {
-      const client = new PdsClient(service);
-      const sess = await client.login(handle.trim(), appPassword.trim());
-      setPds(client);
-      setSession({ did: sess.did, handle: sess.handle });
+      await authLogin(handle.trim());
+      // Browser redirects — won't reach here
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+      setLoading(false);
+    }
+  };
+
+  // --- Step 2: Choose passphrase + create vault ---
+  const handleSetPassphrase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passphrase.length < 8) {
+      setError("Passphrase must be at least 8 characters");
+      return;
+    }
+    if (passphrase !== passphraseConfirm) {
+      setError("Passphrases don't match");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      if (!session) throw new Error("No session");
+
+      const client = new PdsClient(); // auth-proxied
+      const salt = new TextEncoder().encode(session.did + ":vault-kek");
+      const kek = await deriveKek(passphrase, salt);
+
+      // Check if vault already exists
+      const existing = await client.getRecord(IDENTITY_COLLECTION, "self");
+
+      if (existing) {
+        // Verify passphrase works with existing vault
+        const val = (existing as Record<string, unknown>).value as Record<string, unknown>;
+        const wrappedField = val.wrappedKey as { $bytes: string };
+        try {
+          await unwrapPrivateKey(fromBase64(wrappedField.$bytes), kek);
+        } catch {
+          throw new Error("You already have a vault. The passphrase you entered doesn't match it.");
+        }
+      } else {
+        // Create new vault identity
+        const keyPair = await generateIdentityKey();
+        const wrappedKey = await wrapPrivateKey(keyPair.privateKey, kek);
+        const pubKeyRaw = await exportPublicKey(keyPair.publicKey);
+
+        await client.putRecord(IDENTITY_COLLECTION, "self", {
+          $type: IDENTITY_COLLECTION,
+          wrappedKey: { $bytes: toBase64(wrappedKey) },
+          algorithm: "PBKDF2-SHA256",
+          salt: { $bytes: toBase64(salt) },
+          iterations: 600000,
+          createdAt: new Date().toISOString(),
+        });
+        await client.putRecord(PUBKEY_COLLECTION, "self", {
+          $type: PUBKEY_COLLECTION,
+          publicKey: { $bytes: toBase64(pubKeyRaw) },
+          algorithm: "ECDH-P256",
+          createdAt: new Date().toISOString(),
+        });
+      }
 
       // Fetch org name for display
       try {
@@ -74,67 +130,6 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
         // Non-fatal — we just won't show the org name
       }
 
-      setStep(2);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- Step 2: Choose passphrase + create vault ---
-  const handleSetPassphrase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passphrase.length < 8) {
-      setError("Passphrase must be at least 8 characters");
-      return;
-    }
-    if (passphrase !== passphraseConfirm) {
-      setError("Passphrases don't match");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      if (!pds || !session) throw new Error("No session");
-
-      const salt = new TextEncoder().encode(session.did + ":vault-kek");
-      const kek = await deriveKek(passphrase, salt);
-
-      // Check if vault already exists
-      const existing = await pds.getRecord(IDENTITY_COLLECTION, "self");
-
-      if (existing) {
-        // Verify passphrase works with existing vault
-        const val = (existing as Record<string, unknown>).value as Record<string, unknown>;
-        const wrappedField = val.wrappedKey as { $bytes: string };
-        try {
-          await unwrapPrivateKey(fromBase64(wrappedField.$bytes), kek);
-        } catch {
-          throw new Error("You already have a vault. The passphrase you entered doesn't match it.");
-        }
-      } else {
-        // Create new vault identity
-        const keyPair = await generateIdentityKey();
-        const wrappedKey = await wrapPrivateKey(keyPair.privateKey, kek);
-        const pubKeyRaw = await exportPublicKey(keyPair.publicKey);
-
-        await pds.putRecord(IDENTITY_COLLECTION, "self", {
-          $type: IDENTITY_COLLECTION,
-          wrappedKey: { $bytes: toBase64(wrappedKey) },
-          algorithm: "PBKDF2-SHA256",
-          salt: { $bytes: toBase64(salt) },
-          iterations: 600000,
-          createdAt: new Date().toISOString(),
-        });
-        await pds.putRecord(PUBKEY_COLLECTION, "self", {
-          $type: PUBKEY_COLLECTION,
-          publicKey: { $bytes: toBase64(pubKeyRaw) },
-          algorithm: "ECDH-P256",
-          createdAt: new Date().toISOString(),
-        });
-      }
-
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Vault setup failed");
@@ -148,10 +143,11 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
     setError("");
     setLoading(true);
     try {
-      if (!pds || !session) throw new Error("No session");
+      if (!session) throw new Error("No session");
 
+      const client = new PdsClient(); // auth-proxied
       // Write an org bookmark to the invitee's own PDS
-      await pds.putRecord(BOOKMARK_COLLECTION, orgRkey, {
+      await client.putRecord(BOOKMARK_COLLECTION, orgRkey, {
         $type: BOOKMARK_COLLECTION,
         founderDid,
         founderService,
@@ -162,7 +158,7 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
 
       // Clear the invite URL and proceed with full login
       window.history.replaceState(null, "", "/");
-      await onComplete(service, handle.trim(), appPassword.trim(), passphrase.trim());
+      await onComplete(passphrase.trim());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to accept invite");
     } finally {
@@ -249,16 +245,12 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
         {step === 1 && (
           <form onSubmit={handleSignIn}>
             <p style={{ fontSize: "0.85rem", color: "var(--text-dim)", marginBottom: 16 }}>
-              Sign in with your ATProto account. If you don't have one, create one at{" "}
+              Sign in with your Bluesky account. If you don't have one, create one at{" "}
               <a href="https://bsky.app" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>
                 bsky.app
               </a>{" "}
               first.
             </p>
-            <div className="field">
-              <label htmlFor="ob-service">PDS Service</label>
-              <input id="ob-service" value={service} onChange={(e) => setService(e.target.value)} />
-            </div>
             <div className="field">
               <label htmlFor="ob-handle">Handle</label>
               <input
@@ -268,18 +260,9 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
                 onChange={(e) => setHandle(e.target.value)}
               />
             </div>
-            <div className="field">
-              <label htmlFor="ob-password">App Password</label>
-              <input
-                id="ob-password"
-                type="password"
-                value={appPassword}
-                onChange={(e) => setAppPassword(e.target.value)}
-              />
-            </div>
             {error && <div className="error-box">{error}</div>}
             <button className="btn-primary" type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Continue"}
+              {loading ? "Redirecting..." : "Sign in with Bluesky"}
             </button>
           </form>
         )}
@@ -288,6 +271,7 @@ export function InviteOnboarding({ orgRkey, founderDid, founderService, onComple
         {step === 2 && (
           <form onSubmit={handleSetPassphrase}>
             <p style={{ fontSize: "0.85rem", color: "var(--text-dim)", marginBottom: 16 }}>
+              {session && <span>Signed in as <strong>@{session.handle}</strong>. </span>}
               Choose an encryption passphrase. This protects your vault — it's never sent to any server.
               You'll need it every time you sign in.
             </p>

@@ -4,7 +4,7 @@ import { downloadRepo, parseCar } from './lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, extractVideos, filterPostsNdjson } from './lib/duckdb.js';
 import { fetchEngagement, getEngagement } from './lib/engagement.js';
 import { extractColorsForImages, imageColorRegions, computeEigenpalette, colorToHex, clearEigenCache } from './lib/colors.js';
-import { login as authLogin, logout as authLogout, getSession } from './lib/auth.js';
+import { login as authLogin, logout as authLogout, getSession, init as authInit } from './lib/auth.js';
 import { loadUploadedImages, loadAlbums, saveAlbum, getRecord } from './lib/pds.js';
 import Grid from './components/Grid.jsx';
 import FilterBar from './components/FilterBar.jsx';
@@ -133,13 +133,19 @@ function GalleryView({ themeToggle }) {
   const [albums, setAlbums] = useState([]);
   const [selectedAlbum, setSelectedAlbum] = useState(null); // null = all uploads, rkey = specific album
 
-  const handleLogin = useCallback(async (service, identifier, password) => {
-    const sess = await authLogin(service, identifier, password);
-    setSession(sess);
-    // Store PDS URL for the logged-in user
-    pdsUrlMap.current[sess.did] = sess.service;
-    // Load their uploads and albums
-    loadUserData(sess);
+  // Restore OAuth session on mount
+  useEffect(() => {
+    authInit().then(user => {
+      if (user) {
+        setSession(user);
+        loadUserData(user);
+      }
+    });
+  }, []);
+
+  const handleLogin = useCallback(async (handle) => {
+    await authLogin(handle);
+    // Browser redirects to Bluesky — won't reach here
   }, []);
 
   const handleLogout = useCallback(() => {

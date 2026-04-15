@@ -1,5 +1,5 @@
-// PDS write operations — upload blobs, manage records
-// All operations require an active session (see auth.js)
+// PDS write operations — proxied through auth.mino.mobi
+// All operations require an active OAuth session (see auth.js)
 
 import { getSession, authFetch } from './auth.js';
 
@@ -7,19 +7,14 @@ const ALBUM_COLLECTION = 'com.minomobi.arena.album';
 const IMAGE_COLLECTION = 'com.minomobi.arena.image';
 
 // Upload a blob (image/video) to the user's PDS
-// Returns { blob } with the blob ref for use in records
 export async function uploadBlob(file) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
-  const res = await authFetch(
-    `${session.service}/xrpc/com.atproto.repo.uploadBlob`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    }
-  );
+  const res = await authFetch('/pds/repo/uploadBlob', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -30,11 +25,9 @@ export async function uploadBlob(file) {
   return data.blob;
 }
 
-// Create an image anchor record that keeps the blob alive on PDS
-// Returns { uri, cid } of the created record
+// Create an image anchor record
 export async function createImageRecord(blob, { alt = '', aspectRatio = null } = {}) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
   const rkey = generateTid();
   const record = {
@@ -52,15 +45,14 @@ export async function createImageRecord(blob, { alt = '', aspectRatio = null } =
 
 // Create or update an album record
 export async function saveAlbum(album, rkey = null) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
   rkey = rkey || generateTid();
   const record = {
     $type: ALBUM_COLLECTION,
     name: album.name,
     description: album.description || '',
-    images: album.images || [], // array of { image: blobRef, alt, rkey }
+    images: album.images || [],
     createdAt: album.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -70,22 +62,13 @@ export async function saveAlbum(album, rkey = null) {
 
 // Generic putRecord
 export async function putRecord(collection, rkey, record) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
-  const res = await authFetch(
-    `${session.service}/xrpc/com.atproto.repo.putRecord`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: session.did,
-        collection,
-        rkey,
-        record,
-      }),
-    }
-  );
+  const res = await authFetch('/pds/repo/putRecord', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collection, rkey, record }),
+  });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -97,21 +80,13 @@ export async function putRecord(collection, rkey, record) {
 
 // Delete a record
 export async function deleteRecord(collection, rkey) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
-  const res = await authFetch(
-    `${session.service}/xrpc/com.atproto.repo.deleteRecord`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: session.did,
-        collection,
-        rkey,
-      }),
-    }
-  );
+  const res = await authFetch('/pds/repo/deleteRecord', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collection, rkey }),
+  });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -123,19 +98,12 @@ export async function deleteRecord(collection, rkey) {
 
 // List records in a collection (paginated)
 export async function listRecords(collection, { limit = 100, cursor = '' } = {}) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
-  const params = new URLSearchParams({
-    repo: session.did,
-    collection,
-    limit: String(limit),
-  });
+  const params = new URLSearchParams({ collection, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
 
-  const res = await authFetch(
-    `${session.service}/xrpc/com.atproto.repo.listRecords?${params}`
-  );
+  const res = await authFetch(`/pds/repo/listRecords?${params}`);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -147,18 +115,11 @@ export async function listRecords(collection, { limit = 100, cursor = '' } = {})
 
 // Get a single record
 export async function getRecord(collection, rkey) {
-  const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!getSession()) throw new Error('Not logged in');
 
-  const params = new URLSearchParams({
-    repo: session.did,
-    collection,
-    rkey,
-  });
+  const params = new URLSearchParams({ collection, rkey });
 
-  const res = await authFetch(
-    `${session.service}/xrpc/com.atproto.repo.getRecord?${params}`
-  );
+  const res = await authFetch(`/pds/repo/getRecord?${params}`);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -213,10 +174,9 @@ export async function loadAlbums() {
 }
 
 // Generate a TID (timestamp-based ID) for rkeys
-// TID = microseconds since Unix epoch, base32-sorted encoding
 function generateTid() {
-  const now = BigInt(Date.now()) * 1000n; // microseconds
-  const clockId = BigInt(Math.floor(Math.random() * 1024)); // 10 random bits
+  const now = BigInt(Date.now()) * 1000n;
+  const clockId = BigInt(Math.floor(Math.random() * 1024));
   const tid = (now << 10n) | clockId;
   return tid.toString(36).padStart(13, '0');
 }

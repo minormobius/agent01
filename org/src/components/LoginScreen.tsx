@@ -1,28 +1,34 @@
 import { useState } from "react";
 import { ThemePicker } from "./ThemePicker";
+import type { Session } from "../types";
 
 interface Props {
-  onLogin: (service: string, handle: string, appPassword: string, passphrase: string) => Promise<void>;
+  onLogin: (handle: string, passphrase: string) => Promise<void>;
+  /** If provided, user already has an OAuth session — only ask for passphrase. */
+  session?: Session | null;
   /** Optional heading override for onboarding flow */
   heading?: string;
   subtitle?: string;
 }
 
-export function LoginScreen({ onLogin, heading, subtitle }: Props) {
-  const [service, setService] = useState("https://bsky.social");
+export function LoginScreen({ onLogin, session, heading, subtitle }: Props) {
   const [handle, setHandle] = useState("");
-  const [appPassword, setAppPassword] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const passphraseOnly = !!session;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!handle.trim() || !appPassword.trim() || !passphrase.trim()) return;
+    if (!passphraseOnly && !handle.trim()) return;
+    if (!passphrase.trim()) return;
     setError("");
     setLoading(true);
     try {
-      await onLogin(service, handle.trim(), appPassword.trim(), passphrase.trim());
+      await onLogin(passphraseOnly ? session!.handle : handle.trim(), passphrase.trim());
+      // If OAuth: browser redirects, won't reach here
+      // If passphrase-only: bootstrapVault runs and state updates
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -35,34 +41,23 @@ export function LoginScreen({ onLogin, heading, subtitle }: Props) {
       <div className="login-theme-picker"><ThemePicker /></div>
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>{heading ?? "Org Hub"}</h1>
-        <p className="subtitle">{subtitle ?? "Sign in with your ATProto account to manage organizations."}</p>
+        <p className="subtitle">
+          {subtitle ?? (passphraseOnly
+            ? `Signed in as @${session!.handle}. Enter your vault passphrase to continue.`
+            : "Sign in with your Bluesky account to manage organizations.")}
+        </p>
 
-        <div className="field">
-          <label htmlFor="service">PDS Service</label>
-          <input id="service" value={service} onChange={(e) => setService(e.target.value)} />
-        </div>
-
-        <div className="field">
-          <label htmlFor="handle">Handle</label>
-          <input
-            id="handle"
-            placeholder="you.bsky.social"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-          />
-        </div>
-
-        <div className="field">
-          <label htmlFor="app-password">App Password</label>
-          <input
-            id="app-password"
-            type="password"
-            value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
-          />
-        </div>
-
-        <hr className="separator" />
+        {!passphraseOnly && (
+          <div className="field">
+            <label htmlFor="handle">Handle</label>
+            <input
+              id="handle"
+              placeholder="you.bsky.social"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="field">
           <label htmlFor="passphrase">Vault Passphrase</label>
@@ -79,7 +74,7 @@ export function LoginScreen({ onLogin, heading, subtitle }: Props) {
         {error && <div className="error-box">{error}</div>}
 
         <button className="btn-primary" type="submit" disabled={loading}>
-          {loading ? "Connecting..." : "Sign In"}
+          {loading ? "Connecting..." : passphraseOnly ? "Unlock Vault" : "Sign in with Bluesky"}
         </button>
       </form>
     </div>
