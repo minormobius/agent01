@@ -358,3 +358,33 @@ body {
 .wave-graph { flex: 1; overflow: hidden; }
 .wave-graph canvas { width: 100%; height: 100%; cursor: grab; }
 .wave-graph canvas:active { cursor: grabbing; }
+
+/* --- Vault unlock modal --- */
+.wave-vault-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+
+.wave-vault-modal {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 32px; max-width: 360px; width: 90%;
+}
+
+.wave-vault-modal h2 { font-size: 1.2rem; margin-bottom: 4px; }
+.wave-vault-modal p { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 16px; }
+
+.wave-vault-modal form { display: flex; flex-direction: column; gap: 10px; }
+
+.wave-vault-modal input {
+  padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 0.95rem; outline: none;
+}
+
+.wave-vault-modal input:focus { border-color: var(--accent); }
+.wave-vault-modal small { color: var(--text-dim); font-size: 0.75rem; }
+
+.wave-vault-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+/* --- Vault prompt in sidebar --- */
+.wave-vault-prompt { padding: 8px 10px; }
+.wave-vault-prompt .wave-btn-sm { width: 100%; text-align: center; }

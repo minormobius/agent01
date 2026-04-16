@@ -101,10 +101,10 @@ export interface WaveOp {
   threadUri: string; // at:// URI of the thread record
   parentOps?: string[]; // causal ordering DAG
   opType: "message" | "doc_edit" | "reaction";
-  keyringRkey: string;
-  iv: { $bytes: string };
-  ciphertext: { $bytes: string };
-  // Future: attachments?: BlobRef[];
+  keyringRkey: string; // "public" for unencrypted ops
+  iv?: { $bytes: string };        // present when encrypted
+  ciphertext?: { $bytes: string }; // present when encrypted
+  content?: string;                // present when public (JSON payload)
   createdAt: string;
 }
 

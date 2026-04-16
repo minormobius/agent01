@@ -385,15 +385,21 @@ export async function loadOpsForThread(
 
 export async function decryptOp(
   op: WaveOp,
-  ctx: WaveOrgContext,
+  ctx: WaveOrgContext | null,
 ): Promise<MessagePayload | DocEditPayload | null> {
+  // Public (unencrypted) ops
+  if (op.keyringRkey === 'public' && op.content) {
+    try { return JSON.parse(op.content); } catch { return null; }
+  }
+  // Encrypted ops need org context
+  if (!ctx) return null;
   const dek = ctx.keyringDeks.get(op.keyringRkey) ?? ctx.tierDeks.get(
     op.keyringRkey.split(':').slice(1, -1).join(':') || op.keyringRkey.split(':')[1],
   );
   if (!dek) return null;
   try {
-    const iv = fromBase64(op.iv.$bytes);
-    const ciphertext = fromBase64(op.ciphertext.$bytes);
+    const iv = fromBase64(op.iv!.$bytes);
+    const ciphertext = fromBase64(op.ciphertext!.$bytes);
     const plaintext = await decrypt(ciphertext, iv, dek);
     return JSON.parse(new TextDecoder().decode(plaintext));
   } catch {
@@ -464,6 +470,119 @@ export async function sendDocEdit(
     keyringRkey: krkey,
     iv: { $bytes: toBase64(iv) },
     ciphertext: { $bytes: toBase64(ciphertext) },
+    createdAt: new Date().toISOString(),
+  };
+  const res = await client.createRecord(OP_COLLECTION, record);
+  const rkey = res.uri.split('/').pop()!;
+  return { rkey, op: record, authorDid: myDid, authorHandle: myHandle };
+}
+
+// --- Public notes (no encryption, no org required) ---
+
+export const PUBLIC_CHANNEL_URI = 'public';
+
+export async function loadPublicThreads(
+  client: PdsClient,
+  myDid: string,
+  myHandle: string,
+): Promise<WaveThreadRecord[]> {
+  const result: WaveThreadRecord[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await client.listRecords(THREAD_COLLECTION, 100, cursor);
+    for (const rec of page.records) {
+      const val = rec.value as unknown as WaveThread;
+      if (val.channelUri === PUBLIC_CHANNEL_URI) {
+        const rkey = rec.uri.split('/').pop()!;
+        result.push({ rkey, thread: val, authorDid: myDid, authorHandle: myHandle });
+      }
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  result.sort((a, b) => a.thread.createdAt.localeCompare(b.thread.createdAt));
+  return result;
+}
+
+export async function createPublicThread(
+  client: PdsClient,
+  myDid: string,
+  myHandle: string,
+  title: string,
+): Promise<WaveThreadRecord> {
+  const record: WaveThread = {
+    $type: THREAD_COLLECTION,
+    channelUri: PUBLIC_CHANNEL_URI,
+    title,
+    threadType: 'doc',
+    createdAt: new Date().toISOString(),
+  };
+  const res = await client.createRecord(THREAD_COLLECTION, record);
+  const rkey = res.uri.split('/').pop()!;
+  return { rkey, thread: record, authorDid: myDid, authorHandle: myHandle };
+}
+
+export async function loadPublicOps(
+  client: PdsClient,
+  myDid: string,
+  myHandle: string,
+  threadUri: string,
+): Promise<WaveOpRecord[]> {
+  const result: WaveOpRecord[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await client.listRecords(OP_COLLECTION, 100, cursor);
+    for (const rec of page.records) {
+      const val = rec.value as unknown as WaveOp;
+      if (val.threadUri === threadUri) {
+        const rkey = rec.uri.split('/').pop()!;
+        result.push({ rkey, op: val, authorDid: myDid, authorHandle: myHandle });
+      }
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  result.sort((a, b) => a.op.createdAt.localeCompare(b.op.createdAt));
+  return result;
+}
+
+export async function sendPublicDocEdit(
+  client: PdsClient,
+  thread: WaveThreadRecord,
+  text: string,
+  baseOpUri: string | undefined,
+  myDid: string,
+  myHandle: string,
+): Promise<WaveOpRecord> {
+  const payload: DocEditPayload = { text, baseOpUri };
+  const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
+  const record: WaveOp = {
+    $type: OP_COLLECTION,
+    threadUri,
+    parentOps: baseOpUri ? [baseOpUri] : undefined,
+    opType: 'doc_edit',
+    keyringRkey: 'public',
+    content: JSON.stringify(payload),
+    createdAt: new Date().toISOString(),
+  };
+  const res = await client.createRecord(OP_COLLECTION, record);
+  const rkey = res.uri.split('/').pop()!;
+  return { rkey, op: record, authorDid: myDid, authorHandle: myHandle };
+}
+
+export async function sendPublicMessage(
+  client: PdsClient,
+  thread: WaveThreadRecord,
+  text: string,
+  myDid: string,
+  myHandle: string,
+): Promise<WaveOpRecord> {
+  const payload: MessagePayload = { text };
+  const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
+  const record: WaveOp = {
+    $type: OP_COLLECTION,
+    threadUri,
+    opType: 'message',
+    keyringRkey: 'public',
+    content: JSON.stringify(payload),
     createdAt: new Date().toISOString(),
   };
   const res = await client.createRecord(OP_COLLECTION, record);

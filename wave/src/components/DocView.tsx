@@ -8,7 +8,6 @@ interface Props {
   ops: WaveOpRecord[];
   decryptedMessages: Map<string, MessagePayload | DocEditPayload>;
   connected: boolean;
-  myDid: string;
   sending: boolean;
   allStubs: NoteStub[];
   allDocThreads: WaveThreadRecord[];

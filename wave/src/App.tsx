@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authInit, authLogin, authLogout } from './lib/auth';
 import type { AuthUser } from './lib/auth';
-import { PdsClient } from './lib/pds';
+import { PdsClient, resolvePds } from './lib/pds';
 import {
   bootstrapVault, discoverOrgs, buildOrgContext, loadChannels,
   loadThreadsForChannel, loadOpsForThread, decryptOp,
@@ -10,6 +10,8 @@ import {
   sendMessage as ctxSendMessage, sendDocEdit as ctxSendDocEdit,
   createOrg as ctxCreateOrg, deleteOrg as ctxDeleteOrg,
   inviteMember as ctxInviteMember, removeMember as ctxRemoveMember,
+  loadPublicThreads, createPublicThread, loadPublicOps,
+  sendPublicDocEdit, sendPublicMessage,
   CHANNEL_COLLECTION, THREAD_COLLECTION, OP_COLLECTION,
 } from './lib/context';
 import type { IdentityKeys } from './lib/context';
@@ -22,6 +24,7 @@ import type {
 import { JetstreamClient, type JetstreamEvent } from './jetstream';
 
 import { LoginScreen } from './components/LoginScreen';
+import { VaultUnlock } from './components/VaultUnlock';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
 import { DocView } from './components/DocView';
@@ -30,13 +33,17 @@ import { GraphView } from './components/GraphView';
 const PASSPHRASE_KEY = 'wave_vault_passphrase';
 
 export function App() {
-  // Auth
+  // Auth (phase 1: OAuth)
   const [session, setSession] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [pds, setPds] = useState<PdsClient | null>(null);
+
+  // Vault (phase 2: passphrase)
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
+  const [showVaultPrompt, setShowVaultPrompt] = useState(false);
   const [identityKeys, setIdentityKeys] = useState<IdentityKeys | null>(null);
 
-  // Org
+  // Org (available after vault unlock)
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [activeOrg, setActiveOrg] = useState<WaveOrgContext | null>(null);
 
@@ -48,6 +55,10 @@ export function App() {
   const [ops, setOps] = useState<WaveOpRecord[]>([]);
   const [decryptedMessages, setDecryptedMessages] = useState<Map<string, MessagePayload | DocEditPayload>>(new Map());
 
+  // Public notes (available immediately after OAuth)
+  const [publicThreads, setPublicThreads] = useState<WaveThreadRecord[]>([]);
+  const [inPublicMode, setInPublicMode] = useState(true);
+
   // UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,32 +66,41 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [connected, setConnected] = useState(false);
-
-  // Wiki
   const [noteStubs, setNoteStubs] = useState<NoteStub[]>([]);
 
-  // Jetstream
   const jetstreamRef = useRef<JetstreamClient | null>(null);
 
-  // --- Auth init on mount ---
+  // --- Phase 1: Auth init on mount ---
   useEffect(() => {
     (async () => {
       const user = await authInit();
       if (user) {
         setSession(user);
+        // Create auth-proxied client for this session
+        const client = new PdsClient();
+        const userPds = await resolvePds(user.did);
+        client.setUserPds(userPds);
+        setPds(client);
+
+        // Load public notes immediately
+        try {
+          const pub = await loadPublicThreads(client, user.did, user.handle);
+          setPublicThreads(pub);
+        } catch (err) {
+          console.warn('Failed to load public notes:', err);
+        }
+
+        // Try auto-unlock vault if passphrase is cached
         const passphrase = localStorage.getItem(PASSPHRASE_KEY);
         if (passphrase) {
           try {
-            const client = new PdsClient();
             const { identityKeys: keys } = await bootstrapVault(client, user, passphrase);
-            setPds(client);
             setIdentityKeys(keys);
-            setLoading(true);
+            setVaultUnlocked(true);
             const discovered = await discoverOrgs(client);
             setOrgs(discovered);
-            setLoading(false);
-          } catch (err) {
-            console.warn('Auto-unlock failed:', err);
+          } catch {
+            localStorage.removeItem(PASSPHRASE_KEY);
           }
         }
       }
@@ -88,25 +108,27 @@ export function App() {
     })();
   }, []);
 
-  // --- Login (OAuth redirect) ---
-  const handleLogin = useCallback(async (handle: string, passphrase: string) => {
-    localStorage.setItem(PASSPHRASE_KEY, passphrase);
+  // --- OAuth login (no passphrase) ---
+  const handleLogin = useCallback(async (handle: string) => {
     await authLogin(handle);
   }, []);
 
-  // --- Passphrase unlock (session already exists) ---
-  const handlePassphrase = useCallback(async (passphrase: string) => {
-    if (!session) return;
+  // --- Vault unlock ---
+  const handleVaultUnlock = useCallback(async (passphrase: string) => {
+    if (!session || !pds) return;
     localStorage.setItem(PASSPHRASE_KEY, passphrase);
-    const client = new PdsClient();
-    const { identityKeys: keys } = await bootstrapVault(client, session, passphrase);
-    setPds(client);
+    const { identityKeys: keys } = await bootstrapVault(pds, session, passphrase);
     setIdentityKeys(keys);
+    setVaultUnlocked(true);
+    setShowVaultPrompt(false);
     setLoading(true);
-    const discovered = await discoverOrgs(client);
-    setOrgs(discovered);
-    setLoading(false);
-  }, [session]);
+    try {
+      const discovered = await discoverOrgs(pds);
+      setOrgs(discovered);
+    } finally {
+      setLoading(false);
+    }
+  }, [session, pds]);
 
   // --- Logout ---
   const handleLogout = useCallback(() => {
@@ -116,6 +138,7 @@ export function App() {
     setSession(null);
     setPds(null);
     setIdentityKeys(null);
+    setVaultUnlocked(false);
     setOrgs([]);
     setActiveOrg(null);
     setChannels([]);
@@ -124,13 +147,32 @@ export function App() {
     setActiveThread(null);
     setOps([]);
     setDecryptedMessages(new Map());
+    setPublicThreads([]);
+    setInPublicMode(true);
   }, []);
+
+  // --- Public notes ---
+  const handleCreatePublicThread = useCallback(async (title: string) => {
+    if (!pds || !session) return;
+    const t = await createPublicThread(pds, session.did, session.handle, title);
+    setPublicThreads(prev => [...prev, t]);
+    selectThread(t);
+  }, [pds, session]);
+
+  const handleDeletePublicThread = useCallback(async (th: WaveThreadRecord) => {
+    if (!pds || !session || th.authorDid !== session.did) return;
+    if (!confirm(`Delete "${th.thread.title || 'Untitled'}"?`)) return;
+    await pds.deleteRecord(THREAD_COLLECTION, th.rkey);
+    setPublicThreads(prev => prev.filter(t => t.rkey !== th.rkey));
+    if (activeThread?.rkey === th.rkey) { setActiveThread(null); setOps([]); }
+  }, [pds, session, activeThread]);
 
   // --- Select org ---
   const selectOrg = useCallback(async (orgRecord: OrgRecord) => {
     if (!pds || !session || !identityKeys) return;
     setLoading(true);
     setError('');
+    setInPublicMode(false);
     try {
       const ctx = await buildOrgContext(pds, orgRecord, identityKeys.privateKey, session.did);
       setActiveOrg(ctx);
@@ -165,21 +207,29 @@ export function App() {
     }
   }, [pds, activeOrg]);
 
-  // --- Select thread ---
+  // --- Select thread (public or encrypted) ---
   const selectThread = useCallback(async (thread: WaveThreadRecord) => {
-    if (!pds || !activeOrg) return;
+    if (!pds || !session) return;
     setActiveThread(thread);
     setSidebarOpen(false);
     setLoading(true);
     try {
       const threadUri = `at://${thread.authorDid}/${THREAD_COLLECTION}/${thread.rkey}`;
-      const loaded = await loadOpsForThread(pds, activeOrg, threadUri);
-      setOps(loaded);
-      startJetstream(activeOrg, threadUri);
+
+      if (thread.thread.channelUri === 'public') {
+        // Public thread — load ops from own PDS only
+        const loaded = await loadPublicOps(pds, session.did, session.handle, threadUri);
+        setOps(loaded);
+      } else if (activeOrg) {
+        // Encrypted thread — load ops from all members
+        const loaded = await loadOpsForThread(pds, activeOrg, threadUri);
+        setOps(loaded);
+        startJetstream(activeOrg, threadUri);
+      }
     } finally {
       setLoading(false);
     }
-  }, [pds, activeOrg]);
+  }, [pds, session, activeOrg]);
 
   // --- Jetstream ---
   const startJetstream = useCallback((ctx: WaveOrgContext, threadUri: string) => {
@@ -208,9 +258,9 @@ export function App() {
 
   useEffect(() => () => { jetstreamRef.current?.close(); }, []);
 
-  // --- Decrypt ops ---
+  // --- Decrypt ops (handles both public and encrypted) ---
   useEffect(() => {
-    if (!activeOrg || ops.length === 0) return;
+    if (ops.length === 0) return;
     let cancelled = false;
     (async () => {
       const next = new Map(decryptedMessages);
@@ -229,8 +279,11 @@ export function App() {
 
   // --- Build wiki stubs ---
   useEffect(() => {
-    if (!threads.length) { setNoteStubs([]); return; }
-    const docThreads = threads.filter(t => t.thread.threadType === 'doc');
+    const allDocThreads = [
+      ...publicThreads.filter(t => t.thread.threadType === 'doc'),
+      ...threads.filter(t => t.thread.threadType === 'doc'),
+    ];
+    if (!allDocThreads.length) { setNoteStubs([]); return; }
     const latestTexts = new Map<string, string>();
     for (const opRec of ops) {
       if (opRec.op.opType !== 'doc_edit') continue;
@@ -241,10 +294,10 @@ export function App() {
         latestTexts.set(parts[parts.length - 1], payload.text);
       }
     }
-    setNoteStubs(buildNoteStubs(docThreads, latestTexts));
-  }, [threads, ops, decryptedMessages]);
+    setNoteStubs(buildNoteStubs(allDocThreads, latestTexts));
+  }, [publicThreads, threads, ops, decryptedMessages]);
 
-  // --- Action handlers ---
+  // --- Action handlers (encrypted org content) ---
   const handleCreateChannel = useCallback(async (name: string, tierName?: string) => {
     if (!pds || !activeOrg || activeOrg.founderDid !== session?.did) return;
     try {
@@ -264,40 +317,61 @@ export function App() {
   }, [pds, session, activeOrg, activeChannel]);
 
   const handleCreateThread = useCallback(async (title?: string, type: 'chat' | 'doc' = 'chat') => {
-    if (!pds || !activeOrg || !activeChannel || !session) return;
+    if (!pds || !session) return;
+    // Public mode: create public doc
+    if (inPublicMode) {
+      if (type === 'doc' && title) await handleCreatePublicThread(title);
+      return;
+    }
+    if (!activeOrg || !activeChannel) return;
     const t = await ctxCreateThread(pds, activeOrg, activeChannel.rkey, session.did, session.handle, title, type);
     setThreads(prev => [...prev, t]);
     selectThread(t);
-  }, [pds, activeOrg, activeChannel, session, selectThread]);
+  }, [pds, activeOrg, activeChannel, session, selectThread, inPublicMode, handleCreatePublicThread]);
 
   const handleDeleteThread = useCallback(async (th: WaveThreadRecord) => {
     if (!pds || !session || th.authorDid !== session.did) return;
+    if (th.thread.channelUri === 'public') {
+      await handleDeletePublicThread(th);
+      return;
+    }
     if (!confirm(`Delete "${th.thread.title || 'Chat'}"?`)) return;
     await ctxDeleteThread(pds, th.rkey);
     setThreads(prev => prev.filter(t => !(t.rkey === th.rkey && t.authorDid === th.authorDid)));
     if (activeThread?.rkey === th.rkey && activeThread?.authorDid === th.authorDid) {
       setActiveThread(null); setOps([]);
     }
-  }, [pds, session, activeThread]);
+  }, [pds, session, activeThread, handleDeletePublicThread]);
 
   const handleSendMessage = useCallback(async (text: string) => {
-    if (!pds || !activeOrg || !activeThread || !activeChannel || !session) return;
+    if (!pds || !activeThread || !session) return;
     setSending(true);
     try {
-      const opRec = await ctxSendMessage(pds, activeOrg, activeThread, activeChannel.channel.tierName, text, session.did, session.handle);
-      setOps(prev => [...prev, opRec]);
+      if (activeThread.thread.channelUri === 'public') {
+        const opRec = await sendPublicMessage(pds, activeThread, text, session.did, session.handle);
+        setOps(prev => [...prev, opRec]);
+      } else if (activeOrg && activeChannel) {
+        const opRec = await ctxSendMessage(pds, activeOrg, activeThread, activeChannel.channel.tierName, text, session.did, session.handle);
+        setOps(prev => [...prev, opRec]);
+      }
     } catch (err) { setError(err instanceof Error ? err.message : 'Send failed'); }
     finally { setSending(false); }
   }, [pds, activeOrg, activeThread, activeChannel, session]);
 
   const handleSaveDoc = useCallback(async (text: string) => {
-    if (!pds || !activeOrg || !activeThread || !activeChannel || !session) return;
+    if (!pds || !activeThread || !session) return;
     setSending(true);
     try {
       const lastOp = ops.filter(o => o.op.opType === 'doc_edit').at(-1);
       const baseOpUri = lastOp ? `at://${lastOp.authorDid}/${OP_COLLECTION}/${lastOp.rkey}` : undefined;
-      const opRec = await ctxSendDocEdit(pds, activeOrg, activeThread, activeChannel.channel.tierName, text, baseOpUri, session.did, session.handle);
-      setOps(prev => [...prev, opRec]);
+
+      if (activeThread.thread.channelUri === 'public') {
+        const opRec = await sendPublicDocEdit(pds, activeThread, text, baseOpUri, session.did, session.handle);
+        setOps(prev => [...prev, opRec]);
+      } else if (activeOrg && activeChannel) {
+        const opRec = await ctxSendDocEdit(pds, activeOrg, activeThread, activeChannel.channel.tierName, text, baseOpUri, session.did, session.handle);
+        setOps(prev => [...prev, opRec]);
+      }
     } catch (err) { setError(err instanceof Error ? err.message : 'Save failed'); }
     finally { setSending(false); }
   }, [pds, activeOrg, activeThread, activeChannel, ops, session]);
@@ -350,45 +424,52 @@ export function App() {
     setActiveOrg(null); setChannels([]); setActiveChannel(null);
     setThreads([]); setActiveThread(null); setOps([]);
     setDecryptedMessages(new Map()); setNoteStubs([]);
+    setInPublicMode(true);
   }, []);
 
   const navigateToThread = useCallback((rkey: string) => {
-    const thread = threads.find(t => t.rkey === rkey);
+    const allThreads = [...publicThreads, ...threads];
+    const thread = allThreads.find(t => t.rkey === rkey);
     if (thread) selectThread(thread);
-  }, [threads, selectThread]);
+  }, [publicThreads, threads, selectThread]);
 
   // --- Render ---
   if (!authChecked) return <div className="wave-loading">Loading...</div>;
 
-  if (!pds || !session || !identityKeys) {
-    return (
-      <LoginScreen
-        session={session}
-        onLogin={handleLogin}
-        onPassphrase={handlePassphrase}
-      />
-    );
+  if (!session) {
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
-  if (loading && !activeOrg) return <div className="wave-loading">Loading orgs...</div>;
+  if (!pds) return <div className="wave-loading">Connecting...</div>;
+  if (loading && !activeOrg && !inPublicMode) return <div className="wave-loading">Loading...</div>;
 
-  const docThreads = threads.filter(t => t.thread.threadType === 'doc');
+  // Combine public + org threads for display
+  const visibleThreads = inPublicMode ? publicThreads : threads;
+  const docThreads = visibleThreads.filter(t => t.thread.threadType === 'doc');
 
   return (
     <div className="wave-app">
       {sidebarOpen && <div className="wave-overlay" onClick={() => setSidebarOpen(false)} />}
+      {showVaultPrompt && (
+        <VaultUnlock
+          onUnlock={handleVaultUnlock}
+          onCancel={() => setShowVaultPrompt(false)}
+        />
+      )}
 
       <Sidebar
         session={session}
         orgs={orgs}
-        activeOrg={activeOrg}
+        activeOrg={inPublicMode ? null : activeOrg}
         channels={channels}
         activeChannel={activeChannel}
-        threads={threads}
+        threads={visibleThreads}
         activeThread={activeThread}
         connected={connected}
         open={sidebarOpen}
         viewMode={viewMode}
+        vaultUnlocked={vaultUnlocked}
+        inPublicMode={inPublicMode}
         onClose={() => setSidebarOpen(false)}
         onSelectOrg={selectOrg}
         onBackToOrgs={handleBackToOrgs}
@@ -404,12 +485,18 @@ export function App() {
         onRemoveMember={handleRemoveMember}
         onSetViewMode={setViewMode}
         onLogout={handleLogout}
+        onUnlockVault={() => setShowVaultPrompt(true)}
+        onSwitchToPublic={() => { handleBackToOrgs(); setInPublicMode(true); }}
       />
 
       <div className="wave-main">
         <div className="wave-mobile-header">
           <button className="wave-btn-hamburger" onClick={() => setSidebarOpen(true)}>Menu</button>
-          <span>{activeChannel ? `# ${activeChannel.channel.name}` : activeOrg?.org.org.name || 'Wave'}</span>
+          <span>
+            {inPublicMode ? 'Notes' :
+              activeChannel ? `# ${activeChannel.channel.name}` :
+              activeOrg?.org.org.name || 'Wave'}
+          </span>
         </div>
 
         {error && (
@@ -419,7 +506,7 @@ export function App() {
           </div>
         )}
 
-        {viewMode === 'graph' && activeChannel ? (
+        {viewMode === 'graph' && (inPublicMode || activeChannel) ? (
           <GraphView
             stubs={noteStubs}
             activeRkey={activeThread?.rkey || null}
@@ -427,9 +514,13 @@ export function App() {
           />
         ) : !activeThread ? (
           <div className="wave-empty">
-            {!activeOrg ? 'Select an organization' :
-              !activeChannel ? 'Select a channel to get started' :
-              'Select or create a thread'}
+            {inPublicMode
+              ? (publicThreads.length === 0
+                ? 'Create your first page to get started'
+                : 'Select a page from the sidebar')
+              : !activeOrg ? 'Select an organization'
+              : !activeChannel ? 'Select a channel'
+              : 'Select or create a thread'}
           </div>
         ) : activeThread.thread.threadType === 'doc' ? (
           <DocView
@@ -437,7 +528,6 @@ export function App() {
             ops={ops}
             decryptedMessages={decryptedMessages}
             connected={connected}
-            myDid={session.did}
             sending={sending}
             allStubs={noteStubs}
             allDocThreads={docThreads}
@@ -451,7 +541,7 @@ export function App() {
             ops={ops}
             decryptedMessages={decryptedMessages as Map<string, MessagePayload>}
             connected={connected}
-            memberCount={activeOrg?.memberships.length || 0}
+            memberCount={activeOrg?.memberships.length || 1}
             myDid={session.did}
             sending={sending}
             onSendMessage={handleSendMessage}
