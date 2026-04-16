@@ -15,6 +15,18 @@ export class CanvasRenderer {
         wasm.__wbg_canvasrenderer_free(ptr, 0);
     }
     /**
+     * Apply a formatting wrap (e.g. bold **..** ) around selection or at cursor.
+     * @param {string} prefix
+     * @param {string} suffix
+     */
+    applyFormat(prefix, suffix) {
+        const ptr0 = passStringToWasm0(prefix, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(suffix, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.canvasrenderer_applyFormat(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+    }
+    /**
      * Get total content height (for scrollbar).
      * @returns {number}
      */
@@ -23,12 +35,83 @@ export class CanvasRenderer {
         return ret;
     }
     /**
+     * Get the current markdown text (for saving).
+     * @returns {string}
+     */
+    getMarkdown() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.canvasrenderer_getMarkdown(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * Get current scroll position.
      * @returns {number}
      */
     getScroll() {
         const ret = wasm.canvasrenderer_getScroll(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Get the selected text (for copy/cut).
+     * @returns {string}
+     */
+    getSelectedText() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.canvasrenderer_getSelectedText(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Handle a click at viewport coordinates — places the cursor.
+     * @param {number} viewport_x
+     * @param {number} viewport_y
+     * @param {boolean} shift
+     */
+    handleClick(viewport_x, viewport_y, shift) {
+        wasm.canvasrenderer_handleClick(this.__wbg_ptr, viewport_x, viewport_y, shift);
+    }
+    /**
+     * Handle text input (characters typed).
+     * @param {string} text
+     */
+    handleInput(text) {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.canvasrenderer_handleInput(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Handle a key press. Returns true if the key was handled.
+     * @param {string} key
+     * @param {boolean} ctrl
+     * @param {boolean} shift
+     * @returns {boolean}
+     */
+    handleKeyDown(key, ctrl, shift) {
+        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.canvasrenderer_handleKeyDown(this.__wbg_ptr, ptr0, len0, ctrl, shift);
+        return ret !== 0;
     }
     /**
      * Hit test at viewport coordinates. Returns JSON or empty string.
@@ -49,8 +132,16 @@ export class CanvasRenderer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export2(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * Whether the renderer is currently in edit mode.
+     * @returns {boolean}
+     */
+    isEditing() {
+        const ret = wasm.canvasrenderer_isEditing(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * Create a new renderer attached to a canvas element.
@@ -87,9 +178,9 @@ export class CanvasRenderer {
     render(markdown, config_json) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+            const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
             const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passStringToWasm0(config_json, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+            const ptr1 = passStringToWasm0(config_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
             const len1 = WASM_VECTOR_LEN;
             wasm.canvasrenderer_render(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
@@ -116,6 +207,41 @@ export class CanvasRenderer {
     setScroll(scroll_y) {
         wasm.canvasrenderer_setScroll(this.__wbg_ptr, scroll_y);
     }
+    /**
+     * Enter edit mode with the given markdown source.
+     * @param {string} markdown
+     */
+    startEditing(markdown) {
+        const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.canvasrenderer_startEditing(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Exit edit mode and return the final markdown.
+     * @returns {string}
+     */
+    stopEditing() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.canvasrenderer_stopEditing(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Toggle cursor blink — call from setInterval on JS side.
+     */
+    toggleBlink() {
+        wasm.canvasrenderer_toggleBlink(this.__wbg_ptr);
+    }
 }
 if (Symbol.dispose) CanvasRenderer.prototype[Symbol.dispose] = CanvasRenderer.prototype.free;
 
@@ -130,9 +256,9 @@ export function expandTemplate(template, vars_json) {
     let deferred4_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(template, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+        const ptr0 = passStringToWasm0(template, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(vars_json, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+        const ptr1 = passStringToWasm0(vars_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len1 = WASM_VECTOR_LEN;
         wasm.expandTemplate(retptr, ptr0, len0, ptr1, len1);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
@@ -150,7 +276,7 @@ export function expandTemplate(template, vars_json) {
         return getStringFromWasm0(ptr3, len3);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export2(deferred4_0, deferred4_1, 1);
+        wasm.__wbindgen_export4(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -164,7 +290,7 @@ export function parseWikilinks(markdown) {
     let deferred2_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+        const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len0 = WASM_VECTOR_LEN;
         wasm.parseWikilinks(retptr, ptr0, len0);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
@@ -174,7 +300,7 @@ export function parseWikilinks(markdown) {
         return getStringFromWasm0(r0, r1);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export2(deferred2_0, deferred2_1, 1);
+        wasm.__wbindgen_export4(deferred2_0, deferred2_1, 1);
     }
 }
 
@@ -189,9 +315,9 @@ export function renderMarkdown(markdown, config_json) {
     let deferred4_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+        const ptr0 = passStringToWasm0(markdown, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(config_json, wasm.__wbindgen_export3, wasm.__wbindgen_export4);
+        const ptr1 = passStringToWasm0(config_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len1 = WASM_VECTOR_LEN;
         wasm.renderMarkdown(retptr, ptr0, len0, ptr1, len1);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
@@ -209,7 +335,7 @@ export function renderMarkdown(markdown, config_json) {
         return getStringFromWasm0(ptr3, len3);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export2(deferred4_0, deferred4_1, 1);
+        wasm.__wbindgen_export4(deferred4_0, deferred4_1, 1);
     }
 }
 function __wbg_get_imports() {

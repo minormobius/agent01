@@ -16,6 +16,10 @@ pub enum RenderItem {
         font: String,
         color: String,
         baseline: f64,
+        /// Byte offset into the markdown source. `usize::MAX` = no mapping.
+        src_offset: usize,
+        /// Length in source bytes (may differ from text.len() due to syntax).
+        src_len: usize,
     },
     /// A filled rectangle (backgrounds, table cells, code blocks)
     Rect {
@@ -260,8 +264,14 @@ impl LayoutContext {
         indent
     }
 
-    /// Emit a text run with word-wrapping.
+    /// Emit a text run with word-wrapping (no source offset tracking).
     pub fn emit_text(&mut self, text: &str) {
+        self.emit_text_mapped(text, usize::MAX);
+    }
+
+    /// Emit a text run with word-wrapping and source byte offset tracking.
+    /// `src_offset` is the byte offset of `text` in the original markdown source.
+    pub fn emit_text_mapped(&mut self, text: &str, src_offset: usize) {
         if text.is_empty() {
             return;
         }
@@ -272,14 +282,21 @@ impl LayoutContext {
         let max_x = self.page_width - self.margin_right;
         let indent = self.current_indent();
 
-        // Split on whitespace for word wrapping
+        // Split on whitespace for word wrapping, tracking byte position
         let words: Vec<&str> = text.split_inclusive(char::is_whitespace).collect();
         if words.is_empty() {
             return;
         }
 
+        let mut byte_pos: usize = 0;
         for word in &words {
             let w = self.measure_text(word, &font);
+            let word_src_offset = if src_offset == usize::MAX {
+                usize::MAX
+            } else {
+                src_offset + byte_pos
+            };
+            let word_src_len = word.len();
 
             // If adding this word would overflow and we're not at line start, wrap
             if self.x + w > max_x && self.x > self.margin_left + indent + 1.0 {
@@ -297,7 +314,11 @@ impl LayoutContext {
                 font: font.clone(),
                 color: color.clone(),
                 baseline,
+                src_offset: word_src_offset,
+                src_len: word_src_len,
             });
+
+            byte_pos += word.len();
 
             // If this is a link, add a hit region
             if let Some(ref rkey) = self.style.wiki_rkey {
@@ -370,6 +391,8 @@ impl LayoutContext {
                 font,
                 color: theme::TEXT_DIM.to_string(),
                 baseline: baseline_y,
+                src_offset: usize::MAX,
+                src_len: 0,
             });
         } else {
             self.items.push(RenderItem::Circle {
@@ -477,6 +500,8 @@ impl LayoutContext {
                 font: header_font,
                 color: theme::TEXT.to_string(),
                 baseline: start_y + header_h - 8.0,
+                src_offset: usize::MAX,
+                src_len: 0,
             });
 
             // Cards
@@ -531,6 +556,8 @@ impl LayoutContext {
                     font: card_font,
                     color: card_color.to_string(),
                     baseline: cy + card_h - 8.0,
+                    src_offset: usize::MAX,
+                    src_len: 0,
                 });
             }
         }
@@ -577,6 +604,8 @@ impl LayoutContext {
                 font: label_font,
                 color: theme::TEXT_DIM.to_string(),
                 baseline: self.y + theme::FONT_SIZE_SMALL + 2.0,
+                src_offset: usize::MAX,
+                src_len: 0,
             });
         }
 
@@ -590,6 +619,8 @@ impl LayoutContext {
                 font: font.clone(),
                 color: theme::TEXT.to_string(),
                 baseline: cy + theme::FONT_SIZE_CODE,
+                src_offset: usize::MAX,
+                src_len: 0,
             });
             cy += line_h;
         }

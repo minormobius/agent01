@@ -5,6 +5,100 @@ use super::layout::{RenderItem, HitAction};
 use super::theme;
 use std::f64::consts::PI;
 
+/// Paint the cursor at the given document coordinates.
+pub fn paint_cursor(
+    ctx: &CanvasRenderingContext2d,
+    cursor_x: f64,
+    cursor_y: f64,
+    line_h: f64,
+    scroll_y: f64,
+    viewport_h: f64,
+    visible: bool,
+) {
+    if !visible {
+        return;
+    }
+    let screen_y = cursor_y - scroll_y;
+    if screen_y + line_h < 0.0 || screen_y > viewport_h {
+        return;
+    }
+    ctx.set_fill_style_str(theme::TEXT);
+    ctx.fill_rect(cursor_x, screen_y, 2.0, line_h);
+}
+
+/// Paint selection highlights for the given offset range.
+pub fn paint_selection(
+    ctx: &CanvasRenderingContext2d,
+    items: &[RenderItem],
+    sel_start: usize,
+    sel_end: usize,
+    scroll_y: f64,
+    viewport_h: f64,
+) {
+    ctx.set_fill_style_str("rgba(99, 102, 241, 0.3)"); // accent with transparency
+
+    for item in items {
+        if let RenderItem::Text {
+            x, y, text, font, src_offset, src_len, ..
+        } = item
+        {
+            if *src_offset == usize::MAX {
+                continue;
+            }
+
+            let item_start = *src_offset;
+            let item_end = item_start + src_len;
+
+            // Skip items entirely outside the selection
+            if item_end <= sel_start || item_start >= sel_end {
+                continue;
+            }
+
+            let screen_y = y - scroll_y;
+            if screen_y + 30.0 < 0.0 || screen_y > viewport_h {
+                continue;
+            }
+
+            // Calculate the highlighted portion within this item
+            let highlight_start_byte = if sel_start > item_start {
+                sel_start - item_start
+            } else {
+                0
+            };
+            let highlight_end_byte = if sel_end < item_end {
+                sel_end - item_start
+            } else {
+                *src_len
+            };
+
+            // Measure pixel positions
+            ctx.set_font(font);
+            let prefix_text = &text[..highlight_start_byte.min(text.len())];
+            let highlight_text =
+                &text[highlight_start_byte.min(text.len())..highlight_end_byte.min(text.len())];
+
+            let prefix_w = ctx
+                .measure_text(prefix_text)
+                .map(|m| m.width())
+                .unwrap_or(0.0);
+            let highlight_w = ctx
+                .measure_text(highlight_text)
+                .map(|m| m.width())
+                .unwrap_or(0.0);
+
+            let size: f64 = font
+                .split("px")
+                .next()
+                .and_then(|s| s.rsplit(' ').next())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(14.0);
+            let line_h = size * 1.7;
+
+            ctx.fill_rect(x + prefix_w, screen_y, highlight_w, line_h);
+        }
+    }
+}
+
 /// Paint a list of render items onto a canvas context.
 ///
 /// `scroll_y` offsets all items vertically (for scrolling).
@@ -28,7 +122,7 @@ pub fn paint(
     for item in items {
         match item {
             RenderItem::Text {
-                x, y, text, font, color, baseline,
+                x, y, text, font, color, baseline, ..
             } => {
                 let screen_y = y - scroll_y;
                 // Skip if off-screen (with generous margin for line height)

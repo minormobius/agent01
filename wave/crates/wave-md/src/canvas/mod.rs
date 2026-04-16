@@ -6,6 +6,7 @@
 /// The Rust side owns the layout and painting. React only provides the <canvas>
 /// element and forwards scroll/resize/click events.
 
+pub mod edit;
 pub mod layout;
 pub mod painter;
 pub mod theme;
@@ -29,6 +30,10 @@ pub struct CanvasRenderer {
     viewport_h: f64,
     dpr: f64,
     scroll_y: f64,
+    /// Edit state — present when the canvas is in edit mode.
+    edit_state: Option<edit::EditState>,
+    /// Cached config JSON for re-layout during editing.
+    last_config: String,
 }
 
 #[wasm_bindgen]
@@ -61,6 +66,8 @@ impl CanvasRenderer {
             viewport_h,
             dpr,
             scroll_y: 0.0,
+            edit_state: None,
+            last_config: String::new(),
         })
     }
 
@@ -92,15 +99,23 @@ impl CanvasRenderer {
 
     /// Layout and paint markdown content.
     pub fn render(&mut self, markdown: &str, config_json: &str) -> Result<(), JsValue> {
+        self.last_config = config_json.to_string();
         let config: RenderConfig = serde_json::from_str(config_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
 
+        // Use edit state's markdown if in edit mode
+        let source = if let Some(ref es) = self.edit_state {
+            es.markdown.clone()
+        } else {
+            let expanded = crate::plugins::template::expand_template(markdown, &config.template_vars);
+            expanded
+        };
+
         // Step 1: Expand wikilinks
         let title_map = wikilink::build_title_map(&config.title_index);
-        let expanded = crate::plugins::template::expand_template(markdown, &config.template_vars);
 
         // Step 2: Layout
-        self.items = layout_markdown(&expanded, self.viewport_w, &self.ctx, &title_map, &config);
+        self.items = layout_markdown(&source, self.viewport_w, &self.ctx, &title_map, &config);
         self.content_height = self.items.iter().fold(0.0f64, |max, item| {
             let bottom = item_bottom(item);
             if bottom > max { bottom } else { max }
@@ -110,6 +125,29 @@ impl CanvasRenderer {
         self.paint();
 
         Ok(())
+    }
+
+    /// Re-layout and paint after an edit operation.
+    fn relayout(&mut self) {
+        if self.last_config.is_empty() {
+            return;
+        }
+        let config: RenderConfig = match serde_json::from_str(&self.last_config) {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let title_map = wikilink::build_title_map(&config.title_index);
+        let source = if let Some(ref es) = self.edit_state {
+            es.markdown.clone()
+        } else {
+            return;
+        };
+        self.items = layout_markdown(&source, self.viewport_w, &self.ctx, &title_map, &config);
+        self.content_height = self.items.iter().fold(0.0f64, |max, item| {
+            let bottom = item_bottom(item);
+            if bottom > max { bottom } else { max }
+        }) + 32.0;
+        self.paint();
     }
 
     /// Repaint without re-layout (e.g. after scroll).
@@ -122,6 +160,41 @@ impl CanvasRenderer {
             self.viewport_h,
             self.dpr,
         );
+
+        // Paint cursor and selection in edit mode
+        if let Some(ref es) = self.edit_state {
+            self.ctx.save();
+            self.ctx.scale(self.dpr, self.dpr).ok();
+
+            // Paint selection highlight
+            if let Some((start, end)) = es.selection_range() {
+                painter::paint_selection(
+                    &self.ctx,
+                    &self.items,
+                    start,
+                    end,
+                    self.scroll_y,
+                    self.viewport_h,
+                );
+            }
+
+            // Paint cursor
+            if let Some((cx, cy, lh)) =
+                edit::cursor_position(&self.items, es.cursor, &self.ctx)
+            {
+                painter::paint_cursor(
+                    &self.ctx,
+                    cx,
+                    cy,
+                    lh,
+                    self.scroll_y,
+                    self.viewport_h,
+                    es.cursor_visible,
+                );
+            }
+
+            self.ctx.restore();
+        }
     }
 
     /// Hit test at viewport coordinates. Returns JSON or empty string.
@@ -135,6 +208,196 @@ impl CanvasRenderer {
             Some(action) => serde_json::to_string(&action).unwrap_or_default(),
             None => String::new(),
         }
+    }
+
+    // ---- Edit mode API ----
+
+    /// Enter edit mode with the given markdown source.
+    #[wasm_bindgen(js_name = startEditing)]
+    pub fn start_editing(&mut self, markdown: &str) {
+        self.edit_state = Some(edit::EditState::new(markdown.to_string()));
+        self.relayout();
+    }
+
+    /// Exit edit mode and return the final markdown.
+    #[wasm_bindgen(js_name = stopEditing)]
+    pub fn stop_editing(&mut self) -> String {
+        let md = self.edit_state.as_ref()
+            .map(|es| es.markdown.clone())
+            .unwrap_or_default();
+        self.edit_state = None;
+        md
+    }
+
+    /// Whether the renderer is currently in edit mode.
+    #[wasm_bindgen(js_name = isEditing)]
+    pub fn is_editing(&self) -> bool {
+        self.edit_state.is_some()
+    }
+
+    /// Get the current markdown text (for saving).
+    #[wasm_bindgen(js_name = getMarkdown)]
+    pub fn get_markdown(&self) -> String {
+        self.edit_state.as_ref()
+            .map(|es| es.markdown.clone())
+            .unwrap_or_default()
+    }
+
+    /// Handle a click at viewport coordinates — places the cursor.
+    #[wasm_bindgen(js_name = handleClick)]
+    pub fn handle_click(&mut self, viewport_x: f64, viewport_y: f64, shift: bool) {
+        if self.edit_state.is_none() {
+            return;
+        }
+
+        let doc_x = viewport_x;
+        let doc_y = viewport_y + self.scroll_y;
+        let offset = edit::offset_at_position(&self.items, doc_x, doc_y, &self.ctx);
+
+        if let Some(ref mut es) = self.edit_state {
+            if shift {
+                let anchor = es.selection.map(|(a, _)| a).unwrap_or(es.cursor);
+                es.selection = Some((anchor, offset));
+            } else {
+                es.selection = None;
+            }
+            es.cursor = offset;
+            es.show_cursor();
+        }
+
+        self.paint();
+    }
+
+    /// Handle text input (characters typed).
+    #[wasm_bindgen(js_name = handleInput)]
+    pub fn handle_input(&mut self, text: &str) {
+        if let Some(ref mut es) = self.edit_state {
+            es.insert(text);
+            es.show_cursor();
+        }
+        self.relayout();
+    }
+
+    /// Handle a key press. Returns true if the key was handled.
+    #[wasm_bindgen(js_name = handleKeyDown)]
+    pub fn handle_key_down(&mut self, key: &str, ctrl: bool, shift: bool) -> bool {
+        if self.edit_state.is_none() {
+            return false;
+        }
+
+        let handled = match key {
+            "Backspace" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.backspace();
+                    es.show_cursor();
+                }
+                true
+            }
+            "Delete" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.delete();
+                    es.show_cursor();
+                }
+                true
+            }
+            "ArrowLeft" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.move_left(shift);
+                    es.show_cursor();
+                }
+                true
+            }
+            "ArrowRight" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.move_right(shift);
+                    es.show_cursor();
+                }
+                true
+            }
+            "Home" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.move_home(shift);
+                    es.show_cursor();
+                }
+                true
+            }
+            "End" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.move_end(shift);
+                    es.show_cursor();
+                }
+                true
+            }
+            "Enter" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.insert("\n");
+                    es.show_cursor();
+                }
+                true
+            }
+            "Tab" => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.insert("  ");
+                    es.show_cursor();
+                }
+                true
+            }
+            "a" if ctrl => {
+                if let Some(ref mut es) = self.edit_state {
+                    es.select_all();
+                }
+                true
+            }
+            _ => false,
+        };
+
+        if handled {
+            match key {
+                "ArrowLeft" | "ArrowRight" | "Home" | "End" => self.paint(),
+                _ => self.relayout(),
+            }
+        }
+
+        handled
+    }
+
+    /// Toggle cursor blink — call from setInterval on JS side.
+    #[wasm_bindgen(js_name = toggleBlink)]
+    pub fn toggle_blink(&mut self) {
+        if let Some(ref mut es) = self.edit_state {
+            es.toggle_blink();
+        }
+        self.paint();
+    }
+
+    /// Get the selected text (for copy/cut).
+    #[wasm_bindgen(js_name = getSelectedText)]
+    pub fn get_selected_text(&self) -> String {
+        self.edit_state.as_ref()
+            .and_then(|es| es.selected_text().map(|s| s.to_string()))
+            .unwrap_or_default()
+    }
+
+    /// Apply a formatting wrap (e.g. bold **..** ) around selection or at cursor.
+    #[wasm_bindgen(js_name = applyFormat)]
+    pub fn apply_format(&mut self, prefix: &str, suffix: &str) {
+        if let Some(ref mut es) = self.edit_state {
+            if let Some((start, end)) = es.selection_range() {
+                // Wrap selection
+                es.markdown.insert_str(end, suffix);
+                es.markdown.insert_str(start, prefix);
+                es.cursor = end + prefix.len() + suffix.len();
+                es.selection = None;
+            } else {
+                // Insert empty wrap and place cursor inside
+                let pos = es.cursor;
+                es.markdown.insert_str(pos, prefix);
+                es.markdown.insert_str(pos + prefix.len(), suffix);
+                es.cursor = pos + prefix.len();
+            }
+            es.show_cursor();
+        }
+        self.relayout();
     }
 }
 
@@ -187,7 +450,7 @@ fn layout_markdown(
 
     let parser = Parser::new_ext(markdown, opts);
 
-    for event in parser {
+    for (event, range) in parser.into_offset_iter() {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
                 lc.y += theme::HEADING_MARGIN_TOP;
@@ -364,20 +627,31 @@ fn layout_markdown(
                 } else {
                     // Check for inline wikilinks
                     let text_str = text.to_string();
+                    let src_start = range.start;
                     let parts = split_wikilinks(&text_str, title_map);
+                    let mut part_byte_offset: usize = 0;
                     for part in parts {
                         match part {
-                            TextPart::Plain(s) => lc.emit_text(&s),
+                            TextPart::Plain(s) => {
+                                lc.emit_text_mapped(&s, src_start + part_byte_offset);
+                                part_byte_offset += s.len();
+                            }
                             TextPart::WikiLink { display, rkey } => {
                                 lc.style.wiki_rkey = Some(rkey);
-                                lc.emit_text(&display);
+                                // Wikilink in source is [[display]] or [[display|target]]
+                                // Skip the [[ prefix for display offset
+                                lc.emit_text_mapped(&display, src_start + part_byte_offset + 2);
                                 lc.style.wiki_rkey = None;
+                                // Advance past the full [[...]] in source
+                                // We need the original source length, approximate from display
+                                part_byte_offset += display.len() + 4; // [[ + ]]
                             }
                             TextPart::WikiLinkMissing { display } => {
                                 let old_color = lc.style.link_url.clone();
-                                lc.style.link_url = Some(String::new()); // trigger accent color
-                                lc.emit_text(&display);
+                                lc.style.link_url = Some(String::new());
+                                lc.emit_text_mapped(&display, src_start + part_byte_offset + 2);
                                 lc.style.link_url = old_color;
+                                part_byte_offset += display.len() + 4;
                             }
                         }
                     }
@@ -403,7 +677,8 @@ fn layout_markdown(
                     radius: 3.0,
                 });
 
-                lc.emit_text(&text);
+                // Source range includes the backticks, text is inside them
+                lc.emit_text_mapped(&text, range.start + 1);
                 lc.style.code = old_code;
             }
 
@@ -582,6 +857,8 @@ fn emit_data_block(lc: &mut LayoutContext, info: &str, content: &str) {
             font: key_font.clone(),
             color: theme::TEXT_DIM.to_string(),
             baseline: cy + theme::FONT_SIZE_SMALL,
+            src_offset: usize::MAX,
+            src_len: 0,
         });
 
         let key_w = lc.measure_text(&key.to_uppercase(), &key_font);
@@ -594,6 +871,8 @@ fn emit_data_block(lc: &mut LayoutContext, info: &str, content: &str) {
             font: val_font.clone(),
             color: theme::TEXT.to_string(),
             baseline: cy + theme::FONT_SIZE_BASE,
+            src_offset: usize::MAX,
+            src_len: 0,
         });
 
         cy += line_h;
@@ -701,6 +980,8 @@ fn emit_table(lc: &mut LayoutContext) {
                 font: font.clone(),
                 color: color.to_string(),
                 baseline: ry + cell_pad + theme::FONT_SIZE_BASE,
+                src_offset: usize::MAX,
+                src_len: 0,
             });
         }
     }

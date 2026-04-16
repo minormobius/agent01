@@ -302,6 +302,17 @@ body {
   display: block;
 }
 
+/* Hidden input for canvas WYSIWYG editing — captures keyboard events */
+.wave-hidden-input {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .wave-doc-preview {
   flex: 1; padding: 16px; overflow-y: auto; background: var(--bg-surface);
 }

@@ -4,7 +4,6 @@ import type { NoteStub } from '../lib/wiki';
 import type { CanvasRenderer } from '../lib/markdown';
 import { createCanvasRenderer, isMarkdownReady } from '../lib/markdown';
 import { findBacklinks, buildTitleIndex } from '../lib/wiki';
-import { FormatToolbar } from './FormatToolbar';
 
 interface Props {
   thread: WaveThreadRecord;
@@ -27,11 +26,13 @@ export function CanvasDocView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hiddenInputRef = useRef<HTMLTextAreaElement>(null);
+  const blinkRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [editing, setEditing] = useState(false);
+  const [textareaEditing, setTextareaEditing] = useState(false);
   const [editText, setEditText] = useState('');
   const [commentText, setCommentText] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -77,17 +78,17 @@ export function CanvasDocView({
   }, [ops, decryptedMessages]);
 
   useEffect(() => {
-    if (!editing) setEditText(latestText);
-  }, [latestText, editing]);
+    if (!editing && !textareaEditing) setEditText(latestText);
+  }, [latestText, editing, textareaEditing]);
 
   const backlinks = useMemo(() => {
     const stub = allStubs.find(s => s.rkey === thread.rkey);
     return stub ? findBacklinks(allStubs, thread.rkey) : [];
   }, [allStubs, thread.rkey]);
 
-  // Initialize canvas renderer
+  // Initialize canvas renderer (persistent — not destroyed on edit toggle)
   useEffect(() => {
-    if (!canvasRef.current || !isMarkdownReady() || editing || showHistory) return;
+    if (!canvasRef.current || !isMarkdownReady() || showHistory || textareaEditing) return;
 
     const canvas = canvasRef.current;
     try {
@@ -100,19 +101,22 @@ export function CanvasDocView({
     } catch (err) {
       console.warn('Canvas renderer init failed:', err);
     }
-  }, [editing, showHistory]);
+  }, [showHistory, textareaEditing]);
 
-  // Render content when text or config changes
+  // Render content when text or config changes (view mode only)
   useEffect(() => {
     const renderer = rendererRef.current;
-    if (!renderer || editing || showHistory) return;
+    if (!renderer || showHistory || textareaEditing) return;
+    // Don't re-render from latestText while in canvas edit mode —
+    // the edit state owns the markdown during editing
+    if (editing) return;
 
     try {
       renderer.render(latestText, configJson);
     } catch (err) {
       console.warn('Canvas render failed:', err);
     }
-  }, [latestText, configJson, editing, showHistory]);
+  }, [latestText, configJson, showHistory, textareaEditing, editing]);
 
   // Handle resize
   useEffect(() => {
@@ -132,6 +136,18 @@ export function CanvasDocView({
     return () => observer.disconnect();
   }, []);
 
+  // Cursor blink interval when in canvas edit mode
+  useEffect(() => {
+    if (editing) {
+      blinkRef.current = setInterval(() => {
+        rendererRef.current?.toggleBlink();
+      }, 530);
+      return () => {
+        if (blinkRef.current) clearInterval(blinkRef.current);
+      };
+    }
+  }, [editing]);
+
   // Handle scroll
   const handleWheel = useCallback((e: React.WheelEvent) => {
     const renderer = rendererRef.current;
@@ -142,7 +158,7 @@ export function CanvasDocView({
     renderer.paint();
   }, []);
 
-  // Handle click (hit testing)
+  // Handle canvas click
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const renderer = rendererRef.current;
     if (!renderer || !canvasRef.current) return;
@@ -151,6 +167,15 @@ export function CanvasDocView({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    if (editing) {
+      // Edit mode: place cursor
+      renderer.handleClick(x, y, e.shiftKey);
+      // Focus the hidden input to capture keyboard events
+      hiddenInputRef.current?.focus();
+      return;
+    }
+
+    // View mode: hit test for links
     const hitJson = renderer.hitTest(x, y);
     if (!hitJson) return;
 
@@ -164,12 +189,17 @@ export function CanvasDocView({
     } catch {
       // Invalid JSON, ignore
     }
-  }, [onNavigate]);
+  }, [onNavigate, editing]);
 
   // Handle cursor changes on hover
   const handleCanvasMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const renderer = rendererRef.current;
     if (!renderer || !canvasRef.current) return;
+
+    if (editing) {
+      canvasRef.current.style.cursor = 'text';
+      return;
+    }
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -177,7 +207,112 @@ export function CanvasDocView({
 
     const hitJson = renderer.hitTest(x, y);
     canvasRef.current.style.cursor = hitJson ? 'pointer' : 'default';
-  }, []);
+  }, [editing]);
+
+  // Hidden input handlers for canvas edit mode
+  const handleHiddenInput = useCallback(() => {
+    const renderer = rendererRef.current;
+    const input = hiddenInputRef.current;
+    if (!renderer || !input || !editing) return;
+
+    const text = input.value;
+    if (text) {
+      renderer.handleInput(text);
+      input.value = '';
+    }
+  }, [editing]);
+
+  const handleHiddenKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const renderer = rendererRef.current;
+    if (!renderer || !editing) return;
+
+    // Let the hidden input handle normal character input via onInput
+    // Here we only handle special keys
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    // Handle copy/cut/paste natively
+    if (ctrl && (e.key === 'c' || e.key === 'x' || e.key === 'v')) {
+      if (e.key === 'c' || e.key === 'x') {
+        const selected = renderer.getSelectedText();
+        if (selected) {
+          navigator.clipboard.writeText(selected);
+        }
+        if (e.key === 'x' && selected) {
+          renderer.handleKeyDown('Backspace', false, false);
+        }
+        e.preventDefault();
+      }
+      // Let paste go through — it'll trigger onInput
+      return;
+    }
+
+    // Save shortcut
+    if (ctrl && e.key === 's') {
+      e.preventDefault();
+      const md = renderer.getMarkdown();
+      onSaveDoc(md);
+      return;
+    }
+
+    // Escape exits edit mode
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      const md = renderer.stopEditing();
+      setEditing(false);
+      setEditText(md);
+      renderer.render(md, configJson);
+      return;
+    }
+
+    const handled = renderer.handleKeyDown(e.key, ctrl, e.shiftKey);
+    if (handled) {
+      e.preventDefault();
+    }
+  }, [editing, onSaveDoc, configJson]);
+
+  // Start canvas editing
+  const startCanvasEdit = useCallback(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) {
+      // Fallback to textarea if canvas isn't available
+      setTextareaEditing(true);
+      setEditText(latestText);
+      return;
+    }
+    renderer.startEditing(latestText);
+    setEditing(true);
+    // Focus hidden input after render
+    requestAnimationFrame(() => hiddenInputRef.current?.focus());
+  }, [latestText]);
+
+  // Save from canvas edit
+  const saveCanvasEdit = useCallback(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    const md = renderer.getMarkdown();
+    onSaveDoc(md);
+    renderer.stopEditing();
+    setEditing(false);
+    // Re-render in view mode
+    renderer.render(md, configJson);
+  }, [onSaveDoc, configJson]);
+
+  // Cancel canvas edit
+  const cancelCanvasEdit = useCallback(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.stopEditing();
+    setEditing(false);
+    renderer.render(latestText, configJson);
+  }, [latestText, configJson]);
+
+  // Format toolbar actions (canvas edit mode)
+  const applyFormat = useCallback((prefix: string, suffix: string) => {
+    const renderer = rendererRef.current;
+    if (!renderer || !editing) return;
+    renderer.applyFormat(prefix, suffix);
+    hiddenInputRef.current?.focus();
+  }, [editing]);
 
   const commentOps = ops.filter(o => o.op.opType === 'message');
 
@@ -204,12 +339,23 @@ export function CanvasDocView({
     }
   };
 
+  // Format toolbar for canvas edit mode
+  const formatButtons = [
+    { label: 'B', title: 'Bold', pre: '**', suf: '**' },
+    { label: 'I', title: 'Italic', pre: '*', suf: '*' },
+    { label: 'S', title: 'Strikethrough', pre: '~~', suf: '~~' },
+    { label: '`', title: 'Code', pre: '`', suf: '`' },
+    { label: '[[', title: 'Wiki link', pre: '[[', suf: ']]' },
+    { label: '🔗', title: 'Link', pre: '[', suf: '](url)' },
+  ];
+
   return (
     <div className="wave-doc">
       <div className="wave-thread-header">
         <h3>{thread.thread.title || 'Untitled Document'}</h3>
         <span className="wave-thread-meta">
           {docHistory.length} edits{connected && ' · live'}
+          {editing && <span style={{ color: 'var(--accent)' }}> · editing</span>}
           <button className="wave-btn-sm" onClick={() => setShowHistory(!showHistory)}>
             {showHistory ? 'Close' : 'History'}
           </button>
@@ -230,34 +376,48 @@ export function CanvasDocView({
               <div className="wave-message-time">{new Date(entry.createdAt).toLocaleString()}</div>
               <button className="wave-btn-sm" onClick={() => {
                 setEditText(entry.text);
-                setEditing(true);
+                setTextareaEditing(true);
                 setShowHistory(false);
               }}>Restore</button>
             </div>
           ))}
         </div>
-      ) : editing ? (
+      ) : textareaEditing ? (
         <div className="wave-doc-editor">
-          <FormatToolbar textareaRef={editTextareaRef} onTextChange={setEditText} />
           <textarea
-            ref={editTextareaRef}
             className="wave-doc-textarea wave-doc-textarea-full"
             value={editText}
             onChange={e => setEditText(e.target.value)}
             placeholder="Write your document in markdown..."
+            autoFocus
           />
           <div className="wave-doc-actions">
-            <button className="wave-btn-primary" onClick={() => onSaveDoc(editText)} disabled={sending}>
+            <button className="wave-btn-primary" onClick={() => {
+              onSaveDoc(editText);
+              setTextareaEditing(false);
+            }} disabled={sending}>
               {sending ? 'Saving...' : 'Save'}
             </button>
-            <button className="wave-btn-sm" onClick={() => { setEditing(false); setEditText(latestText); }}>
+            <button className="wave-btn-sm" onClick={() => { setTextareaEditing(false); setEditText(latestText); }}>
               Cancel
             </button>
           </div>
         </div>
       ) : (
         <div className="wave-doc-viewer" ref={containerRef}>
-          {latestText ? (
+          {/* Format toolbar (visible in canvas edit mode) */}
+          {editing && (
+            <div className="wave-format-toolbar">
+              {formatButtons.map(b => (
+                <button key={b.title} className="wave-format-btn" title={b.title}
+                  onMouseDown={e => { e.preventDefault(); applyFormat(b.pre, b.suf); }}>
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {latestText || editing ? (
             <canvas
               ref={canvasRef}
               className="wave-canvas-doc"
@@ -268,19 +428,51 @@ export function CanvasDocView({
           ) : (
             <p className="wave-empty-hint">Empty document. Click Edit to start writing.</p>
           )}
+
+          {/* Hidden input for capturing keyboard input in canvas edit mode */}
+          {editing && (
+            <textarea
+              ref={hiddenInputRef}
+              className="wave-hidden-input"
+              onInput={handleHiddenInput}
+              onKeyDown={handleHiddenKeyDown}
+              autoFocus
+            />
+          )}
+
           <div className="wave-doc-actions">
-            <button className="wave-btn-primary" onClick={() => setEditing(true)}>Edit</button>
-            {onPostToBluesky && latestText.trim() && (
-              canPostToBluesky ? (
-                <button className="wave-post-bsky" onClick={handlePostToBluesky}
-                  disabled={posting || posted}>
-                  {posted ? 'Posted!' : posting ? 'Posting...' : 'Post to Bluesky'}
+            {editing ? (
+              <>
+                <button className="wave-btn-primary" onClick={saveCanvasEdit} disabled={sending}>
+                  {sending ? 'Saving...' : 'Save'}
                 </button>
-              ) : (
-                <span className="wave-post-bsky-info">
-                  {textBytes}/300 bytes — too long to post
-                </span>
-              )
+                <button className="wave-btn-sm" onClick={cancelCanvasEdit}>Cancel</button>
+                <button className="wave-btn-sm" onClick={() => {
+                  // Switch to raw textarea mode
+                  const renderer = rendererRef.current;
+                  const md = renderer?.getMarkdown() || latestText;
+                  renderer?.stopEditing();
+                  setEditing(false);
+                  setEditText(md);
+                  setTextareaEditing(true);
+                }}>Raw</button>
+              </>
+            ) : (
+              <>
+                <button className="wave-btn-primary" onClick={startCanvasEdit}>Edit</button>
+                {onPostToBluesky && latestText.trim() && (
+                  canPostToBluesky ? (
+                    <button className="wave-post-bsky" onClick={handlePostToBluesky}
+                      disabled={posting || posted}>
+                      {posted ? 'Posted!' : posting ? 'Posting...' : 'Post to Bluesky'}
+                    </button>
+                  ) : (
+                    <span className="wave-post-bsky-info">
+                      {textBytes}/300 bytes — too long to post
+                    </span>
+                  )
+                )}
+              </>
             )}
           </div>
         </div>

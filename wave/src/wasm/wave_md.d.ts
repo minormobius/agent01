@@ -8,17 +8,45 @@ export class CanvasRenderer {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Apply a formatting wrap (e.g. bold **..** ) around selection or at cursor.
+     */
+    applyFormat(prefix: string, suffix: string): void;
+    /**
      * Get total content height (for scrollbar).
      */
     getContentHeight(): number;
+    /**
+     * Get the current markdown text (for saving).
+     */
+    getMarkdown(): string;
     /**
      * Get current scroll position.
      */
     getScroll(): number;
     /**
+     * Get the selected text (for copy/cut).
+     */
+    getSelectedText(): string;
+    /**
+     * Handle a click at viewport coordinates — places the cursor.
+     */
+    handleClick(viewport_x: number, viewport_y: number, shift: boolean): void;
+    /**
+     * Handle text input (characters typed).
+     */
+    handleInput(text: string): void;
+    /**
+     * Handle a key press. Returns true if the key was handled.
+     */
+    handleKeyDown(key: string, ctrl: boolean, shift: boolean): boolean;
+    /**
      * Hit test at viewport coordinates. Returns JSON or empty string.
      */
     hitTest(viewport_x: number, viewport_y: number): string;
+    /**
+     * Whether the renderer is currently in edit mode.
+     */
+    isEditing(): boolean;
     /**
      * Create a new renderer attached to a canvas element.
      */
@@ -39,6 +67,18 @@ export class CanvasRenderer {
      * Set scroll position.
      */
     setScroll(scroll_y: number): void;
+    /**
+     * Enter edit mode with the given markdown source.
+     */
+    startEditing(markdown: string): void;
+    /**
+     * Exit edit mode and return the final markdown.
+     */
+    stopEditing(): string;
+    /**
+     * Toggle cursor blink — call from setInterval on JS side.
+     */
+    toggleBlink(): void;
 }
 
 /**
@@ -61,22 +101,32 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_canvasrenderer_free: (a: number, b: number) => void;
+    readonly canvasrenderer_applyFormat: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly canvasrenderer_getContentHeight: (a: number) => number;
+    readonly canvasrenderer_getMarkdown: (a: number, b: number) => void;
     readonly canvasrenderer_getScroll: (a: number) => number;
+    readonly canvasrenderer_getSelectedText: (a: number, b: number) => void;
+    readonly canvasrenderer_handleClick: (a: number, b: number, c: number, d: number) => void;
+    readonly canvasrenderer_handleInput: (a: number, b: number, c: number) => void;
+    readonly canvasrenderer_handleKeyDown: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly canvasrenderer_hitTest: (a: number, b: number, c: number, d: number) => void;
+    readonly canvasrenderer_isEditing: (a: number) => number;
     readonly canvasrenderer_new: (a: number, b: number) => void;
     readonly canvasrenderer_paint: (a: number) => void;
     readonly canvasrenderer_render: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly canvasrenderer_resize: (a: number, b: number, c: number) => void;
     readonly canvasrenderer_setScroll: (a: number, b: number) => void;
+    readonly canvasrenderer_startEditing: (a: number, b: number, c: number) => void;
+    readonly canvasrenderer_stopEditing: (a: number, b: number) => void;
+    readonly canvasrenderer_toggleBlink: (a: number) => void;
     readonly expandTemplate: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly parseWikilinks: (a: number, b: number, c: number) => void;
     readonly renderMarkdown: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly __wbindgen_export: (a: number) => void;
+    readonly __wbindgen_export2: (a: number, b: number) => number;
+    readonly __wbindgen_export3: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
-    readonly __wbindgen_export2: (a: number, b: number, c: number) => void;
-    readonly __wbindgen_export3: (a: number, b: number) => number;
-    readonly __wbindgen_export4: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_export4: (a: number, b: number, c: number) => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
