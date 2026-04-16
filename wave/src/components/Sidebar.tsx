@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { OrgRecord, WaveOrgContext, WaveChannelRecord, WaveThreadRecord, MembershipRecord } from '../types';
+import { HandleTypeahead } from './HandleTypeahead';
 
 interface Props {
   session: { did: string; handle: string };
@@ -43,6 +45,9 @@ export function Sidebar({
   onSetViewMode, onLogout, onUnlockVault, onSwitchToPublic, onShowTemplates,
 }: Props) {
   const isFounder = activeOrg?.founderDid === session.did;
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteHandle, setInviteHandle] = useState('');
+  const [inviteTier, setInviteTier] = useState('');
 
   // --- Public mode: personal notes + org navigation ---
   if (inPublicMode) {
@@ -288,14 +293,40 @@ export function Sidebar({
             <span>Members ({activeOrg.memberships.length})</span>
             {isFounder && (
               <button className="wave-btn-sm" onClick={() => {
-                const handle = prompt('Handle or DID to invite:');
-                if (!handle) return;
-                const tiers = activeOrg.org.org.tiers.sort((a, b) => a.level - b.level);
-                const tierStr = prompt(`Tier (${tiers.map(t => t.name).join(', ')}):`, tiers[0]?.name);
-                if (tierStr) onInviteMember(handle, tierStr);
-              }}>+</button>
+                setShowInvite(!showInvite);
+                if (!inviteTier && activeOrg.org.org.tiers.length > 0) {
+                  setInviteTier(activeOrg.org.org.tiers.sort((a, b) => a.level - b.level)[0].name);
+                }
+              }}>{showInvite ? '−' : '+'}</button>
             )}
           </div>
+          {showInvite && activeOrg && (
+            <div className="wave-invite-inline">
+              <HandleTypeahead
+                value={inviteHandle}
+                onChange={setInviteHandle}
+                onSelect={(actor) => setInviteHandle(actor.handle)}
+                placeholder="Search handle..."
+                autoFocus
+              />
+              <div className="wave-invite-row">
+                <select value={inviteTier} onChange={e => setInviteTier(e.target.value)}>
+                  {activeOrg.org.org.tiers
+                    .sort((a, b) => a.level - b.level)
+                    .map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                </select>
+                <button className="wave-btn-primary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                  disabled={!inviteHandle.trim()}
+                  onClick={() => {
+                    if (inviteHandle.trim() && inviteTier) {
+                      onInviteMember(inviteHandle.trim(), inviteTier);
+                      setInviteHandle('');
+                      setShowInvite(false);
+                    }
+                  }}>Invite</button>
+              </div>
+            </div>
+          )}
           <div className="wave-note-list wave-members-list">
             {activeOrg.memberships.map(m => (
               <div key={m.rkey} className="wave-note-item-row">

@@ -4,6 +4,7 @@ import type { NoteStub } from '../lib/wiki';
 import type { CanvasRenderer } from '../lib/markdown';
 import { createCanvasRenderer, isMarkdownReady } from '../lib/markdown';
 import { findBacklinks, buildTitleIndex } from '../lib/wiki';
+import { FormatToolbar } from './FormatToolbar';
 
 interface Props {
   thread: WaveThreadRecord;
@@ -16,11 +17,12 @@ interface Props {
   onSaveDoc: (text: string) => void;
   onSendComment: (text: string) => void;
   onNavigate: (rkey: string) => void;
+  onPostToBluesky?: (text: string) => Promise<void>;
 }
 
 export function CanvasDocView({
   thread, ops, decryptedMessages, connected, sending,
-  allStubs, allDocThreads, onSaveDoc, onSendComment, onNavigate,
+  allStubs, allDocThreads, onSaveDoc, onSendComment, onNavigate, onPostToBluesky,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
@@ -29,6 +31,9 @@ export function CanvasDocView({
   const [editText, setEditText] = useState('');
   const [commentText, setCommentText] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const titleIndex = useMemo(() => buildTitleIndex(allDocThreads), [allDocThreads]);
@@ -182,6 +187,23 @@ export function CanvasDocView({
     setCommentText('');
   };
 
+  const textBytes = new TextEncoder().encode(latestText).length;
+  const canPostToBluesky = onPostToBluesky && latestText.trim() && textBytes <= 300;
+
+  const handlePostToBluesky = async () => {
+    if (!onPostToBluesky || !canPostToBluesky || posting) return;
+    setPosting(true);
+    try {
+      await onPostToBluesky(latestText.trim());
+      setPosted(true);
+      setTimeout(() => setPosted(false), 3000);
+    } catch (err) {
+      console.error('Post to Bluesky failed:', err);
+    } finally {
+      setPosting(false);
+    }
+  };
+
   return (
     <div className="wave-doc">
       <div className="wave-thread-header">
@@ -216,7 +238,9 @@ export function CanvasDocView({
         </div>
       ) : editing ? (
         <div className="wave-doc-editor">
+          <FormatToolbar textareaRef={editTextareaRef} onTextChange={setEditText} />
           <textarea
+            ref={editTextareaRef}
             className="wave-doc-textarea wave-doc-textarea-full"
             value={editText}
             onChange={e => setEditText(e.target.value)}
@@ -246,6 +270,18 @@ export function CanvasDocView({
           )}
           <div className="wave-doc-actions">
             <button className="wave-btn-primary" onClick={() => setEditing(true)}>Edit</button>
+            {onPostToBluesky && latestText.trim() && (
+              canPostToBluesky ? (
+                <button className="wave-post-bsky" onClick={handlePostToBluesky}
+                  disabled={posting || posted}>
+                  {posted ? 'Posted!' : posting ? 'Posting...' : 'Post to Bluesky'}
+                </button>
+              ) : (
+                <span className="wave-post-bsky-info">
+                  {textBytes}/300 bytes — too long to post
+                </span>
+              )
+            )}
           </div>
         </div>
       )}

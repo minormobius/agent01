@@ -804,3 +804,163 @@ body {
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
+
+/* --- Handle typeahead --- */
+.wave-ta-wrap {
+  position: relative;
+}
+
+.wave-ta-wrap input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.wave-ta-wrap input:focus { border-color: var(--accent); }
+
+.wave-ta-drop {
+  position: absolute;
+  left: 0; right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.wave-ta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.wave-ta-item:hover, .wave-ta-item.active {
+  background: var(--bg-active);
+}
+
+.wave-ta-av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.wave-ta-av-ph {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  flex-shrink: 0;
+}
+
+.wave-ta-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.wave-ta-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wave-ta-handle {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Inline invite variant (sidebar) */
+.wave-invite-inline {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wave-invite-inline .wave-ta-wrap input {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+
+.wave-invite-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.wave-invite-row select {
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.wave-invite-row select:focus { border-color: var(--accent); }
+
+/* --- Formatting toolbar --- */
+.wave-format-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-wrap: wrap;
+}
+
+.wave-format-btn {
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.wave-format-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* --- Post to Bluesky button --- */
+.wave-post-bsky {
+  padding: 6px 12px;
+  background: #0085ff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wave-post-bsky:hover { background: #0070dd; }
+.wave-post-bsky:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.wave-post-bsky-info {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-left: 8px;
+}

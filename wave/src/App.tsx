@@ -455,6 +455,35 @@ export function App() {
     }
   }, [pds, session, inPublicMode, activeOrg, activeChannel]);
 
+  // --- Post to Bluesky ---
+  const handlePostToBluesky = useCallback(async (text: string) => {
+    if (!pds || !session) throw new Error('Not authenticated');
+    // Detect URLs and build facets with byte-accurate indices
+    const encoder = new TextEncoder();
+    const facets: Array<{
+      index: { byteStart: number; byteEnd: number };
+      features: Array<{ $type: string; uri?: string }>;
+    }> = [];
+    const urlRegex = /https?:\/\/[^\s)>\]]+/g;
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+      const before = text.slice(0, match.index);
+      const byteStart = encoder.encode(before).length;
+      const byteEnd = byteStart + encoder.encode(match[0]).length;
+      facets.push({
+        index: { byteStart, byteEnd },
+        features: [{ $type: 'app.bsky.richtext.facet#link', uri: match[0] }],
+      });
+    }
+    const record: Record<string, unknown> = {
+      $type: 'app.bsky.feed.post',
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    if (facets.length > 0) record.facets = facets;
+    await pds.createRecord('app.bsky.feed.post', record);
+  }, [pds, session]);
+
   const navigateToThread = useCallback((rkey: string) => {
     const allThreads = [...publicThreads, ...threads];
     const thread = allThreads.find(t => t.rkey === rkey);
@@ -568,6 +597,7 @@ export function App() {
             onSaveDoc={handleSaveDoc}
             onSendComment={handleSendMessage}
             onNavigate={navigateToThread}
+            onPostToBluesky={handlePostToBluesky}
           />
         ) : (
           <ChatView

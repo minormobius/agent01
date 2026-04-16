@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HandleTypeahead } from './HandleTypeahead';
 
 interface Props {
   onLogin: (handle: string) => Promise<void>;
@@ -11,6 +12,7 @@ export function LoginScreen({ onLogin }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!handle.trim()) return;
     setError('');
     setLoading(true);
     try {
@@ -29,18 +31,17 @@ export function LoginScreen({ onLogin }: Props) {
         <p>Wiki + collaboration on ATProto</p>
 
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
+          <HandleTypeahead
             value={handle}
-            onChange={e => setHandle(e.target.value)}
+            onChange={setHandle}
             placeholder="your.handle.bsky.social"
-            required
+            disabled={loading}
             autoFocus
           />
 
           {error && <div className="wave-error">{error}</div>}
 
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading || !handle.trim()}>
             {loading ? 'Redirecting...' : 'Sign in with Bluesky'}
           </button>
         </form>
