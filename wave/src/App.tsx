@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { authInit, authLogin, authLogout } from './lib/auth';
 import type { AuthUser } from './lib/auth';
 import { PdsClient, resolvePds } from './lib/pds';
+import { initMarkdown } from './lib/markdown';
 import {
   bootstrapVault, discoverOrgs, buildOrgContext, loadChannels,
   loadThreadsForChannel, loadOpsForThread, decryptOp,
@@ -29,6 +30,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
 import { DocView } from './components/DocView';
 import { GraphView } from './components/GraphView';
+import { TemplatePicker } from './components/TemplatePicker';
 
 const PASSPHRASE_KEY = 'wave_vault_passphrase';
 
@@ -67,12 +69,16 @@ export function App() {
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [connected, setConnected] = useState(false);
   const [noteStubs, setNoteStubs] = useState<NoteStub[]>([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const jetstreamRef = useRef<JetstreamClient | null>(null);
 
-  // --- Phase 1: Auth init on mount ---
+  // --- Phase 1: Auth init + WASM init on mount ---
   useEffect(() => {
     (async () => {
+      // Initialize WASM markdown engine in parallel with auth
+      initMarkdown().catch(err => console.warn('WASM markdown init failed:', err));
+
       const user = await authInit();
       if (user) {
         setSession(user);
@@ -427,6 +433,28 @@ export function App() {
     setInPublicMode(true);
   }, []);
 
+  // --- Template instantiation ---
+  const handleTemplateInstantiate = useCallback(async (title: string, content: string) => {
+    if (!pds || !session) return;
+    setShowTemplatePicker(false);
+
+    if (inPublicMode) {
+      const t = await createPublicThread(pds, session.did, session.handle, title);
+      setPublicThreads(prev => [...prev, t]);
+      // Save the initial content
+      const opRec = await sendPublicDocEdit(pds, t, content, undefined, session.did, session.handle);
+      setActiveThread(t);
+      setOps([opRec]);
+    } else if (activeOrg && activeChannel) {
+      const t = await ctxCreateThread(pds, activeOrg, activeChannel.rkey, session.did, session.handle, title, 'doc');
+      setThreads(prev => [...prev, t]);
+      // Save the initial content
+      const opRec = await ctxSendDocEdit(pds, activeOrg, t, activeChannel.channel.tierName, content, undefined, session.did, session.handle);
+      setActiveThread(t);
+      setOps([opRec]);
+    }
+  }, [pds, session, inPublicMode, activeOrg, activeChannel]);
+
   const navigateToThread = useCallback((rkey: string) => {
     const allThreads = [...publicThreads, ...threads];
     const thread = allThreads.find(t => t.rkey === rkey);
@@ -487,6 +515,7 @@ export function App() {
         onLogout={handleLogout}
         onUnlockVault={() => setShowVaultPrompt(true)}
         onSwitchToPublic={() => { handleBackToOrgs(); setInPublicMode(true); }}
+        onShowTemplates={() => setShowTemplatePicker(true)}
       />
 
       <div className="wave-main">
@@ -506,7 +535,12 @@ export function App() {
           </div>
         )}
 
-        {viewMode === 'graph' && (inPublicMode || activeChannel) ? (
+        {showTemplatePicker ? (
+          <TemplatePicker
+            onInstantiate={handleTemplateInstantiate}
+            onCancel={() => setShowTemplatePicker(false)}
+          />
+        ) : viewMode === 'graph' && (inPublicMode || activeChannel) ? (
           <GraphView
             stubs={noteStubs}
             activeRkey={activeThread?.rkey || null}

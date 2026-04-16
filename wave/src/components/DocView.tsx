@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { WaveThreadRecord, WaveOpRecord, MessagePayload, DocEditPayload } from '../types';
 import type { NoteStub } from '../lib/wiki';
-import { renderWikilinks, findBacklinks, buildTitleIndex } from '../lib/wiki';
+import { findBacklinks, buildTitleIndex } from '../lib/wiki';
+import { renderMarkdown, isMarkdownReady } from '../lib/markdown';
 
 interface Props {
   thread: WaveThreadRecord;
@@ -27,6 +28,13 @@ export function DocView({
   const endRef = useRef<HTMLDivElement>(null);
 
   const titleIndex = useMemo(() => buildTitleIndex(allDocThreads), [allDocThreads]);
+
+  // Build title index entries for WASM renderer
+  const wasmTitleIndex = useMemo(() => {
+    const entries: Array<{ rkey: string; title: string }> = [];
+    titleIndex.forEach((rkey, title) => entries.push({ rkey, title }));
+    return entries;
+  }, [titleIndex]);
 
   // Build doc history + latest text from ops
   const { docHistory, latestText } = useMemo(() => {
@@ -62,15 +70,19 @@ export function DocView({
     return stub ? findBacklinks(allStubs, thread.rkey) : [];
   }, [allStubs, thread.rkey]);
 
-  // Rendered preview HTML with wikilinks
+  // Rendered preview HTML via Rust/WASM pulldown-cmark engine
   const previewHtml = useMemo(() => {
     const text = editing ? editText : latestText;
+    if (isMarkdownReady()) {
+      return renderMarkdown(text, { titleIndex: wasmTitleIndex });
+    }
+    // Fallback if WASM not initialized yet
     const escaped = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    return renderWikilinks(escaped, titleIndex);
-  }, [editing, editText, latestText, titleIndex]);
+    return `<pre>${escaped}</pre>`;
+  }, [editing, editText, latestText, wasmTitleIndex]);
 
   // Handle wikilink clicks in preview
   const handlePreviewClick = useCallback((e: React.MouseEvent) => {
@@ -130,9 +142,9 @@ export function DocView({
               placeholder="Write your document in markdown... Use [[Page Title]] for wikilinks."
             />
             <div
-              className="wave-doc-preview"
+              className="wave-doc-preview wave-md-content"
               onClick={handlePreviewClick}
-              dangerouslySetInnerHTML={{ __html: `<pre>${previewHtml}</pre>` }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>
           <div className="wave-doc-actions">
@@ -148,9 +160,9 @@ export function DocView({
         <div className="wave-doc-viewer">
           {latestText ? (
             <div
-              className="wave-doc-content"
+              className="wave-doc-content wave-md-content"
               onClick={handlePreviewClick}
-              dangerouslySetInnerHTML={{ __html: `<pre>${previewHtml}</pre>` }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           ) : (
             <p className="wave-empty-hint">Empty document. Click Edit to start writing.</p>

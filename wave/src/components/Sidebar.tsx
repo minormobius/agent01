@@ -30,6 +30,7 @@ interface Props {
   onLogout: () => void;
   onUnlockVault: () => void;
   onSwitchToPublic: () => void;
+  onShowTemplates: () => void;
 }
 
 export function Sidebar({
@@ -39,7 +40,7 @@ export function Sidebar({
   onClose, onSelectOrg, onBackToOrgs, onSelectChannel, onSelectThread,
   onCreateChannel, onDeleteChannel, onCreateThread, onDeleteThread,
   onCreateOrg, onDeleteOrg, onInviteMember, onRemoveMember,
-  onSetViewMode, onLogout, onUnlockVault, onSwitchToPublic,
+  onSetViewMode, onLogout, onUnlockVault, onSwitchToPublic, onShowTemplates,
 }: Props) {
   const isFounder = activeOrg?.founderDid === session.did;
 
@@ -63,7 +64,10 @@ export function Sidebar({
             const title = prompt('Page title:');
             if (title) onCreateThread(title, 'doc');
           }}>
-            + New Page
+            + Page
+          </button>
+          <button className="wave-btn-sm" onClick={onShowTemplates}>
+            Template
           </button>
           <div className="wave-view-toggle">
             <button className={viewMode === 'list' ? 'active' : ''} onClick={() => onSetViewMode('list')}>
@@ -186,6 +190,9 @@ export function Sidebar({
                   if (title) onCreateThread(title, 'doc');
                 }}>
                   + Page
+                </button>
+                <button className="wave-btn-sm" onClick={onShowTemplates}>
+                  Template
                 </button>
                 <button className="wave-btn-sm" onClick={() => {
                   const title = prompt('Thread title (optional):');

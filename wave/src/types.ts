@@ -154,3 +154,45 @@ export interface WaveState {
   initialized: boolean;
   keyringRkey: string | null;
 }
+
+// --- Template types ---
+
+/** Template categories */
+export type TemplateCategory =
+  | 'project'
+  | 'journal'
+  | 'meeting'
+  | 'crm'
+  | 'knowledge'
+  | 'tracker'
+  | 'other';
+
+/** A page template stored as an ATProto record */
+export interface WaveTemplate {
+  $type: "com.minomobi.wave.template";
+  title: string;
+  description: string;
+  category: TemplateCategory;
+  /** Markdown content with {{variable}} placeholders */
+  content: string;
+  /** Variables the template expects */
+  variables: TemplateVariable[];
+  /** Which view plugins this template uses */
+  plugins: string[];
+  /** Tags for discovery */
+  tags: string[];
+  createdAt: string;
+}
+
+export interface TemplateVariable {
+  key: string;
+  label: string;
+  defaultValue?: string;
+}
+
+export interface WaveTemplateRecord {
+  rkey: string;
+  template: WaveTemplate;
+  authorDid: string;
+  authorHandle?: string;
+}

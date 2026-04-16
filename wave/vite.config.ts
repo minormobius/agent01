@@ -6,4 +6,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  optimizeDeps: {
+    exclude: ["wave-md"],
+  },
 });

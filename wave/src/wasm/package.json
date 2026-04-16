@@ -1,0 +1,16 @@
+{
+  "name": "wave-md",
+  "type": "module",
+  "description": "Markdown rendering engine for Wave — pulldown-cmark with plugin pipeline (kanban, dataview, embeds, templates)",
+  "version": "0.1.0",
+  "files": [
+    "wave_md_bg.wasm",
+    "wave_md.js",
+    "wave_md.d.ts"
+  ],
+  "main": "wave_md.js",
+  "types": "wave_md.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
