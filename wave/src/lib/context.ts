@@ -146,20 +146,23 @@ export async function discoverOrgs(client: PdsClient): Promise<OrgRecord[]> {
     cursor = page.cursor;
   } while (cursor);
 
-  const joinedOrgs: OrgRecord[] = [];
-  for (const bm of bookmarks) {
-    try {
-      const founderClient = new PdsClient(await resolvePds(bm.bookmark.founderDid));
-      const orgRec = await founderClient.getRecordFrom(
-        bm.bookmark.founderDid, ORG_COLLECTION, bm.bookmark.orgRkey,
-      );
-      if (!orgRec) continue;
-      const val = (orgRec as Record<string, unknown>).value as unknown as Org;
-      joinedOrgs.push({ rkey: bm.bookmark.orgRkey, org: val });
-    } catch (err) {
-      console.warn('Failed to fetch joined org:', err);
-    }
-  }
+  const joinedResults = await Promise.all(
+    bookmarks.map(async (bm) => {
+      try {
+        const founderClient = new PdsClient(await resolvePds(bm.bookmark.founderDid));
+        const orgRec = await founderClient.getRecordFrom(
+          bm.bookmark.founderDid, ORG_COLLECTION, bm.bookmark.orgRkey,
+        );
+        if (!orgRec) return null;
+        const val = (orgRec as Record<string, unknown>).value as unknown as Org;
+        return { rkey: bm.bookmark.orgRkey, org: val } as OrgRecord;
+      } catch (err) {
+        console.warn('Failed to fetch joined org:', err);
+        return null;
+      }
+    }),
+  );
+  const joinedOrgs = joinedResults.filter((r): r is OrgRecord => r !== null);
 
   return [...foundedOrgs, ...joinedOrgs];
 }
@@ -200,21 +203,28 @@ export async function buildOrgContext(
   const accessibleTiers = orgRecord.org.tiers.filter(t => t.level <= myTierDef.level);
   const diagLines: string[] = [];
 
+  // Build list of all (tier, epoch) pairs to fetch in parallel
+  const tierEpochPairs: Array<{ tier: typeof accessibleTiers[0]; epoch: number }> = [];
   for (const tier of accessibleTiers) {
     const currentEpoch = tier.currentEpoch ?? 0;
     for (let epoch = 0; epoch <= currentEpoch; epoch++) {
+      tierEpochPairs.push({ tier, epoch });
+    }
+  }
+
+  const keyringResults = await Promise.all(
+    tierEpochPairs.map(async ({ tier, epoch }) => {
       const rkey = keyringRkeyForTier(orgRecord.rkey, tier.name, epoch);
+      const currentEpoch = tier.currentEpoch ?? 0;
       try {
         const keyringRecord = await client.getRecordFrom(founderDid, KEYRING_COLLECTION, rkey);
         if (!keyringRecord) {
-          diagLines.push(`${tier.name}: keyring not found`);
-          continue;
+          return { tier, epoch, currentEpoch, rkey, diag: `${tier.name}: keyring not found` };
         }
         const keyringVal = (keyringRecord as Record<string, unknown>).value as Keyring & { $type: string };
         const myEntry = keyringVal.members.find((m: KeyringMemberEntry) => m.did === myDid);
         if (!myEntry) {
-          diagLines.push(`${tier.name}: not in keyring`);
-          continue;
+          return { tier, epoch, currentEpoch, rkey, diag: `${tier.name}: not in keyring` };
         }
 
         const wrappedDekB64 = typeof myEntry.wrappedDek === 'string'
@@ -226,12 +236,18 @@ export async function buildOrgContext(
 
         const writerPublicKey = await importPublicKey(fromBase64(writerPubB64));
         const tierDek = await unwrapDekFromMember(fromBase64(wrappedDekB64), privateKey, writerPublicKey);
-        keyringDeks.set(rkey, tierDek);
-        if (epoch === currentEpoch) tierDeks.set(tier.name, tierDek);
-        diagLines.push(`${tier.name}: OK`);
+        return { tier, epoch, currentEpoch, rkey, dek: tierDek, diag: `${tier.name}: OK` };
       } catch (err) {
-        diagLines.push(`${tier.name}: FAILED ${err instanceof Error ? err.message : err}`);
+        return { tier, epoch, currentEpoch, rkey, diag: `${tier.name}: FAILED ${err instanceof Error ? err.message : err}` };
       }
+    }),
+  );
+
+  for (const result of keyringResults) {
+    diagLines.push(result.diag);
+    if (result.dek) {
+      keyringDeks.set(result.rkey, result.dek);
+      if (result.epoch === result.currentEpoch) tierDeks.set(result.tier.name, result.dek);
     }
   }
 
@@ -302,26 +318,30 @@ export async function loadThreadsForChannel(
   ctx: WaveOrgContext,
   channelUri: string,
 ): Promise<WaveThreadRecord[]> {
-  const result: WaveThreadRecord[] = [];
-  for (const m of ctx.memberships) {
-    const did = m.membership.memberDid;
-    try {
-      let cursor: string | undefined;
-      do {
-        const page = await client.listRecordsFrom(did, THREAD_COLLECTION, 100, cursor);
-        for (const rec of page.records) {
-          const val = rec.value as unknown as WaveThread;
-          if (val.channelUri === channelUri) {
-            const rkey = rec.uri.split('/').pop()!;
-            result.push({ rkey, thread: val, authorDid: did, authorHandle: m.membership.memberHandle });
+  const perMember = await Promise.all(
+    ctx.memberships.map(async (m) => {
+      const did = m.membership.memberDid;
+      const memberThreads: WaveThreadRecord[] = [];
+      try {
+        let cursor: string | undefined;
+        do {
+          const page = await client.listRecordsFrom(did, THREAD_COLLECTION, 100, cursor);
+          for (const rec of page.records) {
+            const val = rec.value as unknown as WaveThread;
+            if (val.channelUri === channelUri) {
+              const rkey = rec.uri.split('/').pop()!;
+              memberThreads.push({ rkey, thread: val, authorDid: did, authorHandle: m.membership.memberHandle });
+            }
           }
-        }
-        cursor = page.cursor;
-      } while (cursor);
-    } catch (err) {
-      console.warn(`Failed to load threads from ${did}:`, err);
-    }
-  }
+          cursor = page.cursor;
+        } while (cursor);
+      } catch (err) {
+        console.warn(`Failed to load threads from ${did}:`, err);
+      }
+      return memberThreads;
+    }),
+  );
+  const result = perMember.flat();
   result.sort((a, b) => a.thread.createdAt.localeCompare(b.thread.createdAt));
   return result;
 }
@@ -359,26 +379,30 @@ export async function loadOpsForThread(
   ctx: WaveOrgContext,
   threadUri: string,
 ): Promise<WaveOpRecord[]> {
-  const result: WaveOpRecord[] = [];
-  for (const m of ctx.memberships) {
-    const did = m.membership.memberDid;
-    try {
-      let cursor: string | undefined;
-      do {
-        const page = await client.listRecordsFrom(did, OP_COLLECTION, 100, cursor);
-        for (const rec of page.records) {
-          const val = rec.value as unknown as WaveOp;
-          if (val.threadUri === threadUri) {
-            const rkey = rec.uri.split('/').pop()!;
-            result.push({ rkey, op: val, authorDid: did, authorHandle: m.membership.memberHandle });
+  const perMember = await Promise.all(
+    ctx.memberships.map(async (m) => {
+      const did = m.membership.memberDid;
+      const memberOps: WaveOpRecord[] = [];
+      try {
+        let cursor: string | undefined;
+        do {
+          const page = await client.listRecordsFrom(did, OP_COLLECTION, 100, cursor);
+          for (const rec of page.records) {
+            const val = rec.value as unknown as WaveOp;
+            if (val.threadUri === threadUri) {
+              const rkey = rec.uri.split('/').pop()!;
+              memberOps.push({ rkey, op: val, authorDid: did, authorHandle: m.membership.memberHandle });
+            }
           }
-        }
-        cursor = page.cursor;
-      } while (cursor);
-    } catch (err) {
-      console.warn(`Failed to load ops from ${did}:`, err);
-    }
-  }
+          cursor = page.cursor;
+        } while (cursor);
+      } catch (err) {
+        console.warn(`Failed to load ops from ${did}:`, err);
+      }
+      return memberOps;
+    }),
+  );
+  const result = perMember.flat();
   result.sort((a, b) => a.op.createdAt.localeCompare(b.op.createdAt));
   return result;
 }

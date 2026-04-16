@@ -77,28 +77,28 @@ export function App() {
   useEffect(() => {
     (async () => {
       // Initialize WASM markdown engine in parallel with auth
-      initMarkdown().catch(err => console.warn('WASM markdown init failed:', err));
-
+      const wasmP = initMarkdown().catch(err => console.warn('WASM markdown init failed:', err));
       const user = await authInit();
-      if (user) {
-        setSession(user);
-        // Create auth-proxied client for this session
-        const client = new PdsClient();
-        const userPds = await resolvePds(user.did);
-        client.setUserPds(userPds);
-        setPds(client);
+      if (!user) { setAuthChecked(true); return; }
 
-        // Load public notes immediately
-        try {
-          const pub = await loadPublicThreads(client, user.did, user.handle);
-          setPublicThreads(pub);
-        } catch (err) {
-          console.warn('Failed to load public notes:', err);
-        }
+      setSession(user);
+      setAuthChecked(true); // Show shell immediately
 
-        // Try auto-unlock vault if passphrase is cached
-        const passphrase = localStorage.getItem(PASSPHRASE_KEY);
-        if (passphrase) {
+      // Create client and load public notes + vault in parallel
+      const client = new PdsClient();
+      const userPds = await resolvePds(user.did);
+      client.setUserPds(userPds);
+      setPds(client);
+
+      // Kick off public notes load without blocking
+      const publicP = loadPublicThreads(client, user.did, user.handle)
+        .then(pub => setPublicThreads(pub))
+        .catch(err => console.warn('Failed to load public notes:', err));
+
+      // Try auto-unlock vault in parallel with public notes
+      const passphrase = localStorage.getItem(PASSPHRASE_KEY);
+      if (passphrase) {
+        const vaultP = (async () => {
           try {
             const { identityKeys: keys } = await bootstrapVault(client, user, passphrase);
             setIdentityKeys(keys);
@@ -108,9 +108,11 @@ export function App() {
           } catch {
             localStorage.removeItem(PASSPHRASE_KEY);
           }
-        }
+        })();
+        await Promise.all([wasmP, publicP, vaultP]);
+      } else {
+        await Promise.all([wasmP, publicP]);
       }
-      setAuthChecked(true);
     })();
   }, []);
 
@@ -269,13 +271,26 @@ export function App() {
     if (ops.length === 0) return;
     let cancelled = false;
     (async () => {
+      // Find ops that need decryption
+      const pending = ops.filter(opRec => {
+        const key = `${opRec.authorDid}:${opRec.rkey}`;
+        return !decryptedMessages.has(key);
+      });
+      if (pending.length === 0) return;
+
+      // Decrypt all pending ops in parallel
+      const results = await Promise.all(
+        pending.map(async (opRec) => {
+          const key = `${opRec.authorDid}:${opRec.rkey}`;
+          const payload = await decryptOp(opRec.op, activeOrg);
+          return { key, payload };
+        }),
+      );
+      if (cancelled) return;
+
       const next = new Map(decryptedMessages);
       let changed = false;
-      for (const opRec of ops) {
-        const key = `${opRec.authorDid}:${opRec.rkey}`;
-        if (next.has(key)) continue;
-        const payload = await decryptOp(opRec.op, activeOrg);
-        if (cancelled) return;
+      for (const { key, payload } of results) {
         if (payload) { next.set(key, payload); changed = true; }
       }
       if (changed) setDecryptedMessages(next);
@@ -498,7 +513,6 @@ export function App() {
   }
 
   if (!pds) return <div className="wave-loading">Connecting...</div>;
-  if (loading && !activeOrg && !inPublicMode) return <div className="wave-loading">Loading...</div>;
 
   // Combine public + org threads for display
   const visibleThreads = inPublicMode ? publicThreads : threads;
@@ -563,6 +577,8 @@ export function App() {
             <button onClick={() => setError('')}>x</button>
           </div>
         )}
+
+        {loading && <div className="wave-loading-bar">Loading...</div>}
 
         {showTemplatePicker ? (
           <TemplatePicker
