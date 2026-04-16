@@ -292,6 +292,16 @@ body {
   resize: none; outline: none; overflow-y: auto;
 }
 
+.wave-doc-textarea-full {
+  border-right: none;
+}
+
+.wave-canvas-doc {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .wave-doc-preview {
   flex: 1; padding: 16px; overflow-y: auto; background: var(--bg-surface);
 }

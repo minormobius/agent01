@@ -28,7 +28,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { VaultUnlock } from './components/VaultUnlock';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
-import { DocView } from './components/DocView';
+import { CanvasDocView } from './components/CanvasDocView';
 import { GraphView } from './components/GraphView';
 import { TemplatePicker } from './components/TemplatePicker';
 
@@ -557,7 +557,7 @@ export function App() {
               : 'Select or create a thread'}
           </div>
         ) : activeThread.thread.threadType === 'doc' ? (
-          <DocView
+          <CanvasDocView
             thread={activeThread}
             ops={ops}
             decryptedMessages={decryptedMessages}

@@ -11,6 +11,7 @@ import init, {
   renderMarkdown as wasmRender,
   parseWikilinks as wasmParseWikilinks,
   expandTemplate as wasmExpandTemplate,
+  CanvasRenderer,
 } from '../wasm/wave_md.js';
 
 let initialized = false;
@@ -89,3 +90,11 @@ export function expandTemplate(template: string, vars: TemplateVar[]): string {
     value: v.value,
   }))));
 }
+
+/** Create a canvas renderer attached to a canvas element */
+export function createCanvasRenderer(canvas: HTMLCanvasElement): CanvasRenderer {
+  return new CanvasRenderer(canvas);
+}
+
+/** Re-export CanvasRenderer type for use in components */
+export type { CanvasRenderer };

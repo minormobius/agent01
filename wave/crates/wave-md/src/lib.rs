@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 mod plugins;
 mod render;
+pub mod canvas;
 
 pub use plugins::{PluginConfig, WavePlugin};
 pub use render::render_markdown;
+pub use canvas::CanvasRenderer;
 
 /// Title index entry for wikilink resolution
 #[derive(Serialize, Deserialize, Clone, Debug)]
