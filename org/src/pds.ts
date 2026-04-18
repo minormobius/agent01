@@ -1,13 +1,19 @@
 /**
  * Minimal ATProto PDS client — just enough for vault operations.
  *
- * Uses XRPC (HTTP + JSON) directly. No SDK dependency.
+ * Two modes:
+ * 1. Auth-proxied (no service URL): operations go through auth.mino.mobi
+ *    which adds DPoP proofs. Used for the logged-in user's writes.
+ * 2. Direct (with service URL): plain fetch to a specific PDS. Used for
+ *    reading other users' records (no auth needed).
  */
 
 import type { Session } from "./types";
 
 const PUBLIC_API = "https://public.api.bsky.app";
 const PLC_DIRECTORY = "https://plc.directory";
+const AUTH_URL = "https://auth.mino.mobi";
+const SESSION_KEY = "mino_auth_session";
 
 /** Resolve a Bluesky handle to a DID. Uses public API, no auth needed. */
 export async function resolveHandle(handle: string): Promise<string> {
@@ -42,30 +48,102 @@ export async function resolvePds(did: string): Promise<string> {
   return svc.serviceEndpoint;
 }
 
+// --- OAuth helpers ---
+
+function getToken(): string | null {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+function saveToken(t: string | null): void {
+  if (t) localStorage.setItem(SESSION_KEY, t);
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+/** Pick up session from OAuth redirect or localStorage. */
+export async function authInit(): Promise<Session | null> {
+  const url = new URL(location.href);
+  const token = url.searchParams.get("__auth_session");
+  if (token) {
+    saveToken(token);
+    url.searchParams.delete("__auth_session");
+    history.replaceState({}, "", url);
+  }
+  const t = getToken();
+  if (!t) return null;
+  try {
+    const r = await fetch(`${AUTH_URL}/api/me`, { headers: { Authorization: `Bearer ${t}` } });
+    if (!r.ok) { saveToken(null); return null; }
+    const user = await r.json();
+    return { did: user.did, handle: user.handle, accessJwt: t, refreshJwt: "" };
+  } catch { saveToken(null); return null; }
+}
+
+/** Redirect to Bluesky for OAuth. */
+export async function authLogin(handle: string): Promise<void> {
+  const r = await fetch(`${AUTH_URL}/oauth/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      handle: handle.replace(/^@/, "").trim(),
+      origin: location.origin,
+      returnTo: location.href,
+    }),
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({} as Record<string, string>));
+    throw new Error(e.error || "Login failed");
+  }
+  location.href = (await r.json()).authUrl;
+}
+
+/** Clear OAuth session. */
+export function authLogout(): void {
+  const t = getToken();
+  if (t) fetch(`${AUTH_URL}/api/logout`, { method: "POST", headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+  saveToken(null);
+}
+
 export class PdsClient {
   private service: string;
   private session: Session | null = null;
+  private useAuthProxy: boolean;
+  private userPdsUrl: string | null = null;
 
-  constructor(service: string) {
-    // Normalize: ensure https, strip trailing slash
-    this.service = service.replace(/\/$/, "");
-    if (!this.service.startsWith("http")) {
-      this.service = `https://${this.service}`;
+  /**
+   * @param service PDS URL for direct access, or empty/omitted for auth-proxied mode.
+   */
+  constructor(service?: string) {
+    if (service) {
+      this.service = service.replace(/\/$/, "");
+      if (!this.service.startsWith("http")) {
+        this.service = `https://${this.service}`;
+      }
+      this.useAuthProxy = false;
+    } else {
+      this.service = AUTH_URL;
+      this.useAuthProxy = true;
     }
   }
 
-  /** Authenticate with handle + app password. */
-  async login(handle: string, appPassword: string): Promise<Session> {
+  /** Authenticate with handle — redirects to Bluesky OAuth. */
+  async login(handle: string, _appPassword?: string): Promise<Session> {
+    if (this.useAuthProxy) {
+      await authLogin(handle);
+      // Won't reach here — browser redirects
+      throw new Error("Redirecting...");
+    }
+    // Direct mode: legacy createSession (for reading other PDSes)
     const res = await this.xrpc("com.atproto.server.createSession", {
       identifier: handle,
-      password: appPassword,
+      password: _appPassword,
     });
     this.session = res as unknown as Session;
     return this.session;
   }
 
-  /** Refresh an expired access token. */
+  /** Refresh — no-op in auth-proxied mode (auth worker handles it). */
   async refreshSession(): Promise<void> {
+    if (this.useAuthProxy) return; // auth worker manages token refresh
     if (!this.session) throw new Error("No session to refresh");
     const res = await fetch(
       `${this.service}/xrpc/com.atproto.server.refreshSession`,
@@ -86,6 +164,13 @@ export class PdsClient {
     collection: string,
     rkey: string
   ): Promise<Record<string, unknown> | null> {
+    if (this.useAuthProxy) {
+      const params = new URLSearchParams({ collection, rkey });
+      const res = await this.authProxyFetch(`/pds/repo/getRecord?${params}`);
+      if (res.status === 404 || res.status === 400) return null;
+      if (!res.ok) throw new Error(`getRecord failed: ${res.status}`);
+      return res.json();
+    }
     if (!this.session) throw new Error("Not authenticated");
     const params = new URLSearchParams({
       repo: this.session.did,
@@ -110,6 +195,13 @@ export class PdsClient {
     records: Array<{ uri: string; cid: string; value: Record<string, unknown> }>;
     cursor?: string;
   }> {
+    if (this.useAuthProxy) {
+      const params = new URLSearchParams({ collection, limit: String(limit) });
+      if (cursor) params.set("cursor", cursor);
+      const res = await this.authProxyFetch(`/pds/repo/listRecords?${params}`);
+      if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
+      return res.json();
+    }
     if (!this.session) throw new Error("Not authenticated");
     const params = new URLSearchParams({
       repo: this.session.did,
@@ -131,6 +223,18 @@ export class PdsClient {
     rkey: string,
     record: object
   ): Promise<{ uri: string; cid: string }> {
+    if (this.useAuthProxy) {
+      const res = await this.authProxyFetch("/pds/repo/putRecord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collection, rkey, record }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`putRecord failed (${res.status}): ${text}`);
+      }
+      return res.json();
+    }
     return this.xrpc("com.atproto.repo.putRecord", {
       repo: this.session!.did,
       collection,
@@ -144,6 +248,18 @@ export class PdsClient {
     collection: string,
     record: object
   ): Promise<{ uri: string; cid: string }> {
+    if (this.useAuthProxy) {
+      const res = await this.authProxyFetch("/pds/repo/createRecord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collection, record }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`createRecord failed (${res.status}): ${text}`);
+      }
+      return res.json();
+    }
     return this.xrpc("com.atproto.repo.createRecord", {
       repo: this.session!.did,
       collection,
@@ -153,6 +269,18 @@ export class PdsClient {
 
   /** Delete a record. */
   async deleteRecord(collection: string, rkey: string): Promise<void> {
+    if (this.useAuthProxy) {
+      const res = await this.authProxyFetch("/pds/repo/deleteRecord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collection, rkey }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`deleteRecord failed (${res.status}): ${text}`);
+      }
+      return;
+    }
     await this.xrpc("com.atproto.repo.deleteRecord", {
       repo: this.session!.did,
       collection,
@@ -176,13 +304,8 @@ export class PdsClient {
       limit: String(limit),
     });
     if (cursor) params.set("cursor", cursor);
-    const headers: Record<string, string> = {};
-    if (this.session) {
-      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
-    }
     const res = await fetch(
-      `${this.service}/xrpc/com.atproto.repo.listRecords?${params}`,
-      { headers }
+      `${this.service}/xrpc/com.atproto.repo.listRecords?${params}`
     );
     if (!res.ok) throw new Error(`listRecords failed: ${res.status}`);
     return res.json();
@@ -195,13 +318,8 @@ export class PdsClient {
     rkey: string
   ): Promise<Record<string, unknown> | null> {
     const params = new URLSearchParams({ repo: did, collection, rkey });
-    const headers: Record<string, string> = {};
-    if (this.session) {
-      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
-    }
     const res = await fetch(
-      `${this.service}/xrpc/com.atproto.repo.getRecord?${params}`,
-      { headers }
+      `${this.service}/xrpc/com.atproto.repo.getRecord?${params}`
     );
     if (res.status === 404 || res.status === 400) return null;
     if (!res.ok) throw new Error(`getRecord failed: ${res.status}`);
@@ -218,6 +336,19 @@ export class PdsClient {
     data: Uint8Array,
     mimeType: string
   ): Promise<{ ref: { $link: string }; mimeType: string; size: number }> {
+    if (this.useAuthProxy) {
+      const res = await this.authProxyFetch("/pds/repo/uploadBlob", {
+        method: "POST",
+        headers: { "Content-Type": mimeType },
+        body: data.buffer as ArrayBuffer,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`uploadBlob failed (${res.status}): ${text}`);
+      }
+      const { blob } = await res.json();
+      return blob;
+    }
     if (!this.session) throw new Error("Not authenticated");
     const res = await fetch(
       `${this.service}/xrpc/com.atproto.repo.uploadBlob`,
@@ -238,16 +369,17 @@ export class PdsClient {
     return blob;
   }
 
-  /** Fetch a blob by DID + CID. Works cross-PDS for public blobs. */
+  /** Fetch a blob by DID + CID. */
   async getBlob(did: string, cid: string): Promise<Uint8Array> {
     const params = new URLSearchParams({ did, cid });
-    const headers: Record<string, string> = {};
-    if (this.session) {
-      headers["Authorization"] = `Bearer ${this.session.accessJwt}`;
+    if (this.useAuthProxy) {
+      const res = await this.authProxyFetch(`/pds/sync/getBlob?${params}`);
+      if (!res.ok) throw new Error(`getBlob failed (${res.status})`);
+      const buf = await res.arrayBuffer();
+      return new Uint8Array(buf);
     }
     const res = await fetch(
-      `${this.service}/xrpc/com.atproto.sync.getBlob?${params}`,
-      { headers }
+      `${this.service}/xrpc/com.atproto.sync.getBlob?${params}`
     );
     if (!res.ok) throw new Error(`getBlob failed (${res.status})`);
     const buf = await res.arrayBuffer();
@@ -259,12 +391,31 @@ export class PdsClient {
     return this.session;
   }
 
-  /** Get the service URL. */
-  getService(): string {
-    return this.service;
+  /** Set the user's real PDS URL (for getService in auth-proxied mode). */
+  setUserPds(url: string): void {
+    this.userPdsUrl = url;
   }
 
-  /** Generic XRPC POST call. */
+  /** Get the service URL (real PDS if resolved, else raw service). */
+  getService(): string {
+    return this.userPdsUrl || this.service;
+  }
+
+  /** Authenticated fetch through auth.mino.mobi proxy. */
+  private async authProxyFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+    const t = getToken();
+    if (!t) throw new Error("Not logged in");
+    const headers = { ...(opts.headers as Record<string, string> || {}), Authorization: `Bearer ${t}` };
+    const res = await fetch(`${AUTH_URL}${path}`, { ...opts, headers });
+    if (res.status === 401) {
+      saveToken(null);
+      this.session = null;
+      throw new Error("Session expired — please sign in again");
+    }
+    return res;
+  }
+
+  /** Generic XRPC POST call (direct mode only). */
   private async xrpc(
     method: string,
     body: object
@@ -288,22 +439,13 @@ export class PdsClient {
       let detail = "";
       try {
         const errBody = JSON.parse(text);
-        // ATProto errors have { error: "ErrorCode", message: "..." }
         const code = errBody.error || "";
         const msg = errBody.message || "";
-        if (code === "AuthFactorTokenRequired") {
-          detail = "Two-factor authentication is enabled. App passwords bypass 2FA — generate one in Bluesky Settings > App Passwords.";
-        } else if (code === "AccountTakedown" || code === "AccountDeactivated") {
-          detail = `Account is ${code === "AccountTakedown" ? "taken down" : "deactivated"}.`;
-        } else if (code === "RateLimitExceeded") {
+        if (code === "RateLimitExceeded") {
           detail = "Rate limited. Wait a moment and try again.";
-        } else if (msg.includes("Invalid identifier or password")) {
-          detail = "Invalid handle or app password. Check your credentials.";
         } else if (code === "InvalidRequest" || code === "InvalidSwap") {
-          // PDS rejected the record write — show exactly what happened
           detail = `${method.split(".").pop()}: ${code}${msg ? " — " + msg : ""}`;
         } else {
-          // Always show the error code — the message alone is often useless
           detail = code ? `${code}: ${msg}` : msg || text;
         }
       } catch {

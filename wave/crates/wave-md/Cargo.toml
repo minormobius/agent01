@@ -1,0 +1,33 @@
+[package]
+name = "wave-md"
+version = "0.1.0"
+edition = "2021"
+description = "Markdown rendering engine for Wave — pulldown-cmark with plugin pipeline (kanban, dataview, embeds, templates)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pulldown-cmark = "0.12"
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "HtmlCanvasElement",
+  "CanvasRenderingContext2d",
+  "TextMetrics",
+  "Window",
+  "Document",
+] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

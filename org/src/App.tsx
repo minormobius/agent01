@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { PdsClient } from "./pds";
+import { PdsClient, authInit, authLogin, authLogout, resolvePds } from "./pds";
 import {
   deriveKek,
   generateIdentityKey,
@@ -67,42 +67,21 @@ function parseInviteUrl(): { orgRkey: string; founderDid: string; founderService
   return { orgRkey: match[1], founderDid, founderService };
 }
 
-// --- Durable session ---
-const SESSION_KEY = "mino-org-session";
+// --- Durable passphrase storage ---
+// OAuth session is managed by pds.ts (authInit/authLogin/authLogout).
+// We only need to persist the vault passphrase separately.
+const PASSPHRASE_KEY = "mino-org-passphrase";
 
-interface StoredSession {
-  service: string;
-  did: string;
-  handle: string;
-  accessJwt: string;
-  refreshJwt: string;
-  passphrase: string;
+function savePassphrase(passphrase: string) {
+  localStorage.setItem(PASSPHRASE_KEY, passphrase);
 }
 
-function saveSession(service: string, session: Session, passphrase: string) {
-  const stored: StoredSession = {
-    service,
-    did: session.did,
-    handle: session.handle,
-    accessJwt: session.accessJwt,
-    refreshJwt: session.refreshJwt,
-    passphrase,
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
+function loadPassphrase(): string | null {
+  return localStorage.getItem(PASSPHRASE_KEY);
 }
 
-function loadSession(): StoredSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
+function clearPassphrase() {
+  localStorage.removeItem(PASSPHRASE_KEY);
 }
 
 export function App() {
@@ -116,6 +95,7 @@ export function App() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [view, setView] = useState<View>("home");
   const [managingOrg, setManagingOrg] = useState<OrgRecord | null>(null);
+  const [authSession, setAuthSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(true);
   const restoredRef = useRef(false);
@@ -252,7 +232,15 @@ export function App() {
 
   // --- Core vault bootstrap (shared by login + restore) ---
   const bootstrapVault = useCallback(
-    async (service: string, passphrase: string, session: Session, client: PdsClient) => {
+    async (passphrase: string, session: Session, client: PdsClient) => {
+      // Resolve user's real PDS URL so getService() returns the right thing
+      try {
+        const userPds = await resolvePds(session.did);
+        client.setUserPds(userPds);
+      } catch {
+        // Non-fatal — some getService() callers may get the proxy URL
+      }
+
       // Derive KEK
       const salt = new TextEncoder().encode(session.did + ":vault-kek");
       const kek = await deriveKek(passphrase, salt);
@@ -304,8 +292,8 @@ export function App() {
       setPds(client);
       setVault({ session, dek, privateKey, publicKey });
 
-      // Persist session
-      saveSession(service, session, passphrase);
+      // Persist passphrase
+      savePassphrase(passphrase);
 
       // Discover orgs and build contexts
       setLoading(true);
@@ -390,42 +378,48 @@ export function App() {
     if (restoredRef.current) return;
     restoredRef.current = true;
 
-    const stored = loadSession();
-    if (!stored) {
-      setRestoring(false);
-      return;
-    }
-
     (async () => {
       try {
-        const client = new PdsClient(stored.service);
-        // Try to refresh the session using stored refresh token
-        client.restoreSession({
-          did: stored.did,
-          handle: stored.handle,
-          accessJwt: stored.accessJwt,
-          refreshJwt: stored.refreshJwt,
-        });
-        await client.refreshSession();
-        const session = client.getSession()!;
-        await bootstrapVault(stored.service, stored.passphrase, session, client);
+        const session = await authInit();
+        if (!session) {
+          setRestoring(false);
+          return;
+        }
+        setAuthSession(session);
+
+        const passphrase = loadPassphrase();
+        if (!passphrase) {
+          // Have auth session but no passphrase — show passphrase-only login
+          setRestoring(false);
+          return;
+        }
+
+        const client = new PdsClient(); // auth-proxied
+        await bootstrapVault(passphrase, session, client);
       } catch (err) {
         console.warn("Session restore failed:", err);
-        clearSession();
+        clearPassphrase();
       } finally {
         setRestoring(false);
       }
     })();
   }, [bootstrapVault]);
 
-  // --- Login (fresh) ---
+  // --- Login ---
   const handleLogin = useCallback(
-    async (service: string, handle: string, appPassword: string, passphrase: string) => {
-      const client = new PdsClient(service);
-      const session = await client.login(handle, appPassword);
-      await bootstrapVault(service, passphrase, session, client);
+    async (handle: string, passphrase: string) => {
+      if (authSession) {
+        // Already have OAuth session (e.g. passphrase-only mode) — bootstrap directly
+        const client = new PdsClient();
+        await bootstrapVault(passphrase, authSession, client);
+      } else {
+        // Save passphrase before OAuth redirect (we'll need it when we come back)
+        savePassphrase(passphrase);
+        await authLogin(handle);
+        // Browser redirects — won't reach here
+      }
     },
-    [bootstrapVault],
+    [bootstrapVault, authSession],
   );
 
   // --- Callbacks for child components ---
@@ -451,10 +445,12 @@ export function App() {
   );
 
   const handleLogout = useCallback(() => {
-    clearSession();
+    authLogout();
+    clearPassphrase();
     hubJetstreamRef.current?.close();
     setVault(null);
     setPds(null);
+    setAuthSession(null);
     setOrgs([]);
     setMemberships([]);
     setOrgContexts(new Map());
@@ -488,15 +484,10 @@ export function App() {
       setNotifications((prev) => prev.filter((n) => n.rkey !== notif.rkey));
 
       // Re-bootstrap to pick up the new org
-      const stored = loadSession();
-      if (stored) {
+      const passphrase = loadPassphrase();
+      if (passphrase && pds) {
         try {
-          await bootstrapVault(stored.service, stored.passphrase, {
-            did: vault.session.did,
-            handle: vault.session.handle,
-            accessJwt: stored.accessJwt,
-            refreshJwt: stored.refreshJwt,
-          }, pds);
+          await bootstrapVault(passphrase, vault.session, pds);
         } catch (err) {
           console.warn("Re-bootstrap after invite accept failed:", err);
         }
@@ -567,14 +558,19 @@ export function App() {
         orgRkey={inviteParams.orgRkey}
         founderDid={inviteParams.founderDid}
         founderService={inviteParams.founderService}
-        onComplete={handleLogin}
+        session={authSession}
+        onComplete={async (passphrase: string) => {
+          const session = authSession!;
+          const client = new PdsClient();
+          await bootstrapVault(passphrase, session, client);
+        }}
       />
     );
   }
 
   // --- Not logged in ---
   if (!vault || !pds) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} session={authSession} />;
   }
 
   // --- Routed app pages (logged in) ---

@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mino-auth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "vars": {
+    "OAUTH_CLIENT_ID": "https://auth.mino.mobi/client-metadata.json"
+  },
+
+  "routes": [
+    { "pattern": "auth.mino.mobi", "custom_domain": true }
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mino-auth-db",
+      "database_id": "TODO_CREATE_DATABASE"
+    }
+  ]
+}

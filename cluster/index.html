@@ -283,8 +283,8 @@ h1 a:hover { color: var(--text); }
   border-color: var(--link);
 }
 
+.auth-form { align-items: center; }
 .auth-form input[type="text"] { flex: 1; min-width: 140px; }
-.auth-form input[type="password"] { flex: 1; min-width: 140px; }
 
 .publish-card {
   padding: 0.75rem 0;
@@ -610,12 +610,11 @@ footer a:hover {
   <div class="section-header">publish as lists</div>
   <p class="publish-desc">
     Save clusters to your Bluesky account as curated lists.
-    Control shell depth per cluster&mdash;tight core or wide orbit.
-    Requires an <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
+    Control shell depth per cluster.
   </p>
   <div class="auth-form" id="authForm">
-    <input type="text" id="authHandle" placeholder="your-handle.bsky.social" autocomplete="username">
-    <input type="password" id="authPassword" placeholder="app password" autocomplete="current-password">
+    <button id="authLoginBtn" class="publish-card-btn" style="margin:0">sign in with Bluesky</button>
+    <span id="authStatus" style="font-size:12px;color:var(--text2)"></span>
   </div>
   <div id="publishCards"></div>
 </div>
@@ -631,6 +630,77 @@ footer a:hover {
   const COLORS = { gold: '#daa520', silver: '#8898a8', bronze: '#b87333' };
   const MIN_CLIQUE = 5;
   const MAX_GRAPH_NODES = 150;
+
+  // --- Auth (via shared OAuth worker at auth.mino.mobi) ---
+  const AUTH_URL = 'https://auth.mino.mobi';
+  const AUTH_SESSION_KEY = 'mino_auth_session';
+
+  function getToken() { return localStorage.getItem(AUTH_SESSION_KEY); }
+  function saveToken(t) { if (t) localStorage.setItem(AUTH_SESSION_KEY, t); else localStorage.removeItem(AUTH_SESSION_KEY); }
+
+  let authUser = null; // { did, handle, scope }
+
+  async function authInit() {
+    const url = new URL(location.href);
+    const token = url.searchParams.get('__auth_session');
+    if (token) { saveToken(token); url.searchParams.delete('__auth_session'); history.replaceState({}, '', url); }
+    const t = getToken();
+    if (!t) return null;
+    try {
+      const r = await fetch(`${AUTH_URL}/api/me`, { headers: { Authorization: `Bearer ${t}` } });
+      if (!r.ok) { saveToken(null); return null; }
+      return await r.json();
+    } catch { saveToken(null); return null; }
+  }
+
+  async function authLogin() {
+    const handle = document.getElementById('handleInput').value.trim().replace(/^@/, '');
+    const r = await fetch(`${AUTH_URL}/oauth/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle, origin: location.origin, returnTo: location.href }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Login failed'); }
+    location.href = (await r.json()).authUrl;
+  }
+
+  async function authLogout() {
+    const t = getToken();
+    if (t) fetch(`${AUTH_URL}/api/logout`, { method: 'POST', headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+    saveToken(null);
+    authUser = null;
+  }
+
+  async function pdsRequest(path, opts) {
+    const t = getToken();
+    if (!t) throw new Error('Not logged in');
+    const headers = { Authorization: `Bearer ${t}`, ...opts?.headers };
+    const r = await fetch(`${AUTH_URL}${path}`, { method: opts?.method || 'GET', headers, body: opts?.body });
+    if (r.status === 401) { saveToken(null); authUser = null; throw new Error('Session expired'); }
+    return r;
+  }
+
+  function updateAuthUI() {
+    const btn = document.getElementById('authLoginBtn');
+    const status = document.getElementById('authStatus');
+    if (authUser) {
+      btn.textContent = 'sign out';
+      btn.onclick = async () => { await authLogout(); updateAuthUI(); };
+      status.textContent = `signed in as @${authUser.handle}`;
+    } else {
+      btn.textContent = 'sign in with Bluesky';
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = 'connecting\u2026';
+        try { await authLogin(); } catch (e) {
+          status.textContent = e.message;
+          btn.disabled = false;
+          btn.textContent = 'sign in with Bluesky';
+        }
+      };
+      status.textContent = '';
+    }
+  }
 
   // --- State ---
   let currentCliques = [];
@@ -710,25 +780,6 @@ footer a:hover {
     );
     if (!res.ok) throw new Error(`Could not resolve handle: ${handle}`);
     return (await res.json()).did;
-  }
-
-  async function resolvePDS(did) {
-    let doc;
-    if (did.startsWith('did:plc:')) {
-      const res = await fetch(`https://plc.directory/${did}`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else if (did.startsWith('did:web:')) {
-      const host = did.slice('did:web:'.length).replaceAll(':', '/');
-      const res = await fetch(`https://${host}/.well-known/did.json`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else {
-      throw new Error(`Unsupported DID method: ${did}`);
-    }
-    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
-    if (!svc) throw new Error('No PDS endpoint found');
-    return svc.serviceEndpoint;
   }
 
   // --- API helpers ---
@@ -1788,6 +1839,17 @@ footer a:hover {
     if (active.length === 0) return;
     const multi = active.length > 1;
 
+    // "Include subject" checkbox
+    const subjectHandle = document.getElementById('handleInput').value.trim().replace(/^@/, '');
+    const optRow = document.createElement('label');
+    optRow.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:6px 0;cursor:pointer';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = 'includeSubject';
+    cb.checked = true;
+    optRow.append(cb, document.createTextNode(`include @${subjectHandle} in list`));
+    container.appendChild(optRow);
+
     // Per-clique cards
     for (const c of active) {
       const slices = cliqueSlices(c);
@@ -1825,10 +1887,11 @@ footer a:hover {
       btn.addEventListener('click', () => {
         const idx = parseInt(select.value);
         const dids = slices[idx].dids;
+        const incl = document.getElementById('includeSubject').checked;
         const name = multi
-          ? `${c.label[0].toUpperCase() + c.label.slice(1)} Cluster (${dids.length})`
-          : `Cluster (${dids.length})`;
-        publishList(dids, name, btn, statusEl);
+          ? `${c.label[0].toUpperCase() + c.label.slice(1)} Cluster (${dids.length}${incl ? '+1' : ''})`
+          : `Cluster (${dids.length}${incl ? '+1' : ''})`;
+        publishList(dids, name, incl, btn, statusEl);
       });
     }
 
@@ -1893,61 +1956,44 @@ footer a:hover {
       btn.addEventListener('click', () => {
         const idx = parseInt(select.value);
         const dids = allSlices[idx].dids;
-        publishList(dids, `All Clusters (${dids.length})`, btn, statusEl);
+        const incl = document.getElementById('includeSubject').checked;
+        publishList(dids, `All Clusters (${dids.length}${incl ? '+1' : ''})`, incl, btn, statusEl);
       });
     }
   }
 
   // --- Publish a list ---
 
-  async function publishList(dids, listName, btn, statusEl) {
-    const authHandle = document.getElementById('authHandle').value.trim().replace(/^@/, '');
-    const authPassword = document.getElementById('authPassword').value;
-
-    if (!authHandle || !authPassword) {
-      statusEl.textContent = 'enter handle + app password above';
+  async function publishList(dids, listName, includeSubject, btn, statusEl) {
+    if (!authUser) {
+      statusEl.textContent = 'sign in with Bluesky first';
       statusEl.classList.remove('hidden');
       statusEl.classList.add('error');
       return;
     }
 
+    // Optionally include the subject handle (the person whose graph was scanned)
+    let allDids = dids;
+    if (includeSubject && seekState?.myDid && !dids.includes(seekState.myDid)) {
+      allDids = [seekState.myDid, ...dids];
+    }
+
     btn.disabled = true;
     btn.textContent = 'publishing\u2026';
     statusEl.classList.remove('hidden', 'error');
-    statusEl.textContent = 'authenticating\u2026';
 
     try {
-      const did = await resolveHandle(authHandle);
-      const pds = await resolvePDS(did);
-
-      const sessionRes = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+      statusEl.textContent = 'creating list\u2026';
+      const listRes = await pdsRequest('/pds/repo/createRecord', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: authHandle, password: authPassword })
-      });
-      if (!sessionRes.ok) {
-        const err = await sessionRes.json().catch(() => ({}));
-        throw new Error(err.message || `Auth failed (${sessionRes.status})`);
-      }
-      const session = await sessionRes.json();
-      const token = session.accessJwt;
-      const repoDid = session.did;
-
-      statusEl.textContent = 'creating list\u2026';
-      const listRes = await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
-          repo: repoDid,
           collection: 'app.bsky.graph.list',
           record: {
             $type: 'app.bsky.graph.list',
             purpose: 'app.bsky.graph.defs#curatelist',
             name: listName,
-            description: `Mutual-follow cluster with shells, found by mino.mobi/cluster`,
+            description: 'Mutual-follow cluster with shells, found by mino.mobi/cluster',
             createdAt: new Date().toISOString()
           }
         })
@@ -1955,20 +2001,16 @@ footer a:hover {
       if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status})`);
       const { uri: listUri } = await listRes.json();
 
-      for (let i = 0; i < dids.length; i++) {
-        statusEl.textContent = `adding members\u2026 ${i + 1}/${dids.length}`;
-        await fetch(`${pds}/xrpc/com.atproto.repo.createRecord`, {
+      for (let i = 0; i < allDids.length; i++) {
+        statusEl.textContent = `adding members\u2026 ${i + 1}/${allDids.length}`;
+        await pdsRequest('/pds/repo/createRecord', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            repo: repoDid,
             collection: 'app.bsky.graph.listitem',
             record: {
               $type: 'app.bsky.graph.listitem',
-              subject: dids[i],
+              subject: allDids[i],
               list: listUri,
               createdAt: new Date().toISOString()
             }
@@ -1977,8 +2019,8 @@ footer a:hover {
       }
 
       const rkey = listUri.split('/').pop();
-      const listUrl = `https://bsky.app/profile/${encodeURIComponent(authHandle)}/lists/${rkey}`;
-      statusEl.innerHTML = `done \u00b7 ${dids.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
+      const listUrl = `https://bsky.app/profile/${encodeURIComponent(authUser.handle)}/lists/${rkey}`;
+      statusEl.innerHTML = `done \u00b7 ${allDids.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
 
     } catch (err) {
       statusEl.textContent = `error: ${err.message}`;
@@ -2039,8 +2081,8 @@ footer a:hover {
       }
 
       if (currentCliques.some(c => c.core.length > 0)) {
-        document.getElementById('authHandle').value = raw;
         document.getElementById('publishSection').classList.remove('hidden');
+        updateAuthUI();
         buildPublishUI(currentCliques);
       }
 
@@ -2089,6 +2131,9 @@ footer a:hover {
       if (seekCandidates.length > 0) applySeekFilters();
     });
   }
+
+  // Pick up OAuth session from redirect
+  authInit().then(user => { authUser = user; });
 
   // Auto-load from URL
   const h = new URLSearchParams(location.search).get('handle');

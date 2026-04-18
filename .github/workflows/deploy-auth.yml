@@ -1,0 +1,84 @@
+name: Deploy Auth Worker
+
+on:
+  push:
+    branches: [main, 'claude/implement-oauth-bsky-JgUdn']
+    paths:
+      - 'workers/auth/**'
+      - '.github/workflows/deploy-auth.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/auth
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Ensure D1 database exists
+        id: ensure_db
+        run: |
+          # Check if database already exists
+          DB_ID=$(npx wrangler d1 list --json 2>/dev/null | node -e "
+            let buf = '';
+            process.stdin.on('data', d => buf += d);
+            process.stdin.on('end', () => {
+              const dbs = JSON.parse(buf);
+              const db = dbs.find(d => d.name === 'mino-auth-db');
+              if (db) process.stdout.write(db.uuid);
+            });
+          " || true)
+
+          if [ -n "$DB_ID" ]; then
+            echo "Database exists: $DB_ID"
+          else
+            echo "Creating D1 database: mino-auth-db"
+            OUTPUT=$(npx wrangler d1 create mino-auth-db 2>&1)
+            echo "$OUTPUT"
+            DB_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+          fi
+
+          if [ -z "$DB_ID" ]; then
+            echo "ERROR: Could not determine database ID"
+            exit 1
+          fi
+
+          echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Patch wrangler.jsonc with database ID
+        run: |
+          sed -i 's/"database_id": ".*"/"database_id": "${{ steps.ensure_db.outputs.database_id }}"/' wrangler.jsonc
+          echo "Updated wrangler.jsonc:"
+          cat wrangler.jsonc
+
+      - name: Run D1 migrations
+        run: |
+          for f in migrations/*.sql; do
+            echo "Running migration: $f"
+            npx wrangler d1 execute mino-auth-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

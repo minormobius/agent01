@@ -766,16 +766,17 @@ else:
     const openBtn = document.getElementById('btn-open-pds');
     const statusPill = document.getElementById('status-atproto');
 
-    // Restore session on load
-    const restored = LabATProto.restoreSession();
-    if (restored) {
-      updateATProtoUI(restored);
-    }
+    // Restore session on load (picks up OAuth redirect token too)
+    LabATProto.init().then(user => {
+      if (user) {
+        updateATProtoUI(user);
+        toast(`Signed in as ${user.handle}`, 'success');
+      }
+    });
 
     // Login button
     loginBtn.addEventListener('click', () => {
       if (LabATProto.isLoggedIn()) {
-        // Already logged in — show menu
         if (confirm(`Signed in as ${LabATProto.getSession().handle}.\n\nSign out?`)) {
           LabATProto.logout();
           updateATProtoUI(null);
@@ -787,32 +788,27 @@ else:
       }
     });
 
-    // Login form
+    // Login form — redirects to Bluesky OAuth
     document.getElementById('btn-do-login').addEventListener('click', async () => {
       const handle = document.getElementById('login-handle').value.trim();
-      const password = document.getElementById('login-password').value.trim();
       const errorEl = document.getElementById('login-error');
 
-      if (!handle || !password) {
-        errorEl.textContent = 'Enter both handle and app password.';
+      if (!handle) {
+        errorEl.textContent = 'Enter your Bluesky handle.';
         return;
       }
 
       errorEl.textContent = '';
       document.getElementById('btn-do-login').disabled = true;
-      document.getElementById('btn-do-login').textContent = 'Signing in...';
+      document.getElementById('btn-do-login').textContent = 'Connecting...';
 
       try {
-        const session = await LabATProto.login(handle, password);
-        updateATProtoUI(session);
-        loginDialog.close();
-        document.getElementById('login-password').value = '';
-        toast(`Signed in as ${session.handle}`, 'success');
+        await LabATProto.login(handle);
+        // Browser redirects to Bluesky — won't reach here
       } catch (err) {
         errorEl.textContent = err.message;
-      } finally {
         document.getElementById('btn-do-login').disabled = false;
-        document.getElementById('btn-do-login').textContent = 'Sign in';
+        document.getElementById('btn-do-login').textContent = 'Sign in with Bluesky';
       }
     });
 

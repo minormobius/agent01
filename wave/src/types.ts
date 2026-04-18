@@ -101,10 +101,10 @@ export interface WaveOp {
   threadUri: string; // at:// URI of the thread record
   parentOps?: string[]; // causal ordering DAG
   opType: "message" | "doc_edit" | "reaction";
-  keyringRkey: string;
-  iv: { $bytes: string };
-  ciphertext: { $bytes: string };
-  // Future: attachments?: BlobRef[];
+  keyringRkey: string; // "public" for unencrypted ops
+  iv?: { $bytes: string };        // present when encrypted
+  ciphertext?: { $bytes: string }; // present when encrypted
+  content?: string;                // present when public (JSON payload)
   createdAt: string;
 }
 
@@ -153,4 +153,46 @@ export interface WaveState {
   dek: CryptoKey | null;
   initialized: boolean;
   keyringRkey: string | null;
+}
+
+// --- Template types ---
+
+/** Template categories */
+export type TemplateCategory =
+  | 'project'
+  | 'journal'
+  | 'meeting'
+  | 'crm'
+  | 'knowledge'
+  | 'tracker'
+  | 'other';
+
+/** A page template stored as an ATProto record */
+export interface WaveTemplate {
+  $type: "com.minomobi.wave.template";
+  title: string;
+  description: string;
+  category: TemplateCategory;
+  /** Markdown content with {{variable}} placeholders */
+  content: string;
+  /** Variables the template expects */
+  variables: TemplateVariable[];
+  /** Which view plugins this template uses */
+  plugins: string[];
+  /** Tags for discovery */
+  tags: string[];
+  createdAt: string;
+}
+
+export interface TemplateVariable {
+  key: string;
+  label: string;
+  defaultValue?: string;
+}
+
+export interface WaveTemplateRecord {
+  rkey: string;
+  template: WaveTemplate;
+  authorDid: string;
+  authorHandle?: string;
 }

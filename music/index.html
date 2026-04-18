@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#0d1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/icon-192.png">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Mino Music — ATProto Composer</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1225,6 +1225,57 @@ function fromRecord(record) {
 // ═══════════════════════════════════════════════════════════════
 
 const PUBLIC_API = 'https://public.api.bsky.app';
+const AUTH_URL = 'https://auth.mino.mobi';
+const SESSION_KEY = 'mino_auth_session';
+const HANDLE_KEY = 'mino-music-handle';
+
+// --- Auth (via shared OAuth worker at auth.mino.mobi) ---
+function getToken() { return localStorage.getItem(SESSION_KEY); }
+function saveToken(t) { if (t) localStorage.setItem(SESSION_KEY, t); else localStorage.removeItem(SESSION_KEY); }
+
+async function authInit() {
+  const url = new URL(location.href);
+  const token = url.searchParams.get('__auth_session');
+  if (token) { saveToken(token); url.searchParams.delete('__auth_session'); history.replaceState({}, '', url); }
+  const t = getToken();
+  if (!t) return null;
+  try {
+    const r = await fetch(`${AUTH_URL}/api/me`, { headers: { Authorization: `Bearer ${t}` } });
+    if (!r.ok) { saveToken(null); return null; }
+    return await r.json();
+  } catch { saveToken(null); return null; }
+}
+
+async function authLogin(handle) {
+  const r = await fetch(`${AUTH_URL}/oauth/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ handle: handle.replace(/^@/, '').trim(), origin: location.origin, returnTo: location.href }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Login failed'); }
+  location.href = (await r.json()).authUrl;
+}
+
+async function authLogout() {
+  const t = getToken();
+  if (t) fetch(`${AUTH_URL}/api/logout`, { method: 'POST', headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+  saveToken(null);
+}
+
+async function pdsRequest(path, opts) {
+  const t = getToken();
+  if (!t) throw new Error('Not logged in');
+  const headers = { Authorization: `Bearer ${t}`, ...opts?.headers };
+  const r = await fetch(`${AUTH_URL}${path}`, { method: opts?.method || 'GET', headers, body: opts?.body });
+  if (r.status === 401) { saveToken(null); throw new Error('Session expired'); }
+  return r;
+}
+
+let _authUser = null; // cached { did, handle, scope } from authInit
+
+function loadSession() {
+  return _authUser;
+}
 
 const atproto = {
   async resolveHandle(handle) {
@@ -1233,63 +1284,19 @@ const atproto = {
     return (await res.json()).did;
   },
 
-  async resolvePDS(did) {
-    let doc;
-    if (did.startsWith('did:plc:')) {
-      const res = await fetch(`https://plc.directory/${did}`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else if (did.startsWith('did:web:')) {
-      const host = did.slice('did:web:'.length).replaceAll(':', '/');
-      const res = await fetch(`https://${host}/.well-known/did.json`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else {
-      throw new Error(`Unsupported DID method: ${did}`);
-    }
-    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
-    if (!svc) throw new Error('No PDS endpoint found');
-    return svc.serviceEndpoint;
-  },
-
-  async createSession(handle, appPassword) {
-    const did = await this.resolveHandle(handle);
-    const pds = await this.resolvePDS(did);
-    const res = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
+  async publish(record) {
+    const r = await pdsRequest('/pds/repo/createRecord', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: handle, password: appPassword }),
+      body: JSON.stringify({ collection: 'com.minomobi.music.composition', record }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Auth failed (${res.status})`);
-    }
-    return { ...(await res.json()), pds };
-  },
-
-  async refreshSession(session) {
-    const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.refreshJwt}` },
-    });
-    if (!res.ok) throw new Error('Session expired — please sign in again');
-    const refreshed = await res.json();
-    return { ...refreshed, pds: session.pds };
-  },
-
-  async publish(session, record) {
-    const res = await fetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.accessJwt}` },
-      body: JSON.stringify({ repo: session.did, collection: 'com.minomobi.music.composition', validate: false, record }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
       const parts = [err.error, err.message];
       if (err.causes) parts.push(JSON.stringify(err.causes));
-      throw new Error(parts.filter(Boolean).join(': ') || `Publish failed (${res.status})`);
+      throw new Error(parts.filter(Boolean).join(': ') || `Publish failed (${r.status})`);
     }
-    return res.json();
+    return r.json();
   },
 
   async fetchRecord(atUri) {
@@ -1300,8 +1307,14 @@ const atproto = {
     let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`);
     if (!res.ok) {
       const did = repo.startsWith('did:') ? repo : await this.resolveHandle(repo);
-      const pds = await this.resolvePDS(did);
-      res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+      const r2 = await fetch(`https://plc.directory/${did}`);
+      if (r2.ok) {
+        const doc = await r2.json();
+        const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+        if (svc) {
+          res = await fetch(`${svc.serviceEndpoint}/xrpc/com.atproto.repo.getRecord?${params}`);
+        }
+      }
       if (!res.ok) throw new Error(`Record not found (${res.status})`);
     }
     return res.json();
@@ -1315,25 +1328,19 @@ const atproto = {
     const params = `repo=${encodeURIComponent(did)}&collection=com.minomobi.music.composition&limit=${limit}`;
     let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
     if (!res.ok) {
-      const pds = await this.resolvePDS(did);
-      res = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
+      const r2 = await fetch(`https://plc.directory/${did}`);
+      if (r2.ok) {
+        const doc = await r2.json();
+        const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+        if (svc) {
+          res = await fetch(`${svc.serviceEndpoint}/xrpc/com.atproto.repo.listRecords?${params}`);
+        }
+      }
       if (!res.ok) throw new Error(`Could not list compositions (${res.status})`);
     }
     return (await res.json()).records || [];
   },
 };
-
-// Session management
-const SESSION_KEY = 'mino-music-session';
-const HANDLE_KEY = 'mino-music-handle';
-
-function loadSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
-}
-function saveSession(s) {
-  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  else localStorage.removeItem(SESSION_KEY);
-}
 
 // ═══════════════════════════════════════════════════════════════
 // MODALS
@@ -1493,24 +1500,20 @@ document.getElementById('publish-btn').onclick = () => {
         <textarea rows="10" readonly style="font-size:10px">${escapeHtml(JSON.stringify(toRecord(), null, 2))}</textarea>
       </div>
     ` : `
-      <p style="font-size:12px;color:#8b949e;margin-bottom:8px">Sign in with your Bluesky handle and an
-        <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">app password</a>.
-      </p>
+      <p style="font-size:12px;color:#8b949e;margin-bottom:8px">Sign in with your Bluesky account to publish.</p>
       <label>Handle</label>
       <input id="auth-handle" type="text" placeholder="handle.bsky.social" value="${escapeHtml(handle)}">
-      <label>App Password</label>
-      <input id="auth-pass" type="password" placeholder="xxxx-xxxx-xxxx-xxxx">
       <div id="pub-status"></div>
       <div class="modal-actions">
         <button class="bottom-btn" onclick="closeModal()">Cancel</button>
-        <button class="bottom-btn primary" id="do-login-btn">Sign In</button>
+        <button class="bottom-btn primary" id="do-login-btn">Sign in with Bluesky</button>
       </div>
     `}
   `);
 
   if (session) {
-    document.getElementById('logout-btn').onclick = () => {
-      saveSession(null);
+    document.getElementById('logout-btn').onclick = async () => {
+      await authLogout();
       closeModal();
       document.getElementById('publish-btn').click();
     };
@@ -1523,15 +1526,10 @@ document.getElementById('publish-btn').onclick = () => {
       state.name = document.getElementById('pub-name').value.trim();
       state.description = document.getElementById('pub-desc').value.trim();
       document.getElementById('name-input').value = state.name;
-      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Refreshing session...</div>';
+      statusEl.innerHTML = '<div class="status" style="color:#8b949e">Publishing...</div>';
       try {
-        // Refresh token before publishing (stored JWTs expire quickly)
-        const refreshed = await atproto.refreshSession(session);
-        Object.assign(session, refreshed);
-        saveSession(session);
-        statusEl.innerHTML = '<div class="status" style="color:#8b949e">Publishing...</div>';
         const record = toRecord();
-        const result = await atproto.publish(session, record);
+        const result = await atproto.publish(record);
         statusEl.innerHTML = `<div class="status ok">Published!<br><code style="font-size:10px;word-break:break-all">${escapeHtml(result.uri)}</code></div>`;
         setStatus('Published to AT Protocol');
       } catch (err) {
@@ -1542,15 +1540,12 @@ document.getElementById('publish-btn').onclick = () => {
     document.getElementById('do-login-btn').onclick = async () => {
       const statusEl = document.getElementById('pub-status');
       const handle = document.getElementById('auth-handle').value.trim();
-      const pass = document.getElementById('auth-pass').value;
-      if (!handle || !pass) return;
+      if (!handle) return;
       statusEl.innerHTML = '<div class="status" style="color:#8b949e">Connecting...</div>';
       try {
-        const session = await atproto.createSession(handle, pass);
         localStorage.setItem(HANDLE_KEY, handle);
-        saveSession(session);
-        closeModal();
-        document.getElementById('publish-btn').click(); // Re-open with session
+        await authLogin(handle);
+        // Browser redirects to Bluesky — won't reach here
       } catch (err) {
         statusEl.innerHTML = `<div class="status err">${escapeHtml(err.message)}</div>`;
       }
@@ -1745,6 +1740,7 @@ function checkUrlParams() {
 resizeCanvas();
 renderTracks();
 render();
+authInit().then(user => { _authUser = user; });
 checkUrlParams();
 
 // Scroll to middle C area on load
@@ -1755,7 +1751,7 @@ checkUrlParams();
 
 // Service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 </script>

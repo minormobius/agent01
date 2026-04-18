@@ -1,20 +1,22 @@
 // ── ATProto Client for LABGLASS ──
-// Handles authentication, identity resolution, and notebook CRUD on PDS.
-// No SDK — plain fetch. Credentials live in sessionStorage only.
+// OAuth via shared auth worker at auth.mino.mobi.
+// PDS writes proxied through auth worker (DPoP-bound tokens).
+// No SDK — plain fetch.
 
 window.LabATProto = (() => {
   const PUBLIC_API = 'https://public.api.bsky.app';
+  const AUTH_URL = 'https://auth.mino.mobi';
+  const SESSION_KEY = 'mino_auth_session';
   const NOTEBOOK_COLLECTION = 'com.minomobi.labglass.notebook';
   const CELL_COLLECTION = 'com.minomobi.labglass.cell';
 
-  // Session state (in-memory only; persisted to sessionStorage)
-  let session = null;
+  // Cached user info from /api/me
+  let authUser = null; // { did, handle, scope }
 
-  // Identity cache: handle → { did, pds }
+  // Identity cache: handle → { did }
   const identityCache = {};
 
   // ── TID generation (timestamp-based record keys) ──
-  // ATProto TIDs: base32-sortable, microsecond timestamp + random clock ID
   const B32_CHARS = '234567abcdefghijklmnopqrstuvwxyz';
   let tidClockId = null;
 
@@ -34,7 +36,64 @@ window.LabATProto = (() => {
     return s;
   }
 
-  // ── Identity resolution ──
+  // ── Auth token management ──
+
+  function getToken() { return localStorage.getItem(SESSION_KEY); }
+  function saveToken(t) { if (t) localStorage.setItem(SESSION_KEY, t); else localStorage.removeItem(SESSION_KEY); }
+
+  // Pick up session from OAuth redirect or localStorage, validate with auth worker
+  async function init() {
+    const url = new URL(location.href);
+    const token = url.searchParams.get('__auth_session');
+    if (token) {
+      saveToken(token);
+      url.searchParams.delete('__auth_session');
+      history.replaceState({}, '', url);
+    }
+    const t = getToken();
+    if (!t) { authUser = null; return null; }
+    try {
+      const r = await fetch(`${AUTH_URL}/api/me`, { headers: { Authorization: `Bearer ${t}` } });
+      if (!r.ok) { saveToken(null); authUser = null; return null; }
+      authUser = await r.json();
+      return authUser;
+    } catch { saveToken(null); authUser = null; return null; }
+  }
+
+  // Redirect to Bluesky for OAuth
+  async function login(handle) {
+    const r = await fetch(`${AUTH_URL}/oauth/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        handle: handle.replace(/^@/, '').trim(),
+        origin: location.origin,
+        returnTo: location.href,
+      }),
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.error || 'Login failed');
+    }
+    location.href = (await r.json()).authUrl;
+  }
+
+  function logout() {
+    const t = getToken();
+    if (t) fetch(`${AUTH_URL}/api/logout`, { method: 'POST', headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+    saveToken(null);
+    authUser = null;
+  }
+
+  function getSession() {
+    return authUser;
+  }
+
+  function isLoggedIn() {
+    return authUser !== null;
+  }
+
+  // ── Identity resolution (read-only, no auth needed) ──
 
   async function resolveHandle(handle) {
     const res = await fetch(
@@ -45,119 +104,28 @@ window.LabATProto = (() => {
     return did;
   }
 
-  async function resolvePDS(did) {
-    let doc;
-    if (did.startsWith('did:plc:')) {
-      const res = await fetch(`https://plc.directory/${did}`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else if (did.startsWith('did:web:')) {
-      const host = did.slice('did:web:'.length).replaceAll(':', '/');
-      const res = await fetch(`https://${host}/.well-known/did.json`);
-      if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-      doc = await res.json();
-    } else {
-      throw new Error(`Unsupported DID method: ${did}`);
-    }
-    const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
-    if (!svc) throw new Error('No PDS endpoint in DID document');
-    return svc.serviceEndpoint;
-  }
-
   async function resolveIdentity(handle) {
     if (identityCache[handle]) return identityCache[handle];
     const did = await resolveHandle(handle);
-    const pds = await resolvePDS(did);
-    identityCache[handle] = { did, pds };
-    return { did, pds };
+    identityCache[handle] = { did };
+    return { did };
   }
 
-  // ── Authentication ──
+  // ── Authenticated PDS requests (proxied through auth worker) ──
 
-  async function login(handle, appPassword) {
-    const { did, pds } = await resolveIdentity(handle);
-    const res = await fetch(`${pds}/xrpc/com.atproto.server.createSession`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: did, password: appPassword }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Login failed (${res.status})`);
-    }
-    const data = await res.json();
-    session = {
-      did: data.did,
-      handle: data.handle,
-      pds,
-      accessJwt: data.accessJwt,
-      refreshJwt: data.refreshJwt,
-    };
-    sessionStorage.setItem('labglass_session', JSON.stringify(session));
-    return session;
-  }
-
-  async function refreshSession() {
-    if (!session?.refreshJwt) throw new Error('No session to refresh');
-    const res = await fetch(`${session.pds}/xrpc/com.atproto.server.refreshSession`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.refreshJwt}` },
-    });
-    if (!res.ok) {
-      logout();
-      throw new Error('Session expired — please log in again');
-    }
-    const data = await res.json();
-    session.accessJwt = data.accessJwt;
-    session.refreshJwt = data.refreshJwt;
-    sessionStorage.setItem('labglass_session', JSON.stringify(session));
-    return session;
-  }
-
-  function logout() {
-    session = null;
-    sessionStorage.removeItem('labglass_session');
-  }
-
-  function restoreSession() {
-    const stored = sessionStorage.getItem('labglass_session');
-    if (stored) {
-      try {
-        session = JSON.parse(stored);
-      } catch {
-        sessionStorage.removeItem('labglass_session');
-      }
-    }
-    return session;
-  }
-
-  function getSession() {
-    return session;
-  }
-
-  function isLoggedIn() {
-    return session !== null;
-  }
-
-  // ── Authenticated fetch with auto-refresh ──
-
-  async function authFetch(url, opts = {}) {
-    if (!session) throw new Error('Not logged in');
-    opts.headers = { ...opts.headers, 'Authorization': `Bearer ${session.accessJwt}` };
-    let res = await fetch(url, opts);
-    if (res.status === 401) {
-      await refreshSession();
-      opts.headers['Authorization'] = `Bearer ${session.accessJwt}`;
-      res = await fetch(url, opts);
-    }
-    return res;
+  async function pdsRequest(path, opts) {
+    const t = getToken();
+    if (!t) throw new Error('Not logged in');
+    const headers = { Authorization: `Bearer ${t}`, ...opts?.headers };
+    const r = await fetch(`${AUTH_URL}${path}`, { method: opts?.method || 'GET', headers, body: opts?.body });
+    if (r.status === 401) { saveToken(null); authUser = null; throw new Error('Session expired — please sign in again'); }
+    return r;
   }
 
   // ── Blob upload ──
 
   async function uploadBlob(blob) {
-    if (!session) throw new Error('Not logged in');
-    const res = await authFetch(`${session.pds}/xrpc/com.atproto.repo.uploadBlob`, {
+    const res = await pdsRequest('/pds/repo/uploadBlob', {
       method: 'POST',
       headers: { 'Content-Type': blob.type || 'application/octet-stream' },
       body: blob,
@@ -167,28 +135,21 @@ window.LabATProto = (() => {
       throw new Error(err.message || `Blob upload failed (${res.status})`);
     }
     const data = await res.json();
-    return data.blob; // BlobRef: { ref: { $link: cid }, mimeType, size }
+    return data.blob;
   }
 
-  function getBlobUrl(did, cid, pds) {
-    const endpoint = pds || session?.pds;
-    if (!endpoint) throw new Error('No PDS endpoint');
-    return `${endpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+  function getBlobUrl(did, cid) {
+    return `${AUTH_URL}/pds/sync/getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
   }
 
-  // ── Record CRUD ──
+  // ── Record CRUD (writes go through auth worker, reads use public API with PDS fallback) ──
 
   async function createRecord(collection, record) {
     const rkey = generateTid();
-    const res = await authFetch(`${session.pds}/xrpc/com.atproto.repo.createRecord`, {
+    const res = await pdsRequest('/pds/repo/createRecord', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: session.did,
-        collection,
-        rkey,
-        record,
-      }),
+      body: JSON.stringify({ collection, rkey, record }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -198,15 +159,10 @@ window.LabATProto = (() => {
   }
 
   async function putRecord(collection, rkey, record) {
-    const res = await authFetch(`${session.pds}/xrpc/com.atproto.repo.putRecord`, {
+    const res = await pdsRequest('/pds/repo/putRecord', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: session.did,
-        collection,
-        rkey,
-        record,
-      }),
+      body: JSON.stringify({ collection, rkey, record }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -216,14 +172,10 @@ window.LabATProto = (() => {
   }
 
   async function deleteRecord(collection, rkey) {
-    const res = await authFetch(`${session.pds}/xrpc/com.atproto.repo.deleteRecord`, {
+    const res = await pdsRequest('/pds/repo/deleteRecord', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: session.did,
-        collection,
-        rkey,
-      }),
+      body: JSON.stringify({ collection, rkey }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -233,48 +185,48 @@ window.LabATProto = (() => {
   }
 
   async function getRecord(did, collection, rkey) {
-    const pds = await getPDSForDid(did);
     const params = `repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}&rkey=${encodeURIComponent(rkey)}`;
     let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.getRecord?${params}`);
     if (!res.ok) {
-      res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`);
+      // Fallback: resolve PDS directly
+      try {
+        const r2 = await fetch(`https://plc.directory/${did}`);
+        if (r2.ok) {
+          const doc = await r2.json();
+          const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+          if (svc) res = await fetch(`${svc.serviceEndpoint}/xrpc/com.atproto.repo.getRecord?${params}`);
+        }
+      } catch { /* fall through */ }
       if (!res.ok) throw new Error(`Record not found (${res.status})`);
     }
     return res.json();
   }
 
   async function listRecords(did, collection, { limit = 50, cursor, reverse = true } = {}) {
-    const pds = await getPDSForDid(did);
     let params = `repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}&limit=${limit}`;
     if (reverse) params += '&reverse=true';
     if (cursor) params += `&cursor=${encodeURIComponent(cursor)}`;
     let res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.repo.listRecords?${params}`);
     if (!res.ok) {
-      res = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${params}`);
+      try {
+        const r2 = await fetch(`https://plc.directory/${did}`);
+        if (r2.ok) {
+          const doc = await r2.json();
+          const svc = doc.service?.find(s => s.type === 'AtprotoPersonalDataServer');
+          if (svc) res = await fetch(`${svc.serviceEndpoint}/xrpc/com.atproto.repo.listRecords?${params}`);
+        }
+      } catch { /* fall through */ }
       if (!res.ok) throw new Error(`Failed to list records (${res.status})`);
     }
     return res.json();
   }
 
-  async function getPDSForDid(did) {
-    // Check if we already know it from a cached identity
-    for (const key of Object.keys(identityCache)) {
-      if (identityCache[key].did === did) return identityCache[key].pds;
-    }
-    // If it's the logged-in user
-    if (session?.did === did) return session.pds;
-    // Otherwise resolve
-    return resolvePDS(did);
-  }
-
   // ── Notebook Operations ──
 
-  // Save current notebook to PDS. Creates cell records first, then the notebook envelope.
   async function saveNotebook(title, description, cells, tags = []) {
-    if (!session) throw new Error('Not logged in');
+    if (!authUser) throw new Error('Not logged in');
     const now = new Date().toISOString();
 
-    // Create cell records
     const cellUris = [];
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
@@ -285,11 +237,9 @@ window.LabATProto = (() => {
         createdAt: now,
         position: i,
       };
-      // Include text output if present and small enough
       if (cell.textOutput && cell.textOutput.length < 100000) {
         cellRecord.textOutput = cell.textOutput;
       }
-      // Upload figure blob if present (Blob or File object from canvas capture)
       if (cell.figureBlob instanceof Blob) {
         const blobRef = await uploadBlob(cell.figureBlob);
         cellRecord.figureBlob = blobRef;
@@ -298,7 +248,6 @@ window.LabATProto = (() => {
       cellUris.push(result.uri);
     }
 
-    // Create notebook envelope
     const notebookRecord = {
       title,
       description: description || '',
@@ -313,8 +262,6 @@ window.LabATProto = (() => {
     return { uri: result.uri, cid: result.cid, cellUris };
   }
 
-  // Load a notebook from any user's PDS.
-  // Returns { notebook, cells } where cells are in display order.
   async function loadNotebook(handleOrDid, rkey) {
     let did;
     if (handleOrDid.startsWith('did:')) {
@@ -324,15 +271,13 @@ window.LabATProto = (() => {
       did = identity.did;
     }
 
-    // Fetch notebook record
     const nbRecord = await getRecord(did, NOTEBOOK_COLLECTION, rkey);
     const notebook = nbRecord.value;
 
-    // Fetch all cell records in parallel
     const cellPromises = (notebook.cells || []).map(async (uri) => {
       const parts = uri.split('/');
       const cellRkey = parts[parts.length - 1];
-      const cellDid = parts[2]; // at://did:plc:xxx/collection/rkey
+      const cellDid = parts[2];
       try {
         const cellRecord = await getRecord(cellDid, CELL_COLLECTION, cellRkey);
         return cellRecord.value;
@@ -346,7 +291,6 @@ window.LabATProto = (() => {
     return { notebook, cells, uri: nbRecord.uri, cid: nbRecord.cid };
   }
 
-  // List notebooks from a user's PDS.
   async function listNotebooks(handle, { limit = 20, cursor } = {}) {
     const { did } = await resolveIdentity(handle);
     const data = await listRecords(did, NOTEBOOK_COLLECTION, { limit, cursor });
@@ -361,15 +305,12 @@ window.LabATProto = (() => {
     };
   }
 
-  // Delete a notebook and its cells from the logged-in user's PDS.
   async function deleteNotebook(rkey) {
-    if (!session) throw new Error('Not logged in');
+    if (!authUser) throw new Error('Not logged in');
 
-    // First fetch the notebook to get cell URIs
-    const nbRecord = await getRecord(session.did, NOTEBOOK_COLLECTION, rkey);
+    const nbRecord = await getRecord(authUser.did, NOTEBOOK_COLLECTION, rkey);
     const cellUris = nbRecord.value.cells || [];
 
-    // Delete all cells
     for (const uri of cellUris) {
       const cellRkey = rkeyFromUri(uri);
       try {
@@ -379,7 +320,6 @@ window.LabATProto = (() => {
       }
     }
 
-    // Delete the notebook envelope
     await deleteRecord(NOTEBOOK_COLLECTION, rkey);
   }
 
@@ -391,9 +331,9 @@ window.LabATProto = (() => {
 
   return {
     // Auth
+    init,
     login,
     logout,
-    restoreSession,
     getSession,
     isLoggedIn,
     // Identity
