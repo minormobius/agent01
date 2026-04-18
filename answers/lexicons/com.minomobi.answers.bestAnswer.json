@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.bestAnswer",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "The question author's designation of a best answer. Only valid when the record author DID matches the question's author DID. Clients should use a deterministic rkey derived from the question URI so that changing the pick rewrites the same record.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["question", "answer", "createdAt"],
+        "properties": {
+          "question": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to the question. Author DID must match this record's author."
+          },
+          "answer": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to the chosen answer."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

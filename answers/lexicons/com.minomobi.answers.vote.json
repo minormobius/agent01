@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.vote",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A thumbs up or thumbs down on a question, answer, or comment. Clients should use a deterministic rkey derived from the subject URI so that re-voting rewrites the same record and removing a vote is a single delete.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["subject", "direction", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to the record being voted on (question, answer, or comment)."
+          },
+          "direction": {
+            "type": "integer",
+            "enum": [-1, 1],
+            "description": "1 for thumbs up, -1 for thumbs down."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

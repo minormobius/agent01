@@ -1,0 +1,40 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.answer",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "An answer to a question.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["question", "text", "createdAt"],
+        "properties": {
+          "question": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to the com.minomobi.answers.question record being answered."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 30000,
+            "maxGraphemes": 10000
+          },
+          "embed": {
+            "type": "union",
+            "refs": [
+              "app.bsky.embed.images",
+              "app.bsky.embed.external"
+            ]
+          },
+          "langs": {
+            "type": "array",
+            "items": { "type": "string", "format": "language" },
+            "maxLength": 3
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
