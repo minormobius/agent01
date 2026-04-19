@@ -6,11 +6,7 @@ export const PLC = 'https://plc.directory';
 export const CONSTELLATION = 'https://constellation.us-east.host.bsky.network';
 export const AUTH_URL = 'https://auth.mino.mobi';
 
-export const CURATOR_HANDLE = 'minomobi.com';
-// Hardcoded because handle resolution for minomobi.com currently returns the
-// placeholder DID baked into /.well-known/atproto-did. This is the production
-// publisher DID used across the repo (workers/feed/wrangler.toml etc).
-export const CURATOR_DID = 'did:plc:oqyev6xmuwgbtpr6jgxh5xg3';
+export const CURATOR_HANDLE = 'minomobi.bsky.social';
 export const NS = 'com.minomobi.answers';
 export const C = {
   question: `${NS}.question`,
@@ -246,7 +242,7 @@ export async function getBacklinks(target, collection, path, { limit = 50, curso
 let _categoryCache = null;
 export async function fetchCategories() {
   if (_categoryCache) return _categoryCache;
-  const did = CURATOR_DID;
+  const did = await resolveHandle(CURATOR_HANDLE);
   const pds = await resolvePds(did);
   const all = [];
   let cursor = null;
