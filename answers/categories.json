@@ -1,0 +1,238 @@
+{
+  "categories": [
+    {
+      "slug": "arts-humanities",
+      "name": "Arts & Humanities",
+      "description": "Books, poetry, history, philosophy, visual arts.",
+      "children": [
+        { "slug": "books-authors", "name": "Books & Authors" },
+        { "slug": "history", "name": "History" },
+        { "slug": "philosophy", "name": "Philosophy" },
+        { "slug": "visual-arts", "name": "Visual Arts" },
+        { "slug": "performing-arts", "name": "Performing Arts" }
+      ]
+    },
+    {
+      "slug": "beauty-style",
+      "name": "Beauty & Style",
+      "description": "Fashion, grooming, cosmetics, hair.",
+      "children": [
+        { "slug": "fashion-accessories", "name": "Fashion & Accessories" },
+        { "slug": "hair", "name": "Hair" },
+        { "slug": "makeup", "name": "Makeup" },
+        { "slug": "skincare", "name": "Skin & Body" }
+      ]
+    },
+    {
+      "slug": "business-finance",
+      "name": "Business & Finance",
+      "description": "Careers, investing, taxes, small business.",
+      "children": [
+        { "slug": "careers-employment", "name": "Careers & Employment" },
+        { "slug": "investing", "name": "Investing" },
+        { "slug": "personal-finance", "name": "Personal Finance" },
+        { "slug": "small-business", "name": "Small Business" },
+        { "slug": "taxes", "name": "Taxes" }
+      ]
+    },
+    {
+      "slug": "cars-transportation",
+      "name": "Cars & Transportation",
+      "description": "Cars, motorcycles, aviation, maintenance.",
+      "children": [
+        { "slug": "buying-selling", "name": "Buying & Selling" },
+        { "slug": "maintenance-repairs", "name": "Maintenance & Repairs" },
+        { "slug": "motorcycles", "name": "Motorcycles" },
+        { "slug": "aviation", "name": "Aviation" }
+      ]
+    },
+    {
+      "slug": "computers-internet",
+      "name": "Computers & Internet",
+      "description": "Hardware, software, programming, networks.",
+      "children": [
+        { "slug": "hardware", "name": "Hardware" },
+        { "slug": "software", "name": "Software" },
+        { "slug": "programming", "name": "Programming & Design" },
+        { "slug": "security", "name": "Security" },
+        { "slug": "internet", "name": "Internet" }
+      ]
+    },
+    {
+      "slug": "education-reference",
+      "name": "Education & Reference",
+      "description": "Homework, studying, higher education, trivia.",
+      "children": [
+        { "slug": "homework-help", "name": "Homework Help" },
+        { "slug": "higher-education", "name": "Higher Education" },
+        { "slug": "trivia", "name": "Trivia" },
+        { "slug": "words-wordplay", "name": "Words & Wordplay" }
+      ]
+    },
+    {
+      "slug": "entertainment-music",
+      "name": "Entertainment & Music",
+      "description": "Movies, TV, music, celebrities, games.",
+      "children": [
+        { "slug": "movies", "name": "Movies" },
+        { "slug": "television", "name": "Television" },
+        { "slug": "music", "name": "Music" },
+        { "slug": "celebrities", "name": "Celebrities" },
+        { "slug": "comics-animation", "name": "Comics & Animation" }
+      ]
+    },
+    {
+      "slug": "family-relationships",
+      "name": "Family & Relationships",
+      "description": "Family, friends, dating, marriage.",
+      "children": [
+        { "slug": "family", "name": "Family" },
+        { "slug": "friends", "name": "Friends" },
+        { "slug": "singles-dating", "name": "Singles & Dating" },
+        { "slug": "marriage-divorce", "name": "Marriage & Divorce" }
+      ]
+    },
+    {
+      "slug": "food-drink",
+      "name": "Food & Drink",
+      "description": "Cooking, dining, beverages, nutrition.",
+      "children": [
+        { "slug": "cooking-recipes", "name": "Cooking & Recipes" },
+        { "slug": "dining-out", "name": "Dining Out" },
+        { "slug": "beer-wine-spirits", "name": "Beer, Wine & Spirits" },
+        { "slug": "non-alcoholic-drinks", "name": "Non-Alcoholic Drinks" }
+      ]
+    },
+    {
+      "slug": "games-recreation",
+      "name": "Games & Recreation",
+      "description": "Video games, board games, hobbies, outdoors.",
+      "children": [
+        { "slug": "video-games", "name": "Video & Online Games" },
+        { "slug": "board-games", "name": "Board Games" },
+        { "slug": "hobbies-crafts", "name": "Hobbies & Crafts" },
+        { "slug": "outdoor-recreation", "name": "Outdoor Recreation" }
+      ]
+    },
+    {
+      "slug": "health",
+      "name": "Health",
+      "description": "Medicine, wellness, fitness, mental health.",
+      "children": [
+        { "slug": "general-health-care", "name": "General Health Care" },
+        { "slug": "mental-health", "name": "Mental Health" },
+        { "slug": "diet-fitness", "name": "Diet & Fitness" },
+        { "slug": "diseases-conditions", "name": "Diseases & Conditions" },
+        { "slug": "alternative-medicine", "name": "Alternative Medicine" }
+      ]
+    },
+    {
+      "slug": "home-garden",
+      "name": "Home & Garden",
+      "description": "Decor, gardening, maintenance, appliances.",
+      "children": [
+        { "slug": "decorating-remodeling", "name": "Decorating & Remodeling" },
+        { "slug": "garden-landscape", "name": "Garden & Landscape" },
+        { "slug": "maintenance-repairs-home", "name": "Maintenance & Repairs" },
+        { "slug": "appliances", "name": "Appliances" }
+      ]
+    },
+    {
+      "slug": "news-events",
+      "name": "News & Events",
+      "description": "Current events, media, journalism.",
+      "children": [
+        { "slug": "current-events", "name": "Current Events" },
+        { "slug": "media-journalism", "name": "Media & Journalism" }
+      ]
+    },
+    {
+      "slug": "pets",
+      "name": "Pets",
+      "description": "Dogs, cats, birds, fish, reptiles, care.",
+      "children": [
+        { "slug": "dogs", "name": "Dogs" },
+        { "slug": "cats", "name": "Cats" },
+        { "slug": "birds", "name": "Birds" },
+        { "slug": "fish", "name": "Fish" },
+        { "slug": "reptiles", "name": "Reptiles" },
+        { "slug": "other-pets", "name": "Other Pets" }
+      ]
+    },
+    {
+      "slug": "politics-government",
+      "name": "Politics & Government",
+      "description": "Elections, law, military, international.",
+      "children": [
+        { "slug": "elections", "name": "Elections" },
+        { "slug": "law-ethics", "name": "Law & Ethics" },
+        { "slug": "military", "name": "Military" },
+        { "slug": "international", "name": "International Organizations" }
+      ]
+    },
+    {
+      "slug": "pregnancy-parenting",
+      "name": "Pregnancy & Parenting",
+      "description": "Babies, kids, teens, pregnancy.",
+      "children": [
+        { "slug": "pregnancy", "name": "Pregnancy" },
+        { "slug": "newborn-baby", "name": "Newborn & Baby" },
+        { "slug": "toddler-preschooler", "name": "Toddler & Preschool" },
+        { "slug": "grade-schooler", "name": "Grade-Schooler" },
+        { "slug": "adolescent", "name": "Adolescent" }
+      ]
+    },
+    {
+      "slug": "science-mathematics",
+      "name": "Science & Mathematics",
+      "description": "Physics, biology, chemistry, math, earth sciences.",
+      "children": [
+        { "slug": "astronomy-space", "name": "Astronomy & Space" },
+        { "slug": "biology", "name": "Biology" },
+        { "slug": "chemistry", "name": "Chemistry" },
+        { "slug": "earth-sciences", "name": "Earth Sciences" },
+        { "slug": "mathematics", "name": "Mathematics" },
+        { "slug": "physics", "name": "Physics" },
+        { "slug": "engineering", "name": "Engineering" }
+      ]
+    },
+    {
+      "slug": "society-culture",
+      "name": "Society & Culture",
+      "description": "Religion, etiquette, languages, community.",
+      "children": [
+        { "slug": "religion-spirituality", "name": "Religion & Spirituality" },
+        { "slug": "etiquette", "name": "Etiquette" },
+        { "slug": "languages", "name": "Languages" },
+        { "slug": "community-service", "name": "Community Service" },
+        { "slug": "cultures-groups", "name": "Cultures & Groups" }
+      ]
+    },
+    {
+      "slug": "sports",
+      "name": "Sports",
+      "description": "All sports, teams, training.",
+      "children": [
+        { "slug": "baseball", "name": "Baseball" },
+        { "slug": "basketball", "name": "Basketball" },
+        { "slug": "football", "name": "Football" },
+        { "slug": "soccer", "name": "Soccer" },
+        { "slug": "combat-sports", "name": "Combat Sports" },
+        { "slug": "cycling", "name": "Cycling" },
+        { "slug": "running", "name": "Running" },
+        { "slug": "other-sports", "name": "Other Sports" }
+      ]
+    },
+    {
+      "slug": "travel",
+      "name": "Travel",
+      "description": "Destinations, transportation, lodging, planning.",
+      "children": [
+        { "slug": "destinations", "name": "Destinations" },
+        { "slug": "air-travel", "name": "Air Travel" },
+        { "slug": "lodging", "name": "Lodging" },
+        { "slug": "trip-planning", "name": "Trip Planning" }
+      ]
+    }
+  ]
+}

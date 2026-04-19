@@ -1,0 +1,44 @@
+name: Publish Answers Categories to PDS
+
+on:
+  push:
+    branches:
+      - claude/yahoo-answers-atproto-brainstorm-B6vUR
+      - main
+    paths:
+      - 'answers/categories.json'
+      - 'answers/lexicons/com.minomobi.answers.category.json'
+      - 'scripts/publish-answers-categories.py'
+      - '.github/workflows/publish-answers-categories.yml'
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (print only, no writes)'
+        required: false
+        default: false
+        type: boolean
+      prune:
+        description: 'Delete PDS category records not present in categories.json'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Publish categories
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: |
+          python3 scripts/publish-answers-categories.py \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }} \
+            ${{ inputs.prune == true && '--prune' || '' }}
