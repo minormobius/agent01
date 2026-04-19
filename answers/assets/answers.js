@@ -3,7 +3,7 @@
 
 export const PUBLIC_API = 'https://public.api.bsky.app';
 export const PLC = 'https://plc.directory';
-export const CONSTELLATION = 'https://constellation.us-east.host.bsky.network';
+export const CONSTELLATION = 'https://constellation.microcosm.blue';
 export const AUTH_URL = 'https://auth.mino.mobi';
 
 export const CURATOR_HANDLE = 'minomobi.bsky.social';
@@ -226,15 +226,58 @@ export async function fetchByAtUri(uri) {
   return { ...rec, did, pds };
 }
 
-// ─── Constellation backlinks ─────────────────────────────────────
+// ─── Constellation backlinks + record hydration ──────────────────
+
+// Constellation /links returns {did, collection, rkey} per linker — NOT
+// the full record. To display anything (vote direction, comment text,
+// answer body) we have to fetch the actual record from each author's PDS.
+
+const _pdsCache = {};
+export async function pdsFor(did) {
+  if (_pdsCache[did]) return _pdsCache[did];
+  _pdsCache[did] = resolvePds(did);
+  return _pdsCache[did];
+}
+
+const _recordCache = {};
+export async function fetchRecord(did, collection, rkey) {
+  const uri = `at://${did}/${collection}/${rkey}`;
+  if (_recordCache[uri]) return _recordCache[uri];
+  const pds = await pdsFor(did);
+  const r = await getRecord(pds, did, collection, rkey);
+  const wrapped = { uri, cid: r.cid, value: r.value };
+  _recordCache[uri] = wrapped;
+  return wrapped;
+}
+
+export function invalidateRecord(uri) { delete _recordCache[uri]; }
 
 export async function getBacklinks(target, collection, path, { limit = 50, cursor = null } = {}) {
   const params = new URLSearchParams({ target, collection, path, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
   const r = await fetch(`${CONSTELLATION}/links?${params}`);
-  if (!r.ok) return { linking_records: [], cursor: null };
+  if (!r.ok) return { total: 0, linking_records: [], cursor: null };
   const j = await r.json();
-  return { linking_records: j.linking_records || [], cursor: j.cursor || null };
+  return { total: j.total || 0, linking_records: j.linking_records || [], cursor: j.cursor || null };
+}
+
+/** Fast path for counts only (no record values). */
+export async function countBacklinks(target, collection, path) {
+  const params = new URLSearchParams({ target, collection, path });
+  const r = await fetch(`${CONSTELLATION}/links/count?${params}`);
+  if (!r.ok) return 0;
+  return (await r.json()).total || 0;
+}
+
+/** Backlinks hydrated to {uri, cid, value} via per-PDS getRecord calls. */
+export async function getBacklinksFull(target, collection, path, opts = {}) {
+  const bl = await getBacklinks(target, collection, path, opts);
+  const records = await Promise.all(
+    (bl.linking_records || []).map((b) =>
+      fetchRecord(b.did, b.collection, b.rkey).catch(() => null)
+    )
+  );
+  return { records: records.filter(Boolean), cursor: bl.cursor || null, total: bl.total };
 }
 
 // ─── Category tree (from curator account) ────────────────────────

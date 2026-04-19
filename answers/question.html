@@ -65,7 +65,8 @@
 import {
   authInit, authLogin, authLogout, getSession,
   pdsCreateRecord, pdsPutRecord, pdsDeleteRecord,
-  fetchByAtUri, getBacklinks, getRecord, listRecords,
+  fetchByAtUri, getBacklinksFull, invalidateRecord,
+  getRecord, listRecords,
   attachHandleTypeahead,
   generateTid, deriveRkey, nowIso, strongRef,
   escapeHtml, linkify, timeAgo,
@@ -151,16 +152,11 @@ async function loadQuestion() {
 }
 
 async function loadAnswers() {
-  const list = [];
-  const seen = new Set();
+  const map = new Map();
 
   try {
-    const bl = await getBacklinks(state.question.uri, C.answer, '.question.uri', { limit: 100 });
-    for (const r of (bl.linking_records || [])) {
-      if (seen.has(r.uri)) continue;
-      seen.add(r.uri);
-      list.push(r);
-    }
+    const { records } = await getBacklinksFull(state.question.uri, C.answer, '.question.uri', { limit: 100 });
+    for (const r of records) map.set(r.uri, r);
   } catch {}
 
   const sess = getSession();
@@ -168,21 +164,16 @@ async function loadAnswers() {
     try {
       const page = await listRecords(sess.pds, sess.did, C.answer, { limit: 50 });
       for (const r of (page.records || [])) {
-        if (r.value?.question?.uri === state.question.uri && !seen.has(r.uri)) {
-          seen.add(r.uri);
-          list.push(r);
-        }
+        if (r.value?.question?.uri === state.question.uri) map.set(r.uri, r);
       }
     } catch {}
   }
 
   const hydrated = [];
-  for (const r of list) {
-    try {
-      const did = r.uri.split('/')[2];
-      const profile = await getProfile(did);
-      hydrated.push({ uri: r.uri, cid: r.cid, did, profile, value: r.value });
-    } catch {}
+  for (const r of map.values()) {
+    const did = r.uri.split('/')[2];
+    const profile = await getProfile(did);
+    hydrated.push({ uri: r.uri, cid: r.cid, did, profile, value: r.value });
   }
   hydrated.sort((a, b) => (b.value.createdAt || '').localeCompare(a.value.createdAt || ''));
   state.answers = hydrated;
@@ -214,13 +205,13 @@ async function loadMyVotes() {
 
 async function countVotes(uri) {
   try {
-    const bl = await getBacklinks(uri, C.vote, '.subject.uri', { limit: 200 });
+    const { records } = await getBacklinksFull(uri, C.vote, '.subject.uri', { limit: 50 });
     const session = getSession();
     const myDid = session?.did || null;
     let up = 0, down = 0;
-    // Count everyone except me; we'll add my current truth below to bypass
+    // Count everyone except me; we add my current truth below to bypass
     // Constellation index lag (a fresh vote isn't indexed for ~seconds).
-    for (const r of (bl.linking_records || [])) {
+    for (const r of records) {
       const author = r.uri.split('/')[2];
       if (myDid && author === myDid) continue;
       if (r.value?.direction === 1) up++;
@@ -367,23 +358,35 @@ async function markBest(answer) {
 }
 
 async function loadComments(answer, target) {
+  const map = new Map();
   try {
-    const bl = await getBacklinks(answer.uri, C.comment, '.answer.uri', { limit: 50 });
-    const items = bl.linking_records || [];
-    if (!items.length) { target.innerHTML = ''; return; }
-    const rows = [];
-    for (const r of items) {
-      const did = r.uri.split('/')[2];
-      const prof = await getProfile(did);
-      rows.push(`<div class="comment">
-        <div class="byline">@${escapeHtml(prof.handle)} · ${timeAgo(r.value.createdAt || '')}</div>
-        <div>${linkify(r.value.text || '')}</div>
-      </div>`);
-    }
-    target.innerHTML = rows.join('');
-  } catch {
-    target.innerHTML = '';
+    const { records } = await getBacklinksFull(answer.uri, C.comment, '.answer.uri', { limit: 50 });
+    for (const r of records) map.set(r.uri, r);
+  } catch {}
+  // Optimistic merge: include the user's own comments on this answer from
+  // their own PDS, in case Constellation hasn't indexed them yet.
+  const sess = getSession();
+  if (sess?.pds && sess?.did) {
+    try {
+      const page = await listRecords(sess.pds, sess.did, C.comment, { limit: 50 });
+      for (const r of (page.records || [])) {
+        if (r.value?.answer?.uri === answer.uri) map.set(r.uri, r);
+      }
+    } catch {}
   }
+  const items = [...map.values()].sort((a, b) =>
+    (a.value.createdAt || '').localeCompare(b.value.createdAt || ''));
+  if (!items.length) { target.innerHTML = ''; return; }
+  const rows = [];
+  for (const r of items) {
+    const did = r.uri.split('/')[2];
+    const prof = await getProfile(did);
+    rows.push(`<div class="comment">
+      <div class="byline">@${escapeHtml(prof.handle)} · ${timeAgo(r.value.createdAt || '')}</div>
+      <div>${linkify(r.value.text || '')}</div>
+    </div>`);
+  }
+  target.innerHTML = rows.join('');
 }
 
 async function handleComment(e, answer) {
