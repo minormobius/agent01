@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Answers — powered by ATProto</title>
+<meta name="description" content="Ask anything. Answered by the ATmosphere." />
+<link rel="stylesheet" href="/assets/answers.css" />
+</head>
+<body>
+
+<header class="site">
+  <h1><a href="/">Answers</a></h1>
+  <form class="search" id="search-form">
+    <input type="text" id="search-input" placeholder="Search questions..." />
+  </form>
+  <div class="spacer"></div>
+  <nav>
+    <a href="/ask.html">Ask</a>
+    <span id="nav-auth"></span>
+  </nav>
+</header>
+
+<main>
+
+<section id="login-box" class="card auth-box" hidden>
+  <h2 style="margin-top:0">Sign in with Bluesky</h2>
+  <p class="muted">Uses an app password from your Bluesky account. Create one at
+    <a href="https://bsky.app/settings/app-passwords" target="_blank">bsky.app/settings/app-passwords</a>.
+  </p>
+  <form id="login-form">
+    <label for="handle">Handle</label>
+    <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="username" required />
+    <label for="password">App password</label>
+    <input type="password" id="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="current-password" required />
+    <div id="login-error" class="error" hidden></div>
+    <div style="margin-top:12px">
+      <button type="submit">Sign in</button>
+      <button type="button" class="secondary" id="login-cancel">Cancel</button>
+    </div>
+  </form>
+</section>
+
+<section class="card" id="hero">
+  <h2 style="margin-top:0">Ask anything. Answered by the ATmosphere.</h2>
+  <p>Every question, answer, comment, and vote is a portable ATProto record on your own PDS. Browse by category, or
+    <a href="/ask.html">ask a question →</a></p>
+</section>
+
+<section class="card" id="mine" hidden>
+  <h3 style="margin-top:0">Your questions</h3>
+  <ul id="my-questions" class="question-list"></ul>
+</section>
+
+<section class="card">
+  <h3 style="margin-top:0">Categories</h3>
+  <div id="cats" class="cat-tree">
+    <p class="muted">Loading categories…</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <a href="/lexicons/com.minomobi.answers.question.json">lexicons</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/minormobius/agent01/tree/claude/yahoo-answers-atproto-brainstorm-B6vUR/answers">source</a>
+</footer>
+
+<script type="module">
+import {
+  fetchCategories, loadSession, clearSession, loginAndStore,
+  listRecords, resolveHandle, resolvePds, C, escapeHtml,
+} from '/assets/answers.js';
+
+const $ = (sel) => document.querySelector(sel);
+
+// ─── Auth UI ───
+function renderNav() {
+  const s = loadSession();
+  const el = $('#nav-auth');
+  if (s) {
+    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(s.handle)}</span> <a href="#" id="logout">Sign out</a>`;
+    $('#logout').onclick = (e) => { e.preventDefault(); clearSession(); location.reload(); };
+  } else {
+    el.innerHTML = `<a href="#" id="signin">Sign in</a>`;
+    $('#signin').onclick = (e) => { e.preventDefault(); $('#login-box').hidden = false; };
+  }
+}
+
+$('#login-cancel').onclick = () => { $('#login-box').hidden = true; };
+$('#login-form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#login-error').hidden = true;
+  const handle = $('#handle').value.trim();
+  const password = $('#password').value;
+  try {
+    await loginAndStore(handle, password);
+    location.reload();
+  } catch (err) {
+    $('#login-error').textContent = err.message || 'Login failed';
+    $('#login-error').hidden = false;
+  }
+};
+
+// ─── My questions ───
+async function loadMyQuestions() {
+  const s = loadSession();
+  if (!s) return;
+  $('#mine').hidden = false;
+  try {
+    const page = await listRecords(s.pds, s.did, C.question, { limit: 25 });
+    const list = page.records || [];
+    if (!list.length) {
+      $('#my-questions').innerHTML = '<li class="muted">No questions yet. <a href="/ask.html">Ask one →</a></li>';
+      return;
+    }
+    $('#my-questions').innerHTML = list.map((r) => {
+      const uri = encodeURIComponent(r.uri);
+      const title = escapeHtml(r.value.title || '(untitled)');
+      const when = new Date(r.value.createdAt || Date.now()).toLocaleDateString();
+      return `<li><a class="q-title-link" href="/question.html?uri=${uri}">${title}</a>
+        <div class="muted">${when}</div></li>`;
+    }).join('');
+  } catch (err) {
+    $('#my-questions').innerHTML = `<li class="error">Could not load: ${escapeHtml(err.message)}</li>`;
+  }
+}
+
+// ─── Category tree ───
+function renderCatTree(roots) {
+  const render = (nodes) => {
+    if (!nodes.length) return '';
+    return '<ul>' + nodes.map((n) => {
+      const slug = encodeURIComponent(n.rkey);
+      return `<li>
+        <a href="/ask.html?category=${slug}">${escapeHtml(n.name)}</a>
+        ${render(n.children)}
+      </li>`;
+    }).join('') + '</ul>';
+  };
+  // Two-column top-level layout for density
+  const el = $('#cats');
+  if (!roots.length) {
+    el.innerHTML = '<p class="muted">No categories published yet. Run the publish-answers-categories workflow.</p>';
+    return;
+  }
+  el.innerHTML = `<div class="cat-columns">${render(roots)}</div>`;
+}
+
+async function loadCategories() {
+  try {
+    const { roots } = await fetchCategories();
+    renderCatTree(roots);
+  } catch (err) {
+    $('#cats').innerHTML = `<p class="error">Could not load categories: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// ─── Search (stub) ───
+$('#search-form').onsubmit = (e) => {
+  e.preventDefault();
+  const q = $('#search-input').value.trim();
+  if (!q) return;
+  alert('Search is coming once the indexer is live. For now, browse categories or paste a question AT-URI into /question.html?uri=...');
+};
+
+renderNav();
+loadMyQuestions();
+loadCategories();
+</script>
+
+</body>
+</html>
