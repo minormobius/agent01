@@ -58,7 +58,8 @@
 <script type="module">
 import {
   authInit, authLogin,
-  fetchCategories, pdsCreateRecord, nowIso, C, escapeHtml,
+  fetchCategories, pdsCreateRecord, attachHandleTypeahead,
+  nowIso, C, escapeHtml,
 } from '/assets/answers.js';
 
 const $ = (s) => document.querySelector(s);
@@ -136,6 +137,8 @@ $('#ask-form').onsubmit = async (e) => {
     btn.disabled = false;
   }
 };
+
+attachHandleTypeahead($('#handle'));
 
 (async () => {
   const session = await authInit();

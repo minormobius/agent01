@@ -66,6 +66,7 @@ import {
   authInit, authLogin, authLogout, getSession,
   pdsCreateRecord, pdsPutRecord, pdsDeleteRecord,
   fetchByAtUri, getBacklinks, getRecord, listRecords,
+  attachHandleTypeahead,
   generateTid, deriveRkey, nowIso, strongRef,
   escapeHtml, linkify, timeAgo,
   C, PUBLIC_API,
@@ -214,11 +215,20 @@ async function loadMyVotes() {
 async function countVotes(uri) {
   try {
     const bl = await getBacklinks(uri, C.vote, '.subject.uri', { limit: 200 });
+    const session = getSession();
+    const myDid = session?.did || null;
     let up = 0, down = 0;
+    // Count everyone except me; we'll add my current truth below to bypass
+    // Constellation index lag (a fresh vote isn't indexed for ~seconds).
     for (const r of (bl.linking_records || [])) {
+      const author = r.uri.split('/')[2];
+      if (myDid && author === myDid) continue;
       if (r.value?.direction === 1) up++;
       else if (r.value?.direction === -1) down++;
     }
+    const mine = state.myVotes[uri]?.direction;
+    if (mine === 1) up++;
+    else if (mine === -1) down++;
     return { up, down };
   } catch { return { up: 0, down: 0 }; }
 }
@@ -397,6 +407,8 @@ async function handleComment(e, answer) {
     alert('Comment failed: ' + err.message);
   }
 }
+
+attachHandleTypeahead($('#handle'));
 
 (async () => {
   const session = await authInit();

@@ -7,6 +7,10 @@ export const CONSTELLATION = 'https://constellation.us-east.host.bsky.network';
 export const AUTH_URL = 'https://auth.mino.mobi';
 
 export const CURATOR_HANDLE = 'minomobi.com';
+// Hardcoded because handle resolution for minomobi.com currently returns the
+// placeholder DID baked into /.well-known/atproto-did. This is the production
+// publisher DID used across the repo (workers/feed/wrangler.toml etc).
+export const CURATOR_DID = 'did:plc:oqyev6xmuwgbtpr6jgxh5xg3';
 export const NS = 'com.minomobi.answers';
 export const C = {
   question: `${NS}.question`,
@@ -242,7 +246,7 @@ export async function getBacklinks(target, collection, path, { limit = 50, curso
 let _categoryCache = null;
 export async function fetchCategories() {
   if (_categoryCache) return _categoryCache;
-  const did = await resolveHandle(CURATOR_HANDLE);
+  const did = CURATOR_DID;
   const pds = await resolvePds(did);
   const all = [];
   let cursor = null;
@@ -283,6 +287,107 @@ export async function fetchCategories() {
   sortRec(roots);
   _categoryCache = { roots, byRkey };
   return _categoryCache;
+}
+
+// ─── Handle typeahead (Bluesky search) ───────────────────────────
+
+export async function searchActors(query, limit = 8) {
+  const q = String(query || '').replace(/^@/, '').trim();
+  if (q.length < 2) return [];
+  try {
+    const r = await fetch(
+      `${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=${limit}`
+    );
+    if (!r.ok) return [];
+    const j = await r.json();
+    return j.actors || [];
+  } catch { return []; }
+}
+
+/** Attach a typeahead dropdown to an <input> for Bluesky handles.
+ *  Renders a styled list below the input; click or arrow+enter to select. */
+export function attachHandleTypeahead(input) {
+  if (!input || input.dataset.typeaheadAttached) return;
+  input.dataset.typeaheadAttached = '1';
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('autocapitalize', 'none');
+  input.setAttribute('spellcheck', 'false');
+
+  // Wrap the input so the dropdown can position relative to it.
+  const wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+
+  const dd = document.createElement('div');
+  dd.className = 'typeahead';
+  dd.hidden = true;
+  wrap.appendChild(dd);
+
+  let timer = null;
+  let activeIdx = -1;
+  let lastResults = [];
+
+  function render(results) {
+    lastResults = results;
+    activeIdx = -1;
+    if (!results.length) { dd.hidden = true; return; }
+    dd.innerHTML = results.map((a, i) => {
+      const dn = a.displayName ? `<span class="ta-name">${escapeHtml(a.displayName)}</span>` : '';
+      const av = a.avatar ? `<img class="ta-av" src="${escapeHtml(a.avatar)}" alt="" />` : '<span class="ta-av ta-av-blank"></span>';
+      return `<div class="ta-row" data-i="${i}">${av}<div><div class="ta-handle">@${escapeHtml(a.handle)}</div>${dn}</div></div>`;
+    }).join('');
+    dd.hidden = false;
+    dd.querySelectorAll('.ta-row').forEach((row) => {
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        select(parseInt(row.dataset.i, 10));
+      });
+    });
+  }
+
+  function select(idx) {
+    const a = lastResults[idx];
+    if (!a) return;
+    input.value = a.handle;
+    dd.hidden = true;
+  }
+
+  function highlight(idx) {
+    activeIdx = idx;
+    dd.querySelectorAll('.ta-row').forEach((r, i) => r.classList.toggle('active', i === idx));
+  }
+
+  input.addEventListener('input', () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const results = await searchActors(input.value, 6);
+      render(results);
+    }, 180);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (dd.hidden || !lastResults.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlight((activeIdx + 1) % lastResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlight((activeIdx - 1 + lastResults.length) % lastResults.length);
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      select(activeIdx);
+    } else if (e.key === 'Escape') {
+      dd.hidden = true;
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => { dd.hidden = true; }, 150);
+  });
+  input.addEventListener('focus', () => {
+    if (lastResults.length) dd.hidden = false;
+  });
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────

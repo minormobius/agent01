@@ -216,6 +216,42 @@ label {
 }
 .auth-box input { margin-bottom: 8px; }
 
+/* Handle typeahead */
+.typeahead {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.ta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.ta-row:last-child { border-bottom: none; }
+.ta-row:hover, .ta-row.active { background: var(--accent-soft); }
+.ta-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.ta-av-blank { background: var(--border); display: inline-block; }
+.ta-handle { font-weight: 600; font-size: 14px; }
+.ta-name { color: var(--ink-soft); font-size: 12px; }
+
 .notice {
   background: var(--accent-soft);
   border: 1px solid var(--accent);

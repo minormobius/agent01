@@ -67,7 +67,8 @@
 <script type="module">
 import {
   authInit, authLogin, authLogout, getSession,
-  fetchCategories, listRecords, C, escapeHtml,
+  fetchCategories, listRecords, attachHandleTypeahead,
+  C, escapeHtml,
 } from '/assets/answers.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -156,6 +157,8 @@ $('#search-form').onsubmit = (e) => {
   if (!q) return;
   alert('Search is coming once the indexer is live. For now, browse categories or paste a question AT-URI into /question.html?uri=...');
 };
+
+attachHandleTypeahead($('#handle'));
 
 (async () => {
   const session = await authInit();
