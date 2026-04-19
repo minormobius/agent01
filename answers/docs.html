@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Docs — Answers</title>
+<link rel="stylesheet" href="/assets/answers.css" />
+<style>
+  .toc { position: sticky; top: 72px; font-size: 14px; }
+  .toc a { display: block; padding: 2px 0; color: var(--ink-soft); }
+  .toc a.active, .toc a:hover { color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 200px 1fr; gap: 32px; }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .toc { position: static; } }
+  h2.section { margin-top: 36px; padding-top: 12px; border-top: 1px solid var(--border); }
+  h3 { margin-top: 24px; }
+  code {
+    background: #f3f0ea;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  pre {
+    background: #1a1a1a;
+    color: #e8e6dd;
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; color: var(--ink-soft); background: #f7f5ef; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; }
+  .pill.ghost { background: #f3f0ea; color: var(--ink-soft); }
+  .pill.live { background: #e8f5e9; color: var(--good); }
+  .arch {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 16px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <h1><a href="/">Answers</a></h1>
+  <div class="spacer"></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/ask.html">Ask</a>
+    <a href="/docs.html">Docs</a>
+  </nav>
+</header>
+
+<main>
+
+<div class="layout">
+
+<aside class="toc card">
+  <strong>Contents</strong>
+  <a href="#what">What this is</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#lexicons">Lexicons</a>
+  <a href="#categories">Categories</a>
+  <a href="#auth">Authentication</a>
+  <a href="#discovery">Discovery</a>
+  <a href="#writes">Writes</a>
+  <a href="#workflows">Workflows</a>
+  <a href="#deploy">Deployment</a>
+  <a href="#portability">Portability</a>
+  <a href="#limits">Known limits</a>
+</aside>
+
+<div>
+
+<section class="card">
+  <h1 id="what" style="margin-top:0">What this is</h1>
+  <p><strong>Answers</strong> is a Yahoo Answers-style Q&amp;A site built entirely on <a href="https://atproto.com" target="_blank">ATProto</a>. Every question, answer, comment, and vote is a portable record on the user's own Personal Data Server (PDS). There is no Answers-specific backend database. The site is a static frontend; writes are mediated by a shared OAuth worker; discovery piggybacks on a third-party backlink indexer.</p>
+  <p>The stack in one picture:</p>
+  <div class="arch">answers.mino.mobi (static)
+     ├── OAuth via auth.mino.mobi (shared BFF)
+     ├── Writes → /pds/repo/* proxy (DPoP handled server-side)
+     ├── Public reads → user PDSes directly
+     └── Discovery → constellation.us-east.host.bsky.network</div>
+</section>
+
+<section class="card">
+  <h2 class="section" id="architecture">Architecture</h2>
+  <p>Three things are moving parts here, and nothing else:</p>
+  <ol>
+    <li><strong>The static frontend</strong> at <code>answers/</code> — plain HTML, ES modules, no build step. Deployed to Cloudflare Pages from this branch.</li>
+    <li><strong>The shared OAuth worker</strong> at <code>workers/auth/</code>, hosted at <code>auth.mino.mobi</code>. Not owned by Answers — reused by sweat, music, labglass, and any other <code>*.mino.mobi</code> site that needs an authenticated PDS write path.</li>
+    <li><strong>A publish workflow</strong> (<code>publish-answers-categories.yml</code>) that writes the curated category taxonomy to a canonical ATProto account, where everyone reads it from.</li>
+  </ol>
+  <p>All state is on-chain (ATProto records). There's no "Answers database" — no question table, no user table, no vote count cache. The frontend recomputes totals on each view from records fetched at display time.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="lexicons">Lexicons</h2>
+  <p>Six custom record types, all under NSID <code>com.minomobi.answers.*</code>. Schema files live in <a href="/lexicons/com.minomobi.answers.question.json">answers/lexicons/</a>.</p>
+  <table>
+    <tr><th>Collection</th><th>rkey</th><th>Purpose</th></tr>
+    <tr>
+      <td><code>com.minomobi.answers.question</code></td>
+      <td>TID</td>
+      <td>title, optional body, category strongRef, optional embed</td>
+    </tr>
+    <tr>
+      <td><code>com.minomobi.answers.answer</code></td>
+      <td>TID</td>
+      <td>strongRef to question + text</td>
+    </tr>
+    <tr>
+      <td><code>com.minomobi.answers.comment</code></td>
+      <td>TID</td>
+      <td>strongRef to answer + text. Comments only exist on answers, not questions.</td>
+    </tr>
+    <tr>
+      <td><code>com.minomobi.answers.vote</code></td>
+      <td>deterministic</td>
+      <td>strongRef to subject + <code>direction: 1 | -1</code>. rkey is base32 of SHA-256 of the subject URI, so re-voting rewrites and un-voting deletes.</td>
+    </tr>
+    <tr>
+      <td><code>com.minomobi.answers.bestAnswer</code></td>
+      <td>deterministic</td>
+      <td>strongRefs to the question and the chosen answer. rkey is derived from the question URI, so the asker always has exactly one active pick per question.</td>
+    </tr>
+    <tr>
+      <td><code>com.minomobi.answers.category</code></td>
+      <td>dotted slug</td>
+      <td>name, slug, optional parent strongRef. Only valid when published by the curator. rkey is the dotted-slug path (e.g. <code>health.mental-health</code>).</td>
+    </tr>
+  </table>
+
+  <h3>What's reused, not invented</h3>
+  <ul>
+    <li><strong>Follows</strong> — <code>app.bsky.graph.follow</code> as-is.</li>
+    <li><strong>Profiles / avatars</strong> — <code>app.bsky.actor.profile</code>.</li>
+    <li><strong>Moderation reports</strong> — <code>com.atproto.moderation.createReport</code> (flag UI is paused pending auth-worker proxy support).</li>
+  </ul>
+
+  <h3>What isn't a record at all</h3>
+  <ul>
+    <li><strong>Resolution state</strong> (open / in-voting / resolved). Derived client-side from whether the asker has published a <code>bestAnswer</code> record and how old the question is. No state transition record.</li>
+    <li><strong>Vote tallies, answer counts</strong>. Recomputed from Constellation backlinks at display time.</li>
+    <li><strong>Points, levels, reputation</strong>. Deliberately dropped for MVP to keep it frontend-plus-atproto only. No trusted server means no trusted leaderboard, and that's fine.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2 class="section" id="categories">Categories</h2>
+  <p>Category records are the source of truth for the taxonomy tree. They're published by the curator account (currently <code>minomobi.com</code>, resolved at runtime) and read directly by every client. Structure of a record:</p>
+  <pre><code>{
+  "$type": "com.minomobi.answers.category",
+  "name": "Mental Health",
+  "slug": "mental-health",
+  "description": "...",
+  "parent": {
+    "uri": "at://did:plc:.../com.minomobi.answers.category/health",
+    "cid": "..."
+  },
+  "createdAt": "2026-04-19T..."
+}</code></pre>
+  <p>rkey is the full dotted path of slugs (e.g. <code>health.mental-health</code>), making every category globally addressable and making the publish script idempotent.</p>
+  <p>Source of truth: <code>answers/categories.json</code>. Change it, push, and the workflow republishes.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="auth">Authentication</h2>
+  <p>Answers does not implement OAuth itself. It uses the shared <strong>mino-auth</strong> worker at <code>auth.mino.mobi</code>, same pattern as sweat, music, and others.</p>
+  <ol>
+    <li>User enters their handle and clicks <em>Continue</em>.</li>
+    <li>Frontend <code>POST</code>s <code>auth.mino.mobi/oauth/start</code> with <code>{ handle, origin, returnTo }</code>.</li>
+    <li>Auth worker does the ATProto PKCE / DPoP / PAR dance against the user's PDS, then redirects to Bluesky for authorization.</li>
+    <li>Bluesky redirects to <code>auth.mino.mobi/oauth/callback</code>, which hands back a session token by redirecting the user to their <code>returnTo</code> URL with <code>?__auth_session=&lt;token&gt;</code> appended.</li>
+    <li>On page load, <code>authInit()</code> reads that query param, stores the token in <code>localStorage</code>, hits <code>/api/me</code> for <code>{ did, handle, scope }</code>, resolves the user's PDS once, and caches everything.</li>
+  </ol>
+  <p>All write requests then go to <code>auth.mino.mobi/pds/repo/*</code> with a bearer token. The worker attaches DPoP proofs (with nonce handling), forwards to the user's PDS, and returns the response. The frontend never touches DPoP keys.</p>
+  <p>Public reads still hit the user's PDS (or other users' PDSes) directly with no auth — no reason to round-trip through the worker for records that are public ATProto data.</p>
+  <p>Sign-out calls <code>/api/logout</code> to invalidate the token server-side, then clears <code>localStorage</code>.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="discovery">Discovery</h2>
+  <p>Answers live on the <em>answerer's</em> PDS, not the asker's. Without an indexer, there's a chicken-and-egg problem: how does the question page find all its answers?</p>
+  <p>Solution: <a href="https://constellation.microcosm.blue" target="_blank">Constellation</a>, a relay that indexes strongRefs across the entire AT firehose. The question page queries:</p>
+  <pre><code>GET constellation.us-east.host.bsky.network/links
+  ?target=&lt;question-uri&gt;
+  &amp;collection=com.minomobi.answers.answer
+  &amp;path=.question.uri</code></pre>
+  <p>…and gets back every answer record anywhere on ATProto whose <code>question.uri</code> field points at that question. Same pattern finds comments (on answers) and votes (on anything).</p>
+  <p>Fallback: if Constellation hasn't indexed yet, the frontend also calls <code>listRecords</code> on the signed-in user's own PDS and filters locally. That way you always see your own writes immediately, even during the indexer lag.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="writes">Writes</h2>
+  <p>Every write routes through the auth worker's proxy:</p>
+  <table>
+    <tr><th>Action</th><th>Proxy endpoint</th><th>XRPC method</th></tr>
+    <tr><td>Ask question</td><td><code>POST /pds/repo/createRecord</code></td><td><code>com.atproto.repo.createRecord</code></td></tr>
+    <tr><td>Answer</td><td><code>POST /pds/repo/createRecord</code></td><td><code>com.atproto.repo.createRecord</code></td></tr>
+    <tr><td>Comment</td><td><code>POST /pds/repo/createRecord</code></td><td><code>com.atproto.repo.createRecord</code></td></tr>
+    <tr><td>Vote ▲ / ▼</td><td><code>POST /pds/repo/putRecord</code></td><td><code>com.atproto.repo.putRecord</code></td></tr>
+    <tr><td>Un-vote (toggle off)</td><td><code>POST /pds/repo/deleteRecord</code></td><td><code>com.atproto.repo.deleteRecord</code></td></tr>
+    <tr><td>Mark best answer</td><td><code>POST /pds/repo/putRecord</code></td><td><code>com.atproto.repo.putRecord</code></td></tr>
+  </table>
+  <p>Vote and bestAnswer use <code>putRecord</code> with a deterministic rkey (hash of the subject / question URI), so toggling and changing picks is idempotent: the same rkey either rewrites or gets deleted.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="workflows">GitHub Actions</h2>
+  <table>
+    <tr><th>Workflow</th><th>Trigger</th><th>Effect</th></tr>
+    <tr>
+      <td><code>publish-answers-categories.yml</code></td>
+      <td>Push to <code>answers/categories.json</code>, the category lexicon, the publisher script, or the workflow itself. Also manual dispatch.</td>
+      <td>Runs <code>scripts/publish-answers-categories.py</code> which authenticates as the curator and writes one <code>com.minomobi.answers.category</code> record per node. Supports <code>--dry-run</code> and <code>--prune</code>.</td>
+    </tr>
+    <tr>
+      <td><code>deploy-auth.yml</code> <span class="pill ghost">shared</span></td>
+      <td>Push to <code>workers/auth/**</code> on <code>main</code>. Not triggered from this branch.</td>
+      <td>Deploys the shared OAuth worker at <code>auth.mino.mobi</code>. Any change we need for Answers (e.g. adding a <code>moderation/createReport</code> proxy route for flags) goes through <code>main</code>.</td>
+    </tr>
+  </table>
+  <p>The publisher script is deliberately simple: flatten the taxonomy depth-first, write parents first so children can embed parent strongRefs, use the dotted slug path as rkey. Re-running is a no-op; editing <code>categories.json</code> and pushing is the only way to change the tree.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="deploy">Deployment</h2>
+  <p><span class="pill live">LIVE</span> This branch, <code>claude/yahoo-answers-atproto-brainstorm-B6vUR</code>, is wired to auto-deploy <code>answers/</code> to Cloudflare Pages on every push. No dry-run branch, no staging. Every push ships.</p>
+  <table>
+    <tr><th>Component</th><th>Where</th></tr>
+    <tr><td>Frontend</td><td><code>answers/</code> → Cloudflare Pages project <code>mino-answers</code></td></tr>
+    <tr><td>Lexicons</td><td><code>answers/lexicons/*.json</code> — served as static JSON alongside the site</td></tr>
+    <tr><td>Taxonomy</td><td><code>answers/categories.json</code> — source of truth for the category workflow</td></tr>
+    <tr><td>Publisher</td><td><code>scripts/publish-answers-categories.py</code></td></tr>
+    <tr><td>Workflow</td><td><code>.github/workflows/publish-answers-categories.yml</code></td></tr>
+    <tr><td>Auth</td><td>Shared <code>workers/auth/</code> at <code>auth.mino.mobi</code> — no Answers-specific config; wildcard allowlist covers <code>*.mino.mobi</code>.</td></tr>
+  </table>
+  <p>The entry in <code>CLAUDE.md</code> under <em>Hosting</em> calls this out as a live-deploy branch so future sessions don't accidentally ship broken pushes.</p>
+</section>
+
+<section class="card">
+  <h2 class="section" id="portability">Portability</h2>
+  <p>Because everything is an ATProto record on the user's own PDS:</p>
+  <ul>
+    <li><strong>Your writes follow you.</strong> If you stop using Answers, your questions and answers remain in your PDS. Any other client that understands the lexicons can render them.</li>
+    <li><strong>The site can disappear.</strong> <code>answers.mino.mobi</code> going down doesn't delete anything. Records are still fetchable, and a new frontend with the same lexicons would work against the same data.</li>
+    <li><strong>Account migration works.</strong> If a user moves PDSes, their records move with them — ATProto handles that at the protocol layer.</li>
+    <li><strong>There's no "signup."</strong> If you have a Bluesky account, you already have a place to store questions and answers.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2 class="section" id="limits">Known limits (MVP)</h2>
+  <ul>
+    <li><strong>Search is stubbed.</strong> No full-text index yet. Browsing is by category + direct AT-URI links; the search bar currently pops an alert.</li>
+    <li><strong>No global "recent questions" feed.</strong> Discovery of others' questions requires an indexer we haven't built. The homepage shows <em>your</em> questions; shared question URLs let others answer.</li>
+    <li><strong>Flags are paused.</strong> UI removed until the shared auth worker proxies <code>com.atproto.moderation.createReport</code>.</li>
+    <li><strong>Constellation lag.</strong> Freshly posted answers/comments may take a moment to show up for non-authors while the relay indexes them. Local fallback covers authors' own views.</li>
+    <li><strong>No OAuth scope display.</strong> The site requests whatever scopes the auth worker asks for; we don't surface them yet.</li>
+  </ul>
+</section>
+
+</div><!-- end layout body -->
+
+</div><!-- end layout -->
+
+</main>
+
+<footer>
+  <a href="/lexicons/com.minomobi.answers.question.json">lexicons</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/minormobius/agent01/tree/claude/yahoo-answers-atproto-brainstorm-B6vUR/answers">source</a>
+</footer>
+
+<script>
+// Highlight current TOC entry while scrolling
+const links = document.querySelectorAll('.toc a');
+const targets = Array.from(links).map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+function onScroll() {
+  const y = window.scrollY + 120;
+  let active = targets[0];
+  for (const t of targets) { if (t.offsetTop <= y) active = t; }
+  links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${active.id}`));
+}
+document.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+</script>
+
+</body>
+</html>

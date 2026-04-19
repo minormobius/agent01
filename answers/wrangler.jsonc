@@ -2,5 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mino-answers",
   "compatibility_date": "2026-02-20",
-  "pages_build_output_dir": "./"
+  "assets": {
+    "directory": "."
+  }
 }
