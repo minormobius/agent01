@@ -1,9 +1,10 @@
-// Inline PDS client, session management, and Answers helpers.
-// No dependencies, pure fetch + WebCrypto.
+// Answers client: OAuth via shared auth.mino.mobi worker, PDS writes via its proxy,
+// public reads direct against PDS + Constellation.
 
 export const PUBLIC_API = 'https://public.api.bsky.app';
 export const PLC = 'https://plc.directory';
 export const CONSTELLATION = 'https://constellation.us-east.host.bsky.network';
+export const AUTH_URL = 'https://auth.mino.mobi';
 
 export const CURATOR_HANDLE = 'minomobi.com';
 export const NS = 'com.minomobi.answers';
@@ -17,6 +18,7 @@ export const C = {
 };
 
 const SESSION_KEY = 'answers.session';
+const TOKEN_QS = '__auth_session';
 
 // ─── Identity ────────────────────────────────────────────────────
 
@@ -53,14 +55,10 @@ export function generateTid() {
   return ((now << 10n) | clock).toString(36).padStart(13, '0');
 }
 
-// Deterministic rkey derived from a subject AT-URI. Used for vote + bestAnswer
-// so that re-submitting is idempotent (putRecord rewrites, delete removes).
 export async function deriveRkey(uri) {
   const bytes = new TextEncoder().encode(uri);
   const hash = await crypto.subtle.digest('SHA-256', bytes);
-  // Base32 first 13 bytes, lowercase, strip padding — valid ATProto rkey.
-  const b32 = base32Encode(new Uint8Array(hash).slice(0, 10));
-  return b32.toLowerCase().replace(/=+$/, '');
+  return base32Encode(new Uint8Array(hash).slice(0, 10)).toLowerCase().replace(/=+$/, '');
 }
 
 function base32Encode(bytes) {
@@ -78,79 +76,125 @@ function base32Encode(bytes) {
   return out;
 }
 
-// ─── PDS client ──────────────────────────────────────────────────
+// ─── OAuth session (via auth.mino.mobi) ──────────────────────────
 
-export class PdsClient {
-  constructor(pds, did = null, accessJwt = null, refreshJwt = null) {
-    this.pds = pds;
-    this.did = did;
-    this.accessJwt = accessJwt;
-    this.refreshJwt = refreshJwt;
-  }
-
-  async login(identifier, password) {
-    const r = await fetch(`${this.pds}/xrpc/com.atproto.server.createSession`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password }),
-    });
-    if (!r.ok) throw new Error(`Login failed: ${await r.text()}`);
-    const s = await r.json();
-    this.did = s.did;
-    this.accessJwt = s.accessJwt;
-    this.refreshJwt = s.refreshJwt;
-    return { did: s.did, handle: s.handle };
-  }
-
-  _auth() {
-    if (!this.accessJwt) throw new Error('Not authenticated');
-    return { Authorization: `Bearer ${this.accessJwt}` };
-  }
-
-  async putRecord(collection, rkey, record) {
-    const body = {
-      repo: this.did,
-      collection,
-      rkey,
-      record: { $type: collection, ...record },
-    };
-    const r = await fetch(`${this.pds}/xrpc/com.atproto.repo.putRecord`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this._auth() },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(`putRecord failed: ${await r.text()}`);
-    return r.json();
-  }
-
-  async createRecord(collection, record, rkey = null) {
-    const body = {
-      repo: this.did,
-      collection,
-      record: { $type: collection, ...record },
-    };
-    if (rkey) body.rkey = rkey;
-    const r = await fetch(`${this.pds}/xrpc/com.atproto.repo.createRecord`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this._auth() },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(`createRecord failed: ${await r.text()}`);
-    return r.json();
-  }
-
-  async deleteRecord(collection, rkey) {
-    const r = await fetch(`${this.pds}/xrpc/com.atproto.repo.deleteRecord`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this._auth() },
-      body: JSON.stringify({ repo: this.did, collection, rkey }),
-    });
-    if (!r.ok) throw new Error(`deleteRecord failed: ${await r.text()}`);
-    return r.json();
-  }
+export function getToken() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')?.token || null; }
+  catch { return null; }
 }
 
-// ─── Public reads (no auth needed) ───────────────────────────────
+export function getSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function saveSession(s) {
+  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESSION_KEY);
+}
+
+/** Consume ?__auth_session= from the URL, hydrate /api/me, cache session. Call once on page load. */
+export async function authInit() {
+  const url = new URL(location.href);
+  const fresh = url.searchParams.get(TOKEN_QS);
+  if (fresh) {
+    url.searchParams.delete(TOKEN_QS);
+    history.replaceState({}, '', url);
+    saveSession({ token: fresh });
+  }
+  const existing = getSession();
+  if (!existing?.token) return null;
+
+  // Hydrate identity from /api/me and resolve PDS once per session.
+  if (!existing.did || !existing.pds) {
+    try {
+      const r = await fetch(`${AUTH_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${existing.token}` },
+      });
+      if (!r.ok) { saveSession(null); return null; }
+      const me = await r.json();
+      const pds = await resolvePds(me.did).catch(() => null);
+      const merged = { token: existing.token, did: me.did, handle: me.handle, scope: me.scope, pds };
+      saveSession(merged);
+      return merged;
+    } catch {
+      saveSession(null);
+      return null;
+    }
+  }
+  return existing;
+}
+
+export async function authLogin(handle) {
+  const clean = String(handle || '').replace(/^@/, '').trim();
+  if (!clean) throw new Error('Handle required');
+  const r = await fetch(`${AUTH_URL}/oauth/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ handle: clean, origin: location.origin, returnTo: location.href }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || `Login failed (${r.status})`);
+  }
+  const { authUrl } = await r.json();
+  location.href = authUrl;
+}
+
+export async function authLogout() {
+  const t = getToken();
+  if (t) {
+    try { await fetch(`${AUTH_URL}/api/logout`, { method: 'POST', headers: { Authorization: `Bearer ${t}` } }); }
+    catch {}
+  }
+  saveSession(null);
+}
+
+// ─── Proxied PDS writes (DPoP handled server-side) ───────────────
+
+async function pdsProxy(path, opts = {}) {
+  const t = getToken();
+  if (!t) throw new Error('Not signed in');
+  const headers = { Authorization: `Bearer ${t}`, ...(opts.headers || {}) };
+  const r = await fetch(`${AUTH_URL}${path}`, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body,
+  });
+  if (r.status === 401) { saveSession(null); throw new Error('Session expired — sign in again'); }
+  return r;
+}
+
+async function pdsProxyJson(path, payload) {
+  const r = await pdsProxy(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || err.error || `Request failed (${r.status})`);
+  }
+  return r.json();
+}
+
+export async function pdsCreateRecord(collection, record, rkey) {
+  const payload = { collection, record: { $type: collection, ...record } };
+  if (rkey) payload.rkey = rkey;
+  return pdsProxyJson('/pds/repo/createRecord', payload);
+}
+
+export async function pdsPutRecord(collection, rkey, record) {
+  return pdsProxyJson('/pds/repo/putRecord', {
+    collection, rkey, record: { $type: collection, ...record },
+  });
+}
+
+export async function pdsDeleteRecord(collection, rkey) {
+  return pdsProxyJson('/pds/repo/deleteRecord', { collection, rkey });
+}
+
+// ─── Public reads ────────────────────────────────────────────────
 
 export async function getRecord(pds, repo, collection, rkey) {
   const params = new URLSearchParams({ repo, collection, rkey });
@@ -168,7 +212,6 @@ export async function listRecords(pds, repo, collection, { limit = 50, cursor = 
 }
 
 export async function resolveAtUri(uri) {
-  // at://did-or-handle/collection/rkey  →  { repo, collection, rkey }
   const m = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
   if (!m) throw new Error(`Invalid AT-URI: ${uri}`);
   let [, repo, collection, rkey] = m;
@@ -183,10 +226,7 @@ export async function fetchByAtUri(uri) {
   return { ...rec, did, pds };
 }
 
-// ─── Constellation backlinks (discovery) ─────────────────────────
-// Returns records of `collection` whose `path` (e.g. ".question.uri")
-// points at the given subject URI. Used to find answers to a question,
-// comments on an answer, and votes/bestAnswer on anything.
+// ─── Constellation backlinks ─────────────────────────────────────
 
 export async function getBacklinks(target, collection, path, { limit = 50, cursor = null } = {}) {
   const params = new URLSearchParams({ target, collection, path, limit: String(limit) });
@@ -197,39 +237,7 @@ export async function getBacklinks(target, collection, path, { limit = 50, curso
   return { linking_records: j.linking_records || [], cursor: j.cursor || null };
 }
 
-// ─── Session storage ─────────────────────────────────────────────
-
-export function saveSession(s) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-}
-export function loadSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
-  catch { return null; }
-}
-export function clearSession() { localStorage.removeItem(SESSION_KEY); }
-
-export async function restoreClient() {
-  const s = loadSession();
-  if (!s) return null;
-  return new PdsClient(s.pds, s.did, s.accessJwt, s.refreshJwt);
-}
-
-export async function loginAndStore(handle, password) {
-  const did = await resolveHandle(handle);
-  const pds = await resolvePds(did);
-  const c = new PdsClient(pds);
-  const { did: d, handle: h } = await c.login(handle, password);
-  saveSession({
-    did: d,
-    handle: h || handle,
-    pds,
-    accessJwt: c.accessJwt,
-    refreshJwt: c.refreshJwt,
-  });
-  return c;
-}
-
-// ─── Category tree (curator account) ─────────────────────────────
+// ─── Category tree (from curator account) ────────────────────────
 
 let _categoryCache = null;
 export async function fetchCategories() {
@@ -244,7 +252,6 @@ export async function fetchCategories() {
     cursor = page.cursor;
   } while (cursor);
 
-  // Build a tree keyed by rkey (dotted slug)
   const byRkey = {};
   for (const r of all) {
     const rkey = r.uri.split('/').pop();
@@ -274,19 +281,14 @@ export async function fetchCategories() {
     nodes.forEach((n) => sortRec(n.children));
   };
   sortRec(roots);
-  _categoryCache = { roots, byRkey, byUri: Object.fromEntries(all.map((r) => [r.uri, byRkey[r.uri.split('/').pop()]])) };
+  _categoryCache = { roots, byRkey };
   return _categoryCache;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-export function nowIso() {
-  return new Date().toISOString();
-}
-
-export function strongRef(record) {
-  return { uri: record.uri, cid: record.cid };
-}
+export function nowIso() { return new Date().toISOString(); }
+export function strongRef(record) { return { uri: record.uri, cid: record.cid }; }
 
 export function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => ({

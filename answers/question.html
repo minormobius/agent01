@@ -43,11 +43,9 @@
   <form id="login-form">
     <label for="handle">Handle</label>
     <input type="text" id="handle" placeholder="alice.bsky.social" required />
-    <label for="password">App password</label>
-    <input type="password" id="password" placeholder="xxxx-xxxx-xxxx-xxxx" required />
     <div id="login-error" class="error" hidden></div>
     <div style="margin-top:12px">
-      <button type="submit">Sign in</button>
+      <button type="submit">Continue</button>
       <button type="button" class="secondary" id="login-cancel">Cancel</button>
     </div>
   </form>
@@ -64,9 +62,11 @@
 
 <script type="module">
 import {
-  fetchByAtUri, getBacklinks, resolvePds, getRecord, listRecords, resolveHandle,
-  loadSession, loginAndStore, clearSession, restoreClient,
-  generateTid, deriveRkey, nowIso, strongRef, escapeHtml, linkify, timeAgo,
+  authInit, authLogin, authLogout, getSession,
+  pdsCreateRecord, pdsPutRecord, pdsDeleteRecord,
+  fetchByAtUri, getBacklinks, getRecord, listRecords,
+  generateTid, deriveRkey, nowIso, strongRef,
+  escapeHtml, linkify, timeAgo,
   C, PUBLIC_API,
 } from '/assets/answers.js';
 
@@ -75,14 +75,13 @@ const params = new URLSearchParams(location.search);
 const qUri = params.get('uri');
 
 let state = {
-  question: null,         // { uri, cid, did, pds, value }
-  asker: null,            // { did, handle }
-  bestAnswerRecord: null, // { uri, answerUri }
-  answers: [],            // [{ uri, cid, did, value, votes: {up, down, mine}, comments: [...] }]
-  myVotes: {},            // { targetUri: {direction, rkey} }
+  question: null,
+  asker: null,
+  bestAnswerRecord: null,
+  answers: [],
+  myVotes: {},
 };
 
-// ─── Profile lookup cache ───
 const _profileCache = {};
 async function getProfile(did) {
   if (_profileCache[did]) return _profileCache[did];
@@ -98,13 +97,11 @@ async function getProfile(did) {
   return _profileCache[did];
 }
 
-// ─── Auth UI ───
-function renderNav() {
-  const s = loadSession();
+function renderNav(session) {
   const el = $('#nav-auth');
-  if (s) {
-    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(s.handle)}</span> <a href="#" id="logout">Sign out</a>`;
-    $('#logout').onclick = (e) => { e.preventDefault(); clearSession(); location.reload(); };
+  if (session?.did) {
+    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(session.handle)}</span> <a href="#" id="logout">Sign out</a>`;
+    $('#logout').onclick = async (e) => { e.preventDefault(); await authLogout(); location.reload(); };
   } else {
     el.innerHTML = '';
   }
@@ -116,15 +113,13 @@ $('#login-form').onsubmit = async (e) => {
   e.preventDefault();
   $('#login-error').hidden = true;
   try {
-    await loginAndStore($('#handle').value.trim(), $('#password').value);
-    location.reload();
+    await authLogin($('#handle').value);
   } catch (err) {
     $('#login-error').textContent = err.message || 'Login failed';
     $('#login-error').hidden = false;
   }
 };
 
-// ─── Render question ───
 async function loadQuestion() {
   if (!qUri) {
     $('#q-wrap').innerHTML = '<p class="error">No question URI in this URL. Expected ?uri=at://…</p>';
@@ -144,11 +139,8 @@ async function loadQuestion() {
       <div class="q-meta">
         ${cat}
         <span class="muted">asked by <a href="https://bsky.app/profile/${state.asker.handle}" target="_blank">@${escapeHtml(state.asker.handle)}</a> · ${when}</span>
-        <span class="spacer" style="flex:1"></span>
-        <button class="ghost" id="flag-btn">⚑ flag</button>
       </div>
     `;
-    $('#flag-btn').onclick = flagQuestion;
     return rec;
   } catch (err) {
     $('#q-wrap').innerHTML = `<p class="error">Could not load question: ${escapeHtml(err.message)}</p>`;
@@ -156,49 +148,10 @@ async function loadQuestion() {
   }
 }
 
-// ─── Flag (moderation report) ───
-async function flagQuestion() {
-  const client = await restoreClient();
-  if (!client) { alert('Sign in to flag.'); return; }
-  const reason = prompt('Reason for flag (sent as a moderation report):');
-  if (!reason) return;
-  try {
-    await client.createRecord('com.atproto.moderation.createReport', {
-      reasonType: 'com.atproto.moderation.defs#reasonOther',
-      reason,
-      subject: {
-        $type: 'com.atproto.repo.strongRef',
-        uri: state.question.uri,
-        cid: state.question.cid,
-      },
-    });
-    alert('Flag recorded. Thanks.');
-  } catch (err) {
-    // moderation.createReport uses its own XRPC endpoint, not createRecord. Retry.
-    try {
-      const r = await fetch(`${client.pds}/xrpc/com.atproto.moderation.createReport`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${client.accessJwt}` },
-        body: JSON.stringify({
-          reasonType: 'com.atproto.moderation.defs#reasonOther',
-          reason,
-          subject: { $type: 'com.atproto.repo.strongRef', uri: state.question.uri, cid: state.question.cid },
-        }),
-      });
-      if (!r.ok) throw new Error(await r.text());
-      alert('Flag recorded. Thanks.');
-    } catch (err2) {
-      alert('Flag failed: ' + err2.message);
-    }
-  }
-}
-
-// ─── Load answers (Constellation + own) ───
 async function loadAnswers() {
   const list = [];
   const seen = new Set();
 
-  // 1. Constellation backlinks: answers whose .question points at this URI
   try {
     const bl = await getBacklinks(state.question.uri, C.answer, '.question.uri', { limit: 100 });
     for (const r of (bl.linking_records || [])) {
@@ -208,9 +161,8 @@ async function loadAnswers() {
     }
   } catch {}
 
-  // 2. Your own answers from your PDS (so you always see your own write)
-  const sess = loadSession();
-  if (sess) {
+  const sess = getSession();
+  if (sess?.pds && sess?.did) {
     try {
       const page = await listRecords(sess.pds, sess.did, C.answer, { limit: 50 });
       for (const r of (page.records || [])) {
@@ -222,44 +174,31 @@ async function loadAnswers() {
     } catch {}
   }
 
-  // Hydrate each answer (resolve author, fetch value if missing)
   const hydrated = [];
   for (const r of list) {
     try {
       const did = r.uri.split('/')[2];
       const profile = await getProfile(did);
-      hydrated.push({
-        uri: r.uri,
-        cid: r.cid,
-        did,
-        profile,
-        value: r.value,
-      });
+      hydrated.push({ uri: r.uri, cid: r.cid, did, profile, value: r.value });
     } catch {}
   }
-  // Sort newest first (best-answer placement handled at render time)
   hydrated.sort((a, b) => (b.value.createdAt || '').localeCompare(a.value.createdAt || ''));
   state.answers = hydrated;
 }
 
-// ─── Load asker's best-answer choice (if any) ───
 async function loadBestAnswer() {
-  // Best-answer rkey is deterministic from the question URI, published by the asker.
   try {
     const rkey = await deriveRkey(state.question.uri);
     const r = await getRecord(state.question.pds, state.question.did, C.bestAnswer, rkey);
     if (r?.value?.question?.uri === state.question.uri) {
       state.bestAnswerRecord = { uri: r.uri, cid: r.cid, answerUri: r.value.answer.uri };
     }
-  } catch {
-    // No best-answer yet — ignore
-  }
+  } catch {}
 }
 
-// ─── Load my votes on visible answers ───
 async function loadMyVotes() {
-  const sess = loadSession();
-  if (!sess) return;
+  const sess = getSession();
+  if (!sess?.pds || !sess?.did) return;
   try {
     const page = await listRecords(sess.pds, sess.did, C.vote, { limit: 100 });
     for (const r of (page.records || [])) {
@@ -271,7 +210,6 @@ async function loadMyVotes() {
   } catch {}
 }
 
-// ─── Vote counts per answer via Constellation ───
 async function countVotes(uri) {
   try {
     const bl = await getBacklinks(uri, C.vote, '.subject.uri', { limit: 200 });
@@ -281,12 +219,14 @@ async function countVotes(uri) {
       else if (r.value?.direction === -1) down++;
     }
     return { up, down };
-  } catch {
-    return { up: 0, down: 0 };
-  }
+  } catch { return { up: 0, down: 0 }; }
 }
 
-// ─── Render answers ───
+function canMarkBest() {
+  const sess = getSession();
+  return sess?.did && state.question && sess.did === state.question.did;
+}
+
 async function renderAnswers() {
   const wrap = $('#answers-list');
   if (!state.answers.length) {
@@ -296,13 +236,9 @@ async function renderAnswers() {
   }
 
   $('#answers-count').textContent = `(${state.answers.length})`;
-
-  // Pull best answer to top
   const bestUri = state.bestAnswerRecord?.answerUri;
   const ordered = [...state.answers];
-  if (bestUri) {
-    ordered.sort((a, b) => (a.uri === bestUri ? -1 : b.uri === bestUri ? 1 : 0));
-  }
+  if (bestUri) ordered.sort((a, b) => (a.uri === bestUri ? -1 : b.uri === bestUri ? 1 : 0));
 
   wrap.innerHTML = ordered.map((a) => {
     const isBest = a.uri === bestUri;
@@ -320,7 +256,6 @@ async function renderAnswers() {
           <button class="vote-btn ${mine === 1 ? 'active-up' : ''}" data-vote="1">▲ <span class="up-count">…</span></button>
           <button class="vote-btn ${mine === -1 ? 'active-down' : ''}" data-vote="-1">▼ <span class="down-count">…</span></button>
           <button class="ghost" data-act="comment">reply</button>
-          <button class="ghost" data-act="flag">⚑</button>
           ${canMarkBest() ? `<button class="ghost" data-act="best" ${isBest ? 'disabled' : ''}>${isBest ? '★ best answer' : 'mark best'}</button>` : ''}
         </div>
         <div class="comments" data-role="comments"></div>
@@ -332,7 +267,6 @@ async function renderAnswers() {
     `;
   }).join('');
 
-  // Wire handlers + counts per answer
   for (const article of wrap.querySelectorAll('.answer')) {
     const uri = article.dataset.uri;
     const a = state.answers.find((x) => x.uri === uri);
@@ -346,7 +280,6 @@ async function renderAnswers() {
     article.querySelector('[data-act="comment"]').onclick = () => {
       article.querySelector('.comment-form').hidden = false;
     };
-    article.querySelector('[data-act="flag"]').onclick = () => flagAnswer(uri, a.cid);
     const bestBtn = article.querySelector('[data-act="best"]');
     if (bestBtn) bestBtn.onclick = () => markBest(a);
     article.querySelector('.comment-form').onsubmit = (e) => handleComment(e, a);
@@ -354,33 +287,25 @@ async function renderAnswers() {
   }
 }
 
-function canMarkBest() {
-  const sess = loadSession();
-  return sess && state.question && sess.did === state.question.did;
-}
-
-// ─── Post answer ───
 function refreshAnswerForm() {
-  const s = loadSession();
-  $('#answer-gate').hidden = !!s;
-  $('#answer-form').hidden = !s;
+  const s = getSession();
+  $('#answer-gate').hidden = !!s?.did;
+  $('#answer-form').hidden = !s?.did;
 }
 
 $('#answer-form').onsubmit = async (e) => {
   e.preventDefault();
   $('#answer-error').hidden = true;
-  const client = await restoreClient();
-  if (!client) { $('#signin-link').click(); return; }
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
   const text = $('#answer-text').value.trim();
   if (!text) return;
   try {
-    const record = {
+    await pdsCreateRecord(C.answer, {
       question: strongRef(state.question),
       text,
       createdAt: nowIso(),
-    };
-    const rkey = generateTid();
-    await client.putRecord(C.answer, rkey, record);
+    });
     $('#answer-text').value = '';
     await loadAnswers();
     await renderAnswers();
@@ -390,20 +315,18 @@ $('#answer-form').onsubmit = async (e) => {
   }
 };
 
-// ─── Vote toggle ───
 async function handleVote(answerUri, dir) {
-  const client = await restoreClient();
-  if (!client) { $('#signin-link').click(); return; }
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
   const existing = state.myVotes[answerUri];
   const rkey = await deriveRkey(answerUri);
   try {
     if (existing && existing.direction === dir) {
-      // Toggle off
-      await client.deleteRecord(C.vote, rkey);
+      await pdsDeleteRecord(C.vote, rkey);
       delete state.myVotes[answerUri];
     } else {
       const answer = state.answers.find((a) => a.uri === answerUri);
-      await client.putRecord(C.vote, rkey, {
+      await pdsPutRecord(C.vote, rkey, {
         subject: { uri: answerUri, cid: answer.cid },
         direction: dir,
         createdAt: nowIso(),
@@ -416,14 +339,11 @@ async function handleVote(answerUri, dir) {
   }
 }
 
-// ─── Mark best answer (asker only) ───
 async function markBest(answer) {
   if (!canMarkBest()) return;
-  const client = await restoreClient();
-  if (!client) return;
   const rkey = await deriveRkey(state.question.uri);
   try {
-    await client.putRecord(C.bestAnswer, rkey, {
+    await pdsPutRecord(C.bestAnswer, rkey, {
       question: strongRef(state.question),
       answer: { uri: answer.uri, cid: answer.cid },
       createdAt: nowIso(),
@@ -435,7 +355,6 @@ async function markBest(answer) {
   }
 }
 
-// ─── Comments ───
 async function loadComments(answer, target) {
   try {
     const bl = await getBacklinks(answer.uri, C.comment, '.answer.uri', { limit: 50 });
@@ -458,13 +377,13 @@ async function loadComments(answer, target) {
 
 async function handleComment(e, answer) {
   e.preventDefault();
-  const client = await restoreClient();
-  if (!client) { $('#signin-link').click(); return; }
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
   const form = e.target;
   const text = form.querySelector('textarea').value.trim();
   if (!text) return;
   try {
-    await client.putRecord(C.comment, generateTid(), {
+    await pdsCreateRecord(C.comment, {
       answer: { uri: answer.uri, cid: answer.cid },
       text,
       createdAt: nowIso(),
@@ -478,32 +397,9 @@ async function handleComment(e, answer) {
   }
 }
 
-// ─── Flag an answer ───
-async function flagAnswer(uri, cid) {
-  const client = await restoreClient();
-  if (!client) { $('#signin-link').click(); return; }
-  const reason = prompt('Reason for flag:');
-  if (!reason) return;
-  try {
-    const r = await fetch(`${client.pds}/xrpc/com.atproto.moderation.createReport`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${client.accessJwt}` },
-      body: JSON.stringify({
-        reasonType: 'com.atproto.moderation.defs#reasonOther',
-        reason,
-        subject: { $type: 'com.atproto.repo.strongRef', uri, cid },
-      }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    alert('Flag recorded.');
-  } catch (err) {
-    alert('Flag failed: ' + err.message);
-  }
-}
-
-// ─── Boot ───
 (async () => {
-  renderNav();
+  const session = await authInit();
+  renderNav(session);
   refreshAnswerForm();
   $('#actions').hidden = false;
   const q = await loadQuestion();

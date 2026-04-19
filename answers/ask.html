@@ -18,14 +18,12 @@
 
 <section id="gate" class="card" hidden>
   <h2 style="margin-top:0">Sign in to ask</h2>
-  <p class="muted">Questions are published as ATProto records on your own PDS. We need your Bluesky app password to post on your behalf.</p>
+  <p class="muted">Questions are published as ATProto records on your own PDS. Sign in with Bluesky to continue.</p>
   <form id="login-form" class="auth-box">
     <label for="handle">Handle</label>
     <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="username" required />
-    <label for="password">App password</label>
-    <input type="password" id="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="current-password" required />
     <div id="login-error" class="error" hidden></div>
-    <div style="margin-top:12px"><button type="submit">Sign in</button></div>
+    <div style="margin-top:12px"><button type="submit">Continue</button></div>
   </form>
 </section>
 
@@ -56,8 +54,8 @@
 
 <script type="module">
 import {
-  loadSession, loginAndStore, restoreClient,
-  fetchCategories, generateTid, nowIso, C, escapeHtml,
+  authInit, authLogin,
+  fetchCategories, pdsCreateRecord, nowIso, C, escapeHtml,
 } from '/assets/answers.js';
 
 const $ = (s) => document.querySelector(s);
@@ -69,8 +67,7 @@ $('#login-form').onsubmit = async (e) => {
   e.preventDefault();
   $('#login-error').hidden = true;
   try {
-    await loginAndStore($('#handle').value.trim(), $('#password').value);
-    await boot();
+    await authLogin($('#handle').value);
   } catch (err) {
     $('#login-error').textContent = err.message || 'Login failed';
     $('#login-error').hidden = false;
@@ -93,7 +90,6 @@ async function populateCategories() {
     }
   };
   walk(roots, 0);
-  // Preselect from ?category=slug
   const preset = new URLSearchParams(location.search).get('category');
   if (preset && byRkey[preset]) sel.value = byRkey[preset].uri;
 }
@@ -118,22 +114,18 @@ $('#ask-form').onsubmit = async (e) => {
   }
 
   try {
-    const client = await restoreClient();
-    if (!client) throw new Error('Not signed in');
     const record = {
       title,
       category: { uri: catOpt.value, cid: catOpt.dataset.cid },
       createdAt: nowIso(),
     };
     if (body) record.body = body;
-
-    const rkey = generateTid();
-    const res = await client.putRecord(C.question, rkey, record);
+    const res = await pdsCreateRecord(C.question, record);
     const uri = encodeURIComponent(res.uri);
     $('#ask-success').innerHTML = `Published! <a href="/question.html?uri=${uri}">View your question →</a>`;
     $('#ask-success').hidden = false;
     $('#ask-form').reset();
-    await populateCategories(); // reset select
+    await populateCategories();
   } catch (err) {
     $('#ask-error').textContent = err.message || 'Could not publish';
     $('#ask-error').hidden = false;
@@ -142,20 +134,19 @@ $('#ask-form').onsubmit = async (e) => {
   }
 };
 
-async function boot() {
-  if (!loadSession()) {
+(async () => {
+  const session = await authInit();
+  if (!session?.did) {
     showGate();
     return;
   }
   showForm();
   try {
     await populateCategories();
-  } catch (err) {
+  } catch {
     $('#category').innerHTML = `<option>Error loading categories</option>`;
   }
-}
-
-boot();
+})();
 </script>
 
 </body>

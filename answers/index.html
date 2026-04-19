@@ -25,17 +25,13 @@
 
 <section id="login-box" class="card auth-box" hidden>
   <h2 style="margin-top:0">Sign in with Bluesky</h2>
-  <p class="muted">Uses an app password from your Bluesky account. Create one at
-    <a href="https://bsky.app/settings/app-passwords" target="_blank">bsky.app/settings/app-passwords</a>.
-  </p>
+  <p class="muted">Enter your Bluesky handle. You'll be redirected to your PDS to authorize, then sent back here.</p>
   <form id="login-form">
     <label for="handle">Handle</label>
     <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="username" required />
-    <label for="password">App password</label>
-    <input type="password" id="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="current-password" required />
     <div id="login-error" class="error" hidden></div>
     <div style="margin-top:12px">
-      <button type="submit">Sign in</button>
+      <button type="submit">Continue</button>
       <button type="button" class="secondary" id="login-cancel">Cancel</button>
     </div>
   </form>
@@ -69,19 +65,21 @@
 
 <script type="module">
 import {
-  fetchCategories, loadSession, clearSession, loginAndStore,
-  listRecords, resolveHandle, resolvePds, C, escapeHtml,
+  authInit, authLogin, authLogout, getSession,
+  fetchCategories, listRecords, C, escapeHtml,
 } from '/assets/answers.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-// ─── Auth UI ───
-function renderNav() {
-  const s = loadSession();
+function renderNav(session) {
   const el = $('#nav-auth');
-  if (s) {
-    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(s.handle)}</span> <a href="#" id="logout">Sign out</a>`;
-    $('#logout').onclick = (e) => { e.preventDefault(); clearSession(); location.reload(); };
+  if (session?.did) {
+    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(session.handle)}</span> <a href="#" id="logout">Sign out</a>`;
+    $('#logout').onclick = async (e) => {
+      e.preventDefault();
+      await authLogout();
+      location.reload();
+    };
   } else {
     el.innerHTML = `<a href="#" id="signin">Sign in</a>`;
     $('#signin').onclick = (e) => { e.preventDefault(); $('#login-box').hidden = false; };
@@ -92,24 +90,20 @@ $('#login-cancel').onclick = () => { $('#login-box').hidden = true; };
 $('#login-form').onsubmit = async (e) => {
   e.preventDefault();
   $('#login-error').hidden = true;
-  const handle = $('#handle').value.trim();
-  const password = $('#password').value;
   try {
-    await loginAndStore(handle, password);
-    location.reload();
+    await authLogin($('#handle').value);
+    // Redirects; code below won't run
   } catch (err) {
     $('#login-error').textContent = err.message || 'Login failed';
     $('#login-error').hidden = false;
   }
 };
 
-// ─── My questions ───
-async function loadMyQuestions() {
-  const s = loadSession();
-  if (!s) return;
+async function loadMyQuestions(session) {
+  if (!session?.did || !session?.pds) return;
   $('#mine').hidden = false;
   try {
-    const page = await listRecords(s.pds, s.did, C.question, { limit: 25 });
+    const page = await listRecords(session.pds, session.did, C.question, { limit: 25 });
     const list = page.records || [];
     if (!list.length) {
       $('#my-questions').innerHTML = '<li class="muted">No questions yet. <a href="/ask.html">Ask one →</a></li>';
@@ -127,7 +121,6 @@ async function loadMyQuestions() {
   }
 }
 
-// ─── Category tree ───
 function renderCatTree(roots) {
   const render = (nodes) => {
     if (!nodes.length) return '';
@@ -139,10 +132,9 @@ function renderCatTree(roots) {
       </li>`;
     }).join('') + '</ul>';
   };
-  // Two-column top-level layout for density
   const el = $('#cats');
   if (!roots.length) {
-    el.innerHTML = '<p class="muted">No categories published yet. Run the publish-answers-categories workflow.</p>';
+    el.innerHTML = '<p class="muted">No categories published yet.</p>';
     return;
   }
   el.innerHTML = `<div class="cat-columns">${render(roots)}</div>`;
@@ -157,7 +149,6 @@ async function loadCategories() {
   }
 }
 
-// ─── Search (stub) ───
 $('#search-form').onsubmit = (e) => {
   e.preventDefault();
   const q = $('#search-input').value.trim();
@@ -165,9 +156,11 @@ $('#search-form').onsubmit = (e) => {
   alert('Search is coming once the indexer is live. For now, browse categories or paste a question AT-URI into /question.html?uri=...');
 };
 
-renderNav();
-loadMyQuestions();
-loadCategories();
+(async () => {
+  const session = await authInit();
+  renderNav(session);
+  await Promise.all([loadMyQuestions(session), loadCategories()]);
+})();
 </script>
 
 </body>
