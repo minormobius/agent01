@@ -243,7 +243,12 @@ const oceanCompute = `
 struct P{lon:f32,lat:f32,age:f32,spd:f32}
 @group(0)@binding(0) var<storage,read_write> ps:array<P>;
 @group(0)@binding(1) var<uniform> u:vec4<f32>;
+@group(0)@binding(2) var landTex:texture_2d<f32>;
 fn h(n:u32)->f32{var x=n;x^=x>>16u;x*=0x45d9f3bu;x^=x>>16u;x*=0x45d9f3bu;x^=x>>16u;return f32(x)/4294967295.0;}
+fn ol(lon:f32,lat:f32)->bool{
+  let tx=u32((lon+180.)/360.*1024.)%1024u;
+  let ty=u32((90.-lat)/180.*512.)%512u;
+  return textureLoad(landTex,vec2u(tx,ty),0).r>.5;}
 fn gy(a:f32,o:f32,a0:f32,o0:f32,sa:f32,so:f32,A:f32)->vec2<f32>{
   let dy=a-a0;var dx=o-o0;if(dx>180.){dx-=360.;}if(dx< -180.){dx+=360.;}
   let r=dy*dy/(sa*sa)+dx*dx/(so*so);let g=exp(-r);
@@ -279,11 +284,15 @@ fn main(@builtin(global_invocation_id) gid:vec3<u32>){
   p.lat+=c.y*dt;
   if(p.lon>180.){p.lon-=360.;}if(p.lon< -180.){p.lon+=360.;}
   p.lat=clamp(p.lat,-80.,80.);
+  let land=ol(p.lon,p.lat);
   p.age+=dt;p.spd=spd;
   let mx=60.+h(i*7u+u32(u.w*100.))*40.;
-  if(p.age>mx||(spd<.01&&p.age>5.)){
-    let s=i*3u+u32(u.w*1000.);
-    p.lon=(h(s)-.5)*360.;p.lat=(h(s+1u)-.5)*140.;p.age=0.;p.spd=0.;}
+  if(p.age>mx||(spd<.01&&p.age>5.)||land){
+    for(var att=0u;att<8u;att++){
+      let s=i*3u+u32(u.w*1000.)+att*13u;
+      p.lon=(h(s)-.5)*360.;p.lat=(h(s+1u)-.5)*140.;
+      if(!ol(p.lon,p.lat)){break;}}
+    p.age=0.;p.spd=0.;}
   ps[i]=p;}
 `;
 
@@ -351,10 +360,15 @@ async function buildMapTexture() {
   const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
   const c = cv.getContext('2d');
   c.fillStyle='#000'; c.fillRect(0,0,W,H);
+  const lv = document.createElement('canvas'); lv.width=W; lv.height=H;
+  const lc = lv.getContext('2d');
+  lc.fillStyle='#000'; lc.fillRect(0,0,W,H);
   try {
     const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
     const topo = await resp.json();
     const arcs = decodeArcs(topo);
+    lc.fillStyle='#fff';
+    drawPolys(lc, arcs, topo.objects.land.geometries[0], W, H);
     const px=lon=>(lon+180)/360*W, py=lat=>(90-lat)/180*H;
     // Stroke all coastlines + country borders
     function strokeAll(style, width) {
@@ -384,7 +398,7 @@ async function buildMapTexture() {
     strokeAll('rgba(200,240,255,0.55)', 1.1);
     strokeAll('rgba(255,255,255,0.85)', 0.5);
   } catch(e) { console.warn('Map fetch failed:', e); }
-  return cv;
+  return { map: cv, land: lv };
 }
 
 // === WebGPU Init ===
@@ -426,7 +440,7 @@ async function init() {
   device.queue.writeBuffer(markerBuf, 0, markerData);
 
   // Map texture from TopoJSON
-  const mapCanvas = await buildMapTexture();
+  const { map: mapCanvas, land: landCanvas } = await buildMapTexture();
   const mapTex = device.createTexture({
     size: [mapCanvas.width, mapCanvas.height], format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -438,6 +452,14 @@ async function init() {
     magFilter: 'linear', minFilter: 'linear',
     addressModeU: 'repeat', addressModeV: 'clamp-to-edge',
   });
+
+  const landTex = device.createTexture({
+    size: [landCanvas.width, landCanvas.height], format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: landCanvas }, { texture: landTex }, [landCanvas.width, landCanvas.height]
+  );
 
   // Depth texture
   let depthTex = device.createTexture({
@@ -510,10 +532,12 @@ async function init() {
   const compBGL = device.createBindGroupLayout({ entries: [
     { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
     { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+    { binding: 2, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'float' } },
   ]});
   const compBG = device.createBindGroup({ layout: compBGL, entries: [
     { binding: 0, resource: { buffer: partBuf } },
     { binding: 1, resource: { buffer: compUBuf } },
+    { binding: 2, resource: landTex.createView() },
   ]});
   const compPipeline = device.createComputePipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [compBGL] }),
