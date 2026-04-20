@@ -67,6 +67,7 @@ const P = [
   ['Singapore MRT Expansion',0,1.37,103.63],['Alibaba AI Infra',6,30.27,120.15],
 ];
 const NP = P.length;
+const NPC = 98304;
 
 // === Lat/Lon to 3D ===
 const DEG = Math.PI / 180;
@@ -235,6 +236,83 @@ struct VSOut {
   let col = in.color * (core * 0.7 + 0.3);
   return vec4(col * alpha + in.color * (1.0 - core) * glow * 0.4, alpha);
 }
+`;
+
+// === WGSL: Ocean current compute (analytical field + particle advection) ===
+const oceanCompute = `
+struct P{lon:f32,lat:f32,age:f32,spd:f32}
+@group(0)@binding(0) var<storage,read_write> ps:array<P>;
+@group(0)@binding(1) var<uniform> u:vec4<f32>;
+fn h(n:u32)->f32{var x=n;x^=x>>16u;x*=0x45d9f3bu;x^=x>>16u;x*=0x45d9f3bu;x^=x>>16u;return f32(x)/4294967295.0;}
+fn gy(a:f32,o:f32,a0:f32,o0:f32,sa:f32,so:f32,A:f32)->vec2<f32>{
+  let dy=a-a0;var dx=o-o0;if(dx>180.){dx-=360.;}if(dx< -180.){dx+=360.;}
+  let r=dy*dy/(sa*sa)+dx*dx/(so*so);let g=exp(-r);
+  return vec2(2.*A*dy/(sa*sa)*g,-2.*A*dx/(so*so)*g);}
+fn jt(a:f32,o:f32,a0:f32,o0:f32,a1:f32,o1:f32,w:f32,s:f32)->vec2<f32>{
+  let da=a1-a0;let dl=o1-o0;let l2=da*da+dl*dl;if(l2<.01){return vec2(0.);}
+  let t=clamp(((a-a0)*da+(o-o0)*dl)/l2,0.,1.);
+  let d2=(a-a0-t*da)*(a-a0-t*da)+(o-o0-t*dl)*(o-o0-t*dl);
+  return vec2(dl,da)*(s*exp(-d2/(w*w))/sqrt(l2));}
+fn bd(a:f32,a0:f32,w:f32,s:f32)->f32{let d=a-a0;return s*exp(-d*d/(w*w));}
+fn cf(a:f32,o:f32)->vec2<f32>{
+  var eu=0.;var nv=0.;
+  let g1=gy(a,o,30.,-45.,18.,28.,25.);let g2=gy(a,o,-18.,-15.,18.,22.,-20.);
+  let g3=gy(a,o,30.,-170.,18.,38.,28.);let g4=gy(a,o,-22.,-130.,20.,38.,-22.);
+  let g5=gy(a,o,-18.,75.,18.,28.,-22.);
+  let g6=gy(a,o,55.,-35.,12.,20.,-12.);let g7=gy(a,o,50.,170.,10.,18.,-10.);
+  eu+=g1.x+g2.x+g3.x+g4.x+g5.x+g6.x+g7.x;
+  nv+=g1.y+g2.y+g3.y+g4.y+g5.y+g6.y+g7.y;
+  let j1=jt(a,o,25.,-80.,42.,-50.,4.,3.);let j2=jt(a,o,20.,125.,38.,155.,4.,3.);
+  let j3=jt(a,o,-28.,28.,-38.,22.,3.5,2.5);let j4=jt(a,o,-10.,-48.,-32.,-50.,3.5,2.);
+  let j5=jt(a,o,-10.,155.,-28.,160.,3.5,2.);
+  eu+=j1.x+j2.x+j3.x+j4.x+j5.x;nv+=j1.y+j2.y+j3.y+j4.y+j5.y;
+  eu+=bd(a,-55.,8.,1.5);
+  eu-=bd(a,12.,6.,.6);eu-=bd(a,-5.,5.,.8);eu+=bd(a,5.,3.,.5);
+  return vec2(eu,nv);}
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let i=gid.x;let N=u32(u.z);if(i>=N){return;}
+  var p=ps[i];let dt=u.y;
+  let c=cf(p.lat,p.lon);let spd=length(c);
+  let cl=cos(p.lat*.01745329);
+  if(cl>.05){p.lon+=c.x*dt/cl;}
+  p.lat+=c.y*dt;
+  if(p.lon>180.){p.lon-=360.;}if(p.lon< -180.){p.lon+=360.;}
+  p.lat=clamp(p.lat,-80.,80.);
+  p.age+=dt;p.spd=spd;
+  let mx=60.+h(i*7u+u32(u.w*100.))*40.;
+  if(p.age>mx||(spd<.01&&p.age>5.)){
+    let s=i*3u+u32(u.w*1000.);
+    p.lon=(h(s)-.5)*360.;p.lat=(h(s+1u)-.5)*140.;p.age=0.;p.spd=0.;}
+  ps[i]=p;}
+`;
+
+// === WGSL: Ocean particle render (instanced billboards) ===
+const oceanRender = `
+struct Pm{viewProj:mat4x4<f32>,camPos:vec3<f32>,time:f32}
+struct P{lon:f32,lat:f32,age:f32,spd:f32}
+@group(0)@binding(0) var<uniform> p:Pm;
+@group(0)@binding(1) var<storage,read> ps:array<P>;
+struct V{@builtin(position) pos:vec4<f32>,@location(0) al:f32,@location(1) col:vec3<f32>}
+@vertex fn vs(@builtin(vertex_index) vid:u32,@builtin(instance_index) iid:u32)->V{
+  let pt=ps[iid];let R=1.006;
+  let la=pt.lat*.01745329;let lo=pt.lon*.01745329;
+  let wp=vec3(R*cos(la)*cos(lo),R*sin(la),-R*cos(la)*sin(lo));
+  let toC=normalize(p.camPos-wp);
+  var rt=normalize(cross(vec3(0.,1.,0.),toC));let up=cross(toC,rt);
+  let qp=array<vec2<f32>,4>(vec2(-1.,-1.),vec2(1.,-1.),vec2(-1.,1.),vec2(1.,1.));
+  let ti=array<u32,6>(0u,1u,2u,2u,1u,3u);
+  let q=qp[ti[vid]];let sz=.003;
+  let wp2=wp+rt*q.x*sz+up*q.y*sz;
+  var o:V;o.pos=p.viewProj*vec4(wp2,1.);
+  let fi=smoothstep(0.,3.,pt.age);let fo=1.-smoothstep(50.,70.,pt.age);
+  o.al=fi*fo*.8;
+  let s=clamp(pt.spd*.5,0.,1.);
+  o.col=mix(vec3(.08,.15,.4),mix(vec3(0.,.6,.85),vec3(.85,.92,1.),s),s);
+  return o;}
+@fragment fn fs(i:V)->@location(0) vec4<f32>{
+  if(i.al<.01){discard;}
+  return vec4(i.col*i.al,i.al);}
 `;
 
 // === TopoJSON decoder + map renderer ===
@@ -416,6 +494,54 @@ async function init() {
     depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'less' },
   });
 
+  // === Ocean current particle system ===
+  const partBuf = device.createBuffer({ size: NPC * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const initParts = new Float32Array(NPC * 4);
+  for (let i = 0; i < NPC; i++) {
+    initParts[i*4]   = (Math.random() - 0.5) * 360;
+    initParts[i*4+1] = (Math.random() - 0.5) * 140;
+    initParts[i*4+2] = Math.random() * 60;
+    initParts[i*4+3] = 0;
+  }
+  device.queue.writeBuffer(partBuf, 0, initParts);
+  const compUBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+  const compModule = device.createShaderModule({ code: oceanCompute });
+  const compBGL = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+  ]});
+  const compBG = device.createBindGroup({ layout: compBGL, entries: [
+    { binding: 0, resource: { buffer: partBuf } },
+    { binding: 1, resource: { buffer: compUBuf } },
+  ]});
+  const compPipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [compBGL] }),
+    compute: { module: compModule, entryPoint: 'main' },
+  });
+
+  const partModule = device.createShaderModule({ code: oceanRender });
+  const partBGL = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+    { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+  ]});
+  const partBG = device.createBindGroup({ layout: partBGL, entries: [
+    { binding: 0, resource: { buffer: paramBuf } },
+    { binding: 1, resource: { buffer: partBuf } },
+  ]});
+  const partPipeline = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [partBGL] }),
+    vertex: { module: partModule, entryPoint: 'vs' },
+    fragment: { module: partModule, entryPoint: 'fs',
+      targets: [{ format, blend: {
+        color: { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' },
+        alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+      }}]
+    },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'less' },
+  });
+
   // === Raycasting for tap ===
   let selectedIdx = -1;
   function hitMarker(sx, sy) {
@@ -549,7 +675,19 @@ async function init() {
     f[19]=ts*0.001;
     device.queue.writeBuffer(paramBuf, 0, pb);
 
+    // Upload compute params: [time, dt, count, seed]
+    device.queue.writeBuffer(compUBuf, 0, new Float32Array([ts*0.001, 0.1, NPC, ts*0.001]));
+
     const enc = device.createCommandEncoder();
+
+    // Compute pass: advect ocean particles
+    const cp = enc.beginComputePass();
+    cp.setPipeline(compPipeline);
+    cp.setBindGroup(0, compBG);
+    cp.dispatchWorkgroups(Math.ceil(NPC / 256));
+    cp.end();
+
+    // Render pass
     const pass = enc.beginRenderPass({
       colorAttachments: [{
         view: ctx.getCurrentTexture().createView(),
@@ -567,6 +705,11 @@ async function init() {
     pass.setBindGroup(0, globeBG);
     pass.draw(GLOBE_VERTS);
 
+    // Ocean current particles
+    pass.setPipeline(partPipeline);
+    pass.setBindGroup(0, partBG);
+    pass.draw(6, NPC);
+
     // Markers
     pass.setPipeline(markerPipeline);
     pass.setBindGroup(0, markerBG);
@@ -576,7 +719,7 @@ async function init() {
     device.queue.submit([enc.finish()]);
 
     // HUD
-    document.getElementById('hud').textContent = `GLOBE · ${NP} megaprojects`;
+    document.getElementById('hud').textContent = `GLOBE · ${NP} megaprojects · ${(NPC/1000)|0}k current particles`;
   }
 
   requestAnimationFrame(frame);
