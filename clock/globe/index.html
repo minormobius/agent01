@@ -114,7 +114,7 @@ struct VSOut {
 }
 
 @vertex fn vs(@builtin(vertex_index) vid: u32) -> VSOut {
-  let Nu = 80u; let Nv = 40u;
+  let Nu = 160u; let Nv = 80u;
   let quadIdx = vid / 6u;
   let vertIdx = vid % 6u;
   let qu = quadIdx % Nu;
@@ -169,7 +169,7 @@ struct VSOut {
 }
 `;
 
-const GLOBE_VERTS = 80 * 40 * 6;
+const GLOBE_VERTS = 160 * 80 * 6;
 
 // === WGSL: Markers (instanced billboarded quads) ===
 const markerShader = `
