@@ -262,11 +262,13 @@ async function analyze() {
 
     // Show stats
     const bar = document.getElementById('statsBar');
+    const s = data.stats;
     bar.innerHTML = `
-      <div class="stat"><div class="stat-val">${data.stats.listSize}</div>members</div>
-      <div class="stat"><div class="stat-val">${data.stats.totalPosts}</div>posts analyzed</div>
-      <div class="stat"><div class="stat-val">${(data.stats.groupMean * 1000).toFixed(0)}</div>group mean ×10³</div>
-      <div class="stat"><div class="stat-val">${(data.stats.groupVolume * 1000).toFixed(0)}</div>volume ×10³</div>
+      <div class="stat"><div class="stat-val">${s.analyzed}</div>members</div>
+      <div class="stat"><div class="stat-val">${s.totalFetched}</div>fetched</div>
+      <div class="stat"><div class="stat-val">${s.totalEmbedded}</div>embedded</div>
+      <div class="stat"><div class="stat-val">${s.postsPerMember}</div>per member</div>
+      <div class="stat"><div class="stat-val">${(s.groupMean * 1000).toFixed(0)}</div>group mean ×10³</div>
     `;
     bar.style.display = 'flex';
 

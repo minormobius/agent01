@@ -84,32 +84,34 @@ async function getListMembers(listUri) {
   return { members, pages };
 }
 
-async function getAuthorPosts(actor, limit, auth) {
+// Fetch one page of posts for an actor. Returns { posts, cursor, pages: 1 }.
+async function getAuthorPostsPage(actor, auth, cursor) {
   const baseUrl = auth ? auth.baseUrl : BSKY_PUBLIC;
   const headers = auth ? { Authorization: `Bearer ${auth.token}` } : {};
+  const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_with_replies' });
+  if (cursor) params.set('cursor', cursor);
+  const data = await fetchJSON(`${baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?${params}`, headers);
   const posts = [];
-  let cursor;
-  let pages = 0;
-  do {
-    if (pages > 0) await new Promise(r => setTimeout(r, 100));
-    pages++;
-    const params = new URLSearchParams({ actor, limit: '100', filter: 'posts_with_replies' });
-    if (cursor) params.set('cursor', cursor);
-    const data = await fetchJSON(`${baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?${params}`, headers);
-    for (const item of (data.feed || [])) {
-      const post = item.post;
-      if (!post?.record?.text) continue;
-      if (item.reason?.$type === 'app.bsky.feed.defs#reasonRepost') continue;
-      posts.push({
-        text: post.record.text,
-        date: post.record.createdAt || post.indexedAt,
-        uri: post.uri,
-      });
-      if (posts.length >= limit) break;
-    }
-    cursor = data.cursor;
-  } while (cursor && posts.length < limit);
-  return { posts, pages };
+  for (const item of (data.feed || [])) {
+    const post = item.post;
+    if (!post?.record?.text) continue;
+    if (item.reason?.$type === 'app.bsky.feed.defs#reasonRepost') continue;
+    posts.push({
+      text: post.record.text,
+      date: post.record.createdAt || post.indexedAt,
+      uri: post.uri,
+    });
+  }
+  return { posts, cursor: data.cursor || null };
+}
+
+// Evenly sample N items from an array (preserves order)
+function evenSample(arr, n) {
+  if (arr.length <= n) return arr;
+  const step = arr.length / n;
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(arr[Math.floor(i * step)]);
+  return out;
 }
 
 function cosineSim(a, b) {
@@ -200,34 +202,72 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Budget: each member needs 1 subreq for feed fetch, plus embedding batches
-    // Reserve half of remaining budget for embeddings
-    const fetchBudget = Math.floor(budgetLeft * 0.6);
-    const embedBudgetReqs = budgetLeft - fetchBudget;
-    const maxEmbedPosts = embedBudgetReqs * EMBED_BATCH;
-
-    // Posts per member — at least 10, scale down for large lists
-    const postsPerMember = Math.max(10, Math.min(100, Math.floor(fetchBudget / members.length) * 100));
-    // Limit to 1 page of 100 posts per member, and cap member count by fetch budget
-    const maxMembers = Math.min(members.length, fetchBudget);
+    // ── Phase 1: First page for every member (1 subreq each) ─────
+    const maxMembers = Math.min(members.length, budgetLeft - 2); // reserve ≥2 for embeds
     const activeMemberList = members.slice(0, maxMembers);
-
-    // Fetch posts for all members
-    const taggedPosts = [];
-    const memberPostCounts = new Map();
-    let totalFetchPages = 0;
+    const memberPosts = new Map();   // did → posts[]
+    const memberCursors = new Map(); // did → cursor|null
+    let fetchReqs = 0;
 
     for (const m of activeMemberList) {
       try {
-        const { posts, pages } = await getAuthorPosts(m.did, Math.min(postsPerMember, 100), auth);
-        totalFetchPages += pages;
-        memberPostCounts.set(m.did, posts.length);
-        for (const p of posts) {
-          taggedPosts.push({ ...p, did: m.did });
-        }
-      } catch (err) {
-        memberPostCounts.set(m.did, 0);
+        const { posts, cursor } = await getAuthorPostsPage(m.did, auth, null);
+        memberPosts.set(m.did, posts);
+        memberCursors.set(m.did, cursor);
+        fetchReqs++;
+      } catch {
+        memberPosts.set(m.did, []);
+        memberCursors.set(m.did, null);
+        fetchReqs++;
       }
+    }
+
+    // ── Phase 2: Spend remaining fetch budget on members with more data ──
+    let remaining = budgetLeft - fetchReqs;
+    // Reserve at least ceil(total posts so far / EMBED_BATCH) for embedding
+    const totalSoFar = [...memberPosts.values()].reduce((n, p) => n + p.length, 0);
+    const minEmbedReqs = Math.max(2, Math.ceil(totalSoFar / EMBED_BATCH));
+    let extraFetchBudget = Math.max(0, remaining - minEmbedReqs);
+
+    // Prioritize members that returned a cursor (have more posts)
+    const fetchable = activeMemberList
+      .filter(m => memberCursors.get(m.did))
+      .sort((a, b) => (memberPosts.get(a.did)?.length || 0) - (memberPosts.get(b.did)?.length || 0));
+
+    while (extraFetchBudget > 0 && fetchable.length > 0) {
+      // Round-robin: one extra page per fetchable member
+      const batch = fetchable.splice(0, Math.min(fetchable.length, extraFetchBudget));
+      for (const m of batch) {
+        const cursor = memberCursors.get(m.did);
+        if (!cursor) continue;
+        try {
+          const { posts, cursor: nextCursor } = await getAuthorPostsPage(m.did, auth, cursor);
+          const existing = memberPosts.get(m.did) || [];
+          memberPosts.set(m.did, existing.concat(posts));
+          memberCursors.set(m.did, nextCursor);
+          extraFetchBudget--;
+          fetchReqs++;
+          if (nextCursor) fetchable.push(m); // still has more
+        } catch {
+          extraFetchBudget--;
+          fetchReqs++;
+        }
+      }
+    }
+
+    // ── Phase 3: Equalize — same N posts per member ─────────────
+    remaining = budgetLeft - fetchReqs;
+    const maxEmbedPosts = remaining * EMBED_BATCH;
+    const activeDids = activeMemberList.filter(m => (memberPosts.get(m.did)?.length || 0) > 0);
+    const postsPerMember = Math.max(5, Math.floor(maxEmbedPosts / Math.max(activeDids.length, 1)));
+
+    const taggedPosts = [];
+    for (const m of activeDids) {
+      const raw = memberPosts.get(m.did) || [];
+      // Reverse to chronological (API returns newest first)
+      raw.reverse();
+      const sampled = evenSample(raw, postsPerMember);
+      for (const p of sampled) taggedPosts.push({ ...p, did: m.did });
     }
 
     if (taggedPosts.length < 5) {
@@ -237,21 +277,15 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Sort chronologically for running centroid
+    // Sort pooled posts chronologically for running centroid
     taggedPosts.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Sample down if over embed budget
-    let posts = taggedPosts;
-    if (posts.length > maxEmbedPosts) {
-      const step = posts.length / maxEmbedPosts;
-      const sampled = [];
-      for (let i = 0; i < maxEmbedPosts; i++) {
-        sampled.push(posts[Math.floor(i * step)]);
-      }
-      posts = sampled;
-    }
+    // Final cap if rounding pushed us over
+    let posts = taggedPosts.length > maxEmbedPosts
+      ? evenSample(taggedPosts, maxEmbedPosts)
+      : taggedPosts;
 
-    // Embed
+    // ── Phase 4: Embed ──────────────────────────────────────────
     const texts = posts.map(p => p.text);
     const embeddings = [];
     for (let i = 0; i < texts.length; i += EMBED_BATCH) {
@@ -315,12 +349,16 @@ export async function onRequestPost({ request, env }) {
       });
     }
 
+    const totalFetched = [...memberPosts.values()].reduce((n, p) => n + p.length, 0);
+
     return Response.json({
       members: memberResults,
       stats: {
         listSize: members.length,
-        analyzed: maxMembers,
-        totalPosts: posts.length,
+        analyzed: activeDids.length,
+        totalFetched,
+        totalEmbedded: posts.length,
+        postsPerMember,
         groupMean: Math.round(groupMean * 1000) / 1000,
         groupVolume: Math.round(groupVolume * 1000) / 1000,
         authenticated: !!auth,
