@@ -298,7 +298,6 @@ function loadAvatars() {
   for (const m of members) {
     if (!m.avatar) { avatarImages.set(m.did, null); continue; }
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.src = m.avatar;
     img.onload = () => { avatarImages.set(m.did, img); draw(); };
     img.onerror = () => { avatarImages.set(m.did, null); };
