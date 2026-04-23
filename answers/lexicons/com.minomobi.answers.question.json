@@ -1,0 +1,47 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.question",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A question posted to the Answers network.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 3000,
+            "maxGraphemes": 300,
+            "description": "The question itself. Rendered as the post title."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 30000,
+            "maxGraphemes": 10000,
+            "description": "Optional additional detail beneath the title."
+          },
+          "category": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to a com.minomobi.answers.category record published by the canonical curator."
+          },
+          "embed": {
+            "type": "union",
+            "refs": [
+              "app.bsky.embed.images",
+              "app.bsky.embed.external"
+            ]
+          },
+          "langs": {
+            "type": "array",
+            "items": { "type": "string", "format": "language" },
+            "maxLength": 3
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

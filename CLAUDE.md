@@ -57,7 +57,7 @@ Existing projects (org, crm, wave, photo, labglass, bakery, time, cards, etc.) e
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
-- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`; cards deploys from `claude/wiki-card-game-oJbLE`)
+- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`; cards deploys from `claude/wiki-card-game-oJbLE`; `answers/` deploys from `claude/yahoo-answers-atproto-brainstorm-B6vUR` — **LIVE DEPLOY**, every push ships)
 - **Compute**: Cloudflare Workers + Durable Objects + D1
 - **Email**: Cloudflare Email Routing — `tips@`, `editor@`, `modulo@`, `morphyx@minomobi.com`
 - **DNS**: Cloudflare — CNAME records for subdomains -> Pages deployments
