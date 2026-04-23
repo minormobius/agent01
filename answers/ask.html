@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask a question — Answers</title>
+<link rel="stylesheet" href="/assets/answers.css" />
+</head>
+<body>
+
+<header class="site">
+  <h1><a href="/">Answers</a></h1>
+  <div class="spacer"></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/docs.html">Docs</a>
+  </nav>
+</header>
+
+<main>
+
+<section id="gate" class="card" hidden>
+  <h2 style="margin-top:0">Sign in to ask</h2>
+  <p class="muted">Questions are published as ATProto records on your own PDS. Sign in with Bluesky to continue.</p>
+  <form id="login-form" class="auth-box">
+    <label for="handle">Handle</label>
+    <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="username" required />
+    <div id="login-error" class="error" hidden></div>
+    <div style="margin-top:12px"><button type="submit">Continue</button></div>
+  </form>
+</section>
+
+<section id="form-wrap" class="card" hidden>
+  <h2 style="margin-top:0">Ask a question</h2>
+  <form id="ask-form">
+    <label for="title">Title <span class="muted">(max 300 chars)</span></label>
+    <input type="text" id="title" maxlength="300" required />
+
+    <label for="body">Detail <span class="muted">(optional)</span></label>
+    <textarea id="body" maxlength="10000" placeholder="Anything else we should know?"></textarea>
+
+    <label for="category">Category</label>
+    <select id="category" required>
+      <option value="">— loading —</option>
+    </select>
+
+    <div id="ask-error" class="error" hidden></div>
+    <div id="ask-success" class="notice" hidden></div>
+    <div style="margin-top:16px">
+      <button type="submit" id="submit-btn">Publish question</button>
+      <a class="btn secondary" href="/" style="margin-left:8px">Cancel</a>
+    </div>
+  </form>
+</section>
+
+</main>
+
+<script type="module">
+import {
+  authInit, authLogin,
+  fetchCategories, pdsCreateRecord, attachHandleTypeahead,
+  nowIso, C, escapeHtml,
+} from '/assets/answers.js';
+
+const $ = (s) => document.querySelector(s);
+
+function showGate() { $('#gate').hidden = false; $('#form-wrap').hidden = true; }
+function showForm() { $('#gate').hidden = true; $('#form-wrap').hidden = false; }
+
+$('#login-form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#login-error').hidden = true;
+  try {
+    await authLogin($('#handle').value);
+  } catch (err) {
+    $('#login-error').textContent = err.message || 'Login failed';
+    $('#login-error').hidden = false;
+  }
+};
+
+async function populateCategories() {
+  const { roots, byRkey } = await fetchCategories();
+  const sel = $('#category');
+  sel.innerHTML = '<option value="">— choose —</option>';
+  const walk = (nodes, depth) => {
+    for (const n of nodes) {
+      const opt = document.createElement('option');
+      opt.value = n.uri;
+      opt.dataset.cid = n.cid;
+      opt.dataset.rkey = n.rkey;
+      opt.textContent = `${'\u00a0\u00a0'.repeat(depth)}${n.name}`;
+      sel.appendChild(opt);
+      walk(n.children, depth + 1);
+    }
+  };
+  walk(roots, 0);
+  const preset = new URLSearchParams(location.search).get('category');
+  if (preset && byRkey[preset]) sel.value = byRkey[preset].uri;
+}
+
+$('#ask-form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#ask-error').hidden = true;
+  $('#ask-success').hidden = true;
+  const btn = $('#submit-btn');
+  btn.disabled = true;
+
+  const title = $('#title').value.trim();
+  const body = $('#body').value.trim();
+  const sel = $('#category');
+  const catOpt = sel.selectedOptions[0];
+
+  if (!title || !catOpt || !catOpt.value) {
+    $('#ask-error').textContent = 'Title and category required.';
+    $('#ask-error').hidden = false;
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    const record = {
+      title,
+      category: { uri: catOpt.value, cid: catOpt.dataset.cid },
+      createdAt: nowIso(),
+    };
+    if (body) record.body = body;
+    const res = await pdsCreateRecord(C.question, record);
+    const uri = encodeURIComponent(res.uri);
+    $('#ask-success').innerHTML = `Published! <a href="/question.html?uri=${uri}">View your question →</a>`;
+    $('#ask-success').hidden = false;
+    $('#ask-form').reset();
+    await populateCategories();
+  } catch (err) {
+    $('#ask-error').textContent = err.message || 'Could not publish';
+    $('#ask-error').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+attachHandleTypeahead($('#handle'));
+
+(async () => {
+  const session = await authInit();
+  if (!session?.did) {
+    showGate();
+    return;
+  }
+  showForm();
+  try {
+    await populateCategories();
+  } catch {
+    $('#category').innerHTML = `<option>Error loading categories</option>`;
+  }
+})();
+</script>
+
+</body>
+</html>

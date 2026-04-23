@@ -1,0 +1,39 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.category",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A category in the Answers taxonomy. Clients should only treat categories as valid when published by the canonical curator account. Hierarchy is expressed via the optional parent reference.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["name", "slug", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "maxGraphemes": 100,
+            "description": "Display name, e.g. 'Mental Health'."
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Human-readable URL slug, e.g. 'mental-health'. Clients may use this as the rkey."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1500,
+            "maxGraphemes": 500
+          },
+          "parent": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Parent category record. Absent for top-level categories."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

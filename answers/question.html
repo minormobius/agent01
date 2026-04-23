@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Question — Answers</title>
+<link rel="stylesheet" href="/assets/answers.css" />
+</head>
+<body>
+
+<header class="site">
+  <h1><a href="/">Answers</a></h1>
+  <div class="spacer"></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/ask.html">Ask</a>
+    <a href="/docs.html">Docs</a>
+    <span id="nav-auth"></span>
+  </nav>
+</header>
+
+<main>
+
+<section id="q-wrap" class="card">
+  <p class="muted">Loading question…</p>
+</section>
+
+<section id="actions" class="card" hidden>
+  <h3 style="margin-top:0">Your answer</h3>
+  <div id="answer-box">
+    <div id="answer-gate" class="muted">
+      <a href="#" id="signin-link">Sign in</a> to post an answer, comment, or vote.
+    </div>
+    <form id="answer-form" hidden>
+      <textarea id="answer-text" maxlength="10000" placeholder="Share your answer…" required></textarea>
+      <div id="answer-error" class="error" hidden></div>
+      <div style="margin-top:8px"><button type="submit">Post answer</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="login-box" class="card auth-box" hidden>
+  <h2 style="margin-top:0">Sign in with Bluesky</h2>
+  <form id="login-form">
+    <label for="handle">Handle</label>
+    <input type="text" id="handle" placeholder="alice.bsky.social" required />
+    <div id="login-error" class="error" hidden></div>
+    <div style="margin-top:12px">
+      <button type="submit">Continue</button>
+      <button type="button" class="secondary" id="login-cancel">Cancel</button>
+    </div>
+  </form>
+</section>
+
+<section id="answers-wrap" class="card">
+  <h3 style="margin-top:0">Answers <span id="answers-count" class="muted"></span></h3>
+  <div id="answers-list">
+    <p class="muted">Looking for answers…</p>
+  </div>
+</section>
+
+</main>
+
+<script type="module">
+import {
+  authInit, authLogin, authLogout, getSession,
+  pdsCreateRecord, pdsPutRecord, pdsDeleteRecord,
+  fetchByAtUri, getBacklinksFull, invalidateRecord,
+  getRecord, listRecords,
+  attachHandleTypeahead,
+  generateTid, deriveRkey, nowIso, strongRef,
+  escapeHtml, linkify, timeAgo,
+  C, PUBLIC_API,
+} from '/assets/answers.js';
+
+const $ = (s) => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const qUri = params.get('uri');
+
+let state = {
+  question: null,
+  asker: null,
+  bestAnswerRecord: null,
+  answers: [],
+  myVotes: {},
+};
+
+const _profileCache = {};
+async function getProfile(did) {
+  if (_profileCache[did]) return _profileCache[did];
+  try {
+    const r = await fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.getProfile?actor=${did}`);
+    if (r.ok) {
+      const j = await r.json();
+      _profileCache[did] = { did, handle: j.handle, displayName: j.displayName || j.handle };
+      return _profileCache[did];
+    }
+  } catch {}
+  _profileCache[did] = { did, handle: did, displayName: did };
+  return _profileCache[did];
+}
+
+function renderNav(session) {
+  const el = $('#nav-auth');
+  if (session?.did) {
+    el.innerHTML = `<span class="muted" style="margin-left:16px">@${escapeHtml(session.handle)}</span> <a href="#" id="logout">Sign out</a>`;
+    $('#logout').onclick = async (e) => { e.preventDefault(); await authLogout(); location.reload(); };
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+$('#signin-link').onclick = (e) => { e.preventDefault(); $('#login-box').hidden = false; };
+$('#login-cancel').onclick = () => { $('#login-box').hidden = true; };
+$('#login-form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#login-error').hidden = true;
+  try {
+    await authLogin($('#handle').value);
+  } catch (err) {
+    $('#login-error').textContent = err.message || 'Login failed';
+    $('#login-error').hidden = false;
+  }
+};
+
+async function loadQuestion() {
+  if (!qUri) {
+    $('#q-wrap').innerHTML = '<p class="error">No question URI in this URL. Expected ?uri=at://…</p>';
+    return null;
+  }
+  try {
+    const rec = await fetchByAtUri(qUri);
+    state.question = rec;
+    state.asker = await getProfile(rec.did);
+    const title = escapeHtml(rec.value.title);
+    const body = rec.value.body ? `<div class="q-body">${linkify(rec.value.body)}</div>` : '';
+    const when = rec.value.createdAt ? timeAgo(rec.value.createdAt) : '';
+    const cat = rec.value.category?.uri ? `<span class="tag">${escapeHtml(rec.value.category.uri.split('/').pop())}</span>` : '';
+    $('#q-wrap').innerHTML = `
+      <h1 class="q-title">${title}</h1>
+      ${body}
+      <div class="q-meta">
+        ${cat}
+        <span class="muted">asked by <a href="https://bsky.app/profile/${state.asker.handle}" target="_blank">@${escapeHtml(state.asker.handle)}</a> · ${when}</span>
+      </div>
+    `;
+    return rec;
+  } catch (err) {
+    $('#q-wrap').innerHTML = `<p class="error">Could not load question: ${escapeHtml(err.message)}</p>`;
+    return null;
+  }
+}
+
+async function loadAnswers() {
+  const map = new Map();
+
+  try {
+    const { records } = await getBacklinksFull(state.question.uri, C.answer, '.question.uri', { limit: 100 });
+    for (const r of records) map.set(r.uri, r);
+  } catch {}
+
+  const sess = getSession();
+  if (sess?.pds && sess?.did) {
+    try {
+      const page = await listRecords(sess.pds, sess.did, C.answer, { limit: 50 });
+      for (const r of (page.records || [])) {
+        if (r.value?.question?.uri === state.question.uri) map.set(r.uri, r);
+      }
+    } catch {}
+  }
+
+  const hydrated = [];
+  for (const r of map.values()) {
+    const did = r.uri.split('/')[2];
+    const profile = await getProfile(did);
+    hydrated.push({ uri: r.uri, cid: r.cid, did, profile, value: r.value });
+  }
+  hydrated.sort((a, b) => (b.value.createdAt || '').localeCompare(a.value.createdAt || ''));
+  state.answers = hydrated;
+}
+
+async function loadBestAnswer() {
+  try {
+    const rkey = await deriveRkey(state.question.uri);
+    const r = await getRecord(state.question.pds, state.question.did, C.bestAnswer, rkey);
+    if (r?.value?.question?.uri === state.question.uri) {
+      state.bestAnswerRecord = { uri: r.uri, cid: r.cid, answerUri: r.value.answer.uri };
+    }
+  } catch {}
+}
+
+async function loadMyVotes() {
+  const sess = getSession();
+  if (!sess?.pds || !sess?.did) return;
+  try {
+    const page = await listRecords(sess.pds, sess.did, C.vote, { limit: 100 });
+    for (const r of (page.records || [])) {
+      const target = r.value?.subject?.uri;
+      if (!target) continue;
+      const rkey = r.uri.split('/').pop();
+      state.myVotes[target] = { direction: r.value.direction, rkey };
+    }
+  } catch {}
+}
+
+async function countVotes(uri) {
+  try {
+    const { records } = await getBacklinksFull(uri, C.vote, '.subject.uri', { limit: 50 });
+    const session = getSession();
+    const myDid = session?.did || null;
+    let up = 0, down = 0;
+    // Count everyone except me; we add my current truth below to bypass
+    // Constellation index lag (a fresh vote isn't indexed for ~seconds).
+    for (const r of records) {
+      const author = r.uri.split('/')[2];
+      if (myDid && author === myDid) continue;
+      if (r.value?.direction === 1) up++;
+      else if (r.value?.direction === -1) down++;
+    }
+    const mine = state.myVotes[uri]?.direction;
+    if (mine === 1) up++;
+    else if (mine === -1) down++;
+    return { up, down };
+  } catch { return { up: 0, down: 0 }; }
+}
+
+function canMarkBest() {
+  const sess = getSession();
+  return sess?.did && state.question && sess.did === state.question.did;
+}
+
+async function renderAnswers() {
+  const wrap = $('#answers-list');
+  if (!state.answers.length) {
+    wrap.innerHTML = '<p class="muted">No answers yet. Be the first!</p>';
+    $('#answers-count').textContent = '(0)';
+    return;
+  }
+
+  $('#answers-count').textContent = `(${state.answers.length})`;
+  const bestUri = state.bestAnswerRecord?.answerUri;
+  const ordered = [...state.answers];
+  if (bestUri) ordered.sort((a, b) => (a.uri === bestUri ? -1 : b.uri === bestUri ? 1 : 0));
+
+  wrap.innerHTML = ordered.map((a) => {
+    const isBest = a.uri === bestUri;
+    const when = a.value.createdAt ? timeAgo(a.value.createdAt) : '';
+    const mine = state.myVotes[a.uri]?.direction;
+    return `
+      <article class="answer ${isBest ? 'best' : ''}" data-uri="${escapeHtml(a.uri)}">
+        ${isBest ? '<div class="best-badge">★ Best Answer</div>' : ''}
+        <div class="byline">
+          <a href="https://bsky.app/profile/${a.profile.handle}" target="_blank">@${escapeHtml(a.profile.handle)}</a>
+          · ${when}
+        </div>
+        <div class="body">${linkify(a.value.text || '')}</div>
+        <div class="answer-actions">
+          <button class="vote-btn ${mine === 1 ? 'active-up' : ''}" data-vote="1">▲ <span class="up-count">…</span></button>
+          <button class="vote-btn ${mine === -1 ? 'active-down' : ''}" data-vote="-1">▼ <span class="down-count">…</span></button>
+          <button class="ghost" data-act="comment">reply</button>
+          ${canMarkBest() ? `<button class="ghost" data-act="best" ${isBest ? 'disabled' : ''}>${isBest ? '★ best answer' : 'mark best'}</button>` : ''}
+        </div>
+        <div class="comments" data-role="comments"></div>
+        <form class="comment-form" hidden>
+          <textarea maxlength="2000" placeholder="Add a comment…" required></textarea>
+          <div style="margin-top:4px"><button type="submit">Post comment</button></div>
+        </form>
+      </article>
+    `;
+  }).join('');
+
+  for (const article of wrap.querySelectorAll('.answer')) {
+    const uri = article.dataset.uri;
+    const a = state.answers.find((x) => x.uri === uri);
+    countVotes(uri).then(({ up, down }) => {
+      article.querySelector('.up-count').textContent = up;
+      article.querySelector('.down-count').textContent = down;
+    });
+    article.querySelectorAll('.vote-btn').forEach((btn) => {
+      btn.onclick = () => handleVote(uri, parseInt(btn.dataset.vote, 10));
+    });
+    article.querySelector('[data-act="comment"]').onclick = () => {
+      article.querySelector('.comment-form').hidden = false;
+    };
+    const bestBtn = article.querySelector('[data-act="best"]');
+    if (bestBtn) bestBtn.onclick = () => markBest(a);
+    article.querySelector('.comment-form').onsubmit = (e) => handleComment(e, a);
+    loadComments(a, article.querySelector('[data-role="comments"]'));
+  }
+}
+
+function refreshAnswerForm() {
+  const s = getSession();
+  $('#answer-gate').hidden = !!s?.did;
+  $('#answer-form').hidden = !s?.did;
+}
+
+$('#answer-form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#answer-error').hidden = true;
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
+  const text = $('#answer-text').value.trim();
+  if (!text) return;
+  try {
+    await pdsCreateRecord(C.answer, {
+      question: strongRef(state.question),
+      text,
+      createdAt: nowIso(),
+    });
+    $('#answer-text').value = '';
+    await loadAnswers();
+    await renderAnswers();
+  } catch (err) {
+    $('#answer-error').textContent = err.message || 'Failed to post';
+    $('#answer-error').hidden = false;
+  }
+};
+
+async function handleVote(answerUri, dir) {
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
+  const existing = state.myVotes[answerUri];
+  const rkey = await deriveRkey(answerUri);
+  try {
+    if (existing && existing.direction === dir) {
+      await pdsDeleteRecord(C.vote, rkey);
+      delete state.myVotes[answerUri];
+    } else {
+      const answer = state.answers.find((a) => a.uri === answerUri);
+      await pdsPutRecord(C.vote, rkey, {
+        subject: { uri: answerUri, cid: answer.cid },
+        direction: dir,
+        createdAt: nowIso(),
+      });
+      state.myVotes[answerUri] = { direction: dir, rkey };
+    }
+    await renderAnswers();
+  } catch (err) {
+    alert('Vote failed: ' + err.message);
+  }
+}
+
+async function markBest(answer) {
+  if (!canMarkBest()) return;
+  const rkey = await deriveRkey(state.question.uri);
+  try {
+    await pdsPutRecord(C.bestAnswer, rkey, {
+      question: strongRef(state.question),
+      answer: { uri: answer.uri, cid: answer.cid },
+      createdAt: nowIso(),
+    });
+    state.bestAnswerRecord = { uri: '(local)', cid: '(local)', answerUri: answer.uri };
+    await renderAnswers();
+  } catch (err) {
+    alert('Could not mark best: ' + err.message);
+  }
+}
+
+async function loadComments(answer, target) {
+  const map = new Map();
+  try {
+    const { records } = await getBacklinksFull(answer.uri, C.comment, '.answer.uri', { limit: 50 });
+    for (const r of records) map.set(r.uri, r);
+  } catch {}
+  // Optimistic merge: include the user's own comments on this answer from
+  // their own PDS, in case Constellation hasn't indexed them yet.
+  const sess = getSession();
+  if (sess?.pds && sess?.did) {
+    try {
+      const page = await listRecords(sess.pds, sess.did, C.comment, { limit: 50 });
+      for (const r of (page.records || [])) {
+        if (r.value?.answer?.uri === answer.uri) map.set(r.uri, r);
+      }
+    } catch {}
+  }
+  const items = [...map.values()].sort((a, b) =>
+    (a.value.createdAt || '').localeCompare(b.value.createdAt || ''));
+  if (!items.length) { target.innerHTML = ''; return; }
+  const rows = [];
+  for (const r of items) {
+    const did = r.uri.split('/')[2];
+    const prof = await getProfile(did);
+    rows.push(`<div class="comment">
+      <div class="byline">@${escapeHtml(prof.handle)} · ${timeAgo(r.value.createdAt || '')}</div>
+      <div>${linkify(r.value.text || '')}</div>
+    </div>`);
+  }
+  target.innerHTML = rows.join('');
+}
+
+async function handleComment(e, answer) {
+  e.preventDefault();
+  const session = getSession();
+  if (!session?.did) { $('#signin-link').click(); return; }
+  const form = e.target;
+  const text = form.querySelector('textarea').value.trim();
+  if (!text) return;
+  try {
+    await pdsCreateRecord(C.comment, {
+      answer: { uri: answer.uri, cid: answer.cid },
+      text,
+      createdAt: nowIso(),
+    });
+    form.reset();
+    form.hidden = true;
+    const article = form.closest('.answer');
+    await loadComments(answer, article.querySelector('[data-role="comments"]'));
+  } catch (err) {
+    alert('Comment failed: ' + err.message);
+  }
+}
+
+attachHandleTypeahead($('#handle'));
+
+(async () => {
+  const session = await authInit();
+  renderNav(session);
+  refreshAnswerForm();
+  $('#actions').hidden = false;
+  const q = await loadQuestion();
+  if (!q) return;
+  await Promise.all([loadBestAnswer(), loadMyVotes()]);
+  await loadAnswers();
+  await renderAnswers();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.answers.comment",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A comment on an answer. Comments are only valid on answers, not on questions.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["answer", "text", "createdAt"],
+        "properties": {
+          "answer": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Strong reference to the com.minomobi.answers.answer being commented on."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 6000,
+            "maxGraphemes": 2000
+          },
+          "langs": {
+            "type": "array",
+            "items": { "type": "string", "format": "language" },
+            "maxLength": 3
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
