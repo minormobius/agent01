@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wild — Group Novelty on Bluesky</title>
+<meta name="description" content="How wild is your corner of Bluesky? Novelty analysis across a list.">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0c0e14;
+  --bg2: #141822;
+  --bg3: #1c2130;
+  --text: #e0e4ec;
+  --dim: #6b7394;
+  --accent: #f0a040;
+  --wild: #e04040;
+  --tame: #4080d0;
+  --border: #2a3050;
+  --radius: 8px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header {
+  text-align: center;
+  padding: 40px 20px 24px;
+  max-width: 640px;
+}
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.header h1 .w { color: var(--wild); }
+.header h1 .d { color: var(--tame); }
+.header p {
+  color: var(--dim);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  max-width: 520px;
+  width: 100%;
+  padding: 0 20px;
+  margin-bottom: 24px;
+}
+.input-row input {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+}
+.input-row input::placeholder { color: var(--dim); }
+.input-row input:focus { border-color: var(--accent); }
+.input-row button {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.input-row button:hover { background: #ffb050; }
+.input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status {
+  color: var(--dim);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 8px 20px;
+  min-height: 28px;
+}
+.status.error { color: var(--wild); }
+
+.canvas-wrap {
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 20px;
+  display: none;
+}
+.canvas-wrap canvas {
+  width: 100%;
+  height: 480px;
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: crosshair;
+}
+
+.stats-bar {
+  display: none;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  color: var(--dim);
+  font-size: 0.85rem;
+}
+.stats-bar .stat { text-align: center; }
+.stats-bar .stat-val { color: var(--text); font-size: 1.1rem; font-weight: 600; }
+
+.tooltip {
+  display: none;
+  position: fixed;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  max-width: 320px;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.tooltip .tt-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tooltip .tt-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg2);
+}
+.tooltip .tt-name { font-weight: 600; font-size: 0.95rem; }
+.tooltip .tt-handle { color: var(--dim); font-size: 0.82rem; }
+.tooltip .tt-score {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 4px 0;
+}
+.tooltip .tt-label { font-size: 0.8rem; color: var(--dim); margin-bottom: 6px; }
+.tooltip .tt-post {
+  font-size: 0.82rem;
+  color: var(--dim);
+  line-height: 1.4;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+.tooltip .tt-post-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.tooltip .tt-post-label.wild { color: var(--wild); }
+.tooltip .tt-post-label.tame { color: var(--tame); }
+
+.axis-labels {
+  display: none;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 32px;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.axis-labels .lbl-tame { color: var(--tame); }
+.axis-labels .lbl-wild { color: var(--wild); }
+
+@media (max-width: 600px) {
+  .header h1 { font-size: 1.5rem; }
+  .canvas-wrap canvas { height: 360px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="d">Domesticated</span> or <span class="w">Wild</span>?</h1>
+  <p>Paste a Bluesky list URL. We'll read everyone's posts, compute semantic novelty against the group consensus, and show who's running with the pack versus roaming off-trail.</p>
+</div>
+
+<div class="input-row">
+  <input type="text" id="listInput" placeholder="bsky.app/profile/.../lists/... or at://did/app.bsky.graph.list/rkey">
+  <button id="goBtn" onclick="analyze()">Analyze</button>
+</div>
+
+<div class="status" id="status"></div>
+<div class="stats-bar" id="statsBar"></div>
+<div class="axis-labels" id="axisLabels">
+  <span class="lbl-tame">&#x1F3E0; Domesticated</span>
+  <span class="lbl-wild">&#x1F43A; Wild</span>
+</div>
+<div class="canvas-wrap" id="canvasWrap">
+  <canvas id="field"></canvas>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const BSKY_PUBLIC = 'https://public.api.bsky.app';
+let members = [];
+let hexCells = [];
+let hoveredMember = null;
+let avatarImages = new Map();
+let dpr = 1;
+let canvasW = 0, canvasH = 0;
+let minWild = 0, maxWild = 1;
+
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+function setStatus(msg, isError) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (isError ? ' error' : '');
+}
+
+async function analyze() {
+  const input = document.getElementById('listInput').value.trim();
+  if (!input) return;
+
+  const btn = document.getElementById('goBtn');
+  btn.disabled = true;
+  setStatus('Fetching list members...');
+  document.getElementById('canvasWrap').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('axisLabels').style.display = 'none';
+  members = [];
+  hexCells = [];
+  hoveredMember = null;
+  avatarImages.clear();
+
+  try {
+    setStatus('Analyzing posts — this takes 10-30 seconds...');
+    const res = await fetch('/wild', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ list: input }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    members = data.members.filter(m => m.wildness !== null);
+    if (members.length === 0) throw new Error('No members with analyzed posts');
+
+    // Compute range
+    const wildValues = members.map(m => m.wildness);
+    minWild = Math.min(...wildValues);
+    maxWild = Math.max(...wildValues);
+    if (maxWild === minWild) { minWild -= 0.01; maxWild += 0.01; }
+
+    // Show stats
+    const bar = document.getElementById('statsBar');
+    bar.innerHTML = `
+      <div class="stat"><div class="stat-val">${data.stats.listSize}</div>members</div>
+      <div class="stat"><div class="stat-val">${data.stats.totalPosts}</div>posts analyzed</div>
+      <div class="stat"><div class="stat-val">${(data.stats.groupMean * 1000).toFixed(0)}</div>group mean ×10³</div>
+      <div class="stat"><div class="stat-val">${(data.stats.groupVolume * 1000).toFixed(0)}</div>volume ×10³</div>
+    `;
+    bar.style.display = 'flex';
+
+    // Show canvas
+    document.getElementById('canvasWrap').style.display = 'block';
+    document.getElementById('axisLabels').style.display = 'flex';
+    initCanvas();
+    loadAvatars();
+    computeLayout();
+    draw();
+    setStatus('');
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function initCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvasW = rect.width;
+  canvasH = rect.height;
+  canvas.width = canvasW * dpr;
+  canvas.height = canvasH * dpr;
+}
+
+function loadAvatars() {
+  for (const m of members) {
+    if (!m.avatar) { avatarImages.set(m.did, null); continue; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = m.avatar;
+    img.onload = () => { avatarImages.set(m.did, img); draw(); };
+    img.onerror = () => { avatarImages.set(m.did, null); };
+  }
+}
+
+// Map wildness → x position on canvas
+function wildToX(w) {
+  const pad = 60;
+  const t = (w - minWild) / (maxWild - minWild);
+  return pad + t * (canvasW - 2 * pad);
+}
+
+function hexPath(cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = i * Math.PI / 3;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function computeLayout() {
+  hexCells = [];
+  if (members.length === 0) return;
+
+  const hexR = Math.min(36, Math.max(20, canvasW / (members.length * 1.8)));
+  const colW = hexR * 1.8;
+  const rowH = Math.sqrt(3) * hexR;
+  const midY = canvasH / 2;
+
+  const occupied = new Set();
+  function cellKey(c, r) { return c + ',' + r; }
+
+  for (const m of members) {
+    const idealX = wildToX(m.wildness);
+    const idealCol = Math.round(idealX / colW);
+    const idealRow = Math.round(midY / rowH);
+
+    let bestCol = idealCol, bestRow = idealRow, bestDist = Infinity, found = false;
+
+    for (let ring = 0; ring <= 30; ring++) {
+      if (ring === 0) {
+        if (!occupied.has(cellKey(idealCol, idealRow))) {
+          bestCol = idealCol; bestRow = idealRow; found = true; break;
+        }
+        continue;
+      }
+      let ringFound = false;
+      for (let dc = -ring; dc <= ring; dc++) {
+        for (let dr = -ring; dr <= ring; dr++) {
+          if (Math.abs(dc) !== ring && Math.abs(dr) !== ring) continue;
+          const c = idealCol + dc, r = idealRow + dr;
+          if (occupied.has(cellKey(c, r))) continue;
+          const isOdd = c & 1;
+          const cx = c * colW;
+          const cy = r * rowH + (isOdd ? rowH * 0.5 : 0);
+          const dx = cx - idealX, dy = cy - midY;
+          // Penalize vertical displacement more to keep spread horizontal
+          const dist = dx * dx + dy * dy * 4;
+          if (dist < bestDist) { bestDist = dist; bestCol = c; bestRow = r; ringFound = true; }
+        }
+      }
+      if (ringFound) { found = true; break; }
+    }
+
+    if (found) {
+      occupied.add(cellKey(bestCol, bestRow));
+      const isOdd = bestCol & 1;
+      const cx = bestCol * colW;
+      const cy = bestRow * rowH + (isOdd ? rowH * 0.5 : 0);
+      hexCells.push({ cx, cy, r: hexR, member: m });
+    }
+  }
+}
+
+function wildColor(t) {
+  // t is 0 (tame) to 1 (wild)
+  // Blue → neutral → orange → red
+  if (t < 0.3) return `hsl(215, 60%, ${30 + t * 40}%)`;
+  if (t < 0.6) return `hsl(${215 - (t - 0.3) * 600}, 50%, ${42 + (t - 0.3) * 20}%)`;
+  return `hsl(${30 - (t - 0.6) * 60}, ${60 + (t - 0.6) * 40}%, ${48 + (t - 0.6) * 20}%)`;
+}
+
+function draw() {
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  // Background
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim();
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Gradient band
+  const grad = ctx.createLinearGradient(40, 0, canvasW - 40, 0);
+  grad.addColorStop(0, 'rgba(64, 128, 208, 0.08)');
+  grad.addColorStop(0.5, 'rgba(128, 128, 128, 0.03)');
+  grad.addColorStop(1, 'rgba(224, 64, 64, 0.08)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Center line
+  ctx.strokeStyle = 'rgba(100, 115, 148, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(canvasW / 2, 20);
+  ctx.lineTo(canvasW / 2, canvasH - 20);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw hexes
+  for (const cell of hexCells) {
+    const { cx, cy, r, member } = cell;
+    const t = (member.wildness - minWild) / (maxWild - minWild);
+    const img = avatarImages.get(member.did);
+    const isHovered = member === hoveredMember;
+
+    ctx.save();
+
+    if (img) {
+      hexPath(cx, cy, r);
+      ctx.clip();
+      ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+      ctx.restore();
+
+      // Border
+      hexPath(cx, cy, r);
+      ctx.strokeStyle = isHovered ? '#fff' : wildColor(t);
+      ctx.lineWidth = isHovered ? 2.5 : 1.5;
+      ctx.stroke();
+    } else {
+      // Fallback colored hex
+      hexPath(cx, cy, r);
+      ctx.fillStyle = wildColor(t);
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = isHovered ? '#fff' : 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = isHovered ? 2.5 : 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Initial
+      const initial = (member.displayName || member.handle || '?')[0].toUpperCase();
+      ctx.font = `bold ${Math.round(r * 0.75)}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(initial, cx, cy);
+    }
+
+    // Handle label below hex on hover
+    if (isHovered) {
+      ctx.font = `600 11px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('@' + member.handle, cx, cy + r + 4);
+    }
+  }
+
+  ctx.restore();
+}
+
+// Hit test
+function cellAt(px, py) {
+  for (const cell of hexCells) {
+    const dx = px - cell.cx, dy = py - cell.cy;
+    if (dx * dx + dy * dy < cell.r * cell.r) return cell;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const cell = cellAt(px, py);
+
+  const prev = hoveredMember;
+  hoveredMember = cell ? cell.member : null;
+  if (hoveredMember !== prev) draw();
+
+  if (cell) {
+    const m = cell.member;
+    const t = (m.wildness - minWild) / (maxWild - minWild);
+    const label = t > 0.65 ? 'Wild' : t < 0.35 ? 'Domesticated' : 'Middle of the pack';
+    let html = `<div class="tt-header">`;
+    if (m.avatar) html += `<img class="tt-avatar" src="${m.avatar}">`;
+    html += `<div><div class="tt-name">${m.displayName}</div><div class="tt-handle">@${m.handle}</div></div></div>`;
+    html += `<div class="tt-label">${label}</div>`;
+    html += `<div class="tt-score" style="color:${wildColor(t)}">${(m.wildness * 1000).toFixed(0)}</div>`;
+    html += `<div class="tt-label">${m.postCount} posts · volume ${(m.volume * 1000).toFixed(0)}</div>`;
+    if (m.wildPost) {
+      html += `<div class="tt-post"><div class="tt-post-label wild">Wildest post</div>${truncate(m.wildPost.text, 140)}</div>`;
+    }
+    if (m.tamePost) {
+      html += `<div class="tt-post"><div class="tt-post-label tame">Tamest post</div>${truncate(m.tamePost.text, 140)}</div>`;
+    }
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+
+    // Position tooltip
+    let tx = e.clientX + 16, ty = e.clientY + 16;
+    const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    if (tx + tw > window.innerWidth - 10) tx = e.clientX - tw - 16;
+    if (ty + th > window.innerHeight - 10) ty = e.clientY - th - 16;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredMember = null;
+  tooltip.style.display = 'none';
+  draw();
+});
+
+// Touch support
+canvas.addEventListener('touchstart', (e) => {
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const px = touch.clientX - rect.left;
+  const py = touch.clientY - rect.top;
+  const cell = cellAt(px, py);
+  hoveredMember = cell ? cell.member : null;
+  draw();
+  if (cell) {
+    e.preventDefault();
+    // Show tooltip briefly
+    const m = cell.member;
+    setStatus(`@${m.handle}: wildness ${(m.wildness * 1000).toFixed(0)} · ${m.postCount} posts`);
+  }
+}, { passive: false });
+
+function truncate(s, n) {
+  if (!s) return '';
+  const escaped = s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return escaped.length > n ? escaped.slice(0, n) + '…' : escaped;
+}
+
+// Handle Enter key
+document.getElementById('listInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') analyze();
+});
+
+// Resize handling
+window.addEventListener('resize', () => {
+  if (members.length === 0) return;
+  initCanvas();
+  computeLayout();
+  draw();
+});
+</script>
+</body>
+</html>
