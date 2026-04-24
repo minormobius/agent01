@@ -130,106 +130,102 @@ function normalize(node, parentId = null, depth = 0) {
   return normalized;
 }
 
-// ─── Radial fan layout ────────────────────────────────────────────
+// ─── Recursive bud layout ─────────────────────────────────────────
 
-const PFP_R = 22;             // avatar circle radius
-const ARC_DEG = 30;           // outer arc — leaves are distributed evenly across it
-const RADIAL_BASE = 90;       // first ring radius from root
-const RADIAL_GROW = 1.22;     // per-depth growth multiplier
-const STAGGER = 20;           // ±px radial nudge per sibling (3-step pattern)
+const PFP_R = 22;           // avatar circle radius
+const PFP_GAP = 6;          // minimum gap between a node and its children
+const CHILD_PAD = 1.15;     // angular-slot padding so sibling subtrees don't touch
+const ROOT_ARC = Math.PI;   // 180° downward sweep for the root's children
+const CHILD_ARC = Math.PI;  // 180° outward sweep for every non-root node
 
 /**
- * Bottom-up centroid layout. The insight: with top-down slotting, each node
- * has unknown subtree population, so proportional slot allocation creates
- * uneven density. We flip it:
+ * Recursive bud-circle layout. Each internal node becomes the center of a
+ * circle on which its children sit; each child, in turn, buds its own circle
+ * of grandchildren, oriented outward along the grandparent→parent axis.
  *
- *   1. Collect leaves in DFS order (siblings preserved, no crossings).
- *   2. Distribute leaves EVENLY across the arc — each leaf gets the same
- *      angular share, regardless of which subtree it belongs to.
- *   3. Internal nodes sit at the MEAN ANGLE of their descendant leaves.
- *      Root ends up at 0° (the apex); middle-of-tree nodes sit above the
- *      angular centroid of what they parent.
+ *   - Top-level replies form a bud around root.
+ *   - Each of those, if it has replies, forms a bud around itself on the
+ *     hemisphere facing outward from root.
+ *   - Recursively, every subtree buds outward, never doubling back.
  *
- * Radius is still depth-based (rings × growth) with a 3-step sibling stagger
- * for organic variation. Edges are cubic beziers with control points at the
- * midpoint radius — one at parent's angle, one at child's angle — which
- * gives the classic smooth radial S-curve that hugs the rings.
+ * Sizing is compositional: `outer(n)` = extent of n's subtree from n's center.
+ * A leaf's outer is just PFP_R. An internal node's outer = bud-distance +
+ * max child outer, where the bud-distance is chosen so the angular sum of
+ * child subtree half-widths fits the available arc with padding.
  *
- * Coords: each node gets `cx, cy, angle, depth, _leaves`. Origin = root.
+ * Each node gets: `cx, cy` (center), `bud` (radius at which its children
+ * orbit), `outer` (subtree half-extent from center), `depth`.
  */
 function layout(root) {
-  // Leaf count per subtree (kept for potential weighted variants; angles use DFS order).
-  function countLeaves(n) {
-    if (!n.children.length) { n._leaves = 1; return 1; }
-    let sum = 0;
-    for (const c of n.children) sum += countLeaves(c);
-    n._leaves = sum;
-    return sum;
-  }
-  countLeaves(root);
-
-  const totalLeaves = root._leaves;
-  const arcRad = ARC_DEG * Math.PI / 180;
-
-  // Assign angles: leaves get evenly-spaced slots (DFS index); internal nodes
-  // get the mean angle of their descendant leaves.
-  let leafIdx = 0;
-  function assignAngles(n) {
+  // Pass 1: bottom-up. Each node's bud radius + outer extent.
+  function computeExtent(n) {
     if (!n.children.length) {
-      const t = totalLeaves === 1 ? 0.5 : (leafIdx + 0.5) / totalLeaves;
-      leafIdx++;
-      n.angle = -arcRad / 2 + t * arcRad;
-      return { sum: n.angle, count: 1 };
+      n.bud = 0;
+      n.outer = PFP_R;
+      return;
     }
-    let sum = 0, count = 0;
+    let maxChildOuter = 0;
+    let sumChildOuter = 0;
     for (const c of n.children) {
-      const r = assignAngles(c);
-      sum += r.sum; count += r.count;
+      computeExtent(c);
+      if (c.outer > maxChildOuter) maxChildOuter = c.outer;
+      sumChildOuter += c.outer;
     }
-    n.angle = sum / count;
-    return { sum, count };
-  }
-  assignAngles(root);
 
-  // Note: we used to scale RADIAL_BASE up based on totalLeaves so that no
-  // pair of leaves would ever overlap. That was geometrically correct but
-  // aesthetically wrong — a 50-leaf thread blew ring-5 out to ~36,000 px,
-  // and auto-fit shrank the whole canvas to sub-pixel circles. Real threads
-  // distribute leaves across depths, so extreme density near the root is
-  // rare. We now keep RADIAL_BASE fixed and accept some overlap in very
-  // wide shallow fans as a density signal (crowded root = lots of replies).
-  function ringRadius(depth) {
-    if (depth === 0) return 0;
-    let r = 0;
-    for (let i = 1; i <= depth; i++) r += RADIAL_BASE * Math.pow(RADIAL_GROW, i - 1);
-    return r;
-  }
+    // Angular packing: at bud distance d, each child of outer radius s
+    // subtends angular half-width arctan(s/d) ≈ s/d. Sum of full widths
+    // must fit the available arc, with CHILD_PAD slack.
+    const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
+    const packedBud = CHILD_PAD * (2 * sumChildOuter) / arc;
 
-  // Place: depth-based radius + 3-step sibling stagger.
-  function place(n, depth, siblingIdx) {
+    // Geometric floor: children must sit at least PFP_R + PFP_GAP + their own
+    // outer extent from parent's center so circles don't overlap radially.
+    const geomBud = PFP_R + PFP_GAP + maxChildOuter;
+
+    n.bud = Math.max(packedBud, geomBud);
+    n.outer = n.bud + maxChildOuter;
+  }
+  computeExtent(root);
+
+  // Pass 2: top-down placement. Each child lands at angle determined by its
+  // angular share (proportional to its outer extent) on the parent's arc.
+  function place(n, cx, cy, outwardAngle, depth) {
+    n.cx = cx;
+    n.cy = cy;
     n.depth = depth;
-    const stagger = depth === 0 ? 0 : ((siblingIdx % 3) - 1) * STAGGER;
-    const r = depth === 0 ? 0 : ringRadius(depth) + stagger;
-    n.cx = r * Math.sin(n.angle);
-    n.cy = r * Math.cos(n.angle);
-    for (let i = 0; i < n.children.length; i++) {
-      place(n.children[i], depth + 1, i);
+    if (!n.children.length) return;
+
+    const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
+    const totalWeight = n.children.reduce((s, c) => s + c.outer, 0) || 1;
+    let cursor = outwardAngle - arc / 2;
+
+    for (const c of n.children) {
+      const share = (c.outer / totalWeight) * arc;
+      const childAngle = cursor + share / 2;
+      const childX = cx + n.bud * Math.cos(childAngle);
+      const childY = cy + n.bud * Math.sin(childAngle);
+      // Outward axis for the child = direction from n through c (continues
+      // radially outward in the bud-of-buds cascade).
+      place(c, childX, childY, childAngle, depth + 1);
+      cursor += share;
     }
   }
-  place(root, 0, 0);
+  // Root's outward axis = down (+y in canvas coords).
+  place(root, 0, 0, Math.PI / 2, 0);
 
   // Flatten + bounds.
   const flat = [];
-  let minX = 0, maxX = 0, maxY = 0;
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
   function flatten(n) {
     flat.push(n);
     if (n.cx - PFP_R < minX) minX = n.cx - PFP_R;
     if (n.cx + PFP_R > maxX) maxX = n.cx + PFP_R;
+    if (n.cy - PFP_R < minY) minY = n.cy - PFP_R;
     if (n.cy + PFP_R > maxY) maxY = n.cy + PFP_R;
     for (const c of n.children) flatten(c);
   }
   flatten(root);
-  return { flat, bounds: { minX, maxX, maxY } };
+  return { flat, bounds: { minX, maxX, minY, maxY } };
 }
 
 // ─── Rendering ────────────────────────────────────────────────────
@@ -259,23 +255,16 @@ function render() {
   ctx.translate(state.view.x, state.view.y);
   ctx.scale(state.view.scale, state.view.scale);
 
-  // Edges: cubic bezier with both control points at the midpoint radius —
-  // first at parent's angle, second at child's angle. Gives the classic
-  // smooth radial S-curve that hugs the ring between generations.
+  // Edges: straight lines from parent center to child center. In the
+  // bud-circle layout children sit on the parent's circle, so a straight
+  // radial spoke is the honest visual — no arcing across other children.
   ctx.strokeStyle = css('--edge');
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1;
   for (const n of state.flat) {
-    const pr = Math.hypot(n.cx, n.cy);
     for (const c of n.children) {
-      const cr = Math.hypot(c.cx, c.cy);
-      const midR = (pr + cr) / 2;
-      const p1x = midR * Math.sin(n.angle);
-      const p1y = midR * Math.cos(n.angle);
-      const p2x = midR * Math.sin(c.angle);
-      const p2y = midR * Math.cos(c.angle);
       ctx.beginPath();
       ctx.moveTo(n.cx, n.cy);
-      ctx.bezierCurveTo(p1x, p1y, p2x, p2y, c.cx, c.cy);
+      ctx.lineTo(c.cx, c.cy);
       ctx.stroke();
     }
   }
@@ -566,16 +555,18 @@ async function loadFromInput(input) {
     state.hover = null;
     hidePanel();
 
-    // Center the apex (root, world origin) horizontally; pad from the top.
-    // Clamp the auto-fit floor so deep threads don't shrink to sub-pixel —
-    // user can pan/zoom to explore beyond what fits on screen.
+    // Fit the bud to the canvas and center it. Root is at world origin, but
+    // the tree grows in all directions; use the full bounds box for fitting.
     const W = canvas.clientWidth, H = canvas.clientHeight;
-    const wantH = bounds.maxY + PFP_R * 2 + 40;
-    const wantW = (bounds.maxX - bounds.minX) + 40;
+    const pad = 24;
+    const wantW = (bounds.maxX - bounds.minX) + pad * 2;
+    const wantH = (bounds.maxY - bounds.minY) + pad * 2;
     const MIN_FIT_SCALE = 0.35;
-    state.view.scale = Math.max(MIN_FIT_SCALE, Math.min(1, H / wantH, W / wantW));
-    state.view.x = W / 2;
-    state.view.y = PFP_R * state.view.scale + 30;
+    state.view.scale = Math.max(MIN_FIT_SCALE, Math.min(1, W / wantW, H / wantH));
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = (bounds.minY + bounds.maxY) / 2;
+    state.view.x = W / 2 - cx * state.view.scale;
+    state.view.y = H / 2 - cy * state.view.scale;
 
     render();
     loadAvatars(flat);
