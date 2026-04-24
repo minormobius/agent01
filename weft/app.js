@@ -130,52 +130,67 @@ function normalize(node, parentId = null, depth = 0) {
   return normalized;
 }
 
-// ─── Tidy tree layout (Buchheim/Reingold-Tilford variant) ────────
+// ─── Radial fan layout ────────────────────────────────────────────
 
-const NODE_W = 230;
-const NODE_H = 64;
-const H_GAP = 22;   // between siblings
-const V_GAP = 40;   // between depth levels
+const PFP_R = 22;             // avatar circle radius
+const ARC_DEG = 30;           // total arc subtended at the apex by the whole tree
+const RADIAL_BASE = 85;       // first ring radius from root
+const RADIAL_GROW = 1.1;      // per-depth growth multiplier — deeper rings sit further out
 
 /**
- * Minimal Reingold-Tilford style layout. Each node gets x,y (top-left of box).
- * Walks tree once bottom-up to place children, shifts overlaps by subtree width.
- * Not a fully optimal RT — good enough for ~thousand-node threads.
+ * Place the root at the apex; carve a 30° downward wedge; allocate angular
+ * slots to each subtree proportional to its leaf count, recursively.
+ *
+ * Coordinates: each node gets `cx, cy` (circle CENTER), `angle` (radians from
+ * vertical-down, signed), `depth`, and a `_leaves` count. Origin is (0, 0)
+ * — the apex / root center. Caller centers via state.view.
  */
 function layout(root) {
-  // Pass 1: compute subtree width (in node units) for each node.
-  function measure(n) {
-    if (!n.children.length) { n._w = 1; return 1; }
-    let total = 0;
-    for (const c of n.children) total += measure(c);
-    n._w = Math.max(1, total);
-    return n._w;
+  // Pass 1: leaf count per subtree (drives angular slot widths).
+  function countLeaves(n) {
+    if (!n.children.length) { n._leaves = 1; return 1; }
+    let sum = 0;
+    for (const c of n.children) sum += countLeaves(c);
+    n._leaves = sum;
+    return sum;
   }
-  measure(root);
+  countLeaves(root);
 
-  // Pass 2: assign positions.
-  const unit = NODE_W + H_GAP;
-  function place(n, leftUnit, depth) {
-    const y = depth * (NODE_H + V_GAP);
-    const cx = (leftUnit + n._w / 2) * unit;
-    n.x = cx - NODE_W / 2;
-    n.y = y;
-    let cursor = leftUnit;
+  function radiusAt(depth) {
+    if (depth === 0) return 0;
+    // Linear by default; with RADIAL_GROW>1 each ring sits a bit further than the last.
+    let r = 0;
+    for (let i = 1; i <= depth; i++) r += RADIAL_BASE * Math.pow(RADIAL_GROW, i - 1);
+    return r;
+  }
+
+  // Pass 2: assign angular range, compute (cx, cy) per node.
+  const arcRad = ARC_DEG * Math.PI / 180;
+  function place(n, startA, endA, depth) {
+    n.depth = depth;
+    n.angle = (startA + endA) / 2;
+    const r = radiusAt(depth);
+    n.cx = r * Math.sin(n.angle);
+    n.cy = r * Math.cos(n.angle);
+
+    if (!n.children.length) return;
+    let cursor = startA;
     for (const c of n.children) {
-      place(c, cursor, depth + 1);
-      cursor += c._w;
+      const span = (endA - startA) * (c._leaves / n._leaves);
+      place(c, cursor, cursor + span, depth + 1);
+      cursor += span;
     }
   }
-  place(root, 0, 0);
+  place(root, -arcRad / 2, arcRad / 2, 0);
 
-  // Collect flat list + bounds.
+  // Flatten + bounds.
   const flat = [];
-  let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = 0, maxX = 0, maxY = 0;
   function flatten(n) {
     flat.push(n);
-    minX = Math.min(minX, n.x);
-    maxX = Math.max(maxX, n.x + NODE_W);
-    maxY = Math.max(maxY, n.y + NODE_H);
+    if (n.cx - PFP_R < minX) minX = n.cx - PFP_R;
+    if (n.cx + PFP_R > maxX) maxX = n.cx + PFP_R;
+    if (n.cy + PFP_R > maxY) maxY = n.cy + PFP_R;
     for (const c of n.children) flatten(c);
   }
   flatten(root);
@@ -209,111 +224,62 @@ function render() {
   ctx.translate(state.view.x, state.view.y);
   ctx.scale(state.view.scale, state.view.scale);
 
-  // Edges first (parent -> child curves).
+  // Edges first: parent -> child quadratic curves that swoop along the radial fan.
   ctx.strokeStyle = css('--edge');
-  ctx.lineWidth = 1.4;
+  ctx.lineWidth = 1.2;
   for (const n of state.flat) {
     for (const c of n.children) {
-      const x1 = n.x + NODE_W / 2;
-      const y1 = n.y + NODE_H;
-      const x2 = c.x + NODE_W / 2;
-      const y2 = c.y;
-      const midY = (y1 + y2) / 2;
+      // Control point at the parent's radius but at the child's angle —
+      // creates a soft swoop that follows the fan.
+      const pr = Math.hypot(n.cx, n.cy) || 1;
+      const ctrlX = pr * Math.sin(c.angle);
+      const ctrlY = pr * Math.cos(c.angle);
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.bezierCurveTo(x1, midY, x2, midY, x2, y2);
+      ctx.moveTo(n.cx, n.cy);
+      ctx.quadraticCurveTo(ctrlX, ctrlY, c.cx, c.cy);
       ctx.stroke();
     }
   }
 
-  // Nodes.
+  // Nodes (circles).
   for (const n of state.flat) drawNode(n, n === state.hover, n === state.selected);
 
   ctx.restore();
 }
 
 function drawNode(n, isHover, isSelected) {
-  const x = n.x, y = n.y, w = NODE_W, h = NODE_H;
   const isRoot = n.parentId === null;
+  const r = PFP_R;
 
-  // Card background.
-  ctx.fillStyle = css('--node');
-  let strokeCol, strokeW;
-  if (isSelected)      { strokeCol = css('--accent');     strokeW = 2.2; }
-  else if (isHover)    { strokeCol = css('--accent');     strokeW = 1.6; }
-  else if (isRoot)     { strokeCol = css('--node-root');  strokeW = 1.6; }
-  else                 { strokeCol = css('--node-stroke');strokeW = 1; }
-  ctx.strokeStyle = strokeCol;
-  ctx.lineWidth = strokeW;
-  roundRect(ctx, x, y, w, h, 6);
-  ctx.fill();
-  ctx.stroke();
-
-  // Avatar circle (left).
-  const ar = 18;
-  const ax = x + 12, ay = y + (h - ar * 2) / 2;
+  // Avatar fill, clipped to circle.
   const img = state.avatars.get(n.author.did);
   ctx.save();
   ctx.beginPath();
-  ctx.arc(ax + ar, ay + ar, ar, 0, Math.PI * 2);
+  ctx.arc(n.cx, n.cy, r, 0, Math.PI * 2);
   ctx.closePath();
   ctx.clip();
   if (img && img.complete && img.naturalWidth > 0) {
-    ctx.drawImage(img, ax, ay, ar * 2, ar * 2);
+    ctx.drawImage(img, n.cx - r, n.cy - r, r * 2, r * 2);
   } else {
     ctx.fillStyle = seededColor(n.author.did || n.author.handle);
-    ctx.fillRect(ax, ay, ar * 2, ar * 2);
+    ctx.fillRect(n.cx - r, n.cy - r, r * 2, r * 2);
   }
   ctx.restore();
-  ctx.strokeStyle = css('--node-stroke');
-  ctx.lineWidth = 1;
+
+  // Stroke: hover/selected/root take precedence over the default thin ring.
+  let strokeCol, strokeW;
+  if (isSelected)   { strokeCol = css('--accent');     strokeW = 3; }
+  else if (isHover) { strokeCol = css('--accent');     strokeW = 2; }
+  else if (isRoot)  { strokeCol = css('--node-root');  strokeW = 2; }
+  else              { strokeCol = css('--node-stroke');strokeW = 1; }
+  ctx.strokeStyle = strokeCol;
+  ctx.lineWidth = strokeW;
   ctx.beginPath();
-  ctx.arc(ax + ar, ay + ar, ar, 0, Math.PI * 2);
+  ctx.arc(n.cx, n.cy, r, 0, Math.PI * 2);
   ctx.stroke();
-
-  const tx = ax + ar * 2 + 10;
-  const tw = w - (tx - x) - 10;
-  ctx.textBaseline = 'top';
-
-  // Handle.
-  ctx.fillStyle = isRoot ? css('--node-root') : css('--text');
-  ctx.font = '600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace';
-  ctx.fillText(truncateToWidth(ctx, '@' + (n.author.handle || 'unknown'), tw), tx, y + 10);
-
-  // Display name (italic, muted).
-  if (n.author.displayName) {
-    ctx.fillStyle = css('--muted');
-    ctx.font = 'italic 11px ui-serif, Georgia, serif';
-    ctx.fillText(truncateToWidth(ctx, n.author.displayName, tw), tx, y + 26);
-  }
-
-  // Engagement row (bottom).
-  ctx.fillStyle = css('--muted');
-  ctx.font = '10.5px ui-monospace, Menlo, monospace';
-  const eng = `♥ ${n.engagement.likes}   ↻ ${n.engagement.reposts}   ↳ ${n.engagement.replies}`;
-  ctx.fillText(eng, tx, y + h - 18);
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function truncateToWidth(ctx, text, maxWidth) {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let s = text;
-  while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) {
-    s = s.slice(0, -1);
-  }
-  return s + '…';
-}
 
 function seededColor(seed) {
   let h = 0;
@@ -350,10 +316,10 @@ function screenToWorld(sx, sy) {
 
 function hitTest(sx, sy) {
   const { x, y } = screenToWorld(sx, sy);
-  for (const n of state.flat) {
-    if (x >= n.x && x <= n.x + NODE_W && y >= n.y && y <= n.y + NODE_H) {
-      return n;
-    }
+  // Walk back-to-front so deeper-drawn nodes win when circles overlap.
+  for (let i = state.flat.length - 1; i >= 0; i--) {
+    const n = state.flat[i];
+    if (Math.hypot(x - n.cx, y - n.cy) <= PFP_R) return n;
   }
   return null;
 }
@@ -515,20 +481,22 @@ function showPanel(n) {
 }
 
 function positionPanel(n) {
-  // Pin to the right of the selected node in screen coords; flip if it overflows.
-  const sx = state.view.x + (n.x + NODE_W) * state.view.scale;
-  const sy = state.view.y + n.y * state.view.scale;
+  // Pin to the right of the selected circle; flip left if it overflows.
   const rect = canvas.getBoundingClientRect();
+  const screenCx = state.view.x + n.cx * state.view.scale;
+  const screenCy = state.view.y + n.cy * state.view.scale;
+  const screenR  = PFP_R * state.view.scale;
   const pad = 12;
   const ttW = tooltip.offsetWidth, ttH = tooltip.offsetHeight;
-  let cx = rect.left + sx + pad;
-  let cy = rect.top + sy;
+  let cx = rect.left + screenCx + screenR + pad;
+  let cy = rect.top + screenCy - ttH / 2;
   if (cx + ttW > window.innerWidth - 8) {
-    cx = rect.left + state.view.x + n.x * state.view.scale - ttW - pad;
+    cx = rect.left + screenCx - screenR - ttW - pad;
   }
+  if (cy < 8) cy = 8;
   if (cy + ttH > window.innerHeight - 8) cy = window.innerHeight - ttH - 8;
   tooltip.style.left = Math.max(8, cx) + 'px';
-  tooltip.style.top = Math.max(8, cy) + 'px';
+  tooltip.style.top = cy + 'px';
 }
 
 function hidePanel() {
@@ -559,11 +527,14 @@ async function loadFromInput(input) {
     state.hover = null;
     hidePanel();
 
-    // Center view on root.
-    const rootCx = tree.x + NODE_W / 2;
-    state.view.scale = 1;
-    state.view.x = canvas.clientWidth / 2 - rootCx;
-    state.view.y = 60;
+    // Center the apex (root, world origin) horizontally; pad from the top.
+    // If the fan is too tall to fit, scale down to fit comfortably.
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const wantH = bounds.maxY + PFP_R * 2 + 40;
+    const wantW = (bounds.maxX - bounds.minX) + 40;
+    state.view.scale = Math.min(1, H / wantH, W / wantW);
+    state.view.x = W / 2;
+    state.view.y = PFP_R * state.view.scale + 30;
 
     render();
     loadAvatars(flat);
