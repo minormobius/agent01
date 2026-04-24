@@ -191,19 +191,17 @@ function layout(root) {
   }
   assignAngles(root);
 
-  // Adaptive base: even the shallowest leaf must sit at a radius where the
-  // per-leaf chord (r × arcRad/totalLeaves) can fit a PFP. Otherwise a wide
-  // thread with all shallow leaves would overlap near the root. We scale
-  // RADIAL_BASE up to this minimum so every ring has enough arc length.
-  const minLeafR = totalLeaves <= 1
-    ? 0
-    : (2 * PFP_R * 1.1) / (arcRad / totalLeaves);
-  const effectiveBase = Math.max(RADIAL_BASE, minLeafR);
-
+  // Note: we used to scale RADIAL_BASE up based on totalLeaves so that no
+  // pair of leaves would ever overlap. That was geometrically correct but
+  // aesthetically wrong — a 50-leaf thread blew ring-5 out to ~36,000 px,
+  // and auto-fit shrank the whole canvas to sub-pixel circles. Real threads
+  // distribute leaves across depths, so extreme density near the root is
+  // rare. We now keep RADIAL_BASE fixed and accept some overlap in very
+  // wide shallow fans as a density signal (crowded root = lots of replies).
   function ringRadius(depth) {
     if (depth === 0) return 0;
     let r = 0;
-    for (let i = 1; i <= depth; i++) r += effectiveBase * Math.pow(RADIAL_GROW, i - 1);
+    for (let i = 1; i <= depth; i++) r += RADIAL_BASE * Math.pow(RADIAL_GROW, i - 1);
     return r;
   }
 
@@ -569,11 +567,13 @@ async function loadFromInput(input) {
     hidePanel();
 
     // Center the apex (root, world origin) horizontally; pad from the top.
-    // If the fan is too tall to fit, scale down to fit comfortably.
+    // Clamp the auto-fit floor so deep threads don't shrink to sub-pixel —
+    // user can pan/zoom to explore beyond what fits on screen.
     const W = canvas.clientWidth, H = canvas.clientHeight;
     const wantH = bounds.maxY + PFP_R * 2 + 40;
     const wantW = (bounds.maxX - bounds.minX) + 40;
-    state.view.scale = Math.min(1, H / wantH, W / wantW);
+    const MIN_FIT_SCALE = 0.35;
+    state.view.scale = Math.max(MIN_FIT_SCALE, Math.min(1, H / wantH, W / wantW));
     state.view.x = W / 2;
     state.view.y = PFP_R * state.view.scale + 30;
 
