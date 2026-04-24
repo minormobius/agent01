@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>weft &mdash; bluesky thread analysis</title>
+<meta name="description" content="Visualize and export Bluesky threads. Tidy tree view, contributor Voronoi, inference-ready YAML export.">
+<meta property="og:title" content="weft &mdash; bluesky thread analysis">
+<meta property="og:description" content="Canvas thread trees, contributor weighting, YAML export for LLMs.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mino.mobi/weft">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <a href="/" class="home">minomobi</a>
+      <span class="slash">/</span>
+      <span class="page">weft</span>
+    </div>
+    <div class="tag">bluesky thread analysis</div>
+  </header>
+
+  <section class="input-row">
+    <input
+      id="url-input"
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="paste a bsky.app post URL or at:// URI and press enter">
+    <button id="load-btn">load</button>
+    <button id="export-btn" disabled title="export thread as YAML">yaml</button>
+    <span id="status" class="status"></span>
+  </section>
+
+  <main>
+    <div class="canvas-wrap" id="tree-wrap">
+      <canvas id="tree-canvas"></canvas>
+      <div id="tooltip" class="tooltip hidden"></div>
+      <div class="hint" id="tree-hint">
+        drag to pan &middot; scroll to zoom &middot; hover a node for the full post
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

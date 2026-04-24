@@ -1,0 +1,187 @@
+:root {
+  --bg: #faf9f6;
+  --panel: #fff;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #d8d4cc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.08);
+  --node: #fff;
+  --node-stroke: #bbb;
+  --node-root: #8b0000;
+  --edge: #c8c2b5;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --panel: #181818;
+    --text: #d4d4d4;
+    --muted: #888;
+    --rule: #2a2a2a;
+    --accent: #c45;
+    --accent-faint: rgba(204, 68, 85, 0.10);
+    --node: #1c1c1c;
+    --node-stroke: #3a3a3a;
+    --node-root: #c45;
+    --edge: #333;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+.brand { font-family: var(--mono); font-size: 0.95rem; }
+.brand .home { color: var(--text); text-decoration: none; }
+.brand .home:hover { color: var(--accent); }
+.brand .slash { color: var(--muted); margin: 0 0.3rem; }
+.brand .page { color: var(--accent); }
+
+.tag {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+#url-input {
+  flex: 1;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  outline: none;
+}
+#url-input:focus { border-color: var(--accent); }
+
+button {
+  padding: 0.55rem 0.95rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+button:hover:not(:disabled) {
+  background: var(--accent-faint);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status.error { color: var(--accent); }
+
+main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 20%, var(--accent-faint) 0, transparent 45%),
+    var(--bg);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+canvas.dragging { cursor: grabbing; }
+
+.tooltip {
+  position: absolute;
+  max-width: 380px;
+  padding: 0.75rem 0.9rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  pointer-events: none;
+  z-index: 10;
+}
+.tooltip.hidden { display: none; }
+.tooltip .t-author {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+.tooltip .t-body { white-space: pre-wrap; word-wrap: break-word; }
+.tooltip .t-meta {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--rule);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.hint {
+  position: absolute;
+  bottom: 0.6rem;
+  right: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  pointer-events: none;
+  opacity: 0.8;
+}
