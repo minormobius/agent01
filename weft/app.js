@@ -133,20 +133,34 @@ function normalize(node, parentId = null, depth = 0) {
 // ─── Radial fan layout ────────────────────────────────────────────
 
 const PFP_R = 22;             // avatar circle radius
-const ARC_DEG = 30;           // total arc subtended at the apex by the whole tree
-const RADIAL_BASE = 85;       // first ring radius from root
-const RADIAL_GROW = 1.1;      // per-depth growth multiplier — deeper rings sit further out
+const ARC_DEG = 30;           // root wedge angle (children fan WIDER per level)
+const RADIAL_BASE = 90;       // first ring radius from root
+const RADIAL_GROW = 1.3;      // per-depth growth multiplier — deeper rings sit further out
+const FAN = 1.22;             // children's combined span is FAN × parent's span (>1 = peacock)
+const PACK_SLACK = 1.15;      // arc-length headroom factor when computing min-radius for a slot
+const STAGGER = 18;           // ±px radial nudge per sibling so circles don't sit on a ring
 
 /**
- * Place the root at the apex; carve a 30° downward wedge; allocate angular
- * slots to each subtree proportional to its leaf count, recursively.
+ * Radial fan: root at apex, 30° downward wedge, each subtree gets an angular
+ * slot proportional to its leaf count. Three forces shape the geometry:
+ *
+ *   1. RADIAL_GROW    — rings push outward exponentially with depth
+ *   2. FAN            — each level's children collectively occupy more arc than
+ *                       their parent, so the wedge widens as you descend
+ *                       (sibling subtrees may overlap angularly — peacock look)
+ *   3. min-radius     — if a subtree's angular slot is too narrow for its leaf
+ *                       count, the subtree gets pushed further out so the chord
+ *                       across its slot can fit all its leaf circles
+ *   4. stagger        — siblings nudge ±STAGGER along the radial in a 3-step
+ *                       pattern (-1, 0, +1) so circles don't sit on a perfect
+ *                       ring; reads more organic and gives near-adjacent
+ *                       siblings some breathing room
  *
  * Coordinates: each node gets `cx, cy` (circle CENTER), `angle` (radians from
- * vertical-down, signed), `depth`, and a `_leaves` count. Origin is (0, 0)
- * — the apex / root center. Caller centers via state.view.
+ * vertical-down), `depth`, `_leaves`. Origin is (0, 0) at the apex.
  */
 function layout(root) {
-  // Pass 1: leaf count per subtree (drives angular slot widths).
+  // Pass 1: leaf count per subtree drives angular slot widths AND min-radius.
   function countLeaves(n) {
     if (!n.children.length) { n._leaves = 1; return 1; }
     let sum = 0;
@@ -156,32 +170,50 @@ function layout(root) {
   }
   countLeaves(root);
 
-  function radiusAt(depth) {
+  function ringRadius(depth) {
     if (depth === 0) return 0;
-    // Linear by default; with RADIAL_GROW>1 each ring sits a bit further than the last.
     let r = 0;
     for (let i = 1; i <= depth; i++) r += RADIAL_BASE * Math.pow(RADIAL_GROW, i - 1);
     return r;
   }
 
-  // Pass 2: assign angular range, compute (cx, cy) per node.
-  const arcRad = ARC_DEG * Math.PI / 180;
-  function place(n, startA, endA, depth) {
+  // Min radius such that an arc of `span` radians fits `leafCount` PFP-diameter
+  // circles end-to-end (chord ~ span × r at small angles, with PACK_SLACK padding).
+  function minRadiusForSlot(span, leafCount) {
+    if (span <= 0) return 0;
+    return (leafCount * 2 * PFP_R * PACK_SLACK) / span;
+  }
+
+  function place(n, startA, endA, depth, siblingIdx) {
     n.depth = depth;
     n.angle = (startA + endA) / 2;
-    const r = radiusAt(depth);
+    const span = endA - startA;
+
+    // Stagger pattern: -1, 0, +1, -1, 0, +1, ... in radial units of STAGGER.
+    // Bake |stagger| into the base radius so a -stagger doesn't violate min-radius.
+    const stagger = depth === 0 ? 0 : ((siblingIdx % 3) - 1) * STAGGER;
+    const baseR = depth === 0
+      ? 0
+      : Math.max(ringRadius(depth), minRadiusForSlot(span, n._leaves)) + Math.abs(stagger);
+    const r = baseR + stagger;
     n.cx = r * Math.sin(n.angle);
     n.cy = r * Math.cos(n.angle);
 
     if (!n.children.length) return;
-    let cursor = startA;
-    for (const c of n.children) {
-      const span = (endA - startA) * (c._leaves / n._leaves);
-      place(c, cursor, cursor + span, depth + 1);
-      cursor += span;
+
+    // Peacock: children's combined span = parent's span × FAN, centered on parent's angle.
+    // Adjacent siblings' subtrees may overlap angularly — that's the look.
+    const childTotal = span * FAN;
+    let cursor = n.angle - childTotal / 2;
+    for (let i = 0; i < n.children.length; i++) {
+      const c = n.children[i];
+      const childSpan = childTotal * (c._leaves / n._leaves);
+      place(c, cursor, cursor + childSpan, depth + 1, i);
+      cursor += childSpan;
     }
   }
-  place(root, -arcRad / 2, arcRad / 2, 0);
+  const arcRad = ARC_DEG * Math.PI / 180;
+  place(root, -arcRad / 2, arcRad / 2, 0, 0);
 
   // Flatten + bounds.
   const flat = [];
