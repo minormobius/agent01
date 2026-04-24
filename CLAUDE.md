@@ -140,9 +140,9 @@ npm run deploy         # wrangler deploy
 
 **Build order matters**: shared before web. Always.
 
-**Deploy trigger**: Push to `main`, `claude/document-projects-oPse6`, or `claude/bluesky-anonymous-polls-*` (poll/**) or manual via `deploy-poll.yml`.
+**Deploy trigger**: Push to `main`, `claude/bluesky-thread-analysis-RcJaN`, or `claude/bluesky-anonymous-polls-*` (poll/**) or manual via `deploy-poll.yml`.
 
-**Note**: `claude/document-projects-oPse6` is the current production branch for poll development.
+**Note**: `claude/bluesky-thread-analysis-RcJaN` is the current production branch for poll development and overall devops.
 
 **D1 migrations**: Via `d1-migrate.yml` workflow or `npx wrangler d1 execute`.
 

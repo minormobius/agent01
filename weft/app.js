@@ -19,8 +19,9 @@ const state = {
   tree: null,          // normalized nested root node
   flat: [],            // flat list of laid-out nodes (for hit testing + render)
   view: { x: 0, y: 0, scale: 1 },
-  drag: null,          // { startX, startY, viewX, viewY }
-  hover: null,         // hovered node
+  drag: null,          // { startX, startY, viewX, viewY, moved }
+  hover: null,         // hovered node (for stroke highlight only)
+  selected: null,      // click-pinned node whose post is shown in the panel
   avatars: new Map(),  // did -> HTMLImageElement (once loaded)
 };
 
@@ -54,11 +55,15 @@ async function urlToAtUri(input) {
 
 // ─── Thread fetch + normalization ─────────────────────────────────
 
-async function fetchThread(atUri) {
+/**
+ * Fetch a thread anchored on a specific URI. parentHeight/depth bound the
+ * walk in each direction.
+ */
+async function fetchPostThread(atUri, depth = 0, parentHeight = 0) {
   const params = new URLSearchParams({
     uri: atUri,
-    depth: '100',
-    parentHeight: '100',
+    depth: String(depth),
+    parentHeight: String(parentHeight),
   });
   const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.feed.getPostThread?${params}`);
   if (!res.ok) throw new Error(`getPostThread ${res.status}`);
@@ -67,14 +72,20 @@ async function fetchThread(atUri) {
   return data.thread;
 }
 
-/** Walk up the parent chain to the true root of the thread. */
-function climbToRoot(node) {
-  let cur = node;
-  while (cur?.parent && cur.parent.$type !== 'app.bsky.feed.defs#notFoundPost' &&
-         cur.parent.$type !== 'app.bsky.feed.defs#blockedPost') {
-    cur = cur.parent;
-  }
-  return cur;
+/**
+ * Resolve the root URI of the thread, then fetch the full subtree from there.
+ *
+ * Why two calls: getPostThread anchors on the URI you pass it. parentHeight
+ * gives you the chain up, depth gives you the chain down — but only from
+ * that anchor. If you ask for parents from a deep reply, the root node you
+ * climb to has its OTHER children populated, not a path back down to your
+ * post. So we probe to learn the root URI (every reply records its thread
+ * root in `record.reply.root.uri`), then re-anchor on root with full depth.
+ */
+async function fetchThread(atUri) {
+  const probe = await fetchPostThread(atUri, 0, 0);
+  const rootUri = probe?.post?.record?.reply?.root?.uri || atUri;
+  return await fetchPostThread(rootUri, 100, 0);
 }
 
 /** Turn a raw thread node into our normalized shape. Recurses children. */
@@ -121,10 +132,10 @@ function normalize(node, parentId = null, depth = 0) {
 
 // ─── Tidy tree layout (Buchheim/Reingold-Tilford variant) ────────
 
-const NODE_W = 260;
-const NODE_H = 96;
-const H_GAP = 24;   // between siblings
-const V_GAP = 44;   // between depth levels
+const NODE_W = 230;
+const NODE_H = 64;
+const H_GAP = 22;   // between siblings
+const V_GAP = 40;   // between depth levels
 
 /**
  * Minimal Reingold-Tilford style layout. Each node gets x,y (top-left of box).
@@ -216,25 +227,31 @@ function render() {
   }
 
   // Nodes.
-  for (const n of state.flat) drawNode(n, n === state.hover);
+  for (const n of state.flat) drawNode(n, n === state.hover, n === state.selected);
 
   ctx.restore();
 }
 
-function drawNode(n, isHover) {
+function drawNode(n, isHover, isSelected) {
   const x = n.x, y = n.y, w = NODE_W, h = NODE_H;
   const isRoot = n.parentId === null;
 
   // Card background.
   ctx.fillStyle = css('--node');
-  ctx.strokeStyle = isHover ? css('--accent') : (isRoot ? css('--node-root') : css('--node-stroke'));
-  ctx.lineWidth = isHover ? 2 : (isRoot ? 2 : 1);
+  let strokeCol, strokeW;
+  if (isSelected)      { strokeCol = css('--accent');     strokeW = 2.2; }
+  else if (isHover)    { strokeCol = css('--accent');     strokeW = 1.6; }
+  else if (isRoot)     { strokeCol = css('--node-root');  strokeW = 1.6; }
+  else                 { strokeCol = css('--node-stroke');strokeW = 1; }
+  ctx.strokeStyle = strokeCol;
+  ctx.lineWidth = strokeW;
   roundRect(ctx, x, y, w, h, 6);
   ctx.fill();
   ctx.stroke();
 
-  // Avatar circle (top-left).
-  const ax = x + 14, ay = y + 14, ar = 14;
+  // Avatar circle (left).
+  const ar = 18;
+  const ax = x + 12, ay = y + (h - ar * 2) / 2;
   const img = state.avatars.get(n.author.did);
   ctx.save();
   ctx.beginPath();
@@ -244,7 +261,6 @@ function drawNode(n, isHover) {
   if (img && img.complete && img.naturalWidth > 0) {
     ctx.drawImage(img, ax, ay, ar * 2, ar * 2);
   } else {
-    // Placeholder: colored dot seeded by DID.
     ctx.fillStyle = seededColor(n.author.did || n.author.handle);
     ctx.fillRect(ax, ay, ar * 2, ar * 2);
   }
@@ -255,35 +271,27 @@ function drawNode(n, isHover) {
   ctx.arc(ax + ar, ay + ar, ar, 0, Math.PI * 2);
   ctx.stroke();
 
+  const tx = ax + ar * 2 + 10;
+  const tw = w - (tx - x) - 10;
+  ctx.textBaseline = 'top';
+
   // Handle.
   ctx.fillStyle = isRoot ? css('--node-root') : css('--text');
-  ctx.font = '600 12px ui-monospace, SFMono-Regular, Menlo, monospace';
-  ctx.textBaseline = 'top';
-  const handle = '@' + (n.author.handle || 'unknown');
-  ctx.fillText(truncateToWidth(ctx, handle, w - 60), x + 48, y + 12);
+  ctx.font = '600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillText(truncateToWidth(ctx, '@' + (n.author.handle || 'unknown'), tw), tx, y + 10);
 
-  // Display name (small, below handle).
+  // Display name (italic, muted).
   if (n.author.displayName) {
     ctx.fillStyle = css('--muted');
     ctx.font = 'italic 11px ui-serif, Georgia, serif';
-    ctx.fillText(truncateToWidth(ctx, n.author.displayName, w - 60), x + 48, y + 28);
-  }
-
-  // Post text (3 lines, wrapped).
-  ctx.fillStyle = css('--text');
-  ctx.font = '12.5px ui-serif, Georgia, serif';
-  const lines = wrapText(ctx, n.text || '(no text)', w - 28, 3);
-  let ty = y + 48;
-  for (const line of lines) {
-    ctx.fillText(line, x + 14, ty);
-    ty += 15;
+    ctx.fillText(truncateToWidth(ctx, n.author.displayName, tw), tx, y + 26);
   }
 
   // Engagement row (bottom).
   ctx.fillStyle = css('--muted');
   ctx.font = '10.5px ui-monospace, Menlo, monospace';
   const eng = `♥ ${n.engagement.likes}   ↻ ${n.engagement.reposts}   ↳ ${n.engagement.replies}`;
-  ctx.fillText(eng, x + 14, y + h - 16);
+  ctx.fillText(eng, tx, y + h - 18);
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────
@@ -296,30 +304,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
-}
-
-function wrapText(ctx, text, maxWidth, maxLines) {
-  if (!text) return [];
-  const words = text.replace(/\s+/g, ' ').split(' ');
-  const lines = [];
-  let line = '';
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const test = line ? line + ' ' + word : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      lines.push(line);
-      if (lines.length === maxLines - 1) {
-        const rest = words.slice(i).join(' ');
-        lines.push(truncateToWidth(ctx, rest, maxWidth));
-        return lines;
-      }
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if (line && lines.length < maxLines) lines.push(line);
-  return lines;
 }
 
 function truncateToWidth(ctx, text, maxWidth) {
@@ -372,12 +356,14 @@ function hitTest(sx, sy) {
   return null;
 }
 
+const DRAG_THRESHOLD = 4; // px
+
 canvas.addEventListener('mousedown', (e) => {
   state.drag = {
     startX: e.clientX, startY: e.clientY,
     viewX: state.view.x, viewY: state.view.y,
+    moved: false,
   };
-  canvas.classList.add('dragging');
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -385,25 +371,48 @@ window.addEventListener('mousemove', (e) => {
   const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
 
   if (state.drag) {
-    state.view.x = state.drag.viewX + (e.clientX - state.drag.startX);
-    state.view.y = state.drag.viewY + (e.clientY - state.drag.startY);
-    hideTooltip();
-    render();
+    const dx = e.clientX - state.drag.startX;
+    const dy = e.clientY - state.drag.startY;
+    if (!state.drag.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+      state.drag.moved = true;
+      canvas.classList.add('dragging');
+    }
+    if (state.drag.moved) {
+      state.view.x = state.drag.viewX + dx;
+      state.view.y = state.drag.viewY + dy;
+      render();
+      if (state.selected) positionPanel(state.selected);
+    }
     return;
   }
 
   const n = hitTest(sx, sy);
   if (n !== state.hover) {
     state.hover = n;
+    canvas.style.cursor = n ? 'pointer' : 'grab';
     render();
   }
-  if (n) showTooltip(n, e.clientX, e.clientY);
-  else hideTooltip();
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
+  if (!state.drag) return;
+  const wasClick = !state.drag.moved;
   state.drag = null;
   canvas.classList.remove('dragging');
+
+  if (wasClick) {
+    const rect = canvas.getBoundingClientRect();
+    const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    if (n) {
+      state.selected = (state.selected === n) ? null : n;
+      if (state.selected) showPanel(state.selected);
+      else hidePanel();
+    } else {
+      state.selected = null;
+      hidePanel();
+    }
+    render();
+  }
 });
 
 canvas.addEventListener('wheel', (e) => {
@@ -417,20 +426,23 @@ canvas.addEventListener('wheel', (e) => {
   state.view.scale = newScale;
   state.view.x = sx - wx * newScale;
   state.view.y = sy - wy * newScale;
-  hideTooltip();
   render();
+  if (state.selected) positionPanel(state.selected);
 }, { passive: false });
 
-function showTooltip(n, clientX, clientY) {
+function showPanel(n) {
   const eng = n.engagement;
   const when = n.createdAt ? new Date(n.createdAt).toLocaleString() : '';
   tooltip.innerHTML = '';
+
   const author = document.createElement('div');
   author.className = 't-author';
   author.textContent = '@' + n.author.handle + (n.author.displayName ? ` · ${n.author.displayName}` : '');
+
   const body = document.createElement('div');
   body.className = 't-body';
   body.textContent = n.text || '(no text)';
+
   const meta = document.createElement('div');
   meta.className = 't-meta';
   meta.innerHTML =
@@ -438,20 +450,30 @@ function showTooltip(n, clientX, clientY) {
     `<span>↻ ${eng.reposts}</span>` +
     `<span>↳ ${eng.replies}</span>` +
     (when ? `<span>${when}</span>` : '');
+
   tooltip.append(author, body, meta);
   tooltip.classList.remove('hidden');
-
-  // Position, clamped to viewport.
-  const pad = 14;
-  const ttW = tooltip.offsetWidth, ttH = tooltip.offsetHeight;
-  let tx = clientX + pad, ty = clientY + pad;
-  if (tx + ttW > window.innerWidth - 8) tx = clientX - ttW - pad;
-  if (ty + ttH > window.innerHeight - 8) ty = clientY - ttH - pad;
-  tooltip.style.left = Math.max(8, tx) + 'px';
-  tooltip.style.top = Math.max(8, ty) + 'px';
+  positionPanel(n);
 }
 
-function hideTooltip() {
+function positionPanel(n) {
+  // Pin to the right of the selected node in screen coords; flip if it overflows.
+  const sx = state.view.x + (n.x + NODE_W) * state.view.scale;
+  const sy = state.view.y + n.y * state.view.scale;
+  const rect = canvas.getBoundingClientRect();
+  const pad = 12;
+  const ttW = tooltip.offsetWidth, ttH = tooltip.offsetHeight;
+  let cx = rect.left + sx + pad;
+  let cy = rect.top + sy;
+  if (cx + ttW > window.innerWidth - 8) {
+    cx = rect.left + state.view.x + n.x * state.view.scale - ttW - pad;
+  }
+  if (cy + ttH > window.innerHeight - 8) cy = window.innerHeight - ttH - 8;
+  tooltip.style.left = Math.max(8, cx) + 'px';
+  tooltip.style.top = Math.max(8, cy) + 'px';
+}
+
+function hidePanel() {
   tooltip.classList.add('hidden');
 }
 
@@ -468,14 +490,16 @@ async function loadFromInput(input) {
   try {
     const atUri = await urlToAtUri(input);
     setStatus('fetching thread…');
-    const raw = await fetchThread(atUri);
-    const rootRaw = climbToRoot(raw);
+    const rootRaw = await fetchThread(atUri);
     const tree = normalize(rootRaw);
     if (!tree) throw new Error('thread root is unavailable (blocked or deleted)');
 
     const { flat, bounds } = layout(tree);
     state.tree = tree;
     state.flat = flat;
+    state.selected = null;
+    state.hover = null;
+    hidePanel();
 
     // Center view on root.
     const rootCx = tree.x + NODE_W / 2;
