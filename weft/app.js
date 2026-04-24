@@ -330,7 +330,9 @@ function loadAvatars(nodes) {
     if (!did || seen.has(did) || !n.author.avatar) continue;
     seen.add(did);
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // No crossOrigin: Bluesky's avatar CDN doesn't serve CORS headers,
+    // so setting it would block the load. We only drawImage, never
+    // getImageData, so a tainted canvas is fine.
     img.onload = () => { state.avatars.set(did, img); render(); };
     img.onerror = () => {};
     img.src = n.author.avatar;
@@ -356,21 +358,82 @@ function hitTest(sx, sy) {
   return null;
 }
 
-const DRAG_THRESHOLD = 4; // px
+const DRAG_THRESHOLD = 5; // px (forgiving enough for touch)
+const MIN_SCALE = 0.15;
+const MAX_SCALE = 3;
 
-canvas.addEventListener('mousedown', (e) => {
-  state.drag = {
-    startX: e.clientX, startY: e.clientY,
-    viewX: state.view.x, viewY: state.view.y,
-    moved: false,
-  };
+const pointers = new Map(); // pointerId -> { x, y }
+
+function zoomAt(sx, sy, newScale) {
+  const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+  const { x: wx, y: wy } = screenToWorld(sx, sy);
+  state.view.scale = clamped;
+  state.view.x = sx - wx * clamped;
+  state.view.y = sy - wy * clamped;
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size === 1) {
+    state.drag = {
+      startX: e.clientX, startY: e.clientY,
+      viewX: state.view.x, viewY: state.view.y,
+      moved: false, pointerId: e.pointerId,
+    };
+  } else if (pointers.size === 2) {
+    const rect = canvas.getBoundingClientRect();
+    const [a, b] = [...pointers.values()];
+    const cx = (a.x + b.x) / 2 - rect.left;
+    const cy = (a.y + b.y) / 2 - rect.top;
+    state.pinch = {
+      startDist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      startScale: state.view.scale,
+      // World point under the finger midpoint at pinch start — stays pinned
+      // to the midpoint as fingers translate/spread.
+      worldX: (cx - state.view.x) / state.view.scale,
+      worldY: (cy - state.view.y) / state.view.scale,
+    };
+    state.drag = null; // cancel single-pointer drag when second finger lands
+    canvas.classList.remove('dragging');
+  }
 });
 
-window.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) {
+    // Bare hover (mouse without button pressed). Still want the cursor affordance.
+    const rect = canvas.getBoundingClientRect();
+    const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    if (n !== state.hover) {
+      state.hover = n;
+      canvas.style.cursor = n ? 'pointer' : 'grab';
+      render();
+    }
+    return;
+  }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-  if (state.drag) {
+  // Two-finger pinch + translate: the world point that was under the finger
+  // midpoint at pinch start stays pinned to the current midpoint.
+  if (pointers.size === 2 && state.pinch) {
+    const rect = canvas.getBoundingClientRect();
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    const cx = (a.x + b.x) / 2 - rect.left;
+    const cy = (a.y + b.y) / 2 - rect.top;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE,
+      state.pinch.startScale * (dist / state.pinch.startDist)));
+    state.view.scale = newScale;
+    state.view.x = cx - state.pinch.worldX * newScale;
+    state.view.y = cy - state.pinch.worldY * newScale;
+    render();
+    if (state.selected) positionPanel(state.selected);
+    return;
+  }
+
+  // Single-pointer drag (with click-vs-drag threshold).
+  if (state.drag && e.pointerId === state.drag.pointerId) {
     const dx = e.clientX - state.drag.startX;
     const dy = e.clientY - state.drag.startY;
     if (!state.drag.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
@@ -383,26 +446,23 @@ window.addEventListener('mousemove', (e) => {
       render();
       if (state.selected) positionPanel(state.selected);
     }
-    return;
-  }
-
-  const n = hitTest(sx, sy);
-  if (n !== state.hover) {
-    state.hover = n;
-    canvas.style.cursor = n ? 'pointer' : 'grab';
-    render();
   }
 });
 
-window.addEventListener('mouseup', (e) => {
-  if (!state.drag) return;
+function endPointer(e) {
+  const hadPointer = pointers.delete(e.pointerId);
+  if (pointers.size < 2) state.pinch = null;
+
+  if (!hadPointer || !state.drag || e.pointerId !== state.drag.pointerId) return;
+
   const wasClick = !state.drag.moved;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
   state.drag = null;
   canvas.classList.remove('dragging');
 
-  if (wasClick) {
-    const rect = canvas.getBoundingClientRect();
-    const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  if (wasClick && pointers.size === 0) {
+    const n = hitTest(sx, sy);
     if (n) {
       state.selected = (state.selected === n) ? null : n;
       if (state.selected) showPanel(state.selected);
@@ -413,19 +473,17 @@ window.addEventListener('mouseup', (e) => {
     }
     render();
   }
-});
+}
+
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
   const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
-  const { x: wx, y: wy } = screenToWorld(sx, sy);
-
   const factor = Math.exp(-e.deltaY * 0.0015);
-  const newScale = Math.max(0.15, Math.min(3, state.view.scale * factor));
-  state.view.scale = newScale;
-  state.view.x = sx - wx * newScale;
-  state.view.y = sy - wy * newScale;
+  zoomAt(sx, sy, state.view.scale * factor);
   render();
   if (state.selected) positionPanel(state.selected);
 }, { passive: false });
