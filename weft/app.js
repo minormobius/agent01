@@ -134,7 +134,7 @@ function normalize(node, parentId = null, depth = 0) {
 
 const PFP_R = 22;           // avatar circle radius
 const PFP_GAP = 6;          // minimum gap between a node and its children
-const CHILD_PAD = 1.15;     // angular-slot padding so sibling subtrees don't touch
+const CHILD_PAD = 1.05;     // angular-slot padding so adjacent child circles don't touch
 const ROOT_ARC = Math.PI;   // 180° downward sweep for the root's children
 const CHILD_ARC = Math.PI;  // 180° outward sweep for every non-root node
 
@@ -143,77 +143,58 @@ const CHILD_ARC = Math.PI;  // 180° outward sweep for every non-root node
  * circle on which its children sit; each child, in turn, buds its own circle
  * of grandchildren, oriented outward along the grandparent→parent axis.
  *
- *   - Top-level replies form a bud around root.
- *   - Each of those, if it has replies, forms a bud around itself on the
- *     hemisphere facing outward from root.
- *   - Recursively, every subtree buds outward, never doubling back.
+ * Sizing principle ("circumference made of diameters"): a bud only has to
+ * fit its IMMEDIATE children's circles around its arc, not the children's
+ * full subtrees. Subtrees from adjacent children may interleave below — that
+ * organic overlap is the look. For an arc of θ radians fitting k circles of
+ * radius PFP_R, the chord per slot must be ≥ 2·PFP_R, giving:
  *
- * Sizing is compositional: `outer(n)` = extent of n's subtree from n's center.
- * A leaf's outer is just PFP_R. An internal node's outer = bud-distance +
- * max child outer, where the bud-distance is chosen so the angular sum of
- * child subtree half-widths fits the available arc with padding.
+ *     bud ≥ 2 · PFP_R · k · pad / arc
  *
- * Each node gets: `cx, cy` (center), `bud` (radius at which its children
- * orbit), `outer` (subtree half-extent from center), `depth`.
+ * For 10 children on a hemisphere (π) that's ~140 px, plus 5% padding.
+ *
+ * Each node gets `cx, cy` (center), `bud` (radius at which its children
+ * orbit), `depth`. Bounds come from actual placed positions afterward.
  */
 function layout(root) {
-  // Pass 1: bottom-up. Each node's bud radius + outer extent.
-  function computeExtent(n) {
-    if (!n.children.length) {
-      n.bud = 0;
-      n.outer = PFP_R;
-      return;
-    }
-    let maxChildOuter = 0;
-    let sumChildOuter = 0;
-    for (const c of n.children) {
-      computeExtent(c);
-      if (c.outer > maxChildOuter) maxChildOuter = c.outer;
-      sumChildOuter += c.outer;
-    }
-
-    // Angular packing: at bud distance d, each child of outer radius s
-    // subtends angular half-width arctan(s/d) ≈ s/d. Sum of full widths
-    // must fit the available arc, with CHILD_PAD slack.
+  // Pass 1: bud sizing. Bottom-up only because children must exist before
+  // we compute the parent — but the formula uses k and PFP_R, not subtree
+  // extent, so deep chains don't balloon.
+  function computeBud(n) {
+    if (!n.children.length) { n.bud = 0; return; }
+    for (const c of n.children) computeBud(c);
     const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
-    const packedBud = CHILD_PAD * (2 * sumChildOuter) / arc;
-
-    // Geometric floor: children must sit at least PFP_R + PFP_GAP + their own
-    // outer extent from parent's center so circles don't overlap radially.
-    const geomBud = PFP_R + PFP_GAP + maxChildOuter;
-
+    const k = n.children.length;
+    const packedBud = (2 * PFP_R * CHILD_PAD * k) / arc;
+    const geomBud = PFP_R + PFP_GAP + PFP_R;  // parent and child circles don't overlap
     n.bud = Math.max(packedBud, geomBud);
-    n.outer = n.bud + maxChildOuter;
   }
-  computeExtent(root);
+  computeBud(root);
 
-  // Pass 2: top-down placement. Each child lands at angle determined by its
-  // angular share (proportional to its outer extent) on the parent's arc.
+  // Pass 2: place each node by walking outward from root. Children get
+  // equal angular slots on the parent's arc; weighting by subtree size
+  // would re-introduce the cascading we just got rid of.
   function place(n, cx, cy, outwardAngle, depth) {
-    n.cx = cx;
-    n.cy = cy;
-    n.depth = depth;
+    n.cx = cx; n.cy = cy; n.depth = depth;
     if (!n.children.length) return;
-
     const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
-    const totalWeight = n.children.reduce((s, c) => s + c.outer, 0) || 1;
+    const k = n.children.length;
+    const slot = arc / k;
     let cursor = outwardAngle - arc / 2;
-
     for (const c of n.children) {
-      const share = (c.outer / totalWeight) * arc;
-      const childAngle = cursor + share / 2;
+      const childAngle = cursor + slot / 2;
       const childX = cx + n.bud * Math.cos(childAngle);
       const childY = cy + n.bud * Math.sin(childAngle);
       // Outward axis for the child = direction from n through c (continues
       // radially outward in the bud-of-buds cascade).
       place(c, childX, childY, childAngle, depth + 1);
-      cursor += share;
+      cursor += slot;
     }
   }
   // Root's outward axis = down (+y in canvas coords).
   place(root, 0, 0, Math.PI / 2, 0);
 
-  // Flatten + bounds.
+  // Bounds from actual placed positions.
   const flat = [];
   let minX = 0, maxX = 0, minY = 0, maxY = 0;
   function flatten(n) {
