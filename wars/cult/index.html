@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cult — decompose any cultural work</title>
+<meta name="description" content="Type any book, movie, show, or game. Get back a sum/difference of more famous works that approximates it.">
+<style>
+  :root {
+    --bg: #0c0c12;
+    --surface: #15151f;
+    --surface-2: #1d1d2a;
+    --border: #2a2a3a;
+    --text: #ececf2;
+    --dim: #888aa0;
+    --accent: #ffcc44;
+    --plus: #66ddaa;
+    --minus: #ff7766;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 1.4rem 1.5rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+  header h1 span.accent { color: var(--accent); }
+  header p {
+    font-size: 0.72rem;
+    color: var(--dim);
+    margin-top: 0.2rem;
+    max-width: 60ch;
+  }
+  header a {
+    font-size: 0.7rem;
+    color: var(--dim);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+  header a:hover { color: var(--accent); }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+  .input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 0.85rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    padding: 0 1.25rem;
+    background: var(--accent);
+    color: #1a1407;
+    border: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status {
+    font-size: 0.72rem;
+    color: var(--dim);
+    margin-bottom: 1.25rem;
+    min-height: 1em;
+  }
+  .status .bar {
+    display: inline-block;
+    width: 200px;
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    overflow: hidden;
+  }
+  .status .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 120ms ease;
+  }
+  .equation {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem 1.25rem;
+    margin-bottom: 1.25rem;
+    font-size: 1.15rem;
+    line-height: 1.7;
+    word-break: break-word;
+  }
+  .equation.empty {
+    color: var(--dim);
+    font-style: italic;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  .equation .lhs {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .equation .eq { color: var(--dim); margin: 0 0.5rem; }
+  .term {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    margin: 0 0.1rem;
+    border-radius: 3px;
+    background: var(--surface-2);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .term:hover { background: #2a2a3a; }
+  .op { color: var(--dim); font-weight: 700; margin: 0 0.35rem; }
+  .op.plus { color: var(--plus); }
+  .op.minus { color: var(--minus); }
+  .meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    font-size: 0.72rem;
+    color: var(--dim);
+    margin-bottom: 1.25rem;
+  }
+  .meta .cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.7rem;
+    border-radius: 3px;
+  }
+  .meta .cell strong {
+    display: block;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.78rem;
+    margin-top: 0.1rem;
+  }
+  .residual {
+    font-size: 0.7rem;
+    color: var(--dim);
+  }
+  .examples {
+    margin-top: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--dim);
+  }
+  .examples a {
+    color: var(--accent);
+    text-decoration: none;
+    margin-right: 0.6rem;
+    cursor: pointer;
+  }
+  .examples a:hover { text-decoration: underline; }
+  details {
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+  details summary {
+    cursor: pointer;
+    padding: 0.4rem 0;
+    user-select: none;
+  }
+  details summary:hover { color: var(--text); }
+  details .body {
+    padding: 0.5rem 0 0.5rem 1rem;
+    line-height: 1.7;
+  }
+  details .body code {
+    background: var(--surface);
+    padding: 0.05rem 0.3rem;
+    border-radius: 2px;
+    font-size: 0.95em;
+  }
+  footer {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--dim);
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    margin-top: 4rem;
+    letter-spacing: 0.05em;
+  }
+  footer a { color: var(--dim); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+  @media (max-width: 480px) {
+    .meta { grid-template-columns: 1fr; }
+    .equation { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>cult <span class="accent">/</span> decompose any cultural work</h1>
+    <p>Sum or difference of ubiquitously famous works that approximates the title you give.</p>
+  </div>
+  <a href="/">← wars</a>
+</header>
+
+<main>
+  <div class="input-row">
+    <input id="q" type="text" placeholder='e.g. "The Wire" or "Death Stranding"' autocomplete="off" autofocus>
+    <button id="go">decompose</button>
+  </div>
+  <div class="status" id="status">loading embedding model on first visit (~30s, then cached forever)<span class="bar"><span class="bar-fill" id="bar"></span></span></div>
+
+  <div class="equation empty" id="equation">type a title above</div>
+
+  <div class="meta" id="meta" style="display:none">
+    <div class="cell">cosine fit<strong id="m-fit">—</strong></div>
+    <div class="cell">terms used<strong id="m-terms">—</strong></div>
+  </div>
+
+  <div class="examples">
+    try <a data-q="The Wire">The Wire</a> <a data-q="Death Stranding">Death Stranding</a> <a data-q="Severance">Severance</a> <a data-q="Hereditary">Hereditary</a> <a data-q="Disco Elysium">Disco Elysium</a> <a data-q="Berserk">Berserk</a> <a data-q="Yellowjackets">Yellowjackets</a>
+  </div>
+
+  <details>
+    <summary>how it works</summary>
+    <div class="body">
+      A list of ~750 ubiquitously famous cultural works is embedded with <code>all-MiniLM-L6-v2</code> (384-dim) in your browser. Your query is embedded the same way. Then we run <em>matching pursuit</em>: pick the basis vector most aligned with the query (positive or negative), subtract its contribution, repeat. The result is a short signed combination of famous works whose semantic vectors best approximate yours. The cosine fit reports how close the reconstructed vector is to the query.
+    </div>
+  </details>
+</main>
+
+<footer>
+  <a href="/">wars.mino.mobi</a> · silly little side experiment
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
