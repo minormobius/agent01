@@ -196,6 +196,7 @@ const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form
 const CHILD_ARC = Math.PI / 2;      // non-root: 90° outward sweep — keeps deep replies from bleeding back to root
 const SPIRAL_BEND = 8 * Math.PI / 180;  // peak per-step bend for chain curling (8°)
 const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
+const DEEP_THRESHOLD = 5;           // chains at least this deep get equispaced anchor slots around root
 
 /**
  * Recursive bud-circle layout with spiral chain curl.
@@ -271,19 +272,44 @@ function layout(root) {
 
     // Sort children by descending max-depth so the deepest chain stays on
     // the spiral spine. Siblings of equal depth keep input order (V8's
-    // Array.sort is stable). Position 0 = center, then alternating
-    // right/left at ±slot, ±2·slot, ... so the heaviest chain occupies
-    // the bent direction and lighter branches spread symmetrically around.
+    // Array.sort is stable).
     const sorted = n.children.slice().sort((a, b) => b._maxDepth - a._maxDepth);
 
-    for (let i = 0; i < sorted.length; i++) {
-      const c = sorted[i];
-      const half = Math.ceil(i / 2);
-      const sign = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1);
-      const childAngle = centerAngle + sign * half * slot;
-      const childX = cx + n.bud * Math.cos(childAngle);
-      const childY = cy + n.bud * Math.sin(childAngle);
-      place(c, childX, childY, childAngle, depth + 1);
+    if (n.parentId === null) {
+      // ROOT: distribute deep chains evenly around the full circle, with
+      // shallow comments filling the slots between them. Deep chains thus
+      // have maximum angular separation and don't crowd one corner of the
+      // disk; their long spirals also can't run into each other.
+      const deep = sorted.filter(c => c._maxDepth >= DEEP_THRESHOLD);
+      const shallow = sorted.filter(c => c._maxDepth < DEEP_THRESHOLD);
+      const D = deep.length;
+      // Pick D slot indices that are maximally spread among k slots.
+      const deepSlots = new Set();
+      for (let i = 0; i < D; i++) deepSlots.add(Math.round((i * k) / D) % k);
+      let dI = 0, sI = 0;
+      for (let slotI = 0; slotI < k; slotI++) {
+        const c = deepSlots.has(slotI) ? deep[dI++] : shallow[sI++];
+        // Slot 0 sits at outwardAngle (= down); slots advance by `slot`
+        // counter-clockwise. The deepest chain therefore lands directly
+        // below root and the rest spread around the full disk.
+        const childAngle = outwardAngle + slotI * slot;
+        const childX = cx + n.bud * Math.cos(childAngle);
+        const childY = cy + n.bud * Math.sin(childAngle);
+        place(c, childX, childY, childAngle, depth + 1);
+      }
+    } else {
+      // Non-root: deepest at the bent center, others alternating ±slot
+      // around it (positions 0, +1, -1, +2, -2, ...) so the heaviest chain
+      // occupies the spiral spine and lighter branches sprout to either side.
+      for (let i = 0; i < sorted.length; i++) {
+        const c = sorted[i];
+        const half = Math.ceil(i / 2);
+        const sign = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1);
+        const childAngle = centerAngle + sign * half * slot;
+        const childX = cx + n.bud * Math.cos(childAngle);
+        const childY = cy + n.bud * Math.sin(childAngle);
+        place(c, childX, childY, childAngle, depth + 1);
+      }
     }
   }
   // Root's outward axis: down. With ROOT_ARC = 2π this only affects where
