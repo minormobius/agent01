@@ -194,7 +194,7 @@ const PFP_R = 22;                   // avatar circle radius
 const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
 const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
 const CHILD_ARC = Math.PI / 2;      // non-root: 90° outward sweep — keeps deep replies from bleeding back to root
-const SPIRAL_BEND = 8 * Math.PI / 180;  // peak per-step bend for chain curling (8°)
+const SPIRAL_BEND = 12 * Math.PI / 180;  // peak per-step bend for chain curling (12°)
 const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
 const DEEP_THRESHOLD = 5;           // chains at least this deep get equispaced anchor slots around root
 
@@ -555,7 +555,6 @@ canvas.addEventListener('pointermove', (e) => {
     state.view.x = cx - state.pinch.worldX * newScale;
     state.view.y = cy - state.pinch.worldY * newScale;
     render();
-    if (state.selected) positionPanel(state.selected);
     return;
   }
 
@@ -571,7 +570,6 @@ canvas.addEventListener('pointermove', (e) => {
       state.view.x = state.drag.viewX + dx;
       state.view.y = state.drag.viewY + dy;
       render();
-      if (state.selected) positionPanel(state.selected);
     }
   }
 });
@@ -609,7 +607,6 @@ canvas.addEventListener('wheel', (e) => {
   const factor = Math.exp(-e.deltaY * 0.0015);
   zoomAt(sx, sy, state.view.scale * factor);
   render();
-  if (state.selected) positionPanel(state.selected);
 }, { passive: false });
 
 function showPanel(n) {
@@ -635,26 +632,6 @@ function showPanel(n) {
 
   tooltip.append(author, body, meta);
   tooltip.classList.remove('hidden');
-  positionPanel(n);
-}
-
-function positionPanel(n) {
-  // Pin to the right of the selected circle; flip left if it overflows.
-  const rect = canvas.getBoundingClientRect();
-  const screenCx = state.view.x + n.cx * state.view.scale;
-  const screenCy = state.view.y + n.cy * state.view.scale;
-  const screenR  = PFP_R * state.view.scale;
-  const pad = 12;
-  const ttW = tooltip.offsetWidth, ttH = tooltip.offsetHeight;
-  let cx = rect.left + screenCx + screenR + pad;
-  let cy = rect.top + screenCy - ttH / 2;
-  if (cx + ttW > window.innerWidth - 8) {
-    cx = rect.left + screenCx - screenR - ttW - pad;
-  }
-  if (cy < 8) cy = 8;
-  if (cy + ttH > window.innerHeight - 8) cy = window.innerHeight - ttH - 8;
-  tooltip.style.left = Math.max(8, cx) + 'px';
-  tooltip.style.top = cy + 'px';
 }
 
 function hidePanel() {

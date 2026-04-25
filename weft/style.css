@@ -145,18 +145,23 @@ canvas {
 canvas.dragging { cursor: grabbing; }
 
 .tooltip {
-  position: absolute;
-  max-width: 380px;
-  padding: 0.75rem 0.9rem;
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 640px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 0.85rem 1rem;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--rule);
-  border-radius: 3px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  border-radius: 6px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.35);
   font-family: var(--serif);
-  font-size: 0.92rem;
-  line-height: 1.5;
-  pointer-events: none;
+  font-size: 0.95rem;
+  line-height: 1.55;
   z-index: 10;
 }
 .tooltip.hidden { display: none; }
@@ -164,18 +169,19 @@ canvas.dragging { cursor: grabbing; }
   font-family: var(--mono);
   font-size: 0.78rem;
   color: var(--accent);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.4rem;
 }
 .tooltip .t-body { white-space: pre-wrap; word-wrap: break-word; }
 .tooltip .t-meta {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
   border-top: 1px dashed var(--rule);
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--muted);
   display: flex;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .hint {
