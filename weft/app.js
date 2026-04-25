@@ -224,8 +224,17 @@ const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "scre
  */
 function layout(root) {
   function computeBud(n) {
-    if (!n.children.length) { n.bud = 0; return; }
-    for (const c of n.children) computeBud(c);
+    if (!n.children.length) {
+      n.bud = 0;
+      n._maxDepth = 0;
+      return;
+    }
+    let maxD = 0;
+    for (const c of n.children) {
+      computeBud(c);
+      if (c._maxDepth > maxD) maxD = c._maxDepth;
+    }
+    n._maxDepth = 1 + maxD;
     const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
     const k = n.children.length;
     // Exact tangent packing: siblings' circles mutually tangent requires
@@ -258,14 +267,23 @@ function layout(root) {
       const alignment = Math.cos(outwardAngle - radialAngle);
       bend = SPIRAL_BEND * SPIRAL_SIGN * alignment;
     }
+    const centerAngle = outwardAngle + bend;
 
-    let cursor = outwardAngle - arc / 2;
-    for (const c of n.children) {
-      const childAngle = cursor + slot / 2 + bend;
+    // Sort children by descending max-depth so the deepest chain stays on
+    // the spiral spine. Siblings of equal depth keep input order (V8's
+    // Array.sort is stable). Position 0 = center, then alternating
+    // right/left at ±slot, ±2·slot, ... so the heaviest chain occupies
+    // the bent direction and lighter branches spread symmetrically around.
+    const sorted = n.children.slice().sort((a, b) => b._maxDepth - a._maxDepth);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const c = sorted[i];
+      const half = Math.ceil(i / 2);
+      const sign = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1);
+      const childAngle = centerAngle + sign * half * slot;
       const childX = cx + n.bud * Math.cos(childAngle);
       const childY = cy + n.bud * Math.sin(childAngle);
       place(c, childX, childY, childAngle, depth + 1);
-      cursor += slot;
     }
   }
   // Root's outward axis: down. With ROOT_ARC = 2π this only affects where
