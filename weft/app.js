@@ -18,10 +18,12 @@ const PUBLIC_API = 'https://public.api.bsky.app';
 const state = {
   tree: null,          // normalized nested root node
   flat: [],            // flat list of laid-out nodes (for hit testing + render)
+  byId: new Map(),     // id -> node, for path-to-root lookup
   view: { x: 0, y: 0, scale: 1 },
   drag: null,          // { startX, startY, viewX, viewY, moved }
   hover: null,         // hovered node (for stroke highlight only)
   selected: null,      // click-pinned node whose post is shown in the panel
+  highlight: null,     // Set<node> on the path from selected back to root, or null
   avatars: new Map(),  // did -> HTMLImageElement (once loaded)
 };
 
@@ -191,22 +193,32 @@ function normalize(node, parentId = null, depth = 0) {
 const PFP_R = 22;                   // avatar circle radius
 const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
 const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
-const CHILD_ARC = Math.PI;          // non-root: 180° outward hemisphere (axis = grandparent→parent)
+const CHILD_ARC = Math.PI / 2;      // non-root: 90° outward sweep — keeps deep replies from bleeding back to root
+const SPIRAL_BEND = 8 * Math.PI / 180;  // peak per-step bend for chain curling (8°)
+const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
 
 /**
- * Recursive bud-circle layout. Each internal node becomes the center of a
- * circle on which its children sit; each child, in turn, buds its own
- * circle of grandchildren, oriented outward along the grandparent→parent
- * axis. Top-level replies form a full circle around root.
+ * Recursive bud-circle layout with spiral chain curl.
+ *
+ * Each internal node becomes the center of a circle on which its children
+ * sit; each child, in turn, buds its own circle of grandchildren, oriented
+ * outward along the grandparent→parent axis. Top-level replies form a full
+ * circle around root; deeper replies fan out in a 90° outward sweep so
+ * subtrees don't bleed back toward the root.
  *
  * Tightest-possible packing. For k children of radius r on an arc of θ:
  *
  *     bud = max( r / sin(θ / 2k),      (siblings mutually tangent)
  *                2 r )                 (child circle tangent to parent circle)
  *
- * For k ≤ 3 on a hemisphere, or k ≤ 6 on a full circle, the floor dominates
- * and bud collapses to exactly 1 diameter. Sibling subtrees may interleave
- * below — organic overlap is the look.
+ * Spiral curl: each step's launch angle is bent by SPIRAL_BEND × cos(α),
+ * where α is the angle between the current chain direction and the radial
+ * direction from root. The bend is full strength when the chain is heading
+ * straight out from root (α=0), and decays to zero when the chain is moving
+ * tangentially (α=π/2). A deep chain therefore enters an "unstable high
+ * orbit" — its trajectory rolls into an asymptotic circular orbit around
+ * root rather than shooting off to infinity. SPIRAL_SIGN sets the global
+ * screw direction so multiple deep chains spiral consistently.
  *
  * Each node gets `cx, cy, bud, depth`. Bounds come from placed positions.
  */
@@ -234,9 +246,22 @@ function layout(root) {
     const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
     const k = n.children.length;
     const slot = arc / k;
+
+    // Spiral curl. Bend the launch direction by SPIRAL_BEND × cos(α), where
+    // α is the angle between the chain direction (outwardAngle) and the
+    // radial vector from root. cos(α) is 1 when shooting radially out,
+    // 0 when moving tangentially — so bends decay as the chain enters orbit.
+    // No bend at depth 0 (root) since there's no chain yet.
+    let bend = 0;
+    if (depth >= 1) {
+      const radialAngle = Math.atan2(cy, cx);
+      const alignment = Math.cos(outwardAngle - radialAngle);
+      bend = SPIRAL_BEND * SPIRAL_SIGN * alignment;
+    }
+
     let cursor = outwardAngle - arc / 2;
     for (const c of n.children) {
-      const childAngle = cursor + slot / 2;
+      const childAngle = cursor + slot / 2 + bend;
       const childX = cx + n.bud * Math.cos(childAngle);
       const childY = cy + n.bud * Math.sin(childAngle);
       place(c, childX, childY, childAngle, depth + 1);
@@ -288,13 +313,21 @@ function render() {
   ctx.translate(state.view.x, state.view.y);
   ctx.scale(state.view.scale, state.view.scale);
 
-  // Edges: straight lines from parent center to child center. In the
-  // bud-circle layout children sit on the parent's circle, so a straight
-  // radial spoke is the honest visual — no arcing across other children.
-  ctx.strokeStyle = css('--edge');
+  // When a node is selected, dim everything off the path-to-root so the
+  // ancestral chain reads bright. Two passes: dim edges/nodes first, then
+  // bright ones on top, so highlighted edges sit cleanly above the dim graph.
+  const hl = state.highlight;
+  const DIM_ALPHA = 0.18;
+  const dimMode = hl !== null;
+
+  // Edges
   ctx.lineWidth = 1;
   for (const n of state.flat) {
     for (const c of n.children) {
+      const onPath = !dimMode || (hl.has(n) && hl.has(c));
+      ctx.globalAlpha = onPath ? 1 : DIM_ALPHA;
+      ctx.strokeStyle = onPath && dimMode ? css('--accent') : css('--edge');
+      ctx.lineWidth = onPath && dimMode ? 1.6 : 1;
       ctx.beginPath();
       ctx.moveTo(n.cx, n.cy);
       ctx.lineTo(c.cx, c.cy);
@@ -302,8 +335,13 @@ function render() {
     }
   }
 
-  // Nodes (circles).
-  for (const n of state.flat) drawNode(n, n === state.hover, n === state.selected);
+  // Nodes — pass dim flag through so drawNode can adjust alpha.
+  for (const n of state.flat) {
+    const onPath = !dimMode || hl.has(n);
+    ctx.globalAlpha = onPath ? 1 : DIM_ALPHA;
+    drawNode(n, n === state.hover, n === state.selected);
+  }
+  ctx.globalAlpha = 1;
 
   ctx.restore();
 }
@@ -373,6 +411,24 @@ function screenToWorld(sx, sy) {
     x: (sx - state.view.x) / state.view.scale,
     y: (sy - state.view.y) / state.view.scale,
   };
+}
+
+/** Build the set of nodes on the path from `node` up to the root. */
+function pathToRoot(node) {
+  const set = new Set();
+  let cur = node;
+  while (cur) {
+    set.add(cur);
+    cur = cur.parentId ? state.byId.get(cur.parentId) : null;
+  }
+  return set;
+}
+
+function setSelected(node) {
+  state.selected = node;
+  state.highlight = node ? pathToRoot(node) : null;
+  if (node) showPanel(node);
+  else hidePanel();
 }
 
 function hitTest(sx, sy) {
@@ -491,12 +547,9 @@ function endPointer(e) {
   if (wasClick && pointers.size === 0) {
     const n = hitTest(sx, sy);
     if (n) {
-      state.selected = (state.selected === n) ? null : n;
-      if (state.selected) showPanel(state.selected);
-      else hidePanel();
+      setSelected(state.selected === n ? null : n);
     } else {
-      state.selected = null;
-      hidePanel();
+      setSelected(null);
     }
     render();
   }
@@ -586,7 +639,9 @@ async function loadFromInput(input) {
     const { flat, bounds } = layout(tree);
     state.tree = tree;
     state.flat = flat;
+    state.byId = new Map(flat.map(n => [n.id, n]));
     state.selected = null;
+    state.highlight = null;
     state.hover = null;
     hidePanel();
 
