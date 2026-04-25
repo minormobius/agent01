@@ -73,19 +73,75 @@ async function fetchPostThread(atUri, depth = 0, parentHeight = 0) {
 }
 
 /**
- * Resolve the root URI of the thread, then fetch the full subtree from there.
+ * Resolve the root URI of the thread, then fetch the full subtree from there —
+ * chasing ALL truncated branches until the whole thread is loaded.
  *
- * Why two calls: getPostThread anchors on the URI you pass it. parentHeight
- * gives you the chain up, depth gives you the chain down — but only from
- * that anchor. If you ask for parents from a deep reply, the root node you
- * climb to has its OTHER children populated, not a path back down to your
- * post. So we probe to learn the root URI (every reply records its thread
- * root in `record.reply.root.uri`), then re-anchor on root with full depth.
+ * The public Bluesky API caps depth at ~6-10 levels per getPostThread call.
+ * Threads hundreds of posts deep need multiple fetches. Strategy (borrowed
+ * from photo/thread): after the initial fetch, walk the tree looking for
+ * nodes whose replyCount > 0 but whose replies array is empty — those are
+ * truncations. Re-fetch anchored on each truncated node and graft the
+ * returned replies in place. Repeat until no truncations remain.
+ *
+ * We chase ALL branches (not just the OP chain) because weft visualizes the
+ * whole conversation. Fetches run in parallel batches for speed.
  */
-async function fetchThread(atUri) {
+const API_DEPTH = 10;
+const CHASE_BATCH = 6;
+const MAX_CHASES = 80;  // safety cap — ~800 posts beyond the initial fetch
+
+async function fetchThread(atUri, onProgress) {
+  // Step 1: probe to find the true root URI.
   const probe = await fetchPostThread(atUri, 0, 0);
   const rootUri = probe?.post?.record?.reply?.root?.uri || atUri;
-  return await fetchPostThread(rootUri, 100, 0);
+
+  // Step 2: anchor on root and grab as deep as the API will give us.
+  const root = await fetchPostThread(rootUri, API_DEPTH, 0);
+  if (onProgress) onProgress({ fetched: 1 });
+
+  // Step 3: chase truncated branches until exhausted.
+  let chases = 0;
+  while (chases < MAX_CHASES) {
+    const truncated = findTruncated(root).slice(0, CHASE_BATCH);
+    if (!truncated.length) break;
+
+    const results = await Promise.all(
+      truncated.map(n => fetchPostThread(n.post.uri, API_DEPTH, 0).catch(() => null))
+    );
+    for (let i = 0; i < truncated.length; i++) {
+      const node = truncated[i];
+      const deeper = results[i];
+      if (deeper?.$type === 'app.bsky.feed.defs#threadViewPost' && deeper.replies?.length) {
+        node.replies = deeper.replies;
+      } else {
+        // replyCount claimed children but the API returned none — blocked,
+        // deleted, or just stale. Mark so we don't retry.
+        node._chased = true;
+      }
+    }
+    chases += truncated.length;
+    if (onProgress) onProgress({ fetched: 1 + chases });
+  }
+
+  return root;
+}
+
+/** Find all nodes that expect more replies than we have loaded. */
+function findTruncated(root) {
+  const out = [];
+  function walk(node) {
+    if (!node || node.$type !== 'app.bsky.feed.defs#threadViewPost') return;
+    if (node._chased) return;
+    const replies = node.replies || [];
+    const expects = (node.post?.replyCount ?? 0) > 0;
+    if (expects && replies.length === 0) {
+      out.push(node);
+      return; // will be re-fetched; its own children are unknown yet
+    }
+    for (const r of replies) walk(r);
+  }
+  walk(root);
+  return out;
 }
 
 /** Turn a raw thread node into our normalized shape. Recurses children. */
@@ -521,7 +577,9 @@ async function loadFromInput(input) {
   try {
     const atUri = await urlToAtUri(input);
     setStatus('fetching thread…');
-    const rootRaw = await fetchThread(atUri);
+    const rootRaw = await fetchThread(atUri, ({ fetched }) => {
+      setStatus(`chasing thread… (${fetched} fetch${fetched === 1 ? '' : 'es'})`);
+    });
     const tree = normalize(rootRaw);
     if (!tree) throw new Error('thread root is unavailable (blocked or deleted)');
 
