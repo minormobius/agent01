@@ -1,12 +1,12 @@
 // cult — decompose a cultural work into a signed combination of famous ones.
 //
 // Pipeline:
-//   1. Load all-MiniLM-L6-v2 (384-dim) via transformers.js from a CDN.
-//   2. Embed every entry in BASIS, dedup by lowercase title, L2-normalize, cache in IndexedDB.
-//   3. On query: embed, run matching pursuit picking up to N basis vectors with the largest
-//      |dot product|; signed coefficients yield "+ A - B + C" style equations.
-
-import { BASIS } from './basis.js';
+//   1. Fast path: fetch precomputed ./basis.json + ./basis.bin (built by CI).
+//   2. Slow path: import BASIS from ./basis.js and embed in-browser, cached in IndexedDB.
+//   3. Either way, lazy-load all-MiniLM-L6-v2 (384-dim) via transformers.js for the
+//      query embedding only.
+//   4. Run matching pursuit picking up to N basis vectors with the largest |dot product|;
+//      signed coefficients yield "+ A − B + C" style equations.
 
 // Pin a transformers.js version + a quantized model for fast download in browser.
 // `/+esm` forces jsDelivr to serve a proper ES module bundle (dynamic-importable).
@@ -93,9 +93,10 @@ async function idbPut(key, value) {
 }
 
 // ---- Embedding ----
-async function loadModel() {
+async function loadModel({ background = false } = {}) {
   if (extractor) return extractor;
-  setStatus('downloading embedding model…', 5);
+  const prefix = background ? 'loading model in background' : 'loading model';
+  setStatus(`${prefix}…`, 5);
   const mod = await import(TRANSFORMERS_URL);
   // Don't try to load local files first — go straight to the HF CDN.
   mod.env.allowLocalModels = false;
@@ -105,12 +106,13 @@ async function loadModel() {
     progress_callback: (p) => {
       if (p.status === 'progress' && p.total) {
         const pct = (p.loaded / p.total) * 100;
-        setStatus(`downloading ${p.file ?? 'model'}…`, 5 + pct * 0.45);
-      } else if (p.status === 'done') {
-        setStatus('model ready', 50);
+        setStatus(`${prefix} · ${p.file ?? 'weights'}…`, 5 + pct * 0.9);
       }
     },
   });
+  if (basisMatrix) {
+    setStatus(`ready · ${basisDeduped.length} basis works · model loaded`, null);
+  }
   return extractor;
 }
 
@@ -138,14 +140,47 @@ async function embedBatch(texts, onProgress) {
   return matrix;
 }
 
-// ---- Cache ----
-async function ensureBasis() {
+// ---- Basis loading ----
+// Fast path: a CI-built basis.json + basis.bin sits next to this script.
+async function tryFetchPrebuilt() {
+  try {
+    setStatus('loading basis…', 5);
+    const [metaRes, binRes] = await Promise.all([
+      fetch('./basis.json'),
+      fetch('./basis.bin'),
+    ]);
+    if (!metaRes.ok || !binRes.ok) return false;
+    const meta = await metaRes.json();
+    if (meta.model !== MODEL_ID || meta.dim !== EMBED_DIM) {
+      console.warn('basis.json model/dim mismatch, falling back', meta);
+      return false;
+    }
+    setStatus('loading basis…', 40);
+    const buf = await binRes.arrayBuffer();
+    const expected = meta.count * EMBED_DIM * 4;
+    if (buf.byteLength !== expected) {
+      console.warn(`basis.bin size mismatch: ${buf.byteLength} vs ${expected}`);
+      return false;
+    }
+    basisDeduped = meta.items;
+    basisMatrix = new Float32Array(buf);
+    setStatus(`ready · ${basisDeduped.length} basis works`, null);
+    return true;
+  } catch (err) {
+    console.warn('prebuilt basis fetch failed, will embed in-browser', err);
+    return false;
+  }
+}
+
+// Slow path: dedupe in-memory list, embed each title in the browser, cache to IDB.
+async function buildBasisInBrowser() {
+  const { BASIS } = await import('./basis.js');
   basisDeduped = dedupeBasis(BASIS);
   const cacheKey = `basis-v${CACHE_VERSION}-n${basisDeduped.length}-${MODEL_ID}`;
   const cached = await idbGet(cacheKey);
   if (cached?.matrix && cached.matrix.byteLength === basisDeduped.length * EMBED_DIM * 4) {
     basisMatrix = new Float32Array(cached.matrix);
-    setStatus(`ready · ${basisDeduped.length} basis works (cached)`, null);
+    setStatus(`ready · ${basisDeduped.length} basis works (cached locally)`, null);
     return;
   }
   await loadModel();
@@ -156,7 +191,13 @@ async function ensureBasis() {
     setStatus(`embedding ${done}/${total}…`, pct);
   });
   await idbPut(cacheKey, { matrix: basisMatrix.buffer, ts: Date.now() });
-  setStatus(`ready · ${basisDeduped.length} basis works (cached)`, null);
+  setStatus(`ready · ${basisDeduped.length} basis works (cached locally)`, null);
+}
+
+async function ensureBasis() {
+  if (basisMatrix) return;
+  if (await tryFetchPrebuilt()) return;
+  await buildBasisInBrowser();
 }
 
 // ---- Decomposition ----
@@ -280,8 +321,11 @@ async function decompose(query) {
   if (!text) return;
   goEl.disabled = true;
   try {
-    if (!extractor) await loadModel();
     if (!basisMatrix) await ensureBasis();
+    if (!extractor) {
+      setStatus('loading model…', null);
+      await preloadModel();
+    }
     setStatus('embedding query…', null);
     const qVec = await embedOne(text);
     // qVec is unit-norm (transformers.js normalize:true), but enforce again defensively.
@@ -320,8 +364,17 @@ document.querySelectorAll('.examples a').forEach((a) => {
   });
 });
 
-// Kick off basis preparation in the background so the first user query is fast.
-ensureBasis().catch((err) => {
-  console.error(err);
-  setStatus(`basis init failed: ${err.message ?? err}`, null);
-});
+// Kick off basis loading immediately. Once the basis is ready, also start the
+// model download in the background so the first user query has zero latency.
+let modelPromise = null;
+function preloadModel(opts) {
+  if (!modelPromise) modelPromise = loadModel(opts);
+  return modelPromise;
+}
+
+ensureBasis()
+  .then(() => preloadModel({ background: true }))
+  .catch((err) => {
+    console.error(err);
+    setStatus(`init failed: ${err.message ?? err}`, null);
+  });

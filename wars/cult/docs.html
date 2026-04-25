@@ -157,14 +157,15 @@
 <h2>The pipeline</h2>
 
 <div class="card">
-  <p>Five stages, all client-side:</p>
+  <p>Five stages:</p>
   <ol>
-    <li><strong>Curate.</strong> A static list of ~750 ubiquitously famous works ships with the page (movies, books, TV, games, comics, manga, albums, musicals, franchises).</li>
-    <li><strong>Embed the basis.</strong> On first visit, the browser downloads a small embedding model and turns each title into a 384-dimensional unit vector.</li>
-    <li><strong>Cache.</strong> The resulting matrix (~1.1 MB) is stored in IndexedDB. Future visits skip stages 2–3.</li>
-    <li><strong>Embed the query.</strong> Your input goes through the same model.</li>
+    <li><strong>Curate.</strong> A static list of ~750 ubiquitously famous works lives in <code>basis.js</code> (movies, books, TV, games, comics, manga, albums, musicals, franchises).</li>
+    <li><strong>Embed the basis (in CI).</strong> A GitHub Action runs whenever <code>basis.js</code> changes, downloads the embedding model on the runner, turns each title into a 384-dimensional unit vector, and commits the result back as <code>basis.bin</code> (raw Float32 matrix) and <code>basis.json</code> (titles + metadata).</li>
+    <li><strong>Ship.</strong> The browser fetches the prebuilt artifacts (~1.1 MB total) and parses them straight into a <code>Float32Array</code>. No model needed yet.</li>
+    <li><strong>Embed the query.</strong> The model loads in the background as soon as the basis is ready. Your input goes through the same model.</li>
     <li><strong>Decompose.</strong> A greedy sparse-coding pass picks a handful of basis vectors (with positive or negative signs) whose weighted sum lands closest to your query.</li>
   </ol>
+  <p>If the prebuilt artifacts are missing (e.g. during local development), the browser falls back to embedding the basis itself and caching the result in IndexedDB.</p>
 </div>
 
 <h2>The model</h2>
@@ -174,10 +175,10 @@
   <div class="stat-grid">
     <div class="stat"><span class="v">384</span><span class="k">dimensions</span></div>
     <div class="stat"><span class="v">~25 MB</span><span class="k">quantized weights</span></div>
-    <div class="stat"><span class="v">~30–60 s</span><span class="k">first-load embed</span></div>
+    <div class="stat"><span class="v">~1.1 MB</span><span class="k">prebuilt basis matrix</span></div>
     <div class="stat"><span class="v">~1 s</span><span class="k">subsequent loads</span></div>
   </div>
-  <p>The model loads from jsDelivr's ESM CDN and runs entirely in WASM/WebGPU. After the first visit the browser caches both the weights and our pre-computed basis matrix; nothing leaves your device.</p>
+  <p>The model loads from jsDelivr's ESM CDN and runs entirely in WASM/WebGPU. The basis matrix is fetched once over HTTP and parsed straight into a <code>Float32Array</code>; the browser caches both via standard HTTP cache headers. Nothing leaves your device — your query is embedded locally and the dot products run in plain JS.</p>
 </div>
 
 <h2>The basis</h2>
