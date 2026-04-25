@@ -47,6 +47,7 @@
     margin-top: 0.2rem;
     max-width: 60ch;
   }
+  header nav { display: flex; gap: 0.4rem; align-items: baseline; flex-shrink: 0; }
   header a {
     font-size: 0.7rem;
     color: var(--dim);
@@ -185,27 +186,6 @@
     cursor: pointer;
   }
   .examples a:hover { text-decoration: underline; }
-  details {
-    margin-top: 1.5rem;
-    font-size: 0.75rem;
-    color: var(--dim);
-  }
-  details summary {
-    cursor: pointer;
-    padding: 0.4rem 0;
-    user-select: none;
-  }
-  details summary:hover { color: var(--text); }
-  details .body {
-    padding: 0.5rem 0 0.5rem 1rem;
-    line-height: 1.7;
-  }
-  details .body code {
-    background: var(--surface);
-    padding: 0.05rem 0.3rem;
-    border-radius: 2px;
-    font-size: 0.95em;
-  }
   footer {
     text-align: center;
     font-size: 0.65rem;
@@ -229,7 +209,7 @@
     <h1>cult <span class="accent">/</span> decompose any cultural work</h1>
     <p>Sum or difference of ubiquitously famous works that approximates the title you give.</p>
   </div>
-  <a href="/">← wars</a>
+  <nav><a href="./docs.html">docs</a> <span style="opacity:0.4">·</span> <a href="/">← wars</a></nav>
 </header>
 
 <main>
@@ -250,12 +230,9 @@
     try <a data-q="The Wire">The Wire</a> <a data-q="Death Stranding">Death Stranding</a> <a data-q="Severance">Severance</a> <a data-q="Hereditary">Hereditary</a> <a data-q="Disco Elysium">Disco Elysium</a> <a data-q="Berserk">Berserk</a> <a data-q="Yellowjackets">Yellowjackets</a>
   </div>
 
-  <details>
-    <summary>how it works</summary>
-    <div class="body">
-      A list of ~750 ubiquitously famous cultural works is embedded with <code>all-MiniLM-L6-v2</code> (384-dim) in your browser. Your query is embedded the same way. Then we run <em>matching pursuit</em>: pick the basis vector most aligned with the query (positive or negative), subtract its contribution, repeat. The result is a short signed combination of famous works whose semantic vectors best approximate yours. The cosine fit reports how close the reconstructed vector is to the query.
-    </div>
-  </details>
+  <p style="margin-top:1.5rem;font-size:0.72rem;color:var(--dim)">
+    Embedding-space arithmetic on cultural titles. <a href="./docs.html" style="color:var(--accent);text-decoration:none">how it works →</a>
+  </p>
 </main>
 
 <footer>

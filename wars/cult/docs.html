@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c0c12">
+<title>How it works — cult</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0c0c12;
+    --surface:#15151f;
+    --surface-2:#1d1d2a;
+    --border:#2a2a3a;
+    --text:#d8d8e0;
+    --dim:#7a7a90;
+    --accent:#ffcc44;
+    --plus:#66ddaa;
+    --minus:#ff7766;
+  }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.7;
+    padding:2rem 1rem 4rem;
+    max-width:680px;
+    margin:0 auto;
+  }
+  h1{
+    font-size:1.3rem;
+    font-weight:300;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-bottom:2rem;
+    text-align:center;
+  }
+  h1 span{color:var(--accent);font-weight:600}
+  h2{
+    font-size:1rem;
+    color:var(--accent);
+    margin:2.25rem 0 .65rem;
+    letter-spacing:.04em;
+    font-weight:600;
+  }
+  h3{
+    font-size:.85rem;
+    color:var(--text);
+    margin:1.25rem 0 .5rem;
+    font-weight:600;
+  }
+  p,li{
+    font-size:.85rem;
+    margin-bottom:.6rem;
+    color:var(--text);
+  }
+  ul,ol{padding-left:1.25rem;margin-bottom:.6rem}
+  li{margin-bottom:.25rem}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:1.1rem 1.25rem;
+    margin-bottom:1rem;
+  }
+  .card p:last-child,.card ul:last-child,.card ol:last-child{margin-bottom:0}
+  .label{
+    font-size:.6rem;
+    text-transform:uppercase;
+    letter-spacing:.15em;
+    color:var(--dim);
+    margin-bottom:.5rem;
+  }
+  code{
+    font-family:'SF Mono','JetBrains Mono','Fira Code',Consolas,monospace;
+    font-size:.78rem;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:3px;
+    padding:.05rem .35rem;
+    color:var(--accent);
+  }
+  pre{
+    font-family:'SF Mono','JetBrains Mono',Consolas,monospace;
+    font-size:.72rem;
+    line-height:1.55;
+    color:var(--text);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:.9rem 1rem;
+    margin:.5rem 0 .9rem;
+    overflow-x:auto;
+    white-space:pre;
+  }
+  pre .dim{color:var(--dim)}
+  pre .plus{color:var(--plus)}
+  pre .minus{color:var(--minus)}
+  pre .accent{color:var(--accent)}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .back{
+    display:inline-block;
+    margin-bottom:1.5rem;
+    font-size:.75rem;
+    color:var(--dim);
+  }
+  .back:hover{color:var(--accent)}
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:.5rem;
+    margin:.5rem 0 1rem;
+  }
+  .stat{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:.6rem .75rem;
+  }
+  .stat .v{
+    font-family:'SF Mono',monospace;
+    color:var(--accent);
+    font-size:1.1rem;
+    display:block;
+  }
+  .stat .k{
+    font-size:.65rem;
+    color:var(--dim);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+  footer{
+    text-align:center;
+    font-size:.65rem;
+    color:var(--dim);
+    margin-top:2.5rem;
+    letter-spacing:.05em;
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="./">← back to cult</a>
+
+<h1>cult <span>/</span> how it works</h1>
+
+<div class="card">
+  <div class="label">tl;dr</div>
+  <p>You give us a cultural work. We turn it into a vector. We find a short, signed combination of <em>more famous</em> works whose vectors sum to roughly the same place. The result reads like an equation, e.g.</p>
+  <pre><span class="accent">The Wire</span> <span class="dim">≈</span> Breaking Bad <span class="plus">+</span> The Sopranos <span class="minus">−</span> Game of Thrones</pre>
+  <p>Everything runs in your browser. No server, no API key.</p>
+</div>
+
+<h2>The pipeline</h2>
+
+<div class="card">
+  <p>Five stages, all client-side:</p>
+  <ol>
+    <li><strong>Curate.</strong> A static list of ~750 ubiquitously famous works ships with the page (movies, books, TV, games, comics, manga, albums, musicals, franchises).</li>
+    <li><strong>Embed the basis.</strong> On first visit, the browser downloads a small embedding model and turns each title into a 384-dimensional unit vector.</li>
+    <li><strong>Cache.</strong> The resulting matrix (~1.1 MB) is stored in IndexedDB. Future visits skip stages 2–3.</li>
+    <li><strong>Embed the query.</strong> Your input goes through the same model.</li>
+    <li><strong>Decompose.</strong> A greedy sparse-coding pass picks a handful of basis vectors (with positive or negative signs) whose weighted sum lands closest to your query.</li>
+  </ol>
+</div>
+
+<h2>The model</h2>
+
+<div class="card">
+  <p>We use <code>Xenova/all-MiniLM-L6-v2</code> via <a href="https://huggingface.co/docs/transformers.js">transformers.js</a>. It's a sentence-transformer trained to map similar phrases to nearby points on the unit sphere.</p>
+  <div class="stat-grid">
+    <div class="stat"><span class="v">384</span><span class="k">dimensions</span></div>
+    <div class="stat"><span class="v">~25 MB</span><span class="k">quantized weights</span></div>
+    <div class="stat"><span class="v">~30–60 s</span><span class="k">first-load embed</span></div>
+    <div class="stat"><span class="v">~1 s</span><span class="k">subsequent loads</span></div>
+  </div>
+  <p>The model loads from jsDelivr's ESM CDN and runs entirely in WASM/WebGPU. After the first visit the browser caches both the weights and our pre-computed basis matrix; nothing leaves your device.</p>
+</div>
+
+<h2>The basis</h2>
+
+<div class="card">
+  <p>The dictionary is hand-picked for <em>name recognition</em> rather than orthogonality. Roughly:</p>
+  <ul>
+    <li>221 movies — from <em>Casablanca</em> to <em>Oppenheimer</em></li>
+    <li>172 books — scripture, plays, novels, kids' books</li>
+    <li>142 TV shows — sitcoms, prestige drama, anime</li>
+    <li>120 video games — arcade classics through <em>Elden Ring</em></li>
+    <li>33 albums, 30 comics, 20 musicals, 12 franchises</li>
+  </ul>
+  <p>The bias is intentional: the goal is decompositions that <em>read</em> well. "<em>Severance</em> ≈ Black Mirror + The Office" is funnier and more useful than the same answer with three obscure short stories you've never heard of.</p>
+</div>
+
+<h2>The math</h2>
+
+<div class="card">
+  <p>Given a query vector <code>q</code> and a dictionary of <code>N</code> unit-norm basis vectors <code>b₁ … b_N</code>, we run <strong>matching pursuit</strong>: a classic greedy sparse-coding algorithm.</p>
+
+<pre><span class="dim"># initial residual is the query itself</span>
+r ← q
+chosen ← []
+
+<span class="dim"># up to 4 iterations</span>
+for step in 1..K:
+    <span class="dim"># find the basis vector most aligned with the residual</span>
+    i* ← argmax_i |⟨r, b_i⟩|
+    c  ← ⟨r, b_i*⟩          <span class="dim"># signed coefficient</span>
+
+    <span class="dim"># subtract its contribution from the residual</span>
+    r ← r − c · b_i*
+    chosen.append((i*, c))
+
+    <span class="dim"># block near-duplicates so we don't pick "Star Wars" twice</span>
+    block all j where ⟨b_i*, b_j⟩ &gt; 0.85</pre>
+
+  <p>Three small twists make the output readable:</p>
+  <ul>
+    <li><strong>Self-block.</strong> Any basis vector with cosine similarity to the query above 0.92 is excluded — otherwise typing "<em>Star Wars</em>" just returns "<em>Star Wars</em>".</li>
+    <li><strong>Diversity-block.</strong> After picking <code>b_i</code>, every other basis vector closer than 0.85 to it is also blocked, preventing redundant terms like "<em>The Avengers</em>" plus "<em>Avengers: Endgame</em>".</li>
+    <li><strong>Min-coefficient stop.</strong> The greedy loop quits early when the best remaining <code>|⟨r, b_i⟩|</code> falls below 0.12. Some queries decompose cleanly in 2 terms; others need 4.</li>
+  </ul>
+</div>
+
+<h2>Reading the output</h2>
+
+<div class="card">
+  <h3>The equation</h3>
+  <p>Terms are sorted by absolute coefficient (strongest contributor first). A <span style="color:var(--plus)">+</span> means the basis vector points in the same direction as the residual at that step; a <span style="color:var(--minus)">−</span> means it points opposite.</p>
+  <p>Hover any term to see its category and exact coefficient. Click a term to decompose <em>that</em> work next.</p>
+
+  <h3>Cosine fit</h3>
+  <p>The fit % reports how close the reconstructed vector <code>Σ cᵢ · b_i</code> is to your query, in cosine similarity. 100% would mean a perfect linear combination; in practice 60–85% is typical and makes for the best-reading equations.</p>
+
+  <h3>What "−" actually means</h3>
+  <p>Subtraction is the model saying: "your title is a lot like X but minus the Y-ness of it." Useful negatives often capture genre or tone differences — e.g. a slow horror film might come out as <em>The Shining</em> minus <em>Psycho</em> (slow horror ≈ canonical horror minus jump-scare snappiness).</p>
+</div>
+
+<h2>Honest limitations</h2>
+
+<div class="card">
+  <ul>
+    <li><strong>Title-only embeddings.</strong> The model only sees the title string, not plot, cast, or year. "<em>Alien</em>" and "<em>Aliens</em>" land in nearly the same place; "<em>It</em>" gets confused with the pronoun.</li>
+    <li><strong>English-centric.</strong> The model was trained primarily on English. Romanized titles work but original-script titles (e.g. <em>千と千尋の神隠し</em>) won't.</li>
+    <li><strong>The basis is a curated list.</strong> A truly obscure or brand-new work has no chance of being in the dictionary, only of being expressed <em>in terms of</em> the dictionary.</li>
+    <li><strong>Greedy is not optimal.</strong> Matching pursuit is fast and usually good but can miss combinations that would only appear via joint optimization (<em>orthogonal matching pursuit</em>, lasso, etc.). For a silly app this is fine.</li>
+    <li><strong>Names mislead embeddings.</strong> "<em>Twilight</em>" the vampire saga and "<em>Twilight</em>" the Pokémon move land at the same point. There's no disambiguation.</li>
+  </ul>
+</div>
+
+<h2>Why?</h2>
+
+<div class="card">
+  <p>Cultural recommendation engines tend to give you nearest neighbors: "if you liked X, try Y." This is the inverse — given the work, can you describe it as a sentence in the language of things everyone already knows? The output is closer to a critic's opening line than a recommendation.</p>
+  <p>It's also a quick test of an underappreciated property of embedding spaces: they're approximately additive over short distances. Pop culture happens to have enough mass and structure that you can do meaningful arithmetic on it.</p>
+</div>
+
+<hr>
+
+<footer>
+  <a href="./">← back to cult</a> · part of <a href="/">wars.mino.mobi</a>
+</footer>
+
+</body>
+</html>
