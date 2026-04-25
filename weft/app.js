@@ -132,48 +132,46 @@ function normalize(node, parentId = null, depth = 0) {
 
 // ─── Recursive bud layout ─────────────────────────────────────────
 
-const PFP_R = 22;           // avatar circle radius
-const PFP_GAP = 6;          // minimum gap between a node and its children
-const CHILD_PAD = 1.05;     // angular-slot padding so adjacent child circles don't touch
-const ROOT_ARC = Math.PI;   // 180° downward sweep for the root's children
-const CHILD_ARC = Math.PI;  // 180° outward sweep for every non-root node
+const PFP_R = 22;                   // avatar circle radius
+const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
+const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
+const CHILD_ARC = Math.PI;          // non-root: 180° outward hemisphere (axis = grandparent→parent)
 
 /**
  * Recursive bud-circle layout. Each internal node becomes the center of a
- * circle on which its children sit; each child, in turn, buds its own circle
- * of grandchildren, oriented outward along the grandparent→parent axis.
+ * circle on which its children sit; each child, in turn, buds its own
+ * circle of grandchildren, oriented outward along the grandparent→parent
+ * axis. Top-level replies form a full circle around root.
  *
- * Sizing principle ("circumference made of diameters"): a bud only has to
- * fit its IMMEDIATE children's circles around its arc, not the children's
- * full subtrees. Subtrees from adjacent children may interleave below — that
- * organic overlap is the look. For an arc of θ radians fitting k circles of
- * radius PFP_R, the chord per slot must be ≥ 2·PFP_R, giving:
+ * Tightest-possible packing. For k children of radius r on an arc of θ:
  *
- *     bud ≥ 2 · PFP_R · k · pad / arc
+ *     bud = max( r / sin(θ / 2k),      (siblings mutually tangent)
+ *                2 r )                 (child circle tangent to parent circle)
  *
- * For 10 children on a hemisphere (π) that's ~140 px, plus 5% padding.
+ * For k ≤ 3 on a hemisphere, or k ≤ 6 on a full circle, the floor dominates
+ * and bud collapses to exactly 1 diameter. Sibling subtrees may interleave
+ * below — organic overlap is the look.
  *
- * Each node gets `cx, cy` (center), `bud` (radius at which its children
- * orbit), `depth`. Bounds come from actual placed positions afterward.
+ * Each node gets `cx, cy, bud, depth`. Bounds come from placed positions.
  */
 function layout(root) {
-  // Pass 1: bud sizing. Bottom-up only because children must exist before
-  // we compute the parent — but the formula uses k and PFP_R, not subtree
-  // extent, so deep chains don't balloon.
   function computeBud(n) {
     if (!n.children.length) { n.bud = 0; return; }
     for (const c of n.children) computeBud(c);
     const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
     const k = n.children.length;
-    const packedBud = (2 * PFP_R * CHILD_PAD * k) / arc;
-    const geomBud = PFP_R + PFP_GAP + PFP_R;  // parent and child circles don't overlap
-    n.bud = Math.max(packedBud, geomBud);
+    // Exact tangent packing: siblings' circles mutually tangent requires
+    //   bud · sin(arc / 2k) ≥ r
+    // With k=1 there's no sibling to pack against, so only the geom floor
+    // applies; we also cap the half-slot at π/2 so the formula behaves on
+    // a full-circle arc.
+    const halfSlot = Math.min(arc / (2 * k), Math.PI / 2);
+    const packed = k <= 1 ? 0 : (CHILD_PAD * PFP_R) / Math.sin(halfSlot);
+    const geom = 2 * PFP_R;  // parent and child circles tangent, no gap
+    n.bud = Math.max(packed, geom);
   }
   computeBud(root);
 
-  // Pass 2: place each node by walking outward from root. Children get
-  // equal angular slots on the parent's arc; weighting by subtree size
-  // would re-introduce the cascading we just got rid of.
   function place(n, cx, cy, outwardAngle, depth) {
     n.cx = cx; n.cy = cy; n.depth = depth;
     if (!n.children.length) return;
@@ -185,16 +183,14 @@ function layout(root) {
       const childAngle = cursor + slot / 2;
       const childX = cx + n.bud * Math.cos(childAngle);
       const childY = cy + n.bud * Math.sin(childAngle);
-      // Outward axis for the child = direction from n through c (continues
-      // radially outward in the bud-of-buds cascade).
       place(c, childX, childY, childAngle, depth + 1);
       cursor += slot;
     }
   }
-  // Root's outward axis = down (+y in canvas coords).
+  // Root's outward axis: down. With ROOT_ARC = 2π this only affects where
+  // the first child lands, not the overall shape (they still wrap 360°).
   place(root, 0, 0, Math.PI / 2, 0);
 
-  // Bounds from actual placed positions.
   const flat = [];
   let minX = 0, maxX = 0, minY = 0, maxY = 0;
   function flatten(n) {
