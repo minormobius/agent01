@@ -9,9 +9,17 @@
 //      signed coefficients yield "+ A − B + C" style equations.
 
 // Pin a transformers.js version + a quantized model for fast download in browser.
-// `/+esm` forces jsDelivr to serve a proper ES module bundle (dynamic-importable).
-const TRANSFORMERS_URL =
-  'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm';
+//
+// We use esm.sh rather than jsdelivr's /+esm transform: jsdelivr's bundler
+// tree-shakes too aggressively and drops the side-effect imports that register
+// ONNX Runtime Web's WASM backend, producing "null is not an object
+// (evaluating 'o.registerBackend')" at pipeline init. esm.sh preserves them.
+//
+// We still pin the WASM asset path to jsdelivr (transformers.js bundles its
+// own ORT WASM blobs in dist/) so the runtime can locate them at fetch time.
+const TRANSFORMERS_VERSION = '2.17.2';
+const TRANSFORMERS_URL = `https://esm.sh/@xenova/transformers@${TRANSFORMERS_VERSION}`;
+const ORT_WASM_PATHS = `https://cdn.jsdelivr.net/npm/@xenova/transformers@${TRANSFORMERS_VERSION}/dist/`;
 const MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
 const EMBED_DIM = 384;
 const CACHE_VERSION = 2;
@@ -101,6 +109,12 @@ async function loadModel({ background = false } = {}) {
   // Don't try to load local files first — go straight to the HF CDN.
   mod.env.allowLocalModels = false;
   mod.env.useBrowserCache = true;
+  // Pin the ORT WASM file location so the runtime can register its backend.
+  // Without this, transformers.js tries to resolve onnxruntime-web's WASM
+  // relative to its own bundle, which fails when loaded from a CDN.
+  if (mod.env.backends?.onnx?.wasm) {
+    mod.env.backends.onnx.wasm.wasmPaths = ORT_WASM_PATHS;
+  }
   extractor = await mod.pipeline('feature-extraction', MODEL_ID, {
     quantized: true,
     progress_callback: (p) => {
