@@ -193,7 +193,7 @@ function normalize(node, parentId = null, depth = 0) {
 const PFP_R = 22;                   // avatar circle radius
 const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
 const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
-const CHILD_ARC = Math.PI / 2;      // non-root: 90° outward sweep — keeps deep replies from bleeding back to root
+const CHILD_ARC = (5 * Math.PI) / 6;  // non-root: 150° fan from spine outward, allowing some back-travel for the deepest fork to curl through
 const SPIRAL_BEND = 12 * Math.PI / 180;  // peak per-step bend for chain curling (12°)
 const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
 const DEEP_THRESHOLD = 5;           // chains at least this deep get equispaced anchor slots around root
@@ -236,14 +236,20 @@ function layout(root) {
       if (c._maxDepth > maxD) maxD = c._maxDepth;
     }
     n._maxDepth = 1 + maxD;
-    const arc = n.parentId === null ? ROOT_ARC : CHILD_ARC;
+    const isRoot = n.parentId === null;
+    const arc = isRoot ? ROOT_ARC : CHILD_ARC;
     const k = n.children.length;
-    // Exact tangent packing: siblings' circles mutually tangent requires
-    //   bud · sin(arc / 2k) ≥ r
-    // With k=1 there's no sibling to pack against, so only the geom floor
-    // applies; we also cap the half-slot at π/2 so the formula behaves on
-    // a full-circle arc.
-    const halfSlot = Math.min(arc / (2 * k), Math.PI / 2);
+    // Tangent packing.
+    //   Root:     k slots evenly around the full circle, slot = arc / k.
+    //   Non-root: mainline plus k-1 forks fanned across `arc`, with adjacent
+    //             positions separated by slot = arc / (k - 1). Deepest fork
+    //             goes to the back-most slot so it has room to curl.
+    // For non-overlap, bud · sin(slot/2) ≥ PFP_R. Cap halfSlot at π/2 for the
+    // root's full-circle arc (so the sin doesn't pass its peak).
+    let halfSlot;
+    if (k <= 1) halfSlot = 0;
+    else if (isRoot) halfSlot = Math.min(arc / (2 * k), Math.PI / 2);
+    else halfSlot = arc / (2 * (k - 1));
     const packed = k <= 1 ? 0 : (CHILD_PAD * PFP_R) / Math.sin(halfSlot);
     const geom = 2 * PFP_R;  // parent and child circles tangent, no gap
     n.bud = Math.max(packed, geom);
@@ -298,23 +304,29 @@ function layout(root) {
         place(c, childX, childY, childAngle, depth + 1);
       }
     } else {
-      // Non-root: deepest at the bent spine, forks all fan OUTWARD (away
-      // from root) along the perpendicular-to-spine direction. Picking the
-      // perpendicular whose dot product with the parent's radial vector is
-      // positive gives us the side away from root, so subtree branches
-      // can't bleed back toward inner radii.
+      // Non-root: 150° fan starting at the bent spine and sweeping outward
+      // through the radial perpendicular and a bit past it (back-travel).
+      // The mainline stays on the spine; forks occupy the rest of the fan
+      // with the DEEPEST FORK at the back-most slot — that's the one with
+      // the longest chain to spend curling through the back-travel zone
+      // and looping around to rejoin the orbital flow.
       //
-      // Forks sweep the same 90° slot pattern (slot = arc/k), so as a node
-      // accumulates forks the bud distance grows with k via the existing
-      // tangent-packing formula — more forks ⇒ wider angular slots ⇒ the
-      // parent has to push children further out to keep them tangent.
+      // Outward side is the perpendicular whose dot product with the
+      // parent's radial vector is positive (i.e., points away from root).
       const perpAngle = centerAngle + Math.PI / 2;
       const outwardSign =
         (Math.cos(perpAngle) * cx + Math.sin(perpAngle) * cy) >= 0 ? 1 : -1;
 
+      // Adjacent positions separated by `forkSlot = arc/(k-1)`. Mainline at
+      // position 0; forks at positions 1..k-1 with deepest fork (sorted[1])
+      // mapped to position k-1, lighter forks filling 1..k-2 in descending
+      // depth order. So angular index = k - i for i ∈ [1, k-1].
+      const forkSlot = k > 1 ? arc / (k - 1) : 0;
+
       for (let i = 0; i < sorted.length; i++) {
         const c = sorted[i];
-        const childAngle = centerAngle + outwardSign * i * slot;
+        const angularIdx = i === 0 ? 0 : (k - i);
+        const childAngle = centerAngle + outwardSign * angularIdx * forkSlot;
         const childX = cx + n.bud * Math.cos(childAngle);
         const childY = cy + n.bud * Math.sin(childAngle);
         place(c, childX, childY, childAngle, depth + 1);
