@@ -193,10 +193,11 @@ function normalize(node, parentId = null, depth = 0) {
 const PFP_R = 22;                   // avatar circle radius
 const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
 const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
-const CHILD_ARC = (5 * Math.PI) / 6;  // non-root: 150° fan from spine outward, allowing some back-travel for the deepest fork to curl through
+const CHILD_ARC = (2 * Math.PI) / 3;  // non-root: 120° fan from spine outward, with mild back-travel for the deepest fork
 const SPIRAL_BEND = 18 * Math.PI / 180;  // peak per-step bend for chain curling (18°)
 const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
 const DEEP_THRESHOLD = 5;           // chains at least this deep get equispaced anchor slots around root
+const SPIRAL_STEP = PFP_R;          // per-angularIdx radial extension: each fork sits PFP_R further from parent than the previous one
 
 /**
  * Recursive bud-circle layout with spiral chain curl.
@@ -251,7 +252,11 @@ function layout(root) {
     else if (isRoot) halfSlot = Math.min(arc / (2 * k), Math.PI / 2);
     else halfSlot = arc / (2 * (k - 1));
     const packed = k <= 1 ? 0 : (CHILD_PAD * PFP_R) / Math.sin(halfSlot);
-    const geom = 2 * PFP_R;  // parent and child circles tangent, no gap
+    // Floor scales with k for non-root: parent and child are tangent at k=1
+    // (44 px), and each additional fork adds a PFP radius to the minimum
+    // bud distance — 44, 66, 88, 110, ... — so a parent that picks up
+    // siblings actually reels children further out, not just spread wider.
+    const geom = isRoot ? 2 * PFP_R : PFP_R * (k + 1);
     n.bud = Math.max(packed, geom);
   }
   computeBud(root);
@@ -321,14 +326,21 @@ function layout(root) {
       // position 0; forks at positions 1..k-1 with deepest fork (sorted[1])
       // mapped to position k-1, lighter forks filling 1..k-2 in descending
       // depth order. So angular index = k - i for i ∈ [1, k-1].
+      //
+      // Per-child distance also spirals: each angular step further from the
+      // spine adds SPIRAL_STEP to the radial distance from the parent, so
+      // forks at the back-most slot sit furthest out. Mirrors the global
+      // spiral aesthetic at the local scale, and gives back-traveling
+      // forks more breathing room to curl into.
       const forkSlot = k > 1 ? arc / (k - 1) : 0;
 
       for (let i = 0; i < sorted.length; i++) {
         const c = sorted[i];
         const angularIdx = i === 0 ? 0 : (k - i);
         const childAngle = centerAngle + outwardSign * angularIdx * forkSlot;
-        const childX = cx + n.bud * Math.cos(childAngle);
-        const childY = cy + n.bud * Math.sin(childAngle);
+        const childDist = n.bud + angularIdx * SPIRAL_STEP;
+        const childX = cx + childDist * Math.cos(childAngle);
+        const childY = cy + childDist * Math.sin(childAngle);
         place(c, childX, childY, childAngle, depth + 1);
       }
     }
