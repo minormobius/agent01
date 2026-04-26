@@ -298,14 +298,23 @@ function layout(root) {
         place(c, childX, childY, childAngle, depth + 1);
       }
     } else {
-      // Non-root: deepest at the bent center, others alternating ±slot
-      // around it (positions 0, +1, -1, +2, -2, ...) so the heaviest chain
-      // occupies the spiral spine and lighter branches sprout to either side.
+      // Non-root: deepest at the bent spine, forks all fan OUTWARD (away
+      // from root) along the perpendicular-to-spine direction. Picking the
+      // perpendicular whose dot product with the parent's radial vector is
+      // positive gives us the side away from root, so subtree branches
+      // can't bleed back toward inner radii.
+      //
+      // Forks sweep the same 90° slot pattern (slot = arc/k), so as a node
+      // accumulates forks the bud distance grows with k via the existing
+      // tangent-packing formula — more forks ⇒ wider angular slots ⇒ the
+      // parent has to push children further out to keep them tangent.
+      const perpAngle = centerAngle + Math.PI / 2;
+      const outwardSign =
+        (Math.cos(perpAngle) * cx + Math.sin(perpAngle) * cy) >= 0 ? 1 : -1;
+
       for (let i = 0; i < sorted.length; i++) {
         const c = sorted[i];
-        const half = Math.ceil(i / 2);
-        const sign = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1);
-        const childAngle = centerAngle + sign * half * slot;
+        const childAngle = centerAngle + outwardSign * i * slot;
         const childX = cx + n.bud * Math.cos(childAngle);
         const childY = cy + n.bud * Math.sin(childAngle);
         place(c, childX, childY, childAngle, depth + 1);
