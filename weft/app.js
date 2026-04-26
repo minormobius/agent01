@@ -194,7 +194,7 @@ const PFP_R = 22;                   // avatar circle radius
 const CHILD_PAD = 1.0;              // angular-slot padding (1.0 = siblings tangent)
 const ROOT_ARC = 2 * Math.PI;       // root has no grandparent — children form a FULL circle
 const CHILD_ARC = (5 * Math.PI) / 6;  // non-root: 150° fan from spine outward, allowing some back-travel for the deepest fork to curl through
-const SPIRAL_BEND = 12 * Math.PI / 180;  // peak per-step bend for chain curling (12°)
+const SPIRAL_BEND = 18 * Math.PI / 180;  // peak per-step bend for chain curling (18°)
 const SPIRAL_SIGN = 1;              // +1 = clockwise, -1 = ccw — global "screw" direction
 const DEEP_THRESHOLD = 5;           // chains at least this deep get equispaced anchor slots around root
 
