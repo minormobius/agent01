@@ -1,0 +1,307 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #f5f0e8;
+  --rule: #2a2a2a;
+  --accent: #8b0000;
+  --gray: #555;
+  --light-rule: #ccc;
+  --soft: #ebe4d6;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Source Serif 4', 'Georgia', serif;
+  line-height: 1.6;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+a { color: var(--accent); }
+
+.masthead {
+  text-align: center;
+  border-bottom: 4px double var(--rule);
+  padding: 1.5rem 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.masthead-date {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+}
+
+.masthead h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  margin: 0.25rem 0;
+}
+
+.masthead h1 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.masthead-tagline {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--gray);
+}
+
+.masthead-rule {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin-top: 0.75rem;
+}
+
+.lede {
+  max-width: 740px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.kicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+
+.headline-lead {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}
+
+.byline {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: var(--gray);
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+}
+
+.essay {
+  max-width: 680px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.essay p {
+  margin-bottom: 1rem;
+}
+
+.essay p.lead {
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.seed {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  border-left: 3px solid var(--accent);
+  padding: 0.8rem 1.2rem;
+  margin: 1.5rem 0;
+  color: #2a2a2a;
+  background: var(--soft);
+}
+
+.seed-meta {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+  margin-top: 0.6rem;
+}
+
+.section-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--light-rule);
+  padding-bottom: 0.3rem;
+  margin: 2rem auto 1rem;
+  max-width: 1000px;
+}
+
+.filter-bar {
+  max-width: 1000px;
+  margin: 0.5rem auto 1.5rem;
+  padding: 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+}
+
+.filter-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+  margin-right: 0.4rem;
+}
+
+.chip {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.7rem;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--light-rule);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.chip.active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+
+.pitch-grid {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.pitch {
+  background: #fffdf7;
+  border: 1px solid var(--light-rule);
+  padding: 1.2rem 1.3rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.pitch:hover {
+  border-color: var(--accent);
+}
+
+.pitch-genre {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.pitch-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.7rem;
+}
+
+.pitch-body {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  margin-bottom: 0.9rem;
+  hyphens: auto;
+}
+
+.pitch-why {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--gray);
+  border-top: 1px solid var(--light-rule);
+  padding-top: 0.7rem;
+  margin-top: auto;
+}
+
+.pitch-why strong {
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.coda {
+  max-width: 680px;
+  margin: 3rem auto 1rem;
+  padding: 1.5rem 1rem 0;
+  border-top: 4px double var(--rule);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.coda p { margin-bottom: 1rem; }
+
+.footer {
+  text-align: center;
+  border-top: 4px double var(--rule);
+  padding: 1rem 0;
+  margin-top: 2.5rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: var(--gray);
+  letter-spacing: 0.1em;
+}
+
+.footer a { color: var(--gray); }
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  color: var(--gray);
+  padding: 2rem;
+}
+
+@media (max-width: 600px) {
+  .seed { font-size: 1rem; }
+  .pitch-grid { grid-template-columns: 1fr; }
+}
