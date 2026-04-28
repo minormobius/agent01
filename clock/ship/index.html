@@ -8,7 +8,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0e14;touch-action:none;
   font-family:ui-monospace,Menlo,Consolas,monospace;color:#cbd2d8}
-canvas{display:block;position:fixed;inset:0;width:100%;height:100%;cursor:grab;background:#222}
+canvas{display:block;width:100%;height:100%;cursor:grab}
 canvas:active{cursor:grabbing}
 
 #ui{position:fixed;top:0;right:0;bottom:0;width:280px;background:rgba(8,11,16,0.84);
@@ -959,29 +959,18 @@ async function init(){
   device.lost.then(info => log('device lost: ' + info.message, 'err'));
   const ctx = canvas.getContext('webgpu');
   const format = navigator.gpu.getPreferredCanvasFormat();
+  // Configure ONCE here. The other webgpu projects in this repo (globe,
+  // helix, scape) all do this exactly the same way and work on mobile;
+  // calling ctx.configure() again on every resize broke that pattern.
   ctx.configure({ device, format, alphaMode: 'opaque' });
   log('format ' + format, 'ok');
 
   let W, H, depthTex;
-  function configureCtx(){
-    // Re-configure the swap chain. iOS Safari WebGPU is finicky about
-    // alphaMode and seems to need 'premultiplied' (the WebGPU default).
-    // Setting usage explicitly is a no-op on conformant impls but clears
-    // up ambiguity on some preview builds.
-    ctx.configure({
-      device, format,
-      alphaMode: 'premultiplied',
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-  }
   function resize(){
-    const dpr = 1;        // mobile-safe; lofi doesn't need more pixels
-    const cw = canvas.clientWidth  || window.innerWidth;
-    const ch = canvas.clientHeight || window.innerHeight;
-    W = Math.max(2, (cw * dpr) | 0);
-    H = Math.max(2, (ch * dpr) | 0);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);  // matches globe
+    W = canvas.clientWidth  * dpr | 0;
+    H = canvas.clientHeight * dpr | 0;
     canvas.width = W; canvas.height = H;
-    configureCtx();
     if (depthTex) depthTex.destroy();
     depthTex = device.createTexture({
       size: [W, H], format: 'depth24plus',
@@ -1207,6 +1196,13 @@ async function init(){
   }
 
   // -- Frame --
+  // ?test=clear → only clear (skip every draw). Helps isolate whether the
+  //              swap chain is presenting at all on weird devices.
+  // ?test=sky   → only sky pass (no ship, no sails).
+  // ?test=ship  → sky + ship (no sails).
+  // (default = full scene)
+  const testMode = new URLSearchParams(location.search).get('test');
+  if (testMode) log('test=' + testMode, 'ok');
   function frame(){
     requestAnimationFrame(frame);
     uploadGlobals();
@@ -1225,22 +1221,25 @@ async function init(){
         depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1.0,
       },
     });
-    // sky first
-    pass.setPipeline(skyPipeline);
-    pass.setBindGroup(0, skyBG);
-    pass.draw(3);
-    // ship
-    pass.setPipeline(shipPipeline);
-    pass.setBindGroup(0, shipBG);
-    pass.setVertexBuffer(0, shipVB);
-    pass.setIndexBuffer(shipIB, 'uint32');
-    pass.drawIndexed(IDX_COUNT);
-    // sails
-    pass.setPipeline(sailPipeline);
-    pass.setBindGroup(0, sailBG);
-    pass.setVertexBuffer(0, sailVB);
-    pass.setIndexBuffer(sailIB, 'uint32');
-    pass.drawIndexed(SAIL_IDX_COUNT);
+    if (testMode !== 'clear'){
+      pass.setPipeline(skyPipeline);
+      pass.setBindGroup(0, skyBG);
+      pass.draw(3);
+    }
+    if (testMode !== 'clear' && testMode !== 'sky'){
+      pass.setPipeline(shipPipeline);
+      pass.setBindGroup(0, shipBG);
+      pass.setVertexBuffer(0, shipVB);
+      pass.setIndexBuffer(shipIB, 'uint32');
+      pass.drawIndexed(IDX_COUNT);
+    }
+    if (testMode !== 'clear' && testMode !== 'sky' && testMode !== 'ship'){
+      pass.setPipeline(sailPipeline);
+      pass.setBindGroup(0, sailBG);
+      pass.setVertexBuffer(0, sailVB);
+      pass.setIndexBuffer(sailIB, 'uint32');
+      pass.drawIndexed(SAIL_IDX_COUNT);
+    }
     pass.end();
     device.queue.submit([enc.finish()]);
     frames++;
