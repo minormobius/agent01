@@ -1167,3 +1167,41 @@ a { color: var(--accent); }
   .draft { padding: 1.2rem 1.2rem 1.5rem; }
   .draft-prose p { text-align: left; }
 }
+
+/* ---- Round 3: shipping / held draft state ---- */
+.draft.shipping {
+  border: 2px solid var(--accent);
+  padding: calc(1.6rem - 1px) calc(1.8rem - 1px) calc(2rem - 1px);
+}
+
+.draft.held {
+  opacity: 0.78;
+}
+
+.draft.held:hover { opacity: 1; }
+
+.draft-scores {
+  margin-top: 0.7rem;
+  justify-content: center;
+}
+
+.draft-head .pitch-status {
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.essay.verdict {
+  border-left: 3px solid var(--accent);
+  padding-left: 1.1rem;
+  background: var(--soft);
+  text-align: left;
+  padding-top: 0.9rem;
+  padding-bottom: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.essay.verdict p { margin-bottom: 0.7rem; }
+
+.essay.verdict strong {
+  color: var(--accent);
+}

@@ -6,7 +6,9 @@ export const STAGES = [
   { id: 'cut2',    label: 'Round 2 cut', detail: 'rubric · top 2 advance', status: 'done' },
   { id: 'sharpen', label: 'Sharpen', detail: 'causal chain · arcs · rhythm', status: 'done' },
   { id: 'draft',   label: 'Draft', detail: '2 of 2 · both v1 in hand', status: 'done' },
-  { id: 'ship',    label: 'Ship', detail: 'edit, score, publish', status: 'pending' },
+  { id: 'cut3',    label: 'Final cut', detail: 'one ships · one held', status: 'done' },
+  { id: 'polish',  label: 'Polish', detail: 'sentence-level revision', status: 'pending' },
+  { id: 'ship',    label: 'Ship', detail: 'publish to read.mino.mobi', status: 'pending' },
 ];
 
 export const RUBRIC = [
@@ -131,3 +133,59 @@ export const DRAFT_IDS = (() => {
 })();
 
 export function isDrafting(id) { return DRAFT_IDS.has(id); }
+
+// ---- Round 3: both v1 drafts in hand. We are scoring as readers, not planners. ----
+
+export const RUBRIC_R3 = [
+  {
+    key: 'voltage',
+    label: 'Voltage',
+    description: `Does the prose carry electric charge through the long middle, or does it dim?`,
+  },
+  {
+    key: 'stakes',
+    label: 'Stakes',
+    description: `What is on the line, and is it on the line all the way through? Does the cost stay legible?`,
+  },
+  {
+    key: 'stick',
+    label: 'Stickiness',
+    description: `What stays with the reader after the last sentence — image, gesture, line — and how unmistakable is it?`,
+  },
+  {
+    key: 'honest',
+    label: 'Honesty',
+    description: `Does the story refuse to flatter itself or its conceit? No winks, no false notes, no decoration.`,
+  },
+  {
+    key: 'surface',
+    label: 'Surface',
+    description: `Sentence-level integrity. Are the sentences themselves doing work, or is the spec carrying the prose?`,
+  },
+];
+
+// Each axis 1-5. Sum is /25. Higher total ships.
+export const SCORES_R3 = {
+  'compliance-window': { voltage: 4, stakes: 3, stick: 4, honest: 5, surface: 5 },
+  'kolmogorov':        { voltage: 5, stakes: 5, stick: 5, honest: 5, surface: 4 },
+};
+
+export function totalR3(id) {
+  const s = SCORES_R3[id];
+  if (!s) return 0;
+  return s.voltage + s.stakes + s.stick + s.honest + s.surface;
+}
+
+// Higher total ships. Tiebreak: Stakes, then Stickiness.
+export const SHIP_IDS = (() => {
+  const ranked = Object.keys(SCORES_R3)
+    .map(id => ({ id, total: totalR3(id), s: SCORES_R3[id] }))
+    .sort((a, b) =>
+      b.total - a.total ||
+      b.s.stakes - a.s.stakes ||
+      b.s.stick - a.s.stick
+    );
+  return new Set(ranked.slice(0, 1).map(r => r.id));
+})();
+
+export function isShipping(id) { return SHIP_IDS.has(id); }

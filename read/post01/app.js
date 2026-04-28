@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'https://esm.sh/react@18';
 import { createRoot } from 'https://esm.sh/react-dom@18/client';
 import htm from 'https://esm.sh/htm@3';
 import { SEED, PITCHES } from './pitches.js';
-import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isDrafting, totalR2 } from './process.js';
+import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isDrafting, totalR2, RUBRIC_R3, SCORES_R3, isShipping, totalR3 } from './process.js';
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
 import { SHARPEN } from './sharpen.js';
@@ -295,17 +295,35 @@ function DraftCard({ pitch, draft }) {
   const totalWords = draft.beats.reduce(
     (acc, b) => acc + b.text.split(/\s+/).filter(Boolean).length, 0
   );
+  const r3 = SCORES_R3[pitch.id];
+  const shipping = isShipping(pitch.id);
+  const r3total = totalR3(pitch.id);
   return html`
-    <article class="draft">
+    <article class=${'draft ' + (shipping ? 'shipping' : 'held')}>
       <div class="draft-head">
         <div class="draft-genre">${pitch.genre} · Round 3 draft</div>
         <h2 class="draft-title">${draft.title}</h2>
-        <div class="draft-meta">${totalWords.toLocaleString()} words · ${draft.draftVersion} · drafted ${draft.draftedOn}</div>
+        <div class="draft-meta">
+          ${totalWords.toLocaleString()} words · ${draft.draftVersion} · drafted ${draft.draftedOn}
+          <span class=${'pitch-status ' + (shipping ? 'advanced' : 'cut')}>
+            ${shipping ? 'Shipping' : 'Held'}
+          </span>
+        </div>
+        ${r3 ? html`
+          <div class="scores draft-scores">
+            ${RUBRIC_R3.map(r => html`
+              <span key=${r.key} class="score-chip" title=${r.description}>
+                ${r.label}<b>${r3[r.key]}</b>
+              </span>
+            `)}
+            <span class="score-total">${r3total} / 25</span>
+          </div>
+        ` : null}
       </div>
       ${draft.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
       <div class="draft-foot">
         <span>End of draft v1</span>
-        <span>Round 3 rubric · sentence-level · pending</span>
+        <span>${shipping ? 'Advances to polish' : 'Held — strong but second-place'}</span>
       </div>
     </article>
   `;
@@ -354,7 +372,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons → two drafts</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons → two drafts → one ships</div>
       </section>
 
       <${ProcessFlow} />
@@ -439,18 +457,29 @@ function App() {
 
       <${SharpenSection} />
 
-      <div class="section-header">Round 3 · the drafts</div>
+      <div class="section-header">Round 3 cut · which one to read</div>
 
       <section class="essay essay-narrow">
-        <p>Two drafts, written against the spec we built across the prior six steps. The same machine — same pitches, same rubrics, same sharpen pass — produced a procedural deadpan over four days and a six-hour computational vigil. Both are v1. We will run a sentence-level rubric on them next, and we will not protect them.</p>
+        <p>Two drafts in hand. Same machine, same rubrics, same sharpen pass — and they came out genuinely different. We score them now as readers, not planners. The question is no longer "could this be a story" or "does this plan have spark"; the question is the one the seed asked: <em>how do you know if one is good</em>. Higher total ships to polish; the other is held in v1.</p>
+      </section>
+
+      <${Rubric}
+        title="Round 3 rubric · five axes, scored 1–5"
+        items=${RUBRIC_R3}
+        rule="Higher total /25 ships. Tiebreak: Stakes, then Stickiness."
+      />
+
+      <section class="essay essay-narrow verdict">
+        <p><strong>Verdict.</strong> <em>The Kolmogorov Prize</em> ships (24/25). <em>The Compliance Window</em> is held (21/25). The cut hurts; both stories earned their place in the lineup, and the cut is small. Compliance has more <strong>Surface</strong> integrity — its sentences are tighter, its rhythm more disciplined; the four-beat NOTED bar is the kind of structural music a writer rarely lands on. But Kolmogorov has more <strong>Stakes</strong> (a dead brother, a stolen childhood, Iris's own remaining life — three real costs) and more <strong>Voltage</strong> (the kitchen seam between the version Iris carried and the version where she stayed; opening Marisol's second email; the codepoint extrapolation). Compliance's ending satisfies. Kolmogorov's ending sits with you.</p>
+        <p>The held draft is not a failure of the spec — it is the spec working. Both stories are recognizably stories. We picked the one whose load-bearing scenes carry more weight at the third reading.</p>
       </section>
 
       <${DraftSection} />
 
       <section class="coda">
-        <p>Two drafts. Compliance at 2,695 words across five sections; Kolmogorov at roughly 3,300 across six. Same machine, same rubrics, same sharpen pass — and the prose comes out genuinely different. Compliance's sentences shorten across the week; Kolmogorov's slow at the kitchen seam and the camera face-down, and quicken to single-line dialogue in the Hannelore beat. The form does work the spec only pointed at.</p>
-        <p>What the prose discovered that the spec did not: the deer on the median in 2017 (Compliance, Thursday). The sixteen-digit Clarkesworld confirmation number copied to a sticky note Iris does not need. The Newton's cradle ticking past the end of the scene into the closing image. None of these were in the outlines. They are the smallest things the drafts add that justify the drafts, and we want more of them on revision.</p>
-        <p>Whether either of these is <em>good</em> is the question this page has been asking since the first paragraph. We have built a scoring function in public, applied it twice, and used it to produce two artifacts. The next rubric is sentence-level — Round 3, prose only — and we will run it on both v1s before we revise.</p>
+        <p>One ships, one is held. The held draft will not be revised; it sits at v1, an honest record of what the spec produced. The shipped draft goes to polish: a sentence-level pass, no new beats, no structural changes — just the prose, sharpened. The deer on the median (Compliance) and the sixteen-digit confirmation number copied to a sticky note Iris does not need (Kolmogorov) are the kind of details we want more of on revision. The Hannelore beat in particular is where surface integrity dipped (4 instead of 5) and where polish has the most to offer.</p>
+        <p>What this page set out to do, the seed asked plainly: build a machine that takes a short string and turns it into a short story, and tell us how you would know if it was good. We built one in public — eight stages of process, three rubrics, twelve pitches, four outlines, two drafts, one verdict. The answer to <em>what is a short story</em> is not in the rubrics; it is in the artifacts. The answer to <em>how do you know if one is good</em> is the rubrics, applied honestly, with the artifacts in front of you.</p>
+        <p>Next: polish Kolmogorov to v2, score the v2 against the v1 on the same Round 3 rubric, and ship.</p>
       </section>
 
       <footer class="footer">
