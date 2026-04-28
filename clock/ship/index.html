@@ -763,46 +763,22 @@ struct VSOut {
 `;
 
 const skyShader = `
-struct Globals {
-  viewProj : mat4x4<f32>,
-  camPos   : vec3<f32>,
-  time     : f32,
-  windDir  : vec3<f32>,
-  windStr  : f32,
-  sunDir   : vec3<f32>,
-  seaFirst : f32,
-}
-@group(0) @binding(0) var<uniform> u : Globals;
+// Bare-minimum diagnostic sky: no bindings, no varyings, flat color.
+// If this draws green, our pipeline plumbing works and the previous
+// gradient version was hitting a driver bug with inter-stage vec2.
 
-struct VSOut {
-  @builtin(position) pos : vec4<f32>,
-  @location(0) ndc       : vec2<f32>,
-}
-
-@vertex fn vs(@builtin(vertex_index) vid : u32) -> VSOut {
-  var out : VSOut;
-  // Three vertices of a fullscreen triangle. Indexed via a small switch
-  // because some WGSL implementations are strict about runtime indexing
-  // into let-declared arrays.
+@vertex fn vs(@builtin(vertex_index) vid : u32) -> @builtin(position) vec4<f32> {
   var pt : vec2<f32>;
   switch (vid) {
     case 0u: { pt = vec2<f32>(-1.0, -1.0); }
     case 1u: { pt = vec2<f32>( 3.0, -1.0); }
     default: { pt = vec2<f32>(-1.0,  3.0); }
   }
-  out.pos = vec4<f32>(pt, 0.5, 1.0);
-  out.ndc = pt;
-  return out;
+  return vec4<f32>(pt, 0.5, 1.0);
 }
 
-@fragment fn fs(in : VSOut) -> @location(0) vec4<f32> {
-  // Sky gradient. NOTE: no extra gamma — getPreferredCanvasFormat is linear,
-  // and we want bright values on the wire for visibility on mobile.
-  let t = clamp(in.ndc.y * 0.5 + 0.5, 0.0, 1.0);
-  let zenith  = vec3<f32>(0.55, 0.75, 0.95);
-  let horizon = vec3<f32>(0.92, 0.86, 0.74);
-  var col = mix(horizon, zenith, smoothstep(0.0, 0.85, t));
-  return vec4<f32>(col, 1.0);
+@fragment fn fs() -> @location(0) vec4<f32> {
+  return vec4<f32>(0.2, 0.7, 0.3, 1.0);
 }
 `;
 
@@ -1103,10 +1079,8 @@ async function init(){
       { binding: 1, resource: { buffer: sailDataBuf } },
     ],
   });
-  const skyBG = device.createBindGroup({
-    layout: skyPipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: globalsBuf } }],
-  });
+  // Sky pipeline has no bindings in its diagnostic form — skip skyBG.
+  const skyBG = null;
 
   // -- Camera input --
   let dragging = false, lx = 0, ly = 0;
@@ -1223,7 +1197,7 @@ async function init(){
     });
     if (testMode !== 'clear'){
       pass.setPipeline(skyPipeline);
-      pass.setBindGroup(0, skyBG);
+      if (skyBG) pass.setBindGroup(0, skyBG);
       pass.draw(3);
     }
     if (testMode !== 'clear' && testMode !== 'sky'){
