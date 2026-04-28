@@ -963,6 +963,17 @@ async function init(){
   log('format ' + format, 'ok');
 
   let W, H, depthTex;
+  function configureCtx(){
+    // Re-configure the swap chain. iOS Safari WebGPU is finicky about
+    // alphaMode and seems to need 'premultiplied' (the WebGPU default).
+    // Setting usage explicitly is a no-op on conformant impls but clears
+    // up ambiguity on some preview builds.
+    ctx.configure({
+      device, format,
+      alphaMode: 'premultiplied',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+  }
   function resize(){
     const dpr = 1;        // mobile-safe; lofi doesn't need more pixels
     const cw = canvas.clientWidth  || window.innerWidth;
@@ -970,9 +981,7 @@ async function init(){
     W = Math.max(2, (cw * dpr) | 0);
     H = Math.max(2, (ch * dpr) | 0);
     canvas.width = W; canvas.height = H;
-    // Re-configure the swap chain. Some mobile WebGPU impls (Safari) drop
-    // the configuration when the underlying canvas size changes.
-    ctx.configure({ device, format, alphaMode: 'opaque' });
+    configureCtx();
     if (depthTex) depthTex.destroy();
     depthTex = device.createTexture({
       size: [W, H], format: 'depth24plus',
