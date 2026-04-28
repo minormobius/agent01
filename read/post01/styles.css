@@ -305,3 +305,184 @@ a { color: var(--accent); }
   .seed { font-size: 1rem; }
   .pitch-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- Process Flow ---- */
+.flow {
+  max-width: 1000px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
+}
+
+.flow-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--rule);
+  background: #fffdf7;
+  overflow-x: auto;
+}
+
+.flow-step {
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 0.7rem 0.9rem;
+  border-right: 1px solid var(--light-rule);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.flow-step:last-child { border-right: none; }
+
+.flow-step.done { background: var(--ink); color: var(--paper); }
+.flow-step.done .flow-num { color: var(--paper); opacity: 0.5; }
+.flow-step.done .flow-detail { color: var(--paper); opacity: 0.75; }
+
+.flow-step.current { background: var(--accent); color: var(--paper); }
+.flow-step.current .flow-num { color: var(--paper); opacity: 0.6; }
+.flow-step.current .flow-detail { color: var(--paper); opacity: 0.85; }
+
+.flow-num {
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: var(--gray);
+  margin-bottom: 0.15rem;
+}
+
+.flow-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.flow-detail {
+  font-size: 0.7rem;
+  color: var(--gray);
+  margin-top: 0.15rem;
+  line-height: 1.35;
+}
+
+.flow-tick {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  font-size: 0.75rem;
+}
+
+/* ---- Rubric callout ---- */
+.rubric {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem;
+  padding: 1rem 1.2rem;
+  background: var(--soft);
+  border-left: 3px solid var(--accent);
+  font-family: 'Inter', sans-serif;
+}
+
+.rubric h4 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+.rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem 1.2rem;
+}
+
+.rubric-item {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.rubric-item b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rubric-rule {
+  margin-top: 0.7rem;
+  font-size: 0.72rem;
+  color: var(--gray);
+  font-style: italic;
+}
+
+/* ---- Score / advanced ---- */
+.pitch.cut {
+  opacity: 0.55;
+  background: transparent;
+}
+
+.pitch.cut:hover { opacity: 0.9; }
+
+.pitch.advanced {
+  border-color: var(--accent);
+  border-width: 2px;
+  padding: calc(1.2rem - 1px) calc(1.3rem - 1px) calc(1.3rem - 1px);
+}
+
+.pitch-status {
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.pitch-status.advanced {
+  background: var(--accent);
+  color: var(--paper);
+}
+
+.pitch-status.cut {
+  border: 1px solid var(--light-rule);
+  color: var(--gray);
+}
+
+.scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0.8rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.score-chip {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.4rem;
+  background: var(--soft);
+  color: var(--gray);
+}
+
+.score-chip b {
+  color: var(--ink);
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.score-total {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0.15rem 0.5rem;
+  background: var(--soft);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: var(--gray);
+}
+
+.toggle-row input { accent-color: var(--accent); }
