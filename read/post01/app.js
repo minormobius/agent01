@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'https://esm.sh/react@18';
 import { createRoot } from 'https://esm.sh/react-dom@18/client';
 import htm from 'https://esm.sh/htm@3';
 import { SEED, PITCHES } from './pitches.js';
-import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor } from './process.js';
+import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isDrafting, totalR2 } from './process.js';
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
 
@@ -27,18 +27,18 @@ function ProcessFlow() {
   `;
 }
 
-function Rubric() {
+function Rubric({ title, items, rule }) {
   return html`
     <div class="rubric">
-      <h4>Round 1 rubric · five axes, scored 1–5</h4>
+      <h4>${title}</h4>
       <div class="rubric-grid">
-        ${RUBRIC.map(r => html`
+        ${items.map(r => html`
           <div key=${r.key} class="rubric-item">
             <b>${r.label}.</b> ${r.description}
           </div>
         `)}
       </div>
-      <div class="rubric-rule">Cut rule: top 4 by total /25 advance to outline. Ties broken by Engine, then Ending.</div>
+      <div class="rubric-rule">${rule}</div>
     </div>
   `;
 }
@@ -145,13 +145,29 @@ function Beat({ b }) {
 
 function OutlineCard({ pitch, outline }) {
   const totalBeatWords = outline.beats.reduce((acc, b) => acc + b.words, 0);
+  const r2 = SCORES_R2[pitch.id];
+  const drafting = isDrafting(pitch.id);
+  const r2total = totalR2(pitch.id);
   return html`
-    <article class="outline">
+    <article class=${'outline ' + (drafting ? 'advanced' : 'cut')}>
       <div class="outline-head">
         <span class="outline-genre">${pitch.genre}</span>
         <h4 class="outline-title">${pitch.title}</h4>
+        <span class=${'pitch-status ' + (drafting ? 'advanced' : 'cut')}>
+          ${drafting ? 'Drafting' : 'Held'}
+        </span>
         <span class="outline-target">~${outline.wordTarget}w</span>
       </div>
+      ${r2 ? html`
+        <div class="scores">
+          ${RUBRIC_R2.map(r => html`
+            <span key=${r.key} class="score-chip" title=${r.description}>
+              ${r.label}<b>${r2[r.key]}</b>
+            </span>
+          `)}
+          <span class="score-total">${r2total} / 25</span>
+        </div>
+      ` : null}
       <div class="outline-pov">${outline.pov}</div>
       <div class="beats">
         ${outline.beats.map(b => html`<${Beat} key=${b.num} b=${b} />`)}
@@ -209,7 +225,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in, twelve pitches out, four cast and outlined</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two drafts</div>
       </section>
 
       <${ProcessFlow} />
@@ -229,7 +245,11 @@ function App() {
 
       <div class="section-header">Round 1 cut · the rubric</div>
 
-      <${Rubric} />
+      <${Rubric}
+        title="Round 1 rubric · five axes, scored 1–5"
+        items=${RUBRIC}
+        rule="Cut rule: top 4 by total /25 advance to outline. Ties broken by Engine, then Ending."
+      />
 
       <div class="section-header">The Pitches · ${filtered.length} of ${PITCHES.length} · ${advancedCount} advancing</div>
 
@@ -266,18 +286,25 @@ function App() {
 
       <${CastSection} />
 
-      <div class="section-header">Round 2 · the outlines</div>
+      <div class="section-header">Round 2 · outlines &amp; the spark cut</div>
 
       <section class="essay essay-narrow">
-        <p>Each outline carries six beats (five for the four-day comedy), a POV note, a word target, and three things every short story should be able to declare before drafting: stakes, ending image, and the failure mode the writer is most worried about. The risk note is not decoration. If a beat-level outline cannot articulate what's most likely to fail, it isn't ready to draft.</p>
+        <p>Round 1 asked whether each pitch <em>could</em> be a story. Round 2 asks whether <em>this particular plan</em> has the spark to survive 2,500 words of prose. New rubric, applied to the four outlines below: top two go to draft.</p>
       </section>
+
+      <${Rubric}
+        title="Round 2 rubric · five axes, scored 1–5"
+        items=${RUBRIC_R2}
+        rule="Cut rule: top 2 by total /25 go to draft. Tiebreak: Spark, then Character force, then Engine sustain."
+      />
 
       <${OutlineSection} />
 
       <section class="coda">
-        <p>Pitches, casts, outlines. The outlines did what outlines are supposed to do: they exposed the load-bearing scene of each story (Iris seeding 11/14/09, Janet skipping a NOTED, Ines letting Tomás stay on the tram for one paragraph, Pyatt's first invented name) and made the risk legible before a single sentence of prose has been committed.</p>
-        <p>Three of the four risks are versions of the same worry — that the conceit (decompression, compliance, metafiction) eats the character. The fourth (Pyatt's improvisations tipping into whimsy) is its inverse: that the character's invention eats the catastrophe. We name them so the draft has something to push against.</p>
-        <p>Next stage: draft. We will write one of these in full, score it on a Round-3 rubric, and revisit the casts and outlines with what the prose taught us. The cyborg part is going public with the spec before the artifact.</p>
+        <p>Two go forward: <em>The Compliance Window</em> (24/25) and <em>The Kolmogorov Prize</em> (22/25, tiebreak on Spark). Two are held: <em>The Tally-Stick at Westminster</em> (22/25) — same total, weaker spark — and <em>Eight Hundred and Fourteen Characters</em> (19/25), where the metafictional engine could not promise to keep finding new things at beat 5 and 6.</p>
+        <p>The cut hurts a little, which is the point. Tally-Stick has the most disciplined engine in the lineup; its sustain score is a 5. But "the boy was named Thomas" is one move, and the load-bearing scene wants more voltage than the historical period can ethically supply. Eight Hundred has a rare risk note ("cleverness eats tenderness") that names exactly the failure mode metafiction has been falling into for forty years; we'd rather hold it for a careful drafting pass later than rush it now.</p>
+        <p>Compliance and Kolmogorov earned their places by being unlike each other: a procedural deadpan over four days, and a six-hour computational vigil. The Spark scores were both 5 — the kitchen-doorway "Derek, your father called", and the codepoint that decompresses to the rest of Iris's life. Those are the scenes the drafts are written to deserve.</p>
+        <p>Next stage: draft. One story in full, then the second. Round 3 rubric will be sentence-level — we are no longer scoring plans, we are scoring prose.</p>
       </section>
 
       <footer class="footer">

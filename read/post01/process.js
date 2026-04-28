@@ -3,6 +3,7 @@ export const STAGES = [
   { id: 'cut1',   label: 'Round 1 cut', detail: 'rubric · top 4 advance', status: 'done' },
   { id: 'cast',   label: 'Characters', detail: 'v1 · revisit after storyboards', status: 'done' },
   { id: 'outline', label: 'Outline', detail: 'beats · shifts · risks logged', status: 'done' },
+  { id: 'cut2',   label: 'Round 2 cut', detail: 'rubric · top 2 advance', status: 'done' },
   { id: 'draft',  label: 'Draft', detail: 'prose pass at full length', status: 'pending' },
   { id: 'ship',   label: 'Ship', detail: 'edit, score, publish', status: 'pending' },
 ];
@@ -70,3 +71,62 @@ export const ADVANCED_IDS = (() => {
 })();
 
 export function isAdvanced(id) { return ADVANCED_IDS.has(id); }
+
+// ---- Round 2: pitch + cast + outline in hand. We are scoring the spark. ----
+
+export const RUBRIC_R2 = [
+  {
+    key: 'spark',
+    label: 'Spark',
+    description: `The load-bearing scene's voltage. Does it crackle when you imagine reading it?`,
+  },
+  {
+    key: 'force',
+    label: 'Character force',
+    description: `Do the two contradictions pull on each other? Will the prose discover something the outline did not already say?`,
+  },
+  {
+    key: 'sustain',
+    label: 'Engine sustain',
+    description: `At beat 4, beat 5, beat 6 — is the small repeated motion still finding new things, or running on fumes?`,
+  },
+  {
+    key: 'edge',
+    label: 'Risk legibility',
+    description: `Is the named risk the right risk? Does it expose a real edge, not a fake one?`,
+  },
+  {
+    key: 'surprise',
+    label: 'Surprise margin',
+    description: `Room in the structure for the prose to surprise the writer.`,
+  },
+];
+
+// Each axis 1-5. Sum is /25. Top 2 advance to draft.
+export const SCORES_R2 = {
+  'kolmogorov':         { spark: 5, force: 4, sustain: 4, edge: 5, surprise: 4 },
+  'compliance-window':  { spark: 5, force: 5, sustain: 5, edge: 5, surprise: 4 },
+  'eight-fourteen':     { spark: 4, force: 4, sustain: 3, edge: 5, surprise: 3 },
+  'tally-stick':        { spark: 4, force: 4, sustain: 5, edge: 5, surprise: 4 },
+};
+
+export function totalR2(id) {
+  const s = SCORES_R2[id];
+  if (!s) return 0;
+  return s.spark + s.force + s.sustain + s.edge + s.surprise;
+}
+
+// Top 2. Tiebreak: Spark, then Character force, then Engine sustain.
+export const DRAFT_IDS = (() => {
+  const ranked = Object.keys(SCORES_R2)
+    .map(id => ({ id, total: totalR2(id), s: SCORES_R2[id] }))
+    .sort((a, b) =>
+      b.total - a.total ||
+      b.s.spark - a.s.spark ||
+      b.s.force - a.s.force ||
+      b.s.sustain - a.s.sustain
+    );
+  return new Set(ranked.slice(0, 2).map(r => r.id));
+})();
+
+export function isDrafting(id) { return DRAFT_IDS.has(id); }
