@@ -8,7 +8,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0e14;touch-action:none;
   font-family:ui-monospace,Menlo,Consolas,monospace;color:#cbd2d8}
-canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%;cursor:grab;background:#222}
 canvas:active{cursor:grabbing}
 
 #ui{position:fixed;top:0;right:0;bottom:0;width:280px;background:rgba(8,11,16,0.84);
@@ -781,23 +781,27 @@ struct VSOut {
 
 @vertex fn vs(@builtin(vertex_index) vid : u32) -> VSOut {
   var out : VSOut;
-  let p = array<vec2<f32>,3>(vec2<f32>(-1,-1), vec2<f32>(3,-1), vec2<f32>(-1,3));
-  out.pos = vec4<f32>(p[vid], 0.999, 1.0);   // far plane
-  out.ndc = p[vid];
+  // Three vertices of a fullscreen triangle. Indexed via a small switch
+  // because some WGSL implementations are strict about runtime indexing
+  // into let-declared arrays.
+  var pt : vec2<f32>;
+  switch (vid) {
+    case 0u: { pt = vec2<f32>(-1.0, -1.0); }
+    case 1u: { pt = vec2<f32>( 3.0, -1.0); }
+    default: { pt = vec2<f32>(-1.0,  3.0); }
+  }
+  out.pos = vec4<f32>(pt, 0.5, 1.0);
+  out.ndc = pt;
   return out;
 }
 
 @fragment fn fs(in : VSOut) -> @location(0) vec4<f32> {
-  // Re-derive a view ray from NDC by inverting viewProj (we just sample the
-  // y component of NDC for a horizon gradient — this is fine for a static sky).
+  // Sky gradient. NOTE: no extra gamma — getPreferredCanvasFormat is linear,
+  // and we want bright values on the wire for visibility on mobile.
   let t = clamp(in.ndc.y * 0.5 + 0.5, 0.0, 1.0);
-  // Horizon haze + zenith blue
-  let zenith  = vec3<f32>(0.32, 0.48, 0.68);
-  let horizon = vec3<f32>(0.78, 0.82, 0.86);
-  var col = mix(horizon, zenith, smoothstep(0.0, 0.7, t));
-  // tint near horizon
-  col = mix(col, vec3<f32>(0.85, 0.78, 0.62), smoothstep(0.05, 0.0, t) * 0.6);
-  col = pow(max(col, vec3<f32>(0.0)), vec3<f32>(0.4545));
+  let zenith  = vec3<f32>(0.55, 0.75, 0.95);
+  let horizon = vec3<f32>(0.92, 0.86, 0.74);
+  var col = mix(horizon, zenith, smoothstep(0.0, 0.85, t));
   return vec4<f32>(col, 1.0);
 }
 `;
@@ -960,13 +964,15 @@ async function init(){
 
   let W, H, depthTex;
   function resize(){
-    // Cap DPR at 1 for mobile — we don't need more pixels for a lofi look.
-    const dpr = 1;
+    const dpr = 1;        // mobile-safe; lofi doesn't need more pixels
     const cw = canvas.clientWidth  || window.innerWidth;
     const ch = canvas.clientHeight || window.innerHeight;
     W = Math.max(2, (cw * dpr) | 0);
     H = Math.max(2, (ch * dpr) | 0);
     canvas.width = W; canvas.height = H;
+    // Re-configure the swap chain. Some mobile WebGPU impls (Safari) drop
+    // the configuration when the underlying canvas size changes.
+    ctx.configure({ device, format, alphaMode: 'opaque' });
     if (depthTex) depthTex.destroy();
     depthTex = device.createTexture({
       size: [W, H], format: 'depth24plus',
@@ -1085,7 +1091,7 @@ async function init(){
     vertex: { module: skyMod, entryPoint: 'vs' },
     fragment: { module: skyMod, entryPoint: 'fs', targets: [{ format }] },
     primitive: { topology: 'triangle-list' },
-    depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'less-equal' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'always' },
   });
 
   const shipBG = device.createBindGroup({
@@ -1168,6 +1174,7 @@ async function init(){
     device.queue.writeBuffer(sailDataBuf, 0, sailData);
   }
 
+  log('canvas ' + W + 'x' + H + ' · ' + canvas.clientWidth + 'x' + canvas.clientHeight);
   log('verts ' + VERT_COUNT + ', tris ' + (IDX_COUNT/3) + ' + sails ' + NSAIL);
   let frames = 0;
   let lastT  = performance.now();
@@ -1200,7 +1207,9 @@ async function init(){
     const pass = enc.beginRenderPass({
       colorAttachments: [{
         view, loadOp: 'clear', storeOp: 'store',
-        clearValue: { r: 0.06, g: 0.10, b: 0.14, a: 1 },
+        // Vivid magenta so we can tell whether ANY pixel reached the canvas.
+        // The sky pass below should immediately overpaint with sky gradient.
+        clearValue: { r: 0.85, g: 0.05, b: 0.45, a: 1 },
       }],
       depthStencilAttachment: {
         view: depthTex.createView(),
