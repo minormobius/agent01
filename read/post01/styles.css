@@ -486,3 +486,161 @@ a { color: var(--accent); }
 }
 
 .toggle-row input { accent-color: var(--accent); }
+
+/* ---- Cast section ---- */
+.cast-stack {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dossier {
+  background: #fffdf7;
+  border: 1px solid var(--light-rule);
+  border-left: 4px solid var(--accent);
+  padding: 1.2rem 1.4rem 1.4rem;
+}
+
+.dossier-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.dossier-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.dossier-genre {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--gray);
+}
+
+.dossier-note {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: var(--gray);
+  font-style: italic;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--light-rule);
+  padding-bottom: 0.7rem;
+}
+
+.cast-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 700px) {
+  .cast-grid { grid-template-columns: 1fr; }
+}
+
+.character h5 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.character-id {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: var(--gray);
+  line-height: 1.5;
+  margin-bottom: 0.6rem;
+}
+
+.trait-list {
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.trait-list dt {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  margin-top: 0.5rem;
+}
+
+.trait-list dd {
+  margin-left: 0;
+  margin-top: 0.15rem;
+}
+
+.want-row {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 0.7rem;
+  margin-top: 0.6rem;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.want-row .label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+  padding-top: 0.18rem;
+  white-space: nowrap;
+}
+
+.relation {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  background: var(--soft);
+  padding: 0.9rem 1.1rem;
+  border-left: 2px solid var(--accent);
+  margin-bottom: 0.9rem;
+}
+
+.relation-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.supporting {
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+
+.supporting-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.supporting li {
+  margin-left: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+
+.supporting li b {
+  font-weight: 600;
+  color: var(--ink);
+}

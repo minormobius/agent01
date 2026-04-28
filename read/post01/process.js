@@ -1,6 +1,7 @@
 export const STAGES = [
   { id: 'ideate', label: 'Ideate', detail: '12 pitches across genres', status: 'done' },
   { id: 'cut1',   label: 'Round 1 cut', detail: 'rubric · top 4 advance', status: 'done' },
+  { id: 'cast',   label: 'Characters', detail: 'v1 · revisit after storyboards', status: 'done' },
   { id: 'outline', label: 'Outline', detail: 'spine + stakes per finalist', status: 'pending' },
   { id: 'draft',  label: 'Draft', detail: 'prose pass at full length', status: 'pending' },
   { id: 'ship',   label: 'Ship', detail: 'edit, score, publish', status: 'pending' },

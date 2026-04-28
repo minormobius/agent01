@@ -3,6 +3,7 @@ import { createRoot } from 'https://esm.sh/react-dom@18/client';
 import htm from 'https://esm.sh/htm@3';
 import { SEED, PITCHES } from './pitches.js';
 import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor } from './process.js';
+import { CASTS } from './characters.js';
 
 const html = htm.bind(React.createElement);
 const ALL = '__ALL__';
@@ -71,6 +72,60 @@ function PitchCard({ p }) {
   `;
 }
 
+function Character({ c }) {
+  return html`
+    <div class="character">
+      <h5>${c.name}</h5>
+      <div class="character-id">${c.identity}</div>
+      <dl class="trait-list">
+        <dt>Possession</dt><dd>${c.possession}</dd>
+        <dt>Habit</dt><dd>${c.habit}</dd>
+        <dt>Contradiction</dt><dd>${c.contradiction}</dd>
+      </dl>
+      <div class="want-row">
+        <div class="label">Wants</div><div>${c.surfaceWant}</div>
+        <div class="label">Actually</div><div>${c.hiddenWant}</div>
+      </div>
+    </div>
+  `;
+}
+
+function Dossier({ pitch, cast }) {
+  return html`
+    <article class="dossier">
+      <div class="dossier-head">
+        <span class="dossier-genre">${pitch.genre}</span>
+        <h4 class="dossier-title">${pitch.title}</h4>
+      </div>
+      ${cast.note ? html`<div class="dossier-note">${cast.note}</div>` : null}
+      <div class="cast-grid">
+        ${cast.mains.map(c => html`<${Character} key=${c.name} c=${c} />`)}
+      </div>
+      <div class="relation">
+        <span class="relation-label">The relationship</span>
+        ${cast.relationship}
+      </div>
+      ${cast.supporting && cast.supporting.length ? html`
+        <div class="supporting">
+          <span class="supporting-label">Supporting</span>
+          <ul>
+            ${cast.supporting.map(s => html`<li key=${s.name}><b>${s.name}.</b> ${s.sketch}</li>`)}
+          </ul>
+        </div>
+      ` : null}
+    </article>
+  `;
+}
+
+function CastSection() {
+  const finalists = PITCHES.filter(p => CASTS[p.id]);
+  return html`
+    <div class="cast-stack">
+      ${finalists.map(p => html`<${Dossier} key=${p.id} pitch=${p} cast=${CASTS[p.id]} />`)}
+    </div>
+  `;
+}
+
 function App() {
   const [genre, setGenre] = useState(ALL);
   const [advancedOnly, setAdvancedOnly] = useState(false);
@@ -105,7 +160,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in, twelve out, four through Round 1</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in, twelve pitches out, four cast</div>
       </section>
 
       <${ProcessFlow} />
@@ -154,10 +209,18 @@ function App() {
           : filtered.map(p => html`<${PitchCard} key=${p.id} p=${p} />`)}
       </div>
 
+      <div class="section-header">Round 2 prep · the cast</div>
+
+      <section class="essay" style="text-align:center;max-width:680px;">
+        <p>Before we outline, we cast. The principle is small: if you can put two characters and one relationship on the page in a couple thousand words, that is enough story. Stretch the cast only when the engine actually needs it. Below, v1 dossiers for the four finalists — possessions, habits, contradictions, what each character wants on the surface and what they want under it. We will revisit these once storyboards are logged.</p>
+      </section>
+
+      <${CastSection} />
+
       <section class="coda">
-        <p>Twelve outputs, one input, one cut. The four that advanced (<em>The Kolmogorov Prize</em>, <em>The Compliance Window</em>, <em>Eight Hundred and Fourteen Characters</em>, <em>The Tally-Stick at Westminster</em>) didn't win on premise — premises here are mostly interchangeable — they won on <em>engine</em>: each one has a small repeated motion the prose can run on for four thousand words without exhausting itself.</p>
-        <p>The cut is also a falsifiable claim. The eight that didn't advance are not bad pitches; they are pitches whose engines, on this rubric, run shorter. We invite the disagreement — if your scoring function picks <em>Lossy</em> or <em>The Post That Read Me Back</em>, that is data about your scoring function, which is precisely the thing the seed asked us to articulate.</p>
-        <p>Next stage: outline the four. Spine, stakes, ending image. Same scrutiny. Same publication of the work.</p>
+        <p>Twelve outputs, one input, one cut, four casts. The four that advanced won on <em>engine</em>: a small repeated motion the prose can run on for four thousand words. The casts now give that engine a body — Iris and her decompressed brother, Derek and Janet across four days, Ines and the brother she promised not to write, Pyatt and Whibley with one stove between them.</p>
+        <p>None of these are finished people. They are first-pass dossiers that can survive contact with an outline. The contradictions are the load-bearing parts: Iris encrypts what she publishes, Janet keeps a private file of the protests she removed, Tomás built things to last and refused to be photographed, Whibley wants to modernise without being the man who lit the match.</p>
+        <p>Next stage: outline the four. Spine, stakes, ending image, where each character is at sentence one and where they are at sentence last. Then we revisit the casts.</p>
       </section>
 
       <footer class="footer">
