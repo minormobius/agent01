@@ -286,10 +286,10 @@ function App() {
 
       <${CastSection} />
 
-      <div class="section-header">Round 2 · outlines &amp; the spark cut</div>
+      <div class="section-header">Round 2 cut · the spark rubric</div>
 
       <section class="essay essay-narrow">
-        <p>Round 1 asked whether each pitch <em>could</em> be a story. Round 2 asks whether <em>this particular plan</em> has the spark to survive 2,500 words of prose. New rubric, applied to the four outlines below: top two go to draft.</p>
+        <p>Round 1 asked whether each pitch <em>could</em> be a story. Round 2 asks whether <em>this particular plan</em> has the spark to survive 2,500 words of prose. The cut here is sharper — half of what survived Round 1 stops here, on a fresh rubric tuned for the artifacts we now have in hand (outline + cast).</p>
       </section>
 
       <${Rubric}
@@ -297,6 +297,8 @@ function App() {
         items=${RUBRIC_R2}
         rule="Cut rule: top 2 by total /25 go to draft. Tiebreak: Spark, then Character force, then Engine sustain."
       />
+
+      <div class="section-header">The Outlines · 4 finalists · 2 advancing to draft</div>
 
       <${OutlineSection} />
 
