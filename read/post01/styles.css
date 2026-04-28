@@ -1038,3 +1038,132 @@ a { color: var(--accent); }
   .causal-row { grid-template-columns: 2.6rem 1fr; gap: 0.5rem; }
   .struct-note { grid-template-columns: 1fr; gap: 0.3rem; }
 }
+
+/* ---- Draft prose ---- */
+.draft-stack {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.draft {
+  background: #fffdf7;
+  border: 1px solid var(--rule);
+  padding: 1.6rem 1.8rem 2rem;
+}
+
+.draft-head {
+  text-align: center;
+  border-bottom: 4px double var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.draft-genre {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+
+.draft-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}
+
+.draft-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: var(--gray);
+  letter-spacing: 0.05em;
+}
+
+.draft-beat {
+  margin-bottom: 1.8rem;
+}
+
+.draft-beat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin: 1.5rem 0 0.9rem;
+  border-bottom: 1px solid var(--light-rule);
+  padding-bottom: 0.4rem;
+}
+
+.draft-beat-day {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--paper);
+  background: var(--ink);
+  padding: 0.2rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.draft-beat-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.draft-beat-words {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--gray);
+  margin-left: auto;
+}
+
+.draft-prose {
+  font-size: 1rem;
+  line-height: 1.75;
+  font-family: 'Source Serif 4', 'Georgia', serif;
+}
+
+.draft-prose p {
+  margin-bottom: 0.85rem;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.draft-prose p:first-of-type::first-letter {
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2em;
+  float: left;
+  line-height: 0.8;
+  padding-right: 0.08em;
+  margin-top: 0.05em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.draft-prose em {
+  font-style: italic;
+}
+
+.draft-foot {
+  border-top: 1px solid var(--light-rule);
+  padding-top: 1rem;
+  margin-top: 2rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: var(--gray);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .draft { padding: 1.2rem 1.2rem 1.5rem; }
+  .draft-prose p { text-align: left; }
+}

@@ -6,6 +6,7 @@ import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isD
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
 import { SHARPEN } from './sharpen.js';
+import { DRAFTS } from './drafts.js';
 
 const html = htm.bind(React.createElement);
 const ALL = '__ALL__';
@@ -258,6 +259,67 @@ function SharpenSection() {
   `;
 }
 
+function paragraphsFrom(text) {
+  return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+}
+
+function renderInlineEmphasis(paragraph) {
+  // Render *italics* as <em>. No nesting needed for this prose.
+  const parts = paragraph.split(/(\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return html`<em key=${i}>${part.slice(1, -1)}</em>`;
+    }
+    return part;
+  });
+}
+
+function DraftBeat({ b }) {
+  const wordCount = b.text.split(/\s+/).filter(Boolean).length;
+  const paragraphs = paragraphsFrom(b.text);
+  return html`
+    <div class="draft-beat">
+      <div class="draft-beat-head">
+        <span class="draft-beat-day">${b.day}</span>
+        <span class="draft-beat-title">${b.title}</span>
+        <span class="draft-beat-words">${wordCount}w</span>
+      </div>
+      <div class="draft-prose">
+        ${paragraphs.map((p, i) => html`<p key=${i}>${renderInlineEmphasis(p)}</p>`)}
+      </div>
+    </div>
+  `;
+}
+
+function DraftCard({ pitch, draft }) {
+  const totalWords = draft.beats.reduce(
+    (acc, b) => acc + b.text.split(/\s+/).filter(Boolean).length, 0
+  );
+  return html`
+    <article class="draft">
+      <div class="draft-head">
+        <div class="draft-genre">${pitch.genre} · Round 3 draft</div>
+        <h2 class="draft-title">${draft.title}</h2>
+        <div class="draft-meta">${totalWords.toLocaleString()} words · ${draft.draftVersion} · drafted ${draft.draftedOn}</div>
+      </div>
+      ${draft.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
+      <div class="draft-foot">
+        <span>End of draft v1</span>
+        <span>Round 3 rubric · sentence-level · pending</span>
+      </div>
+    </article>
+  `;
+}
+
+function DraftSection() {
+  const drafted = PITCHES.filter(p => DRAFTS[p.id]);
+  return html`
+    <div class="draft-stack">
+      ${drafted.map(p => html`<${DraftCard} key=${p.id} pitch=${p} draft=${DRAFTS[p.id]} />`)}
+    </div>
+  `;
+}
+
 function App() {
   const [genre, setGenre] = useState(ALL);
   const [advancedOnly, setAdvancedOnly] = useState(false);
@@ -292,7 +354,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons sharpened</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons → one draft</div>
       </section>
 
       <${ProcessFlow} />
@@ -377,10 +439,18 @@ function App() {
 
       <${SharpenSection} />
 
+      <div class="section-header">Round 3 · the first draft</div>
+
+      <section class="essay essay-narrow">
+        <p>Compliance Window goes first because its sharpening pass was the most articulate — the four-beat NOTED bar, the exact moment Wednesday's downbeat goes missing, the Casio entry on Thursday in a different key. The draft below is v1: 2,695 words against a 2,800 target, prose that compresses as the week proceeds, no winks. Score it however you want; we will run a sentence-level rubric on it next, and we will not protect it.</p>
+      </section>
+
+      <${DraftSection} />
+
       <section class="coda">
-        <p>The sharpen pass gave us things the outlines couldn't: that Wednesday's missing NOTED is "a nineteen-year muscle failing for half a second", that Iris's true crime is the moment she opens Marisol's second email — quieter than the kitchen, quieter than the codepoint. Both notes are sentences the prose can be measured against.</p>
-        <p>Three things became visible only at this stage. <strong>One</strong>: causal chains are the difference between a story and a sequence. <em>Compliance</em> needed a word ("certified") to make Tuesday inevitable; <em>Kolmogorov</em> needed an order of operations (Marisol before kitchen) to make Beat 4 cost what it should. <strong>Two</strong>: every character is becoming someone, including the absent ones. Decompressed-Theo has an arc that the living Theo cannot have. <strong>Three</strong>: the form does work the prose cannot do alone. The four-beat NOTED bar makes the deadpan structural; the wall-clock timestamps and the Newton's cradle make the urgency physical.</p>
-        <p>Both stories are now skeleton-articulate. We can write either one starting from the next sentence. Round 3 will be sentence-level — we are no longer scoring plans, we are scoring prose.</p>
+        <p>One draft, 2,695 words, written against the spec we built in public. The sharpen pass paid out: the certified letter is the inciting word, the Wednesday white space is the load-bearing absence, the Casio entry on Thursday is the procedure being repurposed without acknowledgement, and the unclosed two bars on Friday's stoop are the rhythmic rest that makes the ending land without punchline. Whether it is <em>good</em> is the next question, and the one we have been saying since the first paragraph of this page is the unsolved one.</p>
+        <p>What the prose taught us that the spec didn't: the deer on the median in 2017 (Thursday) is the kind of detail that only arrives when you are writing the sentence. It was not in the outline; it was not in the sharpen pass; it is the smallest thing the draft adds that justifies the draft. We want more of these on revision and we want a rubric that will tell us which ones are working and which ones are decoration.</p>
+        <p>Next: Round 3 rubric — sentence-level, applied to this v1 — then a revise pass, then Kolmogorov drafted to the same standard, then both shipped.</p>
       </section>
 
       <footer class="footer">
