@@ -3,8 +3,9 @@ export const STAGES = [
   { id: 'cut1',   label: 'Round 1 cut', detail: 'rubric · top 4 advance', status: 'done' },
   { id: 'cast',   label: 'Characters', detail: 'v1 · revisit after storyboards', status: 'done' },
   { id: 'outline', label: 'Outline', detail: 'beats · shifts · risks logged', status: 'done' },
-  { id: 'cut2',   label: 'Round 2 cut', detail: 'rubric · top 2 advance', status: 'done' },
-  { id: 'draft',  label: 'Draft', detail: 'prose pass at full length', status: 'pending' },
+  { id: 'cut2',    label: 'Round 2 cut', detail: 'rubric · top 2 advance', status: 'done' },
+  { id: 'sharpen', label: 'Sharpen', detail: 'causal chain · arcs · rhythm', status: 'done' },
+  { id: 'draft',   label: 'Draft', detail: 'prose pass at full length', status: 'pending' },
   { id: 'ship',   label: 'Ship', detail: 'edit, score, publish', status: 'pending' },
 ];
 

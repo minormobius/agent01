@@ -5,6 +5,7 @@ import { SEED, PITCHES } from './pitches.js';
 import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isDrafting, totalR2 } from './process.js';
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
+import { SHARPEN } from './sharpen.js';
 
 const html = htm.bind(React.createElement);
 const ALL = '__ALL__';
@@ -191,6 +192,72 @@ function OutlineSection() {
   `;
 }
 
+function SharpenCard({ pitch, sharp }) {
+  return html`
+    <article class="sharpen">
+      <div class="sharpen-head">
+        <span class="sharpen-genre">${pitch.genre} · drafting</span>
+        <h4 class="sharpen-title">${pitch.title}</h4>
+      </div>
+
+      <div class="sharp-block">
+        <div class="sharp-block-label">Causal chain · therefore / but / because</div>
+        <div class="causal-chain">
+          ${sharp.causalChain.map(c => html`
+            <div key=${c.beat} class="causal-row">
+              <span class="causal-beat">${c.beat}</span>
+              <div>${c.text}</div>
+            </div>
+          `)}
+        </div>
+      </div>
+
+      <div class="sharp-block">
+        <div class="sharp-block-label">Character arcs · start → inflection → end</div>
+        <div class="arc-grid">
+          ${sharp.arcs.map(a => html`
+            <div key=${a.name} class="arc">
+              <div class="arc-name">${a.name}</div>
+              <div class="arc-step"><div class="label">Start</div><div>${a.start}</div></div>
+              <div class="arc-step"><div class="label">Inflect</div><div>${a.inflection}</div></div>
+              <div class="arc-step"><div class="label">End</div><div>${a.end}</div></div>
+            </div>
+          `)}
+        </div>
+      </div>
+
+      <div class="sharp-block">
+        <div class="sharp-block-label">Relationship dynamic</div>
+        <div class="relationship-note">${sharp.relationship}</div>
+      </div>
+
+      <div class="sharp-block">
+        <div class="sharp-block-label">${sharp.structuralLabel}</div>
+        <div class="struct-unit">${sharp.structuralUnit}</div>
+        <div class="struct-notes">
+          ${sharp.structuralNotes.map((n, i) => html`
+            <div key=${i} class="struct-note">
+              <span class="struct-note-type">${n.type}</span>
+              <div>${n.text}</div>
+            </div>
+          `)}
+        </div>
+      </div>
+
+      <div class="nail">${sharp.nail}</div>
+    </article>
+  `;
+}
+
+function SharpenSection() {
+  const drafting = PITCHES.filter(p => SHARPEN[p.id]);
+  return html`
+    <div class="sharpen-stack">
+      ${drafting.map(p => html`<${SharpenCard} key=${p.id} pitch=${p} sharp=${SHARPEN[p.id]} />`)}
+    </div>
+  `;
+}
+
 function App() {
   const [genre, setGenre] = useState(ALL);
   const [advancedOnly, setAdvancedOnly] = useState(false);
@@ -225,7 +292,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two drafts</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons sharpened</div>
       </section>
 
       <${ProcessFlow} />
@@ -302,11 +369,18 @@ function App() {
 
       <${OutlineSection} />
 
+      <div class="section-header">Sharpen · before the prose</div>
+
+      <section class="essay essay-narrow">
+        <p>Outlines say <em>what</em> happens. The sharpen pass says <em>why each beat causes the next</em>, who each character is becoming across the page, and how the form's rhythm carries the heart. We do this while the skeleton is still articulate — a half-page can be repaired; a draft has to be rewritten. Each sharpen card carries the causal chain (therefore / but / because, not <em>and then</em>), per-character arcs with a precise inflection moment, the unspoken relationship dynamic, the structural rhythm of the prose, and one sentence the writer has to nail.</p>
+      </section>
+
+      <${SharpenSection} />
+
       <section class="coda">
-        <p>Two go forward: <em>The Compliance Window</em> (24/25) and <em>The Kolmogorov Prize</em> (22/25, tiebreak on Spark). Two are held: <em>The Tally-Stick at Westminster</em> (22/25) — same total, weaker spark — and <em>Eight Hundred and Fourteen Characters</em> (19/25), where the metafictional engine could not promise to keep finding new things at beat 5 and 6.</p>
-        <p>The cut hurts a little, which is the point. Tally-Stick has the most disciplined engine in the lineup; its sustain score is a 5. But "the boy was named Thomas" is one move, and the load-bearing scene wants more voltage than the historical period can ethically supply. Eight Hundred has a rare risk note ("cleverness eats tenderness") that names exactly the failure mode metafiction has been falling into for forty years; we'd rather hold it for a careful drafting pass later than rush it now.</p>
-        <p>Compliance and Kolmogorov earned their places by being unlike each other: a procedural deadpan over four days, and a six-hour computational vigil. The Spark scores were both 5 — the kitchen-doorway "Derek, your father called", and the codepoint that decompresses to the rest of Iris's life. Those are the scenes the drafts are written to deserve.</p>
-        <p>Next stage: draft. One story in full, then the second. Round 3 rubric will be sentence-level — we are no longer scoring plans, we are scoring prose.</p>
+        <p>The sharpen pass gave us things the outlines couldn't: that Wednesday's missing NOTED is "a nineteen-year muscle failing for half a second", that Iris's true crime is the moment she opens Marisol's second email — quieter than the kitchen, quieter than the codepoint. Both notes are sentences the prose can be measured against.</p>
+        <p>Three things became visible only at this stage. <strong>One</strong>: causal chains are the difference between a story and a sequence. <em>Compliance</em> needed a word ("certified") to make Tuesday inevitable; <em>Kolmogorov</em> needed an order of operations (Marisol before kitchen) to make Beat 4 cost what it should. <strong>Two</strong>: every character is becoming someone, including the absent ones. Decompressed-Theo has an arc that the living Theo cannot have. <strong>Three</strong>: the form does work the prose cannot do alone. The four-beat NOTED bar makes the deadpan structural; the wall-clock timestamps and the Newton's cradle make the urgency physical.</p>
+        <p>Both stories are now skeleton-articulate. We can write either one starting from the next sentence. Round 3 will be sentence-level — we are no longer scoring plans, we are scoring prose.</p>
       </section>
 
       <footer class="footer">

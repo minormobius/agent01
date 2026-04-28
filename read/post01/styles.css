@@ -844,3 +844,197 @@ a { color: var(--accent); }
 .outline-head .pitch-status {
   margin-left: 0.3rem;
 }
+
+/* ---- Sharpen section ---- */
+.sharpen-stack {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+}
+
+.sharpen {
+  background: #fffdf7;
+  border: 2px solid var(--accent);
+  padding: 1.3rem 1.5rem 1.5rem;
+}
+
+.sharpen-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 0.7rem;
+  margin-bottom: 1.1rem;
+}
+
+.sharpen-genre {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+
+.sharpen-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.sharp-block {
+  margin-bottom: 1.2rem;
+}
+
+.sharp-block-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--light-rule);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+
+.causal-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.causal-row {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 0.7rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.causal-beat {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--paper);
+  background: var(--ink);
+  padding: 0.18rem 0.4rem;
+  text-align: center;
+  align-self: start;
+  text-transform: uppercase;
+}
+
+.arc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
+}
+
+@media (max-width: 700px) {
+  .arc-grid { grid-template-columns: 1fr; }
+}
+
+.arc {
+  border-left: 2px solid var(--accent);
+  padding-left: 0.9rem;
+}
+
+.arc-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.arc-step {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin-bottom: 0.4rem;
+}
+
+.arc-step .label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gray);
+  padding-top: 0.18rem;
+  white-space: nowrap;
+}
+
+.relationship-note {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  background: var(--soft);
+  padding: 0.9rem 1.1rem;
+  border-left: 2px solid var(--accent);
+}
+
+.struct-unit {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin-bottom: 0.7rem;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.struct-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.struct-note {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.7rem;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  align-items: start;
+}
+
+.struct-note-type {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--soft);
+  padding: 0.2rem 0.5rem;
+  text-align: center;
+  align-self: start;
+}
+
+.nail {
+  font-size: 1rem;
+  line-height: 1.65;
+  font-weight: 600;
+  border-top: 2px solid var(--rule);
+  padding-top: 0.9rem;
+  margin-top: 0.4rem;
+  color: var(--ink);
+}
+
+.nail::before {
+  content: 'THE ONE THING TO NAIL · ';
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+@media (max-width: 600px) {
+  .causal-row { grid-template-columns: 2.6rem 1fr; gap: 0.5rem; }
+  .struct-note { grid-template-columns: 1fr; gap: 0.3rem; }
+}
