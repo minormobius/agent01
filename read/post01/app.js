@@ -4,6 +4,7 @@ import htm from 'https://esm.sh/htm@3';
 import { SEED, PITCHES } from './pitches.js';
 import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor } from './process.js';
 import { CASTS } from './characters.js';
+import { OUTLINES } from './outlines.js';
 
 const html = htm.bind(React.createElement);
 const ALL = '__ALL__';
@@ -126,6 +127,54 @@ function CastSection() {
   `;
 }
 
+function Beat({ b }) {
+  return html`
+    <div class="beat">
+      <div class="beat-num">${b.num}</div>
+      <div class="beat-body">
+        <div class="beat-head">
+          <div class="beat-title">${b.title}</div>
+          <span class="beat-words">${b.words}w</span>
+        </div>
+        <div class="beat-what">${b.what}</div>
+        <div class="beat-shift">${b.shift}</div>
+      </div>
+    </div>
+  `;
+}
+
+function OutlineCard({ pitch, outline }) {
+  const totalBeatWords = outline.beats.reduce((acc, b) => acc + b.words, 0);
+  return html`
+    <article class="outline">
+      <div class="outline-head">
+        <span class="outline-genre">${pitch.genre}</span>
+        <h4 class="outline-title">${pitch.title}</h4>
+        <span class="outline-target">~${outline.wordTarget}w</span>
+      </div>
+      <div class="outline-pov">${outline.pov}</div>
+      <div class="beats">
+        ${outline.beats.map(b => html`<${Beat} key=${b.num} b=${b} />`)}
+      </div>
+      <div class="beat-budget">Beat budget: ${totalBeatWords.toLocaleString()}w</div>
+      <dl class="outline-meta">
+        <dt>Stakes</dt><dd>${outline.stakes}</dd>
+        <dt>Ending</dt><dd>${outline.ending}</dd>
+        <dt>Risk</dt><dd class="risk">${outline.risk}</dd>
+      </dl>
+    </article>
+  `;
+}
+
+function OutlineSection() {
+  const finalists = PITCHES.filter(p => OUTLINES[p.id]);
+  return html`
+    <div class="outline-stack">
+      ${finalists.map(p => html`<${OutlineCard} key=${p.id} pitch=${p} outline=${OUTLINES[p.id]} />`)}
+    </div>
+  `;
+}
+
 function App() {
   const [genre, setGenre] = useState(ALL);
   const [advancedOnly, setAdvancedOnly] = useState(false);
@@ -160,7 +209,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in, twelve pitches out, four cast</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in, twelve pitches out, four cast and outlined</div>
       </section>
 
       <${ProcessFlow} />
@@ -217,10 +266,18 @@ function App() {
 
       <${CastSection} />
 
+      <div class="section-header">Round 2 · the outlines</div>
+
+      <section class="essay" style="text-align:center;max-width:680px;">
+        <p>Each outline carries six beats (five for the four-day comedy), a POV note, a word target, and three things every short story should be able to declare before drafting: stakes, ending image, and the failure mode the writer is most worried about. The risk note is not decoration. If a beat-level outline cannot articulate what's most likely to fail, it isn't ready to draft.</p>
+      </section>
+
+      <${OutlineSection} />
+
       <section class="coda">
-        <p>Twelve outputs, one input, one cut, four casts. The four that advanced won on <em>engine</em>: a small repeated motion the prose can run on for four thousand words. The casts now give that engine a body — Iris and her decompressed brother, Derek and Janet across four days, Ines and the brother she promised not to write, Pyatt and Whibley with one stove between them.</p>
-        <p>None of these are finished people. They are first-pass dossiers that can survive contact with an outline. The contradictions are the load-bearing parts: Iris encrypts what she publishes, Janet keeps a private file of the protests she removed, Tomás built things to last and refused to be photographed, Whibley wants to modernise without being the man who lit the match.</p>
-        <p>Next stage: outline the four. Spine, stakes, ending image, where each character is at sentence one and where they are at sentence last. Then we revisit the casts.</p>
+        <p>Pitches, casts, outlines. The outlines did what outlines are supposed to do: they exposed the load-bearing scene of each story (Iris seeding 11/14/09, Janet skipping a NOTED, Ines letting Tomás stay on the tram for one paragraph, Pyatt's first invented name) and made the risk legible before a single sentence of prose has been committed.</p>
+        <p>Three of the four risks are versions of the same worry — that the conceit (decompression, compliance, metafiction) eats the character. The fourth (Pyatt's improvisations tipping into whimsy) is its inverse: that the character's invention eats the catastrophe. We name them so the draft has something to push against.</p>
+        <p>Next stage: draft. We will write one of these in full, score it on a Round-3 rubric, and revisit the casts and outlines with what the prose taught us. The cyborg part is going public with the spec before the artifact.</p>
       </section>
 
       <footer class="footer">
