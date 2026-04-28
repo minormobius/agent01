@@ -46,6 +46,10 @@ canvas:active{cursor:grabbing}
   pointer-events:none;line-height:1.5}
 #hud .t{color:#e9d6a8;font-size:13px;letter-spacing:0.18em}
 #hud .h{color:#5a6671}
+#diag{position:fixed;left:14px;top:80px;color:#5a6671;font-size:10px;letter-spacing:0.05em;
+  pointer-events:none;line-height:1.4}
+#diag .ok{color:#6fbf73}
+#diag .err{color:#f88}
 #noGPU{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
   color:#f88;font-size:16px;text-align:center;padding:20px}
 #back{position:fixed;left:14px;bottom:12px;color:#5a6671;font-size:11px;
@@ -64,6 +68,7 @@ canvas:active{cursor:grabbing}
   <div class="h">drag to orbit · scroll to zoom</div>
 </div>
 <a id="back" href="../">&larr; gallery</a>
+<div id="diag">init...</div>
 <div id="ui"></div>
 <div id="noGPU">WebGPU not available.<br>Try Chrome 121+ or Safari 18+.</div>
 <script>
@@ -263,8 +268,8 @@ const SAILS = [
     corners: () => spanker() },
 ];
 const NSAIL = SAILS.length;
-const SAIL_GRID_S = 5;   // segments along width
-const SAIL_GRID_T = 4;   // segments along height
+const SAIL_GRID_S = 3;   // segments along width  (lofi / mobile-safe)
+const SAIL_GRID_T = 3;   // segments along height
 
 // =====================================================================
 //  STATIC GEOMETRY (hull, masts, yards, bowsprit, sea)
@@ -344,8 +349,8 @@ const RAIL_COL    = [0.18, 0.13, 0.08];
 
 function buildHull(){
   // Hull cross-section is a fattened hexagon. We build it from a series of
-  // station rings and skin between them. For lofi, 9 stations is plenty.
-  const stations = 11;
+  // station rings and skin between them. Mobile-safe: 5 stations.
+  const stations = 5;
   const rings = [];
   for (let s = 0; s < stations; s++){
     const t = s / (stations - 1);
@@ -366,15 +371,12 @@ function buildHull(){
     const sheer = 0.4 * Math.cos(t * Math.PI * 2);
     const deckY = DECK_Y + sheer;
     // Cross-section vertices going around (port→bottom→starboard→deck→port)
+    // Slimmed to 5 verts per station for mobile.
     rings.push([
       [x, deckY,            -halfBeam*0.92],   // port deck edge
-      [x, DECK_Y - 1.5,     -halfBeam],        // port wale
-      [x, DECK_Y - 3.5,     -halfBeam*0.95],   // port mid
-      [x, -draftHere,       -halfBeam*0.45],   // port lower
-      [x, -draftHere - 0.3,  0],               // keel
-      [x, -draftHere,        halfBeam*0.45],   // stbd lower
-      [x, DECK_Y - 3.5,      halfBeam*0.95],   // stbd mid
-      [x, DECK_Y - 1.5,      halfBeam],        // stbd wale
+      [x, DECK_Y - 2.0,     -halfBeam],        // port wale (gunport stripe)
+      [x, -draftHere,        0],               // keel
+      [x, DECK_Y - 2.0,      halfBeam],        // stbd wale
       [x, deckY,             halfBeam*0.92],   // stbd deck edge
     ]);
   }
@@ -383,14 +385,10 @@ function buildHull(){
   for (let s = 0; s < stations - 1; s++){
     const r0 = rings[s], r1 = rings[s+1];
     for (let k = 0; k < N - 1; k++){
-      // pick color: gunport stripe near the wale region (between deck edge and mid)
-      const isStripe = (k === 1);
-      const isWale   = (k === 0 || k === 7);
-      const isUpper  = (k === 6);
+      // 5-vert ring: 0=port-deck, 1=port-wale, 2=keel, 3=stbd-wale, 4=stbd-deck.
+      // Wale band (deck-edge → wale) gets the ochre gunport stripe.
       let col = HULL_DARK;
-      if (isStripe) col = HULL_OCHRE;
-      if (isWale)   col = HULL_TRIM;
-      if (isUpper)  col = HULL_DARK;
+      if (k === 0 || k === 3) col = HULL_OCHRE;
       flatQuad(r0[k], r0[k+1], r1[k+1], r1[k], col);
     }
   }
@@ -411,21 +409,14 @@ function buildHull(){
     tri(idxs[0], idxs[k], idxs[k+1]);
   }
   // Deck (top) — flat plane along the sheer line
-  const deckRing = rings.map(r => [r[0], r[8]]);
+  const deckRing = rings.map(r => [r[0], r[4]]);
   for (let s = 0; s < stations - 1; s++){
     flatQuad(deckRing[s][0],   deckRing[s+1][0],
              deckRing[s+1][1], deckRing[s][1],   DECK_COL);
   }
-  // Forecastle / quarterdeck raised platforms (lofi: just two rectangles)
-  flatBox([HULL_LEN/2-9, DECK_Y, -HULL_BEAM/2*0.8],
-          [HULL_LEN/2-3, DECK_Y+1.0, HULL_BEAM/2*0.8], DECK_COL);
+  // Quarterdeck raised platform — single box, lofi.
   flatBox([-HULL_LEN/2+3, DECK_Y, -HULL_BEAM/2*0.8],
           [-HULL_LEN/2+11, DECK_Y+1.2, HULL_BEAM/2*0.8], DECK_COL);
-  // Rails
-  flatBox([HULL_LEN/2-22,  DECK_Y+1.0, -HULL_BEAM/2*0.92],
-          [HULL_LEN/2-3,   DECK_Y+1.4, -HULL_BEAM/2*0.92+0.2], RAIL_COL);
-  flatBox([HULL_LEN/2-22,  DECK_Y+1.0,  HULL_BEAM/2*0.92-0.2],
-          [HULL_LEN/2-3,   DECK_Y+1.4,  HULL_BEAM/2*0.92], RAIL_COL);
 }
 
 // ----- Masts, yards, bowsprit -----
@@ -434,62 +425,39 @@ const YARD_COL  = [0.42, 0.30, 0.16];
 const SPRIT_COL = [0.50, 0.36, 0.20];
 
 function buildMast(mast, sides){
-  // 4 stacked sections; each section thinner than the one below.
+  // One tapered cylinder for the whole mast. Mobile-friendly.
   const baseR = mast === MIZZ ? 0.55 : (mast === MAIN ? 0.75 : 0.65);
+  const yBot = mastY(mast.H, 0);
+  const yTop = mastY(mast.H, 4);
+  cylinder([mast.x, yBot, 0], [mast.x, yTop, 0], baseR, baseR*0.18, sides, MAST_COL);
+  // Yards (horizontal spars perpendicular to keel) — 4 per mast.
   for (let i = 0; i < 4; i++){
-    const yA = mastY(mast.H, i);
-    const yB = mastY(mast.H, i+1);
-    const rA = baseR * (1 - i*0.18);
-    const rB = baseR * (1 - (i+1)*0.18);
-    cylinder([mast.x, yA, 0], [mast.x, yB, 0], rA, Math.max(0.12,rB), sides, MAST_COL);
-  }
-  // Tops platforms (small flat disks at top of lower mast and topmast)
-  for (let tier = 1; tier <= 2; tier++){
-    const y = mastY(mast.H, tier);
-    const r = (mast === MAIN ? 1.6 : (mast === FORE ? 1.4 : 1.2)) * (tier===1?1.0:0.7);
-    const min = [mast.x - r, y, -r];
-    const max = [mast.x + r, y + 0.25, r];
-    flatBox(min, max, [0.30, 0.22, 0.13]);
-  }
-  // Yards (horizontal spars perpendicular to keel, centered on mast)
-  for (let i = 0; i < 4; i++){
-    const tier = i + 1;       // yard sits at top of each section's previous gap
-    // Yard altitude: at the top of the section that bears it.
-    // Course yard is at top of lower mast (tier 1), topsail at top of topmast (tier 2), etc.
-    const y = mastY(mast.H, tier);
+    const y = mastY(mast.H, i + 1);
     const w = mast.YW[i];
-    const rA = 0.35 * (1 - i*0.18);
-    cylinder([mast.x, y, -w], [mast.x, y, w], rA, rA*0.7, sides, YARD_COL);
-    // Yard arm caps
-    cylinder([mast.x, y, w], [mast.x, y, w + 0.3], rA*0.6, 0.05, 5, YARD_COL);
-    cylinder([mast.x, y,-w], [mast.x, y,-w - 0.3], rA*0.6, 0.05, 5, YARD_COL);
+    const r = 0.35 * (1 - i*0.18);
+    cylinder([mast.x, y, -w], [mast.x, y, w], r, r*0.7, sides, YARD_COL);
   }
 }
 
 function buildBowsprit(){
-  cylinder(BOWSPRIT_BASE, BOWSPRIT_TIP, 0.55, 0.32, 6, SPRIT_COL);
-  cylinder(BOWSPRIT_TIP,  JIBBOOM_TIP,  0.32, 0.18, 6, SPRIT_COL);
-  cylinder(JIBBOOM_TIP,   FLYJIB_TIP,   0.18, 0.08, 5, SPRIT_COL);
-  // Spritsail yard (small horizontal yard under bowsprit)
-  const mid = [(BOWSPRIT_BASE[0]+BOWSPRIT_TIP[0])*0.5,
-               (BOWSPRIT_BASE[1]+BOWSPRIT_TIP[1])*0.5, 0];
-  cylinder([mid[0], mid[1]-0.1, -6], [mid[0], mid[1]-0.1, 6], 0.18, 0.18, 5, YARD_COL);
+  // One straight bowsprit + jibboom from the bow to the flying-jib tip.
+  cylinder(BOWSPRIT_BASE, FLYJIB_TIP, 0.55, 0.10, 4, SPRIT_COL);
 }
 
 function buildSpanker(){
   // Boom (lower spar) horizontally aft along x
   const luffBot = [MIZZ.x, DECK_Y + 1.6, 0];
-  cylinder(luffBot, SPANKER_BOOM_END, 0.28, 0.18, 5, SPRIT_COL);
+  cylinder(luffBot, SPANKER_BOOM_END, 0.28, 0.18, 4, SPRIT_COL);
   // Gaff (upper spar) angles up and aft
   const throat = [MIZZ.x, mastY(MIZZ.H, 2) - 1, 0];
-  cylinder(throat, SPANKER_GAFF_END, 0.22, 0.14, 5, SPRIT_COL);
+  cylinder(throat, SPANKER_GAFF_END, 0.22, 0.14, 4, SPRIT_COL);
 }
 
 function buildSea(){
   // Single big quad. Subtle waves are added in vertex shader for fun, but
   // the underlying quad is just a horizontal disk-ish square.
   const R = 600;
-  const N = 64;          // grid — enough for visible wave shading
+  const N = 16;          // mobile-safe grid — keep wave shading visible
   const baseIdx = POS.length / 3;
   for (let j = 0; j <= N; j++){
     for (let i = 0; i <= N; i++){
@@ -517,9 +485,9 @@ function buildSea(){
 
 const SEA_START = (function(){ /* placeholder */ return 0; })();
 buildHull();
-buildMast(FORE, 6);
-buildMast(MAIN, 6);
-buildMast(MIZZ, 6);
+buildMast(FORE, 4);
+buildMast(MAIN, 4);
+buildMast(MIZZ, 4);
 buildBowsprit();
 buildSpanker();
 const SEA_FIRST_VERT = POS.length / 3;
@@ -674,8 +642,9 @@ struct Sail {
   c2 : vec4<f32>,   // .xyz corner 2 (BR), .w bulgeSign
   c3 : vec4<f32>,   // .xyz corner 3 (BL), .w pad
 }
+struct Sails { s : array<Sail, ${NSAIL}> }
 @group(0) @binding(0) var<uniform> u : Globals;
-@group(0) @binding(1) var<storage, read> sails : array<Sail>;
+@group(0) @binding(1) var<uniform> sails : Sails;
 
 struct VSOut {
   @builtin(position) pos : vec4<f32>,
@@ -691,7 +660,7 @@ struct VSOut {
   @location(2) inT    : f32,
 ) -> VSOut {
   let si = i32(inSail);
-  let s  = sails[si];
+  let s  = sails.s[si];
   let typeId = s.c0.w;
   let setR   = s.c1.w;
   let bulgeSign = s.c2.w;
@@ -963,21 +932,40 @@ function buildUI(){
 // =====================================================================
 //  INIT
 // =====================================================================
+const diag = document.getElementById('diag');
+function log(msg, cls){
+  if (!diag) return;
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  diag.appendChild(line);
+  while (diag.childNodes.length > 8) diag.removeChild(diag.firstChild);
+}
+
 async function init(){
   const canvas = document.getElementById('c');
-  if (!navigator.gpu){ document.getElementById('noGPU').style.display = 'flex'; return; }
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter){ document.getElementById('noGPU').style.display = 'flex'; return; }
+  diag.textContent = '';
+  log('checking webgpu...');
+  if (!navigator.gpu){ log('no navigator.gpu', 'err'); document.getElementById('noGPU').style.display = 'flex'; return; }
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'low-power' });
+  if (!adapter){ log('no adapter', 'err'); document.getElementById('noGPU').style.display = 'flex'; return; }
+  log('adapter ok', 'ok');
   const device = await adapter.requestDevice();
+  log('device ok', 'ok');
+  device.lost.then(info => log('device lost: ' + info.message, 'err'));
   const ctx = canvas.getContext('webgpu');
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device, format, alphaMode: 'opaque' });
+  log('format ' + format, 'ok');
 
   let W, H, depthTex;
   function resize(){
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    W = Math.max(1, (canvas.clientWidth  * dpr) | 0);
-    H = Math.max(1, (canvas.clientHeight * dpr) | 0);
+    // Cap DPR at 1 for mobile — we don't need more pixels for a lofi look.
+    const dpr = 1;
+    const cw = canvas.clientWidth  || window.innerWidth;
+    const ch = canvas.clientHeight || window.innerHeight;
+    W = Math.max(2, (cw * dpr) | 0);
+    H = Math.max(2, (ch * dpr) | 0);
     canvas.width = W; canvas.height = H;
     if (depthTex) depthTex.destroy();
     depthTex = device.createTexture({
@@ -987,6 +975,7 @@ async function init(){
   }
   resize();
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
   // -- Globals uniform buffer --
   // mat4 (16f) + camPos+time (4f) + windDir+windStr (4f) + sunDir+seaFirst (4f) = 28f
@@ -1034,7 +1023,7 @@ async function init(){
 
   const sailDataBuf = device.createBuffer({
     size: sailData.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
   // -- Pipelines --
@@ -1179,6 +1168,28 @@ async function init(){
     device.queue.writeBuffer(sailDataBuf, 0, sailData);
   }
 
+  log('verts ' + VERT_COUNT + ', tris ' + (IDX_COUNT/3) + ' + sails ' + NSAIL);
+  let frames = 0;
+  let lastT  = performance.now();
+  function fps(){
+    const n = performance.now();
+    const dt = n - lastT;
+    if (dt > 1000){
+      const f = (frames * 1000 / dt) | 0;
+      const last = diag.lastChild;
+      if (last && last.dataset && last.dataset.fps){
+        last.textContent = f + ' fps · ' + W + 'x' + H;
+      } else {
+        const d = document.createElement('div');
+        d.dataset.fps = '1';
+        d.className = 'ok';
+        d.textContent = f + ' fps · ' + W + 'x' + H;
+        diag.appendChild(d);
+      }
+      frames = 0; lastT = n;
+    }
+  }
+
   // -- Frame --
   function frame(){
     requestAnimationFrame(frame);
@@ -1214,6 +1225,8 @@ async function init(){
     pass.drawIndexed(SAIL_IDX_COUNT);
     pass.end();
     device.queue.submit([enc.finish()]);
+    frames++;
+    fps();
   }
   frame();
 }
