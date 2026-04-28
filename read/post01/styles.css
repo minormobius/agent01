@@ -820,3 +820,9 @@ a { color: var(--accent); }
   .beat { grid-template-columns: 1.7rem 1fr; gap: 0.3rem 0.6rem; }
   .beat-num { font-size: 1.5rem; }
 }
+
+/* essay variant for narrow centered intro paragraphs */
+.essay.essay-narrow {
+  text-align: center;
+  max-width: 680px;
+}

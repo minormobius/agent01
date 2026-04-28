@@ -260,7 +260,7 @@ function App() {
 
       <div class="section-header">Round 2 prep · the cast</div>
 
-      <section class="essay" style="text-align:center;max-width:680px;">
+      <section class="essay essay-narrow">
         <p>Before we outline, we cast. The principle is small: if you can put two characters and one relationship on the page in a couple thousand words, that is enough story. Stretch the cast only when the engine actually needs it. Below, v1 dossiers for the four finalists — possessions, habits, contradictions, what each character wants on the surface and what they want under it. We will revisit these once storyboards are logged.</p>
       </section>
 
@@ -268,7 +268,7 @@ function App() {
 
       <div class="section-header">Round 2 · the outlines</div>
 
-      <section class="essay" style="text-align:center;max-width:680px;">
+      <section class="essay essay-narrow">
         <p>Each outline carries six beats (five for the four-day comedy), a POV note, a word target, and three things every short story should be able to declare before drafting: stakes, ending image, and the failure mode the writer is most worried about. The risk note is not decoration. If a beat-level outline cannot articulate what's most likely to fail, it isn't ready to draft.</p>
       </section>
 
