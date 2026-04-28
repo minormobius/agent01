@@ -354,7 +354,7 @@ function App() {
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
-        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons → one draft</div>
+        <div class="byline">A cyborg brainstorm · ${SEED.length} characters in · twelve pitches → four outlines → two skeletons → two drafts</div>
       </section>
 
       <${ProcessFlow} />
@@ -439,18 +439,18 @@ function App() {
 
       <${SharpenSection} />
 
-      <div class="section-header">Round 3 · the first draft</div>
+      <div class="section-header">Round 3 · the drafts</div>
 
       <section class="essay essay-narrow">
-        <p>Compliance Window goes first because its sharpening pass was the most articulate — the four-beat NOTED bar, the exact moment Wednesday's downbeat goes missing, the Casio entry on Thursday in a different key. The draft below is v1: 2,695 words against a 2,800 target, prose that compresses as the week proceeds, no winks. Score it however you want; we will run a sentence-level rubric on it next, and we will not protect it.</p>
+        <p>Two drafts, written against the spec we built across the prior six steps. The same machine — same pitches, same rubrics, same sharpen pass — produced a procedural deadpan over four days and a six-hour computational vigil. Both are v1. We will run a sentence-level rubric on them next, and we will not protect them.</p>
       </section>
 
       <${DraftSection} />
 
       <section class="coda">
-        <p>One draft, 2,695 words, written against the spec we built in public. The sharpen pass paid out: the certified letter is the inciting word, the Wednesday white space is the load-bearing absence, the Casio entry on Thursday is the procedure being repurposed without acknowledgement, and the unclosed two bars on Friday's stoop are the rhythmic rest that makes the ending land without punchline. Whether it is <em>good</em> is the next question, and the one we have been saying since the first paragraph of this page is the unsolved one.</p>
-        <p>What the prose taught us that the spec didn't: the deer on the median in 2017 (Thursday) is the kind of detail that only arrives when you are writing the sentence. It was not in the outline; it was not in the sharpen pass; it is the smallest thing the draft adds that justifies the draft. We want more of these on revision and we want a rubric that will tell us which ones are working and which ones are decoration.</p>
-        <p>Next: Round 3 rubric — sentence-level, applied to this v1 — then a revise pass, then Kolmogorov drafted to the same standard, then both shipped.</p>
+        <p>Two drafts. Compliance at 2,695 words across five sections; Kolmogorov at roughly 3,300 across six. Same machine, same rubrics, same sharpen pass — and the prose comes out genuinely different. Compliance's sentences shorten across the week; Kolmogorov's slow at the kitchen seam and the camera face-down, and quicken to single-line dialogue in the Hannelore beat. The form does work the spec only pointed at.</p>
+        <p>What the prose discovered that the spec did not: the deer on the median in 2017 (Compliance, Thursday). The sixteen-digit Clarkesworld confirmation number copied to a sticky note Iris does not need. The Newton's cradle ticking past the end of the scene into the closing image. None of these were in the outlines. They are the smallest things the drafts add that justify the drafts, and we want more of them on revision.</p>
+        <p>Whether either of these is <em>good</em> is the question this page has been asking since the first paragraph. We have built a scoring function in public, applied it twice, and used it to produce two artifacts. The next rubric is sentence-level — Round 3, prose only — and we will run it on both v1s before we revise.</p>
       </section>
 
       <footer class="footer">

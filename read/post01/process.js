@@ -5,7 +5,7 @@ export const STAGES = [
   { id: 'outline', label: 'Outline', detail: 'beats · shifts · risks logged', status: 'done' },
   { id: 'cut2',    label: 'Round 2 cut', detail: 'rubric · top 2 advance', status: 'done' },
   { id: 'sharpen', label: 'Sharpen', detail: 'causal chain · arcs · rhythm', status: 'done' },
-  { id: 'draft',   label: 'Draft', detail: '1 of 2 · compliance window v1', status: 'done' },
+  { id: 'draft',   label: 'Draft', detail: '2 of 2 · both v1 in hand', status: 'done' },
   { id: 'ship',    label: 'Ship', detail: 'edit, score, publish', status: 'pending' },
 ];
 
