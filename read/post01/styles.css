@@ -1205,3 +1205,132 @@ a { color: var(--accent); }
 .essay.verdict strong {
   color: var(--accent);
 }
+
+/* ---- Tabs ---- */
+.tabs {
+  max-width: 1100px;
+  margin: 0 auto 1rem;
+  padding: 0 1rem;
+  display: flex;
+  gap: 0;
+  justify-content: center;
+  border-bottom: 1px solid var(--light-rule);
+}
+
+.tab {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  padding: 0.7rem 1.5rem;
+  background: transparent;
+  color: var(--gray);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  margin-bottom: -1px;
+}
+
+.tab:hover { color: var(--accent); }
+
+.tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- Story view (clean, broadsheet) ---- */
+.story {
+  max-width: 720px;
+  margin: 1rem auto 2rem;
+  padding: 0 1.2rem;
+}
+
+.story-head {
+  text-align: center;
+  border-bottom: 1px solid var(--light-rule);
+  padding-bottom: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.story-kicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+.story-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 0.6rem;
+}
+
+.story-byline {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: var(--gray);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.story .draft-beat-head {
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.story .draft-beat-words { display: none; }
+
+.story .draft-prose p:first-of-type::first-letter {
+  font-size: 3.4em;
+}
+
+.story-foot {
+  border-top: 1px solid var(--light-rule);
+  margin-top: 3rem;
+  padding-top: 1.2rem;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: var(--gray);
+  line-height: 1.6;
+}
+
+.story-foot a {
+  color: var(--accent);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  margin-left: 0.3rem;
+}
+
+/* ---- Version toggle inside DraftCard ---- */
+.version-toggle {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  justify-content: center;
+}
+
+.polish-note {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: var(--gray);
+  font-style: italic;
+  line-height: 1.55;
+  margin-top: 0.7rem;
+  padding: 0.5rem 0.8rem;
+  background: var(--soft);
+  border-left: 2px solid var(--accent);
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .tab { padding: 0.6rem 0.9rem; font-size: 0.7rem; }
+  .story { padding: 0 0.8rem; }
+}

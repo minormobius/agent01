@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'https://esm.sh/react@18';
+import React, { useState, useMemo, useEffect } from 'https://esm.sh/react@18';
 import { createRoot } from 'https://esm.sh/react-dom@18/client';
 import htm from 'https://esm.sh/htm@3';
 import { SEED, PITCHES } from './pitches.js';
@@ -6,7 +6,7 @@ import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isD
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
 import { SHARPEN } from './sharpen.js';
-import { DRAFTS } from './drafts.js';
+import { DRAFTS, latestDraft } from './drafts.js';
 
 const html = htm.bind(React.createElement);
 const ALL = '__ALL__';
@@ -292,7 +292,10 @@ function DraftBeat({ b }) {
 }
 
 function DraftCard({ pitch, draft }) {
-  const totalWords = draft.beats.reduce(
+  const versions = draft.versions;
+  const [vIdx, setVIdx] = useState(0);
+  const v = versions[vIdx];
+  const totalWords = v.beats.reduce(
     (acc, b) => acc + b.text.split(/\s+/).filter(Boolean).length, 0
   );
   const r3 = SCORES_R3[pitch.id];
@@ -301,14 +304,26 @@ function DraftCard({ pitch, draft }) {
   return html`
     <article class=${'draft ' + (shipping ? 'shipping' : 'held')}>
       <div class="draft-head">
-        <div class="draft-genre">${pitch.genre} · Round 3 draft</div>
+        <div class="draft-genre">${pitch.genre} · draft</div>
         <h2 class="draft-title">${draft.title}</h2>
         <div class="draft-meta">
-          ${totalWords.toLocaleString()} words · ${draft.draftVersion} · drafted ${draft.draftedOn}
+          ${totalWords.toLocaleString()} words · ${v.draftVersion} · drafted ${v.draftedOn}
           <span class=${'pitch-status ' + (shipping ? 'advanced' : 'cut')}>
             ${shipping ? 'Shipping' : 'Held'}
           </span>
         </div>
+        ${versions.length > 1 ? html`
+          <div class="version-toggle">
+            ${versions.map((vv, i) => html`
+              <button
+                key=${vv.draftVersion}
+                class=${'chip' + (i === vIdx ? ' active' : '')}
+                onClick=${() => setVIdx(i)}
+              >${vv.draftVersion}${i === 0 ? ' · latest' : ''}</button>
+            `)}
+          </div>
+        ` : null}
+        ${v.polishNote ? html`<div class="polish-note">${v.polishNote}</div>` : null}
         ${r3 ? html`
           <div class="scores draft-scores">
             ${RUBRIC_R3.map(r => html`
@@ -320,10 +335,10 @@ function DraftCard({ pitch, draft }) {
           </div>
         ` : null}
       </div>
-      ${draft.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
+      ${v.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
       <div class="draft-foot">
-        <span>End of draft v1</span>
-        <span>${shipping ? 'Advances to polish' : 'Held — strong but second-place'}</span>
+        <span>End of ${v.draftVersion}</span>
+        <span>${shipping ? (vIdx === 0 ? 'Polished' : 'Pre-polish · see v2') : 'Held — strong but second-place'}</span>
       </div>
     </article>
   `;
@@ -338,7 +353,31 @@ function DraftSection() {
   `;
 }
 
-function App() {
+function StoryView() {
+  const shippingId = [...PITCHES].find(p => isShipping(p.id))?.id;
+  const draft = shippingId ? latestDraft(shippingId) : null;
+  const meta = shippingId ? DRAFTS[shippingId] : null;
+  const pitch = shippingId ? PITCHES.find(p => p.id === shippingId) : null;
+  if (!draft || !meta || !pitch) return html`<div class="empty">No story shipped yet.</div>`;
+  const totalWords = draft.beats.reduce(
+    (acc, b) => acc + b.text.split(/\s+/).filter(Boolean).length, 0
+  );
+  return html`
+    <article class="story">
+      <header class="story-head">
+        <div class="story-kicker">${pitch.genre}</div>
+        <h1 class="story-title">${meta.title}</h1>
+        <div class="story-byline">${totalWords.toLocaleString()} words · ${draft.draftVersion} · ${draft.draftedOn}</div>
+      </header>
+      ${draft.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
+      <footer class="story-foot">
+        <p>Built from a 280-character Bluesky post by an iterated process: ideate, cut, sharpen, draft, polish. <a href="#process" onClick=${(e) => { e.preventDefault(); window.location.hash = 'process'; }}>See how →</a></p>
+      </footer>
+    </article>
+  `;
+}
+
+function ProcessView() {
   const [genre, setGenre] = useState(ALL);
   const [advancedOnly, setAdvancedOnly] = useState(false);
 
@@ -362,13 +401,6 @@ function App() {
 
   return html`
     <div>
-      <header class="masthead">
-        <div class="masthead-date">Workshop · April 27, 2026</div>
-        <h1><a href="/">Read</a></h1>
-        <div class="masthead-tagline">Books, poetry, and the occasional workshop note</div>
-        <hr class="masthead-rule" />
-      </header>
-
       <section class="lede">
         <div class="kicker">Workshop note · Post 01</div>
         <h2 class="headline-lead">Twelve Stories from One Post</h2>
@@ -485,6 +517,65 @@ function App() {
       <footer class="footer">
         Read · <a href="/">read.mino.mobi</a> · A workshop of <a href="https://minomobi.com">minomobi</a>
       </footer>
+    </div>
+  `;
+}
+
+function Tabs({ view, setView }) {
+  const tabs = [
+    { id: 'story', label: 'The Story' },
+    { id: 'process', label: 'The Process' },
+  ];
+  return html`
+    <nav class="tabs">
+      ${tabs.map(t => html`
+        <button
+          key=${t.id}
+          class=${'tab' + (view === t.id ? ' active' : '')}
+          onClick=${() => setView(t.id)}
+        >${t.label}</button>
+      `)}
+    </nav>
+  `;
+}
+
+function readHashView() {
+  if (typeof window === 'undefined') return 'story';
+  return window.location.hash === '#process' ? 'process' : 'story';
+}
+
+function App() {
+  const [view, setView] = useState(readHashView);
+
+  useEffect(() => {
+    const onHash = () => setView(readHashView());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
+    const target = view === 'process' ? '#process' : '';
+    if (window.location.hash === target) return;
+    if (target) {
+      window.location.hash = target;
+    } else {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    window.scrollTo(0, 0);
+  }, [view]);
+
+  return html`
+    <div>
+      <header class="masthead">
+        <div class="masthead-date">Read · post01 · April 2026</div>
+        <h1><a href="#" onClick=${(e) => { e.preventDefault(); setView('story'); }}>Read</a></h1>
+        <div class="masthead-tagline">Books, poetry, and the occasional workshop note</div>
+        <hr class="masthead-rule" />
+      </header>
+
+      <${Tabs} view=${view} setView=${setView} />
+
+      ${view === 'story' ? html`<${StoryView} />` : html`<${ProcessView} />`}
     </div>
   `;
 }

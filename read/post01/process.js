@@ -7,8 +7,8 @@ export const STAGES = [
   { id: 'sharpen', label: 'Sharpen', detail: 'causal chain · arcs · rhythm', status: 'done' },
   { id: 'draft',   label: 'Draft', detail: '2 of 2 · both v1 in hand', status: 'done' },
   { id: 'cut3',    label: 'Final cut', detail: 'one ships · one held', status: 'done' },
-  { id: 'polish',  label: 'Polish', detail: 'sentence-level revision', status: 'pending' },
-  { id: 'ship',    label: 'Ship', detail: 'publish to read.mino.mobi', status: 'pending' },
+  { id: 'polish',  label: 'Polish', detail: 'v2 · em-dashes & tells scrubbed', status: 'done' },
+  { id: 'ship',    label: 'Ship', detail: 'live at /post01', status: 'done' },
 ];
 
 export const RUBRIC = [
