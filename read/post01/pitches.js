@@ -1,5 +1,11 @@
 export const SEED = `If you had to create an abstract machine that takes a short string, like the length of this post, and turns it into a short story of a few thousand words, how would you do that? What is a short story anyway? how do you know if one is good`;
 
+export const SEED_SOURCE = {
+  author: '@deepfates',
+  platform: 'Bluesky',
+  url: 'https://bsky.app/profile/deepfates.com.deepfates.com.deepfates.com.deepfates.com.deepfates.com/post/3mkguu33p422g',
+};
+
 export const PITCHES = [
   {
     id: 'kolmogorov',

@@ -1334,3 +1334,36 @@ a { color: var(--accent); }
   .tab { padding: 0.6rem 0.9rem; font-size: 0.7rem; }
   .story { padding: 0 0.8rem; }
 }
+
+/* ---- Seed attribution ---- */
+.seed-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.7rem;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-size: 0.72rem;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(139, 0, 0, 0.18);
+}
+
+.seed-attribution a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.seed-attribution a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.seed-meta-inline {
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.66rem;
+}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'https://esm.sh/react@18';
 import { createRoot } from 'https://esm.sh/react-dom@18/client';
 import htm from 'https://esm.sh/htm@3';
-import { SEED, PITCHES } from './pitches.js';
+import { SEED, SEED_SOURCE, PITCHES } from './pitches.js';
 import { STAGES, RUBRIC, SCORES, isAdvanced, totalFor, RUBRIC_R2, SCORES_R2, isDrafting, totalR2, RUBRIC_R3, SCORES_R3, isShipping, totalR3 } from './process.js';
 import { CASTS } from './characters.js';
 import { OUTLINES } from './outlines.js';
@@ -371,7 +371,7 @@ function StoryView() {
       </header>
       ${draft.beats.map(b => html`<${DraftBeat} key=${b.day} b=${b} />`)}
       <footer class="story-foot">
-        <p>Built from a 280-character Bluesky post by an iterated process: ideate, cut, sharpen, draft, polish. <a href="#process" onClick=${(e) => { e.preventDefault(); window.location.hash = 'process'; }}>See how →</a></p>
+        <p>Built from <a href=${SEED_SOURCE.url} target="_blank" rel="noopener">a ${SEED.length}-character Bluesky post by ${SEED_SOURCE.author}</a> through an iterated process: ideate, cut, sharpen, draft, polish. <a href="#process" onClick=${(e) => { e.preventDefault(); window.location.hash = 'process'; }}>See how →</a></p>
       </footer>
     </article>
   `;
@@ -414,7 +414,10 @@ function ProcessView() {
 
         <blockquote class="seed">
           ${SEED}
-          <span class="seed-meta">The seed · ${SEED.length} characters</span>
+          <cite class="seed-attribution">
+            <a href=${SEED_SOURCE.url} target="_blank" rel="noopener">${SEED_SOURCE.author} on ${SEED_SOURCE.platform}</a>
+            <span class="seed-meta-inline">${SEED.length} characters · the seed</span>
+          </cite>
         </blockquote>
 
         <p>The question is nested. To build the machine, you need a definition of a short story. To know whether the machine works, you need a scoring function. The scoring function is the part that has stayed unsolved for roughly as long as people have written stories down.</p>
