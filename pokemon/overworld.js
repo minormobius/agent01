@@ -106,6 +106,16 @@ const Overworld = {
       }
     }
 
+    // Check for doors (walking into a door enters the building)
+    if (this.currentMap.doors) {
+      for (const door of this.currentMap.doors) {
+        if (nx === door.x && ny === door.y) {
+          this.startTransition(door.toMap, door.toX, door.toY);
+          return;
+        }
+      }
+    }
+
     // Check ledge (only walkable going down)
     const targetTile = this.getTile(nx, ny);
     if (targetTile === TILE.LEDGE && dy !== 1) return;
