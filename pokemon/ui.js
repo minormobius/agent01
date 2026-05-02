@@ -63,12 +63,26 @@
         e.preventDefault();
         if (!recording) Game.keys[key] = false;
       };
-      btn.addEventListener('pointerdown', press);
+      // Only release on pointerup/pointercancel — NOT pointerleave. Touches
+      // routinely drift outside the 44px hit area as the thumb pivots, and
+      // pointerleave would yank the key release mid-press. As a fallback if
+      // a pointerup is missed entirely (rare), the next pointerdown clears
+      // any stale state across all buttons.
+      btn.addEventListener('pointerdown', (e) => { releaseAll(); press(e); });
       btn.addEventListener('pointerup', release);
       btn.addEventListener('pointercancel', release);
-      btn.addEventListener('pointerleave', release);
     });
   }
+  function releaseAll() {
+    for (const k of Object.values(KEY_FOR_TOKEN)) {
+      if (Game.keys[k]) Game.keys[k] = false;
+    }
+  }
+  // Window-level safety: any pointerup anywhere drops every held key, so
+  // a tap on the canvas / textarea / page background can't strand a key.
+  window.addEventListener('pointerup', releaseAll);
+  window.addEventListener('pointercancel', releaseAll);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
   bindButtons(dpad);
   bindButtons(ab);
 

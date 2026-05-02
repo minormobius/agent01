@@ -21,7 +21,20 @@
     --line: #0a1820;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* No text selection or callout on UI chrome — only the script textarea
+     should be selectable. Otherwise long-pressing the d-pad arrows triggers
+     iOS text selection and swallows subsequent pointer events. */
+  body, button, .controls-row, #stage, #pane, #status {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  #script { -webkit-user-select: text; user-select: text; }
   html, body { height: 100%; overscroll-behavior: contain; }
   body {
     background: var(--bg);
