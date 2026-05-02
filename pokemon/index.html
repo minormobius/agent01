@@ -2,41 +2,255 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Critter Red - Monster RPG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#081820">
+<title>Critter Red — poke.mino.mobi</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  background: #111;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  font-family: monospace;
-  overflow: hidden;
-}
-#screen {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  border: 4px solid #333;
-  cursor: none;
-}
-#controls {
-  position: fixed;
-  bottom: 10px;
-  color: #666;
-  font-size: 12px;
-  text-align: center;
-}
+  :root {
+    --bg: #081820;
+    --panel: #0f2030;
+    --panel2: #1a3045;
+    --accent: #f8d030;
+    --green: #48a848;
+    --red: #c83830;
+    --blue: #4060a0;
+    --text: #e0f0e8;
+    --dim: #88a098;
+    --line: #0a1820;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: contain; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* --- Stage (game canvas) --- */
+  #stage {
+    flex: 1 1 50%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    position: relative;
+  }
+  #screen {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    aspect-ratio: 480 / 432;
+  }
+  #stage-tag {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 10px;
+    color: var(--dim);
+    background: rgba(0,0,0,0.55);
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* --- Pane (controls + script + actions) --- */
+  #pane {
+    flex: 1 1 50%;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-top: 2px solid #000;
+    min-height: 0;
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 6px 4px;
+    align-items: stretch;
+  }
+
+  /* D-pad: 3x3 grid, only the cross filled */
+  #dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(3, 44px);
+    gap: 4px;
+  }
+  #dpad button {
+    padding: 0;
+    min-width: 0; min-height: 0;
+    font-size: 18px;
+    background: var(--panel2);
+    color: var(--text);
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-weight: bold;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  #dpad .up { grid-area: 1 / 2; }
+  #dpad .left { grid-area: 2 / 1; }
+  #dpad .right { grid-area: 2 / 3; }
+  #dpad .down { grid-area: 3 / 2; }
+  #dpad .center {
+    grid-area: 2 / 2;
+    background: transparent;
+    border: none;
+    pointer-events: none;
+  }
+  button:active, button.held { background: #2a4868 !important; transform: translateY(1px); }
+
+  /* A/B/Start cluster */
+  #ab {
+    display: grid;
+    grid-template-columns: 60px 60px;
+    grid-template-rows: 44px 44px 44px;
+    gap: 4px;
+    margin-left: auto;
+  }
+  #ab button {
+    padding: 0;
+    min-width: 0; min-height: 0;
+    font-size: 16px;
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--mono);
+    font-weight: bold;
+    touch-action: manipulation;
+  }
+  #ab .b { background: var(--blue); grid-area: 1 / 1; }
+  #ab .a { background: var(--red); grid-area: 1 / 2; }
+  #ab .start { background: var(--panel2); grid-area: 2 / 1 / 3 / span 2; font-size: 12px; }
+  #ab .select { background: var(--panel2); grid-area: 3 / 1 / 4 / span 2; font-size: 12px; }
+
+  /* Script editor */
+  #script-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 6px 0;
+    min-height: 0;
+  }
+  #script {
+    flex: 1;
+    background: #061018;
+    color: var(--text);
+    border: 2px solid var(--line);
+    border-radius: 6px;
+    padding: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    resize: none;
+    min-height: 50px;
+  }
+  #script:focus { outline: 2px solid var(--accent); }
+
+  /* Bottom action row */
+  #actions {
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    align-items: stretch;
+  }
+  #actions button {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: bold;
+    background: var(--panel2);
+    color: var(--text);
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 8px;
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+  #actions .run { background: var(--green); color: #fff; }
+  #actions .post { background: var(--accent); color: #000; }
+  #actions .reset { background: #5a3030; color: #fff; }
+  #rec-btn { min-width: 60px; flex: 0 0 60px; }
+  #rec-btn.on { background: var(--red); color: #fff; }
+  #rec-btn.on::before { content: "● "; }
+
+  #status {
+    padding: 0 8px 6px;
+    color: var(--dim);
+    font-size: 11px;
+    min-height: 18px;
+  }
+
+  /* Landscape: side-by-side */
+  @media (orientation: landscape) and (max-height: 600px) {
+    body { flex-direction: row; }
+    #stage, #pane { flex: 1 1 50%; }
+    #pane { border-top: none; border-left: 2px solid #000; }
+  }
 </style>
 </head>
 <body>
-<canvas id="screen" width="480" height="432"></canvas>
-<div id="controls">Arrow Keys: Move | Z: Confirm | X: Cancel/Menu | Enter: Start</div>
+
+<div id="stage">
+  <canvas id="screen" width="480" height="432"></canvas>
+  <div id="stage-tag">poke.mino.mobi</div>
+</div>
+
+<div id="pane">
+
+  <div class="controls-row">
+    <div id="dpad">
+      <button class="up" data-key="ArrowUp" aria-label="up">▲</button>
+      <button class="left" data-key="ArrowLeft" aria-label="left">◀</button>
+      <button class="center" disabled tabindex="-1"></button>
+      <button class="right" data-key="ArrowRight" aria-label="right">▶</button>
+      <button class="down" data-key="ArrowDown" aria-label="down">▼</button>
+    </div>
+    <div id="ab">
+      <button class="b" data-key="x" aria-label="B / cancel">B</button>
+      <button class="a" data-key="z" aria-label="A / confirm">A</button>
+      <button class="start" data-key="Enter" aria-label="start">START</button>
+      <button class="select" data-key=" " aria-label="select">SELECT</button>
+    </div>
+  </div>
+
+  <div id="script-area">
+    <textarea id="script" spellcheck="false" autocorrect="off" autocapitalize="off" placeholder="# script — toggle REC then tap d-pad,
+# or type:  z; down 5; right 1; z"></textarea>
+  </div>
+
+  <div id="actions">
+    <button id="rec-btn" aria-pressed="false">REC</button>
+    <button id="run-btn" class="run">▶ RUN</button>
+    <button id="reset-btn" class="reset">RESET</button>
+    <button id="post-btn" class="post">POST</button>
+  </div>
+
+  <div id="status">tap A or START to begin</div>
+
+</div>
+
 <script src="data.js"></script>
 <script src="render.js"></script>
 <script src="overworld.js"></script>
 <script src="battle.js"></script>
 <script src="game.js"></script>
+<script src="ui.js"></script>
 </body>
 </html>
