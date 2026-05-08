@@ -11,6 +11,7 @@
 //   GET  /api/fodder/promoted       -> approved candidates in corpus.json shape
 //   GET  /api/fodder/stats          -> totals
 //   POST /api/fodder/admin/mine     -> manual mining trigger (X-Admin-Key required)
+//   GET  /api/health                -> liveness + commit marker
 //
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
 
@@ -23,6 +24,21 @@ export default {
       // Drill
       if (url.pathname === '/api/sentence') return serveSentence(url, env);
       if (url.pathname === '/api/grade' && request.method === 'POST') return gradeSubmission(request, env);
+
+      // Health: sanity check which version of the worker is live and which bindings
+      // are wired. Returns 200 with a small JSON body listing route names.
+      if (url.pathname === '/api/health') {
+        return json({
+          ok: true,
+          version: 'fodder-merged-v1',
+          routes: [
+            '/api/sentence', '/api/grade',
+            '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
+            '/api/fodder/stats', '/api/fodder/admin/mine',
+          ],
+          bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
+        });
+      }
 
       // Fodder
       if (url.pathname === '/api/fodder/next')                         return fodderNext(request, env, url);
