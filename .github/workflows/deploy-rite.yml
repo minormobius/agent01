@@ -52,17 +52,48 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Seed first batch (best-effort)
+      - name: Sync ADMIN_KEY to worker + seed first batch
         if: ${{ inputs.skip_migrations != true }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_RITE_ADMIN_KEY: ${{ secrets.RITE_ADMIN_KEY }}
         run: |
-          if [ -z "${{ secrets.RITE_ADMIN_KEY }}" ]; then
-            echo "RITE_ADMIN_KEY secret not set — skipping seed. Run /api/fodder/admin/mine manually after first deploy."
-            exit 0
+          if [ -n "$GH_RITE_ADMIN_KEY" ]; then
+            echo "Using RITE_ADMIN_KEY from GH secrets (mine-fodder.yml will work)."
+            KEY="$GH_RITE_ADMIN_KEY"
+          else
+            echo "RITE_ADMIN_KEY not set in GH secrets — generating an ephemeral key for this deploy."
+            echo "(mine-fodder.yml will fail until you set RITE_ADMIN_KEY; the cron and this seed step still work.)"
+            KEY=$(openssl rand -hex 32)
           fi
-          echo "Triggering /api/fodder/admin/mine to seed initial candidates…"
-          for i in 1 2 3; do
-            curl -fsS -X POST \
-              -H "X-Admin-Key: ${{ secrets.RITE_ADMIN_KEY }}" \
-              https://rite.mino.mobi/api/fodder/admin/mine \
-              && break || sleep 5
-          done || echo "Seed call did not succeed; cron will fill the queue on its next 6h tick."
+          echo "::add-mask::$KEY"
+
+          echo "Pushing ADMIN_KEY to the worker…"
+          printf '%s' "$KEY" | npx wrangler secret put ADMIN_KEY
+
+          echo "Verifying worker picked up the secret…"
+          for attempt in 1 2 3; do
+            HEALTH=$(curl -fsS https://rite.mino.mobi/api/health || true)
+            echo "$HEALTH"
+            echo "$HEALTH" | grep -q '"admin_key_set":true' && break || sleep 4
+          done
+
+          echo "Triggering 5 mining runs to seed initial candidates…"
+          TOTAL=0
+          for i in 1 2 3 4 5; do
+            echo "--- Mine run $i ---"
+            RESP=$(curl -fsS -X POST -H "X-Admin-Key: $KEY" \
+              https://rite.mino.mobi/api/fodder/admin/mine 2>&1) || RESP="(curl failed: $?)"
+            echo "$RESP"
+            INSERTED=$(echo "$RESP" | python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get("inserted",0))
+except: print(0)' 2>/dev/null || echo 0)
+            TOTAL=$((TOTAL + INSERTED))
+            sleep 3
+          done
+          echo "Total candidates inserted: $TOTAL"
+
+          echo "Final stats:"
+          curl -fsS https://rite.mino.mobi/api/fodder/stats || true
