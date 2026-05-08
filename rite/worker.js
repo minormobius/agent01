@@ -18,7 +18,7 @@
 const SYLLABLE_RE = /[aeiouy]+/g;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
       // Drill
@@ -30,7 +30,7 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'fodder-merged-v1',
+          version: 'fodder-lazy-refs-v2',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
@@ -42,10 +42,10 @@ export default {
 
       // Fodder
       if (url.pathname === '/api/fodder/next')                         return fodderNext(request, env, url);
-      if (url.pathname === '/api/fodder/vote' && request.method === 'POST') return fodderVote(request, env);
+      if (url.pathname === '/api/fodder/vote' && request.method === 'POST') return fodderVote(request, env, ctx);
       if (url.pathname === '/api/fodder/promoted')                     return fodderPromoted(env);
       if (url.pathname === '/api/fodder/stats')                        return fodderStats(env);
-      if (url.pathname === '/api/fodder/admin/mine' && request.method === 'POST') return fodderAdminMine(request, env);
+      if (url.pathname === '/api/fodder/admin/mine' && request.method === 'POST') return fodderAdminMine(request, env, ctx);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -55,7 +55,11 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(mineGutenberg(env).catch((e) => console.error('cron mine failed', e)));
+    ctx.waitUntil((async () => {
+      try { await mineGutenberg(env); } catch (e) { console.error('cron mine failed', e); }
+      try { await backfillApprovedRefs(env, REF_BACKFILL_PER_RUN); }
+      catch (e) { console.error('cron ref backfill failed', e); }
+    })());
   },
 };
 
@@ -326,6 +330,7 @@ const PROMOTE_RATIO = 0.7;
 const REJECT_THRESHOLD_NO = 8;
 const REJECT_RATIO = 0.7;
 const MAX_PER_MINING_RUN = 5;
+const REF_BACKFILL_PER_RUN = 10;       // approved-no-refs candidates the cron tries to fill per tick
 const FODDER_MIN_WORDS = 40;
 const FODDER_MAX_WORDS = 90;
 const FODDER_MAX_FLESCH = 35;
@@ -368,7 +373,7 @@ async function fodderNext(request, env, url) {
 
 // ---------- /api/fodder/vote ----------
 
-async function fodderVote(request, env) {
+async function fodderVote(request, env, ctx) {
   if (!env.DB) return json({ error: 'D1 not configured' }, 500);
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
@@ -390,7 +395,7 @@ async function fodderVote(request, env) {
     `UPDATE fodder_candidates SET ${col} = ${col} + 1 WHERE id = ?`
   ).bind(id).run();
 
-  await fodderMaybePromoteOrReject(env, id);
+  await fodderMaybePromoteOrReject(env, id, ctx);
   return await fodderVoteResponse(env, id, true);
 }
 
@@ -402,7 +407,7 @@ async function fodderVoteResponse(env, id, counted) {
   return json({ ok: true, counted, ...row });
 }
 
-async function fodderMaybePromoteOrReject(env, id) {
+async function fodderMaybePromoteOrReject(env, id, ctx) {
   const row = await env.DB.prepare(
     `SELECT yes_votes, no_votes, status FROM fodder_candidates WHERE id = ?`
   ).bind(id).first();
@@ -411,9 +416,16 @@ async function fodderMaybePromoteOrReject(env, id) {
   if (total === 0) return;
   const yesRatio = row.yes_votes / total;
   if (row.yes_votes >= PROMOTE_THRESHOLD_YES && yesRatio >= PROMOTE_RATIO) {
-    await env.DB.prepare(
+    const result = await env.DB.prepare(
       `UPDATE fodder_candidates SET status='approved', promoted_at=unixepoch() WHERE id=? AND status='pending'`
     ).bind(id).run();
+    // If we actually flipped the row to approved, generate references in the background.
+    // ctx.waitUntil keeps the worker alive until the promise resolves; the vote
+    // response is returned immediately regardless. Cron's backfillApprovedRefs
+    // catches anything that fails or runs out of time.
+    if (result.meta.changes && ctx) {
+      ctx.waitUntil(fillRefsForApproved(env, id).catch((e) => console.error('ref fill failed', id, e)));
+    }
   } else if (row.no_votes >= REJECT_THRESHOLD_NO && (1 - yesRatio) >= REJECT_RATIO) {
     await env.DB.prepare(
       `UPDATE fodder_candidates SET status='rejected' WHERE id=? AND status='pending'`
@@ -429,18 +441,27 @@ async function fodderPromoted(env) {
     `SELECT id, original, style, source, refs_json, yes_votes, no_votes, promoted_at
      FROM fodder_candidates WHERE status='approved' ORDER BY promoted_at ASC`
   ).all();
-  const sentences = (results || []).map((r) => {
-    const refs = JSON.parse(r.refs_json);
-    return {
+  const sentences = [];
+  let pendingRefs = 0;
+  for (const r of results || []) {
+    let refs;
+    try { refs = JSON.parse(r.refs_json || '{}'); } catch { refs = {}; }
+    // Approved-but-no-refs rows are excluded from /api/promoted: the sync
+    // script only sees rows that are actually ready to ship into corpus.json.
+    if (!refs.literal || !refs.idiomatic || !refs.alternative) {
+      pendingRefs++;
+      continue;
+    }
+    sentences.push({
       id: r.id,
       style: r.style,
       original: r.original,
-      references: [refs.literal, refs.idiomatic, refs.alternative].filter(Boolean),
+      references: [refs.literal, refs.idiomatic, refs.alternative],
       source: r.source,
       crowd: { yes: r.yes_votes, no: r.no_votes, promoted_at: r.promoted_at },
-    };
-  });
-  return json({ version: 2, source: 'rite.mino.mobi/fodder', sentences });
+    });
+  }
+  return json({ version: 2, source: 'rite.mino.mobi/fodder', pending_refs: pendingRefs, sentences });
 }
 
 // ---------- /api/fodder/stats ----------
@@ -454,8 +475,14 @@ async function fodderStats(env) {
   for (const row of counts.results || []) totals[row.status] = row.n;
   const votesRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM fodder_votes`).first();
   const votersRow = await env.DB.prepare(`SELECT COUNT(DISTINCT voter_id) AS n FROM fodder_votes`).first();
+  // Approved candidates whose refs are still being generated.
+  const pendingRefsRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM fodder_candidates
+     WHERE status='approved' AND (refs_json IS NULL OR refs_json='' OR refs_json='{}')`
+  ).first();
   return json({
     candidates: totals,
+    approved_pending_refs: pendingRefsRow ? pendingRefsRow.n : 0,
     votes_total: votesRow ? votesRow.n : 0,
     voters_total: votersRow ? votersRow.n : 0,
   });
@@ -463,18 +490,28 @@ async function fodderStats(env) {
 
 // ---------- /api/fodder/admin/mine ----------
 
-async function fodderAdminMine(request, env) {
+async function fodderAdminMine(request, env, ctx) {
   const key = request.headers.get('x-admin-key');
   if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ error: 'forbidden' }, 403);
-  const result = await mineGutenberg(env);
-  return json(result);
+  const url = new URL(request.url);
+  // Optional ?action=backfill_refs runs only the ref backfill (no new mining).
+  // Useful for filling refs on existing approved-no-refs rows after this change rolls out.
+  if (url.searchParams.get('action') === 'backfill_refs') {
+    const max = Math.min(50, Math.max(1, parseInt(url.searchParams.get('max') || String(REF_BACKFILL_PER_RUN), 10)));
+    const result = await backfillApprovedRefs(env, max);
+    return json({ action: 'backfill_refs', ...result });
+  }
+  const mined = await mineGutenberg(env);
+  // Also attempt a small backfill so this endpoint covers both responsibilities.
+  const backfilled = await backfillApprovedRefs(env, REF_BACKFILL_PER_RUN);
+  return json({ mined, backfilled });
 }
 
 // ---------- mining ----------
 
 async function mineGutenberg(env) {
   if (!env.DB) throw new Error('D1 not configured');
-  if (!env.AI) throw new Error('AI not configured');
+  // No AI required at mining time — references are generated lazily on promotion.
 
   const cursorRow = await env.DB.prepare(`SELECT value FROM fodder_state WHERE key='book_cursor'`).first();
   const cursor = cursorRow ? parseInt(cursorRow.value, 10) || 0 : 0;
@@ -507,18 +544,14 @@ async function mineGutenberg(env) {
     ).bind(sent).first();
     if (exists) continue;
 
-    let refs;
-    try { refs = await fodderGenerateReferences(env, sent); }
-    catch (e) { console.error('llm refs failed for', book.title, e.message); continue; }
-    if (!refs || !refs.literal || !refs.idiomatic || !refs.alternative) continue;
-    if (refsLookBroken(sent, refs)) continue;
-
     const id = `f-${book.id}-${shortHash(sent)}`;
     const source = `${book.author} — ${book.title} (Gutenberg #${book.id})`;
+    // refs_json starts empty ('{}'). It gets filled in by fillRefsForApproved
+    // once the candidate crosses the promotion threshold.
     await env.DB.prepare(
       `INSERT OR IGNORE INTO fodder_candidates (id, original, style, source, refs_json, word_count, flesch)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(id, sent, book.style, source, JSON.stringify(refs), countWords(sent), flesch(sent)).run();
+       VALUES (?, ?, ?, ?, '{}', ?, ?)`
+    ).bind(id, sent, book.style, source, countWords(sent), flesch(sent)).run();
     inserted.push(id);
   }
 
@@ -550,6 +583,55 @@ function harvestSentences(text, want) {
   }
   shuffleArr(out);
   return out.slice(0, want);
+}
+
+// Generate refs for a single approved candidate that doesn't yet have them.
+// Skips silently if the row is missing, already has full refs, or the LLM
+// produces output that fails the broken-rewrite filter (cron will retry).
+async function fillRefsForApproved(env, id) {
+  if (!env.DB) throw new Error('D1 not configured');
+  if (!env.AI) throw new Error('AI not configured');
+  const row = await env.DB.prepare(
+    `SELECT original, refs_json FROM fodder_candidates WHERE id = ?`
+  ).bind(id).first();
+  if (!row) return { ok: false, reason: 'missing' };
+  let parsed = {};
+  try { parsed = JSON.parse(row.refs_json || '{}'); } catch {}
+  if (parsed.literal && parsed.idiomatic && parsed.alternative) {
+    return { ok: true, reason: 'already_filled' };
+  }
+  let refs;
+  try { refs = await fodderGenerateReferences(env, row.original); }
+  catch (e) { return { ok: false, reason: 'llm_error', error: String(e.message || e) }; }
+  if (!refs || !refs.literal || !refs.idiomatic || !refs.alternative) {
+    return { ok: false, reason: 'incomplete_refs' };
+  }
+  if (refsLookBroken(row.original, refs)) {
+    return { ok: false, reason: 'refs_broken' };
+  }
+  await env.DB.prepare(
+    `UPDATE fodder_candidates SET refs_json = ? WHERE id = ?`
+  ).bind(JSON.stringify(refs), id).run();
+  return { ok: true, reason: 'filled' };
+}
+
+// Cron-side: scan for approved candidates whose refs_json is still empty
+// (e.g. a vote burst exhausted ctx.waitUntil budget, or Llama threw).
+async function backfillApprovedRefs(env, max) {
+  if (!env.DB) return { ok: false, reason: 'no_db' };
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM fodder_candidates
+     WHERE status = 'approved'
+       AND (refs_json IS NULL OR refs_json = '' OR refs_json = '{}')
+     ORDER BY promoted_at ASC
+     LIMIT ?`
+  ).bind(max).all();
+  const outcomes = [];
+  for (const row of results || []) {
+    const r = await fillRefsForApproved(env, row.id);
+    outcomes.push({ id: row.id, ...r });
+  }
+  return { ok: true, attempted: outcomes.length, outcomes };
 }
 
 async function fodderGenerateReferences(env, sentence) {
