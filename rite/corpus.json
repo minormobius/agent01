@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "note": "Verbose sentences in the manner of Victorian, bureaucratic, legal, and academic prose. Each has a reference rewrite used for grading by embedding similarity. Reference is one valid concise rewrite, not the only one — graders accept any rewrite whose meaning is close.",
+  "sentences": [
+    {
+      "id": "v001",
+      "style": "bureaucratic",
+      "original": "It is not infrequently the case that individuals who undertake the activity of writing find themselves in a situation wherein the words they utilize prove to be considerably more numerous than would be strictly necessary for the conveyance of their intended meaning.",
+      "reference": "Writers often use more words than they need."
+    },
+    {
+      "id": "v002",
+      "style": "bureaucratic",
+      "original": "Due to the fact that the meeting has been scheduled to take place at a time which is later in the day than was originally anticipated, it will be necessary for all parties involved to adjust their respective schedules accordingly.",
+      "reference": "The meeting moved later, so adjust your schedules."
+    },
+    {
+      "id": "v003",
+      "style": "academic",
+      "original": "There exists a not insignificant body of evidence which would seem to suggest that the consumption of vegetables on a regular basis may be associated with outcomes that are favorable from the standpoint of human health.",
+      "reference": "Evidence suggests eating vegetables regularly is good for health."
+    },
+    {
+      "id": "v004",
+      "style": "tos",
+      "original": "In the event that the user should make the determination that the application is no longer of utility to them, they may, at their discretion, elect to remove it from their device through the standard uninstallation procedure.",
+      "reference": "If you no longer want the app, uninstall it."
+    },
+    {
+      "id": "v005",
+      "style": "corporate",
+      "original": "It has come to our attention that a certain percentage of customers have expressed dissatisfaction with regard to the duration of time required for the processing of their orders.",
+      "reference": "Some customers say orders take too long to process."
+    },
+    {
+      "id": "v006",
+      "style": "corporate",
+      "original": "The implementation of the proposed policy will, it is believed, result in a meaningful reduction in the quantity of paperwork which employees are presently required to complete on a daily basis.",
+      "reference": "The new policy should cut daily paperwork for employees."
+    },
+    {
+      "id": "v007",
+      "style": "bureaucratic",
+      "original": "Notwithstanding the fact that previous attempts to address this particular issue have, on the whole, met with results that could best be described as mixed, we remain cautiously optimistic about the potential for success.",
+      "reference": "Past attempts had mixed results, but we're cautiously optimistic."
+    },
+    {
+      "id": "v008",
+      "style": "bureaucratic",
+      "original": "It is the position of this department that the matter under consideration is of such a nature as to warrant further investigation prior to the rendering of any final determination.",
+      "reference": "We need to investigate further before deciding."
+    },
+    {
+      "id": "v009",
+      "style": "victorian",
+      "original": "He was a man of such an extraordinarily contemplative disposition, given to long ruminations upon the nature of things both visible and invisible, that one might easily have been forgiven for supposing him to be perpetually lost in thought.",
+      "reference": "He was so contemplative he always seemed lost in thought."
+    },
+    {
+      "id": "v010",
+      "style": "corporate",
+      "original": "The reason as to why the project has not yet been brought to a successful conclusion is, in essence, that the resources which were allocated to it at the outset have proven, in retrospect, to have been insufficient.",
+      "reference": "The project hasn't finished because it was underfunded."
+    },
+    {
+      "id": "v011",
+      "style": "academic",
+      "original": "It would not be entirely inaccurate to suggest that there is a certain degree of truth to the proposition that the writing produced by Henry James is, on occasion, somewhat difficult to parse.",
+      "reference": "Henry James can be hard to read."
+    },
+    {
+      "id": "v012",
+      "style": "bureaucratic",
+      "original": "In light of the considerations which have been adduced above, and taking into account the various factors that bear upon the matter at hand, it is the recommendation of this committee that the proposal be adopted.",
+      "reference": "Given the above, the committee recommends adopting the proposal."
+    },
+    {
+      "id": "v013",
+      "style": "corporate",
+      "original": "Owing to circumstances which were largely beyond our ability to influence or control, the deliverable in question was not provided to the client within the timeframe that had been previously agreed upon.",
+      "reference": "Due to circumstances we couldn't control, the deliverable was late."
+    },
+    {
+      "id": "v014",
+      "style": "academic",
+      "original": "There can be little doubt in the minds of those who have given the matter even a modicum of serious consideration that the practice of using ten words where two would suffice is one which ought to be discouraged.",
+      "reference": "Don't use ten words when two will do."
+    },
+    {
+      "id": "v015",
+      "style": "corporate",
+      "original": "It is of the utmost importance that we make every effort to ensure that the lines of communication between the various departments of the organization remain open at all times.",
+      "reference": "Keep communication open between departments."
+    },
+    {
+      "id": "v016",
+      "style": "academic",
+      "original": "An examination of the data which has been collected over the course of the preceding fiscal quarter would appear to indicate the presence of a downward trend in revenue.",
+      "reference": "Last quarter's data shows revenue is dropping."
+    },
+    {
+      "id": "v017",
+      "style": "legal",
+      "original": "Pursuant to the directives that have been promulgated by the relevant regulatory authorities, all establishments engaged in the sale of alcoholic beverages are required to verify the age of their patrons.",
+      "reference": "By regulation, bars must check IDs."
+    },
+    {
+      "id": "v018",
+      "style": "academic",
+      "original": "It cannot be denied that there is a certain measure of validity to the criticism, advanced by some, that the documentation accompanying this software is, to put it charitably, less than comprehensive.",
+      "reference": "Critics fairly note that the software's documentation is incomplete."
+    },
+    {
+      "id": "v019",
+      "style": "academic",
+      "original": "The phenomenon to which we are presently referring is one that has been the subject of extensive scholarly discussion over the course of the last several decades.",
+      "reference": "Scholars have discussed this phenomenon for decades."
+    },
+    {
+      "id": "v020",
+      "style": "bureaucratic",
+      "original": "In view of the fact that the budget which had been earmarked for this particular initiative has now been exhausted in its entirety, no further expenditures will be authorized.",
+      "reference": "The budget is gone, so no more spending is authorized."
+    },
+    {
+      "id": "v021",
+      "style": "victorian",
+      "original": "She was a woman whose appearance, while not perhaps conforming in every particular to the strictest canons of conventional beauty, nevertheless possessed a quality of arresting interest that compelled the attention of all who beheld her.",
+      "reference": "She wasn't conventionally beautiful, but she was striking."
+    },
+    {
+      "id": "v022",
+      "style": "bureaucratic",
+      "original": "It would seem to be the case that, when all is said and done, the question of whether or not the proposed measure will achieve its intended objective is one which can only be answered with the passage of time.",
+      "reference": "Only time will tell whether the proposal works."
+    },
+    {
+      "id": "v023",
+      "style": "legal",
+      "original": "Inasmuch as the contractual obligations that have been undertaken by the party of the second part have not been fulfilled in the manner specified, the party of the first part reserves the right to pursue legal remedies.",
+      "reference": "Since you breached the contract, we may sue."
+    },
+    {
+      "id": "v024",
+      "style": "academic",
+      "original": "There has emerged in recent years a growing recognition, on the part of professionals working in the field, that the methodology heretofore employed is no longer adequate to the demands of contemporary practice.",
+      "reference": "Professionals increasingly agree the old methodology no longer fits modern practice."
+    },
+    {
+      "id": "v025",
+      "style": "victorian",
+      "original": "It is not without a certain degree of trepidation that I find myself compelled to bring to your attention a matter which, though delicate in nature, cannot any longer be ignored.",
+      "reference": "I nervously raise a delicate matter we can no longer ignore."
+    },
+    {
+      "id": "v026",
+      "style": "bureaucratic",
+      "original": "Given the totality of the circumstances and considering all of the relevant factors, it is the conclusion of the panel that no further action is required at this juncture.",
+      "reference": "Given everything, the panel concludes no further action is needed."
+    },
+    {
+      "id": "v027",
+      "style": "academic",
+      "original": "It must be acknowledged that there exists, within the relevant literature, a not inconsiderable degree of disagreement as to the precise meaning that ought to be ascribed to this particular term.",
+      "reference": "Scholars disagree on the precise meaning of this term."
+    },
+    {
+      "id": "v028",
+      "style": "victorian",
+      "original": "Were it not for the timely intervention of certain individuals whose names, for reasons that need not detain us here, must remain undisclosed, the outcome would have been markedly different.",
+      "reference": "Without timely help from people who must stay anonymous, the outcome would have differed."
+    },
+    {
+      "id": "v029",
+      "style": "corporate",
+      "original": "The aforementioned policy, which was put into effect on a date that is now several months in the past, has thus far failed to produce the results that its proponents had originally predicted.",
+      "reference": "The policy from a few months ago hasn't produced the predicted results."
+    },
+    {
+      "id": "v030",
+      "style": "tos",
+      "original": "Although it is generally the case that the procedure as described is sufficient for the majority of routine applications, there nevertheless exist certain edge conditions under which alternative approaches may be warranted.",
+      "reference": "The standard procedure usually works, but some edge cases need other approaches."
+    },
+    {
+      "id": "v031",
+      "style": "corporate",
+      "original": "It is altogether to be regretted that, despite the considerable resources which have been devoted to the resolution of this issue, a satisfactory solution has not yet been arrived at.",
+      "reference": "Sadly, despite heavy investment, we still haven't solved this."
+    },
+    {
+      "id": "v032",
+      "style": "academic",
+      "original": "The student demonstrated, by means of an argument which, while perhaps not entirely persuasive in every respect, was nonetheless not without merit, that the original assumption was open to question.",
+      "reference": "With a flawed but worthwhile argument, the student questioned the original assumption."
+    },
+    {
+      "id": "v033",
+      "style": "legal",
+      "original": "By virtue of the authority which has been vested in this office by the relevant statutes, I am hereby in a position to grant the request that has been submitted.",
+      "reference": "Under my statutory authority, I grant your request."
+    },
+    {
+      "id": "v034",
+      "style": "corporate",
+      "original": "It would be remiss of me were I not to take this opportunity to express, on behalf of the entire organization, our profound gratitude for the contributions you have made.",
+      "reference": "On behalf of the whole organization, thank you for your contributions."
+    },
+    {
+      "id": "v035",
+      "style": "legal",
+      "original": "Notwithstanding any of the foregoing provisions, in the event of a conflict between the terms of this agreement and any applicable law, the latter shall prevail.",
+      "reference": "If any term conflicts with applicable law, the law wins."
+    },
+    {
+      "id": "v036",
+      "style": "bureaucratic",
+      "original": "The committee, having deliberated at considerable length and having taken due cognizance of the views expressed by all interested parties, has arrived at the determination that the matter requires further study.",
+      "reference": "After long deliberation hearing all sides, the committee decided the matter needs more study."
+    },
+    {
+      "id": "v037",
+      "style": "victorian",
+      "original": "It is in the nature of human beings, or so it would appear from the historical record, that they are inclined, more often than not, to repeat the errors of their predecessors.",
+      "reference": "History suggests humans tend to repeat past mistakes."
+    },
+    {
+      "id": "v038",
+      "style": "academic",
+      "original": "Sufficient evidence has now been accumulated to warrant the drawing of the conclusion that the hypothesis originally proposed cannot, in its present form, be sustained.",
+      "reference": "Enough evidence has accumulated to reject the hypothesis as stated."
+    },
+    {
+      "id": "v039",
+      "style": "academic",
+      "original": "There can be no question but that, in the final analysis, the success or failure of any such enterprise must be measured against the goals which it was originally designed to achieve.",
+      "reference": "Ultimately, judge any such project by its original goals."
+    },
+    {
+      "id": "v040",
+      "style": "victorian",
+      "original": "It is a truth, perhaps not universally but at least very widely acknowledged, that a developer in possession of a working codebase must be in want of a refactor.",
+      "reference": "Developers with working code always want to refactor it."
+    },
+    {
+      "id": "v041",
+      "style": "victorian",
+      "original": "He was a man, taking him for all in all, whose conduct in life had been such as to leave no doubt in the minds of those acquainted with him as to the rectitude of his principles.",
+      "reference": "Everyone who knew him agreed he had upright principles."
+    },
+    {
+      "id": "v042",
+      "style": "victorian",
+      "original": "It seemed, then, that the question, which she had so often turned over in her own mind during the long and silent hours of the night, was one which admitted of no easy resolution.",
+      "reference": "She had pondered the question many sleepless nights and found no easy answer."
+    },
+    {
+      "id": "v043",
+      "style": "academic",
+      "original": "What may be said with a fair degree of confidence is that the model, while exhibiting a certain capacity for the generation of plausible outputs, fails in important respects to capture the underlying causal structure of the phenomenon.",
+      "reference": "The model produces plausible outputs but misses the underlying causal structure."
+    },
+    {
+      "id": "v044",
+      "style": "bureaucratic",
+      "original": "It has been brought to the attention of the relevant authorities that there exists, in connection with the present matter, a degree of urgency which had not previously been fully appreciated.",
+      "reference": "Authorities now realize this matter is more urgent than they thought."
+    },
+    {
+      "id": "v045",
+      "style": "tos",
+      "original": "The user hereby acknowledges and agrees that any and all materials transmitted to or through the service may be subject to monitoring for the purposes of ensuring compliance with the applicable terms of service.",
+      "reference": "You agree we may monitor your transmissions to enforce our terms."
+    }
+  ]
+}

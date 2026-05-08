@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rite",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "routes": [
+    { "pattern": "rite.mino.mobi", "custom_domain": true }
+  ]
+}

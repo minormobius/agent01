@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rite &mdash; sentence editing drill</title>
+<meta name="description" content="Practice brevity. Rewrite a verbose sentence into something concise and clear, as fast as possible.">
+<meta property="og:title" content="rite">
+<meta property="og:description" content="A sentence editing drill. Practice brevity.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a;
+  --warn: #a06020;
+  --bad: #a03030;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --accent: #c97070;
+    --accent-faint: rgba(201, 112, 112, 0.08);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 2rem 1rem 4rem;
+}
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+header {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+h1 {
+  font-size: 2rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 .dot { color: var(--accent); }
+.tag {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.subtitle {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0.4rem 0 0;
+}
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.timer { color: var(--accent); font-weight: 700; }
+.original {
+  background: var(--accent-faint);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  border-radius: 0 4px 4px 0;
+}
+textarea {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+textarea:focus { border-color: var(--accent); }
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+button {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.live-stats {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.live-stats .ok { color: var(--good); }
+.live-stats .warn { color: var(--warn); }
+.live-stats .bad { color: var(--bad); }
+.result {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  display: none;
+}
+.result.show { display: block; }
+.score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.score {
+  font-family: var(--mono);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.score-label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.comment {
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.bar {
+  background: var(--accent-faint);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+  position: relative;
+  overflow: hidden;
+}
+.bar .fill {
+  position: absolute;
+  inset: 0 100% 0 0;
+  background: var(--accent);
+  opacity: 0.18;
+  transition: inset 0.4s ease;
+}
+.bar .label {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+.bar .value {
+  position: relative;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.reference {
+  background: var(--accent-faint);
+  border-left: 3px solid var(--good);
+  padding: 0.8rem 1rem;
+  border-radius: 0 4px 4px 0;
+  margin-top: 1rem;
+}
+.reference .label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+footer {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+.streak {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent-faint);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 0.4rem;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>rite<span class="dot">.</span></h1>
+      <p class="subtitle">A sentence editing drill. Practice brevity.</p>
+    </div>
+    <div class="streak" id="streak"></div>
+  </header>
+
+  <div class="meta">
+    <span id="style-tag">&nbsp;</span>
+    <span class="timer" id="timer">0.0s</span>
+  </div>
+  <div class="original" id="original">Loading&hellip;</div>
+
+  <textarea id="edit" placeholder="Rewrite it. Concise. Clear. Keep the meaning." autofocus></textarea>
+
+  <div class="controls">
+    <button id="submit">Submit</button>
+    <button id="skip" class="ghost">Skip</button>
+    <span class="live-stats" id="live"></span>
+  </div>
+
+  <div class="result" id="result">
+    <div class="score-row">
+      <span class="score" id="score">0</span>
+      <span class="score-label">out of 100</span>
+    </div>
+    <div class="comment" id="comment"></div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="reference">
+      <div class="label">Reference rewrite</div>
+      <div id="reference"></div>
+    </div>
+    <div class="controls" style="margin-top: 1rem;">
+      <button id="next">Next sentence</button>
+    </div>
+  </div>
+
+  <footer>
+    <span>rite &middot; sentence editing drill</span>
+    <span><a href="https://mino.mobi">mino.mobi</a></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  current: null,
+  startedAt: 0,
+  timerHandle: null,
+  graded: false,
+  streak: 0,
+  totalScore: 0,
+  rounds: 0,
+};
+
+async function loadSentence() {
+  state.graded = false;
+  $('result').classList.remove('show');
+  $('edit').value = '';
+  $('edit').disabled = false;
+  $('submit').disabled = false;
+  $('skip').disabled = false;
+  $('original').textContent = 'Loading…';
+  $('style-tag').textContent = '';
+  updateLive();
+
+  try {
+    const res = await fetch('/api/sentence');
+    if (!res.ok) throw new Error('fetch failed');
+    state.current = await res.json();
+  } catch (e) {
+    $('original').textContent = 'Could not load a sentence. Try again.';
+    return;
+  }
+  $('original').textContent = state.current.original;
+  $('style-tag').textContent = `${state.current.style} · ${state.current.word_count} words`;
+  $('edit').focus();
+  startTimer();
+}
+
+function startTimer() {
+  state.startedAt = performance.now();
+  if (state.timerHandle) clearInterval(state.timerHandle);
+  state.timerHandle = setInterval(() => {
+    if (state.graded) return;
+    const sec = (performance.now() - state.startedAt) / 1000;
+    $('timer').textContent = sec.toFixed(1) + 's';
+  }, 100);
+}
+
+function stopTimer() {
+  if (state.timerHandle) clearInterval(state.timerHandle);
+  state.timerHandle = null;
+}
+
+function updateLive() {
+  const text = $('edit').value.trim();
+  const orig = state.current ? state.current.word_count : 0;
+  const w = text ? (text.match(/\S+/g) || []).length : 0;
+  if (!w) { $('live').textContent = ''; return; }
+  let cls = '';
+  if (orig && w >= orig) cls = 'bad';
+  else if (orig && w > orig * 0.6) cls = 'warn';
+  else cls = 'ok';
+  $('live').innerHTML = `<span class="${cls}">${w} word${w === 1 ? '' : 's'}</span> &middot; ${text.length} chars`;
+}
+
+async function submitEdit() {
+  if (state.graded || !state.current) return;
+  const edit = $('edit').value.trim();
+  if (!edit) return;
+  state.graded = true;
+  stopTimer();
+  $('submit').disabled = true;
+  $('skip').disabled = true;
+  $('edit').disabled = true;
+  $('comment').innerHTML = '<span class="spinner"></span> Grading…';
+  $('result').classList.add('show');
+
+  const elapsed = performance.now() - state.startedAt;
+  let result;
+  try {
+    const res = await fetch('/api/grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: state.current.id, edit, elapsed_ms: elapsed }),
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'grade failed');
+  } catch (e) {
+    $('comment').textContent = 'Grading failed: ' + (e.message || e);
+    return;
+  }
+
+  renderResult(result);
+}
+
+function renderResult(r) {
+  $('score').textContent = r.score;
+  $('comment').textContent = r.comment;
+  $('reference').textContent = r.reference;
+
+  const bars = [
+    { key: 'fidelity', label: 'Fidelity' },
+    { key: 'brevity', label: 'Brevity' },
+    { key: 'clarity', label: 'Clarity' },
+    { key: 'time_bonus', label: 'Speed' },
+  ];
+  $('breakdown').innerHTML = bars.map(({ key, label }) => {
+    const v = r.breakdown[key];
+    const pct = Math.round(v * 100);
+    return `<div class="bar">
+      <div class="fill" style="inset: 0 ${100 - pct}% 0 0;"></div>
+      <div class="label"><span>${label}</span></div>
+      <div class="value">${pct}</div>
+    </div>`;
+  }).join('');
+
+  state.rounds++;
+  state.totalScore += r.score;
+  if (r.score >= 70) state.streak++;
+  else state.streak = 0;
+  renderStreak();
+}
+
+function renderStreak() {
+  if (!state.rounds) { $('streak').textContent = ''; return; }
+  const avg = Math.round(state.totalScore / state.rounds);
+  let s = `avg ${avg} · ${state.rounds} round${state.rounds === 1 ? '' : 's'}`;
+  if (state.streak >= 2) s += ` · 🔥 ${state.streak}`;
+  $('streak').textContent = s;
+}
+
+$('submit').addEventListener('click', submitEdit);
+$('next').addEventListener('click', loadSentence);
+$('skip').addEventListener('click', loadSentence);
+$('edit').addEventListener('input', updateLive);
+$('edit').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    submitEdit();
+  }
+});
+
+loadSentence();
+</script>
+</body>
+</html>
