@@ -8,7 +8,7 @@
 <meta property="og:title" content="fodder">
 <meta property="og:description" content="Crowdsource verbosity. Swipe right to feed the drill.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://fodder.mino.mobi">
+<meta property="og:url" content="https://rite.mino.mobi/fodder/">
 <style>
 :root {
   --bg: #faf9f6;
@@ -338,8 +338,8 @@ footer a { color: var(--muted); text-decoration: underline; }
   </main>
 
   <footer>
-    <span><a href="https://rite.mino.mobi">→ rite</a></span>
-    <span><a href="/api/stats" id="stats-link">stats</a></span>
+    <span><a href="/">← back to drill</a></span>
+    <span><a href="/api/fodder/stats" id="stats-link">stats</a></span>
     <span><a href="https://mino.mobi">mino.mobi</a></span>
   </footer>
 </div>
@@ -400,7 +400,7 @@ function renderMyStats() {
 // ---------- network ----------
 
 async function fetchNext() {
-  const res = await fetch('/api/next?limit=8', {
+  const res = await fetch('/api/fodder/next?limit=8', {
     headers: { 'X-Voter-Id': VOTER_ID },
   });
   if (!res.ok) throw new Error('fetch failed: ' + res.status);
@@ -409,7 +409,7 @@ async function fetchNext() {
 }
 
 async function postVote(id, direction) {
-  const res = await fetch('/api/vote', {
+  const res = await fetch('/api/fodder/vote', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Voter-Id': VOTER_ID },
     body: JSON.stringify({ id, direction, voter_id: VOTER_ID }),

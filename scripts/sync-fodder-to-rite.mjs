@@ -4,7 +4,7 @@
 // Usage:
 //   node scripts/sync-fodder-to-rite.mjs
 //   node scripts/sync-fodder-to-rite.mjs --dry      # show what would change
-//   node scripts/sync-fodder-to-rite.mjs --url=https://fodder.mino.mobi
+//   node scripts/sync-fodder-to-rite.mjs --url=https://rite.mino.mobi
 //
 // Idempotent: candidate ids of the form "f-<book>-<hash>" never collide
 // with hand-curated rite ids ("v001"...), and we skip any id already
@@ -28,14 +28,14 @@ const args = new Map(
   })
 );
 
-const URL = args.get('url') || 'https://fodder.mino.mobi';
+const URL = args.get('url') || 'https://rite.mino.mobi';
 const DRY = !!args.get('dry');
 
 async function main() {
   const corpus = JSON.parse(await fs.readFile(CORPUS_PATH, 'utf8'));
   const have = new Set(corpus.sentences.map((s) => s.id));
 
-  const res = await fetch(URL.replace(/\/$/, '') + '/api/promoted');
+  const res = await fetch(URL.replace(/\/$/, '') + '/api/fodder/promoted');
   if (!res.ok) {
     console.error(`fetch failed: ${res.status} ${res.statusText}`);
     process.exit(1);

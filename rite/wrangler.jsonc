@@ -3,12 +3,23 @@
   "name": "rite",
   "main": "worker.js",
   "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
   },
   "ai": {
     "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 */6 * * *"]
   },
   "routes": [
     { "pattern": "rite.mino.mobi", "custom_domain": true }
