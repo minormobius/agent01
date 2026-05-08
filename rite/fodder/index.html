@@ -437,8 +437,6 @@ function makeCard(cand, isBehind) {
   const el = document.createElement('div');
   el.className = 'card' + (isBehind ? ' behind' : '');
   el.dataset.id = cand.id;
-  const refs = cand.references || [];
-  const labels = ['literal', 'idiomatic', 'alternative'];
   const flesch = cand.flesch != null ? Math.round(cand.flesch) : '?';
   el.innerHTML = `
     <div class="stamp yes">YES</div>
@@ -451,10 +449,6 @@ function makeCard(cand, isBehind) {
       <span>Flesch ${flesch}</span>
     </div>
     <p class="original">${escapeHtml(cand.original || '')}</p>
-    <div class="refs-label">Generated rewrites</div>
-    ${refs.map((r, i) => `
-      <div class="ref"><span class="kind">${labels[i] || ''}</span>${escapeHtml(r)}</div>
-    `).join('')}
     <div class="crowd">${cand.crowd ? `${cand.crowd.yes || 0}♥ · ${cand.crowd.no || 0}✕ so far` : ''}</div>
   `;
   return el;
