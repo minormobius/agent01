@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>fodder &mdash; crowdsource verbosity</title>
+<meta name="description" content="Swipe right on verbose Victorian sentences to feed the rite drill corpus.">
+<meta property="og:title" content="fodder">
+<meta property="og:description" content="Crowdsource verbosity. Swipe right to feed the drill.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fodder.mino.mobi">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a;
+  --good-faint: rgba(42, 122, 42, 0.12);
+  --bad: #a03030;
+  --bad-faint: rgba(160, 48, 48, 0.12);
+  --skip: #806020;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --accent: #c97070;
+    --accent-faint: rgba(201, 112, 112, 0.08);
+    --good: #6abf6a;
+    --good-faint: rgba(106, 191, 106, 0.18);
+    --bad: #d07070;
+    --bad-faint: rgba(208, 112, 112, 0.18);
+    --skip: #c0a060;
+    --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.45;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1rem 1rem 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 .dot { color: var(--accent); }
+.subtitle {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.my-stats {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.my-stats b { color: var(--accent); }
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+}
+.deck {
+  flex: 1;
+  position: relative;
+  margin-bottom: 0.75rem;
+  min-height: 380px;
+}
+.card {
+  position: absolute;
+  inset: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  will-change: transform;
+}
+.card:active { cursor: grabbing; }
+.card.dragging { transition: none; }
+.card.flying { transition: transform 0.4s cubic-bezier(0.5, 0.1, 0.9, 0.4), opacity 0.3s; }
+.card.snap { transition: transform 0.3s cubic-bezier(0.2, 1.2, 0.4, 1); }
+.card.behind {
+  transform: translateY(8px) scale(0.97);
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: default;
+}
+.card .source-line {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card .meta-line {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+.card .meta-line .chip {
+  background: var(--accent-faint);
+  color: var(--accent);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+.card .original {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 0.7rem;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+.card .refs-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+  border-top: 1px dashed var(--rule);
+  padding-top: 0.5rem;
+}
+.card .ref {
+  font-size: 0.88rem;
+  margin: 0.25rem 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--accent-faint);
+  position: relative;
+}
+.card .ref .kind {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 0.4rem;
+}
+.card .crowd {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+}
+.card .stamp {
+  position: absolute;
+  top: 1rem;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.7rem;
+  border: 3px solid;
+  border-radius: 6px;
+  opacity: 0;
+  transform: rotate(-12deg);
+  transition: opacity 0.1s;
+  pointer-events: none;
+}
+.card .stamp.yes { right: 1rem; color: var(--good); border-color: var(--good); transform: rotate(12deg); }
+.card .stamp.no  { left: 1rem;  color: var(--bad);  border-color: var(--bad); }
+.card .stamp.skip { top: 0.7rem; left: 50%; transform: translateX(-50%) rotate(0); color: var(--skip); border-color: var(--skip); }
+.actions {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.action {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--rule);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+}
+.action:hover { transform: scale(1.08); }
+.action:active { transform: scale(0.95); }
+.action:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+.action.no { color: var(--bad); border-color: var(--bad); }
+.action.no:hover { background: var(--bad-faint); }
+.action.yes { color: var(--good); border-color: var(--good); }
+.action.yes:hover { background: var(--good-faint); }
+.action.skip { color: var(--skip); border-color: var(--skip); font-size: 1.2rem; }
+.hint {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+}
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem;
+  font-style: italic;
+  color: var(--muted);
+}
+.empty button {
+  margin-top: 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+footer {
+  flex-shrink: 0;
+  padding: 0.5rem 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.loading {
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>fodder<span class="dot">.</span></h1>
+      <p class="subtitle">Crowdsource verbosity. Swipe right to feed the drill.</p>
+    </div>
+    <div class="my-stats" id="my-stats"></div>
+  </header>
+
+  <main>
+    <div class="deck" id="deck">
+      <div class="loading" id="loading">Loading candidates&hellip;</div>
+    </div>
+    <div class="empty" id="empty" style="display:none">
+      <div>No candidates right now.</div>
+      <div style="font-size:0.85em; margin-top:0.4rem;">Cron mines fresh ones every 6 hours.</div>
+      <button id="reload">Check again</button>
+    </div>
+
+    <div class="actions">
+      <button class="action no"   id="btn-no"   title="Reject (←, n)">✕</button>
+      <button class="action skip" id="btn-skip" title="Skip (↑, s)">↑</button>
+      <button class="action yes"  id="btn-yes"  title="Accept (→, y)">♥</button>
+    </div>
+    <div class="hint">Swipe → yes &middot; ← no &middot; ↑ skip &middot; keys: y / n / s</div>
+  </main>
+
+  <footer>
+    <span><a href="https://rite.mino.mobi">→ rite</a></span>
+    <span><a href="/api/stats" id="stats-link">stats</a></span>
+    <span><a href="https://mino.mobi">mino.mobi</a></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// ---------- voter id (localStorage UUID) ----------
+
+function getOrCreateVoterId() {
+  let id = localStorage.getItem('fodder.voter_id');
+  if (!id) {
+    id = 'v-' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('fodder.voter_id', id);
+  }
+  return id;
+}
+
+const VOTER_ID = getOrCreateVoterId();
+
+// ---------- state ----------
+
+const state = {
+  deck: [],          // array of candidate objects
+  topEl: null,       // current top card DOM
+  prefetching: false,
+  swipesToday: 0,
+  votesByDirection: { yes: 0, no: 0, skip: 0 },
+};
+
+function loadStats() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const stored = JSON.parse(localStorage.getItem('fodder.stats') || '{}');
+    if (stored.day === today) {
+      state.swipesToday = stored.count || 0;
+      state.votesByDirection = stored.dir || { yes: 0, no: 0, skip: 0 };
+    }
+    renderMyStats();
+  } catch {}
+}
+function saveStats() {
+  const today = new Date().toISOString().slice(0, 10);
+  localStorage.setItem('fodder.stats', JSON.stringify({
+    day: today, count: state.swipesToday, dir: state.votesByDirection,
+  }));
+}
+function renderMyStats() {
+  const { yes, no, skip } = state.votesByDirection;
+  const total = state.swipesToday;
+  if (!total) {
+    $('my-stats').innerHTML = '';
+    return;
+  }
+  $('my-stats').innerHTML = `today <b>${total}</b> · ${yes}♥ ${no}✕ ${skip}↑`;
+}
+
+// ---------- network ----------
+
+async function fetchNext() {
+  const res = await fetch('/api/next?limit=8', {
+    headers: { 'X-Voter-Id': VOTER_ID },
+  });
+  if (!res.ok) throw new Error('fetch failed: ' + res.status);
+  const data = await res.json();
+  return data.candidates || [];
+}
+
+async function postVote(id, direction) {
+  const res = await fetch('/api/vote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Voter-Id': VOTER_ID },
+    body: JSON.stringify({ id, direction, voter_id: VOTER_ID }),
+  });
+  if (!res.ok) throw new Error('vote failed: ' + res.status);
+  return await res.json();
+}
+
+// ---------- rendering ----------
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function makeCard(cand, isBehind) {
+  const el = document.createElement('div');
+  el.className = 'card' + (isBehind ? ' behind' : '');
+  el.dataset.id = cand.id;
+  const refs = cand.references || [];
+  const labels = ['literal', 'idiomatic', 'alternative'];
+  const flesch = cand.flesch != null ? Math.round(cand.flesch) : '?';
+  el.innerHTML = `
+    <div class="stamp yes">YES</div>
+    <div class="stamp no">NO</div>
+    <div class="stamp skip">SKIP</div>
+    <div class="source-line" title="${escapeHtml(cand.source || '')}">${escapeHtml(cand.source || 'unknown source')}</div>
+    <div class="meta-line">
+      <span class="chip">${escapeHtml(cand.style || '')}</span>
+      <span>${cand.word_count} words</span>
+      <span>Flesch ${flesch}</span>
+    </div>
+    <p class="original">${escapeHtml(cand.original || '')}</p>
+    <div class="refs-label">Generated rewrites</div>
+    ${refs.map((r, i) => `
+      <div class="ref"><span class="kind">${labels[i] || ''}</span>${escapeHtml(r)}</div>
+    `).join('')}
+    <div class="crowd">${cand.crowd ? `${cand.crowd.yes || 0}♥ · ${cand.crowd.no || 0}✕ so far` : ''}</div>
+  `;
+  return el;
+}
+
+function renderDeck() {
+  const deck = $('deck');
+  deck.innerHTML = '';
+  if (!state.deck.length) {
+    showEmpty();
+    return;
+  }
+  hideEmpty();
+  // Render top + one behind for stack effect.
+  if (state.deck.length > 1) {
+    deck.appendChild(makeCard(state.deck[1], true));
+  }
+  const top = makeCard(state.deck[0], false);
+  deck.appendChild(top);
+  state.topEl = top;
+  attachDrag(top);
+}
+
+function showEmpty() { $('empty').style.display = 'flex'; $('deck').style.display = 'none'; setActionsEnabled(false); }
+function hideEmpty() { $('empty').style.display = 'none'; $('deck').style.display = 'block'; setActionsEnabled(true); }
+function setActionsEnabled(b) { ['btn-yes', 'btn-no', 'btn-skip'].forEach(id => { $(id).disabled = !b; }); }
+
+// ---------- drag handling ----------
+
+function attachDrag(card) {
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false;
+  card.addEventListener('pointerdown', (e) => {
+    if (!card.classList.contains('card') || card.classList.contains('flying')) return;
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    dx = 0; dy = 0;
+    card.setPointerCapture(e.pointerId);
+    card.classList.add('dragging');
+    card.classList.remove('snap');
+  });
+  card.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    dy = e.clientY - startY;
+    const rot = Math.max(-18, Math.min(18, dx * 0.05));
+    card.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+    // Stamp opacity feedback
+    const sYes = card.querySelector('.stamp.yes');
+    const sNo  = card.querySelector('.stamp.no');
+    const sSkip = card.querySelector('.stamp.skip');
+    sYes.style.opacity  = dx > 30 && Math.abs(dy) < Math.abs(dx) ? Math.min(1, (dx - 30) / 90) : 0;
+    sNo.style.opacity   = dx < -30 && Math.abs(dy) < Math.abs(dx) ? Math.min(1, (-dx - 30) / 90) : 0;
+    sSkip.style.opacity = dy < -40 && Math.abs(dx) < Math.abs(dy) * 0.7 ? Math.min(1, (-dy - 40) / 80) : 0;
+  });
+  card.addEventListener('pointerup', (e) => {
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove('dragging');
+    const threshold = 100;
+    if (dx > threshold && Math.abs(dy) < Math.abs(dx)) commitVote('yes');
+    else if (dx < -threshold && Math.abs(dy) < Math.abs(dx)) commitVote('no');
+    else if (dy < -threshold && Math.abs(dx) < Math.abs(dy) * 0.7) commitVote('skip');
+    else snapBack(card);
+  });
+  card.addEventListener('pointercancel', () => {
+    if (dragging) { dragging = false; card.classList.remove('dragging'); snapBack(card); }
+  });
+}
+
+function snapBack(card) {
+  card.classList.add('snap');
+  card.style.transform = '';
+  card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
+  setTimeout(() => card.classList.remove('snap'), 320);
+}
+
+// ---------- voting ----------
+
+async function commitVote(direction) {
+  if (!state.topEl || !state.deck.length) return;
+  const card = state.topEl;
+  const cand = state.deck[0];
+  card.classList.add('flying');
+  card.style.transform = direction === 'yes'
+    ? 'translate(120vw, 50px) rotate(20deg)'
+    : direction === 'no'
+      ? 'translate(-120vw, 50px) rotate(-20deg)'
+      : 'translate(0, -110vh) rotate(0)';
+  card.style.opacity = '0';
+  state.deck.shift();
+  state.swipesToday++;
+  state.votesByDirection[direction]++;
+  saveStats();
+  renderMyStats();
+
+  // Fire vote (don't block on it).
+  postVote(cand.id, direction).catch((e) => console.error('vote failed', e));
+
+  // After flight, re-render and prefetch if low.
+  setTimeout(() => {
+    renderDeck();
+    if (state.deck.length <= 2 && !state.prefetching) prefetch();
+  }, 320);
+}
+
+async function prefetch() {
+  state.prefetching = true;
+  try {
+    const seen = new Set(state.deck.map(c => c.id));
+    const fresh = await fetchNext();
+    for (const c of fresh) if (!seen.has(c.id)) state.deck.push(c);
+    if (state.deck.length === 0) showEmpty();
+  } catch (e) {
+    console.error('prefetch failed', e);
+  } finally {
+    state.prefetching = false;
+  }
+}
+
+// ---------- buttons + keys ----------
+
+$('btn-yes').addEventListener('click', () => commitVote('yes'));
+$('btn-no').addEventListener('click', () => commitVote('no'));
+$('btn-skip').addEventListener('click', () => commitVote('skip'));
+$('reload').addEventListener('click', async () => {
+  $('empty').style.display = 'none';
+  $('deck').style.display = 'block';
+  $('deck').innerHTML = '<div class="loading">Loading…</div>';
+  await prefetch();
+  renderDeck();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'y' || e.key === 'Y' || e.key === 'ArrowRight') { e.preventDefault(); commitVote('yes'); }
+  else if (e.key === 'n' || e.key === 'N' || e.key === 'ArrowLeft') { e.preventDefault(); commitVote('no'); }
+  else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowUp')  { e.preventDefault(); commitVote('skip'); }
+});
+
+// ---------- boot ----------
+
+(async function init() {
+  loadStats();
+  try {
+    state.deck = await fetchNext();
+  } catch (e) {
+    console.error(e);
+    $('deck').innerHTML = '<div class="loading">Couldn\'t load candidates. Try refreshing.</div>';
+    return;
+  }
+  renderDeck();
+})();
+</script>
+</body>
+</html>
