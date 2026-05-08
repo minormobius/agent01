@@ -403,7 +403,14 @@ async function fetchNext() {
   const res = await fetch('/api/fodder/next?limit=8', {
     headers: { 'X-Voter-Id': VOTER_ID },
   });
-  if (!res.ok) throw new Error('fetch failed: ' + res.status);
+  if (!res.ok) {
+    let detail = res.status + ' ' + res.statusText;
+    try {
+      const body = await res.json();
+      if (body && body.error) detail += ' — ' + body.error;
+    } catch {}
+    throw new Error(detail);
+  }
   const data = await res.json();
   return data.candidates || [];
 }
@@ -595,7 +602,18 @@ document.addEventListener('keydown', (e) => {
     state.deck = await fetchNext();
   } catch (e) {
     console.error(e);
-    $('deck').innerHTML = '<div class="loading">Couldn\'t load candidates. Try refreshing.</div>';
+    const msg = escapeHtml(e.message || String(e));
+    $('deck').innerHTML = `
+      <div class="loading" style="text-align:left; line-height:1.5;">
+        <b>Couldn't load candidates.</b><br>
+        <small style="font-family: var(--mono); font-size: 0.75rem;">${msg}</small><br><br>
+        <small>Likely causes:</small>
+        <ul style="font-size: 0.85rem; margin-top: 0.4rem;">
+          <li>Worker not deployed yet — try <code>cd rite &amp;&amp; npx wrangler deploy</code></li>
+          <li>D1 migration not run — <code>npx wrangler d1 execute atpolls-db --file=rite/migrations/0001_fodder.sql --remote</code></li>
+          <li>No candidates yet — wait for the cron, or hit <code>POST /api/fodder/admin/mine</code></li>
+        </ul>
+      </div>`;
     return;
   }
   renderDeck();
