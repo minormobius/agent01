@@ -253,6 +253,74 @@ footer a { color: var(--muted); text-decoration: underline; }
   color: var(--accent);
   font-weight: 700;
 }
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.view { display: none; }
+.view.active { display: block; }
+.docs h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.docs h2:first-child { margin-top: 0; }
+.docs p { margin: 0.5rem 0; }
+.docs ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+.docs li { margin: 0.25rem 0; }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--accent-faint);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.docs .formula {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  background: var(--accent-faint);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+  margin: 0.75rem 0;
+  white-space: pre-wrap;
+}
+.docs table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  width: 100%;
+}
+.docs th, .docs td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.docs th {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
 .spinner {
   display: inline-block;
   width: 14px;
@@ -277,6 +345,12 @@ footer a { color: var(--muted); text-decoration: underline; }
     <div class="streak" id="streak"></div>
   </header>
 
+  <nav class="tabs">
+    <button class="tab active" data-view="drill">Drill</button>
+    <button class="tab" data-view="docs">Docs</button>
+  </nav>
+
+  <section class="view active" id="view-drill">
   <div class="meta">
     <span id="style-tag">&nbsp;</span>
     <span class="timer" id="timer">0.0s</span>
@@ -306,6 +380,51 @@ footer a { color: var(--muted); text-decoration: underline; }
       <button id="next">Next sentence</button>
     </div>
   </div>
+  </section>
+
+  <section class="view docs" id="view-docs">
+    <h2>What this is</h2>
+    <p>A drill for one specific skill: turning verbose, hard-to-read prose into something concise and clear, fast. You're shown a sentence in the manner of a Victorian novelist, a regulator, an academic, or a corporate memo. You rewrite it. You're scored.</p>
+
+    <h2>Where the sentences come from</h2>
+    <p>45 hand-curated sentences in <code>corpus.json</code>, tagged by style:</p>
+    <ul>
+      <li><b>Victorian</b> &mdash; long subordinate clauses, qualifying asides, throat-clearing.</li>
+      <li><b>Bureaucratic</b> &mdash; nominalizations, passive stacks, hedged conclusions.</li>
+      <li><b>Academic</b> &mdash; "It must be acknowledged that there exists&hellip;"</li>
+      <li><b>Legal</b> &mdash; "Pursuant to&hellip;", "Notwithstanding the foregoing&hellip;"</li>
+      <li><b>Corporate / TOS</b> &mdash; PR-speak and click-through filler.</li>
+    </ul>
+    <p>Each sentence ships with a reference rewrite. The reference is <i>one</i> valid concise version, not the only one &mdash; grading uses semantic similarity, so any meaning-preserving paraphrase scores well.</p>
+
+    <h2>How grading works</h2>
+    <p>Every submission gets four sub-scores, combined with a speed multiplier:</p>
+    <div class="formula">score = (0.5 &middot; fidelity + 0.3 &middot; brevity + 0.2 &middot; clarity) &times; speed &times; 100</div>
+    <table>
+      <thead><tr><th>Component</th><th>Weight</th><th>Measured by</th></tr></thead>
+      <tbody>
+        <tr><td>Fidelity</td><td>50%</td><td>Embedding cosine similarity (BGE) between your edit and the reference rewrite. Falls back to Jaccard token overlap if the AI binding is unavailable.</td></tr>
+        <tr><td>Brevity</td><td>30%</td><td>Peaks when your word count &asymp; reference word count. Capped near zero if you didn't shorten the original at all.</td></tr>
+        <tr><td>Clarity</td><td>20%</td><td>Flesch reading-ease delta vs. the original. A 40-point jump caps the score.</td></tr>
+        <tr><td>Speed</td><td>multiplier</td><td>1.0 at &le;10s, decays linearly to 0.5 at 60s.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What it costs</h2>
+    <p>Runs on a Cloudflare Worker with the Workers AI binding. Each grade does one batched embedding call (~1 neuron). The $5 Workers Paid plan includes 10,000 free neurons/day &mdash; roughly <b>5,000 free grades/day</b> before pay-per-use kicks in.</p>
+
+    <h2>Tips</h2>
+    <ul>
+      <li>Strip nominalizations: "make a determination" &rarr; "decide".</li>
+      <li>Cut hedges: "it would seem to be the case that&hellip;"</li>
+      <li>Active voice when you can; the Flesch score rewards it indirectly via shorter sentences.</li>
+      <li>If you're stuck, type <i>anything</i> short and submit &mdash; the reference rewrite is shown afterwards.</li>
+      <li><code>Cmd</code>/<code>Ctrl</code>+<code>Enter</code> submits.</li>
+    </ul>
+
+    <h2>Source</h2>
+    <p>The drill is a single Worker plus static assets. Corpus, scoring, and worker code live in the <code>rite/</code> directory of <a href="https://github.com/minormobius/agent01">minormobius/agent01</a>.</p>
+  </section>
 
   <footer>
     <span>rite &middot; sentence editing drill</span>
@@ -454,6 +573,19 @@ $('edit').addEventListener('keydown', (e) => {
     submitEdit();
   }
 });
+
+document.querySelectorAll('.tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.view;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + target));
+    if (target === 'drill') $('edit').focus();
+    history.replaceState(null, '', target === 'drill' ? '/' : '#docs');
+  });
+});
+if (location.hash === '#docs') {
+  document.querySelector('.tab[data-view="docs"]').click();
+}
 
 loadSentence();
 </script>
