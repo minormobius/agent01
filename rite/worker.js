@@ -79,59 +79,77 @@ async function gradeSubmission(request, env) {
   const item = sentences.find((s) => s.id === id);
   if (!item) return json({ error: 'unknown id' }, 404);
 
+  // Schema tolerance: accept either `references` (v2) or `reference` (v1).
+  const references = Array.isArray(item.references) && item.references.length
+    ? item.references
+    : (item.reference ? [item.reference] : []);
+  if (!references.length) return json({ error: 'corpus entry missing references' }, 500);
+
   const origWords = countWords(item.original);
-  const refWords = countWords(item.reference);
+  const refWordCounts = references.map(countWords);
+  const targetRefWords = median(refWordCounts);
   const userWords = countWords(trimmed);
 
-  // ---- Brevity: peaks when user length ≈ reference length.
-  //      Penalize verbosity more than brevity (you can be terser than the reference).
-  const brevityRatio = userWords / refWords;
+  // ---- Brevity: peaks when user length ≈ median reference length.
+  //      Penalize verbosity more than brevity.
+  const brevityRatio = userWords / targetRefWords;
   let brevity;
   if (brevityRatio <= 1) {
-    brevity = 1.0; // at or below reference length is fine
+    brevity = 1.0;
   } else if (brevityRatio <= 1.5) {
-    brevity = 1 - (brevityRatio - 1) * 0.6; // taper
+    brevity = 1 - (brevityRatio - 1) * 0.6;
   } else {
     brevity = Math.max(0, 1 - (brevityRatio - 1) * 0.6);
   }
-  // If they didn't shorten the original at all, that's a fail.
   if (userWords >= origWords) brevity = Math.min(brevity, 0.1);
 
-  // ---- Clarity: Flesch reading-ease delta vs. original.
+  // ---- Clarity: Flesch reading-ease delta vs. the original.
   const origFlesch = flesch(item.original);
   const userFlesch = flesch(trimmed);
-  const fleschDelta = userFlesch - origFlesch; // higher = easier
-  // Map a delta of 0..40 onto 0..1
+  const fleschDelta = userFlesch - origFlesch;
   const clarity = Math.max(0, Math.min(1, fleschDelta / 40));
 
-  // ---- Fidelity: embedding cosine similarity to reference rewrite.
-  let fidelity = 0;
+  // ---- Fidelity: max cosine across all reference rewrites.
+  let bestRefIdx = 0;
+  let bestCosine = 0;
+  let allCosines = references.map(() => 0);
   let fidelityErr = null;
   try {
-    fidelity = await embeddingSimilarity(env, trimmed, item.reference);
+    allCosines = await embedAndCompareAll(env, trimmed, references);
+    for (let i = 0; i < allCosines.length; i++) {
+      if (allCosines[i] > bestCosine) {
+        bestCosine = allCosines[i];
+        bestRefIdx = i;
+      }
+    }
   } catch (e) {
     fidelityErr = String(e && e.message || e);
-    // Fallback to a token-overlap similarity when AI unavailable.
-    fidelity = jaccard(trimmed, item.reference);
+    // Fallback: max Jaccard across references.
+    allCosines = references.map((r) => jaccard(trimmed, r));
+    for (let i = 0; i < allCosines.length; i++) {
+      if (allCosines[i] > bestCosine) {
+        bestCosine = allCosines[i];
+        bestRefIdx = i;
+      }
+    }
   }
-  // Squash: cosine of typical English sentences sits around 0.6+; rescale 0.55..0.95 -> 0..1
-  const fidelityScaled = Math.max(0, Math.min(1, (fidelity - 0.55) / 0.4));
+  // Squash: 0.55..0.95 -> 0..1
+  const fidelityScaled = Math.max(0, Math.min(1, (bestCosine - 0.55) / 0.4));
 
-  // ---- Time bonus: 1.0 at <=10s, decays to 0.5 by 60s.
+  // ---- Time bonus.
   const elapsedSec = Math.max(0, Number(elapsed_ms || 0) / 1000);
   let timeBonus;
   if (elapsedSec <= 10) timeBonus = 1.0;
   else if (elapsedSec <= 60) timeBonus = 1.0 - ((elapsedSec - 10) / 50) * 0.5;
   else timeBonus = 0.5;
 
-  // ---- Final score: fidelity gates everything (lose meaning, lose points).
-  //      Weight: fidelity 0.5, brevity 0.3, clarity 0.2, then × time bonus.
+  // ---- Final score.
   const baseScore = fidelityScaled * 0.5 + brevity * 0.3 + clarity * 0.2;
   const finalScore = Math.round(baseScore * timeBonus * 100);
 
   const comment = buildComment({
     fidelityScaled, brevity, clarity, timeBonus,
-    userWords, origWords, refWords, fleschDelta,
+    userWords, origWords, targetRefWords, fleschDelta,
   });
 
   return json({
@@ -139,21 +157,27 @@ async function gradeSubmission(request, env) {
     score: finalScore,
     breakdown: {
       fidelity: round3(fidelityScaled),
-      fidelity_raw_cosine: round3(fidelity),
+      fidelity_raw_cosine: round3(bestCosine),
       brevity: round3(brevity),
       clarity: round3(clarity),
       time_bonus: round3(timeBonus),
     },
     stats: {
       original_words: origWords,
-      reference_words: refWords,
+      reference_words_median: targetRefWords,
+      reference_word_counts: refWordCounts,
       user_words: userWords,
       flesch_original: round3(origFlesch),
       flesch_user: round3(userFlesch),
       flesch_delta: round3(fleschDelta),
       elapsed_sec: round3(elapsedSec),
     },
-    reference: item.reference,
+    references: references.map((text, i) => ({
+      text,
+      similarity: round3(allCosines[i] || 0),
+      best: i === bestRefIdx,
+    })),
+    best_reference: references[bestRefIdx],
     comment,
     notes: fidelityErr ? `embeddings unavailable: ${fidelityErr}` : null,
   });
@@ -197,11 +221,23 @@ function jaccard(a, b) {
   return union ? inter / union : 0;
 }
 
-async function embeddingSimilarity(env, a, b) {
+async function embedAndCompareAll(env, userText, references) {
   if (!env.AI) throw new Error('AI binding not configured');
-  const out = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: [a, b] });
-  const [va, vb] = out.data;
-  return cosine(va, vb);
+  // One batched call: [user, ...references]. Cost stays ~1 neuron per grade.
+  const out = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+    text: [userText, ...references],
+  });
+  const vectors = out.data;
+  if (!vectors || vectors.length < 2) throw new Error('unexpected embedding shape');
+  const userVec = vectors[0];
+  return references.map((_, i) => cosine(userVec, vectors[i + 1]));
+}
+
+function median(xs) {
+  if (!xs.length) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function cosine(a, b) {
@@ -219,15 +255,15 @@ function round3(n) {
   return Math.round(n * 1000) / 1000;
 }
 
-function buildComment({ fidelityScaled, brevity, clarity, timeBonus, userWords, origWords, refWords, fleschDelta }) {
+function buildComment({ fidelityScaled, brevity, clarity, timeBonus, userWords, origWords, targetRefWords, fleschDelta }) {
   const bits = [];
   if (fidelityScaled < 0.4) bits.push('Meaning drifted — your edit reads as a different sentence.');
   else if (fidelityScaled < 0.7) bits.push('Meaning mostly preserved, but some nuance shifted.');
   else bits.push('Meaning preserved well.');
 
   if (userWords >= origWords) bits.push(`You didn't shorten it — still ${userWords} words.`);
-  else if (userWords <= refWords) bits.push(`Tight: ${userWords} words (reference was ${refWords}, original ${origWords}).`);
-  else bits.push(`Cut ${origWords - userWords} words; reference is even tighter at ${refWords}.`);
+  else if (userWords <= targetRefWords) bits.push(`Tight: ${userWords} words (typical rewrite is ${targetRefWords}, original ${origWords}).`);
+  else bits.push(`Cut ${origWords - userWords} words; the typical rewrite is even tighter at ${targetRefWords}.`);
 
   if (clarity > 0.5) bits.push('Reading ease improved sharply.');
   else if (clarity > 0.2) bits.push('Modest clarity improvement.');
