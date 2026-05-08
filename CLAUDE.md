@@ -15,6 +15,7 @@ Three systems are under active production management on this branch:
 ### 1. ATPolls (`poll/`) — Bluesky Polling
 ### 2. SimCluster Feed (`workers/feed/`) + Zoom Viewer (`zoom/`) — Bluesky Feed Generator
 ### 3. Bluesky Post Pipeline (`src/post_thread.py` + `time/posts/`) — Multi-Account Publishing
+### 4. Rite (`rite/`) — Sentence Editing Drill + Fodder Crowdsourcing
 
 Details for each follow in dedicated sections below.
 
@@ -315,6 +316,86 @@ Morphyx's reply (chains from modulo's)
 
 ---
 
+## Project 4: Rite (`rite/`) — Sentence Editing Drill + Fodder
+
+**Live at**: `rite.mino.mobi`
+**Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
+**Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
+
+Single Worker that hosts two surfaces:
+
+- **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
+- **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
+
+### Architecture
+
+```
+rite/worker.js (single entry)
+  ├── ASSETS binding   → static (index.html, fodder/index.html, corpus.json)
+  ├── AI binding       → @cf/baai/bge-base-en-v1.5  (drill grading)
+  │                       @cf/meta/llama-3.1-8b-instruct (fodder rewrites)
+  └── DB binding (DB)  → atpolls-db (shared with poll + feed)
+
+Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-proxy
+                   → harvest verbose sentences → Llama → D1 'pending'
+```
+
+### Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/sentence` | Drill: random verbose sentence (or `?id=v007` for a specific one) |
+| `POST /api/grade` | Drill: score user's edit |
+| `GET /api/fodder/next` | Fodder: next batch of unvoted-by-this-voter pending candidates |
+| `POST /api/fodder/vote` | Fodder: record `yes` / `no` / `skip` swipe |
+| `GET /api/fodder/promoted` | Approved candidates in corpus.json shape (used by sync script) |
+| `GET /api/fodder/stats` | Counts: pending / approved / rejected / total votes / total voters |
+| `POST /api/fodder/admin/mine` | Manual mining trigger; requires `X-Admin-Key` matching `ADMIN_KEY` secret |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `rite/worker.js` | All routes + cron handler (~620 lines, single file) |
+| `rite/index.html` | Drill UI |
+| `rite/fodder/index.html` | Swipe deck UI (vanilla JS, pointer events, no build) |
+| `rite/corpus.json` | 45 hand-curated sentences with multiple references each |
+| `rite/wrangler.jsonc` | Worker + ASSETS + AI + D1 + cron (0 */6 * * *) |
+| `poll/apps/api/migrations/0014_fodder.sql` | D1 schema for `fodder_candidates`, `fodder_votes`, `fodder_state` |
+| `scripts/sync-fodder-to-rite.mjs` | Pulls approved fodder back into `rite/corpus.json` (idempotent) |
+
+### Deploy workflow (`deploy-rite.yml`)
+
+Triggers on push to `main` or `claude/sentence-editing-drill-*` that touches `rite/**`. Steps:
+
+1. Apply `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — failure is treated as already-applied and continues).
+2. `npx wrangler deploy` from `rite/` — uploads worker + assets, provisions `rite.mino.mobi`.
+3. Best-effort POST to `/api/fodder/admin/mine` to seed the first batch (skipped silently if `RITE_ADMIN_KEY` secret isn't set).
+
+Required secrets:
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already set, shared with poll/feed deploys.
+- `RITE_ADMIN_KEY` (optional) — must match the worker's `ADMIN_KEY` to enable post-deploy seed.
+
+### Crowdsource → drill sync
+
+```bash
+node scripts/sync-fodder-to-rite.mjs --dry      # preview new approvals
+node scripts/sync-fodder-to-rite.mjs            # append to rite/corpus.json
+git add rite/corpus.json && git commit && git push
+```
+
+Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from hand-curated rite IDs (`v001`).
+
+### Cost on $5 Workers Paid
+
+- Drill grading: ~1 neuron per submission (BGE batched).
+- Fodder mining: ~11 neurons × 5 candidates × 4 cron runs/day = ~220 neurons/day.
+- Voting: zero AI calls (pure D1).
+
+10,000 free neurons/day comfortably covers everything.
+
+---
+
 ## Other Workers (Reference)
 
 Not actively managed but documented for context:
@@ -338,6 +419,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | **Bakery** | `bakery/` | React + Vite | `npm run build` → `dist/` | Pages (bakery.mino.mobi) |
 | **ATPhoto** | `photo/` | React 19 + Vite 6 + DuckDB-WASM + Rust/WASM | `npm run build` → `dist/` | Pages (photo.mino.mobi) — deploys from `claude/atproto-arena-duckdb-8H9SQ` |
 | **ATPolls** | `poll/` | React + Vite + Workers + D1 + DO | Monorepo: shared → web → api | Pages + Worker (poll.mino.mobi) |
+| **Rite** | `rite/` | Worker + ASSETS + D1 + AI (no build, vanilla JS) | `wrangler deploy` (via `deploy-rite.yml`) | Worker (rite.mino.mobi) — drill at `/`, fodder swipe deck at `/fodder/`. Shares `atpolls-db` |
 
 **Poll specifics**:
 - Workspace monorepo: `packages/shared`, `apps/web`, `apps/api`
@@ -391,6 +473,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | Workflow | Trigger | Deploys To |
 |----------|---------|------------|
 | `deploy-poll.yml` | Push to `main` (poll/**) or manual | Cloudflare Worker + Pages |
+| `deploy-rite.yml` | Push to `main` or `claude/sentence-editing-drill-*` (rite/**) or manual | D1 migration + Cloudflare Worker (rite.mino.mobi) |
 | `post-to-bluesky.yml` | Push to `time/posts/` | Bluesky (3 accounts) |
 | `publish-whtwnd.yml` | Push to `time/entries/` | PDS (WhiteWind records) |
 | `sync-phylo.yml` | Push to tracked paths | PDS (phylo records) |

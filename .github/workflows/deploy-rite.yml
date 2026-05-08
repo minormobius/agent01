@@ -1,0 +1,68 @@
+name: Deploy Rite
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/sentence-editing-drill-*'
+    paths:
+      - 'rite/**'
+      - 'poll/apps/api/migrations/0014_fodder.sql'
+      - '.github/workflows/deploy-rite.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rite
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Run D1 migration (fodder tables on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          echo "Applying 0014_fodder.sql to atpolls-db…"
+          npx wrangler d1 execute atpolls-db \
+            --file=../poll/apps/api/migrations/0014_fodder.sql \
+            --remote \
+            || echo "⚠️ Migration returned non-zero (likely already applied), continuing…"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Seed first batch (best-effort)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          if [ -z "${{ secrets.RITE_ADMIN_KEY }}" ]; then
+            echo "RITE_ADMIN_KEY secret not set — skipping seed. Run /api/fodder/admin/mine manually after first deploy."
+            exit 0
+          fi
+          echo "Triggering /api/fodder/admin/mine to seed initial candidates…"
+          for i in 1 2 3; do
+            curl -fsS -X POST \
+              -H "X-Admin-Key: ${{ secrets.RITE_ADMIN_KEY }}" \
+              https://rite.mino.mobi/api/fodder/admin/mine \
+              && break || sleep 5
+          done || echo "Seed call did not succeed; cron will fill the queue on its next 6h tick."

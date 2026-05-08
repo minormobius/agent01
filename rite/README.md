@@ -26,8 +26,8 @@ Cron (every 6h): Project Gutenberg → read.mino.mobi/gutenberg-proxy →
 | `index.html` | Drill UI |
 | `fodder/index.html` | Swipe UI (vanilla JS, pointer events, no build) |
 | `corpus.json` | 45 hand-curated sentences (each with multiple reference rewrites) |
-| `migrations/0001_fodder.sql` | D1 schema for `fodder_candidates`, `fodder_votes`, `fodder_state` |
 | `wrangler.jsonc` | Worker + ASSETS + AI + D1 + cron |
+| `../poll/apps/api/migrations/0014_fodder.sql` | D1 schema for `fodder_candidates`, `fodder_votes`, `fodder_state` (lives with poll's migrations by repo convention; the same `atpolls-db` is shared across poll, feed, and rite) |
 
 ## Grading (drill)
 
@@ -87,16 +87,30 @@ The cron does not fire under `wrangler dev`. To exercise the mining path, hit `P
 
 ## Deploy
 
+Auto-deploys via **`.github/workflows/deploy-rite.yml`** on any push to `main` or `claude/sentence-editing-drill-*` that touches `rite/**`. The workflow:
+
+1. Applies `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — skips on re-run).
+2. Runs `npx wrangler deploy` from `rite/`, which uploads the worker + assets and provisions the `rite.mino.mobi` custom domain.
+3. Best-effort: hits `/api/fodder/admin/mine` to seed the first batch of candidates so the swipe deck isn't empty (skipped silently if `RITE_ADMIN_KEY` secret isn't set).
+
+Required GitHub secrets:
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — for `wrangler` (already set, used by poll/feed deploys).
+- `RITE_ADMIN_KEY` — optional; matching value of the worker's `ADMIN_KEY` secret enables the post-deploy seed.
+
+For manual ops:
+
 ```bash
-cd rite
-npx wrangler deploy
-npx wrangler d1 execute atpolls-db --file=migrations/0001_fodder.sql --remote   # first time only
-npx wrangler secret put ADMIN_KEY                                               # for /api/fodder/admin/mine
+# One-off seed, locally
+curl -X POST -H "X-Admin-Key: <ADMIN_KEY>" https://rite.mino.mobi/api/fodder/admin/mine
+
+# Set the worker's ADMIN_KEY secret
+cd rite && npx wrangler secret put ADMIN_KEY
+
+# Manual D1 migration if needed
+npx wrangler d1 execute atpolls-db --file=../poll/apps/api/migrations/0014_fodder.sql --remote
 ```
 
 Custom domain `rite.mino.mobi` is declared in `wrangler.jsonc`. Cloudflare provisions the route on first deploy as long as the `mino.mobi` zone is on your account.
-
-After the first cron fires (or you hit `/api/fodder/admin/mine` manually), candidates show up in the swipe deck at `/fodder/`.
 
 ## Adding sentences directly (no fodder)
 
