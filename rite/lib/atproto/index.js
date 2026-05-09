@@ -316,3 +316,67 @@ export function analyzeProfile(posts, opts = {}) {
   threads.forEach((t, i) => t.id = `t${i}`);
   return threads;
 }
+
+// ---- upload flow --------------------------------------------------------
+//
+// Lets the analytical surfaces (atlas / lexicon / redact) accept a plain-text
+// or markdown upload as an alternative to a Bluesky handle. The document is
+// split into "sections" — each becomes a synthetic single-post `thread`, and
+// the rest of the pipeline (readingLevel, tokenize, etc.) is untouched.
+//
+// Section heuristic:
+//   1. If the text contains markdown H1/H2 headings, split on those.
+//   2. Otherwise, blank-line-separated paragraphs grouped into chunks of
+//      ≥ minChars characters each (so atlas's distribution charts have
+//      multiple data points and redact has long-enough threads to play).
+
+export function uploadProfile(text, filename = 'upload.txt', opts = {}) {
+  const sections = splitIntoSections(text, opts);
+  const baseHandle = (filename.replace(/\.[^.]+$/, '') || 'upload').slice(0, 64);
+  // Strip path separators in case the browser passes a full path.
+  const handle = baseHandle.split(/[\\/]/).pop() || 'upload';
+  const did = `did:upload:${handle}`;
+  const now = new Date().toISOString();
+  const posts = sections.map((s, i) => ({
+    uri: `upload://${handle}/${i}`,
+    rkey: `s${i}`,
+    record: {
+      text: s,
+      createdAt: now,
+    },
+  }));
+  return { did, handle, posts };
+}
+
+export function splitIntoSections(text, { minChars = 500 } = {}) {
+  const normalized = (text || '').replace(/\r\n?/g, '\n').trim();
+  if (!normalized) return [];
+
+  // Heading-based: prefer H1/H2 boundaries when the document has them.
+  if (/^#{1,2}\s+\S/m.test(normalized)) {
+    return normalized
+      .split(/\n(?=#{1,2}\s+\S)/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  // Paragraph-grouped: collect blank-line-separated paragraphs into sections
+  // of at least minChars. Trailing remainder gets attached to the last section
+  // (rather than becoming its own short orphan).
+  const paras = normalized.split(/\n\s*\n+/).map((p) => p.trim()).filter(Boolean);
+  if (!paras.length) return [];
+  const sections = [];
+  let buf = '';
+  for (const p of paras) {
+    buf += (buf ? '\n\n' : '') + p;
+    if (buf.length >= minChars) {
+      sections.push(buf);
+      buf = '';
+    }
+  }
+  if (buf) {
+    if (sections.length === 0) sections.push(buf);
+    else sections[sections.length - 1] += '\n\n' + buf;
+  }
+  return sections;
+}

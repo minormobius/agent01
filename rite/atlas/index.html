@@ -91,6 +91,21 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 
 .hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
 
+/* upload row — alternative entry point to a Bluesky handle */
+.upload-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.upload-label {
+  cursor: pointer; padding: 0.35rem 0.7rem;
+  border: 1px solid var(--accent); color: var(--accent); border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem;
+}
+.upload-label:hover { background: var(--accent-faint); }
+.upload-name { color: var(--text); }
+
 /* loading / progress */
 .loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
 .spinner {
@@ -256,10 +271,18 @@ footer a { color: var(--muted); text-decoration: underline; }
       </div>
       <button type="submit">Open atlas</button>
     </form>
+    <div class="upload-row">
+      <span>or upload a text file:</span>
+      <input type="file" id="upload" accept=".txt,.md,.markdown,text/plain,text/markdown" hidden>
+      <label for="upload" class="upload-label">Choose file…</label>
+      <span id="upload-name" class="upload-name"></span>
+    </div>
     <p class="hint">
-      We pull the user's full repo as a CAR file from their PDS, find their longest prose
-      threads (no images, no link cards), and score each for length and reading difficulty.
-      Pure client-side; entirely deterministic; nothing leaves your browser.
+      Bluesky path: pull the user's full repo as a CAR from their PDS, find their longest prose
+      threads (no images, no link cards), score each for length and reading difficulty.
+      Upload path: split the document into sections (markdown headings if present, else paragraph
+      groups of ≥ 500 chars) and run the same analysis. Both paths are deterministic and entirely
+      client-side; nothing leaves your browser.
     </p>
     <div id="input-error" class="error" style="display:none"></div>
   </section>
@@ -318,6 +341,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 <script type="module">
 import {
   pullProfile,
+  uploadProfile,
   analyzeProfile,
   fleschTier,
 } from '../lib/atproto/index.js';
@@ -413,26 +437,55 @@ async function handleSubmit() {
   setProgress('Resolving handle…', 0);
   try {
     const result = await pullProfile(h, setProgress);
-    state.did = result.did;
-    state.handle = result.handle;
-    state.posts = result.posts;
-    setProgress('Building threads…', 1);
-    state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
-    state.selectedTid = null;
-    if (!state.threads.length) {
-      showStage('input');
-      showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}.`);
-      return;
-    }
-    showStage('atlas');
-    renderProfileStrip();
-    renderSummary();
-    renderChart();
-    renderReader();
+    await proceedWithProfile(result);
   } catch (err) {
     showStage('input');
     showError(String(err.message || err));
   }
+}
+
+async function handleUpload(file) {
+  if (!file) return;
+  clearError();
+  if (file.size > 5 * 1024 * 1024) {
+    showError(`File is ${(file.size / 1024 / 1024).toFixed(1)} MB; max is 5 MB.`);
+    return;
+  }
+  showStage('loading');
+  setProgress(`Reading ${file.name}…`, 0);
+  try {
+    const text = await file.text();
+    setProgress('Splitting into sections…', 0.5);
+    const result = uploadProfile(text, file.name);
+    if (!result.posts.length) {
+      showStage('input');
+      showError('Document had no readable content after splitting.');
+      return;
+    }
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+async function proceedWithProfile(result) {
+  state.did = result.did;
+  state.handle = result.handle;
+  state.posts = result.posts;
+  setProgress('Building threads…', 1);
+  state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
+  state.selectedTid = null;
+  if (!state.threads.length) {
+    showStage('input');
+    showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}.`);
+    return;
+  }
+  showStage('atlas');
+  renderProfileStrip();
+  renderSummary();
+  renderChart();
+  renderReader();
 }
 
 function renderProfileStrip() {
@@ -760,6 +813,14 @@ document.querySelectorAll('.view-tab').forEach(btn => {
 
 // ----- wire up -----
 $('handle-form').addEventListener('submit', (e) => { e.preventDefault(); handleSubmit(); });
+$('upload').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  $('upload-name').textContent = file.name;
+  handleUpload(file);
+  // Allow re-selecting the same file later.
+  e.target.value = '';
+});
 $('back').addEventListener('click', () => {
   state.did = null; state.handle = null; state.posts = []; state.threads = [];
   state.selectedTid = null;
