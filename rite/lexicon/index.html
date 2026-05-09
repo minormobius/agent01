@@ -529,15 +529,11 @@ function renderViewWithInlineColors(items) {
 // Override renderView() to dispatch the views that aren't tag-clouds.
 const origRenderView = renderView;
 renderView = function () {
-  if (state.view === 'docs')  { renderDocs(); return; }
-  if (state.view === 'usage') { renderUsageScatter(); return; }
-  if (state.view === 'nrc')   { renderNrcView(); return; }
-  if (state.view === 'afinn' || state.view === 'concreteness') {
-    const items = scoredItems(state.view);
-    renderViewWithInlineColors(items);
-    renderLegend();
-    return;
-  }
+  if (state.view === 'docs')          { renderDocs(); return; }
+  if (state.view === 'usage')         { renderUsageScatter(); return; }
+  if (state.view === 'nrc')           { renderNrcView(); return; }
+  if (state.view === 'afinn')         { renderAfinnView(); return; }
+  if (state.view === 'concreteness')  { renderConcretenessView(); return; }
   origRenderView();
 };
 
@@ -620,6 +616,160 @@ function renderNrcRadar(emos, emoCount) {
 
   svg += '</svg></div>';
   return svg;
+}
+
+// ─── AFINN view: sentiment distribution + colored cloud ───────────────────
+function renderAfinnView() {
+  // Bin word *occurrences* (count-weighted) by AFINN integer score -5..+5.
+  const bins = new Array(11).fill(0);
+  let total = 0, weightedSum = 0, distinctTagged = 0;
+  for (const [w, n] of state.freq) {
+    const a = LEX.AFINN[w];
+    if (typeof a !== 'number') continue;
+    const idx = Math.round(a) + 5;
+    if (idx < 0 || idx > 10) continue;
+    bins[idx] += n;
+    total += n;
+    weightedSum += a * n;
+    distinctTagged++;
+  }
+  const mean = total ? weightedSum / total : 0;
+
+  const dist = total > 0 ? renderAfinnDistribution(bins, total, distinctTagged, mean) : '';
+  renderCloudBelow('afinn', dist, 'No AFINN-tagged words.');
+}
+
+function renderAfinnDistribution(bins, total, distinct, mean) {
+  const W = 560, H = 230;
+  const PT = 26, PR = 16, PB = 38, PL = 36;
+  const innerW = W - PL - PR, innerH = H - PT - PB;
+  const maxCount = Math.max(1, ...bins);
+  const barW = innerW / bins.length;
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom:0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;">`;
+  // Baseline + faint zero column
+  svg += `<line x1="${PL}" y1="${PT+innerH}" x2="${W-PR}" y2="${PT+innerH}" stroke="var(--rule)"/>`;
+
+  for (let i = 0; i < bins.length; i++) {
+    const v = i - 5;
+    const h = innerH * (bins[i] / maxCount);
+    const x = PL + i * barW;
+    const y = PT + innerH - h;
+    const color = v === 0 ? 'var(--muted)' : v > 0 ? 'var(--good)' : 'var(--bad)';
+    const opacity = v === 0 ? 0.35 : Math.min(0.95, 0.4 + Math.abs(v) * 0.12);
+    svg += `<rect x="${(x + 1).toFixed(2)}" y="${y.toFixed(2)}" width="${(barW - 2).toFixed(2)}" height="${h.toFixed(2)}" fill="${color}" fill-opacity="${opacity}"/>`;
+    const label = v >= 0 ? `+${v}` : String(v);
+    svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${PT + innerH + 14}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${label}</text>`;
+    if (bins[i] > 0 && h > 14) {
+      svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${(y - 4).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="9">${bins[i]}</text>`;
+    }
+  }
+
+  // Mean line: -5..+5 maps linearly to 0..innerW.
+  const meanFrac = (mean + 5) / 10;
+  const meanX = PL + innerW * meanFrac;
+  svg += `<line x1="${meanX.toFixed(2)}" y1="${PT}" x2="${meanX.toFixed(2)}" y2="${PT + innerH}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  svg += `<text x="${meanX.toFixed(2)}" y="${(PT - 8).toFixed(2)}" text-anchor="middle" fill="var(--accent)" font-family="var(--mono)" font-size="10" font-weight="700">mean ${mean >= 0 ? '+' : ''}${mean.toFixed(2)}</text>`;
+
+  svg += `<text x="${PL + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">AFINN sentiment score (negative ← 0 → positive)</text>`;
+  svg += `<text x="${W - PR}" y="${PT - 8}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${total.toLocaleString()} occurrences · ${distinct} distinct words</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
+
+// ─── Concreteness view: distribution + gradient cloud ─────────────────────
+function renderConcretenessView() {
+  // 8 bins of width 0.5 spanning [1.0, 5.0]. Bin i covers [1 + 0.5·i, 1 + 0.5·(i+1)).
+  const bins = new Array(8).fill(0);
+  let total = 0, weightedSum = 0, distinct = 0;
+  for (const [w, n] of state.freq) {
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c !== 'number') continue;
+    const idx = Math.min(7, Math.max(0, Math.floor((c - 1) * 2)));
+    bins[idx] += n;
+    total += n;
+    weightedSum += c * n;
+    distinct++;
+  }
+  const mean = total ? weightedSum / total : 0;
+
+  const dist = total > 0 ? renderConcretenessDistribution(bins, total, distinct, mean) : '';
+  renderCloudBelow('concreteness', dist, 'No Concreteness-tagged words.');
+}
+
+function renderConcretenessDistribution(bins, total, distinct, mean) {
+  const W = 560, H = 230;
+  const PT = 26, PR = 16, PB = 38, PL = 36;
+  const innerW = W - PL - PR, innerH = H - PT - PB;
+  const maxCount = Math.max(1, ...bins);
+  const barW = innerW / bins.length;
+
+  // Same yellow→green gradient the cloud uses (1 = abstract, 5 = concrete).
+  const colorAt = (t) => {
+    const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+    const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+    const b = Math.round(0x20 * (1 - t) + 0x30 * t);
+    return `rgb(${r},${g},${b})`;
+  };
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom:0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;">`;
+  svg += `<line x1="${PL}" y1="${PT+innerH}" x2="${W-PR}" y2="${PT+innerH}" stroke="var(--rule)"/>`;
+
+  for (let i = 0; i < bins.length; i++) {
+    const t = bins.length === 1 ? 0 : i / (bins.length - 1);
+    const h = innerH * (bins[i] / maxCount);
+    const x = PL + i * barW;
+    const y = PT + innerH - h;
+    svg += `<rect x="${(x + 1).toFixed(2)}" y="${y.toFixed(2)}" width="${(barW - 2).toFixed(2)}" height="${h.toFixed(2)}" fill="${colorAt(t)}" fill-opacity="0.85"/>`;
+    if (bins[i] > 0 && h > 14) {
+      svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${(y - 4).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="9">${bins[i]}</text>`;
+    }
+  }
+  // Axis ticks at integer concreteness values 1..5.
+  for (const v of [1, 2, 3, 4, 5]) {
+    const tickX = PL + innerW * (v - 1) / 4;
+    svg += `<line x1="${tickX.toFixed(2)}" y1="${PT + innerH}" x2="${tickX.toFixed(2)}" y2="${PT + innerH + 4}" stroke="var(--rule)"/>`;
+    svg += `<text x="${tickX.toFixed(2)}" y="${PT + innerH + 16}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${v}</text>`;
+  }
+
+  // Mean line: domain [1, 5] → x.
+  const meanFrac = (mean - 1) / 4;
+  const meanX = PL + innerW * Math.max(0, Math.min(1, meanFrac));
+  svg += `<line x1="${meanX.toFixed(2)}" y1="${PT}" x2="${meanX.toFixed(2)}" y2="${PT + innerH}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  svg += `<text x="${meanX.toFixed(2)}" y="${(PT - 8).toFixed(2)}" text-anchor="middle" fill="var(--accent)" font-family="var(--mono)" font-size="10" font-weight="700">mean ${mean.toFixed(2)}</text>`;
+
+  svg += `<text x="${PL + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">concreteness rating (1 = abstract → 5 = concrete)</text>`;
+  svg += `<text x="${W - PR}" y="${PT - 8}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${total.toLocaleString()} occurrences · ${distinct} distinct words</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
+
+// Shared cloud renderer used by NRC/AFINN/Concreteness views — they all want
+// chart-above + cloud-below in #cloud-region. NRC uses the standard tag-cloud
+// rendering (CSS classes via .word.emo-*); AFINN/Concreteness use inline
+// colors from scoredItems' _inlineColor / _intensity fields.
+function renderCloudBelow(view, leadingHtml, emptyMessage) {
+  const items = scoredItems(view);
+  const region = $('cloud-region');
+  if (!items.length) {
+    region.innerHTML = (leadingHtml || '') + `<div class="hint" style="flex-basis:100%; text-align:center; padding:1rem;">${emptyMessage || 'No tagged words.'}</div>`;
+    renderLegend();
+    return;
+  }
+  const maxScore = items[0].score;
+  const cloudHtml = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    let style = `font-size: ${fs}rem;`;
+    if (it._inlineColor) style += ` color: ${it._inlineColor};`;
+    if (typeof it._intensity === 'number') style += ` opacity: ${(0.45 + 0.55 * it._intensity).toFixed(2)};`;
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="${style}">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  region.innerHTML = (leadingHtml || '') + cloudHtml;
+  renderLegend();
 }
 
 // ─── Usage scatter ────────────────────────────────────────────────────────
