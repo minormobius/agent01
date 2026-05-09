@@ -9,6 +9,7 @@ on:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'
       - 'poll/apps/api/migrations/0015_ask.sql'
+      - 'poll/apps/api/migrations/0016_ask_map.sql'
       - '.github/workflows/deploy-rite.yml'
   workflow_dispatch:
     inputs:
@@ -40,7 +41,8 @@ jobs:
         run: |
           for f in \
             ../poll/apps/api/migrations/0014_fodder.sql \
-            ../poll/apps/api/migrations/0015_ask.sql; do
+            ../poll/apps/api/migrations/0015_ask.sql \
+            ../poll/apps/api/migrations/0016_ask_map.sql; do
             echo "Applying $f to atpolls-db…"
             npx wrangler d1 execute atpolls-db --file="$f" --remote \
               || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"

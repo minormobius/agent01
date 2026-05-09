@@ -30,12 +30,12 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'ask-v1',
+          version: 'ask-map-v2',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
             '/api/fodder/stats', '/api/fodder/admin/mine',
-            '/api/ask/check', '/api/ask/index', '/api/ask/query',
+            '/api/ask/check', '/api/ask/index', '/api/ask/query', '/api/ask/map', '/api/ask/thread',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -52,6 +52,8 @@ export default {
       if (url.pathname === '/api/ask/check')                           return askCheck(env, url);
       if (url.pathname === '/api/ask/index' && request.method === 'POST') return askIndex(request, env);
       if (url.pathname === '/api/ask/query' && request.method === 'POST') return askQuery(request, env);
+      if (url.pathname === '/api/ask/map')                             return askMap(env, url);
+      if (url.pathname === '/api/ask/thread')                          return askThread(env, url);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -750,7 +752,12 @@ const ASK_EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 const ASK_EMBED_DIM = 768;
 const ASK_BATCH_SIZE = 96;          // BGE-base's documented per-call max
 const ASK_DEFAULT_K = 10;
-const ASK_MAX_THREADS_PER_INDEX = 2000;
+const ASK_MAX_THREADS_PER_INDEX = 10000;
+// BGE retrieval models are asymmetric: queries must be prefixed with this
+// instruction string to land in the same region of embedding space as the
+// (unprefixed) passages. Skipping this collapses query/passage cosine by
+// ~0.1-0.2 — large enough to make most queries return zero useful hits.
+const ASK_QUERY_PREFIX = 'Represent this sentence for searching relevant passages: ';
 
 async function askCheck(env, url) {
   if (!env.DB) return json({ error: 'D1 not configured' }, 500);
@@ -858,6 +865,18 @@ async function askIndex(request, env) {
     rollup?.total_chars || 0
   ).run();
 
+  // Recompute the 2D map projection over the full DID after every index.
+  // PCA is the cheapest projection that respects semantic structure; we can
+  // upgrade to UMAP later if the layout ever looks blobby.
+  let mapTimeMs = 0;
+  try {
+    const mt0 = Date.now();
+    await recomputeAskMap(env, did);
+    mapTimeMs = Date.now() - mt0;
+  } catch (e) {
+    console.error('map recompute failed', e);
+  }
+
   return json({
     ok: true,
     did,
@@ -866,7 +885,168 @@ async function askIndex(request, env) {
     newly_indexed: embeddedCount,
     skipped_already_indexed: threads.length - fresh.length,
     time_ms: Date.now() - t0,
+    map_time_ms: mapTimeMs,
   });
+}
+
+async function askThread(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  const tid = url.searchParams.get('tid');
+  if (!did || !tid) return json({ error: 'missing did or tid' }, 400);
+  const row = await env.DB.prepare(
+    `SELECT thread_id, text, post_count, char_count, flesch, created_at, indexed_at
+     FROM ask_threads WHERE did = ? AND thread_id = ?`
+  ).bind(did, tid).first();
+  if (!row) return json({ error: 'not found' }, 404);
+  return json(row);
+}
+
+async function askMap(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  if (!did) return json({ error: 'missing did' }, 400);
+  const row = await env.DB.prepare(
+    `SELECT did, handle, thread_count, indexed_at, map_json
+     FROM ask_index_meta WHERE did = ?`
+  ).bind(did).first();
+  if (!row) return json({ indexed: false, did }, 200);
+  let map = [];
+  try { map = JSON.parse(row.map_json || '[]'); } catch {}
+  return json({
+    indexed: true,
+    did: row.did,
+    handle: row.handle,
+    thread_count: row.thread_count,
+    indexed_at: row.indexed_at,
+    map,
+  });
+}
+
+async function recomputeAskMap(env, did) {
+  const { results } = await env.DB.prepare(
+    `SELECT thread_id, text, char_count, created_at, embedding
+     FROM ask_threads WHERE did = ? ORDER BY char_count DESC`
+  ).bind(did).all();
+  if (!results || results.length < 2) return;
+
+  const vectors = [];
+  const meta = [];
+  for (const r of results) {
+    const v = blobToFloats(r.embedding);
+    if (!v || v.length !== ASK_EMBED_DIM) continue;
+    vectors.push(v);
+    meta.push(r);
+  }
+  if (vectors.length < 2) return;
+
+  const coords = pca2D(vectors, ASK_EMBED_DIM);
+
+  // Normalize each axis to [0, 1] so the client can map straight to viewBox.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of coords) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const sx = maxX - minX || 1;
+  const sy = maxY - minY || 1;
+
+  const map = new Array(meta.length);
+  for (let i = 0; i < meta.length; i++) {
+    const r = meta[i];
+    const [x, y] = coords[i];
+    map[i] = {
+      tid: r.thread_id,
+      x: Math.round(((x - minX) / sx) * 1000) / 1000,
+      y: Math.round(((y - minY) / sy) * 1000) / 1000,
+      n: r.char_count,
+      c: (r.created_at || '').slice(0, 10),
+      s: (r.text || '').slice(0, 280).replace(/\s+/g, ' ').trim(),
+    };
+  }
+  await env.DB.prepare(
+    `UPDATE ask_index_meta SET map_json = ? WHERE did = ?`
+  ).bind(JSON.stringify(map), did).run();
+}
+
+// Top-2-component PCA via power iteration. Runs O(iters * n * dim) and avoids
+// ever materializing the dim×dim covariance matrix. For n=10k, dim=768,
+// iters=30 it lands in ~5 seconds on a Worker, well inside the CPU limit.
+function pca2D(vectors, dim) {
+  const n = vectors.length;
+  const ITERS = 30;
+
+  // Mean-center.
+  const mean = new Float32Array(dim);
+  for (const v of vectors) for (let i = 0; i < dim; i++) mean[i] += v[i];
+  for (let i = 0; i < dim; i++) mean[i] /= n;
+  const centered = new Array(n);
+  for (let r = 0; r < n; r++) {
+    const v = vectors[r];
+    const c = new Float32Array(dim);
+    for (let i = 0; i < dim; i++) c[i] = v[i] - mean[i];
+    centered[r] = c;
+  }
+
+  // Compute Cov*v as X^T (X v) without ever forming Cov.
+  const Xv = new Float32Array(n);
+  function multiplyCov(v, deflate) {
+    for (let i = 0; i < n; i++) {
+      const row = centered[i];
+      let s = 0;
+      for (let j = 0; j < dim; j++) s += row[j] * v[j];
+      Xv[i] = s;
+    }
+    const out = new Float32Array(dim);
+    for (let i = 0; i < n; i++) {
+      const xv = Xv[i];
+      const row = centered[i];
+      for (let j = 0; j < dim; j++) out[j] += row[j] * xv;
+    }
+    if (deflate) {
+      for (const u of deflate) {
+        let dot = 0;
+        for (let i = 0; i < dim; i++) dot += out[i] * u[i];
+        for (let i = 0; i < dim; i++) out[i] -= dot * u[i];
+      }
+    }
+    return out;
+  }
+
+  function powerIter(deflate) {
+    // Deterministic random init keeps maps stable across re-indexes.
+    let v = new Float32Array(dim);
+    let seed = 1234567 ^ (deflate ? 89 : 0);
+    for (let i = 0; i < dim; i++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      v[i] = ((seed >>> 8) / (1 << 24)) - 0.5;
+    }
+    let norm = 0;
+    for (let i = 0; i < dim; i++) norm += v[i] * v[i];
+    norm = Math.sqrt(norm) || 1;
+    for (let i = 0; i < dim; i++) v[i] /= norm;
+
+    for (let iter = 0; iter < ITERS; iter++) {
+      const Av = multiplyCov(v, deflate);
+      let nm = 0;
+      for (let i = 0; i < dim; i++) nm += Av[i] * Av[i];
+      nm = Math.sqrt(nm) || 1;
+      for (let i = 0; i < dim; i++) v[i] = Av[i] / nm;
+    }
+    return v;
+  }
+
+  const pc1 = powerIter(null);
+  const pc2 = powerIter([pc1]);
+
+  const out = new Array(n);
+  for (let r = 0; r < n; r++) {
+    const c = centered[r];
+    let x = 0, y = 0;
+    for (let i = 0; i < dim; i++) { x += c[i] * pc1[i]; y += c[i] * pc2[i]; }
+    out[r] = [x, y];
+  }
+  return out;
 }
 
 async function askQuery(request, env) {
@@ -882,8 +1062,8 @@ async function askQuery(request, env) {
     return json({ error: 'missing did or q' }, 400);
   }
 
-  // Embed query.
-  const out = await env.AI.run(ASK_EMBED_MODEL, { text: [q] });
+  // Embed query — BGE retrieval needs the asymmetric prefix on the query side.
+  const out = await env.AI.run(ASK_EMBED_MODEL, { text: [ASK_QUERY_PREFIX + q] });
   const queryVec = out?.data?.[0];
   if (!queryVec || queryVec.length !== ASK_EMBED_DIM) {
     return json({ error: 'embedding failed' }, 500);

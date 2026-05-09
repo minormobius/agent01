@@ -118,7 +118,7 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 /* ask stage */
 .profile-strip {
   display: flex; justify-content: space-between; align-items: center;
-  flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;
+  flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem;
   font-family: var(--mono); font-size: 0.75rem; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
@@ -128,33 +128,110 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
   font-size: 0.7rem; padding: 0.3rem 0.6rem;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-form#query-form {
-  display: flex; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap;
-}
-form#query-form #q { flex: 1; min-width: 240px; }
 
-.hits { display: flex; flex-direction: column; gap: 0.85rem; }
-.hit {
+/* Map */
+#map-svg {
+  display: block;
+  width: 100%;
+  height: 460px;
   background: var(--card-bg);
-  border: 1px solid var(--rule); border-radius: 6px;
-  padding: 1rem 1.15rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  margin-bottom: 0.7rem;
+  cursor: crosshair;
+  touch-action: none;
 }
-.hit-meta {
+#map-svg .dot {
+  fill: var(--accent);
+  fill-opacity: 0.35;
+  stroke: var(--accent);
+  stroke-opacity: 0;
+  stroke-width: 1.5;
+  transition: fill-opacity 0.15s, stroke-opacity 0.15s, r 0.15s;
+}
+#map-svg .dot:hover { fill-opacity: 0.85; stroke-opacity: 0.6; }
+#map-svg .dot.selected { fill-opacity: 1; stroke-opacity: 1; stroke: var(--text); }
+#map-svg .dot.dim    { fill-opacity: 0.08; }
+#map-svg .dot.warm   { fill: var(--good); fill-opacity: 0.85; stroke: var(--good); stroke-opacity: 0.6; }
+
+.map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-width: 320px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  z-index: 30;
+  display: none;
+}
+.map-tooltip .meta {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
+}
+.map-tooltip .snippet {
+  color: var(--text);
+}
+.map-wrap { position: relative; }
+
+.map-legend {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 0.5rem;
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 1rem;
+}
+.map-legend .legend-axes { font-style: italic; text-transform: none; letter-spacing: 0; }
+
+/* Reader */
+.reader {
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.2rem;
+}
+.reader .meta {
   display: flex; justify-content: space-between; gap: 0.5rem;
   flex-wrap: wrap; font-family: var(--mono); font-size: 0.7rem;
   color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
   margin-bottom: 0.5rem;
 }
-.hit-meta .score { color: var(--accent); font-weight: 700; }
-.hit-text {
+.reader .meta .score { color: var(--accent); font-weight: 700; }
+.reader .text {
   white-space: pre-wrap; word-wrap: break-word;
-  line-height: 1.6; font-size: 0.96rem;
+  line-height: 1.6; font-size: 0.95rem;
 }
-.hit-text mark {
+.reader .text mark {
   background: var(--accent-faint); color: inherit;
   padding: 0 2px; border-radius: 2px;
 }
-.empty-hits { color: var(--muted); font-style: italic; text-align: center; padding: 2rem; }
+.reader .placeholder {
+  color: var(--muted); font-style: italic; text-align: center; padding: 1.5rem;
+}
+
+/* Highlight overlay query */
+form#highlight-form {
+  display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wrap: wrap;
+}
+form#highlight-form #q { flex: 1; min-width: 200px; }
+form#highlight-form button { font-size: 0.75rem; }
+.highlight-status {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+  min-height: 1em;
+}
 
 footer {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
@@ -199,8 +276,8 @@ footer a { color: var(--muted); text-decoration: underline; }
     <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
   </section>
 
-  <!-- Stage 3: query -->
-  <section id="stage-query" class="stage">
+  <!-- Stage 3: map -->
+  <section id="stage-map" class="stage">
     <div class="profile-strip">
       <span id="profile-meta"></span>
       <span class="actions">
@@ -208,12 +285,23 @@ footer a { color: var(--muted); text-decoration: underline; }
         <button id="reindex" class="ghost">Re-index</button>
       </span>
     </div>
-    <form id="query-form">
-      <input id="q" type="text" placeholder="What did they write about…" autocomplete="off">
-      <button type="submit">Ask</button>
+    <div class="map-wrap">
+      <svg id="map-svg" viewBox="0 0 1000 460" preserveAspectRatio="none"></svg>
+      <div id="map-tooltip" class="map-tooltip"></div>
+    </div>
+    <div class="map-legend">
+      <span><span id="thread-count">—</span> threads · click a point to read · larger dot = longer thread</span>
+      <span class="legend-axes">PCA-1 ↔ PCA-2 over BGE embeddings</span>
+    </div>
+    <div class="reader" id="reader">
+      <div class="placeholder">Click any point on the map to read that thread.</div>
+    </div>
+    <form id="highlight-form" autocomplete="off">
+      <input id="q" type="text" placeholder="Highlight points matching… (e.g. 'parenting', 'rust borrow checker')" autocomplete="off">
+      <button type="submit">Highlight</button>
+      <button id="clear-highlight" type="button" class="ghost">Clear</button>
     </form>
-    <div id="query-status" class="hint" style="margin-bottom:0.8rem;"></div>
-    <div id="hits" class="hits"></div>
+    <div id="highlight-status" class="highlight-status"></div>
   </section>
 </main>
 
@@ -236,7 +324,12 @@ const MIN_THREAD_CHARS = 300;
 const state = {
   did: null,
   handle: null,
-  meta: null,           // ask_index_meta row when indexed
+  meta: null,                // ask_index_meta row when indexed
+  mapData: [],               // [{tid, x, y, n, c, s}]
+  selectedTid: null,
+  highlightScores: new Map(),// tid -> score from latest query
+  threadCache: new Map(),    // tid -> { text, post_count, char_count, created_at }
+  lastQueryTerms: [],        // current highlight query terms (for <mark>)
 };
 
 function showStage(name) {
@@ -338,9 +431,7 @@ async function handleSubmit({ force = false } = {}) {
       const check = await checkRes.json();
       if (check.indexed) {
         state.meta = check;
-        showStage('query');
-        renderProfileStrip();
-        $('q').focus();
+        await enterMapStage();
         return;
       }
     }
@@ -378,18 +469,23 @@ async function handleSubmit({ force = false } = {}) {
       throw new Error(`indexing failed (${res.status}) ${body}`.trim());
     }
     const indexResult = await res.json();
-    setProgress(`Indexed ${indexResult.total_threads} threads (${indexResult.newly_indexed} new). Done.`, 1);
+    setProgress(`Indexed ${indexResult.total_threads} threads (${indexResult.newly_indexed} new). Building map…`, 1);
 
-    // Refresh meta and switch to query stage.
+    // Refresh meta and enter the map stage.
     const checkRes = await fetch(`/api/ask/check?did=${encodeURIComponent(did)}`);
     state.meta = await checkRes.json();
-    showStage('query');
-    renderProfileStrip();
-    $('q').focus();
+    await enterMapStage();
   } catch (err) {
     showStage('input');
     showError(String(err.message || err));
   }
+}
+
+async function enterMapStage() {
+  showStage('map');
+  renderProfileStrip();
+  await loadMap();
+  $('q').focus();
 }
 
 function renderProfileStrip() {
@@ -405,66 +501,207 @@ function renderProfileStrip() {
   `;
 }
 
-// ----- query -----
-async function runQuery() {
+// ----- map -----
+async function loadMap() {
+  const did = state.did;
+  $('thread-count').textContent = '…';
+  const res = await fetch(`/api/ask/map?did=${encodeURIComponent(did)}`);
+  const data = await res.json();
+  if (!data.indexed || !Array.isArray(data.map) || !data.map.length) {
+    $('map-svg').innerHTML = `<text x="500" y="230" text-anchor="middle" fill="var(--muted)" font-family="serif" font-style="italic">No map data yet.</text>`;
+    return;
+  }
+  state.mapData = data.map;
+  state.selectedTid = null;
+  state.highlightScores.clear();
+  state.lastQueryTerms = [];
+  renderMap();
+  renderReader();
+  $('thread-count').textContent = state.mapData.length.toLocaleString();
+}
+
+function renderMap() {
+  const svg = $('map-svg');
+  const W = 1000, H = 460, PAD = 24;
+  const innerW = W - PAD * 2;
+  const innerH = H - PAD * 2;
+  // Pre-sort: smallest dots last so they render on top of the big ones,
+  // making it easier to click crowded clusters.
+  const ordered = [...state.mapData].map((d, i) => ({ d, i })).sort((a, b) => b.d.n - a.d.n);
+
+  let maxN = 1;
+  for (const { d } of ordered) if (d.n > maxN) maxN = d.n;
+
+  const dots = [];
+  for (const { d, i } of ordered) {
+    const cx = PAD + d.x * innerW;
+    const cy = PAD + (1 - d.y) * innerH; // flip Y so larger PCA-2 is at the top
+    // Sqrt scale on char_count keeps the visual range tame even with 10k-char threads.
+    const r = 2 + 6 * Math.sqrt(d.n / maxN);
+    const score = state.highlightScores.get(d.tid);
+    let cls = 'dot';
+    if (state.selectedTid === d.tid) cls += ' selected';
+    if (state.highlightScores.size > 0) {
+      // Threshold: top 20% of points (by score) light up; rest dim.
+      cls += score && score >= state.highlightThreshold ? ' warm' : ' dim';
+    }
+    dots.push(
+      `<circle class="${cls}" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}"/>`
+    );
+  }
+  svg.innerHTML = dots.join('');
+}
+
+function renderReader() {
+  const tid = state.selectedTid;
+  if (!tid) {
+    $('reader').innerHTML = `<div class="placeholder">Click any point on the map to read that thread.</div>`;
+    return;
+  }
+  const meta = state.mapData.find((d) => d.tid === tid);
+  const cached = state.threadCache.get(tid);
+  const score = state.highlightScores.get(tid);
+  const scoreLabel = (typeof score === 'number')
+    ? `<span class="score">${(score * 100).toFixed(1)}% match</span>` : '';
+  const head = meta ? `
+    <div class="meta">
+      <span>${escapeHtml((meta.c || '').slice(0, 10))} &middot; ${meta.n.toLocaleString()} chars</span>
+      ${scoreLabel}
+    </div>
+  ` : '';
+  if (!cached) {
+    // Show snippet immediately, then fetch full text.
+    const snippet = meta ? meta.s : '';
+    $('reader').innerHTML = `
+      ${head}
+      <div class="text">${highlightTerms(snippet, state.lastQueryTerms)}<span style="color:var(--muted); font-style: italic;"> …loading full thread…</span></div>
+    `;
+    fetchThread(tid).then((thread) => {
+      if (state.selectedTid !== tid) return; // user moved on
+      renderReader();
+    });
+    return;
+  }
+  $('reader').innerHTML = `
+    ${head}
+    <div class="text">${highlightTerms(cached.text, state.lastQueryTerms)}</div>
+  `;
+}
+
+async function fetchThread(tid) {
+  if (state.threadCache.has(tid)) return state.threadCache.get(tid);
+  const res = await fetch(`/api/ask/thread?did=${encodeURIComponent(state.did)}&tid=${encodeURIComponent(tid)}`);
+  if (!res.ok) return null;
+  const t = await res.json();
+  state.threadCache.set(tid, t);
+  return t;
+}
+
+function highlightTerms(text, terms) {
+  if (!terms || !terms.length) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const pattern = new RegExp(
+    `\\b(${terms.map(t => t.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')).join('|')})\\b`,
+    'gi'
+  );
+  return escaped.replace(pattern, '<mark>$1</mark>');
+}
+
+// ----- map interactions -----
+const tooltip = $('map-tooltip');
+$('map-svg').addEventListener('mousemove', (e) => {
+  const target = e.target.closest('.dot');
+  if (!target) { tooltip.style.display = 'none'; return; }
+  const tid = target.dataset.tid;
+  const d = state.mapData.find((x) => x.tid === tid);
+  if (!d) return;
+  const score = state.highlightScores.get(tid);
+  tooltip.innerHTML = `
+    <div class="meta">${escapeHtml((d.c || '').slice(0, 10))} · ${d.n.toLocaleString()} chars${typeof score === 'number' ? ' · ' + (score * 100).toFixed(0) + '%' : ''}</div>
+    <div class="snippet">${escapeHtml(d.s)}…</div>
+  `;
+  tooltip.style.display = 'block';
+  // Position relative to the page, just below+right of the cursor.
+  const wrap = $('map-svg').parentElement.getBoundingClientRect();
+  const x = e.clientX - wrap.left + 12;
+  const y = e.clientY - wrap.top + 12;
+  // Keep within wrapper bounds horizontally.
+  const ttRect = tooltip.getBoundingClientRect();
+  const maxX = wrap.width - ttRect.width - 8;
+  tooltip.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+  tooltip.style.top = y + 'px';
+});
+$('map-svg').addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+});
+$('map-svg').addEventListener('click', (e) => {
+  const target = e.target.closest('.dot');
+  if (!target) return;
+  state.selectedTid = target.dataset.tid;
+  renderMap();
+  renderReader();
+});
+
+// ----- highlight overlay (formerly query) -----
+async function runHighlight() {
   const q = $('q').value.trim();
   if (!q) return;
-  $('query-status').textContent = 'Searching…';
-  $('hits').innerHTML = '';
+  $('highlight-status').textContent = 'Embedding query…';
+  state.lastQueryTerms = (q.toLowerCase().match(/[a-z']+/g) || []).filter(t => t.length >= 3);
   try {
     const res = await fetch('/api/ask/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ did: state.did, q, k: 10 }),
+      body: JSON.stringify({ did: state.did, q, k: 50 }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       throw new Error(`query failed (${res.status}) ${body}`.trim());
     }
     const data = await res.json();
-    renderHits(data, q);
+    state.highlightScores.clear();
+    for (const h of data.hits || []) {
+      state.highlightScores.set(h.thread_id, h.score);
+    }
+    // Threshold = score of the K-th hit, so the top K light up.
+    const scores = Array.from(state.highlightScores.values()).sort((a, b) => b - a);
+    state.highlightThreshold = scores[Math.min(scores.length - 1, 19)] ?? 0;
+    const hits = data.hits || [];
+    if (hits.length) {
+      $('highlight-status').textContent =
+        `${hits.length} threads scored · top: ${(hits[0].score * 100).toFixed(1)}% · ${data.time_ms || '?'} ms`;
+      // Auto-select the top hit.
+      state.selectedTid = hits[0].thread_id;
+    } else {
+      $('highlight-status').textContent = 'No matches.';
+    }
+    renderMap();
+    renderReader();
   } catch (err) {
-    $('query-status').textContent = 'Error: ' + (err.message || err);
+    $('highlight-status').textContent = 'Error: ' + (err.message || err);
   }
 }
 
-function highlight(text, q) {
-  // Soft visual highlight on query terms — separate from semantic ranking
-  // (which is what actually got us here). Matches whole words ≥ 3 chars.
-  const terms = (q.toLowerCase().match(/[a-z']+/g) || []).filter(t => t.length >= 3);
-  if (!terms.length) return escapeHtml(text);
-  const escaped = escapeHtml(text);
-  // Build a regex with all terms, case-insensitive, word-boundary.
-  const pattern = new RegExp(`\\b(${terms.map(t => t.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('|')})\\b`, 'gi');
-  return escaped.replace(pattern, '<mark>$1</mark>');
-}
-
-function renderHits(data, q) {
-  const hits = data.hits || [];
-  $('query-status').textContent = hits.length
-    ? `${hits.length} of ${data.total_threads} threads · ${data.time_ms || '?'} ms`
-    : 'No matches.';
-  if (!hits.length) {
-    $('hits').innerHTML = '<div class="empty-hits">No threads matched.</div>';
-    return;
-  }
-  $('hits').innerHTML = hits.map((h) => `
-    <div class="hit">
-      <div class="hit-meta">
-        <span>${escapeHtml((h.created_at || '').slice(0, 10))} &middot; ${h.post_count} post${h.post_count === 1 ? '' : 's'} &middot; ${h.char_count.toLocaleString()} chars</span>
-        <span class="score">${(h.score * 100).toFixed(1)}%</span>
-      </div>
-      <div class="hit-text">${highlight(h.text, q)}</div>
-    </div>
-  `).join('');
+function clearHighlight() {
+  state.highlightScores.clear();
+  state.lastQueryTerms = [];
+  $('q').value = '';
+  $('highlight-status').textContent = '';
+  renderMap();
+  renderReader();
 }
 
 // ----- wire up -----
 $('handle-form').addEventListener('submit', (e) => { e.preventDefault(); handleSubmit(); });
-$('query-form').addEventListener('submit', (e) => { e.preventDefault(); runQuery(); });
+$('highlight-form').addEventListener('submit', (e) => { e.preventDefault(); runHighlight(); });
+$('clear-highlight').addEventListener('click', clearHighlight);
 $('back').addEventListener('click', () => {
   state.did = null; state.handle = null; state.meta = null;
-  $('handle').value = ''; $('q').value = ''; $('hits').innerHTML = '';
+  state.mapData = []; state.selectedTid = null;
+  state.highlightScores.clear(); state.threadCache.clear();
+  $('handle').value = ''; $('q').value = '';
+  $('reader').innerHTML = ''; $('map-svg').innerHTML = '';
+  $('highlight-status').textContent = '';
   showStage('input'); $('handle').focus();
 });
 $('reindex').addEventListener('click', () => handleSubmit({ force: true }));
