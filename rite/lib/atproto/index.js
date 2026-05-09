@@ -154,7 +154,14 @@ function fmtBytes(n) {
 export function isProse(post) {
   const r = post.record;
   if (!r || typeof r.text !== 'string') return false;
-  if (r.embed) return false;
+  if (r.embed) {
+    // Image / video / external-link / quote-with-media embeds bring content
+    // we can't reproduce in a text-only pipeline, so we drop those posts.
+    // PURE quote-record embeds we keep — they're the writer continuing or
+    // surfacing a prior thought, not a media attachment, and they participate
+    // in thread chains as quote-skeins.
+    if (r.embed.$type !== 'app.bsky.embed.record') return false;
+  }
   if (r.facets) {
     for (const f of r.facets) {
       for (const feat of (f.features || [])) {
@@ -251,8 +258,23 @@ export function buildThreadChains(posts) {
   const parentOf = new Map();
   const childrenOf = new Map();
   for (const p of posts) {
-    const parentUri = p.record?.reply?.parent?.uri;
-    if (parentUri && byUri.has(parentUri)) {
+    // A post links to a previous self-authored post via either:
+    //   1. reply.parent.uri  — standard reply chain
+    //   2. embed.record.uri  — quote chain (quote-skein continuations or
+    //      mid-thread self-quotes for visibility)
+    // Reply takes precedence when both happen on the same post; both link
+    // styles contribute to "high-signal prose" in the same way.
+    let parentUri = null;
+    if (p.record?.reply?.parent?.uri && byUri.has(p.record.reply.parent.uri)) {
+      parentUri = p.record.reply.parent.uri;
+    } else if (
+      p.record?.embed?.$type === 'app.bsky.embed.record' &&
+      p.record.embed.record?.uri &&
+      byUri.has(p.record.embed.record.uri)
+    ) {
+      parentUri = p.record.embed.record.uri;
+    }
+    if (parentUri) {
       parentOf.set(p.uri, parentUri);
       const arr = childrenOf.get(parentUri) || [];
       arr.push(p.uri);
