@@ -99,9 +99,11 @@ async function fetchNrc() {
 // We use a stable CSV mirror; the original is an .xlsx that needs xlsx parsing.
 async function fetchConcreteness() {
   const candidates = [
-    // Project that re-published Brysbaert as plain CSV.
-    'https://raw.githubusercontent.com/CarperAI/concreteness-lexicon/main/concreteness.csv',
-    // Common backup with the same data shape.
+    // ArtsEngine has hosted the Brysbaert ratings as plain CSV for years.
+    'https://raw.githubusercontent.com/ArtsEngine/concreteness/master/Concreteness_ratings_Brysbaert_et_al_BRM.csv',
+    // Re-mirror under different name in same repo.
+    'https://raw.githubusercontent.com/ArtsEngine/concreteness/master/concreteness.csv',
+    // Other community copies.
     'https://raw.githubusercontent.com/seantyh/concreteness-norms/master/Concreteness_ratings_Brysbaert_et_al_BRM.csv',
   ];
   let text = null;
@@ -137,42 +139,41 @@ async function fetchConcreteness() {
   return map;
 }
 
-// --- SUBTLEX-US ------------------------------------------------------------
-// Brysbaert & New 2009. Word frequency norm for English (subtitle-derived).
-// We want SUBTLWF (per-million word frequency).
+// --- Word-frequency baseline (hermitdave/FrequencyWords) ------------------
+// Used to be the SUBTLEX-US CSV but my GitHub mirrors were stale (404'd in
+// CI silently). hermitdave/FrequencyWords ships OpenSubtitles-2018 word
+// counts for ~80 languages; en_50k.txt has the top 50k English words.
+// Same kind of source SUBTLEX is built from (subtitle corpora), and the
+// URL is rock-solid. Format: `word count` per line, raw counts.
+// We normalize to per-million so the page's score formula stays consistent.
 async function fetchSubtlex() {
-  const candidates = [
-    'https://raw.githubusercontent.com/anetyay/SUBTLEX-US/main/SUBTLEX-US.csv',
-    'https://raw.githubusercontent.com/yeyumi/word-frequency-data/master/subtlex_us.csv',
-  ];
-  let text = null;
-  for (const url of candidates) {
-    try {
-      console.log('SUBTL  ↓', url);
-      const res = await fetch(url);
-      if (!res.ok) { console.warn('  →', res.status); continue; }
-      text = await res.text();
-      break;
-    } catch (e) { console.warn('  →', e.message); }
-  }
-  if (!text) throw new Error('SUBTLEX: all mirrors failed');
+  const url = 'https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt';
+  console.log('FREQ   ↓', url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+  const text = await res.text();
 
-  const lines = text.split(/\r?\n/);
-  const sep = lines[0].includes('\t') ? '\t' : ',';
-  const header = lines[0].split(sep).map(h => h.replace(/^"|"$/g, '').trim());
-  const wordIdx = header.findIndex(h => /^word$/i.test(h));
-  const wfIdx = header.findIndex(h => /^subtlwf$/i.test(h) || /^freqcount$/i.test(h));
-  if (wordIdx < 0 || wfIdx < 0) {
-    throw new Error(`SUBTLEX: missing Word / SUBTLWF columns: ${header.join(' | ')}`);
+  const raw = [];
+  let total = 0;
+  for (const line of text.split('\n')) {
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length < 2) continue;
+    const word = parts[0].toLowerCase();
+    const n = parseInt(parts[1], 10);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (!/^[a-z']{2,}$/.test(word)) continue;     // ascii letters/apostrophe only
+    raw.push([word, n]);
+    total += n;
   }
+  if (!total) throw new Error('parsed empty corpus');
+
+  const scale = 1e6 / total;
   const map = {};
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i], sep);
-    if (cols.length <= Math.max(wordIdx, wfIdx)) continue;
-    const word = cols[wordIdx].replace(/^"|"$/g, '').trim().toLowerCase();
-    const v = parseFloat(cols[wfIdx]);
-    if (!word || !Number.isFinite(v) || v < 0.5) continue; // drop ultra-rare
-    map[word] = Math.round(v * 10) / 10; // tenths of per-million is plenty
+  for (const [word, n] of raw) {
+    const pm = n * scale;
+    if (pm < 0.3) continue;                       // drop ultra-rare to keep file lean
+    map[word] = Math.round(pm * 10) / 10;
   }
   return map;
 }
