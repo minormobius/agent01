@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>redact &mdash; Bluesky thread redaction game</title>
+<meta name="description" content="A Redactle-style game for Bluesky. Enter a handle, find their longest prose threads, guess the censored words.">
+<meta property="og:title" content="redact">
+<meta property="og:description" content="A Redactle for Bluesky threads. Guess the censored words.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/redact">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a;
+  --good-faint: rgba(42, 122, 42, 0.18);
+  --bad: #a03030;
+  --redact: #1a1a1a;
+  --redact-fg: #1a1a1a;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --accent: #c97070;
+    --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a;
+    --good-faint: rgba(106, 191, 106, 0.18);
+    --redact: #d4d4d4;
+    --redact-fg: #d4d4d4;
+    --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.55;
+  padding: 1.5rem 1rem 4rem;
+  min-height: 100vh;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+header.app {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+h1 {
+  font-size: 2rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 .dot { color: var(--accent); }
+.subtitle {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0.3rem 0 0;
+}
+.stage { display: none; }
+.stage.active { display: block; }
+
+/* ---- input ---- */
+form#handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+input[type="text"], #handle, #guess {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.7rem 0.9rem;
+  font-family: var(--serif);
+  font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
+button {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* ---- loading ---- */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent-faint);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar {
+  height: 4px;
+  background: var(--accent-faint);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 0.7rem;
+}
+.progress-bar > .fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s;
+}
+.error {
+  background: rgba(160, 48, 48, 0.08);
+  border-left: 3px solid var(--bad);
+  padding: 0.7rem 1rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+  margin-top: 0.7rem;
+}
+
+/* ---- chart ---- */
+.chart-meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chart-meta b { color: var(--accent); }
+#chart {
+  width: 100%;
+  height: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+#chart .bar { fill: var(--accent); fill-opacity: 0.55; }
+#chart .bar.selected { fill-opacity: 1; }
+#chart .cursor { stroke: var(--accent); stroke-width: 2; }
+#chart .axis { stroke: var(--rule); stroke-width: 1; }
+#chart .label { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+#chart .selected-label { fill: var(--accent); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0.7rem 0;
+}
+.chart-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---- game ---- */
+.game-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+#post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.4rem 1.5rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+}
+#post-content p {
+  margin: 0 0 1rem;
+}
+#post-content p:last-child { margin-bottom: 0; }
+.redacted {
+  display: inline-block;
+  background: var(--redact);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 1px;
+  user-select: none;
+  vertical-align: baseline;
+  line-height: 1.2;
+  cursor: help;
+}
+.redacted.flash { animation: flash 0.6s ease; }
+@keyframes flash {
+  0%   { background: var(--redact); }
+  50%  { background: var(--good); color: var(--bg); }
+  100% { background: transparent; color: inherit; }
+}
+.redacted.revealed {
+  background: var(--good-faint);
+  color: var(--good);
+  font-weight: 600;
+}
+.game-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.game-controls button { flex-shrink: 0; }
+#score {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 0.5rem;
+}
+#score b { color: var(--accent); }
+#score.complete { color: var(--good); }
+.guessed-list {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  text-align: center;
+  word-break: break-word;
+}
+.guessed-list .ok  { color: var(--good); }
+.guessed-list .bad { color: var(--bad); }
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>redact<span class="dot">.</span></h1>
+  <p class="subtitle">A Redactle for Bluesky threads. Pull a handle, pick the longest prose, guess the words.</p>
+</header>
+
+<main>
+  <!-- Stage 1: handle input -->
+  <section id="stage-input" class="stage active">
+    <form id="handle-form">
+      <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none">
+      <button type="submit">Pull profile</button>
+    </form>
+    <p class="hint" style="text-align:left">
+      We pull the user's full repo as a CAR file from their PDS, parse it locally with WASM,
+      and rank their longest pure-prose threads (no images, no link cards). Big repos take ~30 s.
+      Pure client-side; nothing leaves your browser.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <!-- Stage 2: loading -->
+  <section id="stage-loading" class="stage">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p id="progress-text">Resolving handle&hellip;</p>
+    </div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <!-- Stage 3: pareto chart -->
+  <section id="stage-chart" class="stage">
+    <div class="chart-meta" id="chart-meta"></div>
+    <svg id="chart" viewBox="0 0 600 260" preserveAspectRatio="none"></svg>
+    <p class="hint">Drag through the chart to pick a thread, then press <b>show</b>.</p>
+    <div class="chart-controls">
+      <button id="show">Show selected</button>
+      <button id="back" class="ghost">New profile</button>
+    </div>
+  </section>
+
+  <!-- Stage 4: game -->
+  <section id="stage-game" class="stage">
+    <header class="game-meta">
+      <button id="back-to-chart" class="ghost" style="font-size:0.7rem; padding:0.3rem 0.6rem;">&larr; back to chart</button>
+      <span id="game-meta-text"></span>
+    </header>
+    <article id="post-content"></article>
+    <div class="game-controls">
+      <input id="guess" type="text" placeholder="Guess a word" autocomplete="off" autocapitalize="none">
+      <button id="guess-btn">Guess</button>
+      <button id="reveal" class="ghost">Reveal all</button>
+    </div>
+    <div id="score"></div>
+    <div id="guessed-list" class="guessed-list"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span>redact &middot; Bluesky thread redaction</span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import init, { parseCarToNdjson } from './wasm/pds_car_parser.js';
+
+const $ = (id) => document.getElementById(id);
+
+// ----- constants -----
+const PUBLIC_API = 'https://api.bsky.app';
+const PLC_DIR    = 'https://plc.directory';
+const MIN_THREAD_CHARS = 300;
+const REDACT_RATIO = 0.45;       // fraction of content words to redact
+
+const STOPWORDS = new Set(`
+the a an and or but of to in on at by for with from as is are was were be been
+being have has had do does did will would shall should can could may might
+must i you he she it we they them his her its our their my your this that these
+those there here who what when where why how which whom whose if then so than
+too very just only also even still much many more most some any all both each
+either neither such own same other another no not nor yes
+about above after again against because before below between down during few
+further into off once out over through under until up upon while above let lets
+get got go gone went said say says ask asked told tell tells well now then
+`.trim().split(/\s+/));
+
+// ----- state -----
+const state = {
+  did: null,
+  handle: null,
+  posts: [],          // raw post objects from getAuthorFeed
+  threads: [],        // [{ id, posts: [...], textBlocks: [str], totalChars, createdAt }]
+  selectedIdx: 0,     // index into threads (sorted desc by length)
+  game: null,         // { tokens, redactedSet, revealedSet, guessed, gaveUp }
+};
+
+// ----- stage transition -----
+function showStage(name) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
+}
+
+// ----- ATProto helpers (no auth required for public reads) -----
+
+let wasmReady = false;
+async function ensureWasm() {
+  if (wasmReady) return;
+  await init('./wasm/pds_car_parser_bg.wasm');
+  wasmReady = true;
+}
+
+async function resolveHandle(rawHandle) {
+  const handle = rawHandle.replace(/^@/, '').trim().toLowerCase();
+  if (!handle) throw new Error('Empty handle.');
+  const res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Could not resolve @${handle}. ${body || ''}`.trim());
+  }
+  const { did } = await res.json();
+  return { did, handle };
+}
+
+// Resolve a DID to its PDS service endpoint. Supports did:plc and did:web.
+async function resolvePds(did) {
+  let doc;
+  if (did.startsWith('did:plc:')) {
+    const res = await fetch(`${PLC_DIR}/${did}`);
+    if (!res.ok) throw new Error(`PLC lookup failed (${res.status}) for ${did}`);
+    doc = await res.json();
+  } else if (did.startsWith('did:web:')) {
+    const host = did.slice('did:web:'.length).replace(/:/g, '/');
+    const res = await fetch(`https://${host}/.well-known/did.json`);
+    if (!res.ok) throw new Error(`did:web lookup failed (${res.status}) for ${did}`);
+    doc = await res.json();
+  } else {
+    throw new Error(`Unsupported DID method: ${did}`);
+  }
+  for (const svc of doc.service || []) {
+    if (svc.id === '#atproto_pds' || svc.type === 'AtprotoPersonalDataServer') {
+      return svc.serviceEndpoint;
+    }
+  }
+  throw new Error(`No PDS endpoint in DID document for ${did}`);
+}
+
+// Stream the user's CAR-encoded repo from their PDS.
+async function fetchCarBytes(pds, did, onProgress) {
+  const url = `${pds.replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`getRepo failed (${res.status}) ${body}`.trim());
+  }
+  const total = parseInt(res.headers.get('content-length') || '0');
+  const reader = res.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (onProgress) onProgress(received, total);
+  }
+  const out = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) { out.set(c, offset); offset += c.length; }
+  return out;
+}
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function pullProfile(handleInput, progress) {
+  progress('Loading parser…');
+  await ensureWasm();
+  progress('Resolving handle…');
+  const { did, handle } = await resolveHandle(handleInput);
+  state.did = did;
+  state.handle = handle;
+
+  progress(`Resolved @${handle}. Locating PDS…`);
+  const pds = await resolvePds(did);
+  const pdsHost = (() => { try { return new URL(pds).hostname; } catch { return pds; } })();
+
+  progress(`Downloading repo from ${pdsHost}…`, 0);
+  const carBytes = await fetchCarBytes(pds, did, (received, total) => {
+    const label = total
+      ? `Downloading repo: ${fmtBytes(received)} / ${fmtBytes(total)}`
+      : `Downloading repo: ${fmtBytes(received)}`;
+    progress(label, total ? received / total : null);
+  });
+
+  progress(`Parsing ${fmtBytes(carBytes.length)} CAR…`, 1);
+  // Yield to the event loop so the spinner updates before WASM blocks the thread.
+  await new Promise(r => setTimeout(r, 0));
+  const ndjson = parseCarToNdjson(carBytes, did);
+
+  // The parser emits one JSON object per record. We only want feed posts.
+  state.posts = [];
+  let lineNum = 0;
+  for (const line of ndjson.split('\n')) {
+    if (!line) continue;
+    lineNum++;
+    if (!line.includes('"app.bsky.feed.post"')) continue;
+    try {
+      const rec = JSON.parse(line);
+      if (rec.collection !== 'app.bsky.feed.post') continue;
+      if (!rec.value || typeof rec.value.text !== 'string') continue;
+      state.posts.push({
+        uri: rec.uri,
+        record: rec.value,
+        rkey: rec.rkey,
+      });
+    } catch {}
+  }
+  progress(`Parsed ${state.posts.length.toLocaleString()} posts (of ${lineNum.toLocaleString()} records).`, 1);
+}
+
+// ----- prose filter -----
+function isProse(post) {
+  const r = post.record;
+  if (!r || typeof r.text !== 'string') return false;
+  if (r.embed) return false;          // images, video, external link cards, quote cards
+  if (r.facets) {
+    for (const f of r.facets) {
+      for (const feat of (f.features || [])) {
+        if (feat.$type === 'app.bsky.richtext.facet#link') return false;
+        if (feat.$type === 'app.bsky.richtext.facet#tag')  return false;
+      }
+    }
+  }
+  return true;
+}
+
+// ----- thread chain reconstruction -----
+function buildThreadChains(posts) {
+  // Map uri -> post for posts authored by user.
+  const byUri = new Map();
+  for (const p of posts) byUri.set(p.uri, p);
+
+  // For every post, the parent that's also user-authored (if any).
+  const parentOf = new Map();
+  // Every post -> array of in-chain children.
+  const childrenOf = new Map();
+
+  for (const p of posts) {
+    const parentUri = p.record?.reply?.parent?.uri;
+    if (parentUri && byUri.has(parentUri)) {
+      parentOf.set(p.uri, parentUri);
+      const arr = childrenOf.get(parentUri) || [];
+      arr.push(p.uri);
+      childrenOf.set(parentUri, arr);
+    }
+  }
+
+  // Roots: in-chain parent missing.
+  const roots = posts.filter(p => !parentOf.has(p.uri));
+
+  // For each root, walk its longest descendant chain (DFS pick longest).
+  const memo = new Map();
+  function longestPathFrom(uri) {
+    if (memo.has(uri)) return memo.get(uri);
+    const kids = childrenOf.get(uri) || [];
+    if (!kids.length) {
+      const path = [byUri.get(uri)];
+      memo.set(uri, path);
+      return path;
+    }
+    let best = [];
+    for (const k of kids) {
+      const sub = longestPathFrom(k);
+      if (sub.length > best.length) best = sub;
+    }
+    const path = [byUri.get(uri), ...best];
+    memo.set(uri, path);
+    return path;
+  }
+
+  const chains = roots.map(r => longestPathFrom(r.uri));
+  return chains;
+}
+
+// ----- compose chain -> blog-post -----
+function composeThread(chain, idx) {
+  // Drop non-prose posts within the chain.
+  const proseChain = chain.filter(isProse);
+  if (!proseChain.length) return null;
+  const textBlocks = proseChain.map(p => (p.record.text || '').trim()).filter(Boolean);
+  const total = textBlocks.reduce((a, b) => a + b.length, 0);
+  if (total < MIN_THREAD_CHARS) return null;
+  return {
+    id: `t${idx}`,
+    posts: proseChain,
+    text: textBlocks.join('\n\n'),
+    textBlocks,
+    totalChars: total,
+    postCount: proseChain.length,
+    createdAt: proseChain[0].record.createdAt || proseChain[0].indexedAt || '',
+    rootUri: proseChain[0].uri,
+  };
+}
+
+function analyzeProfile() {
+  const chains = buildThreadChains(state.posts);
+  const threads = [];
+  let next = 0;
+  for (const c of chains) {
+    const t = composeThread(c, next);
+    if (t) { threads.push(t); next++; }
+  }
+  threads.sort((a, b) => b.totalChars - a.totalChars);
+  // Re-id after sort so t0 is longest.
+  threads.forEach((t, i) => t.id = `t${i}`);
+  state.threads = threads;
+  state.selectedIdx = 0;
+}
+
+// ----- chart -----
+function renderChart() {
+  const svg = $('chart');
+  const W = 600, H = 260, PAD_L = 40, PAD_R = 12, PAD_T = 14, PAD_B = 28;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+  svg.innerHTML = '';
+  const ts = state.threads;
+  if (!ts.length) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" class="label">No prose threads ≥ ${MIN_THREAD_CHARS} chars.</text>`;
+    return;
+  }
+  const maxLen = ts[0].totalChars;
+  const barW = Math.max(1, innerW / ts.length);
+  // Y axis grid
+  const ySteps = [0, 0.25, 0.5, 0.75, 1].map(f => ({
+    y: PAD_T + innerH * (1 - f),
+    label: Math.round(maxLen * f).toLocaleString(),
+  }));
+  let svgHtml = '';
+  for (const s of ySteps) {
+    svgHtml += `<line class="axis" x1="${PAD_L}" y1="${s.y}" x2="${W - PAD_R}" y2="${s.y}" stroke-opacity="0.4"/>`;
+    svgHtml += `<text x="${PAD_L - 6}" y="${s.y + 3}" text-anchor="end" class="label">${s.label}</text>`;
+  }
+  // Bars
+  for (let i = 0; i < ts.length; i++) {
+    const t = ts[i];
+    const h = innerH * (t.totalChars / maxLen);
+    const x = PAD_L + i * barW;
+    const y = PAD_T + innerH - h;
+    const cls = i === state.selectedIdx ? 'bar selected' : 'bar';
+    svgHtml += `<rect class="${cls}" data-idx="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0.5, barW - 0.4).toFixed(2)}" height="${Math.max(0, h).toFixed(2)}"/>`;
+  }
+  // Cursor
+  const cursorX = PAD_L + (state.selectedIdx + 0.5) * barW;
+  svgHtml += `<line id="cursor" class="cursor" x1="${cursorX.toFixed(2)}" y1="${PAD_T - 4}" x2="${cursorX.toFixed(2)}" y2="${H - PAD_B + 4}"/>`;
+  // X-axis label: rank + length
+  const sel = ts[state.selectedIdx];
+  svgHtml += `<text x="${W/2}" y="${H - 6}" text-anchor="middle" class="selected-label">#${state.selectedIdx + 1} of ${ts.length} · ${sel.totalChars.toLocaleString()} chars · ${sel.postCount} post${sel.postCount === 1 ? '' : 's'}</text>`;
+  svg.innerHTML = svgHtml;
+
+  // Pointer events
+  const setSelectedFromX = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const xInSvg = ((clientX - rect.left) / rect.width) * W;
+    const colX = xInSvg - PAD_L;
+    let idx = Math.floor(colX / barW);
+    if (idx < 0) idx = 0;
+    if (idx >= ts.length) idx = ts.length - 1;
+    if (idx !== state.selectedIdx) {
+      state.selectedIdx = idx;
+      renderChart();
+      updateChartMeta();
+    }
+  };
+  let dragging = false;
+  svg.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    svg.setPointerCapture(e.pointerId);
+    setSelectedFromX(e.clientX);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (dragging) setSelectedFromX(e.clientX);
+  });
+  svg.addEventListener('pointerup',     () => { dragging = false; });
+  svg.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+function updateChartMeta() {
+  const sel = state.threads[state.selectedIdx];
+  if (!sel) { $('chart-meta').innerHTML = ''; return; }
+  const date = (sel.createdAt || '').slice(0, 10);
+  $('chart-meta').innerHTML = `
+    <span><b>@${state.handle}</b> &middot; ${state.threads.length} threads &middot; ${state.posts.length} posts scanned</span>
+    <span>selected: rank #${state.selectedIdx + 1} &middot; ${sel.totalChars.toLocaleString()} chars &middot; ${date}</span>
+  `;
+}
+
+// ----- redact / game -----
+function tokenize(text) {
+  // Split on word vs. non-word. \p{L} catches unicode letters; fallback regex if not supported.
+  let re;
+  try { re = /([\p{L}\p{N}']+)/gu; } catch { re = /([A-Za-z0-9']+)/g; }
+  const tokens = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) tokens.push({ kind: 'sep', text: text.slice(last, m.index) });
+    tokens.push({ kind: 'word', text: m[0] });
+    last = re.lastIndex;
+  }
+  if (last < text.length) tokens.push({ kind: 'sep', text: text.slice(last) });
+  return tokens;
+}
+
+function shouldRedact(word) {
+  const w = word.toLowerCase();
+  if (w.length < 4) return false;
+  if (STOPWORDS.has(w)) return false;
+  if (/^\d+$/.test(w)) return false;     // pure numbers
+  return true;
+}
+
+function pickRedactions(tokens, ratio) {
+  // Mark a deterministic subset of redact-eligible words.
+  // Use a hash of the word + index so the redaction is stable per thread+session.
+  const eligible = [];
+  tokens.forEach((tok, i) => {
+    if (tok.kind === 'word' && shouldRedact(tok.text)) eligible.push(i);
+  });
+  // Shuffle deterministically.
+  const seed = state.threads[state.selectedIdx].id;
+  const ordered = eligible.map(i => ({ i, k: hashStr(seed + ':' + i) }))
+    .sort((a, b) => a.k - b.k)
+    .map(x => x.i);
+  const want = Math.round(ordered.length * ratio);
+  return new Set(ordered.slice(0, want));
+}
+
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
+}
+
+function startGame() {
+  const thread = state.threads[state.selectedIdx];
+  // We tokenize each block separately so we can render paragraphs, but token
+  // indices remain global so redaction lookups stay simple.
+  const blocks = thread.textBlocks.map(tokenize);
+  const flat = [];
+  for (let bi = 0; bi < blocks.length; bi++) {
+    for (const t of blocks[bi]) {
+      flat.push({ ...t, block: bi });
+    }
+  }
+  state.game = {
+    blocks,
+    tokens: flat,
+    redactedSet: pickRedactions(flat, REDACT_RATIO),
+    revealedSet: new Set(),
+    guessedRight: new Set(),
+    guessedWrong: new Set(),
+    gaveUp: false,
+  };
+  $('guess').value = '';
+  $('guess').disabled = false;
+  $('guess-btn').disabled = false;
+  $('reveal').disabled = false;
+  $('reveal').textContent = 'Reveal all';
+  renderPost();
+  updateScore();
+  $('guessed-list').textContent = '';
+  $('game-meta-text').textContent =
+    `@${state.handle} · rank #${state.selectedIdx + 1} of ${state.threads.length} · ${thread.postCount} post${thread.postCount===1?'':'s'} · ${(thread.createdAt||'').slice(0,10)}`;
+}
+
+function renderPost() {
+  const game = state.game;
+  // Build paragraphs (one per block).
+  let html = '';
+  let bi = -1;
+  for (let i = 0; i < game.tokens.length; i++) {
+    const t = game.tokens[i];
+    if (t.block !== bi) {
+      if (bi >= 0) html += '</p>';
+      bi = t.block;
+      html += '<p>';
+    }
+    if (t.kind === 'sep') {
+      html += escapeHtml(t.text);
+    } else if (game.redactedSet.has(i)) {
+      const revealed = game.revealedSet.has(i);
+      const cls = 'redacted' + (revealed ? ' revealed' : '');
+      // Width hint: pad with spaces equal to word length so the box matches.
+      // We use the actual word so revealing flips the box to text.
+      const display = revealed ? escapeHtml(t.text) : ' '.repeat(Math.max(2, t.text.length));
+      html += `<span class="${cls}" data-i="${i}">${display}</span>`;
+    } else {
+      html += escapeHtml(t.text);
+    }
+  }
+  if (bi >= 0) html += '</p>';
+  $('post-content').innerHTML = html;
+}
+
+function applyGuess(rawGuess) {
+  const guess = (rawGuess || '').trim().toLowerCase();
+  if (!guess) return;
+  const game = state.game;
+  let revealed = 0;
+  for (let i = 0; i < game.tokens.length; i++) {
+    const tok = game.tokens[i];
+    if (tok.kind !== 'word') continue;
+    if (!game.redactedSet.has(i) || game.revealedSet.has(i)) continue;
+    if (tok.text.toLowerCase() === guess) {
+      game.revealedSet.add(i);
+      revealed++;
+    }
+  }
+  if (revealed > 0) {
+    game.guessedRight.add(guess);
+    renderPost();
+    // Brief flash on newly revealed.
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.redacted.revealed').forEach(el => {
+        if (!el.dataset.flashed) {
+          el.classList.add('flash');
+          el.dataset.flashed = '1';
+          setTimeout(() => el.classList.remove('flash'), 700);
+        }
+      });
+    });
+  } else if (!game.guessedRight.has(guess)) {
+    game.guessedWrong.add(guess);
+  }
+  $('guess').value = '';
+  updateScore();
+  renderGuessedList();
+  if (revealed === 0) {
+    // Brief shake on input
+    $('guess').animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
+      { duration: 200 }
+    );
+  }
+}
+
+function revealAll() {
+  const game = state.game;
+  game.gaveUp = true;
+  for (const i of game.redactedSet) game.revealedSet.add(i);
+  renderPost();
+  updateScore();
+  $('guess').disabled = true;
+  $('guess-btn').disabled = true;
+  $('reveal').disabled = true;
+  $('reveal').textContent = 'Revealed';
+}
+
+function updateScore() {
+  const game = state.game;
+  const total = game.redactedSet.size;
+  let revealed = 0;
+  for (const i of game.redactedSet) if (game.revealedSet.has(i)) revealed++;
+  const pct = total ? Math.round((revealed / total) * 100) : 0;
+  let label;
+  if (game.gaveUp) {
+    label = `<b>${revealed}</b> / ${total} guessed (${pct}%) — gave up`;
+  } else if (revealed === total && total > 0) {
+    label = `<b>${total}</b> / ${total} ✓ — perfect`;
+    $('score').classList.add('complete');
+  } else {
+    label = `<b>${revealed}</b> / ${total} guessed (${pct}%)`;
+  }
+  $('score').innerHTML = label;
+  if (revealed !== total || total === 0) $('score').classList.remove('complete');
+}
+
+function renderGuessedList() {
+  const game = state.game;
+  const right = [...game.guessedRight];
+  const wrong = [...game.guessedWrong];
+  let html = '';
+  if (right.length) html += right.map(w => `<span class="ok">✓ ${escapeHtml(w)}</span>`).join(' &middot; ');
+  if (wrong.length) html += (right.length ? ' &middot; ' : '') + wrong.map(w => `<span class="bad">✕ ${escapeHtml(w)}</span>`).join(' &middot; ');
+  $('guessed-list').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// ----- progress / errors -----
+function setProgress(text, frac) {
+  $('progress-text').textContent = text;
+  if (typeof frac === 'number') {
+    $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%';
+  }
+}
+function showError(msg) {
+  $('input-error').textContent = msg;
+  $('input-error').style.display = 'block';
+}
+function clearError() {
+  $('input-error').style.display = 'none';
+}
+
+// ----- wire up -----
+$('handle-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearError();
+  const handle = $('handle').value.trim();
+  if (!handle) return;
+  showStage('loading');
+  setProgress('Resolving handle…', 0);
+  try {
+    await pullProfile(handle, setProgress);
+    setProgress('Building threads…', 1);
+    analyzeProfile();
+    if (!state.threads.length) {
+      showStage('input');
+      showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}. Their posts may be mostly images / links.`);
+      return;
+    }
+    state.selectedIdx = 0;
+    showStage('chart');
+    updateChartMeta();
+    renderChart();
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+});
+
+$('show').addEventListener('click', () => {
+  if (!state.threads.length) return;
+  showStage('game');
+  startGame();
+  $('guess').focus();
+});
+$('back').addEventListener('click', () => {
+  state.posts = []; state.threads = []; state.did = null; state.handle = null;
+  $('handle').value = '';
+  showStage('input');
+  $('handle').focus();
+});
+$('back-to-chart').addEventListener('click', () => {
+  showStage('chart');
+});
+$('guess-btn').addEventListener('click', () => applyGuess($('guess').value));
+$('guess').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); applyGuess($('guess').value); }
+});
+$('reveal').addEventListener('click', revealAll);
+</script>
+</body>
+</html>
