@@ -436,13 +436,15 @@ footer a { color: var(--muted); text-decoration: underline; }
 </div>
 
 <script type="module">
-import init, { parseCarToNdjson } from './wasm/pds_car_parser.js';
+import {
+  pullProfile,
+  analyzeProfile,
+} from '../lib/atproto/index.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ----- constants -----
 const PUBLIC_API = 'https://api.bsky.app';
-const PLC_DIR    = 'https://plc.directory';
 const MIN_THREAD_CHARS = 300;
 const REDACT_RATIO = 0.45;       // fraction of content words to redact
 
@@ -473,225 +475,6 @@ function showStage(name) {
   document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
 }
 
-// ----- ATProto helpers (no auth required for public reads) -----
-
-let wasmReady = false;
-async function ensureWasm() {
-  if (wasmReady) return;
-  await init('./wasm/pds_car_parser_bg.wasm');
-  wasmReady = true;
-}
-
-async function resolveHandle(rawHandle) {
-  const handle = rawHandle.replace(/^@/, '').trim().toLowerCase();
-  if (!handle) throw new Error('Empty handle.');
-  const res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Could not resolve @${handle}. ${body || ''}`.trim());
-  }
-  const { did } = await res.json();
-  return { did, handle };
-}
-
-// Resolve a DID to its PDS service endpoint. Supports did:plc and did:web.
-async function resolvePds(did) {
-  let doc;
-  if (did.startsWith('did:plc:')) {
-    const res = await fetch(`${PLC_DIR}/${did}`);
-    if (!res.ok) throw new Error(`PLC lookup failed (${res.status}) for ${did}`);
-    doc = await res.json();
-  } else if (did.startsWith('did:web:')) {
-    const host = did.slice('did:web:'.length).replace(/:/g, '/');
-    const res = await fetch(`https://${host}/.well-known/did.json`);
-    if (!res.ok) throw new Error(`did:web lookup failed (${res.status}) for ${did}`);
-    doc = await res.json();
-  } else {
-    throw new Error(`Unsupported DID method: ${did}`);
-  }
-  for (const svc of doc.service || []) {
-    if (svc.id === '#atproto_pds' || svc.type === 'AtprotoPersonalDataServer') {
-      return svc.serviceEndpoint;
-    }
-  }
-  throw new Error(`No PDS endpoint in DID document for ${did}`);
-}
-
-// Stream the user's CAR-encoded repo from their PDS.
-async function fetchCarBytes(pds, did, onProgress) {
-  const url = `${pds.replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`getRepo failed (${res.status}) ${body}`.trim());
-  }
-  const total = parseInt(res.headers.get('content-length') || '0');
-  const reader = res.body.getReader();
-  const chunks = [];
-  let received = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (onProgress) onProgress(received, total);
-  }
-  const out = new Uint8Array(received);
-  let offset = 0;
-  for (const c of chunks) { out.set(c, offset); offset += c.length; }
-  return out;
-}
-
-function fmtBytes(n) {
-  if (n < 1024) return n + ' B';
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-  return (n / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-async function pullProfile(handleInput, progress) {
-  progress('Loading parser…');
-  await ensureWasm();
-  progress('Resolving handle…');
-  const { did, handle } = await resolveHandle(handleInput);
-  state.did = did;
-  state.handle = handle;
-
-  progress(`Resolved @${handle}. Locating PDS…`);
-  const pds = await resolvePds(did);
-  const pdsHost = (() => { try { return new URL(pds).hostname; } catch { return pds; } })();
-
-  progress(`Downloading repo from ${pdsHost}…`, 0);
-  const carBytes = await fetchCarBytes(pds, did, (received, total) => {
-    const label = total
-      ? `Downloading repo: ${fmtBytes(received)} / ${fmtBytes(total)}`
-      : `Downloading repo: ${fmtBytes(received)}`;
-    progress(label, total ? received / total : null);
-  });
-
-  progress(`Parsing ${fmtBytes(carBytes.length)} CAR…`, 1);
-  // Yield to the event loop so the spinner updates before WASM blocks the thread.
-  await new Promise(r => setTimeout(r, 0));
-  const ndjson = parseCarToNdjson(carBytes, did);
-
-  // The parser emits one JSON object per record. We only want feed posts.
-  state.posts = [];
-  let lineNum = 0;
-  for (const line of ndjson.split('\n')) {
-    if (!line) continue;
-    lineNum++;
-    if (!line.includes('"app.bsky.feed.post"')) continue;
-    try {
-      const rec = JSON.parse(line);
-      if (rec.collection !== 'app.bsky.feed.post') continue;
-      if (!rec.value || typeof rec.value.text !== 'string') continue;
-      state.posts.push({
-        uri: rec.uri,
-        record: rec.value,
-        rkey: rec.rkey,
-      });
-    } catch {}
-  }
-  progress(`Parsed ${state.posts.length.toLocaleString()} posts (of ${lineNum.toLocaleString()} records).`, 1);
-}
-
-// ----- prose filter -----
-function isProse(post) {
-  const r = post.record;
-  if (!r || typeof r.text !== 'string') return false;
-  if (r.embed) return false;          // images, video, external link cards, quote cards
-  if (r.facets) {
-    for (const f of r.facets) {
-      for (const feat of (f.features || [])) {
-        if (feat.$type === 'app.bsky.richtext.facet#link') return false;
-        if (feat.$type === 'app.bsky.richtext.facet#tag')  return false;
-      }
-    }
-  }
-  return true;
-}
-
-// ----- thread chain reconstruction -----
-function buildThreadChains(posts) {
-  // Map uri -> post for posts authored by user.
-  const byUri = new Map();
-  for (const p of posts) byUri.set(p.uri, p);
-
-  // For every post, the parent that's also user-authored (if any).
-  const parentOf = new Map();
-  // Every post -> array of in-chain children.
-  const childrenOf = new Map();
-
-  for (const p of posts) {
-    const parentUri = p.record?.reply?.parent?.uri;
-    if (parentUri && byUri.has(parentUri)) {
-      parentOf.set(p.uri, parentUri);
-      const arr = childrenOf.get(parentUri) || [];
-      arr.push(p.uri);
-      childrenOf.set(parentUri, arr);
-    }
-  }
-
-  // Roots: in-chain parent missing.
-  const roots = posts.filter(p => !parentOf.has(p.uri));
-
-  // For each root, walk its longest descendant chain (DFS pick longest).
-  const memo = new Map();
-  function longestPathFrom(uri) {
-    if (memo.has(uri)) return memo.get(uri);
-    const kids = childrenOf.get(uri) || [];
-    if (!kids.length) {
-      const path = [byUri.get(uri)];
-      memo.set(uri, path);
-      return path;
-    }
-    let best = [];
-    for (const k of kids) {
-      const sub = longestPathFrom(k);
-      if (sub.length > best.length) best = sub;
-    }
-    const path = [byUri.get(uri), ...best];
-    memo.set(uri, path);
-    return path;
-  }
-
-  const chains = roots.map(r => longestPathFrom(r.uri));
-  return chains;
-}
-
-// ----- compose chain -> blog-post -----
-function composeThread(chain, idx) {
-  // Drop non-prose posts within the chain.
-  const proseChain = chain.filter(isProse);
-  if (!proseChain.length) return null;
-  const textBlocks = proseChain.map(p => (p.record.text || '').trim()).filter(Boolean);
-  const total = textBlocks.reduce((a, b) => a + b.length, 0);
-  if (total < MIN_THREAD_CHARS) return null;
-  return {
-    id: `t${idx}`,
-    posts: proseChain,
-    text: textBlocks.join('\n\n'),
-    textBlocks,
-    totalChars: total,
-    postCount: proseChain.length,
-    createdAt: proseChain[0].record.createdAt || proseChain[0].indexedAt || '',
-    rootUri: proseChain[0].uri,
-  };
-}
-
-function analyzeProfile() {
-  const chains = buildThreadChains(state.posts);
-  const threads = [];
-  let next = 0;
-  for (const c of chains) {
-    const t = composeThread(c, next);
-    if (t) { threads.push(t); next++; }
-  }
-  threads.sort((a, b) => b.totalChars - a.totalChars);
-  // Re-id after sort so t0 is longest.
-  threads.forEach((t, i) => t.id = `t${i}`);
-  state.threads = threads;
-  state.selectedIdx = 0;
-}
 
 // ----- chart -----
 function renderChart() {
@@ -1103,9 +886,13 @@ $('handle-form').addEventListener('submit', async (e) => {
   showStage('loading');
   setProgress('Resolving handle…', 0);
   try {
-    await pullProfile(handle, setProgress);
+    const result = await pullProfile(handle, setProgress);
+    state.did = result.did;
+    state.handle = result.handle;
+    state.posts = result.posts;
     setProgress('Building threads…', 1);
-    analyzeProfile();
+    state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
+    state.selectedIdx = 0;
     if (!state.threads.length) {
       showStage('input');
       showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}. Their posts may be mostly images / links.`);

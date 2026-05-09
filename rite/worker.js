@@ -30,11 +30,12 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'fodder-lazy-refs-v2',
+          version: 'ask-v1',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
             '/api/fodder/stats', '/api/fodder/admin/mine',
+            '/api/ask/check', '/api/ask/index', '/api/ask/query',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -46,6 +47,11 @@ export default {
       if (url.pathname === '/api/fodder/promoted')                     return fodderPromoted(env);
       if (url.pathname === '/api/fodder/stats')                        return fodderStats(env);
       if (url.pathname === '/api/fodder/admin/mine' && request.method === 'POST') return fodderAdminMine(request, env, ctx);
+
+      // Ask: vector index over a profile's prose threads.
+      if (url.pathname === '/api/ask/check')                           return askCheck(env, url);
+      if (url.pathname === '/api/ask/index' && request.method === 'POST') return askIndex(request, env);
+      if (url.pathname === '/api/ask/query' && request.method === 'POST') return askQuery(request, env);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -722,4 +728,239 @@ function shuffleArr(a) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
+}
+
+// ============================================================================
+// ASK — vector index over a Bluesky profile's prose threads
+// ============================================================================
+//
+// Pipeline:
+//   1. Browser pulls user's CAR via PDS, parses with WASM, builds prose
+//      thread chains (≥ MIN chars). All client-side; reuses redact pipeline.
+//   2. Browser POSTs threads to /api/ask/index. Worker batches embedding
+//      calls (@cf/baai/bge-base-en-v1.5, 768 dim) and stores rows in D1
+//      with embedding as float32 LE BLOB.
+//   3. Browser POSTs query to /api/ask/query. Worker embeds q, loads all
+//      vectors for did, computes cosine, returns top-k threads.
+//
+// First indexing: ~5-15 sec for 500 threads. Subsequent visitors hitting
+// the same DID skip embedding entirely and answer queries in ~50 ms.
+
+const ASK_EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
+const ASK_EMBED_DIM = 768;
+const ASK_BATCH_SIZE = 96;          // BGE-base's documented per-call max
+const ASK_DEFAULT_K = 10;
+const ASK_MAX_THREADS_PER_INDEX = 2000;
+
+async function askCheck(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  if (!did) return json({ error: 'missing did' }, 400);
+  const meta = await env.DB.prepare(
+    `SELECT did, handle, thread_count, post_count, total_chars, indexed_at
+     FROM ask_index_meta WHERE did = ?`
+  ).bind(did).first();
+  if (!meta) return json({ indexed: false, did });
+  return json({ indexed: true, ...meta });
+}
+
+async function askIndex(request, env) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  if (!env.AI) return json({ error: 'AI binding not configured' }, 500);
+  const t0 = Date.now();
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const { did, handle, threads } = body || {};
+  if (typeof did !== 'string' || !Array.isArray(threads)) {
+    return json({ error: 'missing did or threads' }, 400);
+  }
+  if (!did.startsWith('did:')) return json({ error: 'bad did' }, 400);
+  if (threads.length === 0) return json({ ok: true, did, newly_indexed: 0, total_threads: 0, time_ms: 0 });
+  if (threads.length > ASK_MAX_THREADS_PER_INDEX) {
+    return json({ error: `too many threads (${threads.length} > ${ASK_MAX_THREADS_PER_INDEX})` }, 400);
+  }
+
+  // Filter threads that aren't already indexed (idempotent re-runs).
+  const existing = new Set();
+  {
+    // Load existing thread_ids for this DID. For very large indexes this could
+    // be paginated, but at our scale (≤ a few thousand) one query is fine.
+    const { results } = await env.DB.prepare(
+      `SELECT thread_id FROM ask_threads WHERE did = ?`
+    ).bind(did).all();
+    for (const r of results || []) existing.add(r.thread_id);
+  }
+
+  const fresh = [];
+  for (const t of threads) {
+    if (typeof t.thread_id !== 'string' || typeof t.text !== 'string') continue;
+    if (existing.has(t.thread_id)) continue;
+    if (t.text.length < 50 || t.text.length > 20000) continue;
+    fresh.push(t);
+  }
+
+  // Batch-embed the fresh threads.
+  let embeddedCount = 0;
+  for (let i = 0; i < fresh.length; i += ASK_BATCH_SIZE) {
+    const batch = fresh.slice(i, i + ASK_BATCH_SIZE);
+    const texts = batch.map((t) => t.text);
+    const out = await env.AI.run(ASK_EMBED_MODEL, { text: texts });
+    if (!out || !out.data || out.data.length !== batch.length) {
+      throw new Error(`unexpected embedding shape (got ${out?.data?.length} for ${batch.length})`);
+    }
+
+    // D1 batched insert.
+    const stmts = [];
+    for (let j = 0; j < batch.length; j++) {
+      const t = batch[j];
+      const vec = out.data[j];
+      const blob = floatsToBlob(vec);
+      stmts.push(
+        env.DB.prepare(
+          `INSERT OR IGNORE INTO ask_threads
+             (did, thread_id, text, post_count, char_count, flesch, created_at, embedding)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          did, t.thread_id, t.text,
+          Number(t.post_count) || 1,
+          Number(t.char_count) || t.text.length,
+          t.flesch == null ? null : Number(t.flesch),
+          t.created_at || null,
+          blob
+        )
+      );
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+    embeddedCount += batch.length;
+  }
+
+  // Recompute meta from the canonical rows.
+  const rollup = await env.DB.prepare(
+    `SELECT COUNT(*) AS thread_count, SUM(char_count) AS total_chars,
+            SUM(post_count) AS post_count
+       FROM ask_threads WHERE did = ?`
+  ).bind(did).first();
+  await env.DB.prepare(
+    `INSERT INTO ask_index_meta (did, handle, thread_count, post_count, total_chars, indexed_at)
+     VALUES (?, ?, ?, ?, ?, unixepoch())
+     ON CONFLICT(did) DO UPDATE SET
+       handle = excluded.handle,
+       thread_count = excluded.thread_count,
+       post_count   = excluded.post_count,
+       total_chars  = excluded.total_chars,
+       indexed_at   = excluded.indexed_at`
+  ).bind(
+    did,
+    typeof handle === 'string' ? handle : null,
+    rollup?.thread_count || 0,
+    rollup?.post_count || 0,
+    rollup?.total_chars || 0
+  ).run();
+
+  return json({
+    ok: true,
+    did,
+    handle: handle || null,
+    total_threads: rollup?.thread_count || 0,
+    newly_indexed: embeddedCount,
+    skipped_already_indexed: threads.length - fresh.length,
+    time_ms: Date.now() - t0,
+  });
+}
+
+async function askQuery(request, env) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  if (!env.AI) return json({ error: 'AI binding not configured' }, 500);
+  const t0 = Date.now();
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const { did, q } = body || {};
+  const k = Math.max(1, Math.min(50, Number(body?.k) || ASK_DEFAULT_K));
+  if (typeof did !== 'string' || typeof q !== 'string' || !q.trim()) {
+    return json({ error: 'missing did or q' }, 400);
+  }
+
+  // Embed query.
+  const out = await env.AI.run(ASK_EMBED_MODEL, { text: [q] });
+  const queryVec = out?.data?.[0];
+  if (!queryVec || queryVec.length !== ASK_EMBED_DIM) {
+    return json({ error: 'embedding failed' }, 500);
+  }
+
+  // Fetch all rows for the DID. Stream cosine in JS — for ≤ a few thousand
+  // rows this is well under 100ms; revisit with proper vector indexing if
+  // any single user crosses ~10k threads.
+  const { results } = await env.DB.prepare(
+    `SELECT thread_id, text, post_count, char_count, flesch, created_at, embedding
+     FROM ask_threads WHERE did = ?`
+  ).bind(did).all();
+  const rows = results || [];
+  if (!rows.length) {
+    return json({ q, hits: [], indexed: false, time_ms: Date.now() - t0 });
+  }
+
+  const qNorm = vecNorm(queryVec);
+  const scored = [];
+  for (const r of rows) {
+    const v = blobToFloats(r.embedding);
+    if (!v || v.length !== ASK_EMBED_DIM) continue;
+    const score = cosineFast(queryVec, v, qNorm);
+    scored.push({
+      thread_id: r.thread_id,
+      text: r.text,
+      post_count: r.post_count,
+      char_count: r.char_count,
+      flesch: r.flesch,
+      created_at: r.created_at,
+      score,
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return json({
+    q,
+    indexed: true,
+    total_threads: rows.length,
+    hits: scored.slice(0, k),
+    time_ms: Date.now() - t0,
+  });
+}
+
+// ----- ask helpers -----
+
+function floatsToBlob(arr) {
+  // Float32 little-endian. Workers AI returns either Float32Array or plain
+  // number[]; both round-trip cleanly through the typed-array constructor.
+  const f32 = arr instanceof Float32Array ? arr : new Float32Array(arr);
+  return new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength);
+}
+
+function blobToFloats(blob) {
+  // D1 returns BLOB as ArrayBuffer or Uint8Array depending on adapter.
+  if (!blob) return null;
+  let bytes;
+  if (blob instanceof ArrayBuffer) bytes = new Uint8Array(blob);
+  else if (ArrayBuffer.isView(blob)) bytes = new Uint8Array(blob.buffer, blob.byteOffset, blob.byteLength);
+  else return null;
+  // Copy so we control the underlying buffer's alignment.
+  const copy = new Uint8Array(bytes);
+  return new Float32Array(copy.buffer, copy.byteOffset, copy.byteLength / 4);
+}
+
+function vecNorm(v) {
+  let n = 0;
+  for (let i = 0; i < v.length; i++) n += v[i] * v[i];
+  return Math.sqrt(n) || 1;
+}
+
+function cosineFast(q, v, qNorm) {
+  // Compute dot product and ||v|| in one pass; reuse precomputed ||q||.
+  let dot = 0, vn = 0;
+  for (let i = 0; i < v.length; i++) {
+    dot += q[i] * v[i];
+    vn  += v[i] * v[i];
+  }
+  const denom = qNorm * (Math.sqrt(vn) || 1);
+  return dot / denom;
 }

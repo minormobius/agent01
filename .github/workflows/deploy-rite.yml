@@ -8,6 +8,7 @@ on:
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'
+      - 'poll/apps/api/migrations/0015_ask.sql'
       - '.github/workflows/deploy-rite.yml'
   workflow_dispatch:
     inputs:
@@ -34,14 +35,16 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
-      - name: Run D1 migration (fodder tables on shared atpolls-db)
+      - name: Run D1 migrations (rite tables on shared atpolls-db)
         if: ${{ inputs.skip_migrations != true }}
         run: |
-          echo "Applying 0014_fodder.sql to atpolls-db…"
-          npx wrangler d1 execute atpolls-db \
-            --file=../poll/apps/api/migrations/0014_fodder.sql \
-            --remote \
-            || echo "⚠️ Migration returned non-zero (likely already applied), continuing…"
+          for f in \
+            ../poll/apps/api/migrations/0014_fodder.sql \
+            ../poll/apps/api/migrations/0015_ask.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
+          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
