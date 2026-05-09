@@ -250,7 +250,25 @@ button.ghost {
   touch-action: none;
 }
 #chart .bar { fill: var(--accent); fill-opacity: 0.55; }
-#chart .bar.selected { fill-opacity: 1; }
+/* Color-by-difficulty: harder threads pop, easier ones fade. */
+#chart .bar.tier-hard   { fill-opacity: 0.95; }
+#chart .bar.tier-medium { fill-opacity: 0.55; }
+#chart .bar.tier-easy   { fill-opacity: 0.25; }
+#chart .bar.selected    { fill-opacity: 1; stroke: var(--text); stroke-width: 0.5; }
+.legend-row {
+  display: flex; gap: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 0.35rem 0 0.2rem;
+  align-items: center;
+}
+.legend-row .swatch {
+  display: inline-block; width: 0.85rem; height: 0.85rem; border-radius: 2px;
+  background: var(--accent); margin-right: 0.3rem; vertical-align: -2px;
+}
+.legend-row .swatch.tier-hard   { opacity: 0.95; }
+.legend-row .swatch.tier-medium { opacity: 0.55; }
+.legend-row .swatch.tier-easy   { opacity: 0.25; }
 #chart .cursor { stroke: var(--accent); stroke-width: 2; }
 #chart .axis { stroke: var(--rule); stroke-width: 1; }
 #chart .label { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
@@ -403,6 +421,12 @@ footer a { color: var(--muted); text-decoration: underline; }
   <section id="stage-chart" class="stage">
     <div class="chart-meta" id="chart-meta"></div>
     <svg id="chart" viewBox="0 0 600 260" preserveAspectRatio="none"></svg>
+    <div class="legend-row" aria-label="Difficulty legend">
+      <span><span class="swatch tier-hard"></span>hard (Flesch &lt; 50)</span>
+      <span><span class="swatch tier-medium"></span>medium (50&ndash;70)</span>
+      <span><span class="swatch tier-easy"></span>easy (&gt; 70)</span>
+      <span style="margin-left:auto; text-transform:none; font-style:italic;">grade = Flesch&ndash;Kincaid US grade level</span>
+    </div>
     <p class="hint">Drag through the chart to pick a thread, then press <b>show</b>.</p>
     <div class="chart-controls">
       <button id="show">Show selected</button>
@@ -439,6 +463,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 import {
   pullProfile,
   analyzeProfile,
+  fleschTier,
 } from '../lib/atproto/index.js';
 
 const $ = (id) => document.getElementById(id);
@@ -500,21 +525,26 @@ function renderChart() {
     svgHtml += `<line class="axis" x1="${PAD_L}" y1="${s.y}" x2="${W - PAD_R}" y2="${s.y}" stroke-opacity="0.4"/>`;
     svgHtml += `<text x="${PAD_L - 6}" y="${s.y + 3}" text-anchor="end" class="label">${s.label}</text>`;
   }
-  // Bars
+  // Bars — opacity tier reflects Flesch reading level (harder = more saturated).
   for (let i = 0; i < ts.length; i++) {
     const t = ts[i];
     const h = innerH * (t.totalChars / maxLen);
     const x = PAD_L + i * barW;
     const y = PAD_T + innerH - h;
-    const cls = i === state.selectedIdx ? 'bar selected' : 'bar';
+    const tier = fleschTier(t.reading?.flesch);
+    const cls = `bar tier-${tier}` + (i === state.selectedIdx ? ' selected' : '');
     svgHtml += `<rect class="${cls}" data-idx="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0.5, barW - 0.4).toFixed(2)}" height="${Math.max(0, h).toFixed(2)}"/>`;
   }
   // Cursor
   const cursorX = PAD_L + (state.selectedIdx + 0.5) * barW;
   svgHtml += `<line id="cursor" class="cursor" x1="${cursorX.toFixed(2)}" y1="${PAD_T - 4}" x2="${cursorX.toFixed(2)}" y2="${H - PAD_B + 4}"/>`;
-  // X-axis label: rank + length
+  // X-axis label: rank + length + reading level
   const sel = ts[state.selectedIdx];
-  svgHtml += `<text x="${W/2}" y="${H - 6}" text-anchor="middle" class="selected-label">#${state.selectedIdx + 1} of ${ts.length} · ${sel.totalChars.toLocaleString()} chars · ${sel.postCount} post${sel.postCount === 1 ? '' : 's'}</text>`;
+  const rd = sel.reading;
+  const readingBit = rd
+    ? ` · grade ${rd.grade.toFixed(1)} · Flesch ${rd.flesch.toFixed(0)}`
+    : '';
+  svgHtml += `<text x="${W/2}" y="${H - 6}" text-anchor="middle" class="selected-label">#${state.selectedIdx + 1} of ${ts.length} · ${sel.totalChars.toLocaleString()} chars · ${sel.postCount} post${sel.postCount === 1 ? '' : 's'}${readingBit}</text>`;
   svg.innerHTML = svgHtml;
 
   // Pointer events
@@ -548,9 +578,13 @@ function updateChartMeta() {
   const sel = state.threads[state.selectedIdx];
   if (!sel) { $('chart-meta').innerHTML = ''; return; }
   const date = (sel.createdAt || '').slice(0, 10);
+  const rd = sel.reading;
+  const readingBit = rd
+    ? `<br>reading: <b>grade ${rd.grade.toFixed(1)}</b> &middot; Flesch ${rd.flesch.toFixed(0)} &middot; ${(rd.complex_word_ratio * 100).toFixed(0)}% complex words`
+    : '';
   $('chart-meta').innerHTML = `
     <span><b>@${state.handle}</b> &middot; ${state.threads.length} threads &middot; ${state.posts.length} posts scanned</span>
-    <span>selected: rank #${state.selectedIdx + 1} &middot; ${sel.totalChars.toLocaleString()} chars &middot; ${date}</span>
+    <span>selected: rank #${state.selectedIdx + 1} &middot; ${sel.totalChars.toLocaleString()} chars &middot; ${date}${readingBit}</span>
   `;
 }
 

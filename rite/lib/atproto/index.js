@@ -168,6 +168,70 @@ export function isProse(post) {
 
 // ---- thread building -----------------------------------------------------
 
+// Deterministic reading-level scoring. No inference; just the standard formulas
+// over word/sentence/syllable counts.
+//   - Flesch reading-ease:        higher = easier (typical 30 = college, 70 = standard)
+//   - Flesch-Kincaid grade level: approximate US grade, e.g. 8.0 = 8th grade
+//   - complex_word_ratio:         fraction of words with ≥ 3 syllables
+//
+// Syllable counting uses the long-standing heuristic (strip silent ed/es/e,
+// drop leading y, count vowel-runs). It over-counts acronyms and under-counts
+// some -ed-ending words; close enough at the thread level.
+export function readingLevel(text) {
+  const empty = { words: 0, sentences: 0, syllables: 0, flesch: 0, grade: 0, complex_word_ratio: 0 };
+  const t = (text || '').trim();
+  if (!t) return empty;
+  const wordTokens = t.match(/\S+/g) || [];
+  const words = wordTokens.length;
+  if (!words) return empty;
+  // Sentence-ish: terminal punctuation runs. Threads often end without one,
+  // so floor at 1 to avoid divide-by-zero blowing up Flesch.
+  const sentences = (t.match(/[.!?]+/g) || []).length || 1;
+
+  let syllables = 0;
+  let complex = 0;
+  for (const w of wordTokens) {
+    const s = countSyllables(w);
+    syllables += s;
+    if (s >= 3) complex++;
+  }
+
+  const wps = words / sentences;
+  const spw = syllables / words;
+  const flesch = 206.835 - 1.015 * wps - 84.6 * spw;
+  const grade  = 0.39 * wps + 11.8 * spw - 15.59;
+
+  return {
+    words, sentences, syllables,
+    flesch: round1(flesch),
+    grade: round1(grade),
+    complex_word_ratio: round3(complex / words),
+  };
+}
+
+function countSyllables(word) {
+  const w = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (!w) return 0;
+  if (w.length <= 3) return 1;
+  const stripped = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '').replace(/^y/, '');
+  const m = stripped.match(/[aeiouy]+/g);
+  return m ? m.length : 1;
+}
+
+function round1(n) { return Math.round(n * 10) / 10; }
+function round3(n) { return Math.round(n * 1000) / 1000; }
+
+// Map a Flesch score to a coarse difficulty tier. Useful for chart coloring.
+//   hard    : Flesch < 50  (college and up)
+//   medium  : 50 ≤ Flesch < 70  (high school to standard)
+//   easy    : Flesch ≥ 70  (broadly accessible)
+export function fleschTier(flesch) {
+  if (flesch == null || isNaN(flesch)) return 'medium';
+  if (flesch < 50) return 'hard';
+  if (flesch < 70) return 'medium';
+  return 'easy';
+}
+
 export function buildThreadChains(posts) {
   const byUri = new Map();
   for (const p of posts) byUri.set(p.uri, p);
@@ -213,16 +277,18 @@ export function composeThread(chain, idx, { minChars = 300 } = {}) {
   const total = textBlocks.reduce((a, b) => a + b.length, 0);
   if (total < minChars) return null;
   const root = proseChain[0];
+  const fullText = textBlocks.join('\n\n');
   return {
     id: `t${idx}`,                            // sortable, ephemeral
     threadId: root.rkey || root.uri,          // stable across re-indexings
     posts: proseChain,
-    text: textBlocks.join('\n\n'),
+    text: fullText,
     textBlocks,
     totalChars: total,
     postCount: proseChain.length,
     createdAt: root.record.createdAt || '',
     rootUri: root.uri,
+    reading: readingLevel(textBlocks.join(' ')),
   };
 }
 
