@@ -322,13 +322,14 @@ Morphyx's reply (chains from modulo's)
 **Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
 **Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
 
-Single Worker that hosts five surfaces, all over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
+Single Worker that hosts six surfaces, all over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
 
 - **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
 - **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
 - **`/redact/`** — Redactle-style game over a Bluesky user's longest prose threads. Pulls their full repo as a CAR, finds prose chains, picks ≈45% of content words to censor, scores guesses.
 - **`/ask/`** — semantic search over a profile's prose threads. Embeds each thread once via BGE, stores `(did, thread_id, text, embedding BLOB, x, y)` in D1, renders a 2D PCA map; query box highlights matching threads.
 - **`/atlas/`** — multi-view analytics over the same threads (scatter chars × Flesch, Pareto by length, Pareto by difficulty, Flesch histogram). Pure deterministic scoring, no inference.
+- **`/lexicon/`** — word-level lenses tagged against open lexicons (NRC Emotion, Brysbaert Concreteness, AFINN, SUBTLEX-US baseline). Frequency, TF-IDF distinctiveness, emotion-color, sentiment-color, concreteness gradient. Lexicons fetched + committed by `.github/workflows/fetch-lexicons.yml` to `rite/lexicon/data/*.json`; page falls back to inline mini-lexicons if the fetched files aren't present.
 
 ### Architecture
 
@@ -422,7 +423,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | **Bakery** | `bakery/` | React + Vite | `npm run build` → `dist/` | Pages (bakery.mino.mobi) |
 | **ATPhoto** | `photo/` | React 19 + Vite 6 + DuckDB-WASM + Rust/WASM | `npm run build` → `dist/` | Pages (photo.mino.mobi) — deploys from `claude/atproto-arena-duckdb-8H9SQ` |
 | **ATPolls** | `poll/` | React + Vite + Workers + D1 + DO | Monorepo: shared → web → api | Pages + Worker (poll.mino.mobi) |
-| **Rite** | `rite/` | Worker + ASSETS + D1 + AI (no build, vanilla JS) | `wrangler deploy` (via `deploy-rite.yml`) | Worker (rite.mino.mobi) — drill at `/`, fodder at `/fodder/`, redact at `/redact/`, ask at `/ask/`, atlas at `/atlas/`. Shares `atpolls-db`. All four browser surfaces share `rite/lib/atproto/` (CAR + threads + reading level). |
+| **Rite** | `rite/` | Worker + ASSETS + D1 + AI (no build, vanilla JS) | `wrangler deploy` (via `deploy-rite.yml`) | Worker (rite.mino.mobi) — drill at `/`, fodder at `/fodder/`, redact at `/redact/`, ask at `/ask/`, atlas at `/atlas/`, lexicon at `/lexicon/`. Shares `atpolls-db`. All five browser surfaces share `rite/lib/atproto/` (CAR + threads + reading level). |
 
 **Poll specifics**:
 - Workspace monorepo: `packages/shared`, `apps/web`, `apps/api`
@@ -477,6 +478,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 |----------|---------|------------|
 | `deploy-poll.yml` | Push to `main` (poll/**) or manual | Cloudflare Worker + Pages |
 | `deploy-rite.yml` | Push to `main` or `claude/sentence-editing-drill-*` (rite/**) or manual | D1 migration + Cloudflare Worker (rite.mino.mobi) |
+| `fetch-lexicons.yml` | Push to scripts/fetch-lexicons.mjs, monthly cron, or manual | Downloads NRC / AFINN / Concreteness / SUBTLEX-US, commits JSON to `rite/lexicon/data/` |
 | `post-to-bluesky.yml` | Push to `time/posts/` | Bluesky (3 accounts) |
 | `publish-whtwnd.yml` | Push to `time/entries/` | PDS (WhiteWind records) |
 | `sync-phylo.yml` | Push to tracked paths | PDS (phylo records) |

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lexicon &mdash; word-level analysis of a Bluesky archive</title>
+<meta name="description" content="Word clouds and lexicon-tagged views of someone's Bluesky prose: NRC emotion, AFINN sentiment, concreteness, distinctive vocabulary.">
+<meta property="og:title" content="lexicon">
+<meta property="og:description" content="Word clouds and lexicon-tagged views of someone's prose.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/lexicon/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030; --warm: #a06020;
+  --card-bg: #fff;
+  --joy: #d8a020; --sadness: #4060a0; --anger: #a03030; --fear: #604080;
+  --disgust: #608030; --surprise: #c060a0; --trust: #2a7a8a; --anticipation: #c08020;
+  --pos: #2a7a2a; --neg: #a03030;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --warm: #d0a060;
+    --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 880px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.stage { display: none; }
+.stage.active { display: block; }
+
+form#handle-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+input[type="text"] { padding: 0.7rem 0.9rem; font-family: var(--serif); font-size: 1rem; background: var(--bg); color: var(--text); border: 1px solid var(--rule); border-radius: 4px; outline: none; }
+input:focus { border-color: var(--accent); }
+button { font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s; }
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+/* typeahead */
+.typeahead-wrap { position: relative; flex: 1; min-width: 200px; }
+.typeahead-wrap #handle { width: 100%; flex: initial; min-width: 0; }
+.typeahead-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10; max-height: 360px; overflow-y: auto; display: none; }
+.typeahead-results.show { display: block; }
+.typeahead-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.7rem; cursor: pointer; border-bottom: 1px solid var(--rule); }
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-faint); }
+.typeahead-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.typeahead-item .at-handle { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar { height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.7rem; }
+.progress-bar > .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+
+/* lexicon stage */
+.profile-strip { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.profile-strip b { color: var(--accent); }
+.profile-strip .actions { display: flex; gap: 0.4rem; }
+.profile-strip .actions button { font-size: 0.7rem; padding: 0.3rem 0.6rem; }
+
+.summary-strip { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.7rem; }
+.summary-strip b { color: var(--text); }
+
+.view-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.view-tab { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.5rem 0.85rem; background: transparent; color: var(--muted); border: none; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -1px; }
+.view-tab:hover { color: var(--text); }
+.view-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+#cloud-region {
+  background: var(--card-bg);
+  border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1.2rem 1.4rem; min-height: 320px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 0.4rem 0.7rem;
+  line-height: 1.3;
+}
+.word {
+  display: inline-block;
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  cursor: default;
+  transition: background 0.15s;
+  font-family: var(--serif);
+  position: relative;
+}
+.word:hover { background: var(--accent-faint); }
+.word .pop {
+  position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -4px);
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.3rem 0.5rem; font-size: 0.7rem; font-family: var(--mono);
+  color: var(--muted); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 5;
+}
+.word:hover .pop { opacity: 1; }
+/* NRC color classes */
+.word.emo-joy           { color: var(--joy); }
+.word.emo-sadness       { color: var(--sadness); }
+.word.emo-anger         { color: var(--anger); }
+.word.emo-fear          { color: var(--fear); }
+.word.emo-disgust       { color: var(--disgust); }
+.word.emo-surprise      { color: var(--surprise); }
+.word.emo-trust         { color: var(--trust); }
+.word.emo-anticipation  { color: var(--anticipation); }
+.word.emo-none          { color: var(--text); opacity: 0.55; }
+
+.legend-row { display: flex; gap: 0.7rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0.5rem 0 1.2rem; align-items: center; }
+.legend-row .swatch { display: inline-block; width: 0.85rem; height: 0.85rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -2px; }
+.legend-row .axes-hint { margin-left: auto; font-style: italic; text-transform: none; }
+
+/* docs */
+.docs { line-height: 1.6; }
+.docs h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; font-weight: 700; color: var(--accent); }
+.docs h2:first-child { margin-top: 0; }
+.docs p { margin: 0.5rem 0; }
+.docs ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+.docs li { margin: 0.25rem 0; }
+.docs code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-faint); padding: 0.1em 0.35em; border-radius: 3px; }
+.docs a { color: var(--accent); }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>lexicon<span class="dot">.</span></h1>
+  <p class="subtitle">Word-level lenses on a Bluesky archive's prose. Frequency, distinctiveness, emotion, sentiment, concreteness.</p>
+</header>
+
+<main>
+  <!-- Stage 1: handle input -->
+  <section id="stage-input" class="stage active">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
+      <button type="submit">Open lexicon</button>
+    </form>
+    <p class="hint">
+      We pull the user's full repo as a CAR file from their PDS, extract their prose threads, tokenize, and tag each word
+      against four open lexicons (NRC emotion, Brysbaert concreteness, AFINN sentiment, SUBTLEX baseline frequency).
+      All deterministic; no inference; nothing leaves your browser.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <!-- Stage 2: loading -->
+  <section id="stage-loading" class="stage">
+    <div class="loading"><div class="spinner"></div><p id="progress-text">Resolving handle…</p></div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <!-- Stage 3: lexicon view -->
+  <section id="stage-lexicon" class="stage">
+    <div class="profile-strip">
+      <span id="profile-meta"></span>
+      <span class="actions"><button id="back" class="ghost">New profile</button></span>
+    </div>
+    <div class="summary-strip" id="summary-strip"></div>
+
+    <nav class="view-tabs" role="tablist">
+      <button class="view-tab active" data-view="freq">Frequency</button>
+      <button class="view-tab" data-view="tfidf">TF-IDF · distinctive</button>
+      <button class="view-tab" data-view="nrc">NRC · emotion</button>
+      <button class="view-tab" data-view="afinn">AFINN · sentiment</button>
+      <button class="view-tab" data-view="concreteness">Concreteness</button>
+      <button class="view-tab" data-view="docs">Docs</button>
+    </nav>
+
+    <div id="cloud-region"></div>
+    <div class="legend-row" id="legend-row"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/ask/">/ask/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import { pullProfile, analyzeProfile } from '../lib/atproto/index.js';
+import { STOPWORDS, NRC, CONCRETENESS, AFINN, BASELINE_FREQ } from './lexicons.js';
+
+const $ = (id) => document.getElementById(id);
+const PUBLIC_API = 'https://api.bsky.app';
+const MIN_THREAD_CHARS = 300;
+
+// State that persists across views.
+const state = {
+  did: null, handle: null, posts: [], threads: [],
+  freq: new Map(),       // word -> raw count
+  totalTokens: 0,
+  view: 'freq',
+};
+
+// Lazy override: prefer ./data/{nrc,concreteness,afinn,baseline}.json if a
+// future fetch-lexicons script wrote them, otherwise fall back to the inline
+// mini lexicons. Same shapes; same behavior.
+const LEX = { NRC, CONCRETENESS, AFINN, BASELINE_FREQ };
+async function tryLoadFullLexicon(name, key) {
+  try {
+    const res = await fetch(`./data/${name}.json`);
+    if (!res.ok) return;
+    const data = await res.json();
+    LEX[key] = data;
+  } catch {}
+}
+const lexiconLoad = Promise.all([
+  tryLoadFullLexicon('nrc', 'NRC'),
+  tryLoadFullLexicon('concreteness', 'CONCRETENESS'),
+  tryLoadFullLexicon('afinn', 'AFINN'),
+  tryLoadFullLexicon('baseline', 'BASELINE_FREQ'),
+]);
+
+function showStage(name) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name)); }
+function setProgress(text, frac) { $('progress-text').textContent = text; if (typeof frac === 'number') $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%'; }
+function showError(msg) { $('input-error').textContent = msg; $('input-error').style.display = 'block'; }
+function clearError() { $('input-error').style.display = 'none'; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+// ----- typeahead -----
+const ta = { results: [], active: -1, timer: null, abort: null };
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || [];
+    ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+function renderTypeahead() {
+  const el = $('typeahead-results');
+  if (!ta.results.length) { el.classList.remove('show'); el.innerHTML = ''; $('handle').setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = ta.results.map((a, i) => `
+    <div class="typeahead-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info"><div class="display-name">${escapeHtml(a.displayName || a.handle)}</div><div class="at-handle">@${escapeHtml(a.handle)}</div></div>
+    </div>`).join('');
+  el.classList.add('show'); $('handle').setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const item = el.children[ta.active]; if (item) item.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('typeahead-results').classList.remove('show'); ta.results = []; ta.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickAndSubmit(h) { $('handle').value = h; hideTypeahead(); $('handle-form').requestSubmit(); }
+$('handle').addEventListener('input', () => { clearTimeout(ta.timer); ta.timer = setTimeout(() => fetchTypeahead($('handle').value), 180); });
+$('handle').addEventListener('keydown', (e) => {
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && ta.active >= 0) { e.preventDefault(); pickAndSubmit(ta.results[ta.active].handle); }
+  else if (e.key === 'Escape') hideTypeahead();
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); $('handle').value = ta.results[ta.active].handle; hideTypeahead(); }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => { const item = e.target.closest('.typeahead-item'); if (!item) return; e.preventDefault(); pickAndSubmit(item.dataset.handle); });
+$('handle').addEventListener('blur', () => setTimeout(hideTypeahead, 120));
+
+// ----- tokenize + count -----
+function tokenize(text) {
+  // [a-z'] words, length ≥ 3, drop stopwords, drop pure-digit words.
+  const out = [];
+  const re = /[a-z'][a-z']+/g;
+  const lower = text.toLowerCase();
+  let m;
+  while ((m = re.exec(lower)) !== null) {
+    const w = m[0].replace(/^'+|'+$/g, '');
+    if (w.length < 3) continue;
+    if (STOPWORDS.has(w)) continue;
+    out.push(w);
+  }
+  return out;
+}
+function buildFrequency(threads) {
+  const freq = new Map();
+  let total = 0;
+  for (const t of threads) {
+    for (const w of tokenize(t.text)) {
+      freq.set(w, (freq.get(w) || 0) + 1);
+      total++;
+    }
+  }
+  return { freq, total };
+}
+
+// ----- handle submit -----
+async function handleSubmit() {
+  clearError();
+  const h = $('handle').value.trim();
+  if (!h) return;
+  showStage('loading');
+  setProgress('Loading lexicons…', 0);
+  try {
+    await lexiconLoad;
+    setProgress('Resolving handle…', 0);
+    const result = await pullProfile(h, setProgress);
+    state.did = result.did; state.handle = result.handle; state.posts = result.posts;
+    setProgress('Building threads…', 1);
+    state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
+    if (!state.threads.length) {
+      showStage('input');
+      showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}.`);
+      return;
+    }
+    setProgress('Tokenizing & counting…', 1);
+    const { freq, total } = buildFrequency(state.threads);
+    state.freq = freq; state.totalTokens = total;
+    showStage('lexicon');
+    renderProfileStrip();
+    renderSummary();
+    state.view = 'freq';
+    document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.view === 'freq'));
+    renderView();
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+function renderProfileStrip() {
+  $('profile-meta').innerHTML = `<b>@${escapeHtml(state.handle)}</b> &middot; ${state.threads.length} threads &middot; ${state.totalTokens.toLocaleString()} content words after stopword filter`;
+}
+function renderSummary() {
+  // Per-emotion totals (NRC), mean concreteness, mean AFINN.
+  const emoCount = { joy:0, sadness:0, anger:0, fear:0, disgust:0, surprise:0, trust:0, anticipation:0 };
+  let posCount = 0, negCount = 0;
+  let conSum = 0, conN = 0;
+  let aSum = 0, aN = 0;
+  for (const [w, n] of state.freq) {
+    const tags = LEX.NRC[w];
+    if (tags) {
+      for (const t of tags) {
+        if (emoCount[t] !== undefined) emoCount[t] += n;
+        else if (t === 'positive') posCount += n;
+        else if (t === 'negative') negCount += n;
+      }
+    }
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c === 'number') { conSum += c * n; conN += n; }
+    const a = LEX.AFINN[w];
+    if (typeof a === 'number') { aSum += a * n; aN += n; }
+  }
+  const conMean = conN ? (conSum / conN).toFixed(2) : '?';
+  const aMean = aN ? (aSum / aN).toFixed(2) : '?';
+  // Top emotion
+  let topEmo = null, topEmoN = -1;
+  for (const [k, v] of Object.entries(emoCount)) if (v > topEmoN) { topEmo = k; topEmoN = v; }
+  $('summary-strip').innerHTML = `
+    mean concreteness <b>${conMean}</b> &middot;
+    mean AFINN <b>${aMean >= 0 ? '+' : ''}${aMean}</b> &middot;
+    top emotion <b>${escapeHtml(topEmo || '—')}</b> &middot;
+    pos/neg ${posCount}/${negCount}
+  `;
+}
+
+// ----- view dispatch -----
+function renderView() {
+  if (state.view === 'docs') { renderDocs(); return; }
+  const region = $('cloud-region');
+  region.innerHTML = '';
+  const items = scoredItems(state.view);
+  if (!items.length) {
+    region.innerHTML = '<div class="hint" style="text-align:center; padding:2rem;">No words to show under this lens.</div>';
+    $('legend-row').innerHTML = '';
+    return;
+  }
+  const maxScore = items[0].score;
+  // Tag-cloud layout: font-size by sqrt(score) for visual balance.
+  region.innerHTML = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="font-size: ${fs}rem;">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  renderLegend();
+}
+
+function renderLegend() {
+  if (state.view === 'freq') {
+    $('legend-row').innerHTML = `<span class="axes-hint">size = raw frequency in this profile's corpus</span>`;
+  } else if (state.view === 'tfidf') {
+    $('legend-row').innerHTML = `<span class="axes-hint">size = TF-IDF distinctiveness vs SUBTLEX baseline · 'their words'</span>`;
+  } else if (state.view === 'nrc') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
+      <span><span class="swatch" style="background: var(--anticipation)"></span>anticip.</span>
+      <span><span class="swatch" style="background: var(--trust)"></span>trust</span>
+      <span><span class="swatch" style="background: var(--surprise)"></span>surprise</span>
+      <span><span class="swatch" style="background: var(--sadness)"></span>sadness</span>
+      <span><span class="swatch" style="background: var(--fear)"></span>fear</span>
+      <span><span class="swatch" style="background: var(--anger)"></span>anger</span>
+      <span><span class="swatch" style="background: var(--disgust)"></span>disgust</span>
+      <span class="axes-hint">color = dominant NRC emotion · uncolored = no tag</span>
+    `;
+  } else if (state.view === 'afinn') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: var(--neg)"></span>negative</span>
+      <span><span class="swatch" style="background: var(--muted)"></span>neutral / untagged</span>
+      <span><span class="swatch" style="background: var(--pos)"></span>positive</span>
+      <span class="axes-hint">color depth = absolute AFINN score (1–5)</span>
+    `;
+  } else if (state.view === 'concreteness') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: #d8a020"></span>abstract (1)</span>
+      <span><span class="swatch" style="background: #608030"></span>concrete (5)</span>
+      <span class="axes-hint">color gradient = Brysbaert concreteness rating</span>
+    `;
+  }
+}
+
+function scoredItems(view) {
+  const out = [];
+  for (const [word, count] of state.freq) {
+    let score = count;
+    let cls = '';
+    let popover = `${count}× in corpus`;
+    if (view === 'tfidf') {
+      const baseline = LEX.BASELINE_FREQ[word] ?? 0;
+      // (tf normalized) / log(1 + baseline). Higher = more distinctive.
+      const tf = count / state.totalTokens;
+      score = tf / Math.log(2 + baseline);
+      popover = `${count}× · baseline ${baseline}/M · tf-idf ${(score * 1e5).toFixed(2)}`;
+      // Hide ultra-common words even if not in stopwords.
+      if (baseline > 1500 && count < 20) continue;
+    } else if (view === 'nrc') {
+      const tags = LEX.NRC[word];
+      if (!tags) {
+        cls = 'emo-none';
+        popover = `${count}× · no NRC tag`;
+      } else {
+        const emo = tags.find(t => ['joy','sadness','anger','fear','disgust','surprise','trust','anticipation'].includes(t));
+        cls = 'emo-' + (emo || 'none');
+        popover = `${count}× · ${tags.join(', ')}`;
+      }
+    } else if (view === 'afinn') {
+      const a = LEX.AFINN[word];
+      if (typeof a !== 'number') {
+        // Skip untagged in AFINN view; the cloud is too noisy otherwise.
+        continue;
+      }
+      const intensity = Math.min(1, Math.abs(a) / 5);
+      const c = a >= 0 ? 'var(--pos)' : 'var(--neg)';
+      cls = '';
+      // Inline color via style override below.
+      out.push({ word, score: count, cls: '', popover: `${count}× · AFINN ${a >= 0 ? '+' : ''}${a}`, _inlineColor: c, _intensity: intensity });
+      continue;
+    } else if (view === 'concreteness') {
+      const c = LEX.CONCRETENESS[word];
+      if (typeof c !== 'number') continue;
+      // Skip untagged; cloud is too noisy. Color along an abstract→concrete gradient.
+      // 1.0 = warm yellow (#d8a020), 5.0 = forest green (#608030). Lerp HSL-ish.
+      const t = (c - 1) / 4;
+      const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+      const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+      const b = Math.round(0x20 * (1 - t) + 0x30 * t);
+      const colorHex = `rgb(${r},${g},${b})`;
+      out.push({ word, score: count, cls: '', popover: `${count}× · concreteness ${c.toFixed(1)}/5`, _inlineColor: colorHex });
+      continue;
+    }
+    out.push({ word, score, cls, popover });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out;
+}
+
+// Override tag-cloud renderer for views that need inline colors (afinn, concreteness).
+function renderViewWithInlineColors(items) {
+  const region = $('cloud-region');
+  if (!items.length) { region.innerHTML = '<div class="hint">No words to show under this lens.</div>'; return; }
+  const maxScore = items[0].score;
+  region.innerHTML = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    let style = `font-size: ${fs}rem;`;
+    if (it._inlineColor) style += ` color: ${it._inlineColor};`;
+    if (typeof it._intensity === 'number') style += ` opacity: ${(0.45 + 0.55 * it._intensity).toFixed(2)};`;
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="${style}">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+}
+
+// Override renderView() to dispatch correctly when inline colors are in use.
+const origRenderView = renderView;
+renderView = function () {
+  if (state.view === 'docs') { renderDocs(); return; }
+  if (state.view === 'afinn' || state.view === 'concreteness') {
+    const items = scoredItems(state.view);
+    renderViewWithInlineColors(items);
+    renderLegend();
+    return;
+  }
+  origRenderView();
+};
+
+function renderDocs() {
+  $('legend-row').innerHTML = '';
+  $('cloud-region').innerHTML = `
+    <div class="docs" style="max-width:680px; padding:0.5rem 0.5rem 1rem;">
+      <h2>What you're looking at</h2>
+      <p>The same prose corpus that powers <a href="/atlas/">/atlas/</a> and <a href="/redact/">/redact/</a>, viewed through five word-level lenses. Words are tokenized, lowercased, stripped of stopwords (articles, pronouns, common auxiliaries, contractions, and social-media filler), and counted across all the user's prose threads.</p>
+
+      <h2>Frequency</h2>
+      <p>The simplest cloud: word size by raw count. Useful baseline; fast to scan; tends to be dominated by topic-defining nouns and the writer's verbal tics.</p>
+
+      <h2>TF-IDF · distinctive</h2>
+      <p>Word size by <code>frequency_in_corpus / log(2 + baseline_frequency)</code>, where <code>baseline_frequency</code> comes from <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a> (Brysbaert &amp; New 2009), a frequency norm derived from English movie subtitles. Words this writer uses much more than a typical English speaker stand out. This is "their words" — the vocabulary that's actually theirs vs. the common pool.</p>
+
+      <h2>NRC · emotion</h2>
+      <p>Color by which of eight emotions the word belongs to (anger, anticipation, disgust, fear, joy, sadness, surprise, trust), per the <a href="https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm">NRC Emotion Lexicon</a> (Mohammad &amp; Turney 2013). The full lexicon has ~14k words; the version shipping inline with this page is a hand-authored mini covering the most-impactful ~300 words. Run <code>scripts/fetch-lexicons.mjs</code> to swap in the full data.</p>
+      <p>Words can carry multiple emotions ("love" → joy, trust, positive). The cloud picks the first emotion tag for coloring; the popover shows them all. Untagged words appear faded.</p>
+
+      <h2>AFINN · sentiment</h2>
+      <p>Color by sentiment score on a -5 (most negative) to +5 (most positive) scale, per <a href="https://github.com/fnielsen/afinn">AFINN</a> (Nielsen 2011). Green = positive, red = negative; opacity scales with intensity. Untagged words are hidden (the cloud is too noisy otherwise) — what you see is the writer's affect-laden vocabulary.</p>
+
+      <h2>Concreteness</h2>
+      <p>Color along an abstract→concrete gradient using <a href="http://crr.ugent.be/papers/Concreteness_ratings_Brysbaert_et_al_BRM.pdf">Brysbaert, Warriner &amp; Kuperman (2014)</a>'s 1–5 ratings (40k words, mean of 30+ annotators per word). Yellow = abstract ("justice", "consciousness"); green = concrete ("table", "rain"). Distinctively concrete or abstract writers look strikingly different.</p>
+
+      <h2>Caveats</h2>
+      <ul>
+        <li><b>Mini lexicons.</b> The shipping versions are small approximations sized to fit inline (~25 KB total). Coverage on a typical thread is ~30–40% of content words. The full published lexicons have ~5–40× more coverage and are CC-licensed; the swap script fetches them and writes <code>./data/*.json</code>, which the page prefers automatically.</li>
+        <li><b>Word-level vs. context.</b> "Sick" is negative in AFINN but positive in skater slang. "Dark" is fearful in NRC but neutral as a color. These lexicons measure word-association at population scale, not utterance meaning. Read the cloud as climate, not certainty.</li>
+        <li><b>No lemmatization.</b> "Run" / "running" / "ran" count separately. A small follow-up.</li>
+      </ul>
+
+      <h2>Citations</h2>
+      <ul>
+        <li>Mohammad, S. M., &amp; Turney, P. D. (2013). Crowdsourcing a word-emotion association lexicon. <i>Computational Intelligence</i>, 29(3), 436–465.</li>
+        <li>Brysbaert, M., Warriner, A. B., &amp; Kuperman, V. (2014). Concreteness ratings for 40 thousand generally known English word lemmas. <i>Behavior Research Methods</i>, 46(3), 904–911.</li>
+        <li>Nielsen, F. Å. (2011). A new ANEW: Evaluation of a word list for sentiment analysis in microblogs. <i>arXiv:1103.2903</i>.</li>
+        <li>Brysbaert, M., &amp; New, B. (2009). Moving beyond Kučera and Francis: A critical evaluation of current word frequency norms. <i>Behavior Research Methods</i>, 41(4), 977–990.</li>
+      </ul>
+    </div>
+  `;
+}
+
+// ----- view tab clicks -----
+document.querySelectorAll('.view-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.view = btn.dataset.view;
+    document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderView();
+  });
+});
+
+// ----- wire up -----
+$('handle-form').addEventListener('submit', (e) => { e.preventDefault(); handleSubmit(); });
+$('back').addEventListener('click', () => {
+  state.did = null; state.handle = null; state.posts = []; state.threads = [];
+  state.freq = new Map(); state.totalTokens = 0;
+  $('handle').value = '';
+  showStage('input'); $('handle').focus();
+});
+</script>
+</body>
+</html>
