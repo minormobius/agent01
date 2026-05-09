@@ -94,6 +94,77 @@ input[type="text"], #handle, #guess {
   outline: none;
 }
 input:focus { border-color: var(--accent); }
+
+/* ---- typeahead ---- */
+.typeahead-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.typeahead-wrap #handle {
+  width: 100%;
+  flex: initial;
+  min-width: 0;
+}
+.typeahead-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 10;
+  max-height: 360px;
+  overflow-y: auto;
+  display: none;
+}
+.typeahead-results.show { display: block; }
+.typeahead-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active {
+  background: var(--accent-faint);
+}
+.typeahead-item .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rule);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.typeahead-item .at-handle {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.typeahead-empty {
+  padding: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  text-align: center;
+}
 button {
   font-family: var(--mono);
   font-size: 0.85rem;
@@ -304,8 +375,11 @@ footer a { color: var(--muted); text-decoration: underline; }
 <main>
   <!-- Stage 1: handle input -->
   <section id="stage-input" class="stage active">
-    <form id="handle-form">
-      <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
       <button type="submit">Pull profile</button>
     </form>
     <p class="hint" style="text-align:left">
@@ -909,6 +983,116 @@ function showError(msg) {
 function clearError() {
   $('input-error').style.display = 'none';
 }
+
+// ----- typeahead -----
+const typeahead = {
+  results: [],
+  active: -1,
+  timer: null,
+  abort: null,
+};
+
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (typeahead.abort) typeahead.abort.abort();
+  typeahead.abort = new AbortController();
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`,
+      { signal: typeahead.abort.signal }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    typeahead.results = data.actors || [];
+    typeahead.active = -1;
+    renderTypeahead();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error('typeahead', e);
+  }
+}
+
+function renderTypeahead() {
+  const el = $('typeahead-results');
+  const handle = $('handle');
+  if (!typeahead.results.length) {
+    el.classList.remove('show');
+    el.innerHTML = '';
+    handle.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  el.innerHTML = typeahead.results.map((a, i) => `
+    <div class="typeahead-item${i === typeahead.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === typeahead.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info">
+        <div class="display-name">${escapeHtml(a.displayName || a.handle)}</div>
+        <div class="at-handle">@${escapeHtml(a.handle)}</div>
+      </div>
+    </div>
+  `).join('');
+  el.classList.add('show');
+  handle.setAttribute('aria-expanded', 'true');
+  // Keep the active item in view.
+  if (typeahead.active >= 0) {
+    const item = el.children[typeahead.active];
+    if (item) item.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function hideTypeahead() {
+  $('typeahead-results').classList.remove('show');
+  typeahead.results = [];
+  typeahead.active = -1;
+  $('handle').setAttribute('aria-expanded', 'false');
+}
+
+function pickAndSubmit(handleStr) {
+  $('handle').value = handleStr;
+  hideTypeahead();
+  $('handle-form').requestSubmit();
+}
+
+$('handle').addEventListener('input', () => {
+  clearTimeout(typeahead.timer);
+  const v = $('handle').value;
+  typeahead.timer = setTimeout(() => fetchTypeahead(v), 180);
+});
+$('handle').addEventListener('keydown', (e) => {
+  if (!typeahead.results.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    typeahead.active = (typeahead.active + 1) % typeahead.results.length;
+    renderTypeahead();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    typeahead.active = (typeahead.active - 1 + typeahead.results.length) % typeahead.results.length;
+    renderTypeahead();
+  } else if (e.key === 'Enter' && typeahead.active >= 0) {
+    e.preventDefault();
+    pickAndSubmit(typeahead.results[typeahead.active].handle);
+  } else if (e.key === 'Escape') {
+    hideTypeahead();
+  } else if (e.key === 'Tab' && typeahead.active >= 0) {
+    // Tab fills without submitting, so the user can review before pressing enter.
+    e.preventDefault();
+    $('handle').value = typeahead.results[typeahead.active].handle;
+    hideTypeahead();
+  }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => {
+  // mousedown (not click) so it fires before the input's blur hides the dropdown.
+  const item = e.target.closest('.typeahead-item');
+  if (!item) return;
+  e.preventDefault();
+  pickAndSubmit(item.dataset.handle);
+});
+$('handle').addEventListener('blur', () => {
+  // Delay slightly so a click on a dropdown item still registers.
+  setTimeout(() => hideTypeahead(), 120);
+});
+$('handle').addEventListener('focus', () => {
+  if ($('handle').value.trim()) fetchTypeahead($('handle').value);
+});
 
 // ----- wire up -----
 $('handle-form').addEventListener('submit', async (e) => {
