@@ -181,7 +181,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
     <nav class="view-tabs" role="tablist">
       <button class="view-tab active" data-view="freq">Frequency</button>
-      <button class="view-tab" data-view="tfidf">TF-IDF · distinctive</button>
+      <button class="view-tab" data-view="tfidf">Distinctive</button>
       <button class="view-tab" data-view="nrc">NRC · emotion</button>
       <button class="view-tab" data-view="afinn">AFINN · sentiment</button>
       <button class="view-tab" data-view="concreteness">Concreteness</button>
@@ -404,7 +404,7 @@ function renderLegend() {
   if (state.view === 'freq') {
     $('legend-row').innerHTML = `<span class="axes-hint">size = raw frequency in this profile's corpus</span>`;
   } else if (state.view === 'tfidf') {
-    $('legend-row').innerHTML = `<span class="axes-hint">size = TF-IDF distinctiveness vs SUBTLEX baseline · 'their words'</span>`;
+    $('legend-row').innerHTML = `<span class="axes-hint">≥ 6 chars · ≥ 2 uses · size = freq / log(baseline+8) — 'their words' that aren't common English</span>`;
   } else if (state.view === 'nrc') {
     $('legend-row').innerHTML = `
       <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
@@ -440,13 +440,20 @@ function scoredItems(view) {
     let cls = '';
     let popover = `${count}× in corpus`;
     if (view === 'tfidf') {
+      // "Distinctive vocabulary": filter aggressively before scoring.
+      // Without filters, the cloud is dominated by hapax legomena (typos and
+      // one-time slang) since they all have baseline=0 and tie at max score.
+      // Length ≥ 6 chars surfaces domain/literary words; ≥ 2 occurrences
+      // drops one-offs.
+      if (word.length < 6) continue;
+      if (count < 2) continue;
+      if (STOPWORDS.has(word)) continue;
       const baseline = LEX.BASELINE_FREQ[word] ?? 0;
-      // (tf normalized) / log(1 + baseline). Higher = more distinctive.
       const tf = count / state.totalTokens;
-      score = tf / Math.log(2 + baseline);
-      popover = `${count}× · baseline ${baseline}/M · tf-idf ${(score * 1e5).toFixed(2)}`;
-      // Hide ultra-common words even if not in stopwords.
-      if (baseline > 1500 && count < 20) continue;
+      // Smoothing constant 8 (vs old 2): widens the gap between common and
+      // distinctive words enough that rare ones don't all top out together.
+      score = tf / Math.log(8 + baseline);
+      popover = `${count}× · baseline ${baseline ? baseline.toFixed(1) + '/M' : 'absent'} · score ${(score * 1e5).toFixed(2)}`;
     } else if (view === 'nrc') {
       const tags = LEX.NRC[word];
       if (!tags) {
@@ -525,8 +532,13 @@ function renderDocs() {
       <h2>Frequency</h2>
       <p>The simplest cloud: word size by raw count. Useful baseline; fast to scan; tends to be dominated by topic-defining nouns and the writer's verbal tics.</p>
 
-      <h2>TF-IDF · distinctive</h2>
-      <p>Word size by <code>frequency_in_corpus / log(2 + baseline_frequency)</code>, where <code>baseline_frequency</code> comes from <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a> (Brysbaert &amp; New 2009), a frequency norm derived from English movie subtitles. Words this writer uses much more than a typical English speaker stand out. This is "their words" — the vocabulary that's actually theirs vs. the common pool.</p>
+      <h2>Distinctive</h2>
+      <p>"Their words" — vocabulary that's actually theirs vs. the common pool. Word size by <code>frequency_in_corpus / log(8 + baseline_frequency)</code>, where <code>baseline_frequency</code> comes from <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a> (Brysbaert &amp; New 2009), a frequency norm derived from English movie subtitles. Two pre-filters keep the cloud from being dominated by noise:</p>
+      <ul>
+        <li><b>Length ≥ 6 characters.</b> Distinctive vocabulary tends to be longer; short words ("good", "love", "home") are usually too common-or-too-noisy to read as voice. Long words also weed out most typos and tokenizer artifacts.</li>
+        <li><b>Frequency ≥ 2 in corpus.</b> One-offs (hapax legomena) are unreliable signal — most are typos, names, or single-context references. Two uses suggests vocabulary the writer actually reaches for.</li>
+      </ul>
+      <p>The smoothing constant in the denominator (8 instead of e.g. 2) widens the gap between common-but-overrepresented words and rare-but-real-vocabulary words; without it, anything baseline-absent ties at the top.</p>
 
       <h2>NRC · emotion</h2>
       <p>Color by which of eight emotions the word belongs to (anger, anticipation, disgust, fear, joy, sadness, surprise, trust), per the <a href="https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm">NRC Emotion Lexicon</a> (Mohammad &amp; Turney 2013). The full lexicon has ~14k words; the version shipping inline with this page is a hand-authored mini covering the most-impactful ~300 words. Run <code>scripts/fetch-lexicons.mjs</code> to swap in the full data.</p>
