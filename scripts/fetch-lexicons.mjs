@@ -226,4 +226,7 @@ for (const [name, fn] of tasks) {
 console.log('\n──────');
 console.log(`OK:     ${results.ok.join(', ') || '(none)'}`);
 console.log(`Failed: ${results.failed.map(f => f.name).join(', ') || '(none)'}`);
-process.exit(results.failed.length ? 1 : 0);
+// Exit 0 even if some lexicons failed — partial success is useful (the page
+// gracefully falls back to inline mini-lexicons for any missing files), and
+// the workflow's commit step should still commit whatever JSON did get written.
+process.exit(0);
