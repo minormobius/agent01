@@ -91,6 +91,10 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
   gap: 0.4rem 0.7rem;
   line-height: 1.3;
 }
+#cloud-region > svg {
+  /* The Usage view fills the whole cloud-region; flex centering still applies. */
+  width: 100%; height: auto; max-width: 100%;
+}
 .word {
   display: inline-block;
   padding: 0.05em 0.3em;
@@ -182,6 +186,7 @@ footer a { color: var(--muted); text-decoration: underline; }
     <nav class="view-tabs" role="tablist">
       <button class="view-tab active" data-view="freq">Frequency</button>
       <button class="view-tab" data-view="tfidf">Distinctive</button>
+      <button class="view-tab" data-view="usage">Usage scatter</button>
       <button class="view-tab" data-view="nrc">NRC · emotion</button>
       <button class="view-tab" data-view="afinn">AFINN · sentiment</button>
       <button class="view-tab" data-view="concreteness">Concreteness</button>
@@ -440,20 +445,26 @@ function scoredItems(view) {
     let cls = '';
     let popover = `${count}× in corpus`;
     if (view === 'tfidf') {
-      // "Distinctive vocabulary": filter aggressively before scoring.
-      // Without filters, the cloud is dominated by hapax legomena (typos and
-      // one-time slang) since they all have baseline=0 and tie at max score.
-      // Length ≥ 6 chars surfaces domain/literary words; ≥ 2 occurrences
-      // drops one-offs.
+      // "Distinctive vocabulary": rare-but-used words this writer reaches for
+      // disproportionately. Filter aggressively before scoring:
+      //   - length ≥ 6 chars: surface domain/literary vocab, weed out typos
+      //   - count ≥ 2: drop hapax legomena (one-offs are usually noise)
+      //   - baseline must be present: words with no baseline data tell us
+      //     nothing about distinctiveness; hide rather than guess
       if (word.length < 6) continue;
       if (count < 2) continue;
       if (STOPWORDS.has(word)) continue;
       const baseline = LEX.BASELINE_FREQ[word] ?? 0;
+      if (!baseline) continue;
       const tf = count / state.totalTokens;
-      // Smoothing constant 8 (vs old 2): widens the gap between common and
-      // distinctive words enough that rare ones don't all top out together.
+      // Smoothing constant 8 widens the gap between common-overrepresented
+      // and rare-but-real vocabulary words.
       score = tf / Math.log(8 + baseline);
-      popover = `${count}× · baseline ${baseline ? baseline.toFixed(1) + '/M' : 'absent'} · score ${(score * 1e5).toFixed(2)}`;
+      // Stash baseline on the item so we can sort by it (rare → common)
+      // rather than by score, which the user found more intuitive.
+      popover = `${count}× · baseline ${baseline.toFixed(1)}/M · score ${(score * 1e5).toFixed(2)}`;
+      out.push({ word, score, cls, popover, _sortKey: baseline });
+      continue;
     } else if (view === 'nrc') {
       const tags = LEX.NRC[word];
       if (!tags) {
@@ -491,7 +502,13 @@ function scoredItems(view) {
     }
     out.push({ word, score, cls, popover });
   }
-  out.sort((a, b) => b.score - a.score);
+  // If items provide a _sortKey (used by 'distinctive' to sort rare→common
+  // by baseline ASC), honor it; otherwise fall back to score DESC.
+  if (out.length && out[0]._sortKey != null) {
+    out.sort((a, b) => a._sortKey - b._sortKey);
+  } else {
+    out.sort((a, b) => b.score - a.score);
+  }
   return out;
 }
 
@@ -509,10 +526,11 @@ function renderViewWithInlineColors(items) {
   }).join('');
 }
 
-// Override renderView() to dispatch correctly when inline colors are in use.
+// Override renderView() to dispatch the views that aren't tag-clouds.
 const origRenderView = renderView;
 renderView = function () {
-  if (state.view === 'docs') { renderDocs(); return; }
+  if (state.view === 'docs')  { renderDocs(); return; }
+  if (state.view === 'usage') { renderUsageScatter(); return; }
   if (state.view === 'afinn' || state.view === 'concreteness') {
     const items = scoredItems(state.view);
     renderViewWithInlineColors(items);
@@ -521,6 +539,121 @@ renderView = function () {
   }
   origRenderView();
 };
+
+// ─── Usage scatter ────────────────────────────────────────────────────────
+// log-log scatter of general usage (baseline per-million from SUBTLEX-like
+// data) on x against this writer's usage (corpus per-million) on y. The
+// diagonal y=x represents "uses this word at exactly the average rate."
+// Words above the line are over-represented in this writer's vocabulary,
+// below = under-represented; how far from the line measures distinctiveness.
+//
+// Same SVG-only approach atlas uses; no charting library. Helpers inlined
+// here rather than imported from atlas — when atlas next gets edited the
+// lib extraction is a natural follow-up.
+function renderUsageScatter() {
+  const region = $('cloud-region');
+  region.innerHTML = '';
+
+  // Build the data: words with both a baseline and ≥ 2 corpus uses.
+  const totalTokens = state.totalTokens || 1;
+  const points = [];
+  for (const [word, count] of state.freq) {
+    if (count < 2) continue;
+    if (STOPWORDS.has(word)) continue;
+    const baseline = LEX.BASELINE_FREQ[word];
+    if (!baseline || baseline <= 0) continue;
+    const corpusPm = (count / totalTokens) * 1e6;
+    points.push({ word, count, baseline, corpusPm });
+  }
+  if (!points.length) {
+    region.innerHTML = '<div class="hint" style="text-align:center; padding:2rem;">No words with both baseline data and ≥ 2 uses to plot.</div>';
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  // Axis ranges, in log space. Pad slightly so dots don't sit on the edge.
+  const xMin = Math.max(0.1, Math.min(...points.map(p => p.baseline)) * 0.9);
+  const xMax = Math.max(...points.map(p => p.baseline)) * 1.1;
+  const yMin = Math.max(0.5, Math.min(...points.map(p => p.corpusPm)) * 0.9);
+  const yMax = Math.max(...points.map(p => p.corpusPm)) * 1.1;
+
+  const W = 1000, H = 480;
+  const PAD_T = 22, PAD_R = 24, PAD_B = 38, PAD_L = 64;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+  const xToPx = (v) => {
+    const lo = Math.log10(xMin), hi = Math.log10(xMax);
+    return PAD_L + innerW * (Math.log10(Math.max(v, xMin)) - lo) / (hi - lo);
+  };
+  const yToPx = (v) => {
+    const lo = Math.log10(yMin), hi = Math.log10(yMax);
+    return PAD_T + innerH - innerH * (Math.log10(Math.max(v, yMin)) - lo) / (hi - lo);
+  };
+
+  // Decade ticks on each axis.
+  const decadeTicks = (lo, hi) => {
+    const ticks = [];
+    for (let d = Math.floor(Math.log10(lo)); d <= Math.ceil(Math.log10(hi)); d++) {
+      for (const m of [1, 3]) {
+        const v = m * Math.pow(10, d);
+        if (v >= lo * 0.99 && v <= hi * 1.01) ticks.push(v);
+      }
+    }
+    return ticks;
+  };
+  const fmtTick = (v) => v >= 1000 ? (v / 1000) + 'k' : (v >= 10 ? Math.round(v) : v.toFixed(1));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block; width:100%; height:auto;">`;
+  // X axis
+  svg += `<line stroke="var(--rule)" x1="${PAD_L}" y1="${PAD_T + innerH}" x2="${W - PAD_R}" y2="${PAD_T + innerH}"/>`;
+  for (const v of decadeTicks(xMin, xMax)) {
+    const x = xToPx(v);
+    svg += `<line stroke="var(--rule)" stroke-opacity="0.4" x1="${x}" y1="${PAD_T + innerH}" x2="${x}" y2="${PAD_T + innerH + 4}"/>`;
+    svg += `<text x="${x}" y="${PAD_T + innerH + 16}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${fmtTick(v)}</text>`;
+  }
+  svg += `<text x="${PAD_L + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">general usage (baseline /M, log scale)</text>`;
+  // Y axis
+  svg += `<line stroke="var(--rule)" x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T + innerH}"/>`;
+  for (const v of decadeTicks(yMin, yMax)) {
+    const y = yToPx(v);
+    svg += `<line stroke="var(--rule)" stroke-opacity="0.25" x1="${PAD_L}" y1="${y}" x2="${PAD_L + innerW}" y2="${y}"/>`;
+    svg += `<text x="${PAD_L - 8}" y="${y + 3}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${fmtTick(v)}</text>`;
+  }
+  svg += `<text x="20" y="${PAD_T + innerH / 2}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11" transform="rotate(-90 20 ${PAD_T + innerH / 2})">corpus usage (/M, log scale)</text>`;
+
+  // Diagonal y = x (over-represented above the line).
+  const diagXMin = Math.max(xMin, yMin);
+  const diagXMax = Math.min(xMax, yMax);
+  if (diagXMin < diagXMax) {
+    svg += `<line stroke="var(--accent)" stroke-dasharray="3 5" stroke-opacity="0.5" x1="${xToPx(diagXMin)}" y1="${yToPx(diagXMin)}" x2="${xToPx(diagXMax)}" y2="${yToPx(diagXMax)}"/>`;
+    // Annotate "over-represented" on the upper side.
+    const midX = Math.sqrt(diagXMin * diagXMax);
+    svg += `<text x="${xToPx(midX) + 12}" y="${yToPx(midX) - 6}" fill="var(--accent)" font-style="italic" font-size="10" font-family="var(--mono)">over-represented ↑</text>`;
+    svg += `<text x="${xToPx(midX) - 12}" y="${yToPx(midX) + 14}" fill="var(--muted)" font-style="italic" font-size="10" font-family="var(--mono)" text-anchor="end">↓ under-represented</text>`;
+  }
+
+  // Plot dots. Sort by corpus count descending so the rarest sit on top
+  // (smaller hit-targets stay clickable). Color above-diagonal = good (the
+  // writer's distinctive vocabulary), below = muted.
+  const ordered = [...points].sort((a, b) => b.count - a.count);
+  for (const p of ordered) {
+    const cx = xToPx(p.baseline);
+    const cy = yToPx(p.corpusPm);
+    const r = 2 + 2.5 * Math.sqrt(p.count);
+    const aboveDiagonal = p.corpusPm > p.baseline;
+    const color = aboveDiagonal ? 'var(--good)' : 'var(--muted)';
+    const opacity = aboveDiagonal ? 0.7 : 0.35;
+    svg += `<circle data-word="${escapeHtml(p.word)}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="0"><title>${escapeHtml(p.word)} — corpus ${p.corpusPm.toFixed(1)}/M (${p.count}×) · baseline ${p.baseline.toFixed(1)}/M</title></circle>`;
+  }
+  svg += '</svg>';
+  region.innerHTML = svg;
+
+  $('legend-row').innerHTML = `
+    <span><span class="swatch" style="background: var(--good)"></span>over-represented (above diagonal)</span>
+    <span><span class="swatch" style="background: var(--muted)"></span>under-represented</span>
+    <span class="axes-hint">log-log · diagonal y=x · dot size = sqrt(corpus count) · hover for details</span>
+  `;
+}
 
 function renderDocs() {
   $('legend-row').innerHTML = '';
@@ -533,12 +666,18 @@ function renderDocs() {
       <p>The simplest cloud: word size by raw count. Useful baseline; fast to scan; tends to be dominated by topic-defining nouns and the writer's verbal tics.</p>
 
       <h2>Distinctive</h2>
-      <p>"Their words" — vocabulary that's actually theirs vs. the common pool. Word size by <code>frequency_in_corpus / log(8 + baseline_frequency)</code>, where <code>baseline_frequency</code> comes from <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a> (Brysbaert &amp; New 2009), a frequency norm derived from English movie subtitles. Two pre-filters keep the cloud from being dominated by noise:</p>
+      <p>"Their words" — vocabulary that's actually theirs vs. the common pool. Word size by <code>frequency_in_corpus / log(8 + baseline_frequency)</code>, where <code>baseline_frequency</code> is per-million in general English (subtitle-derived; we use the OpenSubtitles 2018 word counts published by <a href="https://github.com/hermitdave/FrequencyWords">hermitdave/FrequencyWords</a>, which have similar distribution to <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a>).</p>
+      <p>Three pre-filters keep the cloud from being dominated by noise:</p>
       <ul>
         <li><b>Length ≥ 6 characters.</b> Distinctive vocabulary tends to be longer; short words ("good", "love", "home") are usually too common-or-too-noisy to read as voice. Long words also weed out most typos and tokenizer artifacts.</li>
-        <li><b>Frequency ≥ 2 in corpus.</b> One-offs (hapax legomena) are unreliable signal — most are typos, names, or single-context references. Two uses suggests vocabulary the writer actually reaches for.</li>
+        <li><b>Frequency ≥ 2 in corpus.</b> One-offs (hapax legomena) are unreliable signal — most are typos, names, or single-context references.</li>
+        <li><b>Baseline must be present.</b> If a word isn't in the baseline at all we can't say anything about distinctiveness; better to hide than guess. Words are listed in order of baseline frequency ascending — rarest in general English first.</li>
       </ul>
-      <p>The smoothing constant in the denominator (8 instead of e.g. 2) widens the gap between common-but-overrepresented words and rare-but-real-vocabulary words; without it, anything baseline-absent ties at the top.</p>
+
+      <h2>Usage scatter</h2>
+      <p>The thing the cloud only hints at, drawn explicitly: a log-log scatter of <b>general usage</b> (baseline per-million, x-axis) against <b>corpus usage</b> (per-million in this writer's prose, y-axis). Each dot is one word.</p>
+      <p>The dashed diagonal is <code>y = x</code>: words that this writer uses at exactly the same rate as the general English corpus. Above the line = over-represented (their distinctive vocabulary, colored green). Below the line = under-represented (words the writer reaches for less than average, faded). How far from the diagonal measures distinctiveness.</p>
+      <p>This is the same view as the Distinctive cloud, just made visual. The Distinctive cloud sorts the over-represented words; the scatter shows the whole space, including under-represented words and how strongly above/below the diagonal each cluster sits.</p>
 
       <h2>NRC · emotion</h2>
       <p>Color by which of eight emotions the word belongs to (anger, anticipation, disgust, fear, joy, sadness, surprise, trust), per the <a href="https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm">NRC Emotion Lexicon</a> (Mohammad &amp; Turney 2013). The full lexicon has ~14k words; the version shipping inline with this page is a hand-authored mini covering the most-impactful ~300 words. Run <code>scripts/fetch-lexicons.mjs</code> to swap in the full data.</p>
