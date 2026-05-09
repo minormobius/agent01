@@ -477,7 +477,7 @@ function renderChart() {
 }
 function updateAxesHint() {
   const hints = {
-    'scatter': 'x = chars · y = Flesch · color = tier · click a thread to read',
+    'scatter': 'x = chars (log scale) · y = Flesch · color = tier · click a thread to read',
     'pareto-length': 'sorted by length desc · color = Flesch tier · click a bar to read',
     'pareto-difficulty': 'sorted by Flesch asc (hardest first) · bar height = chars · click to read',
     'histogram': 'distribution of Flesch reading-ease across all threads',
@@ -490,20 +490,47 @@ const PAD = { top: 22, right: 24, bottom: 38, left: 56 };
 const innerW = CHART_W - PAD.left - PAD.right;
 const innerH = CHART_H - PAD.top - PAD.bottom;
 
-// Common axis renderer. axisX/axisY: { min, max, ticks: number, label, fmt }
+// Common axis renderer. axisX/axisY: { min, max, ticks: number, label, fmt, log }.
+// When `log: true`, ticks come from the 1× and 3× of each decade in the range
+// (300, 1k, 3k, 10k, …) and positions use log10 mapping. Use logPos(v, axis)
+// for plotting points on the same scale.
+function logPos(v, axis) {
+  const lo = Math.log10(Math.max(axis.min, 1));
+  const hi = Math.log10(Math.max(axis.max, 1));
+  return (Math.log10(Math.max(v, axis.min)) - lo) / (hi - lo);
+}
 function axesSvg(axisX, axisY) {
   let s = '';
   // X axis
   s += `<line class="axis-line" x1="${PAD.left}" y1="${PAD.top + innerH}" x2="${PAD.left + innerW}" y2="${PAD.top + innerH}"/>`;
-  for (let i = 0; i <= axisX.ticks; i++) {
-    const v = axisX.min + (axisX.max - axisX.min) * i / axisX.ticks;
-    const x = PAD.left + (innerW * i / axisX.ticks);
+  let xTicks;
+  if (axisX.log) {
+    xTicks = [];
+    const lo = Math.log10(Math.max(axisX.min, 1));
+    const hi = Math.log10(Math.max(axisX.max, 1));
+    for (let d = Math.floor(lo); d <= Math.ceil(hi); d++) {
+      for (const m of [1, 3]) {
+        const v = m * Math.pow(10, d);
+        if (v >= axisX.min * 0.99 && v <= axisX.max * 1.01) {
+          xTicks.push({ v, pos: logPos(v, axisX) });
+        }
+      }
+    }
+  } else {
+    xTicks = [];
+    for (let i = 0; i <= axisX.ticks; i++) {
+      const v = axisX.min + (axisX.max - axisX.min) * i / axisX.ticks;
+      xTicks.push({ v, pos: i / axisX.ticks });
+    }
+  }
+  for (const { v, pos } of xTicks) {
+    const x = PAD.left + innerW * pos;
     const y = PAD.top + innerH;
     s += `<line class="axis-tick" x1="${x}" y1="${y}" x2="${x}" y2="${y + 4}"/>`;
     s += `<text class="axis-label" x="${x}" y="${y + 16}" text-anchor="middle">${axisX.fmt ? axisX.fmt(v) : Math.round(v)}</text>`;
   }
   s += `<text class="axis-title" x="${PAD.left + innerW / 2}" y="${PAD.top + innerH + 32}" text-anchor="middle">${escapeHtml(axisX.label || '')}</text>`;
-  // Y axis
+  // Y axis (linear only — no log y use case yet)
   s += `<line class="axis-line" x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top + innerH}"/>`;
   for (let i = 0; i <= axisY.ticks; i++) {
     const v = axisY.min + (axisY.max - axisY.min) * i / axisY.ticks;
@@ -520,15 +547,27 @@ function renderScatter() {
   const ts = state.threads;
   if (!ts.length) return;
   const maxChars = Math.max(...ts.map(t => t.totalChars));
+  // Thread length is heavily long-tailed — log scale on x is what makes the
+  // bulk of the corpus legible instead of crushed against the left edge.
+  // Floor at the minimum thread length (300 chars) so the leftmost decade is
+  // meaningful; cap the upper at the actual max.
+  const xAxis = {
+    min: MIN_THREAD_CHARS,
+    max: Math.max(MIN_THREAD_CHARS * 2, maxChars),
+    log: true,
+    ticks: 0,
+    label: 'characters (log scale)',
+    fmt: (v) => v >= 1000 ? (v / 1000) + 'k' : String(Math.round(v)),
+  };
   // Flesch is theoretically -∞..100+; clamp for readability.
   const flMin = Math.min(0, ...ts.map(t => t.reading?.flesch ?? 50));
   const flMax = Math.max(100, ...ts.map(t => t.reading?.flesch ?? 50));
 
   let svgHtml = axesSvg(
-    { min: 0, max: maxChars, ticks: 5, label: 'characters', fmt: (v) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : Math.round(v) },
+    xAxis,
     { min: flMin, max: flMax, ticks: 5, label: 'Flesch reading-ease (higher = easier)', fmt: (v) => Math.round(v) }
   );
-  // Tier reference bands: light green for easy, light red for hard.
+  // Tier reference bands.
   const easyY = PAD.top + innerH - innerH * (70 - flMin) / (flMax - flMin);
   const hardY = PAD.top + innerH - innerH * (50 - flMin) / (flMax - flMin);
   svgHtml += `<line class="axis-tick" x1="${PAD.left}" y1="${easyY}" x2="${PAD.left + innerW}" y2="${easyY}" stroke="${'var(--good)'}" stroke-dasharray="2 4" opacity="0.4"/>`;
@@ -540,7 +579,7 @@ function renderScatter() {
   // small ones (smaller hit-targets stay clickable).
   const ordered = [...ts].sort((a, b) => b.totalChars - a.totalChars);
   for (const t of ordered) {
-    const x = PAD.left + innerW * (t.totalChars / Math.max(1, maxChars));
+    const x = PAD.left + innerW * logPos(t.totalChars, xAxis);
     const yVal = t.reading?.flesch ?? 50;
     const y = PAD.top + innerH - (innerH * (yVal - flMin) / (flMax - flMin));
     const r = 3 + 4 * Math.sqrt(t.totalChars / Math.max(1, maxChars));
