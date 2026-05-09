@@ -174,6 +174,14 @@ export function isProse(post) {
 //   - Flesch-Kincaid grade level: approximate US grade, e.g. 8.0 = 8th grade
 //   - complex_word_ratio:         fraction of words with ≥ 3 syllables
 //
+// Microblog text routinely drops terminal punctuation, which makes naive
+// terminal-punctuation counting collapse multi-post threads to "1 sentence
+// of 200 words" and tank Flesch by hundreds of points. We compensate by
+// treating any line break as a soft sentence end: insert a period before
+// each unpunctuated newline, then count terminal-punctuation runs as usual.
+// This handles dropped periods at post boundaries AND mid-post paragraph
+// breaks in one pass.
+//
 // Syllable counting uses the long-standing heuristic (strip silent ed/es/e,
 // drop leading y, count vowel-runs). It over-counts acronyms and under-counts
 // some -ed-ending words; close enough at the thread level.
@@ -184,9 +192,13 @@ export function readingLevel(text) {
   const wordTokens = t.match(/\S+/g) || [];
   const words = wordTokens.length;
   if (!words) return empty;
-  // Sentence-ish: terminal punctuation runs. Threads often end without one,
-  // so floor at 1 to avoid divide-by-zero blowing up Flesch.
-  const sentences = (t.match(/[.!?]+/g) || []).length || 1;
+
+  // Insert a period before any newline that doesn't already follow terminal
+  // punctuation, plus one at the end if missing. Then sentences = count of
+  // [.!?] runs (with floor 1 for divide-by-zero safety on unusual input).
+  const withSoftBreaks = t.replace(/(\S)\s*\n+/g, (_m, ch) => /[.!?]/.test(ch) ? ch + ' ' : ch + '. ');
+  const finalText = /[.!?][\s)\]"'`]*$/.test(withSoftBreaks) ? withSoftBreaks : withSoftBreaks + '.';
+  const sentences = (finalText.match(/[.!?]+/g) || []).length || 1;
 
   let syllables = 0;
   let complex = 0;
@@ -288,7 +300,7 @@ export function composeThread(chain, idx, { minChars = 300 } = {}) {
     postCount: proseChain.length,
     createdAt: root.record.createdAt || '',
     rootUri: root.uri,
-    reading: readingLevel(textBlocks.join(' ')),
+    reading: readingLevel(fullText),
   };
 }
 
