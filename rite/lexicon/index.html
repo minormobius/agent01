@@ -531,6 +531,7 @@ const origRenderView = renderView;
 renderView = function () {
   if (state.view === 'docs')  { renderDocs(); return; }
   if (state.view === 'usage') { renderUsageScatter(); return; }
+  if (state.view === 'nrc')   { renderNrcView(); return; }
   if (state.view === 'afinn' || state.view === 'concreteness') {
     const items = scoredItems(state.view);
     renderViewWithInlineColors(items);
@@ -539,6 +540,87 @@ renderView = function () {
   }
   origRenderView();
 };
+
+// ─── NRC view: radar above the cloud ──────────────────────────────────────
+// The cloud shows individual words; the radar makes the macro composition
+// explicit. Same data, two scales of resolution.
+function renderNrcView() {
+  // Tally per-emotion totals across the corpus. Words with multiple emotion
+  // tags contribute to each — that's faithful to NRC's annotation model.
+  const EMOS = ['joy', 'anticipation', 'trust', 'surprise', 'sadness', 'fear', 'anger', 'disgust'];
+  const emoCount = Object.fromEntries(EMOS.map(e => [e, 0]));
+  for (const [w, n] of state.freq) {
+    const tags = LEX.NRC[w];
+    if (!tags) continue;
+    for (const t of tags) {
+      if (emoCount[t] !== undefined) emoCount[t] += n;
+    }
+  }
+
+  const radar = renderNrcRadar(EMOS, emoCount);
+  const items = scoredItems('nrc');
+  const region = $('cloud-region');
+  if (!items.length) {
+    region.innerHTML = radar + '<div class="hint" style="flex-basis:100%; text-align:center;">No tagged words.</div>';
+    renderLegend();
+    return;
+  }
+  const maxScore = items[0].score;
+  const cloudHtml = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="font-size: ${fs}rem;">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  region.innerHTML = radar + cloudHtml;
+  renderLegend();
+}
+
+function renderNrcRadar(emos, emoCount) {
+  const W = 480, H = 380;
+  const cx = W / 2, cy = H / 2 + 8;
+  const R = 130;                                    // polygon outer ring
+  const max = Math.max(1, ...emos.map(e => emoCount[e] || 0));
+
+  const angle = (i) => -Math.PI / 2 + i * 2 * Math.PI / emos.length; // start at top, clockwise
+  const pt = (i, ratio) => [
+    cx + R * ratio * Math.cos(angle(i)),
+    cy + R * ratio * Math.sin(angle(i)),
+  ];
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" aria-label="NRC emotion composition radar">`;
+
+  // Concentric guide rings.
+  for (const r of [0.25, 0.5, 0.75, 1.0]) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="${(R * r).toFixed(2)}" fill="none" stroke="var(--rule)" stroke-opacity="${r === 1 ? 0.6 : 0.3}"/>`;
+  }
+  // Spokes + labels (emotion name on the outside, count below it).
+  for (let i = 0; i < emos.length; i++) {
+    const [sx, sy] = pt(i, 1);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${sx.toFixed(2)}" y2="${sy.toFixed(2)}" stroke="var(--rule)" stroke-opacity="0.4"/>`;
+    const [lx, ly] = pt(i, 1.18);
+    const emo = emos[i];
+    // Slight vertical nudge for top/bottom labels so they read cleaner.
+    const nudge = sy < cy - R * 0.5 ? -2 : (sy > cy + R * 0.5 ? 8 : 4);
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge).toFixed(2)}" text-anchor="middle" fill="var(--${emo})" font-family="var(--mono)" font-size="11" font-weight="700">${emo}</text>`;
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 13).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${emoCount[emo] || 0}</text>`;
+  }
+  // Polygon connecting the values, scaled to the most-represented emotion.
+  const points = emos.map((emo, i) => {
+    const [x, y] = pt(i, (emoCount[emo] || 0) / max);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  svg += `<polygon points="${points}" fill="var(--accent)" fill-opacity="0.18" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  // Emotion-colored vertices.
+  for (let i = 0; i < emos.length; i++) {
+    const [x, y] = pt(i, (emoCount[emos[i]] || 0) / max);
+    svg += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" fill="var(--${emos[i]})"/>`;
+  }
+  // Center label: max value reference.
+  svg += `<text x="${cx}" y="${(cy + R + 36).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10" font-style="italic">outer ring = ${max} occurrences (most-represented emotion)</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
 
 // ─── Usage scatter ────────────────────────────────────────────────────────
 // log-log scatter of general usage (baseline per-million from SUBTLEX-like
