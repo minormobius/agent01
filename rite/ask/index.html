@@ -508,7 +508,23 @@ async function loadMap() {
   const res = await fetch(`/api/ask/map?did=${encodeURIComponent(did)}`);
   const data = await res.json();
   if (!data.indexed || !Array.isArray(data.map) || !data.map.length) {
-    $('map-svg').innerHTML = `<text x="500" y="230" text-anchor="middle" fill="var(--muted)" font-family="serif" font-style="italic">No map data yet.</text>`;
+    let msg = 'No map data yet.';
+    let hint = '';
+    if (data.diagnostic) {
+      const d = data.diagnostic;
+      if (d.bad_blobs && d.decoded === 0) {
+        msg = `Embeddings stored before the BLOB fix can't be decoded.`;
+        hint = `Click <tspan style="font-weight:700">Re-index</tspan> above to rebuild ${d.total} threads.`;
+      } else if (d.total === 0) {
+        msg = 'No threads indexed for this profile.';
+      } else {
+        msg = `Map is empty (decoded ${d.decoded || 0} of ${d.total || '?'} vectors).`;
+      }
+    }
+    $('map-svg').innerHTML = `
+      <text x="500" y="220" text-anchor="middle" fill="var(--muted)" font-family="serif" font-style="italic" font-size="16">${escapeHtml(msg)}</text>
+      ${hint ? `<text x="500" y="248" text-anchor="middle" fill="var(--muted)" font-family="serif" font-style="italic" font-size="13">${hint}</text>` : ''}
+    `;
     return;
   }
   state.mapData = data.map;

@@ -911,8 +911,27 @@ async function askMap(env, url) {
      FROM ask_index_meta WHERE did = ?`
   ).bind(did).first();
   if (!row) return json({ indexed: false, did }, 200);
+
   let map = [];
   try { map = JSON.parse(row.map_json || '[]'); } catch {}
+
+  // Self-heal: if the meta says we've got threads indexed but the map is empty
+  // (older runs that stored Uint8Array blobs corruptly, or a recompute that
+  // failed mid-index), try one inline recompute. If we still have zero valid
+  // vectors after that, emit a diagnostic the UI can show.
+  let healed = false;
+  let diagnostic = null;
+  if (!map.length && row.thread_count > 0) {
+    diagnostic = await recomputeAskMap(env, did, { diagnostic: true });
+    if (diagnostic && diagnostic.wrote) {
+      healed = true;
+      const refreshed = await env.DB.prepare(
+        `SELECT map_json FROM ask_index_meta WHERE did = ?`
+      ).bind(did).first();
+      try { map = JSON.parse(refreshed?.map_json || '[]'); } catch {}
+    }
+  }
+
   return json({
     indexed: true,
     did: row.did,
@@ -920,25 +939,54 @@ async function askMap(env, url) {
     thread_count: row.thread_count,
     indexed_at: row.indexed_at,
     map,
+    healed,
+    diagnostic,
   });
 }
 
-async function recomputeAskMap(env, did) {
+async function recomputeAskMap(env, did, opts = {}) {
   const { results } = await env.DB.prepare(
     `SELECT thread_id, text, char_count, created_at, embedding
      FROM ask_threads WHERE did = ? ORDER BY char_count DESC`
   ).bind(did).all();
-  if (!results || results.length < 2) return;
+  const totalRows = results?.length || 0;
+  if (!totalRows) {
+    return opts.diagnostic ? { wrote: false, total: 0, decoded: 0, reason: 'no rows' } : null;
+  }
 
   const vectors = [];
   const meta = [];
+  let badCount = 0;
+  let badShapeCount = 0;
+  let sampleBadType = null;
   for (const r of results) {
     const v = blobToFloats(r.embedding);
-    if (!v || v.length !== ASK_EMBED_DIM) continue;
+    if (!v) {
+      badCount++;
+      if (sampleBadType == null) sampleBadType = typeof r.embedding;
+      continue;
+    }
+    if (v.length !== ASK_EMBED_DIM) {
+      badShapeCount++;
+      continue;
+    }
     vectors.push(v);
     meta.push(r);
   }
-  if (vectors.length < 2) return;
+  if (vectors.length < 2) {
+    if (opts.diagnostic) {
+      return {
+        wrote: false,
+        total: totalRows,
+        decoded: vectors.length,
+        bad_blobs: badCount,
+        bad_shape: badShapeCount,
+        sample_bad_type: sampleBadType,
+        reason: 'too few decodable vectors',
+      };
+    }
+    return null;
+  }
 
   const coords = pca2D(vectors, ASK_EMBED_DIM);
 
@@ -967,6 +1015,17 @@ async function recomputeAskMap(env, did) {
   await env.DB.prepare(
     `UPDATE ask_index_meta SET map_json = ? WHERE did = ?`
   ).bind(JSON.stringify(map), did).run();
+  if (opts.diagnostic) {
+    return {
+      wrote: true,
+      total: totalRows,
+      decoded: vectors.length,
+      bad_blobs: badCount,
+      bad_shape: badShapeCount,
+      sample_bad_type: sampleBadType,
+    };
+  }
+  return null;
 }
 
 // Top-2-component PCA via power iteration. Runs O(iters * n * dim) and avoids
@@ -1110,22 +1169,35 @@ async function askQuery(request, env) {
 // ----- ask helpers -----
 
 function floatsToBlob(arr) {
-  // Float32 little-endian. Workers AI returns either Float32Array or plain
-  // number[]; both round-trip cleanly through the typed-array constructor.
+  // D1's `bind()` treats ArrayBuffer as BLOB. Passing a Uint8Array view falls
+  // through to other types in some runtimes (gets stringified, stored as TEXT).
+  // Always hand D1 a freshly-sliced ArrayBuffer.
   const f32 = arr instanceof Float32Array ? arr : new Float32Array(arr);
-  return new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength);
+  if (f32.byteOffset === 0 && f32.byteLength === f32.buffer.byteLength) {
+    return f32.buffer;
+  }
+  return f32.buffer.slice(f32.byteOffset, f32.byteOffset + f32.byteLength);
 }
 
 function blobToFloats(blob) {
-  // D1 returns BLOB as ArrayBuffer or Uint8Array depending on adapter.
-  if (!blob) return null;
-  let bytes;
-  if (blob instanceof ArrayBuffer) bytes = new Uint8Array(blob);
-  else if (ArrayBuffer.isView(blob)) bytes = new Uint8Array(blob.buffer, blob.byteOffset, blob.byteLength);
-  else return null;
-  // Copy so we control the underlying buffer's alignment.
-  const copy = new Uint8Array(bytes);
-  return new Float32Array(copy.buffer, copy.byteOffset, copy.byteLength / 4);
+  // D1 has historically returned BLOBs in several shapes depending on adapter
+  // version: ArrayBuffer, Uint8Array (or other view), number[] of byte values,
+  // and — when stored corruptly via Uint8Array bind — a string. Handle all.
+  if (blob == null) return null;
+  let buf;
+  if (blob instanceof ArrayBuffer) {
+    buf = blob;
+  } else if (ArrayBuffer.isView(blob)) {
+    // Slice to a contiguous, aligned ArrayBuffer.
+    buf = blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength);
+  } else if (Array.isArray(blob)) {
+    buf = new Uint8Array(blob).buffer;
+  } else {
+    // String/object/other: data was stored corruptly — caller should signal.
+    return null;
+  }
+  if (buf.byteLength % 4 !== 0) return null;
+  return new Float32Array(buf);
 }
 
 function vecNorm(v) {
