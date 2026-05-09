@@ -632,26 +632,39 @@ function renderUsageScatter() {
     svg += `<text x="${xToPx(midX) - 12}" y="${yToPx(midX) + 14}" fill="var(--muted)" font-style="italic" font-size="10" font-family="var(--mono)" text-anchor="end">↓ under-represented</text>`;
   }
 
-  // Plot dots. Sort by corpus count descending so the rarest sit on top
-  // (smaller hit-targets stay clickable). Color above-diagonal = good (the
-  // writer's distinctive vocabulary), below = muted.
-  const ordered = [...points].sort((a, b) => b.count - a.count);
+  // Count above vs below the diagonal for the legend summary.
+  let above = 0, below = 0, on = 0;
+  for (const p of points) {
+    if (p.corpusPm > p.baseline) above++;
+    else if (p.corpusPm < p.baseline) below++;
+    else on++;
+  }
+  const ratio = below > 0 ? (above / below).toFixed(2) : '∞';
+
+  // Plot dots. Sort above-diagonal last so they paint on top of below-diagonal
+  // and stay readable. All dots same size — corpus usage is already encoded
+  // by Y position, baseline by X; size as a third axis would just be redundant.
+  const ordered = [...points].sort((a, b) => {
+    const ka = a.corpusPm > a.baseline ? 1 : 0;
+    const kb = b.corpusPm > b.baseline ? 1 : 0;
+    return ka - kb;
+  });
   for (const p of ordered) {
     const cx = xToPx(p.baseline);
     const cy = yToPx(p.corpusPm);
-    const r = 2 + 2.5 * Math.sqrt(p.count);
     const aboveDiagonal = p.corpusPm > p.baseline;
     const color = aboveDiagonal ? 'var(--good)' : 'var(--muted)';
     const opacity = aboveDiagonal ? 0.7 : 0.35;
-    svg += `<circle data-word="${escapeHtml(p.word)}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="0"><title>${escapeHtml(p.word)} — corpus ${p.corpusPm.toFixed(1)}/M (${p.count}×) · baseline ${p.baseline.toFixed(1)}/M</title></circle>`;
+    svg += `<circle data-word="${escapeHtml(p.word)}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="3.5" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="0"><title>${escapeHtml(p.word)} — corpus ${p.corpusPm.toFixed(1)}/M (${p.count}×) · baseline ${p.baseline.toFixed(1)}/M</title></circle>`;
   }
   svg += '</svg>';
   region.innerHTML = svg;
 
   $('legend-row').innerHTML = `
-    <span><span class="swatch" style="background: var(--good)"></span>over-represented (above diagonal)</span>
-    <span><span class="swatch" style="background: var(--muted)"></span>under-represented</span>
-    <span class="axes-hint">log-log · diagonal y=x · dot size = sqrt(corpus count) · hover for details</span>
+    <span><span class="swatch" style="background: var(--good)"></span><b style="color: var(--good)">${above}</b> over-represented</span>
+    <span><span class="swatch" style="background: var(--muted)"></span><b>${below}</b> under-represented</span>
+    <span><b>${ratio}×</b> ratio above / below</span>
+    <span class="axes-hint">log-log · diagonal y=x · hover for details</span>
   `;
 }
 
