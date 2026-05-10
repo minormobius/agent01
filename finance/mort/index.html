@@ -329,12 +329,55 @@ svg.chart { width: 100%; height: 280px; display: block; }
   </div>
 </div>
 
+<h2>tax · federal deduction</h2>
+<p class="desc" style="font-size:0.85rem;margin-bottom:1rem;">
+  Enter income to compute the federal tax benefit of owning. We compare your standard-vs-itemized
+  position with and without the house, year by year. Accounts for SALT cap ($40k under OBBBA
+  through 2029, then $10k), mortgage interest cap ($750k acquisition debt), and the MAGI-based
+  SALT phase-down above $500k.
+</p>
+<div class="grid">
+  <div>
+    <label for="filing">filing status</label>
+    <select id="filing">
+      <option value="">— none (skip tax calc) —</option>
+      <option value="mfj">Married filing jointly</option>
+      <option value="single">Single</option>
+      <option value="hoh">Head of household</option>
+      <option value="mfs">Married filing separately</option>
+    </select>
+  </div>
+  <div>
+    <label for="magi">household income / MAGI ($/yr)</label>
+    <input id="magi" type="number" inputmode="decimal" value="" placeholder="e.g. 250000" min="0" step="1000">
+    <div class="note" id="magi-note"></div>
+  </div>
+  <div>
+    <label for="stateinc">state income tax owed ($/yr)</label>
+    <input id="stateinc" type="number" inputmode="decimal" value="" placeholder="auto from state + income" min="0" step="100">
+    <div class="note" id="stateinc-note"></div>
+  </div>
+  <div>
+    <label for="otheritem">other itemizable ($/yr)</label>
+    <input id="otheritem" type="number" inputmode="decimal" value="0" min="0" step="100">
+    <div class="note">charitable, medical over 7.5% AGI, etc.</div>
+  </div>
+</div>
+
 <div class="summary">
   <div class="total">
     <span class="lbl">monthly total</span>
     <span class="val" id="m-total">$0</span>
   </div>
   <div class="breakdown" id="breakdown"></div>
+</div>
+
+<div class="summary" id="aftertax-card" style="display:none;border-color:var(--accent);">
+  <div class="total">
+    <span class="lbl">monthly after-tax (yr 1)</span>
+    <span class="val" id="m-aftertax">$0</span>
+  </div>
+  <div class="breakdown" id="aftertax-breakdown"></div>
 </div>
 
 <div class="aggregates" id="aggregates"></div>
@@ -371,75 +414,142 @@ svg.chart { width: 100%; height: 280px; display: block; }
 <div class="footer">
   P&amp;I via standard amortization. PMI assumed at 0.55%/yr of original loan, removed at 78% LTV.
   Property tax assumes constant assessment; in reality assessed value drifts with the market.
-  Insurance and utilities held constant — they actually grow ~3%/yr.<br>
+  Insurance and utilities held constant — they actually grow ~3%/yr.<br><br>
+  <strong>Tax model.</strong> Uses 2025 federal brackets and standard deductions (post-OBBBA) flat
+  for all loan years. SALT cap follows the OBBBA schedule: $40k in 2025 stepping up 1%/yr through
+  $41,624 in 2029, then reverting to $10k from 2030 onward; phase-down of 30% × MAGI excess
+  above ~$500k (also indexed 1%/yr), floor $10k. Mortgage interest deductible on the first
+  $750k of acquisition debt (proportional pro-ration for larger loans).
+  Compares <em>itemizing with the home</em> against the better of <em>itemizing without the home
+  or standard deduction</em>, year by year — this is the marginal benefit of buying vs renting,
+  not the gross deduction value.
+  Ignores AMT, NIIT, state itemization rules (which differ from federal), and any state-level
+  property tax write-offs. State income tax owed is a flat % of MAGI by default; override if you
+  know the real number from your last 1040.<br><br>
   Sources: 30-yr fixed rate from <a href="https://fred.stlouisfed.org/series/MORTGAGE30US">FRED MORTGAGE30US</a> (Freddie Mac PMMS).
   County list and median home value from <a href="https://www.census.gov/data/developers/data-sets/acs-5year.html">Census ACS 5-Year</a> (table B25077, vintage 2022).
   State-level effective property tax rates from Tax Foundation (2023). Homeowner's insurance averages from NAIC dwelling-fire/homeowners reports.
-  Utility baselines from EIA residential averages.
-  Not financial advice. Get a real Loan Estimate before deciding anything.
+  Utility baselines from EIA residential averages. Federal brackets &amp; SALT schedule per
+  <a href="https://www.congress.gov/bill/119th-congress/house-bill/1">OBBBA</a> (2025).
+  Not financial advice. Get a real Loan Estimate and talk to a CPA before deciding anything.
 </div>
 
 <script>
 // =====================================================================
 // State data: FIPS code, default effective property tax rate %,
-// average homeowner's insurance $/yr, average monthly utility $/mo
+// average homeowner's insurance $/yr, average monthly utility $/mo,
+// state income tax effective rate % (rough, for mid–high earners)
 // =====================================================================
 const STATES = [
-  ['AL','01','Alabama',       0.40, 1900, 380],
-  ['AK','02','Alaska',        1.07, 1100, 380],
-  ['AZ','04','Arizona',       0.63, 1450, 290],
-  ['AR','05','Arkansas',      0.64, 2200, 340],
-  ['CA','06','California',    0.75, 1450, 320],
-  ['CO','08','Colorado',      0.55, 2300, 280],
-  ['CT','09','Connecticut',   1.79, 1500, 400],
-  ['DE','10','Delaware',      0.61, 1100, 320],
-  ['DC','11','District of Columbia', 0.62, 1300, 290],
-  ['FL','12','Florida',       0.91, 3700, 320],
-  ['GA','13','Georgia',       0.92, 1750, 340],
-  ['HI','15','Hawaii',        0.32,  700, 410],
-  ['ID','16','Idaho',         0.67, 1100, 280],
-  ['IL','17','Illinois',      2.08, 1500, 320],
-  ['IN','18','Indiana',       0.84, 1500, 320],
-  ['IA','19','Iowa',          1.52, 1750, 320],
-  ['KS','20','Kansas',        1.41, 2800, 320],
-  ['KY','21','Kentucky',      0.83, 1850, 320],
-  ['LA','22','Louisiana',     0.56, 3000, 380],
-  ['ME','23','Maine',         1.24, 1100, 340],
-  ['MD','24','Maryland',      1.05, 1400, 320],
-  ['MA','25','Massachusetts', 1.14, 1700, 380],
-  ['MI','26','Michigan',      1.38, 1500, 320],
-  ['MN','27','Minnesota',     1.11, 2300, 280],
-  ['MS','28','Mississippi',   0.79, 2100, 360],
-  ['MO','29','Missouri',      1.01, 2200, 320],
-  ['MT','30','Montana',       0.74, 1500, 280],
-  ['NE','31','Nebraska',      1.63, 3100, 290],
-  ['NV','32','Nevada',        0.59, 1100, 300],
-  ['NH','33','New Hampshire', 1.93, 1100, 340],
-  ['NJ','34','New Jersey',    2.23, 1300, 350],
-  ['NM','35','New Mexico',    0.67, 1700, 280],
-  ['NY','36','New York',      1.40, 1500, 350],
-  ['NC','37','North Carolina',0.82, 1500, 300],
-  ['ND','38','North Dakota',  0.98, 1900, 290],
-  ['OH','39','Ohio',          1.59, 1300, 310],
-  ['OK','40','Oklahoma',      0.89, 4000, 320],
-  ['OR','41','Oregon',        0.93,  950, 270],
-  ['PA','42','Pennsylvania',  1.49, 1200, 320],
-  ['RI','44','Rhode Island',  1.40, 1500, 380],
-  ['SC','45','South Carolina',0.57, 1750, 320],
-  ['SD','46','South Dakota',  1.17, 2100, 290],
-  ['TN','47','Tennessee',     0.67, 1900, 320],
-  ['TX','48','Texas',         1.68, 3000, 360],
-  ['UT','49','Utah',          0.57, 1100, 270],
-  ['VT','50','Vermont',       1.83, 1100, 340],
-  ['VA','51','Virginia',      0.87, 1400, 310],
-  ['WA','53','Washington',    0.87, 1300, 240],
-  ['WV','54','West Virginia', 0.57, 1300, 300],
-  ['WI','55','Wisconsin',     1.61, 1200, 310],
-  ['WY','56','Wyoming',       0.61, 1200, 280],
+  ['AL','01','Alabama',       0.40, 1900, 380, 4.0],
+  ['AK','02','Alaska',        1.07, 1100, 380, 0.0],
+  ['AZ','04','Arizona',       0.63, 1450, 290, 2.5],
+  ['AR','05','Arkansas',      0.64, 2200, 340, 4.4],
+  ['CA','06','California',    0.75, 1450, 320, 7.0],
+  ['CO','08','Colorado',      0.55, 2300, 280, 4.4],
+  ['CT','09','Connecticut',   1.79, 1500, 400, 5.5],
+  ['DE','10','Delaware',      0.61, 1100, 320, 5.0],
+  ['DC','11','District of Columbia', 0.62, 1300, 290, 7.0],
+  ['FL','12','Florida',       0.91, 3700, 320, 0.0],
+  ['GA','13','Georgia',       0.92, 1750, 340, 4.5],
+  ['HI','15','Hawaii',        0.32,  700, 410, 7.0],
+  ['ID','16','Idaho',         0.67, 1100, 280, 5.0],
+  ['IL','17','Illinois',      2.08, 1500, 320, 4.95],
+  ['IN','18','Indiana',       0.84, 1500, 320, 3.05],
+  ['IA','19','Iowa',          1.52, 1750, 320, 4.0],
+  ['KS','20','Kansas',        1.41, 2800, 320, 5.0],
+  ['KY','21','Kentucky',      0.83, 1850, 320, 4.0],
+  ['LA','22','Louisiana',     0.56, 3000, 380, 4.0],
+  ['ME','23','Maine',         1.24, 1100, 340, 6.0],
+  ['MD','24','Maryland',      1.05, 1400, 320, 5.0],
+  ['MA','25','Massachusetts', 1.14, 1700, 380, 5.0],
+  ['MI','26','Michigan',      1.38, 1500, 320, 4.25],
+  ['MN','27','Minnesota',     1.11, 2300, 280, 6.5],
+  ['MS','28','Mississippi',   0.79, 2100, 360, 4.7],
+  ['MO','29','Missouri',      1.01, 2200, 320, 4.7],
+  ['MT','30','Montana',       0.74, 1500, 280, 5.0],
+  ['NE','31','Nebraska',      1.63, 3100, 290, 5.5],
+  ['NV','32','Nevada',        0.59, 1100, 300, 0.0],
+  ['NH','33','New Hampshire', 1.93, 1100, 340, 0.0],
+  ['NJ','34','New Jersey',    2.23, 1300, 350, 5.5],
+  ['NM','35','New Mexico',    0.67, 1700, 280, 4.5],
+  ['NY','36','New York',      1.40, 1500, 350, 6.0],
+  ['NC','37','North Carolina',0.82, 1500, 300, 4.5],
+  ['ND','38','North Dakota',  0.98, 1900, 290, 2.0],
+  ['OH','39','Ohio',          1.59, 1300, 310, 3.5],
+  ['OK','40','Oklahoma',      0.89, 4000, 320, 4.5],
+  ['OR','41','Oregon',        0.93,  950, 270, 8.0],
+  ['PA','42','Pennsylvania',  1.49, 1200, 320, 3.07],
+  ['RI','44','Rhode Island',  1.40, 1500, 380, 4.5],
+  ['SC','45','South Carolina',0.57, 1750, 320, 4.5],
+  ['SD','46','South Dakota',  1.17, 2100, 290, 0.0],
+  ['TN','47','Tennessee',     0.67, 1900, 320, 0.0],
+  ['TX','48','Texas',         1.68, 3000, 360, 0.0],
+  ['UT','49','Utah',          0.57, 1100, 270, 4.55],
+  ['VT','50','Vermont',       1.83, 1100, 340, 5.5],
+  ['VA','51','Virginia',      0.87, 1400, 310, 5.0],
+  ['WA','53','Washington',    0.87, 1300, 240, 0.0],
+  ['WV','54','West Virginia', 0.57, 1300, 300, 4.5],
+  ['WI','55','Wisconsin',     1.61, 1200, 310, 5.0],
+  ['WY','56','Wyoming',       0.61, 1200, 280, 0.0],
 ];
 const STATE_BY_FIPS = Object.fromEntries(STATES.map(s => [s[1], s]));
 const PMI_RATE = 0.0055;     // 0.55%/yr of original loan
 const PMI_LTV_END = 0.78;    // remove at 78% LTV
+const MORT_INT_CAP = 750000; // TCJA acquisition-debt cap on mortgage interest
+
+// 2025 federal brackets (post-OBBBA). Used flat for all loan years for simplicity.
+const FED_BRACKETS = {
+  single: [[0,0.10],[11925,0.12],[48475,0.22],[103350,0.24],[197300,0.32],[250525,0.35],[626350,0.37]],
+  mfj:    [[0,0.10],[23850,0.12],[96950,0.22],[206700,0.24],[394600,0.32],[501050,0.35],[751600,0.37]],
+  hoh:    [[0,0.10],[17000,0.12],[64850,0.22],[103350,0.24],[197300,0.32],[250500,0.35],[626350,0.37]],
+  mfs:    [[0,0.10],[11925,0.12],[48475,0.22],[103350,0.24],[197300,0.32],[250525,0.35],[375800,0.37]],
+};
+const STD_DED = { single: 15750, mfj: 31500, hoh: 23625, mfs: 15750 };
+const FILING_LABEL = { single: 'Single', mfj: 'Married filing jointly', hoh: 'Head of household', mfs: 'Married filing separately' };
+
+// OBBBA SALT cap schedule. 2025–2029 elevated, 2030+ reverts to $10k.
+// MAGI phase-down: 30% of MAGI over $500k threshold (indexed 1%/yr), floor $10k.
+const SALT_CAP_BASE = { 2025: 40000, 2026: 40400, 2027: 40804, 2028: 41212, 2029: 41624 };
+const SALT_PHASE_THRESH = { 2025: 500000, 2026: 505000, 2027: 510050, 2028: 515151, 2029: 520303 };
+
+function saltCapForYear(year, magi, filing) {
+  const isMFS = filing === 'mfs';
+  let cap = SALT_CAP_BASE[year];
+  if (cap === undefined) {
+    // 2030+ revert (or pre-2025 fallback)
+    return isMFS ? 5000 : 10000;
+  }
+  let thresh = SALT_PHASE_THRESH[year] || 500000;
+  let floor = 10000;
+  if (isMFS) { cap /= 2; thresh /= 2; floor /= 2; }
+  if (magi > thresh) {
+    cap = Math.max(floor, cap - 0.30 * (magi - thresh));
+  }
+  return cap;
+}
+
+function federalTax(taxableIncome, filing) {
+  if (taxableIncome <= 0) return 0;
+  const brackets = FED_BRACKETS[filing] || FED_BRACKETS.single;
+  let tax = 0;
+  for (let i = 0; i < brackets.length; i++) {
+    const [thresh, rate] = brackets[i];
+    const nextThresh = brackets[i + 1] ? brackets[i + 1][0] : Infinity;
+    if (taxableIncome > thresh) {
+      tax += (Math.min(taxableIncome, nextThresh) - thresh) * rate;
+    } else break;
+  }
+  return tax;
+}
+
+function marginalRate(taxableIncome, filing) {
+  const brackets = FED_BRACKETS[filing] || FED_BRACKETS.single;
+  for (let i = brackets.length - 1; i >= 0; i--) {
+    if (taxableIncome >= brackets[i][0]) return brackets[i][1];
+  }
+  return 0;
+}
 
 // =====================================================================
 // DOM
@@ -449,12 +559,18 @@ const els = {
   price: $('price'), down: $('down'), term: $('term'), rate: $('rate'),
   state: $('state'), county: $('county'), tax: $('tax'), ins: $('ins'),
   hoa: $('hoa'), util: $('util'), pmi: $('pmi'),
+  filing: $('filing'), magi: $('magi'), stateinc: $('stateinc'), otheritem: $('otheritem'),
   downNote: $('down-note'), rateNote: $('rate-note'), countyNote: $('county-note'),
   taxNote: $('tax-note'), insNote: $('ins-note'), utilNote: $('util-note'),
+  magiNote: $('magi-note'), stateincNote: $('stateinc-note'),
   mTotal: $('m-total'), breakdown: $('breakdown'), aggregates: $('aggregates'),
+  aftertaxCard: $('aftertax-card'), mAftertax: $('m-aftertax'), aftertaxBreakdown: $('aftertax-breakdown'),
   chart: $('chart'), tip: $('tip'), schedule: $('schedule'),
   scheduleBody: $('schedule-body'), toggleSchedule: $('toggle-schedule'),
 };
+
+// Track whether stateinc was manually edited (so auto-recompute doesn't clobber)
+let stateIncIsAuto = true;
 
 // Populate states
 {
@@ -564,11 +680,84 @@ function calc() {
     });
   }
 
+  // --- Tax benefit (year by year) ---
+  const filing = els.filing.value;
+  const magi = +els.magi.value || 0;
+  const otherItem = +els.otheritem.value || 0;
+  const stateIncAnnual = +els.stateinc.value || 0;
+  const taxEnabled = !!filing && magi > 0;
+
+  let taxResult = null;
+  if (taxEnabled) {
+    const std = STD_DED[filing];
+    const propTaxYr = price * taxPct;
+    const startYear = new Date().getFullYear();
+
+    // Aggregate interest paid per loan-year from rows
+    const yearlyInterest = [];
+    for (let y = 0; y < term; y++) {
+      let sum = 0;
+      for (let m = y * 12; m < (y + 1) * 12 && m < rows.length; m++) sum += rows[m].interest;
+      yearlyInterest.push(sum);
+    }
+
+    // Deductible interest fraction (acquisition-debt cap $750k applies to loan balance,
+    // but for simplicity apply ratio to interest based on original loan)
+    const intDeductFrac = loan <= MORT_INT_CAP ? 1 : MORT_INT_CAP / loan;
+
+    const yearly = [];
+    for (let y = 0; y < term; y++) {
+      const calYear = startYear + y;
+      const cap = saltCapForYear(calYear, magi, filing);
+      const intDed = yearlyInterest[y] * intDeductFrac;
+
+      const baselineSALT = Math.min(stateIncAnnual, cap);
+      const baselineItem = baselineSALT + otherItem;
+      const baselineDed = Math.max(std, baselineItem);
+
+      const withHomeSALT = Math.min(stateIncAnnual + propTaxYr, cap);
+      const withHomeItem = withHomeSALT + intDed + otherItem;
+      const withHomeDed = Math.max(std, withHomeItem);
+
+      const taxableBaseline = Math.max(0, magi - baselineDed);
+      const taxableWithHome = Math.max(0, magi - withHomeDed);
+      const benefit = Math.max(0, federalTax(taxableBaseline, filing) - federalTax(taxableWithHome, filing));
+
+      yearly.push({
+        year: calYear,
+        cap,
+        intDed,
+        propTax: propTaxYr,
+        baselineDed,
+        withHomeDed,
+        itemizes: withHomeItem > std,
+        benefit,
+      });
+    }
+
+    const totalBenefit = yearly.reduce((s, y) => s + y.benefit, 0);
+    const yr1 = yearly[0] || { benefit: 0 };
+    const margRate = marginalRate(Math.max(0, magi - (yr1.withHomeDed || 0)), filing);
+
+    taxResult = {
+      filing, magi, stateIncAnnual, otherItem,
+      std, propTaxYr, intDeductFrac, yearly,
+      yr1Benefit: yr1.benefit,
+      yr1Cap: yr1.cap,
+      yr1Itemizes: yr1.itemizes,
+      yr1WithHomeDed: yr1.withHomeDed,
+      yr1BaselineDed: yr1.baselineDed,
+      totalBenefit,
+      marginalRate: margRate,
+    };
+  }
+
   return {
     price, downAmt, downPct, loan, term, months, annualRate,
     pi, monthlyTax, monthlyIns, hoa, util,
     pmiActive, baseMonthlyPMI, pmiEndsAt,
     rows, cumInterest, totalPaid: pi * months,
+    tax: taxResult,
   };
 }
 
@@ -618,15 +807,62 @@ function render(c) {
     ['Payoff date', payoffStr],
   ];
   if (pmiNote) aggRows.push(['PMI', pmiNote]);
+  if (c.tax) {
+    aggRows.push(['Federal marginal bracket', fmtPct(c.tax.marginalRate, 0)]);
+    aggRows.push(['Yr 1 tax benefit', fmtMoney(c.tax.yr1Benefit) + '/yr']);
+    aggRows.push(['30-yr tax benefit', fmtMoney(c.tax.totalBenefit)]);
+  }
   els.aggregates.innerHTML = aggRows.map(([k, v]) =>
     `<div class="a-row"><span class="k">${k}</span><span class="v">${v}</span></div>`
   ).join('');
+
+  // After-tax summary
+  renderAfterTax(c, firstTotal);
 
   // Chart
   drawChart(c);
 
   // Schedule
   renderSchedule(c);
+}
+
+function renderAfterTax(c, firstTotal) {
+  if (!c.tax) {
+    els.aftertaxCard.style.display = 'none';
+    return;
+  }
+  const t = c.tax;
+  const yr1Monthly = t.yr1Benefit / 12;
+  const afterTaxMonthly = firstTotal - yr1Monthly;
+  els.aftertaxCard.style.display = '';
+  els.mAftertax.textContent = fmtMoney(afterTaxMonthly);
+
+  // Find the year right after SALT sunsets (2030) and the last year, to show the taper
+  const y0 = t.yearly[0];
+  const ySunset = t.yearly.find(y => y.year >= 2030) || t.yearly[t.yearly.length - 1];
+  const yLast = t.yearly[t.yearly.length - 1];
+
+  const itemizesNote = t.yr1Itemizes
+    ? 'itemizes (year 1)'
+    : 'standard deduction wins (year 1)';
+
+  const rows = [
+    ['Pre-tax monthly', fmtMoney(firstTotal)],
+    ['− Fed tax savings/mo (yr 1)', fmtMoney(yr1Monthly)],
+    ['SALT cap (yr 1)', fmtMoney(t.yr1Cap)],
+    ['Position', itemizesNote],
+    [`Tax benefit ${y0.year}`, fmtMoney(y0.benefit / 12) + '/mo'],
+  ];
+  if (ySunset && ySunset.year !== y0.year) {
+    rows.push([`Tax benefit ${ySunset.year} (post-SALT sunset)`, fmtMoney(ySunset.benefit / 12) + '/mo']);
+  }
+  if (yLast && yLast.year !== (ySunset && ySunset.year)) {
+    rows.push([`Tax benefit ${yLast.year}`, fmtMoney(yLast.benefit / 12) + '/mo']);
+  }
+
+  els.aftertaxBreakdown.innerHTML = rows.map(([k, v]) =>
+    `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`
+  ).join('');
 }
 
 // =====================================================================
@@ -800,14 +1036,31 @@ async function fetchCountyContext(stateFips, countyFips) {
 function applyStateDefaults(stateFips) {
   const s = STATE_BY_FIPS[stateFips];
   if (!s) return;
-  const [, , name, taxPct, insAnnual, utilMonthly] = s;
+  const [, , name, taxPct, insAnnual, utilMonthly, stateIncPct] = s;
   els.tax.value = taxPct.toFixed(2);
   els.taxNote.textContent = `${name} avg effective rate · Tax Foundation 2023`;
   els.ins.value = insAnnual;
   els.insNote.textContent = `${name} avg homeowner's premium · NAIC`;
   els.util.value = utilMonthly;
   els.utilNote.textContent = `${name} avg residential utilities · EIA`;
+  refreshStateIncome();
   update();
+}
+
+function refreshStateIncome() {
+  if (!stateIncIsAuto) return;
+  const fips = els.state.value;
+  const magi = +els.magi.value || 0;
+  if (!fips || magi <= 0) {
+    els.stateincNote.textContent = 'enter income + state to auto-estimate';
+    return;
+  }
+  const s = STATE_BY_FIPS[fips];
+  if (!s) return;
+  const stateRate = s[6] / 100;
+  const est = Math.round(magi * stateRate);
+  els.stateinc.value = est;
+  els.stateincNote.textContent = `auto: ${s[2]} effective ${(stateRate * 100).toFixed(2)}% × MAGI (override below)`;
 }
 
 // =====================================================================
@@ -823,6 +1076,17 @@ function update() {
   els[id].addEventListener('change', update);
 });
 els.pmi.addEventListener('change', update);
+
+// Tax inputs
+els.filing.addEventListener('change', update);
+els.magi.addEventListener('input', () => { refreshStateIncome(); update(); });
+els.otheritem.addEventListener('input', update);
+els.stateinc.addEventListener('input', () => {
+  stateIncIsAuto = false;
+  els.stateincNote.textContent = 'manual override';
+  els.stateincNote.classList.remove('err');
+  update();
+});
 
 els.state.addEventListener('change', e => {
   const fips = e.target.value;
