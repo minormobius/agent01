@@ -618,20 +618,64 @@ renderView = function () {
 // ─── NRC view: radar above the cloud ──────────────────────────────────────
 // The cloud shows individual words; the radar makes the macro composition
 // explicit. Same data, two scales of resolution.
+//
+// Scoring (post-fix): every NRC tag-set inflates trust because (a) NRC has
+// 2× more trust-tagged words than surprise-tagged, and (b) common multi-tag
+// words like "good" / "money" / "mother" used to contribute a full count to
+// each of their 4-6 tags, carpet-bombing every emotion. Two compounding
+// fixes:
+//   1. Inverse-weight: a word with N emotion tags contributes 1/N per
+//      occurrence to each tag (so "tree" with 6 tags adds 0.17 each, not
+//      1.0 each).
+//   2. Lift over baseline: each emotion's score is the writer's per-million
+//      rate divided by the expected per-million rate computed from SUBTLEX
+//      baseline frequencies × NRC tagging. 1.0 = average English; >1 means
+//      they over-use that emotion's vocabulary, <1 means they under-use it.
+//      That deflates trust naturally because the baseline trust rate is
+//      genuinely high.
+
+let _nrcBaselineRates = null;
+function getNrcBaselineRates(emos) {
+  if (_nrcBaselineRates) return _nrcBaselineRates;
+  const rates = Object.fromEntries(emos.map(e => [e, 0]));
+  for (const [word, freq] of Object.entries(LEX.BASELINE_FREQ || {})) {
+    const tags = LEX.NRC[word];
+    if (!tags) continue;
+    const coreTags = tags.filter(t => rates[t] !== undefined);
+    if (!coreTags.length) continue;
+    const w = freq / coreTags.length;
+    for (const t of coreTags) rates[t] += w;
+  }
+  _nrcBaselineRates = rates;
+  return rates;
+}
+
 function renderNrcView() {
-  // Tally per-emotion totals across the corpus. Words with multiple emotion
-  // tags contribute to each — that's faithful to NRC's annotation model.
   const EMOS = ['joy', 'anticipation', 'trust', 'surprise', 'sadness', 'fear', 'anger', 'disgust'];
-  const emoCount = Object.fromEntries(EMOS.map(e => [e, 0]));
+  const emoCount = Object.fromEntries(EMOS.map(e => [e, 0]));     // raw count for label display
+  const emoWeighted = Object.fromEntries(EMOS.map(e => [e, 0]));  // 1/N-weighted, for fair lift math
+
   for (const [w, n] of state.freq) {
     const tags = LEX.NRC[w];
     if (!tags) continue;
-    for (const t of tags) {
-      if (emoCount[t] !== undefined) emoCount[t] += n;
+    const coreTags = tags.filter(t => emoCount[t] !== undefined);
+    if (!coreTags.length) continue;
+    const weight = n / coreTags.length;
+    for (const t of coreTags) {
+      emoCount[t] += n;            // raw, for "trust = 412 occurrences" display
+      emoWeighted[t] += weight;    // weighted, for lift math
     }
   }
 
-  const radar = renderNrcRadar(EMOS, emoCount);
+  const baselineRates = getNrcBaselineRates(EMOS);
+  const corpusTotal = state.totalTokens || 1;
+  const lift = {};
+  for (const e of EMOS) {
+    const corpusPm = (emoWeighted[e] / corpusTotal) * 1e6;
+    lift[e] = baselineRates[e] > 0 ? corpusPm / baselineRates[e] : 0;
+  }
+
+  const radar = renderNrcRadar(EMOS, emoCount, lift);
   const items = scoredItems('nrc');
   const region = $('cloud-region');
   if (!items.length) {
@@ -648,13 +692,16 @@ function renderNrcView() {
   renderLegend();
 }
 
-function renderNrcRadar(emos, emoCount) {
+function renderNrcRadar(emos, emoCount, lift) {
   const W = 480, H = 380;
   const cx = W / 2, cy = H / 2 + 8;
-  const R = 130;                                    // polygon outer ring
-  const max = Math.max(1, ...emos.map(e => emoCount[e] || 0));
+  const R = 130;
+  // Outer ring sized to whichever emotion has the highest lift, with a floor
+  // of 1.5 so a perfectly-average writer still has a polygon visible inside
+  // the rings (rather than collapsed at the center).
+  const maxLift = Math.max(1.5, ...emos.map(e => lift[e] || 0));
 
-  const angle = (i) => -Math.PI / 2 + i * 2 * Math.PI / emos.length; // start at top, clockwise
+  const angle = (i) => -Math.PI / 2 + i * 2 * Math.PI / emos.length;
   const pt = (i, ratio) => [
     cx + R * ratio * Math.cos(angle(i)),
     cy + R * ratio * Math.sin(angle(i)),
@@ -663,34 +710,43 @@ function renderNrcRadar(emos, emoCount) {
   let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.8rem;">`;
   svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" aria-label="NRC emotion composition radar">`;
 
-  // Concentric guide rings.
+  // Concentric guide rings, with the lift=1.0 reference ring marked specially
+  // (it's the "average English" boundary — inside means under-use, outside
+  // means over-use).
   for (const r of [0.25, 0.5, 0.75, 1.0]) {
     svg += `<circle cx="${cx}" cy="${cy}" r="${(R * r).toFixed(2)}" fill="none" stroke="var(--rule)" stroke-opacity="${r === 1 ? 0.6 : 0.3}"/>`;
   }
-  // Spokes + labels (emotion name on the outside, count below it).
+  const refRingFrac = 1.0 / maxLift;
+  if (refRingFrac > 0.05 && refRingFrac < 1) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="${(R * refRingFrac).toFixed(2)}" fill="none" stroke="var(--accent)" stroke-opacity="0.7" stroke-dasharray="3 4"/>`;
+    svg += `<text x="${(cx + R * refRingFrac + 4).toFixed(2)}" y="${(cy + 3).toFixed(2)}" fill="var(--accent)" font-family="var(--mono)" font-size="9" font-style="italic">avg</text>`;
+  }
+
+  // Spokes + labels (emotion name, raw count, lift).
   for (let i = 0; i < emos.length; i++) {
     const [sx, sy] = pt(i, 1);
     svg += `<line x1="${cx}" y1="${cy}" x2="${sx.toFixed(2)}" y2="${sy.toFixed(2)}" stroke="var(--rule)" stroke-opacity="0.4"/>`;
     const [lx, ly] = pt(i, 1.18);
     const emo = emos[i];
-    // Slight vertical nudge for top/bottom labels so they read cleaner.
-    const nudge = sy < cy - R * 0.5 ? -2 : (sy > cy + R * 0.5 ? 8 : 4);
+    const nudge = sy < cy - R * 0.5 ? -10 : (sy > cy + R * 0.5 ? 8 : 4);
+    const liftStr = (lift[emo] || 0).toFixed(2) + '×';
     svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge).toFixed(2)}" text-anchor="middle" fill="var(--${emo})" font-family="var(--mono)" font-size="11" font-weight="700">${emo}</text>`;
-    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 13).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${emoCount[emo] || 0}</text>`;
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 12).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="10" font-weight="600">${liftStr}</text>`;
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 24).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="9">${emoCount[emo] || 0}</text>`;
   }
-  // Polygon connecting the values, scaled to the most-represented emotion.
+
+  // Polygon shape uses lift / maxLift so 1.0 lands on the dashed reference ring.
   const points = emos.map((emo, i) => {
-    const [x, y] = pt(i, (emoCount[emo] || 0) / max);
+    const [x, y] = pt(i, (lift[emo] || 0) / maxLift);
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(' ');
   svg += `<polygon points="${points}" fill="var(--accent)" fill-opacity="0.18" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
-  // Emotion-colored vertices.
   for (let i = 0; i < emos.length; i++) {
-    const [x, y] = pt(i, (emoCount[emos[i]] || 0) / max);
+    const [x, y] = pt(i, (lift[emos[i]] || 0) / maxLift);
     svg += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" fill="var(--${emos[i]})"/>`;
   }
-  // Center label: max value reference.
-  svg += `<text x="${cx}" y="${(cy + R + 36).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10" font-style="italic">outer ring = ${max} occurrences (most-represented emotion)</text>`;
+
+  svg += `<text x="${cx}" y="${(cy + R + 50).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10" font-style="italic">outer ring = ${maxLift.toFixed(2)}× lift · dashed ring = baseline (1.0×) · raw counts shown beneath</text>`;
 
   svg += '</svg></div>';
   return svg;
@@ -1004,7 +1060,13 @@ function renderDocs() {
 
       <h2>NRC · emotion</h2>
       <p>Color by which of eight emotions the word belongs to (anger, anticipation, disgust, fear, joy, sadness, surprise, trust), per the <a href="https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm">NRC Emotion Lexicon</a> (Mohammad &amp; Turney 2013). The full lexicon has ~14k words; the version shipping inline with this page is a hand-authored mini covering the most-impactful ~300 words. Run <code>scripts/fetch-lexicons.mjs</code> to swap in the full data.</p>
-      <p>Words can carry multiple emotions ("love" → joy, trust, positive). The cloud picks the first emotion tag for coloring; the popover shows them all. Untagged words appear faded.</p>
+      <p>Words can carry multiple emotion tags ("love" → joy + trust + positive). The cloud picks the first emotion tag for coloring; the popover shows them all. Untagged words appear faded.</p>
+      <p>The radar at the top shows <b>lift over baseline</b> rather than raw counts. Two adjustments make the polygon actually informative:</p>
+      <ul>
+        <li><b>Inverse-weight multi-tag words.</b> A word with N emotion tags contributes 1/N per occurrence to each, not 1×N. Without this, a word like "tree" (tagged with 6 emotions in NRC) carpet-bombs the radar — and "good", "money", "mother", "hope", "deal" all carry 4–6 tags.</li>
+        <li><b>Lift = corpus rate / baseline rate.</b> Each emotion's score is computed as the writer's per-million rate of words tagged with that emotion divided by the expected per-million rate from SUBTLEX × NRC tagging. <code>1.00×</code> = average English; the dashed reference ring marks it. Above the ring = over-uses that emotion's vocabulary; inside = under-uses. This deflates the otherwise-huge trust score that NRC produces because (a) it has 1231 trust-tagged words vs only 534 for surprise, and (b) many common everyday nouns (father, school, team) carry trust tags.</li>
+      </ul>
+      <p>Each axis label shows the lift score, the raw occurrence count beneath it, and the emotion name in its color. The polygon shape is the lift; the outer ring scales to the largest lift in this writer (with a floor of 1.5× so a perfectly-average writer still has a visible polygon).</p>
 
       <h2>AFINN · sentiment</h2>
       <p>Color by sentiment score on a -5 (most negative) to +5 (most positive) scale, per <a href="https://github.com/fnielsen/afinn">AFINN</a> (Nielsen 2011). Green = positive, red = negative; opacity scales with intensity. Untagged words are hidden (the cloud is too noisy otherwise) — what you see is the writer's affect-laden vocabulary.</p>
