@@ -256,6 +256,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 <script type="module">
 import { pullProfile, uploadProfile, analyzeProfile } from '../lib/atproto/index.js';
 import { searchGutenberg, fetchGutenbergText, gutenbergFilename } from '../lib/gutenberg.js';
+import { makePanZoom } from '../lib/pan-zoom.js';
 import { STOPWORDS, NRC, CONCRETENESS, AFINN, BASELINE_FREQ } from './lexicons.js';
 
 const $ = (id) => document.getElementById(id);
@@ -268,6 +269,10 @@ const state = {
   freq: new Map(),       // word -> raw count
   totalTokens: 0,
   view: 'freq',
+  // Timeline pan/zoom state. timelineZoom is the visible x-domain ([tMin, tMax]
+  // ms) or null for full extent; timelinePanZoom is the lazy makePanZoom handle.
+  timelineZoom: null,
+  timelinePanZoom: null,
 };
 
 // Lazy override: prefer ./data/{nrc,concreteness,afinn,baseline}.json if a
@@ -424,6 +429,9 @@ async function proceedWithProfile(result) {
   // these by time-bin; doing it once at corpus-build time keeps each
   // re-render cheap.
   for (const t of state.threads) t.lex = computeThreadLex(t.text);
+  // Wipe any previous timeline pan/zoom — different profile = different range.
+  state.timelineZoom = null;
+  if (state.timelinePanZoom) { state.timelinePanZoom.destroy(); state.timelinePanZoom = null; }
   showStage('lexicon');
   renderProfileStrip();
   renderSummary();
@@ -985,9 +993,20 @@ function topEmotionOf(nrc) {
 
 function renderTimelineView() {
   const region = $('cloud-region');
-  region.innerHTML = '';
+  // Keep the timeline SVG element stable across re-renders so pan-zoom
+  // listeners attached to it survive. Other view-switches blow away region's
+  // innerHTML and we recreate on next entry.
+  let svgEl = region.querySelector('#timeline-svg');
+  const needFreshMount = !svgEl;
+  if (needFreshMount) {
+    if (state.timelinePanZoom) { state.timelinePanZoom.destroy(); state.timelinePanZoom = null; }
+    region.innerHTML = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.7rem;"><svg id="timeline-svg" preserveAspectRatio="none" style="width:100%; max-width:1000px; height:auto;" aria-label="Per-thread timeline with 90-day trailing mean"></svg></div>`;
+    svgEl = region.querySelector('#timeline-svg');
+  }
+
   if (!state.threads || state.threads.length < 3) {
-    region.innerHTML = `<div class="hint" style="padding:2rem; text-align:center;">Need at least a few timestamped threads to build a timeline.</div>`;
+    svgEl.innerHTML = `<text x="500" y="60" text-anchor="middle" fill="var(--muted)" font-style="italic">Need at least a few timestamped threads.</text>`;
+    svgEl.setAttribute('viewBox', '0 0 1000 120');
     $('legend-row').innerHTML = '';
     return;
   }
@@ -1017,7 +1036,12 @@ function renderTimelineView() {
 
   const tMin = points[0].t;
   const tMax = points[points.length - 1].t;
-  const spanDays = (tMax - tMin) / 86400000;
+  // Visible window (pan/zoom). Defaults to full extent. Note: the rolling
+  // mean uses ALL threads (incl. those before visMin, for proper 90-day
+  // trailing); only sample-time placement and dot rendering use visMin/visMax.
+  const visMin = state.timelineZoom ? state.timelineZoom[0] : tMin;
+  const visMax = state.timelineZoom ? state.timelineZoom[1] : tMax;
+  const spanDays = (visMax - visMin) / 86400000;
   const WINDOW_MS = 90 * 86400000;
 
   // 200 sample points for the rolling-mean line. With a 1000-wide SVG that's
@@ -1025,7 +1049,7 @@ function renderTimelineView() {
   const NUM_SAMPLES = 200;
   const samples = new Array(NUM_SAMPLES);
   for (let i = 0; i < NUM_SAMPLES; i++) {
-    samples[i] = tMin + (tMax - tMin) * (i / (NUM_SAMPLES - 1));
+    samples[i] = visMin + (visMax - visMin) * (i / (NUM_SAMPLES - 1));
   }
 
   // 90-day trailing mean of getter(p) at each sample time, computed with a
@@ -1066,7 +1090,7 @@ function renderTimelineView() {
   const xLabelsH = 28;
   const H = headerH + panelDefs.reduce((s, p) => s + p.h + gap, 0) + xLabelsH;
 
-  const tToX = (t) => PAD_L + (innerW * (t - tMin)) / Math.max(1, tMax - tMin);
+  const tToX = (t) => PAD_L + (innerW * (t - visMin)) / Math.max(1, visMax - visMin);
 
   const fleschVals = points.map((p) => p.flesch).filter((v) => v != null);
   const fleschMin = Math.floor(Math.min(0, ...fleschVals));
@@ -1076,9 +1100,11 @@ function renderTimelineView() {
   const afMaxAbs = Math.max(0.6, ...afVals.map(Math.abs));
   const afDomain = [-afMaxAbs, afMaxAbs];
 
-  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.7rem;">`;
-  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" aria-label="Per-thread timeline with 90-day trailing mean">`;
-  svg += `<text x="${PAD_L}" y="14" fill="var(--muted)" font-family="var(--mono)" font-size="10" text-transform="uppercase">${points.length} threads · ${fmtTimeLabel(tMin, spanDays)} → ${fmtTimeLabel(tMax, spanDays)} · 90-day trailing mean</text>`;
+  // Update viewBox on stable SVG; contents are rebuilt each render.
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let svg = '';
+  const isZoomed = state.timelineZoom && (visMin > tMin || visMax < tMax);
+  svg += `<text x="${PAD_L}" y="14" fill="var(--muted)" font-family="var(--mono)" font-size="10" text-transform="uppercase">${points.length} threads · ${fmtTimeLabel(visMin, spanDays)} → ${fmtTimeLabel(visMax, spanDays)}${isZoomed ? ' (zoomed)' : ''} · 90-day trailing mean</text>`;
 
   function panelTop(idx) {
     let y = headerH;
@@ -1104,6 +1130,7 @@ function renderTimelineView() {
 
     // Per-thread dots (faint so density itself reads as activity).
     for (const p of points) {
+      if (p.t < visMin || p.t > visMax) continue;          // clip to visible window
       const v = def.getter(p);
       if (v == null || !Number.isFinite(v)) continue;
       const cx = tToX(p.t);
@@ -1150,6 +1177,7 @@ function renderTimelineView() {
     svg += `<rect x="${PAD_L}" y="${top}" width="${innerW}" height="${h}" fill="var(--card-bg)" stroke="var(--rule)" stroke-opacity="0.4"/>`;
     for (const p of points) {
       if (!p.topEmo) continue;
+      if (p.t < visMin || p.t > visMax) continue;
       const x = tToX(p.t);
       svg += `<line x1="${x.toFixed(2)}" y1="${(top + 4).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(top + h - 4).toFixed(2)}" stroke="var(--${p.topEmo})" stroke-opacity="0.75" stroke-width="1.5"/>`;
     }
@@ -1159,13 +1187,28 @@ function renderTimelineView() {
   const labelY = headerH + panelDefs.reduce((s, p) => s + p.h + gap, 0) + 14;
   const numLabels = 7;
   for (let i = 0; i < numLabels; i++) {
-    const t = tMin + (tMax - tMin) * (i / (numLabels - 1));
+    const t = visMin + (visMax - visMin) * (i / (numLabels - 1));
     const x = tToX(t);
     svg += `<text x="${x.toFixed(2)}" y="${labelY}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${escapeHtml(fmtTimeLabel(t, spanDays))}</text>`;
   }
 
-  svg += '</svg></div>';
-  region.innerHTML = svg;
+  svgEl.innerHTML = svg;
+
+  // Lazily attach the shared pan/zoom helper once the SVG element exists.
+  // The helper listens on svgEl itself, so it survives later svgEl.innerHTML
+  // rebuilds. xBounds are the full time range; xDomain is the current visible
+  // window, which may equal the full range or be a zoom.
+  if (!state.timelinePanZoom) {
+    state.timelinePanZoom = makePanZoom(svgEl, {
+      xDomain: state.timelineZoom || [tMin, tMax],
+      xBounds: [tMin, tMax],
+      axes: 'x',
+      onChange: ({ xDomain }) => {
+        state.timelineZoom = xDomain;
+        renderTimelineView();
+      },
+    });
+  }
 
   $('legend-row').innerHTML = `
     <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
@@ -1176,8 +1219,15 @@ function renderTimelineView() {
     <span><span class="swatch" style="background: var(--fear)"></span>fear</span>
     <span><span class="swatch" style="background: var(--anger)"></span>anger</span>
     <span><span class="swatch" style="background: var(--disgust)"></span>disgust</span>
-    <span class="axes-hint">each thread = one dot · maroon line = 90-day trailing mean · dominant-emotion strip below</span>
+    <span class="axes-hint">scroll = zoom · drag = pan · <a href="#" id="timeline-reset-zoom" style="color: var(--accent); text-decoration: underline;">reset</a></span>
   `;
+  const resetLink = $('timeline-reset-zoom');
+  if (resetLink) {
+    resetLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.timelinePanZoom) state.timelinePanZoom.reset();
+    });
+  }
 }
 
 function renderUsageScatter() {

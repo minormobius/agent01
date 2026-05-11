@@ -325,8 +325,8 @@ footer a { color: var(--muted); text-decoration: underline; }
       <div id="map-tooltip" class="map-tooltip"></div>
     </div>
     <div class="map-legend">
-      <span><span id="thread-count">—</span> threads · click a point to read · larger dot = longer thread · color = cluster · click → 3 nearest neighbors light up</span>
-      <span class="legend-axes">PCA-1 ↔ PCA-2 over BGE embeddings</span>
+      <span><span id="thread-count">—</span> threads · click a point to read · scroll = zoom · drag = pan · color = cluster</span>
+      <span class="legend-axes"><a href="#" id="map-reset-zoom" style="color:var(--accent); text-decoration:underline; margin-right:0.7rem;">reset zoom</a>PCA-1 ↔ PCA-2 over BGE</span>
     </div>
     <div id="cluster-panel" class="cluster-panel"></div>
     <div class="reader" id="reader">
@@ -351,6 +351,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <script type="module">
 import { pullProfile, analyzeProfile, resolveHandle } from '../lib/atproto/index.js';
+import { makePanZoom } from '../lib/pan-zoom.js';
 
 const $ = (id) => document.getElementById(id);
 const PUBLIC_API = 'https://api.bsky.app';
@@ -368,6 +369,8 @@ const state = {
   highlightScores: new Map(),// tid -> score from latest query
   threadCache: new Map(),    // tid -> { text, post_count, char_count, created_at }
   lastQueryTerms: [],        // current highlight query terms (for <mark>)
+  mapView: { xDomain: [0, 1], yDomain: [0, 1] }, // current pan/zoom window
+  mapPanZoom: null,          // makePanZoom handle, lazily attached on first render
 };
 
 // Categorical palette for cluster coloring — 8 stable HSL hues. Matches
@@ -579,6 +582,23 @@ async function loadMap() {
   state.selectedTid = null;
   state.highlightScores.clear();
   state.lastQueryTerms = [];
+  state.mapView = { xDomain: [0, 1], yDomain: [0, 1] };
+  // Pan/zoom: attach once per page (the SVG element is stable across
+  // re-renders since we replace its innerHTML, not the element itself).
+  if (!state.mapPanZoom) {
+    state.mapPanZoom = makePanZoom($('map-svg'), {
+      xDomain: [0, 1], yDomain: [0, 1],
+      xBounds: [0, 1], yBounds: [0, 1],
+      axes: 'xy',
+      onChange: ({ xDomain, yDomain }) => {
+        state.mapView.xDomain = xDomain;
+        state.mapView.yDomain = yDomain;
+        renderMap();
+      },
+    });
+  } else {
+    state.mapPanZoom.reset();
+  }
   renderMap();
   renderClusterPanel();
   renderReader();
@@ -603,10 +623,20 @@ function renderMap() {
     if (sel && Array.isArray(sel.nn)) for (const nn of sel.nn) neighborSet.add(nn);
   }
 
+  // Apply the current pan/zoom window. Points outside the window are skipped
+  // (clipped). Initial domain is [0,1] in both axes — full extent.
+  const [xMin, xMax] = state.mapView.xDomain;
+  const [yMin, yMax] = state.mapView.yDomain;
+  const xW = xMax - xMin || 1;
+  const yH = yMax - yMin || 1;
+
   const dots = [];
   for (const { d, i } of ordered) {
-    const cx = PAD + d.x * innerW;
-    const cy = PAD + (1 - d.y) * innerH;
+    const fx = (d.x - xMin) / xW;
+    const fy = (d.y - yMin) / yH;
+    if (fx < -0.01 || fx > 1.01 || fy < -0.01 || fy > 1.01) continue;
+    const cx = PAD + fx * innerW;
+    const cy = PAD + (1 - fy) * innerH;
     const r = 2 + 6 * Math.sqrt(d.n / maxN);
     const score = state.highlightScores.get(d.tid);
 
@@ -632,7 +662,7 @@ function renderMap() {
       fillOpacity = 0.5;
     }
     dots.push(
-      `<circle data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${fill}" stroke-opacity="${strokeOpacity}" stroke-width="1.5" style="cursor:pointer; transition: fill-opacity 0.15s, stroke-opacity 0.15s;"/>`
+      `<circle class="dot" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${fill}" stroke-opacity="${strokeOpacity}" stroke-width="1.5" style="cursor:pointer; transition: fill-opacity 0.15s, stroke-opacity 0.15s;"/>`
     );
   }
   svg.innerHTML = dots.join('');
@@ -819,6 +849,10 @@ $('back').addEventListener('click', () => {
   showStage('input'); $('handle').focus();
 });
 $('reindex').addEventListener('click', () => handleSubmit({ force: true }));
+$('map-reset-zoom').addEventListener('click', (e) => {
+  e.preventDefault();
+  if (state.mapPanZoom) state.mapPanZoom.reset();
+});
 </script>
 </body>
 </html>
