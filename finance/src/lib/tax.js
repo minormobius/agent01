@@ -59,6 +59,49 @@ export const SALT_SUNSET_CAP = 10000;
 export const MORT_INT_CAP = 750000;
 export const MORT_INT_CAP_MFS = 375000;
 
+// ─── FICA (Social Security + Medicare) ────────────────────────────────
+
+export const FICA_WAGE_BASE_2025 = 176100;
+export const SS_RATE = 0.062;
+export const MEDICARE_RATE = 0.0145;
+export const ADDL_MEDICARE_RATE = 0.009;
+export const ADDL_MEDICARE_THRESH = {
+  single: 200000, mfj: 250000, hoh: 200000, mfs: 125000,
+};
+
+/**
+ * FICA on wage income — Social Security (capped) + Medicare (uncapped) +
+ * Additional Medicare (0.9% above filing-specific threshold). Employee share only.
+ * @param {number} wages
+ * @param {string} filing
+ * @returns {{ ss: number, medicare: number, addl: number, total: number }}
+ */
+export function ficaTax(wages, filing) {
+  if (wages <= 0) return { ss: 0, medicare: 0, addl: 0, total: 0 };
+  const ss = Math.min(wages, FICA_WAGE_BASE_2025) * SS_RATE;
+  const medicare = wages * MEDICARE_RATE;
+  const thresh = ADDL_MEDICARE_THRESH[filing] ?? ADDL_MEDICARE_THRESH.single;
+  const addl = Math.max(0, wages - thresh) * ADDL_MEDICARE_RATE;
+  return { ss, medicare, addl, total: ss + medicare + addl };
+}
+
+// ─── RMD Uniform Lifetime Table (IRS Pub 590-B, 2022 update) ──────────
+// Divide the prior-year-end traditional balance by the divisor to get the
+// RMD owed for the year. Covers ages 73-100; clamps at 100's divisor for
+// projection beyond. Only applies to traditional 401k/IRA (not Roth IRA).
+
+const UNIFORM_LIFETIME = {
+  73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0, 79: 21.1,
+  80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8, 85: 16.0, 86: 15.2,
+  87: 14.4, 88: 13.7, 89: 12.9, 90: 12.2, 91: 11.5, 92: 10.8, 93: 10.1,
+  94: 9.5, 95: 8.9, 96: 8.4, 97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4,
+};
+
+export function uniformLifetimeDivisor(age) {
+  if (age < 73) return null;
+  return UNIFORM_LIFETIME[Math.min(100, age)];
+}
+
 // ─── SALT cap ─────────────────────────────────────────────────────────
 
 /**

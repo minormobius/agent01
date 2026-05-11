@@ -14,14 +14,32 @@ export const DEFAULT_PROFILE = {
     filing: "single",          // 'single' | 'mfj' | 'hoh' | 'mfs'
     stateFips: null,           // e.g. '06' for California
     dependents: 0,
+    currentAge: null,
   },
   accounts: [],                // [{ id, name, type, balance, addedAt }]
-  income: {},                  // { salary, bonus, rsuVests: [...] } — populated by /cashflow
-  expenses: {},                // { fixed, variable } — populated by /cashflow
-  assumptions: {               // baseline projection assumptions
+  income: {
+    salary: 0,
+    bonus: 0,
+    rsuValue: 0,               // annualized $ value of RSU vests
+    otherIncome: 0,
+    pretax: { k401: 0, hsa: 0, health: 0, other: 0 },
+    postTaxSavings: { roth: 0, brokerage: 0, other: 0 },
+    stateIncTax: null,         // override; null = auto-estimate
+    stateIncTaxAuto: true,
+    magi: null,                // legacy alias for AGI; still used by /mort
+  },
+  expenses: {
+    fixedMonthly: 0,
+    variableMonthly: 0,
+  },
+  assumptions: {
     realReturn: 0.05,
     inflation: 0.025,
     retireAge: 65,
+    endAge: 95,
+    targetSpend: 100000,       // annual real $ spending target in retirement
+    employerMatch: 0,          // annual employer 401k match (-> traditional)
+    taxableBasisFrac: 0.6,     // share of taxable that's basis (not gain)
   },
 };
 
@@ -51,10 +69,18 @@ function loadProfile() {
 }
 
 function mergeDefaults(p) {
+  const income = p.income || {};
   return {
     ...DEFAULT_PROFILE,
     ...p,
     household: { ...DEFAULT_PROFILE.household, ...(p.household || {}) },
+    income: {
+      ...DEFAULT_PROFILE.income,
+      ...income,
+      pretax: { ...DEFAULT_PROFILE.income.pretax, ...(income.pretax || {}) },
+      postTaxSavings: { ...DEFAULT_PROFILE.income.postTaxSavings, ...(income.postTaxSavings || {}) },
+    },
+    expenses: { ...DEFAULT_PROFILE.expenses, ...(p.expenses || {}) },
     assumptions: { ...DEFAULT_PROFILE.assumptions, ...(p.assumptions || {}) },
     accounts: Array.isArray(p.accounts) ? p.accounts : [],
   };
