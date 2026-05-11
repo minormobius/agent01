@@ -1,8 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "finance-minomobi",
+  "name": "fin",
   "compatibility_date": "2026-02-20",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    // SPA fallback: any path that doesn't match a static file in dist/
+    // serves dist/index.html (with 200) so the React router takes over.
+    // Static passthroughs (/stocks/, /bogo/, /lexicons/, /universe.json)
+    // are still served first because Workers Assets matches real files
+    // before applying not_found_handling. This replaces the prior
+    // _redirects file, which tripped Workers Assets' infinite-loop
+    // validator (code 10021) on `/* /index.html 200`.
+    "not_found_handling": "single-page-application"
   }
 }

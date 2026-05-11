@@ -1,7 +1,0 @@
-# Cloudflare Pages SPA fallback.
-# Static files (e.g. /stocks/, /bogo/, /mort/, /lexicons/, /universe.json)
-# are served directly because Pages checks for matching files BEFORE
-# applying these redirect rules. Anything that doesn't resolve to a file
-# falls through here and serves index.html so the React router takes over.
-
-/*  /index.html  200
