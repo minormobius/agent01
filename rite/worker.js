@@ -83,6 +83,22 @@ async function loadCorpus(env) {
   return _corpus;
 }
 
+// Baseline word frequencies (per million in general English, from SUBTLEX /
+// hermitdave OpenSubtitles via the fetch-lexicons workflow). Used for the
+// ask cluster-label scoring so that common words can't bind cluster labels
+// even when slightly concentrated in one cluster. Loaded once per isolate.
+let _baselineFreqCache = null;
+async function getBaselineFreq(env) {
+  if (_baselineFreqCache !== null) return _baselineFreqCache;
+  try {
+    const res = await env.ASSETS.fetch(new Request('https://rite/lexicon/data/baseline.json'));
+    _baselineFreqCache = res.ok ? await res.json() : {};
+  } catch {
+    _baselineFreqCache = {};
+  }
+  return _baselineFreqCache;
+}
+
 // ---------- /api/sentence ----------
 
 async function serveSentence(url, env) {
@@ -1024,7 +1040,12 @@ async function recomputeAskMap(env, did, opts = {}) {
     silhouette = silhouetteSampled(vectors, labels, 400);
     const clusterTexts = Array.from({ length: K }, () => []);
     for (let i = 0; i < meta.length; i++) clusterTexts[labels[i]].push(meta[i].text || '');
-    const labelsPer = labelClusters(clusterTexts, 5);
+    // Bring the SUBTLEX baseline into cluster labeling so common words
+    // ("that", "with", "from") can't bind labels even when slightly
+    // concentrated in one cluster — same two-dimensional distinctiveness
+    // logic the lexicon Distinctive view uses.
+    const baselineFreq = await getBaselineFreq(env);
+    const labelsPer = labelClusters(clusterTexts, baselineFreq, 5);
     const sizes = new Array(K).fill(0);
     for (const l of labels) sizes[l]++;
     clusterMeta = labelsPer.map((words, i) => ({
@@ -1354,29 +1375,67 @@ function silhouetteSampled(vectors, labels, maxScored = 400) {
   return counted ? Math.round((total / counted) * 1000) / 1000 : null;
 }
 
-// Top distinctive words per cluster, score = count² / (total + 5). Words
-// appearing in many clusters get punished; words concentrated in one
-// cluster get rewarded. Smoothing keeps very-rare words from dominating.
-function labelClusters(clusterTexts, topN = 5) {
+// Top distinctive words per cluster. Scoring is two-dimensional, mirroring
+// the lexicon /Distinctive view's logic but applied per-cluster:
+//
+//   lift   = (count_in_cluster / cluster_tokens)
+//          / (count_in_corpus  / corpus_tokens)
+//          → how concentrated is this word in this cluster vs the corpus average
+//          → 1.0 = uniform; > 1 = this cluster's word; >> 1 = signature word
+//
+//   score  = lift / log(8 + baseline_per_million_in_english)
+//          → divides out common-baseline words ("that", "from") so they
+//             can't bind clusters even when slightly more concentrated;
+//             rewards rare-in-English words that pop in this cluster.
+//
+// Filters: length ≥ 4, count ≥ 2, must be in the SUBTLEX baseline (rejects
+// typos / proper nouns / tokenizer junk), lift ≥ 1.5 (must be distinctly
+// over-represented here, not just slightly more common). If baseline data
+// isn't loaded yet we fall back to the within-corpus-only count²/(total+5)
+// scoring so something still renders.
+function labelClusters(clusterTexts, baselineFreq, topN = 5) {
   const K = clusterTexts.length;
   const clusterCounts = Array.from({ length: K }, () => new Map());
   const totalCounts = new Map();
+  const clusterTokens = new Array(K).fill(0);
+  let corpusTokens = 0;
   for (let c = 0; c < K; c++) {
     for (const text of clusterTexts[c]) {
       const tokens = tokenizeForLabels(text);
       for (const w of tokens) {
         clusterCounts[c].set(w, (clusterCounts[c].get(w) || 0) + 1);
         totalCounts.set(w, (totalCounts.get(w) || 0) + 1);
+        clusterTokens[c]++;
+        corpusTokens++;
       }
     }
   }
+
+  const hasBaseline = baselineFreq && Object.keys(baselineFreq).length > 100;
   const labelsPer = [];
   for (let c = 0; c < K; c++) {
+    const ct = clusterTokens[c];
+    if (!ct) { labelsPer.push([]); continue; }
     const scored = [];
     for (const [w, count] of clusterCounts[c]) {
-      const total = totalCounts.get(w) || 1;
-      if (total < 3) continue;             // drop one-offs
-      const score = (count * count) / (total + 5);
+      if (count < 2) continue;
+      if (w.length < 4) continue;
+      const total = totalCounts.get(w) || count;
+      if (total < 3) continue;
+
+      let score;
+      if (hasBaseline) {
+        const baseline = baselineFreq[w];
+        if (!baseline || baseline <= 0) continue;     // unknown to English baseline: usually junk
+        const clusterRate = count / ct;
+        const corpusRate = total / corpusTokens;
+        const lift = clusterRate / corpusRate;
+        if (lift < 1.5) continue;                      // must be distinctly *this cluster's* word
+        score = lift / Math.log(8 + baseline);
+      } else {
+        // Fallback: cluster-only scoring (used to be the only logic).
+        score = (count * count) / (total + 5);
+      }
       scored.push({ w, score });
     }
     scored.sort((a, b) => b.score - a.score);
