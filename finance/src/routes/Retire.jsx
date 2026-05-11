@@ -67,6 +67,17 @@ export default function Retire() {
   const realReturn = returnOverride !== null ? returnOverride : (Number(ass.realReturn) || 0.05);
   const filing = h.filing || "single";
   const ss = inc.socialSecurity || {};
+  const rc = ass.rothConversion || {};
+  const rcEnabled = !!rc.enabled && rc.annualAmount > 0;
+  const rcFrom = Number(rc.fromAge) || retireAge;
+  const rcTo = Number(rc.toAge) || 72;
+  const rcAmount = Number(rc.annualAmount) || 0;
+
+  const setRC = (patch) =>
+    update((p) => ({
+      ...p,
+      assumptions: { ...p.assumptions, rothConversion: { ...p.assumptions.rothConversion, ...patch } },
+    }));
 
   const setSS = (patch) =>
     update((p) => ({
@@ -79,40 +90,47 @@ export default function Retire() {
 
   const canProject = totalLiquid > 0 && currentAge < endAge && retireAge >= currentAge;
 
-  // ─── Run projection ────────────────────────────────────────────────
+  // ─── Run projection (both with-conversion and without, so we can show the delta) ─
+  const projInputs = useMemo(() => ({
+    currentAge, retireAge, endAge,
+    balances, contributions: annualContrib,
+    employerMatch, targetSpend, realReturn, filing,
+    taxableBasisFrac: ass.taxableBasisFrac ?? 0.6,
+    socialSecurity: {
+      benefitAtFRA: Number(ss.benefitAtFRA) || 0,
+      claimAge: Number(ss.claimAge) || 67,
+      partnerBenefitAtFRA: filing === "mfj" ? (Number(ss.partnerBenefitAtFRA) || 0) : 0,
+      partnerClaimAge: Number(ss.partnerClaimAge) || 67,
+    },
+  }), [currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
+
   const proj = useMemo(() => {
     if (!canProject) return null;
     return projectPortfolio({
-      currentAge, retireAge, endAge,
-      balances, contributions: annualContrib,
-      employerMatch, targetSpend, realReturn, filing,
-      taxableBasisFrac: ass.taxableBasisFrac ?? 0.6,
-      socialSecurity: {
-        benefitAtFRA: Number(ss.benefitAtFRA) || 0,
-        claimAge: Number(ss.claimAge) || 67,
-        partnerBenefitAtFRA: filing === "mfj" ? (Number(ss.partnerBenefitAtFRA) || 0) : 0,
-        partnerClaimAge: Number(ss.partnerClaimAge) || 67,
-      },
+      ...projInputs,
+      rothConversion: rcEnabled ? { fromAge: rcFrom, toAge: rcTo, annualAmount: rcAmount } : null,
     });
-  }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
+  }, [canProject, projInputs, rcEnabled, rcFrom, rcTo, rcAmount]);
+
+  // Counterfactual: same scenario, conversion off. Used only for the delta card.
+  const projNoConv = useMemo(() => {
+    if (!canProject || !rcEnabled) return null;
+    return projectPortfolio(projInputs);
+  }, [canProject, projInputs, rcEnabled]);
 
   // ─── Monte Carlo (same inputs as deterministic, mean = realReturn) ─
   const mcStdev = 0.12; // 60/40 historical real-return vol
   const mc = useMemo(() => {
     if (!canProject) return null;
     return monteCarloProject({
-      currentAge, retireAge, endAge,
-      balances, contributions: annualContrib,
-      employerMatch, targetSpend, realReturn, filing,
-      taxableBasisFrac: ass.taxableBasisFrac ?? 0.6,
-      socialSecurity: {
-        benefitAtFRA: Number(ss.benefitAtFRA) || 0,
-        claimAge: Number(ss.claimAge) || 67,
-        partnerBenefitAtFRA: filing === "mfj" ? (Number(ss.partnerBenefitAtFRA) || 0) : 0,
-        partnerClaimAge: Number(ss.partnerClaimAge) || 67,
-      },
+      ...projInputs,
+      rothConversion: rcEnabled ? { fromAge: rcFrom, toAge: rcTo, annualAmount: rcAmount } : null,
     }, { paths: 1000, stdev: mcStdev });
-  }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
+  }, [canProject, projInputs, rcEnabled, rcFrom, rcTo, rcAmount]);
+  const mcNoConv = useMemo(() => {
+    if (!canProject || !rcEnabled) return null;
+    return monteCarloProject(projInputs, { paths: 1000, stdev: mcStdev });
+  }, [canProject, projInputs, rcEnabled]);
 
   // ─── Conversion windows (low-bracket years pre-RMD) ────────────────
   const conversionWindows = useMemo(() => {
@@ -247,6 +265,43 @@ export default function Retire() {
         )}
       </div>
 
+      {/* ── Roth conversion ladder ─────────────────────────────── */}
+      <h2 className="section">roth conversion ladder</h2>
+      <p className="desc" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
+        Voluntarily move money from tax-deferred → Roth during low-bracket years
+        (typically between retirement and age 73). Tax is owed on the converted
+        amount as ordinary income that year — but it then grows tax-free forever,
+        is never subject to RMDs, and inherits tax-free. Wins when your conversion
+        bracket is lower than your future RMD bracket; can lose when it's higher.
+        Toggle on and compare the deltas below.
+      </p>
+      <div className="grid">
+        <Field label="strategy" note={rcEnabled ? "running with conversion" : "off — turn on to simulate"}>
+          <select value={rcEnabled ? "on" : "off"} onChange={(e) => setRC({ enabled: e.target.value === "on" })}>
+            <option value="off">off (baseline)</option>
+            <option value="on">on — ladder</option>
+          </select>
+        </Field>
+        <Field label="from age">
+          <input type="number" min={retireAge} max={endAge} step="1"
+            value={rc.fromAge ?? retireAge}
+            onChange={(e) => setRC({ fromAge: Number(e.target.value) || retireAge })}
+            disabled={!rcEnabled} />
+        </Field>
+        <Field label="to age" note="conversions stop after this age (RMDs start at 73)">
+          <input type="number" min={retireAge} max={endAge} step="1"
+            value={rc.toAge ?? 72}
+            onChange={(e) => setRC({ toAge: Number(e.target.value) || 72 })}
+            disabled={!rcEnabled} />
+        </Field>
+        <Field label="annual amount ($/yr, real)">
+          <input type="number" min="0" step="5000"
+            value={rc.annualAmount ?? 0}
+            onChange={(e) => setRC({ annualAmount: Number(e.target.value) || 0 })}
+            disabled={!rcEnabled} />
+        </Field>
+      </div>
+
       {/* ── Starting position ───────────────────────────────────── */}
       <h2 className="section">starting position</h2>
       <div className="aggregates" style={{ marginBottom: "0.5rem" }}>
@@ -261,6 +316,9 @@ export default function Retire() {
 
       {/* ── Hero outcome ────────────────────────────────────────── */}
       {proj && <Outcome proj={proj} mc={mc} targetSpend={targetSpend} retireAge={retireAge} endAge={endAge} />}
+
+      {/* ── Roth conversion comparison (only when on) ──────────── */}
+      {projNoConv && <ConversionDelta proj={proj} projNoConv={projNoConv} mc={mc} mcNoConv={mcNoConv} rc={{ fromAge: rcFrom, toAge: rcTo, annualAmount: rcAmount }} />}
 
       {/* ── Chart: deterministic bucket breakdown ──────────────── */}
       {proj && (
@@ -339,6 +397,67 @@ function Field({ label, note, children }) {
 function Stat({ k, v }) {
   return (
     <div className="a-row">
+      <span className="k">{k}</span>
+      <span className="v">{v}</span>
+    </div>
+  );
+}
+
+// Side-by-side: with-conversion vs without. Lifetime tax, ending Roth, ending
+// total, and (if Monte Carlo ran) success-rate delta. Win/loss color comes
+// from the legacy-value delta; flagged with a note when MC and deterministic
+// disagree on which is better.
+function ConversionDelta({ proj, projNoConv, mc, mcNoConv, rc }) {
+  const tot = (rows) => rows.reduce((s, r) => s + (r.yearTax || 0), 0);
+  const last = (rows) => rows[rows.length - 1];
+
+  const taxWith = tot(proj.rows);
+  const taxNo = tot(projNoConv.rows);
+  const rothWith = last(proj.rows).balances.roth;
+  const rothNo = last(projNoConv.rows).balances.roth;
+  const totalWith = last(proj.rows).totalReal;
+  const totalNo = last(projNoConv.rows).totalReal;
+  const totalDelta = totalWith - totalNo;
+  const isWin = totalDelta >= 0;
+
+  const srDelta = mc && mcNoConv ? (mc.successRate - mcNoConv.successRate) : null;
+
+  return (
+    <div className="summary" style={{ borderColor: isWin ? "var(--green)" : "var(--red)", marginTop: "1rem" }}>
+      <div className="total">
+        <span className="lbl">
+          conversion ladder · ${rc.annualAmount.toLocaleString()}/yr · age {rc.fromAge}–{rc.toAge}
+        </span>
+        <span className="val" style={{ color: isWin ? "var(--green)" : "var(--red)" }}>
+          {isWin ? "+" : "−"}{fmtFullMoney(Math.abs(totalDelta))}
+        </span>
+      </div>
+      <div className="breakdown">
+        <RowKV k="Legacy delta (vs baseline)" v={(totalDelta >= 0 ? "+" : "−") + fmtFullMoney(Math.abs(totalDelta))} />
+        <RowKV k="Lifetime tax · with" v={fmtFullMoney(taxWith)} />
+        <RowKV k="Lifetime tax · baseline" v={fmtFullMoney(taxNo)} />
+        <RowKV k="Lifetime tax delta" v={(taxWith - taxNo >= 0 ? "+" : "−") + fmtFullMoney(Math.abs(taxWith - taxNo))} />
+        <RowKV k="Ending Roth · with" v={fmtFullMoney(rothWith)} />
+        <RowKV k="Ending Roth · baseline" v={fmtFullMoney(rothNo)} />
+        {srDelta !== null && (
+          <RowKV
+            k={`MC success rate · with vs baseline`}
+            v={`${(mc.successRate * 100).toFixed(1)}% vs ${(mcNoConv.successRate * 100).toFixed(1)}% (${srDelta >= 0 ? "+" : ""}${(srDelta * 100).toFixed(1)} pts)`}
+          />
+        )}
+      </div>
+      <p className="note" style={{ marginTop: "0.5rem" }}>
+        {isWin
+          ? "ladder is helpful for this scenario — converting at today's brackets saves more than the immediate tax cost."
+          : "ladder is unhelpful for this scenario — you're paying conversion tax now without escaping higher brackets later. try a narrower window, smaller annual amount, or extending the to-age cap."}
+      </p>
+    </div>
+  );
+}
+
+function RowKV({ k, v }) {
+  return (
+    <div className="row">
       <span className="k">{k}</span>
       <span className="v">{v}</span>
     </div>
@@ -475,6 +594,7 @@ function YearTable({ rows, retireAge }) {
                 <th>roth</th>
                 <th>hsa</th>
                 <th>SS</th>
+                <th>conv</th>
                 <th>withdraw</th>
                 <th>RMD</th>
                 <th>tax</th>
@@ -492,6 +612,7 @@ function YearTable({ rows, retireAge }) {
                   <td>{fmtMoney(r.balances.roth)}</td>
                   <td>{fmtMoney(r.balances.hsa)}</td>
                   <td>{r.yearSS ? fmtMoney(r.yearSS) : ""}</td>
+                  <td>{r.yearConversion ? fmtMoney(r.yearConversion) : ""}</td>
                   <td>{r.yearGrossWithdraw ? fmtMoney(r.yearGrossWithdraw) : ""}</td>
                   <td>{r.yearRMD ? fmtMoney(r.yearRMD) : ""}</td>
                   <td>{r.yearTax ? fmtMoney(r.yearTax) : ""}</td>

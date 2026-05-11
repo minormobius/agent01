@@ -49,6 +49,12 @@ export const DEFAULT_PROFILE = {
     targetSpend: 100000,       // annual real $ spending target in retirement
     employerMatch: 0,          // annual employer 401k match (-> traditional)
     taxableBasisFrac: 0.6,     // share of taxable that's basis (not gain)
+    rothConversion: {          // optional ladder; null/0 amount means no conversion
+      enabled: false,
+      fromAge: null,
+      toAge: null,
+      annualAmount: 0,
+    },
   },
 };
 

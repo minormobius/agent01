@@ -26,7 +26,7 @@
  *   - Roth conversion ladder (engine surfaces low-bracket windows; v2 simulates)
  */
 
-import { federalTax, ltcgTax, uniformLifetimeDivisor, STD_DED_2025 } from "./tax.js";
+import { federalTax, ltcgTax, marginalRate, uniformLifetimeDivisor, STD_DED_2025 } from "./tax.js";
 
 const DEFAULT_BUCKETS = {
   cash: 0,       // checking/savings/MM
@@ -89,6 +89,11 @@ function grossForNet(target, baseOrd, std, filing) {
  * @param {string} inputs.filing
  * @param {number} [inputs.taxableBasisFrac=0.6] - share of taxable that's basis
  * @param {object} [inputs.socialSecurity] - { benefitAtFRA, claimAge, partnerBenefitAtFRA, partnerClaimAge }
+ * @param {object} [inputs.rothConversion] - { fromAge, toAge, annualAmount }
+ *   Voluntary trad -> Roth conversion ladder. Conversion is taxed as ord income
+ *   (stacked with SS taxable share and RMD). In retirement years the tax bill
+ *   becomes part of "needed" — withdrawals cover it. In working years, tax is
+ *   tracked in yearTax but assumed paid from salary (not from the portfolio).
  */
 export function projectPortfolio(inputs) {
   const {
@@ -104,6 +109,7 @@ export function projectPortfolio(inputs) {
     filing = "single",
     taxableBasisFrac = 0.6,
     socialSecurity = {},
+    rothConversion = null,
   } = inputs;
 
   let balances = { ...DEFAULT_BUCKETS, ...(balancesIn || {}) };
@@ -128,7 +134,24 @@ export function projectPortfolio(inputs) {
     let yearTax = 0;
     let yearRMD = 0;
     let yearSS = 0;
+    let yearConversion = 0;
+    let yearOrdIncome = 0;        // sum of ord-taxable amounts (SS taxable share +
+                                  // RMD + traditional withdrawals + conversion +
+                                  // working-year W2 if provided). For /timeline.
     let withdrawByBucket = { cash: 0, taxable: 0, traditional: 0, roth: 0, hsa: 0 };
+
+    // Voluntary Roth conversion (any age in window). Moves trad -> roth,
+    // adds to ord income for tax purposes.
+    const inConvWindow = rothConversion?.annualAmount > 0
+      && age >= (rothConversion.fromAge ?? Infinity)
+      && age <= (rothConversion.toAge ?? -Infinity);
+    if (inConvWindow) {
+      yearConversion = Math.min(rothConversion.annualAmount, balances.traditional);
+      if (yearConversion > 0) {
+        balances.traditional -= yearConversion;
+        balances.roth += yearConversion;
+      }
+    }
 
     if (age < retireAge) {
       // ── Working years: contributions ─────────────────────────────
@@ -140,6 +163,13 @@ export function projectPortfolio(inputs) {
       if (employerMatch > 0) {
         balances.traditional += employerMatch;
         yearContrib += employerMatch;
+      }
+      // Conversion tax during working years: assumed paid from salary
+      // (not from the portfolio). Tracked in yearTax for reporting.
+      if (yearConversion > 0) {
+        const convTax = federalTax(Math.max(0, yearConversion - std), filing);
+        yearTax += convTax;
+        yearOrdIncome += yearConversion;
       }
     } else {
       // ── Retirement ───────────────────────────────────────────────
@@ -165,6 +195,21 @@ export function projectPortfolio(inputs) {
       const taxOnSS = federalTax(Math.max(0, ordStack - std), filing);
       yearTax += taxOnSS;
       needed += taxOnSS; // we'll cover the SS tax bill from withdrawals
+
+      // Roth conversion (if active): stacks on ord income, adds tax to needed.
+      // Tax is paid from withdrawals (cash/taxable/trad), conversion itself is
+      // already moved into the Roth bucket above.
+      if (yearConversion > 0) {
+        const stackBefore = ordStack;
+        ordStack += yearConversion;
+        const convTax = Math.max(
+          0,
+          federalTax(Math.max(0, ordStack - std), filing) -
+            federalTax(Math.max(0, stackBefore - std), filing)
+        );
+        yearTax += convTax;
+        needed += convTax;
+      }
 
       // RMD (age 73+) — mandatory, ord income, stacks on top of SS
       const div = uniformLifetimeDivisor(age);
@@ -266,6 +311,8 @@ export function projectPortfolio(inputs) {
         yearGrossWithdraw += take;
         needed -= take;
       }
+
+      yearOrdIncome = ordStack;
     }
 
     const totalReal = BUCKET_KEYS.reduce((s, k) => s + balances[k], 0);
@@ -283,7 +330,11 @@ export function projectPortfolio(inputs) {
       withdrawByBucket: { ...withdrawByBucket },
       yearRMD,
       yearSS,
+      yearConversion,
       yearTax,
+      yearOrdIncome,
+      marginalBracket: marginalRate(Math.max(0, yearOrdIncome - std), filing),
+      effectiveRate: yearOrdIncome > 0 ? yearTax / yearOrdIncome : 0,
       retired: age >= retireAge,
     });
 
