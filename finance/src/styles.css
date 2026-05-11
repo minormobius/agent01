@@ -1,0 +1,339 @@
+/* fin.mino.mobi — shared design tokens
+   Single source of truth for typography, color palette, and layout primitives.
+   Routes import this transitively via main.jsx. */
+
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --green: #2d6a2e;
+  --red: #8b0000;
+
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+
+  /* Tax-treatment palette — used by /networth and /retire allocation views */
+  --c-cash: #6b7280;
+  --c-taxable: #2d6a2e;
+  --c-traditional: #b45309;
+  --c-roth: #1e3a8a;
+  --c-hsa: #7c2d92;
+  --c-realestate: #92400e;
+  --c-equity: #be123c;
+  --c-debt: #4b5563;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --green: #5a5;
+    --red: #c45;
+
+    --c-cash: #9ca3af;
+    --c-taxable: #5a5;
+    --c-traditional: #d4a04e;
+    --c-roth: #6884d4;
+    --c-hsa: #b074cc;
+    --c-realestate: #c89060;
+    --c-equity: #d97384;
+    --c-debt: #6b7280;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.page {
+  padding: 3rem 1.5rem 5rem;
+  max-width: 880px;
+  margin: 0 auto;
+}
+@media (max-width: 480px) { .page { padding: 2rem 1rem; } }
+
+/* ─── Site header (used by every route) ─────────────────────────────── */
+
+.site-hdr {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.site-hdr a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.site-hdr a:hover { color: var(--text); }
+.site-hdr .sep { color: var(--rule); margin: 0 0.5rem; }
+
+.subtitle {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+}
+.desc {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 2rem;
+}
+
+/* ─── Section labels (uppercase mono headings) ──────────────────────── */
+
+h2.section {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2rem 0 0.75rem;
+  font-weight: 400;
+}
+
+/* ─── Form primitives ──────────────────────────────────────────────── */
+
+input, select, button, textarea {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--green);
+}
+button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--green); color: var(--green); }
+button.danger {
+  color: var(--muted);
+  border-color: transparent;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+}
+button.danger:hover { color: var(--red); border-color: var(--red); }
+
+/* ─── Footer notes (small mono prose) ──────────────────────────────── */
+
+.footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.footer a { color: var(--muted); }
+.footer a:hover { color: var(--text); }
+.footer code { background: rgba(128,128,128,0.1); padding: 0.05em 0.3em; }
+
+/* ─── Tool grid (landing) ──────────────────────────────────────────── */
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+.tool-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.tool-card {
+  border: 1px solid var(--rule);
+  padding: 1rem 1rem 0.85rem;
+  height: 100%;
+  transition: border-color 0.1s ease;
+}
+.tool-card-link:hover .tool-card { border-color: var(--green); }
+.tool-card.soon { opacity: 0.55; }
+.tool-card-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+.tool-name {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tool-status {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--rule);
+}
+.tool-status-live { color: var(--green); border-color: var(--green); }
+.tool-status-soon { color: var(--muted); }
+.tool-status-static { color: var(--muted); }
+.tool-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* ─── Not found ────────────────────────────────────────────────────── */
+
+.not-found { text-align: center; padding: 6rem 1rem; }
+.not-found h1 {
+  font-family: var(--mono);
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.not-found code {
+  font-family: var(--mono);
+  background: rgba(128,128,128,0.1);
+  padding: 0.1em 0.4em;
+}
+
+/* ─── Networth route ──────────────────────────────────────────────── */
+
+.add-form {
+  display: grid;
+  grid-template-columns: 1.5fr 1.2fr 1fr auto;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 640px) {
+  .add-form { grid-template-columns: 1fr 1fr; }
+  .add-form button { grid-column: 1 / -1; }
+}
+
+.summary {
+  border: 1px solid var(--rule);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.nw-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+.nw-total .lbl {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nw-total .val {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 600;
+}
+.nw-total .val.neg { color: var(--red); }
+
+.alloc-bar {
+  display: flex;
+  height: 18px;
+  width: 100%;
+  border: 1px solid var(--rule);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+.alloc-bar .seg { height: 100%; }
+.alloc-legend {
+  display: flex;
+  gap: 0.75rem 1.25rem;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.alloc-legend .swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+.alloc-legend .pct { color: var(--text); margin-left: 0.2rem; }
+
+.group {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--rule);
+}
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+}
+.group-header .name {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.group-header .name .swatch {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.group-header .total {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.group-header .total.neg { color: var(--red); }
+.group-tax-note {
+  padding: 0.4rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+.account {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.account:last-child { border-bottom: none; }
+.account .acct-name { font-family: var(--mono); font-size: 0.85rem; }
+.account .acct-balance {
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+}
+.account .acct-balance.neg { color: var(--red); }
+
+.empty-msg {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 0;
+}
