@@ -3,11 +3,13 @@ import { useRoute } from "./router";
 import Landing from "./routes/Landing";
 import Networth from "./routes/Networth";
 import Mort from "./routes/Mort";
+import Cashflow from "./routes/Cashflow";
 
 const ROUTES = {
   "/": Landing,
   "/networth": Networth,
   "/mort": Mort,
+  "/cashflow": Cashflow,
 };
 
 export default function App() {

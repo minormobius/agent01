@@ -19,7 +19,7 @@ const TOOLS = [
   {
     to: "/cashflow",
     name: "Cash flow",
-    status: "soon",
+    status: "live",
     desc: "Salary, RSU vesting, bonus → federal + state + FICA → fixed/variable expenses → savings buckets. Surplus or deficit at the bottom.",
   },
   {
