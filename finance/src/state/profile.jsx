@@ -27,6 +27,12 @@ export const DEFAULT_PROFILE = {
     stateIncTax: null,         // override; null = auto-estimate
     stateIncTaxAuto: true,
     magi: null,                // legacy alias for AGI; still used by /mort
+    socialSecurity: {          // populated by /retire
+      benefitAtFRA: null,      // user's estimated annual SS benefit at FRA (today's $)
+      claimAge: 67,
+      partnerBenefitAtFRA: null,
+      partnerClaimAge: 67,
+    },
   },
   expenses: {
     fixedMonthly: 0,
@@ -79,6 +85,7 @@ function mergeDefaults(p) {
       ...income,
       pretax: { ...DEFAULT_PROFILE.income.pretax, ...(income.pretax || {}) },
       postTaxSavings: { ...DEFAULT_PROFILE.income.postTaxSavings, ...(income.postTaxSavings || {}) },
+      socialSecurity: { ...DEFAULT_PROFILE.income.socialSecurity, ...(income.socialSecurity || {}) },
     },
     expenses: { ...DEFAULT_PROFILE.expenses, ...(p.expenses || {}) },
     assumptions: { ...DEFAULT_PROFILE.assumptions, ...(p.assumptions || {}) },

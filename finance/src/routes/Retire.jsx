@@ -65,6 +65,16 @@ export default function Retire() {
   const employerMatch = Number(ass.employerMatch) || 0;
   const realReturn = returnOverride !== null ? returnOverride : (Number(ass.realReturn) || 0.05);
   const filing = h.filing || "single";
+  const ss = inc.socialSecurity || {};
+
+  const setSS = (patch) =>
+    update((p) => ({
+      ...p,
+      income: {
+        ...p.income,
+        socialSecurity: { ...p.income.socialSecurity, ...patch },
+      },
+    }));
 
   const canProject = totalLiquid > 0 && currentAge < endAge && retireAge >= currentAge;
 
@@ -76,8 +86,14 @@ export default function Retire() {
       balances, contributions: annualContrib,
       employerMatch, targetSpend, realReturn, filing,
       taxableBasisFrac: ass.taxableBasisFrac ?? 0.6,
+      socialSecurity: {
+        benefitAtFRA: Number(ss.benefitAtFRA) || 0,
+        claimAge: Number(ss.claimAge) || 67,
+        partnerBenefitAtFRA: filing === "mfj" ? (Number(ss.partnerBenefitAtFRA) || 0) : 0,
+        partnerClaimAge: Number(ss.partnerClaimAge) || 67,
+      },
     });
-  }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac]);
+  }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
 
   // ─── Conversion windows (low-bracket years pre-RMD) ────────────────
   const conversionWindows = useMemo(() => {
@@ -168,6 +184,47 @@ export default function Retire() {
           <button onClick={() => setReturnOverride(null)} className="danger">
             clear scenario · use saved {pct(ass.realReturn || 0.05)}
           </button>
+        )}
+      </div>
+
+      {/* ── Social Security ────────────────────────────────────── */}
+      <h2 className="section">social security</h2>
+      <p className="desc" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
+        Annual benefit at full retirement age (FRA, 67 for those born 1960+),
+        in <em>today's dollars</em>. Get this from your SSA statement at{" "}
+        <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noreferrer">ssa.gov/myaccount</a>.
+        Claim age 62 = 70% of FRA benefit, 70 = 124% (8%/yr delayed-retirement credits).
+        For planning we treat 85% of SS as taxable ordinary income (the cap that most
+        retirees with meaningful other income hit).
+      </p>
+      <div className="grid">
+        <Field label="your benefit at FRA ($/yr, today's $)" note="from your SSA statement">
+          <input type="number" min="0" step="500"
+            value={ss.benefitAtFRA ?? ""}
+            onChange={(e) => setSS({ benefitAtFRA: e.target.value === "" ? null : Number(e.target.value) })} />
+        </Field>
+        <Field label="your claim age">
+          <select value={ss.claimAge ?? 67} onChange={(e) => setSS({ claimAge: Number(e.target.value) })}>
+            {[62, 63, 64, 65, 66, 67, 68, 69, 70].map((a) => (
+              <option key={a} value={a}>{a}{a === 67 ? " (FRA)" : ""}</option>
+            ))}
+          </select>
+        </Field>
+        {filing === "mfj" && (
+          <>
+            <Field label="partner benefit at FRA ($/yr, today's $)">
+              <input type="number" min="0" step="500"
+                value={ss.partnerBenefitAtFRA ?? ""}
+                onChange={(e) => setSS({ partnerBenefitAtFRA: e.target.value === "" ? null : Number(e.target.value) })} />
+            </Field>
+            <Field label="partner claim age">
+              <select value={ss.partnerClaimAge ?? 67} onChange={(e) => setSS({ partnerClaimAge: Number(e.target.value) })}>
+                {[62, 63, 64, 65, 66, 67, 68, 69, 70].map((a) => (
+                  <option key={a} value={a}>{a}{a === 67 ? " (FRA)" : ""}</option>
+                ))}
+              </select>
+            </Field>
+          </>
         )}
       </div>
 
@@ -359,6 +416,7 @@ function YearTable({ rows, retireAge }) {
                 <th>trad</th>
                 <th>roth</th>
                 <th>hsa</th>
+                <th>SS</th>
                 <th>withdraw</th>
                 <th>RMD</th>
                 <th>tax</th>
@@ -375,6 +433,7 @@ function YearTable({ rows, retireAge }) {
                   <td>{fmtMoney(r.balances.traditional)}</td>
                   <td>{fmtMoney(r.balances.roth)}</td>
                   <td>{fmtMoney(r.balances.hsa)}</td>
+                  <td>{r.yearSS ? fmtMoney(r.yearSS) : ""}</td>
                   <td>{r.yearGrossWithdraw ? fmtMoney(r.yearGrossWithdraw) : ""}</td>
                   <td>{r.yearRMD ? fmtMoney(r.yearRMD) : ""}</td>
                   <td>{r.yearTax ? fmtMoney(r.yearTax) : ""}</td>
