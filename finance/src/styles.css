@@ -513,3 +513,57 @@ svg.chart { width: 100%; height: 280px; display: block; }
   --interest: var(--red);
   --balance: var(--text);
 }
+
+/* ─── Retire route ────────────────────────────────────────────────── */
+
+.warn {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--red);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.warn strong { color: var(--text); }
+.warn a { color: var(--link); }
+
+.milestones {
+  border: 1px solid var(--rule);
+  margin-bottom: 1.5rem;
+}
+.milestone {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.milestone:last-child { border-bottom: none; }
+.milestone-age {
+  font-family: var(--mono);
+  text-align: right;
+}
+.milestone-age .age {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+.milestone-age .year {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+.milestone-body .title {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.milestone-body .detail {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1.5;
+}

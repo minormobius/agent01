@@ -37,8 +37,8 @@ const TOOLS = [
   {
     to: "/retire",
     name: "Retirement projection",
-    status: "soon",
-    desc: "Year-by-year tax-aware projection with Monte Carlo. Surfaces Roth conversion windows, ACA bridge if early, RMD onset.",
+    status: "live",
+    desc: "Year-by-year tax-aware projection. Stacked-area chart by tax bucket, RMDs from 73, Roth conversion windows flagged. Monte Carlo coming in v2.",
   },
   {
     to: "/insurance",

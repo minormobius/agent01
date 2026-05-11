@@ -4,12 +4,14 @@ import Landing from "./routes/Landing";
 import Networth from "./routes/Networth";
 import Mort from "./routes/Mort";
 import Cashflow from "./routes/Cashflow";
+import Retire from "./routes/Retire";
 
 const ROUTES = {
   "/": Landing,
   "/networth": Networth,
   "/mort": Mort,
   "/cashflow": Cashflow,
+  "/retire": Retire,
 };
 
 export default function App() {
