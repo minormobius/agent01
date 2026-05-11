@@ -236,6 +236,7 @@ footer a { color: var(--muted); text-decoration: underline; }
       <button class="view-tab" data-view="nrc">NRC · emotion</button>
       <button class="view-tab" data-view="afinn">AFINN · sentiment</button>
       <button class="view-tab" data-view="concreteness">Concreteness</button>
+      <button class="view-tab" data-view="timeline">Timeline</button>
       <button class="view-tab" data-view="docs">Docs</button>
     </nav>
 
@@ -419,6 +420,10 @@ async function proceedWithProfile(result) {
   setProgress('Tokenizing & counting…', 1);
   const { freq, total } = buildFrequency(state.threads);
   state.freq = freq; state.totalTokens = total;
+  // Pre-compute per-thread lexicon stats once. The Timeline view aggregates
+  // these by time-bin; doing it once at corpus-build time keeps each
+  // re-render cheap.
+  for (const t of state.threads) t.lex = computeThreadLex(t.text);
   showStage('lexicon');
   renderProfileStrip();
   renderSummary();
@@ -609,6 +614,7 @@ const origRenderView = renderView;
 renderView = function () {
   if (state.view === 'docs')          { renderDocs(); return; }
   if (state.view === 'usage')         { renderUsageScatter(); return; }
+  if (state.view === 'timeline')      { renderTimelineView(); return; }
   if (state.view === 'nrc')           { renderNrcView(); return; }
   if (state.view === 'afinn')         { renderAfinnView(); return; }
   if (state.view === 'concreteness')  { renderConcretenessView(); return; }
@@ -916,6 +922,300 @@ function renderCloudBelow(view, leadingHtml, emptyMessage) {
 // Same SVG-only approach atlas uses; no charting library. Helpers inlined
 // here rather than imported from atlas — when atlas next gets edited the
 // lib extraction is a natural follow-up.
+
+// ─── Timeline ─────────────────────────────────────────────────────────────
+// Bin threads by time and plot the macro stats over time so the writer's
+// arc becomes visible. Small multiples: activity, Flesch, concreteness,
+// AFINN, plus a dominant-emotion strip at the bottom. All driven by the
+// per-thread lex stats computed at proceedWithProfile time.
+
+const NRC_EMOS = ['joy', 'anticipation', 'trust', 'surprise', 'sadness', 'fear', 'anger', 'disgust'];
+
+// Per-thread tag counts + per-thread aggregate stats. Called once when the
+// corpus is built; aggregated per-bin in renderTimelineView.
+function computeThreadLex(text) {
+  const lower = (text || '').toLowerCase();
+  const tokens = [];
+  const re = /[a-z']{3,}/g;
+  let m;
+  while ((m = re.exec(lower)) !== null) {
+    tokens.push(m[0].replace(/^'+|'+$/g, ''));
+  }
+  let conSum = 0, conCount = 0;
+  let afSum = 0, afCount = 0;
+  const nrc = Object.fromEntries(NRC_EMOS.map((e) => [e, 0]));
+  let nrcTotalWeight = 0;
+  for (const w of tokens) {
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c === 'number') { conSum += c; conCount++; }
+    const a = LEX.AFINN[w];
+    if (typeof a === 'number') { afSum += a; afCount++; }
+    const tags = LEX.NRC[w];
+    if (tags) {
+      const core = tags.filter((t) => nrc[t] !== undefined);
+      if (core.length) {
+        const wgt = 1 / core.length;
+        for (const t of core) nrc[t] += wgt;
+        nrcTotalWeight += 1;
+      }
+    }
+  }
+  return {
+    tokens: tokens.length,
+    concreteness: conCount ? conSum / conCount : null,
+    afinn: afCount ? afSum / afCount : null,
+    nrc,
+    nrcTotal: nrcTotalWeight,
+  };
+}
+
+function pickGranularity(threads) {
+  const stamps = threads
+    .map((t) => t.createdAt && new Date(t.createdAt).getTime())
+    .filter((n) => Number.isFinite(n));
+  if (stamps.length < 2) return 'month';
+  const span = Math.max(...stamps) - Math.min(...stamps);
+  const days = span / 86400000;
+  if (days < 60) return 'week';
+  if (days < 365) return 'month';
+  if (days < 3 * 365) return 'quarter';
+  return 'year';
+}
+
+function binKeyForDate(d, granularity) {
+  const y = d.getUTCFullYear();
+  if (granularity === 'year')    return { key: String(y), label: String(y), sort: Date.UTC(y, 0, 1) };
+  if (granularity === 'quarter') {
+    const q = Math.floor(d.getUTCMonth() / 3);
+    return { key: `${y}-Q${q + 1}`, label: `Q${q + 1} '${String(y).slice(-2)}`, sort: Date.UTC(y, q * 3, 1) };
+  }
+  if (granularity === 'month') {
+    const M = d.getUTCMonth();
+    const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][M];
+    return { key: `${y}-${String(M + 1).padStart(2, '0')}`, label: `${mShort} '${String(y).slice(-2)}`, sort: Date.UTC(y, M, 1) };
+  }
+  // week
+  const start = Date.UTC(y, 0, 1);
+  const dow0 = new Date(start).getUTCDay();
+  const day = Math.floor((d.getTime() - start) / 86400000);
+  const week = Math.floor((day + dow0) / 7);
+  const mondayMs = start + ((week * 7) - dow0) * 86400000;
+  const monday = new Date(mondayMs);
+  const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][monday.getUTCMonth()];
+  return { key: `${y}-W${String(week).padStart(2, '0')}`, label: `${mShort} ${monday.getUTCDate()}`, sort: mondayMs };
+}
+
+function buildTimelineBins(threads) {
+  const granularity = pickGranularity(threads);
+  const buckets = new Map();
+  for (const t of threads) {
+    if (!t.createdAt) continue;
+    const d = new Date(t.createdAt);
+    if (isNaN(d.getTime())) continue;
+    const { key, label, sort } = binKeyForDate(d, granularity);
+    if (!buckets.has(key)) buckets.set(key, { key, label, sort, threads: [] });
+    buckets.get(key).threads.push(t);
+  }
+  const bins = [...buckets.values()].sort((a, b) => a.sort - b.sort);
+
+  // Per-bin aggregates.
+  for (const bin of bins) {
+    let fleschSum = 0, fleschN = 0;
+    let conSum = 0, conN = 0;
+    let afSum = 0, afN = 0;
+    const nrc = Object.fromEntries(NRC_EMOS.map((e) => [e, 0]));
+    let nrcTotal = 0, tokensTotal = 0;
+    for (const t of bin.threads) {
+      if (t.reading && Number.isFinite(t.reading.flesch)) { fleschSum += t.reading.flesch; fleschN++; }
+      const lx = t.lex;
+      if (!lx) continue;
+      if (lx.concreteness != null) {
+        // Weight by token count so longer threads count more.
+        conSum += lx.concreteness * lx.tokens; conN += lx.tokens;
+      }
+      if (lx.afinn != null) {
+        afSum += lx.afinn * lx.tokens; afN += lx.tokens;
+      }
+      tokensTotal += lx.tokens;
+      for (const e of NRC_EMOS) nrc[e] += lx.nrc[e] || 0;
+      nrcTotal += lx.nrcTotal;
+    }
+    bin.flesch = fleschN ? fleschSum / fleschN : null;
+    bin.concreteness = conN ? conSum / conN : null;
+    bin.afinn = afN ? afSum / afN : null;
+    bin.nrc = nrc;
+    bin.nrcTotal = nrcTotal;
+    bin.tokens = tokensTotal;
+    // Dominant emotion: NRC tag with highest count in this bin.
+    let topEmo = null, topVal = 0;
+    for (const e of NRC_EMOS) if (nrc[e] > topVal) { topVal = nrc[e]; topEmo = e; }
+    bin.topEmotion = topEmo;
+  }
+  return { granularity, bins };
+}
+
+function renderTimelineView() {
+  const region = $('cloud-region');
+  region.innerHTML = '';
+  if (!state.threads || state.threads.length < 3) {
+    region.innerHTML = `<div class="hint" style="padding:2rem; text-align:center;">Need at least a few timestamped threads to build a timeline.</div>`;
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  const { granularity, bins } = buildTimelineBins(state.threads);
+  if (!bins.length) {
+    region.innerHTML = `<div class="hint" style="padding:2rem; text-align:center;">No threads have parseable timestamps.</div>`;
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  // Layout. Small multiples stacked.
+  const W = 1000;
+  const PAD_L = 56, PAD_R = 24;
+  const innerW = W - PAD_L - PAD_R;
+  const panels = [
+    { key: 'activity',    label: 'activity', h: 60, fmt: (v) => v == null ? '' : String(v) },
+    { key: 'flesch',      label: 'reading ease', h: 56, fmt: (v) => v == null ? '' : v.toFixed(0) },
+    { key: 'concreteness',label: 'concreteness', h: 56, fmt: (v) => v == null ? '' : v.toFixed(2) },
+    { key: 'afinn',       label: 'sentiment',    h: 56, fmt: (v) => v == null ? '' : (v >= 0 ? '+' : '') + v.toFixed(2) },
+    { key: 'emotion',     label: 'dominant emotion', h: 28, fmt: () => '' },
+  ];
+  const gap = 10;
+  let yCursor = 22;            // top breathing room
+  const H = yCursor + panels.reduce((s, p) => s + p.h + gap, 0) + 28; // bottom for x labels
+
+  // Build the X scale. Each bin occupies an equal slice of innerW.
+  const barW = innerW / bins.length;
+  const xCenter = (i) => PAD_L + barW * (i + 0.5);
+
+  // Activity scale.
+  const maxActivity = Math.max(1, ...bins.map((b) => b.threads.length));
+  // Reading ease: clamp to typical Flesch range.
+  const fleschVals = bins.map((b) => b.flesch).filter((v) => v != null);
+  const fleschMin = Math.min(0, ...fleschVals);
+  const fleschMax = Math.max(100, ...fleschVals);
+  // Concreteness: 1..5.
+  // AFINN: clamp to -3..+3 typical range; expand if needed.
+  const afVals = bins.map((b) => b.afinn).filter((v) => v != null);
+  const afMax = Math.max(0.5, ...afVals.map(Math.abs));
+  const afMin = -afMax;
+  const afMaxClamp = afMax;
+  // Make the symmetric range readable.
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.7rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" aria-label="Timeline of corpus stats">`;
+
+  // Header strip with granularity badge.
+  svg += `<text x="${PAD_L}" y="14" fill="var(--muted)" font-family="var(--mono)" font-size="10" text-transform="uppercase">${bins.length} ${granularity === 'week' ? 'weeks' : granularity + 's'} · ${bins[0].label} → ${bins[bins.length - 1].label}</text>`;
+
+  // Helper: per-panel transform.
+  function panelTop(idx) {
+    let y = yCursor;
+    for (let i = 0; i < idx; i++) y += panels[i].h + gap;
+    return y;
+  }
+
+  // Panel: activity (bars by thread count).
+  {
+    const top = panelTop(0);
+    const h = panels[0].h;
+    svg += `<text x="${PAD_L - 6}" y="${top + 10}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="9" text-transform="uppercase">activity</text>`;
+    svg += `<line x1="${PAD_L}" y1="${top + h}" x2="${W - PAD_R}" y2="${top + h}" stroke="var(--rule)"/>`;
+    bins.forEach((b, i) => {
+      const bh = h * (b.threads.length / maxActivity);
+      const x = PAD_L + barW * i + 1;
+      const y = top + h - bh;
+      svg += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0.5, barW - 2).toFixed(2)}" height="${Math.max(0.5, bh).toFixed(2)}" fill="var(--accent)" fill-opacity="0.55"/>`;
+    });
+    svg += `<text x="${W - PAD_R + 2}" y="${top + 10}" fill="var(--muted)" font-family="var(--mono)" font-size="9">max ${maxActivity}</text>`;
+  }
+
+  // Helper: render a "line + dots" panel with a domain min/max.
+  function linePanel(idx, key, dMin, dMax, accent = 'var(--accent)', tier = null) {
+    const top = panelTop(idx);
+    const h = panels[idx].h;
+    const label = panels[idx].label;
+    svg += `<text x="${PAD_L - 6}" y="${top + 10}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="9" text-transform="uppercase">${label}</text>`;
+    svg += `<line x1="${PAD_L}" y1="${top + h}" x2="${W - PAD_R}" y2="${top + h}" stroke="var(--rule)"/>`;
+    // Y-min / Y-max ticks at the right.
+    svg += `<text x="${W - PAD_R + 2}" y="${top + 10}" fill="var(--muted)" font-family="var(--mono)" font-size="9">${panels[idx].fmt(dMax)}</text>`;
+    svg += `<text x="${W - PAD_R + 2}" y="${top + h}" fill="var(--muted)" font-family="var(--mono)" font-size="9">${panels[idx].fmt(dMin)}</text>`;
+    // Zero line if domain straddles zero.
+    if (dMin < 0 && dMax > 0) {
+      const zy = top + h - h * (0 - dMin) / (dMax - dMin);
+      svg += `<line x1="${PAD_L}" y1="${zy}" x2="${W - PAD_R}" y2="${zy}" stroke="var(--rule)" stroke-opacity="0.4"/>`;
+    }
+    const pts = [];
+    bins.forEach((b, i) => {
+      const v = b[key];
+      if (v == null) return;
+      const cx = xCenter(i);
+      const cy = top + h - h * (v - dMin) / (dMax - dMin || 1);
+      pts.push({ i, cx, cy, v });
+    });
+    if (pts.length >= 2) {
+      const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p.cx.toFixed(2)} ${p.cy.toFixed(2)}`).join(' ');
+      svg += `<path d="${d}" fill="none" stroke="${accent}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    }
+    for (const p of pts) {
+      let dotColor = accent;
+      if (tier === 'concreteness') {
+        const t = Math.max(0, Math.min(1, (p.v - 1) / 4));
+        const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+        const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+        const bl = Math.round(0x20 * (1 - t) + 0x30 * t);
+        dotColor = `rgb(${r},${g},${bl})`;
+      } else if (tier === 'afinn') {
+        dotColor = p.v >= 0 ? 'var(--good)' : 'var(--bad)';
+      }
+      svg += `<circle cx="${p.cx.toFixed(2)}" cy="${p.cy.toFixed(2)}" r="3" fill="${dotColor}"><title>${escapeHtml(bins[p.i].label)} · ${panels[idx].fmt(p.v)}</title></circle>`;
+    }
+  }
+
+  linePanel(1, 'flesch', fleschMin, fleschMax, 'var(--accent)');
+  linePanel(2, 'concreteness', 1, 5, 'var(--accent)', 'concreteness');
+  linePanel(3, 'afinn', afMin, afMaxClamp, 'var(--accent)', 'afinn');
+
+  // Dominant-emotion strip.
+  {
+    const top = panelTop(4);
+    const h = panels[4].h;
+    svg += `<text x="${PAD_L - 6}" y="${top + 10}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="9" text-transform="uppercase">dominant emotion</text>`;
+    bins.forEach((b, i) => {
+      const x = PAD_L + barW * i;
+      const color = b.topEmotion ? `var(--${b.topEmotion})` : 'var(--rule)';
+      const opacity = b.topEmotion ? 0.85 : 0.2;
+      svg += `<rect x="${(x + 0.5).toFixed(2)}" y="${top.toFixed(2)}" width="${Math.max(0.5, barW - 1).toFixed(2)}" height="${h.toFixed(2)}" fill="${color}" fill-opacity="${opacity}"><title>${escapeHtml(b.label)} · ${b.topEmotion || 'none'}</title></rect>`;
+    });
+  }
+
+  // X-axis labels — every nth bin to avoid crowding.
+  const labelEvery = bins.length <= 12 ? 1 : Math.ceil(bins.length / 10);
+  const labelY = yCursor + panels.reduce((s, p) => s + p.h + gap, 0) + 12;
+  bins.forEach((b, i) => {
+    if (i % labelEvery !== 0 && i !== bins.length - 1) return;
+    const x = xCenter(i);
+    svg += `<text x="${x.toFixed(2)}" y="${labelY}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${escapeHtml(b.label)}</text>`;
+  });
+
+  svg += '</svg></div>';
+  region.innerHTML = svg;
+
+  // Legend: re-use the NRC emotion colors as the dominant-strip key.
+  $('legend-row').innerHTML = `
+    <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
+    <span><span class="swatch" style="background: var(--anticipation)"></span>anticip.</span>
+    <span><span class="swatch" style="background: var(--trust)"></span>trust</span>
+    <span><span class="swatch" style="background: var(--surprise)"></span>surprise</span>
+    <span><span class="swatch" style="background: var(--sadness)"></span>sadness</span>
+    <span><span class="swatch" style="background: var(--fear)"></span>fear</span>
+    <span><span class="swatch" style="background: var(--anger)"></span>anger</span>
+    <span><span class="swatch" style="background: var(--disgust)"></span>disgust</span>
+    <span class="axes-hint">${granularity} bins · hover any dot for value · dominant-emotion strip below</span>
+  `;
+}
+
 function renderUsageScatter() {
   const region = $('cloud-region');
   region.innerHTML = '';
@@ -1073,6 +1373,18 @@ function renderDocs() {
 
       <h2>Concreteness</h2>
       <p>Color along an abstract→concrete gradient using <a href="http://crr.ugent.be/papers/Concreteness_ratings_Brysbaert_et_al_BRM.pdf">Brysbaert, Warriner &amp; Kuperman (2014)</a>'s 1–5 ratings (40k words, mean of 30+ annotators per word). Yellow = abstract ("justice", "consciousness"); green = concrete ("table", "rain"). Distinctively concrete or abstract writers look strikingly different.</p>
+
+      <h2>Timeline</h2>
+      <p>Small-multiples view of the macro stats across time, so the writer's <i>arc</i> shows. Bins auto-pick based on activity span: weekly &lt; 2 months, monthly &lt; 1 year, quarterly 1–3 years, yearly &gt; 3 years.</p>
+      <p>Five stacked panels, sharing one x-axis:</p>
+      <ul>
+        <li><b>Activity</b> — number of threads in each bin.</li>
+        <li><b>Reading ease</b> — mean Flesch per bin (higher = easier prose).</li>
+        <li><b>Concreteness</b> — mean Brysbaert rating per bin, colored along the same yellow→green gradient as the cloud (yellow = abstract, green = concrete). Watch for arcs from one to the other.</li>
+        <li><b>Sentiment</b> — mean AFINN per bin, green above zero / red below.</li>
+        <li><b>Dominant emotion strip</b> — for each bin, the NRC emotion with the highest count after inverse-tag-weighting. Tells you the emotional color of each season at a glance.</li>
+      </ul>
+      <p>Hover any line dot for the exact value at that bin. Empty bins (no threads) show as gaps in the lines and grey strip; their time still passes, even if the writer was quiet.</p>
 
       <h2>Caveats</h2>
       <ul>
