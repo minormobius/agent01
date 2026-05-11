@@ -35,8 +35,11 @@ export const DEFAULT_PROFILE = {
     },
   },
   expenses: {
-    fixedMonthly: 0,
-    variableMonthly: 0,
+    // Itemized expense categories. Each row: { id, name, monthly, fixed }.
+    // "fixed" is the user's tag — rent/insurance/utilities tend to be true;
+    // dining/travel/entertainment tend to be false. The engine just sums by
+    // tag for the surplus calc; the tag drives grouping in the UI.
+    categories: [],
   },
   assumptions: {
     realReturn: 0.05,
@@ -87,10 +90,35 @@ function mergeDefaults(p) {
       postTaxSavings: { ...DEFAULT_PROFILE.income.postTaxSavings, ...(income.postTaxSavings || {}) },
       socialSecurity: { ...DEFAULT_PROFILE.income.socialSecurity, ...(income.socialSecurity || {}) },
     },
-    expenses: { ...DEFAULT_PROFILE.expenses, ...(p.expenses || {}) },
+    expenses: mergeExpenses(p.expenses),
     assumptions: { ...DEFAULT_PROFILE.assumptions, ...(p.assumptions || {}) },
     accounts: Array.isArray(p.accounts) ? p.accounts : [],
   };
+}
+
+// One-shot upgrade from the older { fixedMonthly, variableMonthly } shape:
+// each non-zero field becomes a single category row so users don't lose
+// numbers they typed in. The old fields are dropped.
+function mergeExpenses(ex) {
+  const base = { ...DEFAULT_PROFILE.expenses, ...(ex || {}) };
+  if (Array.isArray(ex?.categories)) {
+    base.categories = ex.categories.filter((c) => c && typeof c.name === "string");
+  } else {
+    base.categories = [];
+  }
+  if (base.categories.length === 0) {
+    if (ex?.fixedMonthly > 0) {
+      base.categories.push({ id: catId(), name: "Fixed", monthly: ex.fixedMonthly, fixed: true });
+    }
+    if (ex?.variableMonthly > 0) {
+      base.categories.push({ id: catId(), name: "Variable", monthly: ex.variableMonthly, fixed: false });
+    }
+  }
+  return { categories: base.categories };
+}
+
+function catId() {
+  return "e_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 function saveProfile(p) {

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import Link from "../components/Link";
 import { useProfile } from "../state/profile";
@@ -54,13 +54,40 @@ export default function Cashflow() {
 
   const hasIncome = cf.grossWages + cf.otherIncome > 0;
 
-  // Monthly fixed/variable expenses live on profile.expenses
-  const ex = profile.expenses || {};
-  const fixedMo = num(ex.fixedMonthly);
-  const varMo = num(ex.variableMonthly);
+  // Itemized expenses. Each category has { id, name, monthly, fixed }.
+  const ex = profile.expenses || { categories: [] };
+  const categories = Array.isArray(ex.categories) ? ex.categories : [];
+  const fixedMo = categories.filter((c) => c.fixed).reduce((s, c) => s + num(c.monthly), 0);
+  const varMo = categories.filter((c) => !c.fixed).reduce((s, c) => s + num(c.monthly), 0);
   const expensesAnnual = (fixedMo + varMo) * 12;
   const surplusAnnual = cf.afterSavings - expensesAnnual;
   const surplusMo = surplusAnnual / 12;
+
+  const addCategory = (name, monthly, fixed) => {
+    if (!name.trim() || !isFinite(monthly)) return;
+    const cat = {
+      id: "e_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: name.trim(),
+      monthly: Number(monthly) || 0,
+      fixed: !!fixed,
+    };
+    update((p) => ({ ...p, expenses: { ...p.expenses, categories: [...(p.expenses?.categories || []), cat] } }));
+  };
+  const updateCategory = (id, patch) => {
+    update((p) => ({
+      ...p,
+      expenses: {
+        ...p.expenses,
+        categories: (p.expenses?.categories || []).map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      },
+    }));
+  };
+  const removeCategory = (id) => {
+    update((p) => ({
+      ...p,
+      expenses: { ...p.expenses, categories: (p.expenses?.categories || []).filter((c) => c.id !== id) },
+    }));
+  };
 
   return (
     <div className="page">
@@ -191,18 +218,19 @@ export default function Cashflow() {
       </div>
 
       <h2 className="section">expenses</h2>
-      <div className="grid">
-        <Field label="fixed ($/mo)" note="rent/mortgage, insurance, utilities, childcare, debt">
-          <input type="number" inputMode="decimal" min="0" step="50"
-            value={ex.fixedMonthly ?? ""}
-            onChange={(e) => update((p) => ({ ...p, expenses: { ...p.expenses, fixedMonthly: Number(e.target.value) || 0 } }))} />
-        </Field>
-        <Field label="variable ($/mo)" note="food, transit, entertainment, travel, everything else">
-          <input type="number" inputMode="decimal" min="0" step="50"
-            value={ex.variableMonthly ?? ""}
-            onChange={(e) => update((p) => ({ ...p, expenses: { ...p.expenses, variableMonthly: Number(e.target.value) || 0 } }))} />
-        </Field>
-      </div>
+      <p className="desc" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
+        list categories you actually spend on — rent/groceries/dining/etc. mark each as fixed
+        (must-pay) or variable (discretionary). the planning math just needs the monthly totals,
+        not transaction-level tracking — this isn't a budgeting tool, it's a budget input.
+      </p>
+      <ExpenseEditor
+        categories={categories}
+        fixedMo={fixedMo}
+        varMo={varMo}
+        addCategory={addCategory}
+        updateCategory={updateCategory}
+        removeCategory={removeCategory}
+      />
 
       {/* ── Summary card ──────────────────────────────────────────── */}
       <div className="summary" style={{ marginTop: "2rem" }}>
@@ -271,6 +299,106 @@ function Row({ k, v, note, bold, neg }) {
       <span className="k">{k}{note && <span style={{ color: "var(--rule)" }}> · {note}</span>}</span>
       <span className="v" style={neg ? { color: "var(--red)" } : undefined}>{v}</span>
     </div>
+  );
+}
+
+// Inline editable list of expense categories. Each row is name + amount + fixed/var.
+// Total rows pinned at the bottom of each group.
+function ExpenseEditor({ categories, fixedMo, varMo, addCategory, updateCategory, removeCategory }) {
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [fixed, setFixed] = useState(false);
+
+  const submit = () => {
+    if (!name.trim() || !isFinite(parseFloat(amount))) return;
+    addCategory(name, parseFloat(amount), fixed);
+    setName("");
+    setAmount("");
+  };
+
+  const fixedCats = categories.filter((c) => c.fixed);
+  const varCats = categories.filter((c) => !c.fixed);
+
+  return (
+    <div>
+      <div className="add-form" style={{ gridTemplateColumns: "1.5fr 1fr 1fr auto" }}>
+        <input
+          type="text"
+          placeholder="e.g. Rent, Groceries, Dining"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          autoComplete="off"
+        />
+        <input
+          type="number" inputMode="decimal" min="0" step="25"
+          placeholder="$/mo"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+        />
+        <select value={fixed ? "fixed" : "variable"} onChange={(e) => setFixed(e.target.value === "fixed")}>
+          <option value="fixed">fixed</option>
+          <option value="variable">variable</option>
+        </select>
+        <button onClick={submit}>add</button>
+      </div>
+
+      {categories.length === 0 ? (
+        <p className="empty-msg">no categories yet — add some above</p>
+      ) : (
+        <>
+          <ExpenseGroup
+            label="Fixed (must-pay)"
+            cats={fixedCats}
+            total={fixedMo}
+            onUpdate={updateCategory}
+            onRemove={removeCategory}
+            color="var(--c-realestate)"
+          />
+          <ExpenseGroup
+            label="Variable (discretionary)"
+            cats={varCats}
+            total={varMo}
+            onUpdate={updateCategory}
+            onRemove={removeCategory}
+            color="var(--c-equity)"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ExpenseGroup({ label, cats, total, onUpdate, onRemove, color }) {
+  if (cats.length === 0) return null;
+  return (
+    <section className="group">
+      <header className="group-header">
+        <span className="name">
+          <span className="swatch" style={{ background: color }} />
+          {label}
+        </span>
+        <span className="total">${total.toLocaleString("en-US", { maximumFractionDigits: 0 })}/mo</span>
+      </header>
+      {cats.map((c) => (
+        <div key={c.id} className="account">
+          <input
+            type="text"
+            value={c.name}
+            onChange={(e) => onUpdate(c.id, { name: e.target.value })}
+            style={{ border: "none", padding: 0, background: "transparent", fontFamily: "var(--mono)", fontSize: "0.85rem" }}
+          />
+          <input
+            type="number" inputMode="decimal" min="0" step="25"
+            value={c.monthly}
+            onChange={(e) => onUpdate(c.id, { monthly: Number(e.target.value) || 0 })}
+            style={{ border: "none", padding: 0, background: "transparent", fontFamily: "var(--mono)", fontWeight: 600, textAlign: "right", width: "100px" }}
+          />
+          <button className="danger" onClick={() => onRemove(c.id)}>remove</button>
+        </div>
+      ))}
+    </section>
   );
 }
 
