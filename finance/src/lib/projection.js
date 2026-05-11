@@ -100,6 +100,7 @@ export function projectPortfolio(inputs) {
     employerMatch = 0,
     targetSpend = 0,
     realReturn = 0.05,
+    returnSeq = null,   // optional per-year real return array (Monte Carlo)
     filing = "single",
     taxableBasisFrac = 0.6,
     socialSecurity = {},
@@ -117,9 +118,10 @@ export function projectPortfolio(inputs) {
 
   for (let age = currentAge; age <= endAge; age++) {
     const year = startYear + (age - currentAge);
+    const r = returnSeq?.[age - currentAge] ?? realReturn;
 
     // 1) Returns
-    for (const k of BUCKET_KEYS) balances[k] *= (1 + realReturn);
+    for (const k of BUCKET_KEYS) balances[k] *= (1 + r);
 
     let yearContrib = 0;
     let yearGrossWithdraw = 0;
@@ -298,3 +300,114 @@ export function projectPortfolio(inputs) {
     peakAtAge,
   };
 }
+
+// ─── Monte Carlo ──────────────────────────────────────────────────────
+
+/**
+ * Mulberry32 — small, fast, seeded PRNG. Returns a function() -> [0, 1).
+ * We seed deterministically so repeated renders with the same inputs
+ * produce identical charts (no jitter).
+ */
+function mulberry32(seed) {
+  let s = seed | 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Box-Muller transform — converts two uniform samples to one normal sample
+ * with the given mean and stdev.
+ */
+function sampleNormal(rand, mean, stdev) {
+  const u1 = Math.max(1e-12, rand());
+  const u2 = rand();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + z * stdev;
+}
+
+/**
+ * Linear-interpolated percentile from a pre-sorted ascending array.
+ */
+function percentile(sorted, p) {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  if (n === 1) return sorted[0];
+  const idx = p * (n - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+/**
+ * Run N independent projections sampling annual real returns from
+ * Normal(mean, stdev). Returns per-year percentile bands and a success
+ * rate (fraction of paths that didn't deplete by endAge).
+ *
+ * Default 1000 paths × ~60 years runs in <500ms on a modern laptop.
+ * Bump to 5k-10k for tighter bands if perf allows.
+ *
+ * @param {object} inputs - same as projectPortfolio inputs (realReturn used as mean)
+ * @param {object} [opts]
+ * @param {number} [opts.paths=1000]
+ * @param {number} [opts.stdev=0.12]  - annual real-return stdev; 12% is the
+ *   historical realized vol of a 60/40 US portfolio.
+ * @param {number} [opts.seed=12345]  - PRNG seed for reproducible output
+ */
+export function monteCarloProject(inputs, opts = {}) {
+  const { paths = 1000, stdev = 0.12, seed = 12345 } = opts;
+  const mean = inputs.realReturn ?? 0.05;
+  const N = (inputs.endAge ?? 95) - inputs.currentAge + 1;
+  const rand = mulberry32(seed);
+
+  // Per-year arrays of totals (one entry per path)
+  const yearTotals = Array.from({ length: N }, () => []);
+  let successes = 0;
+  const depleteAges = [];
+
+  // Reusable return-sequence buffer
+  const seq = new Array(N);
+
+  for (let p = 0; p < paths; p++) {
+    for (let i = 0; i < N; i++) seq[i] = sampleNormal(rand, mean, stdev);
+    const result = projectPortfolio({ ...inputs, returnSeq: seq });
+    for (let i = 0; i < result.rows.length; i++) {
+      yearTotals[i].push(result.rows[i].totalReal);
+    }
+    if (!result.depleted) successes++;
+    else depleteAges.push(result.depletedAtAge);
+  }
+
+  const bands = yearTotals.map((arr, i) => {
+    const sorted = arr.slice().sort((a, b) => a - b);
+    return {
+      age: inputs.currentAge + i,
+      p10: percentile(sorted, 0.10),
+      p25: percentile(sorted, 0.25),
+      p50: percentile(sorted, 0.50),
+      p75: percentile(sorted, 0.75),
+      p90: percentile(sorted, 0.90),
+    };
+  });
+
+  let medianDepleteAge = null;
+  if (depleteAges.length) {
+    const s = depleteAges.slice().sort((a, b) => a - b);
+    medianDepleteAge = Math.round(percentile(s, 0.5));
+  }
+
+  return {
+    bands,
+    successRate: successes / paths,
+    medianDepleteAge,
+    paths,
+    mean,
+    stdev,
+  };
+}
+

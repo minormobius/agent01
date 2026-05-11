@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import Link from "../components/Link";
 import { useProfile } from "../state/profile";
-import { projectPortfolio } from "../lib/projection";
+import { projectPortfolio, monteCarloProject } from "../lib/projection";
 import RetireChart from "./RetireChart";
+import MonteCarloChart from "./MonteCarloChart";
 
 function fmtMoney(v) {
   if (!isFinite(v) || v === 0) return "$0";
@@ -93,6 +94,24 @@ export default function Retire() {
         partnerClaimAge: Number(ss.partnerClaimAge) || 67,
       },
     });
+  }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
+
+  // ─── Monte Carlo (same inputs as deterministic, mean = realReturn) ─
+  const mcStdev = 0.12; // 60/40 historical real-return vol
+  const mc = useMemo(() => {
+    if (!canProject) return null;
+    return monteCarloProject({
+      currentAge, retireAge, endAge,
+      balances, contributions: annualContrib,
+      employerMatch, targetSpend, realReturn, filing,
+      taxableBasisFrac: ass.taxableBasisFrac ?? 0.6,
+      socialSecurity: {
+        benefitAtFRA: Number(ss.benefitAtFRA) || 0,
+        claimAge: Number(ss.claimAge) || 67,
+        partnerBenefitAtFRA: filing === "mfj" ? (Number(ss.partnerBenefitAtFRA) || 0) : 0,
+        partnerClaimAge: Number(ss.partnerClaimAge) || 67,
+      },
+    }, { paths: 1000, stdev: mcStdev });
   }, [canProject, currentAge, retireAge, endAge, balances, annualContrib, employerMatch, targetSpend, realReturn, filing, ass.taxableBasisFrac, ss.benefitAtFRA, ss.claimAge, ss.partnerBenefitAtFRA, ss.partnerClaimAge]);
 
   // ─── Conversion windows (low-bracket years pre-RMD) ────────────────
@@ -241,13 +260,26 @@ export default function Retire() {
       </div>
 
       {/* ── Hero outcome ────────────────────────────────────────── */}
-      {proj && <Outcome proj={proj} targetSpend={targetSpend} retireAge={retireAge} endAge={endAge} />}
+      {proj && <Outcome proj={proj} mc={mc} targetSpend={targetSpend} retireAge={retireAge} endAge={endAge} />}
 
-      {/* ── Chart ───────────────────────────────────────────────── */}
+      {/* ── Chart: deterministic bucket breakdown ──────────────── */}
       {proj && (
         <>
-          <h2 className="section">portfolio over time (real $)</h2>
+          <h2 className="section">portfolio over time · by tax bucket (mean return)</h2>
           <RetireChart rows={proj.rows} retireAge={retireAge} depletedAtAge={proj.depletedAtAge} />
+        </>
+      )}
+
+      {/* ── Chart: Monte Carlo fan ─────────────────────────────── */}
+      {mc && (
+        <>
+          <h2 className="section">total real value · Monte Carlo ({mc.paths.toLocaleString()} paths, σ={(mc.stdev * 100).toFixed(0)}%)</h2>
+          <MonteCarloChart
+            bands={mc.bands}
+            retireAge={retireAge}
+            medianDepleteAge={mc.medianDepleteAge}
+            successRate={mc.successRate}
+          />
         </>
       )}
 
@@ -271,10 +303,17 @@ export default function Retire() {
         2025 brackets flat across all years; LTCG on taxable withdrawals assumes a configurable
         basis fraction (default 60%).
         <br /><br />
-        <strong>Not modeled (v1).</strong> Social Security, ACA premium subsidies / Medicare IRMAA,
-        state tax on withdrawals, NIIT, sequence-of-returns risk, bracket inflation. Monte Carlo
-        with 10k paths is the planned v2 add — it'll surface success probability rather than the
-        single-path success/fail signal here.
+        <strong>Monte Carlo.</strong> 1000 paths sampling annual real returns from
+        Normal(mean = your saved return, σ = 12% — the historical realized real-return
+        volatility of a US 60/40 portfolio). Bands show the p10/p25/p50/p75/p90 of
+        total real portfolio value year by year; the success rate is the fraction of
+        paths that didn't deplete by your end age. Seed is fixed so the chart doesn't
+        jitter on every keystroke.
+        <br /><br />
+        <strong>Not modeled (still).</strong> ACA premium subsidies / Medicare IRMAA,
+        state tax on retirement withdrawals, NIIT, bracket inflation, the full
+        provisional-income calc for SS (we use the 85% cap). Roth conversion simulator
+        is the next planned add — the engine already flags low-bracket windows.
         <br /><br />
         <strong>Conversion windows.</strong> Years between retirement and age 73 where ordinary
         income is low are prime for Roth conversions: pay tax now at a low bracket to shift money
@@ -306,24 +345,43 @@ function Stat({ k, v }) {
   );
 }
 
-function Outcome({ proj, targetSpend, retireAge, endAge }) {
+function Outcome({ proj, mc, targetSpend, retireAge, endAge }) {
   const lastRow = proj.rows[proj.rows.length - 1];
-  const ok = !proj.depleted;
+  const detOk = !proj.depleted;
+  // Use success rate to color the hero card if MC ran; otherwise deterministic.
+  const sr = mc?.successRate ?? (detOk ? 1 : 0);
+  const heroColor = sr >= 0.85 ? "var(--green)" : sr >= 0.6 ? "var(--c-traditional)" : "var(--red)";
+  const heroLabel = sr >= 0.85 ? "plan looks robust"
+    : sr >= 0.6 ? "plan is workable but tight"
+    : "plan is fragile";
+
   return (
-    <div className="summary" style={{ borderColor: ok ? "var(--green)" : "var(--red)" }}>
+    <div className="summary" style={{ borderColor: heroColor }}>
       <div className="total">
-        <span className="lbl">{ok ? "lasts the plan" : "runs out early"}</span>
-        <span className="val" style={{ color: ok ? "var(--green)" : "var(--red)" }}>
-          {ok ? `to age ${endAge}` : `at age ${proj.depletedAtAge}`}
+        <span className="lbl">{heroLabel}</span>
+        <span className="val" style={{ color: heroColor }}>
+          {mc ? `${(sr * 100).toFixed(0)}% success` : (detOk ? `to age ${endAge}` : `runs out ${proj.depletedAtAge}`)}
         </span>
       </div>
       <div className="breakdown">
-        <Row k={`Target spend (real)`} v={fmtFullMoney(targetSpend) + "/yr"} />
-        <Row k="Peak real value" v={fmtFullMoney(proj.peakRealValue) + ` (age ${proj.peakAtAge})`} />
+        <Row k="Target spend (real)" v={fmtFullMoney(targetSpend) + "/yr"} />
+        {mc && (
+          <Row
+            k={`Monte Carlo success rate (${mc.paths.toLocaleString()} paths, σ ${(mc.stdev * 100).toFixed(0)}%)`}
+            v={`${(mc.successRate * 100).toFixed(1)}%${mc.medianDepleteAge ? ` (failures median depletion age ${mc.medianDepleteAge})` : ""}`}
+          />
+        )}
+        <Row k="Deterministic peak (mean return)" v={fmtFullMoney(proj.peakRealValue) + ` (age ${proj.peakAtAge})`} />
         <Row k={`Value at retire (age ${retireAge})`} v={fmtFullMoney(
           proj.rows.find((r) => r.age === retireAge)?.totalReal ?? 0
         )} />
-        <Row k={`Value at end (age ${endAge})`} v={fmtFullMoney(lastRow?.totalReal ?? 0)} />
+        <Row k={`Deterministic value at age ${endAge}`} v={fmtFullMoney(lastRow?.totalReal ?? 0)} />
+        {mc && (
+          <Row
+            k={`Monte Carlo p10–p90 at age ${endAge}`}
+            v={`${fmtFullMoney(mc.bands[mc.bands.length - 1].p10)} – ${fmtFullMoney(mc.bands[mc.bands.length - 1].p90)}`}
+          />
+        )}
       </div>
     </div>
   );
