@@ -5,6 +5,7 @@ import Networth from "./routes/Networth";
 import Mort from "./routes/Mort";
 import Cashflow from "./routes/Cashflow";
 import Retire from "./routes/Retire";
+import Timeline from "./routes/Timeline";
 
 const ROUTES = {
   "/": Landing,
@@ -12,6 +13,7 @@ const ROUTES = {
   "/mort": Mort,
   "/cashflow": Cashflow,
   "/retire": Retire,
+  "/timeline": Timeline,
 };
 
 export default function App() {

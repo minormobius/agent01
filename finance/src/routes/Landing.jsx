@@ -49,8 +49,8 @@ const TOOLS = [
   {
     to: "/timeline",
     name: "Tax timeline",
-    status: "soon",
-    desc: "Bracket and effective rate plotted year by year. Highlights the low-bracket windows worth optimizing into (gap years, early retirement).",
+    status: "live",
+    desc: "Marginal federal bracket plotted year by year, working through retirement. Highlights low-bracket Roth-conversion windows. Two-scenario overlay (baseline vs alternate strategy) for A/B-ing SS claim ages and conversion ladders.",
   },
 ];
 
