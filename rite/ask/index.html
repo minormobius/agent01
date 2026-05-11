@@ -190,6 +190,41 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 }
 .map-legend .legend-axes { font-style: italic; text-transform: none; letter-spacing: 0; }
 
+.cluster-panel { margin-bottom: 1rem; }
+.cluster-strip {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+}
+.cluster-honest b { color: var(--text); }
+.cluster-honest-strong { color: var(--good); }
+.cluster-honest-strong b { color: var(--good); }
+.cluster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+.cluster-card {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+}
+.cluster-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.cluster-body { flex: 1; min-width: 0; }
+.cluster-label {
+  font-size: 0.85rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text);
+}
+.cluster-meta {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.cluster-empty {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; font-style: italic;
+}
+
 /* Reader */
 .reader {
   background: var(--card-bg);
@@ -290,9 +325,10 @@ footer a { color: var(--muted); text-decoration: underline; }
       <div id="map-tooltip" class="map-tooltip"></div>
     </div>
     <div class="map-legend">
-      <span><span id="thread-count">—</span> threads · click a point to read · larger dot = longer thread</span>
+      <span><span id="thread-count">—</span> threads · click a point to read · larger dot = longer thread · color = cluster · click → 3 nearest neighbors light up</span>
       <span class="legend-axes">PCA-1 ↔ PCA-2 over BGE embeddings</span>
     </div>
+    <div id="cluster-panel" class="cluster-panel"></div>
     <div class="reader" id="reader">
       <div class="placeholder">Click any point on the map to read that thread.</div>
     </div>
@@ -325,12 +361,22 @@ const state = {
   did: null,
   handle: null,
   meta: null,                // ask_index_meta row when indexed
-  mapData: [],               // [{tid, x, y, n, c, s}]
+  mapData: [],               // [{tid, x, y, n, c, s, k?, nn?}]
+  clusters: null,            // [{id, label, words, size, ratio}] or null
+  silhouette: null,          // mean silhouette score, or null
   selectedTid: null,
   highlightScores: new Map(),// tid -> score from latest query
   threadCache: new Map(),    // tid -> { text, post_count, char_count, created_at }
   lastQueryTerms: [],        // current highlight query terms (for <mark>)
 };
+
+// Categorical palette for cluster coloring — 8 stable HSL hues. Matches
+// the radar's emotion-band aesthetic without overlapping any one of them.
+const CLUSTER_COLORS = [
+  'hsl(15, 60%, 50%)',  'hsl(45, 60%, 45%)',  'hsl(85, 50%, 40%)',  'hsl(165, 50%, 38%)',
+  'hsl(205, 55%, 48%)', 'hsl(255, 50%, 55%)', 'hsl(295, 50%, 50%)', 'hsl(340, 55%, 48%)',
+];
+const clusterColor = (k) => (k == null ? 'var(--accent)' : CLUSTER_COLORS[k % CLUSTER_COLORS.length]);
 
 function showStage(name) {
   document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
@@ -528,10 +574,13 @@ async function loadMap() {
     return;
   }
   state.mapData = data.map;
+  state.clusters = data.clusters || null;
+  state.silhouette = (typeof data.silhouette === 'number') ? data.silhouette : null;
   state.selectedTid = null;
   state.highlightScores.clear();
   state.lastQueryTerms = [];
   renderMap();
+  renderClusterPanel();
   renderReader();
   $('thread-count').textContent = state.mapData.length.toLocaleString();
 }
@@ -541,31 +590,80 @@ function renderMap() {
   const W = 1000, H = 460, PAD = 24;
   const innerW = W - PAD * 2;
   const innerH = H - PAD * 2;
-  // Pre-sort: smallest dots last so they render on top of the big ones,
-  // making it easier to click crowded clusters.
   const ordered = [...state.mapData].map((d, i) => ({ d, i })).sort((a, b) => b.d.n - a.d.n);
 
   let maxN = 1;
   for (const { d } of ordered) if (d.n > maxN) maxN = d.n;
 
+  // If a thread is selected, build a set of its 3 nearest-neighbor tids so
+  // they can pop on the map ("you keep coming back to these threads").
+  const neighborSet = new Set();
+  if (state.selectedTid) {
+    const sel = state.mapData.find((d) => d.tid === state.selectedTid);
+    if (sel && Array.isArray(sel.nn)) for (const nn of sel.nn) neighborSet.add(nn);
+  }
+
   const dots = [];
   for (const { d, i } of ordered) {
     const cx = PAD + d.x * innerW;
-    const cy = PAD + (1 - d.y) * innerH; // flip Y so larger PCA-2 is at the top
-    // Sqrt scale on char_count keeps the visual range tame even with 10k-char threads.
+    const cy = PAD + (1 - d.y) * innerH;
     const r = 2 + 6 * Math.sqrt(d.n / maxN);
     const score = state.highlightScores.get(d.tid);
-    let cls = 'dot';
-    if (state.selectedTid === d.tid) cls += ' selected';
-    if (state.highlightScores.size > 0) {
-      // Threshold: top 20% of points (by score) light up; rest dim.
-      cls += score && score >= state.highlightThreshold ? ' warm' : ' dim';
+
+    // Per-dot fill: cluster color if we have clusters; otherwise accent.
+    let fill;
+    let strokeOpacity = 0;
+    let fillOpacity;
+    if (state.selectedTid === d.tid) {
+      fill = clusterColor(d.k);
+      fillOpacity = 1;
+      strokeOpacity = 1;
+    } else if (neighborSet.has(d.tid)) {
+      fill = clusterColor(d.k);
+      fillOpacity = 0.95;
+      strokeOpacity = 0.9;
+    } else if (state.highlightScores.size > 0) {
+      // Query-highlight overlay still wins over cluster coloring.
+      const warm = score && score >= state.highlightThreshold;
+      fill = warm ? 'var(--good)' : clusterColor(d.k);
+      fillOpacity = warm ? 0.85 : 0.08;
+    } else {
+      fill = clusterColor(d.k);
+      fillOpacity = 0.5;
     }
     dots.push(
-      `<circle class="${cls}" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}"/>`
+      `<circle data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${fill}" stroke-opacity="${strokeOpacity}" stroke-width="1.5" style="cursor:pointer; transition: fill-opacity 0.15s, stroke-opacity 0.15s;"/>`
     );
   }
   svg.innerHTML = dots.join('');
+}
+
+function renderClusterPanel() {
+  // Add a small cluster summary below the map's legend area.
+  const host = document.getElementById('cluster-panel');
+  if (!host) return;
+  if (!state.clusters || !state.clusters.length) {
+    host.innerHTML = state.silhouette != null
+      ? `<div class="cluster-empty">No clusters detected (silhouette ${state.silhouette.toFixed(2)}).</div>`
+      : '';
+    return;
+  }
+  const s = state.silhouette;
+  const honest = s == null ? '' : s < 0.06
+    ? `<span class="cluster-honest">silhouette <b>${s.toFixed(2)}</b> — weak structure; treat clusters as a rough first cut</span>`
+    : s < 0.15
+    ? `<span class="cluster-honest">silhouette <b>${s.toFixed(2)}</b> — modest cluster separation</span>`
+    : `<span class="cluster-honest cluster-honest-strong">silhouette <b>${s.toFixed(2)}</b> — clear cluster structure</span>`;
+  const cards = state.clusters.map((c) => `
+    <div class="cluster-card" data-k="${c.id}">
+      <div class="cluster-swatch" style="background: ${clusterColor(c.id)};"></div>
+      <div class="cluster-body">
+        <div class="cluster-label">${(c.words || []).slice(0, 4).map(escapeHtml).join(' · ') || `cluster ${c.id + 1}`}</div>
+        <div class="cluster-meta">${c.size} threads · ${(c.ratio * 100).toFixed(0)}%</div>
+      </div>
+    </div>
+  `).join('');
+  host.innerHTML = `<div class="cluster-strip">${honest}</div><div class="cluster-grid">${cards}</div>`;
 }
 
 function renderReader() {

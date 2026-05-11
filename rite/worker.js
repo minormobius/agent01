@@ -912,13 +912,20 @@ async function askMap(env, url) {
   ).bind(did).first();
   if (!row) return json({ indexed: false, did }, 200);
 
-  let map = [];
-  try { map = JSON.parse(row.map_json || '[]'); } catch {}
+  // map_json is either the legacy array form or the new
+  // { threads, clusters, silhouette } shape that includes cluster + KNN data.
+  // Normalize to one response shape so the client doesn't have to care.
+  function unpack(raw) {
+    try {
+      const parsed = JSON.parse(raw || '[]');
+      if (Array.isArray(parsed)) return { map: parsed, clusters: null, silhouette: null };
+      return { map: parsed.threads || [], clusters: parsed.clusters || null, silhouette: parsed.silhouette ?? null };
+    } catch { return { map: [], clusters: null, silhouette: null }; }
+  }
+  let { map, clusters, silhouette } = unpack(row.map_json);
 
-  // Self-heal: if the meta says we've got threads indexed but the map is empty
-  // (older runs that stored Uint8Array blobs corruptly, or a recompute that
-  // failed mid-index), try one inline recompute. If we still have zero valid
-  // vectors after that, emit a diagnostic the UI can show.
+  // Self-heal: if meta says we have indexed threads but the map is empty (old
+  // bad-blob runs, mid-recompute failures), retry inline.
   let healed = false;
   let diagnostic = null;
   if (!map.length && row.thread_count > 0) {
@@ -928,7 +935,7 @@ async function askMap(env, url) {
       const refreshed = await env.DB.prepare(
         `SELECT map_json FROM ask_index_meta WHERE did = ?`
       ).bind(did).first();
-      try { map = JSON.parse(refreshed?.map_json || '[]'); } catch {}
+      ({ map, clusters, silhouette } = unpack(refreshed?.map_json));
     }
   }
 
@@ -939,6 +946,8 @@ async function askMap(env, url) {
     thread_count: row.thread_count,
     indexed_at: row.indexed_at,
     map,
+    clusters,
+    silhouette,
     healed,
     diagnostic,
   });
@@ -999,6 +1008,41 @@ async function recomputeAskMap(env, did, opts = {}) {
   const sx = maxX - minX || 1;
   const sy = maxY - minY || 1;
 
+  // Cluster in full 768-d space (NOT on the 2D projection — PCA tends to
+  // smudge topical structure on personal-corpus BGE embeddings, which is
+  // exactly the case the user warned about).
+  // K heuristic: clamp(sqrt(N/15), 3, 8). Skip clustering entirely for very
+  // small corpora where the math is unstable.
+  let labels = null;
+  let silhouette = null;
+  let clusterMeta = null;
+  let neighborsList = null;
+  if (vectors.length >= 12) {
+    const K = Math.min(8, Math.max(3, Math.round(Math.sqrt(vectors.length / 15))));
+    const km = kmeansSpherical(vectors, K, ASK_EMBED_DIM, 30);
+    labels = km.labels;
+    silhouette = silhouetteSampled(vectors, labels, 400);
+    const clusterTexts = Array.from({ length: K }, () => []);
+    for (let i = 0; i < meta.length; i++) clusterTexts[labels[i]].push(meta[i].text || '');
+    const labelsPer = labelClusters(clusterTexts, 5);
+    const sizes = new Array(K).fill(0);
+    for (const l of labels) sizes[l]++;
+    clusterMeta = labelsPer.map((words, i) => ({
+      id: i,
+      label: words.slice(0, 3).join(' · ') || 'cluster ' + (i + 1),
+      words,
+      size: sizes[i],
+      ratio: Math.round((sizes[i] / labels.length) * 1000) / 1000,
+    }));
+  }
+
+  // Per-thread 3 nearest neighbors in full embedding space — works even when
+  // clusters are weak. Cap the computation at modest N to stay inside the
+  // CPU budget (O(N^2)). For larger corpora we'd want approximate NN.
+  if (vectors.length >= 4 && vectors.length <= 3000) {
+    neighborsList = computeKNN(vectors, 3);
+  }
+
   const map = new Array(meta.length);
   for (let i = 0; i < meta.length; i++) {
     const r = meta[i];
@@ -1010,11 +1054,18 @@ async function recomputeAskMap(env, did, opts = {}) {
       n: r.char_count,
       c: (r.created_at || '').slice(0, 10),
       s: (r.text || '').slice(0, 280).replace(/\s+/g, ' ').trim(),
+      k: labels ? labels[i] : null,                    // cluster id
+      nn: neighborsList ? neighborsList[i].map((j) => meta[j].thread_id) : null,
     };
   }
+  // map_json holds both the per-thread array AND cluster metadata so the
+  // existing /api/ask/map endpoint can return everything in one trip.
+  const payload = clusterMeta || silhouette != null
+    ? { threads: map, clusters: clusterMeta, silhouette }
+    : map;                                              // back-compat: array form
   await env.DB.prepare(
     `UPDATE ask_index_meta SET map_json = ? WHERE did = ?`
-  ).bind(JSON.stringify(map), did).run();
+  ).bind(JSON.stringify(payload), did).run();
   if (opts.diagnostic) {
     return {
       wrote: true,
@@ -1023,6 +1074,8 @@ async function recomputeAskMap(env, did, opts = {}) {
       bad_blobs: badCount,
       bad_shape: badShapeCount,
       sample_bad_type: sampleBadType,
+      clusters: clusterMeta ? clusterMeta.length : 0,
+      silhouette,
     };
   }
   return null;
@@ -1164,6 +1217,211 @@ async function askQuery(request, env) {
     hits: scored.slice(0, k),
     time_ms: Date.now() - t0,
   });
+}
+
+// ----- clustering / KNN ---------------------------------------------------
+//
+// All distance math happens in full 768-d embedding space, not on the 2D PCA
+// projection. PCA on personal-corpus BGE embeddings often shows a smooth
+// blob even when topical structure exists in the high-dim space — clusters
+// found here may not separate visibly on the 2D map, and that's OK.
+
+// Deterministic PRNG so cluster results are stable across re-indexes.
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function euclideanSq(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    s += d * d;
+  }
+  return s;
+}
+
+// K-means with k-means++ init. Vectors are BGE-base unit-normalized; for
+// unit vectors, minimizing L2 == maximizing cosine, so plain Euclidean is
+// the right distance.
+function kmeansSpherical(vectors, K, dim, maxIter = 30) {
+  const N = vectors.length;
+  const rng = mulberry32(0xC0FFEE);
+
+  // k-means++ init: first centroid random, subsequent ones sampled
+  // proportional to squared distance from nearest existing centroid.
+  const centroids = [new Float32Array(vectors[Math.floor(rng() * N)])];
+  while (centroids.length < K) {
+    const dists = new Float64Array(N);
+    let total = 0;
+    for (let i = 0; i < N; i++) {
+      let m = Infinity;
+      for (const c of centroids) {
+        const d = euclideanSq(vectors[i], c);
+        if (d < m) m = d;
+      }
+      dists[i] = m; total += m;
+    }
+    if (total <= 0) break;
+    let r = rng() * total;
+    let pick = N - 1;
+    for (let i = 0; i < N; i++) { r -= dists[i]; if (r <= 0) { pick = i; break; } }
+    centroids.push(new Float32Array(vectors[pick]));
+  }
+
+  const labels = new Int32Array(N);
+  for (let iter = 0; iter < maxIter; iter++) {
+    let changed = false;
+    // Assign each vector to its closest centroid.
+    for (let i = 0; i < N; i++) {
+      let best = 0, bestD = Infinity;
+      for (let c = 0; c < centroids.length; c++) {
+        const d = euclideanSq(vectors[i], centroids[c]);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      if (labels[i] !== best) { labels[i] = best; changed = true; }
+    }
+    if (!changed && iter > 0) break;
+    // Recompute centroids as the mean of assigned members.
+    const sums = Array.from({ length: centroids.length }, () => new Float32Array(dim));
+    const counts = new Int32Array(centroids.length);
+    for (let i = 0; i < N; i++) {
+      const v = vectors[i];
+      const s = sums[labels[i]];
+      for (let j = 0; j < dim; j++) s[j] += v[j];
+      counts[labels[i]]++;
+    }
+    for (let c = 0; c < centroids.length; c++) {
+      if (counts[c] === 0) continue;     // keep stale centroid; better than empty
+      for (let j = 0; j < dim; j++) sums[c][j] /= counts[c];
+      centroids[c] = sums[c];
+    }
+  }
+  return { labels: Array.from(labels), centroids };
+}
+
+// Mean silhouette score. O(N²·dim) — fine for N ≤ 1k. For larger corpora
+// we subsample the points we score (still using the full corpus as the
+// reference for inter/intra-cluster distance means).
+function silhouetteSampled(vectors, labels, maxScored = 400) {
+  const N = vectors.length;
+  if (N < 3) return null;
+  const K = Math.max(...labels) + 1;
+  const byCluster = Array.from({ length: K }, () => []);
+  for (let i = 0; i < N; i++) byCluster[labels[i]].push(i);
+
+  // Sample points to score if N is large.
+  const indices = [];
+  if (N <= maxScored) {
+    for (let i = 0; i < N; i++) indices.push(i);
+  } else {
+    const rng = mulberry32(0xBEEF);
+    const seen = new Set();
+    while (indices.length < maxScored) {
+      const k = Math.floor(rng() * N);
+      if (!seen.has(k)) { seen.add(k); indices.push(k); }
+    }
+  }
+
+  let total = 0;
+  let counted = 0;
+  for (const i of indices) {
+    const own = labels[i];
+    const same = byCluster[own];
+    if (same.length < 2) continue;     // silhouette undefined for singletons
+    let a = 0;
+    for (const j of same) if (j !== i) a += Math.sqrt(euclideanSq(vectors[i], vectors[j]));
+    a /= (same.length - 1);
+    let b = Infinity;
+    for (let c = 0; c < K; c++) {
+      if (c === own) continue;
+      const arr = byCluster[c];
+      if (!arr.length) continue;
+      let mean = 0;
+      for (const j of arr) mean += Math.sqrt(euclideanSq(vectors[i], vectors[j]));
+      mean /= arr.length;
+      if (mean < b) b = mean;
+    }
+    const s = (b - a) / Math.max(a, b);
+    if (Number.isFinite(s)) { total += s; counted++; }
+  }
+  return counted ? Math.round((total / counted) * 1000) / 1000 : null;
+}
+
+// Top distinctive words per cluster, score = count² / (total + 5). Words
+// appearing in many clusters get punished; words concentrated in one
+// cluster get rewarded. Smoothing keeps very-rare words from dominating.
+function labelClusters(clusterTexts, topN = 5) {
+  const K = clusterTexts.length;
+  const clusterCounts = Array.from({ length: K }, () => new Map());
+  const totalCounts = new Map();
+  for (let c = 0; c < K; c++) {
+    for (const text of clusterTexts[c]) {
+      const tokens = tokenizeForLabels(text);
+      for (const w of tokens) {
+        clusterCounts[c].set(w, (clusterCounts[c].get(w) || 0) + 1);
+        totalCounts.set(w, (totalCounts.get(w) || 0) + 1);
+      }
+    }
+  }
+  const labelsPer = [];
+  for (let c = 0; c < K; c++) {
+    const scored = [];
+    for (const [w, count] of clusterCounts[c]) {
+      const total = totalCounts.get(w) || 1;
+      if (total < 3) continue;             // drop one-offs
+      const score = (count * count) / (total + 5);
+      scored.push({ w, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    labelsPer.push(scored.slice(0, topN).map((x) => x.w));
+  }
+  return labelsPer;
+}
+
+// Length ≥ 4, all-letter words; we have no shared stopword set on the
+// server side, but length + the scoring formula's punishment of
+// across-cluster prevalence keeps common words out of labels naturally.
+function tokenizeForLabels(text) {
+  const out = [];
+  const lower = (text || '').toLowerCase();
+  const re = /[a-z']{4,}/g;
+  let m;
+  while ((m = re.exec(lower)) !== null) {
+    out.push(m[0].replace(/^'+|'+$/g, ''));
+  }
+  return out;
+}
+
+// For each vector, return indices of its k nearest neighbors (excluding self).
+// O(N²·dim). Used to surface "this thread keeps coming back to..." on click,
+// which works even when global cluster structure is weak.
+function computeKNN(vectors, k) {
+  const N = vectors.length;
+  const out = new Array(N);
+  for (let i = 0; i < N; i++) {
+    // Track the k smallest distances seen so far.
+    const top = [];               // [{ idx, d }] sorted ascending by d
+    for (let j = 0; j < N; j++) {
+      if (j === i) continue;
+      const d = euclideanSq(vectors[i], vectors[j]);
+      if (top.length < k) {
+        top.push({ idx: j, d });
+        top.sort((a, b) => a.d - b.d);
+      } else if (d < top[top.length - 1].d) {
+        top[top.length - 1] = { idx: j, d };
+        top.sort((a, b) => a.d - b.d);
+      }
+    }
+    out[i] = top.map((x) => x.idx);
+  }
+  return out;
 }
 
 // ----- ask helpers -----
