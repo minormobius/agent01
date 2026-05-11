@@ -5,7 +5,7 @@ import { navigate } from "../router";
 // External links (http(s)://, mailto:) and explicit non-SPA paths
 // (/stocks/, /bogo/, /mort/ — static pages outside the SPA) get treated
 // as regular anchors so the browser does a real navigation.
-const STATIC_PREFIXES = ["/stocks/", "/bogo/", "/mort/", "/lexicons/"];
+const STATIC_PREFIXES = ["/stocks/", "/bogo/", "/lexicons/"];
 
 export default function Link({ to, children, ...rest }) {
   const isExternal = /^(https?:|mailto:|tel:)/.test(to);

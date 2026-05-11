@@ -337,3 +337,179 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
   text-align: center;
   padding: 2rem 0;
 }
+
+/* ─── Mort route ──────────────────────────────────────────────────── */
+
+/* Form grid (2-up on desktop, stack on mobile) — used by mort form fields */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1rem;
+}
+.grid .full { grid-column: 1 / -1; }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+.grid label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.grid input, .grid select { width: 100%; }
+
+.note {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  min-height: 0.9em;
+}
+.note.err { color: var(--link); }
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.checkbox-row input[type=checkbox] { width: auto; }
+
+/* Summary card with .total header — used by mort */
+.summary .total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.summary .total .lbl {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.summary .total .val {
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+.summary .breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem 1rem;
+}
+.summary .row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.summary .row .k { color: var(--muted); }
+.summary .row .v { color: var(--text); }
+.summary .row.zero .v { color: var(--muted); }
+.summary.aftertax { border-color: var(--green); }
+
+.aggregates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  margin-bottom: 1.5rem;
+  padding: 0 0.25rem;
+}
+.aggregates .a-row { display: flex; justify-content: space-between; }
+.aggregates .k { color: var(--muted); }
+
+.chart-wrap {
+  border: 1px solid var(--rule);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+.legend {
+  display: flex;
+  gap: 1rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.legend .swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+svg.chart { width: 100%; height: 280px; display: block; }
+.tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.1s;
+  transform: translate(-50%, -100%);
+  z-index: 2;
+}
+
+.toggle {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.toggle:hover { border-color: var(--green); color: var(--green); }
+
+.schedule {
+  display: none;
+  border: 1px solid var(--rule);
+  max-height: 480px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+.schedule.open { display: block; }
+.schedule table { width: 100%; border-collapse: collapse; }
+.schedule th, .schedule td {
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  border-bottom: 1px solid var(--rule);
+}
+.schedule th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--rule);
+}
+.schedule td:first-child, .schedule th:first-child { text-align: left; color: var(--muted); }
+.schedule tr.year-end td { border-bottom: 2px solid var(--rule); }
+
+/* Mort chart palette (override accent color names used by chart) */
+:root {
+  --principal: var(--green);
+  --interest: var(--red);
+  --balance: var(--text);
+}

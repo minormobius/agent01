@@ -2,10 +2,12 @@ import { ProfileProvider } from "./state/profile";
 import { useRoute } from "./router";
 import Landing from "./routes/Landing";
 import Networth from "./routes/Networth";
+import Mort from "./routes/Mort";
 
 const ROUTES = {
   "/": Landing,
   "/networth": Networth,
+  "/mort": Mort,
 };
 
 export default function App() {
