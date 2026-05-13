@@ -150,6 +150,34 @@ canvas {
   margin-top: 8px;
   font-style: italic;
 }
+.verdict .share-row {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.verdict .share-row[hidden] { display: none; }
+.share-btn {
+  pointer-events: auto;
+  font-family: var(--serif);
+  font-size: 13px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  padding: 7px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.share-btn:hover { filter: brightness(1.08); }
+.share-btn:active { transform: translateY(1px); }
+.share-btn.busy { opacity: 0.65; cursor: wait; }
+.share-btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--rule);
+}
+.share-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
 .controls {
   position: absolute;
   top: 12px;
@@ -228,6 +256,10 @@ footer a { color: var(--accent); text-decoration: none; }
     <div class="score" id="score">&mdash;</div>
     <div class="label">regularity</div>
     <div class="meta" id="meta"></div>
+    <div class="share-row" id="share-row" hidden>
+      <button class="share-btn" id="share-btn" type="button">Share to Bluesky</button>
+      <button class="share-btn ghost" id="save-btn" type="button">Save PNG</button>
+    </div>
   </div>
 </div>
 
@@ -255,6 +287,9 @@ const scoreEl   = document.getElementById("score");
 const metaEl    = document.getElementById("meta");
 const legendEl  = document.getElementById("legend");
 const clearBtn  = document.getElementById("clear");
+const shareRow  = document.getElementById("share-row");
+const shareBtn  = document.getElementById("share-btn");
+const saveBtn   = document.getElementById("save-btn");
 
 let W = 0, H = 0, DPR = 1;
 let drawing = false;
@@ -669,12 +704,14 @@ function renderResult(r) {
 
 function showVerdict(r) {
   shapeEl.textContent = r.name || "—";
-  if (r.score === null || r.score === undefined) {
+  const hasScore = !(r.score === null || r.score === undefined);
+  if (!hasScore) {
     scoreEl.innerHTML = "&mdash;";
   } else {
     scoreEl.innerHTML = r.score + '<span class="pct">%</span>';
   }
   metaEl.innerHTML = r.meta || "";
+  shareRow.hidden = !(hasScore && lastResult);
   verdictEl.classList.add("show");
 }
 
@@ -682,6 +719,229 @@ function cssVar(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
 }
+
+// -- share image generation ----------------------------------------
+
+function stripHtml(s) {
+  if (!s) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = s;
+  return tmp.textContent || "";
+}
+
+async function renderShareImage(r) {
+  const W = 1080, H = 1080;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const cx = c.getContext("2d");
+
+  const bg     = cssVar("--bg",     "#faf9f6");
+  const fg     = cssVar("--text",   "#1a1a1a");
+  const muted  = cssVar("--muted",  "#777");
+  const rule   = cssVar("--rule",   "#ccc");
+  const accent = cssVar("--accent", "#8b0000");
+  const idealC = cssVar("--ideal",  "#2a7a2a");
+  const vertC  = cssVar("--vertex", "#a06020");
+
+  const SERIF = '"Iowan Old Style", Palatino, Georgia, serif';
+  const MONO  = '"SF Mono", Menlo, Consolas, monospace';
+
+  cx.fillStyle = bg;
+  cx.fillRect(0, 0, W, H);
+
+  // header
+  cx.textBaseline = "alphabetic";
+  cx.fillStyle = fg;
+  cx.font = `34px ${SERIF}`;
+  cx.textAlign = "left";
+  cx.fillText("mino.mobi", 60, 78);
+  const minWidth = cx.measureText("mino.mobi").width;
+  cx.fillStyle = muted;
+  cx.fillText(" / draw", 60 + minWidth, 78);
+
+  cx.fillStyle = muted;
+  cx.font = `italic 18px ${SERIF}`;
+  cx.textAlign = "right";
+  cx.fillText("polygon drawing game", W - 60, 78);
+
+  cx.strokeStyle = rule;
+  cx.lineWidth = 1;
+  cx.beginPath();
+  cx.moveTo(60, 110); cx.lineTo(W - 60, 110); cx.stroke();
+
+  // drawing area: fit user shape into a centered box
+  const area = { x: 80, y: 140, w: W - 160, h: 640 };
+  const pts = r.resampled;
+  const bb = bbox(pts);
+  const pad = 1.10;
+  const scale = Math.min(area.w / Math.max(1, bb.w * pad),
+                         area.h / Math.max(1, bb.h * pad));
+  const tx = area.x + area.w / 2 - (bb.x + bb.w / 2) * scale;
+  const ty = area.y + area.h / 2 - (bb.y + bb.h / 2) * scale;
+
+  cx.save();
+  cx.translate(tx, ty);
+  cx.scale(scale, scale);
+
+  // user stroke
+  cx.strokeStyle = accent;
+  cx.lineWidth = 5 / scale;
+  cx.lineCap = "round";
+  cx.lineJoin = "round";
+  cx.beginPath();
+  cx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) cx.lineTo(pts[i].x, pts[i].y);
+  cx.closePath();
+  cx.stroke();
+
+  // ideal overlay
+  cx.strokeStyle = idealC;
+  cx.lineWidth = 3 / scale;
+  cx.setLineDash([12 / scale, 12 / scale]);
+  cx.beginPath();
+  if (r.kind === "circle") {
+    cx.arc(r.centroid.x, r.centroid.y, r.rMean, 0, Math.PI * 2);
+  } else {
+    const vc = centroid(r.vertices);
+    const vr = mean(r.vertices.map(v => dist(v, vc)));
+    const v0 = r.vertices[0];
+    const theta0 = Math.atan2(v0.y - vc.y, v0.x - vc.x);
+    for (let i = 0; i < r.n; i++) {
+      const t = theta0 + i * 2 * Math.PI / r.n;
+      const x = vc.x + vr * Math.cos(t);
+      const y = vc.y + vr * Math.sin(t);
+      if (i === 0) cx.moveTo(x, y); else cx.lineTo(x, y);
+    }
+    cx.closePath();
+  }
+  cx.stroke();
+  cx.setLineDash([]);
+
+  // vertices
+  if (r.vertices.length) {
+    cx.fillStyle = vertC;
+    for (let i = 0; i < r.vertices.length; i++) {
+      const v = r.vertices[i];
+      cx.beginPath();
+      cx.arc(v.x, v.y, 11 / scale, 0, Math.PI * 2);
+      cx.fill();
+    }
+  }
+  cx.restore();
+
+  // shape name
+  cx.textAlign = "center";
+  cx.fillStyle = fg;
+  cx.font = `72px ${SERIF}`;
+  cx.fillText(r.name, W / 2, 870);
+
+  // score: big number + smaller % sign, both centered as a unit
+  const scoreText = String(r.score);
+  cx.font = `132px ${MONO}`;
+  const wNum = cx.measureText(scoreText).width;
+  cx.font = `74px ${MONO}`;
+  const wPct = cx.measureText("%").width;
+  const gap = 8;
+  const groupW = wNum + gap + wPct;
+  const groupLeft = W / 2 - groupW / 2;
+
+  cx.textAlign = "left";
+  cx.fillStyle = accent;
+  cx.font = `132px ${MONO}`;
+  cx.fillText(scoreText, groupLeft, 1000);
+  cx.font = `74px ${MONO}`;
+  cx.fillText("%", groupLeft + wNum + gap, 1000);
+
+  // meta line
+  cx.textAlign = "center";
+  cx.fillStyle = muted;
+  cx.font = `italic 22px ${SERIF}`;
+  const metaPlain = stripHtml(r.meta);
+  cx.fillText(metaPlain ? `regularity · ${metaPlain}` : "regularity", W / 2, 1035);
+
+  // footer
+  cx.fillStyle = muted;
+  cx.font = `22px ${SERIF}`;
+  cx.fillText("draw your own at mino.mobi/draw", W / 2, 1068);
+
+  return await new Promise(resolve => c.toBlob(resolve, "image/png"));
+}
+
+// -- share / save --------------------------------------------------
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    if (a.parentNode) a.parentNode.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+async function withBusyLabel(btn, working, done, fn) {
+  const orig = btn.textContent;
+  btn.classList.add("busy");
+  btn.textContent = working;
+  try {
+    const ok = await fn();
+    if (ok !== false) {
+      btn.textContent = done;
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove("busy"); }, 1400);
+    } else {
+      btn.textContent = orig;
+      btn.classList.remove("busy");
+    }
+  } catch (e) {
+    console.error(e);
+    btn.textContent = "failed";
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("busy"); }, 1500);
+  }
+}
+
+shareBtn.addEventListener("click", () => {
+  if (!lastResult || lastResult.score === null || lastResult.score === undefined) return;
+  withBusyLabel(shareBtn, "preparing…", "shared", async () => {
+    const r = lastResult;
+    const blob = await renderShareImage(r);
+    const filename = `mino-draw-${r.kind === "circle" ? "circle" : r.n + "gon"}-${r.score}.png`;
+    const text = `Drew a ${r.name} at ${r.score}% regularity on mino.mobi/draw`;
+    const url  = "https://mino.mobi/draw";
+    const file = new File([blob], filename, { type: "image/png" });
+
+    // Best path: native share sheet w/ image attached. User picks Bluesky.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text, url });
+        return true;
+      } catch (e) {
+        if (e.name === "AbortError") return false;
+        // fall through to intent fallback
+      }
+    }
+
+    // Fallback: download the PNG, open the Bluesky compose intent.
+    downloadBlob(blob, filename);
+    const intent = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+    window.open(intent, "_blank", "noopener");
+    shareBtn.textContent = "opened bluesky";
+    return true;
+  });
+});
+
+saveBtn.addEventListener("click", () => {
+  if (!lastResult || lastResult.score === null || lastResult.score === undefined) return;
+  withBusyLabel(saveBtn, "preparing…", "saved", async () => {
+    const r = lastResult;
+    const blob = await renderShareImage(r);
+    const filename = `mino-draw-${r.kind === "circle" ? "circle" : r.n + "gon"}-${r.score}.png`;
+    downloadBlob(blob, filename);
+    return true;
+  });
+});
 
 resize();
 </script>
