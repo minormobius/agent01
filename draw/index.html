@@ -178,6 +178,72 @@ canvas {
   border-color: var(--rule);
 }
 .share-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.verdict .submit-row {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.verdict .submit-row[hidden] { display: none; }
+.verdict .login-row[hidden] { display: none; }
+.verdict .login-row {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: auto;
+}
+.verdict .login-row .input-line { display: flex; gap: 6px; align-items: center; }
+.verdict .login-row input {
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  border-radius: 2px;
+  width: 180px;
+  color: var(--text);
+}
+.verdict .login-row input:focus { outline: none; border-color: var(--accent); }
+.verdict .login-row .scope-note {
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-align: center;
+  max-width: 230px;
+}
+.verdict .handle-display {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+.verdict .handle-display .h { color: var(--ideal); font-style: normal; font-family: var(--mono); }
+.verdict .handle-display a {
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: 8px;
+  pointer-events: auto;
+}
+.verdict .submit-status {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  min-height: 0.9em;
+}
+.verdict .submit-status.error { color: var(--accent); }
+.verdict .submit-status.ok    { color: var(--ideal); }
+.verdict .submit-status a { color: var(--accent); text-decoration: none; pointer-events: auto; }
+.header-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-style: italic;
+  margin-left: auto;
+}
+.header-link:hover { text-decoration: underline; }
 .controls {
   position: absolute;
   top: 12px;
@@ -235,6 +301,7 @@ footer a { color: var(--accent); text-decoration: none; }
 <header>
   <h1><a href="/">mino.mobi</a><span class="slash"> / </span>draw</h1>
   <span class="subtitle">trace a circle or regular polygon &mdash; we count sides and grade you</span>
+  <a href="/draw/leaderboard.html" class="header-link">leaderboard &rarr;</a>
 </header>
 
 <div id="stage">
@@ -260,6 +327,23 @@ footer a { color: var(--accent); text-decoration: none; }
       <button class="share-btn" id="share-btn" type="button">Share to Bluesky</button>
       <button class="share-btn ghost" id="save-btn" type="button">Save PNG</button>
     </div>
+    <div class="submit-row" id="submit-row" hidden>
+      <button class="share-btn ghost" id="submit-btn" type="button">Submit to leaderboard</button>
+      <div class="handle-display" id="handle-display" hidden></div>
+    </div>
+    <div class="login-row" id="login-row" hidden>
+      <div class="input-line">
+        <input type="text" id="handle-input" placeholder="handle.bsky.social"
+               autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" />
+        <button class="share-btn" id="login-go" type="button">Sign in</button>
+      </div>
+      <div class="scope-note">
+        sign-in only verifies your Bluesky identity &mdash; we ask for the
+        <strong>atproto</strong> scope, no read or write to your account.
+      </div>
+      <button class="share-btn ghost" id="login-cancel" type="button">cancel</button>
+    </div>
+    <div class="submit-status" id="submit-status"></div>
   </div>
 </div>
 
@@ -290,6 +374,19 @@ const clearBtn  = document.getElementById("clear");
 const shareRow  = document.getElementById("share-row");
 const shareBtn  = document.getElementById("share-btn");
 const saveBtn   = document.getElementById("save-btn");
+const submitRow      = document.getElementById("submit-row");
+const submitBtn      = document.getElementById("submit-btn");
+const handleDisplay  = document.getElementById("handle-display");
+const loginRow       = document.getElementById("login-row");
+const handleInput    = document.getElementById("handle-input");
+const loginGo        = document.getElementById("login-go");
+const loginCancel    = document.getElementById("login-cancel");
+const submitStatus   = document.getElementById("submit-status");
+
+// API + session state for the leaderboard.
+const DRAW_API = "https://poll.mino.mobi/api/draw";
+const SESSION_KEY = "minoDrawSession";
+const PENDING_KEY = "minoDrawPendingSubmission";
 
 let W = 0, H = 0, DPR = 1;
 let drawing = false;
@@ -713,7 +810,14 @@ function showVerdict(r) {
     scoreEl.innerHTML = r.score + '<span class="pct">%</span>';
   }
   metaEl.innerHTML = r.meta || "";
-  shareRow.hidden = !(hasScore && lastResult);
+  const showActions = hasScore && lastResult;
+  shareRow.hidden = !showActions;
+  submitRow.hidden = !showActions || !loginRow.hidden;
+  if (!showActions) {
+    loginRow.hidden = true;
+    submitStatus.textContent = "";
+    submitStatus.classList.remove("error", "ok");
+  }
   verdictEl.classList.add("show");
 }
 
@@ -904,11 +1008,6 @@ async function withBusyLabel(btn, working, done, fn) {
   }
 }
 
-// Bluesky's iOS share extension drops the `text` + `url` fields from
-// Web Share — the post ends up with just the image and no caption.
-// To get text + link into the draft we use the bsky.app intent URL
-// (universal link → opens the Bluesky app to compose with prefilled
-// text) and put the image on the clipboard for a one-tap paste.
 shareBtn.addEventListener("click", async () => {
   if (!lastResult || lastResult.score === null || lastResult.score === undefined) return;
   const orig = shareBtn.textContent;
@@ -919,19 +1018,32 @@ shareBtn.addEventListener("click", async () => {
     const blob = await renderShareImage(r);
     const filename = `mino-draw-${r.kind === "circle" ? "circle" : r.n + "gon"}-${r.score}.png`;
     const text = `Drew a ${r.name} at ${r.score}% regularity on mino.mobi/draw`;
-    const intent = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+    const url  = "https://mino.mobi/draw";
+    const file = new File([blob], filename, { type: "image/png" });
 
-    let imgOnClipboard = false;
-    if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+    // Native share sheet w/ image attached. User picks Bluesky from the sheet.
+    // Bluesky's iOS share extension may drop text/url, but the rendered image
+    // has the shape + score + URL footer baked in.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        imgOnClipboard = true;
-      } catch (e) { /* fall through to download */ }
+        await navigator.share({ files: [file], text, url });
+        shareBtn.textContent = "shared";
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") {
+          shareBtn.textContent = orig;
+          shareBtn.classList.remove("busy");
+          return;
+        }
+        // fall through to intent fallback
+      }
     }
-    if (!imgOnClipboard) downloadBlob(blob, filename);
 
+    // Desktop / older browsers: open Bluesky compose intent in a new tab.
+    // The image isn't auto-attached; if you want it on the post, use Save PNG.
+    const intent = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
     window.open(intent, "_blank", "noopener");
-    shareBtn.textContent = imgOnClipboard ? "paste image in post" : "image saved, attach it";
+    shareBtn.textContent = "opened bluesky";
   } catch (e) {
     console.error(e);
     shareBtn.textContent = "share failed";
@@ -939,7 +1051,7 @@ shareBtn.addEventListener("click", async () => {
     setTimeout(() => {
       shareBtn.textContent = orig;
       shareBtn.classList.remove("busy");
-    }, 2200);
+    }, 1800);
   }
 });
 
@@ -953,6 +1065,198 @@ saveBtn.addEventListener("click", () => {
     return true;
   });
 });
+
+// -- leaderboard submit + Bluesky OAuth login ----------------------
+
+function readSessionFragment() {
+  const hash = location.hash.replace(/^#/, "");
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  const sid = params.get("session");
+  if (!sid) return null;
+  const sess = {
+    sessionId: sid,
+    did: params.get("did") || "",
+    handle: params.get("handle") || "",
+    ts: Date.now(),
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+  // Strip the fragment so the session id doesn't sit in the URL bar.
+  history.replaceState(null, "", location.pathname + location.search);
+  return sess;
+}
+
+function readStoredSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.sessionId) return null;
+    return s;
+  } catch { return null; }
+}
+
+function clearStoredSession() { localStorage.removeItem(SESSION_KEY); }
+
+function setStatus(msg, kind) {
+  submitStatus.classList.remove("error", "ok");
+  if (kind) submitStatus.classList.add(kind);
+  submitStatus.innerHTML = msg || "";
+}
+
+function refreshLoginUi() {
+  const session = readStoredSession();
+  if (session && session.handle) {
+    handleDisplay.hidden = false;
+    handleDisplay.innerHTML =
+      `signed in as <span class="h">@${escapeAttr(session.handle)}</span>` +
+      ` &middot; <a href="#" id="logout-link">sign out</a>`;
+    const logoutLink = document.getElementById("logout-link");
+    if (logoutLink) {
+      logoutLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        clearStoredSession();
+        setStatus("signed out");
+        refreshLoginUi();
+      });
+    }
+  } else {
+    handleDisplay.hidden = true;
+    handleDisplay.innerHTML = "";
+  }
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/[&<>"']/g, (ch) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;",
+  }[ch]));
+}
+
+async function submitToLeaderboard(session, payload) {
+  setStatus("submitting…");
+  try {
+    const res = await fetch(`${DRAW_API}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.sessionId}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 401) {
+      clearStoredSession();
+      refreshLoginUi();
+      setStatus("session expired — sign in again", "error");
+      return false;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || `submit failed (${res.status})`, "error");
+      return false;
+    }
+    setStatus(
+      `submitted &middot; <a href="/draw/leaderboard.html?shape=${encodeURIComponent(payload.shape)}">view leaderboard &rarr;</a>`,
+      "ok"
+    );
+    return true;
+  } catch (e) {
+    setStatus("network error — try again", "error");
+    return false;
+  }
+}
+
+function resultToPayload(r) {
+  return {
+    shape: r.name,
+    score: r.score,
+    n_sides: r.kind === "circle" ? 0 : r.n,
+    meta: stripHtml(r.meta || "").slice(0, 180),
+  };
+}
+
+submitBtn.addEventListener("click", async () => {
+  if (!lastResult || lastResult.score === null) return;
+  const session = readStoredSession();
+  if (session && session.sessionId) {
+    submitBtn.disabled = true;
+    await submitToLeaderboard(session, resultToPayload(lastResult));
+    submitBtn.disabled = false;
+    return;
+  }
+  // No session — prompt for handle.
+  submitRow.hidden = true;
+  loginRow.hidden = false;
+  setTimeout(() => handleInput.focus(), 30);
+});
+
+loginCancel.addEventListener("click", () => {
+  loginRow.hidden = true;
+  submitRow.hidden = !(lastResult && lastResult.score !== null);
+  setStatus("");
+});
+
+handleInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); loginGo.click(); }
+});
+
+loginGo.addEventListener("click", async () => {
+  const handle = handleInput.value.trim().replace(/^@/, "");
+  if (!handle) { setStatus("enter your handle (e.g. alice.bsky.social)", "error"); return; }
+  if (!lastResult || lastResult.score === null) {
+    setStatus("draw a shape first", "error"); return;
+  }
+  // Save the result for resubmission after the OAuth round trip.
+  localStorage.setItem(PENDING_KEY, JSON.stringify(resultToPayload(lastResult)));
+  loginGo.disabled = true;
+  setStatus("contacting your PDS…");
+  try {
+    const res = await fetch(`${DRAW_API}/oauth/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        handle,
+        returnTo: location.origin + location.pathname,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.authUrl) {
+      setStatus(data.error || `sign-in failed (${res.status})`, "error");
+      loginGo.disabled = false;
+      return;
+    }
+    location.href = data.authUrl;
+  } catch (e) {
+    setStatus("network error — could not reach poll.mino.mobi", "error");
+    loginGo.disabled = false;
+  }
+});
+
+async function processPostAuth() {
+  const justArrived = readSessionFragment();
+  refreshLoginUi();
+  const session = justArrived || readStoredSession();
+  if (!session || !justArrived) return;  // only auto-submit on a fresh return
+
+  const raw = localStorage.getItem(PENDING_KEY);
+  if (!raw) return;
+  localStorage.removeItem(PENDING_KEY);
+  let payload; try { payload = JSON.parse(raw); } catch { return; }
+  if (!payload || !payload.shape) return;
+
+  // Show the result confirmation in the verdict box.
+  shapeEl.textContent = payload.shape;
+  scoreEl.innerHTML = payload.score + '<span class="pct">%</span>';
+  metaEl.innerHTML = "submitted from your previous round";
+  verdictEl.classList.add("show");
+  shareRow.hidden = true;
+  submitRow.hidden = true;
+  loginRow.hidden = true;
+
+  await submitToLeaderboard(session, payload);
+}
+
+processPostAuth();
+refreshLoginUi();
 
 resize();
 </script>

@@ -196,21 +196,30 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     // Also create a long-lived refresh token for PWA persistence
     const appRefreshToken = await createRefreshToken(env, result.did, result.handle);
 
-    // Redirect to frontend with session cookie
+    // Redirect to frontend. If returnTo is an external URL on a trusted
+    // sibling site (e.g. https://mino.mobi/draw), send the user there with
+    // the session ID and basic identity in a URL fragment so the page can
+    // store them — the cookie is scoped to poll.mino.mobi and won't be
+    // readable cross-origin from mino.mobi.
     const frontendUrl = env.FRONTEND_URL || '';
     const returnTo = result.returnTo || '/';
+    const externalTrusted = /^https:\/\/(?:www\.)?mino\.mobi(?:\/|$)/.test(returnTo);
 
-    // Set cookie and redirect
-    const redirectUrl = `${frontendUrl}${returnTo}`;
-    const response = new Response(null, {
-      status: 302,
-      headers: {
-        Location: redirectUrl,
-        'Set-Cookie': sessionCookie(session.sessionId, request),
-      },
-    });
+    let redirectUrl: string;
+    const headers: Record<string, string> = {};
 
-    return response;
+    if (externalTrusted) {
+      const sep = returnTo.includes('#') ? '&' : '#';
+      redirectUrl = `${returnTo}${sep}session=${encodeURIComponent(session.sessionId)}`
+                  + `&did=${encodeURIComponent(result.did)}`
+                  + `&handle=${encodeURIComponent(result.handle)}`;
+    } else {
+      redirectUrl = `${frontendUrl}${returnTo}`;
+      headers['Set-Cookie'] = sessionCookie(session.sessionId, request);
+    }
+    headers['Location'] = redirectUrl;
+
+    return new Response(null, { status: 302, headers });
   } catch (err: any) {
     console.error('OAuth callback error:', err.message);
     const frontendUrl = env.FRONTEND_URL || '';

@@ -12,6 +12,7 @@ import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
 import { handleSurveyRoutes } from './routes/surveys.js';
 import { handleSurveyBallotRoutes } from './routes/survey-ballots.js';
+import { handleDrawRoutes } from './routes/draw.js';
 import { getClientPublicJWK, getClientSigningKey } from './oauth/keypair.js';
 import { discoverAuthServer } from './oauth/discovery.js';
 
@@ -65,7 +66,7 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 
     // CORS
     if (request.method === 'OPTIONS') {
-      return corsResponse(env);
+      return corsResponse(env, request);
     }
 
     // Health check
@@ -138,6 +139,8 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       // Route to appropriate handler
       if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/me') {
         response = await handleAuthRoutes(request, env, url);
+      } else if (url.pathname.startsWith('/api/draw/')) {
+        response = await handleDrawRoutes(request, env, url);
       } else if (url.pathname.match(/^\/api\/surveys\/[^/]+\/ballots/)) {
         response = await handleSurveyBallotRoutes(request, env, url);
       } else if (url.pathname.startsWith('/api/surveys')) {
@@ -153,36 +156,52 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
 
       // Add CORS headers to all responses
-      return addCorsHeaders(response, env);
+      return addCorsHeaders(response, env, request);
     } catch (err: any) {
       console.error('Unhandled error:', err);
       return addCorsHeaders(
         jsonResponse({ error: 'Internal server error' }, 500),
-        env
+        env,
+        request,
       );
     }
 }
 
-function corsResponse(env: Env): Response {
+const ALLOWED_ORIGINS = new Set([
+  'https://mino.mobi',
+  'https://www.mino.mobi',
+  'http://localhost:8788',
+  'http://localhost:5173',
+]);
+
+function pickAllowOrigin(request: Request, env: Env): string {
+  const origin = request.headers.get('Origin') || '';
+  if (origin === env.FRONTEND_URL) return origin;
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  return env.FRONTEND_URL || '*';
+}
+
+function corsResponse(env: Env, request?: Request): Response {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders(env),
+    headers: corsHeaders(env, request),
   });
 }
 
-function corsHeaders(env: Env): Record<string, string> {
+function corsHeaders(env: Env, request?: Request): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': env.FRONTEND_URL || '*',
+    'Access-Control-Allow-Origin': request ? pickAllowOrigin(request, env) : (env.FRONTEND_URL || '*'),
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
   };
 }
 
-function addCorsHeaders(response: Response, env: Env): Response {
+function addCorsHeaders(response: Response, env: Env, request?: Request): Response {
   const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(corsHeaders(env))) {
+  for (const [key, value] of Object.entries(corsHeaders(env, request))) {
     headers.set(key, value);
   }
   return new Response(response.body, {
