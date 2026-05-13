@@ -63,6 +63,19 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 }
 .list-meta b { color: var(--accent); }
 
+.indexall-bar {
+  display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.6rem 0.85rem; margin-bottom: 1rem;
+}
+.indexall-bar .status {
+  font-family: var(--mono); font-size: 0.75rem; color: var(--muted);
+  flex: 1; min-width: 200px;
+}
+.indexall-bar .status b { color: var(--text); }
+.indexall-bar button { padding: 0.45rem 0.9rem; font-size: 0.75rem; }
+.indexall-bar.hidden { display: none; }
+
 .themes {
   background: var(--card-bg);
   border: 1px solid var(--rule); border-radius: 6px;
@@ -203,6 +216,10 @@ footer a { color: var(--muted); text-decoration: underline; }
 
   <section id="stage-list" class="stage">
     <div class="list-meta" id="list-meta"></div>
+    <div class="indexall-bar hidden" id="indexall-bar">
+      <div class="status" id="indexall-status"></div>
+      <button id="indexall-btn" type="button"></button>
+    </div>
     <div class="themes">
       <div class="themes-title">themes that bind the list <span style="text-transform:none; font-style:italic;">(words in cluster labels of at least 2 indexed members)</span></div>
       <div class="themes-cloud" id="themes-cloud"></div>
@@ -220,11 +237,14 @@ footer a { color: var(--muted); text-decoration: underline; }
 </div>
 
 <script type="module">
+import { pullProfile, analyzeProfile } from '../lib/atproto/index.js';
+
 const $ = (id) => document.getElementById(id);
 const PUBLIC_API = 'https://api.bsky.app';
 const PLC_DIR    = 'https://plc.directory';
 const MAX_MEMBERS = 100;
 const FETCH_CONCURRENCY = 8;
+const MIN_THREAD_CHARS = 300;
 
 // Cluster colors mirror ask so a member's swatches feel consistent if the
 // viewer goes from list → ask on that profile.
@@ -424,6 +444,15 @@ function renderMemberCard(m) {
       pill = `<span class="pill"><span class="dotspin"></span>fetching map… ${elapsedSec}s</span>`;
       extra = m.threadCount ? `<span class="muted">${m.threadCount} threads</span>` : '';
       break;
+    case 'fetching-car':
+      pill = `<span class="pill"><span class="dotspin"></span>${escapeHtml(m.progress || 'downloading repo…')} ${elapsedSec}s</span>`;
+      break;
+    case 'building-threads':
+      pill = `<span class="pill"><span class="dotspin"></span>${escapeHtml(m.progress || 'building threads…')} ${elapsedSec}s</span>`;
+      break;
+    case 'embedding':
+      pill = `<span class="pill"><span class="dotspin"></span>embedding ${m.threadCount || '?'} threads… ${elapsedSec}s</span>`;
+      break;
     case 'done':
       pill = `<span class="pill">${m.threadCount || 0} threads · ${(m.clusters || []).length || '0'} clusters</span>`;
       extra = m.indexedAt ? `<span class="muted">${new Date(m.indexedAt * 1000).toISOString().slice(0,10)}</span>` : '';
@@ -431,15 +460,22 @@ function renderMemberCard(m) {
     case 'not-indexed':
       pill = `<span class="pill muted">not indexed</span>`;
       break;
+    case 'no-prose':
+      pill = `<span class="pill muted">no prose threads</span>`;
+      break;
     case 'error':
       pill = `<span class="pill err" title="${escapeHtml(m.error || '')}">⚠ ${escapeHtml(m.error || 'error')}</span>`;
+      break;
+    case 'cancelled':
+      pill = `<span class="pill muted">cancelled</span>`;
       break;
     default:
       pill = `<span class="pill muted">${escapeHtml(m.status || '')}</span>`;
   }
 
   const indexed = m.status === 'done' || m.status === 'fetching-map';
-  const cls = (m.status === 'not-indexed' || m.status === 'pending' || m.status === 'error') ? ' unindexed' : '';
+  const unindexedStates = new Set(['not-indexed', 'pending', 'error', 'no-prose', 'cancelled']);
+  const cls = unindexedStates.has(m.status) ? ' unindexed' : '';
 
   const clusters = (m.clusters && m.clusters.length)
     ? m.clusters.slice(0, 6).map((c) => `<div class="member-cluster-line"><span class="swatch" style="background: ${CLUSTER_COLORS[c.id % CLUSTER_COLORS.length]};"></span>${escapeHtml((c.words || []).slice(0, 4).join(' · ')) || 'cluster ' + (c.id + 1)}</div>`).join('')
@@ -484,11 +520,12 @@ function updateMemberCard(m) {
 // Live timer: while any card is in-flight, re-render those cards once a
 // second to advance the elapsed-seconds counter. Stops itself when all
 // done.
+const IN_FLIGHT_STATES = new Set(['checking', 'fetching-map', 'fetching-car', 'building-threads', 'embedding']);
 let _liveTimerHandle = null;
 function startLiveTimer() {
   if (_liveTimerHandle) return;
   _liveTimerHandle = setInterval(() => {
-    const inFlight = state.members.filter(m => m.status === 'checking' || m.status === 'fetching-map');
+    const inFlight = state.members.filter(m => IN_FLIGHT_STATES.has(m.status));
     if (!inFlight.length) {
       clearInterval(_liveTimerHandle);
       _liveTimerHandle = null;
@@ -519,6 +556,7 @@ async function processMember(m) {
     m.status = 'error';
     m.error = e.name === 'AbortError' ? 'check timeout' : (e.message || String(e));
     updateMemberCard(m);
+    renderIndexAllBar();
     return;
   }
 
@@ -528,6 +566,7 @@ async function processMember(m) {
   if (!m.indexed) {
     m.status = 'not-indexed';
     updateMemberCard(m);
+    renderIndexAllBar();
     return;
   }
 
@@ -549,6 +588,193 @@ async function processMember(m) {
   state.themes = aggregateThemes(state.members);
   renderThemes();
   renderListMeta();
+}
+
+// ─── embed-all: sequential in-tab indexing of unindexed members ──────────
+//
+// Reuses the exact pipeline /ask/ runs (pullProfile → analyzeProfile →
+// POST /api/ask/index → refresh check + map), one member at a time. Memory
+// pressure stays bounded (~one ~80 MB profile in flight max — same ceiling
+// as a regular ask visit). Cancellable via AbortController; the button
+// toggles between "Index all (N pending)" and "Cancel".
+//
+// Server-side ingestion is the right long-term answer; this is the bridge
+// until that exists.
+
+let _indexAllAbort = null;
+let _indexingRunning = false;
+let _indexedThisRun = 0;
+let _erroredThisRun = 0;
+
+function eligibleForIndex(m) {
+  // Anyone we've established needs indexing in this session: just-discovered
+  // 'not-indexed', or errored-out 'error' / 'cancelled' we want to retry.
+  // Skip 'no-prose' (deterministic dead-end, retrying won't help).
+  return m.status === 'not-indexed' || m.status === 'error' || m.status === 'cancelled';
+}
+
+function renderIndexAllBar() {
+  const bar = $('indexall-bar');
+  // Hide bar until per-member check phase has settled enough that we know
+  // who needs indexing. If anything is still checking/pending, leave the
+  // bar hidden — the user can wait a few seconds for it to appear.
+  const stillResolving = state.members.some(m => m.status === 'pending' || m.status === 'checking');
+  const eligible = state.members.filter(eligibleForIndex);
+  if (stillResolving && !_indexingRunning && !eligible.length) {
+    bar.classList.add('hidden');
+    return;
+  }
+  if (!eligible.length && !_indexingRunning) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+  const btn = $('indexall-btn');
+  const status = $('indexall-status');
+  if (_indexingRunning) {
+    btn.textContent = 'Cancel';
+    btn.classList.add('ghost');
+    const remaining = eligible.length;
+    status.innerHTML = `Indexing in tab &middot; <b>${_indexedThisRun}</b> indexed, ${_erroredThisRun ? `<b>${_erroredThisRun}</b> errored, ` : ''}<b>${remaining}</b> remaining. Keep tab open.`;
+  } else {
+    btn.textContent = `Index all (${eligible.length})`;
+    btn.classList.remove('ghost');
+    status.innerHTML = `<b>${eligible.length}</b> member${eligible.length === 1 ? '' : 's'} not yet indexed. Runs in this tab; ~30s–2min per profile depending on repo size.`;
+  }
+}
+
+async function indexMember(m, signal) {
+  m.status = 'fetching-car';
+  m.startedAt = Date.now();
+  m.progress = 'resolving handle…';
+  m.error = null;
+  updateMemberCard(m);
+  startLiveTimer();
+
+  let profile;
+  try {
+    profile = await pullProfile(m.handle, (label) => {
+      // Compress the progress label so it fits in the pill.
+      m.progress = String(label || '').replace(/^Downloading repo: ?/, '').replace(/^Parsing /, 'parsing ').slice(0, 36);
+      updateMemberCard(m);
+    }, { signal });
+  } catch (e) {
+    if (e?.name === 'AbortError' || signal?.aborted) {
+      m.status = 'cancelled'; m.progress = null;
+    } else {
+      m.status = 'error'; m.error = (e?.message || String(e)).slice(0, 120);
+    }
+    updateMemberCard(m);
+    return false;
+  }
+
+  if (signal?.aborted) { m.status = 'cancelled'; m.progress = null; updateMemberCard(m); return false; }
+
+  m.status = 'building-threads';
+  m.progress = `parsed ${profile.posts.length.toLocaleString()} posts`;
+  updateMemberCard(m);
+  // Yield so the spinner repaints before analyzeProfile blocks the thread.
+  await new Promise(r => setTimeout(r, 0));
+  const threads = analyzeProfile(profile.posts, { minChars: MIN_THREAD_CHARS });
+
+  if (!threads.length) {
+    m.status = 'no-prose'; m.progress = null;
+    updateMemberCard(m);
+    return false;
+  }
+  if (signal?.aborted) { m.status = 'cancelled'; m.progress = null; updateMemberCard(m); return false; }
+
+  m.status = 'embedding';
+  m.threadCount = threads.length;
+  m.progress = null;
+  updateMemberCard(m);
+
+  try {
+    const res = await fetch('/api/ask/index', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        did: profile.did,
+        handle: profile.handle,
+        threads: threads.map(t => ({
+          thread_id: t.threadId,
+          text: t.text,
+          post_count: t.postCount,
+          char_count: t.totalChars,
+          flesch: null,
+          created_at: t.createdAt,
+        })),
+      }),
+      signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`index ${res.status}: ${body.slice(0, 80)}`);
+    }
+    await res.json();
+  } catch (e) {
+    if (e?.name === 'AbortError' || signal?.aborted) {
+      m.status = 'cancelled';
+    } else {
+      m.status = 'error'; m.error = (e?.message || String(e)).slice(0, 120);
+    }
+    updateMemberCard(m);
+    return false;
+  }
+
+  // Indexed: re-check, then fetch map. Re-checks confirm thread_count /
+  // indexed_at, and /api/ask/map will compute clusters if the row exists
+  // without a precomputed map.
+  m.status = 'fetching-map';
+  m.startedAt = Date.now();
+  m.progress = null;
+  updateMemberCard(m);
+  try {
+    const check = await fetchCheck(m.did);
+    m.indexed = !!check.indexed;
+    m.threadCount = check.thread_count || m.threadCount || 0;
+    m.indexedAt = check.indexed_at || null;
+    const data = await fetchMap(m.did);
+    if (data && Array.isArray(data.clusters)) m.clusters = data.clusters;
+    m.status = 'done';
+  } catch (e) {
+    // Embedding succeeded but map fetch failed — surface the partial success.
+    m.status = 'done';
+    m.error = null;
+  }
+  updateMemberCard(m);
+  state.themes = aggregateThemes(state.members);
+  renderThemes();
+  renderListMeta();
+  return true;
+}
+
+async function indexAll() {
+  if (_indexingRunning) {
+    // Second click = cancel.
+    _indexAllAbort?.abort();
+    return;
+  }
+  _indexAllAbort = new AbortController();
+  _indexingRunning = true;
+  _indexedThisRun = 0;
+  _erroredThisRun = 0;
+  renderIndexAllBar();
+
+  while (!_indexAllAbort.signal.aborted) {
+    // Re-pick each iteration so newly-errored entries get retried only if the
+    // user clicks again (we don't loop on errors — they stay 'error' and we
+    // move on).
+    const next = state.members.find(m => m.status === 'not-indexed');
+    if (!next) break;
+    const ok = await indexMember(next, _indexAllAbort.signal);
+    if (ok) _indexedThisRun++; else if (next.status === 'error' || next.status === 'no-prose') _erroredThisRun++;
+    renderIndexAllBar();
+  }
+
+  _indexingRunning = false;
+  _indexAllAbort = null;
+  renderIndexAllBar();
 }
 
 async function load(url) {
@@ -589,6 +815,7 @@ async function load(url) {
     state.themes = aggregateThemes(state.members);
     renderThemes();
     renderListMeta();
+    renderIndexAllBar();
   } catch (err) {
     showStage('input');
     showError(String(err.message || err));
@@ -597,6 +824,13 @@ async function load(url) {
 
 // ─── wire up ─────────────────────────────────────────────────────────────
 $('list-form').addEventListener('submit', (e) => { e.preventDefault(); load($('list-url').value); });
+$('indexall-btn').addEventListener('click', () => { indexAll(); });
+
+// Browsing-away mid-index would drop the AbortController without rolling
+// the card back — warn the user since the worker has no resumability yet.
+window.addEventListener('beforeunload', (e) => {
+  if (_indexingRunning) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // Allow ?url= or ?list= to deeplink into a list.
 const urlParam = new URLSearchParams(location.search).get('list') || new URLSearchParams(location.search).get('url');

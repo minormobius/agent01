@@ -71,9 +71,9 @@ export async function resolvePds(did) {
 
 // ---- CAR fetch + parse ---------------------------------------------------
 
-export async function fetchCarBytes(pds, did, onProgress) {
+export async function fetchCarBytes(pds, did, onProgress, opts = {}) {
   const url = `${pds.replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
-  const res = await fetch(url);
+  const res = await fetch(url, opts.signal ? { signal: opts.signal } : undefined);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`getRepo failed (${res.status}) ${body}`.trim());
@@ -83,6 +83,10 @@ export async function fetchCarBytes(pds, did, onProgress) {
   const chunks = [];
   let received = 0;
   while (true) {
+    if (opts.signal?.aborted) {
+      try { reader.cancel(); } catch {}
+      throw new DOMException('aborted', 'AbortError');
+    }
     const { done, value } = await reader.read();
     if (done) break;
     chunks.push(value);
@@ -102,16 +106,20 @@ export async function parseCar(carBytes, did) {
 
 // One-shot: handle -> { did, handle, posts }. Posts are app.bsky.feed.post
 // records only, with shape { uri, rkey, record }.
-export async function pullProfile(handleInput, onProgress) {
+export async function pullProfile(handleInput, onProgress, opts = {}) {
   const progress = onProgress || (() => {});
+  const checkAbort = () => { if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError'); };
   progress('Loading parser…');
   await ensureWasm();
+  checkAbort();
   progress('Resolving handle…');
   const { did, handle } = await resolveHandle(handleInput);
+  checkAbort();
 
   progress(`Resolved @${handle}. Locating PDS…`);
   const pds = await resolvePds(did);
   const pdsHost = (() => { try { return new URL(pds).hostname; } catch { return pds; } })();
+  checkAbort();
 
   progress(`Downloading repo from ${pdsHost}…`, 0);
   const carBytes = await fetchCarBytes(pds, did, (received, total) => {
@@ -119,11 +127,12 @@ export async function pullProfile(handleInput, onProgress) {
       ? `Downloading repo: ${fmtBytes(received)} / ${fmtBytes(total)}`
       : `Downloading repo: ${fmtBytes(received)}`;
     progress(label, total ? received / total : null);
-  });
+  }, opts);
 
   progress(`Parsing ${fmtBytes(carBytes.length)} CAR…`, 1);
   // Yield once so the spinner repaints before the WASM call blocks the thread.
   await new Promise(r => setTimeout(r, 0));
+  checkAbort();
   const ndjson = await parseCar(carBytes, did);
 
   const posts = [];
