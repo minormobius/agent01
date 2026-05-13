@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Draw &mdash; minomobi</title>
+<meta name="description" content="Draw a circle or regular polygon on a blank canvas. The page counts sides and grades you on regularity.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Draw &mdash; minomobi">
+<meta property="og:description" content="Trace a circle or regular polygon. We count sides and grade you.">
+<meta property="og:url" content="https://mino.mobi/draw">
+<meta name="twitter:card" content="summary">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.08);
+  --ideal: #2a7a2a;
+  --vertex: #a06020;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #888;
+    --rule: #333;
+    --accent: #c45;
+    --accent-faint: rgba(204, 68, 85, 0.10);
+    --ideal: #55b070;
+    --vertex: #d49050;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  display: flex;
+  flex-direction: column;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+header {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+h1 {
+  font-size: 18px;
+  font-weight: normal;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+h1 a { color: inherit; text-decoration: none; }
+h1 .slash { color: var(--muted); }
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+#stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--bg);
+  cursor: crosshair;
+}
+.hint {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 18px;
+  pointer-events: none;
+  font-style: italic;
+  text-align: center;
+  line-height: 1.55;
+  opacity: 0.75;
+  transition: opacity 0.25s;
+}
+.hint.hide { opacity: 0; }
+.hint .small {
+  font-size: 14px;
+  display: block;
+  margin-top: 4px;
+}
+.verdict {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 12px);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 14px 24px 12px;
+  border-radius: 2px;
+  text-align: center;
+  min-width: 240px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+.verdict.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.verdict .shape {
+  font-size: 22px;
+  letter-spacing: 0.01em;
+}
+.verdict .score {
+  font-size: 38px;
+  color: var(--accent);
+  margin-top: 2px;
+  font-family: var(--mono);
+  line-height: 1.1;
+}
+.verdict .score .pct { font-size: 18px; opacity: 0.7; }
+.verdict .label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.verdict .meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+.controls {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+}
+button {
+  font-family: var(--serif);
+  font-size: 13px;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  color: var(--text);
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 2px;
+  letter-spacing: 0.02em;
+}
+button:hover { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button:active { transform: translateY(1px); }
+.legend {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+  font-style: italic;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .swatch {
+  width: 14px; height: 2px; display: inline-block;
+}
+.legend .swatch.your { background: var(--accent); }
+.legend .swatch.ideal { background: var(--ideal); }
+.legend .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--vertex); display: inline-block;
+}
+footer {
+  padding: 7px 18px;
+  border-top: 1px solid var(--rule);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="/">mino.mobi</a><span class="slash"> / </span>draw</h1>
+  <span class="subtitle">trace a circle or regular polygon &mdash; we count sides and grade you</span>
+</header>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="hint" class="hint">
+    drag to draw a shape
+    <span class="small">close it back to where you started</span>
+  </div>
+  <div class="controls">
+    <button id="clear">Clear</button>
+  </div>
+  <div id="legend" class="legend" style="display:none">
+    <span><span class="swatch your"></span>your stroke</span>
+    <span><span class="swatch ideal"></span>ideal shape</span>
+    <span><span class="dot"></span>detected vertex</span>
+  </div>
+  <div id="verdict" class="verdict">
+    <div class="shape" id="shape-name">&mdash;</div>
+    <div class="score" id="score">&mdash;</div>
+    <div class="label">regularity</div>
+    <div class="meta" id="meta"></div>
+  </div>
+</div>
+
+<footer>
+  <span>algorithm: resample &middot; corner-strength peaks &middot; side &amp; angle deviation</span>
+  <span><a href="/">&larr; minomobi</a></span>
+</footer>
+
+<script>
+"use strict";
+
+// ====================================================================
+// Polygon drawing game.
+// Capture a closed-ish stroke, resample to N points, find corner-strength
+// peaks, classify as circle or N-gon, score regularity by side-length
+// and interior-angle deviation from the ideal regular polygon.
+// ====================================================================
+
+const canvas    = document.getElementById("c");
+const ctx       = canvas.getContext("2d");
+const hintEl    = document.getElementById("hint");
+const verdictEl = document.getElementById("verdict");
+const shapeEl   = document.getElementById("shape-name");
+const scoreEl   = document.getElementById("score");
+const metaEl    = document.getElementById("meta");
+const legendEl  = document.getElementById("legend");
+const clearBtn  = document.getElementById("clear");
+
+let W = 0, H = 0, DPR = 1;
+let drawing = false;
+let raw = [];
+let lastResult = null;
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width  = Math.max(1, Math.floor(W * DPR));
+  canvas.height = Math.max(1, Math.floor(H * DPR));
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (lastResult) renderResult(lastResult);
+  else if (raw.length > 1) renderRawStroke();
+}
+window.addEventListener("resize", resize);
+
+// -- input ----------------------------------------------------------
+
+function pt(e) {
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches && e.touches[0] ? e.touches[0] : e;
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+
+function onStart(e) {
+  e.preventDefault();
+  drawing = true;
+  raw = [pt(e)];
+  lastResult = null;
+  hintEl.classList.add("hide");
+  verdictEl.classList.remove("show");
+  legendEl.style.display = "none";
+  ctx.clearRect(0, 0, W, H);
+  beginStroke(raw[0]);
+}
+
+function onMove(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const p = pt(e);
+  const last = raw[raw.length - 1];
+  const dx = p.x - last.x, dy = p.y - last.y;
+  if (dx*dx + dy*dy < 1.2) return;
+  raw.push(p);
+  extendStroke(p);
+}
+
+function onEnd(e) {
+  if (!drawing) return;
+  drawing = false;
+  if (e && e.preventDefault) e.preventDefault();
+  if (raw.length < 12) {
+    showVerdict({ name: "too short", score: null, meta: "give it a longer stroke" });
+    return;
+  }
+  const bb = bbox(raw);
+  if (bb.w < 40 || bb.h < 40) {
+    showVerdict({ name: "too small", score: null, meta: "draw a bigger shape" });
+    return;
+  }
+  const result = analyze(raw);
+  lastResult = result;
+  renderResult(result);
+  legendEl.style.display = "flex";
+  showVerdict(result);
+}
+
+canvas.addEventListener("mousedown", onStart);
+canvas.addEventListener("mousemove", onMove);
+window.addEventListener("mouseup", onEnd);
+canvas.addEventListener("touchstart", onStart, { passive: false });
+canvas.addEventListener("touchmove",  onMove,  { passive: false });
+canvas.addEventListener("touchend",   onEnd,   { passive: false });
+canvas.addEventListener("touchcancel", onEnd,  { passive: false });
+
+clearBtn.addEventListener("click", () => {
+  raw = [];
+  lastResult = null;
+  ctx.clearRect(0, 0, W, H);
+  verdictEl.classList.remove("show");
+  legendEl.style.display = "none";
+  hintEl.classList.remove("hide");
+});
+
+// -- drawing helpers ------------------------------------------------
+
+function strokeStyle() {
+  ctx.lineWidth = 2.5;
+  ctx.lineCap   = "round";
+  ctx.lineJoin  = "round";
+}
+function beginStroke(p) {
+  ctx.strokeStyle = cssVar("--accent", "#8b0000");
+  strokeStyle();
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+function extendStroke(p) {
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+function renderRawStroke() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = cssVar("--accent", "#8b0000");
+  strokeStyle();
+  ctx.beginPath();
+  ctx.moveTo(raw[0].x, raw[0].y);
+  for (let i = 1; i < raw.length; i++) ctx.lineTo(raw[i].x, raw[i].y);
+  ctx.stroke();
+}
+
+// -- math primitives -----------------------------------------------
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function mean(a) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; }
+function std(a, m) {
+  if (m === undefined) m = mean(a);
+  let s = 0; for (let i = 0; i < a.length; i++) { const d = a[i] - m; s += d*d; }
+  return Math.sqrt(s / a.length);
+}
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+function clamp01(v) { return clamp(v, 0, 1); }
+function centroid(pts) {
+  let x = 0, y = 0;
+  for (let i = 0; i < pts.length; i++) { x += pts[i].x; y += pts[i].y; }
+  return { x: x / pts.length, y: y / pts.length };
+}
+function bbox(pts) {
+  let lx = Infinity, ly = Infinity, hx = -Infinity, hy = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (p.x < lx) lx = p.x; if (p.x > hx) hx = p.x;
+    if (p.y < ly) ly = p.y; if (p.y > hy) hy = p.y;
+  }
+  return { x: lx, y: ly, w: hx - lx, h: hy - ly };
+}
+
+// -- analysis pipeline ---------------------------------------------
+
+function analyze(pts) {
+  const N = 256;
+  const resampled = resample(pts, N);
+  const sm = smooth(resampled, 1.4);
+  const k  = Math.max(6, Math.round(N / 36));
+  const strength = cornerStrength(sm, k);
+  const peaks = findPeaks(strength, k);
+
+  const c = centroid(sm);
+  const radii = sm.map(p => dist(p, c));
+  const rMean = mean(radii);
+  const rStd  = std(radii, rMean);
+  const radialDev = rMean > 0 ? rStd / rMean : 1;
+  const roundness = clamp01(1 - radialDev * 2);
+
+  let kind, n, vertices;
+  if (peaks.length === 0 || peaks.length > 18) {
+    kind = "circle";
+    n = 0;
+    vertices = [];
+  } else {
+    kind = "polygon";
+    n = peaks.length;
+    vertices = peaks.map(i => sm[i]);
+  }
+
+  // Closure check: gap between original endpoints relative to perimeter.
+  // If wildly open, dampen the score a touch (drawing wasn't a real loop).
+  const perim = perimeter(sm);
+  const closeGap = dist(pts[0], pts[pts.length - 1]);
+  const closurePenalty = clamp01(closeGap / Math.max(1, perim) - 0.05) * 0.5;
+
+  let score, meta;
+  if (kind === "circle") {
+    score = clamp01(roundness - closurePenalty);
+    meta  = `&Delta;r/r = ${(radialDev * 100).toFixed(1)}%`
+          + (closurePenalty > 0 ? ` &middot; not fully closed` : "");
+  } else {
+    const sides = [];
+    for (let i = 0; i < n; i++) {
+      sides.push(dist(vertices[i], vertices[(i + 1) % n]));
+    }
+    const sMean = mean(sides);
+    const sStd  = std(sides, sMean);
+    const sideDev = sMean > 0 ? sStd / sMean : 1;
+    const sideScore = clamp01(1 - sideDev * 1.5);
+
+    const expectedAngle = (n - 2) * Math.PI / n;
+    const angles = [];
+    for (let i = 0; i < n; i++) {
+      const prev = vertices[(i - 1 + n) % n];
+      const cur  = vertices[i];
+      const next = vertices[(i + 1) % n];
+      angles.push(interiorAngle(prev, cur, next));
+    }
+    const angleDev = mean(angles.map(a => Math.abs(a - expectedAngle)));
+    const angleScore = clamp01(1 - (angleDev / (Math.PI / 4)));
+
+    score = clamp01(sideScore * 0.55 + angleScore * 0.45 - closurePenalty);
+    meta  = `sides &plusmn;${(sideDev * 100).toFixed(1)}% &middot; angles &plusmn;${(angleDev * 180 / Math.PI).toFixed(1)}&deg;`
+          + (closurePenalty > 0 ? ` &middot; not fully closed` : "");
+  }
+
+  return {
+    kind,
+    n,
+    name: kind === "circle" ? "Circle" : polygonName(n),
+    score: Math.round(score * 100),
+    meta,
+    resampled: sm,
+    vertices,
+    centroid: c,
+    rMean
+  };
+}
+
+function resample(pts, N) {
+  // Build segment lengths around the closed loop.
+  const M = pts.length;
+  const segs = new Array(M);
+  let total = 0;
+  for (let i = 0; i < M; i++) {
+    const a = pts[i], b = pts[(i + 1) % M];
+    const d = dist(a, b);
+    segs[i] = d;
+    total += d;
+  }
+  if (total === 0) {
+    const out = []; for (let i = 0; i < N; i++) out.push({ x: pts[0].x, y: pts[0].y });
+    return out;
+  }
+  const step = total / N;
+  const out = [{ x: pts[0].x, y: pts[0].y }];
+  let segIdx = 0;
+  let acc = 0;          // total length traveled
+  let segStart = 0;     // length at start of current segment
+  for (let i = 1; i < N; i++) {
+    const target = i * step;
+    while (segStart + segs[segIdx] < target && segIdx < M - 1) {
+      segStart += segs[segIdx];
+      segIdx++;
+    }
+    const a = pts[segIdx];
+    const b = pts[(segIdx + 1) % M];
+    const segLen = segs[segIdx];
+    const t = segLen > 0 ? (target - segStart) / segLen : 0;
+    out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  }
+  return out;
+}
+
+function smooth(pts, sigma) {
+  const N = pts.length;
+  const radius = Math.max(1, Math.round(sigma * 2.5));
+  const w = new Array(2 * radius + 1);
+  let wsum = 0;
+  for (let k = -radius; k <= radius; k++) {
+    const v = Math.exp(-(k * k) / (2 * sigma * sigma));
+    w[k + radius] = v;
+    wsum += v;
+  }
+  for (let i = 0; i < w.length; i++) w[i] /= wsum;
+  const out = new Array(N);
+  for (let i = 0; i < N; i++) {
+    let x = 0, y = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const j = (i + k + N) % N;
+      const wt = w[k + radius];
+      x += pts[j].x * wt;
+      y += pts[j].y * wt;
+    }
+    out[i] = { x, y };
+  }
+  return out;
+}
+
+// For each point, compute the deviation from straightness using the
+// angle formed with neighbors at offset k. Straight ~ 0; sharp corner ~ pi.
+function cornerStrength(pts, k) {
+  const N = pts.length;
+  const out = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const a = pts[(i - k + N) % N];
+    const b = pts[i];
+    const c = pts[(i + k) % N];
+    const v1x = a.x - b.x, v1y = a.y - b.y;
+    const v2x = c.x - b.x, v2y = c.y - b.y;
+    const m1 = Math.hypot(v1x, v1y);
+    const m2 = Math.hypot(v2x, v2y);
+    if (m1 < 1e-6 || m2 < 1e-6) { out[i] = 0; continue; }
+    const cos = (v1x * v2x + v1y * v2y) / (m1 * m2);
+    out[i] = Math.PI - Math.acos(clamp(cos, -1, 1));
+  }
+  return out;
+}
+
+function findPeaks(arr, suppressRadius) {
+  const N = arr.length;
+  const m = mean(arr);
+  const s = std(arr, m);
+  // Threshold: above noise, plus a hard floor so circles don't sprout corners.
+  const thr = Math.max(0.42, m + 1.4 * s);
+  const win = Math.max(2, Math.floor(suppressRadius * 0.6));
+  const cand = [];
+  for (let i = 0; i < N; i++) {
+    if (arr[i] < thr) continue;
+    let isMax = true;
+    for (let k = -win; k <= win; k++) {
+      if (k === 0) continue;
+      const j = (i + k + N) % N;
+      if (arr[j] > arr[i]) { isMax = false; break; }
+      if (arr[j] === arr[i] && j < i) { isMax = false; break; }
+    }
+    if (isMax) cand.push({ i, v: arr[i] });
+  }
+  cand.sort((a, b) => b.v - a.v);
+  const kept = [];
+  for (let c = 0; c < cand.length; c++) {
+    const ci = cand[c].i;
+    let ok = true;
+    for (let p = 0; p < kept.length; p++) {
+      const ki = kept[p].i;
+      const d = Math.min(Math.abs(ci - ki), N - Math.abs(ci - ki));
+      if (d < suppressRadius) { ok = false; break; }
+    }
+    if (ok) kept.push(cand[c]);
+  }
+  kept.sort((a, b) => a.i - b.i);
+  return kept.map(c => c.i);
+}
+
+function interiorAngle(a, b, c) {
+  const v1x = a.x - b.x, v1y = a.y - b.y;
+  const v2x = c.x - b.x, v2y = c.y - b.y;
+  const m1 = Math.hypot(v1x, v1y);
+  const m2 = Math.hypot(v2x, v2y);
+  if (m1 < 1e-6 || m2 < 1e-6) return Math.PI;
+  const cos = (v1x * v2x + v1y * v2y) / (m1 * m2);
+  return Math.acos(clamp(cos, -1, 1));
+}
+
+function perimeter(pts) {
+  let s = 0;
+  for (let i = 0; i < pts.length; i++) s += dist(pts[i], pts[(i + 1) % pts.length]);
+  return s;
+}
+
+function polygonName(n) {
+  const names = {
+    3: "Triangle", 4: "Quadrilateral", 5: "Pentagon", 6: "Hexagon",
+    7: "Heptagon", 8: "Octagon", 9: "Nonagon", 10: "Decagon",
+    11: "Hendecagon", 12: "Dodecagon", 13: "Tridecagon",
+    14: "Tetradecagon", 15: "Pentadecagon", 16: "Hexadecagon",
+    17: "Heptadecagon", 18: "Octadecagon"
+  };
+  return names[n] || `${n}-gon`;
+}
+
+// -- rendering -----------------------------------------------------
+
+function renderResult(r) {
+  ctx.clearRect(0, 0, W, H);
+
+  // User's smoothed path
+  ctx.strokeStyle = cssVar("--accent", "#8b0000");
+  strokeStyle();
+  ctx.beginPath();
+  ctx.moveTo(r.resampled[0].x, r.resampled[0].y);
+  for (let i = 1; i < r.resampled.length; i++) {
+    ctx.lineTo(r.resampled[i].x, r.resampled[i].y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Ideal shape overlay
+  ctx.strokeStyle = cssVar("--ideal", "#2a7a2a");
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  if (r.kind === "circle") {
+    ctx.arc(r.centroid.x, r.centroid.y, r.rMean, 0, Math.PI * 2);
+  } else {
+    const vc = centroid(r.vertices);
+    const vr = mean(r.vertices.map(v => dist(v, vc)));
+    const v0 = r.vertices[0];
+    const theta0 = Math.atan2(v0.y - vc.y, v0.x - vc.x);
+    for (let i = 0; i < r.n; i++) {
+      const t = theta0 + i * 2 * Math.PI / r.n;
+      const x = vc.x + vr * Math.cos(t);
+      const y = vc.y + vr * Math.sin(t);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Detected vertices
+  if (r.vertices.length) {
+    ctx.fillStyle = cssVar("--vertex", "#a06020");
+    for (let i = 0; i < r.vertices.length; i++) {
+      const v = r.vertices[i];
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function showVerdict(r) {
+  shapeEl.textContent = r.name || "—";
+  if (r.score === null || r.score === undefined) {
+    scoreEl.innerHTML = "&mdash;";
+  } else {
+    scoreEl.innerHTML = r.score + '<span class="pct">%</span>';
+  }
+  metaEl.innerHTML = r.meta || "";
+  verdictEl.classList.add("show");
+}
+
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+resize();
+</script>
+
+</body>
+</html>
