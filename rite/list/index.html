@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>list &mdash; semantic analysis over a Bluesky list</title>
+<meta name="description" content="Paste a Bluesky list URL. See what binds the group as a writing community.">
+<meta property="og:title" content="list">
+<meta property="og:description" content="Semantic analysis over a Bluesky list.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/list/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 1100px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.stage { display: none; }
+.stage.active { display: block; }
+
+form#list-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+input[type="text"] {
+  flex: 1; min-width: 280px; padding: 0.7rem 0.9rem;
+  font-family: var(--serif); font-size: 1rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+}
+input:focus { border-color: var(--accent); }
+button { font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s; }
+button:hover { opacity: 0.85; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar { height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.7rem; }
+.progress-bar > .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+
+.list-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem;
+  font-family: var(--mono); font-size: 0.75rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.list-meta b { color: var(--accent); }
+
+.themes {
+  background: var(--card-bg);
+  border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.4rem;
+}
+.themes-title {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+.themes-cloud {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem;
+  align-items: center; line-height: 1.4;
+}
+.theme-word {
+  display: inline-block; padding: 0.05em 0.35em;
+  border-radius: 3px;
+  font-family: var(--serif);
+  color: var(--accent);
+  background: var(--accent-faint);
+}
+.theme-word .count {
+  font-family: var(--mono); font-size: 0.7em; color: var(--muted);
+  margin-left: 0.3em;
+}
+.themes-empty {
+  font-style: italic; color: var(--muted); font-size: 0.9rem;
+}
+
+.members-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.7rem;
+}
+.member-card {
+  background: var(--card-bg);
+  border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  position: relative;
+}
+.member-card.unindexed { opacity: 0.85; }
+.member-head {
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.member-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--rule); flex-shrink: 0; object-fit: cover;
+}
+.member-id { flex: 1; min-width: 0; }
+.member-name {
+  font-size: 0.95rem; font-weight: 600; line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.member-handle {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.member-meta {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+}
+.member-meta .pill {
+  padding: 0.1em 0.4em; border-radius: 3px; background: var(--accent-faint); color: var(--accent);
+}
+.member-meta .pill.muted { background: rgba(120,120,120,0.12); color: var(--muted); }
+.member-clusters {
+  font-size: 0.83rem; line-height: 1.45; color: var(--text);
+  border-top: 1px dashed var(--rule); padding-top: 0.5rem;
+}
+.member-cluster-line { padding: 0.05em 0; }
+.member-cluster-line .swatch {
+  display: inline-block; width: 0.7rem; height: 0.7rem;
+  border-radius: 2px; margin-right: 0.35rem; vertical-align: -1px;
+}
+.member-actions {
+  display: flex; gap: 0.4rem;
+  border-top: 1px dashed var(--rule); padding-top: 0.5rem;
+  font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.member-actions a {
+  color: var(--accent); text-decoration: none;
+  padding: 0.25rem 0.55rem; border: 1px solid var(--accent);
+  border-radius: 3px;
+}
+.member-actions a:hover { background: var(--accent-faint); }
+.member-actions a.muted { color: var(--muted); border-color: var(--rule); }
+
+footer {
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+
+/* Categorical palette for member-card cluster swatches — matches ask. */
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>list<span class="dot">.</span></h1>
+  <p class="subtitle">Semantic analysis over a Bluesky list. Paste a list URL; see what binds the group as a writing community.</p>
+</header>
+
+<main>
+  <section id="stage-input" class="stage active">
+    <form id="list-form" autocomplete="off">
+      <input id="list-url" type="text" placeholder="https://bsky.app/profile/&hellip;/lists/&hellip;" autofocus autocomplete="off" spellcheck="false">
+      <button type="submit">Load list</button>
+    </form>
+    <p class="hint" style="text-align:left">
+      Resolves the list to its members, checks which are already indexed in <a href="/ask/" style="color: var(--accent);">/ask/</a>, and aggregates each indexed member's distinctive themes (their cluster labels — words that pop in their writing vs. average English) into a list-level vocabulary cloud. Members who aren't indexed yet show a link to open them in ask.
+      <br><br>
+      Server-side ingestion is on the roadmap; today, unindexed members need a manual visit to ask first. The pattern works on whoever's ready.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <section id="stage-loading" class="stage">
+    <div class="loading"><div class="spinner"></div><p id="progress-text">Resolving list…</p></div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <section id="stage-list" class="stage">
+    <div class="list-meta" id="list-meta"></div>
+    <div class="themes">
+      <div class="themes-title">themes that bind the list <span style="text-transform:none; font-style:italic;">(words in cluster labels of at least 2 indexed members)</span></div>
+      <div class="themes-cloud" id="themes-cloud"></div>
+    </div>
+    <div class="members-grid" id="members-grid"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/ask/">/ask/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const PUBLIC_API = 'https://api.bsky.app';
+const PLC_DIR    = 'https://plc.directory';
+const MAX_MEMBERS = 100;
+const FETCH_CONCURRENCY = 8;
+
+// Cluster colors mirror ask so a member's swatches feel consistent if the
+// viewer goes from list → ask on that profile.
+const CLUSTER_COLORS = [
+  'hsl(15, 60%, 50%)',  'hsl(45, 60%, 45%)',  'hsl(85, 50%, 40%)',  'hsl(165, 50%, 38%)',
+  'hsl(205, 55%, 48%)', 'hsl(255, 50%, 55%)', 'hsl(295, 50%, 50%)', 'hsl(340, 55%, 48%)',
+];
+
+const state = {
+  listUri: null,
+  listMeta: null,
+  members: [],            // [{did, handle, displayName, avatar, indexed, threadCount, clusters: [...]}]
+  themes: [],             // [{ word, count }] — words in cluster labels across ≥ 2 members
+};
+
+function showStage(name) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name)); }
+function setProgress(text, frac) {
+  $('progress-text').textContent = text;
+  if (typeof frac === 'number') $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%';
+}
+function showError(msg) { $('input-error').textContent = msg; $('input-error').style.display = 'block'; }
+function clearError() { $('input-error').style.display = 'none'; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+// ─── List URL parsing ─────────────────────────────────────────────────────
+function parseListUrl(url) {
+  const u = (url || '').trim();
+  if (!u) return null;
+  // at:// form already
+  const atMatch = u.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.graph\.list\/([^/?#]+)/);
+  if (atMatch) return { did: atMatch[1], handle: null, rkey: atMatch[2] };
+  // bsky.app form: https://bsky.app/profile/<actor>/lists/<rkey>
+  const webMatch = u.match(/\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+  if (webMatch) {
+    const actor = webMatch[1];
+    if (actor.startsWith('did:')) return { did: actor, handle: null, rkey: webMatch[2] };
+    return { did: null, handle: actor, rkey: webMatch[2] };
+  }
+  return null;
+}
+
+async function resolveHandle(handle) {
+  const res = await fetch(`${PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!res.ok) throw new Error(`Could not resolve @${handle}`);
+  const { did } = await res.json();
+  return did;
+}
+
+async function fetchListMembers(atUri) {
+  const members = [];
+  let listMeta = null;
+  let cursor;
+  while (true) {
+    const params = new URLSearchParams({ list: atUri, limit: '100' });
+    if (cursor) params.set('cursor', cursor);
+    const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.graph.getList?${params}`);
+    if (!res.ok) throw new Error(`getList failed: ${res.status}`);
+    const data = await res.json();
+    if (!listMeta && data.list) listMeta = data.list;
+    for (const item of (data.items || [])) {
+      if (!item.subject || !item.subject.did) continue;
+      members.push({
+        did: item.subject.did,
+        handle: item.subject.handle || item.subject.did,
+        displayName: item.subject.displayName || item.subject.handle || '',
+        avatar: item.subject.avatar || null,
+      });
+      if (members.length >= MAX_MEMBERS) break;
+    }
+    if (members.length >= MAX_MEMBERS) break;
+    cursor = data.cursor;
+    if (!cursor) break;
+  }
+  return { listMeta, members };
+}
+
+// ─── ask data per member (parallel, bounded) ─────────────────────────────
+async function fetchCheck(did) {
+  try {
+    const res = await fetch(`/api/ask/check?did=${encodeURIComponent(did)}`);
+    if (!res.ok) return { indexed: false };
+    return await res.json();
+  } catch { return { indexed: false }; }
+}
+
+async function fetchMap(did) {
+  try {
+    const res = await fetch(`/api/ask/map?did=${encodeURIComponent(did)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+async function inParallel(items, worker, concurrency, onTick) {
+  const results = new Array(items.length);
+  let next = 0, done = 0;
+  async function lane() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      try { results[i] = await worker(items[i], i); }
+      catch (e) { results[i] = null; }
+      done++;
+      if (onTick) onTick(done, items.length);
+    }
+  }
+  const lanes = Array.from({ length: Math.min(concurrency, items.length) }, () => lane());
+  await Promise.all(lanes);
+  return results;
+}
+
+// ─── theme aggregation ───────────────────────────────────────────────────
+// For each indexed member, we have an array of cluster objects each carrying
+// a `words` list (top distinctive vocabulary, baseline-aware, computed at
+// index time in the worker). Aggregate by counting how many distinct members
+// each unique word appears in. A word shared across many members = a real
+// list-level theme. Words appearing in just one member are personal, not
+// communal.
+function aggregateThemes(members) {
+  const wordToMembers = new Map();
+  for (const m of members) {
+    if (!m.indexed || !m.clusters) continue;
+    const memberWords = new Set();
+    for (const c of m.clusters) {
+      for (const w of (c.words || [])) {
+        if (w.length < 4) continue;
+        memberWords.add(w);
+      }
+    }
+    for (const w of memberWords) {
+      if (!wordToMembers.has(w)) wordToMembers.set(w, new Set());
+      wordToMembers.get(w).add(m.did);
+    }
+  }
+  const themes = [];
+  for (const [word, memberSet] of wordToMembers) {
+    if (memberSet.size < 2) continue;          // need ≥ 2 members to count as shared
+    themes.push({ word, count: memberSet.size });
+  }
+  themes.sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
+  return themes;
+}
+
+// ─── render ──────────────────────────────────────────────────────────────
+function renderListMeta() {
+  const indexed = state.members.filter(m => m.indexed).length;
+  const total = state.members.length;
+  const listName = state.listMeta?.name ? escapeHtml(state.listMeta.name) : 'list';
+  const ownerHandle = state.listMeta?.creator?.handle ? `@${escapeHtml(state.listMeta.creator.handle)}` : '';
+  $('list-meta').innerHTML = `
+    <span><b>${listName}</b>${ownerHandle ? ' · by ' + ownerHandle : ''}</span>
+    <span>${total} members · <b>${indexed}</b> indexed · ${total - indexed} not yet</span>
+  `;
+}
+
+function renderThemes() {
+  const el = $('themes-cloud');
+  if (!state.themes.length) {
+    el.innerHTML = `<div class="themes-empty">No themes shared across ≥ 2 indexed members yet. Try opening more members in ask.</div>`;
+    return;
+  }
+  // Font size scales by sqrt of the share count.
+  const maxCount = state.themes[0].count;
+  el.innerHTML = state.themes.slice(0, 80).map(t => {
+    const fs = (0.9 + 1.4 * Math.sqrt(t.count / maxCount)).toFixed(2);
+    return `<span class="theme-word" style="font-size: ${fs}rem;" title="${t.count} members">${escapeHtml(t.word)}<span class="count">${t.count}</span></span>`;
+  }).join('');
+}
+
+function renderMembers() {
+  const cards = state.members.map(m => {
+    const indexed = m.indexed;
+    const cls = indexed ? '' : ' unindexed';
+    const avatar = m.avatar ? `<img class="member-avatar" src="${escapeHtml(m.avatar)}" alt="" referrerpolicy="no-referrer">` : `<div class="member-avatar"></div>`;
+    const clusters = (indexed && m.clusters && m.clusters.length)
+      ? m.clusters.slice(0, 6).map((c, i) => `<div class="member-cluster-line"><span class="swatch" style="background: ${CLUSTER_COLORS[c.id % CLUSTER_COLORS.length]};"></span>${escapeHtml((c.words || []).slice(0, 4).join(' · ')) || 'cluster ' + (c.id + 1)}</div>`).join('')
+      : '';
+    const meta = indexed
+      ? `<span class="pill">${m.threadCount || 0} threads</span>${m.indexedAt ? `<span class="muted">${new Date(m.indexedAt * 1000).toISOString().slice(0,10)}</span>` : ''}`
+      : `<span class="pill muted">not indexed</span>`;
+    const actions = indexed
+      ? `<a href="/ask/?handle=${encodeURIComponent(m.handle)}" target="_blank">open in ask &rarr;</a><a class="muted" href="/atlas/?handle=${encodeURIComponent(m.handle)}" target="_blank">atlas</a>`
+      : `<a href="/ask/?handle=${encodeURIComponent(m.handle)}" target="_blank">index in ask</a>`;
+    return `
+      <div class="member-card${cls}">
+        <div class="member-head">
+          ${avatar}
+          <div class="member-id">
+            <div class="member-name">${escapeHtml(m.displayName || m.handle)}</div>
+            <div class="member-handle">@${escapeHtml(m.handle)}</div>
+          </div>
+        </div>
+        <div class="member-meta">${meta}</div>
+        ${clusters ? `<div class="member-clusters">${clusters}</div>` : ''}
+        <div class="member-actions">${actions}</div>
+      </div>
+    `;
+  }).join('');
+  $('members-grid').innerHTML = cards;
+}
+
+// ─── main flow ───────────────────────────────────────────────────────────
+async function load(url) {
+  clearError();
+  const parsed = parseListUrl(url);
+  if (!parsed) {
+    showError('Could not parse list URL. Expected bsky.app/profile/&lt;handle&gt;/lists/&lt;rkey&gt; or at://did/app.bsky.graph.list/&lt;rkey&gt;.');
+    return;
+  }
+  showStage('loading');
+  setProgress('Resolving list owner…', 0);
+
+  try {
+    let did = parsed.did;
+    if (!did && parsed.handle) did = await resolveHandle(parsed.handle);
+    const atUri = `at://${did}/app.bsky.graph.list/${parsed.rkey}`;
+    state.listUri = atUri;
+
+    setProgress('Fetching list members…', 0.1);
+    const { listMeta, members } = await fetchListMembers(atUri);
+    state.listMeta = listMeta;
+    if (!members.length) { showStage('input'); showError('List is empty or could not be loaded.'); return; }
+    state.members = members;
+    setProgress(`${members.length} members loaded. Checking ask index…`, 0.25);
+
+    // 1) Check index status for each member (parallel).
+    let checked = 0;
+    const checks = await inParallel(members, async (m) => fetchCheck(m.did), FETCH_CONCURRENCY, (done, total) => {
+      checked = done;
+      setProgress(`Checking ask index for ${done}/${total} members…`, 0.25 + 0.35 * (done / total));
+    });
+    for (let i = 0; i < members.length; i++) {
+      const c = checks[i] || {};
+      members[i].indexed = !!c.indexed;
+      members[i].threadCount = c.thread_count || 0;
+      members[i].indexedAt = c.indexed_at || null;
+    }
+
+    // 2) For indexed members, pull /api/ask/map to get cluster labels.
+    const indexedMembers = members.filter(m => m.indexed);
+    setProgress(`Fetching cluster data for ${indexedMembers.length} indexed members…`, 0.6);
+    let mapsDone = 0;
+    await inParallel(indexedMembers, async (m) => {
+      const data = await fetchMap(m.did);
+      if (data && Array.isArray(data.clusters)) m.clusters = data.clusters;
+      mapsDone++;
+      setProgress(`Fetching cluster data: ${mapsDone}/${indexedMembers.length}…`, 0.6 + 0.35 * (mapsDone / Math.max(1, indexedMembers.length)));
+    }, FETCH_CONCURRENCY);
+
+    // 3) Aggregate themes.
+    setProgress('Aggregating themes…', 1);
+    state.themes = aggregateThemes(members);
+
+    showStage('list');
+    renderListMeta();
+    renderThemes();
+    renderMembers();
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+// ─── wire up ─────────────────────────────────────────────────────────────
+$('list-form').addEventListener('submit', (e) => { e.preventDefault(); load($('list-url').value); });
+
+// Allow ?url= or ?list= to deeplink into a list.
+const urlParam = new URLSearchParams(location.search).get('list') || new URLSearchParams(location.search).get('url');
+if (urlParam) { $('list-url').value = urlParam; load(urlParam); }
+</script>
+</body>
+</html>

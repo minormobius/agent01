@@ -343,7 +343,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <footer>
   <span><a href="/">&larr; rite</a></span>
-  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/redact/">/redact/</a></span>
+  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/list/">/list/</a></span>
   <span><a href="https://mino.mobi">mino.mobi</a></span>
 </footer>
 
@@ -853,6 +853,18 @@ $('map-reset-zoom').addEventListener('click', (e) => {
   e.preventDefault();
   if (state.mapPanZoom) state.mapPanZoom.reset();
 });
+
+// Deeplink: ?handle=alice.bsky.social auto-submits. Used by /list/ to bounce
+// over to ask for un-indexed members in one click.
+{
+  const params = new URLSearchParams(location.search);
+  const h = params.get('handle');
+  if (h) {
+    $('handle').value = h.replace(/^@/, '');
+    // Submit on next tick so the page finishes mounting first.
+    setTimeout(() => $('handle-form').requestSubmit(), 0);
+  }
+}
 </script>
 </body>
 </html>
