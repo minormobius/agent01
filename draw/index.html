@@ -449,7 +449,9 @@ function analyze(pts) {
   const roundness = clamp01(1 - radialDev * 2);
 
   let kind, n, vertices;
-  if (peaks.length === 0 || peaks.length > 18) {
+  // 0, 1, or 2 detected "corners" aren't a polygon — round down to circle.
+  // (1-gons / 2-gons are mostly noise on smooth strokes.)
+  if (peaks.length < 3 || peaks.length > 18) {
     kind = "circle";
     n = 0;
     vertices = [];
@@ -902,34 +904,43 @@ async function withBusyLabel(btn, working, done, fn) {
   }
 }
 
-shareBtn.addEventListener("click", () => {
+// Bluesky's iOS share extension drops the `text` + `url` fields from
+// Web Share — the post ends up with just the image and no caption.
+// To get text + link into the draft we use the bsky.app intent URL
+// (universal link → opens the Bluesky app to compose with prefilled
+// text) and put the image on the clipboard for a one-tap paste.
+shareBtn.addEventListener("click", async () => {
   if (!lastResult || lastResult.score === null || lastResult.score === undefined) return;
-  withBusyLabel(shareBtn, "preparing…", "shared", async () => {
+  const orig = shareBtn.textContent;
+  shareBtn.classList.add("busy");
+  shareBtn.textContent = "preparing…";
+  try {
     const r = lastResult;
     const blob = await renderShareImage(r);
     const filename = `mino-draw-${r.kind === "circle" ? "circle" : r.n + "gon"}-${r.score}.png`;
     const text = `Drew a ${r.name} at ${r.score}% regularity on mino.mobi/draw`;
-    const url  = "https://mino.mobi/draw";
-    const file = new File([blob], filename, { type: "image/png" });
-
-    // Best path: native share sheet w/ image attached. User picks Bluesky.
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], text, url });
-        return true;
-      } catch (e) {
-        if (e.name === "AbortError") return false;
-        // fall through to intent fallback
-      }
-    }
-
-    // Fallback: download the PNG, open the Bluesky compose intent.
-    downloadBlob(blob, filename);
     const intent = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+
+    let imgOnClipboard = false;
+    if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        imgOnClipboard = true;
+      } catch (e) { /* fall through to download */ }
+    }
+    if (!imgOnClipboard) downloadBlob(blob, filename);
+
     window.open(intent, "_blank", "noopener");
-    shareBtn.textContent = "opened bluesky";
-    return true;
-  });
+    shareBtn.textContent = imgOnClipboard ? "paste image in post" : "image saved, attach it";
+  } catch (e) {
+    console.error(e);
+    shareBtn.textContent = "share failed";
+  } finally {
+    setTimeout(() => {
+      shareBtn.textContent = orig;
+      shareBtn.classList.remove("busy");
+    }, 2200);
+  }
 });
 
 saveBtn.addEventListener("click", () => {
