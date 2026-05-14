@@ -57,6 +57,27 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
 .error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
 
+.typeahead-wrap { position: relative; flex: 1; min-width: 240px; }
+.typeahead-wrap #handle { width: 100%; flex: initial; min-width: 0; }
+.typeahead-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10;
+  max-height: 360px; overflow-y: auto; display: none;
+}
+.typeahead-results.show { display: block; }
+.typeahead-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.5rem 0.7rem; cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-faint); }
+.typeahead-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.typeahead-item .at-handle { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
 .spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -202,7 +223,10 @@ footer a { color: var(--muted); text-decoration: underline; }
 <main>
   <section id="stage-input" class="stage active">
     <form id="handle-form" autocomplete="off">
-      <input id="handle" type="text" placeholder="bluesky handle (e.g. minomobi.com)" autofocus autocomplete="off" spellcheck="false">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="bluesky handle (e.g. minomobi.com)" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
       <button type="submit">Build graph</button>
     </form>
     <p class="hint" style="text-align:left">
@@ -222,8 +246,8 @@ footer a { color: var(--muted); text-decoration: underline; }
     <div class="profile-strip" id="profile-strip"></div>
 
     <div class="toolbar">
-      <input id="query" type="text" placeholder="search domain or anchor text&hellip;" style="flex: 1; min-width: 200px;">
-      <label id="rollup-label"><input type="checkbox" id="rollup"> domain rollup</label>
+      <input id="query" type="text" placeholder="search domain, anchor, link card title, or post text&hellip;" style="flex: 1; min-width: 200px;">
+      <label id="rollup-label" class="active"><input type="checkbox" id="rollup" checked> domain rollup</label>
       <button class="ghost" id="restart-btn" type="button">New handle</button>
     </div>
 
@@ -283,7 +307,7 @@ const state = {
   pos: [],            // [{x, y}] parallel to nodes
   pr: [],             // current PageRank (uniform or personalized)
   selectedIdx: null,
-  rollupDomain: false,
+  rollupDomain: true,    // default ON — single-URL noise (poll.mino.mobi/foo/123, /bar/456) crowds out real co-occurrence patterns; the domain view is the more honest read.
   query: '',
   matchSet: new Set(),
   panZoom: null,
@@ -311,10 +335,17 @@ function extractLinksFromPost(post, threadIdx) {
   const out = [];
   const r = post.record;
   if (!r) return out;
+  const text = (r.text || '').trim();
+  const postText = text.length > 280 ? text.slice(0, 280) + '…' : text;
   const facets = r.facets || [];
-  const text = r.text || '';
   const textBytes = facets.length ? new TextEncoder().encode(text) : null;
   const decoder = textBytes ? new TextDecoder() : null;
+
+  // Bluesky stores rich-text annotations in `record.facets`, each with
+  // `index.byteStart/byteEnd` over the UTF-8 encoding of `text` and a list of
+  // `features`. We pick `app.bsky.richtext.facet#link` features and slice
+  // the anchor text by byte range. App.bsky.embed.external posts also
+  // contribute a link with the card's title + description.
   for (const f of facets) {
     for (const feat of (f.features || [])) {
       if (feat.$type !== 'app.bsky.richtext.facet#link') continue;
@@ -326,13 +357,20 @@ function extractLinksFromPost(post, threadIdx) {
         const e = f.index.byteEnd || s;
         try { anchor = decoder.decode(textBytes.slice(s, e)); } catch { anchor = ''; }
       }
-      out.push({ uri, anchor, postUri: post.uri, threadIdx });
+      out.push({ uri, anchor, title: '', description: '', postText, postUri: post.uri, threadIdx });
     }
   }
-  // Also catch external embeds (link cards). They show up as
-  // app.bsky.embed.external with a `uri`.
   if (r.embed?.$type === 'app.bsky.embed.external' && r.embed.external?.uri) {
-    out.push({ uri: r.embed.external.uri, anchor: r.embed.external.title || '', postUri: post.uri, threadIdx });
+    const ext = r.embed.external;
+    out.push({
+      uri: ext.uri,
+      anchor: '',
+      title: ext.title || '',
+      description: ext.description || '',
+      postText,
+      postUri: post.uri,
+      threadIdx,
+    });
   }
   return out;
 }
@@ -387,7 +425,7 @@ function buildGraph(links, { rollupDomain }) {
     ? (l) => domainOf(l.uri)
     : (l) => canonicalize(l.uri);
 
-  const nodeMap = new Map(); // id → { id, uri, domain, anchors:Map, postUris:Set, count }
+  const nodeMap = new Map();
   for (const l of links) {
     const id = idOf(l);
     if (!nodeMap.has(id)) {
@@ -397,8 +435,12 @@ function buildGraph(links, { rollupDomain }) {
         domain: domainOf(l.uri),
         isDomain: rollupDomain,
         anchors: new Map(),
+        titles: new Map(),
+        descriptions: new Set(),
+        postSnippets: new Set(),
         postUris: new Set(),
         count: 0,
+        searchBlob: '',  // pre-lowercased haystack, built once below
       });
     }
     const n = nodeMap.get(id);
@@ -406,6 +448,26 @@ function buildGraph(links, { rollupDomain }) {
     if (l.postUri) n.postUris.add(l.postUri);
     const a = (l.anchor || '').trim();
     if (a) n.anchors.set(a, (n.anchors.get(a) || 0) + 1);
+    const t = (l.title || '').trim();
+    if (t) n.titles.set(t, (n.titles.get(t) || 0) + 1);
+    const d = (l.description || '').trim();
+    if (d) n.descriptions.add(d);
+    const pt = (l.postText || '').trim();
+    if (pt) n.postSnippets.add(pt);
+  }
+  // Build per-node lowercase search haystack: domain + URL + every anchor +
+  // every link-card title + every description + every post snippet. This
+  // covers writers who paste raw URLs (anchor === URL → mostly useless for
+  // search) AND writers who share rich-preview cards (title + description
+  // carry the real signal). When the link is buried in a meaty post, the
+  // snippet catches that too.
+  for (const n of nodeMap.values()) {
+    const parts = [n.id, n.uri, n.domain];
+    for (const a of n.anchors.keys()) parts.push(a);
+    for (const t of n.titles.keys()) parts.push(t);
+    for (const d of n.descriptions) parts.push(d);
+    for (const s of n.postSnippets) parts.push(s);
+    n.searchBlob = parts.join('\n').toLowerCase();
   }
   const nodes = Array.from(nodeMap.values());
   const idIdx = new Map(nodes.map((n, i) => [n.id, i]));
@@ -489,24 +551,35 @@ function pageRank(N, edges, opts = {}) {
 async function fruchtermanReingold(nodes, edges, { width, height, iters, onTick }) {
   const N = nodes.length;
   if (!N) return [];
-  const area = width * height;
+  // Layout in a virtual coordinate space (no hard walls); rescale to fit
+  // the viewport once the cloud has settled. Hard-clamping during
+  // iteration was pinning every node to the boundary on profiles where
+  // repulsion outran attraction, producing the dreaded "red rectangle".
+  const LW = width, LH = height;
+  const area = LW * LH;
   const k = Math.sqrt(area / Math.max(1, N));
-  // Seed positions with a small jitter around center; otherwise high-edge
-  // nodes hover near the random origin and the graph never fully unfurls.
+  const cx = LW / 2, cy = LH / 2;
+
+  // Weak gravity toward center. Replaces the hard-wall clamp: instead of
+  // forbidding nodes from leaving the frame, we just give every node a
+  // pull proportional to its distance from center. Disconnected components
+  // and degree-1 nodes don't fly off into the void; the cloud stays bound
+  // without pinning anyone to a wall.
+  const gravity = 0.03;
+
   const pos = nodes.map((_, i) => {
     const angle = (i / N) * Math.PI * 2;
-    const r = 0.3 * Math.min(width, height);
+    const r = 0.25 * Math.min(LW, LH);
     return {
-      x: width / 2 + r * Math.cos(angle) + (Math.random() - 0.5) * 30,
-      y: height / 2 + r * Math.sin(angle) + (Math.random() - 0.5) * 30,
+      x: cx + r * Math.cos(angle) + (Math.random() - 0.5) * 30,
+      y: cy + r * Math.sin(angle) + (Math.random() - 0.5) * 30,
     };
   });
-  let temp = Math.min(width, height) / 8;
-  const cooling = Math.pow(0.01, 1 / iters); // anneal to 1% of starting temp
+  let temp = Math.min(LW, LH) / 8;
+  const cooling = Math.pow(0.01, 1 / iters);
 
   for (let it = 0; it < iters; it++) {
     const disp = nodes.map(() => ({ x: 0, y: 0 }));
-    // Repulsion (Coulomb-ish)
     for (let i = 0; i < N; i++) {
       for (let j = i + 1; j < N; j++) {
         let dx = pos[i].x - pos[j].x;
@@ -521,7 +594,6 @@ async function fruchtermanReingold(nodes, edges, { width, height, iters, onTick 
         disp[j].x -= fx; disp[j].y -= fy;
       }
     }
-    // Attraction along edges
     for (const [a, b, w] of edges) {
       const dx = pos[a].x - pos[b].x;
       const dy = pos[a].y - pos[b].y;
@@ -532,19 +604,38 @@ async function fruchtermanReingold(nodes, edges, { width, height, iters, onTick 
       disp[a].x -= fx; disp[a].y -= fy;
       disp[b].x += fx; disp[b].y += fy;
     }
-    // Limit by temp + clamp inside frame
+    for (let i = 0; i < N; i++) {
+      disp[i].x -= (pos[i].x - cx) * gravity;
+      disp[i].y -= (pos[i].y - cy) * gravity;
+    }
     for (let i = 0; i < N; i++) {
       const d = Math.sqrt(disp[i].x ** 2 + disp[i].y ** 2) || 0.01;
       pos[i].x += (disp[i].x / d) * Math.min(d, temp);
       pos[i].y += (disp[i].y / d) * Math.min(d, temp);
-      pos[i].x = Math.min(width - 8, Math.max(8, pos[i].x));
-      pos[i].y = Math.min(height - 8, Math.max(8, pos[i].y));
     }
     temp *= cooling;
     if (onTick && (it % 5 === 0 || it === iters - 1)) {
       onTick(it + 1, iters);
       await new Promise(r => setTimeout(r, 0));
     }
+  }
+
+  // Fit-to-viewport: bounding box → scale + center into the SVG frame
+  // with a small inset so labels and large nodes don't clip.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of pos) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  const pad = 50;
+  const rangeX = Math.max(1, maxX - minX);
+  const rangeY = Math.max(1, maxY - minY);
+  const scale = Math.min((LW - pad * 2) / rangeX, (LH - pad * 2) / rangeY);
+  const ox = pad + (LW - pad * 2 - rangeX * scale) / 2 - minX * scale;
+  const oy = pad + (LH - pad * 2 - rangeY * scale) / 2 - minY * scale;
+  for (const p of pos) {
+    p.x = p.x * scale + ox;
+    p.y = p.y * scale + oy;
   }
   return pos;
 }
@@ -697,7 +788,8 @@ function renderDetail() {
   const det = $('detail');
   if (state.selectedIdx == null) { det.style.display = 'none'; return; }
   const n = state.nodes[state.selectedIdx];
-  const anchorList = Array.from(n.anchors.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const anchorList = Array.from(n.anchors.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const titleList = Array.from(n.titles.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const neighborIds = new Set();
   for (const [a, b] of state.edges) {
     if (a === state.selectedIdx) neighborIds.add(b);
@@ -715,7 +807,8 @@ function renderDetail() {
       &middot; ${n.postUris.size} post${n.postUris.size === 1 ? '' : 's'}
       &middot; PR ${(state.pr[state.selectedIdx] || 0).toFixed(4)}
     </div>
-    ${anchorList.length ? `<div class="det-anchors">${anchorList.map(([a, c]) => `<span class="anchor-q">${escapeHtml(a)}${c > 1 ? ` <span class="muted">(×${c})</span>` : ''}</span>`).join('')}</div>` : ''}
+    ${titleList.length ? `<div class="det-anchors"><span class="muted" style="text-transform:uppercase;font-family:var(--mono);font-size:0.65rem;">card title</span>${titleList.map(([t, c]) => `<span class="anchor-q">${escapeHtml(t)}${c > 1 ? ` <span class="muted">(×${c})</span>` : ''}</span>`).join('')}</div>` : ''}
+    ${anchorList.length ? `<div class="det-anchors"><span class="muted" style="text-transform:uppercase;font-family:var(--mono);font-size:0.65rem;">anchor text</span>${anchorList.map(([a, c]) => `<span class="anchor-q">${escapeHtml(a)}${c > 1 ? ` <span class="muted">(×${c})</span>` : ''}</span>`).join('')}</div>` : ''}
     ${neighbors.length ? `<div class="det-neighbors">connects to: ${neighbors.map(({ i, n }) => `<span class="nb" data-idx="${i}">${escapeHtml(labelFor(n))}</span>`).join('')}</div>` : ''}
   `;
   det.querySelectorAll('.nb').forEach(el => {
@@ -740,13 +833,7 @@ function applyQuery(q) {
   if (state.query) {
     const needle = state.query.toLowerCase();
     for (let i = 0; i < state.nodes.length; i++) {
-      const n = state.nodes[i];
-      if (n.id.toLowerCase().includes(needle) || n.domain.toLowerCase().includes(needle) || n.uri.toLowerCase().includes(needle)) {
-        state.matchSet.add(i); continue;
-      }
-      for (const a of n.anchors.keys()) {
-        if (a.toLowerCase().includes(needle)) { state.matchSet.add(i); break; }
-      }
+      if (state.nodes[i].searchBlob.includes(needle)) state.matchSet.add(i);
     }
   }
   if (state.matchSet.size) {
@@ -810,13 +897,14 @@ async function load(handle) {
         xBounds: [-SVG_W, SVG_W * 2],
         yBounds: [-SVG_H, SVG_H * 2],
         onChange: ({ xDomain, yDomain }) => {
-          // Pan-zoom y-domain is bottom-up (chart convention); SVG y is
-          // top-down. The helper flips internally for cursor mapping but
-          // returns chart-space domains, so for a flat SVG canvas we want
-          // viewBox y = yDomain[0] directly. (Chart axes don't apply here.)
+          // pan-zoom is chart-style (y grows up); SVG is screen-style (y
+          // grows down). Drag-down increases yDomain in chart space, which
+          // means we need viewBox y to DECREASE so the content moves with
+          // the finger. Mapping is viewBox y = SVG_H - yDomain[1].
           const w = xDomain[1] - xDomain[0];
           const h = yDomain[1] - yDomain[0];
-          svg.setAttribute('viewBox', `${xDomain[0]} ${yDomain[0]} ${w} ${h}`);
+          const vbY = SVG_H - yDomain[1];
+          svg.setAttribute('viewBox', `${xDomain[0]} ${vbY} ${w} ${h}`);
         },
       });
     } else {
@@ -858,6 +946,67 @@ async function rebuildAndLayout(label) {
   // Apply current query (if any) and render.
   applyQuery(state.query);
 }
+
+// ─── typeahead on handle input ──────────────────────────────────────────
+const PUBLIC_API = 'https://api.bsky.app';
+const typeahead = { results: [], active: -1, timer: null, abort: null };
+
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (typeahead.abort) typeahead.abort.abort();
+  typeahead.abort = new AbortController();
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`,
+      { signal: typeahead.abort.signal }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    typeahead.results = data.actors || [];
+    typeahead.active = -1;
+    renderTypeahead();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error('typeahead', e);
+  }
+}
+function renderTypeahead() {
+  const el = $('typeahead-results'); const h = $('handle');
+  if (!typeahead.results.length) { el.classList.remove('show'); el.innerHTML = ''; h.setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = typeahead.results.map((a, i) => `
+    <div class="typeahead-item${i === typeahead.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === typeahead.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info">
+        <div class="display-name">${escapeHtml(a.displayName || a.handle)}</div>
+        <div class="at-handle">@${escapeHtml(a.handle)}</div>
+      </div>
+    </div>`).join('');
+  el.classList.add('show'); h.setAttribute('aria-expanded', 'true');
+  if (typeahead.active >= 0) { const it = el.children[typeahead.active]; if (it) it.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('typeahead-results').classList.remove('show'); typeahead.results = []; typeahead.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickAndSubmit(h) { $('handle').value = h; hideTypeahead(); $('handle-form').requestSubmit(); }
+
+$('handle').addEventListener('input', () => {
+  clearTimeout(typeahead.timer);
+  const v = $('handle').value;
+  typeahead.timer = setTimeout(() => fetchTypeahead(v), 180);
+});
+$('handle').addEventListener('keydown', (e) => {
+  if (!typeahead.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); typeahead.active = (typeahead.active + 1) % typeahead.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); typeahead.active = (typeahead.active - 1 + typeahead.results.length) % typeahead.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && typeahead.active >= 0) { e.preventDefault(); pickAndSubmit(typeahead.results[typeahead.active].handle); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && typeahead.active >= 0) { e.preventDefault(); $('handle').value = typeahead.results[typeahead.active].handle; hideTypeahead(); }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => {
+  // mousedown (not click) so it fires before the input's blur hides the dropdown.
+  const item = e.target.closest('.typeahead-item'); if (!item) return;
+  e.preventDefault(); pickAndSubmit(item.dataset.handle);
+});
+$('handle').addEventListener('blur', () => { setTimeout(() => hideTypeahead(), 120); });
+$('handle').addEventListener('focus', () => { if ($('handle').value.trim()) fetchTypeahead($('handle').value); });
 
 // ─── wire up ─────────────────────────────────────────────────────────────
 $('handle-form').addEventListener('submit', (e) => { e.preventDefault(); load($('handle').value); });
