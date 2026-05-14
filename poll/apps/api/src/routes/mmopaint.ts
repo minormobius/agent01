@@ -22,12 +22,104 @@ import { getSession } from './auth.js';
 
 const VALID_TOOLS = new Set(['brush', 'eraser', 'fill']);
 
+// Cached per-isolate so we only probe sqlite_master once after a cold start.
+let mmoSchemaReady = false;
+
+// Self-heal: bootstrap the mmo_* tables on first request if the SQL
+// migration didn't land (the deploy-poll workflow masks D1 failures
+// with `|| echo continuing`, so a failed migration goes unnoticed
+// until the worker tries to query the table at runtime).
+async function ensureMmoSchema(env: Env): Promise<void> {
+  if (mmoSchemaReady) return;
+  try {
+    const probe = await env.DB.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='mmo_canvases' LIMIT 1`
+    ).first<{ name: string }>();
+    if (probe && probe.name) {
+      mmoSchemaReady = true;
+      return;
+    }
+    console.log('[mmo] mmo_canvases missing — bootstrapping schema inline');
+    await env.DB.batch([
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_canvases (
+        id TEXT PRIMARY KEY,
+        owner_did TEXT NOT NULL,
+        owner_handle TEXT NOT NULL,
+        name TEXT NOT NULL,
+        width INTEGER NOT NULL DEFAULT 1024,
+        height INTEGER NOT NULL DEFAULT 1024,
+        public_contribute INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        head_seq INTEGER NOT NULL DEFAULT 0,
+        head_hash TEXT,
+        stroke_count INTEGER NOT NULL DEFAULT 0,
+        contributor_count INTEGER NOT NULL DEFAULT 0,
+        record_uri TEXT,
+        record_cid TEXT
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_contributors (
+        canvas_id TEXT NOT NULL,
+        did TEXT NOT NULL,
+        handle TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        added_by_did TEXT NOT NULL,
+        PRIMARY KEY (canvas_id, did)
+      )`),
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_strokes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        canvas_id TEXT NOT NULL,
+        seq INTEGER NOT NULL,
+        author_did TEXT NOT NULL,
+        author_handle TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        color TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        points TEXT NOT NULL,
+        prev_hash TEXT,
+        this_hash TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        record_uri TEXT,
+        record_cid TEXT
+      )`),
+      env.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_seq
+        ON mmo_strokes(canvas_id, seq)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_created
+        ON mmo_strokes(canvas_id, created_at DESC)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_author
+        ON mmo_strokes(author_did, created_at DESC)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_owner
+        ON mmo_canvases(owner_did)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_updated
+        ON mmo_canvases(updated_at DESC)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_contributors_did
+        ON mmo_contributors(did)`),
+    ]);
+    const now = Date.now();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO mmo_canvases
+         (id, owner_did, owner_handle, name, width, height,
+          public_contribute, created_at, updated_at)
+       VALUES ('global', 'did:plc:service', 'minomobi.com',
+               'Global Canvas', 1024, 1024, 1, ?, ?)`
+    ).bind(now, now).run();
+    mmoSchemaReady = true;
+    console.log('[mmo] schema bootstrapped + seed canvas inserted');
+  } catch (e: any) {
+    console.error('[mmo] ensureMmoSchema failed:', e?.message || e);
+    // Don't cache the failure — next request can retry.
+  }
+}
+
 export async function handleMmoRoutes(
   request: Request,
   env: Env,
   url: URL
 ): Promise<Response | null> {
   if (!url.pathname.startsWith('/api/mmo/')) return null;
+
+  // Self-heal on first hit. Cheap once the cache is warm.
+  await ensureMmoSchema(env);
 
   if (url.pathname === '/api/mmo/canvases' && request.method === 'GET') {
     return listCanvases(env);
