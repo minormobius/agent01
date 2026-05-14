@@ -197,20 +197,14 @@ async function upgradeWebSocket(request: Request, env: Env, url: URL, canvasId: 
   if (request.headers.get('Upgrade') !== 'websocket') {
     return new Response('expected websocket', { status: 426 });
   }
-  // Session via query param — Bluesky-OAuth session id, same one the
-  // /draw leaderboard uses. (Cookie auth is scoped to poll.mino.mobi
-  // and won't be sent on a cross-origin WS handshake from mino.mobi.)
-  const sessionId = url.searchParams.get('session');
-  if (!sessionId) return new Response('missing session', { status: 401 });
-
-  const session = await env.DB.prepare(
-    `SELECT session_id, did, handle FROM sessions
-      WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
-  ).bind(sessionId).first<any>();
-  if (!session) return new Response('invalid session', { status: 401 });
-
-  // Confirm the canvas exists before routing to the DO (cheaper than
-  // spinning up the DO just to 404).
+  // Light pre-checks so we don't spin up a DO for obviously-bad requests.
+  // The DO does the full session/canvas resolution — we forward the
+  // *original* Request unchanged because constructing a new Request with
+  // a `headers` init silently strips the forbidden Upgrade / Connection
+  // headers, which then breaks the WS handshake inside the DO.
+  if (!url.searchParams.get('session')) {
+    return new Response('missing session', { status: 401 });
+  }
   const canvas = await env.DB.prepare(
     `SELECT id FROM mmo_canvases WHERE id = ?`
   ).bind(canvasId).first();
@@ -218,17 +212,7 @@ async function upgradeWebSocket(request: Request, env: Env, url: URL, canvasId: 
 
   const id  = env.MMO_CANVAS.idFromName(canvasId);
   const obj = env.MMO_CANVAS.get(id);
-
-  // Forward to the DO with the session context in headers it can read.
-  const forwarded = new Request(request, {
-    headers: {
-      ...Object.fromEntries(request.headers),
-      'X-Session-Did':    session.did,
-      'X-Session-Handle': session.handle,
-      'X-Canvas-Id':      canvasId,
-    },
-  });
-  return obj.fetch(forwarded);
+  return obj.fetch(request);
 }
 
 // ---- utils ------------------------------------------------------------

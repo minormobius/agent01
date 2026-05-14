@@ -48,33 +48,39 @@ export class MmoCanvas {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const upgrade = request.headers.get('Upgrade');
-    if (upgrade !== 'websocket') {
+    if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('expected WebSocket', { status: 426 });
     }
 
-    const canvasId = request.headers.get('X-Canvas-Id') || '';
-    const did      = request.headers.get('X-Session-Did') || '';
-    const handle   = request.headers.get('X-Session-Handle') || '';
-    if (!canvasId || !did) {
-      return new Response('missing session/canvas headers', { status: 400 });
-    }
-    this.canvasId = canvasId;
+    // Canvas id is the path segment between /canvases/ and /ws.
+    const m = url.pathname.match(/\/api\/mmo\/canvases\/([^/]+)\/ws$/);
+    const canvasId = m ? decodeURIComponent(m[1]) : '';
+    if (!canvasId) return new Response('missing canvas id', { status: 400 });
 
+    // Session lives in the query string — the route is cross-origin so
+    // we can't rely on cookies, and we forward the original Request
+    // unchanged (a new Request would strip Upgrade/Connection headers).
+    const sessionId = url.searchParams.get('session');
+    if (!sessionId) return new Response('missing session', { status: 401 });
+
+    const session = await this.env.DB.prepare(
+      `SELECT did, handle FROM sessions
+        WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
+    ).bind(sessionId).first<{ did: string; handle: string }>();
+    if (!session) return new Response('invalid session', { status: 401 });
+
+    this.canvasId = canvasId;
     await this.loadCanvas();
     if (!this.canvasMeta) {
       return new Response('canvas not found', { status: 404 });
     }
 
-    // Authorization check: owner OR public_contribute OR whitelist entry.
-    const allowed = await this.isContributorAllowed(did);
-    if (!allowed) {
-      return new Response('not whitelisted', { status: 403 });
-    }
+    const allowed = await this.isContributorAllowed(session.did);
+    if (!allowed) return new Response('not whitelisted', { status: 403 });
 
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    this.acceptSocket(server, did, handle, canvasId);
+    this.acceptSocket(server, session.did, session.handle, canvasId);
 
     return new Response(null, { status: 101, webSocket: client });
   }
