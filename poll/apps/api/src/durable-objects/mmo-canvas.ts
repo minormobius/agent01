@@ -13,9 +13,10 @@
 
 import type { Env } from '../index.js';
 
-// Per-DID rate limit. Keeps a single user from flooding the canvas.
-const STROKE_BURST_LIMIT = 24;       // max strokes in a 4s sliding window
-const STROKE_BURST_WINDOW_MS = 4000;
+// Per-DID rate limit. Generous enough to let the client stream live
+// sub-stroke chunks every ~200ms during a drag without throttling.
+const STROKE_BURST_LIMIT = 100;
+const STROKE_BURST_WINDOW_MS = 8000;
 const MAX_POINTS_PER_STROKE = 600;   // hard cap on stroke length
 
 const VALID_TOOLS = new Set(["brush", "eraser", "fill"]);

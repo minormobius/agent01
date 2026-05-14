@@ -343,13 +343,120 @@ window._mmo = {
 
   $("signin-btn").addEventListener("click", () => showSigninPrompt(true));
   $("login-go").addEventListener("click", startOAuth);
-  $("handle-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); startOAuth(); }
-  });
   // Tap outside the card to dismiss.
   $("signin-prompt").addEventListener("click", (e) => {
     if (e.target.id === "signin-prompt") showSigninPrompt(false);
   });
+
+  // ---- handle typeahead (public Bluesky searchActorsTypeahead) ------
+
+  let taItems = [];
+  let taActive = -1;
+  let taAbort  = null;
+  let taTimer  = null;
+
+  const handleInput = $("handle-input");
+  const typeaheadEl = $("typeahead");
+
+  function showTypeahead(items) {
+    taItems  = items;
+    taActive = -1;
+    if (!items.length) { hideTypeahead(); return; }
+    typeaheadEl.innerHTML = items.map((a, i) => {
+      const avatar = a.avatar ? `style="background-image:url('${escapeAttr(a.avatar)}')"` : "";
+      const name   = a.displayName ? `<span class="ta-name">${escapeHtml(a.displayName)}</span>` : "";
+      return `<div class="ta-item" data-i="${i}" data-handle="${escapeAttr(a.handle)}" role="option">` +
+               `<div class="ta-avatar" ${avatar}></div>` +
+               `<span class="ta-handle">@${escapeHtml(a.handle)}</span>${name}` +
+             `</div>`;
+    }).join("");
+    typeaheadEl.classList.add("show");
+    typeaheadEl.querySelectorAll(".ta-item").forEach(it => {
+      // Use mousedown (fires before blur) so clicking doesn't dismiss the dropdown.
+      it.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        handleInput.value = it.dataset.handle;
+        hideTypeahead();
+        handleInput.focus();
+      });
+    });
+  }
+  function hideTypeahead() {
+    typeaheadEl.classList.remove("show");
+    typeaheadEl.innerHTML = "";
+    taItems = [];
+    taActive = -1;
+  }
+  function setActiveTa(i) {
+    taActive = i;
+    typeaheadEl.querySelectorAll(".ta-item").forEach((el, idx) => {
+      el.classList.toggle("active", idx === i);
+    });
+  }
+
+  async function runTypeahead(term) {
+    if (taAbort) try { taAbort.abort(); } catch {}
+    if (!term || term.length < 1) { hideTypeahead(); return; }
+    taAbort = new AbortController();
+    const url = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead");
+    url.searchParams.set("q", term);
+    url.searchParams.set("limit", "8");
+    try {
+      const r = await fetch(url.toString(), { signal: taAbort.signal });
+      if (!r.ok) { hideTypeahead(); return; }
+      const data = await r.json();
+      showTypeahead(data.actors || []);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      hideTypeahead();
+    }
+  }
+
+  handleInput.addEventListener("input", () => {
+    const term = handleInput.value.trim().replace(/^@/, "");
+    if (taTimer) clearTimeout(taTimer);
+    taTimer = setTimeout(() => runTypeahead(term), 180);
+  });
+  handleInput.addEventListener("focus", () => {
+    const term = handleInput.value.trim().replace(/^@/, "");
+    if (term) runTypeahead(term);
+  });
+  handleInput.addEventListener("blur", () => {
+    // Delay so a mousedown on an item can fire.
+    setTimeout(hideTypeahead, 150);
+  });
+  handleInput.addEventListener("keydown", (e) => {
+    const open = typeaheadEl.classList.contains("show");
+    if (open && taItems.length) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveTa((taActive + 1) % taItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveTa((taActive - 1 + taItems.length) % taItems.length);
+        return;
+      }
+      if (e.key === "Enter" && taActive >= 0) {
+        e.preventDefault();
+        handleInput.value = taItems[taActive].handle;
+        hideTypeahead();
+        return;
+      }
+      if (e.key === "Escape") {
+        hideTypeahead();
+        return;
+      }
+    }
+    if (e.key === "Enter") { e.preventDefault(); startOAuth(); }
+  });
+
+  function escapeAttr(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;",
+    }[c]));
+  }
 
   // ---- WebSocket -----------------------------------------------------
 
@@ -563,27 +670,37 @@ window._mmo = {
 
   // ---- local stroke --------------------------------------------------
 
-  // Local strokes paint optimistically on the bitmap; on pointerup we
-  // send the full point list to the server. When the server broadcasts
-  // it back to us, we re-apply (idempotent — same pixels). Other clients
-  // only see the stroke when the server broadcasts it.
+  // Auto-submit: there is no explicit submit button. Strokes are
+  // streamed live as you drag — every ~200ms we flush the accumulated
+  // segment as its own atomic stroke chunk (its own seq + hash). Other
+  // clients see your drawing appear in real time instead of jumping in
+  // at pointer-up. Chunk N's last point seeds chunk N+1, so the visual
+  // line stays continuous when remote clients replay.
+  const FLUSH_INTERVAL_MS = 200;
+  const FLUSH_MIN_POINTS  = 3;  // need at least 3 pts in pending before flushing
+  const HARD_FLUSH_POINTS = 540; // hard cap before forcing a flush
+
   function beginLocalStroke(bx, by) {
     state.localStroke = {
-      tool:  state.tool,
-      color: state.color,
-      size:  state.size,
-      points: [bx, by],
+      tool:   state.tool,
+      color:  state.color,
+      size:   state.size,
+      pending: [bx, by],    // points to send in next chunk; the last 2 carry over
+      sentChunks: 0,
+      lastFlushMs: 0,
       lastBx: bx, lastBy: by,
     };
-    // Draw the first dot locally.
     applyStrokeToBitmap(state.tool, state.color, state.size, [bx, by]);
     render();
   }
+
   function extendLocalStroke(bx, by) {
     const s = state.localStroke;
-    // Don't push every single sub-pixel move; throttle to >= 2px.
+    if (!s) return;
     if (Math.abs(bx - s.lastBx) < 1 && Math.abs(by - s.lastBy) < 1) return;
-    s.points.push(bx, by);
+    s.pending.push(bx, by);
+
+    // Local incremental draw — single segment between last and new.
     bctx.strokeStyle = (s.tool === "eraser") ? "#ffffff" : s.color;
     bctx.lineWidth = s.size;
     bctx.lineCap = "round"; bctx.lineJoin = "round";
@@ -593,33 +710,49 @@ window._mmo = {
     bctx.stroke();
     s.lastBx = bx; s.lastBy = by;
     render();
+
+    maybeFlushChunk();
   }
+
+  function maybeFlushChunk() {
+    const s = state.localStroke;
+    if (!s) return;
+    const now = Date.now();
+    const havePts = s.pending.length / 2;
+    if (havePts >= HARD_FLUSH_POINTS) { flushChunk(); return; }
+    if (now - s.lastFlushMs < FLUSH_INTERVAL_MS) return;
+    if (havePts < FLUSH_MIN_POINTS) return;
+    flushChunk();
+  }
+
+  function flushChunk() {
+    const s = state.localStroke;
+    if (!s || s.pending.length < 2) return;
+    const chunk = s.pending.slice();
+    sendStroke(s.tool, s.color, s.size, chunk);
+    // Carry over the last point so the next chunk visually starts there.
+    s.pending = chunk.slice(-2);
+    s.sentChunks++;
+    s.lastFlushMs = Date.now();
+  }
+
   function cancelLocalStroke() {
+    // Two-finger pinch interrupted us. Drop any unsent points. The
+    // already-flushed chunks are committed and can't be retracted.
     state.localStroke = null;
-    // Bitmap already shows the partial stroke. We'd need to revert by
-    // replaying from a snapshot to fully undo. For now: leave the pixels,
-    // since the second-finger pinch is the common case and pixels won't
-    // be sent to the server.
   }
+
   function commitLocalStroke() {
     const s = state.localStroke;
     state.localStroke = null;
-    if (!s || s.points.length < 2) return;
-    // Cap to server's max points; if longer, sub-sample.
-    const MAX = 580;
-    let pts = s.points;
-    if (pts.length / 2 > MAX) {
-      const step = Math.ceil((pts.length / 2) / MAX);
-      const out = [];
-      for (let i = 0; i < pts.length; i += step * 2) {
-        out.push(pts[i], pts[i + 1]);
-      }
-      if (out[out.length - 2] !== pts[pts.length - 2] || out[out.length - 1] !== pts[pts.length - 1]) {
-        out.push(pts[pts.length - 2], pts[pts.length - 1]);
-      }
-      pts = out;
+    if (!s) return;
+    if (s.sentChunks === 0) {
+      // Single tap / very short stroke — send whatever we have.
+      if (s.pending.length >= 2) sendStroke(s.tool, s.color, s.size, s.pending);
+    } else if (s.pending.length > 2) {
+      // Drag end with new points beyond the carried-over last point.
+      sendStroke(s.tool, s.color, s.size, s.pending);
     }
-    sendStroke(s.tool, s.color, s.size, pts);
   }
 
   function sendStroke(tool, color, size, points) {
@@ -656,6 +789,30 @@ window._mmo = {
 
   // ---- audit panel --------------------------------------------------
 
+  // Resolve a batch of DIDs to current Bluesky profiles. The
+  // author_handle stored at submit time can drift if the user later
+  // changes their handle — and in some sessions it's even just the
+  // DID string. The public API is unauthed and accepts up to 25 actors.
+  const profileCache = new Map();   // did -> { handle, displayName, avatar }
+
+  async function resolveProfilesByDid(dids) {
+    const need = [...new Set(dids.filter(d => d && d.startsWith("did:") && !profileCache.has(d)))];
+    if (!need.length) return;
+    for (let i = 0; i < need.length; i += 25) {
+      const chunk = need.slice(i, i + 25);
+      const url = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles");
+      chunk.forEach(d => url.searchParams.append("actors", d));
+      try {
+        const r = await fetch(url.toString());
+        if (!r.ok) continue;
+        const data = await r.json();
+        for (const p of data.profiles || []) {
+          if (p.did) profileCache.set(p.did, p);
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
   async function openAudit() {
     auditPanel.classList.add("open");
     apCanvas.textContent = CANVAS_ID;
@@ -669,18 +826,34 @@ window._mmo = {
       apSeq.textContent  = (data.head_seq || 0).toLocaleString();
       apHash.textContent = data.head_hash || "—";
       apPds.textContent  = data.published_to_pds ? data.record_uri : "not published yet";
+
+      const contributors = (data.contributors || []).slice(0, 20);
+      // Render once with the stored handles, then upgrade once profiles resolve.
       apContribs.innerHTML = "";
-      for (const c of (data.contributors || []).slice(0, 20)) {
+      for (const c of contributors) {
         const li = document.createElement("li");
+        li.dataset.did = c.author_did || "";
         const link = `https://bsky.app/profile/${c.author_did}`;
+        const initialHandle = (c.author_handle && !c.author_handle.startsWith("did:"))
+          ? c.author_handle : "…";
         li.innerHTML =
-          `<a href="${link}" target="_blank" rel="noopener">@${escapeHtml(c.author_handle)}</a>` +
+          `<a href="${link}" target="_blank" rel="noopener">@${escapeHtml(initialHandle)}</a>` +
           `<span class="count">${c.n}</span>`;
         apContribs.appendChild(li);
       }
-      if (!apContribs.children.length) {
+      if (!contributors.length) {
         apContribs.innerHTML = `<li class="count">no strokes yet</li>`;
+        return;
       }
+      // Resolve and patch in current handles.
+      await resolveProfilesByDid(contributors.map(c => c.author_did));
+      apContribs.querySelectorAll("li").forEach(li => {
+        const did = li.dataset.did;
+        const prof = profileCache.get(did);
+        if (!prof) return;
+        const a = li.querySelector("a");
+        if (a && prof.handle) a.textContent = "@" + prof.handle;
+      });
     } catch (e) {
       apContribs.innerHTML = `<li class="count">audit fetch failed</li>`;
     }

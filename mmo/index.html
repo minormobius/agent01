@@ -218,6 +218,7 @@ button { font-family: var(--serif); cursor: pointer; }
 .signin-prompt .card .row {
   display: flex; gap: 6px; align-items: center;
   margin-top: 8px;
+  position: relative;
 }
 .signin-prompt .card input {
   flex: 1; min-width: 0;
@@ -235,6 +236,61 @@ button { font-family: var(--serif); cursor: pointer; }
   font-size: 12px;
   margin-top: 8px;
   min-height: 1em;
+}
+.typeahead {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 10;
+  display: none;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.20);
+  text-align: left;
+}
+.typeahead.show { display: block; }
+.typeahead .ta-item {
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+.typeahead .ta-item:last-child { border-bottom: none; }
+.typeahead .ta-item:hover,
+.typeahead .ta-item.active {
+  background: var(--accent-faint);
+}
+.typeahead .ta-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--rule);
+  background-size: cover;
+  background-position: center;
+}
+.typeahead .ta-handle {
+  font-family: var(--mono);
+  color: var(--text);
+  white-space: nowrap;
+}
+.typeahead .ta-name {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
 }
 
 .bottombar {
@@ -459,6 +515,7 @@ button { font-family: var(--serif); cursor: pointer; }
         <input type="text" id="handle-input" placeholder="handle.bsky.social"
                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
         <button class="action signin" id="login-go">Sign in</button>
+        <div class="typeahead" id="typeahead" role="listbox"></div>
       </div>
       <div class="err" id="login-err"></div>
     </div>
