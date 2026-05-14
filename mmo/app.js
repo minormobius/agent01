@@ -159,9 +159,20 @@ function refreshStatus() {
   const hashShort = (state.headHash || "—").slice(0, 12);
   statusEl.textContent = `${CANVAS_W}×${CANVAS_H} · ${z}% · seq ${seqStr} · ${state.tool}`;
   auditMini.textContent = `seq ${seqStr} · ${hashShort}`;
-  presenceEl.innerHTML = state.ws && state.wsAuthed
-    ? `<span class="live">●</span> ${state.presenceCount} live`
-    : "disconnected";
+  if (state.ws && state.wsAuthed) {
+    presenceEl.innerHTML = `<span class="live">●</span> ${state.presenceCount} live`;
+    presenceEl.title = "connected";
+  } else if (state.wsState === "connecting") {
+    presenceEl.textContent = "connecting…";
+    presenceEl.title = "WebSocket handshake in progress";
+  } else if (state.wsCloseInfo) {
+    const c = state.wsCloseInfo;
+    presenceEl.textContent = `disconnected · ${c.code}${c.reason ? " " + c.reason : ""} · tap to retry`;
+    presenceEl.title = "tap to reconnect";
+  } else {
+    presenceEl.textContent = state.session ? "disconnected · tap to retry" : "signed out";
+    presenceEl.title = state.session ? "tap to reconnect" : "";
+  }
 }
 
 function getCss(name, fallback) {
@@ -471,34 +482,61 @@ window._mmo = {
     if (!state.session) return;
     if (state.ws) try { state.ws.close(); } catch {}
     state.wsAuthed = false;
+    state.wsCloseInfo = null;
+    state.wsState = "connecting";
     refreshStatus();
-    const ws = new WebSocket(wsUrlFor(state.session));
+    let ws;
+    try { ws = new WebSocket(wsUrlFor(state.session)); }
+    catch (e) {
+      state.wsState = "error";
+      state.wsCloseInfo = { code: 0, reason: "constructor: " + (e?.message || "?") };
+      refreshStatus();
+      scheduleReconnect();
+      runDiagnostic();
+      return;
+    }
     state.ws = ws;
     ws.addEventListener("open", () => {
       state.wsAuthed = true;
+      state.wsState = "open";
+      state.wsCloseInfo = null;
       refreshStatus();
       ws.send(JSON.stringify({ type: "hello" }));
+      // Drain any strokes queued while disconnected.
+      const q = state.pendingStrokes; state.pendingStrokes = [];
+      for (const s of q) {
+        try { ws.send(JSON.stringify(s)); } catch {}
+      }
     });
     ws.addEventListener("message", (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       onWsMessage(m);
     });
-    ws.addEventListener("close", () => {
+    ws.addEventListener("close", (ev) => {
       state.wsAuthed = false;
+      state.wsState = "closed";
+      state.wsCloseInfo = { code: ev.code, reason: ev.reason || "" };
       refreshStatus();
       scheduleReconnect();
+      // Only run the diagnostic if this wasn't a clean intentional close.
+      if (ev.code !== 1000 && !state._diagRan) {
+        state._diagRan = true;
+        runDiagnostic();
+      }
     });
     ws.addEventListener("error", () => {
       state.wsAuthed = false;
+      state.wsState = "error";
       refreshStatus();
     });
   }
   function disconnectWS() {
     if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
     state.reconnectTimer = null;
-    if (state.ws) try { state.ws.close(); } catch {}
+    if (state.ws) try { state.ws.close(1000); } catch {}
     state.ws = null;
     state.wsAuthed = false;
+    state.wsState = "closed";
     refreshStatus();
   }
   function scheduleReconnect() {
@@ -507,6 +545,41 @@ window._mmo = {
       state.reconnectTimer = null;
       if (state.session) connectWS();
     }, 2500);
+  }
+
+  // Reach the worker over plain HTTP to figure out what's actually wrong
+  // with the WebSocket connect: route missing? canvas missing? session
+  // invalid? Surface a useful toast instead of a silent "not connected".
+  async function runDiagnostic() {
+    try {
+      const audit = await fetch(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/audit`);
+      if (audit.status === 404) {
+        showToast("canvas '" + CANVAS_ID + "' not found — migration may not have run", 4000);
+        return;
+      }
+      if (!audit.ok) {
+        showToast(`worker returned ${audit.status} on /audit`, 4000);
+        return;
+      }
+      // Worker + canvas OK. Try /me to check session validity.
+      const me = await fetch(`${DRAW_API}/me`, {
+        headers: { "Authorization": `Bearer ${state.session.sessionId}` },
+      });
+      if (me.ok) {
+        const data = await me.json();
+        if (!data.did) {
+          showToast("session expired — sign in again", 4000);
+          clearStoredSession();
+          state.session = null;
+          refreshAuthUI();
+          disconnectWS();
+          return;
+        }
+        showToast("worker ok, session ok — WS upgrade is rejecting; check console", 4000);
+      }
+    } catch (e) {
+      showToast("can't reach poll.mino.mobi — deploy may still be running", 4000);
+    }
   }
 
   function onWsMessage(m) {
@@ -756,14 +829,18 @@ window._mmo = {
   }
 
   function sendStroke(tool, color, size, points) {
-    if (!state.ws || state.ws.readyState !== 1) {
-      showToast("not connected — try again");
-      return;
+    const payload = { type: "stroke", tool, color, size, points };
+    if (state.ws && state.ws.readyState === 1) {
+      try { state.ws.send(JSON.stringify(payload)); return; }
+      catch (e) { /* fall through to queue */ }
     }
-    try {
-      state.ws.send(JSON.stringify({ type: "stroke", tool, color, size, points }));
-    } catch (e) {
-      showToast("send failed");
+    // Not connected — queue so we don't drop the work the user just did.
+    // Cap the queue so a long disconnect doesn't balloon memory; oldest first.
+    state.pendingStrokes.push(payload);
+    if (state.pendingStrokes.length > 50) state.pendingStrokes.shift();
+    if (state.wsState !== "connecting") {
+      showToast("not connected — queued, retrying connection");
+      if (!state.reconnectTimer) connectWS();
     }
   }
 
@@ -868,6 +945,17 @@ window._mmo = {
     }[c]));
   }
 
+  // ---- manual reconnect via presence chip ---------------------------
+
+  $("presence").style.cursor = "pointer";
+  $("presence").addEventListener("click", () => {
+    if (!state.session) { showSigninPrompt(true); return; }
+    if (state.ws && state.wsAuthed) return;
+    if (state.reconnectTimer) { clearTimeout(state.reconnectTimer); state.reconnectTimer = null; }
+    state._diagRan = false;
+    connectWS();
+  });
+
   // ---- resize observer ----------------------------------------------
 
   const ro = new ResizeObserver(() => resize());
@@ -877,7 +965,7 @@ window._mmo = {
 
   // ---- boot ----------------------------------------------------------
 
-  function boot() {
+  async function boot() {
     resize();
     fitView();
     setTool("brush");
@@ -888,12 +976,25 @@ window._mmo = {
     state.session = fragSession || readStoredSession();
     refreshAuthUI();
 
+    // Healthcheck the worker before we attempt to connect so we can
+    // surface a clean error if the deploy hasn't picked up /api/mmo yet.
+    try {
+      const r = await fetch(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}`);
+      if (r.status === 404) {
+        showToast("canvas not provisioned — migration may still be running", 5000);
+      } else if (!r.ok) {
+        showToast(`worker returned ${r.status} on canvas lookup`, 4000);
+      }
+    } catch (e) {
+      showToast("can't reach poll.mino.mobi — deploy may still be running", 4000);
+    }
+
+    // Always replay the public log so visitors see the current state.
+    replayStrokes(0);
+
     if (state.session) {
       connectWS();
     } else {
-      // Show some context while signed out: replay the public log so
-      // visitors see the current canvas state, just can't paint.
-      replayStrokes(0);
       showSigninPrompt(true);
     }
   }
