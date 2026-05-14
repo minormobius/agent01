@@ -45,7 +45,7 @@ new_classes = ["SurveyCoordinator"]
 
 [[migrations]]
 tag = "v3"
-new_classes = ["MmoCanvas"]
+new_sqlite_classes = ["MmoCanvas"]
 
 # Environment-specific overrides
 [env.production]

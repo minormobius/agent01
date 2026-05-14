@@ -300,6 +300,13 @@ async function addContributor(request: Request, env: Env, canvasId: string): Pro
 async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> {
   const out: Record<string, any> = { canvasId, ts: new Date().toISOString() };
 
+  // Enumerate all bindings on env so we can tell what's actually live:
+  // MMO_DB / MMO_CANVAS will be missing if the deploy didn't apply the
+  // wrangler.toml additions (DO migration v3, MMO_DB binding).
+  out.envBindings = Object.keys(env as unknown as Record<string, unknown>).sort();
+  out.hasMmoDb     = !!(env as any).MMO_DB;
+  out.hasMmoCanvas = !!(env as any).MMO_CANVAS;
+
   const sessionId = url.searchParams.get('session') || '';
   out.hasSession = !!sessionId;
   if (!sessionId) return json({ ...out, ok: false, reason: 'missing session' }, 400);
