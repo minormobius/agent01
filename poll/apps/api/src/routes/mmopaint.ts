@@ -47,6 +47,7 @@ export async function handleMmoRoutes(
   }
   if (sub === 'strokes' && request.method === 'GET')      return getStrokes(env, url, canvasId);
   if (sub === 'audit'   && request.method === 'GET')      return getAudit(env, canvasId);
+  if (sub === 'ws-debug' && request.method === 'GET')     return wsDebug(env, url, canvasId);
   if (sub === 'contributors' && request.method === 'GET') return listContributors(env, canvasId);
   if (sub === 'contributors' && request.method === 'POST') return addContributor(request, env, canvasId);
   if (sub === 'ws') return upgradeWebSocket(request, env, url, canvasId);
@@ -192,6 +193,70 @@ async function addContributor(request: Request, env: Env, canvasId: string): Pro
 }
 
 // ---- WebSocket upgrade ------------------------------------------------
+
+// Mirror of the /ws upgrade's validation chain, but returns JSON instead
+// of attempting to upgrade. Useful when the browser fails the WS
+// handshake without telling us why.
+async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> {
+  const out: Record<string, any> = { canvasId, ts: new Date().toISOString() };
+
+  const sessionId = url.searchParams.get('session') || '';
+  out.hasSession = !!sessionId;
+  if (!sessionId) return json({ ...out, ok: false, reason: 'missing session' }, 400);
+
+  try {
+    const session = await env.DB.prepare(
+      `SELECT did, handle FROM sessions
+        WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
+    ).bind(sessionId).first<{ did: string; handle: string }>();
+    out.sessionValid = !!session;
+    if (!session) return json({ ...out, ok: false, reason: 'invalid or expired session' }, 401);
+    out.did = session.did;
+    out.handle = session.handle;
+
+    const canvas = await env.DB.prepare(
+      `SELECT id, owner_did, public_contribute, head_seq FROM mmo_canvases WHERE id = ?`
+    ).bind(canvasId).first<any>();
+    out.canvasExists = !!canvas;
+    if (!canvas) return json({ ...out, ok: false, reason: 'canvas row missing — migration may not have applied' }, 404);
+    out.public_contribute = canvas.public_contribute;
+    out.head_seq = canvas.head_seq;
+
+    let allowed = false;
+    let why = '';
+    if (canvas.public_contribute === 1) { allowed = true; why = 'public canvas'; }
+    else if (canvas.owner_did === session.did) { allowed = true; why = 'owner'; }
+    else {
+      const contrib = await env.DB.prepare(
+        `SELECT 1 FROM mmo_contributors WHERE canvas_id = ? AND did = ? LIMIT 1`
+      ).bind(canvasId, session.did).first();
+      allowed = !!contrib;
+      why = allowed ? 'on whitelist' : 'not on whitelist';
+    }
+    out.contributorAllowed = allowed;
+    out.contributorReason = why;
+    if (!allowed) return json({ ...out, ok: false, reason: why }, 403);
+
+    // Verify the DO binding exists. If migration v3 wasn't applied, the
+    // binding lookup will throw — and the actual WS upgrade would have
+    // failed for the same reason.
+    try {
+      const doNs: any = (env as any).MMO_CANVAS;
+      if (!doNs || typeof doNs.idFromName !== 'function') {
+        return json({ ...out, ok: false, reason: 'MMO_CANVAS DO binding missing — wrangler migration v3 not applied' }, 500);
+      }
+      const id = doNs.idFromName(canvasId);
+      out.doId = id.toString();
+      out.doBinding = 'ok';
+    } catch (e: any) {
+      return json({ ...out, ok: false, reason: 'DO binding error: ' + (e?.message || String(e)) }, 500);
+    }
+
+    return json({ ...out, ok: true, reason: 'all checks pass' });
+  } catch (e: any) {
+    return json({ ...out, ok: false, reason: 'unexpected error: ' + (e?.message || String(e)) }, 500);
+  }
+}
 
 async function upgradeWebSocket(request: Request, env: Env, url: URL, canvasId: string): Promise<Response> {
   if (request.headers.get('Upgrade') !== 'websocket') {

@@ -513,18 +513,19 @@ window._mmo = {
       onWsMessage(m);
     });
     ws.addEventListener("close", (ev) => {
+      console.warn(`[mmo] WS closed: code=${ev.code} reason=${JSON.stringify(ev.reason || "")} wasClean=${ev.wasClean}`);
       state.wsAuthed = false;
       state.wsState = "closed";
       state.wsCloseInfo = { code: ev.code, reason: ev.reason || "" };
       refreshStatus();
       scheduleReconnect();
-      // Only run the diagnostic if this wasn't a clean intentional close.
       if (ev.code !== 1000 && !state._diagRan) {
         state._diagRan = true;
         runDiagnostic();
       }
     });
-    ws.addEventListener("error", () => {
+    ws.addEventListener("error", (ev) => {
+      console.warn("[mmo] WS error event", ev);
       state.wsAuthed = false;
       state.wsState = "error";
       refreshStatus();
@@ -547,39 +548,36 @@ window._mmo = {
     }, 2500);
   }
 
-  // Reach the worker over plain HTTP to figure out what's actually wrong
-  // with the WebSocket connect: route missing? canvas missing? session
-  // invalid? Surface a useful toast instead of a silent "not connected".
+  // Run the same validation chain the /ws upgrade would, but as a plain
+  // JSON endpoint. Surfaces the exact failure point — browsers won't
+  // tell us why a WS handshake failed.
   async function runDiagnostic() {
+    console.group("[mmo] connection diagnostic");
     try {
-      const audit = await fetch(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/audit`);
-      if (audit.status === 404) {
-        showToast("canvas '" + CANVAS_ID + "' not found — migration may not have run", 4000);
-        return;
-      }
-      if (!audit.ok) {
-        showToast(`worker returned ${audit.status} on /audit`, 4000);
-        return;
-      }
-      // Worker + canvas OK. Try /me to check session validity.
-      const me = await fetch(`${DRAW_API}/me`, {
-        headers: { "Authorization": `Bearer ${state.session.sessionId}` },
-      });
-      if (me.ok) {
-        const data = await me.json();
-        if (!data.did) {
-          showToast("session expired — sign in again", 4000);
+      const sid = state.session?.sessionId || "";
+      const url = `${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/ws-debug?session=${encodeURIComponent(sid)}`;
+      const r = await fetch(url);
+      let data;
+      try { data = await r.json(); } catch { data = { parseError: true }; }
+      console.log(`[mmo] ws-debug ${r.status}:`, data);
+      if (r.ok && data.ok) {
+        showToast("ws-debug ok — handshake still failing; see console", 6000);
+      } else {
+        const reason = (data && data.reason) ? data.reason : `HTTP ${r.status}`;
+        showToast(`ws blocked: ${reason}`, 8000);
+        // Special cases that we can act on locally:
+        if (data && data.reason && data.reason.toLowerCase().includes("session")) {
           clearStoredSession();
           state.session = null;
           refreshAuthUI();
           disconnectWS();
-          return;
         }
-        showToast("worker ok, session ok — WS upgrade is rejecting; check console", 4000);
       }
     } catch (e) {
+      console.error("[mmo] ws-debug fetch failed:", e);
       showToast("can't reach poll.mino.mobi — deploy may still be running", 4000);
     }
+    console.groupEnd();
   }
 
   function onWsMessage(m) {
