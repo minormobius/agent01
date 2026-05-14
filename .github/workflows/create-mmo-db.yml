@@ -69,19 +69,19 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          cat >> "$F" <<EOF
-
-# MMO Paint isolated D1 — created by .github/workflows/create-mmo-db.yml
-[[d1_databases]]
-binding = "MMO_DB"
-database_name = "mmopaint-db"
-database_id = "$UUID"
-
-[[env.production.d1_databases]]
-binding = "MMO_DB"
-database_name = "mmopaint-db"
-database_id = "$UUID"
-EOF
+          {
+            echo ""
+            echo "# MMO Paint isolated D1 — created by .github/workflows/create-mmo-db.yml"
+            echo "[[d1_databases]]"
+            echo "binding = \"MMO_DB\""
+            echo "database_name = \"mmopaint-db\""
+            echo "database_id = \"$UUID\""
+            echo ""
+            echo "[[env.production.d1_databases]]"
+            echo "binding = \"MMO_DB\""
+            echo "database_name = \"mmopaint-db\""
+            echo "database_id = \"$UUID\""
+          } >> "$F"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "--- updated wrangler.toml tail ---"
           tail -20 "$F"
