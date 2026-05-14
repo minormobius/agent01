@@ -55,3 +55,14 @@ vars = { FRONTEND_URL = "https://poll.mino.mobi", ATPROTO_MOCK_MODE = "false" }
 binding = "DB"
 database_name = "atpolls-db"
 database_id = "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+
+# MMO Paint isolated D1 — created by .github/workflows/create-mmo-db.yml
+[[d1_databases]]
+binding = "MMO_DB"
+database_name = "mmopaint-db"
+database_id = "6687b33c-c09c-4bb9-b216-0c84067dfb74"
+
+[[env.production.d1_databases]]
+binding = "MMO_DB"
+database_name = "mmopaint-db"
+database_id = "6687b33c-c09c-4bb9-b216-0c84067dfb74"
