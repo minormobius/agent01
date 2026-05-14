@@ -322,7 +322,7 @@ Morphyx's reply (chains from modulo's)
 **Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
 **Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
 
-Single Worker that hosts seven surfaces, all over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
+Single Worker that hosts eight surfaces, all over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
 
 - **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
 - **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
@@ -330,7 +330,8 @@ Single Worker that hosts seven surfaces, all over the same shared `rite/lib/atpr
 - **`/ask/`** — semantic search over a profile's prose threads. Embeds each thread once via BGE, stores `(did, thread_id, text, embedding BLOB, x, y)` in D1, renders a 2D PCA map; query box highlights matching threads.
 - **`/atlas/`** — multi-view analytics over the same threads (scatter chars × Flesch, Pareto by length, Pareto by difficulty, Flesch histogram). Pure deterministic scoring, no inference.
 - **`/lexicon/`** — word-level lenses tagged against open lexicons (NRC Emotion, Brysbaert Concreteness, AFINN, SUBTLEX-US baseline). Frequency, TF-IDF distinctiveness, emotion-color, sentiment-color, concreteness gradient. Lexicons fetched + committed by `.github/workflows/fetch-lexicons.yml` to `rite/lexicon/data/*.json`; page falls back to inline mini-lexicons if the fetched files aren't present.
-- **`/list/`** — semantic analysis over a Bluesky list. Resolves a list URL via `app.bsky.graph.getList`, fans out to `/api/ask/check` + `/api/ask/map` per member, aggregates each indexed member's cluster labels into list-level themes (words appearing in cluster labels of ≥ 2 members). Members not yet indexed get a deeplink to ask (`/ask/?handle=…`).
+- **`/list/`** — semantic analysis over a Bluesky list. Resolves a list URL via `app.bsky.graph.getList`, fans out to `/api/ask/check` + `/api/ask/map` per member, aggregates each indexed member's cluster labels into list-level themes (words appearing in cluster labels of ≥ 2 members). Members not yet indexed get a deeplink to ask (`/ask/?handle=…`); an "Index all" button runs the same in-tab pullProfile→analyzeProfile→POST /api/ask/index pipeline sequentially per member.
+- **`/web/`** — outbound link knowledge graph. Pulls a writer's CAR, extracts every external link facet (skipping bsky.app / *.bsky.social), builds a co-occurrence graph (two URLs share an edge whenever they appear in the same thread), runs PageRank, lays it out with Fruchterman-Reingold. The query box runs *personalized* PageRank seeded on URLs whose domain or anchor text matches — top-ranked URLs are the writer's strongest connections to that idea. Domain rollup toggle. Pure client-side; multi-CAR union on roadmap.
 
 ### Architecture
 
