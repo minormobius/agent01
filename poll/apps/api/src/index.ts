@@ -7,21 +7,24 @@
 
 import { PollCoordinator } from './durable-objects/poll-coordinator.js';
 import { SurveyCoordinator } from './durable-objects/survey-coordinator.js';
+import { MmoCanvas } from './durable-objects/mmo-canvas.js';
 import { handlePollRoutes } from './routes/polls.js';
 import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
 import { handleSurveyRoutes } from './routes/surveys.js';
 import { handleSurveyBallotRoutes } from './routes/survey-ballots.js';
 import { handleDrawRoutes } from './routes/draw.js';
+import { handleMmoRoutes } from './routes/mmopaint.js';
 import { getClientPublicJWK, getClientSigningKey } from './oauth/keypair.js';
 import { discoverAuthServer } from './oauth/discovery.js';
 
-export { PollCoordinator, SurveyCoordinator };
+export { PollCoordinator, SurveyCoordinator, MmoCanvas };
 
 export interface Env {
   DB: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
   SURVEY_COORDINATOR: DurableObjectNamespace;
+  MMO_CANVAS: DurableObjectNamespace;
   ASSETS: { fetch: typeof fetch };
   FRONTEND_URL: string;
   ATPROTO_MOCK_MODE: string;
@@ -141,6 +144,8 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         response = await handleAuthRoutes(request, env, url);
       } else if (url.pathname.startsWith('/api/draw/')) {
         response = await handleDrawRoutes(request, env, url);
+      } else if (url.pathname.startsWith('/api/mmo/')) {
+        response = await handleMmoRoutes(request, env, url);
       } else if (url.pathname.match(/^\/api\/surveys\/[^/]+\/ballots/)) {
         response = await handleSurveyBallotRoutes(request, env, url);
       } else if (url.pathname.startsWith('/api/surveys')) {
@@ -154,6 +159,12 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       if (!response) {
         response = jsonResponse({ error: 'Not found' }, 404);
       }
+
+      // WebSocket upgrade responses (101 Switching Protocols) carry a
+      // non-cloneable `webSocket` property — don't run them through the
+      // CORS wrapper, which would copy them via `new Response(...)` and
+      // drop the upgrade.
+      if (response.status === 101) return response;
 
       // Add CORS headers to all responses
       return addCorsHeaders(response, env, request);
