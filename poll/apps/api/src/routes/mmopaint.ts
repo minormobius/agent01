@@ -22,6 +22,14 @@ import { getSession } from './auth.js';
 
 const VALID_TOOLS = new Set(['brush', 'eraser', 'fill']);
 
+// MMO Paint lives on its own D1 database (mmopaint-db) — separation from
+// the poll/draw/feed schema in atpolls-db. Until the create-mmo-db
+// workflow runs and binds MMO_DB in wrangler.toml, we fall back to the
+// shared DB so the worker keeps working.
+function mmoDb(env: Env): D1Database {
+  return ((env as any).MMO_DB ?? env.DB) as D1Database;
+}
+
 // Cached per-isolate so we only probe sqlite_master once after a cold start.
 let mmoSchemaReady = false;
 
@@ -32,7 +40,7 @@ let mmoSchemaReady = false;
 async function ensureMmoSchema(env: Env): Promise<void> {
   if (mmoSchemaReady) return;
   try {
-    const probe = await env.DB.prepare(
+    const probe = await mmoDb(env).prepare(
       `SELECT name FROM sqlite_master WHERE type='table' AND name='mmo_canvases' LIMIT 1`
     ).first<{ name: string }>();
     if (probe && probe.name) {
@@ -40,8 +48,8 @@ async function ensureMmoSchema(env: Env): Promise<void> {
       return;
     }
     console.log('[mmo] mmo_canvases missing — bootstrapping schema inline');
-    await env.DB.batch([
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_canvases (
+    await mmoDb(env).batch([
+      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_canvases (
         id TEXT PRIMARY KEY,
         owner_did TEXT NOT NULL,
         owner_handle TEXT NOT NULL,
@@ -58,7 +66,7 @@ async function ensureMmoSchema(env: Env): Promise<void> {
         record_uri TEXT,
         record_cid TEXT
       )`),
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_contributors (
+      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_contributors (
         canvas_id TEXT NOT NULL,
         did TEXT NOT NULL,
         handle TEXT NOT NULL,
@@ -66,7 +74,7 @@ async function ensureMmoSchema(env: Env): Promise<void> {
         added_by_did TEXT NOT NULL,
         PRIMARY KEY (canvas_id, did)
       )`),
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS mmo_strokes (
+      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_strokes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         canvas_id TEXT NOT NULL,
         seq INTEGER NOT NULL,
@@ -82,21 +90,21 @@ async function ensureMmoSchema(env: Env): Promise<void> {
         record_uri TEXT,
         record_cid TEXT
       )`),
-      env.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_seq
+      mmoDb(env).prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_seq
         ON mmo_strokes(canvas_id, seq)`),
-      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_created
+      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_created
         ON mmo_strokes(canvas_id, created_at DESC)`),
-      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_author
+      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_author
         ON mmo_strokes(author_did, created_at DESC)`),
-      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_owner
+      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_owner
         ON mmo_canvases(owner_did)`),
-      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_updated
+      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_updated
         ON mmo_canvases(updated_at DESC)`),
-      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_contributors_did
+      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_contributors_did
         ON mmo_contributors(did)`),
     ]);
     const now = Date.now();
-    await env.DB.prepare(
+    await mmoDb(env).prepare(
       `INSERT OR IGNORE INTO mmo_canvases
          (id, owner_did, owner_handle, name, width, height,
           public_contribute, created_at, updated_at)
@@ -150,7 +158,7 @@ export async function handleMmoRoutes(
 // ---- canvas CRUD ------------------------------------------------------
 
 async function listCanvases(env: Env): Promise<Response> {
-  const rows = await env.DB.prepare(
+  const rows = await mmoDb(env).prepare(
     `SELECT id, owner_did, owner_handle, name, width, height,
             public_contribute, head_seq, head_hash, stroke_count,
             contributor_count, created_at, updated_at
@@ -161,7 +169,7 @@ async function listCanvases(env: Env): Promise<Response> {
 }
 
 async function getCanvas(env: Env, id: string): Promise<Response> {
-  const row = await env.DB.prepare(
+  const row = await mmoDb(env).prepare(
     `SELECT id, owner_did, owner_handle, name, width, height,
             public_contribute, head_seq, head_hash, stroke_count,
             contributor_count, created_at, updated_at, record_uri, record_cid
@@ -185,7 +193,7 @@ async function createCanvas(request: Request, env: Env): Promise<Response> {
 
   const id = `c-${cryptoRandomId(10)}`;
   const now = Date.now();
-  await env.DB.prepare(
+  await mmoDb(env).prepare(
     `INSERT INTO mmo_canvases (id, owner_did, owner_handle, name, width, height,
                                public_contribute, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -201,7 +209,7 @@ async function getStrokes(env: Env, url: URL, canvasId: string): Promise<Respons
   const since = Math.max(0, parseInt(url.searchParams.get('since') || '0', 10) || 0);
   const limit = Math.min(2000, Math.max(1, parseInt(url.searchParams.get('limit') || '500', 10) || 500));
 
-  const rows = await env.DB.prepare(
+  const rows = await mmoDb(env).prepare(
     `SELECT seq, author_did, author_handle, tool, color, size, points,
             prev_hash, this_hash AS hash, created_at
        FROM mmo_strokes
@@ -219,13 +227,13 @@ async function getStrokes(env: Env, url: URL, canvasId: string): Promise<Respons
 }
 
 async function getAudit(env: Env, canvasId: string): Promise<Response> {
-  const head = await env.DB.prepare(
+  const head = await mmoDb(env).prepare(
     `SELECT head_seq, head_hash, stroke_count, contributor_count, updated_at, record_uri, record_cid
        FROM mmo_canvases WHERE id = ?`
   ).bind(canvasId).first();
   if (!head) return json({ error: 'not found' }, 404);
 
-  const contribs = await env.DB.prepare(
+  const contribs = await mmoDb(env).prepare(
     `SELECT author_did, author_handle, COUNT(*) AS n, MAX(created_at) AS last_at
        FROM mmo_strokes WHERE canvas_id = ?
        GROUP BY author_did ORDER BY n DESC LIMIT 50`
@@ -243,7 +251,7 @@ async function getAudit(env: Env, canvasId: string): Promise<Response> {
 }
 
 async function listContributors(env: Env, canvasId: string): Promise<Response> {
-  const rows = await env.DB.prepare(
+  const rows = await mmoDb(env).prepare(
     `SELECT did, handle, added_at, added_by_did
        FROM mmo_contributors WHERE canvas_id = ?
        ORDER BY added_at ASC`
@@ -255,7 +263,7 @@ async function addContributor(request: Request, env: Env, canvasId: string): Pro
   const session = await getSession(request, env);
   if (!session) return json({ error: 'not authenticated' }, 401);
 
-  const canvas = await env.DB.prepare(
+  const canvas = await mmoDb(env).prepare(
     `SELECT owner_did FROM mmo_canvases WHERE id = ?`
   ).bind(canvasId).first<{ owner_did: string }>();
   if (!canvas) return json({ error: 'not found' }, 404);
@@ -270,11 +278,11 @@ async function addContributor(request: Request, env: Env, canvasId: string): Pro
 
   const now = Date.now();
   try {
-    await env.DB.prepare(
+    await mmoDb(env).prepare(
       `INSERT INTO mmo_contributors (canvas_id, did, handle, added_at, added_by_did)
        VALUES (?, ?, ?, ?, ?)`
     ).bind(canvasId, did, handle, now, session.did).run();
-    await env.DB.prepare(
+    await mmoDb(env).prepare(
       `UPDATE mmo_canvases SET contributor_count = contributor_count + 1, updated_at = ?
         WHERE id = ?`
     ).bind(now, canvasId).run();
@@ -297,6 +305,8 @@ async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> 
   if (!sessionId) return json({ ...out, ok: false, reason: 'missing session' }, 400);
 
   try {
+    // sessions table is on the shared atpolls-db (auth lives there for all
+    // mino.mobi sub-apps), so use env.DB explicitly — not mmoDb(env).
     const session = await env.DB.prepare(
       `SELECT did, handle FROM sessions
         WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
@@ -306,7 +316,7 @@ async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> 
     out.did = session.did;
     out.handle = session.handle;
 
-    const canvas = await env.DB.prepare(
+    const canvas = await mmoDb(env).prepare(
       `SELECT id, owner_did, public_contribute, head_seq FROM mmo_canvases WHERE id = ?`
     ).bind(canvasId).first<any>();
     out.canvasExists = !!canvas;
@@ -319,7 +329,7 @@ async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> 
     if (canvas.public_contribute === 1) { allowed = true; why = 'public canvas'; }
     else if (canvas.owner_did === session.did) { allowed = true; why = 'owner'; }
     else {
-      const contrib = await env.DB.prepare(
+      const contrib = await mmoDb(env).prepare(
         `SELECT 1 FROM mmo_contributors WHERE canvas_id = ? AND did = ? LIMIT 1`
       ).bind(canvasId, session.did).first();
       allowed = !!contrib;
@@ -362,7 +372,7 @@ async function upgradeWebSocket(request: Request, env: Env, url: URL, canvasId: 
   if (!url.searchParams.get('session')) {
     return new Response('missing session', { status: 401 });
   }
-  const canvas = await env.DB.prepare(
+  const canvas = await mmoDb(env).prepare(
     `SELECT id FROM mmo_canvases WHERE id = ?`
   ).bind(canvasId).first();
   if (!canvas) return new Response('canvas not found', { status: 404 });

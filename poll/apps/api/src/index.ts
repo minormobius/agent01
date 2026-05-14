@@ -22,6 +22,12 @@ export { PollCoordinator, SurveyCoordinator, MmoCanvas };
 
 export interface Env {
   DB: D1Database;
+  /**
+   * MMO Paint's own D1 database. Bound by the create-mmo-db workflow.
+   * Code falls back to `DB` (atpolls-db) if unbound, so the worker keeps
+   * working before the workflow has been run.
+   */
+  MMO_DB?: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
   SURVEY_COORDINATOR: DurableObjectNamespace;
   MMO_CANVAS: DurableObjectNamespace;

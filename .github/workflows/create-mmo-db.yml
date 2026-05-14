@@ -1,0 +1,114 @@
+name: Bootstrap MMO D1 Database
+
+# Creates the mmopaint-db D1 database (or finds the existing one),
+# binds it as MMO_DB in poll/apps/api/wrangler.toml, and commits the
+# change back. The follow-up push triggers deploy-poll, which deploys
+# the worker with the new binding active.
+#
+# Idempotent — running it a second time is a no-op once the binding is
+# already in wrangler.toml.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find or create mmopaint-db
+        id: db
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCT:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCT" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets missing"; exit 1
+          fi
+
+          api() {
+            curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$@"
+          }
+
+          echo "Looking up existing mmopaint-db…"
+          LIST=$(api "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/d1/database?name=mmopaint-db&per_page=50")
+          UUID=$(echo "$LIST" | jq -r '.result[]? | select(.name=="mmopaint-db") | .uuid' | head -1)
+
+          if [ -n "$UUID" ] && [ "$UUID" != "null" ]; then
+            echo "✓ mmopaint-db already exists: $UUID"
+          else
+            echo "Creating mmopaint-db…"
+            CREATE=$(api -X POST -H "Content-Type: application/json" \
+              --data '{"name":"mmopaint-db"}' \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/d1/database")
+            UUID=$(echo "$CREATE" | jq -r '.result.uuid')
+            if [ -z "$UUID" ] || [ "$UUID" = "null" ]; then
+              echo "❌ Failed to create:"; echo "$CREATE"; exit 1
+            fi
+            echo "✓ Created mmopaint-db: $UUID"
+          fi
+          echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
+
+      - name: Patch poll/apps/api/wrangler.toml
+        id: patch
+        env:
+          UUID: ${{ steps.db.outputs.uuid }}
+        run: |
+          set -euo pipefail
+          F=poll/apps/api/wrangler.toml
+          if grep -q 'binding = "MMO_DB"' "$F"; then
+            echo "MMO_DB binding already present — leaving as-is"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cat >> "$F" <<EOF
+
+# MMO Paint isolated D1 — created by .github/workflows/create-mmo-db.yml
+[[d1_databases]]
+binding = "MMO_DB"
+database_name = "mmopaint-db"
+database_id = "$UUID"
+
+[[env.production.d1_databases]]
+binding = "MMO_DB"
+database_name = "mmopaint-db"
+database_id = "$UUID"
+EOF
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "--- updated wrangler.toml tail ---"
+          tail -20 "$F"
+
+      - name: Commit
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add poll/apps/api/wrangler.toml
+          git commit -m "ci: bind MMO_DB d1 database (mmopaint-db) in wrangler.toml"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Summary
+        env:
+          UUID: ${{ steps.db.outputs.uuid }}
+          CHANGED: ${{ steps.patch.outputs.changed }}
+        run: |
+          {
+            echo "## MMO D1 Database"
+            echo ""
+            echo "Database \`mmopaint-db\` — UUID: \`$UUID\`"
+            echo ""
+            if [ "$CHANGED" = "true" ]; then
+              echo "wrangler.toml updated; the new commit will trigger deploy-poll, which deploys the worker with MMO_DB bound. The worker self-heals the schema on first request."
+            else
+              echo "MMO_DB binding was already present; no commit needed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

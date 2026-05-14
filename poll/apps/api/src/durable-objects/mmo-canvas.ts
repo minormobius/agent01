@@ -46,6 +46,14 @@ export class MmoCanvas {
     this.env = env;
   }
 
+  // mmo_* tables live on mmopaint-db (env.MMO_DB once the
+  // create-mmo-db workflow binds it). Until then, fall back to the
+  // shared atpolls-db so the DO keeps working. Sessions table stays
+  // on env.DB regardless — auth is shared across all mino.mobi apps.
+  get db(): D1Database {
+    return ((this.env as any).MMO_DB ?? this.env.DB) as D1Database;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -89,7 +97,7 @@ export class MmoCanvas {
     if (this.loaded) return;
     if (this.loadingPromise) return this.loadingPromise;
     this.loadingPromise = (async () => {
-      const row = await this.env.DB.prepare(
+      const row = await this.db.prepare(
         `SELECT id, owner_did, owner_handle, name, width, height,
                 public_contribute, head_seq, head_hash, stroke_count
          FROM mmo_canvases WHERE id = ?`
@@ -108,7 +116,7 @@ export class MmoCanvas {
     if (!this.canvasMeta) return false;
     if (this.canvasMeta.public_contribute === 1) return true;
     if (this.canvasMeta.owner_did === did) return true;
-    const row = await this.env.DB.prepare(
+    const row = await this.db.prepare(
       `SELECT 1 FROM mmo_contributors WHERE canvas_id = ? AND did = ? LIMIT 1`
     ).bind(this.canvasId, did).first();
     return !!row;
@@ -199,14 +207,14 @@ export class MmoCanvas {
     // Persist + update head atomically (best effort; D1 doesn't expose
     // transactions across statements at runtime, so do two writes).
     try {
-      await this.env.DB.batch([
-        this.env.DB.prepare(
+      await this.db.batch([
+        this.db.prepare(
           `INSERT INTO mmo_strokes
              (canvas_id, seq, author_did, author_handle, tool, color, size, points, prev_hash, this_hash, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(meta.canvasId, seq, meta.did, meta.handle, tool, color.toLowerCase(), size,
                pointsJson, prevHash, thisHash, now),
-        this.env.DB.prepare(
+        this.db.prepare(
           `UPDATE mmo_canvases
               SET head_seq = ?, head_hash = ?, stroke_count = stroke_count + 1, updated_at = ?
             WHERE id = ?`
