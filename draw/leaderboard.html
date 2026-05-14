@@ -62,18 +62,31 @@ main { max-width: 820px; margin: 0 auto; padding: 22px 18px 40px; }
 .intro { color: var(--muted); font-style: italic; margin: 0 0 18px; font-size: 14px; }
 .filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--rule);
+}
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .filter-group {
   display: inline-flex;
   border: 1px solid var(--rule);
   border-radius: 2px;
-  overflow: hidden;
 }
+.filter-group.scrollable {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+.filter-group.scrollable::-webkit-scrollbar { display: none; }
 .filter-group button {
   background: transparent;
   border: none;
@@ -83,6 +96,8 @@ main { max-width: 820px; margin: 0 auto; padding: 22px 18px 40px; }
   padding: 6px 11px;
   cursor: pointer;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .filter-group button.active {
   background: var(--accent);
@@ -94,8 +109,8 @@ main { max-width: 820px; margin: 0 auto; padding: 22px 18px 40px; }
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  margin-right: 6px;
-  align-self: center;
+  flex: 0 0 auto;
+  width: 52px;
 }
 .status {
   text-align: center;
@@ -130,6 +145,31 @@ table.board td.rank {
 table.board tr.top1 td.rank,
 table.board tr.top2 td.rank,
 table.board tr.top3 td.rank { color: var(--accent); font-weight: bold; }
+table.board td.pfp-cell {
+  width: 44px;
+  padding-right: 4px;
+  padding-left: 4px;
+}
+.pfp-wrap {
+  width: 36px;
+  height: 36px;
+  position: relative;
+  margin: 0 auto;
+}
+.pfp {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--accent-faint);
+  background-repeat: no-repeat;
+  display: block;
+  transition: opacity 0.25s;
+}
+.pfp.fallback {
+  background-color: var(--accent);
+  background-image: none;
+}
 table.board td.handle a { color: var(--link); text-decoration: none; font-family: var(--mono); font-size: 13px; }
 table.board td.handle a:hover { text-decoration: underline; }
 table.board td.shape { font-style: italic; color: var(--text); }
@@ -175,22 +215,30 @@ footer a { color: var(--accent); text-decoration: none; }
   <p class="intro">Top regularity scores. Submitters sign in with Bluesky &mdash; we ask for the <strong>atproto</strong> scope only (verify identity, no read/write to your account).</p>
 
   <div class="filters">
-    <span class="filter-label">Shape</span>
-    <div class="filter-group" id="shape-filter">
-      <button data-shape="" class="active">All</button>
-      <button data-shape="Circle">Circle</button>
-      <button data-shape="Triangle">Triangle</button>
-      <button data-shape="Quadrilateral">Quad</button>
-      <button data-shape="Pentagon">Penta</button>
-      <button data-shape="Hexagon">Hexa</button>
-      <button data-shape="Heptagon">Hepta</button>
-      <button data-shape="Octagon">Octa</button>
+    <div class="filter-row">
+      <span class="filter-label">Shape</span>
+      <div class="filter-group scrollable" id="shape-filter">
+        <button data-shape="" class="active">All</button>
+        <button data-shape="Circle">Circle</button>
+        <button data-shape="Triangle">Triangle</button>
+        <button data-shape="Quadrilateral">Quad</button>
+        <button data-shape="Pentagon">Penta</button>
+        <button data-shape="Hexagon">Hexa</button>
+        <button data-shape="Heptagon">Hepta</button>
+        <button data-shape="Octagon">Octa</button>
+        <button data-shape="Nonagon">Nona</button>
+        <button data-shape="Decagon">Deca</button>
+        <button data-shape="Hendecagon">Hendec</button>
+        <button data-shape="Dodecagon">Dodec</button>
+      </div>
     </div>
-    <span class="filter-label" style="margin-left:14px">Period</span>
-    <div class="filter-group" id="period-filter">
-      <button data-period="all" class="active">All time</button>
-      <button data-period="week">Week</button>
-      <button data-period="today">Today</button>
+    <div class="filter-row">
+      <span class="filter-label">Period</span>
+      <div class="filter-group" id="period-filter">
+        <button data-period="all" class="active">All time</button>
+        <button data-period="week">Week</button>
+        <button data-period="today">Today</button>
+      </div>
     </div>
   </div>
 
@@ -199,6 +247,7 @@ footer a { color: var(--accent); text-decoration: none; }
     <thead>
       <tr>
         <th class="rank">#</th>
+        <th class="pfp-cell"></th>
         <th>Handle</th>
         <th>Shape</th>
         <th class="score">Score</th>
@@ -279,6 +328,80 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+// Clip-path string that crops a square avatar into the regular polygon the
+// user submitted. Odd-sided shapes are vertex-up (triangle, pentagon);
+// even-sided shapes are edge-up (square sits flat, hexagon is flat-topped).
+function shapeClipPath(shape, nSides) {
+  const n = Number(nSides) || 0;
+  if (shape === "Circle" || n < 3) return "circle(50% at 50% 50%)";
+  const edgeUpOffset = (n % 2 === 0) ? -Math.PI / n : 0;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + edgeUpOffset + i * 2 * Math.PI / n;
+    const x = 50 + 50 * Math.cos(a);
+    const y = 50 + 50 * Math.sin(a);
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`);
+  }
+  return `polygon(${pts.join(", ")})`;
+}
+
+// Bluesky public API — getProfiles accepts up to 25 actors per call.
+const profileCache = new Map();          // key: did or handle → profile
+const inflightProfile = new Map();       // key: actor → Promise
+
+async function fetchProfiles(actors) {
+  const need = [];
+  for (const a of actors) {
+    if (!a) continue;
+    if (profileCache.has(a)) continue;
+    if (inflightProfile.has(a)) continue;
+    need.push(a);
+  }
+  if (!need.length) return;
+  const unique = [...new Set(need)];
+  for (let i = 0; i < unique.length; i += 25) {
+    const chunk = unique.slice(i, i + 25);
+    const url = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles");
+    chunk.forEach(a => url.searchParams.append("actors", a));
+    const p = fetch(url.toString())
+      .then(r => r.ok ? r.json() : { profiles: [] })
+      .then(data => {
+        for (const prof of data.profiles || []) {
+          if (prof.did)    profileCache.set(prof.did,    prof);
+          if (prof.handle) profileCache.set(prof.handle, prof);
+        }
+      })
+      .catch(() => { /* ignore — row falls back to stored handle */ })
+      .finally(() => { chunk.forEach(a => inflightProfile.delete(a)); });
+    chunk.forEach(a => inflightProfile.set(a, p));
+    await p;
+  }
+}
+
+function profileOf(s) {
+  return (s.did && profileCache.get(s.did)) ||
+         (s.handle && profileCache.get(s.handle)) || null;
+}
+
+function decorateRow(tr, s) {
+  const prof = profileOf(s);
+  if (!prof) return;
+  const pfp = tr.querySelector(".pfp");
+  if (pfp && prof.avatar) {
+    const img = new Image();
+    img.onload = () => { pfp.style.backgroundImage = `url("${prof.avatar}")`; };
+    img.onerror = () => { pfp.classList.add("fallback"); };
+    img.src = prof.avatar;
+  } else if (pfp) {
+    pfp.classList.add("fallback");
+  }
+  // If the live handle differs from the stored one, surface the current handle.
+  const link = tr.querySelector("td.handle a");
+  if (link && prof.handle && prof.handle !== s.handle) {
+    link.textContent = "@" + prof.handle;
+  }
+}
+
 async function load() {
   updateUrl();
   statusEl.textContent = "loading…";
@@ -301,16 +424,26 @@ async function load() {
       statusEl.innerHTML = "no scores yet &mdash; <a href=\"/draw\">be the first</a>";
       return;
     }
+
+    // Render rows up front so the page paints immediately.
     tbody.innerHTML = scores.map((s, i) => {
       const rank = i + 1;
       const rankClass = rank <= 3 ? `top${rank}` : "";
-      const handle = escapeHtml(s.handle);
-      const shape  = escapeHtml(s.shape);
+      const handle = escapeHtml(s.handle || "");
+      const shape  = escapeHtml(s.shape || "");
       const score  = escapeHtml(String(s.score));
       const when   = relativeTime(Number(s.created_at) || 0);
-      const profile = `https://bsky.app/profile/${encodeURIComponent(s.handle)}`;
-      return `<tr class="${rankClass}">
+      // Use the DID for the profile link — it survives handle changes and
+      // is the canonical Bluesky profile URL (bsky.app accepts both forms).
+      const profile = `https://bsky.app/profile/${s.did || s.handle || ""}`;
+      const clip = shapeClipPath(s.shape, s.n_sides);
+      return `<tr class="${rankClass}" data-did="${escapeHtml(s.did || "")}">
         <td class="rank">${rank}</td>
+        <td class="pfp-cell">
+          <div class="pfp-wrap">
+            <div class="pfp" style="clip-path: ${clip}; -webkit-clip-path: ${clip}"></div>
+          </div>
+        </td>
         <td class="handle"><a href="${profile}" target="_blank" rel="noopener">@${handle}</a></td>
         <td class="shape">${shape}</td>
         <td class="score">${score}%</td>
@@ -319,6 +452,14 @@ async function load() {
     }).join("");
     statusEl.style.display = "none";
     boardEl.hidden = false;
+
+    // Now go fetch avatars + canonical handles in the background.
+    // Prefer DIDs (stable), fall back to handle for old rows that lack one.
+    const actors = scores.map(s => s.did || s.handle).filter(Boolean);
+    await fetchProfiles(actors);
+
+    const rows = tbody.querySelectorAll("tr");
+    rows.forEach((tr, i) => decorateRow(tr, scores[i]));
   } catch (e) {
     statusEl.textContent = "could not load leaderboard: " + (e.message || "unknown error");
     statusEl.classList.add("error");
