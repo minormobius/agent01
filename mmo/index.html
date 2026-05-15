@@ -510,7 +510,7 @@ button { font-family: var(--serif); cursor: pointer; }
   <div class="signin-prompt" id="signin-prompt" hidden>
     <div class="card">
       <h2>Sign in to paint</h2>
-      <p>Identity is verified via Bluesky &mdash; we ask for the <strong>atproto</strong> scope only (no read/write to your PDS). Every stroke is hash-chained for audit.</p>
+      <p>Sign in with Bluesky &mdash; each stroke you paint becomes a public record on <strong>your own PDS</strong> (collection <code>com.minomobi.mmopaint.stroke</code>). We ask for <strong>atproto&nbsp;+&nbsp;transition:generic</strong> so we can write the record on your behalf. Cryptographically signed by your account; readable by anyone on the network.</p>
       <div class="row">
         <input type="text" id="handle-input" placeholder="handle.bsky.social"
                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -554,7 +554,7 @@ button { font-family: var(--serif); cursor: pointer; }
 
 <div class="toast" id="toast"></div>
 
-<script src="./app.js?v=jetstream-1"></script>
+<script src="./app.js?v=userpds-1"></script>
 
 </body>
 </html>

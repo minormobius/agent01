@@ -297,7 +297,10 @@ async function startOAuth() {
   $("login-err").textContent = "";
   $("login-go").disabled = true;
   try {
-    const res = await fetch(`${DRAW_API}/oauth/start`, {
+    // /api/mmo/oauth/start requests `atproto transition:generic` — we
+    // need write access to the contributor's own PDS. (The /draw flow
+    // stays identity-only by hitting /api/draw/oauth/start.)
+    const res = await fetch(`${MMO_API}/oauth/start`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -710,6 +713,19 @@ async function sendStroke(tool, color, size, points) {
       refreshAuthUI();
       showSigninPrompt(true);
       showToast("session expired — sign in");
+      return;
+    }
+    if (res.status === 403) {
+      // Session exists but lacks write scope. Typically because it was
+      // created via /draw (atproto only). Force re-auth through /mmo
+      // to grant transition:generic.
+      const data = await res.json().catch(() => ({}));
+      console.warn("[mmo] write scope missing:", data);
+      clearStoredSession();
+      state.session = null;
+      refreshAuthUI();
+      showSigninPrompt(true);
+      showToast("need to grant write access — sign in again", 5000);
       return;
     }
     if (res.status === 429) {
