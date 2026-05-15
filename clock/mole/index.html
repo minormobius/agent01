@@ -602,11 +602,15 @@ function kineticTemp() {
 // ==========================================================================
 function mat4Identity() { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]); }
 function mat4Mul(a, b) {
+  // Column-major matrix multiply: returns A*B given column-major A, B.
+  // (Column-major storage: arr[col*4 + row] = M[row][col].)
   const r = new Float32Array(16);
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-    let s = 0;
-    for (let kk = 0; kk < 4; kk++) s += a[i*4+kk] * b[kk*4+j];
-    r[i*4+j] = s;
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[k*4 + row] * b[col*4 + k];
+      r[col*4 + row] = s;
+    }
   }
   return r;
 }
