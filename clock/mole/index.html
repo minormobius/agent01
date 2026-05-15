@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MOLE — Ball & Spring Vibrations</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a14;touch-action:none;
+  font:12px ui-monospace,Menlo,Consolas,monospace;color:#cfd}
+canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas.dragging{cursor:grabbing}
+canvas.over-atom{cursor:crosshair}
+#ctl{position:fixed;top:0;left:0;right:0;padding:8px 10px;z-index:2;
+  background:rgba(10,10,22,.88);border-bottom:1px solid #234;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#ctl select,#ctl button{background:#1a1d2a;color:#cfd;border:1px solid #345;
+  padding:3px 8px;font:inherit;cursor:pointer;border-radius:3px}
+#ctl button:hover{background:#26304a}
+#ctl button.on{background:#346;border-color:#58a}
+#ctl input[type=range]{width:90px;accent-color:#7cf;vertical-align:middle}
+#ctl label{display:inline-flex;align-items:center;gap:4px;color:#9ab}
+#ctl .v{color:#cfd;min-width:30px;display:inline-block;text-align:right}
+#info{position:fixed;bottom:8px;left:10px;color:#9bf;font:11px ui-monospace,monospace;
+  z-index:1;pointer-events:none;opacity:0.85;line-height:1.4}
+#hint{position:fixed;bottom:8px;right:10px;color:#789;font:11px ui-monospace,monospace;
+  z-index:1;pointer-events:none;opacity:0.7;text-align:right;line-height:1.4}
+#noGPU{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f99;font:18px monospace;text-align:center;padding:20px;background:#0a0a14}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ctl">
+  <select id="selMol">
+    <option value="water">water · H₂O</option>
+    <option value="co2">carbon dioxide · CO₂</option>
+    <option value="methane">methane · CH₄</option>
+    <option value="ethanol">ethanol · C₂H₆O</option>
+    <option value="benzene" selected>benzene · C₆H₆</option>
+    <option value="cyclohexane">cyclohexane · C₆H₁₂</option>
+    <option value="naphthalene">naphthalene · C₁₀H₈</option>
+    <option value="caffeine">caffeine · C₈H₁₀N₄O₂</option>
+  </select>
+  <label>kick T <span class="v" id="vT">300</span>K
+    <input type="range" id="slT" min="0" max="1500" step="10" value="300"></label>
+  <label>speed <span class="v" id="vS">5</span>
+    <input type="range" id="slS" min="1" max="30" step="1" value="5"></label>
+  <button id="btnKick">kick ⚡</button>
+  <button id="btnPause">⏸</button>
+  <button id="btnReset">reset</button>
+</div>
+<div id="info"></div>
+<div id="hint">drag bg: orbit · wheel: zoom<br>drag atom: pluck</div>
+<div id="noGPU">WebGPU not available.<br>Try Chrome 121+ or Safari 18+.</div>
+<script>
+'use strict';
+
+// ==========================================================================
+// Units: length nm, mass amu, time ps, energy kJ/mol — no conversion factor
+//   needed in F=ma (this is the canonical molecular-dynamics unit system).
+// kT at 300 K = 2.494 kJ/mol. Bond k from AMBER kcal/mol/Å² × 418.4.
+// ==========================================================================
+const KB = 0.0083144626;           // kJ/(mol·K)
+const KCAL = 4.184;                // kcal → kJ
+const FFB = KCAL * 100;            // kcal/mol/Å² → kJ/mol/nm²
+const FFA = KCAL;                  // kcal/mol/rad² → kJ/mol/rad²
+const DEG = Math.PI / 180;
+
+// Atom catalog: [mass amu, radius nm (vdw·0.4), color rgb]
+const ATOM = {
+  H: {m: 1.008, r: 0.030, c: [0.95, 0.95, 0.95]},
+  C: {m: 12.01, r: 0.068, c: [0.30, 0.30, 0.35]},
+  N: {m: 14.01, r: 0.065, c: [0.30, 0.45, 1.00]},
+  O: {m: 16.00, r: 0.062, c: [1.00, 0.25, 0.25]},
+  S: {m: 32.07, r: 0.100, c: [1.00, 0.85, 0.20]},
+};
+
+// Bond force-field [r0 nm, k kJ/mol/nm²]
+// Keys are unordered atom-type pairs joined by '-' (sorted alphabetically).
+const BFF = {
+  'CA-CA': [0.1400, 469 * FFB],   // aromatic C–C
+  'CA-HA': [0.1080, 367 * FFB],   // aromatic C–H
+  'CT-CT': [0.1526, 310 * FFB],   // sp3 C–C
+  'CT-HC': [0.1090, 340 * FFB],   // sp3 C–H
+  'CT-OH': [0.1410, 320 * FFB],   // sp3 C–O (alcohol)
+  'HO-OH': [0.0960, 553 * FFB],   // hydroxyl O–H
+  'C2-O2': [0.1163, 700 * FFB],   // C=O in CO2
+  'CA-CT': [0.1510, 317 * FFB],   // aromatic–sp3
+  'CA-N2': [0.1381, 481 * FFB],   // aromatic C–N (imidazole-ish)
+  'N2-CT': [0.1471, 337 * FFB],   // N–sp3 C
+  'C2-N2': [0.1383, 490 * FFB],   // amide-like C=N
+  'CA-O2': [0.1229, 570 * FFB],   // ring carbonyl C=O
+  'HA-N2': [0.1010, 434 * FFB],   // N–H
+};
+
+// Angle force-field [θ0 deg, k kJ/mol/rad²]
+// Key: sorted-endpoint triple with central atom in middle: "endA-CENTER-endB"
+// where endA <= endB lexically. Use angleKey() to look up.
+const AFF = {
+  'CA-CA-CA': [120.0, 63 * FFA],
+  'CA-CA-HA': [120.0, 50 * FFA],
+  'CA-CA-CT': [120.0, 70 * FFA],
+  'CA-CA-N2': [120.0, 70 * FFA],
+  'CA-CA-O2': [120.0, 70 * FFA],
+  'HC-CT-HC': [109.5, 35 * FFA],
+  'CT-CT-HC': [109.5, 50 * FFA],
+  'CT-CT-CT': [109.5, 40 * FFA],
+  'CT-CT-OH': [109.5, 50 * FFA],
+  'HC-CT-OH': [109.5, 50 * FFA],
+  'CT-OH-HO': [108.5, 55 * FFA],
+  'O2-C2-O2': [180.0, 80 * FFA],   // linear CO2
+  'CA-CT-HC': [109.5, 50 * FFA],
+  'CA-CT-CT': [114.0, 63 * FFA],
+  'CA-N2-CA': [117.0, 70 * FFA],
+  'CA-N2-CT': [120.0, 70 * FFA],
+  'CT-N2-CT': [118.0, 50 * FFA],
+  'N2-CA-N2': [115.0, 70 * FFA],
+  'N2-CA-HA': [120.0, 50 * FFA],
+  'N2-CT-HC': [109.5, 50 * FFA],
+  'HA-N2-CA': [120.0, 50 * FFA],
+  'HA-N2-CT': [118.0, 50 * FFA],
+  // additions for water and caffeine coverage:
+  'HO-OH-HO': [104.5, 100 * FFA],
+  'N2-CA-O2': [120.0, 70 * FFA],
+  'HA-CA-N2': [120.0, 50 * FFA],
+  'HC-CT-N2': [109.5, 50 * FFA],
+};
+
+function bondKey(t1, t2) { return [t1, t2].sort().join('-'); }
+function bondFF(t1, t2) {
+  const k = bondKey(t1, t2);
+  if (!BFF[k]) { console.warn('no bond FF', k); return [0.15, 200*FFB]; }
+  return BFF[k];
+}
+function angleFFLookup(t1, t2, t3) {
+  // endpoints sorted, center fixed
+  const ends = [t1, t3].sort();
+  const k = `${ends[0]}-${t2}-${ends[1]}`;
+  if (!AFF[k]) { console.warn('no angle FF', k); return [109.5, 50*FFA]; }
+  return AFF[k];
+}
+
+// ==========================================================================
+// Molecule library. Each entry returns {atoms, bonds, name}.
+//   atoms: [{e: element, t: type, x, y, z}]  (positions in nm)
+//   bonds: [{i, j}]  — indices into atoms, force-field looked up from types
+// Angles are generated from bond connectivity.
+// ==========================================================================
+const MOL = {
+  water() {
+    const bl = 0.0957, half = 104.5 * DEG / 2;
+    return {name: 'water', atoms: [
+      {e:'O', t:'OH', x:0, y:0, z:0},
+      {e:'H', t:'HO', x: bl*Math.sin(half), y: bl*Math.cos(half), z:0},
+      {e:'H', t:'HO', x:-bl*Math.sin(half), y: bl*Math.cos(half), z:0},
+    ], bonds: [{i:0,j:1},{i:0,j:2}]};
+  },
+  co2() {
+    const bl = 0.1163;
+    return {name: 'co2', atoms: [
+      {e:'C', t:'C2', x:0, y:0, z:0},
+      {e:'O', t:'O2', x: bl, y:0, z:0},
+      {e:'O', t:'O2', x:-bl, y:0, z:0},
+    ], bonds: [{i:0,j:1},{i:0,j:2}]};
+  },
+  methane() {
+    const d = 0.1090, a = 1/Math.sqrt(3);
+    return {name: 'methane', atoms: [
+      {e:'C', t:'CT', x:0, y:0, z:0},
+      {e:'H', t:'HC', x: d*a, y: d*a, z: d*a},
+      {e:'H', t:'HC', x: d*a, y:-d*a, z:-d*a},
+      {e:'H', t:'HC', x:-d*a, y: d*a, z:-d*a},
+      {e:'H', t:'HC', x:-d*a, y:-d*a, z: d*a},
+    ], bonds: [{i:0,j:1},{i:0,j:2},{i:0,j:3},{i:0,j:4}]};
+  },
+  ethanol() {
+    // CH3–CH2–OH. Geometry approximate (tetrahedral, staggered).
+    const dCC = 0.1526, dCH = 0.1090, dCO = 0.1410, dOH = 0.0960;
+    const ang = 109.5 * DEG;
+    // Place C1 at origin, C2 along +x, O along extension.
+    const c1 = [0, 0, 0];
+    const c2 = [dCC, 0, 0];
+    const o  = [dCC + dCO*Math.cos(180*DEG - ang), dCO*Math.sin(180*DEG - ang), 0];
+    const h_o = [o[0] + dOH*Math.cos(2*ang - Math.PI), o[1] + dOH*Math.sin(2*ang - Math.PI), 0];
+    // Methyl Hs around C1 (tripod opposite c2):
+    const r = dCH * Math.sin(ang/2*0.95);
+    const z = -dCH * Math.cos(ang); // backwards from c2
+    const h1 = [z, r, 0];
+    const h2 = [z, -r*0.5,  r*0.866];
+    const h3 = [z, -r*0.5, -r*0.866];
+    // Methylene Hs on C2:
+    const hm1 = [dCC + dCH*Math.cos(ang)*0.4, dCH*0.9, dCH*0.4];
+    const hm2 = [dCC + dCH*Math.cos(ang)*0.4, dCH*0.9, -dCH*0.4];
+    return {name:'ethanol', atoms: [
+      {e:'C',t:'CT',x:c1[0],y:c1[1],z:c1[2]},   // 0
+      {e:'C',t:'CT',x:c2[0],y:c2[1],z:c2[2]},   // 1
+      {e:'O',t:'OH',x:o[0],y:o[1],z:o[2]},      // 2
+      {e:'H',t:'HO',x:h_o[0],y:h_o[1],z:h_o[2]},// 3
+      {e:'H',t:'HC',x:h1[0],y:h1[1],z:h1[2]},   // 4
+      {e:'H',t:'HC',x:h2[0],y:h2[1],z:h2[2]},   // 5
+      {e:'H',t:'HC',x:h3[0],y:h3[1],z:h3[2]},   // 6
+      {e:'H',t:'HC',x:hm1[0],y:hm1[1],z:hm1[2]},// 7
+      {e:'H',t:'HC',x:hm2[0],y:hm2[1],z:hm2[2]},// 8
+    ], bonds: [
+      {i:0,j:1},{i:1,j:2},{i:2,j:3},
+      {i:0,j:4},{i:0,j:5},{i:0,j:6},
+      {i:1,j:7},{i:1,j:8},
+    ]};
+  },
+  benzene() {
+    // Planar hexagon, C in xy plane, H radially outward.
+    const rC = 0.1400, rH = rC + 0.1080;
+    const atoms = [], bonds = [];
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI/3;
+      atoms.push({e:'C', t:'CA', x: rC*Math.cos(a), y: rC*Math.sin(a), z:0});
+    }
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI/3;
+      atoms.push({e:'H', t:'HA', x: rH*Math.cos(a), y: rH*Math.sin(a), z:0});
+    }
+    for (let k = 0; k < 6; k++) bonds.push({i:k, j:(k+1)%6});
+    for (let k = 0; k < 6; k++) bonds.push({i:k, j:6+k});
+    return {name:'benzene', atoms, bonds};
+  },
+  cyclohexane() {
+    // Chair conformation.
+    const rC = 0.1540 / (2*Math.sin(Math.PI/6)); // ring radius from C-C
+    const dz = 0.025; // chair pucker amplitude
+    const dCH = 0.1090;
+    const atoms = [], bonds = [];
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI/3;
+      atoms.push({e:'C', t:'CT',
+        x: rC*Math.cos(a), y: rC*Math.sin(a), z: (k%2 ? dz : -dz)});
+    }
+    // Two H per C (axial + equatorial, roughly)
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI/3;
+      const sgn = (k % 2 ? 1 : -1);
+      atoms.push({e:'H', t:'HC',
+        x: rC*Math.cos(a)*1.05, y: rC*Math.sin(a)*1.05, z: (sgn*dz) + sgn*dCH*0.65});
+      atoms.push({e:'H', t:'HC',
+        x: (rC + dCH*0.6)*Math.cos(a), y: (rC + dCH*0.6)*Math.sin(a), z: (sgn*dz) - sgn*dCH*0.4});
+    }
+    for (let k = 0; k < 6; k++) bonds.push({i:k, j:(k+1)%6});
+    for (let k = 0; k < 6; k++) {
+      bonds.push({i:k, j: 6 + 2*k});
+      bonds.push({i:k, j: 6 + 2*k + 1});
+    }
+    return {name:'cyclohexane', atoms, bonds};
+  },
+  naphthalene() {
+    // Two fused benzene rings sharing an edge. Coordinates from standard geometry.
+    // Two hexagons sharing the bond C0-C1 (vertical edge).
+    const a = 0.1400;
+    const dx = a * Math.cos(Math.PI/6), dy = a * Math.sin(Math.PI/6);
+    // Place shared C's at (-a/2, 0) and (a/2, 0)... actually use horizontal layout.
+    // Carbons: shared edge vertical at x=0. Ring A on left, Ring B on right.
+    const cs = [
+      [ 0,  a/2],         // 0 shared top
+      [ 0, -a/2],         // 1 shared bottom
+      [ dx,  a],          // 2 right-top
+      [ 2*dx, a/2],       // 3 right-up
+      [ 2*dx,-a/2],       // 4 right-down
+      [ dx, -a],          // 5 right-bottom
+      [-dx,  a],          // 6 left-top
+      [-2*dx, a/2],       // 7 left-up
+      [-2*dx,-a/2],       // 8 left-down
+      [-dx, -a],          // 9 left-bottom
+    ];
+    const atoms = cs.map(([x,y]) => ({e:'C', t:'CA', x, y, z:0}));
+    const ringBonds = [
+      [0,2],[2,3],[3,4],[4,5],[5,1],[1,0],
+      [0,6],[6,7],[7,8],[8,9],[9,1],
+    ];
+    const bonds = ringBonds.map(([i,j]) => ({i, j}));
+    // Hs on carbons with only 2 C neighbors (not the shared ones).
+    const adj = atoms.map(()=>[]);
+    for (const b of bonds) { adj[b.i].push(b.j); adj[b.j].push(b.i); }
+    const dH = 0.1080;
+    for (let k = 0; k < atoms.length; k++) {
+      if (adj[k].length === 2) {
+        // Place H opposite the bisector of the two C neighbors.
+        const A = atoms[adj[k][0]], B = atoms[adj[k][1]], C = atoms[k];
+        const ux = (2*C.x - A.x - B.x), uy = (2*C.y - A.y - B.y);
+        const ul = Math.hypot(ux, uy) || 1;
+        const idx = atoms.length;
+        atoms.push({e:'H', t:'HA', x: C.x + dH*ux/ul, y: C.y + dH*uy/ul, z: 0});
+        bonds.push({i:k, j:idx});
+      }
+    }
+    return {name:'naphthalene', atoms, bonds};
+  },
+  caffeine() {
+    // Caffeine: fused imidazole + pyrimidinedione, 3 methyl groups, 24 atoms.
+    // Layout in xy plane. Raw coords below have a "natural" bond length of 0.8
+    // in dimensionless units; scaling by 0.175 maps that to the aromatic
+    // bond length 0.140 nm. Small (<10%) errors from the FF equilibrium are
+    // relaxed in a few fs of simulation.
+    const sc = 0.175;
+    const H = [
+      // [element, type, x, y]
+      ['N','N2',  0.00,  0.70],  // 0 N1
+      ['C','CA',  0.69,  0.30],  // 1 C2 (=O)
+      ['N','N2',  0.69, -0.50],  // 2 N3
+      ['C','CA',  0.00, -0.90],  // 3 C4
+      ['C','CA', -0.69, -0.50],  // 4 C5
+      ['C','CA', -0.69,  0.30],  // 5 C6 (=O)
+      ['N','N2', -1.42, -0.85],  // 6 N7
+      ['C','CA', -1.85, -0.20],  // 7 C8
+      ['N','N2', -1.42,  0.45],  // 8 N9
+      ['O','O2',  1.38,  0.65],  // 9 O on C2
+      ['O','O2', -1.38,  0.65],  // 10 O on C6
+      // Methyl carbons — caffeine is 1,3,7-trimethylxanthine:
+      ['C','CT',  0.00,  1.50],  // 11 CH3 on N1
+      ['C','CT',  1.38, -0.90],  // 12 CH3 on N3
+      ['C','CT', -1.65, -1.62],  // 13 CH3 on N7 (raw dist ~0.8 from N7)
+    ];
+    const atoms = H.map(h => ({e:h[0], t:h[1], x:h[2]*sc, y:h[3]*sc, z:0}));
+    const ringBonds = [
+      [0,1],[1,2],[2,3],[3,4],[4,5],[5,0],   // 6-ring
+      [4,6],[6,7],[7,8],[8,3],                // 5-ring fused on 3-4
+      [1,9],[5,10],                           // carbonyls
+      [0,11],[2,12],[6,13],                   // N-methyls (N1, N3, N7)
+    ];
+    const bonds = ringBonds.map(([i,j]) => ({i,j}));
+    // Aromatic CH on C8 (atom 7) — it has only N neighbors so far.
+    const adj = atoms.map(()=>[]);
+    for (const b of bonds) { adj[b.i].push(b.j); adj[b.j].push(b.i); }
+    const dCH = 0.1080, dMethH = 0.1090;
+    // C8 hydrogen
+    {
+      const C = atoms[7], A = atoms[adj[7][0]], B = atoms[adj[7][1]];
+      const ux = (2*C.x - A.x - B.x), uy = (2*C.y - A.y - B.y);
+      const ul = Math.hypot(ux, uy) || 1;
+      const idx = atoms.length;
+      atoms.push({e:'H', t:'HA', x: C.x + dCH*ux/ul, y: C.y + dCH*uy/ul, z:0});
+      bonds.push({i:7, j:idx});
+    }
+    // Methyl Hs: for each methyl C (atoms 11, 12, 13) add 3 H tetrahedral.
+    for (const mi of [11, 12, 13]) {
+      const C = atoms[mi], N = atoms[adj[mi][0]];
+      const ax = C.x - N.x, ay = C.y - N.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const ux = ax/al, uy = ay/al;
+      // tangent in plane
+      const tx = -uy, ty = ux;
+      const tetraZ = dMethH * Math.sin(70.5*DEG);
+      const planar = dMethH * Math.cos(70.5*DEG);
+      const offsets = [
+        [ planar*ux + 0*tx,  planar*uy + 0*ty,  tetraZ],
+        [ planar*ux + 0.866*dMethH*tx, planar*uy + 0.866*dMethH*ty, -tetraZ*0.5],
+        [ planar*ux - 0.866*dMethH*tx, planar*uy - 0.866*dMethH*ty, -tetraZ*0.5],
+      ];
+      for (const o of offsets) {
+        atoms.push({e:'H', t:'HC', x: C.x + o[0], y: C.y + o[1], z: o[2]});
+        bonds.push({i: mi, j: atoms.length-1});
+      }
+    }
+    return {name:'caffeine', atoms, bonds};
+  },
+};
+
+// Build the angle list from atom connectivity. Uses AFF lookup by type triple.
+function buildAngles(atoms, bonds) {
+  const adj = atoms.map(()=>[]);
+  for (const b of bonds) { adj[b.i].push(b.j); adj[b.j].push(b.i); }
+  const angles = [];
+  for (let kk = 0; kk < atoms.length; kk++) {
+    const ns = adj[kk];
+    for (let a = 0; a < ns.length; a++) {
+      for (let c = a+1; c < ns.length; c++) {
+        const i = ns[a], j = ns[c];
+        const [th0deg, kth] = angleFFLookup(atoms[i].t, atoms[kk].t, atoms[j].t);
+        angles.push({i, j: kk, k: j, t0: th0deg*DEG, kth});
+      }
+    }
+  }
+  return angles;
+}
+
+function instantiate(name) {
+  const m = MOL[name]();
+  // Fill in r0, k for each bond from FF.
+  for (const b of m.bonds) {
+    const [r0, k] = bondFF(m.atoms[b.i].t, m.atoms[b.j].t);
+    b.r0 = r0; b.k = k;
+  }
+  m.angles = buildAngles(m.atoms, m.bonds);
+  return m;
+}
+
+// ==========================================================================
+// State + physics (CPU, Velocity Verlet).
+// ==========================================================================
+let sys = null;   // current system: {atoms, bonds, angles, pos, vel, force, mass, ...}
+let paused = false;
+let substepsPerFrame = 5;
+let kickT = 300;
+let pluck = null;  // {atom: i, target: vec3, ray: ...}
+
+function loadSystem(name) {
+  const m = instantiate(name);
+  const N = m.atoms.length;
+  const pos = new Float32Array(N*3);
+  const vel = new Float32Array(N*3);
+  const force = new Float32Array(N*3);
+  const mass = new Float32Array(N);
+  const invm = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    pos[3*i]   = m.atoms[i].x;
+    pos[3*i+1] = m.atoms[i].y;
+    pos[3*i+2] = m.atoms[i].z;
+    mass[i] = ATOM[m.atoms[i].e].m;
+    invm[i] = 1 / mass[i];
+  }
+  sys = {
+    name: m.name, atoms: m.atoms, bonds: m.bonds, angles: m.angles,
+    pos, vel, force, mass, invm, N,
+    t: 0, totalKE: 0,
+  };
+  centerCOM();
+  relax(300, 0.0005);   // damp out bad initial geometry before thermal kick
+  centerCOM();
+  kickThermal(kickT);
+}
+
+// Damped Verlet — drains energy from hand-laid initial geometry so harmonic
+// forces don't explode at t=0. Uses a tiny step and aggressive velocity decay.
+function relax(steps, dt) {
+  sys.vel.fill(0);
+  for (let s = 0; s < steps; s++) {
+    computeForces();
+    for (let i = 0; i < sys.N; i++) {
+      const inv = sys.invm[i];
+      // half-kick, drift, half-kick with damping between.
+      sys.vel[3*i]   = (sys.vel[3*i]   + dt * sys.force[3*i]   * inv) * 0.6;
+      sys.vel[3*i+1] = (sys.vel[3*i+1] + dt * sys.force[3*i+1] * inv) * 0.6;
+      sys.vel[3*i+2] = (sys.vel[3*i+2] + dt * sys.force[3*i+2] * inv) * 0.6;
+      sys.pos[3*i]   += dt * sys.vel[3*i];
+      sys.pos[3*i+1] += dt * sys.vel[3*i+1];
+      sys.pos[3*i+2] += dt * sys.vel[3*i+2];
+    }
+  }
+  sys.vel.fill(0);
+  sys.force.fill(0);
+}
+
+function centerCOM() {
+  let mx=0, my=0, mz=0, M=0;
+  for (let i = 0; i < sys.N; i++) {
+    mx += sys.pos[3*i]   * sys.mass[i];
+    my += sys.pos[3*i+1] * sys.mass[i];
+    mz += sys.pos[3*i+2] * sys.mass[i];
+    M  += sys.mass[i];
+  }
+  mx/=M; my/=M; mz/=M;
+  for (let i = 0; i < sys.N; i++) {
+    sys.pos[3*i]   -= mx;
+    sys.pos[3*i+1] -= my;
+    sys.pos[3*i+2] -= mz;
+  }
+}
+
+function gauss() {
+  let u, v, s;
+  do { u = 2*Math.random()-1; v = 2*Math.random()-1; s = u*u+v*v; } while (s >= 1 || s === 0);
+  return u * Math.sqrt(-2*Math.log(s)/s);
+}
+
+function kickThermal(T) {
+  for (let i = 0; i < sys.N; i++) {
+    const sigma = Math.sqrt(KB * T / sys.mass[i]);  // nm/ps
+    sys.vel[3*i]   = sigma * gauss();
+    sys.vel[3*i+1] = sigma * gauss();
+    sys.vel[3*i+2] = sigma * gauss();
+  }
+  removeCOMMotion();
+}
+
+function removeCOMMotion() {
+  let px=0, py=0, pz=0, M=0;
+  for (let i = 0; i < sys.N; i++) {
+    px += sys.vel[3*i]   * sys.mass[i];
+    py += sys.vel[3*i+1] * sys.mass[i];
+    pz += sys.vel[3*i+2] * sys.mass[i];
+    M  += sys.mass[i];
+  }
+  px/=M; py/=M; pz/=M;
+  for (let i = 0; i < sys.N; i++) {
+    sys.vel[3*i]   -= px;
+    sys.vel[3*i+1] -= py;
+    sys.vel[3*i+2] -= pz;
+  }
+}
+
+function computeForces() {
+  const N = sys.N;
+  const F = sys.force, P = sys.pos;
+  F.fill(0);
+
+  // Bond stretches: U = (k/2)(r - r0)^2
+  for (const b of sys.bonds) {
+    const i = b.i, j = b.j;
+    const dx = P[3*j] - P[3*i], dy = P[3*j+1] - P[3*i+1], dz = P[3*j+2] - P[3*i+2];
+    const r = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1e-9;
+    const fmag = b.k * (r - b.r0) / r;
+    F[3*i]   += fmag * dx; F[3*i+1] += fmag * dy; F[3*i+2] += fmag * dz;
+    F[3*j]   -= fmag * dx; F[3*j+1] -= fmag * dy; F[3*j+2] -= fmag * dz;
+  }
+
+  // Angle bends: U = (k/2)(θ - θ0)^2 with vectors a→b and c→b convention.
+  for (const a of sys.angles) {
+    const i = a.i, j = a.j, k = a.k;
+    const r1x = P[3*i]-P[3*j], r1y = P[3*i+1]-P[3*j+1], r1z = P[3*i+2]-P[3*j+2];
+    const r2x = P[3*k]-P[3*j], r2y = P[3*k+1]-P[3*j+1], r2z = P[3*k+2]-P[3*j+2];
+    const n1 = Math.sqrt(r1x*r1x + r1y*r1y + r1z*r1z) || 1e-9;
+    const n2 = Math.sqrt(r2x*r2x + r2y*r2y + r2z*r2z) || 1e-9;
+    let cos = (r1x*r2x + r1y*r2y + r1z*r2z) / (n1*n2);
+    if (cos > 0.9999) cos = 0.9999; else if (cos < -0.9999) cos = -0.9999;
+    const theta = Math.acos(cos);
+    const sinT = Math.sqrt(1 - cos*cos);
+    // F = -∇U, U = (k/2)(θ-θ0)². dθ/dx = -(1/sinθ) ∂cosθ/∂x.
+    // Resulting prefactor on the bracket below is +k(θ-θ0)/sinθ.
+    const dEdth = a.kth * (theta - a.t0);
+    const fac = dEdth / Math.max(sinT, 1e-4);
+    // Standard angle-force derivation. Force on i:
+    const f1x = fac * (r2x/(n1*n2) - cos*r1x/(n1*n1));
+    const f1y = fac * (r2y/(n1*n2) - cos*r1y/(n1*n1));
+    const f1z = fac * (r2z/(n1*n2) - cos*r1z/(n1*n1));
+    const f3x = fac * (r1x/(n1*n2) - cos*r2x/(n2*n2));
+    const f3y = fac * (r1y/(n1*n2) - cos*r2y/(n2*n2));
+    const f3z = fac * (r1z/(n1*n2) - cos*r2z/(n2*n2));
+    F[3*i]   += f1x; F[3*i+1] += f1y; F[3*i+2] += f1z;
+    F[3*k]   += f3x; F[3*k+1] += f3y; F[3*k+2] += f3z;
+    F[3*j]   -= f1x + f3x;
+    F[3*j+1] -= f1y + f3y;
+    F[3*j+2] -= f1z + f3z;
+  }
+
+  // Pluck handled by position-pinning in step(), not as a force.
+}
+
+function applyPluckConstraint() {
+  if (!pluck) return;
+  const i = pluck.atom;
+  sys.pos[3*i]   = pluck.target[0];
+  sys.pos[3*i+1] = pluck.target[1];
+  sys.pos[3*i+2] = pluck.target[2];
+  sys.vel[3*i]   = 0;
+  sys.vel[3*i+1] = 0;
+  sys.vel[3*i+2] = 0;
+  // Cancel any force already accumulated on the pinned atom so the post-step
+  // half-kick doesn't impart velocity to it either.
+  sys.force[3*i]   = 0;
+  sys.force[3*i+1] = 0;
+  sys.force[3*i+2] = 0;
+}
+
+function step(dt) {
+  const N = sys.N;
+  // Velocity Verlet: v += (a/2) dt; x += v dt; recompute a; v += (a/2) dt
+  applyPluckConstraint();
+  for (let i = 0; i < N; i++) {
+    const inv = sys.invm[i];
+    sys.vel[3*i]   += 0.5 * dt * sys.force[3*i]   * inv;
+    sys.vel[3*i+1] += 0.5 * dt * sys.force[3*i+1] * inv;
+    sys.vel[3*i+2] += 0.5 * dt * sys.force[3*i+2] * inv;
+    sys.pos[3*i]   += dt * sys.vel[3*i];
+    sys.pos[3*i+1] += dt * sys.vel[3*i+1];
+    sys.pos[3*i+2] += dt * sys.vel[3*i+2];
+  }
+  applyPluckConstraint();
+  computeForces();
+  applyPluckConstraint();
+  for (let i = 0; i < N; i++) {
+    const inv = sys.invm[i];
+    sys.vel[3*i]   += 0.5 * dt * sys.force[3*i]   * inv;
+    sys.vel[3*i+1] += 0.5 * dt * sys.force[3*i+1] * inv;
+    sys.vel[3*i+2] += 0.5 * dt * sys.force[3*i+2] * inv;
+  }
+  applyPluckConstraint();
+  sys.t += dt;
+}
+
+function kineticTemp() {
+  // T = (2/3N) <KE>/kB.  In our units: KE = 0.5 Σ m v² (kJ/mol).
+  let ke = 0;
+  for (let i = 0; i < sys.N; i++) {
+    const vx = sys.vel[3*i], vy = sys.vel[3*i+1], vz = sys.vel[3*i+2];
+    ke += sys.mass[i] * (vx*vx + vy*vy + vz*vz);
+  }
+  ke *= 0.5;
+  sys.totalKE = ke;
+  return (2 * ke) / (3 * sys.N * KB);
+}
+
+// ==========================================================================
+// Math helpers (camera, projection).
+// ==========================================================================
+function mat4Identity() { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]); }
+function mat4Mul(a, b) {
+  const r = new Float32Array(16);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    let s = 0;
+    for (let kk = 0; kk < 4; kk++) s += a[i*4+kk] * b[kk*4+j];
+    r[i*4+j] = s;
+  }
+  return r;
+}
+function mat4Perspective(fovY, aspect, zn, zf) {
+  const f = 1 / Math.tan(fovY/2);
+  const r = new Float32Array(16);
+  r[0] = f/aspect; r[5] = f;
+  r[10] = zf/(zn-zf); r[11] = -1;
+  r[14] = zn*zf/(zn-zf);
+  return r;
+}
+function mat4LookAt(ex, ey, ez, cx, cy, cz, ux, uy, uz) {
+  let fx=cx-ex, fy=cy-ey, fz=cz-ez;
+  let fl = Math.hypot(fx,fy,fz); fx/=fl; fy/=fl; fz/=fl;
+  let sx = fy*uz - fz*uy, sy = fz*ux - fx*uz, sz = fx*uy - fy*ux;
+  let sl = Math.hypot(sx,sy,sz); sx/=sl; sy/=sl; sz/=sl;
+  const vx = sy*fz - sz*fy, vy = sz*fx - sx*fz, vz = sx*fy - sy*fx;
+  const r = new Float32Array(16);
+  r[0]=sx; r[1]=vx; r[2]=-fx; r[3]=0;
+  r[4]=sy; r[5]=vy; r[6]=-fy; r[7]=0;
+  r[8]=sz; r[9]=vz; r[10]=-fz; r[11]=0;
+  r[12]=-(sx*ex+sy*ey+sz*ez);
+  r[13]=-(vx*ex+vy*ey+vz*ez);
+  r[14]=fx*ex+fy*ey+fz*ez;
+  r[15]=1;
+  return r;
+}
+
+// ==========================================================================
+// WebGPU: render pipeline. Atoms as impostor billboards (ray-sphere in FS),
+// bonds as instanced cylinder mesh.
+// ==========================================================================
+let gpu = null;
+
+async function initGPU() {
+  if (!navigator.gpu) throw new Error('no webgpu');
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) throw new Error('no adapter');
+  const device = await adapter.requestDevice();
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({device, format, alphaMode: 'opaque'});
+  gpu = {device, ctx, format, canvas};
+
+  buildAtomPipeline();
+  buildBondPipeline();
+  // Depth texture allocated on resize.
+  resize();
+}
+
+const ATOM_SHADER = `
+struct Cam {
+  vp: mat4x4f,
+  eye: vec3f, _p0: f32,
+  right: vec3f, _p1: f32,
+  up: vec3f, _p2: f32,
+  fwd: vec3f, _p3: f32,
+};
+struct Atom {
+  pos: vec3f, rad: f32,
+  col: vec3f, _p: f32,
+};
+@group(0) @binding(0) var<uniform> cam: Cam;
+@group(0) @binding(1) var<storage, read> atoms: array<Atom>;
+
+struct VOut {
+  @builtin(position) clip: vec4f,
+  @location(0) q: vec2f,
+  @location(1) centerVS: vec3f,
+  @location(2) col: vec3f,
+  @location(3) rad: f32,
+  @location(4) centerWS: vec3f,
+};
+@vertex
+fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
+  let corner = array<vec2f,6>(
+    vec2f(-1.0,-1.0), vec2f( 1.0,-1.0), vec2f( 1.0, 1.0),
+    vec2f(-1.0,-1.0), vec2f( 1.0, 1.0), vec2f(-1.0, 1.0)
+  )[vi];
+  let a = atoms[ii];
+  let world = a.pos + (cam.right * corner.x + cam.up * corner.y) * a.rad * 1.05;
+  var out: VOut;
+  out.clip = cam.vp * vec4f(world, 1.0);
+  out.q = corner;
+  out.centerVS = a.pos;     // we'll use world-space ray-sphere in FS
+  out.centerWS = a.pos;
+  out.col = a.col;
+  out.rad = a.rad;
+  return out;
+}
+
+struct FOut {
+  @location(0) color: vec4f,
+  @builtin(frag_depth) depth: f32,
+};
+
+@fragment
+fn fs(in: VOut) -> FOut {
+  // Ray from camera eye through pixel: reconstruct from billboard quad coords.
+  // The quad spans (corner.x, corner.y) ∈ [-1,1]² on the screen-aligned plane at center.
+  // World position on quad:
+  let pquad = in.centerWS + (cam.right * in.q.x + cam.up * in.q.y) * (in.rad * 1.05);
+  let ro = cam.eye;
+  let rd = normalize(pquad - ro);
+  let oc = ro - in.centerWS;
+  let b = dot(oc, rd);
+  let c = dot(oc, oc) - in.rad * in.rad;
+  let disc = b*b - c;
+  if (disc < 0.0) { discard; }
+  let t = -b - sqrt(disc);
+  let p = ro + rd * t;
+  let n = normalize(p - in.centerWS);
+  // Lighting: key + rim + ambient.
+  let L = normalize(vec3f(0.6, 0.8, 0.4));
+  let diff = max(0.0, dot(n, L));
+  let rim = pow(1.0 - max(0.0, dot(n, -cam.fwd)), 2.0) * 0.4;
+  let spec = pow(max(0.0, dot(reflect(-L, n), -cam.fwd)), 32.0) * 0.5;
+  let col = in.col * (0.25 + 0.75 * diff) + vec3f(spec) + vec3f(rim) * in.col;
+  // Re-project p to NDC for depth.
+  let clip = cam.vp * vec4f(p, 1.0);
+  var out: FOut;
+  out.color = vec4f(col, 1.0);
+  out.depth = clip.z / clip.w;
+  return out;
+}
+`;
+
+const BOND_SHADER = `
+struct Cam {
+  vp: mat4x4f,
+  eye: vec3f, _p0: f32,
+  right: vec3f, _p1: f32,
+  up: vec3f, _p2: f32,
+  fwd: vec3f, _p3: f32,
+};
+struct Bond {
+  a: vec3f, rad: f32,
+  b: vec3f, _p: f32,
+  colA: vec3f, _q: f32,
+  colB: vec3f, _r: f32,
+};
+@group(0) @binding(0) var<uniform> cam: Cam;
+@group(0) @binding(1) var<storage, read> bonds: array<Bond>;
+
+struct VOut {
+  @builtin(position) clip: vec4f,
+  @location(0) wpos: vec3f,
+  @location(1) col: vec3f,
+  @location(2) nrm: vec3f,
+};
+
+// Unit cylinder: 8 sides, top at z=1 bottom at z=0; we generate 8*2 tris = 48 verts.
+@vertex
+fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VOut {
+  let bd = bonds[ii];
+  let SIDES = 8u;
+  let triIdx = vi / 6u;
+  let cornerIdx = vi % 6u;
+  let s0 = triIdx;
+  let s1 = (triIdx + 1u) % SIDES;
+  let a0 = f32(s0) * 6.28318530718 / f32(SIDES);
+  let a1 = f32(s1) * 6.28318530718 / f32(SIDES);
+  // local-space ring radius 1 in xy, z 0→1.
+  // Choose corner: 0=(a0,0), 1=(a1,0), 2=(a1,1), 3=(a0,0), 4=(a1,1), 5=(a0,1)
+  var aa = a0;
+  var zz = 0.0;
+  if (cornerIdx == 1u) { aa = a1; zz = 0.0; }
+  else if (cornerIdx == 2u) { aa = a1; zz = 1.0; }
+  else if (cornerIdx == 3u) { aa = a0; zz = 0.0; }
+  else if (cornerIdx == 4u) { aa = a1; zz = 1.0; }
+  else if (cornerIdx == 5u) { aa = a0; zz = 1.0; }
+  let lx = cos(aa);
+  let ly = sin(aa);
+  let local = vec3f(lx, ly, zz);
+
+  // Build a frame: z-axis along (b-a), x and y perpendicular.
+  let za = bd.b - bd.a;
+  let L = length(za);
+  let zhat = za / max(L, 1e-6);
+  var xhat = normalize(cross(zhat, vec3f(0.0, 1.0, 0.0)));
+  if (length(cross(zhat, vec3f(0.0, 1.0, 0.0))) < 0.001) {
+    xhat = normalize(cross(zhat, vec3f(1.0, 0.0, 0.0)));
+  }
+  let yhat = cross(zhat, xhat);
+
+  let world = bd.a + xhat*(lx*bd.rad) + yhat*(ly*bd.rad) + zhat*(zz*L);
+  let nrm = xhat*lx + yhat*ly;
+  let col = mix(bd.colA, bd.colB, zz);
+
+  var out: VOut;
+  out.clip = cam.vp * vec4f(world, 1.0);
+  out.wpos = world;
+  out.col = col;
+  out.nrm = nrm;
+  return out;
+}
+
+@fragment
+fn fs(in: VOut) -> @location(0) vec4f {
+  let n = normalize(in.nrm);
+  let L = normalize(vec3f(0.6, 0.8, 0.4));
+  let diff = max(0.0, dot(n, L));
+  let rim = pow(1.0 - max(0.0, dot(n, -cam.fwd)), 2.0) * 0.3;
+  let col = in.col * (0.30 + 0.70 * diff) + vec3f(rim) * in.col;
+  return vec4f(col, 1.0);
+}
+`;
+
+let atomPipeline, bondPipeline, camBuf;
+let atomBindGroup, bondBindGroup;
+let atomBuf, bondBuf, atomBufCap = 0, bondBufCap = 0;
+let depthTex = null;
+
+function buildAtomPipeline() {
+  const d = gpu.device;
+  const mod = d.createShaderModule({code: ATOM_SHADER});
+  atomPipeline = d.createRenderPipeline({
+    layout: 'auto',
+    vertex:   {module: mod, entryPoint: 'vs'},
+    fragment: {module: mod, entryPoint: 'fs', targets: [{format: gpu.format}]},
+    primitive: {topology: 'triangle-list', cullMode: 'none'},
+    depthStencil: {format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less'},
+  });
+  camBuf = d.createBuffer({size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST});
+}
+
+function buildBondPipeline() {
+  const d = gpu.device;
+  const mod = d.createShaderModule({code: BOND_SHADER});
+  bondPipeline = d.createRenderPipeline({
+    layout: 'auto',
+    vertex:   {module: mod, entryPoint: 'vs'},
+    fragment: {module: mod, entryPoint: 'fs', targets: [{format: gpu.format}]},
+    primitive: {topology: 'triangle-list', cullMode: 'none'},
+    depthStencil: {format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less'},
+  });
+}
+
+function ensureBuffer(buf, cap, neededBytes, usage) {
+  if (buf && cap >= neededBytes) return [buf, cap];
+  if (buf) buf.destroy();
+  const newCap = Math.max(neededBytes, cap * 2 || 1024);
+  return [gpu.device.createBuffer({size: newCap, usage}), newCap];
+}
+
+function resize() {
+  const c = gpu.canvas;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  c.width = Math.floor(window.innerWidth * dpr);
+  c.height = Math.floor(window.innerHeight * dpr);
+  if (depthTex) depthTex.destroy();
+  depthTex = gpu.device.createTexture({
+    size: [c.width, c.height],
+    format: 'depth24plus',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+}
+
+// ==========================================================================
+// Camera (orbit). Trackball around COM.
+// ==========================================================================
+const cam = {dist: 1.2, yaw: 0.3, pitch: 0.25, target: [0,0,0], fov: 50*DEG};
+
+function getCamFrame() {
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const ex = cam.target[0] + cam.dist * cp * sy;
+  const ey = cam.target[1] + cam.dist * sp;
+  const ez = cam.target[2] + cam.dist * cp * cy;
+  // Forward = target - eye normalized
+  const fx = cam.target[0]-ex, fy = cam.target[1]-ey, fz = cam.target[2]-ez;
+  const fl = Math.hypot(fx,fy,fz);
+  const fdx = fx/fl, fdy = fy/fl, fdz = fz/fl;
+  // Right = forward × world_up
+  let rx = fdy*0 - fdz*1, ry = fdz*0 - fdx*0, rz = fdx*1 - fdy*0;
+  // Simpler: right = normalize(cross(forward, up=(0,1,0)))
+  rx = fdy*0 - fdz*1; ry = fdz*0 - fdx*0; rz = fdx*1 - fdy*0;
+  let cl = Math.hypot(rx,ry,rz) || 1; rx/=cl; ry/=cl; rz/=cl;
+  // Up = cross(right, forward)
+  const ux = ry*fdz - rz*fdy, uy = rz*fdx - rx*fdz, uz = rx*fdy - ry*fdx;
+  return {ex,ey,ez,fdx,fdy,fdz,rx,ry,rz,ux,uy,uz};
+}
+
+function uploadCamera() {
+  const c = gpu.canvas;
+  const aspect = c.width / c.height;
+  const proj = mat4Perspective(cam.fov, aspect, 0.05, 50);
+  const f = getCamFrame();
+  const view = mat4LookAt(f.ex, f.ey, f.ez, cam.target[0], cam.target[1], cam.target[2], 0, 1, 0);
+  const vp = mat4Mul(proj, view);
+  const buf = new Float32Array(48);
+  buf.set(vp, 0);
+  buf[16] = f.ex; buf[17] = f.ey; buf[18] = f.ez; buf[19] = 0;
+  buf[20] = f.rx; buf[21] = f.ry; buf[22] = f.rz; buf[23] = 0;
+  buf[24] = f.ux; buf[25] = f.uy; buf[26] = f.uz; buf[27] = 0;
+  buf[28] = f.fdx; buf[29] = f.fdy; buf[30] = f.fdz; buf[31] = 0;
+  gpu.device.queue.writeBuffer(camBuf, 0, buf.buffer, 0, 128);
+}
+
+// ==========================================================================
+// Frame rendering.
+// ==========================================================================
+function frame() {
+  if (!sys || !gpu) return;
+  // physics
+  if (!paused) {
+    const dt = 0.001; // 1 fs in ps
+    for (let s = 0; s < substepsPerFrame; s++) step(dt);
+  }
+  if (pluck) {
+    // Update pluck target from latest mouse position (handled in mouse events)
+  }
+  // Center camera on COM.
+  let mx=0,my=0,mz=0,M=0;
+  for (let i = 0; i < sys.N; i++) {
+    mx += sys.pos[3*i]*sys.mass[i];
+    my += sys.pos[3*i+1]*sys.mass[i];
+    mz += sys.pos[3*i+2]*sys.mass[i];
+    M  += sys.mass[i];
+  }
+  cam.target[0] = mx/M; cam.target[1] = my/M; cam.target[2] = mz/M;
+
+  // Pack atom + bond instance data.
+  const N = sys.N;
+  const atomBytes = N * 32;
+  let pair = ensureBuffer(atomBuf, atomBufCap, atomBytes,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  atomBuf = pair[0]; atomBufCap = pair[1];
+  const aArr = new Float32Array(N * 8);
+  for (let i = 0; i < N; i++) {
+    const a = sys.atoms[i], cc = ATOM[a.e];
+    aArr[8*i]   = sys.pos[3*i];
+    aArr[8*i+1] = sys.pos[3*i+1];
+    aArr[8*i+2] = sys.pos[3*i+2];
+    aArr[8*i+3] = cc.r;
+    aArr[8*i+4] = cc.c[0];
+    aArr[8*i+5] = cc.c[1];
+    aArr[8*i+6] = cc.c[2];
+    aArr[8*i+7] = 0;
+  }
+  gpu.device.queue.writeBuffer(atomBuf, 0, aArr.buffer, 0, atomBytes);
+
+  const B = sys.bonds.length;
+  const bondBytes = B * 64;
+  pair = ensureBuffer(bondBuf, bondBufCap, bondBytes,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  bondBuf = pair[0]; bondBufCap = pair[1];
+  const bArr = new Float32Array(B * 16);
+  for (let k = 0; k < B; k++) {
+    const bb = sys.bonds[k];
+    const i = bb.i, j = bb.j;
+    const ca = ATOM[sys.atoms[i].e].c, cb = ATOM[sys.atoms[j].e].c;
+    bArr[16*k]    = sys.pos[3*i];
+    bArr[16*k+1]  = sys.pos[3*i+1];
+    bArr[16*k+2]  = sys.pos[3*i+2];
+    bArr[16*k+3]  = 0.018;  // bond radius nm
+    bArr[16*k+4]  = sys.pos[3*j];
+    bArr[16*k+5]  = sys.pos[3*j+1];
+    bArr[16*k+6]  = sys.pos[3*j+2];
+    bArr[16*k+7]  = 0;
+    bArr[16*k+8]  = ca[0]; bArr[16*k+9]  = ca[1]; bArr[16*k+10] = ca[2]; bArr[16*k+11] = 0;
+    bArr[16*k+12] = cb[0]; bArr[16*k+13] = cb[1]; bArr[16*k+14] = cb[2]; bArr[16*k+15] = 0;
+  }
+  gpu.device.queue.writeBuffer(bondBuf, 0, bArr.buffer, 0, bondBytes);
+
+  uploadCamera();
+
+  // Bind groups (recreated each frame because storage buffer might grow).
+  atomBindGroup = gpu.device.createBindGroup({
+    layout: atomPipeline.getBindGroupLayout(0),
+    entries: [
+      {binding: 0, resource: {buffer: camBuf}},
+      {binding: 1, resource: {buffer: atomBuf, size: atomBytes}},
+    ],
+  });
+  bondBindGroup = gpu.device.createBindGroup({
+    layout: bondPipeline.getBindGroupLayout(0),
+    entries: [
+      {binding: 0, resource: {buffer: camBuf}},
+      {binding: 1, resource: {buffer: bondBuf, size: bondBytes}},
+    ],
+  });
+
+  const enc = gpu.device.createCommandEncoder();
+  const view = gpu.ctx.getCurrentTexture().createView();
+  const pass = enc.beginRenderPass({
+    colorAttachments: [{
+      view, clearValue: {r: 0.04, g: 0.04, b: 0.08, a: 1},
+      loadOp: 'clear', storeOp: 'store',
+    }],
+    depthStencilAttachment: {
+      view: depthTex.createView(),
+      depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store',
+    },
+  });
+  // bonds first so atoms overdraw at junctions
+  pass.setPipeline(bondPipeline);
+  pass.setBindGroup(0, bondBindGroup);
+  pass.draw(48, B);  // 8 sides × 6 verts = 48
+  pass.setPipeline(atomPipeline);
+  pass.setBindGroup(0, atomBindGroup);
+  pass.draw(6, N);
+  pass.end();
+  gpu.device.queue.submit([enc.finish()]);
+
+  // Info text
+  const T = kineticTemp();
+  const info = document.getElementById('info');
+  info.textContent = `${sys.name} · ${sys.N} atoms · ${sys.bonds.length} bonds · ${sys.angles.length} angles · T≈${T.toFixed(0)}K · t=${sys.t.toFixed(2)}ps`;
+
+  requestAnimationFrame(frame);
+}
+
+// ==========================================================================
+// Input handling: orbit camera, pluck atoms.
+// ==========================================================================
+let drag = null;  // {kind:'orbit'|'pluck', x, y, ...}
+
+function pickAtom(sx, sy) {
+  // Convert screen → ray, test sphere intersection on each atom, pick nearest.
+  const c = gpu.canvas;
+  const aspect = c.width / c.height;
+  const ndcX = (sx * (window.devicePixelRatio || 1)) / c.width * 2 - 1;
+  const ndcY = 1 - (sy * (window.devicePixelRatio || 1)) / c.height * 2;
+  const f = getCamFrame();
+  const tanF = Math.tan(cam.fov/2);
+  const rdx = f.fdx + f.rx * ndcX*tanF*aspect + f.ux * ndcY*tanF;
+  const rdy = f.fdy + f.ry * ndcX*tanF*aspect + f.uy * ndcY*tanF;
+  const rdz = f.fdz + f.rz * ndcX*tanF*aspect + f.uz * ndcY*tanF;
+  const rl = Math.hypot(rdx,rdy,rdz);
+  const dx = rdx/rl, dy = rdy/rl, dz = rdz/rl;
+  let best = -1, bestT = Infinity;
+  for (let i = 0; i < sys.N; i++) {
+    const ox = f.ex - sys.pos[3*i], oy = f.ey - sys.pos[3*i+1], oz = f.ez - sys.pos[3*i+2];
+    const b = ox*dx + oy*dy + oz*dz;
+    const rad = ATOM[sys.atoms[i].e].r;
+    const cc = ox*ox+oy*oy+oz*oz - rad*rad;
+    const disc = b*b - cc;
+    if (disc < 0) continue;
+    const t = -b - Math.sqrt(disc);
+    if (t > 0 && t < bestT) { bestT = t; best = i; }
+  }
+  return best < 0 ? null : {atom: best, t: bestT, dx, dy, dz, ox: f.ex, oy: f.ey, oz: f.ez};
+}
+
+function screenToWorldPlane(sx, sy, planeZ) {
+  // Project screen point onto plane parallel to camera at distance planeZ along view.
+  const c = gpu.canvas;
+  const aspect = c.width / c.height;
+  const ndcX = (sx * (window.devicePixelRatio || 1)) / c.width * 2 - 1;
+  const ndcY = 1 - (sy * (window.devicePixelRatio || 1)) / c.height * 2;
+  const f = getCamFrame();
+  const tanF = Math.tan(cam.fov/2);
+  // Point at depth planeZ along forward, offset by ndc * size.
+  const halfH = tanF * planeZ;
+  const halfW = halfH * aspect;
+  return [
+    f.ex + f.fdx*planeZ + f.rx*ndcX*halfW + f.ux*ndcY*halfH,
+    f.ey + f.fdy*planeZ + f.ry*ndcX*halfW + f.uy*ndcY*halfH,
+    f.ez + f.fdz*planeZ + f.rz*ndcX*halfW + f.uz*ndcY*halfH,
+  ];
+}
+
+function setupInput() {
+  const c = gpu.canvas;
+  c.addEventListener('pointerdown', (e) => {
+    c.setPointerCapture(e.pointerId);
+    const hit = pickAtom(e.clientX, e.clientY);
+    if (hit) {
+      // Distance from camera to atom (used as plane depth for follow).
+      const f = getCamFrame();
+      const i = hit.atom;
+      const dx = sys.pos[3*i]-f.ex, dy = sys.pos[3*i+1]-f.ey, dz = sys.pos[3*i+2]-f.ez;
+      const planeZ = dx*f.fdx + dy*f.fdy + dz*f.fdz;
+      drag = {kind: 'pluck', atom: i, planeZ};
+      pluck = {atom: i, target: [sys.pos[3*i], sys.pos[3*i+1], sys.pos[3*i+2]]};
+      c.classList.add('dragging');
+    } else {
+      drag = {kind: 'orbit', x: e.clientX, y: e.clientY, yaw: cam.yaw, pitch: cam.pitch};
+      c.classList.add('dragging');
+    }
+  });
+  c.addEventListener('pointermove', (e) => {
+    if (drag && drag.kind === 'orbit') {
+      cam.yaw   = drag.yaw   - (e.clientX - drag.x) * 0.008;
+      cam.pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (e.clientY - drag.y) * 0.008));
+    } else if (drag && drag.kind === 'pluck') {
+      pluck.target = screenToWorldPlane(e.clientX, e.clientY, drag.planeZ);
+    } else {
+      // Hover hint for atoms.
+      const hit = pickAtom(e.clientX, e.clientY);
+      if (hit) c.classList.add('over-atom'); else c.classList.remove('over-atom');
+    }
+  });
+  c.addEventListener('pointerup', (e) => {
+    drag = null; pluck = null;
+    c.classList.remove('dragging');
+  });
+  c.addEventListener('pointercancel', () => { drag = null; pluck = null; c.classList.remove('dragging'); });
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    cam.dist *= Math.exp(e.deltaY * 0.001);
+    cam.dist = Math.max(0.15, Math.min(20, cam.dist));
+  }, {passive: false});
+  window.addEventListener('resize', resize);
+}
+
+// ==========================================================================
+// UI wiring.
+// ==========================================================================
+function setupUI() {
+  const selMol = document.getElementById('selMol');
+  const slT = document.getElementById('slT'), vT = document.getElementById('vT');
+  const slS = document.getElementById('slS'), vS = document.getElementById('vS');
+  const btnKick = document.getElementById('btnKick');
+  const btnPause = document.getElementById('btnPause');
+  const btnReset = document.getElementById('btnReset');
+  selMol.addEventListener('change', () => loadSystem(selMol.value));
+  slT.addEventListener('input', () => { kickT = +slT.value; vT.textContent = kickT; });
+  slS.addEventListener('input', () => { substepsPerFrame = +slS.value; vS.textContent = substepsPerFrame; });
+  btnKick.addEventListener('click', () => kickThermal(kickT));
+  btnPause.addEventListener('click', () => {
+    paused = !paused;
+    btnPause.textContent = paused ? '▶' : '⏸';
+    btnPause.classList.toggle('on', paused);
+  });
+  btnReset.addEventListener('click', () => loadSystem(selMol.value));
+}
+
+// ==========================================================================
+// Bootstrap.
+// ==========================================================================
+(async () => {
+  try {
+    await initGPU();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('noGPU').style.display = 'flex';
+    return;
+  }
+  setupInput();
+  setupUI();
+  loadSystem('benzene');
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
