@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astrolens — sort photos by planetary ruler</title>
+  <meta name="description" content="Drop a photo or an album. Read EXIF timestamps and compute planetary hour, planetary day, sun & moon sign, and moon phase — all client-side." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1><span class="glyph">☾</span> Astrolens</h1>
+    <p class="tagline">Photos read through the sky they were taken under.</p>
+  </header>
+
+  <main>
+    <section id="dropzone" class="dropzone">
+      <input type="file" id="file-input" accept="image/*" multiple hidden />
+      <div class="drop-inner">
+        <div class="drop-glyph">☉ ☽ ♂ ☿ ♃ ♀ ♄</div>
+        <p><strong>Drop photos here</strong> or <button type="button" id="browse-btn" class="link-btn">choose files</button></p>
+        <p class="hint">EXIF is read in your browser. Nothing is uploaded.</p>
+      </div>
+    </section>
+
+    <section id="location-bar" class="location-bar" hidden>
+      <label>
+        <span>Fallback location (for planetary hours when GPS missing):</span>
+        <input type="text" id="loc-input" placeholder="lat, lon (e.g. 40.71, -74.00)" />
+      </label>
+      <button type="button" id="loc-detect" class="link-btn">use my location</button>
+      <span id="loc-status" class="loc-status"></span>
+    </section>
+
+    <section id="controls" class="controls" hidden>
+      <label class="sort-control">
+        <span>Sort by</span>
+        <select id="sort-key">
+          <option value="time">time (default)</option>
+          <option value="planetaryDay">planetary day</option>
+          <option value="planetaryHour">planetary hour</option>
+          <option value="sunSign">sun sign</option>
+          <option value="moonSign">moon sign</option>
+          <option value="moonPhase">moon phase</option>
+        </select>
+      </label>
+      <label class="sort-control">
+        <span>Group</span>
+        <input type="checkbox" id="group-toggle" checked />
+      </label>
+      <button type="button" id="clear-btn" class="link-btn">clear album</button>
+    </section>
+
+    <section id="gallery" class="gallery"></section>
+
+    <section id="empty-state" class="empty-state">
+      <p>An album reads like a horary chart: each frame timestamped, each timestamp under a planet, a sign, a phase. Drop a photo to begin.</p>
+    </section>
+  </main>
+
+  <dialog id="card-modal" class="card-modal">
+    <div id="card-modal-body"></div>
+    <div class="modal-actions">
+      <button type="button" id="export-btn">export PNG</button>
+      <button type="button" id="share-btn">share</button>
+      <button type="button" id="close-modal-btn">close</button>
+    </div>
+  </dialog>
+
+  <footer class="footer">
+    <p>Static client-side astrology. EXIF via <a href="https://github.com/MikeKovarik/exifr">exifr</a>. Ephemeris from Meeus formulas.</p>
+  </footer>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "exifr": "https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.esm.mjs"
+    }
+  }
+  </script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
