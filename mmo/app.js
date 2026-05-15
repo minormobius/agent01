@@ -1,23 +1,30 @@
 "use strict";
 
 // ====================================================================
-// minomobi mmopaint — shared canvas, Bluesky-verified identities.
+// minomobi mmopaint — PDS-records edition
 //
-// Architecture: each stroke is a JSON message over a WebSocket to a
-// per-canvas Durable Object in the poll worker. The DO assigns a seq
-// number and a hash linking to the previous stroke, then broadcasts to
-// every connected painter. On join we GET /strokes?since=0 and replay
-// the whole log to reconstruct the canvas.
+// Architecture:
+//   - Each completed stroke is one ATProto record on a service PDS,
+//     collection com.minomobi.mmopaint.stroke. The record carries the
+//     contributor's DID + handle, the tool/color/size, the points array,
+//     and an ISO timestamp.
+//   - Submission: POST /api/mmo/strokes on the worker, which writes the
+//     record using the service account's stored credentials.
+//   - Live updates: each browser opens its own WebSocket to Jetstream,
+//     filtered to wantedCollections=com.minomobi.mmopaint.stroke and
+//     wantedDids=<service-did>. Every commit event in is applied to the
+//     local bitmap.
+//   - Initial state: GET /api/mmo/strokes (proxies listRecords) returns
+//     the most recent N records; we replay them oldest-first.
+//   - The latest record's rkey (a TID) is shown in the status bar.
 // ====================================================================
 
-// ---- config -------------------------------------------------------
+const API_BASE   = "https://poll.mino.mobi/api";
+const DRAW_API   = `${API_BASE}/draw`;
+const MMO_API    = `${API_BASE}/mmo`;
+const SESSION_KEY = "minoDrawSession";  // shared with /draw so login persists
 
-const API_BASE       = "https://poll.mino.mobi/api";
-const DRAW_API       = `${API_BASE}/draw`;        // OAuth flow lives under /api/draw
-const MMO_API        = `${API_BASE}/mmo`;
-const CANVAS_ID      = "global";
-const SESSION_KEY    = "minoDrawSession";          // same key /draw uses, so login persists
-
+const CANVAS_ID  = "global";
 const PALETTE = [
   "#000000","#7f7f7f","#bfbfbf","#ffffff",
   "#8b0000","#ff0000","#ff7f00","#ffd400",
@@ -28,16 +35,14 @@ const PALETTE = [
 
 const $ = id => document.getElementById(id);
 
-// ---- DOM refs -----------------------------------------------------
+// ---- DOM ----------------------------------------------------------
 
 const view        = $("view");
 const stage       = $("stage");
 const presenceEl  = $("presence");
 const statusEl    = $("status-strip");
 const auditMini   = $("audit-mini");
-const auditBtn    = $("audit-btn");
 const auditPanel  = $("audit-panel");
-const auditClose  = $("audit-close");
 const apCanvas    = $("ap-canvas");
 const apSeq       = $("ap-seq");
 const apHash      = $("ap-hash");
@@ -49,12 +54,9 @@ const currentColor= $("current-color");
 const sizeSlider  = $("size-slider");
 const sizeReadout = $("size-readout");
 const toolGroup   = $("tool-group");
-const signinBtn   = $("signin-btn");
 const handleChip  = $("handle-chip");
 const signinPrompt= $("signin-prompt");
 const handleInput = $("handle-input");
-const loginGo     = $("login-go");
-const loginErr    = $("login-err");
 const toast       = $("toast");
 
 const ctx = view.getContext("2d");
@@ -71,33 +73,35 @@ bctx.fillStyle = "#ffffff";
 bctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
 const state = {
-  tool: "brush",
+  tool:  "brush",
   color: "#000000",
-  size: 6,
+  size:  6,
+  view:  { zoom: 1, panX: 0, panY: 0 },
 
-  view: { zoom: 1, panX: 0, panY: 0 },
+  // Local in-flight stroke (pen down through pen up).
+  localStroke: null,
 
-  // Local in-flight stroke (not yet acked by server).
-  localStroke: null,   // { tool, color, size, points: [x,y,...], lastBx, lastBy }
-
-  // Multi-touch / pinch.
+  // Multi-touch.
   pointers: new Map(),
-  gesture: null,
+  gesture:  null,
 
-  // Canvas display geometry.
+  // Display geometry.
   W: 0, H: 0, dprView: 1,
 
-  // WebSocket.
-  ws: null,
-  wsAuthed: false,
-  reconnectTimer: null,
-  pendingStrokes: [],  // queued during disconnect (best-effort drop on resume)
+  // Jetstream connection.
+  js: null,                  // WebSocket
+  jsState: "idle",
+  jsReconnectTimer: null,
 
-  // Sync.
-  headSeq: 0,
-  headHash: null,
-  presenceCount: 0,
-  presenceHandles: [],
+  // Service info from /api/mmo/info.
+  serviceDid:    null,
+  serviceHandle: null,
+  jetstreamUrl:  null,
+
+  // Tracked record stats (the "rev").
+  latestRkey:   null,        // TID rkey of most recent stroke we've applied
+  strokeCount:  0,
+  contributors: new Map(),   // did -> { handle, count }
 
   // Auth.
   session: null,
@@ -119,7 +123,7 @@ function fitView() {
 }
 function clampZoom(z) { return Math.max(0.05, Math.min(32, z)); }
 
-// ---- resize / render ---------------------------------------------
+// ---- canvas / render --------------------------------------------
 
 function resize() {
   const r = stage.getBoundingClientRect();
@@ -139,8 +143,6 @@ function render() {
   const dw = CANVAS_W * state.view.zoom;
   const dh = CANVAS_H * state.view.zoom;
   ctx.drawImage(bitmap, state.view.panX, state.view.panY, dw, dh);
-
-  // Frame.
   ctx.strokeStyle = getCss("--canvas-edge", "#999");
   ctx.lineWidth = 1;
   ctx.strokeRect(
@@ -149,30 +151,19 @@ function render() {
     Math.round(dw), Math.round(dh)
   );
   ctx.restore();
-
   refreshStatus();
 }
 
 function refreshStatus() {
   const z = Math.round(state.view.zoom * 100);
-  const seqStr = state.headSeq.toLocaleString();
-  const hashShort = (state.headHash || "—").slice(0, 12);
-  statusEl.textContent = `${CANVAS_W}×${CANVAS_H} · ${z}% · seq ${seqStr} · ${state.tool}`;
-  auditMini.textContent = `seq ${seqStr} · ${hashShort}`;
-  if (state.ws && state.wsAuthed) {
-    presenceEl.innerHTML = `<span class="live">●</span> ${state.presenceCount} live`;
-    presenceEl.title = "connected";
-  } else if (state.wsState === "connecting") {
-    presenceEl.textContent = "connecting…";
-    presenceEl.title = "WebSocket handshake in progress";
-  } else if (state.wsCloseInfo) {
-    const c = state.wsCloseInfo;
-    presenceEl.textContent = `disconnected · ${c.code}${c.reason ? " " + c.reason : ""} · tap to retry`;
-    presenceEl.title = "tap to reconnect";
-  } else {
-    presenceEl.textContent = state.session ? "disconnected · tap to retry" : "signed out";
-    presenceEl.title = state.session ? "tap to reconnect" : "";
-  }
+  const rev = state.latestRkey ? state.latestRkey.slice(0, 12) : "—";
+  statusEl.textContent = `${CANVAS_W}×${CANVAS_H} · ${z}% · ${state.tool} · rev ${rev}`;
+  auditMini.textContent = `${state.strokeCount.toLocaleString()} strokes · ${rev}`;
+  let liveLabel;
+  if (state.jsState === "open") liveLabel = `<span class="live">●</span> live`;
+  else if (state.jsState === "connecting") liveLabel = "connecting…";
+  else liveLabel = "disconnected · tap to retry";
+  presenceEl.innerHTML = liveLabel;
 }
 
 function getCss(name, fallback) {
@@ -187,18 +178,18 @@ function applyStrokeToBitmap(tool, color, size, points) {
   bctx.lineJoin = "round";
   bctx.strokeStyle = (tool === "eraser") ? "#ffffff" : color;
   bctx.lineWidth = size;
-  bctx.beginPath();
-  bctx.moveTo(points[0], points[1]);
-  for (let i = 2; i < points.length; i += 2) {
-    bctx.lineTo(points[i], points[i + 1]);
-  }
   if (points.length === 2) {
-    // Single-tap: draw a dot.
+    // Single dot.
     bctx.fillStyle = (tool === "eraser") ? "#ffffff" : color;
     bctx.beginPath();
     bctx.arc(points[0], points[1], Math.max(0.5, size / 2), 0, Math.PI * 2);
     bctx.fill();
   } else {
+    bctx.beginPath();
+    bctx.moveTo(points[0], points[1]);
+    for (let i = 2; i < points.length; i += 2) {
+      bctx.lineTo(points[i], points[i + 1]);
+    }
     bctx.stroke();
   }
 }
@@ -233,769 +224,619 @@ function showToast(msg, ms) {
   showToast._t = setTimeout(() => toast.classList.remove("show"), ms || 1800);
 }
 
-// Expose for the boot/network half.
-window._mmo = {
-  state, bitmap, bctx, view, ctx, stage,
-  CANVAS_ID, MMO_API, DRAW_API, SESSION_KEY, PALETTE,
-  viewToBitmap, fitView, clampZoom,
-  resize, render, refreshStatus,
-  applyStrokeToBitmap,
-  setColor, setTool, setSize, showToast,
-};
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;",
+  }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
 
-// ====================================================================
-// Part 2: input, WebSocket, OAuth, audit, boot.
-// ====================================================================
+// ---- session helpers --------------------------------------------
 
-(function() {
-  const M = window._mmo;
-  const {
-    state, bitmap, bctx, view, stage,
-    CANVAS_ID, MMO_API, DRAW_API, SESSION_KEY,
-    viewToBitmap, fitView, clampZoom,
-    resize, render, refreshStatus,
-    applyStrokeToBitmap,
-    setColor, setTool, setSize, showToast,
-    PALETTE,
-  } = M;
+function readSessionFragment() {
+  const hash = location.hash.replace(/^#/, "");
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  const sid = params.get("session");
+  if (!sid) return null;
+  const sess = {
+    sessionId: sid,
+    did:       params.get("did") || "",
+    handle:    params.get("handle") || "",
+    ts:        Date.now(),
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+  history.replaceState(null, "", location.pathname + location.search);
+  return sess;
+}
+function readStoredSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.sessionId) return null;
+    return s;
+  } catch { return null; }
+}
+function clearStoredSession() { localStorage.removeItem(SESSION_KEY); }
 
-  const $ = id => document.getElementById(id);
-
-  // ---- session helpers ---------------------------------------------
-
-  function readSessionFragment() {
-    const hash = location.hash.replace(/^#/, "");
-    if (!hash) return null;
-    const params = new URLSearchParams(hash);
-    const sid = params.get("session");
-    if (!sid) return null;
-    const sess = {
-      sessionId: sid,
-      did:    params.get("did") || "",
-      handle: params.get("handle") || "",
-      ts: Date.now(),
-    };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
-    history.replaceState(null, "", location.pathname + location.search);
-    return sess;
-  }
-  function readStoredSession() {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      if (!s.sessionId) return null;
-      return s;
-    } catch { return null; }
-  }
-  function clearStoredSession() {
-    localStorage.removeItem(SESSION_KEY);
-  }
-
-  function refreshAuthUI() {
-    const s = state.session;
-    if (s && s.handle) {
-      $("handle-chip").hidden = false;
-      $("handle-chip").innerHTML =
-        `@${escapeHtml(s.handle)} <a class="signout" href="#" id="signout-link">sign out</a>`;
-      $("signin-btn").hidden = true;
-      const so = $("signout-link");
-      if (so) {
-        so.addEventListener("click", (e) => {
-          e.preventDefault();
-          clearStoredSession();
-          state.session = null;
-          disconnectWS();
-          refreshAuthUI();
-          showSigninPrompt(false);
-        });
-      }
-      showSigninPrompt(false);
-    } else {
-      $("handle-chip").hidden = true;
-      $("handle-chip").innerHTML = "";
-      $("signin-btn").hidden = false;
-    }
-  }
-  function showSigninPrompt(show) {
-    $("signin-prompt").hidden = !show;
-    if (show) setTimeout(() => $("handle-input").focus(), 30);
-  }
-
-  // ---- OAuth start (reuses /api/draw/oauth/start, scope=atproto) ----
-
-  async function startOAuth() {
-    const handle = $("handle-input").value.trim().replace(/^@/, "");
-    if (!handle) { $("login-err").textContent = "enter your handle"; return; }
-    $("login-err").textContent = "";
-    $("login-go").disabled = true;
-    try {
-      const res = await fetch(`${DRAW_API}/oauth/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          handle,
-          // Return to /mmo so the session hash is delivered to this page.
-          returnTo: location.origin + location.pathname,
-        }),
+function refreshAuthUI() {
+  const s = state.session;
+  if (s && s.handle) {
+    handleChip.hidden = false;
+    handleChip.innerHTML =
+      `@${escapeHtml(s.handle)} <a class="signout" href="#" id="signout-link">sign out</a>`;
+    $("signin-btn").hidden = true;
+    const so = $("signout-link");
+    if (so) {
+      so.addEventListener("click", (e) => {
+        e.preventDefault();
+        clearStoredSession();
+        state.session = null;
+        refreshAuthUI();
+        showSigninPrompt(false);
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.authUrl) {
-        $("login-err").textContent = data.error || `sign-in failed (${res.status})`;
-        $("login-go").disabled = false;
-        return;
-      }
-      location.href = data.authUrl;
-    } catch (e) {
-      $("login-err").textContent = "network error — could not reach poll.mino.mobi";
+    }
+    showSigninPrompt(false);
+  } else {
+    handleChip.hidden = true;
+    handleChip.innerHTML = "";
+    $("signin-btn").hidden = false;
+  }
+}
+function showSigninPrompt(show) {
+  signinPrompt.hidden = !show;
+  if (show) setTimeout(() => handleInput.focus(), 30);
+}
+
+// ---- OAuth start (reuses /api/draw/oauth/start with scope=atproto) ----
+
+async function startOAuth() {
+  const handle = handleInput.value.trim().replace(/^@/, "");
+  if (!handle) { $("login-err").textContent = "enter your handle"; return; }
+  $("login-err").textContent = "";
+  $("login-go").disabled = true;
+  try {
+    const res = await fetch(`${DRAW_API}/oauth/start`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        handle,
+        returnTo: location.origin + location.pathname,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.authUrl) {
+      $("login-err").textContent = data.error || `sign-in failed (${res.status})`;
       $("login-go").disabled = false;
-    }
-  }
-
-  $("signin-btn").addEventListener("click", () => showSigninPrompt(true));
-  $("login-go").addEventListener("click", startOAuth);
-  // Tap outside the card to dismiss.
-  $("signin-prompt").addEventListener("click", (e) => {
-    if (e.target.id === "signin-prompt") showSigninPrompt(false);
-  });
-
-  // ---- handle typeahead (public Bluesky searchActorsTypeahead) ------
-
-  let taItems = [];
-  let taActive = -1;
-  let taAbort  = null;
-  let taTimer  = null;
-
-  const handleInput = $("handle-input");
-  const typeaheadEl = $("typeahead");
-
-  function showTypeahead(items) {
-    taItems  = items;
-    taActive = -1;
-    if (!items.length) { hideTypeahead(); return; }
-    typeaheadEl.innerHTML = items.map((a, i) => {
-      const avatar = a.avatar ? `style="background-image:url('${escapeAttr(a.avatar)}')"` : "";
-      const name   = a.displayName ? `<span class="ta-name">${escapeHtml(a.displayName)}</span>` : "";
-      return `<div class="ta-item" data-i="${i}" data-handle="${escapeAttr(a.handle)}" role="option">` +
-               `<div class="ta-avatar" ${avatar}></div>` +
-               `<span class="ta-handle">@${escapeHtml(a.handle)}</span>${name}` +
-             `</div>`;
-    }).join("");
-    typeaheadEl.classList.add("show");
-    typeaheadEl.querySelectorAll(".ta-item").forEach(it => {
-      // Use mousedown (fires before blur) so clicking doesn't dismiss the dropdown.
-      it.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        handleInput.value = it.dataset.handle;
-        hideTypeahead();
-        handleInput.focus();
-      });
-    });
-  }
-  function hideTypeahead() {
-    typeaheadEl.classList.remove("show");
-    typeaheadEl.innerHTML = "";
-    taItems = [];
-    taActive = -1;
-  }
-  function setActiveTa(i) {
-    taActive = i;
-    typeaheadEl.querySelectorAll(".ta-item").forEach((el, idx) => {
-      el.classList.toggle("active", idx === i);
-    });
-  }
-
-  async function runTypeahead(term) {
-    if (taAbort) try { taAbort.abort(); } catch {}
-    if (!term || term.length < 1) { hideTypeahead(); return; }
-    taAbort = new AbortController();
-    const url = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead");
-    url.searchParams.set("q", term);
-    url.searchParams.set("limit", "8");
-    try {
-      const r = await fetch(url.toString(), { signal: taAbort.signal });
-      if (!r.ok) { hideTypeahead(); return; }
-      const data = await r.json();
-      showTypeahead(data.actors || []);
-    } catch (e) {
-      if (e && e.name === "AbortError") return;
-      hideTypeahead();
-    }
-  }
-
-  handleInput.addEventListener("input", () => {
-    const term = handleInput.value.trim().replace(/^@/, "");
-    if (taTimer) clearTimeout(taTimer);
-    taTimer = setTimeout(() => runTypeahead(term), 180);
-  });
-  handleInput.addEventListener("focus", () => {
-    const term = handleInput.value.trim().replace(/^@/, "");
-    if (term) runTypeahead(term);
-  });
-  handleInput.addEventListener("blur", () => {
-    // Delay so a mousedown on an item can fire.
-    setTimeout(hideTypeahead, 150);
-  });
-  handleInput.addEventListener("keydown", (e) => {
-    const open = typeaheadEl.classList.contains("show");
-    if (open && taItems.length) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActiveTa((taActive + 1) % taItems.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActiveTa((taActive - 1 + taItems.length) % taItems.length);
-        return;
-      }
-      if (e.key === "Enter" && taActive >= 0) {
-        e.preventDefault();
-        handleInput.value = taItems[taActive].handle;
-        hideTypeahead();
-        return;
-      }
-      if (e.key === "Escape") {
-        hideTypeahead();
-        return;
-      }
-    }
-    if (e.key === "Enter") { e.preventDefault(); startOAuth(); }
-  });
-
-  function escapeAttr(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;",
-    }[c]));
-  }
-
-  // ---- WebSocket -----------------------------------------------------
-
-  function wsUrlFor(session) {
-    const u = new URL(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/ws`);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.searchParams.set("session", session.sessionId);
-    return u.toString();
-  }
-
-  function connectWS() {
-    if (!state.session) return;
-    if (state.ws) try { state.ws.close(); } catch {}
-    state.wsAuthed = false;
-    state.wsCloseInfo = null;
-    state.wsState = "connecting";
-    refreshStatus();
-    let ws;
-    try { ws = new WebSocket(wsUrlFor(state.session)); }
-    catch (e) {
-      state.wsState = "error";
-      state.wsCloseInfo = { code: 0, reason: "constructor: " + (e?.message || "?") };
-      refreshStatus();
-      scheduleReconnect();
-      runDiagnostic();
       return;
     }
-    state.ws = ws;
-    ws.addEventListener("open", () => {
-      state.wsAuthed = true;
-      state.wsState = "open";
-      state.wsCloseInfo = null;
-      refreshStatus();
-      ws.send(JSON.stringify({ type: "hello" }));
-      // Drain any strokes queued while disconnected.
-      const q = state.pendingStrokes; state.pendingStrokes = [];
-      for (const s of q) {
-        try { ws.send(JSON.stringify(s)); } catch {}
-      }
+    location.href = data.authUrl;
+  } catch (e) {
+    $("login-err").textContent = "network error — could not reach poll.mino.mobi";
+    $("login-go").disabled = false;
+  }
+}
+
+$("signin-btn").addEventListener("click", () => showSigninPrompt(true));
+$("login-go").addEventListener("click", startOAuth);
+$("login-cancel").addEventListener("click", () => showSigninPrompt(false));
+signinPrompt.addEventListener("click", (e) => {
+  if (e.target.id === "signin-prompt") showSigninPrompt(false);
+});
+
+// ---- Bluesky handle typeahead ------------------------------------
+
+let taItems = [];
+let taActive = -1;
+let taAbort  = null;
+let taTimer  = null;
+const typeaheadEl = $("typeahead");
+
+function showTypeahead(items) {
+  taItems = items; taActive = -1;
+  if (!items.length) { hideTypeahead(); return; }
+  typeaheadEl.innerHTML = items.map((a, i) => {
+    const avatar = a.avatar ? `style="background-image:url('${escapeAttr(a.avatar)}')"` : "";
+    const name   = a.displayName ? `<span class="ta-name">${escapeHtml(a.displayName)}</span>` : "";
+    return `<div class="ta-item" data-i="${i}" data-handle="${escapeAttr(a.handle)}">` +
+             `<div class="ta-avatar" ${avatar}></div>` +
+             `<span class="ta-handle">@${escapeHtml(a.handle)}</span>${name}` +
+           `</div>`;
+  }).join("");
+  typeaheadEl.classList.add("show");
+  typeaheadEl.querySelectorAll(".ta-item").forEach(it => {
+    it.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      handleInput.value = it.dataset.handle;
+      hideTypeahead();
+      handleInput.focus();
     });
-    ws.addEventListener("message", (ev) => {
-      let m; try { m = JSON.parse(ev.data); } catch { return; }
-      onWsMessage(m);
-    });
-    ws.addEventListener("close", (ev) => {
-      console.warn(`[mmo] WS closed: code=${ev.code} reason=${JSON.stringify(ev.reason || "")} wasClean=${ev.wasClean}`);
-      state.wsAuthed = false;
-      state.wsState = "closed";
-      state.wsCloseInfo = { code: ev.code, reason: ev.reason || "" };
-      refreshStatus();
-      scheduleReconnect();
-      if (ev.code !== 1000 && !state._diagRan) {
-        state._diagRan = true;
-        runDiagnostic();
-      }
-    });
-    ws.addEventListener("error", (ev) => {
-      console.warn("[mmo] WS error event", ev);
-      state.wsAuthed = false;
-      state.wsState = "error";
-      refreshStatus();
-    });
-  }
-  function disconnectWS() {
-    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
-    state.reconnectTimer = null;
-    if (state.ws) try { state.ws.close(1000); } catch {}
-    state.ws = null;
-    state.wsAuthed = false;
-    state.wsState = "closed";
-    refreshStatus();
-  }
-  function scheduleReconnect() {
-    if (state.reconnectTimer) return;
-    state.reconnectTimer = setTimeout(() => {
-      state.reconnectTimer = null;
-      if (state.session) connectWS();
-    }, 2500);
-  }
-
-  // Run the same validation chain the /ws upgrade would, but as a plain
-  // JSON endpoint. Surfaces the exact failure point — browsers won't
-  // tell us why a WS handshake failed.
-  async function runDiagnostic() {
-    console.group("[mmo] connection diagnostic");
-    try {
-      const sid = state.session?.sessionId || "";
-      const url = `${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/ws-debug?session=${encodeURIComponent(sid)}`;
-      const r = await fetch(url);
-      let data;
-      try { data = await r.json(); } catch { data = { parseError: true }; }
-      console.log(`[mmo] ws-debug ${r.status}:`, data);
-      if (r.ok && data.ok) {
-        showToast("ws-debug ok — handshake still failing; see console", 6000);
-      } else {
-        const reason = (data && data.reason) ? data.reason : `HTTP ${r.status}`;
-        showToast(`ws blocked: ${reason}`, 8000);
-        // Special cases that we can act on locally:
-        if (data && data.reason && data.reason.toLowerCase().includes("session")) {
-          clearStoredSession();
-          state.session = null;
-          refreshAuthUI();
-          disconnectWS();
-        }
-      }
-    } catch (e) {
-      console.error("[mmo] ws-debug fetch failed:", e);
-      showToast("can't reach poll.mino.mobi — deploy may still be running", 4000);
-    }
-    console.groupEnd();
-  }
-
-  function onWsMessage(m) {
-    switch (m.type) {
-      case "welcome":
-        if (m.width  && m.width  !== bitmap.width)  resizeBitmap(m.width,  m.height);
-        // Replay strokes since seq=0 to reconstruct the canvas.
-        replayStrokes(0);
-        return;
-      case "stroke":
-        applyServerStroke(m);
-        return;
-      case "presence":
-        state.presenceCount   = m.connected | 0;
-        state.presenceHandles = m.handles || [];
-        refreshStatus();
-        return;
-      case "error":
-        showToast(`server: ${m.code}`);
-        return;
-    }
-  }
-
-  function resizeBitmap(w, h) {
-    const newBmp = document.createElement("canvas");
-    newBmp.width = w; newBmp.height = h;
-    const nctx = newBmp.getContext("2d");
-    nctx.fillStyle = "#ffffff"; nctx.fillRect(0, 0, w, h);
-    bitmap.width = w; bitmap.height = h;
-    bctx.fillStyle = "#ffffff"; bctx.fillRect(0, 0, w, h);
-    fitView();
-    render();
-  }
-
-  function applyServerStroke(m) {
-    applyStrokeToBitmap(m.tool, m.color, m.size, m.points);
-    if (typeof m.seq === "number" && m.seq > state.headSeq) {
-      state.headSeq  = m.seq;
-      state.headHash = m.hash;
-    }
-    render();
-  }
-
-  // ---- replay (REST) -----------------------------------------------
-
-  async function replayStrokes(since) {
-    let cursor = since | 0;
-    while (true) {
-      const u = new URL(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/strokes`);
-      u.searchParams.set("since",  String(cursor));
-      u.searchParams.set("limit", "1000");
-      try {
-        const res = await fetch(u.toString());
-        if (!res.ok) break;
-        const data = await res.json();
-        const strokes = data.strokes || [];
-        if (!strokes.length) break;
-        for (const s of strokes) {
-          applyStrokeToBitmap(s.tool, s.color, s.size, s.points);
-          if (s.seq > state.headSeq) {
-            state.headSeq  = s.seq;
-            state.headHash = s.hash;
-          }
-          cursor = s.seq;
-        }
-        render();
-        if (strokes.length < 1000) break;
-      } catch {
-        break;
-      }
-    }
-    refreshStatus();
-  }
-
-  // ---- pointer / pinch ---------------------------------------------
-
-  function localPoint(e) {
-    const r = view.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  }
-  function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
-  function ptDist(a, b)   { return Math.hypot(a.x - b.x, a.y - b.y); }
-
-  function onPointerDown(e) {
-    if (e.target !== view) return;
-    e.preventDefault();
-    try { view.setPointerCapture(e.pointerId); } catch {}
-    const pt = localPoint(e);
-    state.pointers.set(e.pointerId, pt);
-
-    if (state.pointers.size === 1) {
-      if (!state.session) { showSigninPrompt(true); return; }
-      const b = viewToBitmap(pt.x, pt.y);
-      beginLocalStroke(Math.round(b.x), Math.round(b.y));
-    } else if (state.pointers.size === 2) {
-      // Cancel the in-progress local stroke.
-      cancelLocalStroke();
-      const pts = [...state.pointers.values()];
-      const mid0View = midpoint(pts[0], pts[1]);
-      state.gesture = {
-        d0: Math.max(1, ptDist(pts[0], pts[1])),
-        mid0View,
-        mid0Bitmap: viewToBitmap(mid0View.x, mid0View.y),
-        zoom0: state.view.zoom,
-      };
-    }
-  }
-
-  function onPointerMove(e) {
-    if (!state.pointers.has(e.pointerId)) return;
-    e.preventDefault();
-    const pt = localPoint(e);
-    state.pointers.set(e.pointerId, pt);
-
-    if (state.pointers.size === 1 && state.localStroke) {
-      const b = viewToBitmap(pt.x, pt.y);
-      extendLocalStroke(Math.round(b.x), Math.round(b.y));
-    } else if (state.pointers.size === 2 && state.gesture) {
-      const pts = [...state.pointers.values()];
-      const d1 = Math.max(1, ptDist(pts[0], pts[1]));
-      const mid1View = midpoint(pts[0], pts[1]);
-      const newZoom = clampZoom(state.gesture.zoom0 * (d1 / state.gesture.d0));
-      state.view.zoom = newZoom;
-      state.view.panX = mid1View.x - state.gesture.mid0Bitmap.x * newZoom;
-      state.view.panY = mid1View.y - state.gesture.mid0Bitmap.y * newZoom;
-      render();
-    }
-  }
-
-  function onPointerUp(e) {
-    if (!state.pointers.has(e.pointerId)) return;
-    e.preventDefault();
-    const wasDrawing = !!state.localStroke;
-    const wasPinching = !!state.gesture;
-    state.pointers.delete(e.pointerId);
-    if (state.pointers.size === 0) {
-      if (wasDrawing) commitLocalStroke();
-      state.gesture = null;
-    } else if (state.pointers.size === 1 && wasPinching) {
-      state.gesture = null;
-    }
-  }
-
-  view.addEventListener("pointerdown",   onPointerDown);
-  view.addEventListener("pointermove",   onPointerMove);
-  view.addEventListener("pointerup",     onPointerUp);
-  view.addEventListener("pointercancel", onPointerUp);
-  view.addEventListener("contextmenu", e => e.preventDefault());
-
-  view.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    const pt = localPoint(e);
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    const newZoom = clampZoom(state.view.zoom * factor);
-    const b = viewToBitmap(pt.x, pt.y);
-    state.view.zoom = newZoom;
-    state.view.panX = pt.x - b.x * newZoom;
-    state.view.panY = pt.y - b.y * newZoom;
-    render();
-  }, { passive: false });
-
-  // ---- local stroke --------------------------------------------------
-
-  // Auto-submit: there is no explicit submit button. Strokes are
-  // streamed live as you drag — every ~200ms we flush the accumulated
-  // segment as its own atomic stroke chunk (its own seq + hash). Other
-  // clients see your drawing appear in real time instead of jumping in
-  // at pointer-up. Chunk N's last point seeds chunk N+1, so the visual
-  // line stays continuous when remote clients replay.
-  const FLUSH_INTERVAL_MS = 200;
-  const FLUSH_MIN_POINTS  = 3;  // need at least 3 pts in pending before flushing
-  const HARD_FLUSH_POINTS = 540; // hard cap before forcing a flush
-
-  function beginLocalStroke(bx, by) {
-    state.localStroke = {
-      tool:   state.tool,
-      color:  state.color,
-      size:   state.size,
-      pending: [bx, by],    // points to send in next chunk; the last 2 carry over
-      sentChunks: 0,
-      lastFlushMs: 0,
-      lastBx: bx, lastBy: by,
-    };
-    applyStrokeToBitmap(state.tool, state.color, state.size, [bx, by]);
-    render();
-  }
-
-  function extendLocalStroke(bx, by) {
-    const s = state.localStroke;
-    if (!s) return;
-    if (Math.abs(bx - s.lastBx) < 1 && Math.abs(by - s.lastBy) < 1) return;
-    s.pending.push(bx, by);
-
-    // Local incremental draw — single segment between last and new.
-    bctx.strokeStyle = (s.tool === "eraser") ? "#ffffff" : s.color;
-    bctx.lineWidth = s.size;
-    bctx.lineCap = "round"; bctx.lineJoin = "round";
-    bctx.beginPath();
-    bctx.moveTo(s.lastBx, s.lastBy);
-    bctx.lineTo(bx, by);
-    bctx.stroke();
-    s.lastBx = bx; s.lastBy = by;
-    render();
-
-    maybeFlushChunk();
-  }
-
-  function maybeFlushChunk() {
-    const s = state.localStroke;
-    if (!s) return;
-    const now = Date.now();
-    const havePts = s.pending.length / 2;
-    if (havePts >= HARD_FLUSH_POINTS) { flushChunk(); return; }
-    if (now - s.lastFlushMs < FLUSH_INTERVAL_MS) return;
-    if (havePts < FLUSH_MIN_POINTS) return;
-    flushChunk();
-  }
-
-  function flushChunk() {
-    const s = state.localStroke;
-    if (!s || s.pending.length < 2) return;
-    const chunk = s.pending.slice();
-    sendStroke(s.tool, s.color, s.size, chunk);
-    // Carry over the last point so the next chunk visually starts there.
-    s.pending = chunk.slice(-2);
-    s.sentChunks++;
-    s.lastFlushMs = Date.now();
-  }
-
-  function cancelLocalStroke() {
-    // Two-finger pinch interrupted us. Drop any unsent points. The
-    // already-flushed chunks are committed and can't be retracted.
-    state.localStroke = null;
-  }
-
-  function commitLocalStroke() {
-    const s = state.localStroke;
-    state.localStroke = null;
-    if (!s) return;
-    if (s.sentChunks === 0) {
-      // Single tap / very short stroke — send whatever we have.
-      if (s.pending.length >= 2) sendStroke(s.tool, s.color, s.size, s.pending);
-    } else if (s.pending.length > 2) {
-      // Drag end with new points beyond the carried-over last point.
-      sendStroke(s.tool, s.color, s.size, s.pending);
-    }
-  }
-
-  function sendStroke(tool, color, size, points) {
-    const payload = { type: "stroke", tool, color, size, points };
-    if (state.ws && state.ws.readyState === 1) {
-      try { state.ws.send(JSON.stringify(payload)); return; }
-      catch (e) { /* fall through to queue */ }
-    }
-    // Not connected — queue so we don't drop the work the user just did.
-    // Cap the queue so a long disconnect doesn't balloon memory; oldest first.
-    state.pendingStrokes.push(payload);
-    if (state.pendingStrokes.length > 50) state.pendingStrokes.shift();
-    if (state.wsState !== "connecting") {
-      showToast("not connected — queued, retrying connection");
-      if (!state.reconnectTimer) connectWS();
-    }
-  }
-
-  // ---- color palette + tool buttons ---------------------------------
-
-  const colorsEl = $("colors");
-  const picker = colorsEl.querySelector(".color-picker-wrap");
-  for (const c of PALETTE) {
-    const b = document.createElement("button");
-    b.className = "swatch";
-    b.dataset.color = c.toLowerCase();
-    b.style.background = c;
-    b.title = c;
-    b.addEventListener("click", () => setColor(c));
-    colorsEl.insertBefore(b, picker);
-  }
-  $("custom-color").addEventListener("input", (e) => setColor(e.target.value));
-  $("tool-group").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-tool]");
-    if (b) setTool(b.dataset.tool);
   });
-  $("size-slider").addEventListener("input", () => setSize(parseInt($("size-slider").value, 10) || 1));
-
-  // ---- audit panel --------------------------------------------------
-
-  // Resolve a batch of DIDs to current Bluesky profiles. The
-  // author_handle stored at submit time can drift if the user later
-  // changes their handle — and in some sessions it's even just the
-  // DID string. The public API is unauthed and accepts up to 25 actors.
-  const profileCache = new Map();   // did -> { handle, displayName, avatar }
-
-  async function resolveProfilesByDid(dids) {
-    const need = [...new Set(dids.filter(d => d && d.startsWith("did:") && !profileCache.has(d)))];
-    if (!need.length) return;
-    for (let i = 0; i < need.length; i += 25) {
-      const chunk = need.slice(i, i + 25);
-      const url = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles");
-      chunk.forEach(d => url.searchParams.append("actors", d));
-      try {
-        const r = await fetch(url.toString());
-        if (!r.ok) continue;
-        const data = await r.json();
-        for (const p of data.profiles || []) {
-          if (p.did) profileCache.set(p.did, p);
-        }
-      } catch { /* ignore */ }
+}
+function hideTypeahead() {
+  typeaheadEl.classList.remove("show");
+  typeaheadEl.innerHTML = "";
+  taItems = []; taActive = -1;
+}
+function setActiveTa(i) {
+  taActive = i;
+  typeaheadEl.querySelectorAll(".ta-item").forEach((el, idx) => {
+    el.classList.toggle("active", idx === i);
+  });
+}
+async function runTypeahead(term) {
+  if (taAbort) try { taAbort.abort(); } catch {}
+  if (!term) { hideTypeahead(); return; }
+  taAbort = new AbortController();
+  const u = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead");
+  u.searchParams.set("q", term); u.searchParams.set("limit", "8");
+  try {
+    const r = await fetch(u.toString(), { signal: taAbort.signal });
+    if (!r.ok) { hideTypeahead(); return; }
+    const data = await r.json();
+    showTypeahead(data.actors || []);
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+    hideTypeahead();
+  }
+}
+handleInput.addEventListener("input", () => {
+  const term = handleInput.value.trim().replace(/^@/, "");
+  if (taTimer) clearTimeout(taTimer);
+  taTimer = setTimeout(() => runTypeahead(term), 180);
+});
+handleInput.addEventListener("focus", () => {
+  const term = handleInput.value.trim().replace(/^@/, "");
+  if (term) runTypeahead(term);
+});
+handleInput.addEventListener("blur", () => setTimeout(hideTypeahead, 150));
+handleInput.addEventListener("keydown", (e) => {
+  if (typeaheadEl.classList.contains("show") && taItems.length) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveTa((taActive + 1) % taItems.length); return; }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setActiveTa((taActive - 1 + taItems.length) % taItems.length); return; }
+    if (e.key === "Enter" && taActive >= 0) {
+      e.preventDefault();
+      handleInput.value = taItems[taActive].handle;
+      hideTypeahead();
+      return;
     }
+    if (e.key === "Escape") { hideTypeahead(); return; }
   }
+  if (e.key === "Enter") { e.preventDefault(); startOAuth(); }
+});
 
-  async function openAudit() {
-    auditPanel.classList.add("open");
-    apCanvas.textContent = CANVAS_ID;
-    apSeq.textContent  = state.headSeq.toLocaleString();
-    apHash.textContent = state.headHash || "—";
-    apContribs.innerHTML = `<li class="count">loading…</li>`;
-    try {
-      const res = await fetch(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}/audit`);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      apSeq.textContent  = (data.head_seq || 0).toLocaleString();
-      apHash.textContent = data.head_hash || "—";
-      apPds.textContent  = data.published_to_pds ? data.record_uri : "not published yet";
+// ---- /info + initial replay --------------------------------------
 
-      const contributors = (data.contributors || []).slice(0, 20);
-      // Render once with the stored handles, then upgrade once profiles resolve.
-      apContribs.innerHTML = "";
-      for (const c of contributors) {
-        const li = document.createElement("li");
-        li.dataset.did = c.author_did || "";
-        const link = `https://bsky.app/profile/${c.author_did}`;
-        const initialHandle = (c.author_handle && !c.author_handle.startsWith("did:"))
-          ? c.author_handle : "…";
-        li.innerHTML =
-          `<a href="${link}" target="_blank" rel="noopener">@${escapeHtml(initialHandle)}</a>` +
-          `<span class="count">${c.n}</span>`;
-        apContribs.appendChild(li);
-      }
-      if (!contributors.length) {
-        apContribs.innerHTML = `<li class="count">no strokes yet</li>`;
-        return;
-      }
-      // Resolve and patch in current handles.
-      await resolveProfilesByDid(contributors.map(c => c.author_did));
-      apContribs.querySelectorAll("li").forEach(li => {
-        const did = li.dataset.did;
-        const prof = profileCache.get(did);
-        if (!prof) return;
-        const a = li.querySelector("a");
-        if (a && prof.handle) a.textContent = "@" + prof.handle;
-      });
-    } catch (e) {
-      apContribs.innerHTML = `<li class="count">audit fetch failed</li>`;
+async function fetchInfo() {
+  try {
+    const r = await fetch(`${MMO_API}/info`);
+    const data = await r.json();
+    state.serviceDid    = data.service_did    || null;
+    state.serviceHandle = data.service_handle || null;
+    state.jetstreamUrl  = data.jetstream_url  || null;
+    if (typeof data.width  === "number") CANVAS_W = data.width;
+    if (typeof data.height === "number") CANVAS_H = data.height;
+    return data;
+  } catch (e) {
+    showToast("couldn't reach worker — try again");
+    return null;
+  }
+}
+
+// Apply a stroke record (from list or from Jetstream) to the bitmap.
+// Idempotent on pixels — re-applying produces the same result.
+function applyRecord(rkey, record) {
+  if (!record || record.canvas !== CANVAS_ID) return;
+  if (!record.tool || !record.color || !record.size || !Array.isArray(record.points)) return;
+  applyStrokeToBitmap(record.tool, record.color, record.size, record.points);
+  // Track the latest rkey we've applied (assumes TID monotonic).
+  if (!state.latestRkey || rkey > state.latestRkey) state.latestRkey = rkey;
+  state.strokeCount++;
+  // Track contributor counts.
+  const did = record.contributor || "";
+  if (did) {
+    const cur = state.contributors.get(did) || { handle: record.contributorHandle || "", count: 0 };
+    cur.count++;
+    if (record.contributorHandle && !cur.handle) cur.handle = record.contributorHandle;
+    state.contributors.set(did, cur);
+  }
+}
+
+async function replayInitial() {
+  // Pull the most recent N records and apply them oldest-first so the
+  // canvas reconstructs in chronological order.
+  let cursor = null;
+  // For now, just one page (most recent 100). Could paginate further.
+  try {
+    const u = new URL(`${MMO_API}/strokes`);
+    u.searchParams.set("limit", "100");
+    if (cursor) u.searchParams.set("cursor", cursor);
+    const r = await fetch(u.toString());
+    const data = await r.json();
+    const recs = (data.records || []).slice().reverse();  // listRecords returns newest first
+    for (const rec of recs) {
+      const rkey = rec.uri ? rec.uri.split("/").pop() : "";
+      applyRecord(rkey, rec.value || rec.record || rec);
     }
+    render();
+  } catch (e) {
+    showToast("couldn't replay strokes");
   }
-  $("audit-btn").addEventListener("click", openAudit);
-  $("audit-mini").addEventListener("click", openAudit);
-  $("audit-close").addEventListener("click", () => auditPanel.classList.remove("open"));
+}
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;",
-    }[c]));
+// ---- Jetstream live subscription ---------------------------------
+
+function connectJetstream() {
+  if (!state.jetstreamUrl) return;
+  if (state.js) try { state.js.close(); } catch {}
+  state.jsState = "connecting";
+  refreshStatus();
+  let js;
+  try { js = new WebSocket(state.jetstreamUrl); }
+  catch (e) {
+    state.jsState = "error";
+    refreshStatus();
+    scheduleJetstreamReconnect();
+    return;
   }
+  state.js = js;
+  js.addEventListener("open", () => {
+    state.jsState = "open";
+    refreshStatus();
+  });
+  js.addEventListener("message", (ev) => {
+    let m;
+    try { m = JSON.parse(typeof ev.data === "string" ? ev.data : ""); }
+    catch { return; }
+    onJetstreamEvent(m);
+  });
+  js.addEventListener("close", () => {
+    state.jsState = "closed";
+    refreshStatus();
+    scheduleJetstreamReconnect();
+  });
+  js.addEventListener("error", () => {
+    state.jsState = "error";
+    refreshStatus();
+  });
+}
 
-  // ---- manual reconnect via presence chip ---------------------------
+function scheduleJetstreamReconnect() {
+  if (state.jsReconnectTimer) return;
+  state.jsReconnectTimer = setTimeout(() => {
+    state.jsReconnectTimer = null;
+    connectJetstream();
+  }, 3000);
+}
 
-  $("presence").style.cursor = "pointer";
-  $("presence").addEventListener("click", () => {
+function onJetstreamEvent(m) {
+  // Jetstream commit envelope:
+  //   { did, time_us, kind: "commit", commit: { rev, operation, collection, rkey, record, cid } }
+  if (m.kind !== "commit" || !m.commit) return;
+  const c = m.commit;
+  if (c.operation !== "create") return;
+  if (c.collection !== "com.minomobi.mmopaint.stroke") return;
+  if (state.serviceDid && m.did !== state.serviceDid) return;  // safety filter
+  const rec = c.record;
+  const rkey = c.rkey || "";
+  // Skip duplicates (same rkey already applied).
+  if (state.latestRkey && rkey && rkey <= state.latestRkey) {
+    // Could be an earlier event we've already applied. Cheap dedup.
+    return;
+  }
+  applyRecord(rkey, rec);
+  render();
+}
+
+// ---- pointer / pinch ---------------------------------------------
+
+function localPoint(e) {
+  const r = view.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+function ptDist(a, b)   { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+function onPointerDown(e) {
+  if (e.target !== view) return;
+  e.preventDefault();
+  try { view.setPointerCapture(e.pointerId); } catch {}
+  const pt = localPoint(e);
+  state.pointers.set(e.pointerId, pt);
+
+  if (state.pointers.size === 1) {
     if (!state.session) { showSigninPrompt(true); return; }
-    if (state.ws && state.wsAuthed) return;
-    if (state.reconnectTimer) { clearTimeout(state.reconnectTimer); state.reconnectTimer = null; }
-    state._diagRan = false;
-    connectWS();
-  });
+    const b = viewToBitmap(pt.x, pt.y);
+    beginLocalStroke(Math.round(b.x), Math.round(b.y));
+  } else if (state.pointers.size === 2) {
+    cancelLocalStroke();
+    const pts = [...state.pointers.values()];
+    const mid0View = midpoint(pts[0], pts[1]);
+    state.gesture = {
+      d0:    Math.max(1, ptDist(pts[0], pts[1])),
+      mid0View,
+      mid0Bitmap: viewToBitmap(mid0View.x, mid0View.y),
+      zoom0: state.view.zoom,
+    };
+  }
+}
 
-  // ---- resize observer ----------------------------------------------
+function onPointerMove(e) {
+  if (!state.pointers.has(e.pointerId)) return;
+  e.preventDefault();
+  const pt = localPoint(e);
+  state.pointers.set(e.pointerId, pt);
 
-  const ro = new ResizeObserver(() => resize());
-  ro.observe(stage);
-  window.addEventListener("resize", () => resize());
-  window.addEventListener("orientationchange", () => setTimeout(resize, 100));
+  if (state.pointers.size === 1 && state.localStroke) {
+    const b = viewToBitmap(pt.x, pt.y);
+    extendLocalStroke(Math.round(b.x), Math.round(b.y));
+  } else if (state.pointers.size === 2 && state.gesture) {
+    const pts = [...state.pointers.values()];
+    const d1 = Math.max(1, ptDist(pts[0], pts[1]));
+    const mid1View = midpoint(pts[0], pts[1]);
+    const newZoom = clampZoom(state.gesture.zoom0 * (d1 / state.gesture.d0));
+    state.view.zoom = newZoom;
+    state.view.panX = mid1View.x - state.gesture.mid0Bitmap.x * newZoom;
+    state.view.panY = mid1View.y - state.gesture.mid0Bitmap.y * newZoom;
+    render();
+  }
+}
 
-  // ---- boot ----------------------------------------------------------
+function onPointerUp(e) {
+  if (!state.pointers.has(e.pointerId)) return;
+  e.preventDefault();
+  const wasDrawing  = !!state.localStroke;
+  const wasPinching = !!state.gesture;
+  state.pointers.delete(e.pointerId);
+  if (state.pointers.size === 0) {
+    if (wasDrawing) commitLocalStroke();
+    state.gesture = null;
+  } else if (state.pointers.size === 1 && wasPinching) {
+    state.gesture = null;
+  }
+}
 
-  async function boot() {
-    resize();
-    fitView();
-    setTool("brush");
-    setColor("#000000");
-    setSize(6);
+view.addEventListener("pointerdown",   onPointerDown);
+view.addEventListener("pointermove",   onPointerMove);
+view.addEventListener("pointerup",     onPointerUp);
+view.addEventListener("pointercancel", onPointerUp);
+view.addEventListener("contextmenu",   e => e.preventDefault());
 
-    const fragSession = readSessionFragment();
-    state.session = fragSession || readStoredSession();
-    refreshAuthUI();
+view.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const pt = localPoint(e);
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  const newZoom = clampZoom(state.view.zoom * factor);
+  const b = viewToBitmap(pt.x, pt.y);
+  state.view.zoom = newZoom;
+  state.view.panX = pt.x - b.x * newZoom;
+  state.view.panY = pt.y - b.y * newZoom;
+  render();
+}, { passive: false });
 
-    // Healthcheck the worker before we attempt to connect so we can
-    // surface a clean error if the deploy hasn't picked up /api/mmo yet.
-    try {
-      const r = await fetch(`${MMO_API}/canvases/${encodeURIComponent(CANVAS_ID)}`);
-      if (r.status === 404) {
-        showToast("canvas not provisioned — migration may still be running", 5000);
-      } else if (!r.ok) {
-        showToast(`worker returned ${r.status} on canvas lookup`, 4000);
-      }
-    } catch (e) {
-      showToast("can't reach poll.mino.mobi — deploy may still be running", 4000);
+// ---- local stroke (one record per pen-down to pen-up) ------------
+
+function beginLocalStroke(bx, by) {
+  state.localStroke = {
+    tool: state.tool, color: state.color, size: state.size,
+    points: [bx, by],
+    lastBx: bx, lastBy: by,
+  };
+  applyStrokeToBitmap(state.tool, state.color, state.size, [bx, by]);
+  render();
+}
+
+function extendLocalStroke(bx, by) {
+  const s = state.localStroke;
+  if (!s) return;
+  if (Math.abs(bx - s.lastBx) < 1 && Math.abs(by - s.lastBy) < 1) return;
+  s.points.push(bx, by);
+  bctx.strokeStyle = (s.tool === "eraser") ? "#ffffff" : s.color;
+  bctx.lineWidth = s.size;
+  bctx.lineCap = "round"; bctx.lineJoin = "round";
+  bctx.beginPath();
+  bctx.moveTo(s.lastBx, s.lastBy);
+  bctx.lineTo(bx, by);
+  bctx.stroke();
+  s.lastBx = bx; s.lastBy = by;
+  render();
+}
+
+function cancelLocalStroke() {
+  // Two-finger pinch interrupted. Pixels already painted locally stay
+  // (will be reconciled when the server-side record arrives via Jetstream
+  // — or won't, since we never submitted). For pinch-cancel that's fine.
+  state.localStroke = null;
+}
+
+async function commitLocalStroke() {
+  const s = state.localStroke;
+  state.localStroke = null;
+  if (!s || s.points.length < 2) return;
+  // Cap to server's MAX_POINTS (600); subsample if longer.
+  const MAX = 580;
+  let pts = s.points;
+  if (pts.length / 2 > MAX) {
+    const step = Math.ceil((pts.length / 2) / MAX);
+    const out = [];
+    for (let i = 0; i < pts.length; i += step * 2) out.push(pts[i], pts[i + 1]);
+    if (out[out.length - 2] !== pts[pts.length - 2] || out[out.length - 1] !== pts[pts.length - 1]) {
+      out.push(pts[pts.length - 2], pts[pts.length - 1]);
     }
+    pts = out;
+  }
+  await sendStroke(s.tool, s.color, s.size, pts);
+}
 
-    // Always replay the public log so visitors see the current state.
-    replayStrokes(0);
-
-    if (state.session) {
-      connectWS();
-    } else {
+async function sendStroke(tool, color, size, points) {
+  if (!state.session) {
+    showSigninPrompt(true);
+    return;
+  }
+  try {
+    const res = await fetch(`${MMO_API}/strokes`, {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${state.session.sessionId}`,
+      },
+      body: JSON.stringify({
+        canvas: CANVAS_ID,
+        tool, color, size, points,
+      }),
+    });
+    if (res.status === 401) {
+      clearStoredSession();
+      state.session = null;
+      refreshAuthUI();
       showSigninPrompt(true);
+      showToast("session expired — sign in");
+      return;
     }
+    if (res.status === 429) {
+      // Cooldown — ignore quietly. The pixels are already on local canvas.
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || `submit failed (${res.status})`);
+      return;
+    }
+    // Success — Jetstream will broadcast it back; nothing more to do here.
+  } catch (e) {
+    showToast("network error — your stroke is local-only");
+  }
+}
+
+// ---- color palette + tools + slider ------------------------------
+
+const picker = colorsEl.querySelector(".color-picker-wrap");
+for (const c of PALETTE) {
+  const b = document.createElement("button");
+  b.className = "swatch";
+  b.dataset.color = c.toLowerCase();
+  b.style.background = c;
+  b.title = c;
+  b.addEventListener("click", () => setColor(c));
+  colorsEl.insertBefore(b, picker);
+}
+customColor.addEventListener("input", (e) => setColor(e.target.value));
+toolGroup.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-tool]");
+  if (b) setTool(b.dataset.tool);
+});
+sizeSlider.addEventListener("input", () => setSize(parseInt(sizeSlider.value, 10) || 1));
+
+// ---- audit panel -------------------------------------------------
+
+const profileCache = new Map();   // did -> profile
+
+async function resolveProfilesByDid(dids) {
+  const need = [...new Set(dids.filter(d => d && d.startsWith("did:") && !profileCache.has(d)))];
+  if (!need.length) return;
+  for (let i = 0; i < need.length; i += 25) {
+    const chunk = need.slice(i, i + 25);
+    const u = new URL("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles");
+    chunk.forEach(d => u.searchParams.append("actors", d));
+    try {
+      const r = await fetch(u.toString());
+      if (!r.ok) continue;
+      const data = await r.json();
+      for (const p of data.profiles || []) {
+        if (p.did) profileCache.set(p.did, p);
+      }
+    } catch {}
+  }
+}
+
+async function openAudit() {
+  auditPanel.classList.add("open");
+  apCanvas.textContent = CANVAS_ID + (state.serviceHandle ? ` · @${state.serviceHandle}` : "");
+  apSeq.textContent  = state.strokeCount.toLocaleString();
+  apHash.textContent = state.latestRkey || "—";
+  apPds.textContent  = state.serviceDid
+    ? `at://${state.serviceDid}/com.minomobi.mmopaint.stroke`
+    : "service PDS not configured";
+
+  // Top contributors from in-memory tally.
+  const list = [...state.contributors.entries()]
+    .map(([did, v]) => ({ did, handle: v.handle, count: v.count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
+  apContribs.innerHTML = "";
+  if (!list.length) {
+    apContribs.innerHTML = `<li class="count">no strokes yet</li>`;
+    return;
+  }
+  for (const c of list) {
+    const li = document.createElement("li");
+    li.dataset.did = c.did;
+    const link = `https://bsky.app/profile/${c.did}`;
+    const initialHandle = (c.handle && !c.handle.startsWith("did:")) ? c.handle : "…";
+    li.innerHTML =
+      `<a href="${link}" target="_blank" rel="noopener">@${escapeHtml(initialHandle)}</a>` +
+      `<span class="count">${c.count}</span>`;
+    apContribs.appendChild(li);
+  }
+  await resolveProfilesByDid(list.map(c => c.did));
+  apContribs.querySelectorAll("li").forEach(li => {
+    const prof = profileCache.get(li.dataset.did);
+    if (prof && prof.handle) {
+      const a = li.querySelector("a");
+      if (a) a.textContent = "@" + prof.handle;
+    }
+  });
+}
+$("audit-btn").addEventListener("click", openAudit);
+$("audit-mini").addEventListener("click", openAudit);
+$("audit-close").addEventListener("click", () => auditPanel.classList.remove("open"));
+
+// ---- presence chip = manual reconnect ----------------------------
+
+presenceEl.style.cursor = "pointer";
+presenceEl.addEventListener("click", () => {
+  if (state.jsState === "open") return;
+  if (state.jsReconnectTimer) {
+    clearTimeout(state.jsReconnectTimer);
+    state.jsReconnectTimer = null;
+  }
+  connectJetstream();
+});
+
+// ---- resize observer ---------------------------------------------
+
+const ro = new ResizeObserver(() => resize());
+ro.observe(stage);
+window.addEventListener("resize", () => resize());
+window.addEventListener("orientationchange", () => setTimeout(resize, 100));
+
+// ---- boot --------------------------------------------------------
+
+async function boot() {
+  resize();
+  fitView();
+  setTool("brush");
+  setColor("#000000");
+  setSize(6);
+
+  state.session = readSessionFragment() || readStoredSession();
+  refreshAuthUI();
+
+  // Pull /info, replay history, then start the live feed. In parallel
+  // because none of these depend on each other.
+  const [info] = await Promise.all([fetchInfo(), replayInitial()]);
+  // If canvas dims came from /info we may need to refit.
+  if (info && (bitmap.width !== CANVAS_W || bitmap.height !== CANVAS_H)) {
+    bitmap.width = CANVAS_W; bitmap.height = CANVAS_H;
+    bctx.fillStyle = "#ffffff"; bctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    fitView();
+    await replayInitial();
   }
 
-  boot();
-})();
+  if (state.jetstreamUrl) connectJetstream();
+  if (!state.session) showSigninPrompt(true);
+}
+
+boot();

@@ -1,123 +1,32 @@
 /**
- * MMOPaint routes.
+ * MMOPaint routes — PDS-records edition.
  *
- *   GET  /api/mmo/canvases                            — list canvases
- *   GET  /api/mmo/canvases/:id                        — get canvas metadata + head
- *   GET  /api/mmo/canvases/:id/strokes?since=&limit=  — paginated stroke replay
- *   GET  /api/mmo/canvases/:id/audit                  — chain head + contributor counts
- *   GET  /api/mmo/canvases/:id/contributors           — whitelist (if any)
- *   POST /api/mmo/canvases                            — create canvas (auth)   [v2]
- *   POST /api/mmo/canvases/:id/contributors           — add to whitelist (owner)
- *   GET  /api/mmo/canvases/:id/ws?session=…           — WebSocket upgrade -> DO
+ * Pivot away from D1 + Durable Object. Strokes are now records on a
+ * service PDS (`com.minomobi.mmopaint.stroke`), keyed by TID. The
+ * service account writes on behalf of any authenticated contributor
+ * for the public/global canvas; user-owned canvases (later) will
+ * write to the contributor's own PDS.
  *
- * The hash chain: each stroke row records prev_hash (the previous
- * stroke's this_hash) and this_hash = SHA-256(
- *   prev_hash || "\n" || seq || "\n" || author_did || "\n" ||
- *   tool || "\n" || color || "\n" || size || "\n" || points_json
- * ). Anyone with the full stroke log can replay & verify.
+ *   GET  /api/mmo/info                  — service did, collection, jetstream filter URL
+ *   POST /api/mmo/strokes               — submit a stroke (auth required); writes a record on the service PDS
+ *   GET  /api/mmo/strokes               — list recent strokes (proxies listRecords; saves the client a CORS dance)
+ *
+ * Live updates: the browser subscribes to Jetstream directly, filtered
+ * to wantedCollections=com.minomobi.mmopaint.stroke and wantedDids=<service-did>.
+ * Browser also re-applies its own writes when they arrive on the firehose.
  */
 
 import type { Env } from '../index.js';
 import { getSession } from './auth.js';
+import { PdsPublisher } from '@atpolls/shared';
 
+const STROKE_COLLECTION = 'com.minomobi.mmopaint.stroke';
 const VALID_TOOLS = new Set(['brush', 'eraser', 'fill']);
+const SUBMIT_COOLDOWN_MS = 200;       // anti-mash per-DID floor
+const MAX_POINTS = 600;
 
-// MMO Paint lives on its own D1 database (mmopaint-db) — separation from
-// the poll/draw/feed schema in atpolls-db. Until the create-mmo-db
-// workflow runs and binds MMO_DB in wrangler.toml, we fall back to the
-// shared DB so the worker keeps working.
-function mmoDb(env: Env): D1Database {
-  return ((env as any).MMO_DB ?? env.DB) as D1Database;
-}
-
-// Cached per-isolate so we only probe sqlite_master once after a cold start.
-let mmoSchemaReady = false;
-
-// Self-heal: bootstrap the mmo_* tables on first request if the SQL
-// migration didn't land (the deploy-poll workflow masks D1 failures
-// with `|| echo continuing`, so a failed migration goes unnoticed
-// until the worker tries to query the table at runtime).
-async function ensureMmoSchema(env: Env): Promise<void> {
-  if (mmoSchemaReady) return;
-  try {
-    const probe = await mmoDb(env).prepare(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='mmo_canvases' LIMIT 1`
-    ).first<{ name: string }>();
-    if (probe && probe.name) {
-      mmoSchemaReady = true;
-      return;
-    }
-    console.log('[mmo] mmo_canvases missing — bootstrapping schema inline');
-    await mmoDb(env).batch([
-      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_canvases (
-        id TEXT PRIMARY KEY,
-        owner_did TEXT NOT NULL,
-        owner_handle TEXT NOT NULL,
-        name TEXT NOT NULL,
-        width INTEGER NOT NULL DEFAULT 1024,
-        height INTEGER NOT NULL DEFAULT 1024,
-        public_contribute INTEGER NOT NULL DEFAULT 1,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        head_seq INTEGER NOT NULL DEFAULT 0,
-        head_hash TEXT,
-        stroke_count INTEGER NOT NULL DEFAULT 0,
-        contributor_count INTEGER NOT NULL DEFAULT 0,
-        record_uri TEXT,
-        record_cid TEXT
-      )`),
-      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_contributors (
-        canvas_id TEXT NOT NULL,
-        did TEXT NOT NULL,
-        handle TEXT NOT NULL,
-        added_at INTEGER NOT NULL,
-        added_by_did TEXT NOT NULL,
-        PRIMARY KEY (canvas_id, did)
-      )`),
-      mmoDb(env).prepare(`CREATE TABLE IF NOT EXISTS mmo_strokes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        canvas_id TEXT NOT NULL,
-        seq INTEGER NOT NULL,
-        author_did TEXT NOT NULL,
-        author_handle TEXT NOT NULL,
-        tool TEXT NOT NULL,
-        color TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        points TEXT NOT NULL,
-        prev_hash TEXT,
-        this_hash TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        record_uri TEXT,
-        record_cid TEXT
-      )`),
-      mmoDb(env).prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_seq
-        ON mmo_strokes(canvas_id, seq)`),
-      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_canvas_created
-        ON mmo_strokes(canvas_id, created_at DESC)`),
-      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_strokes_author
-        ON mmo_strokes(author_did, created_at DESC)`),
-      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_owner
-        ON mmo_canvases(owner_did)`),
-      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_canvases_updated
-        ON mmo_canvases(updated_at DESC)`),
-      mmoDb(env).prepare(`CREATE INDEX IF NOT EXISTS idx_mmo_contributors_did
-        ON mmo_contributors(did)`),
-    ]);
-    const now = Date.now();
-    await mmoDb(env).prepare(
-      `INSERT OR IGNORE INTO mmo_canvases
-         (id, owner_did, owner_handle, name, width, height,
-          public_contribute, created_at, updated_at)
-       VALUES ('global', 'did:plc:service', 'minomobi.com',
-               'Global Canvas', 1024, 1024, 1, ?, ?)`
-    ).bind(now, now).run();
-    mmoSchemaReady = true;
-    console.log('[mmo] schema bootstrapped + seed canvas inserted');
-  } catch (e: any) {
-    console.error('[mmo] ensureMmoSchema failed:', e?.message || e);
-    // Don't cache the failure — next request can retry.
-  }
-}
+// Cheap per-isolate cooldown table (DID -> last submit ms).
+const lastSubmitByDid = new Map<string, number>();
 
 export async function handleMmoRoutes(
   request: Request,
@@ -126,270 +35,53 @@ export async function handleMmoRoutes(
 ): Promise<Response | null> {
   if (!url.pathname.startsWith('/api/mmo/')) return null;
 
-  // Self-heal on first hit. Cheap once the cache is warm.
-  await ensureMmoSchema(env);
-
-  if (url.pathname === '/api/mmo/canvases' && request.method === 'GET') {
-    return listCanvases(env);
+  if (url.pathname === '/api/mmo/info' && request.method === 'GET') {
+    return mmoInfo(env);
   }
-  if (url.pathname === '/api/mmo/canvases' && request.method === 'POST') {
-    return createCanvas(request, env);
+  if (url.pathname === '/api/mmo/strokes' && request.method === 'POST') {
+    return submitStroke(request, env);
   }
-
-  const m = url.pathname.match(/^\/api\/mmo\/canvases\/([^/]+)(?:\/(.+))?$/);
-  if (!m) return null;
-  const canvasId = decodeURIComponent(m[1]);
-  const sub      = m[2] || '';
-
-  if (!sub) {
-    if (request.method === 'GET') return getCanvas(env, canvasId);
-    return null;
+  if (url.pathname === '/api/mmo/strokes' && request.method === 'GET') {
+    return listStrokes(env, url);
   }
-  if (sub === 'strokes' && request.method === 'GET')      return getStrokes(env, url, canvasId);
-  if (sub === 'audit'   && request.method === 'GET')      return getAudit(env, canvasId);
-  if (sub === 'ws-debug' && request.method === 'GET')     return wsDebug(env, url, canvasId);
-  if (sub === 'contributors' && request.method === 'GET') return listContributors(env, canvasId);
-  if (sub === 'contributors' && request.method === 'POST') return addContributor(request, env, canvasId);
-  if (sub === 'ws') return upgradeWebSocket(request, env, url, canvasId);
-
+  // Soft back-compat for old paths the frontend may still hit.
+  if (url.pathname === '/api/mmo/canvases/global' && request.method === 'GET') {
+    return mmoInfo(env);
+  }
   return null;
 }
 
-// ---- canvas CRUD ------------------------------------------------------
+// ---- helpers ------------------------------------------------------
 
-async function listCanvases(env: Env): Promise<Response> {
-  const rows = await mmoDb(env).prepare(
-    `SELECT id, owner_did, owner_handle, name, width, height,
-            public_contribute, head_seq, head_hash, stroke_count,
-            contributor_count, created_at, updated_at
-       FROM mmo_canvases
-       ORDER BY updated_at DESC, created_at DESC LIMIT 50`
-  ).all();
-  return json({ canvases: rows.results || [] });
-}
-
-async function getCanvas(env: Env, id: string): Promise<Response> {
-  const row = await mmoDb(env).prepare(
-    `SELECT id, owner_did, owner_handle, name, width, height,
-            public_contribute, head_seq, head_hash, stroke_count,
-            contributor_count, created_at, updated_at, record_uri, record_cid
-       FROM mmo_canvases WHERE id = ?`
-  ).bind(id).first();
-  if (!row) return json({ error: 'not found' }, 404);
-  return json(row);
-}
-
-async function createCanvas(request: Request, env: Env): Promise<Response> {
-  const session = await getSession(request, env);
-  if (!session) return json({ error: 'not authenticated' }, 401);
-
-  let body: any;
-  try { body = await request.json(); } catch { return json({ error: 'invalid body' }, 400); }
-  const name   = String(body.name || '').trim().slice(0, 64);
-  const w      = Math.max(64, Math.min(4096, Number(body.width)  || 1024));
-  const h      = Math.max(64, Math.min(4096, Number(body.height) || 1024));
-  const pubC   = body.public_contribute === false ? 0 : 1;
-  if (!name) return json({ error: 'name is required' }, 400);
-
-  const id = `c-${cryptoRandomId(10)}`;
-  const now = Date.now();
-  await mmoDb(env).prepare(
-    `INSERT INTO mmo_canvases (id, owner_did, owner_handle, name, width, height,
-                               public_contribute, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, session.did, session.handle, name, w, h, pubC, now, now).run();
-
-  return json({ id, name, width: w, height: h, public_contribute: pubC,
-                owner_did: session.did, owner_handle: session.handle });
-}
-
-// ---- audit / replay ---------------------------------------------------
-
-async function getStrokes(env: Env, url: URL, canvasId: string): Promise<Response> {
-  const since = Math.max(0, parseInt(url.searchParams.get('since') || '0', 10) || 0);
-  const limit = Math.min(2000, Math.max(1, parseInt(url.searchParams.get('limit') || '500', 10) || 500));
-
-  const rows = await mmoDb(env).prepare(
-    `SELECT seq, author_did, author_handle, tool, color, size, points,
-            prev_hash, this_hash AS hash, created_at
-       FROM mmo_strokes
-      WHERE canvas_id = ? AND seq > ?
-      ORDER BY seq ASC LIMIT ?`
-  ).bind(canvasId, since, limit).all();
-
-  // Inflate points JSON for the client.
-  const strokes = (rows.results || []).map((r: any) => ({
-    ...r,
-    points: safeParseArray(r.points),
-  }));
-
-  return json({ canvas_id: canvasId, since, count: strokes.length, strokes });
-}
-
-async function getAudit(env: Env, canvasId: string): Promise<Response> {
-  const head = await mmoDb(env).prepare(
-    `SELECT head_seq, head_hash, stroke_count, contributor_count, updated_at, record_uri, record_cid
-       FROM mmo_canvases WHERE id = ?`
-  ).bind(canvasId).first();
-  if (!head) return json({ error: 'not found' }, 404);
-
-  const contribs = await mmoDb(env).prepare(
-    `SELECT author_did, author_handle, COUNT(*) AS n, MAX(created_at) AS last_at
-       FROM mmo_strokes WHERE canvas_id = ?
-       GROUP BY author_did ORDER BY n DESC LIMIT 50`
-  ).bind(canvasId).all();
-
-  return json({
-    canvas_id: canvasId,
-    head_seq: head.head_seq,
-    head_hash: head.head_hash,
-    stroke_count: head.stroke_count,
-    contributors: contribs.results || [],
-    published_to_pds: !!head.record_uri,
-    record_uri: head.record_uri || null,
+function getServicePublisher(env: Env): PdsPublisher | null {
+  if (!env.ATPROTO_SERVICE_HANDLE || !env.ATPROTO_SERVICE_PASSWORD || !env.ATPROTO_SERVICE_DID) {
+    return null;
+  }
+  return new PdsPublisher({
+    serviceUrl: env.ATPROTO_SERVICE_PDS || 'https://bsky.social',
+    handle: env.ATPROTO_SERVICE_HANDLE,
+    password: env.ATPROTO_SERVICE_PASSWORD,
+    did: env.ATPROTO_SERVICE_DID,
   });
 }
 
-async function listContributors(env: Env, canvasId: string): Promise<Response> {
-  const rows = await mmoDb(env).prepare(
-    `SELECT did, handle, added_at, added_by_did
-       FROM mmo_contributors WHERE canvas_id = ?
-       ORDER BY added_at ASC`
-  ).bind(canvasId).all();
-  return json({ canvas_id: canvasId, contributors: rows.results || [] });
-}
-
-async function addContributor(request: Request, env: Env, canvasId: string): Promise<Response> {
-  const session = await getSession(request, env);
-  if (!session) return json({ error: 'not authenticated' }, 401);
-
-  const canvas = await mmoDb(env).prepare(
-    `SELECT owner_did FROM mmo_canvases WHERE id = ?`
-  ).bind(canvasId).first<{ owner_did: string }>();
-  if (!canvas) return json({ error: 'not found' }, 404);
-  if (canvas.owner_did !== session.did) return json({ error: 'only the owner can add contributors' }, 403);
-
-  let body: any;
-  try { body = await request.json(); } catch { return json({ error: 'invalid body' }, 400); }
-  const did    = String(body.did    || '').trim();
-  const handle = String(body.handle || '').trim().replace(/^@/, '');
-  if (!did || !did.startsWith('did:')) return json({ error: 'did is required' }, 400);
-  if (!handle)                          return json({ error: 'handle is required' }, 400);
-
-  const now = Date.now();
-  try {
-    await mmoDb(env).prepare(
-      `INSERT INTO mmo_contributors (canvas_id, did, handle, added_at, added_by_did)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(canvasId, did, handle, now, session.did).run();
-    await mmoDb(env).prepare(
-      `UPDATE mmo_canvases SET contributor_count = contributor_count + 1, updated_at = ?
-        WHERE id = ?`
-    ).bind(now, canvasId).run();
-  } catch (e: any) {
-    return json({ error: 'already a contributor or db error', detail: e?.message }, 409);
+// ATProto TID — 13 chars, base32-sortish, monotonic per microsecond + clockid.
+const TID_ALPHABET = '234567abcdefghijklmnopqrstuvwxyz';
+let lastTidUs = 0n;
+function generateTid(): string {
+  let nowUs = BigInt(Date.now()) * 1000n;
+  if (nowUs <= lastTidUs) nowUs = lastTidUs + 1n;
+  lastTidUs = nowUs;
+  const clockid = BigInt(Math.floor(Math.random() * 1024));
+  let v = (nowUs << 10n) | clockid;
+  v = v & ((1n << 63n) - 1n);  // top bit clear per spec
+  let s = '';
+  for (let i = 0; i < 13; i++) {
+    s = TID_ALPHABET[Number(v & 31n)] + s;
+    v >>= 5n;
   }
-  return json({ ok: true, did, handle });
+  return s;
 }
-
-// ---- WebSocket upgrade ------------------------------------------------
-
-// Mirror of the /ws upgrade's validation chain, but returns JSON instead
-// of attempting to upgrade. Useful when the browser fails the WS
-// handshake without telling us why.
-async function wsDebug(env: Env, url: URL, canvasId: string): Promise<Response> {
-  const out: Record<string, any> = { canvasId, ts: new Date().toISOString() };
-
-  // Enumerate all bindings on env so we can tell what's actually live:
-  // MMO_DB / MMO_CANVAS will be missing if the deploy didn't apply the
-  // wrangler.toml additions (DO migration v3, MMO_DB binding).
-  out.envBindings = Object.keys(env as unknown as Record<string, unknown>).sort();
-  out.hasMmoDb     = !!(env as any).MMO_DB;
-  out.hasMmoCanvas = !!(env as any).MMO_CANVAS;
-
-  const sessionId = url.searchParams.get('session') || '';
-  out.hasSession = !!sessionId;
-  if (!sessionId) return json({ ...out, ok: false, reason: 'missing session' }, 400);
-
-  try {
-    // sessions table is on the shared atpolls-db (auth lives there for all
-    // mino.mobi sub-apps), so use env.DB explicitly — not mmoDb(env).
-    const session = await env.DB.prepare(
-      `SELECT did, handle FROM sessions
-        WHERE session_id = ? AND expires_at > datetime('now') AND did != 'pending'`
-    ).bind(sessionId).first<{ did: string; handle: string }>();
-    out.sessionValid = !!session;
-    if (!session) return json({ ...out, ok: false, reason: 'invalid or expired session' }, 401);
-    out.did = session.did;
-    out.handle = session.handle;
-
-    const canvas = await mmoDb(env).prepare(
-      `SELECT id, owner_did, public_contribute, head_seq FROM mmo_canvases WHERE id = ?`
-    ).bind(canvasId).first<any>();
-    out.canvasExists = !!canvas;
-    if (!canvas) return json({ ...out, ok: false, reason: 'canvas row missing — migration may not have applied' }, 404);
-    out.public_contribute = canvas.public_contribute;
-    out.head_seq = canvas.head_seq;
-
-    let allowed = false;
-    let why = '';
-    if (canvas.public_contribute === 1) { allowed = true; why = 'public canvas'; }
-    else if (canvas.owner_did === session.did) { allowed = true; why = 'owner'; }
-    else {
-      const contrib = await mmoDb(env).prepare(
-        `SELECT 1 FROM mmo_contributors WHERE canvas_id = ? AND did = ? LIMIT 1`
-      ).bind(canvasId, session.did).first();
-      allowed = !!contrib;
-      why = allowed ? 'on whitelist' : 'not on whitelist';
-    }
-    out.contributorAllowed = allowed;
-    out.contributorReason = why;
-    if (!allowed) return json({ ...out, ok: false, reason: why }, 403);
-
-    // Verify the DO binding exists. If migration v3 wasn't applied, the
-    // binding lookup will throw — and the actual WS upgrade would have
-    // failed for the same reason.
-    try {
-      const doNs: any = (env as any).MMO_CANVAS;
-      if (!doNs || typeof doNs.idFromName !== 'function') {
-        return json({ ...out, ok: false, reason: 'MMO_CANVAS DO binding missing — wrangler migration v3 not applied' }, 500);
-      }
-      const id = doNs.idFromName(canvasId);
-      out.doId = id.toString();
-      out.doBinding = 'ok';
-    } catch (e: any) {
-      return json({ ...out, ok: false, reason: 'DO binding error: ' + (e?.message || String(e)) }, 500);
-    }
-
-    return json({ ...out, ok: true, reason: 'all checks pass' });
-  } catch (e: any) {
-    return json({ ...out, ok: false, reason: 'unexpected error: ' + (e?.message || String(e)) }, 500);
-  }
-}
-
-async function upgradeWebSocket(request: Request, env: Env, url: URL, canvasId: string): Promise<Response> {
-  if (request.headers.get('Upgrade') !== 'websocket') {
-    return new Response('expected websocket', { status: 426 });
-  }
-  // Light pre-checks so we don't spin up a DO for obviously-bad requests.
-  // The DO does the full session/canvas resolution — we forward the
-  // *original* Request unchanged because constructing a new Request with
-  // a `headers` init silently strips the forbidden Upgrade / Connection
-  // headers, which then breaks the WS handshake inside the DO.
-  if (!url.searchParams.get('session')) {
-    return new Response('missing session', { status: 401 });
-  }
-  const canvas = await mmoDb(env).prepare(
-    `SELECT id FROM mmo_canvases WHERE id = ?`
-  ).bind(canvasId).first();
-  if (!canvas) return new Response('canvas not found', { status: 404 });
-
-  const id  = env.MMO_CANVAS.idFromName(canvasId);
-  const obj = env.MMO_CANVAS.get(id);
-  return obj.fetch(request);
-}
-
-// ---- utils ------------------------------------------------------------
 
 function json(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -397,12 +89,106 @@ function json(data: any, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
-function safeParseArray(s: any): number[] {
-  if (typeof s !== 'string') return [];
-  try { const v = JSON.parse(s); return Array.isArray(v) ? v : []; } catch { return []; }
+
+// ---- routes -------------------------------------------------------
+
+async function mmoInfo(env: Env): Promise<Response> {
+  const did = env.ATPROTO_SERVICE_DID || null;
+  const handle = env.ATPROTO_SERVICE_HANDLE || null;
+  const pds = env.ATPROTO_SERVICE_PDS || 'https://bsky.social';
+  const jetstream = did
+    ? `wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=${encodeURIComponent(STROKE_COLLECTION)}&wantedDids=${encodeURIComponent(did)}`
+    : null;
+  return json({
+    service_did:    did,
+    service_handle: handle,
+    service_pds:    pds,
+    collection:     STROKE_COLLECTION,
+    jetstream_url:  jetstream,
+    canvas:         'global',
+    width:          1024,
+    height:         1024,
+  });
 }
-function cryptoRandomId(n: number): string {
-  const bytes = new Uint8Array(n);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, n);
+
+async function submitStroke(request: Request, env: Env): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'not authenticated' }, 401);
+
+  // Per-DID cooldown.
+  const now = Date.now();
+  const last = lastSubmitByDid.get(session.did) || 0;
+  if (now - last < SUBMIT_COOLDOWN_MS) {
+    return json({ error: 'slow down' }, 429);
+  }
+  lastSubmitByDid.set(session.did, now);
+
+  let body: any;
+  try { body = await request.json(); } catch { return json({ error: 'invalid body' }, 400); }
+
+  const canvas = String(body.canvas || 'global').slice(0, 64);
+  const tool   = String(body.tool || '');
+  const color  = String(body.color || '');
+  const size   = Number(body.size);
+  const points = Array.isArray(body.points) ? body.points : null;
+
+  if (!VALID_TOOLS.has(tool))                          return json({ error: 'invalid tool' }, 400);
+  if (!/^#[0-9a-fA-F]{6}$/.test(color))                return json({ error: 'invalid color' }, 400);
+  if (!Number.isInteger(size) || size < 1 || size > 80) return json({ error: 'invalid size' }, 400);
+  if (!points || points.length < 2 || points.length % 2 !== 0)
+                                                       return json({ error: 'invalid points' }, 400);
+  if (points.length / 2 > MAX_POINTS)                  return json({ error: 'too many points' }, 400);
+
+  const intPoints = (points as number[]).map((v) => Math.round(Number(v) || 0));
+
+  const publisher = getServicePublisher(env);
+  if (!publisher) return json({ error: 'service publisher not configured' }, 503);
+
+  const rkey = generateTid();
+  const record = {
+    $type:             STROKE_COLLECTION,
+    canvas,
+    contributor:       session.did,
+    contributorHandle: session.handle,
+    tool,
+    color:             color.toLowerCase(),
+    size,
+    points:            intPoints,
+    createdAt:         new Date().toISOString(),
+  };
+
+  try {
+    const result = await publisher.createRecord(STROKE_COLLECTION, rkey, record);
+    return json({
+      ok:   true,
+      uri:  result.uri,
+      cid:  result.cid,
+      rkey,
+      contributor: session.did,
+    });
+  } catch (e: any) {
+    console.error('[mmo] PDS createRecord failed:', e?.message);
+    return json({ error: 'pds write failed', detail: e?.message }, 502);
+  }
+}
+
+async function listStrokes(env: Env, url: URL): Promise<Response> {
+  const limit  = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '100', 10) || 100));
+  const cursor = url.searchParams.get('cursor') || undefined;
+
+  const publisher = getServicePublisher(env);
+  if (!publisher) return json({ error: 'service publisher not configured' }, 503);
+
+  try {
+    const data = await publisher.listRecords(STROKE_COLLECTION, limit, cursor);
+    return json({
+      collection:  STROKE_COLLECTION,
+      service_did: env.ATPROTO_SERVICE_DID || null,
+      records:     data.records,
+      cursor:      data.cursor,
+    });
+  } catch (e: any) {
+    console.error('[mmo] PDS listRecords failed:', e?.message);
+    return json({ error: 'list failed', detail: e?.message }, 502);
+  }
 }
