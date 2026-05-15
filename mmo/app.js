@@ -411,15 +411,25 @@ handleInput.addEventListener("keydown", (e) => {
 async function fetchInfo() {
   try {
     const r = await fetch(`${MMO_API}/info`);
+    if (!r.ok) {
+      console.warn("[mmo] /info returned", r.status);
+      showToast(`worker /info returned ${r.status} — deploy may be stale`, 4000);
+      return null;
+    }
     const data = await r.json();
+    console.log("[mmo] /info:", data);
     state.serviceDid    = data.service_did    || null;
     state.serviceHandle = data.service_handle || null;
     state.jetstreamUrl  = data.jetstream_url  || null;
     if (typeof data.width  === "number") CANVAS_W = data.width;
     if (typeof data.height === "number") CANVAS_H = data.height;
+    if (data.has_service === false) {
+      showToast("service PDS credentials missing — writes will fail", 5000);
+    }
     return data;
   } catch (e) {
-    showToast("couldn't reach worker — try again");
+    console.error("[mmo] /info fetch failed:", e);
+    showToast("couldn't reach worker — deploy may still be running", 4000);
     return null;
   }
 }
@@ -468,13 +478,18 @@ async function replayInitial() {
 // ---- Jetstream live subscription ---------------------------------
 
 function connectJetstream() {
-  if (!state.jetstreamUrl) return;
+  if (!state.jetstreamUrl) {
+    console.warn("[mmo] no jetstream URL configured");
+    return;
+  }
   if (state.js) try { state.js.close(); } catch {}
   state.jsState = "connecting";
   refreshStatus();
+  console.log("[mmo] jetstream connecting:", state.jetstreamUrl);
   let js;
   try { js = new WebSocket(state.jetstreamUrl); }
   catch (e) {
+    console.error("[mmo] jetstream constructor failed:", e);
     state.jsState = "error";
     refreshStatus();
     scheduleJetstreamReconnect();
@@ -482,6 +497,7 @@ function connectJetstream() {
   }
   state.js = js;
   js.addEventListener("open", () => {
+    console.log("[mmo] jetstream open");
     state.jsState = "open";
     refreshStatus();
   });
@@ -491,12 +507,14 @@ function connectJetstream() {
     catch { return; }
     onJetstreamEvent(m);
   });
-  js.addEventListener("close", () => {
+  js.addEventListener("close", (ev) => {
+    console.warn("[mmo] jetstream closed:", ev.code, ev.reason || "");
     state.jsState = "closed";
     refreshStatus();
     scheduleJetstreamReconnect();
   });
-  js.addEventListener("error", () => {
+  js.addEventListener("error", (ev) => {
+    console.warn("[mmo] jetstream error event", ev);
     state.jsState = "error";
     refreshStatus();
   });
@@ -700,11 +718,17 @@ async function sendStroke(tool, color, size, points) {
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error || `submit failed (${res.status})`);
+      const msg = data.error
+        ? `${data.error}${data.detail ? ' — ' + data.detail : ''}`
+        : `submit failed (${res.status})`;
+      console.warn("[mmo] POST /strokes failed:", res.status, data);
+      showToast(msg, 5000);
       return;
     }
-    // Success — Jetstream will broadcast it back; nothing more to do here.
+    const data = await res.json();
+    console.log("[mmo] stroke written:", data.uri || data.rkey);
   } catch (e) {
+    console.error("[mmo] POST /strokes network error:", e);
     showToast("network error — your stroke is local-only");
   }
 }

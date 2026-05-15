@@ -96,9 +96,10 @@ async function mmoInfo(env: Env): Promise<Response> {
   const did = env.ATPROTO_SERVICE_DID || null;
   const handle = env.ATPROTO_SERVICE_HANDLE || null;
   const pds = env.ATPROTO_SERVICE_PDS || 'https://bsky.social';
-  const jetstream = did
-    ? `wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=${encodeURIComponent(STROKE_COLLECTION)}&wantedDids=${encodeURIComponent(did)}`
-    : null;
+  // wantedCollections alone is enough — our NSID is custom and there's
+  // a single service publisher writing it. Dropped wantedDids because
+  // some Jetstream instances trip on URL-encoded colons in the DID.
+  const jetstream = `wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=${encodeURIComponent(STROKE_COLLECTION)}`;
   return json({
     service_did:    did,
     service_handle: handle,
@@ -108,6 +109,7 @@ async function mmoInfo(env: Env): Promise<Response> {
     canvas:         'global',
     width:          1024,
     height:         1024,
+    has_service:    !!(env.ATPROTO_SERVICE_HANDLE && env.ATPROTO_SERVICE_PASSWORD && env.ATPROTO_SERVICE_DID),
   });
 }
 
