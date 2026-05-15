@@ -33,14 +33,36 @@ canvas.over-atom{cursor:crosshair}
 <canvas id="c"></canvas>
 <div id="ctl">
   <select id="selMol">
-    <option value="water">water · H₂O</option>
-    <option value="co2">carbon dioxide · CO₂</option>
-    <option value="methane">methane · CH₄</option>
-    <option value="ethanol">ethanol · C₂H₆O</option>
-    <option value="benzene" selected>benzene · C₆H₆</option>
-    <option value="cyclohexane">cyclohexane · C₆H₁₂</option>
-    <option value="naphthalene">naphthalene · C₁₀H₈</option>
-    <option value="caffeine">caffeine · C₈H₁₀N₄O₂</option>
+    <optgroup label="small">
+      <option value="water">water · H₂O</option>
+      <option value="ammonia">ammonia · NH₃</option>
+      <option value="co2">carbon dioxide · CO₂</option>
+      <option value="methane">methane · CH₄</option>
+      <option value="formaldehyde">formaldehyde · CH₂O</option>
+      <option value="acetylene">acetylene · C₂H₂</option>
+      <option value="methanol">methanol · CH₃OH</option>
+      <option value="ethanol">ethanol · C₂H₆O</option>
+    </optgroup>
+    <optgroup label="aromatic">
+      <option value="benzene" selected>benzene · C₆H₆</option>
+      <option value="pyridine">pyridine · C₅H₅N</option>
+      <option value="furan">furan · C₄H₄O</option>
+      <option value="thiophene">thiophene · C₄H₄S</option>
+      <option value="naphthalene">naphthalene · C₁₀H₈</option>
+    </optgroup>
+    <optgroup label="saturated">
+      <option value="cyclohexane">cyclohexane · C₆H₁₂</option>
+      <option value="glucose">glucose · C₆H₁₂O₆</option>
+    </optgroup>
+    <optgroup label="biological">
+      <option value="adenine">adenine · C₅H₅N₅</option>
+      <option value="caffeine">caffeine · C₈H₁₀N₄O₂</option>
+    </optgroup>
+    <optgroup label="exotic">
+      <option value="ccl4">carbon tetrachloride · CCl₄</option>
+      <option value="sf6">sulfur hexafluoride · SF₆</option>
+      <option value="c60">buckminsterfullerene · C₆₀</option>
+    </optgroup>
   </select>
   <label>kick T <span class="v" id="vT">300</span>K
     <input type="range" id="slT" min="0" max="1500" step="10" value="300"></label>
@@ -67,13 +89,15 @@ const FFB = KCAL * 100;            // kcal/mol/Å² → kJ/mol/nm²
 const FFA = KCAL;                  // kcal/mol/rad² → kJ/mol/rad²
 const DEG = Math.PI / 180;
 
-// Atom catalog: [mass amu, radius nm (vdw·0.4), color rgb]
+// Atom catalog: [mass amu, radius nm (vdw·0.4), color rgb (CPK convention)]
 const ATOM = {
-  H: {m: 1.008, r: 0.030, c: [0.95, 0.95, 0.95]},
-  C: {m: 12.01, r: 0.068, c: [0.30, 0.30, 0.35]},
-  N: {m: 14.01, r: 0.065, c: [0.30, 0.45, 1.00]},
-  O: {m: 16.00, r: 0.062, c: [1.00, 0.25, 0.25]},
-  S: {m: 32.07, r: 0.100, c: [1.00, 0.85, 0.20]},
+  H:  {m: 1.008, r: 0.030, c: [0.95, 0.95, 0.95]},
+  C:  {m: 12.01, r: 0.068, c: [0.30, 0.30, 0.35]},
+  N:  {m: 14.01, r: 0.065, c: [0.30, 0.45, 1.00]},
+  O:  {m: 16.00, r: 0.062, c: [1.00, 0.25, 0.25]},
+  F:  {m: 19.00, r: 0.057, c: [0.55, 0.95, 0.40]},
+  S:  {m: 32.07, r: 0.100, c: [1.00, 0.85, 0.20]},
+  Cl: {m: 35.45, r: 0.099, c: [0.25, 0.95, 0.30]},
 };
 
 // Bond force-field [r0 nm, k kJ/mol/nm²]
@@ -88,10 +112,20 @@ const BFF = {
   'C2-O2': [0.1163, 700 * FFB],   // C=O in CO2
   'CA-CT': [0.1510, 317 * FFB],   // aromatic–sp3
   'CA-N2': [0.1381, 481 * FFB],   // aromatic C–N (imidazole-ish)
-  'N2-CT': [0.1471, 337 * FFB],   // N–sp3 C
+  'CT-N2': [0.1471, 337 * FFB],   // N–sp3 C
   'C2-N2': [0.1383, 490 * FFB],   // amide-like C=N
   'CA-O2': [0.1229, 570 * FFB],   // ring carbonyl C=O
-  'HA-N2': [0.1010, 434 * FFB],   // N–H
+  'HA-N2': [0.1010, 434 * FFB],   // N–H aromatic
+  'HN-N2': [0.1010, 434 * FFB],   // amine N–H (NH3)
+  'C3-C3': [0.1203, 1100 * FFB],  // C≡C triple
+  'C3-HC': [0.1063, 540 * FFB],   // sp C–H
+  'CO-O2': [0.1229, 570 * FFB],   // carbonyl C=O (formaldehyde)
+  'CO-HC': [0.1090, 340 * FFB],   // formaldehyde C–H
+  'CA-OA': [0.1360, 480 * FFB],   // aromatic C–O (furan)
+  'CA-SA': [0.1714, 250 * FFB],   // aromatic C–S (thiophene)
+  'CT-Cl': [0.1781, 245 * FFB],   // sp3 C–Cl
+  'F-S':   [0.1564, 520 * FFB],   // S–F (SF6)
+  'CT-O':  [0.1410, 320 * FFB],   // sp3 C–O ether (sugar ring O)
 };
 
 // Angle force-field [θ0 deg, k kJ/mol/rad²]
@@ -116,15 +150,38 @@ const AFF = {
   'CA-N2-CT': [120.0, 70 * FFA],
   'CT-N2-CT': [118.0, 50 * FFA],
   'N2-CA-N2': [115.0, 70 * FFA],
-  'N2-CA-HA': [120.0, 50 * FFA],
-  'N2-CT-HC': [109.5, 50 * FFA],
-  'HA-N2-CA': [120.0, 50 * FFA],
-  'HA-N2-CT': [118.0, 50 * FFA],
-  // additions for water and caffeine coverage:
+  // Aromatic N-H environments (sorted-endpoints convention):
+  'CA-N2-HA': [120.0, 50 * FFA],
+  'CT-N2-HA': [118.0, 50 * FFA],
+  'HA-N2-HA': [107.8, 35 * FFA],   // adenine NH₂ (also for aromatic N–H₂)
+  // Water bend, plus caffeine/pyridine/adenine cross-terms:
   'HO-OH-HO': [104.5, 100 * FFA],
   'N2-CA-O2': [120.0, 70 * FFA],
   'HA-CA-N2': [120.0, 50 * FFA],
   'HC-CT-N2': [109.5, 50 * FFA],
+  // amine / nitrile / triple-bond:
+  'HN-N2-HN': [107.8, 35 * FFA],   // ammonia umbrella
+  'C3-C3-HC': [180.0, 55 * FFA],   // acetylene linear
+  // carbonyl (formaldehyde, acetic acid):
+  'HC-CO-HC': [116.0, 35 * FFA],
+  'HC-CO-O2': [122.0, 50 * FFA],
+  // aromatic heterocycles:
+  'CA-OA-CA': [106.5, 70 * FFA],   // furan O
+  'CA-CA-OA': [109.0, 70 * FFA],
+  'HA-CA-OA': [115.5, 50 * FFA],
+  'CA-SA-CA': [92.5,  70 * FFA],   // thiophene S
+  'CA-CA-SA': [112.5, 70 * FFA],
+  'HA-CA-SA': [121.0, 50 * FFA],
+  // halogenated sp3:
+  'Cl-CT-Cl': [109.5, 80 * FFA],
+  'Cl-CT-HC': [109.5, 50 * FFA],
+  // sugar ring O:
+  'CT-O-CT':  [111.5, 60 * FFA],
+  'CT-CT-O':  [109.5, 50 * FFA],
+  'HC-CT-O':  [109.5, 50 * FFA],
+  'CT-O-HO':  [108.5, 55 * FFA],
+  'O-CT-O':   [111.5, 80 * FFA],
+  'O-CT-OH':  [108.0, 80 * FFA],   // glucose anomeric carbon
 };
 
 function bondKey(t1, t2) { return [t1, t2].sort().join('-'); }
@@ -280,9 +337,9 @@ const MOL = {
     const adj = atoms.map(()=>[]);
     for (const b of bonds) { adj[b.i].push(b.j); adj[b.j].push(b.i); }
     const dH = 0.1080;
-    for (let k = 0; k < atoms.length; k++) {
+    const nRing = atoms.length;  // cache before appending H atoms
+    for (let k = 0; k < nRing; k++) {
       if (adj[k].length === 2) {
-        // Place H opposite the bisector of the two C neighbors.
         const A = atoms[adj[k][0]], B = atoms[adj[k][1]], C = atoms[k];
         const ux = (2*C.x - A.x - B.x), uy = (2*C.y - A.y - B.y);
         const ul = Math.hypot(ux, uy) || 1;
@@ -361,6 +418,308 @@ const MOL = {
     }
     return {name:'caffeine', atoms, bonds};
   },
+  ammonia() {
+    // Pyramidal NH₃, H-N-H = 107.8°. Half-apex angle α from
+    //   cos(HNH) = 1.5·cos²α − 0.5  →  α ≈ 68.86°.
+    const bl = 0.1012, a = 68.86 * DEG;
+    const h = bl * Math.cos(a), r = bl * Math.sin(a);
+    return {name:'ammonia', atoms: [
+      {e:'N', t:'N2', x:0, y:0, z:0},
+      {e:'H', t:'HN', x: r,   y:-h, z: 0},
+      {e:'H', t:'HN', x:-r/2, y:-h, z: r*Math.sqrt(3)/2},
+      {e:'H', t:'HN', x:-r/2, y:-h, z:-r*Math.sqrt(3)/2},
+    ], bonds: [{i:0,j:1},{i:0,j:2},{i:0,j:3}]};
+  },
+  methanol() {
+    // CH₃OH. Tetrahedral C; the methyl C-H₃ tripod points away from O.
+    const dCH = 0.1090, dCO = 0.1410, dOH = 0.0960;
+    const tx = -1/3, tr = Math.sqrt(8)/3;
+    return {name:'methanol', atoms: [
+      {e:'C', t:'CT', x:0, y:0, z:0},
+      {e:'O', t:'OH', x:dCO, y:0, z:0},
+      {e:'H', t:'HO', x:dCO + dOH*0.317, y: dOH*0.948, z:0},
+      {e:'H', t:'HC', x:dCH*tx, y: dCH*tr,   z: 0},
+      {e:'H', t:'HC', x:dCH*tx, y:-dCH*tr/2, z: dCH*tr*Math.sqrt(3)/2},
+      {e:'H', t:'HC', x:dCH*tx, y:-dCH*tr/2, z:-dCH*tr*Math.sqrt(3)/2},
+    ], bonds: [{i:0,j:1},{i:1,j:2},{i:0,j:3},{i:0,j:4},{i:0,j:5}]};
+  },
+  formaldehyde() {
+    // H₂C=O. Planar sp² C, H-C-H = 116°.
+    const dCH = 0.1090, dCO = 0.1229, hh = 58 * DEG;
+    return {name:'formaldehyde', atoms: [
+      {e:'C', t:'CO', x:0, y:0, z:0},
+      {e:'O', t:'O2', x:dCO, y:0, z:0},
+      {e:'H', t:'HC', x:-dCH*Math.cos(hh), y: dCH*Math.sin(hh), z:0},
+      {e:'H', t:'HC', x:-dCH*Math.cos(hh), y:-dCH*Math.sin(hh), z:0},
+    ], bonds: [{i:0,j:1},{i:0,j:2},{i:0,j:3}]};
+  },
+  acetylene() {
+    // HC≡CH. Linear; tiny initial tilt so sin θ → 0 isn't sitting exactly
+    // at the unstable equilibrium (the bending mode lifts the tilt anyway).
+    const dCC = 0.1203, dCH = 0.1063, t = 0.0005;
+    return {name:'acetylene', atoms: [
+      {e:'C', t:'C3', x:0,       y:0,        z:0},
+      {e:'C', t:'C3', x:dCC,     y:t,        z:0},
+      {e:'H', t:'HC', x:-dCH,    y:0,        z:0},
+      {e:'H', t:'HC', x:dCC+dCH, y:t*2,      z:0},
+    ], bonds: [{i:0,j:1},{i:0,j:2},{i:1,j:3}]};
+  },
+  pyridine() {
+    // Benzene with one C → N substitution.
+    const rC = 0.1400, rH = rC + 0.1080;
+    const atoms = [], bonds = [];
+    atoms.push({e:'N', t:'N2', x:0, y:rC, z:0});
+    for (let k = 1; k < 6; k++) {
+      const a = Math.PI/2 + k * Math.PI/3;
+      atoms.push({e:'C', t:'CA', x: rC*Math.cos(a), y: rC*Math.sin(a), z:0});
+    }
+    for (let k = 1; k < 6; k++) {
+      const a = Math.PI/2 + k * Math.PI/3;
+      atoms.push({e:'H', t:'HA', x: rH*Math.cos(a), y: rH*Math.sin(a), z:0});
+    }
+    for (let k = 0; k < 6; k++) bonds.push({i:k, j:(k+1)%6});
+    for (let k = 1; k < 6; k++) bonds.push({i:k, j:5+k});
+    return {name:'pyridine', atoms, bonds};
+  },
+  furan() {
+    // Aromatic 5-ring with O. Treated as a regular pentagon (slight C–O / C–C
+    // length mismatch is relaxed away in a few hundred fs).
+    const r = 0.1170, rH = r + 0.108;
+    const atoms = [], bonds = [];
+    for (let k = 0; k < 5; k++) {
+      const a = Math.PI/2 + k * 2*Math.PI/5;
+      const isO = (k === 0);
+      atoms.push({
+        e: isO ? 'O' : 'C', t: isO ? 'OA' : 'CA',
+        x: r*Math.cos(a), y: r*Math.sin(a), z: 0
+      });
+    }
+    for (let k = 1; k < 5; k++) {
+      const a = Math.PI/2 + k * 2*Math.PI/5;
+      atoms.push({e:'H', t:'HA', x: rH*Math.cos(a), y: rH*Math.sin(a), z:0});
+    }
+    for (let k = 0; k < 5; k++) bonds.push({i:k, j:(k+1)%5});
+    for (let k = 1; k < 5; k++) bonds.push({i:k, j:4+k});
+    return {name:'furan', atoms, bonds};
+  },
+  thiophene() {
+    // Aromatic 5-ring with S. Larger ring radius — C–S is 0.171 nm.
+    const r = 0.1235, rH = r + 0.108;
+    const atoms = [], bonds = [];
+    for (let k = 0; k < 5; k++) {
+      const a = Math.PI/2 + k * 2*Math.PI/5;
+      const isS = (k === 0);
+      atoms.push({
+        e: isS ? 'S' : 'C', t: isS ? 'SA' : 'CA',
+        x: r*Math.cos(a), y: r*Math.sin(a), z: 0
+      });
+    }
+    for (let k = 1; k < 5; k++) {
+      const a = Math.PI/2 + k * 2*Math.PI/5;
+      atoms.push({e:'H', t:'HA', x: rH*Math.cos(a), y: rH*Math.sin(a), z:0});
+    }
+    for (let k = 0; k < 5; k++) bonds.push({i:k, j:(k+1)%5});
+    for (let k = 1; k < 5; k++) bonds.push({i:k, j:4+k});
+    return {name:'thiophene', atoms, bonds};
+  },
+  adenine() {
+    // C₅H₅N₅ — purine with –NH₂ on C6.
+    const a = 0.140, cos30 = Math.cos(Math.PI/6);
+    const heavy = [
+      ['C','CA', 0,             a/2],          // 0 C5
+      ['C','CA', a*cos30,       a],            // 1 C6
+      ['N','N2', a*cos30*2,     a/2],          // 2 N1
+      ['C','CA', a*cos30*2,    -a/2],          // 3 C2
+      ['N','N2', a*cos30,      -a],            // 4 N3
+      ['C','CA', 0,            -a/2],          // 5 C4
+      ['N','N2', -a*cos30*0.85, a*0.71],       // 6 N7
+      ['C','CA', -a*cos30*1.6,  0],            // 7 C8
+      ['N','N2', -a*cos30*0.85,-a*0.71],       // 8 N9
+      ['N','N2',  a*cos30,      a + a*0.85],   // 9 amino N on C6
+    ];
+    const atoms = heavy.map(h => ({e:h[0], t:h[1], x:h[2], y:h[3], z:0}));
+    const bonds = [
+      {i:0,j:1},{i:1,j:2},{i:2,j:3},{i:3,j:4},{i:4,j:5},{i:5,j:0},  // 6-ring
+      {i:0,j:6},{i:6,j:7},{i:7,j:8},{i:8,j:5},                      // 5-ring
+      {i:1,j:9},                                                     // C6–NH₂
+    ];
+    function placeH(parent, type, dist) {
+      const C = atoms[parent];
+      let ux=0, uy=0;
+      for (const b of bonds) {
+        if (b.i === parent || b.j === parent) {
+          const o = atoms[b.i === parent ? b.j : b.i];
+          ux += C.x - o.x; uy += C.y - o.y;
+        }
+      }
+      const ul = Math.hypot(ux, uy) || 1;
+      atoms.push({e:'H', t:type, x: C.x + dist*ux/ul, y: C.y + dist*uy/ul, z:0});
+      bonds.push({i: parent, j: atoms.length-1});
+    }
+    placeH(3, 'HA', 0.108);   // H on C2
+    placeH(7, 'HA', 0.108);   // H on C8
+    placeH(8, 'HA', 0.101);   // H on N9
+    // Two trigonal-planar H's on the amino N (atom 9).
+    {
+      const N = atoms[9], C6 = atoms[1];
+      const dx = N.x - C6.x, dy = N.y - C6.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      const ux = dx/dl, uy = dy/dl;
+      const c60 = 0.5, s60 = Math.sqrt(3)/2;
+      atoms.push({e:'H', t:'HA',
+        x: N.x + 0.101*(c60*ux - s60*uy),
+        y: N.y + 0.101*(s60*ux + c60*uy), z:0});
+      bonds.push({i:9, j: atoms.length-1});
+      atoms.push({e:'H', t:'HA',
+        x: N.x + 0.101*(c60*ux + s60*uy),
+        y: N.y + 0.101*(-s60*ux + c60*uy), z:0});
+      bonds.push({i:9, j: atoms.length-1});
+    }
+    return {name:'adenine', atoms, bonds};
+  },
+  glucose() {
+    // α-D-glucopyranose chair. Geometry is sloppy on purpose; relax() pulls
+    // bonds and angles to equilibrium before the thermal kick.
+    const rRing = 0.140, dz = 0.030;
+    const dCH = 0.109, dCO = 0.143, dOH = 0.096;
+    const atoms = [], bonds = [];
+    // O5(0), C1(1), C2(2), C3(3), C4(4), C5(5) — chair zig-zag.
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI/3;
+      const isO = (k === 0);
+      atoms.push({
+        e: isO ? 'O' : 'C', t: isO ? 'O' : 'CT',
+        x: rRing*Math.cos(a), y: rRing*Math.sin(a), z: (k%2 ? dz : -dz),
+      });
+    }
+    for (let k = 0; k < 6; k++) bonds.push({i:k, j:(k+1)%6});
+    function dirAt(ci, axial) {
+      const C = atoms[ci];
+      if (axial) return [0, 0, Math.sign(C.z) || 1];
+      const rl = Math.hypot(C.x, C.y) || 1;
+      let dx = C.x/rl, dy = C.y/rl, dzc = -Math.sign(C.z)*0.3;
+      const ll = Math.hypot(dx, dy, dzc);
+      return [dx/ll, dy/ll, dzc/ll];
+    }
+    function addOH(ci, axial) {
+      const C = atoms[ci];
+      const [dx, dy, dzc] = dirAt(ci, axial);
+      atoms.push({e:'O', t:'OH', x: C.x+dCO*dx, y: C.y+dCO*dy, z: C.z+dCO*dzc});
+      const oi = atoms.length-1; bonds.push({i:ci, j:oi});
+      // H on O: perpendicular to C-O so initial C-O-H ≈ 90° (relax pulls to 108.5°).
+      let px = -dy, py = dx, pz = 0;
+      const pl = Math.hypot(px, py, pz);
+      if (pl < 0.01) { px = 0; py = -dzc; pz = dy; }
+      const pll = Math.hypot(px, py, pz) || 1;
+      const O = atoms[oi];
+      atoms.push({e:'H', t:'HO', x:O.x+dOH*px/pll, y:O.y+dOH*py/pll, z:O.z+dOH*pz/pll});
+      bonds.push({i:oi, j: atoms.length-1});
+    }
+    function addH(ci, axial) {
+      const C = atoms[ci];
+      const [dx, dy, dzc] = dirAt(ci, axial);
+      atoms.push({e:'H', t:'HC', x:C.x+dCH*dx, y:C.y+dCH*dy, z:C.z+dCH*dzc});
+      bonds.push({i:ci, j: atoms.length-1});
+    }
+    addOH(1, true);  addH(1, false);  // α-anomeric OH axial
+    addOH(2, false); addH(2, true);
+    addOH(3, false); addH(3, true);
+    addOH(4, false); addH(4, true);
+    addH(5, true);
+    // CH₂OH off C5 (equatorial).
+    {
+      const C5 = atoms[5];
+      const [dx, dy, dzc] = dirAt(5, false);
+      atoms.push({e:'C', t:'CT', x:C5.x+0.154*dx, y:C5.y+0.154*dy, z:C5.z+0.154*dzc});
+      const c6i = atoms.length-1; bonds.push({i:5, j:c6i});
+      const C6 = atoms[c6i];
+      // Two methylene H's perpendicular to C5-C6 axis.
+      let tx = -dy, ty = dx, tz = 0;
+      const tl = Math.hypot(tx, ty, tz) || 1;
+      tx /= tl; ty /= tl;
+      for (const s of [+1, -1]) {
+        atoms.push({e:'H', t:'HC',
+          x:C6.x + 0.06*s*tx, y:C6.y + 0.06*s*ty, z:C6.z + 0.08});
+        bonds.push({i:c6i, j: atoms.length-1});
+      }
+      // Hydroxyl
+      atoms.push({e:'O', t:'OH',
+        x:C6.x + 0.11*dx, y:C6.y + 0.11*dy, z:C6.z - 0.06});
+      const ohi = atoms.length-1; bonds.push({i:c6i, j:ohi});
+      atoms.push({e:'H', t:'HO',
+        x:atoms[ohi].x + 0.07, y:atoms[ohi].y + 0.05, z:atoms[ohi].z - 0.04});
+      bonds.push({i:ohi, j: atoms.length-1});
+    }
+    return {name:'glucose', atoms, bonds};
+  },
+  sf6() {
+    // Octahedral sulfur hexafluoride. Provide angles directly so the 12 cis
+    // pairs (90°) and 3 trans pairs (180°) can coexist with different
+    // equilibria for the same F-S-F type triple.
+    const r = 0.1564;
+    const atoms = [
+      {e:'S', t:'S', x:0, y:0, z:0},
+      {e:'F', t:'F', x: r, y:0, z:0}, {e:'F', t:'F', x:-r, y:0, z:0},
+      {e:'F', t:'F', x:0, y: r, z:0}, {e:'F', t:'F', x:0, y:-r, z:0},
+      {e:'F', t:'F', x:0, y:0, z: r}, {e:'F', t:'F', x:0, y:0, z:-r},
+    ];
+    const bonds = [];
+    for (let k = 1; k <= 6; k++) bonds.push({i:0, j:k});
+    const cis = [[1,3],[1,4],[1,5],[1,6],[2,3],[2,4],[2,5],[2,6],[3,5],[3,6],[4,5],[4,6]];
+    const trans = [[1,2],[3,4],[5,6]];
+    const angles = [];
+    for (const [a,b] of cis)   angles.push({i:a, j:0, k:b, t0: 90*DEG,  kth: 80*FFA});
+    for (const [a,b] of trans) angles.push({i:a, j:0, k:b, t0:180*DEG,  kth: 30*FFA});
+    return {name:'sf6', atoms, bonds, angles};
+  },
+  ccl4() {
+    // Carbon tetrachloride, tetrahedral.
+    const d = 0.1781, a = 1/Math.sqrt(3);
+    return {name:'ccl4', atoms: [
+      {e:'C',  t:'CT', x:0, y:0, z:0},
+      {e:'Cl', t:'Cl', x: d*a, y: d*a, z: d*a},
+      {e:'Cl', t:'Cl', x: d*a, y:-d*a, z:-d*a},
+      {e:'Cl', t:'Cl', x:-d*a, y: d*a, z:-d*a},
+      {e:'Cl', t:'Cl', x:-d*a, y:-d*a, z: d*a},
+    ], bonds: [{i:0,j:1},{i:0,j:2},{i:0,j:3},{i:0,j:4}]};
+  },
+  c60() {
+    // C₆₀ — truncated icosahedron, 60 vertices, 90 edges. Vertices are even
+    // permutations × sign combinations of three seed triples (Wolfram).
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const seeds = [[0, 1, 3*phi], [1, 2+phi, 2*phi], [phi, 2, 2*phi+1]];
+    const verts = [], seen = new Set();
+    for (const [a, b, c] of seeds) {
+      for (const [x, y, z] of [[a,b,c], [b,c,a], [c,a,b]]) {
+        for (const sx of [-1,1]) for (const sy of [-1,1]) for (const sz of [-1,1]) {
+          const v = [sx*x, sy*y, sz*z];
+          const key = v.map(n => n.toFixed(4)).join(',');
+          if (seen.has(key)) continue;
+          seen.add(key);
+          verts.push(v);
+        }
+      }
+    }
+    // Natural edge length is 2 in this parameterization → scale to 0.144 nm.
+    const scale = 0.144 / 2;
+    const atoms = verts.map(v => ({e:'C', t:'CA',
+      x:v[0]*scale, y:v[1]*scale, z:v[2]*scale}));
+    const bonds = [];
+    const thr2 = 0.155 * 0.155;
+    for (let i = 0; i < atoms.length; i++) {
+      for (let j = i+1; j < atoms.length; j++) {
+        const dx = atoms[i].x-atoms[j].x;
+        const dy = atoms[i].y-atoms[j].y;
+        const dz = atoms[i].z-atoms[j].z;
+        if (dx*dx + dy*dy + dz*dz < thr2) bonds.push({i, j});
+      }
+    }
+    // Each angle's equilibrium = its initial geometric value (108° pentagon
+    // angles, 120° hexagon angles — same type triple, can't disambiguate
+    // from the FF table).
+    const angles = buildAnglesFromGeometry(atoms, bonds, 63 * FFA);
+    return {name:'C60', atoms, bonds, angles};
+  },
 };
 
 // Build the angle list from atom connectivity. Uses AFF lookup by type triple.
@@ -383,13 +742,42 @@ function buildAngles(atoms, bonds) {
 
 function instantiate(name) {
   const m = MOL[name]();
-  // Fill in r0, k for each bond from FF.
+  // Fill in r0, k for each bond from FF (unless molecule already set them).
   for (const b of m.bonds) {
+    if (b.r0 !== undefined) continue;
     const [r0, k] = bondFF(m.atoms[b.i].t, m.atoms[b.j].t);
     b.r0 = r0; b.k = k;
   }
-  m.angles = buildAngles(m.atoms, m.bonds);
+  // Use molecule-supplied angle list if present (e.g. SF6, C60 with
+  // type triples that can't disambiguate 90°/180° or 108°/120°).
+  if (!m.angles) m.angles = buildAngles(m.atoms, m.bonds);
   return m;
+}
+
+// Helper: build angles using each angle's initial-geometry value as the
+// equilibrium. Useful for highly-symmetric polyhedra where the FF table
+// can't distinguish multiple equilibrium angles for the same atom triple.
+function buildAnglesFromGeometry(atoms, bonds, kth) {
+  const adj = atoms.map(()=>[]);
+  for (const b of bonds) { adj[b.i].push(b.j); adj[b.j].push(b.i); }
+  const angles = [];
+  for (let kk = 0; kk < atoms.length; kk++) {
+    const ns = adj[kk];
+    for (let a = 0; a < ns.length; a++) {
+      for (let c = a+1; c < ns.length; c++) {
+        const i = ns[a], j = ns[c];
+        const Aa = atoms[i], Bb = atoms[kk], Cc = atoms[j];
+        const r1x = Aa.x-Bb.x, r1y = Aa.y-Bb.y, r1z = Aa.z-Bb.z;
+        const r2x = Cc.x-Bb.x, r2y = Cc.y-Bb.y, r2z = Cc.z-Bb.z;
+        const n1 = Math.hypot(r1x,r1y,r1z), n2 = Math.hypot(r2x,r2y,r2z);
+        let cos = (r1x*r2x + r1y*r2y + r1z*r2z) / (n1*n2);
+        if (cos >  0.9999) cos =  0.9999;
+        if (cos < -0.9999) cos = -0.9999;
+        angles.push({i, j: kk, k: j, t0: Math.acos(cos), kth});
+      }
+    }
+  }
+  return angles;
 }
 
 // ==========================================================================
