@@ -36,6 +36,7 @@ export default {
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
             '/api/fodder/stats', '/api/fodder/admin/mine',
             '/api/ask/check', '/api/ask/index', '/api/ask/query', '/api/ask/map', '/api/ask/thread',
+            '/api/signal/check', '/api/signal/index', '/api/signal/query', '/api/signal/map', '/api/signal/target',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -54,6 +55,15 @@ export default {
       if (url.pathname === '/api/ask/query' && request.method === 'POST') return askQuery(request, env);
       if (url.pathname === '/api/ask/map')                             return askMap(env, url);
       if (url.pathname === '/api/ask/thread')                          return askThread(env, url);
+
+      // Signal: vector index over the *targets* of a user's reposts. Mirrors
+      // ask's shape but the embedded records belong to other authors —
+      // signal_targets is keyed by (subscriber_did, target_uri).
+      if (url.pathname === '/api/signal/check')                           return signalCheck(env, url);
+      if (url.pathname === '/api/signal/index' && request.method === 'POST') return signalIndex(request, env);
+      if (url.pathname === '/api/signal/query' && request.method === 'POST') return signalQuery(request, env);
+      if (url.pathname === '/api/signal/map')                             return signalMap(env, url);
+      if (url.pathname === '/api/signal/target')                          return signalTarget(env, url);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -1532,4 +1542,342 @@ function cosineFast(q, v, qNorm) {
   }
   const denom = qNorm * (Math.sqrt(vn) || 1);
   return dot / denom;
+}
+
+// ---- signal: vector index over a user's REPOST targets --------------------
+//
+// Shape mirrors ask: one POST /api/signal/index batch-embeds the targets and
+// recomputes the 2D map; GET /api/signal/map returns coords + clusters; POST
+// /api/signal/query runs cosine semantic search. The key difference is the
+// "row" semantic — each row is a post by some OTHER author that this
+// subscriber chose to amplify. The map is a portrait of taste, not voice.
+
+const SIGNAL_MAX_TARGETS_PER_INDEX = 5000;
+
+async function signalCheck(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  if (!did) return json({ error: 'missing did' }, 400);
+  const meta = await env.DB.prepare(
+    `SELECT subscriber_did AS did, handle, target_count, indexed_at
+       FROM signal_index_meta WHERE subscriber_did = ?`
+  ).bind(did).first();
+  if (!meta) return json({ indexed: false, did });
+  return json({ indexed: true, ...meta });
+}
+
+async function signalIndex(request, env) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  if (!env.AI) return json({ error: 'AI binding not configured' }, 500);
+  const t0 = Date.now();
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const { did, handle, targets } = body || {};
+  if (typeof did !== 'string' || !Array.isArray(targets)) {
+    return json({ error: 'missing did or targets' }, 400);
+  }
+  if (!did.startsWith('did:')) return json({ error: 'bad did' }, 400);
+  if (targets.length === 0) return json({ ok: true, did, newly_indexed: 0, total_targets: 0, time_ms: 0 });
+  if (targets.length > SIGNAL_MAX_TARGETS_PER_INDEX) {
+    return json({ error: `too many targets (${targets.length} > ${SIGNAL_MAX_TARGETS_PER_INDEX})` }, 400);
+  }
+
+  // Idempotent re-runs: don't re-embed targets we already have for this subscriber.
+  const existing = new Set();
+  {
+    const { results } = await env.DB.prepare(
+      `SELECT target_uri FROM signal_targets WHERE subscriber_did = ?`
+    ).bind(did).all();
+    for (const r of results || []) existing.add(r.target_uri);
+  }
+
+  const fresh = [];
+  for (const t of targets) {
+    if (typeof t.uri !== 'string' || typeof t.text !== 'string') continue;
+    if (existing.has(t.uri)) continue;
+    if (t.text.length < 50 || t.text.length > 8000) continue;
+    fresh.push(t);
+  }
+
+  let embeddedCount = 0;
+  for (let i = 0; i < fresh.length; i += ASK_BATCH_SIZE) {
+    const batch = fresh.slice(i, i + ASK_BATCH_SIZE);
+    const texts = batch.map((t) => t.text);
+    const out = await env.AI.run(ASK_EMBED_MODEL, { text: texts });
+    if (!out || !out.data || out.data.length !== batch.length) {
+      throw new Error(`unexpected embedding shape (got ${out?.data?.length} for ${batch.length})`);
+    }
+    const stmts = [];
+    for (let j = 0; j < batch.length; j++) {
+      const t = batch[j];
+      const vec = out.data[j];
+      const blob = floatsToBlob(vec);
+      stmts.push(
+        env.DB.prepare(
+          `INSERT OR IGNORE INTO signal_targets
+             (subscriber_did, target_uri, target_did, target_rkey, text,
+              author_handle, author_display, reposted_at, created_at, embedding)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          did,
+          t.uri,
+          t.target_did || '',
+          t.target_rkey || '',
+          t.text,
+          t.author_handle || null,
+          t.author_display || null,
+          t.reposted_at || null,
+          t.created_at || null,
+          blob
+        )
+      );
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+    embeddedCount += batch.length;
+  }
+
+  // Rollup canonical count from rows.
+  const rollup = await env.DB.prepare(
+    `SELECT COUNT(*) AS target_count
+       FROM signal_targets WHERE subscriber_did = ?`
+  ).bind(did).first();
+  await env.DB.prepare(
+    `INSERT INTO signal_index_meta (subscriber_did, handle, target_count, indexed_at)
+     VALUES (?, ?, ?, unixepoch())
+     ON CONFLICT(subscriber_did) DO UPDATE SET
+       handle       = excluded.handle,
+       target_count = excluded.target_count,
+       indexed_at   = excluded.indexed_at`
+  ).bind(did, typeof handle === 'string' ? handle : null, rollup?.target_count || 0).run();
+
+  let mapTimeMs = 0;
+  try {
+    const mt0 = Date.now();
+    await recomputeSignalMap(env, did);
+    mapTimeMs = Date.now() - mt0;
+  } catch (e) {
+    console.error('signal map recompute failed', e);
+  }
+
+  return json({
+    ok: true,
+    did,
+    handle: handle || null,
+    total_targets: rollup?.target_count || 0,
+    newly_indexed: embeddedCount,
+    skipped_already_indexed: targets.length - fresh.length,
+    time_ms: Date.now() - t0,
+    map_time_ms: mapTimeMs,
+  });
+}
+
+async function signalTarget(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  const uri = url.searchParams.get('uri');
+  if (!did || !uri) return json({ error: 'missing did or uri' }, 400);
+  const row = await env.DB.prepare(
+    `SELECT target_uri, target_did, target_rkey, text, author_handle, author_display,
+            reposted_at, created_at, indexed_at
+       FROM signal_targets WHERE subscriber_did = ? AND target_uri = ?`
+  ).bind(did, uri).first();
+  if (!row) return json({ error: 'not found' }, 404);
+  return json(row);
+}
+
+async function signalMap(env, url) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const did = url.searchParams.get('did');
+  if (!did) return json({ error: 'missing did' }, 400);
+  const row = await env.DB.prepare(
+    `SELECT subscriber_did AS did, handle, target_count, indexed_at, map_json
+       FROM signal_index_meta WHERE subscriber_did = ?`
+  ).bind(did).first();
+  if (!row) return json({ indexed: false, did }, 200);
+
+  function unpack(raw) {
+    try {
+      const parsed = JSON.parse(raw || '[]');
+      if (Array.isArray(parsed)) return { map: parsed, clusters: null, silhouette: null };
+      return { map: parsed.targets || [], clusters: parsed.clusters || null, silhouette: parsed.silhouette ?? null };
+    } catch { return { map: [], clusters: null, silhouette: null }; }
+  }
+  let { map, clusters, silhouette } = unpack(row.map_json);
+
+  // Self-heal — same pattern as askMap.
+  let healed = false;
+  let diagnostic = null;
+  if (!map.length && row.target_count > 0) {
+    diagnostic = await recomputeSignalMap(env, did, { diagnostic: true });
+    if (diagnostic && diagnostic.wrote) {
+      healed = true;
+      const refreshed = await env.DB.prepare(
+        `SELECT map_json FROM signal_index_meta WHERE subscriber_did = ?`
+      ).bind(did).first();
+      ({ map, clusters, silhouette } = unpack(refreshed?.map_json));
+    }
+  }
+
+  return json({
+    indexed: true,
+    did: row.did,
+    handle: row.handle,
+    target_count: row.target_count,
+    indexed_at: row.indexed_at,
+    map,
+    clusters,
+    silhouette,
+    healed,
+    diagnostic,
+  });
+}
+
+async function recomputeSignalMap(env, did, opts = {}) {
+  const { results } = await env.DB.prepare(
+    `SELECT target_uri, text, author_handle, reposted_at, created_at, embedding
+       FROM signal_targets WHERE subscriber_did = ? ORDER BY reposted_at DESC`
+  ).bind(did).all();
+  const totalRows = results?.length || 0;
+  if (!totalRows) {
+    return opts.diagnostic ? { wrote: false, total: 0, decoded: 0, reason: 'no rows' } : null;
+  }
+
+  const vectors = [];
+  const meta = [];
+  let badCount = 0;
+  let badShapeCount = 0;
+  for (const r of results) {
+    const v = blobToFloats(r.embedding);
+    if (!v) { badCount++; continue; }
+    if (v.length !== ASK_EMBED_DIM) { badShapeCount++; continue; }
+    vectors.push(v);
+    meta.push(r);
+  }
+  if (vectors.length < 2) {
+    if (opts.diagnostic) return { wrote: false, total: totalRows, decoded: vectors.length, bad_blobs: badCount, bad_shape: badShapeCount, reason: 'too few decodable vectors' };
+    return null;
+  }
+
+  const coords = pca2D(vectors, ASK_EMBED_DIM);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of coords) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const sx = maxX - minX || 1;
+  const sy = maxY - minY || 1;
+
+  let labels = null;
+  let silhouette = null;
+  let clusterMeta = null;
+  let neighborsList = null;
+  if (vectors.length >= 12) {
+    const K = Math.min(8, Math.max(3, Math.round(Math.sqrt(vectors.length / 15))));
+    const km = kmeansSpherical(vectors, K, ASK_EMBED_DIM, 30);
+    labels = km.labels;
+    silhouette = silhouetteSampled(vectors, labels, 400);
+    const clusterTexts = Array.from({ length: K }, () => []);
+    for (let i = 0; i < meta.length; i++) clusterTexts[labels[i]].push(meta[i].text || '');
+    const baselineFreq = await getBaselineFreq(env);
+    const labelsPer = labelClusters(clusterTexts, baselineFreq, 5);
+    const sizes = new Array(K).fill(0);
+    for (const l of labels) sizes[l]++;
+    clusterMeta = labelsPer.map((words, i) => ({
+      id: i,
+      label: words.slice(0, 3).join(' · ') || 'cluster ' + (i + 1),
+      words,
+      size: sizes[i],
+      ratio: Math.round((sizes[i] / labels.length) * 1000) / 1000,
+    }));
+  }
+  if (vectors.length >= 4 && vectors.length <= 3000) {
+    neighborsList = computeKNN(vectors, 3);
+  }
+
+  const map = new Array(meta.length);
+  for (let i = 0; i < meta.length; i++) {
+    const r = meta[i];
+    const [x, y] = coords[i];
+    map[i] = {
+      tid: r.target_uri,
+      x: Math.round(((x - minX) / sx) * 1000) / 1000,
+      y: Math.round(((y - minY) / sy) * 1000) / 1000,
+      n: (r.text || '').length,
+      c: (r.reposted_at || r.created_at || '').slice(0, 10),
+      s: (r.text || '').slice(0, 280).replace(/\s+/g, ' ').trim(),
+      a: r.author_handle || '',
+      k: labels ? labels[i] : null,
+      nn: neighborsList ? neighborsList[i].map((j) => meta[j].target_uri) : null,
+    };
+  }
+  const payload = clusterMeta || silhouette != null
+    ? { targets: map, clusters: clusterMeta, silhouette }
+    : map;
+  await env.DB.prepare(
+    `UPDATE signal_index_meta SET map_json = ? WHERE subscriber_did = ?`
+  ).bind(JSON.stringify(payload), did).run();
+  if (opts.diagnostic) {
+    return {
+      wrote: true,
+      total: totalRows,
+      decoded: vectors.length,
+      bad_blobs: badCount,
+      bad_shape: badShapeCount,
+      clusters: clusterMeta ? clusterMeta.length : 0,
+      silhouette,
+    };
+  }
+  return null;
+}
+
+async function signalQuery(request, env) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  if (!env.AI) return json({ error: 'AI binding not configured' }, 500);
+  const t0 = Date.now();
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const { did, q } = body || {};
+  const k = Math.max(1, Math.min(50, Number(body?.k) || ASK_DEFAULT_K));
+  if (typeof did !== 'string' || typeof q !== 'string' || !q.trim()) {
+    return json({ error: 'missing did or q' }, 400);
+  }
+
+  const out = await env.AI.run(ASK_EMBED_MODEL, { text: [ASK_QUERY_PREFIX + q] });
+  const queryVec = out?.data?.[0];
+  if (!queryVec || queryVec.length !== ASK_EMBED_DIM) {
+    return json({ error: 'embedding failed' }, 500);
+  }
+
+  const { results } = await env.DB.prepare(
+    `SELECT target_uri, text, author_handle, reposted_at, created_at, embedding
+       FROM signal_targets WHERE subscriber_did = ?`
+  ).bind(did).all();
+  const rows = results || [];
+  if (!rows.length) return json({ q, hits: [], indexed: false, time_ms: Date.now() - t0 });
+
+  const qNorm = vecNorm(queryVec);
+  const scored = [];
+  for (const r of rows) {
+    const v = blobToFloats(r.embedding);
+    if (!v || v.length !== ASK_EMBED_DIM) continue;
+    const score = cosineFast(queryVec, v, qNorm);
+    scored.push({
+      target_uri: r.target_uri,
+      text: r.text,
+      author_handle: r.author_handle,
+      reposted_at: r.reposted_at,
+      created_at: r.created_at,
+      score,
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return json({
+    q,
+    indexed: true,
+    total_targets: rows.length,
+    hits: scored.slice(0, k),
+    time_ms: Date.now() - t0,
+  });
 }

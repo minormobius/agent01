@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>signal &mdash; what a Bluesky writer signal-boosts</title>
+<meta name="description" content="Pick a Bluesky handle. See a semantic map of every post they reposted. Search the corpus.">
+<meta property="og:title" content="signal">
+<meta property="og:description" content="Semantic map of a Bluesky archive's repost targets.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/signal/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 760px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.stage { display: none; }
+.stage.active { display: block; }
+form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+input[type="text"] { padding: 0.7rem 0.9rem; font-family: var(--serif); font-size: 1rem; background: var(--bg); color: var(--text); border: 1px solid var(--rule); border-radius: 4px; outline: none; }
+input:focus { border-color: var(--accent); }
+button { font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s; }
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.typeahead-wrap { position: relative; flex: 1; min-width: 200px; }
+.typeahead-wrap #handle { width: 100%; flex: initial; min-width: 0; }
+.typeahead-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10; max-height: 360px; overflow-y: auto; display: none; }
+.typeahead-results.show { display: block; }
+.typeahead-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.7rem; cursor: pointer; border-bottom: 1px solid var(--rule); }
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-faint); }
+.typeahead-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.typeahead-item .at-handle { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar { height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.7rem; }
+.progress-bar > .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.profile-strip { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.profile-strip b { color: var(--accent); }
+.profile-strip .actions { display: flex; gap: 0.4rem; }
+.profile-strip .actions button { font-size: 0.7rem; padding: 0.3rem 0.6rem; }
+#map-svg { display: block; width: 100%; height: 460px; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; margin-bottom: 0.7rem; cursor: crosshair; touch-action: none; }
+#map-svg .dot { fill: var(--accent); fill-opacity: 0.35; stroke: var(--accent); stroke-opacity: 0; stroke-width: 1.5; transition: fill-opacity 0.15s, stroke-opacity 0.15s, r 0.15s; }
+#map-svg .dot:hover { fill-opacity: 0.85; stroke-opacity: 0.6; }
+.map-tooltip { position: absolute; pointer-events: none; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px; padding: 0.5rem 0.7rem; font-size: 0.85rem; line-height: 1.4; max-width: 320px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 30; display: none; }
+.map-tooltip .meta { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+.map-tooltip .author { color: var(--accent); }
+.map-wrap { position: relative; }
+.map-legend { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+.cluster-panel { margin-bottom: 1rem; }
+.cluster-strip { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+.cluster-honest b { color: var(--text); }
+.cluster-honest-strong { color: var(--good); }
+.cluster-honest-strong b { color: var(--good); }
+.cluster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; }
+.cluster-card { display: flex; align-items: center; gap: 0.6rem; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px; padding: 0.4rem 0.6rem; }
+.cluster-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.cluster-body { flex: 1; min-width: 0; }
+.cluster-label { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.cluster-meta { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.cluster-empty { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-style: italic; }
+.reader { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.15rem; margin-bottom: 1.2rem; }
+.reader .meta { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+.reader .meta .score { color: var(--accent); font-weight: 700; }
+.reader .meta a { color: var(--accent); text-decoration: none; }
+.reader .meta a:hover { text-decoration: underline; }
+.reader .author-line { font-family: var(--serif); font-size: 0.95rem; margin-bottom: 0.6rem; color: var(--text); }
+.reader .author-line .who { color: var(--accent); font-weight: 700; }
+.reader .text { white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; font-size: 0.95rem; }
+.reader .text mark { background: var(--accent-faint); color: inherit; padding: 0 2px; border-radius: 2px; }
+.reader .placeholder { color: var(--muted); font-style: italic; text-align: center; padding: 1.5rem; }
+form#highlight-form { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+form#highlight-form #q { flex: 1; min-width: 200px; }
+form#highlight-form button { font-size: 0.75rem; }
+.highlight-status { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; min-height: 1em; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>signal<span class="dot">.</span></h1>
+  <p class="subtitle">A semantic map of what a Bluesky writer reposts. /ask/ is voice; /signal/ is taste.</p>
+</header>
+
+<main>
+  <section id="stage-input" class="stage active">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
+      <button type="submit">Continue</button>
+    </form>
+    <p class="hint">
+      We pull the writer's repo, find every <code>app.bsky.feed.repost</code> record, hydrate each target post via <code>app.bsky.feed.getPosts</code>, embed once with Workers AI (BGE), and project to 2D. Each point is something the writer chose to amplify — the cluster they fall into is the taste pocket. Most recent 3000 reposts; self-reposts and image-only targets are dropped.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <section id="stage-indexing" class="stage">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p id="progress-text">Checking index…</p>
+    </div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <section id="stage-map" class="stage">
+    <div class="profile-strip">
+      <span id="profile-meta"></span>
+      <span class="actions">
+        <button id="back" class="ghost">New profile</button>
+        <button id="reindex" class="ghost">Re-index</button>
+      </span>
+    </div>
+    <div class="map-wrap">
+      <svg id="map-svg" viewBox="0 0 1000 460" preserveAspectRatio="none"></svg>
+      <div id="map-tooltip" class="map-tooltip"></div>
+    </div>
+    <div class="map-legend">
+      <span><span id="target-count">—</span> reposts · click to read · scroll = zoom · drag = pan · color = cluster</span>
+      <span><a href="#" id="map-reset-zoom" style="color:var(--accent); text-decoration:underline;">reset zoom</a></span>
+    </div>
+    <div id="cluster-panel" class="cluster-panel"></div>
+    <div class="reader" id="reader">
+      <div class="placeholder">Click any point on the map to read the reposted thread.</div>
+    </div>
+    <form id="highlight-form" autocomplete="off">
+      <input id="q" type="text" placeholder="Highlight reposts about… (e.g. 'open source', 'parenting')" autocomplete="off">
+      <button type="submit">Highlight</button>
+      <button id="clear-highlight" type="button" class="ghost">Clear</button>
+    </form>
+    <div id="highlight-status" class="highlight-status"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/ask/">/ask/</a> &middot; <a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/list/">/list/</a> &middot; <a href="/web/">/web/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import { pullProfile, resolveHandle } from '../lib/atproto/index.js';
+import { makePanZoom } from '../lib/pan-zoom.js';
+
+const $ = (id) => document.getElementById(id);
+const PUBLIC_API = 'https://api.bsky.app';
+const MAX_REPOSTS = 3000;          // most-recent cap to keep one index round in budget
+const GETPOSTS_BATCH = 25;          // hard limit of app.bsky.feed.getPosts
+const INDEX_POST_BATCH = 800;       // chunk size for POST /api/signal/index (worker CPU budget)
+const MIN_TARGET_CHARS = 50;        // skip very short / image-only targets
+
+const state = {
+  did: null,
+  handle: null,
+  meta: null,
+  mapData: [],
+  clusters: null,
+  silhouette: null,
+  selectedTid: null,
+  highlightScores: new Map(),
+  highlightThreshold: 0,
+  targetCache: new Map(),
+  lastQueryTerms: [],
+  mapView: { xDomain: [0, 1], yDomain: [0, 1] },
+  mapPanZoom: null,
+};
+
+const CLUSTER_COLORS = [
+  'hsl(15, 60%, 50%)',  'hsl(45, 60%, 45%)',  'hsl(85, 50%, 40%)',  'hsl(165, 50%, 38%)',
+  'hsl(205, 55%, 48%)', 'hsl(255, 50%, 55%)', 'hsl(295, 50%, 50%)', 'hsl(340, 55%, 48%)',
+];
+const clusterColor = (k) => (k == null ? 'var(--accent)' : CLUSTER_COLORS[k % CLUSTER_COLORS.length]);
+
+function showStage(name) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name)); }
+function setProgress(text, frac) {
+  $('progress-text').textContent = text;
+  if (typeof frac === 'number') $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%';
+}
+function showError(msg) { $('input-error').textContent = msg; $('input-error').style.display = 'block'; }
+function clearError() { $('input-error').style.display = 'none'; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+// ----- typeahead -----
+const ta = { results: [], active: -1, timer: null, abort: null };
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || []; ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+function renderTypeahead() {
+  const el = $('typeahead-results');
+  if (!ta.results.length) { el.classList.remove('show'); el.innerHTML = ''; $('handle').setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = ta.results.map((a, i) => `
+    <div class="typeahead-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info"><div class="display-name">${escapeHtml(a.displayName || a.handle)}</div><div class="at-handle">@${escapeHtml(a.handle)}</div></div>
+    </div>`).join('');
+  el.classList.add('show'); $('handle').setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const it = el.children[ta.active]; if (it) it.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('typeahead-results').classList.remove('show'); ta.results = []; ta.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickAndSubmit(h) { $('handle').value = h; hideTypeahead(); $('handle-form').requestSubmit(); }
+$('handle').addEventListener('input', () => { clearTimeout(ta.timer); const v = $('handle').value; ta.timer = setTimeout(() => fetchTypeahead(v), 180); });
+$('handle').addEventListener('keydown', (e) => {
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && ta.active >= 0) { e.preventDefault(); pickAndSubmit(ta.results[ta.active].handle); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); $('handle').value = ta.results[ta.active].handle; hideTypeahead(); }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => { const it = e.target.closest('.typeahead-item'); if (!it) return; e.preventDefault(); pickAndSubmit(it.dataset.handle); });
+$('handle').addEventListener('blur', () => { setTimeout(hideTypeahead, 120); });
+
+// ----- repost hydration -----
+//
+// Each repost record carries a subject.uri pointing at someone else's post.
+// app.bsky.feed.getPosts hydrates up to 25 URIs per call with the full
+// post view (text + author). We sort by repost recency, take the most
+// recent MAX_REPOSTS, dedupe by URI, drop self-reposts, then batch-fetch.
+async function hydrateRepostTargets(reposts, subscriberDid, onProgress) {
+  // Most recent first by repost createdAt; falls back to record-order for ties.
+  reposts.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  const wantUris = [];
+  const seen = new Set();
+  for (const r of reposts) {
+    const u = r.subject_uri;
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    // Skip self-reposts: target.did === subscriber.did (DID lives in the URI).
+    // at://did:plc:.../app.bsky.feed.post/...
+    const m = u.match(/^at:\/\/([^/]+)\//);
+    if (m && m[1] === subscriberDid) continue;
+    wantUris.push({ uri: u, repostedAt: r.createdAt || '' });
+    if (wantUris.length >= MAX_REPOSTS) break;
+  }
+  if (!wantUris.length) return [];
+
+  const repostedByUri = new Map();
+  for (const w of wantUris) repostedByUri.set(w.uri, w.repostedAt);
+
+  const out = [];
+  for (let i = 0; i < wantUris.length; i += GETPOSTS_BATCH) {
+    const batch = wantUris.slice(i, i + GETPOSTS_BATCH);
+    const params = new URLSearchParams();
+    for (const w of batch) params.append('uris', w.uri);
+    try {
+      const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.feed.getPosts?${params}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const post of (data.posts || [])) {
+        const text = (post.record?.text || '').trim();
+        if (text.length < MIN_TARGET_CHARS) continue;
+        const m = (post.uri || '').match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+        const target_did = m ? m[1] : '';
+        const target_rkey = m ? m[2] : '';
+        out.push({
+          uri: post.uri,
+          text,
+          author_handle: post.author?.handle || '',
+          author_display: post.author?.displayName || '',
+          target_did,
+          target_rkey,
+          reposted_at: repostedByUri.get(post.uri) || '',
+          created_at: post.record?.createdAt || '',
+        });
+      }
+    } catch (e) {
+      // soft-fail per batch: bad / blocked / suspended URIs return as
+      // partial responses or 4xxs; missing them is fine.
+    }
+    if (onProgress) onProgress(Math.min(i + batch.length, wantUris.length), wantUris.length);
+  }
+  return out;
+}
+
+// ----- handle submit -----
+async function handleSubmit({ force = false } = {}) {
+  clearError();
+  const h = $('handle').value.trim();
+  if (!h) return;
+  showStage('indexing');
+  setProgress('Resolving handle…', 0);
+  try {
+    const { did, handle } = await resolveHandle(h);
+    state.did = did; state.handle = handle;
+
+    if (!force) {
+      const checkRes = await fetch(`/api/signal/check?did=${encodeURIComponent(did)}`);
+      const check = await checkRes.json();
+      if (check.indexed) {
+        state.meta = check;
+        await enterMapStage();
+        return;
+      }
+    }
+
+    setProgress('Pulling repo (this is the big download)…', 0);
+    const profile = await pullProfile(handle, setProgress, { includeReposts: true });
+    const reposts = profile.reposts || [];
+    if (!reposts.length) {
+      showStage('input');
+      showError(`@${handle} has no reposts on their repo. /signal/ has nothing to index.`);
+      return;
+    }
+
+    setProgress(`Hydrating ${Math.min(reposts.length, MAX_REPOSTS).toLocaleString()} repost targets via getPosts…`, 0);
+    const targets = await hydrateRepostTargets(reposts, did, (done, total) => {
+      setProgress(`Hydrating repost targets · ${done.toLocaleString()} / ${total.toLocaleString()}`, done / total);
+    });
+    if (!targets.length) {
+      showStage('input');
+      showError(`@${handle} reposted ${reposts.length} posts but none could be hydrated (deleted, blocked, image-only).`);
+      return;
+    }
+
+    // Embed in chunks so each worker request stays inside the CPU budget.
+    setProgress(`Embedding ${targets.length.toLocaleString()} repost targets via Workers AI…`, 0);
+    let indexedTotal = 0;
+    for (let i = 0; i < targets.length; i += INDEX_POST_BATCH) {
+      const chunk = targets.slice(i, i + INDEX_POST_BATCH);
+      const res = await fetch('/api/signal/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did, handle, targets: chunk }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`indexing failed (${res.status}) ${body}`.trim());
+      }
+      const r = await res.json();
+      indexedTotal = r.total_targets || indexedTotal;
+      setProgress(`Embedded ${Math.min(i + chunk.length, targets.length).toLocaleString()} / ${targets.length.toLocaleString()}`, Math.min(1, (i + chunk.length) / targets.length));
+    }
+
+    const checkRes = await fetch(`/api/signal/check?did=${encodeURIComponent(did)}`);
+    state.meta = await checkRes.json();
+    await enterMapStage();
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+async function enterMapStage() {
+  showStage('map');
+  renderProfileStrip();
+  await loadMap();
+  $('q').focus();
+}
+
+function renderProfileStrip() {
+  const m = state.meta || {};
+  const ago = m.indexed_at ? Math.max(0, Math.round((Date.now() / 1000 - m.indexed_at) / 60)) + ' min ago' : '';
+  $('profile-meta').innerHTML = `
+    <b>@${escapeHtml(state.handle)}</b>
+    &middot; ${m.target_count || 0} reposts indexed
+    ${ago ? `&middot; ${escapeHtml(ago)}` : ''}
+  `;
+}
+
+// ----- map -----
+async function loadMap() {
+  $('target-count').textContent = '…';
+  const res = await fetch(`/api/signal/map?did=${encodeURIComponent(state.did)}`);
+  const data = await res.json();
+  if (!data.indexed || !Array.isArray(data.map) || !data.map.length) {
+    $('map-svg').innerHTML = `<text x="500" y="220" text-anchor="middle" fill="var(--muted)" font-family="serif" font-style="italic" font-size="16">No map data yet.</text>`;
+    return;
+  }
+  state.mapData = data.map;
+  state.clusters = data.clusters || null;
+  state.silhouette = (typeof data.silhouette === 'number') ? data.silhouette : null;
+  state.selectedTid = null;
+  state.highlightScores.clear();
+  state.lastQueryTerms = [];
+  state.mapView = { xDomain: [0, 1], yDomain: [0, 1] };
+  if (!state.mapPanZoom) {
+    state.mapPanZoom = makePanZoom($('map-svg'), {
+      xDomain: [0, 1], yDomain: [0, 1],
+      xBounds: [0, 1], yBounds: [0, 1],
+      axes: 'xy',
+      onChange: ({ xDomain, yDomain }) => {
+        state.mapView.xDomain = xDomain;
+        state.mapView.yDomain = yDomain;
+        renderMap();
+      },
+    });
+  } else {
+    state.mapPanZoom.reset();
+  }
+  renderMap();
+  renderClusterPanel();
+  renderReader();
+  $('target-count').textContent = state.mapData.length.toLocaleString();
+}
+
+function renderMap() {
+  const svg = $('map-svg');
+  const W = 1000, H = 460, PAD = 24;
+  const innerW = W - PAD * 2, innerH = H - PAD * 2;
+  const ordered = [...state.mapData].map((d, i) => ({ d, i })).sort((a, b) => b.d.n - a.d.n);
+  let maxN = 1;
+  for (const { d } of ordered) if (d.n > maxN) maxN = d.n;
+
+  const neighborSet = new Set();
+  if (state.selectedTid) {
+    const sel = state.mapData.find((d) => d.tid === state.selectedTid);
+    if (sel && Array.isArray(sel.nn)) for (const nn of sel.nn) neighborSet.add(nn);
+  }
+  const [xMin, xMax] = state.mapView.xDomain;
+  const [yMin, yMax] = state.mapView.yDomain;
+  const xW = xMax - xMin || 1, yH = yMax - yMin || 1;
+
+  const dots = [];
+  for (const { d, i } of ordered) {
+    const fx = (d.x - xMin) / xW;
+    const fy = (d.y - yMin) / yH;
+    if (fx < -0.01 || fx > 1.01 || fy < -0.01 || fy > 1.01) continue;
+    const cx = PAD + fx * innerW;
+    const cy = PAD + (1 - fy) * innerH;
+    const r = 2 + 6 * Math.sqrt(d.n / maxN);
+    const score = state.highlightScores.get(d.tid);
+
+    let fill, strokeOpacity = 0, fillOpacity;
+    if (state.selectedTid === d.tid) {
+      fill = clusterColor(d.k); fillOpacity = 1; strokeOpacity = 1;
+    } else if (neighborSet.has(d.tid)) {
+      fill = clusterColor(d.k); fillOpacity = 0.95; strokeOpacity = 0.9;
+    } else if (state.highlightScores.size > 0) {
+      const warm = score && score >= state.highlightThreshold;
+      fill = warm ? 'var(--good)' : clusterColor(d.k);
+      fillOpacity = warm ? 0.85 : 0.08;
+    } else {
+      fill = clusterColor(d.k); fillOpacity = 0.5;
+    }
+    dots.push(`<circle class="dot" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${fill}" stroke-opacity="${strokeOpacity}" stroke-width="1.5" style="cursor:pointer;"/>`);
+  }
+  svg.innerHTML = dots.join('');
+}
+
+function renderClusterPanel() {
+  const host = document.getElementById('cluster-panel');
+  if (!host) return;
+  if (!state.clusters || !state.clusters.length) {
+    host.innerHTML = state.silhouette != null
+      ? `<div class="cluster-empty">No clusters detected (silhouette ${state.silhouette.toFixed(2)}).</div>` : '';
+    return;
+  }
+  const s = state.silhouette;
+  const honest = s == null ? '' : s < 0.06
+    ? `<span class="cluster-honest">silhouette <b>${s.toFixed(2)}</b> — weak structure; treat clusters as a rough first cut</span>`
+    : s < 0.15
+    ? `<span class="cluster-honest">silhouette <b>${s.toFixed(2)}</b> — modest cluster separation</span>`
+    : `<span class="cluster-honest cluster-honest-strong">silhouette <b>${s.toFixed(2)}</b> — clear cluster structure</span>`;
+  const cards = state.clusters.map((c) => `
+    <div class="cluster-card" data-k="${c.id}">
+      <div class="cluster-swatch" style="background: ${clusterColor(c.id)};"></div>
+      <div class="cluster-body">
+        <div class="cluster-label">${(c.words || []).slice(0, 4).map(escapeHtml).join(' · ') || `cluster ${c.id + 1}`}</div>
+        <div class="cluster-meta">${c.size} reposts · ${(c.ratio * 100).toFixed(0)}%</div>
+      </div>
+    </div>`).join('');
+  host.innerHTML = `<div class="cluster-strip">${honest}</div><div class="cluster-grid">${cards}</div>`;
+}
+
+function bskyUrlFor(targetUri, authorHandle) {
+  // at://did:plc:xxx/app.bsky.feed.post/rkey → bsky.app/profile/<handleOrDid>/post/<rkey>
+  const m = (targetUri || '').match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+  if (!m) return null;
+  const id = authorHandle || m[1];
+  return `https://bsky.app/profile/${encodeURIComponent(id)}/post/${m[2]}`;
+}
+
+function renderReader() {
+  const tid = state.selectedTid;
+  if (!tid) { $('reader').innerHTML = `<div class="placeholder">Click any point on the map to read the reposted thread.</div>`; return; }
+  const meta = state.mapData.find((d) => d.tid === tid);
+  const cached = state.targetCache.get(tid);
+  const score = state.highlightScores.get(tid);
+  const scoreLabel = (typeof score === 'number') ? `<span class="score">${(score * 100).toFixed(1)}% match</span>` : '';
+  const authorHandle = (cached && cached.author_handle) || (meta && meta.a) || '';
+  const bUrl = bskyUrlFor(tid, authorHandle);
+  const head = meta ? `
+    <div class="meta">
+      <span>reposted ${escapeHtml((meta.c || '').slice(0, 10))} &middot; ${meta.n.toLocaleString()} chars${bUrl ? ' &middot; <a href="' + escapeHtml(bUrl) + '" target="_blank" rel="noopener">open on bsky &rarr;</a>' : ''}</span>
+      ${scoreLabel}
+    </div>` : '';
+  const authorLine = authorHandle ? `<div class="author-line">by <span class="who">@${escapeHtml(authorHandle)}</span></div>` : '';
+  if (!cached) {
+    const snippet = meta ? meta.s : '';
+    $('reader').innerHTML = `
+      ${head}${authorLine}
+      <div class="text">${highlightTerms(snippet, state.lastQueryTerms)}<span style="color:var(--muted); font-style: italic;"> …loading full post…</span></div>`;
+    fetchTarget(tid).then(() => { if (state.selectedTid !== tid) return; renderReader(); });
+    return;
+  }
+  $('reader').innerHTML = `
+    ${head}${authorLine}
+    <div class="text">${highlightTerms(cached.text, state.lastQueryTerms)}</div>`;
+}
+
+async function fetchTarget(tid) {
+  if (state.targetCache.has(tid)) return state.targetCache.get(tid);
+  const res = await fetch(`/api/signal/target?did=${encodeURIComponent(state.did)}&uri=${encodeURIComponent(tid)}`);
+  if (!res.ok) return null;
+  const t = await res.json();
+  state.targetCache.set(tid, t);
+  return t;
+}
+
+function highlightTerms(text, terms) {
+  if (!terms || !terms.length) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const pattern = new RegExp(`\\b(${terms.map(t => t.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+  return escaped.replace(pattern, '<mark>$1</mark>');
+}
+
+// ----- map interactions -----
+const tooltip = $('map-tooltip');
+$('map-svg').addEventListener('mousemove', (e) => {
+  const target = e.target.closest('.dot');
+  if (!target) { tooltip.style.display = 'none'; return; }
+  const tid = target.dataset.tid;
+  const d = state.mapData.find((x) => x.tid === tid);
+  if (!d) return;
+  const score = state.highlightScores.get(tid);
+  tooltip.innerHTML = `
+    <div class="meta">${escapeHtml((d.c || '').slice(0, 10))} · ${d.n.toLocaleString()} chars${typeof score === 'number' ? ' · ' + (score * 100).toFixed(0) + '%' : ''}</div>
+    ${d.a ? `<div class="author">@${escapeHtml(d.a)}</div>` : ''}
+    <div class="snippet">${escapeHtml(d.s)}…</div>`;
+  tooltip.style.display = 'block';
+  const wrap = $('map-svg').parentElement.getBoundingClientRect();
+  const x = e.clientX - wrap.left + 12, y = e.clientY - wrap.top + 12;
+  const ttRect = tooltip.getBoundingClientRect();
+  const maxX = wrap.width - ttRect.width - 8;
+  tooltip.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+  tooltip.style.top = y + 'px';
+});
+$('map-svg').addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+$('map-svg').addEventListener('click', (e) => {
+  const target = e.target.closest('.dot');
+  if (!target) return;
+  state.selectedTid = target.dataset.tid;
+  renderMap(); renderReader();
+});
+
+async function runHighlight() {
+  const q = $('q').value.trim();
+  if (!q) return;
+  $('highlight-status').textContent = 'Embedding query…';
+  state.lastQueryTerms = (q.toLowerCase().match(/[a-z']+/g) || []).filter(t => t.length >= 3);
+  try {
+    const res = await fetch('/api/signal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did: state.did, q, k: 50 }),
+    });
+    if (!res.ok) { const body = await res.text().catch(() => ''); throw new Error(`query failed (${res.status}) ${body}`.trim()); }
+    const data = await res.json();
+    state.highlightScores.clear();
+    for (const h of data.hits || []) state.highlightScores.set(h.target_uri, h.score);
+    const scores = Array.from(state.highlightScores.values()).sort((a, b) => b - a);
+    state.highlightThreshold = scores[Math.min(scores.length - 1, 19)] ?? 0;
+    const hits = data.hits || [];
+    if (hits.length) {
+      $('highlight-status').textContent = `${hits.length} reposts scored · top: ${(hits[0].score * 100).toFixed(1)}% · ${data.time_ms || '?'} ms`;
+      state.selectedTid = hits[0].target_uri;
+    } else {
+      $('highlight-status').textContent = 'No matches.';
+    }
+    renderMap(); renderReader();
+  } catch (err) {
+    $('highlight-status').textContent = 'Error: ' + (err.message || err);
+  }
+}
+
+function clearHighlight() {
+  state.highlightScores.clear();
+  state.lastQueryTerms = [];
+  $('q').value = '';
+  $('highlight-status').textContent = '';
+  renderMap(); renderReader();
+}
+
+// ----- wire up -----
+$('handle-form').addEventListener('submit', (e) => { e.preventDefault(); handleSubmit(); });
+$('highlight-form').addEventListener('submit', (e) => { e.preventDefault(); runHighlight(); });
+$('clear-highlight').addEventListener('click', clearHighlight);
+$('back').addEventListener('click', () => {
+  state.did = null; state.handle = null; state.meta = null;
+  state.mapData = []; state.selectedTid = null;
+  state.highlightScores.clear(); state.targetCache.clear();
+  $('handle').value = ''; $('q').value = '';
+  $('reader').innerHTML = ''; $('map-svg').innerHTML = '';
+  $('highlight-status').textContent = '';
+  showStage('input'); $('handle').focus();
+});
+$('reindex').addEventListener('click', () => handleSubmit({ force: true }));
+$('map-reset-zoom').addEventListener('click', (e) => { e.preventDefault(); if (state.mapPanZoom) state.mapPanZoom.reset(); });
+
+// ?handle= deeplink, matches ask/atlas/web.
+{
+  const params = new URLSearchParams(location.search);
+  const h = params.get('handle');
+  if (h) {
+    $('handle').value = h.replace(/^@/, '');
+    setTimeout(() => $('handle-form').requestSubmit(), 0);
+  }
+}
+</script>
+</body>
+</html>

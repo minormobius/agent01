@@ -136,20 +136,52 @@ export async function pullProfile(handleInput, onProgress, opts = {}) {
   const ndjson = await parseCar(carBytes, did);
 
   const posts = [];
+  // Optional sibling collections — extracted in the same scan so we don't
+  // pay for a second pass over the (potentially 100 MB+) NDJSON.
+  const reposts = opts.includeReposts ? [] : null;
+  const likes = opts.includeLikes ? [] : null;
   let lineNum = 0;
   for (const line of ndjson.split('\n')) {
     if (!line) continue;
     lineNum++;
-    if (!line.includes('"app.bsky.feed.post"')) continue;
+    // Fast pre-filter: only JSON-parse lines we already know we want.
+    const isPost = line.includes('"app.bsky.feed.post"');
+    const isRepost = reposts && line.includes('"app.bsky.feed.repost"');
+    const isLike = likes && line.includes('"app.bsky.feed.like"');
+    if (!isPost && !isRepost && !isLike) continue;
     try {
       const rec = JSON.parse(line);
-      if (rec.collection !== 'app.bsky.feed.post') continue;
-      if (!rec.value || typeof rec.value.text !== 'string') continue;
-      posts.push({ uri: rec.uri, rkey: rec.rkey, record: rec.value });
+      if (rec.collection === 'app.bsky.feed.post') {
+        if (!rec.value || typeof rec.value.text !== 'string') continue;
+        posts.push({ uri: rec.uri, rkey: rec.rkey, record: rec.value });
+      } else if (reposts && rec.collection === 'app.bsky.feed.repost') {
+        const s = rec.value?.subject;
+        if (!s?.uri) continue;
+        reposts.push({
+          uri: rec.uri,
+          rkey: rec.rkey,
+          subject_uri: s.uri,
+          subject_cid: s.cid || null,
+          createdAt: rec.value.createdAt || '',
+        });
+      } else if (likes && rec.collection === 'app.bsky.feed.like') {
+        const s = rec.value?.subject;
+        if (!s?.uri) continue;
+        likes.push({
+          uri: rec.uri,
+          rkey: rec.rkey,
+          subject_uri: s.uri,
+          subject_cid: s.cid || null,
+          createdAt: rec.value.createdAt || '',
+        });
+      }
     } catch {}
   }
-  progress(`Parsed ${posts.length.toLocaleString()} posts (of ${lineNum.toLocaleString()} records).`, 1);
-  return { did, handle, posts };
+  progress(`Parsed ${posts.length.toLocaleString()} posts${reposts ? ` · ${reposts.length.toLocaleString()} reposts` : ''}${likes ? ` · ${likes.length.toLocaleString()} likes` : ''} (of ${lineNum.toLocaleString()} records).`, 1);
+  const out = { did, handle, posts };
+  if (reposts) out.reposts = reposts;
+  if (likes) out.likes = likes;
+  return out;
 }
 
 function fmtBytes(n) {
