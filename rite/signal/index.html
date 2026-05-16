@@ -98,6 +98,24 @@ form#highlight-form { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wr
 form#highlight-form #q { flex: 1; min-width: 200px; }
 form#highlight-form button { font-size: 0.75rem; }
 .highlight-status { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; min-height: 1em; }
+.results-list {
+  max-height: 280px; overflow-y: auto;
+  margin-bottom: 1rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--card-bg); display: none;
+}
+.results-list.show { display: block; }
+.result-row {
+  padding: 0.45rem 0.7rem; border-bottom: 1px dashed var(--rule);
+  cursor: pointer; display: flex; gap: 0.5rem; align-items: baseline;
+  font-size: 0.88rem; line-height: 1.4;
+}
+.result-row:last-child { border-bottom: none; }
+.result-row:hover { background: var(--accent-faint); }
+.result-row.selected { background: var(--accent-faint); }
+.result-row .rank { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); min-width: 1.4rem; text-align: right; }
+.result-row .pct { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); min-width: 2.4rem; text-align: right; }
+.result-row .who { color: var(--accent); font-weight: 600; white-space: nowrap; flex-shrink: 0; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; }
+.result-row .snippet { flex: 1; min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
 footer a { color: var(--muted); text-decoration: underline; }
 </style>
@@ -159,6 +177,7 @@ footer a { color: var(--muted); text-decoration: underline; }
       <button id="clear-highlight" type="button" class="ghost">Clear</button>
     </form>
     <div id="highlight-status" class="highlight-status"></div>
+    <div id="results-list" class="results-list"></div>
   </section>
 </main>
 
@@ -356,14 +375,19 @@ async function handleSubmit({ force = false } = {}) {
     }
 
     // Embed in chunks so each worker request stays inside the CPU budget.
+    // Only the FINAL chunk triggers the map recompute — running PCA + k-means
+    // + KNN after every chunk would blow through the worker CPU budget on
+    // big profiles. The worker writes embeddings durably each chunk, so
+    // even if the final pass fails the map will lazy-recompute on first GET.
     setProgress(`Embedding ${targets.length.toLocaleString()} repost targets via Workers AI…`, 0);
     let indexedTotal = 0;
     for (let i = 0; i < targets.length; i += INDEX_POST_BATCH) {
       const chunk = targets.slice(i, i + INDEX_POST_BATCH);
+      const isFinal = (i + chunk.length) >= targets.length;
       const res = await fetch('/api/signal/index', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ did, handle, targets: chunk }),
+        body: JSON.stringify({ did, handle, targets: chunk, skip_recompute: !isFinal }),
       });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
@@ -371,7 +395,8 @@ async function handleSubmit({ force = false } = {}) {
       }
       const r = await res.json();
       indexedTotal = r.total_targets || indexedTotal;
-      setProgress(`Embedded ${Math.min(i + chunk.length, targets.length).toLocaleString()} / ${targets.length.toLocaleString()}`, Math.min(1, (i + chunk.length) / targets.length));
+      const phase = isFinal ? 'Computing map…' : 'Embedding';
+      setProgress(`${phase} · ${Math.min(i + chunk.length, targets.length).toLocaleString()} / ${targets.length.toLocaleString()}`, Math.min(1, (i + chunk.length) / targets.length));
     }
 
     const checkRes = await fetch(`/api/signal/check?did=${encodeURIComponent(did)}`);
@@ -475,7 +500,12 @@ function renderMap() {
     } else {
       fill = clusterColor(d.k); fillOpacity = 0.5;
     }
-    dots.push(`<circle class="dot" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${fill}" stroke-opacity="${strokeOpacity}" stroke-width="1.5" style="cursor:pointer;"/>`);
+    // Inline style attribute (specificity 1,0,0,0) beats `#map-svg .dot { fill: ... }`
+    // (specificity 0,1,1,0). Without this, the class selector wins over the
+    // presentation attribute (specificity 0,0,0,0) and every dot renders in
+    // the accent color regardless of cluster / highlight state.
+    const style = `fill:${fill};fill-opacity:${fillOpacity};stroke:${fill};stroke-opacity:${strokeOpacity};stroke-width:1.5;cursor:pointer;`;
+    dots.push(`<circle class="dot" data-tid="${escapeHtml(d.tid)}" data-i="${i}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" style="${style}"/>`);
   }
   svg.innerHTML = dots.join('');
 }
@@ -610,10 +640,33 @@ async function runHighlight() {
     } else {
       $('highlight-status').textContent = 'No matches.';
     }
+    renderResultsList(hits);
     renderMap(); renderReader();
   } catch (err) {
     $('highlight-status').textContent = 'Error: ' + (err.message || err);
   }
+}
+
+function renderResultsList(hits) {
+  const list = $('results-list');
+  if (!hits || !hits.length) { list.classList.remove('show'); list.innerHTML = ''; return; }
+  list.innerHTML = hits.map((h, i) => `
+    <div class="result-row${state.selectedTid === h.target_uri ? ' selected' : ''}" data-tid="${escapeHtml(h.target_uri)}">
+      <span class="rank">${i + 1}</span>
+      <span class="pct">${(h.score * 100).toFixed(0)}%</span>
+      <span class="who">@${escapeHtml(h.author_handle || '?')}</span>
+      <span class="snippet">${escapeHtml((h.text || '').slice(0, 240).replace(/\s+/g, ' '))}</span>
+    </div>`).join('');
+  list.classList.add('show');
+  list.querySelectorAll('.result-row').forEach(row => {
+    row.addEventListener('click', () => {
+      state.selectedTid = row.dataset.tid;
+      list.querySelectorAll('.result-row').forEach(r => r.classList.toggle('selected', r.dataset.tid === state.selectedTid));
+      renderMap(); renderReader();
+      // Scroll the reader into view so the click feels like it "did something".
+      $('reader').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
 }
 
 function clearHighlight() {
@@ -621,6 +674,7 @@ function clearHighlight() {
   state.lastQueryTerms = [];
   $('q').value = '';
   $('highlight-status').textContent = '';
+  renderResultsList(null);
   renderMap(); renderReader();
 }
 
@@ -635,6 +689,7 @@ $('back').addEventListener('click', () => {
   $('handle').value = ''; $('q').value = '';
   $('reader').innerHTML = ''; $('map-svg').innerHTML = '';
   $('highlight-status').textContent = '';
+  renderResultsList(null);
   showStage('input'); $('handle').focus();
 });
 $('reindex').addEventListener('click', () => handleSubmit({ force: true }));

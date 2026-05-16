@@ -1573,7 +1573,7 @@ async function signalIndex(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-  const { did, handle, targets } = body || {};
+  const { did, handle, targets, skip_recompute } = body || {};
   if (typeof did !== 'string' || !Array.isArray(targets)) {
     return json({ error: 'missing did or targets' }, 400);
   }
@@ -1651,13 +1651,22 @@ async function signalIndex(request, env) {
        indexed_at   = excluded.indexed_at`
   ).bind(did, typeof handle === 'string' ? handle : null, rollup?.target_count || 0).run();
 
+  // Recompute the 2D map at the END of a chunked upload, not after every chunk.
+  // For 3000-target indexes the recompute (PCA + k-means + KNN over the full
+  // corpus) is ~5-10 seconds of JS CPU — running it 4 times in a row blows
+  // through the Worker CPU budget (1102 "exceeded resource limits"). Clients
+  // chunk via INDEX_POST_BATCH and pass `skip_recompute: true` on every
+  // non-final POST. On the final POST, recompute fires once over the now-
+  // complete row set.
   let mapTimeMs = 0;
-  try {
-    const mt0 = Date.now();
-    await recomputeSignalMap(env, did);
-    mapTimeMs = Date.now() - mt0;
-  } catch (e) {
-    console.error('signal map recompute failed', e);
+  if (!skip_recompute) {
+    try {
+      const mt0 = Date.now();
+      await recomputeSignalMap(env, did);
+      mapTimeMs = Date.now() - mt0;
+    } catch (e) {
+      console.error('signal map recompute failed', e);
+    }
   }
 
   return json({
@@ -1667,6 +1676,7 @@ async function signalIndex(request, env) {
     total_targets: rollup?.target_count || 0,
     newly_indexed: embeddedCount,
     skipped_already_indexed: targets.length - fresh.length,
+    recompute_ran: !skip_recompute,
     time_ms: Date.now() - t0,
     map_time_ms: mapTimeMs,
   });
@@ -1768,6 +1778,16 @@ async function recomputeSignalMap(env, did, opts = {}) {
   const sx = maxX - minX || 1;
   const sy = maxY - minY || 1;
 
+  // Tighter caps than ask: a signal index can carry 3000+ rows, where ask
+  // typically tops out at a few hundred. The expensive passes scale O(N²) or
+  // O(N²·dim) — we have to gate them more aggressively to fit the Worker
+  // CPU budget (~30s on Workers Paid).
+  //   - KNN: O(N²·dim). Skip above 1500 rows; the "you keep coming back to
+  //     these reposts" UX is a nice-to-have, not a load-bearing feature.
+  //   - silhouette: O(M·N·dim) where M = sample size. Drop sample to 250
+  //     for big indexes (the score is descriptive, not algorithmic).
+  //   - k-means + PCA: O(N·dim·iters). Cheap enough at 3000, no change.
+  const KNN_CAP_SIGNAL = 1500;
   let labels = null;
   let silhouette = null;
   let clusterMeta = null;
@@ -1776,7 +1796,8 @@ async function recomputeSignalMap(env, did, opts = {}) {
     const K = Math.min(8, Math.max(3, Math.round(Math.sqrt(vectors.length / 15))));
     const km = kmeansSpherical(vectors, K, ASK_EMBED_DIM, 30);
     labels = km.labels;
-    silhouette = silhouetteSampled(vectors, labels, 400);
+    const silSample = vectors.length > 1500 ? 250 : 400;
+    silhouette = silhouetteSampled(vectors, labels, silSample);
     const clusterTexts = Array.from({ length: K }, () => []);
     for (let i = 0; i < meta.length; i++) clusterTexts[labels[i]].push(meta[i].text || '');
     const baselineFreq = await getBaselineFreq(env);
@@ -1791,7 +1812,7 @@ async function recomputeSignalMap(env, did, opts = {}) {
       ratio: Math.round((sizes[i] / labels.length) * 1000) / 1000,
     }));
   }
-  if (vectors.length >= 4 && vectors.length <= 3000) {
+  if (vectors.length >= 4 && vectors.length <= KNN_CAP_SIGNAL) {
     neighborsList = computeKNN(vectors, 3);
   }
 
