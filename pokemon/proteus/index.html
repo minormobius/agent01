@@ -166,7 +166,7 @@
       <label>brush <input type="range" id="brush" min="6" max="80" value="28"></label>
     </div>
     <div class="group">
-      <label>pressure <input type="range" id="pressure" min="0" max="1.5" step="0.01" value="0.4"></label>
+      <label>pressure <input type="range" id="pressure" min="0" max="3.0" step="0.01" value="1.0"></label>
     </div>
     <div class="group">
       <label><input type="checkbox" id="show-debug"> debug</label>
@@ -266,6 +266,31 @@
       },
       debug: showDebug.checked,
     });
+    // Brush-anchor indicator. Drawn on top of whatever the renderer just
+    // produced so the player can see their input register even when the
+    // sensor map happens to look uniform in that region.
+    if (inputState.pressed && inputState.anchor) {
+      const ctx2 = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      const dpr2 = rect.width > 0 ? canvas.width / rect.width : 1;
+      const rad = parseFloat(brushSlider.value) * dpr2;
+      const extending = inputState.target < 1.0;
+      const stroke = extending
+        ? 'rgba(120, 200, 255, 0.85)'
+        : 'rgba(255, 140, 100, 0.85)';
+      ctx2.save();
+      ctx2.strokeStyle = stroke;
+      ctx2.lineWidth = 2 * dpr2;
+      ctx2.beginPath();
+      ctx2.arc(inputState.anchor.px, inputState.anchor.py, rad, 0, Math.PI * 2);
+      ctx2.stroke();
+      // Drag-offset line from anchor to current pointer, hints at slider state.
+      ctx2.beginPath();
+      ctx2.moveTo(inputState.anchor.px, inputState.anchor.py);
+      ctx2.lineTo(inputState.cur.px, inputState.cur.py);
+      ctx2.stroke();
+      ctx2.restore();
+    }
     banner.classList.toggle('show', sim.detached);
     const pct = Math.max(0, Math.min(1, sim.budget / sim.budgetMax));
     budgetFill.style.width = (pct * 100).toFixed(1) + '%';

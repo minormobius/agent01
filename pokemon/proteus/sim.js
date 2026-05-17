@@ -206,15 +206,15 @@ export function tick(sim, dt) {
   }
 
   // --- 4. Integrate. Adhesion damps velocity. ---------------------------
-  // Adhesion factor at 0.55 (down from 0.95): even max adhesion only kills
-  // 55% of velocity per tick, so the cell can actually translate under
-  // sustained pressure differential. Earlier 0.95 froze it in place.
-  const dampBase = Math.pow(0.85, dt * 30);
+  // Adhesion factor at 0.15 (down from 0.55): even max adhesion keeps 85%
+  // of velocity per tick. With this and the new pressure default, low-cortex
+  // regions produce visible extension over 1-2 seconds, not 30.
+  const dampBase = Math.pow(0.92, dt * 30);
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
     n.vx += n.fx * dt;
     n.vy += n.fy * dt;
-    const adhDamp = Math.pow(1 - n.adhesion * 0.55, dt * 30);
+    const adhDamp = Math.pow(1 - n.adhesion * 0.15, dt * 30);
     n.vx *= adhDamp * dampBase;
     n.vy *= adhDamp * dampBase;
     let px = n.x + n.vx * dt * 30;
@@ -239,8 +239,9 @@ export function tick(sim, dt) {
   cx /= N; cy /= N;
   if (area > 1) {
     const scale = Math.sqrt(sim.targetArea / area);
-    // Soft correction (let the cell breathe a little).
-    const corr = 1 + (scale - 1) * 0.45;
+    // Soft correction (only ~20% per tick) so pressure-driven extension can
+    // hold while area conservation gently pulls excess back.
+    const corr = 1 + (scale - 1) * 0.20;
     for (let i = 0; i < N; i++) {
       const n = nodes[i];
       n.x = cx + (n.x - cx) * corr;
