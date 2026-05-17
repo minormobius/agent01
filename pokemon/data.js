@@ -419,9 +419,10 @@ const MAPS = {
       south: { map: 'route1', playerX: 9, playerY: 0 },
     },
     exits: [
-      // South edge exits to route1
-      { x: 9, y: 17, toMap: 'route1', toX: 9, toY: 0, dir: 'south' },
-      { x: 10, y: 17, toMap: 'route1', toX: 10, toY: 0, dir: 'south' },
+      // South edge exits to route1 — gated until the player has a starter,
+      // matching the original Pallet Town intercept. tryMove enforces.
+      { x: 9, y: 17, toMap: 'route1', toX: 9, toY: 0, dir: 'south', requires: 'starter' },
+      { x: 10, y: 17, toMap: 'route1', toX: 10, toY: 0, dir: 'south', requires: 'starter' },
     ],
     doors: [
       { x: 3, y: 5, toMap: 'playerhouse', toX: 3, toY: 6, dir: 'up' },
