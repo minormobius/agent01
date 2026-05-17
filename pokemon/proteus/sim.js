@@ -206,12 +206,15 @@ export function tick(sim, dt) {
   }
 
   // --- 4. Integrate. Adhesion damps velocity. ---------------------------
+  // Adhesion factor at 0.55 (down from 0.95): even max adhesion only kills
+  // 55% of velocity per tick, so the cell can actually translate under
+  // sustained pressure differential. Earlier 0.95 froze it in place.
   const dampBase = Math.pow(0.85, dt * 30);
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
     n.vx += n.fx * dt;
     n.vy += n.fy * dt;
-    const adhDamp = Math.pow(1 - n.adhesion * 0.95, dt * 30);
+    const adhDamp = Math.pow(1 - n.adhesion * 0.55, dt * 30);
     n.vx *= adhDamp * dampBase;
     n.vy *= adhDamp * dampBase;
     let px = n.x + n.vx * dt * 30;
