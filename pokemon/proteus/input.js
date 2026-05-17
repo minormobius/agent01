@@ -8,7 +8,9 @@
 // Gaussian falloff into every node whose (mapU, mapV) is within R, with
 // horizontal wrap. Magnitude scales with stroke speed / dwell time.
 
-const INTENT_GAIN = 0.06;     // per-frame contribution at brush center
+// Per-event contribution at brush center. Bumped so a single tap noticeably
+// extrudes, while continuous holds still saturate over a few frames.
+const INTENT_GAIN = 0.22;
 const INTENT_MAX  = 1.0;
 
 export function attachInput({ canvas, sim, getBrushRadius }) {
@@ -94,16 +96,18 @@ function paint(sim, canvas, px, py, brushPxRad, mode) {
   const sigU = Math.max(ruU, 1e-3);
   const sigV = Math.max(rvV, 1e-3);
 
+  // All nodes live on the equator (mapV = 0.5). Brushes painted away from the
+  // equator still act on the nearest-azimuth nodes, but with reduced strength
+  // — taps deep in the polar region are mostly "view-only".
   const nodes = sim.nodes;
   for (let i = 0; i < sim.N; i++) {
     const n = nodes[i];
     let du = n.mapU - cu;
-    // Horizontal wrap (azimuth).
     if (du > 0.5)  du -= 1;
     if (du < -0.5) du += 1;
-    const dv = n.mapV - cv;
+    const dv = 0.5 - cv;        // distance from equator to the brush v
     const r2 = (du * du) / (sigU * sigU) + (dv * dv) / (sigV * sigV);
-    if (r2 > 6) continue;       // outside ~3 sigma
+    if (r2 > 6) continue;
     const w = Math.exp(-0.5 * r2);
     if (mode === 'push') {
       n.intent_push = Math.min(INTENT_MAX, n.intent_push + w * INTENT_GAIN);

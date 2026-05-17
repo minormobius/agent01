@@ -134,6 +134,7 @@
     </div>
     <div class="group">
       <label><input type="checkbox" id="show-texture" checked> texture</label>
+      <label><input type="checkbox" id="show-debug"> debug</label>
     </div>
     <div id="status">left: push&nbsp;&nbsp;right: release</div>
   </div>
@@ -158,6 +159,7 @@
     tension:  document.querySelector('input[data-channel="tension"]'),
   };
   const showTexture = document.getElementById('show-texture');
+  const showDebug = document.getElementById('show-debug');
   const brushSlider = document.getElementById('brush');
 
   // Hidden world. 800x800 procedural fields.
@@ -172,8 +174,9 @@
     cy: world.suggestedStart.y,
   });
 
-  // Renderer owns the offscreen low-res grid + the texture flow layer.
-  const renderer = createRenderer({ canvas });
+  // Renderer owns the offscreen low-res grid, the texture flow layer, and a
+  // cached top-down world bitmap used by the debug view.
+  const renderer = createRenderer({ canvas, world });
 
   // Pointer input writes intents onto sim.nodes.
   const inputState = attachInput({
@@ -212,6 +215,7 @@
         tension:  channelToggles.tension.checked,
       },
       showTexture: showTexture.checked,
+      debug: showDebug.checked,
     });
     banner.classList.toggle('show', sim.detached);
     requestAnimationFrame(frame);

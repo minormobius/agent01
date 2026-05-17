@@ -70,14 +70,17 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
 
     // Per-tick scratch (preallocated).
     segLen: new Float32Array(N),
-    distFwd: new Float32Array(N),
 
     // Cell-level state, updated each tick.
     cellCx: cx, cellCy: cy,
     southIdx: 0,
-    northIdx: Math.floor(N / 2),
-    southPoint: { x: cx, y: cy - radius },
-    maxGeo: perimeter0 / 2,
+    southPoint: { x: cx, y: cy + radius },
+
+    // Virtual pole readings. The polyline is the equator; these are the
+    // ventral (south) and dorsal (north) apexes the renderer interpolates
+    // toward. Filled in each tick from world samples at the cell centroid.
+    poleSouth: { adhesion: 0, light: 0, chem: 0, tension: 0 },
+    poleNorth: { adhesion: 0, light: 0, chem: 0, tension: 0 },
 
     // Membrane texture phase (drifts to show flow, advanced by render too).
     flowPhase: 0,
@@ -297,7 +300,7 @@ export function tick(sim, dt) {
   sx /= wsum; sy /= wsum;
   sim.southPoint = { x: sx, y: sy };
 
-  // Find polyline node nearest to the adhesion centroid.
+  // Find polyline node nearest to the adhesion centroid (kept for debug overlay).
   let bestI = 0, bestD = Infinity;
   for (let i = 0; i < N; i++) {
     const dx = nodes[i].x - sx, dy = nodes[i].y - sy;
@@ -306,9 +309,9 @@ export function tick(sim, dt) {
   }
   sim.southIdx = bestI;
 
-  // --- 9. Recompute segment lengths, perimeter, geodesic distances. ----
+  // --- 9. Segment lengths + perimeter (the renderer's wrinkle pass uses them
+  //        indirectly through tension; we recompute here for the debug view). -
   const segLen = sim.segLen;
-  const distFwd = sim.distFwd;
   let perim = 0;
   for (let i = 0; i < N; i++) {
     const a = nodes[i], b = nodes[(i + 1) % N];
@@ -316,55 +319,47 @@ export function tick(sim, dt) {
     perim += segLen[i];
   }
   sim.perimeter = perim;
-  // Walk forward from south, accumulating arc length.
-  distFwd[bestI] = 0;
-  for (let k = 1; k < N; k++) {
-    const idx = (bestI + k) % N;
-    const prevIdx = (bestI + k - 1) % N;
-    distFwd[idx] = distFwd[prevIdx] + segLen[prevIdx];
-  }
-  let northI = bestI, northG = 0;
-  for (let i = 0; i < N; i++) {
-    const g = Math.min(distFwd[i], perim - distFwd[i]);
-    if (g > northG) { northG = g; northI = i; }
-  }
-  sim.northIdx = northI;
-  sim.maxGeo = northG;
 
-  // --- 10. Per-node map coordinates. -----------------------------------
-  // We treat the line from south_node -> north_node in world space as the
-  // anterior-posterior axis. Project each node onto this axis for mapV;
-  // signed perpendicular distance gives mapU (which side of the AP axis).
-  const southNode = nodes[bestI];
-  const northNode = nodes[northI];
-  let apx = northNode.x - southNode.x;
-  let apy = northNode.y - southNode.y;
-  const apLen = Math.hypot(apx, apy);
-  if (apLen > 0.001) { apx /= apLen; apy /= apLen; }
-  const ppx = -apy, ppy = apx;
-  let maxPerp = 0.001;
+  // --- 10. Per-node map coordinates. ------------------------------------
+  // The 2D polyline is the *equator* (skirt) of a virtual sphere. South and
+  // north poles are conceptual points: ventral (touching substrate) and dorsal
+  // (exposed). So every node lives at mapV = 0.5 and mapU = its azimuth around
+  // the cell centroid. Latitude is interpolated in the renderer using the two
+  // virtual-pole readings computed below.
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
-    const dx = n.x - southNode.x, dy = n.y - southNode.y;
-    n._proj = dx * apx + dy * apy;
-    n._perp = dx * ppx + dy * ppy;
-    const ap = Math.abs(n._perp);
-    if (ap > maxPerp) maxPerp = ap;
-  }
-  const invAp = 1 / Math.max(0.001, apLen);
-  const invPp = 1 / maxPerp;
-  for (let i = 0; i < N; i++) {
-    const n = nodes[i];
-    // mapV convention: 0 = top of canvas (north), 1 = bottom (south).
-    // proj/apLen is 0 at south_node and 1 at north_node, so invert.
-    let v = 1 - n._proj * invAp;
-    if (v < 0) v = 0; else if (v > 1) v = 1;
-    n.mapV = v;
-    // Longitude: spread by perpendicular distance, sign decides left vs right.
-    let u = 0.5 + 0.5 * (n._perp * invPp);
-    if (u < 0) u = 0; else if (u > 0.9999) u = 0.9999;
+    const dx = n.x - cx, dy = n.y - cy;
+    // atan2 returns (-PI, PI]; shift to [0, 1).
+    let u = (Math.atan2(dy, dx) + Math.PI) / TWO_PI;
+    if (u < 0) u += 1;
+    if (u >= 1) u -= 1;
     n.mapU = u;
+    n.mapV = 0.5;
   }
+
+  // --- 11. Virtual pole readings, sampled at the cell centroid. ---------
+  // Ventral pole = full substrate contact, no light. Dorsal pole = exposed to
+  // sky, no adhesion. Chem partially diffuses to both. Tension averaged from
+  // adhesion-weighted (ventral) and unweighted (dorsal) node tensions.
+  const cellLight = world.sample(world.light,    cx, cy);
+  const cellChem  = world.sample(world.chem,     cx, cy);
+  const cellAdh   = world.sample(world.adhesion, cx, cy);
+  let tenSum = 0, tenAdhSum = 0, adhSum = 0;
+  for (let i = 0; i < N; i++) {
+    tenSum    += nodes[i].tension;
+    tenAdhSum += nodes[i].tension * nodes[i].adhesion;
+    adhSum    += nodes[i].adhesion;
+  }
+  const meanTen     = tenSum / N;
+  const meanVenTen  = adhSum > 0.001 ? tenAdhSum / adhSum : meanTen;
+  sim.poleSouth.adhesion = cellAdh;
+  sim.poleSouth.light    = cellLight * 0.04;
+  sim.poleSouth.chem     = cellChem  * 0.30;
+  sim.poleSouth.tension  = meanVenTen;
+  sim.poleNorth.adhesion = 0;
+  sim.poleNorth.light    = cellLight;
+  sim.poleNorth.chem     = cellChem  * 0.50;
+  sim.poleNorth.tension  = meanTen * 0.7;
 
   sim.tickCount++;
 }

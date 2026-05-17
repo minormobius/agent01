@@ -8,9 +8,11 @@ Pure HTML + ES modules + Canvas 2D. No build step, no dependencies. Open `index.
 
 - **Left button / single touch** — paint outward pressure (locally extrude the membrane).
 - **Right button / two-finger** — paint adhesion release (locally let the cell slide / retract).
-- **Top bar** — toggle sensor channels and adjust brush size.
+- **Top bar** — toggle sensor channels, adjust brush size, toggle the drifting texture, and flip into the **debug** top-down view (world + cell polyline + sensor dots + south-pole marker + chem-gradient arrow).
 
 Intents decay over ~2s and drift rearward with membrane flow while active.
+
+The brush is strongest along the horizontal centerline of the map (the equator — where sensor nodes actually live). Painting deep in the polar bands has reduced effect, which is correct: the poles are the cell's ventral / dorsal apex, sampled in aggregate rather than per-patch.
 
 ## Files
 
@@ -28,7 +30,7 @@ Two pieces of biology shaped the design:
 
 - **Taniguchi, D. et al. (2023). Dorsoventral asymmetry and surface flow in *Amoeba proteus*.** Observed that surface flow slows in the dorsal-posterior quadrant, where membrane material "bunches" before being recycled. This prototype models that as a per-quadrant flow attenuation that accumulates a "wrinkle" scalar, which modulates the drifting texture layer on the map.
 
-The map projection is intentionally a degenerate equirectangular: south pole = adhesion centroid, north pole = geodesic antipode along the polyline, with two longitudes (one per side of the cell). The lateral skirt is the widest band, which matches the biology — that's where most action happens.
+The projection treats the 2D polyline as the **equator (skirt)** of a virtual sphere. Each sensor node's longitude (mapU) is its azimuth around the cell centroid. Latitude is not carried by the nodes: the map's two horizontal poles are *virtual readings* sampled at the cell footprint — the south (ventral) pole shows full substrate adhesion and almost no light; the north (dorsal) pole shows full ambient light and no adhesion. The renderer interpolates each pixel between the equator's per-azimuth band and the appropriate pole. This is what makes the four channels read as distinct colored regions instead of one identical perimeter ring.
 
 ## Deploy
 
