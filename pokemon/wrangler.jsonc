@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mino-proteus",
+  "name": "mino-poke",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."

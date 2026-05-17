@@ -32,4 +32,4 @@ The map projection is intentionally a degenerate equirectangular: south pole = a
 
 ## Deploy
 
-`wrangler.jsonc` is set up as a Cloudflare Pages static site (`mino-proteus`, compat `2026-02-20`). No build step. See repository root `CLAUDE.md` for context.
+Served as a subpath of the `mino-poke` Cloudflare Pages project (parent directory `pokemon/`, wrangler at `pokemon/wrangler.jsonc`). No build step. Live URL: `poke.mino.mobi/proteus/`. See repository root `CLAUDE.md` for context.
