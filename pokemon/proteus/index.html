@@ -112,6 +112,39 @@
     pointer-events: none;
   }
   #detached-banner.show { opacity: 1; }
+  #budget-strip {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  #budget-label { white-space: nowrap; }
+  #budget-bar {
+    flex: 1 1 auto;
+    height: 5px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #budget-fill {
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, #b8482c, #f0a050 60%, #f8d870);
+    transition: width 0.15s linear;
+  }
+  #engulf-count {
+    white-space: nowrap;
+    color: var(--accent);
+  }
   /* swatch colors */
   .sw-adhesion { background: #f0a050; }
   .sw-light    { background: #f8f0a8; }
@@ -141,6 +174,11 @@
   <div id="stage">
     <canvas id="map"></canvas>
     <div id="detached-banner">detached</div>
+    <div id="budget-strip">
+      <span id="budget-label">membrane reserve</span>
+      <div id="budget-bar"><div id="budget-fill"></div></div>
+      <span id="engulf-count">engulfed 0</span>
+    </div>
   </div>
 </div>
 
@@ -161,9 +199,13 @@
   const showTexture = document.getElementById('show-texture');
   const showDebug = document.getElementById('show-debug');
   const brushSlider = document.getElementById('brush');
+  const budgetFill = document.getElementById('budget-fill');
+  const engulfCount = document.getElementById('engulf-count');
 
-  // Hidden world. 800x800 procedural fields.
-  const world = createWorld({ w: 800, h: 800, seed: 1729 });
+  // Hidden world. Level 1 = no obstacles, single food point that's the only
+  // chem source, broad smooth substrate adhesion. Cell heads up the gradient,
+  // wraps the food, engulfment dumps material into sim.budget.
+  const world = createWorld({ w: 800, h: 800, seed: 1729, level: 1 });
 
   // Hidden cell, seeded near the chemistry hotspot.
   const sim = createSim({
@@ -218,6 +260,9 @@
       debug: showDebug.checked,
     });
     banner.classList.toggle('show', sim.detached);
+    const pct = Math.max(0, Math.min(1, sim.budget / sim.budgetMax));
+    budgetFill.style.width = (pct * 100).toFixed(1) + '%';
+    engulfCount.textContent = 'engulfed ' + sim.engulfedCount;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

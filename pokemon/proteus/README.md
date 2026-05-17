@@ -32,6 +32,21 @@ Two pieces of biology shaped the design:
 
 The projection treats the 2D polyline as the **equator (skirt)** of a virtual sphere. Each sensor node's longitude (mapU) is its azimuth around the cell centroid. Latitude is not carried by the nodes: the map's two horizontal poles are *virtual readings* sampled at the cell footprint — the south (ventral) pole shows full substrate adhesion and almost no light; the north (dorsal) pole shows full ambient light and no adhesion. The renderer interpolates each pixel between the equator's per-azimuth band and the appropriate pole. This is what makes the four channels read as distinct colored regions instead of one identical perimeter ring.
 
+## Level 1 + materials cycle
+
+The current world is **Level 1**: no obstacles, broad smooth substrate adhesion, and a single piece of food. The food is the only chemistry source, so the chem gradient leads straight to it. Engulfment is detected as a winding-number threshold on the polyline around the food — wrap most of the way around and the food is consumed.
+
+Each membrane patch carries a `restLenRatio` representing how much material it holds, defaulting to 1.0. Per tick:
+
+- High-tension segments **draw** material from `sim.budget` (visible as the bottom strip). Their `restLenRatio` grows, the local spring rest length grows, and next-tick tension falls — the membrane feels itself relax.
+- Wrinkled low-tension segments (the dorsal-posterior bunching zone) **shed** material into `sim.budget`, draining wrinkle and shrinking their `restLenRatio` (those edges tighten back up).
+- Engulfing food dumps `food.value` directly into the budget. That's the resource payoff.
+- `restLenRatio` slowly recovers toward 1.0 so the cell doesn't lock into permanent distortion if you leave it alone.
+
+The top-down debug view shows live winding number and current budget in its legend, so you can watch engulfment fire in real time.
+
+Note: this prototype intentionally does **not** prevent membrane self-intersection. Real engulfment involves the membrane wrapping past itself, and pinch-off + recycling will be handled when growth / death is added.
+
 ## Deploy
 
 Served as a subpath of the `mino-poke` Cloudflare Pages project (parent directory `pokemon/`, wrangler at `pokemon/wrangler.jsonc`). No build step. Live URL: `poke.mino.mobi/proteus/`. See repository root `CLAUDE.md` for context.

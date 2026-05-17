@@ -412,11 +412,40 @@ function renderDebug(renderer, sim, { channels: enabled }) {
   ctx.arc(cx, cy, 2 / scale, 0, TWO_PI);
   ctx.fill();
 
+  // Food markers. Pulse if not yet engulfed; cross-out if consumed.
+  if (world.food && world.food.length) {
+    for (const f of world.food) {
+      const r = (f.r || 12) / scale;
+      if (!f.consumed) {
+        // Outer pulse ring tied to wall-clock so it's always visible.
+        const t = (performance.now() / 600) % 1;
+        ctx.strokeStyle = `rgba(112, 208, 136, ${0.95 - t * 0.7})`;
+        ctx.lineWidth = 2 / scale;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r * (1 + t * 0.8), 0, TWO_PI);
+        ctx.stroke();
+        // Solid core.
+        ctx.fillStyle = 'rgba(160, 240, 168, 0.9)';
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r * 0.55, 0, TWO_PI);
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = 'rgba(100, 120, 110, 0.5)';
+        ctx.lineWidth = 1.4 / scale;
+        const s = r * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(f.x - s, f.y - s); ctx.lineTo(f.x + s, f.y + s);
+        ctx.moveTo(f.x - s, f.y + s); ctx.lineTo(f.x + s, f.y - s);
+        ctx.stroke();
+      }
+    }
+  }
+
   ctx.restore();
 
   // Legend.
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.fillRect(8, 8, 230, 62);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(8, 8, 280, 96);
   ctx.fillStyle = '#e0f0e8';
   ctx.font = '11px ui-monospace, monospace';
   ctx.fillText('DEBUG: top-down view', 16, 24);
@@ -424,4 +453,11 @@ function renderDebug(renderer, sim, { channels: enabled }) {
   ctx.fillText('x  south pole (adhesion centroid)', 16, 40);
   ctx.fillStyle = 'rgba(112, 208, 136, 0.9)';
   ctx.fillText('->  chem gradient (heading)', 16, 56);
+  ctx.fillStyle = 'rgba(160, 240, 168, 0.95)';
+  ctx.fillText('o  food (pulse = unconsumed)', 16, 72);
+  // Live readouts.
+  ctx.fillStyle = '#cfd8d2';
+  const food = (world.food && world.food.length) ? world.food[0] : null;
+  const wind = food && food.lastWinding != null ? food.lastWinding.toFixed(2) : '--';
+  ctx.fillText('winding ' + wind + '   budget ' + (sim.budget || 0).toFixed(2), 16, 88);
 }

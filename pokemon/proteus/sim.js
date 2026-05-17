@@ -11,6 +11,27 @@
 
 const TWO_PI = Math.PI * 2;
 
+// Subtract a Gaussian bump from a Float32Array field in-place. Used to dissolve
+// the chem gradient at a consumed food site so the cell stops being pulled
+// toward empty space.
+function dissolveChem(world, fx, fy, radius) {
+  const r2 = radius * radius;
+  const x0 = Math.max(0, Math.floor(fx - radius));
+  const y0 = Math.max(0, Math.floor(fy - radius));
+  const x1 = Math.min(world.w, Math.ceil(fx + radius));
+  const y1 = Math.min(world.h, Math.ceil(fy + radius));
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const dx = x - fx, dy = y - fy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < r2) {
+        const fall = 1 - d2 / r2;
+        world.chem[y * world.w + x] *= 1 - fall * 0.97;
+      }
+    }
+  }
+}
+
 export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
   const nodes = new Array(N);
   for (let i = 0; i < N; i++) {
@@ -26,6 +47,10 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
       wrinkle: 0,
       // ~25% of nodes carry a slower retrograde counter-flow (Grebecki 1986).
       retroFlag: (i * 7) % 4 === 0,
+      // Membrane material balance. 1.0 = baseline. Grows when budget feeds
+      // this segment (relaxes high tension), shrinks when wrinkle drains
+      // material here back into the budget.
+      restLenRatio: 1.0,
       // Cached map coordinates (recomputed each tick when not detached).
       mapU: i / N,
       mapV: 0.5,
@@ -82,6 +107,13 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
     poleSouth: { adhesion: 0, light: 0, chem: 0, tension: 0 },
     poleNorth: { adhesion: 0, light: 0, chem: 0, tension: 0 },
 
+    // Membrane material budget. Wrinkled low-tension segments shed material
+    // into this pool; high-tension segments draw from it to relax. Food
+    // engulfment dumps a chunk in. Clamped to [0, budgetMax].
+    budget: 0.4,
+    budgetMax: 1.0,
+    engulfedCount: 0,
+
     // Membrane texture phase (drifts to show flow, advanced by render too).
     flowPhase: 0,
 
@@ -117,10 +149,13 @@ export function tick(sim, dt) {
     let dx = b.x - a.x, dy = b.y - a.y;
     let len = Math.hypot(dx, dy);
     if (len < 0.001) len = 0.001;
-    const stretch = (len - restLen) / restLen;
-    // Tension EMA, contribution from both endpoints of this edge.
+    // Edge rest length scales with the average restLenRatio of its endpoints.
+    // High ratio = this segment has been "fed" material and sits longer at rest
+    // (relaxed). Low ratio = membrane drained from this segment, sits tighter.
+    const localRest = restLen * (a.restLenRatio + b.restLenRatio) * 0.5;
+    const stretch = (len - localRest) / localRest;
     a.tension = a.tension * 0.7 + Math.abs(stretch) * 0.3;
-    const f = sim.springK * (len - restLen) / len;
+    const f = sim.springK * (len - localRest) / len;
     a.fx += dx * f; a.fy += dy * f;
     b.fx -= dx * f; b.fy -= dy * f;
   }
@@ -269,6 +304,76 @@ export function tick(sim, dt) {
 
   // Advance the texture flow phase (renderer reads this).
   sim.flowPhase = (sim.flowPhase + dt * 0.05) % 1.0;
+
+  // --- 7b. Materials cycle. --------------------------------------------
+  // High-tension segments draw from sim.budget to relax (restLenRatio grows,
+  // their next-tick spring stretch falls). Wrinkled low-tension segments
+  // shed material into the budget (their restLenRatio shrinks). Sum-of-
+  // restLenRatios drifts slowly back toward N (cell tries to keep its
+  // baseline membrane allocation), but engulfed food can push it temporarily
+  // higher.
+  const TEN_THRESH = 0.18;
+  const WRK_THRESH = 0.08;
+  const K_GEN = 2.5;
+  const K_CON = 4.0;
+  let totalSupply = 0, totalDemand = 0;
+  for (let i = 0; i < N; i++) {
+    const n = nodes[i];
+    if (n.wrinkle > WRK_THRESH) totalSupply += n.wrinkle - WRK_THRESH;
+    if (n.tension > TEN_THRESH) totalDemand += n.tension - TEN_THRESH;
+  }
+  const wantSupply = totalSupply * K_GEN * dt;
+  const wantDemand = totalDemand * K_CON * dt;
+  const actSupply = Math.min(wantSupply, sim.budgetMax - sim.budget);
+  const actDemand = Math.min(wantDemand, sim.budget);
+  const sRatio = wantSupply > 1e-6 ? actSupply / wantSupply : 0;
+  const dRatio = wantDemand > 1e-6 ? actDemand / wantDemand : 0;
+  sim.budget += actSupply - actDemand;
+  for (let i = 0; i < N; i++) {
+    const n = nodes[i];
+    if (n.wrinkle > WRK_THRESH) {
+      const drain = (n.wrinkle - WRK_THRESH) * K_GEN * dt * sRatio;
+      n.wrinkle = Math.max(0, n.wrinkle - drain * 1.4);
+      n.restLenRatio = Math.max(0.7, n.restLenRatio - drain * 0.45);
+    }
+    if (n.tension > TEN_THRESH) {
+      const give = (n.tension - TEN_THRESH) * K_CON * dt * dRatio;
+      n.tension = Math.max(0, n.tension - give * 0.5);
+      n.restLenRatio = Math.min(1.5, n.restLenRatio + give * 0.55);
+    }
+    // Slow recovery toward 1.0 so the cell doesn't lock into permanent distortion.
+    n.restLenRatio += (1.0 - n.restLenRatio) * 0.05 * dt;
+  }
+
+  // --- 7c. Food engulfment. --------------------------------------------
+  // Winding number of the polyline around each unconsumed food point. Food is
+  // "engulfed" when |winding| >= 0.75 (mostly enclosed). Engulfment dumps
+  // food.value into the budget and dissolves the local chem field so the
+  // gradient stops pointing at empty space.
+  if (world.food && world.food.length) {
+    for (const f of world.food) {
+      if (f.consumed) continue;
+      let total = 0;
+      for (let i = 0; i < N; i++) {
+        const a = nodes[i], b = nodes[(i + 1) % N];
+        const aA = Math.atan2(a.y - f.y, a.x - f.x);
+        const aB = Math.atan2(b.y - f.y, b.x - f.x);
+        let d = aB - aA;
+        if (d > Math.PI)  d -= TWO_PI;
+        else if (d < -Math.PI) d += TWO_PI;
+        total += d;
+      }
+      const winding = total / TWO_PI;
+      f.lastWinding = winding;
+      if (Math.abs(winding) >= 0.75) {
+        f.consumed = true;
+        sim.budget = Math.min(sim.budgetMax, sim.budget + f.value);
+        sim.engulfedCount++;
+        // Dissolve chem source so the cell doesn't keep heading for empty space.
+        dissolveChem(world, f.x, f.y, 90);
+      }
+    }
+  }
 
   // --- 8. South pole: adhesion-weighted centroid -> nearest node. -------
   let wsum = 0, sx = 0, sy = 0;

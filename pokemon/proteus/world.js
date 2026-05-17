@@ -62,76 +62,102 @@ function sample(field, w, h, x, y) {
   return a * (1 - fy) + b * fy;
 }
 
-export function createWorld({ w = 800, h = 800, seed = 1 } = {}) {
+export function createWorld({ w = 800, h = 800, seed = 1, level = 1 } = {}) {
   const rng = makeRng(seed);
   const rand = (lo, hi) => lo + rng() * (hi - lo);
 
-  // Substrate adhesion — broad patches, some smaller hotspots.
+  // Substrate adhesion. Level 1 keeps the substrate clean: a few broad,
+  // smooth patches so the cell has differential traction without chaos.
   const adhBlobs = [];
-  for (let i = 0; i < 7; i++) {
-    adhBlobs.push({ x: rand(80, w - 80), y: rand(80, h - 80), r: rand(120, 220), amp: rand(0.5, 1.0) });
-  }
-  for (let i = 0; i < 14; i++) {
-    adhBlobs.push({ x: rand(40, w - 40), y: rand(40, h - 40), r: rand(35, 70), amp: rand(0.3, 0.7) });
+  if (level === 1) {
+    for (let i = 0; i < 3; i++) {
+      adhBlobs.push({ x: rand(150, w - 150), y: rand(150, h - 150), r: rand(160, 260), amp: rand(0.7, 1.0) });
+    }
+  } else {
+    for (let i = 0; i < 7; i++) {
+      adhBlobs.push({ x: rand(80, w - 80), y: rand(80, h - 80), r: rand(120, 220), amp: rand(0.5, 1.0) });
+    }
+    for (let i = 0; i < 14; i++) {
+      adhBlobs.push({ x: rand(40, w - 40), y: rand(40, h - 40), r: rand(35, 70), amp: rand(0.3, 0.7) });
+    }
   }
 
   // Light — directional gradient + a few bright lobes.
   const lightBlobs = [];
   const dir = rng() * Math.PI * 2;
-  const cx = w / 2 + Math.cos(dir) * w * 0.45;
-  const cy = h / 2 + Math.sin(dir) * h * 0.45;
-  lightBlobs.push({ x: cx, y: cy, r: Math.max(w, h) * 1.1, amp: 1.0 });
+  const lcx = w / 2 + Math.cos(dir) * w * 0.45;
+  const lcy = h / 2 + Math.sin(dir) * h * 0.45;
+  lightBlobs.push({ x: lcx, y: lcy, r: Math.max(w, h) * 1.1, amp: 1.0 });
   for (let i = 0; i < 4; i++) {
     lightBlobs.push({ x: rand(60, w - 60), y: rand(60, h - 60), r: rand(80, 160), amp: rand(0.3, 0.6) });
   }
 
-  // Chemistry — a few attractant hotspots only.
+  // Food + chemistry. Level 1 places exactly one food point and makes it the
+  // only chem source so the gradient leads cleanly to it.
+  const food = [];
   const chemBlobs = [];
-  for (let i = 0; i < 3; i++) {
-    chemBlobs.push({ x: rand(120, w - 120), y: rand(120, h - 120), r: rand(80, 140), amp: rand(0.7, 1.0) });
+  if (level === 1) {
+    const fx = rand(180, w - 180);
+    const fy = rand(180, h - 180);
+    food.push({ x: fx, y: fy, value: 0.4, consumed: false, r: 14 });
+    chemBlobs.push({ x: fx, y: fy, r: 160, amp: 1.0 });
+  } else {
+    for (let i = 0; i < 3; i++) {
+      chemBlobs.push({ x: rand(120, w - 120), y: rand(120, h - 120), r: rand(80, 140), amp: rand(0.7, 1.0) });
+    }
   }
 
   const adhesion = rasterizeGaussians(w, h, adhBlobs);
   const light    = rasterizeGaussians(w, h, lightBlobs);
   const chem     = rasterizeGaussians(w, h, chemBlobs);
 
-  // Obstacles — a sparse set of impassable blobs. Stored as Uint8Array mask.
+  // Obstacles. Level 1 has none.
   const obstacle = new Uint8Array(w * h);
   const obstacleBlobs = [];
-  for (let i = 0; i < 5; i++) {
-    obstacleBlobs.push({
-      x: rand(80, w - 80),
-      y: rand(80, h - 80),
-      r: rand(30, 70),
-    });
-  }
-  for (const ob of obstacleBlobs) {
-    const x0 = Math.max(0, Math.floor(ob.x - ob.r));
-    const y0 = Math.max(0, Math.floor(ob.y - ob.r));
-    const x1 = Math.min(w, Math.ceil(ob.x + ob.r));
-    const y1 = Math.min(h, Math.ceil(ob.y + ob.r));
-    const r2 = ob.r * ob.r;
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
-        const dx = x - ob.x, dy = y - ob.y;
-        if (dx * dx + dy * dy < r2) obstacle[y * w + x] = 1;
+  if (level !== 1) {
+    for (let i = 0; i < 5; i++) {
+      obstacleBlobs.push({
+        x: rand(80, w - 80),
+        y: rand(80, h - 80),
+        r: rand(30, 70),
+      });
+    }
+    for (const ob of obstacleBlobs) {
+      const x0 = Math.max(0, Math.floor(ob.x - ob.r));
+      const y0 = Math.max(0, Math.floor(ob.y - ob.r));
+      const x1 = Math.min(w, Math.ceil(ob.x + ob.r));
+      const y1 = Math.min(h, Math.ceil(ob.y + ob.r));
+      const r2 = ob.r * ob.r;
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const dx = x - ob.x, dy = y - ob.y;
+          if (dx * dx + dy * dy < r2) obstacle[y * w + x] = 1;
+        }
       }
     }
   }
 
-  // Find a chemistry-rich, obstacle-free starting position.
+  // Starting position: on the substrate but a healthy distance from food so
+  // the player has to walk up the chem gradient to engulf.
   let best = { x: w / 2, y: h / 2, v: -1 };
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 300; i++) {
     const x = rand(80, w - 80);
     const y = rand(80, h - 80);
     if (obstacle[Math.floor(y) * w + Math.floor(x)]) continue;
-    const v = sample(chem, w, h, x, y) + 0.4 * sample(adhesion, w, h, x, y);
+    let v = 0.6 * sample(adhesion, w, h, x, y);
+    // Prefer somewhere food isn't.
+    for (const f of food) {
+      const dx = x - f.x, dy = y - f.y;
+      const d = Math.hypot(dx, dy);
+      v -= Math.max(0, 1 - d / 260) * 0.8;
+    }
     if (v > best.v) best = { x, y, v };
   }
 
   return {
-    w, h,
+    w, h, level,
     adhesion, light, chem, obstacle,
+    food,
     suggestedStart: { x: best.x, y: best.y },
     sample(field, x, y) { return sample(field, w, h, x, y); },
     isObstacle(x, y) {
