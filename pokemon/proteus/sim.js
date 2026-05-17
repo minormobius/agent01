@@ -43,7 +43,10 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
       vx: 0, vy: 0,
       fx: 0, fy: 0,
       adhesion: 0, light: 0, chem: 0, tension: 0,
-      intent_push: 0, intent_release: 0,
+      // Cortex stiffness. 1.0 = baseline cortical tension. Player input
+      // pushes this lower (extend, pressure wins locally) or higher
+      // (retract). Recovers toward 1.0 over a second or two.
+      cortexK: 1.0,
       wrinkle: 0,
       // ~25% of nodes carry a slower retrograde counter-flow (Grebecki 1986).
       retroFlag: (i * 7) % 4 === 0,
@@ -88,7 +91,14 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
     // Tuning constants. Adjusted so the cell feels viscous and slow.
     springK: 6.0,
     bendK: 0.18,
-    pushStrength: 35.0,
+    // Internal hydrostatic pressure. Every node feels a constant outward
+    // normal force of this magnitude. Cortex springs (variable per-node
+    // stiffness) resist; the cell is a balloon, and low-cortex regions
+    // bulge outward where pressure wins locally. Tuned so baseline strain
+    // stays below the materials-cycle tension threshold -- only player-
+    // weakened regions trigger material consumption.
+    pressure: 0.04,
+    cortexRecover: 0.6,      // per second, drift toward cortexK = 1.0
     flowAlpha: 0.012,        // base anterograde mixing per tick
     retroAlpha: 0.006,       // slower retrograde rate
     detachThreshold: 4.0,    // sum-of-adhesion below which cell is "lifted"
@@ -153,9 +163,13 @@ export function tick(sim, dt) {
     // High ratio = this segment has been "fed" material and sits longer at rest
     // (relaxed). Low ratio = membrane drained from this segment, sits tighter.
     const localRest = restLen * (a.restLenRatio + b.restLenRatio) * 0.5;
+    // Cortex stiffness varies per segment based on the average of endpoint
+    // cortexK. Low cortex = weak spring, lets internal pressure win locally
+    // and that region bulges out; high cortex = stiff spring, retracts.
+    const localK = sim.springK * (a.cortexK + b.cortexK) * 0.5;
     const stretch = (len - localRest) / localRest;
     a.tension = a.tension * 0.7 + Math.abs(stretch) * 0.3;
-    const f = sim.springK * (len - localRest) / len;
+    const f = localK * (len - localRest) / len;
     a.fx += dx * f; a.fy += dy * f;
     b.fx -= dx * f; b.fy -= dy * f;
   }
@@ -171,36 +185,33 @@ export function tick(sim, dt) {
     me.fy += (my - me.y) * sim.bendK;
   }
 
-  // --- 3. Intent push as outward normal force. -------------------------
+  // --- 3. Internal pressure as outward normal force. -------------------
+  // Constant hydrostatic pressure pushes every node outward. The cell is a
+  // balloon; cortex (variable per-node stiffness) is what holds it in.
+  // Tangent rotated -90deg gives outward for a CCW-in-canvas polyline.
   for (let i = 0; i < N; i++) {
     const prev = nodes[(i - 1 + N) % N];
     const me = nodes[i];
     const next = nodes[(i + 1) % N];
-    // Outward normal: tangent rotated -90° gives outward for a CCW polyline.
-    // Our seeding above goes CCW (cos, sin walks CCW for +i because canvas y is down),
-    // so rotate tangent +90° in screen space: (tx, ty) -> (ty, -tx) is +90° CCW screen,
-    // which is outward-facing for a CCW-on-screen polyline.
     const tx = next.x - prev.x, ty = next.y - prev.y;
     let nx = ty, ny = -tx;
     const nlen = Math.hypot(nx, ny);
     if (nlen > 0.001) {
       const inv = 1 / nlen;
       nx *= inv; ny *= inv;
-      const push = me.intent_push * sim.pushStrength;
-      me.fx += nx * push;
-      me.fy += ny * push;
+      me.fx += nx * sim.pressure;
+      me.fy += ny * sim.pressure;
     }
     me.nx = nx; me.ny = ny;
   }
 
-  // --- 4. Integrate. Adhesion damps velocity; release reduces damping. ---
+  // --- 4. Integrate. Adhesion damps velocity. ---------------------------
   const dampBase = Math.pow(0.85, dt * 30);
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
     n.vx += n.fx * dt;
     n.vy += n.fy * dt;
-    const effAdh = Math.max(0, n.adhesion - n.intent_release);
-    const adhDamp = Math.pow(1 - effAdh * 0.95, dt * 30);
+    const adhDamp = Math.pow(1 - n.adhesion * 0.95, dt * 30);
     n.vx *= adhDamp * dampBase;
     n.vy *= adhDamp * dampBase;
     let px = n.x + n.vx * dt * 30;
@@ -235,11 +246,14 @@ export function tick(sim, dt) {
   }
   sim.cellCx = cx; sim.cellCy = cy;
 
-  // --- 6. Decay intents (~2s half life from full). ----------------------
-  const decay = Math.exp(-dt / 1.4);
+  // --- 6. Cortex recovery: drift toward baseline 1.0. ------------------
+  // Player input pushes cortexK away from 1.0 (lower = extending pseudopod,
+  // higher = retracting). Without sustained input, every node relaxes back
+  // toward neutral.
+  const cortexRate = Math.min(1, sim.cortexRecover * dt);
   for (let i = 0; i < N; i++) {
-    nodes[i].intent_push    *= decay;
-    nodes[i].intent_release *= decay;
+    const n = nodes[i];
+    n.cortexK += (1.0 - n.cortexK) * cortexRate;
   }
 
   // --- 7. Membrane flow: advect readings + intents along the polyline.  -
@@ -257,12 +271,9 @@ export function tick(sim, dt) {
   let posteriorX = 0, posteriorY = 0;
   if (gMag > 0.0005) { posteriorX = -gx / gMag; posteriorY = -gy / gMag; }
 
-  // Scratch arrays for advection (preallocated would be a micro-optimization).
   const nAdh   = new Float32Array(N);
   const nLight = new Float32Array(N);
   const nChem  = new Float32Array(N);
-  const nPush  = new Float32Array(N);
-  const nRel   = new Float32Array(N);
   const nWrink = new Float32Array(N);
 
   for (let i = 0; i < N; i++) {
@@ -278,27 +289,20 @@ export function tick(sim, dt) {
     } else {
       nWrink[i] = n.wrinkle * Math.exp(-dt * 0.7);
     }
-    // Advect: pull a fraction alpha from the upstream neighbor. Anterograde
-    // (flow goes forward) means content at i+1 came from i, so node i pulls
-    // its replacement from i-1.
+    // Anterograde flow takes its content from the upstream neighbor; retro
+    // takes from the downstream side. The raw channel sample is fresh at the
+    // node's current world position; we blend in the upstream value so the
+    // membrane "remembers" what it just felt.
     const src = n.retroFlag ? (i + 1) % N : (i - 1 + N) % N;
     const s = nodes[src];
-    // For raw sensory channels, blend the raw sample with the upstream value.
-    // This gives "membrane carries readings forward" without losing fresh data.
     nAdh[i]   = n._rawAdh   * (1 - alpha) + s.adhesion * alpha;
     nLight[i] = n._rawLight * (1 - alpha) + s.light    * alpha;
     nChem[i]  = n._rawChem  * (1 - alpha) + s.chem     * alpha;
-    // Intents flow more strongly (they're a membrane property, not a sample).
-    const aI = Math.min(0.5, alpha * 4);
-    nPush[i] = n.intent_push    * (1 - aI) + s.intent_push    * aI;
-    nRel[i]  = n.intent_release * (1 - aI) + s.intent_release * aI;
   }
   for (let i = 0; i < N; i++) {
     nodes[i].adhesion       = nAdh[i];
     nodes[i].light          = nLight[i];
     nodes[i].chem           = nChem[i];
-    nodes[i].intent_push    = nPush[i];
-    nodes[i].intent_release = nRel[i];
     nodes[i].wrinkle        = nWrink[i];
   }
 
@@ -312,7 +316,10 @@ export function tick(sim, dt) {
   // restLenRatios drifts slowly back toward N (cell tries to keep its
   // baseline membrane allocation), but engulfed food can push it temporarily
   // higher.
-  const TEN_THRESH = 0.18;
+  // Materials cycle thresholds. TEN_THRESH must sit above the baseline
+  // strain induced by sim.pressure, or the cycle will drain budget on every
+  // node continuously.
+  const TEN_THRESH = 0.35;
   const WRK_THRESH = 0.08;
   const K_GEN = 2.5;
   const K_CON = 4.0;

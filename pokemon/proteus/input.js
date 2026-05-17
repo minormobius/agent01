@@ -1,51 +1,66 @@
-// input.js — pointer/touch handling. Translates strokes on the map canvas
-// into intent fields painted onto sensor nodes.
+// input.js — pointer/touch handling for the pressure model.
 //
-// Left button / single touch  -> intent_push (extrude outward).
-// Right button / two-finger   -> intent_release (drop adhesion).
-//
-// Mapping rule: a brush at canvas pixel (px, py) with radius R writes a
-// Gaussian falloff into every node whose (mapU, mapV) is within R, with
-// horizontal wrap. Magnitude scales with stroke speed / dwell time.
+// Mechanic:
+//   - pointerdown sets an *anchor* at the touch point. The brush is centred at
+//     the anchor for the duration of the press; the rest of the pointer's
+//     motion is interpreted as a vertical-slider gesture.
+//   - dy = currentY - anchorY (canvas backbuffer pixels).
+//       dy >= 0  (no drag or pulled down): drive local cortexK *down* toward
+//                CORTEX_LOW. Pressure wins locally and the foot extends.
+//       dy <  0  (dragged up):              drive local cortexK *up* toward
+//                CORTEX_HIGH. Cortex wins, the region retracts.
+//   - tickInput() is called once per render frame so a held finger keeps
+//     pulling cortexK toward its target even without pointer events.
+//   - The brush has a soft Gaussian footprint around the anchor in (mapU, V)
+//     space, with V centred on the equator (where the sensor nodes are).
 
-// Per-event contribution at brush center. Bumped so a single tap noticeably
-// extrudes, while continuous holds still saturate over a few frames.
-const INTENT_GAIN = 0.22;
-const INTENT_MAX  = 1.0;
+const RATE        = 4.0;     // per-second approach rate for cortexK -> target
+const CORTEX_LOW  = 0.18;    // extreme extend (very weak cortex)
+const CORTEX_MID  = 0.55;    // mild extend (default when held with no drag)
+const CORTEX_HIGH = 1.85;    // extreme retract (very stiff cortex)
+const DRAG_PX     = 60;      // CSS pixels of drag for full-strength input
 
 export function attachInput({ canvas, sim, getBrushRadius }) {
   const state = {
     pressed: false,
-    mode: 'push',
-    px: 0, py: 0,
-    activePointers: new Map(),  // pointerId -> {x, y}
+    anchor: null,     // { px, py } in canvas backbuffer coords
+    cur: { px: 0, py: 0 },
+    target: 1.0,      // current cortexK target (display + tickInput read this)
+    pointerType: 'mouse',
+    activePointers: new Map(),
   };
 
-  // Suppress browser context menu so right-click is usable.
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   function setPointer(e) {
     const rect = canvas.getBoundingClientRect();
-    state.px = (e.clientX - rect.left) * (canvas.width  / rect.width);
-    state.py = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    state.cur.px = (e.clientX - rect.left) * (canvas.width  / rect.width);
+    state.cur.py = (e.clientY - rect.top)  * (canvas.height / rect.height);
   }
 
-  // We use pointer events to unify mouse + touch + pen.
+  function updateTarget() {
+    if (!state.anchor) return;
+    const dy = state.cur.py - state.anchor.py;
+    const px = DRAG_PX * dpr(canvas);
+    if (dy < 0) {
+      // Dragged up: retract. Lerp from MID (at dy=0) toward HIGH (at dy=-px).
+      const t = Math.min(1, -dy / px);
+      state.target = CORTEX_MID + (CORTEX_HIGH - CORTEX_MID) * t;
+    } else {
+      // No drag or pulled down: extend. Lerp from MID (dy=0) toward LOW (dy=+px).
+      const t = Math.min(1, dy / px);
+      state.target = CORTEX_MID + (CORTEX_LOW - CORTEX_MID) * t;
+    }
+  }
+
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
     state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     setPointer(e);
     state.pressed = true;
-    // Mode decision:
-    //   - mouse right button (button === 2) -> release
-    //   - 2+ simultaneous touches -> release
-    //   - otherwise -> push
-    if (e.pointerType === 'mouse') {
-      state.mode = (e.button === 2) ? 'release' : 'push';
-    } else {
-      state.mode = state.activePointers.size >= 2 ? 'release' : 'push';
-    }
-    paint(sim, canvas, state.px, state.py, getBrushRadius() * dpr(canvas), state.mode);
+    state.pointerType = e.pointerType;
+    state.anchor = { px: state.cur.px, py: state.cur.py };
+    updateTarget();
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -53,20 +68,19 @@ export function attachInput({ canvas, sim, getBrushRadius }) {
     if (state.activePointers.has(e.pointerId)) {
       state.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     }
-    // For touch, two simultaneous pointers = release; otherwise push. Keep
-    // mouse mode sticky (it was set by the button at pointerdown).
-    if (e.pointerType !== 'mouse') {
-      state.mode = state.activePointers.size >= 2 ? 'release' : 'push';
-    }
     setPointer(e);
-    paint(sim, canvas, state.px, state.py, getBrushRadius() * dpr(canvas), state.mode);
+    updateTarget();
   });
 
   function endPointer(e) {
     if (state.activePointers.has(e.pointerId)) {
       state.activePointers.delete(e.pointerId);
     }
-    if (state.activePointers.size === 0) state.pressed = false;
+    if (state.activePointers.size === 0) {
+      state.pressed = false;
+      state.anchor = null;
+      state.target = 1.0;
+    }
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   }
   canvas.addEventListener('pointerup', endPointer);
@@ -77,42 +91,39 @@ export function attachInput({ canvas, sim, getBrushRadius }) {
 }
 
 function dpr(canvas) {
-  // Brush slider is in CSS pixels; canvas backbuffer is scaled by devicePixelRatio.
   const rect = canvas.getBoundingClientRect();
   return rect.width > 0 ? (canvas.width / rect.width) : 1;
 }
 
-// Paint intent at (px, py) with given radius (pixels) and mode ('push'|'release').
-function paint(sim, canvas, px, py, brushPxRad, mode) {
-  if (sim.detached) return;     // can't intent without a self
-  if (brushPxRad < 2) return;
+// Called once per render frame from the main loop. Drives cortexK at the
+// brush footprint toward state.target at RATE per second.
+export function tickInput(canvas, sim, state, getBrushRadius, dt) {
+  if (!state.pressed || !state.anchor || sim.detached) return;
   const W = canvas.width, H = canvas.height;
-  const cu = px / W;
-  const cv = py / H;
-  const ruU = brushPxRad / W;
-  const rvV = brushPxRad / H;
-  // Convert to a single Gaussian sigma in UV-space — pick the smaller axis so
-  // the brush stays "round" in pixel space.
-  const sigU = Math.max(ruU, 1e-3);
-  const sigV = Math.max(rvV, 1e-3);
+  if (W < 2 || H < 2) return;
 
-  // All nodes live on the equator (mapV = 0.5). Brushes painted away from the
-  // equator still act on the nearest-azimuth nodes, but with reduced strength
-  // — taps deep in the polar region are mostly "view-only".
+  const brushPxRad = getBrushRadius() * dpr(canvas);
+  if (brushPxRad < 2) return;
+
+  const cu = state.anchor.px / W;
+  const cv = state.anchor.py / H;
+  const sigU = Math.max(brushPxRad / W, 1e-3);
+  const sigV = Math.max(brushPxRad / H, 1e-3);
+  const target = state.target;
+  const stepFactor = 1 - Math.exp(-RATE * dt);
+
   const nodes = sim.nodes;
   for (let i = 0; i < sim.N; i++) {
     const n = nodes[i];
     let du = n.mapU - cu;
     if (du > 0.5)  du -= 1;
     if (du < -0.5) du += 1;
-    const dv = 0.5 - cv;        // distance from equator to the brush v
+    const dv = 0.5 - cv;
     const r2 = (du * du) / (sigU * sigU) + (dv * dv) / (sigV * sigV);
     if (r2 > 6) continue;
     const w = Math.exp(-0.5 * r2);
-    if (mode === 'push') {
-      n.intent_push = Math.min(INTENT_MAX, n.intent_push + w * INTENT_GAIN);
-    } else {
-      n.intent_release = Math.min(INTENT_MAX, n.intent_release + w * INTENT_GAIN);
-    }
+    // Pull cortexK toward target. Brush strength weights the approach so the
+    // centre of the brush moves fastest, edges barely.
+    n.cortexK += (target - n.cortexK) * stepFactor * w;
   }
 }

@@ -190,7 +190,7 @@ export function render(renderer, sim, opts) {
   return renderMap(renderer, sim, opts);
 }
 
-function renderMap(renderer, sim, { channels: enabled, showTexture }) {
+function renderMap(renderer, sim, { channels: enabled }) {
   const { offImg, eqVal, eqWt, eqWrinkle } = renderer;
   const data = offImg.data;
   const nodes = sim.nodes;
@@ -269,39 +269,10 @@ function renderMap(renderer, sim, { channels: enabled, showTexture }) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(renderer.offCnv, 0, 0, canvas.width, canvas.height);
 
-  // --- 4. Texture overlay + wrinkle accent. ----------------------------
-  if (showTexture && !detached) {
-    const phase = sim.flowPhase || 0;
-    const shiftPx = Math.floor(phase * canvas.width);
-    ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.globalCompositeOperation = 'overlay';
-    ctx.drawImage(renderer.texture, -shiftPx, 0, canvas.width, canvas.height);
-    ctx.drawImage(renderer.texture, canvas.width - shiftPx, 0, canvas.width, canvas.height);
-    ctx.restore();
-
-    let hasWrinkle = false;
-    for (let y = 0; y < GRID_H; y++) {
-      const v = y / (GRID_H - 1);
-      const eqW = Math.sin(v * Math.PI);
-      const row = y * GRID_W;
-      for (let x = 0; x < GRID_W; x++) {
-        const w = Math.min(1, eqWrinkle[x] * 0.6) * eqW;
-        const o = (row + x) * 4;
-        data[o] = data[o + 1] = data[o + 2] = 0;
-        data[o + 3] = Math.floor(w * 170);
-        if (w > 0.06) hasWrinkle = true;
-      }
-    }
-    if (hasWrinkle) {
-      renderer.offCtx.putImageData(offImg, 0, 0);
-      ctx.save();
-      ctx.globalAlpha = 0.7;
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.drawImage(renderer.offCnv, 0, 0, canvas.width, canvas.height);
-      ctx.restore();
-    }
-  } else if (showTexture && detached) {
+  // --- 4. Detached state: TV-static overlay. ---------------------------
+  // (The membrane-flow texture overlay was removed -- it was dimming the
+  // four sensor channels and adding no information.)
+  if (detached) {
     const { staticCnv, staticCtx, staticImg } = renderer;
     const td = staticImg.data;
     for (let p = 0; p < td.length; p += 4) {
@@ -363,15 +334,17 @@ function renderDebug(renderer, sim, { channels: enabled }) {
     ctx.beginPath();
     ctx.arc(n.x, n.y, dot, 0, TWO_PI);
     ctx.fill();
-    if (n.intent_push > 0.05) {
-      ctx.strokeStyle = `rgba(255, 180, 80, ${Math.min(1, n.intent_push * 2)})`;
+    // Cortex deviation halo: blue ring around nodes the player is extending
+    // (low cortexK), warm ring around retracting nodes (high cortexK).
+    const dev = n.cortexK - 1.0;
+    if (dev < -0.05) {
+      ctx.strokeStyle = `rgba(120, 200, 255, ${Math.min(1, -dev * 1.4)})`;
       ctx.lineWidth = 1.5 / scale;
       ctx.beginPath();
       ctx.arc(n.x, n.y, dot * 2.2, 0, TWO_PI);
       ctx.stroke();
-    }
-    if (n.intent_release > 0.05) {
-      ctx.strokeStyle = `rgba(80, 200, 255, ${Math.min(1, n.intent_release * 2)})`;
+    } else if (dev > 0.05) {
+      ctx.strokeStyle = `rgba(255, 140, 100, ${Math.min(1, dev * 1.0)})`;
       ctx.lineWidth = 1.5 / scale;
       ctx.beginPath();
       ctx.arc(n.x, n.y, dot * 2.2, 0, TWO_PI);

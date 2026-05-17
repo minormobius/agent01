@@ -6,13 +6,18 @@ Pure HTML + ES modules + Canvas 2D. No build step, no dependencies. Open `index.
 
 ## Controls
 
-- **Left button / single touch** — paint outward pressure (locally extrude the membrane).
-- **Right button / two-finger** — paint adhesion release (locally let the cell slide / retract).
-- **Top bar** — toggle sensor channels, adjust brush size, toggle the drifting texture, and flip into the **debug** top-down view (world + cell polyline + sensor dots + south-pole marker + chem-gradient arrow).
+The cell carries a positive internal hydrostatic pressure that pushes every point on the membrane outward — it's a balloon. The cortex (per-segment spring stiffness, `cortexK`) is what holds it in. Player input modulates `cortexK` locally:
 
-Intents decay over ~2s and drift rearward with membrane flow while active.
+- **Tap** a point on the map — quickly weakens cortex there. Pressure wins locally, and that region extrudes as a pseudopod.
+- **Tap and hold** — anchor at the touch point. The cortex stays low for as long as you hold; the foot keeps extending.
+- **Drag up from the anchor** — flips the input over to *retract* mode. Cortex stiffens above baseline at the anchor point; that region pulls inward. Drag distance maps to strength (about 60 CSS pixels = full retract).
+- **Drag down** — extra-strong extend.
 
-The brush is strongest along the horizontal centerline of the map (the equator — where sensor nodes actually live). Painting deep in the polar bands has reduced effect, which is correct: the poles are the cell's ventral / dorsal apex, sampled in aggregate rather than per-patch.
+The brush footprint sits at the anchor, not the current pointer. The pointer's motion is purely a vertical-slider gesture. Cortex recovers toward neutral (1.0) over a second or two when you let go, so taps fade naturally.
+
+Self-intersection isn't explicitly prevented; the internal pressure works against folding inward, which keeps the cell broadly convex.
+
+**Top bar** — sensor channel toggles, brush radius slider, and a **debug** top-down view (substrate fields, cell polyline, sensor dots, south-pole marker, chem-gradient arrow, food markers, live winding number + budget). Cortex deviation appears as a colored halo in debug: cool blue = extending, warm red = retracting.
 
 ## Files
 

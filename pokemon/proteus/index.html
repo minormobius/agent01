@@ -166,10 +166,9 @@
       <label>brush <input type="range" id="brush" min="6" max="80" value="28"></label>
     </div>
     <div class="group">
-      <label><input type="checkbox" id="show-texture" checked> texture</label>
       <label><input type="checkbox" id="show-debug"> debug</label>
     </div>
-    <div id="status">left: push&nbsp;&nbsp;right: release</div>
+    <div id="status">tap = extend&nbsp;&nbsp;drag up = retract</div>
   </div>
   <div id="stage">
     <canvas id="map"></canvas>
@@ -186,7 +185,7 @@
   import { createWorld } from './world.js';
   import { createSim, tick } from './sim.js';
   import { createRenderer, render } from './render.js';
-  import { attachInput } from './input.js';
+  import { attachInput, tickInput } from './input.js';
 
   const canvas = document.getElementById('map');
   const banner = document.getElementById('detached-banner');
@@ -196,9 +195,9 @@
     chem:     document.querySelector('input[data-channel="chem"]'),
     tension:  document.querySelector('input[data-channel="tension"]'),
   };
-  const showTexture = document.getElementById('show-texture');
   const showDebug = document.getElementById('show-debug');
   const brushSlider = document.getElementById('brush');
+  const getBrushRadius = () => parseFloat(brushSlider.value);
   const budgetFill = document.getElementById('budget-fill');
   const engulfCount = document.getElementById('engulf-count');
 
@@ -220,12 +219,8 @@
   // cached top-down world bitmap used by the debug view.
   const renderer = createRenderer({ canvas, world });
 
-  // Pointer input writes intents onto sim.nodes.
-  const inputState = attachInput({
-    canvas,
-    sim,
-    getBrushRadius: () => parseFloat(brushSlider.value),
-  });
+  // Pointer input writes cortex targets onto sim.nodes via tickInput().
+  const inputState = attachInput({ canvas, sim, getBrushRadius });
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -245,6 +240,9 @@
     const dt = Math.min(100, t - last);
     last = t;
     acc += dt;
+    // Drive pointer input at frame rate so held fingers keep pulling cortex
+    // toward target even without further pointermove events.
+    tickInput(canvas, sim, inputState, getBrushRadius, dt / 1000);
     while (acc >= stepMs) {
       tick(sim, stepMs / 1000);
       acc -= stepMs;
@@ -256,7 +254,6 @@
         chem:     channelToggles.chem.checked,
         tension:  channelToggles.tension.checked,
       },
-      showTexture: showTexture.checked,
       debug: showDebug.checked,
     });
     banner.classList.toggle('show', sim.detached);
