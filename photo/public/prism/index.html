@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prismatic Corneas</title>
+  <meta name="description" content="See through a compound eye. Live camera, refracted into hexagonal facets with chromatic split — all client-side WebGL." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁</text></svg>" />
+  <style>
+    :root {
+      --ink: #f0eef8;
+      --ink-dim: #9b96b5;
+      --line: #2a2645;
+      --accent: #b69dff;
+      --gold: #d4b86a;
+      --bg: #050410;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+      overflow: hidden; height: 100%; }
+    canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+    .panel {
+      position: fixed;
+      top: 1rem; left: 1rem; right: 1rem;
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+      padding: 0.75rem 1rem;
+      background: rgba(5, 4, 16, 0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      backdrop-filter: blur(14px);
+      z-index: 10;
+      transition: opacity 300ms ease;
+    }
+    .panel.hidden { opacity: 0; pointer-events: none; }
+
+    .title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.4rem; font-weight: 500;
+      letter-spacing: 0.02em;
+      margin-right: 0.5rem;
+    }
+    .title .eye { color: var(--gold); }
+
+    .ctrl {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.85rem; color: var(--ink-dim);
+    }
+    .ctrl input[type="range"] {
+      accent-color: var(--accent);
+      width: 110px;
+    }
+    .btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-family: inherit; font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--gold); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .spacer { flex: 1; }
+
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      background: rgba(5,4,16,0.85);
+      z-index: 20;
+      text-align: center; padding: 2rem;
+    }
+    .overlay h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2.5rem; font-weight: 500;
+      margin: 0;
+    }
+    .overlay p { color: var(--ink-dim); max-width: 32rem; margin: 0; }
+    .overlay .start {
+      background: var(--accent);
+      color: #15102a;
+      border: none;
+      padding: 0.75rem 1.75rem;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .overlay .start:hover { background: var(--gold); }
+    .overlay .err { color: #d96450; font-size: 0.9rem; }
+
+    .help {
+      position: fixed; bottom: 1rem; left: 0; right: 0;
+      text-align: center; font-size: 0.75rem; color: var(--ink-dim);
+      z-index: 10; pointer-events: none;
+      font-style: italic;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <div class="panel" id="panel">
+    <span class="title"><span class="eye">👁</span> Prismatic Corneas</span>
+    <label class="ctrl">facets <input type="range" id="size" min="6" max="120" value="40" /></label>
+    <label class="ctrl">chroma <input type="range" id="chroma" min="0" max="200" value="55" /></label>
+    <label class="ctrl">refract <input type="range" id="refract" min="0" max="200" value="80" /></label>
+    <label class="ctrl">edge <input type="range" id="edge" min="0" max="100" value="35" /></label>
+    <label class="ctrl">spin <input type="range" id="spin" min="0" max="100" value="0" /></label>
+    <div class="spacer"></div>
+    <button class="btn" id="flip-btn" title="switch camera">⇋ flip</button>
+    <button class="btn" id="freeze-btn" title="freeze">❄ freeze</button>
+    <button class="btn" id="capture-btn" title="save PNG">⤓ capture</button>
+    <button class="btn" id="hide-btn" title="hide panel (tap to show)">— hide</button>
+  </div>
+
+  <div class="help">click anywhere to hide / show controls</div>
+
+  <div class="overlay" id="overlay">
+    <h1>👁 Prismatic Corneas</h1>
+    <p>A live view through a compound eye. Camera stays in your browser — nothing is uploaded.</p>
+    <button class="start" id="start-btn">grant camera</button>
+    <p class="err" id="err" hidden></p>
+  </div>
+
+  <script id="vert" type="x-shader/x-vertex">
+    attribute vec2 a_pos;
+    varying vec2 v_uv;
+    void main() {
+      v_uv = a_pos * 0.5 + 0.5;
+      gl_Position = vec4(a_pos, 0.0, 1.0);
+    }
+  </script>
+
+  <script id="frag" type="x-shader/x-fragment">
+    precision highp float;
+    varying vec2 v_uv;
+    uniform sampler2D u_video;
+    uniform vec2 u_resolution;
+    uniform vec2 u_videoSize;     // pixel dims of the source video
+    uniform float u_facetSize;    // pixels per facet
+    uniform float u_chroma;       // chromatic shift strength (px)
+    uniform float u_refract;      // intra-facet refraction strength
+    uniform float u_edge;         // dark rim intensity
+    uniform float u_spin;         // per-facet rotation (radians)
+    uniform float u_mirror;       // 1.0 to mirror x (front camera)
+
+    // Hexagonal tile: given a point in "hex units", return:
+    //   xy = offset from nearest hex center (in hex units)
+    //   zw = nearest hex center (in hex units)
+    vec4 hexTile(vec2 p) {
+      const vec2 s = vec2(1.0, 1.7320508);
+      vec4 hC = floor(vec4(p, p - vec2(0.5, 1.0)) / s.xyxy) + 0.5;
+      vec4 h = vec4(p - hC.xy * s, p - (hC.zw + 0.5) * s);
+      return dot(h.xy, h.xy) < dot(h.zw, h.zw)
+        ? vec4(h.xy, hC.xy * s)
+        : vec4(h.zw, (hC.zw + 0.5) * s);
+    }
+
+    // Signed distance to a regular hexagon centered at origin, in pp units.
+    float hexDist(vec2 p) {
+      p = abs(p);
+      return max(p.x * 0.8660254 + p.y * 0.5, p.y);
+    }
+
+    // "Cover-fit" the video into the canvas: scale to fill, center-crop.
+    // Returns UV in [0,1] for sampling u_video; out-of-range still wraps.
+    vec2 coverUV(vec2 pixel, vec2 canvasSize, vec2 videoSize) {
+      vec2 cAR = canvasSize / videoSize;
+      float scale = max(cAR.x, cAR.y);
+      vec2 disp = (canvasSize - videoSize * scale) * 0.5;
+      vec2 src = (pixel - disp) / scale;        // pixel in video space
+      vec2 uv = src / videoSize;
+      uv.x = mix(uv.x, 1.0 - uv.x, u_mirror);
+      // Flip y because video texture is upside-down vs WebGL default.
+      uv.y = 1.0 - uv.y;
+      return uv;
+    }
+
+    void main() {
+      vec2 pix = v_uv * u_resolution;
+
+      // Translate pixel coords into hex tile coords.
+      float size = max(u_facetSize, 4.0);
+      vec2 hexP = pix / size;
+      vec4 h = hexTile(hexP);
+      vec2 cellOffset = h.xy;     // in hex units
+      vec2 cellCenter = h.zw * size; // back in pixels
+
+      // Direction & distance from facet center (normalized).
+      float dHex = hexDist(cellOffset);    // ~0 at center, ~1 at edge
+      vec2 dir = cellOffset;
+      float len = length(dir);
+      vec2 ndir = len > 1e-5 ? dir / len : vec2(0.0);
+
+      // Optional per-facet rotation, varied by cell position (hash).
+      float seed = fract(sin(dot(h.zw, vec2(12.9898, 78.233))) * 43758.5453);
+      float ang = u_spin * (seed - 0.5) * 2.0;
+      float ca = cos(ang), sa = sin(ang);
+      vec2 rotDir = vec2(ca * ndir.x - sa * ndir.y, sa * ndir.x + ca * ndir.y);
+
+      // Sample point: refraction pushes the lens-sampled point outward from
+      // each facet center. Strength scales with distance to edge.
+      float refractAmt = u_refract * dHex;
+      vec2 sampleCenter = cellCenter; // center of the facet, in pixels
+      vec2 sampleBase = sampleCenter + rotDir * refractAmt;
+
+      // Chromatic split — sample R/G/B at slightly different radii from
+      // facet center (like a tiny prism in each lens).
+      float cShift = u_chroma * dHex;
+      vec2 pR = sampleBase + rotDir * (cShift);
+      vec2 pG = sampleBase;
+      vec2 pB = sampleBase - rotDir * (cShift);
+
+      vec2 uvR = coverUV(pR, u_resolution, u_videoSize);
+      vec2 uvG = coverUV(pG, u_resolution, u_videoSize);
+      vec2 uvB = coverUV(pB, u_resolution, u_videoSize);
+
+      vec3 col;
+      col.r = texture2D(u_video, uvR).r;
+      col.g = texture2D(u_video, uvG).g;
+      col.b = texture2D(u_video, uvB).b;
+
+      // Dark rim at the hex edges to make each facet readable.
+      float edge = smoothstep(0.85, 1.0, dHex);
+      col *= 1.0 - edge * u_edge * 0.01 * 4.0;
+
+      // Subtle highlight ring near center (like the cornea's wet sheen).
+      float sheen = smoothstep(0.25, 0.0, dHex) * 0.18;
+      col += sheen * vec3(0.95, 0.93, 1.0);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  </script>
+
+  <script>
+  (() => {
+    const canvas = document.getElementById('gl');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const errEl = document.getElementById('err');
+    const panel = document.getElementById('panel');
+    const sizeR = document.getElementById('size');
+    const chromaR = document.getElementById('chroma');
+    const refractR = document.getElementById('refract');
+    const edgeR = document.getElementById('edge');
+    const spinR = document.getElementById('spin');
+    const flipBtn = document.getElementById('flip-btn');
+    const freezeBtn = document.getElementById('freeze-btn');
+    const captureBtn = document.getElementById('capture-btn');
+    const hideBtn = document.getElementById('hide-btn');
+
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.autoplay = true;
+
+    let gl, prog, posBuf, tex;
+    let uLoc = {};
+    let stream = null;
+    let facingMode = 'user';
+    let frozen = false;
+    let raf = 0;
+
+    function setupGL() {
+      gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: false });
+      if (!gl) throw new Error('WebGL not supported');
+
+      const vs = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vs, document.getElementById('vert').textContent);
+      gl.compileShader(vs);
+      if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) throw new Error('vs: ' + gl.getShaderInfoLog(vs));
+
+      const fs = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fs, document.getElementById('frag').textContent);
+      gl.compileShader(fs);
+      if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error('fs: ' + gl.getShaderInfoLog(fs));
+
+      prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+
+      posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+        -1,  1,  1, -1,  1,  1,
+      ]), gl.STATIC_DRAW);
+      const aPos = gl.getAttribLocation(prog, 'a_pos');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      for (const name of ['u_video','u_resolution','u_videoSize','u_facetSize','u_chroma','u_refract','u_edge','u_spin','u_mirror']) {
+        uLoc[name] = gl.getUniformLocation(prog, name);
+      }
+
+      tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.floor(window.innerWidth * dpr);
+      const h = Math.floor(window.innerHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+    }
+
+    function frame() {
+      raf = requestAnimationFrame(frame);
+      resize();
+      if (!video.videoWidth) return;
+      if (!frozen) {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        try {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+        } catch (e) {
+          // Some browsers throw if video is in a weird state; skip frame.
+          return;
+        }
+      }
+
+      gl.uniform1i(uLoc.u_video, 0);
+      gl.uniform2f(uLoc.u_resolution, canvas.width, canvas.height);
+      gl.uniform2f(uLoc.u_videoSize, video.videoWidth, video.videoHeight);
+      gl.uniform1f(uLoc.u_facetSize, parseFloat(sizeR.value));
+      gl.uniform1f(uLoc.u_chroma, parseFloat(chromaR.value) * 0.5);
+      gl.uniform1f(uLoc.u_refract, parseFloat(refractR.value) * 0.4);
+      gl.uniform1f(uLoc.u_edge, parseFloat(edgeR.value));
+      gl.uniform1f(uLoc.u_spin, parseFloat(spinR.value) * 0.0314);
+      gl.uniform1f(uLoc.u_mirror, facingMode === 'user' ? 1.0 : 0.0);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    async function startCamera(mode) {
+      if (stream) {
+        for (const t of stream.getTracks()) t.stop();
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch (err) {
+        // Fall back to any camera.
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      facingMode = mode;
+    }
+
+    async function begin() {
+      startBtn.disabled = true; startBtn.textContent = 'starting…';
+      try {
+        setupGL();
+        await startCamera('user');
+        overlay.style.display = 'none';
+        if (!raf) frame();
+      } catch (err) {
+        errEl.hidden = false;
+        errEl.textContent = err.message || String(err);
+        startBtn.disabled = false; startBtn.textContent = 'try again';
+      }
+    }
+
+    startBtn.addEventListener('click', begin);
+
+    flipBtn.addEventListener('click', async () => {
+      const next = facingMode === 'user' ? 'environment' : 'user';
+      flipBtn.disabled = true;
+      try { await startCamera(next); }
+      finally { flipBtn.disabled = false; }
+    });
+
+    freezeBtn.addEventListener('click', () => {
+      frozen = !frozen;
+      freezeBtn.textContent = frozen ? '▶ resume' : '❄ freeze';
+    });
+
+    captureBtn.addEventListener('click', () => {
+      // The canvas is already rendered with preserveDrawingBuffer.
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `prismatic-corneas-${Date.now()}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }, 'image/png');
+    });
+
+    hideBtn.addEventListener('click', () => panel.classList.add('hidden'));
+
+    document.addEventListener('click', (e) => {
+      if (overlay.style.display !== 'none') return;
+      if (panel.contains(e.target)) return;
+      panel.classList.toggle('hidden');
+    });
+
+    // If they granted permission previously, autostart could work — but most
+    // browsers still require a user gesture for getUserMedia, so we keep the
+    // explicit grant button.
+  })();
+  </script>
+</body>
+</html>
