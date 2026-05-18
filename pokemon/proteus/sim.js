@@ -185,16 +185,19 @@ export function tick(sim, dt) {
     me.fy += (my - me.y) * sim.bendK;
   }
 
-  // --- 3. Internal pressure as outward normal force. -------------------
-  // Constant hydrostatic pressure pushes every node outward. The cell is a
-  // balloon; cortex (variable per-node stiffness) is what holds it in.
-  // Tangent rotated -90deg gives outward for a CCW-in-canvas polyline.
+  // --- 3. Internal pressure as a radial outward force. -----------------
+  // Constant hydrostatic pressure pushes every node away from the cell
+  // centroid. We do NOT use the local polyline normal here: once a fold
+  // appears, the polyline travels "backwards" through it and the local
+  // normal points *into* the cell, so pressure would deepen the fold
+  // instead of pushing it out. Radial-from-centroid stays correct under
+  // arbitrary deformation -- nodes tucked inside the shell sit radially
+  // closer to centroid than the convex bulk, so the force pushes them
+  // back outward and unfolds tucks.
+  const ccx = sim.cellCx, ccy = sim.cellCy;
   for (let i = 0; i < N; i++) {
-    const prev = nodes[(i - 1 + N) % N];
     const me = nodes[i];
-    const next = nodes[(i + 1) % N];
-    const tx = next.x - prev.x, ty = next.y - prev.y;
-    let nx = ty, ny = -tx;
+    let nx = me.x - ccx, ny = me.y - ccy;
     const nlen = Math.hypot(nx, ny);
     if (nlen > 0.001) {
       const inv = 1 / nlen;
