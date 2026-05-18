@@ -591,21 +591,35 @@ export function tick(sim, dt) {
   }
   sim.perimeter = perim;
 
-  // --- 10. Per-node map coordinates. ------------------------------------
-  // The 2D polyline is the *equator* (skirt) of a virtual sphere. South and
-  // north poles are conceptual points: ventral (touching substrate) and dorsal
-  // (exposed). So every node lives at mapV = 0.5 and mapU = its azimuth around
-  // the cell centroid. Latitude is interpolated in the renderer using the two
-  // virtual-pole readings computed below.
-  for (let i = 0; i < N; i++) {
-    const n = nodes[i];
-    const dx = n.x - cx, dy = n.y - cy;
-    // atan2 returns (-PI, PI]; shift to [0, 1).
-    let u = (Math.atan2(dy, dx) + Math.PI) / TWO_PI;
-    if (u < 0) u += 1;
-    if (u >= 1) u -= 1;
-    n.mapU = u;
-    n.mapV = 0.5;
+  // --- 10. Per-node map coordinates: ARC LENGTH along the polyline. -----
+  // The map's horizontal axis is now the actual cell-surface coordinate,
+  // not the world-frame azimuth around the centroid. Two nodes that share
+  // a world-frame angle (e.g. an outer shell node and a tucked-in folded
+  // node) now get DIFFERENT mapU values because they're at different
+  // positions along the perimeter. A brush stroke targets the specific
+  // membrane patch at that arc position, never both at once.
+  //
+  // Anchor: the south pole node (closest to the adhesion centroid). South
+  // sits at mapU = 0; we walk forward around the polyline accumulating
+  // arc length. Every node's mapU = its forward arc-distance from south
+  // divided by total perimeter.
+  if (perim > 0.001) {
+    const southI = bestI;
+    nodes[southI].mapU = 0;
+    nodes[southI].mapV = 0.5;
+    let arcAcc = 0;
+    for (let k = 1; k < N; k++) {
+      // edge that we cross to reach the kth-forward node
+      const edgeIdx = (southI + k - 1) % N;
+      arcAcc += segLen[edgeIdx];
+      const curI = (southI + k) % N;
+      let u = arcAcc / perim;
+      if (u >= 0.9999) u = 0.9999;
+      nodes[curI].mapU = u;
+      nodes[curI].mapV = 0.5;
+    }
+  } else {
+    for (let i = 0; i < N; i++) { nodes[i].mapU = i / N; nodes[i].mapV = 0.5; }
   }
 
   // --- 11. Virtual pole readings, sampled at the cell centroid. ---------
