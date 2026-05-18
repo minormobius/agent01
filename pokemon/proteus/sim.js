@@ -242,9 +242,12 @@ export function tick(sim, dt) {
   cx /= N; cy /= N;
   if (area > 1) {
     const scale = Math.sqrt(sim.targetArea / area);
-    // Soft correction (only ~20% per tick) so pressure-driven extension can
-    // hold while area conservation gently pulls excess back.
-    const corr = 1 + (scale - 1) * 0.20;
+    // Very soft correction (~4% per tick). Earlier 0.20 still pinned the
+    // cell within ~3px of rest even at max pressure -- it was clawing back
+    // almost everything pressure pushed out. At 0.04 the cell can take on
+    // visible shape change and still drift back to target area over a few
+    // seconds.
+    const corr = 1 + (scale - 1) * 0.04;
     for (let i = 0; i < N; i++) {
       const n = nodes[i];
       n.x = cx + (n.x - cx) * corr;
