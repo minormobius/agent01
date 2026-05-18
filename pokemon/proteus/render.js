@@ -334,17 +334,17 @@ function renderDebug(renderer, sim, { channels: enabled }) {
     ctx.beginPath();
     ctx.arc(n.x, n.y, dot, 0, TWO_PI);
     ctx.fill();
-    // Cortex deviation halo: blue ring around nodes the player is extending
-    // (low cortexK), warm ring around retracting nodes (high cortexK).
-    const dev = n.cortexK - 1.0;
-    if (dev < -0.05) {
-      ctx.strokeStyle = `rgba(120, 200, 255, ${Math.min(1, -dev * 1.4)})`;
+    // Directive halo: cool blue ring on nodes the player is extending
+    // (directive > 0), warm red ring on retracting nodes (directive < 0).
+    const dv = n.directive;
+    if (dv > 0.05) {
+      ctx.strokeStyle = `rgba(120, 200, 255, ${Math.min(1, dv * 1.4)})`;
       ctx.lineWidth = 1.5 / scale;
       ctx.beginPath();
       ctx.arc(n.x, n.y, dot * 2.2, 0, TWO_PI);
       ctx.stroke();
-    } else if (dev > 0.05) {
-      ctx.strokeStyle = `rgba(255, 140, 100, ${Math.min(1, dev * 1.0)})`;
+    } else if (dv < -0.05) {
+      ctx.strokeStyle = `rgba(255, 140, 100, ${Math.min(1, -dv * 1.4)})`;
       ctx.lineWidth = 1.5 / scale;
       ctx.beginPath();
       ctx.arc(n.x, n.y, dot * 2.2, 0, TWO_PI);

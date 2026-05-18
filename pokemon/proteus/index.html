@@ -166,10 +166,15 @@
       <label>brush <input type="range" id="brush" min="6" max="80" value="28"></label>
     </div>
     <div class="group">
-      <label>pressure <input type="range" id="pressure" min="0" max="3.0" step="0.01" value="1.0"></label>
+      <label>push <input type="range" id="push" min="0" max="6" step="0.05" value="2.0"></label>
+      <label>base <input type="range" id="base" min="0" max="0.5" step="0.005" value="0.05"></label>
+    </div>
+    <div class="group">
+      <label>springK <input type="range" id="springK" min="1" max="60" step="0.5" value="6"></label>
     </div>
     <div class="group">
       <label><input type="checkbox" id="show-debug"> debug</label>
+      <button id="reset-btn" style="background:#1a1f26;color:var(--fg);border:1px solid var(--border);padding:3px 9px;border-radius:3px;cursor:pointer;font:inherit;">reset</button>
     </div>
     <div id="status">tap = extend&nbsp;&nbsp;drag up = retract</div>
     <div id="hud" style="margin-left: 8px; color: var(--accent); font-size: 11px;"></div>
@@ -201,13 +206,11 @@
   };
   const showDebug = document.getElementById('show-debug');
   const brushSlider = document.getElementById('brush');
-  const pressureSlider = document.getElementById('pressure');
+  const pushSlider = document.getElementById('push');
+  const baseSlider = document.getElementById('base');
+  const springSlider = document.getElementById('springK');
+  const resetBtn = document.getElementById('reset-btn');
   const getBrushRadius = () => parseFloat(brushSlider.value);
-
-  // Initial pressure from slider, then live-update.
-  pressureSlider.addEventListener('input', () => {
-    sim.pressure = parseFloat(pressureSlider.value);
-  });
   const budgetFill = document.getElementById('budget-fill');
   const engulfCount = document.getElementById('engulf-count');
   const hud = document.getElementById('hud');
@@ -217,21 +220,35 @@
   // wraps the food, engulfment dumps material into sim.budget.
   const world = createWorld({ w: 800, h: 800, seed: 1729, level: 1 });
 
-  // Hidden cell, seeded near the chemistry hotspot.
-  const sim = createSim({
-    world,
-    N: 256,
-    radius: 60,
-    cx: world.suggestedStart.x,
-    cy: world.suggestedStart.y,
+  function makeCell() {
+    return createSim({
+      world,
+      N: 256,
+      radius: 60,
+      cx: world.suggestedStart.x,
+      cy: world.suggestedStart.y,
+    });
+  }
+  let sim = makeCell();
+  function applyTuning() {
+    sim.pushStrength = parseFloat(pushSlider.value);
+    sim.basePressure = parseFloat(baseSlider.value);
+    sim.springK = parseFloat(springSlider.value);
+  }
+  applyTuning();
+  pushSlider.addEventListener('input', applyTuning);
+  baseSlider.addEventListener('input', applyTuning);
+  springSlider.addEventListener('input', applyTuning);
+  resetBtn.addEventListener('click', () => {
+    sim = makeCell();
+    applyTuning();
   });
-  sim.pressure = parseFloat(pressureSlider.value);
 
   // Renderer owns the offscreen low-res grid, the texture flow layer, and a
   // cached top-down world bitmap used by the debug view.
   const renderer = createRenderer({ canvas, world });
 
-  // Pointer input writes cortex targets onto sim.nodes via tickInput().
+  // Pointer input writes directive targets onto sim.nodes via tickInput().
   const inputState = attachInput({ canvas, sim, getBrushRadius });
 
   function resize() {
@@ -276,7 +293,7 @@
       const rect = canvas.getBoundingClientRect();
       const dpr2 = rect.width > 0 ? canvas.width / rect.width : 1;
       const rad = parseFloat(brushSlider.value) * dpr2;
-      const extending = inputState.target < 1.0;
+      const extending = inputState.target > 0;
       const stroke = extending
         ? 'rgba(120, 200, 255, 0.85)'
         : 'rgba(255, 140, 100, 0.85)';
@@ -297,24 +314,26 @@
     const pct = Math.max(0, Math.min(1, sim.budget / sim.budgetMax));
     budgetFill.style.width = (pct * 100).toFixed(1) + '%';
     engulfCount.textContent = 'engulfed ' + sim.engulfedCount;
-    // Live HUD so we can see whether the sim is actually doing anything.
-    // Shows current pressure, mean radius, mean speed, max cortex deviation.
-    let rsum = 0, vmax = 0, cdev = 0;
+    // Live HUD. push/base = current sim parameters from sliders;
+    // R = mean cell radius; vmax = peak node speed; dir± = peak |directive|.
+    let rsum = 0, vmax = 0, ddev = 0;
     for (let i = 0; i < sim.N; i++) {
       const n = sim.nodes[i];
       const dx = n.x - sim.cellCx, dy = n.y - sim.cellCy;
       rsum += Math.hypot(dx, dy);
       const sp = Math.hypot(n.vx, n.vy);
       if (sp > vmax) vmax = sp;
-      const d = Math.abs(n.cortexK - 1);
-      if (d > cdev) cdev = d;
+      const d = Math.abs(n.directive);
+      if (d > ddev) ddev = d;
     }
     const rmean = rsum / sim.N;
     hud.textContent =
-      'P=' + sim.pressure.toFixed(2) +
+      'push=' + sim.pushStrength.toFixed(2) +
+      ' base=' + sim.basePressure.toFixed(3) +
+      ' K=' + sim.springK.toFixed(1) +
       ' R=' + rmean.toFixed(1) +
       ' vmax=' + vmax.toFixed(2) +
-      ' cortex±=' + cdev.toFixed(2) +
+      ' dir±=' + ddev.toFixed(2) +
       (sim.detached ? ' DETACHED' : '');
     requestAnimationFrame(frame);
   }

@@ -43,10 +43,11 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
       vx: 0, vy: 0,
       fx: 0, fy: 0,
       adhesion: 0, light: 0, chem: 0, tension: 0,
-      // Cortex stiffness. 1.0 = baseline cortical tension. Player input
-      // pushes this lower (extend, pressure wins locally) or higher
-      // (retract). Recovers toward 1.0 over a second or two.
-      cortexK: 1.0,
+      // Player input directive. -1 = full inward pull (retract this region),
+      // +1 = full outward push (extend pseudopod), 0 = no input. Recovers
+      // toward 0 over a second so taps fade naturally. The cell membrane is
+      // mechanically uniform; this is the entire input-to-force pipeline.
+      directive: 0,
       wrinkle: 0,
       // ~25% of nodes carry a slower retrograde counter-flow (Grebecki 1986).
       retroFlag: (i * 7) % 4 === 0,
@@ -88,20 +89,21 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
     perimeter0,
     targetArea: area0,
 
-    // Tuning constants. Adjusted so the cell feels viscous and slow.
-    springK: 60.0,
+    // Tuning constants. Live-editable from the toolbar.
+    springK: 6.0,             // uniform spring stiffness
     bendK: 0.18,
-    // Internal hydrostatic pressure. Every node feels a constant outward
-    // normal force of this magnitude. Cortex springs (variable per-node
-    // stiffness) resist; the cell is a balloon, and low-cortex regions
-    // bulge outward where pressure wins locally. Tuned so baseline strain
-    // stays below the materials-cycle tension threshold -- only player-
-    // weakened regions trigger material consumption.
-    pressure: 0.04,
-    cortexRecover: 0.6,      // per second, drift toward cortexK = 1.0
-    flowAlpha: 0.012,        // base anterograde mixing per tick
-    retroAlpha: 0.006,       // slower retrograde rate
-    detachThreshold: 4.0,    // sum-of-adhesion below which cell is "lifted"
+    // Small constant outward radial force on every node. Just enough to
+    // discourage folds; not enough to drive motion. Player input rides on
+    // top via pushStrength * directive.
+    basePressure: 0.05,
+    // Force coefficient for player-driven extension/retraction. f =
+    // basePressure + pushStrength * directive. With directive in [-1, +1],
+    // this caps the per-node player-force at +/- pushStrength.
+    pushStrength: 2.0,
+    directiveRecover: 1.0,    // per second, drift toward directive = 0
+    flowAlpha: 0.012,         // base anterograde mixing per tick
+    retroAlpha: 0.006,        // slower retrograde rate
+    detachThreshold: 4.0,     // sum-of-adhesion below which cell is "lifted"
 
     // Per-tick scratch (preallocated).
     segLen: new Float32Array(N),
@@ -153,23 +155,17 @@ export function tick(sim, dt) {
   const restLen = sim.perimeter0 / N;
   for (let i = 0; i < N; i++) { nodes[i].fx = 0; nodes[i].fy = 0; }
 
-  // Edge springs and per-node tension (smoothed local stretch magnitude).
+  // Edge springs. Stiffness is now uniform; the player input doesn't
+  // modulate spring K (it goes into a separate per-node directive force).
   for (let i = 0; i < N; i++) {
     const a = nodes[i], b = nodes[(i + 1) % N];
     let dx = b.x - a.x, dy = b.y - a.y;
     let len = Math.hypot(dx, dy);
     if (len < 0.001) len = 0.001;
-    // Edge rest length scales with the average restLenRatio of its endpoints.
-    // High ratio = this segment has been "fed" material and sits longer at rest
-    // (relaxed). Low ratio = membrane drained from this segment, sits tighter.
     const localRest = restLen * (a.restLenRatio + b.restLenRatio) * 0.5;
-    // Cortex stiffness varies per segment based on the average of endpoint
-    // cortexK. Low cortex = weak spring, lets internal pressure win locally
-    // and that region bulges out; high cortex = stiff spring, retracts.
-    const localK = sim.springK * (a.cortexK + b.cortexK) * 0.5;
     const stretch = (len - localRest) / localRest;
     a.tension = a.tension * 0.7 + Math.abs(stretch) * 0.3;
-    const f = localK * (len - localRest) / len;
+    const f = sim.springK * (len - localRest) / len;
     a.fx += dx * f; a.fy += dy * f;
     b.fx -= dx * f; b.fy -= dy * f;
   }
@@ -185,15 +181,12 @@ export function tick(sim, dt) {
     me.fy += (my - me.y) * sim.bendK;
   }
 
-  // --- 3. Internal pressure as a radial outward force. -----------------
-  // Constant hydrostatic pressure pushes every node away from the cell
-  // centroid. We do NOT use the local polyline normal here: once a fold
-  // appears, the polyline travels "backwards" through it and the local
-  // normal points *into* the cell, so pressure would deepen the fold
-  // instead of pushing it out. Radial-from-centroid stays correct under
-  // arbitrary deformation -- nodes tucked inside the shell sit radially
-  // closer to centroid than the convex bulk, so the force pushes them
-  // back outward and unfolds tucks.
+  // --- 3. Per-node force: small baseline outward + directive-driven push. -
+  // Baseline pressure (small) keeps the cell convex by gently pushing every
+  // node radially outward -- this is the "balloon" that resists folding.
+  // Player input adds a signed directive-driven force at brushed nodes:
+  // positive directive = extra outward push (extend), negative directive
+  // = inward pull (retract).
   const ccx = sim.cellCx, ccy = sim.cellCy;
   for (let i = 0; i < N; i++) {
     const me = nodes[i];
@@ -202,17 +195,17 @@ export function tick(sim, dt) {
     if (nlen > 0.001) {
       const inv = 1 / nlen;
       nx *= inv; ny *= inv;
-      me.fx += nx * sim.pressure;
-      me.fy += ny * sim.pressure;
+      const f = sim.basePressure + sim.pushStrength * me.directive;
+      me.fx += nx * f;
+      me.fy += ny * f;
     }
     me.nx = nx; me.ny = ny;
   }
 
-  // --- 4. Integrate. Adhesion damps velocity. ---------------------------
-  // Adhesion factor at 0.15 (down from 0.55): even max adhesion keeps 85%
-  // of velocity per tick. With this and the new pressure default, low-cortex
-  // regions produce visible extension over 1-2 seconds, not 30.
+  // --- 4. Integrate. Adhesion damps velocity. Cap |v| as a safety net so
+  //        ill-tuned parameters can't blow up to vmax=1000. -------------
   const dampBase = Math.pow(0.92, dt * 30);
+  const V_CAP = 8.0;
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
     n.vx += n.fx * dt;
@@ -220,10 +213,15 @@ export function tick(sim, dt) {
     const adhDamp = Math.pow(1 - n.adhesion * 0.15, dt * 30);
     n.vx *= adhDamp * dampBase;
     n.vy *= adhDamp * dampBase;
+    // Speed clamp.
+    const sp = Math.hypot(n.vx, n.vy);
+    if (sp > V_CAP) {
+      const s = V_CAP / sp;
+      n.vx *= s; n.vy *= s;
+    }
     let px = n.x + n.vx * dt * 30;
     let py = n.y + n.vy * dt * 30;
     if (world.isObstacle(px, py)) {
-      // Reflect velocity weakly, stay in place this step.
       n.vx *= -0.3; n.vy *= -0.3;
     } else {
       n.x = Math.max(2, Math.min(world.w - 2, px));
@@ -256,14 +254,13 @@ export function tick(sim, dt) {
   }
   sim.cellCx = cx; sim.cellCy = cy;
 
-  // --- 6. Cortex recovery: drift toward baseline 1.0. ------------------
-  // Player input pushes cortexK away from 1.0 (lower = extending pseudopod,
-  // higher = retracting). Without sustained input, every node relaxes back
-  // toward neutral.
-  const cortexRate = Math.min(1, sim.cortexRecover * dt);
+  // --- 6. Directive recovery: drift toward 0. ---------------------------
+  // Player input pushes directive away from 0 (positive = extend, negative
+  // = retract). Without sustained input, every node relaxes back to neutral.
+  const dirRate = Math.min(1, sim.directiveRecover * dt);
   for (let i = 0; i < N; i++) {
     const n = nodes[i];
-    n.cortexK += (1.0 - n.cortexK) * cortexRate;
+    n.directive += (0 - n.directive) * dirRate;
   }
 
   // --- 7. Membrane flow: advect readings + intents along the polyline.  -
@@ -327,7 +324,7 @@ export function tick(sim, dt) {
   // baseline membrane allocation), but engulfed food can push it temporarily
   // higher.
   // Materials cycle thresholds. TEN_THRESH must sit above the baseline
-  // strain induced by sim.pressure, or the cycle will drain budget on every
+  // strain induced by basePressure + active push, or the cycle would drain budget on every
   // node continuously.
   const TEN_THRESH = 0.35;
   const WRK_THRESH = 0.08;
