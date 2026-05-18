@@ -15,9 +15,9 @@
 //     space, with V centred on the equator (where the sensor nodes are).
 
 const RATE        = 4.0;     // per-second approach rate for cortexK -> target
-const CORTEX_LOW  = 0.05;    // extreme extend (very weak cortex)
-const CORTEX_MID  = 0.35;    // mild extend (default when held with no drag)
-const CORTEX_HIGH = 2.20;    // extreme retract (very stiff cortex)
+const CORTEX_LOW  = 0.01;    // extreme extend (nearly zero cortex)
+const CORTEX_MID  = 0.10;    // mild extend (default when held with no drag)
+const CORTEX_HIGH = 2.50;    // extreme retract (very stiff cortex)
 const DRAG_PX     = 60;      // CSS pixels of drag for full-strength input
 
 export function attachInput({ canvas, sim, getBrushRadius }) {

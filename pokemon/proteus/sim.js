@@ -89,7 +89,7 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
     targetArea: area0,
 
     // Tuning constants. Adjusted so the cell feels viscous and slow.
-    springK: 6.0,
+    springK: 60.0,
     bendK: 0.18,
     // Internal hydrostatic pressure. Every node feels a constant outward
     // normal force of this magnitude. Cortex springs (variable per-node
@@ -242,12 +242,12 @@ export function tick(sim, dt) {
   cx /= N; cy /= N;
   if (area > 1) {
     const scale = Math.sqrt(sim.targetArea / area);
-    // Very soft correction (~4% per tick). Earlier 0.20 still pinned the
-    // cell within ~3px of rest even at max pressure -- it was clawing back
-    // almost everything pressure pushed out. At 0.04 the cell can take on
-    // visible shape change and still drift back to target area over a few
-    // seconds.
-    const corr = 1 + (scale - 1) * 0.04;
+    // Very soft (~1% per tick). With springK at 60, cortical hoop tension
+    // now does most of the equilibrium work, so this just gently drags the
+    // cell back to baseline area over several seconds instead of clamping
+    // it down every frame. Earlier 0.04 was still eating the spring
+    // differential that gives cortex weakening its purchase.
+    const corr = 1 + (scale - 1) * 0.01;
     for (let i = 0; i < N; i++) {
       const n = nodes[i];
       n.x = cx + (n.x - cx) * corr;
