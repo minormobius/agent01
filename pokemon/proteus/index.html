@@ -172,6 +172,7 @@
       <label><input type="checkbox" id="show-debug"> debug</label>
     </div>
     <div id="status">tap = extend&nbsp;&nbsp;drag up = retract</div>
+    <div id="hud" style="margin-left: 8px; color: var(--accent); font-size: 11px;"></div>
   </div>
   <div id="stage">
     <canvas id="map"></canvas>
@@ -209,6 +210,7 @@
   });
   const budgetFill = document.getElementById('budget-fill');
   const engulfCount = document.getElementById('engulf-count');
+  const hud = document.getElementById('hud');
 
   // Hidden world. Level 1 = no obstacles, single food point that's the only
   // chem source, broad smooth substrate adhesion. Cell heads up the gradient,
@@ -295,6 +297,25 @@
     const pct = Math.max(0, Math.min(1, sim.budget / sim.budgetMax));
     budgetFill.style.width = (pct * 100).toFixed(1) + '%';
     engulfCount.textContent = 'engulfed ' + sim.engulfedCount;
+    // Live HUD so we can see whether the sim is actually doing anything.
+    // Shows current pressure, mean radius, mean speed, max cortex deviation.
+    let rsum = 0, vmax = 0, cdev = 0;
+    for (let i = 0; i < sim.N; i++) {
+      const n = sim.nodes[i];
+      const dx = n.x - sim.cellCx, dy = n.y - sim.cellCy;
+      rsum += Math.hypot(dx, dy);
+      const sp = Math.hypot(n.vx, n.vy);
+      if (sp > vmax) vmax = sp;
+      const d = Math.abs(n.cortexK - 1);
+      if (d > cdev) cdev = d;
+    }
+    const rmean = rsum / sim.N;
+    hud.textContent =
+      'P=' + sim.pressure.toFixed(2) +
+      ' R=' + rmean.toFixed(1) +
+      ' vmax=' + vmax.toFixed(2) +
+      ' cortex±=' + cdev.toFixed(2) +
+      (sim.detached ? ' DETACHED' : '');
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
