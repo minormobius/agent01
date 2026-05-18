@@ -106,20 +106,21 @@ export function tickInput(canvas, sim, state, getBrushRadius, dt) {
   if (brushPxRad < 2) return;
 
   const cu = state.anchor.px / W;
-  const cv = state.anchor.py / H;
   const sigU = Math.max(brushPxRad / W, 1e-3);
-  const sigV = Math.max(brushPxRad / H, 1e-3);
   const target = state.target;
   const stepFactor = 1 - Math.exp(-RATE * dt);
 
+  // The brush is 1D over azimuth (mapU). All sensor nodes live on the
+  // equator; mapV is a render-side pole interpolation, not a real sensor
+  // dimension. Gating input on the tap's V position silently rejected
+  // every tap that wasn't right at the horizontal centerline of the map.
   const nodes = sim.nodes;
   for (let i = 0; i < sim.N; i++) {
     const n = nodes[i];
     let du = n.mapU - cu;
     if (du > 0.5)  du -= 1;
     if (du < -0.5) du += 1;
-    const dv = 0.5 - cv;
-    const r2 = (du * du) / (sigU * sigU) + (dv * dv) / (sigV * sigV);
+    const r2 = (du * du) / (sigU * sigU);
     if (r2 > 6) continue;
     const w = Math.exp(-0.5 * r2);
     // Pull cortexK toward target. Brush strength weights the approach so the
