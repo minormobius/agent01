@@ -157,8 +157,8 @@
   <div id="topbar">
     <span class="title">proteus</span>
     <div class="group">
-      <label><input type="checkbox" data-channel="adhesion" checked><span class="swatch sw-adhesion"></span>adhesion</label>
-      <label><input type="checkbox" data-channel="light" checked><span class="swatch sw-light"></span>light</label>
+      <label><input type="checkbox" data-channel="adhesion"><span class="swatch sw-adhesion"></span>adhesion</label>
+      <label><input type="checkbox" data-channel="light"><span class="swatch sw-light"></span>light</label>
       <label><input type="checkbox" data-channel="chem" checked><span class="swatch sw-chem"></span>chemistry</label>
       <label><input type="checkbox" data-channel="tension" checked><span class="swatch sw-tension"></span>tension</label>
     </div>
@@ -171,6 +171,7 @@
     </div>
     <div class="group">
       <label>springK <input type="range" id="springK" min="1" max="60" step="0.5" value="6"></label>
+      <label>γ <input type="range" id="bendK" min="0" max="2" step="0.01" value="0.5"></label>
     </div>
     <div class="group">
       <label><input type="checkbox" id="show-debug"> debug</label>
@@ -209,6 +210,7 @@
   const pushSlider = document.getElementById('push');
   const baseSlider = document.getElementById('base');
   const springSlider = document.getElementById('springK');
+  const bendSlider = document.getElementById('bendK');
   const resetBtn = document.getElementById('reset-btn');
   const getBrushRadius = () => parseFloat(brushSlider.value);
   const budgetFill = document.getElementById('budget-fill');
@@ -234,11 +236,13 @@
     sim.pushStrength = parseFloat(pushSlider.value);
     sim.basePressure = parseFloat(baseSlider.value);
     sim.springK = parseFloat(springSlider.value);
+    sim.bendK = parseFloat(bendSlider.value);
   }
   applyTuning();
   pushSlider.addEventListener('input', applyTuning);
   baseSlider.addEventListener('input', applyTuning);
   springSlider.addEventListener('input', applyTuning);
+  bendSlider.addEventListener('input', applyTuning);
   resetBtn.addEventListener('click', () => {
     sim = makeCell();
     applyTuning();
@@ -331,9 +335,12 @@
       'push=' + sim.pushStrength.toFixed(2) +
       ' base=' + sim.basePressure.toFixed(3) +
       ' K=' + sim.springK.toFixed(1) +
+      ' γ=' + sim.bendK.toFixed(2) +
+      ' N=' + sim.N +
       ' R=' + rmean.toFixed(1) +
       ' vmax=' + vmax.toFixed(2) +
       ' dir±=' + ddev.toFixed(2) +
+      ' fed=' + sim.engulfedCount +
       (sim.detached ? ' DETACHED' : '');
     requestAnimationFrame(frame);
   }

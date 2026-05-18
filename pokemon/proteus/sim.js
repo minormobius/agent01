@@ -11,10 +11,10 @@
 
 const TWO_PI = Math.PI * 2;
 
-// Subtract a Gaussian bump from a Float32Array field in-place. Used to dissolve
-// the chem gradient at a consumed food site so the cell stops being pulled
-// toward empty space.
-function dissolveChem(world, fx, fy, radius) {
+// Multiply the chem field down inside a radius. Used during food dissipation
+// so the gradient fades gradually rather than vanishing the instant the cell
+// engulfs something. rate is per-call; call repeatedly each tick.
+function decayChem(world, fx, fy, radius, rate) {
   const r2 = radius * radius;
   const x0 = Math.max(0, Math.floor(fx - radius));
   const y0 = Math.max(0, Math.floor(fy - radius));
@@ -26,10 +26,58 @@ function dissolveChem(world, fx, fy, radius) {
       const d2 = dx * dx + dy * dy;
       if (d2 < r2) {
         const fall = 1 - d2 / r2;
-        world.chem[y * world.w + x] *= 1 - fall * 0.97;
+        world.chem[y * world.w + x] *= 1 - fall * rate;
       }
     }
   }
+}
+
+// Add a Gaussian-shaped chem hotspot. Used when respawning food.
+function addChemHotspot(world, fx, fy, radius, amp) {
+  const sigma2 = (radius * radius) * 0.25;
+  const x0 = Math.max(0, Math.floor(fx - radius));
+  const y0 = Math.max(0, Math.floor(fy - radius));
+  const x1 = Math.min(world.w, Math.ceil(fx + radius));
+  const y1 = Math.min(world.h, Math.ceil(fy + radius));
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const dx = x - fx, dy = y - fy;
+      const d2 = dx * dx + dy * dy;
+      const f = amp * Math.exp(-d2 / sigma2);
+      const idx = y * world.w + x;
+      const v = world.chem[idx] + f;
+      world.chem[idx] = v > 1 ? 1 : v;
+    }
+  }
+}
+
+// Spawn a new food point at a position far from the cell and from any other
+// extant food. Adds the corresponding chem hotspot.
+function spawnFood(world, sim) {
+  const cx = sim.cellCx, cy = sim.cellCy;
+  let best = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const x = 80 + Math.random() * (world.w - 160);
+    const y = 80 + Math.random() * (world.h - 160);
+    let dmin = Math.hypot(x - cx, y - cy);
+    for (const f of world.food) {
+      if (f.gone) continue;
+      const d = Math.hypot(x - f.x, y - f.y);
+      if (d < dmin) dmin = d;
+    }
+    if (!best || dmin > best.score) best = { x, y, score: dmin };
+  }
+  if (!best) return;
+  world.food.push({
+    x: best.x, y: best.y,
+    value: 0.4,
+    consumed: false,
+    gone: false,
+    dissipating: 0,
+    lastWinding: 0,
+    r: 14,
+  });
+  addChemHotspot(world, best.x, best.y, 160, 1.0);
 }
 
 export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
@@ -91,7 +139,12 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
 
     // Tuning constants. Live-editable from the toolbar.
     springK: 6.0,             // uniform spring stiffness
-    bendK: 0.18,
+    // Bending / curvature stiffness. Acts like discrete Laplace surface
+    // tension -- pulls each node toward the midpoint of its neighbors with
+    // a force proportional to its displacement from that midpoint, i.e. to
+    // local curvature. Sharp tips have large displacement -> strong inward
+    // pull -> the tip blunts. Live slider in the toolbar.
+    bendK: 0.5,
     // Small constant outward radial force on every node. Just enough to
     // discourage folds; not enough to drive motion. Player input rides on
     // top via pushStrength * directive.
@@ -136,7 +189,8 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
 
 // Single simulation step. dt is in seconds.
 export function tick(sim, dt) {
-  const { nodes, world, N } = sim;
+  const { nodes, world } = sim;
+  let N = sim.N;     // mutable: tectonics can splice nodes within this tick
 
   // --- 1. Sample world fields at each node's current position. ----------
   for (let i = 0; i < N; i++) {
@@ -359,34 +413,130 @@ export function tick(sim, dt) {
     n.restLenRatio += (1.0 - n.restLenRatio) * 0.05 * dt;
   }
 
-  // --- 7c. Food engulfment. --------------------------------------------
-  // Winding number of the polyline around each unconsumed food point. Food is
-  // "engulfed" when |winding| >= 0.75 (mostly enclosed). Engulfment dumps
-  // food.value into the budget and dissolves the local chem field so the
-  // gradient stops pointing at empty space.
+  // --- 7c. Food engulfment + dissipation + respawn. ---------------------
+  // Winding number of the polyline around each unconsumed food point. Food
+  // is "engulfed" when |winding| >= 0.75. Engulfment dumps food.value into
+  // the budget AND grows targetArea / perimeter0 so the cell physically
+  // wants to be bigger (driving tectonic splits as it stretches). After
+  // engulfment, food enters a dissipation phase: its chem gradient fades
+  // gradually over FOOD_DISSIPATE_T. When fully dissipated, food.gone is
+  // set and a fresh food point spawns somewhere else.
   if (world.food && world.food.length) {
+    const FOOD_DISSIPATE_T = 1.5;     // seconds
+    const FOOD_GROWTH = 0.08;         // 8% area gain per engulfment
     for (const f of world.food) {
-      if (f.consumed) continue;
-      let total = 0;
-      for (let i = 0; i < N; i++) {
-        const a = nodes[i], b = nodes[(i + 1) % N];
-        const aA = Math.atan2(a.y - f.y, a.x - f.x);
-        const aB = Math.atan2(b.y - f.y, b.x - f.x);
-        let d = aB - aA;
-        if (d > Math.PI)  d -= TWO_PI;
-        else if (d < -Math.PI) d += TWO_PI;
-        total += d;
-      }
-      const winding = total / TWO_PI;
-      f.lastWinding = winding;
-      if (Math.abs(winding) >= 0.75) {
-        f.consumed = true;
-        sim.budget = Math.min(sim.budgetMax, sim.budget + f.value);
-        sim.engulfedCount++;
-        // Dissolve chem source so the cell doesn't keep heading for empty space.
-        dissolveChem(world, f.x, f.y, 90);
+      if (f.gone) continue;
+      if (!f.consumed) {
+        // Compute winding number to check if the polyline has wrapped this point.
+        let total = 0;
+        const Nnow = nodes.length;
+        for (let i = 0; i < Nnow; i++) {
+          const a = nodes[i], b = nodes[(i + 1) % Nnow];
+          const aA = Math.atan2(a.y - f.y, a.x - f.x);
+          const aB = Math.atan2(b.y - f.y, b.x - f.x);
+          let d = aB - aA;
+          if (d > Math.PI)  d -= TWO_PI;
+          else if (d < -Math.PI) d += TWO_PI;
+          total += d;
+        }
+        const winding = total / TWO_PI;
+        f.lastWinding = winding;
+        if (Math.abs(winding) >= 0.75) {
+          f.consumed = true;
+          f.dissipating = FOOD_DISSIPATE_T;
+          sim.budget = Math.min(sim.budgetMax, sim.budget + f.value);
+          sim.engulfedCount++;
+          sim.targetArea  *= (1 + FOOD_GROWTH);
+          sim.perimeter0  *= Math.sqrt(1 + FOOD_GROWTH);
+        }
+      } else if (f.dissipating > 0) {
+        // Gradual chem fade. Radius grows slightly so the dissipation is
+        // "outward diffusing" rather than localized erosion.
+        f.dissipating -= dt;
+        const t = 1 - Math.max(0, f.dissipating) / FOOD_DISSIPATE_T;
+        const radius = 50 + t * 120;
+        decayChem(world, f.x, f.y, radius, Math.min(1, 2.4 * dt));
+        if (f.dissipating <= 0) {
+          f.gone = true;
+          spawnFood(world, sim);
+        }
       }
     }
+  }
+
+  // --- 7d. Tectonics: merge close nodes, split far ones. ----------------
+  // One operation per tick (stable, no oscillation). Find the single best
+  // candidate edge:
+  //   - longest edge above SPLIT_FACTOR * rest -> split (insert new node)
+  //   - shortest edge below MERGE_FACTOR * rest -> merge (collapse pair)
+  // Splits cost SPLIT_COST from the budget; merges refund MERGE_REWARD.
+  // This is how cell mass cycles: wrinkle drains into budget, budget pays
+  // for splits when membrane stretches, merges return material at the rear.
+  {
+    const Nnow = nodes.length;
+    const baseRestLen = sim.perimeter0 / Nnow;
+    const MIN_NODES = 64;
+    const MAX_NODES = 1024;
+    const MERGE_FACTOR = 0.45;
+    const SPLIT_FACTOR = 2.20;
+    const MERGE_REWARD = 0.025;
+    const SPLIT_COST = 0.04;
+
+    let bestSplit = null, bestMerge = null;
+    for (let i = 0; i < Nnow; i++) {
+      const j = (i + 1) % Nnow;
+      const a = nodes[i], b = nodes[j];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len > baseRestLen * SPLIT_FACTOR && sim.budget > SPLIT_COST && Nnow < MAX_NODES) {
+        if (!bestSplit || len > bestSplit.len) bestSplit = { i, j, len };
+      } else if (len < baseRestLen * MERGE_FACTOR && Nnow > MIN_NODES) {
+        if (!bestMerge || len < bestMerge.len) bestMerge = { i, j, len };
+      }
+    }
+    // Prefer split (growth) when available.
+    const op = bestSplit || bestMerge;
+    if (op) {
+      if (op === bestSplit) {
+        const a = nodes[op.i], b = nodes[op.j];
+        const newN = {
+          x: (a.x + b.x) * 0.5,
+          y: (a.y + b.y) * 0.5,
+          vx: (a.vx + b.vx) * 0.5,
+          vy: (a.vy + b.vy) * 0.5,
+          fx: 0, fy: 0,
+          adhesion: (a.adhesion + b.adhesion) * 0.5,
+          light:    (a.light    + b.light)    * 0.5,
+          chem:     (a.chem     + b.chem)     * 0.5,
+          tension:  (a.tension  + b.tension)  * 0.5,
+          directive:(a.directive + b.directive) * 0.5,
+          wrinkle:  (a.wrinkle  + b.wrinkle)  * 0.5,
+          restLenRatio: 1.0,
+          retroFlag: (Nnow * 7) % 4 === 0,
+          mapU: 0, mapV: 0.5, _proj: 0, _perp: 0, nx: 0, ny: 0,
+        };
+        nodes.splice(op.j === 0 ? nodes.length : op.j, 0, newN);
+        sim.budget = Math.max(0, sim.budget - SPLIT_COST);
+      } else {
+        const a = nodes[op.i], b = nodes[op.j];
+        // Collapse into a; b is removed. Material is recycled.
+        a.x = (a.x + b.x) * 0.5;
+        a.y = (a.y + b.y) * 0.5;
+        a.vx = (a.vx + b.vx) * 0.5;
+        a.vy = (a.vy + b.vy) * 0.5;
+        a.adhesion = (a.adhesion + b.adhesion) * 0.5;
+        a.light    = (a.light    + b.light)    * 0.5;
+        a.chem     = (a.chem     + b.chem)     * 0.5;
+        a.tension  = (a.tension  + b.tension)  * 0.5;
+        a.directive = (a.directive + b.directive) * 0.5;
+        a.wrinkle  = Math.min(1, a.wrinkle + b.wrinkle * 0.5);
+        a.restLenRatio = (a.restLenRatio + b.restLenRatio) * 0.5;
+        if (op.j === 0) nodes.shift();
+        else nodes.splice(op.j, 1);
+        sim.budget = Math.min(sim.budgetMax, sim.budget + MERGE_REWARD);
+      }
+    }
+    sim.N = nodes.length;
+    N = nodes.length;     // refresh local for the rest of the tick
   }
 
   // --- 8. South pole: adhesion-weighted centroid -> nearest node. -------
@@ -430,6 +580,8 @@ export function tick(sim, dt) {
 
   // --- 9. Segment lengths + perimeter (the renderer's wrinkle pass uses them
   //        indirectly through tension; we recompute here for the debug view). -
+  // Resize the preallocated segLen if tectonics has grown the cell.
+  if (sim.segLen.length < N) sim.segLen = new Float32Array(N * 2);
   const segLen = sim.segLen;
   let perim = 0;
   for (let i = 0; i < N; i++) {
