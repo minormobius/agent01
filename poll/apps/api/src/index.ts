@@ -341,7 +341,12 @@ async function handleClientMetadata(env: Env): Promise<Response> {
     client_name: 'ATPolls',
     client_uri: 'https://poll.mino.mobi',
     redirect_uris: ['https://poll.mino.mobi/api/auth/oauth/callback'],
-    scope: 'atproto transition:generic',
+    // Scopes the client may request at authorize time. The user picks
+    // which subset they grant. transition:generic stays for poll's
+    // "Post to Bluesky" feature (writes app.bsky.feed.post records).
+    // The narrow repo: scopes let /mmo ask for ONLY write-create on
+    // its single NSID instead of full repo write.
+    scope: 'atproto transition:generic repo:com.minomobi.mmopaint.stroke?action=create',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',

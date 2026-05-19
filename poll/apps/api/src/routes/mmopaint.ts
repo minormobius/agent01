@@ -25,7 +25,12 @@ import { startOAuth } from '../oauth/flow.js';
 import { createDPoPProof } from '../oauth/jwt.js';
 
 const STROKE_COLLECTION = 'com.minomobi.mmopaint.stroke';
-const REQUIRED_SCOPE    = 'transition:generic';
+// The narrow OAuth scope we request: write-create permission for just
+// this single NSID, nothing else. Granular per-NSID scopes shipped on
+// bsky.social in August 2025. transition:generic is still accepted as
+// a fallback for sessions created before this narrowed scope existed.
+const NARROW_SCOPE      = 'repo:com.minomobi.mmopaint.stroke?action=create';
+const FALLBACK_SCOPE    = 'transition:generic';
 const VALID_TOOLS       = new Set(['brush', 'eraser', 'fill']);
 const SUBMIT_COOLDOWN_MS = 200;
 const MAX_POINTS         = 600;
@@ -87,7 +92,8 @@ async function mmoInfo(env: Env): Promise<Response> {
   const anchor    = canvasAnchorUri(env);
   return json({
     collection:         STROKE_COLLECTION,
-    required_scope:     REQUIRED_SCOPE,
+    required_scope:     NARROW_SCOPE,
+    fallback_scope:     FALLBACK_SCOPE,
     jetstream_url:      jetstream,
     canvas:             'global',
     width:              1024,
@@ -102,7 +108,7 @@ async function mmoInfo(env: Env): Promise<Response> {
   });
 }
 
-// ---- /oauth/start — request transition:generic scope --------------
+// ---- /oauth/start — request the narrow per-NSID write scope --------
 
 async function startMmoOAuth(request: Request, env: Env): Promise<Response> {
   let body: { handle?: string; returnTo?: string };
@@ -121,8 +127,8 @@ async function startMmoOAuth(request: Request, env: Env): Promise<Response> {
     const did = `did:plc:mock${handle.replace(/\./g, '')}`;
     await env.DB.prepare(
       `INSERT INTO sessions (session_id, did, handle, auth_method, oauth_scope, expires_at)
-       VALUES (?, ?, ?, 'oauth', 'atproto transition:generic', datetime('now', '+24 hours'))`
-    ).bind(fakeSession, did, handle).run();
+       VALUES (?, ?, ?, 'oauth', ?, datetime('now', '+24 hours'))`
+    ).bind(fakeSession, did, handle, `atproto ${NARROW_SCOPE}`).run();
     const sep = returnTo.includes('#') ? '&' : '#';
     return json({
       authUrl: `${returnTo}${sep}session=${encodeURIComponent(fakeSession)}&did=${encodeURIComponent(did)}&handle=${encodeURIComponent(handle)}`,
@@ -131,8 +137,10 @@ async function startMmoOAuth(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    // Key difference from /api/draw/oauth/start: we ask for write scope.
-    const result = await startOAuth(env, handle, returnTo, 'atproto transition:generic');
+    // The narrowest scope that lets us create stroke records on the
+    // user's PDS: write-create on just com.minomobi.mmopaint.stroke,
+    // nothing else on their account.
+    const result = await startOAuth(env, handle, returnTo, `atproto ${NARROW_SCOPE}`);
     return json({ authUrl: result.authUrl });
   } catch (err: any) {
     console.error('[mmo] OAuth start error:', err.message);
@@ -146,13 +154,22 @@ async function submitStroke(request: Request, env: Env): Promise<Response> {
   const session = await getSession(request, env);
   if (!session) return json({ error: 'not authenticated' }, 401);
 
-  // Scope gate — atproto alone isn't enough to write to the user's repo.
+  // Scope gate — accept either the narrow per-NSID scope we now request
+  // OR the broader transition:generic that older sessions may carry.
   const scope = session.oauthScope || '';
-  if (!scope.split(/\s+/).includes(REQUIRED_SCOPE)) {
+  const parts = scope.split(/\s+/);
+  const hasNarrow = parts.some(p =>
+    p === NARROW_SCOPE ||
+    // tolerate scope strings the AS may have canonicalised (param order
+    // can vary, action= might be combined with other actions).
+    p === 'repo:com.minomobi.mmopaint.stroke' ||
+    p.startsWith('repo:com.minomobi.mmopaint.stroke?'));
+  const hasFallback = parts.includes(FALLBACK_SCOPE);
+  if (!hasNarrow && !hasFallback) {
     return json({
-      error: 'session lacks write scope — sign in again to grant transition:generic',
+      error: 'session lacks write scope — sign in again',
       scope,
-      required: REQUIRED_SCOPE,
+      required: NARROW_SCOPE,
     }, 403);
   }
 
