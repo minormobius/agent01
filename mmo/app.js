@@ -445,10 +445,19 @@ async function fetchInfo() {
   }
 }
 
-// Apply a stroke record (from list, Jetstream, or local-commit echo) to
-// the bitmap and stats. Deduped via seenRkeys so the same record arriving
-// from multiple paths (local commit + Jetstream broadcast) doesn't double-count.
-const seenRkeys = new Set();
+// Two separate dedup sets so a remote stroke that crosses our in-progress
+// stroke doesn't permanently desync our view from canonical:
+//
+//   countedRkeys  — stats (strokeCount, contributors) counted once per rkey.
+//   paintedRkeys  — bitmap painted at most once per rkey.
+//
+// Local-commit path passes opts.skipPaint=true and adds the rkey to
+// countedRkeys only, NOT paintedRkeys. That way when Jetstream echoes our
+// own stroke back ~1-2s later, applyStrokeToBitmap runs and overpaints any
+// intervening strokes that landed on our in-progress pixels during the
+// drag. Without this, our view diverges from everyone else's.
+const countedRkeys = new Set();
+const paintedRkeys = new Set();
 
 function recordOnThisCanvas(record) {
   // New strongRef-shaped: record.canvas = { uri: <anchor> }
@@ -465,23 +474,28 @@ function recordOnThisCanvas(record) {
 function applyRecord(rkey, record, opts) {
   if (!record || !recordOnThisCanvas(record)) return;
   if (!record.tool || !record.color || !record.size || !Array.isArray(record.points)) return;
-  if (rkey && seenRkeys.has(rkey)) return;
-  if (rkey) seenRkeys.add(rkey);
 
-  // skipPaint = true when the caller already painted locally (saves a redundant
-  // canvas draw, although applyStrokeToBitmap would be pixel-identical anyway).
-  if (!opts || !opts.skipPaint) {
+  // Paint: skip if caller already painted locally OR we've already painted
+  // this rkey from a previous path.
+  const wantPaint = !opts || !opts.skipPaint;
+  if (wantPaint && rkey && !paintedRkeys.has(rkey)) {
+    paintedRkeys.add(rkey);
     applyStrokeToBitmap(record.tool, record.color, record.size, record.points);
   }
-  if (rkey && (!state.latestRkey || rkey > state.latestRkey)) state.latestRkey = rkey;
-  state.strokeCount++;
-  const did = record.contributor || (opts && opts.contributor) || "";
-  const handle = record.contributorHandle || (opts && opts.contributorHandle) || "";
-  if (did) {
-    const cur = state.contributors.get(did) || { handle, count: 0 };
-    cur.count++;
-    if (handle && !cur.handle) cur.handle = handle;
-    state.contributors.set(did, cur);
+
+  // Stats: counted at most once per rkey.
+  if (rkey && !countedRkeys.has(rkey)) {
+    countedRkeys.add(rkey);
+    if (!state.latestRkey || rkey > state.latestRkey) state.latestRkey = rkey;
+    state.strokeCount++;
+    const did    = record.contributor       || (opts && opts.contributor)       || "";
+    const handle = record.contributorHandle || (opts && opts.contributorHandle) || "";
+    if (did) {
+      const cur = state.contributors.get(did) || { handle, count: 0 };
+      cur.count++;
+      if (handle && !cur.handle) cur.handle = handle;
+      state.contributors.set(did, cur);
+    }
   }
 }
 
@@ -588,7 +602,7 @@ function connectJetstream() {
   // indexing lag (seconds to minutes); Jetstream is near-real-time but
   // doesn't replay without a cursor. Asking for the last 10 minutes
   // catches the seam: anything recent that hasn't landed in Constellation
-  // yet still reaches us via the firehose. seenRkeys dedups overlap.
+  // yet still reaches us via the firehose. paintedRkeys dedups paint, countedRkeys dedups stats.
   const backfillUs = (Date.now() - 10 * 60 * 1000) * 1000;
   const url = `${state.jetstreamUrl}&cursor=${backfillUs}`;
   console.log("[mmo] jetstream connecting (with 10m backfill):", url);
@@ -653,7 +667,7 @@ function applyJetstreamEvent(m) {
   if (c.operation !== "create") return;
   const rec = c.record;
   const rkey = c.rkey || "";
-  // applyRecord dedups via seenRkeys — safe to re-apply our own writes
+  // applyRecord dedups paint via paintedRkeys, stats via countedRkeys — safe to re-apply our own writes
   // and to overlap with anything that came through Constellation.
   applyRecord(rkey, {
     ...rec,
@@ -1019,7 +1033,7 @@ async function boot() {
   // Step 3: replay backlog via Constellation. Constellation lags the
   // firehose by some seconds, so very recent writes may be missing
   // from this set; the 10-minute cursor backfill on the Jetstream
-  // connection (which is now buffering) catches them. seenRkeys
+  // connection (which is now buffering) catches them. paintedRkeys+countedRkeys
   // dedups any overlap.
   await replayInitial();
 
