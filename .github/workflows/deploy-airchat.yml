@@ -1,0 +1,68 @@
+name: Deploy Airchat
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/sentence-editing-drill-*'
+    paths:
+      - 'airchat/**'
+      - 'poll/apps/api/migrations/0018_airchat.sql'
+      - '.github/workflows/deploy-airchat.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: airchat
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Run D1 migrations (airchat tables on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          for f in ../poll/apps/api/migrations/0018_airchat.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://airchat.mino.mobi/api/airchat/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "✓ worker is live"
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 4
+          done
+          echo "⚠️ worker didn't respond to /api/airchat/health within 20s — edge propagation may be slow, continuing anyway."

@@ -16,6 +16,7 @@ Three systems are under active production management on this branch:
 ### 2. SimCluster Feed (`workers/feed/`) + Zoom Viewer (`zoom/`) — Bluesky Feed Generator
 ### 3. Bluesky Post Pipeline (`src/post_thread.py` + `time/posts/`) — Multi-Account Publishing
 ### 4. Rite (`rite/`) — Sentence Editing Drill + Fodder Crowdsourcing
+### 5. Airchat (`airchat/`) — Voice-first social on ATProto
 
 Details for each follow in dedicated sections below.
 
@@ -403,6 +404,73 @@ Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from 
 
 ---
 
+## Project 5: Airchat (`airchat/`) — Voice-First Social
+
+**Live at**: `airchat.mino.mobi`
+**Stack**: Cloudflare Worker + D1 + OpenAI Whisper
+**Deploy**: `.github/workflows/deploy-airchat.yml`
+
+### What It Does
+
+Voice posts on ATProto. Browser records audio (MediaRecorder API), worker proxies the audio through OpenAI Whisper for transcription, and the worker uploads the audio as a blob to the user's PDS + writes a `com.minomobi.airchat.voice` record referencing the blob. Reads are public (D1 cache of every whitelisted user's records, audio served via the author's PDS `com.atproto.sync.getBlob`). Writes are gated to a small whitelist.
+
+### Architecture
+
+```
+Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)
+                                       ├── OpenAI Whisper (transcribe)
+                                       ├── user's PDS (uploadBlob + createRecord)
+                                       └── D1 (sessions + whitelist + feed cache)
+```
+
+### Auth (v1)
+
+App-password against the user's PDS via `com.atproto.server.createSession`. Worker stores the PDS access + refresh JWTs server-side in `airchat_sessions`; browser only holds an opaque `airchat_sid` httpOnly cookie (the BFF pattern). No PDS token ever reaches the browser. OAuth port (DPoP + PAR + private_key_jwt, mirroring poll's flow) is a follow-up.
+
+### Lexicon
+
+`com.minomobi.airchat.voice` — schema doc at `airchat/lexicons/voice.json`. Fields: `audio` (blob ref), `text` (transcript), `duration` (sec), `createdAt`, optional `reply.{parent,root}`, optional `lang[]`.
+
+The bsky appview ignores non-`app.bsky.*` collections, so these records don't enter the firehose-indexable space. They live on the user's own PDS, paid for by the user; the blob is pinned as long as the record references it. We pay $0 for storage.
+
+### Routes
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/airchat/health` | Health + bindings check |
+| GET | `/api/airchat/whitelist/check` | Public: is this DID on the whitelist? Optional session-aware |
+| POST | `/api/airchat/auth/start` | App-password sign-in; returns session cookie |
+| GET | `/api/airchat/auth/me` | Current session info |
+| POST | `/api/airchat/auth/logout` | Drop session |
+| POST | `/api/airchat/transcribe` | Audio body → Whisper → transcript |
+| POST | `/api/airchat/post` | Multipart (audio + meta) → uploadBlob + createRecord + cache |
+| GET | `/api/airchat/feed` | Public: feed of all whitelisted users' voices (paginated) |
+| GET | `/api/airchat/voice` | Public: single voice record by URI |
+| POST | `/api/airchat/admin/whitelist/{add,remove}` | Admin (X-Admin-Key) |
+| GET | `/api/airchat/admin/whitelist/list` | Admin |
+
+### D1 Tables (on shared `atpolls-db`)
+
+- `airchat_whitelist (did PRIMARY KEY, handle, added_at, added_by, note)`
+- `airchat_sessions (session_id PRIMARY KEY, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at, created_at, last_seen_at)`
+- `airchat_voices (uri PRIMARY KEY, did, rkey, cid, pds_url, audio_cid, audio_mime, audio_size, duration_sec, text, reply_root_uri, reply_parent_uri, created_at, indexed_at)`
+
+Migration: `poll/apps/api/migrations/0018_airchat.sql`.
+
+### Required Secrets
+
+- `OPENAI_API_KEY` — Whisper (`whisper-1` model)
+- `ADMIN_KEY` — gates `/api/airchat/admin/*` for whitelist mgmt
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already in GH Actions
+
+### Cost notes
+
+- Whisper: $0.006/min. At 100 posts/day × 30s avg → ~$0.30/day. Per-request hard cap of 16 MB (Whisper's ceiling is 25 MB).
+- Audio storage: $0 to us (lives on poster's PDS).
+- Workers/D1: comfortably under free tier.
+
+---
+
 ## Other Workers (Reference)
 
 Not actively managed but documented for context:
@@ -481,6 +549,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 |----------|---------|------------|
 | `deploy-poll.yml` | Push to `main` (poll/**) or manual | Cloudflare Worker + Pages |
 | `deploy-rite.yml` | Push to `main` or `claude/sentence-editing-drill-*` (rite/**) or manual | D1 migration + Cloudflare Worker (rite.mino.mobi) |
+| `deploy-airchat.yml` | Push to `main` or `claude/sentence-editing-drill-*` (airchat/**) or manual | D1 migration + Cloudflare Worker (airchat.mino.mobi) |
 | `fetch-lexicons.yml` | Push to scripts/fetch-lexicons.mjs, monthly cron, or manual | Downloads NRC / AFINN / Concreteness / SUBTLEX-US, commits JSON to `rite/lexicon/data/` |
 | `post-to-bluesky.yml` | Push to `time/posts/` | Bluesky (3 accounts) |
 | `publish-whtwnd.yml` | Push to `time/entries/` | PDS (WhiteWind records) |

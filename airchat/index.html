@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>airchat &mdash; voice-first social on ATProto</title>
+<meta name="description" content="Voice posts on ATProto. Record, transcribe, post. Public read; whitelist write.">
+<meta property="og:title" content="airchat">
+<meta property="og:description" content="Voice-first social on ATProto.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://airchat.mino.mobi/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030;
+  --rec: #c93030;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --card-bg: #1a1a1a; --rec: #ff5555;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 720px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.7rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.me-strip {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: flex; gap: 0.5rem; align-items: center;
+}
+.me-strip b { color: var(--accent); }
+.me-strip a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+.stage { display: none; }
+.stage.active { display: block; }
+
+input[type="text"], input[type="password"] {
+  padding: 0.7rem 0.9rem; font-family: var(--serif); font-size: 1rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+  width: 100%;
+}
+input:focus { border-color: var(--accent); }
+button {
+  font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg);
+  border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.danger { background: var(--rec); }
+
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.success { background: rgba(42, 122, 42, 0.08); border-left: 3px solid var(--good); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+/* login */
+.login-card { display: flex; flex-direction: column; gap: 0.7rem; max-width: 420px; }
+.login-card label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* recorder */
+.recorder {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 1.2rem; margin-bottom: 1.4rem;
+}
+.rec-button {
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+  margin: 0.5rem auto 0.8rem;
+}
+.rec-circle {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: var(--rec); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.85rem; font-family: var(--mono); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  transition: transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(201, 48, 48, 0.3);
+}
+.rec-circle:hover { transform: scale(1.04); }
+.rec-circle:active { transform: scale(0.97); }
+.rec-circle:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.rec-circle.recording { background: var(--bad); animation: pulse 1.2s infinite; }
+.rec-circle.recording::before {
+  content: ''; display: block; width: 28px; height: 28px;
+  background: white; border-radius: 4px;
+}
+.rec-circle:not(.recording)::before {
+  content: ''; display: block; width: 32px; height: 32px;
+  background: white; border-radius: 50%;
+}
+@keyframes pulse { 0%, 100% { box-shadow: 0 4px 12px rgba(201, 48, 48, 0.3); } 50% { box-shadow: 0 4px 28px rgba(201, 48, 48, 0.7); } }
+.rec-time {
+  font-family: var(--mono); font-size: 1.4rem; color: var(--text);
+  font-weight: 700; min-height: 1.6rem;
+}
+.rec-time.warn { color: var(--rec); }
+.rec-hint { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.preview { display: none; margin-top: 1rem; }
+.preview.show { display: block; }
+.preview audio { width: 100%; margin-bottom: 0.7rem; }
+.transcript-box {
+  width: 100%; min-height: 88px; padding: 0.7rem 0.9rem;
+  font-family: var(--serif); font-size: 1rem; line-height: 1.5;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+  resize: vertical;
+}
+.transcript-box:focus { border-color: var(--accent); }
+.transcript-meta {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;
+  display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+}
+.preview-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; flex-wrap: wrap; }
+.preview-actions button { font-size: 0.8rem; }
+
+/* feed */
+.feed-head { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+.voice-card {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.9rem 1rem; margin-bottom: 0.8rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.voice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.voice-who { font-family: var(--serif); font-weight: 700; color: var(--accent); font-size: 0.95rem; }
+.voice-when { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.voice-audio { width: 100%; }
+.voice-text { color: var(--text); font-size: 1rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+.feed-load { display: block; margin: 1rem auto 0; }
+
+footer {
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <div>
+    <h1>airchat<span class="dot">.</span></h1>
+    <p class="subtitle">Voice posts on ATProto. Tap, talk, transcribe, post.</p>
+  </div>
+  <div class="me-strip" id="me-strip"></div>
+</header>
+
+<main>
+  <!-- Stage 1: login -->
+  <section id="stage-login" class="stage active">
+    <div class="login-card">
+      <label for="handle">Bluesky handle</label>
+      <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false">
+      <label for="app-password">App password <span style="text-transform:none;">(<a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">create one</a>)</span></label>
+      <input id="app-password" type="password" placeholder="abcd-efgh-ijkl-mnop" autocomplete="current-password">
+      <button id="login-btn">Sign in</button>
+      <p class="hint">
+        Voice posts go to your PDS as <code>com.minomobi.airchat.voice</code> records. Audio is a blob on your repo; the transcript is a string on the record. Reads are public to anyone; writes go through us so you can use Whisper without exposing the key. We don't store your password, only a session token. Logout drops it.
+      </p>
+      <p class="hint">
+        Closed alpha — writes are gated to a small whitelist. Reading the feed works for everyone.
+      </p>
+      <div id="login-error" class="error" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- Stage 2: not whitelisted (signed in but no write access) -->
+  <section id="stage-denied" class="stage">
+    <div class="error">
+      You're signed in as <b id="denied-handle"></b>, but writes are gated to a small whitelist right now.
+      You can still browse the feed below. Email <a href="mailto:tips@minomobi.com" style="color:var(--accent);">tips@minomobi.com</a> if you'd like access.
+    </div>
+    <button id="denied-logout" class="ghost" style="margin-top: 0.8rem;">Sign out</button>
+  </section>
+
+  <!-- Stage 3: recorder -->
+  <section id="stage-rec" class="stage">
+    <div class="recorder">
+      <div class="rec-button">
+        <button id="rec-circle" class="rec-circle" aria-label="Record"></button>
+        <div class="rec-time" id="rec-time">0:00</div>
+        <div class="rec-hint" id="rec-hint">tap to record · max <span id="rec-cap">90</span>s</div>
+      </div>
+
+      <div class="preview" id="preview">
+        <audio id="preview-audio" controls></audio>
+        <div class="transcript-meta">
+          <span><span id="transcribe-status">transcribing…</span></span>
+          <span id="transcribe-lang"></span>
+        </div>
+        <textarea id="transcript-box" class="transcript-box" placeholder="Transcript will appear here…" maxlength="4000"></textarea>
+        <div class="preview-actions">
+          <button id="post-btn">Post</button>
+          <button id="redo-btn" class="ghost">Redo</button>
+          <button id="discard-btn" class="ghost">Discard</button>
+        </div>
+        <div id="post-status"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feed (always shown when authed; sits below recorder, or alone if not signed in) -->
+  <section id="feed-section">
+    <div class="feed-head">Recent voices</div>
+    <div id="feed"></div>
+    <button id="load-more" class="ghost feed-load" style="display:none">Load more</button>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">airchat.mino.mobi</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const MAX_REC_SEC = 90;
+const WARN_REC_SEC = 75;
+
+const state = {
+  me: null,                                  // { did, handle, pds_url } when signed in & whitelisted
+  recording: false,
+  mediaRecorder: null,
+  recordChunks: [],
+  recordStart: 0,
+  recordTimerHandle: null,
+  audioBlob: null,
+  audioMime: '',
+  transcript: '',
+  duration: 0,
+  detectedLang: null,
+  feedCursor: null,
+  feedItems: [],
+};
+
+function showStage(name) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+function showLoginError(msg) { $('login-error').textContent = msg; $('login-error').style.display = 'block'; }
+function clearLoginError() { $('login-error').style.display = 'none'; }
+
+// ─── auth ────────────────────────────────────────────────────────────────
+async function bootstrap() {
+  $('rec-cap').textContent = MAX_REC_SEC;
+  await loadFeed();
+  // Check existing session (cookie may already be set from a prior visit).
+  const wl = await fetch('/api/airchat/whitelist/check').then(r => r.json()).catch(() => ({}));
+  if (wl.authenticated && wl.whitelisted) {
+    state.me = { did: wl.did, handle: wl.handle };
+    renderMe();
+    showStage('rec');
+  } else if (wl.authenticated && !wl.whitelisted) {
+    $('denied-handle').textContent = '@' + wl.handle;
+    showStage('denied');
+  } else {
+    showStage('login');
+  }
+}
+
+function renderMe() {
+  const m = state.me;
+  if (!m) { $('me-strip').innerHTML = ''; return; }
+  $('me-strip').innerHTML = `<b>@${escapeHtml(m.handle)}</b> &middot; <a id="logout-link">sign out</a>`;
+  $('me-strip').querySelector('#logout-link').addEventListener('click', logout);
+}
+
+$('login-btn').addEventListener('click', async () => {
+  clearLoginError();
+  const handle = $('handle').value.trim();
+  const app_password = $('app-password').value.trim();
+  if (!handle || !app_password) { showLoginError('Handle and app password required.'); return; }
+  $('login-btn').disabled = true;
+  try {
+    const res = await fetch('/api/airchat/auth/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ handle, app_password }),
+    });
+    const data = await res.json();
+    if (res.status === 403) {
+      $('denied-handle').textContent = '@' + (data.handle || handle);
+      showStage('denied');
+      return;
+    }
+    if (!res.ok) { showLoginError(data.error || `signin failed (${res.status})`); return; }
+    state.me = { did: data.did, handle: data.handle, pds_url: data.pds_url };
+    $('app-password').value = '';
+    renderMe();
+    showStage('rec');
+  } finally {
+    $('login-btn').disabled = false;
+  }
+});
+
+async function logout() {
+  await fetch('/api/airchat/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+  state.me = null;
+  renderMe();
+  showStage('login');
+}
+$('denied-logout').addEventListener('click', logout);
+
+// ─── recording ───────────────────────────────────────────────────────────
+function pickRecorderMime() {
+  // Order of preference: webm/opus (Chrome/Firefox/Edge), mp4 (Safari), ogg.
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for (const m of candidates) if (MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+
+$('rec-circle').addEventListener('click', async () => {
+  if (state.recording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+});
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    const mime = pickRecorderMime();
+    const opts = mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 };
+    const rec = new MediaRecorder(stream, opts);
+    state.recordChunks = [];
+    rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) state.recordChunks.push(e.data); };
+    rec.onstop = () => {
+      // close mic immediately so the browser indicator clears
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(state.recordChunks, { type: rec.mimeType || mime || 'audio/webm' });
+      onRecordingDone(blob, rec.mimeType || mime || 'audio/webm');
+    };
+    rec.start();
+    state.mediaRecorder = rec;
+    state.recording = true;
+    state.recordStart = Date.now();
+    $('rec-circle').classList.add('recording');
+    $('rec-circle').setAttribute('aria-label', 'Stop recording');
+    $('rec-hint').textContent = 'tap to stop';
+    tickRecordTimer();
+    state.recordTimerHandle = setInterval(tickRecordTimer, 250);
+  } catch (e) {
+    alert('Could not start recording: ' + (e?.message || e) + '\nYou may need to allow microphone access.');
+  }
+}
+
+function tickRecordTimer() {
+  const elapsed = (Date.now() - state.recordStart) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  $('rec-time').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  $('rec-time').classList.toggle('warn', elapsed >= WARN_REC_SEC);
+  if (elapsed >= MAX_REC_SEC) stopRecording();
+}
+
+function stopRecording() {
+  if (!state.recording) return;
+  clearInterval(state.recordTimerHandle);
+  state.recordTimerHandle = null;
+  state.mediaRecorder?.stop();
+  state.recording = false;
+  $('rec-circle').classList.remove('recording');
+  $('rec-circle').setAttribute('aria-label', 'Record');
+  $('rec-hint').textContent = 'tap to record · max ' + MAX_REC_SEC + 's';
+}
+
+async function onRecordingDone(blob, mime) {
+  state.audioBlob = blob;
+  state.audioMime = mime;
+  state.duration = (Date.now() - state.recordStart) / 1000;
+  $('preview-audio').src = URL.createObjectURL(blob);
+  $('preview').classList.add('show');
+  $('post-status').innerHTML = '';
+  $('transcript-box').value = '';
+  $('transcribe-status').textContent = 'transcribing…';
+  $('transcribe-lang').textContent = '';
+  // Send to worker → Whisper.
+  try {
+    const res = await fetch('/api/airchat/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': mime },
+      credentials: 'include',
+      body: blob,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      $('transcribe-status').textContent = `whisper error · ${data.error || res.status}`;
+      return;
+    }
+    state.transcript = data.text || '';
+    state.detectedLang = data.language || null;
+    if (typeof data.duration === 'number') state.duration = data.duration;
+    $('transcript-box').value = state.transcript;
+    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB`;
+    $('transcribe-lang').textContent = state.detectedLang ? `lang: ${state.detectedLang}` : '';
+  } catch (e) {
+    $('transcribe-status').textContent = 'network error: ' + (e?.message || e);
+  }
+}
+
+$('redo-btn').addEventListener('click', () => {
+  resetPreview();
+});
+$('discard-btn').addEventListener('click', () => {
+  resetPreview();
+  $('rec-time').textContent = '0:00';
+});
+function resetPreview() {
+  state.audioBlob = null; state.audioMime = ''; state.transcript = ''; state.duration = 0;
+  $('preview').classList.remove('show');
+  $('preview-audio').src = '';
+  $('transcript-box').value = '';
+  $('post-status').innerHTML = '';
+}
+
+// ─── post ────────────────────────────────────────────────────────────────
+$('post-btn').addEventListener('click', async () => {
+  const text = $('transcript-box').value.trim();
+  if (!state.audioBlob) { $('post-status').innerHTML = '<div class="error">No recording.</div>'; return; }
+  if (!text) { $('post-status').innerHTML = '<div class="error">Transcript is empty. Add one before posting.</div>'; return; }
+  $('post-btn').disabled = true;
+  $('post-status').innerHTML = '<div class="hint">Uploading…</div>';
+  try {
+    const form = new FormData();
+    form.append('audio', state.audioBlob, 'voice' + (state.audioMime.includes('mp4') ? '.mp4' : '.webm'));
+    form.append('meta', JSON.stringify({
+      text,
+      duration: state.duration,
+      lang: state.detectedLang ? [state.detectedLang] : null,
+    }));
+    const res = await fetch('/api/airchat/post', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      $('post-status').innerHTML = `<div class="error">${escapeHtml(data.error || ('post failed (' + res.status + ')'))}</div>`;
+      return;
+    }
+    $('post-status').innerHTML = `<div class="success">Posted ✓ &middot; <a href="${escapeHtml(data.uri)}" style="color: var(--accent);">${escapeHtml(data.rkey)}</a></div>`;
+    // Reset and re-fetch the feed.
+    resetPreview();
+    $('rec-time').textContent = '0:00';
+    await loadFeed();
+  } catch (e) {
+    $('post-status').innerHTML = `<div class="error">Network error: ${escapeHtml(e?.message || String(e))}</div>`;
+  } finally {
+    $('post-btn').disabled = false;
+  }
+});
+
+// ─── feed ────────────────────────────────────────────────────────────────
+async function loadFeed(append = false) {
+  const url = new URL('/api/airchat/feed', location.origin);
+  if (append && state.feedCursor) url.searchParams.set('cursor', state.feedCursor);
+  url.searchParams.set('limit', '25');
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const data = await res.json();
+  if (append) {
+    state.feedItems = state.feedItems.concat(data.items || []);
+  } else {
+    state.feedItems = data.items || [];
+  }
+  state.feedCursor = data.cursor;
+  renderFeed();
+}
+
+function renderFeed() {
+  const host = $('feed');
+  if (!state.feedItems.length) {
+    host.innerHTML = `<div class="hint">No voice posts yet. Be the first.</div>`;
+    $('load-more').style.display = 'none';
+    return;
+  }
+  host.innerHTML = state.feedItems.map((v) => {
+    const when = (v.created_at || '').slice(0, 16).replace('T', ' ');
+    const who = v.handle ? '@' + v.handle : v.did;
+    const dur = v.duration ? Math.round(v.duration) + 's' : '';
+    return `
+      <div class="voice-card" data-uri="${escapeHtml(v.uri)}">
+        <div class="voice-head">
+          <span class="voice-who">${escapeHtml(who)}</span>
+          <span class="voice-when">${escapeHtml(when)}${dur ? ' · ' + dur : ''}</span>
+        </div>
+        ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}"></audio>` : ''}
+        <div class="voice-text">${escapeHtml(v.text || '')}</div>
+      </div>
+    `;
+  }).join('');
+  $('load-more').style.display = state.feedCursor ? 'block' : 'none';
+}
+
+$('load-more').addEventListener('click', () => loadFeed(true));
+
+// ─── go ──────────────────────────────────────────────────────────────────
+bootstrap();
+</script>
+</body>
+</html>
