@@ -323,7 +323,6 @@ async function startOAuth() {
 
 $("signin-btn").addEventListener("click", () => showSigninPrompt(true));
 $("login-go").addEventListener("click", startOAuth);
-$("login-cancel").addEventListener("click", () => showSigninPrompt(false));
 signinPrompt.addEventListener("click", (e) => {
   if (e.target.id === "signin-prompt") showSigninPrompt(false);
 });
