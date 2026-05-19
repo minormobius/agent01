@@ -92,6 +92,9 @@ const state = {
   js: null,                  // WebSocket
   jsState: "idle",
   jsReconnectTimer: null,
+  jsReady: false,            // false until initial replay is done
+  jsBuffer: [],              // events held while !jsReady so we don't miss the
+                             // seam between replay and live
 
   // Service info from /api/mmo/info.
   serviceDid:        null,
@@ -581,9 +584,16 @@ function connectJetstream() {
   if (state.js) try { state.js.close(); } catch {}
   state.jsState = "connecting";
   refreshStatus();
-  console.log("[mmo] jetstream connecting:", state.jetstreamUrl);
+  // Backfill the firehose from a few minutes ago. Constellation has
+  // indexing lag (seconds to minutes); Jetstream is near-real-time but
+  // doesn't replay without a cursor. Asking for the last 10 minutes
+  // catches the seam: anything recent that hasn't landed in Constellation
+  // yet still reaches us via the firehose. seenRkeys dedups overlap.
+  const backfillUs = (Date.now() - 10 * 60 * 1000) * 1000;
+  const url = `${state.jetstreamUrl}&cursor=${backfillUs}`;
+  console.log("[mmo] jetstream connecting (with 10m backfill):", url);
   let js;
-  try { js = new WebSocket(state.jetstreamUrl); }
+  try { js = new WebSocket(url); }
   catch (e) {
     console.error("[mmo] jetstream constructor failed:", e);
     state.jsState = "error";
@@ -625,23 +635,39 @@ function scheduleJetstreamReconnect() {
 }
 
 function onJetstreamEvent(m) {
+  // While !jsReady (initial replay in flight), queue events so we don't
+  // miss the seam. They'll be drained right after replay completes.
+  if (!state.jsReady) {
+    state.jsBuffer.push(m);
+    return;
+  }
+  applyJetstreamEvent(m);
+}
+
+function applyJetstreamEvent(m) {
   // Jetstream commit envelope:
   //   { did, time_us, kind: "commit", commit: { rev, operation, collection, rkey, record, cid } }
   if (m.kind !== "commit" || !m.commit) return;
   const c = m.commit;
   if (c.collection !== "com.minomobi.mmopaint.stroke") return;
-  console.log("[mmo] jetstream commit:", c.operation, m.did, c.rkey);
   if (c.operation !== "create") return;
   const rec = c.record;
   const rkey = c.rkey || "";
-  // applyRecord dedups via seenRkeys — safe to re-apply our own writes.
+  // applyRecord dedups via seenRkeys — safe to re-apply our own writes
+  // and to overlap with anything that came through Constellation.
   applyRecord(rkey, {
     ...rec,
-    // Records on user PDSes don't carry the writer's DID inside the
-    // record — Jetstream provides it on the envelope.
     contributor: m.did || rec.contributor || "",
   });
   render();
+}
+
+function drainJetstreamBuffer() {
+  if (!state.jsBuffer.length) return;
+  console.log(`[mmo] draining ${state.jsBuffer.length} buffered jetstream events`);
+  const buf = state.jsBuffer;
+  state.jsBuffer = [];
+  for (const m of buf) applyJetstreamEvent(m);
 }
 
 // ---- pointer / pinch ---------------------------------------------
@@ -974,18 +1000,34 @@ async function boot() {
   state.session = readSessionFragment() || readStoredSession();
   refreshAuthUI();
 
-  // Pull /info, replay history, then start the live feed. In parallel
-  // because none of these depend on each other.
-  const [info] = await Promise.all([fetchInfo(), replayInitial()]);
-  // If canvas dims came from /info we may need to refit.
+  // Step 1: fetch config — need canvas_uri + jetstream URL.
+  const info = await fetchInfo();
   if (info && (bitmap.width !== CANVAS_W || bitmap.height !== CANVAS_H)) {
     bitmap.width = CANVAS_W; bitmap.height = CANVAS_H;
     bctx.fillStyle = "#ffffff"; bctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     fitView();
-    await replayInitial();
   }
 
+  // Step 2: connect Jetstream FIRST. Events arrive into a buffer while
+  // jsReady=false (set during initial replay). This closes the seam
+  // between "Constellation snapshot" and "live feed begins" — any
+  // stroke landing in that window stays applied via the buffer drain.
+  state.jsReady = false;
+  state.jsBuffer = [];
   if (state.jetstreamUrl) connectJetstream();
+
+  // Step 3: replay backlog via Constellation. Constellation lags the
+  // firehose by some seconds, so very recent writes may be missing
+  // from this set; the 10-minute cursor backfill on the Jetstream
+  // connection (which is now buffering) catches them. seenRkeys
+  // dedups any overlap.
+  await replayInitial();
+
+  // Step 4: flip the ready flag and drain anything Jetstream buffered
+  // during steps 2-3. From here on, events apply live.
+  state.jsReady = true;
+  drainJetstreamBuffer();
+
   if (!state.session) showSigninPrompt(true);
 }
 
