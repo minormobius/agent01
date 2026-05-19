@@ -530,62 +530,85 @@ async function resolvePds(did) {
 // returns every {did, collection, rkey} pointing at that anchor across
 // the entire network. For each, we resolve the contributor's PDS and
 // fetch the record value.
+//
+// Idempotent. countedRkeys + paintedRkeys dedup repeat applies, so we
+// can safely re-run on tab visibility / bfcache restore / Jetstream
+// reconnect to catch up after backgrounded gaps that exceeded the
+// 10-minute jetstream cursor backfill.
+let replayInProgress = false;
 async function replayInitial() {
-  if (!state.canvasUri || !state.constellationBase || !state.linkSource) {
-    console.warn("[mmo] missing canvas/constellation config — skipping replay");
+  if (replayInProgress) {
+    console.log("[mmo] replay already in progress — skipping");
     return;
   }
-  const url = new URL(`${state.constellationBase}/xrpc/blue.microcosm.links.getBacklinks`);
-  url.searchParams.set("subject", state.canvasUri);
-  url.searchParams.set("source",  state.linkSource);
-  url.searchParams.set("limit",   "100");
-
-  let data;
+  replayInProgress = true;
   try {
-    const r = await fetch(url.toString());
-    if (!r.ok) {
-      console.warn("[mmo] constellation returned", r.status);
+    if (!state.canvasUri || !state.constellationBase || !state.linkSource) {
+      console.warn("[mmo] missing canvas/constellation config — skipping replay");
       return;
     }
-    data = await r.json();
-  } catch (e) {
-    console.warn("[mmo] constellation fetch failed:", e);
-    return;
-  }
+    const url = new URL(`${state.constellationBase}/xrpc/blue.microcosm.links.getBacklinks`);
+    url.searchParams.set("subject", state.canvasUri);
+    url.searchParams.set("source",  state.linkSource);
+    url.searchParams.set("limit",   "100");
 
-  const items = data.records || [];
-  console.log(`[mmo] constellation: ${data.total} backlinks for ${state.canvasUri}`);
-  if (!items.length) return;
-
-  // Oldest first so the canvas reconstructs in chronological order
-  // (TID rkeys sort lex).
-  items.sort((a, b) => (a.rkey < b.rkey ? -1 : a.rkey > b.rkey ? 1 : 0));
-
-  // Fetch records in parallel with a small concurrency cap.
-  const CONCURRENCY = 6;
-  let cursor = 0;
-  let applied = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const it = items[cursor++];
-      try {
-        const pds = await resolvePds(it.did);
-        if (!pds) continue;
-        const u = new URL(`${pds}/xrpc/com.atproto.repo.getRecord`);
-        u.searchParams.set("repo",       it.did);
-        u.searchParams.set("collection", it.collection);
-        u.searchParams.set("rkey",       it.rkey);
-        const res = await fetch(u.toString());
-        if (!res.ok) continue;
-        const got = await res.json();
-        applyRecord(it.rkey, got.value || {}, { contributor: it.did });
-        applied++;
-      } catch (e) { /* per-record failures don't stop the batch */ }
+    let data;
+    try {
+      const r = await fetch(url.toString());
+      if (!r.ok) {
+        console.warn("[mmo] constellation returned", r.status);
+        return;
+      }
+      data = await r.json();
+    } catch (e) {
+      console.warn("[mmo] constellation fetch failed:", e);
+      return;
     }
+
+    const items = data.records || [];
+    console.log(`[mmo] constellation: ${data.total} backlinks (have ${countedRkeys.size} locally)`);
+    if (!items.length) return;
+
+    // Oldest first so the canvas reconstructs in chronological order
+    // (TID rkeys sort lex).
+    items.sort((a, b) => (a.rkey < b.rkey ? -1 : a.rkey > b.rkey ? 1 : 0));
+
+    // Skip records we've already applied — saves N PDS fetches per
+    // replay re-run.
+    const fresh = items.filter(it => !countedRkeys.has(it.rkey));
+    if (!fresh.length) {
+      console.log("[mmo] replay caught up — no new records");
+      return;
+    }
+
+    // Fetch records in parallel with a small concurrency cap.
+    const CONCURRENCY = 6;
+    let cursor = 0;
+    let applied = 0;
+    async function worker() {
+      while (cursor < fresh.length) {
+        const it = fresh[cursor++];
+        try {
+          const pds = await resolvePds(it.did);
+          if (!pds) continue;
+          const u = new URL(`${pds}/xrpc/com.atproto.repo.getRecord`);
+          u.searchParams.set("repo",       it.did);
+          u.searchParams.set("collection", it.collection);
+          u.searchParams.set("rkey",       it.rkey);
+          const res = await fetch(u.toString());
+          if (!res.ok) continue;
+          const got = await res.json();
+          applyRecord(it.rkey, got.value || {}, { contributor: it.did });
+          applied++;
+        } catch (e) { /* per-record failures don't stop the batch */ }
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    console.log(`[mmo] replayed ${applied}/${fresh.length} new records`);
+    render();
+  } finally {
+    replayInProgress = false;
   }
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-  console.log(`[mmo] replayed ${applied}/${items.length} records`);
-  render();
 }
 
 // ---- Jetstream live subscription ---------------------------------
@@ -1001,6 +1024,32 @@ const ro = new ResizeObserver(() => resize());
 ro.observe(stage);
 window.addEventListener("resize", () => resize());
 window.addEventListener("orientationchange", () => setTimeout(resize, 100));
+
+// ---- catch-up on tab visibility / bfcache ------------------------
+
+// When the tab comes back from background, the Jetstream WebSocket may
+// have died and any strokes that landed during the suspend are lost
+// (the 10-min cursor backfill covers short gaps but not a phone-locked-
+// for-an-hour gap). Also covers bfcache restores via the pageshow event.
+// replayInitial is idempotent — already-applied rkeys are skipped.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  console.log("[mmo] tab visible — re-syncing");
+  replayInitial();
+  // If Jetstream is dead, kick a reconnect too.
+  if (state.jsState !== "open" && state.jsState !== "connecting") {
+    if (state.jsReconnectTimer) { clearTimeout(state.jsReconnectTimer); state.jsReconnectTimer = null; }
+    connectJetstream();
+  }
+});
+window.addEventListener("pageshow", (e) => {
+  if (!e.persisted) return;   // not from bfcache; the regular boot path covered us
+  console.log("[mmo] restored from bfcache — re-syncing");
+  replayInitial();
+  if (state.jsState !== "open" && state.jsState !== "connecting") {
+    connectJetstream();
+  }
+});
 
 // ---- boot --------------------------------------------------------
 
