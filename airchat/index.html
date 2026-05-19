@@ -166,11 +166,17 @@ footer a { color: var(--muted); text-decoration: underline; }
     <div class="login-card">
       <label for="handle">Bluesky handle</label>
       <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false">
-      <label for="app-password">App password <span style="text-transform:none;">(<a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">create one</a>)</span></label>
+      <button id="oauth-btn">Sign in with Bluesky (OAuth)</button>
+      <p class="hint" style="text-align:center; margin: 0.3rem 0;">— or —</p>
+      <label for="app-password" style="text-transform:none;">App password <span>(<a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">create one</a>)</span></label>
       <input id="app-password" type="password" placeholder="abcd-efgh-ijkl-mnop" autocomplete="current-password">
-      <button id="login-btn">Sign in</button>
+      <button id="login-btn" class="ghost">Sign in with app password</button>
       <p class="hint">
-        Voice posts go to your PDS as <code>com.minomobi.airchat.voice</code> records. Audio is a blob on your repo; the transcript is a string on the record. Reads are public to anyone; writes go through us so you can use Whisper without exposing the key. We don't store your password, only a session token. Logout drops it.
+        OAuth keeps your password on Bluesky's side — you get redirected there to approve airchat, then back. App-password is the fallback if OAuth isn't supported by your PDS.
+        Either way, the session token never reaches the browser; we store it server-side and you get an opaque cookie.
+      </p>
+      <p class="hint">
+        Voice posts go to your PDS as <code>com.minomobi.airchat.voice</code> records. Audio is a blob on your repo; the transcript is a string on the record. Reads are public to anyone; writes go through us so you can use Whisper without exposing the key.
       </p>
       <p class="hint">
         Closed alpha — writes are gated to a small whitelist. Reading the feed works for everyone.
@@ -281,6 +287,31 @@ function renderMe() {
   $('me-strip').innerHTML = `<b>@${escapeHtml(m.handle)}</b> &middot; <a id="logout-link">sign out</a>`;
   $('me-strip').querySelector('#logout-link').addEventListener('click', logout);
 }
+
+$('oauth-btn').addEventListener('click', async () => {
+  clearLoginError();
+  const handle = $('handle').value.trim();
+  if (!handle) { showLoginError('Bluesky handle required.'); return; }
+  $('oauth-btn').disabled = true;
+  try {
+    const res = await fetch('/api/airchat/auth/oauth/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ handle }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.auth_url) {
+      showLoginError(data.error || `OAuth start failed (${res.status})`);
+      return;
+    }
+    location.href = data.auth_url;
+  } catch (e) {
+    showLoginError('Network error: ' + (e?.message || e));
+  } finally {
+    $('oauth-btn').disabled = false;
+  }
+});
 
 $('login-btn').addEventListener('click', async () => {
   clearLoginError();

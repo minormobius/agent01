@@ -19,6 +19,12 @@
 //   records to their own PDS — that's ATProto. The whitelist gates
 //   our UX + transcription + feed-curation, not the data itself.
 
+import {
+  startOAuth, handleOAuthCallback, refreshOAuthSession, dpopFetch,
+  OAUTH_CLIENT_ID, OAUTH_REDIRECT_URI,
+} from './oauth/flow.js';
+import { getClientPublicJWK } from './oauth/keypair.js';
+
 const LEXICON = 'com.minomobi.airchat.voice';
 const PUBLIC_API = 'https://api.bsky.app';
 const PLC_DIR = 'https://plc.directory';
@@ -39,8 +45,11 @@ export default {
           bindings: { db: !!env.DB, assets: !!env.ASSETS, openai: !!env.OPENAI_API_KEY, admin: !!env.ADMIN_KEY },
         });
       }
+      if (url.pathname === '/client-metadata.json')                                 return clientMetadata(env);
       if (url.pathname === '/api/airchat/whitelist/check')                          return whitelistCheck(request, env);
       if (url.pathname === '/api/airchat/auth/start' && request.method === 'POST')  return authStart(request, env);
+      if (url.pathname === '/api/airchat/auth/oauth/start' && request.method === 'POST')   return oauthStart(request, env);
+      if (url.pathname === '/api/airchat/auth/oauth/callback' && request.method === 'GET') return oauthCallback(request, env, url);
       if (url.pathname === '/api/airchat/auth/me')                                  return authMe(request, env);
       if (url.pathname === '/api/airchat/auth/logout' && request.method === 'POST') return authLogout(request, env);
       if (url.pathname === '/api/airchat/transcribe' && request.method === 'POST')  return transcribe(request, env);
@@ -145,7 +154,8 @@ async function resolvePds(did) {
 async function loadSession(env, sessionId) {
   if (!sessionId) return null;
   const row = await env.DB.prepare(
-    `SELECT session_id, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at, created_at
+    `SELECT session_id, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at,
+            auth_method, dpop_key_jwk, oauth_scope, created_at
        FROM airchat_sessions WHERE session_id = ?`
   ).bind(sessionId).first();
   return row || null;
@@ -154,16 +164,21 @@ async function loadSession(env, sessionId) {
 async function saveSession(env, sess) {
   await env.DB.prepare(
     `INSERT INTO airchat_sessions
-       (session_id, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at, created_at, last_seen_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
+       (session_id, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at,
+        auth_method, dpop_key_jwk, oauth_scope, created_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
      ON CONFLICT(session_id) DO UPDATE SET
        access_jwt = excluded.access_jwt,
        refresh_jwt = excluded.refresh_jwt,
        access_expires_at = excluded.access_expires_at,
+       dpop_key_jwk = excluded.dpop_key_jwk,
        last_seen_at = unixepoch()`
   ).bind(
     sess.session_id, sess.did, sess.handle, sess.pds_url,
     sess.access_jwt, sess.refresh_jwt, sess.access_expires_at,
+    sess.auth_method || 'app_password',
+    sess.dpop_key_jwk || null,
+    sess.oauth_scope || null,
     sess.created_at || nowSec()
   ).run();
 }
@@ -173,17 +188,28 @@ async function deleteSession(env, sessionId) {
   await env.DB.prepare(`DELETE FROM airchat_sessions WHERE session_id = ?`).bind(sessionId).run();
 }
 
-// Ensure the session's access JWT is still fresh; refresh via PDS if not.
+// Ensure the session's access JWT is still fresh; refresh via PDS (app-
+// password) or OAuth token endpoint (oauth) depending on the auth method.
 async function ensureFreshAccess(env, sess) {
   if (!sess) return null;
   const exp = sess.access_expires_at || 0;
   if (exp - nowSec() > ACCESS_REFRESH_MARGIN_SEC) return sess;
+  if (sess.auth_method === 'oauth') {
+    const next = await refreshOAuthSession(env, sess);
+    if (!next) { await deleteSession(env, sess.session_id); return null; }
+    sess.access_jwt = next.accessJwt;
+    sess.refresh_jwt = next.refreshJwt;
+    sess.access_expires_at = next.accessExpiresAt;
+    sess.dpop_key_jwk = next.dpopKeyJwk;
+    await saveSession(env, sess);
+    return sess;
+  }
+  // app-password path
   const refreshed = await fetch(`${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.server.refreshSession`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${sess.refresh_jwt}` },
   });
   if (!refreshed.ok) {
-    // refresh failed — session is dead, force re-login
     await deleteSession(env, sess.session_id);
     return null;
   }
@@ -393,14 +419,8 @@ async function postVoice(request, env) {
   const audioMime = audio.type || 'audio/webm';
 
   // 1) uploadBlob → returns { blob: { $type, ref: { $link }, mimeType, size } }
-  const upRes = await fetch(`${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.uploadBlob`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sess.access_jwt}`,
-      'Content-Type': audioMime,
-    },
-    body: audioBytes,
-  });
+  const uploadUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.uploadBlob`;
+  const upRes = await pdsAuthCall(sess, 'POST', uploadUrl, { 'Content-Type': audioMime }, audioBytes);
   if (!upRes.ok) {
     const b = await upRes.text().catch(() => '');
     return json({ error: `uploadBlob failed (${upRes.status})`, details: b.slice(0, 300) }, 502);
@@ -422,18 +442,12 @@ async function postVoice(request, env) {
   if (lang) record.lang = lang;
   if (reply) record.reply = reply;
 
-  const crRes = await fetch(`${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.createRecord`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sess.access_jwt}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      repo: sess.did,
-      collection: LEXICON,
-      record,
-    }),
-  });
+  const createUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.createRecord`;
+  const crRes = await pdsAuthCall(sess, 'POST', createUrl, { 'Content-Type': 'application/json' }, JSON.stringify({
+    repo: sess.did,
+    collection: LEXICON,
+    record,
+  }));
   if (!crRes.ok) {
     const b = await crRes.text().catch(() => '');
     return json({ error: `createRecord failed (${crRes.status})`, details: b.slice(0, 300) }, 502);
@@ -581,4 +595,114 @@ async function adminWhitelistList(request, env) {
     `SELECT did, handle, added_at, added_by, note FROM airchat_whitelist ORDER BY added_at DESC`
   ).all();
   return json({ whitelist: results || [] });
+}
+
+// ---------- PDS request dispatch (Bearer for app-password, DPoP for OAuth) ----------
+
+async function pdsAuthCall(sess, method, url, headers, body) {
+  if (sess.auth_method === 'oauth') {
+    return dpopFetch(sess, method, url, headers, body);
+  }
+  return fetch(url, {
+    method,
+    headers: { ...headers, 'Authorization': `Bearer ${sess.access_jwt}` },
+    body,
+  });
+}
+
+// ---------- OAuth routes ----------
+
+async function clientMetadata(env) {
+  // ATProto OAuth identifies clients by the URL of this very document.
+  // We embed the public key so the auth server can verify our
+  // private_key_jwt client assertions. Key auto-generates on first
+  // request via getClientPublicJWK (which seeds airchat_oauth_keypair).
+  const metadata = {
+    client_id: OAUTH_CLIENT_ID,
+    client_name: 'airchat',
+    client_uri: 'https://airchat.mino.mobi',
+    redirect_uris: [OAUTH_REDIRECT_URI],
+    scope: 'atproto transition:generic',
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'private_key_jwt',
+    token_endpoint_auth_signing_alg: 'ES256',
+    dpop_bound_access_tokens: true,
+    application_type: 'web',
+  };
+  try {
+    const publicJwk = await getClientPublicJWK(env.DB);
+    metadata.jwks = { keys: [publicJwk] };
+  } catch (e) {
+    console.error('client-metadata: keypair fetch failed', e);
+  }
+  return new Response(JSON.stringify(metadata, null, 2), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=600',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
+async function oauthStart(request, env) {
+  let body; try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const handle = String(body?.handle || '').replace(/^@/, '').trim();
+  if (!handle) return json({ error: 'missing handle' }, 400);
+  const returnTo = typeof body?.return_to === 'string' ? body.return_to : null;
+  try {
+    const { authUrl, state } = await startOAuth(env, handle, returnTo);
+    return json({ ok: true, auth_url: authUrl, state });
+  } catch (e) {
+    return json({ error: String(e?.message || e) }, 400);
+  }
+}
+
+async function oauthCallback(request, env, url) {
+  // Auth server redirects the user agent here with ?code=&state=&iss=.
+  // We exchange the code for tokens (server-to-server), establish the
+  // session cookie, then 302 the user back to '/' (or returnTo).
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const errParam = url.searchParams.get('error');
+  if (errParam) {
+    return new Response(`OAuth error: ${errParam} — ${url.searchParams.get('error_description') || ''}`, { status: 400 });
+  }
+  if (!code || !state) return new Response('missing code or state', { status: 400 });
+
+  let result;
+  try {
+    result = await handleOAuthCallback(env, code, state);
+  } catch (e) {
+    return new Response('OAuth callback failed: ' + (e?.message || e), { status: 400 });
+  }
+
+  // Whitelist gate happens AFTER the exchange so we know the DID. Even
+  // when not whitelisted, we set the session — the UI will land on
+  // /stage-denied and show the "request access" message.
+  const wl = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(result.did).first();
+
+  const session_id = randomHex(32);
+  await saveSession(env, {
+    session_id,
+    did: result.did,
+    handle: result.handle,
+    pds_url: result.pdsUrl,
+    access_jwt: result.accessJwt,
+    refresh_jwt: result.refreshJwt,
+    access_expires_at: result.accessExpiresAt,
+    auth_method: 'oauth',
+    dpop_key_jwk: result.dpopKeyJwk,
+    oauth_scope: result.scope,
+    created_at: nowSec(),
+  });
+
+  const redirect = result.returnTo || '/';
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': redirect,
+      'Set-Cookie': setCookieHeader('airchat_sid', session_id, { maxAge: SESSION_TTL_SEC }),
+    },
+  });
 }

@@ -423,9 +423,19 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)
                                        └── D1 (sessions + whitelist + feed cache)
 ```
 
-### Auth (v1)
+### Auth
 
-App-password against the user's PDS via `com.atproto.server.createSession`. Worker stores the PDS access + refresh JWTs server-side in `airchat_sessions`; browser only holds an opaque `airchat_sid` httpOnly cookie (the BFF pattern). No PDS token ever reaches the browser. OAuth port (DPoP + PAR + private_key_jwt, mirroring poll's flow) is a follow-up.
+Two paths, both BFF (browser only holds an opaque `airchat_sid` httpOnly cookie):
+
+- **OAuth** (primary): confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request.
+- **App password** (fallback): `com.atproto.server.createSession`. PDS calls use `Authorization: Bearer <token>`.
+
+`airchat_sessions.auth_method` is the discriminator; `pdsAuthCall(sess, …)` dispatches to either `dpopFetch` or plain `fetch`. Refresh dispatches the same way.
+
+### Migration history
+
+- `0018_airchat.sql` — whitelist, sessions, voices feed cache.
+- `0019_airchat_oauth.sql` — OAuth keypair singleton + ephemeral states + `airchat_sessions` columns (`auth_method`, `dpop_key_jwk`, `oauth_scope`).
 
 ### Lexicon
 
@@ -440,6 +450,9 @@ The bsky appview ignores non-`app.bsky.*` collections, so these records don't en
 | GET | `/api/airchat/health` | Health + bindings check |
 | GET | `/api/airchat/whitelist/check` | Public: is this DID on the whitelist? Optional session-aware |
 | POST | `/api/airchat/auth/start` | App-password sign-in; returns session cookie |
+| POST | `/api/airchat/auth/oauth/start` | Start OAuth flow; returns auth URL to redirect to |
+| GET | `/api/airchat/auth/oauth/callback` | OAuth callback (auth server redirects here); establishes session + 302s to `/` |
+| GET | `/client-metadata.json` | OAuth client metadata + public key (served from D1 keypair) |
 | GET | `/api/airchat/auth/me` | Current session info |
 | POST | `/api/airchat/auth/logout` | Drop session |
 | POST | `/api/airchat/transcribe` | Audio body → Whisper → transcript |
@@ -454,8 +467,10 @@ The bsky appview ignores non-`app.bsky.*` collections, so these records don't en
 - `airchat_whitelist (did PRIMARY KEY, handle, added_at, added_by, note)`
 - `airchat_sessions (session_id PRIMARY KEY, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at, created_at, last_seen_at)`
 - `airchat_voices (uri PRIMARY KEY, did, rkey, cid, pds_url, audio_cid, audio_mime, audio_size, duration_sec, text, reply_root_uri, reply_parent_uri, created_at, indexed_at)`
+- `airchat_oauth_keypair (id=1 singleton, private_key_jwk, public_key_jwk, kid, created_at)` — auto-generated on first `/client-metadata.json` request
+- `airchat_oauth_states (state PRIMARY KEY, code_verifier, dpop_key_jwk, did, pds_url, auth_server_url, token_endpoint, dpop_nonce, return_to, created_at, expires_at)` — ephemeral, 5-minute TTL
 
-Migration: `poll/apps/api/migrations/0018_airchat.sql`.
+Migrations: `poll/apps/api/migrations/0018_airchat.sql` + `0019_airchat_oauth.sql`.
 
 ### Required Secrets
 

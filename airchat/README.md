@@ -24,10 +24,17 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
 
 - Cloudflare Worker (`worker.js`) — assets binding for the static page, D1 for
   sessions + whitelist + feed cache, OpenAI Whisper proxy.
-- Auth: app-password creates a session against the user's PDS; opaque
-  `airchat_sid` cookie (httpOnly) maps to a server-side row in
-  `airchat_sessions`. Browser never sees the PDS access token. OAuth port is
-  a follow-up.
+- Auth: two paths.
+  - **OAuth** (primary): ATProto OAuth flow (PKCE + DPoP + PAR + private_key_jwt,
+    confidential client). Worker holds the DPoP-bound access token; PDS calls
+    are made with `Authorization: DPoP <token>` + a fresh DPoP proof on each
+    request. Keypair auto-generates in `airchat_oauth_keypair` on first
+    `/client-metadata.json` request — no manual secret config.
+  - **App password** (fallback): `com.atproto.server.createSession`. Worker
+    holds the access JWT, PDS calls use `Authorization: Bearer <token>`.
+  - Both paths produce the same `airchat_sessions` row shape (with
+    `auth_method` discriminator); the browser only sees an opaque
+    `airchat_sid` httpOnly cookie either way.
 - D1: shared `atpolls-db` (with poll, feed, rite).
 - Lexicon: `lexicons/voice.json` (documentation; ATProto does not enforce
   custom lexicons centrally).
