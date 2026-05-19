@@ -50,15 +50,16 @@ export async function handleMmoRoutes(
   if (url.pathname === '/api/mmo/strokes' && request.method === 'POST') {
     return submitStroke(request, env);
   }
-  // Soft back-compat: old paths return /info shape so the frontend doesn't 500.
-  if ((url.pathname === '/api/mmo/canvases/global'
-    || url.pathname === '/api/mmo/strokes') && request.method === 'GET') {
-    if (url.pathname === '/api/mmo/strokes') {
-      // Records are scattered across user PDSes now — there's no single repo
-      // to listRecords on. Return empty; the browser fills in from Jetstream.
-      return json({ records: [], cursor: null, collection: STROKE_COLLECTION });
-    }
+  if (url.pathname === '/api/mmo/strokes/me' && request.method === 'GET') {
+    return listMyStrokes(request, env, url);
+  }
+  if (url.pathname === '/api/mmo/canvases/global' && request.method === 'GET') {
     return mmoInfo(env);
+  }
+  if (url.pathname === '/api/mmo/strokes' && request.method === 'GET') {
+    // Old endpoint — records live on many PDSes now, no single repo to list.
+    // Return empty; frontend uses /strokes/me + Jetstream.
+    return json({ records: [], cursor: null, collection: STROKE_COLLECTION });
   }
   return null;
 }
@@ -243,6 +244,48 @@ async function submitStroke(request: Request, env: Env): Promise<Response> {
     repo:      pdsAuth.did,
     handle:    session.handle,
   });
+}
+
+// ---- /strokes/me — replay the signed-in user's own past strokes ---
+
+async function listMyStrokes(request: Request, env: Env, url: URL): Promise<Response> {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'not authenticated' }, 401);
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '100', 10) || 100));
+  const cursor = url.searchParams.get('cursor') || '';
+
+  // Find the user's PDS URL from their session row.
+  const row = await env.DB.prepare(
+    `SELECT pds_url FROM sessions WHERE session_id = ? LIMIT 1`
+  ).bind(session.sessionId).first<{ pds_url: string }>();
+  if (!row || !row.pds_url) {
+    return json({ error: 'no PDS URL on session' }, 400);
+  }
+
+  const u = new URL(`${row.pds_url}/xrpc/com.atproto.repo.listRecords`);
+  u.searchParams.set('repo', session.did);
+  u.searchParams.set('collection', STROKE_COLLECTION);
+  u.searchParams.set('limit', String(limit));
+  if (cursor) u.searchParams.set('cursor', cursor);
+
+  try {
+    const res = await fetch(u.toString());
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      // 404 / 400 etc. from the PDS — most likely no records yet on this collection.
+      return json({ records: [], cursor: null, pds_url: row.pds_url, did: session.did, status: res.status, detail: text.slice(0, 200) });
+    }
+    const data = await res.json() as { records?: any[]; cursor?: string };
+    return json({
+      records: data.records || [],
+      cursor:  data.cursor || null,
+      pds_url: row.pds_url,
+      did:     session.did,
+      handle:  session.handle,
+    });
+  } catch (e: any) {
+    return json({ error: 'pds list failed', detail: e?.message }, 502);
+  }
 }
 
 // ---- utils --------------------------------------------------------

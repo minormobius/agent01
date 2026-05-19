@@ -436,44 +436,67 @@ async function fetchInfo() {
   }
 }
 
-// Apply a stroke record (from list or from Jetstream) to the bitmap.
-// Idempotent on pixels — re-applying produces the same result.
-function applyRecord(rkey, record) {
+// Apply a stroke record (from list, Jetstream, or local-commit echo) to
+// the bitmap and stats. Deduped via seenRkeys so the same record arriving
+// from multiple paths (local commit + Jetstream broadcast) doesn't double-count.
+const seenRkeys = new Set();
+
+function applyRecord(rkey, record, opts) {
   if (!record || record.canvas !== CANVAS_ID) return;
   if (!record.tool || !record.color || !record.size || !Array.isArray(record.points)) return;
-  applyStrokeToBitmap(record.tool, record.color, record.size, record.points);
-  // Track the latest rkey we've applied (assumes TID monotonic).
-  if (!state.latestRkey || rkey > state.latestRkey) state.latestRkey = rkey;
+  if (rkey && seenRkeys.has(rkey)) return;
+  if (rkey) seenRkeys.add(rkey);
+
+  // skipPaint = true when the caller already painted locally (saves a redundant
+  // canvas draw, although applyStrokeToBitmap would be pixel-identical anyway).
+  if (!opts || !opts.skipPaint) {
+    applyStrokeToBitmap(record.tool, record.color, record.size, record.points);
+  }
+  if (rkey && (!state.latestRkey || rkey > state.latestRkey)) state.latestRkey = rkey;
   state.strokeCount++;
-  // Track contributor counts.
-  const did = record.contributor || "";
+  const did = record.contributor || (opts && opts.contributor) || "";
+  const handle = record.contributorHandle || (opts && opts.contributorHandle) || "";
   if (did) {
-    const cur = state.contributors.get(did) || { handle: record.contributorHandle || "", count: 0 };
+    const cur = state.contributors.get(did) || { handle, count: 0 };
     cur.count++;
-    if (record.contributorHandle && !cur.handle) cur.handle = record.contributorHandle;
+    if (handle && !cur.handle) cur.handle = handle;
     state.contributors.set(did, cur);
   }
 }
 
+// Replay the signed-in user's own past strokes from their PDS. Strokes
+// live on many PDSes now — we can only fetch the current user's own
+// records on boot. Strokes from others get filled in by the Jetstream
+// live feed once they're written.
 async function replayInitial() {
-  // Pull the most recent N records and apply them oldest-first so the
-  // canvas reconstructs in chronological order.
-  let cursor = null;
-  // For now, just one page (most recent 100). Could paginate further.
+  if (!state.session || !state.session.sessionId) {
+    console.log("[mmo] no session — skipping initial replay (will receive live via jetstream)");
+    return;
+  }
   try {
-    const u = new URL(`${MMO_API}/strokes`);
-    u.searchParams.set("limit", "100");
-    if (cursor) u.searchParams.set("cursor", cursor);
-    const r = await fetch(u.toString());
+    const r = await fetch(`${MMO_API}/strokes/me?limit=100`, {
+      headers: { "Authorization": `Bearer ${state.session.sessionId}` },
+    });
+    if (!r.ok) {
+      console.warn("[mmo] /strokes/me returned", r.status);
+      return;
+    }
     const data = await r.json();
-    const recs = (data.records || []).slice().reverse();  // listRecords returns newest first
+    const recs = (data.records || []).slice().reverse();   // listRecords returns newest-first
+    console.log(`[mmo] replaying ${recs.length} of my own strokes from ${data.pds_url}`);
     for (const rec of recs) {
       const rkey = rec.uri ? rec.uri.split("/").pop() : "";
-      applyRecord(rkey, rec.value || rec.record || rec);
+      // Records from my own PDS won't have contributor/contributorHandle
+      // fields (we only stamp tool/color/size/points/canvas/createdAt).
+      // Synthesize them from the session we know is mine.
+      applyRecord(rkey, rec.value || {}, {
+        contributor: state.session.did,
+        contributorHandle: state.session.handle,
+      });
     }
     render();
   } catch (e) {
-    showToast("couldn't replay strokes");
+    console.error("[mmo] replay error:", e);
   }
 }
 
@@ -535,17 +558,18 @@ function onJetstreamEvent(m) {
   //   { did, time_us, kind: "commit", commit: { rev, operation, collection, rkey, record, cid } }
   if (m.kind !== "commit" || !m.commit) return;
   const c = m.commit;
-  if (c.operation !== "create") return;
   if (c.collection !== "com.minomobi.mmopaint.stroke") return;
-  if (state.serviceDid && m.did !== state.serviceDid) return;  // safety filter
+  console.log("[mmo] jetstream commit:", c.operation, m.did, c.rkey);
+  if (c.operation !== "create") return;
   const rec = c.record;
   const rkey = c.rkey || "";
-  // Skip duplicates (same rkey already applied).
-  if (state.latestRkey && rkey && rkey <= state.latestRkey) {
-    // Could be an earlier event we've already applied. Cheap dedup.
-    return;
-  }
-  applyRecord(rkey, rec);
+  // applyRecord dedups via seenRkeys — safe to re-apply our own writes.
+  applyRecord(rkey, {
+    ...rec,
+    // Records on user PDSes don't carry the writer's DID inside the
+    // record — Jetstream provides it on the envelope.
+    contributor: m.did || rec.contributor || "",
+  });
   render();
 }
 
@@ -742,6 +766,18 @@ async function sendStroke(tool, color, size, points) {
     }
     const data = await res.json();
     console.log("[mmo] stroke written:", data.uri || data.rkey);
+    // Fold the just-written stroke into the local stats so the audit
+    // chip reflects it immediately, without waiting for Jetstream to
+    // echo it back. Dedup keyed on rkey will skip if Jetstream lands
+    // before us.
+    if (data.rkey) {
+      applyRecord(data.rkey, {
+        canvas: CANVAS_ID, tool, color, size, points,
+        contributor: state.session.did,
+        contributorHandle: state.session.handle,
+      }, { skipPaint: true });
+      render();
+    }
   } catch (e) {
     console.error("[mmo] POST /strokes network error:", e);
     showToast("network error — your stroke is local-only");
@@ -791,12 +827,16 @@ async function resolveProfilesByDid(dids) {
 
 async function openAudit() {
   auditPanel.classList.add("open");
-  apCanvas.textContent = CANVAS_ID + (state.serviceHandle ? ` · @${state.serviceHandle}` : "");
+  apCanvas.textContent = CANVAS_ID;
   apSeq.textContent  = state.strokeCount.toLocaleString();
   apHash.textContent = state.latestRkey || "—";
-  apPds.textContent  = state.serviceDid
-    ? `at://${state.serviceDid}/com.minomobi.mmopaint.stroke`
-    : "service PDS not configured";
+  // Records now live on each contributor's own PDS. Surface our own
+  // collection URI if signed in.
+  if (state.session && state.session.did) {
+    apPds.innerHTML = `your strokes: <code>at://${escapeHtml(state.session.did)}/com.minomobi.mmopaint.stroke</code>`;
+  } else {
+    apPds.textContent = "sign in to write strokes to your own PDS";
+  }
 
   // Top contributors from in-memory tally.
   const list = [...state.contributors.entries()]
