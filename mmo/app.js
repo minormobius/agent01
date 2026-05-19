@@ -94,9 +94,12 @@ const state = {
   jsReconnectTimer: null,
 
   // Service info from /api/mmo/info.
-  serviceDid:    null,
-  serviceHandle: null,
-  jetstreamUrl:  null,
+  serviceDid:        null,
+  serviceHandle:     null,
+  jetstreamUrl:      null,
+  canvasUri:         null,    // strongRef target for stroke records
+  constellationBase: null,
+  linkSource:        null,
 
   // Tracked record stats (the "rev").
   latestRkey:   null,        // TID rkey of most recent stroke we've applied
@@ -420,9 +423,12 @@ async function fetchInfo() {
     }
     const data = await r.json();
     console.log("[mmo] /info:", data);
-    state.serviceDid    = data.service_did    || null;
-    state.serviceHandle = data.service_handle || null;
-    state.jetstreamUrl  = data.jetstream_url  || null;
+    state.serviceDid        = data.service_did        || null;
+    state.serviceHandle     = data.service_handle     || null;
+    state.jetstreamUrl      = data.jetstream_url      || null;
+    state.canvasUri         = data.canvas_uri         || null;
+    state.constellationBase = data.constellation_base || null;
+    state.linkSource        = data.link_source        || null;
     if (typeof data.width  === "number") CANVAS_W = data.width;
     if (typeof data.height === "number") CANVAS_H = data.height;
     if (data.has_service === false) {
@@ -441,8 +447,20 @@ async function fetchInfo() {
 // from multiple paths (local commit + Jetstream broadcast) doesn't double-count.
 const seenRkeys = new Set();
 
+function recordOnThisCanvas(record) {
+  // New strongRef-shaped: record.canvas = { uri: <anchor> }
+  if (record.canvas && typeof record.canvas === "object" && record.canvas.uri) {
+    return !state.canvasUri || record.canvas.uri === state.canvasUri;
+  }
+  // canvas_id short tag (also written today)
+  if (record.canvas_id === CANVAS_ID) return true;
+  // Legacy: canvas = "global"
+  if (record.canvas === CANVAS_ID) return true;
+  return false;
+}
+
 function applyRecord(rkey, record, opts) {
-  if (!record || record.canvas !== CANVAS_ID) return;
+  if (!record || !recordOnThisCanvas(record)) return;
   if (!record.tool || !record.color || !record.size || !Array.isArray(record.points)) return;
   if (rkey && seenRkeys.has(rkey)) return;
   if (rkey) seenRkeys.add(rkey);
@@ -464,40 +482,93 @@ function applyRecord(rkey, record, opts) {
   }
 }
 
-// Replay the signed-in user's own past strokes from their PDS. Strokes
-// live on many PDSes now — we can only fetch the current user's own
-// records on boot. Strokes from others get filled in by the Jetstream
-// live feed once they're written.
+// Resolve a DID to its PDS URL via the public PLC directory. Cached
+// in-memory; sufficient for one page load. did:web:* resolves to the
+// host portion of the DID itself.
+const pdsByDid = new Map();
+async function resolvePds(did) {
+  if (!did) return null;
+  if (pdsByDid.has(did)) return pdsByDid.get(did);
+  let pds = null;
+  try {
+    if (did.startsWith("did:web:")) {
+      pds = "https://" + did.slice("did:web:".length);
+    } else if (did.startsWith("did:plc:")) {
+      const r = await fetch(`https://plc.directory/${encodeURIComponent(did)}`);
+      if (r.ok) {
+        const doc = await r.json();
+        const svc = (doc.service || []).find(
+          s => s && (s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer")
+        );
+        pds = svc && svc.serviceEndpoint ? svc.serviceEndpoint : null;
+      }
+    }
+  } catch (e) { /* swallow — caller treats null as skip */ }
+  if (pds) pdsByDid.set(did, pds);
+  return pds;
+}
+
+// Replay via Constellation — the ATProto-wide backlink index. Strokes
+// link to a canvas anchor URI via record.canvas.uri; Constellation
+// returns every {did, collection, rkey} pointing at that anchor across
+// the entire network. For each, we resolve the contributor's PDS and
+// fetch the record value.
 async function replayInitial() {
-  if (!state.session || !state.session.sessionId) {
-    console.log("[mmo] no session — skipping initial replay (will receive live via jetstream)");
+  if (!state.canvasUri || !state.constellationBase || !state.linkSource) {
+    console.warn("[mmo] missing canvas/constellation config — skipping replay");
     return;
   }
+  const url = new URL(`${state.constellationBase}/xrpc/blue.microcosm.links.getBacklinks`);
+  url.searchParams.set("subject", state.canvasUri);
+  url.searchParams.set("source",  state.linkSource);
+  url.searchParams.set("limit",   "100");
+
+  let data;
   try {
-    const r = await fetch(`${MMO_API}/strokes/me?limit=100`, {
-      headers: { "Authorization": `Bearer ${state.session.sessionId}` },
-    });
+    const r = await fetch(url.toString());
     if (!r.ok) {
-      console.warn("[mmo] /strokes/me returned", r.status);
+      console.warn("[mmo] constellation returned", r.status);
       return;
     }
-    const data = await r.json();
-    const recs = (data.records || []).slice().reverse();   // listRecords returns newest-first
-    console.log(`[mmo] replaying ${recs.length} of my own strokes from ${data.pds_url}`);
-    for (const rec of recs) {
-      const rkey = rec.uri ? rec.uri.split("/").pop() : "";
-      // Records from my own PDS won't have contributor/contributorHandle
-      // fields (we only stamp tool/color/size/points/canvas/createdAt).
-      // Synthesize them from the session we know is mine.
-      applyRecord(rkey, rec.value || {}, {
-        contributor: state.session.did,
-        contributorHandle: state.session.handle,
-      });
-    }
-    render();
+    data = await r.json();
   } catch (e) {
-    console.error("[mmo] replay error:", e);
+    console.warn("[mmo] constellation fetch failed:", e);
+    return;
   }
+
+  const items = data.records || [];
+  console.log(`[mmo] constellation: ${data.total} backlinks for ${state.canvasUri}`);
+  if (!items.length) return;
+
+  // Oldest first so the canvas reconstructs in chronological order
+  // (TID rkeys sort lex).
+  items.sort((a, b) => (a.rkey < b.rkey ? -1 : a.rkey > b.rkey ? 1 : 0));
+
+  // Fetch records in parallel with a small concurrency cap.
+  const CONCURRENCY = 6;
+  let cursor = 0;
+  let applied = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const it = items[cursor++];
+      try {
+        const pds = await resolvePds(it.did);
+        if (!pds) continue;
+        const u = new URL(`${pds}/xrpc/com.atproto.repo.getRecord`);
+        u.searchParams.set("repo",       it.did);
+        u.searchParams.set("collection", it.collection);
+        u.searchParams.set("rkey",       it.rkey);
+        const res = await fetch(u.toString());
+        if (!res.ok) continue;
+        const got = await res.json();
+        applyRecord(it.rkey, got.value || {}, { contributor: it.did });
+        applied++;
+      } catch (e) { /* per-record failures don't stop the batch */ }
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  console.log(`[mmo] replayed ${applied}/${items.length} records`);
+  render();
 }
 
 // ---- Jetstream live subscription ---------------------------------

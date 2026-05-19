@@ -31,6 +31,22 @@ const SUBMIT_COOLDOWN_MS = 200;
 const MAX_POINTS         = 600;
 const DRAW_FRONTEND_ORIGIN = 'https://mino.mobi';
 
+// The canvas anchor URI is a stable string that all stroke records on
+// this canvas link to via record.canvas.uri. Constellation
+// (constellation.microcosm.blue) indexes these as backlinks, so we can
+// query "all strokes pointing at this anchor" to reconstruct the canvas
+// across every contributor's PDS without having to maintain our own
+// firehose subscriber.
+//
+// Constellation doesn't validate that the target URI actually exists —
+// it indexes the string. So a real anchor record is nice-to-have but
+// not required for the index to work. Use the service DID when it's
+// configured; fall back to a stable sentinel otherwise.
+function canvasAnchorUri(env: Env, _canvasId = 'global'): string {
+  const did = env.ATPROTO_SERVICE_DID || 'did:plc:mmopaint-anchor';
+  return `at://${did}/com.minomobi.mmopaint.canvas/global`;
+}
+
 // Per-isolate per-DID cooldown.
 const lastSubmitByDid = new Map<string, number>();
 
@@ -66,16 +82,23 @@ export async function handleMmoRoutes(
 
 // ---- /info --------------------------------------------------------
 
-async function mmoInfo(_env: Env): Promise<Response> {
-  // wantedCollections alone — strokes live on many PDSes now.
+async function mmoInfo(env: Env): Promise<Response> {
   const jetstream = `wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=${encodeURIComponent(STROKE_COLLECTION)}`;
+  const anchor    = canvasAnchorUri(env);
   return json({
-    collection:        STROKE_COLLECTION,
-    required_scope:    REQUIRED_SCOPE,
-    jetstream_url:     jetstream,
-    canvas:            'global',
-    width:             1024,
-    height:            1024,
+    collection:         STROKE_COLLECTION,
+    required_scope:     REQUIRED_SCOPE,
+    jetstream_url:      jetstream,
+    canvas:             'global',
+    width:              1024,
+    height:             1024,
+    // Constellation reverse index — strokes link to canvas_uri via
+    // record.canvas.uri, so we can pull all of them with:
+    //   GET <constellation_base>/xrpc/blue.microcosm.links.getBacklinks
+    //     ?subject=<canvas_uri>&source=<link_source>
+    canvas_uri:         anchor,
+    constellation_base: 'https://constellation.microcosm.blue',
+    link_source:        `${STROKE_COLLECTION}:canvas.uri`,
   });
 }
 
@@ -167,9 +190,13 @@ async function submitStroke(request: Request, env: Env): Promise<Response> {
   }
 
   const rkey = generateTid();
+  // canvas is now a strongRef-shaped link object so Constellation indexes
+  // the backlinks. Constellation extracts record.canvas.uri.
+  const anchorUri = canvasAnchorUri(env, canvas);
   const record = {
     $type:             STROKE_COLLECTION,
-    canvas,
+    canvas:            { uri: anchorUri },
+    canvas_id:         canvas,   // keep the short id for ergonomics + back-compat
     tool,
     color:             color.toLowerCase(),
     size,
