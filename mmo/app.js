@@ -243,6 +243,16 @@ function readSessionFragment() {
   const hash = location.hash.replace(/^#/, "");
   if (!hash) return null;
   const params = new URLSearchParams(hash);
+
+  // Surface OAuth errors that the callback bounced back on the fragment.
+  const oauthErr = params.get("error");
+  if (oauthErr) {
+    console.error("[mmo] OAuth callback error:", oauthErr);
+    showToast("sign-in failed: " + oauthErr, 8000);
+    history.replaceState(null, "", location.pathname + location.search);
+    return null;
+  }
+
   const sid = params.get("session");
   if (!sid) return null;
   const sess = {

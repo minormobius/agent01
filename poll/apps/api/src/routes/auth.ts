@@ -183,6 +183,18 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     return jsonResponse({ error: 'Missing code or state parameter' }, 400);
   }
 
+  // Pre-fetch the original returnTo from the state row so that if
+  // anything blows up inside handleOAuthCallback, we can still bounce
+  // the user back to the page that started the flow (e.g. mino.mobi/mmo)
+  // with an error param, instead of stranding them on poll.mino.mobi/.
+  let stateReturnTo: string | null = null;
+  try {
+    const row = await env.DB.prepare(
+      `SELECT return_to FROM oauth_states WHERE state = ? LIMIT 1`
+    ).bind(state).first<{ return_to: string | null }>();
+    stateReturnTo = row?.return_to || null;
+  } catch { /* best-effort; fall back to FRONTEND_URL on error */ }
+
   try {
     const result = await handleOAuthCallback(env, code, state, iss, request);
 
@@ -222,8 +234,24 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     return new Response(null, { status: 302, headers });
   } catch (err: any) {
     console.error('OAuth callback error:', err.message);
+    // Use the pre-fetched returnTo if available so the user lands back
+    // on the originating app (mino.mobi/mmo, /draw, etc.) with the error
+    // surfaced in a URL param. Falls back to the poll frontend root
+    // for legacy flows that didn't pass a returnTo.
     const frontendUrl = env.FRONTEND_URL || '';
-    return Response.redirect(`${frontendUrl}/?error=${encodeURIComponent(err.message)}`, 302);
+    const isExternal = stateReturnTo && /^https:\/\/(?:www\.)?mino\.mobi(?:\/|$)/.test(stateReturnTo);
+    const errParam = `error=${encodeURIComponent(err.message || 'oauth callback failed')}`;
+    let target: string;
+    if (isExternal) {
+      // Put the error on the fragment, same shape as the success case.
+      const sep = stateReturnTo!.includes('#') ? '&' : '#';
+      target = `${stateReturnTo}${sep}${errParam}`;
+    } else if (stateReturnTo) {
+      target = `${frontendUrl}${stateReturnTo}?${errParam}`;
+    } else {
+      target = `${frontendUrl}/?${errParam}`;
+    }
+    return Response.redirect(target, 302);
   }
 }
 
