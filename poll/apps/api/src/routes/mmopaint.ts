@@ -25,11 +25,15 @@ import { startOAuth } from '../oauth/flow.js';
 import { createDPoPProof } from '../oauth/jwt.js';
 
 const STROKE_COLLECTION = 'com.minomobi.mmopaint.stroke';
-// The narrow OAuth scope we request: write-create permission for just
-// this single NSID, nothing else. Granular per-NSID scopes shipped on
-// bsky.social in August 2025. transition:generic is still accepted as
-// a fallback for sessions created before this narrowed scope existed.
-const NARROW_SCOPE      = 'repo:com.minomobi.mmopaint.stroke?action=create';
+// Narrowest scope that today's bsky.social AS accepts at PAR: bare
+// per-NSID repo permission, no action filter. The `?action=create`
+// subscoping is in the August 2025 spec but the AS still rejects it
+// at request time as "not declared in client metadata" — likely a
+// metadata-vs-request canonicalisation gap that'll resolve as
+// implementation catches up to the spec. Bare form still narrows to
+// one record type, which is the important property.
+// transition:generic stays accepted as a fallback for older sessions.
+const NARROW_SCOPE      = 'repo:com.minomobi.mmopaint.stroke';
 const FALLBACK_SCOPE    = 'transition:generic';
 const VALID_TOOLS       = new Set(['brush', 'eraser', 'fill']);
 const SUBMIT_COOLDOWN_MS = 200;

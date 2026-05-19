@@ -341,12 +341,13 @@ async function handleClientMetadata(env: Env): Promise<Response> {
     client_name: 'ATPolls',
     client_uri: 'https://poll.mino.mobi',
     redirect_uris: ['https://poll.mino.mobi/api/auth/oauth/callback'],
-    // Scopes the client may request at authorize time. The user picks
-    // which subset they grant. transition:generic stays for poll's
-    // "Post to Bluesky" feature (writes app.bsky.feed.post records).
-    // The narrow repo: scopes let /mmo ask for ONLY write-create on
-    // its single NSID instead of full repo write.
-    scope: 'atproto transition:generic repo:com.minomobi.mmopaint.stroke?action=create',
+    // Scopes the client may request at authorize time. transition:generic
+    // stays for poll's "Post to Bluesky". The bare repo:<nsid> form is
+    // what the docs example uses — `?action=create` is in the spec but
+    // bsky.social's PAR endpoint rejects it today (May 2026) with
+    // "invalid scope: not declared in client metadata". Bare NSID still
+    // narrows scope to one record type, which is the important bit.
+    scope: 'atproto transition:generic repo:com.minomobi.mmopaint.stroke',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',

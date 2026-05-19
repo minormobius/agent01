@@ -510,7 +510,7 @@ button { font-family: var(--serif); cursor: pointer; }
   <div class="signin-prompt" id="signin-prompt" hidden>
     <div class="card">
       <h2>Sign in to paint</h2>
-      <p>Sign in with Bluesky &mdash; each stroke you paint becomes a public record on <strong>your own PDS</strong> (collection <code>com.minomobi.mmopaint.stroke</code>). We ask for the narrowest possible scope: <code>repo:com.minomobi.mmopaint.stroke?action=create</code> &mdash; permission to <em>create only this one record type</em>, nothing else on your account. Cryptographically signed by your repo; readable by anyone on the network.</p>
+      <p>Sign in with Bluesky &mdash; each stroke you paint becomes a public record on <strong>your own PDS</strong> (collection <code>com.minomobi.mmopaint.stroke</code>). We ask for the narrowest scope Bluesky&apos;s OAuth server accepts today: <code>repo:com.minomobi.mmopaint.stroke</code> &mdash; permission limited to <em>this one record type</em>, nothing else on your account. Cryptographically signed by your repo; readable by anyone on the network.</p>
       <div class="row">
         <input type="text" id="handle-input" placeholder="handle.bsky.social"
                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -554,7 +554,7 @@ button { font-family: var(--serif); cursor: pointer; }
 
 <div class="toast" id="toast"></div>
 
-<script src="./app.js?v=resync-1"></script>
+<script src="./app.js?v=narrow-scope-2"></script>
 
 </body>
 </html>
