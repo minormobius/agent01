@@ -159,9 +159,11 @@ export default function Mort() {
       .catch(() => setCountyNote("county selected · ACS unavailable"));
   }, [countyFips, stateFips]);
 
-  // FRED 30y rate — fetch once on mount
+  // FRED 30y rate — fetch once on mount via our CORS proxy (workers/fred-proxy/).
+  // The direct fred.stlouisfed.org endpoint blocks browser fetches on CORS;
+  // fred.mino.mobi proxies it server-side with permissive headers + edge cache.
   useEffect(() => {
-    fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US")
+    fetch("https://fred.mino.mobi/?id=MORTGAGE30US")
       .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
       .then((text) => {
         const lines = text.trim().split("\n").filter(Boolean);
