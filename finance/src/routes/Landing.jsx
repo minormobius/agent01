@@ -56,6 +56,7 @@ const TOOLS = [
 
 const EXTERNALS = [
   { to: "/stocks/", name: "stocks", desc: "Daily OHLCV archive on ATProto PDS, options pricer, vol surface. Lives at /stocks/." },
+  { to: "/agimet/", name: "agimet", desc: "Labor market dashboard — unemployment by education + the college wage premium, straight from FRED. Lives at /agimet/." },
   { to: "/bogo/", name: "bogo", desc: "Live at /bogo/." },
 ];
 

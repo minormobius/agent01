@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agimet — labor market dashboard</title>
+<meta name="description" content="A small FRED-data dashboard tracking unemployment by education and the college-vs-non-college gap.">
+<style>
+:root {
+  --bg: #faf9f6;
+  --panel: #fff;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+
+  --overall: #1a1a1a;
+  --college: #2d6a2e;
+  --noncollege: #8b0000;
+  --gap: #5b21b6;
+  --recession: rgba(120,120,120,0.18);
+
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --panel: #161616;
+    --text: #d4d4d4;
+    --muted: #888;
+    --rule: #333;
+    --link: #c45;
+    --overall: #d4d4d4;
+    --college: #5a5;
+    --noncollege: #c45;
+    --gap: #9d7ad8;
+    --recession: rgba(180,180,180,0.10);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.55;
+  padding: 3rem 1.5rem 5rem;
+  max-width: 980px;
+  margin: 0 auto;
+}
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+.subtitle { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.desc { font-size: 0.95rem; color: var(--muted); margin-bottom: 2.5rem; }
+
+h2 {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2rem 0 0.75rem;
+  font-weight: 400;
+}
+
+.panel {
+  border: 1px solid var(--rule);
+  padding: 1rem 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.chart-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+.chart-title .src {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chart-title a { color: var(--muted); }
+.chart-title a:hover { color: var(--text); }
+
+.legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.legend .swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.legend .latest {
+  color: var(--text);
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+svg.chart {
+  width: 100%;
+  height: 320px;
+  display: block;
+}
+.tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--rule);
+  padding: 0.45rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  white-space: pre;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.status {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 1rem;
+  text-align: center;
+}
+.status.err { color: var(--noncollege); }
+
+.notes {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+.notes strong { color: var(--text); }
+
+.footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.footer a { color: var(--muted); }
+.footer a:hover { color: var(--text); }
+.footer code { background: rgba(128,128,128,0.1); padding: 0.05em 0.3em; }
+
+@media (max-width: 560px) {
+  body { padding: 2rem 1rem 4rem; }
+  .panel { padding: 0.75rem 0.75rem 1rem; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">fin.mino.mobi</a> · agimet</h1>
+<p class="subtitle">labor market dashboard</p>
+<p class="desc">
+  Tracking the college wage premium via unemployment rates, straight from FRED.
+  Recession shading is NBER (<a href="https://fred.stlouisfed.org/series/USREC">USREC</a>);
+  data fetched live on page load from <a href="https://fred.stlouisfed.org/">fred.stlouisfed.org</a>.
+</p>
+
+<section class="panel">
+  <div class="chart-title">
+    <span>Unemployment rate · by education attainment, 25 yrs &amp; over</span>
+    <span class="src">monthly, BLS / FRED</span>
+  </div>
+  <div class="legend" id="legend1"></div>
+  <svg class="chart" id="chart1" viewBox="0 0 800 320" preserveAspectRatio="none"></svg>
+  <div class="tip" id="tip1"></div>
+  <div class="status" id="status1">fetching…</div>
+  <p class="notes">
+    <strong>UNRATE</strong> = total civilian U-3 (16+).
+    <strong>BA+</strong> = bachelor's degree or higher.
+    <strong>HS only</strong> = high school graduates, no college.
+    Both education series are restricted to age 25 and over.
+  </p>
+</section>
+
+<section class="panel">
+  <div class="chart-title">
+    <span>College unemployment premium · HS-only minus BA+</span>
+    <span class="src">computed, percentage points</span>
+  </div>
+  <svg class="chart" id="chart2" viewBox="0 0 800 320" preserveAspectRatio="none"></svg>
+  <div class="tip" id="tip2"></div>
+  <div class="status" id="status2"></div>
+  <p class="notes">
+    A positive number means non-college workers face higher unemployment than college workers.
+    Historically positive throughout the series; spikes during recessions (the gap widens because
+    HS-only workers are laid off first); narrows in tight labor markets.
+  </p>
+</section>
+
+<div class="footer">
+  Series:
+  <a href="https://fred.stlouisfed.org/series/UNRATE">UNRATE</a> (overall),
+  <a href="https://fred.stlouisfed.org/series/LNS14027659">LNS14027659</a> (BA+),
+  <a href="https://fred.stlouisfed.org/series/LNS14027689">LNS14027689</a> (HS only),
+  <a href="https://fred.stlouisfed.org/series/USREC">USREC</a> (NBER recessions).
+  <br><br>
+  Source: U.S. Bureau of Labor Statistics, Current Population Survey, via FRED.
+  Recessions per NBER Business Cycle Dating Committee. Reload to refresh.
+  No data is stored on this page — every request goes direct to the FRED CSV endpoint.
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────
+// Edit the series IDs here to swap definitions of "college" or "non-college".
+// LNS14027660 = less than high school
+// LNS14027689 = high school grad, no college   ← current "non-college"
+// LNS14027662 = some college or assoc degree
+// LNS14027659 = bachelor's+                    ← current "college"
+const SERIES = {
+  overall:    { id: 'UNRATE',      label: 'Overall (U-3)',     color: 'var(--overall)' },
+  noncollege: { id: 'LNS14027689', label: 'HS only, no college', color: 'var(--noncollege)' },
+  college:    { id: 'LNS14027659', label: 'BA+',                color: 'var(--college)' },
+};
+const RECESSION_ID = 'USREC';
+const FRED_CSV = id => `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
+
+const $ = id => document.getElementById(id);
+
+// ─── Fetch + parse ───────────────────────────────────────────────────
+async function fetchSeries(id) {
+  const r = await fetch(FRED_CSV(id));
+  if (!r.ok) throw new Error(`${id}: HTTP ${r.status}`);
+  const text = await r.text();
+  const lines = text.trim().split('\n');
+  // Header: DATE,<id>. Data rows have date + value; FRED uses '.' for missing.
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const [date, raw] = lines[i].split(',');
+    if (!date) continue;
+    const v = parseFloat(raw);
+    if (isFinite(v)) out.push({ date, t: Date.parse(date + 'T00:00:00Z'), v });
+  }
+  return out;
+}
+
+// ─── Render helpers ──────────────────────────────────────────────────
+function fmtDate(t) {
+  const d = new Date(t);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+function fmtRate(v) { return v.toFixed(1) + '%'; }
+function fmtRateSigned(v) {
+  return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + ' pp';
+}
+
+// Build recession bands from USREC monthly indicator (1 during recession, 0 else).
+// Walk the series, group consecutive 1s into [startT, endT] spans.
+function recessionBands(usrec) {
+  const bands = [];
+  let start = null;
+  for (let i = 0; i < usrec.length; i++) {
+    if (usrec[i].v === 1) {
+      if (start === null) start = usrec[i].t;
+    } else {
+      if (start !== null) {
+        bands.push([start, usrec[i].t]);
+        start = null;
+      }
+    }
+  }
+  if (start !== null) bands.push([start, usrec[usrec.length - 1].t]);
+  return bands;
+}
+
+// Generic chart renderer. data = [{name, color, points: [{t,v}]}],
+// extra options: yLabel (string), yFmt (fn), recession bands.
+function drawChart(svgEl, tipEl, data, opts = {}) {
+  const W = 800, H = 320;
+  const padL = 48, padR = 12, padT = 14, padB = 28;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  // Pool t,v across all series for axis bounds
+  const all = data.flatMap(s => s.points);
+  if (all.length === 0) { svgEl.innerHTML = ''; return; }
+  const minT = Math.min(...all.map(p => p.t));
+  const maxT = Math.max(...all.map(p => p.t));
+  let minV = Math.min(...all.map(p => p.v));
+  let maxV = Math.max(...all.map(p => p.v));
+  // Pad y range a bit. For diff charts that straddle 0, keep 0 visible.
+  const span = maxV - minV;
+  if (opts.includeZero) {
+    minV = Math.min(minV, 0);
+    maxV = Math.max(maxV, 0);
+  }
+  minV = minV - span * 0.05;
+  maxV = maxV + span * 0.05;
+
+  const x = t => padL + ((t - minT) / (maxT - minT || 1)) * innerW;
+  const y = v => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
+
+  // Recession shading
+  let recShade = '';
+  if (opts.recessionBands) {
+    for (const [a, b] of opts.recessionBands) {
+      if (b < minT || a > maxT) continue;
+      const x0 = x(Math.max(a, minT));
+      const x1 = x(Math.min(b, maxT));
+      recShade += `<rect x="${x0}" y="${padT}" width="${x1 - x0}" height="${innerH}" fill="var(--recession)"/>`;
+    }
+  }
+
+  // Y axis: nice ticks
+  const ticks = niceTicks(minV, maxV, 5);
+  let yAxis = '';
+  for (const t of ticks) {
+    const yy = y(t);
+    yAxis += `<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="currentColor" opacity="0.08"/>`;
+    yAxis += `<text x="${padL - 6}" y="${yy + 3}" font-family="var(--mono)" font-size="9" text-anchor="end" fill="currentColor" opacity="0.6">${opts.yFmt ? opts.yFmt(t) : fmtRate(t)}</text>`;
+  }
+  // Zero line if domain straddles 0
+  if (minV < 0 && maxV > 0) {
+    const y0 = y(0);
+    yAxis += `<line x1="${padL}" y1="${y0}" x2="${W - padR}" y2="${y0}" stroke="currentColor" opacity="0.25"/>`;
+  }
+
+  // X axis: year ticks
+  const startYr = new Date(minT).getUTCFullYear();
+  const endYr = new Date(maxT).getUTCFullYear();
+  const step = Math.max(1, Math.ceil((endYr - startYr) / 8));
+  let xAxis = '';
+  for (let yr = Math.ceil(startYr / step) * step; yr <= endYr; yr += step) {
+    const t = Date.UTC(yr, 0, 1);
+    const xx = x(t);
+    if (xx < padL || xx > W - padR) continue;
+    xAxis += `<line x1="${xx}" y1="${padT + innerH}" x2="${xx}" y2="${padT + innerH + 4}" stroke="currentColor" opacity="0.4"/>`;
+    xAxis += `<text x="${xx}" y="${padT + innerH + 16}" font-family="var(--mono)" font-size="9" text-anchor="middle" fill="currentColor" opacity="0.6">${yr}</text>`;
+  }
+
+  // Series lines
+  let series = '';
+  for (const s of data) {
+    if (s.points.length === 0) continue;
+    let d = `M ${x(s.points[0].t)} ${y(s.points[0].v)}`;
+    for (let i = 1; i < s.points.length; i++) d += ` L ${x(s.points[i].t)} ${y(s.points[i].v)}`;
+    series += `<path d="${d}" stroke="${s.color}" stroke-width="1.5" fill="none"/>`;
+  }
+
+  // Hit area for hover
+  svgEl.innerHTML = `
+    ${recShade}
+    ${yAxis}
+    ${xAxis}
+    ${series}
+    <rect id="hit" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="transparent"/>
+  `;
+
+  // Hover: snap to nearest date across all series
+  const hit = svgEl.querySelector('#hit');
+  const onMove = e => {
+    const rect = svgEl.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) * (W / rect.width);
+    const targetT = minT + ((sx - padL) / innerW) * (maxT - minT);
+
+    // For each series, find the closest point to targetT
+    const hits = data.map(s => {
+      if (s.points.length === 0) return null;
+      let best = s.points[0];
+      let bestDiff = Math.abs(s.points[0].t - targetT);
+      for (let i = 1; i < s.points.length; i++) {
+        const d = Math.abs(s.points[i].t - targetT);
+        if (d < bestDiff) { bestDiff = d; best = s.points[i]; }
+      }
+      return { s, p: best };
+    }).filter(Boolean);
+    if (hits.length === 0) return;
+
+    // Use the first series' nearest as anchor for tooltip position
+    const anchorT = hits[0].p.t;
+    const anchorX = x(anchorT);
+    const tipLines = [fmtDate(anchorT)];
+    for (const h of hits) {
+      tipLines.push(`${h.s.label}: ${opts.yFmt ? opts.yFmt(h.p.v) : fmtRate(h.p.v)}`);
+    }
+    tipEl.style.opacity = '1';
+    tipEl.style.left = ((anchorX / W) * rect.width + rect.left - svgEl.parentElement.getBoundingClientRect().left) + 'px';
+    tipEl.style.top = (rect.top - svgEl.parentElement.getBoundingClientRect().top - 4) + 'px';
+    tipEl.style.transform = 'translate(-50%, -100%)';
+    tipEl.textContent = tipLines.join('\n');
+  };
+  hit.addEventListener('mousemove', onMove);
+  hit.addEventListener('mouseleave', () => { tipEl.style.opacity = '0'; });
+}
+
+function niceTicks(min, max, count) {
+  const span = max - min;
+  const step0 = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const norm = step0 / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const first = Math.ceil(min / step) * step;
+  const ticks = [];
+  for (let v = first; v <= max + 1e-9; v += step) ticks.push(v);
+  return ticks;
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    // Fire all four fetches in parallel
+    const [overall, noncollege, college, usrec] = await Promise.all([
+      fetchSeries(SERIES.overall.id),
+      fetchSeries(SERIES.noncollege.id),
+      fetchSeries(SERIES.college.id),
+      fetchSeries(RECESSION_ID).catch(() => []), // recession bands optional
+    ]);
+
+    const bands = recessionBands(usrec);
+    const latest = arr => arr[arr.length - 1];
+
+    // ── Legend with latest values ─────────────────────────────────
+    const legend1 = $('legend1');
+    const items = [
+      { ...SERIES.overall, latest: latest(overall) },
+      { ...SERIES.noncollege, latest: latest(noncollege) },
+      { ...SERIES.college, latest: latest(college) },
+    ];
+    legend1.innerHTML = items.map(it => `
+      <span>
+        <span class="swatch" style="background:${it.color}"></span>${it.label}
+        <span class="latest">${fmtRate(it.latest.v)}</span>
+        <span style="opacity:0.6"> · ${fmtDate(it.latest.t)}</span>
+      </span>
+    `).join('');
+
+    // ── Chart 1: three series ─────────────────────────────────────
+    drawChart($('chart1'), $('tip1'), [
+      { label: SERIES.overall.label, color: SERIES.overall.color, points: overall },
+      { label: SERIES.noncollege.label, color: SERIES.noncollege.color, points: noncollege },
+      { label: SERIES.college.label, color: SERIES.college.color, points: college },
+    ], { recessionBands: bands });
+    $('status1').remove();
+
+    // ── Chart 2: gap = noncollege − college ──────────────────────
+    // Build map of t → v for college, walk noncollege series for paired dates
+    const collegeMap = new Map(college.map(p => [p.date, p.v]));
+    const gap = [];
+    for (const p of noncollege) {
+      const c = collegeMap.get(p.date);
+      if (c !== undefined) gap.push({ date: p.date, t: p.t, v: p.v - c });
+    }
+    const latestGap = latest(gap);
+    $('status2').innerHTML = `latest: <strong>${fmtRateSigned(latestGap.v)}</strong> · ${fmtDate(latestGap.t)}`;
+    $('status2').style.color = 'var(--gap)';
+    $('status2').style.padding = '0.5rem 0 0';
+
+    drawChart($('chart2'), $('tip2'), [
+      { label: 'HS only − BA+', color: 'var(--gap)', points: gap },
+    ], { recessionBands: bands, yFmt: fmtRateSigned, includeZero: true });
+
+  } catch (e) {
+    $('status1').textContent = 'Failed to load FRED data: ' + e.message;
+    $('status1').classList.add('err');
+    $('status2').textContent = '';
+  }
+})();
+</script>
+
+</body>
+</html>
