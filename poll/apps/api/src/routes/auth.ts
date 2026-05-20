@@ -25,7 +25,12 @@ export interface Session {
 }
 
 const SESSION_COOKIE = 'atpolls_session';
-const SESSION_TTL_HOURS = 24;
+const SESSION_TTL_HOURS = 168;   // 7 days; sliding window in lookupSession
+                                  // pushes this forward on every authed request.
+                                  // The hard ceiling is the OAuth refresh token's
+                                  // own expiry (~90d on bsky.social).
+const SESSION_SLIDE_WHEN_LT_HOURS = 72;  // only write to D1 to extend the row
+                                          // if it has < 3 days remaining.
 const REFRESH_TTL_DAYS = 90;
 
 export async function handleAuthRoutes(
@@ -306,6 +311,21 @@ async function lookupSession(env: Env, sessionId: string): Promise<Session | nul
   ).bind(sessionId).first();
 
   if (!row) return null;
+
+  // Sliding-window expiry: each authed request pushes expires_at forward,
+  // but only when the row has < SESSION_SLIDE_WHEN_LT_HOURS remaining, so
+  // we don't write to D1 on every getSession call. As long as the user is
+  // active within the TTL window the session never silently expires.
+  env.DB.prepare(
+    `UPDATE sessions
+        SET expires_at = datetime('now', '+${SESSION_TTL_HOURS} hours')
+      WHERE session_id = ?
+        AND expires_at < datetime('now', '+${SESSION_SLIDE_WHEN_LT_HOURS} hours')`
+  ).bind(sessionId).run().catch((e) => {
+    // Best-effort — a missed slide just means the user re-auths sooner.
+    console.warn('[auth] session slide failed:', e?.message);
+  });
+
   return {
     sessionId: row.session_id as string,
     did: row.did as string,

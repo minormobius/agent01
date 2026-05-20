@@ -875,11 +875,13 @@ async function sendStroke(tool, color, size, points) {
       }),
     });
     if (res.status === 401) {
+      const data = await res.json().catch(() => ({}));
+      console.warn("[mmo] /strokes 401:", data);
       clearStoredSession();
       state.session = null;
       refreshAuthUI();
       showSigninPrompt(true);
-      showToast("session expired — sign in");
+      showToast(data.error || "session expired — sign in", 5000);
       return;
     }
     if (res.status === 403) {
