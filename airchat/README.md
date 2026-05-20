@@ -55,9 +55,15 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
    cat /tmp/airchat-admin-key | npx wrangler secret put ADMIN_KEY --name airchat
    ```
 
-3. Add yourself to the whitelist. Two equivalent ways:
+3. Add yourself + invitees to the whitelist. **Easiest**: edit
+   `airchat/whitelist.txt`, one handle per line, commit, push.
+   The deploy workflow resolves each handle to a DID and
+   INSERT-OR-IGNOREs into `airchat_whitelist`. Idempotent — re-pushing
+   doesn't duplicate or clobber existing entries.
 
-   **Via API (after secrets are set):**
+   Other ways:
+
+   **Via admin API (after ADMIN_KEY is set):**
    ```sh
    curl -X POST https://airchat.mino.mobi/api/airchat/admin/whitelist/add \
      -H "X-Admin-Key: $(cat /tmp/airchat-admin-key)" \
@@ -65,13 +71,11 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
      -d '{"did":"did:plc:YOUR_DID","handle":"yourhandle.bsky.social","note":"founder"}'
    ```
 
-   **Or via wrangler directly:**
+   **Or wrangler directly:**
    ```sh
    npx wrangler d1 execute atpolls-db --remote \
      --command "INSERT OR REPLACE INTO airchat_whitelist (did, handle, note) VALUES ('did:plc:YOUR_DID', 'yourhandle.bsky.social', 'founder');"
    ```
-
-4. Add invitees the same way.
 
 ## Admin API
 

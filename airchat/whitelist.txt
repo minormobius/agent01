@@ -1,0 +1,9 @@
+# airchat whitelist — write access seed list.
+#
+# One handle per line. Lines starting with `#` and blank lines are skipped.
+# The deploy workflow resolves each handle to a DID and INSERT-OR-IGNOREs
+# into airchat_whitelist on every deploy (idempotent).
+#
+# To add someone: append their handle below, commit, push. Done.
+
+minormobius.bsky.social
