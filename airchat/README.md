@@ -39,6 +39,16 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
 - Lexicon: `lexicons/voice.json` (documentation; ATProto does not enforce
   custom lexicons centrally).
 
+## Verifying a deploy
+
+```sh
+curl https://airchat.mino.mobi/api/airchat/health | jq .
+```
+
+Should return `{"ok":true,"bindings":{"db":true,"assets":true,"openai":true,"admin":true},...}`.
+If `openai` or `admin` are false after a deploy, the corresponding GH
+secret isn't set in repo Settings → Secrets → Actions.
+
 ## Operator setup (one-time after first deploy)
 
 1. Add `OPENAI_API_KEY` to **GitHub repo secrets**
