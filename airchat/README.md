@@ -89,10 +89,15 @@ secret isn't set in repo Settings → Secrets → Actions.
    apply the secret there instead.
 
 3. Add yourself + invitees to the whitelist. **Easiest**: edit
-   `airchat/whitelist.txt`, one handle per line, commit, push.
-   The deploy workflow resolves each handle to a DID and
-   INSERT-OR-IGNOREs into `airchat_whitelist`. Idempotent — re-pushing
-   doesn't duplicate or clobber existing entries.
+   `airchat/whitelist.txt`, commit, push. Three formats accepted:
+
+   - bluesky handle (resolved via public API)
+   - DID (inserted as-is)
+   - `list:<bsky-list-url-or-at-uri>` — expanded into every member's
+     DID. Use this to bulk-grant access from a curated bsky list.
+
+   Idempotent — re-pushing doesn't duplicate or clobber existing
+   entries (PRIMARY KEY is the DID).
 
    Other ways:
 

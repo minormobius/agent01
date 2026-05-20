@@ -123,14 +123,16 @@ jobs:
           echo "⚠️ worker didn't respond to /api/airchat/health within 20s — edge propagation may be slow, continuing anyway."
 
       - name: Seed whitelist from airchat/whitelist.txt (idempotent)
-        # Reads airchat/whitelist.txt one entry per line. Each entry is
-        # either a bluesky handle (resolved via public API) or a DID
-        # (inserted as-is). INSERT-OR-IGNOREs into airchat_whitelist via
-        # wrangler d1 execute. Idempotent on the DID primary key.
+        # Reads airchat/whitelist.txt one entry per line. Each entry is:
+        #   - bluesky handle (resolved via public API)
+        #   - DID (inserted as-is)
+        #   - `list:<url|at-uri>` — bsky list, expanded into every
+        #     member's DID at deploy time
+        # INSERT-OR-IGNOREs into airchat_whitelist by DID primary key
+        # so re-running deploy is safe and additive.
         #
-        # Marked best-effort: deploy succeeds even if a handle fails to
-        # resolve (the worker is already up; whitelist can be patched
-        # later via re-push or the admin API).
+        # Marked best-effort: deploy succeeds even if API calls flake
+        # (the worker is already up; you can re-push later).
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -144,50 +146,142 @@ jobs:
           echo "=== Seeding whitelist from airchat/whitelist.txt ==="
           INSERTED=0
           FAILED=0
+
+          # Helper: insert one (did, handle, note) triple. Returns 0 on success.
+          insert_did() {
+            local DID="$1" HANDLE="$2" NOTE="$3"
+            local ESCAPED_HANDLE
+            ESCAPED_HANDLE=$(echo "$HANDLE" | sed "s/'/''/g")
+            local ESCAPED_NOTE
+            ESCAPED_NOTE=$(echo "$NOTE" | sed "s/'/''/g")
+            local SQL="INSERT OR IGNORE INTO airchat_whitelist (did, handle, note) VALUES ('$DID', '$ESCAPED_HANDLE', '$ESCAPED_NOTE');"
+            npx wrangler d1 execute atpolls-db --remote --command "$SQL" >/dev/null 2>&1
+          }
+
+          # Helper: normalize a list URL/URI to canonical at://did/.../rkey form.
+          # Accepts at:// URI or https://bsky.app/profile/<actor>/lists/<rkey>.
+          # Returns "" on parse failure.
+          parse_list_uri() {
+            local INPUT="$1"
+            if [[ "$INPUT" == at://* ]]; then
+              echo "$INPUT"
+              return 0
+            fi
+            if [[ "$INPUT" =~ /profile/([^/]+)/lists/([^/?#]+) ]]; then
+              local ACTOR="${BASH_REMATCH[1]}"
+              local RKEY="${BASH_REMATCH[2]}"
+              local DID="$ACTOR"
+              if [[ ! "$DID" == did:* ]]; then
+                DID=$(curl -sS "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$ACTOR" 2>/dev/null | jq -r '.did // empty' 2>/dev/null)
+                if [ -z "$DID" ]; then return 1; fi
+              fi
+              echo "at://$DID/app.bsky.graph.list/$RKEY"
+              return 0
+            fi
+            return 1
+          }
+
+          # Helper: expand a bsky list URI into individual member DIDs and
+          # insert each. Paginates via cursor; bsky.app limit is 100/page.
+          expand_list() {
+            local LIST_URI="$1"
+            echo "→ expanding list $LIST_URI"
+            local CURSOR=""
+            local PAGE=0
+            local TOTAL=0
+            while :; do
+              PAGE=$((PAGE + 1))
+              local ENCODED_URI
+              ENCODED_URI=$(printf '%s' "$LIST_URI" | jq -sRr @uri)
+              local URL="https://api.bsky.app/xrpc/app.bsky.graph.getList?list=$ENCODED_URI&limit=100"
+              if [ -n "$CURSOR" ]; then
+                local ENCODED_CURSOR
+                ENCODED_CURSOR=$(printf '%s' "$CURSOR" | jq -sRr @uri)
+                URL="$URL&cursor=$ENCODED_CURSOR"
+              fi
+              local RESP
+              RESP=$(curl -sS "$URL" 2>/dev/null)
+              local COUNT
+              COUNT=$(echo "$RESP" | jq '.items | length' 2>/dev/null)
+              if [ -z "$COUNT" ] || [ "$COUNT" = "null" ] || [ "$COUNT" = "0" ]; then
+                if [ "$PAGE" = "1" ]; then
+                  echo "  ⚠️  list returned no members (first page). Response:"
+                  echo "$RESP" | head -c 500
+                  echo ""
+                  FAILED=$((FAILED + 1))
+                fi
+                break
+              fi
+              echo "  page $PAGE: $COUNT members"
+              # For each member, extract did + handle and insert.
+              while IFS=$'\t' read -r MDID MHANDLE; do
+                if [ -z "$MDID" ]; then continue; fi
+                if insert_did "$MDID" "$MHANDLE" "from list $LIST_URI"; then
+                  TOTAL=$((TOTAL + 1))
+                else
+                  echo "    ! failed to insert $MDID ($MHANDLE)"
+                fi
+              done < <(echo "$RESP" | jq -r '.items[] | [.subject.did, (.subject.handle // "")] | @tsv' 2>/dev/null)
+              CURSOR=$(echo "$RESP" | jq -r '.cursor // empty' 2>/dev/null)
+              if [ -z "$CURSOR" ]; then break; fi
+            done
+            echo "  ✓ list expansion: $TOTAL inserted (or already present)"
+            INSERTED=$((INSERTED + TOTAL))
+          }
+
           while IFS= read -r raw || [ -n "$raw" ]; do
-            # Trim leading/trailing whitespace
             entry=$(echo "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            # Skip blank lines and comments
             [ -z "$entry" ] && continue
             case "$entry" in \#*) continue ;; esac
 
-            if [[ "$entry" == did:* ]]; then
-              DID="$entry"
-              HANDLE=""
-              echo "→ direct DID: $DID"
-            else
-              echo "→ resolving @$entry…"
-              # jq is preinstalled on ubuntu-latest; cleaner than python heredoc
-              RESP=$(curl -sS "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$entry" 2>&1)
-              DID=$(echo "$RESP" | jq -r '.did // empty' 2>/dev/null)
-              HANDLE="$entry"
-              if [ -z "$DID" ]; then
-                echo "  ⚠️  could not resolve @$entry — response was: $RESP"
+            # list: prefix → expand into members
+            if [[ "$entry" == list:* ]]; then
+              LIST_INPUT="${entry#list:}"
+              LIST_URI=$(parse_list_uri "$LIST_INPUT")
+              if [ -z "$LIST_URI" ]; then
+                echo "→ ⚠️  unrecognized list URL: $LIST_INPUT"
                 FAILED=$((FAILED + 1))
                 continue
               fi
-              echo "  resolved to $DID"
+              expand_list "$LIST_URI"
+              continue
             fi
 
-            # Escape single quotes in handle for SQL safety
-            ESCAPED_HANDLE=$(echo "$HANDLE" | sed "s/'/''/g")
-            SQL="INSERT OR IGNORE INTO airchat_whitelist (did, handle, note) VALUES ('$DID', '$ESCAPED_HANDLE', 'seeded from whitelist.txt');"
-            OUTPUT=$(npx wrangler d1 execute atpolls-db --remote --command "$SQL" 2>&1)
-            RC=$?
-            if [ $RC -ne 0 ]; then
-              echo "  ⚠️  wrangler returned $RC:"
-              echo "$OUTPUT" | head -10
+            # Direct DID
+            if [[ "$entry" == did:* ]]; then
+              echo "→ direct DID: $entry"
+              if insert_did "$entry" "" "seeded from whitelist.txt"; then
+                echo "  ✓ inserted (or already present)"
+                INSERTED=$((INSERTED + 1))
+              else
+                echo "  ⚠️  insert failed"
+                FAILED=$((FAILED + 1))
+              fi
+              continue
+            fi
+
+            # Handle: resolve to DID
+            echo "→ resolving @$entry…"
+            RESP=$(curl -sS "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$entry" 2>&1)
+            DID=$(echo "$RESP" | jq -r '.did // empty' 2>/dev/null)
+            if [ -z "$DID" ]; then
+              echo "  ⚠️  could not resolve @$entry — response was: $RESP"
               FAILED=$((FAILED + 1))
-            else
+              continue
+            fi
+            echo "  resolved to $DID"
+            if insert_did "$DID" "$entry" "seeded from whitelist.txt"; then
               echo "  ✓ inserted (or already present)"
               INSERTED=$((INSERTED + 1))
+            else
+              echo "  ⚠️  insert failed"
+              FAILED=$((FAILED + 1))
             fi
           done < whitelist.txt
 
           echo ""
           echo "=== Seed summary: $INSERTED ok, $FAILED failed ==="
-          echo "=== Current whitelist contents ==="
+          echo "=== Whitelist row count ==="
           npx wrangler d1 execute atpolls-db --remote \
-            --command "SELECT did, handle, note, datetime(added_at, 'unixepoch') AS added FROM airchat_whitelist ORDER BY added_at DESC;" \
-            2>&1 | head -40 || true
+            --command "SELECT COUNT(*) AS total FROM airchat_whitelist;" 2>&1 | tail -10 || true
           exit 0
