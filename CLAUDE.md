@@ -425,12 +425,17 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)
 
 ### Auth
 
-Two paths, both BFF (browser only holds an opaque `airchat_sid` httpOnly cookie):
+**OAuth only** (app-password removed). Confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request. Browser only ever holds an opaque `airchat_sid` httpOnly cookie.
 
-- **OAuth** (primary): confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request. **Minimum-privilege scope**: `atproto repo:com.minomobi.airchat.voice blob:audio/*` — the token can write our voice lexicon + upload audio blobs, nothing else (no `transition:generic`).
-- **App password** (fallback): `com.atproto.server.createSession`. PDS calls use `Authorization: Bearer <token>`.
+**Minimum-privilege scope**: `atproto repo:com.minomobi.airchat.voice blob:audio/*` — the token can write our voice lexicon + upload audio blobs, nothing else (no `transition:generic`).
 
-`airchat_sessions.auth_method` is the discriminator; `pdsAuthCall(sess, …)` dispatches to either `dpopFetch` or plain `fetch`. Refresh dispatches the same way.
+App-pw helper dispatches (`pdsAuthCall`, `ensureFreshAccess`) remain so legacy app-pw sessions degrade gracefully (force re-auth on first refresh failure).
+
+### Whitelist
+
+Two layers:
+- **`airchat_whitelist` D1 table** — durable; seeded from `airchat/whitelist.txt` (handles, DIDs, `list:` entries) on every deploy.
+- **`LIVE_WHITELIST_LISTS` in worker.js** — bluesky lists treated as live source of truth. On every auth check, if the DID isn't in the table, we fetch the list (cached 5 min per worker isolate) and check membership. A hit auto-inserts the DID for O(1) future checks. Adding to the bsky list grants access in ≤5 min without a redeploy; removal does NOT auto-revoke (manual DELETE required).
 
 ### Migration history
 

@@ -255,14 +255,13 @@ footer a { color: var(--muted); text-decoration: underline; }
         <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ta-results">
         <div id="ta-results" class="ta-results" role="listbox"></div>
       </div>
-      <button id="oauth-btn">Sign in with Bluesky (OAuth)</button>
-      <p class="hint" style="text-align:center; margin: 0.3rem 0;">— or —</p>
-      <label for="app-password" style="text-transform:none;">App password <span>(<a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">create one</a>)</span></label>
-      <input id="app-password" type="password" placeholder="abcd-efgh-ijkl-mnop" autocomplete="current-password">
-      <button id="login-btn" class="ghost">Sign in with app password</button>
+      <button id="oauth-btn">Sign in with Bluesky</button>
       <p class="hint">
-        OAuth keeps your password on Bluesky's side — you get redirected there to approve yapchat, then back. App-password is the fallback if OAuth isn't supported by your PDS.
-        Either way, the session token never reaches the browser; we store it server-side and you get an opaque cookie.
+        You get redirected to Bluesky to approve yapchat, then back here. We
+        ask for a minimum-privilege scope — the token can only write
+        <code>com.minomobi.airchat.voice</code> records and upload audio
+        blobs to your repo. It cannot post to your bsky feed, follow
+        accounts, send chats, or touch anything else.
       </p>
       <p class="hint">
         Voice posts go to your PDS as <code>com.minomobi.airchat.voice</code> records. Audio is a blob on your repo; the transcript is a string on the record. Reads are public to anyone; writes go through us so you can use Whisper without exposing the key.
@@ -458,35 +457,6 @@ $('oauth-btn').addEventListener('click', async () => {
     showLoginError('Network error: ' + (e?.message || e));
   } finally {
     $('oauth-btn').disabled = false;
-  }
-});
-
-$('login-btn').addEventListener('click', async () => {
-  clearLoginError();
-  const handle = $('handle').value.trim();
-  const app_password = $('app-password').value.trim();
-  if (!handle || !app_password) { showLoginError('Handle and app password required.'); return; }
-  $('login-btn').disabled = true;
-  try {
-    const res = await fetch('/api/airchat/auth/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ handle, app_password }),
-    });
-    const data = await res.json();
-    if (res.status === 403) {
-      $('denied-handle').textContent = '@' + (data.handle || handle);
-      showStage('denied');
-      return;
-    }
-    if (!res.ok) { showLoginError(data.error || `signin failed (${res.status})`); return; }
-    state.me = { did: data.did, handle: data.handle, pds_url: data.pds_url };
-    $('app-password').value = '';
-    renderMe();
-    showStage('rec');
-  } finally {
-    $('login-btn').disabled = false;
   }
 });
 

@@ -24,26 +24,38 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
 
 - Cloudflare Worker (`worker.js`) — assets binding for the static page, D1 for
   sessions + whitelist + feed cache, OpenAI Whisper proxy.
-- Auth: two paths.
-  - **OAuth** (primary): ATProto OAuth flow (PKCE + DPoP + PAR + private_key_jwt,
-    confidential client). Worker holds the DPoP-bound access token; PDS calls
-    are made with `Authorization: DPoP <token>` + a fresh DPoP proof on each
-    request. Keypair auto-generates in `airchat_oauth_keypair` on first
-    `/client-metadata.json` request — no manual secret config.
-  - **App password** (fallback): `com.atproto.server.createSession`. Worker
-    holds the access JWT, PDS calls use `Authorization: Bearer <token>`.
-  - Both paths produce the same `airchat_sessions` row shape (with
-    `auth_method` discriminator); the browser only sees an opaque
-    `airchat_sid` httpOnly cookie either way.
+- Auth: **OAuth only** (ATProto, PKCE + DPoP + PAR + private_key_jwt,
+  confidential client). Worker holds the DPoP-bound access token;
+  PDS calls go with `Authorization: DPoP <token>` + a fresh DPoP proof
+  per request. Keypair auto-generates in `airchat_oauth_keypair` on
+  first `/client-metadata.json` request — no manual secret config.
+  Browser only ever sees an opaque `airchat_sid` httpOnly cookie.
 
-  **OAuth scope is minimum-privilege:**
+  **Minimum-privilege scope:**
   `atproto repo:com.minomobi.airchat.voice blob:audio/*`. The token can
   write our voice lexicon and upload audio blobs — *nothing else*. It
   cannot post to bsky.feed.post, follow accounts, send chat messages,
   upload images, or write any other record collection. Compare to the
-  bridge `transition:generic` scope that grants everything a bsky client
-  does. App-password auth has no such gate (it uses the user's full
-  session token), so OAuth is meaningfully more secure here.
+  bridge `transition:generic` scope that grants everything a bsky
+  client does.
+
+  App-password auth was removed in favor of OAuth-only. Helper
+  dispatches for legacy app-pw sessions remain so old sessions degrade
+  gracefully (force re-auth on first refresh failure).
+
+- Whitelist (write access): two layers.
+  - **`airchat_whitelist` D1 table** — durable; seeded from
+    `airchat/whitelist.txt` on every deploy.
+  - **Live bsky lists** — listed in `LIVE_WHITELIST_LISTS` in
+    `worker.js`. On every auth check, if the DID isn't in the table,
+    we fetch the list (cached 5 min per worker isolate) and check
+    membership. A hit auto-inserts the DID into the table for O(1)
+    future checks.
+
+  **Effect**: adding someone to the bsky list grants them access in
+  ≤5 minutes without a redeploy. Removal does NOT auto-revoke — the
+  cached row sticks. For a hard revoke:
+  `wrangler d1 execute atpolls-db --remote --command "DELETE FROM airchat_whitelist WHERE did = '...'"`.
 - D1: shared `atpolls-db` (with poll, feed, rite).
 - Lexicon: `lexicons/voice.json` (documentation; ATProto does not enforce
   custom lexicons centrally).

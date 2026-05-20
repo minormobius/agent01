@@ -47,7 +47,6 @@ export default {
       }
       if (url.pathname === '/client-metadata.json')                                 return clientMetadata(env);
       if (url.pathname === '/api/airchat/whitelist/check')                          return whitelistCheck(request, env);
-      if (url.pathname === '/api/airchat/auth/start' && request.method === 'POST')  return authStart(request, env);
       if (url.pathname === '/api/airchat/auth/oauth/start' && request.method === 'POST')   return oauthStart(request, env);
       if (url.pathname === '/api/airchat/auth/oauth/callback' && request.method === 'GET') return oauthCallback(request, env, url);
       if (url.pathname === '/api/airchat/auth/me')                                  return authMe(request, env);
@@ -253,13 +252,90 @@ async function requireSession(request, env) {
   return sess;
 }
 
-async function requireWhitelisted(env, did) {
-  const row = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(did).first();
-  if (!row) {
-    const err = new Error('not on whitelist');
-    err.status = 403;
-    throw err;
+// ---------- whitelist ----------
+//
+// Two layers:
+//   1. airchat_whitelist table — the durable record. Seeded from
+//      airchat/whitelist.txt on every deploy. Indexed by DID.
+//   2. LIVE_WHITELIST_LISTS — bluesky lists treated as live sources of
+//      truth. On every auth check, if a DID isn't in the table, we
+//      fetch the list members (cached 5 min per worker isolate) and
+//      check membership. A live-list match auto-inserts the DID into
+//      the table so future checks are O(1).
+//
+// Effect: adding someone to the bsky list grants them access in ≤5
+// minutes without a redeploy. Removing them from the bsky list does
+// NOT auto-revoke — the cached row sticks. For a hard revoke, delete
+// the row manually:
+//   wrangler d1 execute atpolls-db --remote \
+//     --command "DELETE FROM airchat_whitelist WHERE did = '...';"
+const LIVE_WHITELIST_LISTS = [
+  'at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p',
+];
+const LIVE_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+const _liveListCache = new Map();        // listUri → { members: Set<DID>, expires: number }
+
+async function fetchListMembers(uri) {
+  const members = new Set();
+  let cursor;
+  // Safety cap: 10 pages = 1000 members.
+  for (let page = 0; page < 10; page++) {
+    const params = new URLSearchParams({ list: uri, limit: '100' });
+    if (cursor) params.set('cursor', cursor);
+    const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.graph.getList?${params}`);
+    if (!res.ok) break;
+    const data = await res.json();
+    for (const item of (data.items || [])) {
+      if (item.subject?.did) members.add(item.subject.did);
+    }
+    if (!data.cursor) break;
+    cursor = data.cursor;
   }
+  return members;
+}
+
+async function getListMembersCached(uri) {
+  const cached = _liveListCache.get(uri);
+  if (cached && cached.expires > Date.now()) return cached.members;
+  try {
+    const members = await fetchListMembers(uri);
+    _liveListCache.set(uri, { members, expires: Date.now() + LIVE_LIST_CACHE_TTL_MS });
+    return members;
+  } catch (e) {
+    console.error('live list fetch failed', uri, e);
+    // Return stale cache if present; better than 5xx for a transient API hiccup.
+    return cached?.members || new Set();
+  }
+}
+
+async function isOnAnyLiveList(did) {
+  for (const uri of LIVE_WHITELIST_LISTS) {
+    const members = await getListMembersCached(uri);
+    if (members.has(did)) return true;
+  }
+  return false;
+}
+
+async function isWhitelisted(env, did) {
+  if (!did) return false;
+  const row = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(did).first();
+  if (row) return true;
+  if (await isOnAnyLiveList(did)) {
+    // Cache the hit so future checks are O(1) and survive worker restarts.
+    // INSERT OR IGNORE in case two requests race.
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO airchat_whitelist (did, handle, note) VALUES (?, NULL, 'live: bsky list')`
+    ).bind(did).run();
+    return true;
+  }
+  return false;
+}
+
+async function requireWhitelisted(env, did) {
+  if (await isWhitelisted(env, did)) return;
+  const err = new Error('not on whitelist');
+  err.status = 403;
+  throw err;
 }
 
 // ---------- auth routes ----------
@@ -267,78 +343,25 @@ async function requireWhitelisted(env, did) {
 async function whitelistCheck(request, env) {
   const url = new URL(request.url);
   // Two call shapes:
-  //   ?did=... → public lookup
-  //   no params → uses current session cookie (callable while UI decides whether to show recorder)
+  //   ?did=... → public lookup (live-aware: a bsky-list add takes effect ≤5min)
+  //   no params → uses current session cookie (UI deciding recorder vs denied)
   let did = url.searchParams.get('did');
   if (!did) {
     const sid = readCookie(request, 'airchat_sid');
     const sess = sid ? await loadSession(env, sid) : null;
     if (!sess) return json({ whitelisted: false, authenticated: false });
-    did = sess.did;
-    const row = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(did).first();
-    return json({ whitelisted: !!row, authenticated: true, did, handle: sess.handle });
+    const wl = await isWhitelisted(env, sess.did);
+    return json({ whitelisted: wl, authenticated: true, did: sess.did, handle: sess.handle });
   }
-  const row = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(did).first();
-  return json({ whitelisted: !!row, did });
+  const wl = await isWhitelisted(env, did);
+  return json({ whitelisted: wl, did });
 }
 
-async function authStart(request, env) {
-  let body;
-  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-  const { handle, app_password } = body || {};
-  if (typeof handle !== 'string' || typeof app_password !== 'string') {
-    return json({ error: 'missing handle or app_password' }, 400);
-  }
-
-  let did, normalizedHandle, pds;
-  try {
-    ({ did, handle: normalizedHandle } = await resolveHandle(handle));
-    pds = await resolvePds(did);
-  } catch (e) {
-    return json({ error: `could not resolve @${handle}: ${e.message}` }, 400);
-  }
-
-  // Authenticate against the user's PDS (com.atproto.server.createSession).
-  const sessRes = await fetch(`${pds.replace(/\/$/, '')}/xrpc/com.atproto.server.createSession`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: normalizedHandle, password: app_password }),
-  });
-  if (!sessRes.ok) {
-    const body = await sessRes.text().catch(() => '');
-    return json({ error: 'authentication failed', details: body.slice(0, 200) }, 401);
-  }
-  const sessData = await sessRes.json();
-  if (sessData.did !== did) {
-    // PDS returned a different DID than handle resolution — unusual; refuse.
-    return json({ error: 'did mismatch from PDS' }, 500);
-  }
-
-  // Whitelist gate happens AFTER auth so we can give an honest 403 instead
-  // of a vague "couldn't sign in".
-  const wl = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(did).first();
-  if (!wl) {
-    return json({ error: 'not on whitelist', did, handle: normalizedHandle }, 403);
-  }
-
-  const session_id = randomHex(32);
-  await saveSession(env, {
-    session_id,
-    did,
-    handle: normalizedHandle,
-    pds_url: pds,
-    access_jwt: sessData.accessJwt,
-    refresh_jwt: sessData.refreshJwt,
-    access_expires_at: jwtExp(sessData.accessJwt) || nowSec() + 60 * 60,
-    created_at: nowSec(),
-  });
-
-  return json(
-    { ok: true, did, handle: normalizedHandle, pds_url: pds, whitelisted: true },
-    200,
-    { 'Set-Cookie': setCookieHeader('airchat_sid', session_id, { maxAge: SESSION_TTL_SEC }) }
-  );
-}
+// App-password auth was removed in favor of OAuth-only. The
+// /api/airchat/auth/start route no longer exists. Existing
+// app-password sessions in airchat_sessions remain valid until they
+// naturally expire; on first refresh failure they're deleted via
+// ensureFreshAccess and the user is forced to re-auth via OAuth.
 
 async function authMe(request, env) {
   try {
@@ -723,10 +746,11 @@ async function oauthCallback(request, env, url) {
     return new Response('OAuth callback failed: ' + (e?.message || e), { status: 400 });
   }
 
-  // Whitelist gate happens AFTER the exchange so we know the DID. Even
-  // when not whitelisted, we set the session — the UI will land on
-  // /stage-denied and show the "request access" message.
-  const wl = await env.DB.prepare(`SELECT did FROM airchat_whitelist WHERE did = ?`).bind(result.did).first();
+  // Whitelist gate is enforced at /api/airchat/whitelist/check on bootstrap
+  // and on every write route (transcribe, post). We always set the session
+  // here regardless — non-whitelisted users land on the denied stage but
+  // can still browse the feed. Live-list resolution (bsky-list add → ≤5min
+  // access) happens via isWhitelisted() at check time.
 
   const session_id = randomHex(32);
   await saveSession(env, {
