@@ -558,7 +558,9 @@ $('post-btn').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (!res.ok) {
-      $('post-status').innerHTML = `<div class="error">${escapeHtml(data.error || ('post failed (' + res.status + ')'))}</div>`;
+      const main = data.error || `post failed (${res.status})`;
+      const details = data.details ? `\n\n${data.details}` : '';
+      $('post-status').innerHTML = `<div class="error" style="white-space: pre-wrap;">${escapeHtml(main + details)}</div>`;
       return;
     }
     $('post-status').innerHTML = `<div class="success">Posted ✓ &middot; <a href="${escapeHtml(data.uri)}" style="color: var(--accent);">${escapeHtml(data.rkey)}</a></div>`;

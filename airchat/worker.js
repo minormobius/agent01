@@ -108,6 +108,26 @@ function randomHex(bytes = 32) {
 
 function nowSec() { return Math.floor(Date.now() / 1000); }
 
+// Whisper returns languages as English full names ("english", "spanish",
+// "portuguese"). The lexicon expects BCP-47 codes. Map common ones; for
+// everything else return null so the field gets dropped rather than
+// risking a PDS lexicon-validation rejection on a non-conforming value.
+const WHISPER_TO_BCP47 = {
+  english: 'en', spanish: 'es', french: 'fr', german: 'de', italian: 'it',
+  portuguese: 'pt', dutch: 'nl', russian: 'ru', polish: 'pl', turkish: 'tr',
+  japanese: 'ja', korean: 'ko', chinese: 'zh', arabic: 'ar', hindi: 'hi',
+  ukrainian: 'uk', czech: 'cs', greek: 'el', hebrew: 'he', vietnamese: 'vi',
+  thai: 'th', indonesian: 'id', swedish: 'sv', norwegian: 'no', danish: 'da',
+  finnish: 'fi', romanian: 'ro', hungarian: 'hu',
+};
+function normalizeLang(s) {
+  if (!s) return null;
+  const v = String(s).trim().toLowerCase();
+  // Already a 2-3 char BCP-47 code → pass through (loosely)
+  if (/^[a-z]{2,3}(-[a-z]{2,8})?$/.test(v)) return v;
+  return WHISPER_TO_BCP47[v] || null;
+}
+
 // Decode a JWT payload (un-verified) for inspection — used to read `exp`.
 function jwtExp(jwt) {
   try {
@@ -416,14 +436,18 @@ async function postVoice(request, env) {
   if (audioBytes.byteLength > MAX_AUDIO_BYTES) {
     return json({ error: `audio too large (${audioBytes.byteLength})` }, 413);
   }
-  const audioMime = audio.type || 'audio/webm';
+  // Strip codec parameters off the MIME type — PDS lexicon validation
+  // can reject "audio/webm;codecs=opus" even though it's a valid HTTP
+  // MIME. Keep the base type only.
+  const audioMime = (audio.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
 
   // 1) uploadBlob → returns { blob: { $type, ref: { $link }, mimeType, size } }
   const uploadUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.uploadBlob`;
   const upRes = await pdsAuthCall(sess, 'POST', uploadUrl, { 'Content-Type': audioMime }, audioBytes);
   if (!upRes.ok) {
     const b = await upRes.text().catch(() => '');
-    return json({ error: `uploadBlob failed (${upRes.status})`, details: b.slice(0, 300) }, 502);
+    console.error('uploadBlob failed', upRes.status, b);
+    return json({ error: `uploadBlob failed (${upRes.status})`, details: b.slice(0, 500) }, 502);
   }
   const uploaded = await upRes.json();
   const audioBlob = uploaded.blob;
@@ -439,7 +463,13 @@ async function postVoice(request, env) {
     createdAt: new Date().toISOString(),
   };
   if (duration) record.duration = duration;
-  if (lang) record.lang = lang;
+  // Whisper returns language as a full name ("english", "spanish") not a
+  // BCP-47 code. Map a few common ones; otherwise drop the field rather
+  // than risk a lexicon validation rejection on the PDS side.
+  if (lang) {
+    const mapped = lang.map(normalizeLang).filter(Boolean);
+    if (mapped.length) record.lang = mapped;
+  }
   if (reply) record.reply = reply;
 
   const createUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.createRecord`;
@@ -450,7 +480,8 @@ async function postVoice(request, env) {
   }));
   if (!crRes.ok) {
     const b = await crRes.text().catch(() => '');
-    return json({ error: `createRecord failed (${crRes.status})`, details: b.slice(0, 300) }, 502);
+    console.error('createRecord failed', crRes.status, b, 'record was:', JSON.stringify(record).slice(0, 500));
+    return json({ error: `createRecord failed (${crRes.status})`, details: b.slice(0, 500) }, 502);
   }
   const created = await crRes.json();
   const uri = created.uri;
