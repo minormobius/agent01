@@ -41,19 +41,42 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
 
 ## Operator setup (one-time after first deploy)
 
-1. Set the OpenAI key as a worker secret:
+1. Add `OPENAI_API_KEY` to **GitHub repo secrets**
+   (Settings → Secrets and variables → Actions → New repository secret).
+   The deploy workflow pushes it to the airchat worker on every deploy
+   via `wrangler secret put OPENAI_API_KEY --name airchat`. This avoids
+   the common "ran wrangler from the wrong cwd, silently targeted a
+   different worker" gotcha — set it once in GitHub Settings, the
+   workflow keeps the worker in sync.
+
+   To verify after a deploy, hit `/api/airchat/health` and look for
+   `"openai":true` in the bindings:
+
+   ```sh
+   curl https://airchat.mino.mobi/api/airchat/health
+   ```
+
+2. (Optional) Add `AIRCHAT_ADMIN_KEY` to GH repo secrets if you want
+   the admin API enabled. The deploy workflow pushes it to the worker
+   as `ADMIN_KEY` on every deploy. If you don't set it, file-based
+   whitelist seeding still works.
+
+   ```sh
+   # Generate locally if you want one
+   openssl rand -hex 32
+   ```
+
+   Manual fallback (only if not using GH secrets):
 
    ```sh
    cd airchat
    echo -n 'sk-...' | npx wrangler secret put OPENAI_API_KEY --name airchat
    ```
 
-2. Set an admin key for whitelist management:
-
-   ```sh
-   openssl rand -hex 32 | tee /tmp/airchat-admin-key
-   cat /tmp/airchat-admin-key | npx wrangler secret put ADMIN_KEY --name airchat
-   ```
+   **Important**: always pass `--name airchat`. Without it wrangler uses
+   whatever `wrangler.jsonc` it finds in the cwd, which may target the
+   wrong worker (eg the root landing-page worker) and silently
+   apply the secret there instead.
 
 3. Add yourself + invitees to the whitelist. **Easiest**: edit
    `airchat/whitelist.txt`, one handle per line, commit, push.
