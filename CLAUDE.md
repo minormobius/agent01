@@ -427,7 +427,7 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)
 
 Two paths, both BFF (browser only holds an opaque `airchat_sid` httpOnly cookie):
 
-- **OAuth** (primary): confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request.
+- **OAuth** (primary): confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request. **Minimum-privilege scope**: `atproto repo:com.minomobi.airchat.voice blob:audio/*` — the token can write our voice lexicon + upload audio blobs, nothing else (no `transition:generic`).
 - **App password** (fallback): `com.atproto.server.createSession`. PDS calls use `Authorization: Bearer <token>`.
 
 `airchat_sessions.auth_method` is the discriminator; `pdsAuthCall(sess, …)` dispatches to either `dpopFetch` or plain `fetch`. Refresh dispatches the same way.

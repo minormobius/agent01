@@ -35,6 +35,15 @@ Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)  ─►  user's PDS
   - Both paths produce the same `airchat_sessions` row shape (with
     `auth_method` discriminator); the browser only sees an opaque
     `airchat_sid` httpOnly cookie either way.
+
+  **OAuth scope is minimum-privilege:**
+  `atproto repo:com.minomobi.airchat.voice blob:audio/*`. The token can
+  write our voice lexicon and upload audio blobs — *nothing else*. It
+  cannot post to bsky.feed.post, follow accounts, send chat messages,
+  upload images, or write any other record collection. Compare to the
+  bridge `transition:generic` scope that grants everything a bsky client
+  does. App-password auth has no such gate (it uses the user's full
+  session token), so OAuth is meaningfully more secure here.
 - D1: shared `atpolls-db` (with poll, feed, rite).
 - Lexicon: `lexicons/voice.json` (documentation; ATProto does not enforce
   custom lexicons centrally).

@@ -13,7 +13,16 @@ import { getClientSigningKey, getClientPublicJWK } from './keypair.js';
 const BSKY_PUBLIC_API = 'https://api.bsky.app';
 const PLC_DIR = 'https://plc.directory';
 const STATE_TTL_SEC = 300;
-const SCOPE = 'atproto transition:generic';
+// Minimum-privilege OAuth scope. ATProto's granular scopes let us ask for
+// exactly what airchat does and nothing more:
+//   atproto                          — required base identity scope
+//   repo:com.minomobi.airchat.voice — write our voice records (create/update/delete)
+//   blob:audio/*                     — upload audio blobs to the user's repo
+// The token CANNOT post to app.bsky.feed.post, follow accounts, send chat
+// messages, upload images, or write any other record collection. Compare to
+// the older `transition:generic` scope which grants everything a bsky
+// client does.
+const SCOPE = 'atproto repo:com.minomobi.airchat.voice blob:audio/*';
 export const OAUTH_CLIENT_ID = 'https://airchat.mino.mobi/client-metadata.json';
 export const OAUTH_REDIRECT_URI = 'https://airchat.mino.mobi/api/airchat/auth/oauth/callback';
 

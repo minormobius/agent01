@@ -657,12 +657,18 @@ async function clientMetadata(env) {
   // We embed the public key so the auth server can verify our
   // private_key_jwt client assertions. Key auto-generates on first
   // request via getClientPublicJWK (which seeds airchat_oauth_keypair).
+  // Scope MUST match what flow.js requests at PAR time. Granular scopes:
+  //   atproto                          — base identity
+  //   repo:com.minomobi.airchat.voice  — write our voice records only
+  //   blob:audio/*                     — upload audio blobs only
+  // No `transition:generic`. Token can't touch app.bsky.* records or
+  // anything else outside our lexicon.
   const metadata = {
     client_id: OAUTH_CLIENT_ID,
-    client_name: 'airchat',
+    client_name: 'yapchat',
     client_uri: 'https://airchat.mino.mobi',
     redirect_uris: [OAUTH_REDIRECT_URI],
-    scope: 'atproto transition:generic',
+    scope: 'atproto repo:com.minomobi.airchat.voice blob:audio/*',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',
