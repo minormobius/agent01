@@ -200,9 +200,11 @@ button.danger { background: var(--rec); }
 .voice-actions button {
   font-size: 0.65rem; padding: 0.3rem 0.6rem; text-transform: uppercase;
   letter-spacing: 0.06em; background: transparent; color: var(--accent);
-  border: 1px solid var(--accent); border-radius: 4px;
+  border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
 }
 .voice-actions button:hover { background: var(--accent-faint); }
+.voice-actions button.danger { color: var(--rec); border-color: var(--rec); }
+.voice-actions button.danger:hover { background: rgba(201, 48, 48, 0.1); }
 
 .feed-load { display: block; margin: 1rem auto 0; }
 
@@ -757,7 +759,10 @@ function renderVoiceCard(v) {
       </div>
       ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}"></audio>` : ''}
       <div class="voice-text">${escapeHtml(v.text || '')}</div>
-      ${state.me ? `<div class="voice-actions"><button type="button" class="reply-btn" data-uri="${escapeHtml(v.uri)}">Reply</button></div>` : ''}
+      ${state.me ? `<div class="voice-actions">
+        <button type="button" class="reply-btn" data-uri="${escapeHtml(v.uri)}">Reply</button>
+        ${state.me.did === did ? `<button type="button" class="delete-btn danger" data-uri="${escapeHtml(v.uri)}">Delete</button>` : ''}
+      </div>` : ''}
     </div>
   `;
 }
@@ -781,10 +786,37 @@ function renderFeed() {
   }).join('');
   $('load-more').style.display = state.feedCursor ? 'block' : 'none';
 
-  // Wire reply buttons (delegated would also work but explicit is fine)
+  // Wire reply + delete buttons (explicit is fine at this scale).
   host.querySelectorAll('.reply-btn').forEach((btn) => {
     btn.addEventListener('click', () => startReply(btn.dataset.uri));
   });
+  host.querySelectorAll('.delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => deleteOwn(btn.dataset.uri));
+  });
+}
+
+async function deleteOwn(uri) {
+  if (!confirm('Delete this voice post? Removes it from your PDS too — can\'t be undone.')) return;
+  try {
+    const res = await fetch(`/api/airchat/voice?uri=${encodeURIComponent(uri)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert('Delete failed: ' + (data.error || `http ${res.status}`));
+      return;
+    }
+    // Drop locally and re-render. If it was the parent of an in-progress
+    // reply, also cancel the reply (its parent is gone).
+    if (state.replyTo && (state.replyTo.parent_uri === uri || state.replyTo.root_uri === uri)) {
+      cancelReply();
+    }
+    state.feedItems = state.feedItems.filter((v) => v.uri !== uri);
+    renderFeed();
+  } catch (e) {
+    alert('Network error: ' + (e?.message || e));
+  }
 }
 
 // ─── reply ───────────────────────────────────────────────────────────────

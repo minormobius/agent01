@@ -54,6 +54,7 @@ export default {
       if (url.pathname === '/api/airchat/transcribe' && request.method === 'POST')  return transcribe(request, env);
       if (url.pathname === '/api/airchat/post' && request.method === 'POST')        return postVoice(request, env);
       if (url.pathname === '/api/airchat/feed')                                     return feedList(request, env, url);
+      if (url.pathname === '/api/airchat/voice' && request.method === 'DELETE')     return deleteVoice(request, env, url);
       if (url.pathname === '/api/airchat/voice')                                    return voiceGet(request, env, url);
 
       // Admin (gated by X-Admin-Key header matching ADMIN_KEY secret):
@@ -590,6 +591,42 @@ async function feedList(request, env, url) {
   }));
   const nextCursor = items.length === limit ? items[items.length - 1].created_at : null;
   return json({ items, cursor: nextCursor });
+}
+
+async function deleteVoice(request, env, url) {
+  let sess;
+  try { sess = await requireSession(request, env); } catch (e) { return json({ error: e.message }, e.status || 401); }
+
+  const uri = url.searchParams.get('uri');
+  if (!uri) return json({ error: 'missing uri' }, 400);
+
+  // Parse at://<did>/<collection>/<rkey> and enforce ownership.
+  // Without this check, a session for user A could delete user B's records
+  // (the OAuth scope authorizes the collection, not the specific DID).
+  const m = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+  if (!m) return json({ error: 'invalid at:// uri' }, 400);
+  const [, recordDid, collection, rkey] = m;
+  if (recordDid !== sess.did) return json({ error: 'not your record' }, 403);
+  if (collection !== LEXICON) return json({ error: 'wrong collection' }, 400);
+
+  const deleteUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.deleteRecord`;
+  const delRes = await pdsAuthCall(sess, 'POST', deleteUrl, { 'Content-Type': 'application/json' }, JSON.stringify({
+    repo: sess.did,
+    collection: LEXICON,
+    rkey,
+  }));
+  if (!delRes.ok) {
+    const b = await delRes.text().catch(() => '');
+    console.error('deleteRecord failed', delRes.status, b);
+    return json({ error: `deleteRecord failed (${delRes.status})`, details: b.slice(0, 500) }, 502);
+  }
+
+  // Drop from the feed cache. The audio blob will be GC'd by the PDS
+  // once no records reference it (custom-collection blobs are pinned
+  // only by their referencing record).
+  await env.DB.prepare(`DELETE FROM airchat_voices WHERE uri = ? AND did = ?`).bind(uri, sess.did).run();
+
+  return json({ ok: true, uri });
 }
 
 async function voiceGet(request, env, url) {
