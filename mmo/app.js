@@ -1061,6 +1061,59 @@ window.addEventListener("pageshow", (e) => {
   }
 });
 
+// ---- share-to-bluesky -------------------------------------------
+
+// Snapshot the canvas, copy as PNG to the clipboard, open Bluesky's
+// compose intent in a new tab/window with prefilled text. On iOS the
+// universal link opens the Bluesky app's compose screen; on desktop
+// it opens bsky.app web. User pastes the image into the post.
+// Fallback (no clipboard support): download the PNG and prompt to
+// attach manually.
+async function shareToBluesky() {
+  const btn = $("share-btn");
+  if (btn) btn.disabled = true;
+  try {
+    const blob = await new Promise(resolve => bitmap.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("snapshot encode failed");
+
+    let copied = false;
+    if (navigator.clipboard && typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        copied = true;
+        console.log("[mmo] snapshot copied to clipboard");
+      } catch (e) {
+        console.warn("[mmo] clipboard write failed:", e);
+      }
+    }
+
+    const text = "Made my opening\nmino.mobi/mmo";
+    const intent = `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
+    window.open(intent, "_blank", "noopener");
+
+    if (copied) {
+      showToast("Image copied — paste it into your post", 4000);
+    } else {
+      // Fallback: download so the user can attach it themselves.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mmopaint.png";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+      showToast("Image saved — attach it to your post", 4000);
+    }
+  } catch (e) {
+    console.error("[mmo] share failed:", e);
+    showToast("Share failed: " + (e && e.message ? e.message : "unknown"), 4000);
+  } finally {
+    if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
+  }
+}
+
+$("share-btn").addEventListener("click", shareToBluesky);
+
 // ---- boot --------------------------------------------------------
 
 async function boot() {

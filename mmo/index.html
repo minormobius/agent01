@@ -105,10 +105,11 @@ button { font-family: var(--serif); cursor: pointer; }
 .action:active { transform: translateY(1px); }
 .action[disabled] { opacity: 0.4; cursor: not-allowed; }
 .action svg { width: 13px; height: 13px; flex: 0 0 auto; }
-.signin {
+.signin, .share {
   background: var(--accent); color: #fff; border-color: var(--accent);
 }
-.signin:hover { background: var(--accent); color: #fff; filter: brightness(1.08); }
+.signin:hover, .share:hover { background: var(--accent); color: #fff; filter: brightness(1.08); }
+.share[disabled] { opacity: 0.5; cursor: not-allowed; }
 .handle-chip {
   height: 30px;
   display: inline-flex;
@@ -496,6 +497,11 @@ button { font-family: var(--serif); cursor: pointer; }
     <span class="label-text">Sign in</span>
   </button>
 
+  <button class="action share" id="share-btn" title="Share canvas to Bluesky">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+    <span class="label-text">Share</span>
+  </button>
+
   <button class="action" id="audit-btn" title="Audit chain">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
     <span class="label-text">Chain</span>
@@ -554,7 +560,7 @@ button { font-family: var(--serif); cursor: pointer; }
 
 <div class="toast" id="toast"></div>
 
-<script src="./app.js?v=oauth-err-bounce-1"></script>
+<script src="./app.js?v=share-1"></script>
 
 </body>
 </html>
