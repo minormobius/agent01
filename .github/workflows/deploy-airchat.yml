@@ -9,6 +9,7 @@ on:
       - 'airchat/**'
       - 'poll/apps/api/migrations/0018_airchat.sql'
       - 'poll/apps/api/migrations/0019_airchat_oauth.sql'
+      - 'poll/apps/api/migrations/0020_airchat_reply_cids.sql'
       - '.github/workflows/deploy-airchat.yml'
   workflow_dispatch:
     inputs:
@@ -40,7 +41,8 @@ jobs:
         run: |
           for f in \
             ../poll/apps/api/migrations/0018_airchat.sql \
-            ../poll/apps/api/migrations/0019_airchat_oauth.sql; do
+            ../poll/apps/api/migrations/0019_airchat_oauth.sql \
+            ../poll/apps/api/migrations/0020_airchat_reply_cids.sql; do
             echo "Applying $f to atpolls-db…"
             npx wrangler d1 execute atpolls-db --file="$f" --remote \
               || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"

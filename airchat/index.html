@@ -149,17 +149,83 @@ button.danger { background: var(--rec); }
 
 /* feed */
 .feed-head { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+
+.thread { margin-bottom: 1.2rem; }
+.thread-replies {
+  margin-left: 2rem;
+  border-left: 2px solid var(--rule);
+  padding-left: 1rem;
+  margin-top: 0.3rem;
+}
+.thread-replies .voice-card {
+  background: transparent;
+  border-color: var(--rule);
+}
+.thread-orphan-head {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem;
+  padding: 0.4rem 0.6rem; background: var(--accent-faint); border-radius: 4px;
+  font-style: italic;
+}
+
 .voice-card {
   background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
-  padding: 0.9rem 1rem; margin-bottom: 0.8rem;
-  display: flex; flex-direction: column; gap: 0.6rem;
+  padding: 0.9rem 1rem; margin-bottom: 0.6rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
 }
-.voice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-.voice-who { font-family: var(--serif); font-weight: 700; color: var(--accent); font-size: 0.95rem; }
-.voice-when { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.voice-head {
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.voice-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent-faint); object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 0.95rem;
+  color: var(--accent); overflow: hidden;
+}
+.voice-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.voice-id { flex: 1; min-width: 0; }
+.voice-name { font-family: var(--serif); font-weight: 700; color: var(--text); font-size: 0.98rem; line-height: 1.15; }
+.voice-who { font-family: var(--mono); color: var(--accent); font-size: 0.7rem; }
+.voice-meta-line { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.voice-reply-line {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+}
+.voice-reply-line .arrow { color: var(--accent); }
 .voice-audio { width: 100%; }
 .voice-text { color: var(--text); font-size: 1rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+.voice-actions { display: flex; gap: 0.4rem; }
+.voice-actions button {
+  font-size: 0.65rem; padding: 0.3rem 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.06em; background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 4px;
+}
+.voice-actions button:hover { background: var(--accent-faint); }
+
 .feed-load { display: block; margin: 1rem auto 0; }
+
+/* reply banner in recorder */
+.reply-banner {
+  background: var(--accent-faint);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.8rem;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.reply-banner .label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 0.4rem; }
+.reply-banner .target { color: var(--accent); font-weight: 600; }
+.reply-banner .cancel {
+  font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.06em; background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+.reply-banner .cancel:hover { color: var(--accent); border-color: var(--accent); }
 
 footer {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
@@ -220,6 +286,13 @@ footer a { color: var(--muted); text-decoration: underline; }
   <!-- Stage 3: recorder -->
   <section id="stage-rec" class="stage">
     <div class="recorder">
+      <div id="reply-banner" class="reply-banner" style="display:none">
+        <div>
+          <span class="label">↳ Replying to</span>
+          <span class="target" id="reply-target"></span>
+        </div>
+        <button type="button" class="cancel" id="cancel-reply">cancel</button>
+      </div>
       <div class="rec-button">
         <button id="rec-circle" class="rec-circle" aria-label="Record"></button>
         <div class="rec-time" id="rec-time">0:00</div>
@@ -277,6 +350,8 @@ const state = {
   detectedLang: null,
   feedCursor: null,
   feedItems: [],
+  replyTo: null,                             // { parent_uri, parent_cid, root_uri, root_cid, parent_handle, parent_did }
+  profileCache: new Map(),                   // did → { handle, displayName, avatar }
 };
 
 function showStage(name) {
@@ -550,6 +625,10 @@ $('post-btn').addEventListener('click', async () => {
       text,
       duration: state.duration,
       lang: state.detectedLang ? [state.detectedLang] : null,
+      reply: state.replyTo ? {
+        parent: { uri: state.replyTo.parent_uri, cid: state.replyTo.parent_cid },
+        root:   { uri: state.replyTo.root_uri,   cid: state.replyTo.root_cid },
+      } : null,
     }));
     const res = await fetch('/api/airchat/post', {
       method: 'POST',
@@ -567,6 +646,7 @@ $('post-btn').addEventListener('click', async () => {
     // Reset and re-fetch the feed.
     resetPreview();
     $('rec-time').textContent = '0:00';
+    cancelReply();
     await loadFeed();
   } catch (e) {
     $('post-status').innerHTML = `<div class="error">Network error: ${escapeHtml(e?.message || String(e))}</div>`;
@@ -589,7 +669,127 @@ async function loadFeed(append = false) {
     state.feedItems = data.items || [];
   }
   state.feedCursor = data.cursor;
+  // First render with placeholders (initials) so the feed is interactive
+  // immediately; then fetch avatars/display names in the background and
+  // re-render once they're in the cache.
   renderFeed();
+  const dids = Array.from(new Set(state.feedItems.map((v) => v.did).filter(Boolean)));
+  // Include any parent DIDs from reply lines so reply-card "↳ @parent" resolves
+  for (const v of state.feedItems) {
+    if (v.reply?.parent_uri) {
+      const d = didFromAtUri(v.reply.parent_uri);
+      if (d) dids.push(d);
+    }
+  }
+  fetchProfiles(Array.from(new Set(dids))).then(() => renderFeed());
+}
+
+// ─── bsky profile fetch (avatars + display names) ────────────────────────
+async function fetchProfiles(dids) {
+  const need = dids.filter(d => d && !state.profileCache.has(d));
+  if (!need.length) return;
+  // Mark "in-flight" so concurrent renders don't refetch.
+  for (const d of need) state.profileCache.set(d, null);
+  for (let i = 0; i < need.length; i += 25) {
+    const batch = need.slice(i, i + 25);
+    const params = new URLSearchParams();
+    for (const d of batch) params.append('actors', d);
+    try {
+      const res = await fetch(`${PUBLIC_BSKY_API}/xrpc/app.bsky.actor.getProfiles?${params}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const p of (data.profiles || [])) {
+        state.profileCache.set(p.did, {
+          handle: p.handle || null,
+          displayName: p.displayName || null,
+          avatar: p.avatar || null,
+        });
+      }
+    } catch {}
+    // Anything still null after the call = lookup miss; set to {} so we
+    // don't loop forever.
+    for (const d of batch) if (state.profileCache.get(d) === null) state.profileCache.set(d, {});
+  }
+}
+
+function profileFor(did) {
+  const p = state.profileCache.get(did);
+  return (p && typeof p === 'object') ? p : {};
+}
+
+function didFromAtUri(uri) {
+  const m = String(uri || '').match(/^at:\/\/([^/]+)\//);
+  return m ? m[1] : '';
+}
+
+// ─── feed organization: group voices into threads ────────────────────────
+function organizeFeed(items) {
+  // items arrive newest-first. We bucket every voice into its thread by
+  // root_uri (or by self uri if it's a root). Roots that aren't in the
+  // current page show as "orphan" threads (just the replies, with a
+  // pointer to the upstream root URI).
+  const threads = [];                 // [{ root, replies: [], orphanRootUri }]
+  const seenRoots = new Map();        // rootUri → thread index
+
+  for (const v of items) {
+    if (!v.reply) {
+      seenRoots.set(v.uri, threads.length);
+      threads.push({ root: v, replies: [] });
+    }
+  }
+  for (const v of items) {
+    if (!v.reply) continue;
+    const rootUri = v.reply.root_uri;
+    if (seenRoots.has(rootUri)) {
+      threads[seenRoots.get(rootUri)].replies.push(v);
+    } else {
+      seenRoots.set(rootUri, threads.length);
+      threads.push({ root: null, replies: [v], orphanRootUri: rootUri });
+    }
+  }
+  // Within each thread, replies oldest-first (read order)
+  for (const t of threads) t.replies.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+  return threads;
+}
+
+// ─── feed render ─────────────────────────────────────────────────────────
+function renderVoiceCard(v) {
+  const did = v.did || '';
+  const handle = v.handle || profileFor(did).handle || did;
+  const display = profileFor(did).displayName || handle;
+  const avatar = profileFor(did).avatar;
+  const initial = (display || handle || '?').replace(/^@/, '').charAt(0).toUpperCase();
+  const when = (v.created_at || '').slice(0, 16).replace('T', ' ');
+  const dur = v.duration ? Math.round(v.duration) + 's' : '';
+
+  // Reply context line — only on reply cards
+  let replyLine = '';
+  if (v.reply && v.reply.parent_uri) {
+    const parentDid = didFromAtUri(v.reply.parent_uri);
+    const parentHandle = profileFor(parentDid).handle || parentDid;
+    replyLine = `<div class="voice-reply-line"><span class="arrow">↳</span> replying to @${escapeHtml(parentHandle)}</div>`;
+  }
+
+  const avatarHtml = avatar
+    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer">`
+    : escapeHtml(initial);
+
+  return `
+    <div class="voice-card" data-uri="${escapeHtml(v.uri)}">
+      ${replyLine}
+      <div class="voice-head">
+        <div class="voice-avatar">${avatarHtml}</div>
+        <div class="voice-id">
+          <div class="voice-name">${escapeHtml(display)}</div>
+          <div class="voice-who">@${escapeHtml(handle)}</div>
+        </div>
+        <div class="voice-meta-line">${escapeHtml(when)}${dur ? ' · ' + dur : ''}</div>
+      </div>
+      ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}"></audio>` : ''}
+      <div class="voice-text">${escapeHtml(v.text || '')}</div>
+      ${state.me ? `<div class="voice-actions"><button type="button" class="reply-btn" data-uri="${escapeHtml(v.uri)}">Reply</button></div>` : ''}
+    </div>
+  `;
 }
 
 function renderFeed() {
@@ -599,23 +799,56 @@ function renderFeed() {
     $('load-more').style.display = 'none';
     return;
   }
-  host.innerHTML = state.feedItems.map((v) => {
-    const when = (v.created_at || '').slice(0, 16).replace('T', ' ');
-    const who = v.handle ? '@' + v.handle : v.did;
-    const dur = v.duration ? Math.round(v.duration) + 's' : '';
-    return `
-      <div class="voice-card" data-uri="${escapeHtml(v.uri)}">
-        <div class="voice-head">
-          <span class="voice-who">${escapeHtml(who)}</span>
-          <span class="voice-when">${escapeHtml(when)}${dur ? ' · ' + dur : ''}</span>
-        </div>
-        ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}"></audio>` : ''}
-        <div class="voice-text">${escapeHtml(v.text || '')}</div>
-      </div>
-    `;
+  const threads = organizeFeed(state.feedItems);
+  host.innerHTML = threads.map((t) => {
+    const rootHtml = t.root
+      ? renderVoiceCard(t.root)
+      : `<div class="thread-orphan-head">↳ replies to a thread above</div>`;
+    const repliesHtml = t.replies.length
+      ? `<div class="thread-replies">${t.replies.map(renderVoiceCard).join('')}</div>`
+      : '';
+    return `<div class="thread">${rootHtml}${repliesHtml}</div>`;
   }).join('');
   $('load-more').style.display = state.feedCursor ? 'block' : 'none';
+
+  // Wire reply buttons (delegated would also work but explicit is fine)
+  host.querySelectorAll('.reply-btn').forEach((btn) => {
+    btn.addEventListener('click', () => startReply(btn.dataset.uri));
+  });
 }
+
+// ─── reply ───────────────────────────────────────────────────────────────
+function startReply(uri) {
+  const v = state.feedItems.find((x) => x.uri === uri);
+  if (!v) return;
+  // If the target is itself a reply, inherit its root. Otherwise the
+  // target IS the root.
+  const root = v.reply
+    ? { uri: v.reply.root_uri, cid: v.reply.root_cid }
+    : { uri: v.uri, cid: v.cid };
+  const parent = { uri: v.uri, cid: v.cid };
+  if (!root.cid || !parent.cid) {
+    alert("Can't reply: missing CID for the parent. (Re-deploy may be in progress; try again in a minute.)");
+    return;
+  }
+  state.replyTo = {
+    parent_uri: parent.uri, parent_cid: parent.cid,
+    root_uri: root.uri,     root_cid: root.cid,
+    parent_handle: v.handle || didFromAtUri(v.uri),
+    parent_did: v.did,
+  };
+  $('reply-target').textContent = '@' + state.replyTo.parent_handle;
+  $('reply-banner').style.display = 'flex';
+  // Scroll to recorder so the user sees the banner + record button.
+  document.querySelector('#stage-rec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelReply() {
+  state.replyTo = null;
+  $('reply-banner').style.display = 'none';
+  $('reply-target').textContent = '';
+}
+$('cancel-reply').addEventListener('click', cancelReply);
 
 $('load-more').addEventListener('click', () => loadFeed(true));
 

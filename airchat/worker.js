@@ -495,14 +495,16 @@ async function postVoice(request, env) {
   await env.DB.prepare(
     `INSERT OR REPLACE INTO airchat_voices
        (uri, did, rkey, cid, pds_url, audio_cid, audio_mime, audio_size, duration_sec,
-        text, reply_root_uri, reply_parent_uri, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        text, reply_root_uri, reply_root_cid, reply_parent_uri, reply_parent_cid, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     uri, sess.did, rkey, cid, sess.pds_url,
     audioBlob.ref.$link, audioMime, audioBlob.size || audioBytes.byteLength, duration,
     text,
     reply ? reply.root.uri : null,
+    reply ? reply.root.cid : null,
     reply ? reply.parent.uri : null,
+    reply ? reply.parent.cid : null,
     record.createdAt
   ).run();
 
@@ -527,8 +529,8 @@ async function feedList(request, env, url) {
   let rows;
   if (did) {
     rows = await env.DB.prepare(
-      `SELECT v.uri, v.did, v.rkey, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
-              v.reply_root_uri, v.reply_parent_uri, v.created_at,
+      `SELECT v.uri, v.did, v.rkey, v.cid, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
+              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid, v.created_at,
               w.handle
          FROM airchat_voices v
          LEFT JOIN airchat_whitelist w ON w.did = v.did
@@ -537,8 +539,8 @@ async function feedList(request, env, url) {
     ).bind(...(cursor ? [did, cursor, limit] : [did, limit])).all();
   } else {
     rows = await env.DB.prepare(
-      `SELECT v.uri, v.did, v.rkey, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
-              v.reply_root_uri, v.reply_parent_uri, v.created_at,
+      `SELECT v.uri, v.did, v.rkey, v.cid, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
+              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid, v.created_at,
               w.handle
          FROM airchat_voices v
          INNER JOIN airchat_whitelist w ON w.did = v.did
@@ -548,6 +550,7 @@ async function feedList(request, env, url) {
   }
   const items = (rows.results || []).map((r) => ({
     uri: r.uri,
+    cid: r.cid,
     did: r.did,
     handle: r.handle,
     rkey: r.rkey,
@@ -556,7 +559,10 @@ async function feedList(request, env, url) {
     audio_cid: r.audio_cid,
     audio_mime: r.audio_mime,
     audio_url: audioUrlFor(r.pds_url, r.did, r.audio_cid),
-    reply: r.reply_parent_uri ? { parent_uri: r.reply_parent_uri, root_uri: r.reply_root_uri } : null,
+    reply: r.reply_parent_uri ? {
+      parent_uri: r.reply_parent_uri, parent_cid: r.reply_parent_cid,
+      root_uri: r.reply_root_uri,     root_cid: r.reply_root_cid,
+    } : null,
     created_at: r.created_at,
   }));
   const nextCursor = items.length === limit ? items[items.length - 1].created_at : null;
