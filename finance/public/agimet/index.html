@@ -433,63 +433,84 @@ function niceTicks(min, max, count) {
 
 // ─── Boot ────────────────────────────────────────────────────────────
 (async () => {
-  try {
-    // Fire all four fetches in parallel
-    const [overall, noncollege, college, usrec] = await Promise.all([
-      fetchSeries(SERIES.overall.id),
-      fetchSeries(SERIES.noncollege.id),
-      fetchSeries(SERIES.college.id),
-      fetchSeries(RECESSION_ID).catch(() => []), // recession bands optional
-    ]);
+  // Fire all four fetches in parallel and tolerate partial failures —
+  // render whichever series came back, surface which (if any) failed.
+  const settled = await Promise.allSettled([
+    fetchSeries(SERIES.overall.id),
+    fetchSeries(SERIES.noncollege.id),
+    fetchSeries(SERIES.college.id),
+    fetchSeries(RECESSION_ID),
+  ]);
+  const [overall, noncollege, college, usrec] = settled.map((s) =>
+    s.status === 'fulfilled' ? s.value : []
+  );
+  const failures = [];
+  const seriesNames = [SERIES.overall.id, SERIES.noncollege.id, SERIES.college.id, RECESSION_ID];
+  settled.forEach((s, i) => {
+    if (s.status === 'rejected') failures.push(`${seriesNames[i]}: ${s.reason.message}`);
+  });
 
-    const bands = recessionBands(usrec);
-    const latest = arr => arr[arr.length - 1];
+  // Bail only if EVERY core series (overall/noncollege/college) failed.
+  // Missing USREC just means no recession shading — render the rest.
+  const coreFailed = overall.length === 0 && noncollege.length === 0 && college.length === 0;
+  if (coreFailed) {
+    const s1 = $('status1'), s2 = $('status2');
+    s1.classList.add('err');
+    s1.textContent = 'Failed to load FRED data: ' + (failures.join(' · ') || 'no data returned');
+    if (s2) s2.textContent = '';
+    return;
+  }
 
-    // ── Legend with latest values ─────────────────────────────────
-    const legend1 = $('legend1');
-    const items = [
-      { ...SERIES.overall, latest: latest(overall) },
-      { ...SERIES.noncollege, latest: latest(noncollege) },
-      { ...SERIES.college, latest: latest(college) },
-    ];
-    legend1.innerHTML = items.map(it => `
-      <span>
-        <span class="swatch" style="background:${it.color}"></span>${it.label}
-        <span class="latest">${fmtRate(it.latest.v)}</span>
-        <span style="opacity:0.6"> · ${fmtDate(it.latest.t)}</span>
-      </span>
-    `).join('');
+  const bands = recessionBands(usrec);
+  const latest = arr => (arr.length > 0 ? arr[arr.length - 1] : null);
 
-    // ── Chart 1: three series ─────────────────────────────────────
-    drawChart($('chart1'), $('tip1'), [
-      { label: SERIES.overall.label, color: SERIES.overall.color, points: overall },
-      { label: SERIES.noncollege.label, color: SERIES.noncollege.color, points: noncollege },
-      { label: SERIES.college.label, color: SERIES.college.color, points: college },
-    ], { recessionBands: bands });
-    $('status1').remove();
+  // ── Legend with latest values ─────────────────────────────────
+  const legend1 = $('legend1');
+  const items = [
+    { ...SERIES.overall, latest: latest(overall) },
+    { ...SERIES.noncollege, latest: latest(noncollege) },
+    { ...SERIES.college, latest: latest(college) },
+  ].filter(it => it.latest);
+  legend1.innerHTML = items.map(it => `
+    <span>
+      <span class="swatch" style="background:${it.color}"></span>${it.label}
+      <span class="latest">${fmtRate(it.latest.v)}</span>
+      <span style="opacity:0.6"> · ${fmtDate(it.latest.t)}</span>
+    </span>
+  `).join('');
 
-    // ── Chart 2: gap = noncollege − college ──────────────────────
-    // Build map of t → v for college, walk noncollege series for paired dates
+  // ── Chart 1: three series ─────────────────────────────────────
+  drawChart($('chart1'), $('tip1'), [
+    { label: SERIES.overall.label, color: SERIES.overall.color, points: overall },
+    { label: SERIES.noncollege.label, color: SERIES.noncollege.color, points: noncollege },
+    { label: SERIES.college.label, color: SERIES.college.color, points: college },
+  ].filter(s => s.points.length > 0), { recessionBands: bands });
+  $('status1').textContent = failures.length
+    ? 'Partial load · failed: ' + failures.join(' · ')
+    : '';
+  $('status1').classList.toggle('err', failures.length > 0);
+  if (!failures.length) $('status1').remove();
+
+  // ── Chart 2: gap = noncollege − college ──────────────────────
+  if (noncollege.length > 0 && college.length > 0) {
     const collegeMap = new Map(college.map(p => [p.date, p.v]));
     const gap = [];
     for (const p of noncollege) {
       const c = collegeMap.get(p.date);
       if (c !== undefined) gap.push({ date: p.date, t: p.t, v: p.v - c });
     }
-    const latestGap = latest(gap);
-    $('status2').innerHTML = `latest: <strong>${fmtRateSigned(latestGap.v)}</strong> · ${fmtDate(latestGap.t)}`;
-    $('status2').style.color = 'var(--gap)';
-    $('status2').style.padding = '0.5rem 0 0';
-
-    drawChart($('chart2'), $('tip2'), [
-      { label: 'HS only − BA+', color: 'var(--gap)', points: gap },
-    ], { recessionBands: bands, yFmt: fmtRateSigned, includeZero: true });
-
-  } catch (e) {
-    const s1 = $('status1'), s2 = $('status2');
-    s1.classList.add('err');
-    s1.textContent = 'Failed to load FRED data: ' + e.message;
-    if (s2) s2.textContent = '';
+    if (gap.length > 0) {
+      const latestGap = latest(gap);
+      $('status2').innerHTML = `latest: <strong>${fmtRateSigned(latestGap.v)}</strong> · ${fmtDate(latestGap.t)}`;
+      $('status2').style.color = 'var(--gap)';
+      $('status2').style.padding = '0.5rem 0 0';
+      drawChart($('chart2'), $('tip2'), [
+        { label: 'HS only − BA+', color: 'var(--gap)', points: gap },
+      ], { recessionBands: bands, yFmt: fmtRateSigned, includeZero: true });
+    }
+  } else {
+    $('status2').textContent = 'Gap chart needs both HS-only and BA+ series.';
+    $('status2').classList.add('err');
   }
 })();
 </script>
