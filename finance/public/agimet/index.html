@@ -231,8 +231,22 @@ svg.chart {
 </div>
 
 <script>
-// ─── Constants ───────────────────────────────────────────────────────
-// Edit the series IDs here to swap definitions of "college" or "non-college".
+// ─── FRED API key ────────────────────────────────────────────────────
+// fredgraph.csv (the human-facing CSV endpoint) doesn't send CORS headers,
+// so browsers can't read it via fetch(). The documented API at
+// api.stlouisfed.org sends proper CORS headers and is intended for client
+// use, but requires a free API key.
+//
+// Register here (60 seconds, email + name):
+//   https://fred.stlouisfed.org/docs/api/api_key.html
+//
+// The key is a public-data token — it grants read-only access to public
+// FRED series, has no PII attached, and is rate-limited to 120 req/min
+// shared across all visitors of this page. Safe to embed inline.
+const FRED_API_KEY = '';
+
+// ─── Series ──────────────────────────────────────────────────────────
+// Edit these to swap definitions of "college" or "non-college".
 // LNS14027660 = less than high school
 // LNS14027689 = high school grad, no college   ← current "non-college"
 // LNS14027662 = some college or assoc degree
@@ -243,23 +257,22 @@ const SERIES = {
   college:    { id: 'LNS14027659', label: 'BA+',                color: 'var(--college)' },
 };
 const RECESSION_ID = 'USREC';
-const FRED_CSV = id => `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
+const FRED_API = id =>
+  `https://api.stlouisfed.org/fred/series/observations` +
+  `?series_id=${id}&api_key=${FRED_API_KEY}&file_type=json`;
 
 const $ = id => document.getElementById(id);
 
 // ─── Fetch + parse ───────────────────────────────────────────────────
 async function fetchSeries(id) {
-  const r = await fetch(FRED_CSV(id));
+  if (!FRED_API_KEY) throw new Error('NO_API_KEY');
+  const r = await fetch(FRED_API(id));
   if (!r.ok) throw new Error(`${id}: HTTP ${r.status}`);
-  const text = await r.text();
-  const lines = text.trim().split('\n');
-  // Header: DATE,<id>. Data rows have date + value; FRED uses '.' for missing.
+  const json = await r.json();
   const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const [date, raw] = lines[i].split(',');
-    if (!date) continue;
-    const v = parseFloat(raw);
-    if (isFinite(v)) out.push({ date, t: Date.parse(date + 'T00:00:00Z'), v });
+  for (const o of json.observations || []) {
+    const v = parseFloat(o.value);
+    if (isFinite(v)) out.push({ date: o.date, t: Date.parse(o.date + 'T00:00:00Z'), v });
   }
   return out;
 }
@@ -480,9 +493,17 @@ function niceTicks(min, max, count) {
     ], { recessionBands: bands, yFmt: fmtRateSigned, includeZero: true });
 
   } catch (e) {
-    $('status1').textContent = 'Failed to load FRED data: ' + e.message;
-    $('status1').classList.add('err');
-    $('status2').textContent = '';
+    const s1 = $('status1'), s2 = $('status2');
+    s1.classList.add('err');
+    if (e.message === 'NO_API_KEY') {
+      s1.innerHTML =
+        'Set <code style="background:rgba(128,128,128,0.15);padding:0.05em 0.3em">FRED_API_KEY</code> in the &lt;script&gt; block. ' +
+        'Free 60-second registration at ' +
+        '<a href="https://fred.stlouisfed.org/docs/api/api_key.html" style="color:inherit">fred.stlouisfed.org/docs/api/api_key.html</a>.';
+    } else {
+      s1.textContent = 'Failed to load FRED data: ' + e.message;
+    }
+    if (s2) s2.textContent = '';
   }
 })();
 </script>
