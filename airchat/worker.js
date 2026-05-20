@@ -462,7 +462,10 @@ async function postVoice(request, env) {
     text,
     createdAt: new Date().toISOString(),
   };
-  if (duration) record.duration = duration;
+  // ATProto records are stored as DAG-CBOR which has no float type — only
+  // integers. Round duration to nearest second. Sub-second precision is
+  // meaningless for a voice post anyway.
+  if (duration) record.duration = Math.max(1, Math.round(duration));
   // Whisper returns language as a full name ("english", "spanish") not a
   // BCP-47 code. Map a few common ones; otherwise drop the field rather
   // than risk a lexicon validation rejection on the PDS side.

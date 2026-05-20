@@ -22,8 +22,9 @@
             "description": "Transcript. Whisper-generated, possibly user-edited before posting."
           },
           "duration": {
-            "type": "number",
-            "description": "Duration in seconds."
+            "type": "integer",
+            "minimum": 1,
+            "description": "Duration in whole seconds. DAG-CBOR (ATProto's storage encoding) has no float type."
           },
           "createdAt": {
             "type": "string",
