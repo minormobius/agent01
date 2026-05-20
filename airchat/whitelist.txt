@@ -1,9 +1,18 @@
 # airchat whitelist — write access seed list.
 #
-# One handle per line. Lines starting with `#` and blank lines are skipped.
-# The deploy workflow resolves each handle to a DID and INSERT-OR-IGNOREs
-# into airchat_whitelist on every deploy (idempotent).
+# One entry per line. Two formats accepted:
+#   - bluesky handle (e.g. alice.bsky.social): resolved to DID via the
+#     public bsky API at deploy time.
+#   - DID directly (e.g. did:plc:xxx): inserted as-is, no resolution.
+#     Use this when handle resolution is flaky or when you want
+#     guarantees independent of bsky's resolver.
 #
-# To add someone: append their handle below, commit, push. Done.
+# Lines starting with `#` and blank lines are skipped. The deploy
+# workflow INSERT-OR-IGNOREs into airchat_whitelist on every deploy
+# (idempotent).
+#
+# To add someone: append below, commit, push. Done.
 
+# minormobius — handle form + DID form (belt-and-suspenders):
 minormobius.bsky.social
+did:plc:7zre4plmd5jllccww575j6sb

@@ -70,6 +70,26 @@ button.danger { background: var(--rec); }
 .login-card { display: flex; flex-direction: column; gap: 0.7rem; max-width: 420px; }
 .login-card label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
+/* typeahead — same pattern as rite surfaces */
+.ta-wrap { position: relative; }
+.ta-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10;
+  max-height: 320px; overflow-y: auto; display: none;
+}
+.ta-results.show { display: block; }
+.ta-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.5rem 0.7rem; cursor: pointer; border-bottom: 1px solid var(--rule);
+}
+.ta-item:last-child { border-bottom: none; }
+.ta-item:hover, .ta-item.active { background: var(--accent-faint); }
+.ta-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.ta-item .info { flex: 1; min-width: 0; }
+.ta-item .dn { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.ta-item .h { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* recorder */
 .recorder {
   background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
@@ -165,7 +185,10 @@ footer a { color: var(--muted); text-decoration: underline; }
   <section id="stage-login" class="stage active">
     <div class="login-card">
       <label for="handle">Bluesky handle</label>
-      <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false">
+      <div class="ta-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ta-results">
+        <div id="ta-results" class="ta-results" role="listbox"></div>
+      </div>
       <button id="oauth-btn">Sign in with Bluesky (OAuth)</button>
       <p class="hint" style="text-align:center; margin: 0.3rem 0;">— or —</p>
       <label for="app-password" style="text-transform:none;">App password <span>(<a href="https://bsky.app/settings/app-passwords" target="_blank" style="color: var(--accent);">create one</a>)</span></label>
@@ -287,6 +310,56 @@ function renderMe() {
   $('me-strip').innerHTML = `<b>@${escapeHtml(m.handle)}</b> &middot; <a id="logout-link">sign out</a>`;
   $('me-strip').querySelector('#logout-link').addEventListener('click', logout);
 }
+
+// ─── typeahead ──────────────────────────────────────────────────────────
+const PUBLIC_BSKY_API = 'https://api.bsky.app';
+const ta = { results: [], active: -1, timer: null, abort: null };
+
+async function fetchTypeahead(q) {
+  const v = q.replace(/^@/, '').trim();
+  if (v.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${PUBLIC_BSKY_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(v)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || [];
+    ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+function renderTypeahead() {
+  const el = $('ta-results');
+  if (!ta.results.length) { el.classList.remove('show'); el.innerHTML = ''; $('handle').setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = ta.results.map((a, i) => `
+    <div class="ta-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info"><div class="dn">${escapeHtml(a.displayName || a.handle)}</div><div class="h">@${escapeHtml(a.handle)}</div></div>
+    </div>`).join('');
+  el.classList.add('show');
+  $('handle').setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const it = el.children[ta.active]; if (it) it.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('ta-results').classList.remove('show'); ta.results = []; ta.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickHandle(h) { $('handle').value = h; hideTypeahead(); }
+
+$('handle').addEventListener('input', () => { clearTimeout(ta.timer); const v = $('handle').value; ta.timer = setTimeout(() => fetchTypeahead(v), 180); });
+$('handle').addEventListener('keydown', (e) => {
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && ta.active >= 0) { e.preventDefault(); pickHandle(ta.results[ta.active].handle); $('oauth-btn').click(); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); pickHandle(ta.results[ta.active].handle); }
+});
+$('ta-results').addEventListener('mousedown', (e) => {
+  // mousedown so we fire before the input's blur hides the dropdown
+  const it = e.target.closest('.ta-item');
+  if (!it) return; e.preventDefault();
+  pickHandle(it.dataset.handle);
+});
+$('handle').addEventListener('blur', () => { setTimeout(hideTypeahead, 120); });
 
 $('oauth-btn').addEventListener('click', async () => {
   clearLoginError();
