@@ -26,9 +26,21 @@
 // FFmpeg main class spawns into a Worker; the ESM core triggers
 // import-resolution issues inside the worker context.
 
+// Helper: race a promise against a timeout. Surfaces "load is still
+// hanging after N seconds" as an actionable error rather than an
+// infinite spinner.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 const FFMPEG_VERSION = '0.12.15';
 const CORE_VERSION = '0.12.6';
 const UTIL_VERSION = '0.12.2';
+const LOAD_TIMEOUT_MS = 90_000;
 
 let _ffmpegInstance = null;
 let _ffmpegLoading = null;
@@ -37,29 +49,52 @@ export async function getFFmpeg(onProgress) {
   if (_ffmpegInstance) return _ffmpegInstance;
   if (_ffmpegLoading) return _ffmpegLoading;
   _ffmpegLoading = (async () => {
-    onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching ffmpeg module…' });
-    // esm.sh transforms the package into a real ESM with proper exports;
-    // unpkg's raw esm bundle had Worker-resolution issues in our case.
-    const ffMod   = await import(`https://esm.sh/@ffmpeg/ffmpeg@${FFMPEG_VERSION}`);
-    const utilMod = await import(`https://esm.sh/@ffmpeg/util@${UTIL_VERSION}`);
-    const ff = new ffMod.FFmpeg();
-    ff.on('log', ({ message }) => onProgress?.({ stage: 'ffmpeg-log', message }));
-    ff.on('progress', ({ progress }) => {
-      if (typeof progress === 'number' && progress >= 0 && progress <= 1) {
-        onProgress?.({ stage: 'encoding', progress });
-      }
-    });
-    onProgress?.({ stage: 'loading-ffmpeg', message: 'wrapping core as blob URL…' });
-    const baseURL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
-    const [coreURL, wasmURL] = await Promise.all([
-      utilMod.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      utilMod.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    ]);
-    onProgress?.({ stage: 'loading-ffmpeg', message: 'initializing ffmpeg…' });
-    await ff.load({ coreURL, wasmURL });
-    _ffmpegInstance = ff;
-    onProgress?.({ stage: 'loaded' });
-    return ff;
+    try {
+      onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching ffmpeg module…' });
+      // jsdelivr's +esm endpoint produces a more reliable ESM than
+      // esm.sh for ffmpeg.wasm specifically — fewer worker-context
+      // import-resolution issues in our testing.
+      const ffMod   = await withTimeout(
+        import(`https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/+esm`),
+        30_000, 'ffmpeg module fetch',
+      );
+      const utilMod = await withTimeout(
+        import(`https://cdn.jsdelivr.net/npm/@ffmpeg/util@${UTIL_VERSION}/+esm`),
+        30_000, '@ffmpeg/util fetch',
+      );
+      const ff = new ffMod.FFmpeg();
+
+      // Pipe ffmpeg's internal log to the UI. On mobile especially this
+      // is the only way to tell whether wasm is instantiating, OOMing,
+      // or stuck waiting on the worker.
+      ff.on('log', ({ message }) => {
+        console.log('[ffmpeg]', message);
+        onProgress?.({ stage: 'ffmpeg-log', message });
+      });
+      ff.on('progress', ({ progress }) => {
+        if (typeof progress === 'number' && progress >= 0 && progress <= 1) {
+          onProgress?.({ stage: 'encoding', progress });
+        }
+      });
+
+      onProgress?.({ stage: 'loading-ffmpeg', message: 'wrapping core (~30 MB) as blob URL…' });
+      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
+      const [coreURL, wasmURL] = await Promise.all([
+        withTimeout(utilMod.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'), 60_000, 'core.js download'),
+        withTimeout(utilMod.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'), 60_000, 'core.wasm download'),
+      ]);
+
+      onProgress?.({ stage: 'loading-ffmpeg', message: 'spawning worker + instantiating wasm…' });
+      await withTimeout(ff.load({ coreURL, wasmURL }), LOAD_TIMEOUT_MS, 'ff.load (worker spawn + wasm instantiation)');
+
+      _ffmpegInstance = ff;
+      onProgress?.({ stage: 'loaded' });
+      return ff;
+    } catch (e) {
+      // Reset the loading lock so a subsequent click can retry.
+      _ffmpegLoading = null;
+      throw e;
+    }
   })();
   return _ffmpegLoading;
 }

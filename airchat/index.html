@@ -227,6 +227,15 @@ button.danger { background: var(--rec); }
 .video-box .vstatus {
   font-family: var(--mono); font-size: 0.65rem; color: var(--muted); min-height: 0.85em;
 }
+.video-box .vlog {
+  font-family: var(--mono); font-size: 0.55rem; color: var(--muted);
+  max-height: 6em; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+  margin-top: 0.3rem; padding: 0.3rem 0.5rem;
+  background: rgba(120, 120, 120, 0.06); border-radius: 3px;
+  display: none;
+}
+.video-box .vlog.show { display: block; }
 .video-box video {
   width: 100%; max-width: 320px; margin-top: 0.5rem;
   border-radius: 6px; display: block;
@@ -442,6 +451,7 @@ footer a { color: var(--muted); text-decoration: underline; }
           </div>
           <div class="vbar"><div id="vfill" class="vfill"></div></div>
           <div id="vstatus" class="vstatus"></div>
+          <pre id="vlog" class="vlog"></pre>
           <video id="vpreview" controls style="display:none"></video>
           <div id="vactions" class="vactions" style="display:none"></div>
         </div>
@@ -771,6 +781,23 @@ $('discard-btn').addEventListener('click', () => {
 });
 
 // ─── video export ────────────────────────────────────────────────────────
+const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const VLOG_MAX_LINES = 20;
+const _vlogLines = [];
+function appendVlog(line) {
+  if (!line) return;
+  _vlogLines.push(line);
+  if (_vlogLines.length > VLOG_MAX_LINES) _vlogLines.splice(0, _vlogLines.length - VLOG_MAX_LINES);
+  $('vlog').textContent = _vlogLines.join('\n');
+  $('vlog').classList.add('show');
+  $('vlog').scrollTop = $('vlog').scrollHeight;
+}
+function clearVlog() {
+  _vlogLines.length = 0;
+  $('vlog').textContent = '';
+  $('vlog').classList.remove('show');
+}
+
 $('video-btn').addEventListener('click', async () => {
   if (!state.audioBlob || !state.duration) return;
   const text = $('transcript-box').value.trim();
@@ -787,11 +814,21 @@ $('video-btn').addEventListener('click', async () => {
     alert('No transcript yet — wait for transcription or type one in.');
     return;
   }
+  if (IS_MOBILE) {
+    const ok = confirm(
+      'Heads up: ffmpeg.wasm in-browser video encoding is heavy (~30 MB download + ~200 MB working memory). ' +
+      'Mobile browsers (iOS Safari especially) sometimes run out of memory or hang during wasm load. ' +
+      'It might work — if it does, great. If it hangs past 90s you\'ll see a timeout. ' +
+      'Recommended path is desktop. Try anyway?'
+    );
+    if (!ok) { $('video-btn').disabled = false; return; }
+  }
   $('video-btn').disabled = true;
   $('video-box').classList.add('show');
   $('vpreview').style.display = 'none';
   $('vactions').style.display = 'none';
   $('vactions').innerHTML = '';
+  clearVlog();
   $('vstatus').textContent = 'loading ffmpeg.wasm (first time: ~30 MB download)…';
   $('vfill').style.width = '0%';
   try {
@@ -809,6 +846,7 @@ $('video-btn').addEventListener('click', async () => {
       musicGain: state.musicVolume / 100,             // 0..100 → 0..1 amplitude gain
       onProgress: (p) => {
         if (p.stage === 'loading-ffmpeg') $('vstatus').textContent = p.message || 'loading ffmpeg…';
+        else if (p.stage === 'ffmpeg-log') appendVlog(p.message);
         else if (p.stage === 'loaded')    $('vstatus').textContent = 'ffmpeg loaded; rendering frames…';
         else if (p.stage === 'rendering') {
           $('vstatus').textContent = `rendering frames · ${Math.round((p.progress || 0) * 100)}%`;
