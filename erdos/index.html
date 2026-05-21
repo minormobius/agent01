@@ -107,6 +107,48 @@ nav.tabs {
   border-bottom-color: var(--accent);
 }
 
+/* ── Format bar (reveal-all + theme picker) ── */
+.format-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.8rem 0 1.1rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+}
+.format-bar.hidden { display: none; }
+.fmt-toggle, .fmt-style {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.6rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fmt-toggle:hover, .fmt-style:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.fmt-toggle.active,
+.fmt-style.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+.fmt-spacer { flex: 1; }
+.fmt-label {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 0.2rem;
+  font-size: 0.55rem;
+}
+
 /* ── Panes ── */
 .pane { display: none; }
 .pane.active { display: block; }
@@ -296,6 +338,14 @@ footer a:hover { color: var(--accent); }
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
 
+<div class="format-bar" id="format-bar">
+  <button class="fmt-toggle" id="reveal-all-btn">reveal all</button>
+  <div class="fmt-spacer"></div>
+  <span class="fmt-label">style</span>
+  <button class="fmt-style active" data-theme="default">default</button>
+  <button class="fmt-style" data-theme="sharp">sharp</button>
+</div>
+
 <!-- ─────────── GRID PANE ─────────── -->
 <section class="pane active" data-pane="grid">
   <div class="grid-wrap">
@@ -458,6 +508,64 @@ footer a:hover { color: var(--accent); }
 
 <script>
 // ─────────────────────────────────────────────────────────────────────
+// Format state (theme + reveal-all) — shared across grid + cm renderers
+// ─────────────────────────────────────────────────────────────────────
+const THEMES = {
+  default: {
+    bg:       '#fafafa',
+    node:     '#111',
+    edge:     'rgba(17, 17, 17, 0.33)',
+    edgeAll:  'rgba(139, 0, 0, 0.85)',
+    edgeHi:   '#8b0000',
+    nodeHi:   '#8b0000',
+    polydisc: '#dadada',
+    nodeRMul: 1.0,
+    edgeW:    0.6,
+    edgeWHi:  1.6,
+    nodeStroke: null,
+  },
+  sharp: {
+    bg:       '#0a0a0e',
+    node:     '#ffd900',
+    edge:     'rgba(74, 158, 255, 0.55)',
+    edgeAll:  'rgba(120, 200, 255, 0.95)',
+    edgeHi:   '#ffffff',
+    nodeHi:   '#fff170',
+    polydisc: '#22304a',
+    nodeRMul: 1.15,
+    edgeW:    0.7,
+    edgeWHi:  1.8,
+    nodeStroke: '#a07f00',
+  },
+};
+const fmt = { theme: 'default', revealAll: false };
+function T() { return THEMES[fmt.theme]; }
+
+document.getElementById('reveal-all-btn').addEventListener('click', function() {
+  fmt.revealAll = !fmt.revealAll;
+  this.classList.toggle('active', fmt.revealAll);
+  refreshCurrent();
+});
+document.querySelectorAll('.fmt-style').forEach(b => {
+  b.addEventListener('click', () => {
+    fmt.theme = b.dataset.theme;
+    document.querySelectorAll('.fmt-style').forEach(x =>
+      x.classList.toggle('active', x.dataset.theme === fmt.theme)
+    );
+    refreshCurrent();
+  });
+});
+function refreshCurrent() {
+  const m = document.querySelector('.pane.active').dataset.pane;
+  if (m === 'grid') renderGrid();
+  else if (m === 'cm') drawCM();
+}
+const formatBar = document.getElementById('format-bar');
+function syncFormatBar(name) {
+  formatBar.classList.toggle('hidden', name === 'growth' || name === 'docs');
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Tab switcher
 // ─────────────────────────────────────────────────────────────────────
 const tabs = document.querySelectorAll('.tab');
@@ -465,17 +573,21 @@ const panes = document.querySelectorAll('.pane');
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  syncFormatBar(name);
   if (name === 'grid')   renderGrid();
+  if (name === 'cm')     renderCM();
   if (name === 'growth') renderGrowth();
   // sync to URL
   try { history.replaceState(null, '', '#' + name); } catch {}
 }
+syncFormatBar('grid');
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
-// Restore tab from hash
+// Restore tab from hash — deferred so renderer-state consts have time to
+// initialise before showTab() calls the relevant render function.
 const initialHash = (location.hash || '').replace(/^#/, '');
-if (['grid', 'growth', 'docs'].includes(initialHash)) {
-  showTab(initialHash);
+if (['grid', 'cm', 'growth', 'docs'].includes(initialHash) && initialHash !== 'grid') {
+  setTimeout(() => showTab(initialHash), 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -665,7 +777,8 @@ function renderGrid() {
   const ctx = gridCtx;
   const W = gridCanvas.width;
   const H = gridCanvas.height;
-  ctx.fillStyle = getComputedStyle(gridCanvas).backgroundColor;
+  const th = T();
+  ctx.fillStyle = th.bg;
   ctx.fillRect(0, 0, W, H);
 
   const { k, m, hover } = gridState;
@@ -690,50 +803,68 @@ function renderGrid() {
   const edges = unitDistancePairs(k, m);
 
   // Edges first (so points sit on top)
-  ctx.lineWidth = 0.6;
-  ctx.strokeStyle = '#11111155';
   ctx.beginPath();
-  // Faint base layer of all edges
-  for (const [i1, j1, i2, j2] of edges) {
-    if (hover && ((hover[0] === i1 && hover[1] === j1) || (hover[0] === i2 && hover[1] === j2))) continue;
-    ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
-    ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
-  }
-  ctx.stroke();
-
-  // Highlight edges incident to the hovered point
-  if (hover) {
-    ctx.lineWidth = 1.6;
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
-    ctx.beginPath();
+  if (fmt.revealAll) {
+    ctx.lineWidth = th.edgeW * 1.4;
+    ctx.strokeStyle = th.edgeAll;
     for (const [i1, j1, i2, j2] of edges) {
-      const incidentA = (hover[0] === i1 && hover[1] === j1);
-      const incidentB = (hover[0] === i2 && hover[1] === j2);
-      if (!(incidentA || incidentB)) continue;
       ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
       ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
     }
     ctx.stroke();
+  } else {
+    ctx.lineWidth = th.edgeW;
+    ctx.strokeStyle = th.edge;
+    for (const [i1, j1, i2, j2] of edges) {
+      if (hover && ((hover[0] === i1 && hover[1] === j1) || (hover[0] === i2 && hover[1] === j2))) continue;
+      ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
+      ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
+    }
+    ctx.stroke();
+
+    // Highlight edges incident to the hovered point
+    if (hover) {
+      ctx.lineWidth = th.edgeWHi;
+      ctx.strokeStyle = th.edgeHi;
+      ctx.beginPath();
+      for (const [i1, j1, i2, j2] of edges) {
+        const incidentA = (hover[0] === i1 && hover[1] === j1);
+        const incidentB = (hover[0] === i2 && hover[1] === j2);
+        if (!(incidentA || incidentB)) continue;
+        ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
+        ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
+      }
+      ctx.stroke();
+    }
   }
 
   // Points
-  const r = Math.max(1.8, Math.min(5, step * 0.16));
-  ctx.fillStyle = '#111';
+  const r = Math.max(1.8, Math.min(5, step * 0.16)) * th.nodeRMul;
+  ctx.fillStyle = th.node;
   for (const p of points) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
   }
+  if (th.nodeStroke) {
+    ctx.strokeStyle = th.nodeStroke;
+    ctx.lineWidth = 0.5;
+    for (const p of points) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
 
-  // Hovered point ring + recolor
-  if (hover) {
+  // Hovered point ring + recolor (only when not in reveal-all)
+  if (hover && !fmt.revealAll) {
     const hp = points.find(p => p.i === hover[0] && p.j === hover[1]);
     if (hp) {
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
+      ctx.fillStyle = th.nodeHi;
       ctx.beginPath();
       ctx.arc(hp.x, hp.y, r * 1.6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = ctx.fillStyle;
+      ctx.strokeStyle = th.nodeHi;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(hp.x, hp.y, r * 3.2, 0, Math.PI * 2);
@@ -962,7 +1093,8 @@ function drawCM() {
   const ctx = cmCtx;
   const W = cmCanvas.width;
   const H = cmCanvas.height;
-  ctx.fillStyle = getComputedStyle(cmCanvas).backgroundColor;
+  const th = T();
+  ctx.fillStyle = th.bg;
   ctx.fillRect(0, 0, W, H);
 
   const { points, edges, hover, R } = cmState;
@@ -981,54 +1113,72 @@ function drawCM() {
   }
 
   // Polydisc envelope hint — soft circle at radius R in projection
-  ctx.strokeStyle = '#dadada';
+  ctx.strokeStyle = th.polydisc;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(cx, cy, R * scale, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Edges (faint base layer; highlight incident on hover)
-  ctx.lineWidth = 0.5;
-  ctx.strokeStyle = '#11111155';
+  // Edges
   ctx.beginPath();
-  for (const [i, j] of edges) {
-    if (hover !== null && (i === hover || j === hover)) continue;
-    ctx.moveTo(points[i].px, points[i].py);
-    ctx.lineTo(points[j].px, points[j].py);
-  }
-  ctx.stroke();
-
-  if (hover !== null) {
-    ctx.lineWidth = 1.6;
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
-    ctx.beginPath();
+  if (fmt.revealAll) {
+    ctx.lineWidth = th.edgeW * 1.4;
+    ctx.strokeStyle = th.edgeAll;
     for (const [i, j] of edges) {
-      if (i === hover || j === hover) {
-        ctx.moveTo(points[i].px, points[i].py);
-        ctx.lineTo(points[j].px, points[j].py);
-      }
+      ctx.moveTo(points[i].px, points[i].py);
+      ctx.lineTo(points[j].px, points[j].py);
     }
     ctx.stroke();
+  } else {
+    ctx.lineWidth = th.edgeW;
+    ctx.strokeStyle = th.edge;
+    for (const [i, j] of edges) {
+      if (hover !== null && (i === hover || j === hover)) continue;
+      ctx.moveTo(points[i].px, points[i].py);
+      ctx.lineTo(points[j].px, points[j].py);
+    }
+    ctx.stroke();
+
+    if (hover !== null) {
+      ctx.lineWidth = th.edgeWHi;
+      ctx.strokeStyle = th.edgeHi;
+      ctx.beginPath();
+      for (const [i, j] of edges) {
+        if (i === hover || j === hover) {
+          ctx.moveTo(points[i].px, points[i].py);
+          ctx.lineTo(points[j].px, points[j].py);
+        }
+      }
+      ctx.stroke();
+    }
   }
 
   // Points
-  const r = Math.max(1.8, Math.min(4, scale * 0.04));
-  ctx.fillStyle = '#111';
+  const r = Math.max(1.8, Math.min(4, scale * 0.04)) * th.nodeRMul;
+  ctx.fillStyle = th.node;
   for (const p of points) {
     ctx.beginPath();
     ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
     ctx.fill();
   }
+  if (th.nodeStroke) {
+    ctx.strokeStyle = th.nodeStroke;
+    ctx.lineWidth = 0.5;
+    for (const p of points) {
+      ctx.beginPath();
+      ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
 
-  // Hover ring
-  if (hover !== null) {
+  // Hover ring (only when not in reveal-all)
+  if (hover !== null && !fmt.revealAll) {
     const hp = points[hover];
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
-    ctx.fillStyle = accent;
+    ctx.fillStyle = th.nodeHi;
     ctx.beginPath();
     ctx.arc(hp.px, hp.py, r * 1.7, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = accent;
+    ctx.strokeStyle = th.nodeHi;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(hp.px, hp.py, r * 3.5, 0, Math.PI * 2);
@@ -1071,12 +1221,7 @@ window.addEventListener('resize', () => {
   if (document.querySelector('.pane.active').dataset.pane === 'cm') drawCM();
 });
 
-// Hook into the tab switcher: lazily render CM when activated (it's expensive)
-const originalShowTab = showTab;
-showTab = function(name) {
-  originalShowTab(name);
-  if (name === 'cm') renderCM();
-};
+// (Tab switcher already invokes renderCM() when 'cm' is selected.)
 
 // ─────────────────────────────────────────────────────────────────────
 // Growth chart renderer
