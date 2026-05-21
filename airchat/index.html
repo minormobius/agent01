@@ -131,6 +131,28 @@ button.danger { background: var(--rec); }
 .preview { display: none; margin-top: 1rem; }
 .preview.show { display: block; }
 .preview audio { width: 100%; margin-bottom: 0.7rem; }
+.filter-row {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+  margin: 0 0 0.4rem 0;
+}
+.filter-chip {
+  font-family: var(--mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.3rem 0.6rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.filter-chip:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.filter-chip.active {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+.filter-chip:disabled { opacity: 0.4; cursor: wait; }
+.filter-status {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.4rem; min-height: 0.85em;
+}
 .transcript-box {
   width: 100%; min-height: 88px; padding: 0.7rem 0.9rem;
   font-family: var(--serif); font-size: 1rem; line-height: 1.5;
@@ -302,6 +324,8 @@ footer a { color: var(--muted); text-decoration: underline; }
 
       <div class="preview" id="preview">
         <audio id="preview-audio" controls></audio>
+        <div class="filter-row" id="filter-row"></div>
+        <div class="filter-status" id="filter-status"></div>
         <div class="transcript-meta">
           <span><span id="transcribe-status">transcribing…</span></span>
           <span id="transcribe-lang"></span>
@@ -333,7 +357,10 @@ footer a { color: var(--muted); text-decoration: underline; }
 </div>
 
 <script type="module">
+import { FILTERS, applyFilter } from './lib/filters.js';
+
 const $ = (id) => document.getElementById(id);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const MAX_REC_SEC = 90;
 const WARN_REC_SEC = 75;
 
@@ -344,8 +371,11 @@ const state = {
   recordChunks: [],
   recordStart: 0,
   recordTimerHandle: null,
-  audioBlob: null,
-  audioMime: '',
+  audioBlob: null,        // current (possibly filtered) blob — what posts
+  audioMime: '',          // mime of audioBlob
+  originalBlob: null,     // unfiltered recording, kept so we can re-filter
+  originalMime: '',       // mime of originalBlob
+  currentFilter: 'none',  // active filter id
   transcript: '',
   duration: 0,
   detectedLang: null,
@@ -537,6 +567,9 @@ function stopRecording() {
 async function onRecordingDone(blob, mime) {
   state.audioBlob = blob;
   state.audioMime = mime;
+  state.originalBlob = blob;
+  state.originalMime = mime;
+  state.currentFilter = 'none';
   state.duration = (Date.now() - state.recordStart) / 1000;
   $('preview-audio').src = URL.createObjectURL(blob);
   $('preview').classList.add('show');
@@ -544,6 +577,8 @@ async function onRecordingDone(blob, mime) {
   $('transcript-box').value = '';
   $('transcribe-status').textContent = 'transcribing…';
   $('transcribe-lang').textContent = '';
+  $('filter-status').textContent = '';
+  renderFilterChips();
   // Send to worker → Whisper.
   try {
     const res = await fetch('/api/airchat/transcribe', {
@@ -568,6 +603,50 @@ async function onRecordingDone(blob, mime) {
   }
 }
 
+// ─── filters ─────────────────────────────────────────────────────────────
+function renderFilterChips() {
+  const row = $('filter-row');
+  row.innerHTML = FILTERS.map((f) => {
+    const active = f.id === state.currentFilter ? ' active' : '';
+    return `<button type="button" class="filter-chip${active}" data-filter="${f.id}" title="${escapeHtml(f.description)}">${escapeHtml(f.label)}</button>`;
+  }).join('');
+  $$('.filter-chip', row).forEach((btn) => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+}
+
+async function setFilter(filterId) {
+  if (filterId === state.currentFilter) return;
+  if (!state.originalBlob) return;
+  // Lock the chip row while re-encoding so users don't spam-click
+  // through filters mid-render.
+  $$('.filter-chip').forEach((c) => { c.disabled = true; });
+  $('filter-status').textContent = filterId === 'none' ? 'reverting…' : `applying ${filterId}…`;
+  try {
+    let outBlob, outMime;
+    if (filterId === 'none') {
+      outBlob = state.originalBlob;
+      outMime = state.originalMime;
+    } else {
+      outBlob = await applyFilter(state.originalBlob, filterId);
+      outMime = 'audio/wav';                                  // filters always output WAV
+    }
+    state.audioBlob = outBlob;
+    state.audioMime = outMime;
+    state.currentFilter = filterId;
+    $('preview-audio').src = URL.createObjectURL(outBlob);
+    $$('.filter-chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === filterId));
+    $('filter-status').textContent = filterId === 'none'
+      ? ''
+      : `${filterId} · ${Math.round(outBlob.size / 1024)} KB`;
+  } catch (e) {
+    console.error('filter error', e);
+    $('filter-status').textContent = 'error: ' + (e?.message || e);
+  } finally {
+    $$('.filter-chip').forEach((c) => { c.disabled = false; });
+  }
+}
+
 $('redo-btn').addEventListener('click', () => {
   resetPreview();
 });
@@ -576,11 +655,16 @@ $('discard-btn').addEventListener('click', () => {
   $('rec-time').textContent = '0:00';
 });
 function resetPreview() {
-  state.audioBlob = null; state.audioMime = ''; state.transcript = ''; state.duration = 0;
+  state.audioBlob = null; state.audioMime = '';
+  state.originalBlob = null; state.originalMime = '';
+  state.currentFilter = 'none';
+  state.transcript = ''; state.duration = 0;
   $('preview').classList.remove('show');
   $('preview-audio').src = '';
   $('transcript-box').value = '';
   $('post-status').innerHTML = '';
+  $('filter-status').textContent = '';
+  $('filter-row').innerHTML = '';
 }
 
 // ─── post ────────────────────────────────────────────────────────────────
@@ -592,7 +676,11 @@ $('post-btn').addEventListener('click', async () => {
   $('post-status').innerHTML = '<div class="hint">Uploading…</div>';
   try {
     const form = new FormData();
-    form.append('audio', state.audioBlob, 'voice' + (state.audioMime.includes('mp4') ? '.mp4' : '.webm'));
+    const ext = state.audioMime.includes('mp4')  ? 'mp4'
+              : state.audioMime.includes('wav')  ? 'wav'
+              : state.audioMime.includes('ogg')  ? 'ogg'
+              : 'webm';
+    form.append('audio', state.audioBlob, 'voice.' + ext);
     form.append('meta', JSON.stringify({
       text,
       duration: state.duration,
