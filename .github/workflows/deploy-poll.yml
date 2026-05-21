@@ -7,6 +7,8 @@ on:
       - 'claude/bluesky-anonymous-polls-*'
       - 'claude/document-projects-oPse6'
       - 'claude/polygon-drawing-game-*'
+      - 'claude/bluesky-thread-analysis-*'
+      - 'claude/prepare-merge-candidates-*'
     paths:
       - 'poll/**'
       - '.github/workflows/deploy-poll.yml'
