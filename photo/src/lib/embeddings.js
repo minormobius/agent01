@@ -24,14 +24,6 @@ function isMobile() {
     || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 }
 
-// Detect mobile/low-memory environments
-function isMobile() {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
-    || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
-}
-
 export async function initEmbeddings(onProgress) {
   if (pipeline) return pipeline;
   if (loadingPromise) return loadingPromise;
