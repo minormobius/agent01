@@ -169,6 +169,53 @@ button.danger { background: var(--rec); }
 .preview-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; flex-wrap: wrap; }
 .preview-actions button { font-size: 0.8rem; }
 
+/* video export */
+.video-box {
+  margin-top: 0.7rem; padding: 0.7rem 0.85rem;
+  background: var(--accent-faint); border: 1px solid var(--accent);
+  border-radius: 6px; display: none;
+}
+.video-box.show { display: block; }
+.video-box .vlabel {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
+}
+.video-box .vbar {
+  height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden;
+  margin: 0.3rem 0;
+}
+.video-box .vbar > .vfill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+.video-box .vstatus {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted); min-height: 0.85em;
+}
+.video-box video {
+  width: 100%; max-width: 320px; margin-top: 0.5rem;
+  border-radius: 6px; display: block;
+}
+.video-box .vactions {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem;
+}
+.video-box .vactions a, .video-box .vactions button {
+  font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0.35rem 0.7rem;
+  background: var(--accent); color: var(--bg);
+  border: 1px solid var(--accent); border-radius: 4px;
+  text-decoration: none; cursor: pointer;
+}
+.video-box .vactions a:hover, .video-box .vactions button:hover { opacity: 0.85; }
+
+/* live captions on feed cards */
+.voice-caption {
+  font-family: var(--serif); font-style: italic;
+  background: var(--accent-faint); border-left: 3px solid var(--accent);
+  padding: 0.4rem 0.7rem; border-radius: 0 4px 4px 0;
+  font-size: 0.92rem; line-height: 1.5;
+  color: var(--text);
+  margin-top: 0.2rem; min-height: 1.5em;
+  display: none;
+}
+.voice-caption.show { display: block; }
+
 /* feed */
 .feed-head { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
 
@@ -333,10 +380,18 @@ footer a { color: var(--muted); text-decoration: underline; }
         <textarea id="transcript-box" class="transcript-box" placeholder="Transcript will appear here…" maxlength="4000"></textarea>
         <div class="preview-actions">
           <button id="post-btn">Post</button>
+          <button id="video-btn" class="ghost" title="Render a captioned mp4 you can drop into bsky">Make video</button>
           <button id="redo-btn" class="ghost">Redo</button>
           <button id="discard-btn" class="ghost">Discard</button>
         </div>
         <div id="post-status"></div>
+        <div id="video-box" class="video-box">
+          <div class="vlabel">Captioned video</div>
+          <div class="vbar"><div id="vfill" class="vfill"></div></div>
+          <div id="vstatus" class="vstatus"></div>
+          <video id="vpreview" controls style="display:none"></video>
+          <div id="vactions" class="vactions" style="display:none"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -358,6 +413,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <script type="module">
 import { FILTERS, applyFilter } from './lib/filters.js';
+import { makeCaptionedVideo } from './lib/video.js';
 
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -377,6 +433,7 @@ const state = {
   originalMime: '',       // mime of originalBlob
   currentFilter: 'none',  // active filter id
   transcript: '',
+  segments: null,         // [{ start, end, text }] in seconds (from Whisper)
   duration: 0,
   detectedLang: null,
   feedCursor: null,
@@ -594,9 +651,10 @@ async function onRecordingDone(blob, mime) {
     }
     state.transcript = data.text || '';
     state.detectedLang = data.language || null;
+    state.segments = Array.isArray(data.segments) ? data.segments : null;
     if (typeof data.duration === 'number') state.duration = data.duration;
     $('transcript-box').value = state.transcript;
-    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB`;
+    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB${state.segments ? ' · ' + state.segments.length + ' segments' : ''}`;
     $('transcribe-lang').textContent = state.detectedLang ? `lang: ${state.detectedLang}` : '';
   } catch (e) {
     $('transcribe-status').textContent = 'network error: ' + (e?.message || e);
@@ -654,17 +712,110 @@ $('discard-btn').addEventListener('click', () => {
   resetPreview();
   $('rec-time').textContent = '0:00';
 });
+
+// ─── video export ────────────────────────────────────────────────────────
+$('video-btn').addEventListener('click', async () => {
+  if (!state.audioBlob || !state.duration) return;
+  const text = $('transcript-box').value.trim();
+  // Use the segments returned by Whisper. If absent (e.g. transcribe
+  // failed but user manually typed a transcript), build a single
+  // segment spanning the whole clip — captions still display, just
+  // without word-level timing.
+  let segments = state.segments;
+  if ((!segments || !segments.length) && text) {
+    segments = [{ start: 0, end: state.duration, text }];
+  }
+  segments = (segments || []).filter((s) => s.end > s.start && s.text && s.text.trim());
+  if (!segments.length) {
+    alert('No transcript yet — wait for transcription or type one in.');
+    return;
+  }
+  $('video-btn').disabled = true;
+  $('video-box').classList.add('show');
+  $('vpreview').style.display = 'none';
+  $('vactions').style.display = 'none';
+  $('vactions').innerHTML = '';
+  $('vstatus').textContent = 'loading ffmpeg.wasm (first time: ~30 MB download)…';
+  $('vfill').style.width = '0%';
+  try {
+    const me = state.me || {};
+    const blob = await makeCaptionedVideo({
+      audioBlob: state.audioBlob,
+      audioMime: state.audioMime,
+      segments,
+      duration: state.duration,
+      displayName: me.handle || 'you',
+      handle: me.handle || '',
+      avatarUrl: null,                                 // optional — we don't surface own avatar here yet
+      onProgress: (p) => {
+        if (p.stage === 'loading-ffmpeg') $('vstatus').textContent = p.message || 'loading ffmpeg…';
+        else if (p.stage === 'loaded')    $('vstatus').textContent = 'ffmpeg loaded; rendering frames…';
+        else if (p.stage === 'rendering') {
+          $('vstatus').textContent = `rendering frames · ${Math.round((p.progress || 0) * 100)}%`;
+          $('vfill').style.width = `${(p.progress || 0) * 50}%`;
+        } else if (p.stage === 'encoding') {
+          $('vstatus').textContent = `encoding mp4 · ${Math.round((p.progress || 0) * 100)}%`;
+          $('vfill').style.width = `${50 + (p.progress || 0) * 50}%`;
+        } else if (p.stage === 'done') {
+          $('vstatus').textContent = `done · ${(p.size / 1024 / 1024).toFixed(2)} MB`;
+          $('vfill').style.width = '100%';
+        }
+      },
+    });
+    const url = URL.createObjectURL(blob);
+    $('vpreview').src = url;
+    $('vpreview').style.display = 'block';
+    const filename = `yapchat-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.mp4`;
+    const acts = $('vactions');
+    acts.innerHTML = `
+      <a download="${filename}" href="${url}">Download mp4</a>
+      <button type="button" id="vcopy">Copy to clipboard</button>
+      <button type="button" id="vshare">Share…</button>
+    `;
+    acts.style.display = 'flex';
+    $('vcopy').addEventListener('click', async () => {
+      try {
+        // Chrome 121+ supports ClipboardItem for video/mp4.
+        await navigator.clipboard.write([new ClipboardItem({ 'video/mp4': blob })]);
+        $('vstatus').textContent = 'copied to clipboard';
+      } catch (e) {
+        $('vstatus').textContent = 'clipboard copy unsupported in this browser — use Download or Share';
+      }
+    });
+    $('vshare').addEventListener('click', async () => {
+      try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'video/mp4' })] })) {
+          await navigator.share({ files: [new File([blob], filename, { type: 'video/mp4' })], title: 'yapchat voice', text });
+        } else {
+          $('vstatus').textContent = 'native share unsupported — use Download';
+        }
+      } catch (e) {
+        if (e?.name !== 'AbortError') $('vstatus').textContent = 'share error: ' + (e?.message || e);
+      }
+    });
+  } catch (e) {
+    console.error('video generation failed', e);
+    $('vstatus').textContent = 'error: ' + (e?.message || e);
+  } finally {
+    $('video-btn').disabled = false;
+  }
+});
 function resetPreview() {
   state.audioBlob = null; state.audioMime = '';
   state.originalBlob = null; state.originalMime = '';
   state.currentFilter = 'none';
-  state.transcript = ''; state.duration = 0;
+  state.transcript = ''; state.duration = 0; state.segments = null;
   $('preview').classList.remove('show');
   $('preview-audio').src = '';
   $('transcript-box').value = '';
   $('post-status').innerHTML = '';
   $('filter-status').textContent = '';
   $('filter-row').innerHTML = '';
+  $('video-box').classList.remove('show');
+  $('vpreview').style.display = 'none'; $('vpreview').src = '';
+  $('vactions').style.display = 'none'; $('vactions').innerHTML = '';
+  $('vstatus').textContent = '';
+  $('vfill').style.width = '0%';
 }
 
 // ─── post ────────────────────────────────────────────────────────────────
@@ -689,6 +840,17 @@ $('post-btn').addEventListener('click', async () => {
         parent: { uri: state.replyTo.parent_uri, cid: state.replyTo.parent_cid },
         root:   { uri: state.replyTo.root_uri,   cid: state.replyTo.root_cid },
       } : null,
+      // Convert Whisper's float-seconds to integer milliseconds for
+      // DAG-CBOR storage. End must beat start; tiny clip-end Whisper
+      // sometimes emits identical floats — drop those.
+      segments: state.segments ? state.segments
+        .map((s) => ({
+          start: Math.round(s.start * 1000),
+          end:   Math.round(s.end * 1000),
+          text:  s.text,
+        }))
+        .filter((s) => s.end > s.start && s.text && s.text.trim())
+        : null,
     }));
     const res = await fetch('/api/airchat/post', {
       method: 'POST',
@@ -845,7 +1007,8 @@ function renderVoiceCard(v) {
         </div>
         <div class="voice-meta-line">${escapeHtml(when)}${dur ? ' · ' + dur : ''}</div>
       </div>
-      ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}"></audio>` : ''}
+      ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}" data-uri="${escapeHtml(v.uri)}"></audio>` : ''}
+      ${v.segments && v.segments.length ? `<div class="voice-caption" data-for="${escapeHtml(v.uri)}"></div>` : ''}
       <div class="voice-text">${escapeHtml(v.text || '')}</div>
       ${state.me ? `<div class="voice-actions">
         <button type="button" class="reply-btn" data-uri="${escapeHtml(v.uri)}">Reply</button>
@@ -880,6 +1043,31 @@ function renderFeed() {
   });
   host.querySelectorAll('.delete-btn').forEach((btn) => {
     btn.addEventListener('click', () => deleteOwn(btn.dataset.uri));
+  });
+  // Live captions: when an audio element plays, find the matching voice
+  // by uri, look up the active segment for the current playback time,
+  // render into the sibling .voice-caption box. Segments are integer
+  // milliseconds on the feed payload; audio.currentTime is float seconds.
+  host.querySelectorAll('audio.voice-audio').forEach((audio) => {
+    const uri = audio.dataset.uri;
+    const v = state.feedItems.find((x) => x.uri === uri);
+    if (!v || !v.segments || !v.segments.length) return;
+    const captionBox = host.querySelector(`.voice-caption[data-for="${CSS.escape(uri)}"]`);
+    if (!captionBox) return;
+    let lastIdx = -1;
+    audio.addEventListener('play', () => captionBox.classList.add('show'));
+    audio.addEventListener('pause', () => {/* leave visible so they can read */});
+    audio.addEventListener('ended', () => {/* leave visible */});
+    audio.addEventListener('timeupdate', () => {
+      const tMs = audio.currentTime * 1000;
+      // Find the active segment. Cheap linear scan — fine at <500 segments.
+      const idx = v.segments.findIndex((s) => tMs >= s.start && tMs < s.end);
+      if (idx === lastIdx) return;
+      lastIdx = idx;
+      if (idx === -1) { captionBox.textContent = ''; return; }
+      captionBox.textContent = v.segments[idx].text;
+      captionBox.classList.add('show');
+    });
   });
 }
 

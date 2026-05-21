@@ -418,10 +418,16 @@ async function transcribe(request, env) {
     return json({ error: `whisper failed (${wRes.status})`, details: body.slice(0, 300) }, 502);
   }
   const data = await wRes.json();
+  // verbose_json includes segments[{start, end, text, ...}] in seconds.
+  // Surface them so the client can drive captions during playback + video.
+  const segments = Array.isArray(data.segments)
+    ? data.segments.map((s) => ({ start: s.start, end: s.end, text: s.text }))
+    : null;
   return json({
     text: data.text || '',
     duration: data.duration || null,
     language: data.language || null,
+    segments,
     time_ms: Date.now() - t0,
     audio_bytes: audioBytes.byteLength,
   });
@@ -455,6 +461,17 @@ async function postVoice(request, env) {
     parent: { uri: String(meta.reply.parent.uri), cid: String(meta.reply.parent.cid) },
     root:   { uri: String(meta.reply.root.uri),   cid: String(meta.reply.root.cid) },
   } : null;
+  // Segments arrive as integer milliseconds from the client (DAG-CBOR has
+  // no float type — the client rounds Whisper's float-seconds * 1000).
+  const segments = Array.isArray(meta.segments)
+    ? meta.segments.slice(0, 500)
+        .map((s) => ({
+          start: Math.max(0, Math.round(Number(s.start)) || 0),
+          end:   Math.max(0, Math.round(Number(s.end))   || 0),
+          text:  String(s.text || '').slice(0, 500),
+        }))
+        .filter((s) => s.text && s.end > s.start)
+    : null;
 
   const audioBytes = await audio.arrayBuffer();
   if (audioBytes.byteLength > MAX_AUDIO_BYTES) {
@@ -498,6 +515,7 @@ async function postVoice(request, env) {
     if (mapped.length) record.lang = mapped;
   }
   if (reply) record.reply = reply;
+  if (segments && segments.length) record.segments = segments;
 
   const createUrl = `${sess.pds_url.replace(/\/$/, '')}/xrpc/com.atproto.repo.createRecord`;
   const crRes = await pdsAuthCall(sess, 'POST', createUrl, { 'Content-Type': 'application/json' }, JSON.stringify({
@@ -519,8 +537,9 @@ async function postVoice(request, env) {
   await env.DB.prepare(
     `INSERT OR REPLACE INTO airchat_voices
        (uri, did, rkey, cid, pds_url, audio_cid, audio_mime, audio_size, duration_sec,
-        text, reply_root_uri, reply_root_cid, reply_parent_uri, reply_parent_cid, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        text, reply_root_uri, reply_root_cid, reply_parent_uri, reply_parent_cid,
+        segments_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     uri, sess.did, rkey, cid, sess.pds_url,
     audioBlob.ref.$link, audioMime, audioBlob.size || audioBytes.byteLength, duration,
@@ -529,6 +548,7 @@ async function postVoice(request, env) {
     reply ? reply.root.cid : null,
     reply ? reply.parent.uri : null,
     reply ? reply.parent.cid : null,
+    segments && segments.length ? JSON.stringify(segments) : null,
     record.createdAt
   ).run();
 
@@ -554,7 +574,8 @@ async function feedList(request, env, url) {
   if (did) {
     rows = await env.DB.prepare(
       `SELECT v.uri, v.did, v.rkey, v.cid, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
-              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid, v.created_at,
+              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid,
+              v.segments_json, v.created_at,
               w.handle
          FROM airchat_voices v
          LEFT JOIN airchat_whitelist w ON w.did = v.did
@@ -564,7 +585,8 @@ async function feedList(request, env, url) {
   } else {
     rows = await env.DB.prepare(
       `SELECT v.uri, v.did, v.rkey, v.cid, v.pds_url, v.audio_cid, v.audio_mime, v.duration_sec, v.text,
-              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid, v.created_at,
+              v.reply_root_uri, v.reply_root_cid, v.reply_parent_uri, v.reply_parent_cid,
+              v.segments_json, v.created_at,
               w.handle
          FROM airchat_voices v
          INNER JOIN airchat_whitelist w ON w.did = v.did
@@ -572,23 +594,30 @@ async function feedList(request, env, url) {
         ORDER BY v.created_at DESC LIMIT ?`
     ).bind(...(cursor ? [cursor, limit] : [limit])).all();
   }
-  const items = (rows.results || []).map((r) => ({
-    uri: r.uri,
-    cid: r.cid,
-    did: r.did,
-    handle: r.handle,
-    rkey: r.rkey,
-    text: r.text,
-    duration: r.duration_sec,
-    audio_cid: r.audio_cid,
-    audio_mime: r.audio_mime,
-    audio_url: audioUrlFor(r.pds_url, r.did, r.audio_cid),
-    reply: r.reply_parent_uri ? {
-      parent_uri: r.reply_parent_uri, parent_cid: r.reply_parent_cid,
-      root_uri: r.reply_root_uri,     root_cid: r.reply_root_cid,
-    } : null,
-    created_at: r.created_at,
-  }));
+  const items = (rows.results || []).map((r) => {
+    let segments = null;
+    if (r.segments_json) {
+      try { segments = JSON.parse(r.segments_json); } catch {}
+    }
+    return {
+      uri: r.uri,
+      cid: r.cid,
+      did: r.did,
+      handle: r.handle,
+      rkey: r.rkey,
+      text: r.text,
+      duration: r.duration_sec,
+      audio_cid: r.audio_cid,
+      audio_mime: r.audio_mime,
+      audio_url: audioUrlFor(r.pds_url, r.did, r.audio_cid),
+      reply: r.reply_parent_uri ? {
+        parent_uri: r.reply_parent_uri, parent_cid: r.reply_parent_cid,
+        root_uri: r.reply_root_uri,     root_cid: r.reply_root_cid,
+      } : null,
+      segments,
+      created_at: r.created_at,
+    };
+  });
   const nextCursor = items.length === limit ? items[items.length - 1].created_at : null;
   return json({ items, cursor: nextCursor });
 }

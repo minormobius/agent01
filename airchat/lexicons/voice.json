@@ -39,8 +39,23 @@
             "items": { "type": "string", "format": "language" },
             "maxLength": 3,
             "description": "BCP-47 language tags Whisper detected."
+          },
+          "segments": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#segment" },
+            "maxLength": 500,
+            "description": "Whisper segment timings (start_ms, end_ms, text). Enables synced caption display during playback + captioned video export."
           }
         }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "required": ["start", "end", "text"],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0, "description": "Start time in milliseconds." },
+        "end":   { "type": "integer", "minimum": 0, "description": "End time in milliseconds." },
+        "text":  { "type": "string", "maxLength": 500 }
       }
     },
     "replyRef": {
