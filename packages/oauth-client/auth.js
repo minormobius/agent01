@@ -209,10 +209,17 @@ export class AuthClient {
   }
 
   /**
-   * Make an authenticated request to the auth worker.
-   * @param {string} path
-   * @param {object} [opts]
+   * Make an authenticated request to the auth worker. Public alias of _request.
+   * Use this when you need raw access to the worker (e.g. paths not covered by
+   * the `pds` proxy). Adds the Bearer token automatically; throws on 401.
+   * @param {string} path - path on the auth worker, e.g. '/pds/repo/getRecord?...'
+   * @param {object} [opts] - fetch options (method, headers, body)
+   * @returns {Promise<Response>}
    */
+  async request(path, opts) {
+    return this._request(path, opts);
+  }
+
   async _request(path, opts) {
     const headers = { ...opts?.headers };
     if (this._token) headers['Authorization'] = `Bearer ${this._token}`;

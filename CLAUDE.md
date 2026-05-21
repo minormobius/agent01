@@ -123,18 +123,31 @@ That's it. Push to a branch matching `deploy-auth.yml`'s trigger glob to update 
 
 **Mental model**: sites that have their own Worker doing BFF-style OAuth are grandfathered. Sites that are static frontends (or could be static + a thin Worker) should use `workers/auth/`. When in doubt, use the shared worker.
 
-### Sites that should be on the shared worker but currently have hand-rolled clients
+### Migration status of the rest
 
-These talk to `auth.mino.mobi` but reimplement the client lib instead of importing it. Easy migration target:
+**Already on the shared worker** (`packages/oauth-client/auth.js`):
 
-| Site | Local file to delete | Replacement |
-|------|---------------------|-------------|
-| photo | `photo/src/lib/auth.js` | `import { AuthClient } from '../../packages/oauth-client/auth.js'` |
-| wave | `wave/src/lib/auth.ts` | same |
-| wiki | `wiki/src/lib/auth.ts` | same |
-| labglass, music, sweat, answers, org | various inline OAuth bits | same |
+| Site | How it uses the lib |
+|------|---------------------|
+| bakery | imports `AuthClient` directly (`bakery/src/atproto.js`) |
+| photo | `photo/src/lib/auth.js` is a thin wrapper around `AuthClient` — exports the function-shaped API (`init`, `login`, `logout`, `authFetch`, etc.) so call sites are unchanged |
+| wave | `wave/src/lib/auth.ts` is the same wrapper pattern in TS (`authInit`, `authLogin`, `authLogout`, `authFetch`, `AuthUser`) |
+| wiki | `wiki/src/lib/auth.ts` is the same wrapper pattern in TS |
 
-Bakery is the reference: `bakery/src/atproto.js` imports the shared lib. Copy that pattern.
+Why a wrapper instead of changing every call site to `new AuthClient()` directly? Diff minimization, stable surface area inside the project, and a single place to swap the implementation if the shared lib's API evolves. New projects should still call `new AuthClient()` directly — the wrapper is a migration aid for projects with existing call sites.
+
+**Still doing it themselves** (have inline OAuth code in HTML/JS rather than a clean `auth.ts` file):
+
+| Site | Where the OAuth bits live | Migration effort |
+|------|---------------------------|------------------|
+| labglass | `labglass/js/atproto.js` | Trivial once you isolate the OAuth section |
+| music | inline in `music/index.html` (~1228 lines, OAuth around line 1228+) | Medium — needs un-mixing from page JS |
+| sweat | inline in `sweat/index.html` (OAuth around line 385+) | Medium |
+| answers | `answers/assets/answers.js` + `answers/docs.html` | Medium |
+| cluster | inline in `cluster/index.html` (OAuth around line 634+) | Medium |
+| org | `org/src/pds.ts` (auth + PDS mixed) | Medium |
+
+Bakery is the reference for direct usage: `bakery/src/atproto.js` imports the shared lib. Photo/wave/wiki are references for the wrapper pattern.
 
 ### What to never do
 
