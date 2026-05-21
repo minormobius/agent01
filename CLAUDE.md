@@ -59,11 +59,46 @@ Existing projects (org, crm, wave, photo, labglass, bakery, time, cards, etc.) e
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
-- **Hosting**: Cloudflare Pages (auto-deploys from `main`; `photo.mino.mobi` deploys from `claude/atproto-arena-duckdb-8H9SQ`; cards deploys from `claude/wiki-card-game-oJbLE`; `answers/` deploys from `claude/yahoo-answers-atproto-brainstorm-B6vUR` — **LIVE DEPLOY**, every push ships)
+- **Hosting**: Cloudflare Pages + Workers
 - **Compute**: Cloudflare Workers + Durable Objects + D1
 - **Email**: Cloudflare Email Routing — `tips@`, `editor@`, `modulo@`, `morphyx@minomobi.com`
-- **DNS**: Cloudflare — CNAME records for subdomains -> Pages deployments
+- **DNS**: Cloudflare — CNAME records for subdomains → Pages deployments
 - **ATProto**: PDS as backend for several apps (bakery, phylo, time, music, sweat)
+
+---
+
+## Deployment Model (read this — it's how everything ships)
+
+**Every push to your Claude feature branch ships to production**, provided a `deploy-*.yml` workflow has a trigger glob that matches your branch and your changes touch its `paths:`. The human (`majormobius@gmail.com`) deploys *off Claude feature branches directly*, not just off `main`. There is no staging environment.
+
+What this means for you:
+
+1. **Find your project's workflow first.** Before touching code, locate `.github/workflows/deploy-<project>.yml`. The `on.push.branches` list tells you which branches deploy that project. The `on.push.paths` list tells you what file changes wake it up.
+2. **Match your branch name to an existing trigger glob, or add yours.** If you're working on a branch the workflow doesn't recognize, your commits won't ship. Either rename the branch to match (e.g. `claude/sentence-editing-drill-*` for rite), or open a small PR adding your branch to the trigger list.
+3. **Prefer the workflow over local `wrangler deploy`.** The workflows hold the canonical build steps, secrets, D1 migration order, and post-deploy hooks. Local `wrangler deploy` skips migrations and post-deploy seeding and will drift.
+4. **The user pushes to feature branches deliberately.** If you see them push to `claude/foo-Xy7Pq` directly, that *is* the prod deploy for that surface. Don't "fix" it by merging to main first.
+5. **`workflow_dispatch` is your manual trigger.** Every deploy workflow has `workflow_dispatch:` so the human (or you, via the GitHub MCP tools) can fire a deploy out-of-band.
+
+### Per-project deploy workflow map
+
+| Project | Workflow | Triggers on (branches) | Path glob |
+|---------|----------|------------------------|-----------|
+| Root / landing | none (Cloudflare Pages auto from `main`) | `main` | `/` |
+| Poll | `.github/workflows/deploy-poll.yml` | `main`, `claude/bluesky-anonymous-polls-*`, `claude/document-projects-oPse6`, `claude/polygon-drawing-game-*`, `claude/bluesky-thread-analysis-*`, `claude/prepare-merge-candidates-*` | `poll/**` |
+| Rite | `.github/workflows/deploy-rite.yml` | `main`, `claude/sentence-editing-drill-*` | `rite/**` + fodder/ask/signal migrations |
+| Airchat | `.github/workflows/deploy-airchat.yml` | `main`, `claude/sentence-editing-drill-*` | `airchat/**` + airchat migrations |
+| Feed worker | `.github/workflows/deploy-feed.yml` | `main`, `claude/document-projects-oPse6` | `workers/feed/**` + feed migrations |
+| Zoom viewer | `.github/workflows/deploy-zoom.yml` | `main`, `claude/bluesky-anonymous-polls-*` | `zoom/**` |
+| Photo | `.github/workflows/deploy-photo.yml` | `main`, `claude/atproto-arena-duckdb-*` | `photo/**` |
+| Bakery | `.github/workflows/deploy-bakery.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `bakery/**` |
+| Cards | `.github/workflows/deploy-cards.yml` | `main`, **`claude/*`** (any Claude branch) | `cards/**` |
+| Clock | `.github/workflows/deploy-clock.yml` | `main`, **`claude/*`** (any Claude branch) | `clock/**` |
+| Read | `.github/workflows/deploy-read.yml` | `main`, `claude/eye-tracking-exploration-*` | `read/**` |
+| Auth worker | `.github/workflows/deploy-auth.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `workers/auth/**` |
+| Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
+| Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
+
+When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
 
 ---
 
@@ -142,11 +177,9 @@ npm run deploy         # wrangler deploy
 
 **Build order matters**: shared before web. Always.
 
-**Deploy trigger**: Push to `main`, `claude/bluesky-thread-analysis-RcJaN`, or `claude/bluesky-anonymous-polls-*` (poll/**) or manual via `deploy-poll.yml`.
+**Deploy**: `.github/workflows/deploy-poll.yml` — see the trigger glob list there for the live set of branches. Currently includes `claude/bluesky-anonymous-polls-*`, `claude/document-projects-oPse6`, `claude/polygon-drawing-game-*`, `claude/bluesky-thread-analysis-*`, `claude/prepare-merge-candidates-*`. Workflow also runs every migration in `poll/apps/api/migrations/` (idempotent) before `wrangler deploy`.
 
-**Note**: `claude/bluesky-thread-analysis-RcJaN` is the current production branch for poll development and overall devops.
-
-**D1 migrations**: Via `d1-migrate.yml` workflow or `npx wrangler d1 execute`.
+**D1 migrations**: Preferred path is to let `deploy-poll.yml` apply them on push. Manual fallback: `d1-migrate.yml` workflow or `npx wrangler d1 execute atpolls-db --file=... --remote` (requires Cloudflare credentials — does not work from the Claude sandbox; run via Actions or your laptop).
 
 ### Secrets (Worker)
 
@@ -158,9 +191,11 @@ npm run deploy         # wrangler deploy
 |---------|-------|
 | Compat date | 2024-07-18 |
 | Compat flags | nodejs_compat, sqlite |
-| D1 | `atpolls-db` (fee2f25a-8b4a-4d46-b245-9d5da93c117d) |
-| DO | PollCoordinator, SurveyCoordinator |
+| D1 | `atpolls-db` (fee2f25a-8b4a-4d46-b245-9d5da93c117d) — shared with feed, rite, airchat |
+| D1 (optional) | `mmopaint-db` (6687b33c-c09c-4bb9-b216-0c84067dfb74) — provisioned by `create-mmo-db.yml` |
+| DO | `PollCoordinator`, `SurveyCoordinator`, `MmoCanvas` |
 | Assets | `../../dist` (Vite-built frontend) |
+| Migrations | `0001`–`0023` and growing. Number sequentially; if you collide with another in-flight branch, the *later* merge renumbers (see `070f919`). |
 
 ---
 
@@ -173,6 +208,7 @@ Two components: a **feed worker** that generates an algorithmic Bluesky feed, an
 **Live at**: `feed.mino.mobi`
 **Stack**: Cloudflare Worker + D1 + KV
 **Cron**: Every 6 hours (recompute communities)
+**Deploy**: `.github/workflows/deploy-feed.yml` — pushes to `main` or `claude/document-projects-oPse6` touching `workers/feed/**` (or the feed migrations) deploy automatically.
 
 #### What It Does
 
@@ -244,7 +280,7 @@ score = weightedEngagement * breadthMultiplier * bridgeMultiplier * recency
 
 **Live at**: `zoom.mino.mobi`
 **Stack**: Pure HTML/JS + Canvas 2D (no build step)
-**Deploy**: Cloudflare Pages (static)
+**Deploy**: `.github/workflows/deploy-zoom.yml` — Cloudflare Pages, triggered by pushes to `main` or `claude/bluesky-anonymous-polls-*` touching `zoom/**`.
 
 #### What It Does
 
@@ -518,9 +554,9 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 
 **Poll specifics**:
 - Workspace monorepo: `packages/shared`, `apps/web`, `apps/api`
-- D1 database: `atpolls-db` (fee2f25a-8b4a-4d46-b245-9d5da93c117d)
-- Durable Object: `PollCoordinator` (per-poll state machine)
-- Migrations: `poll/apps/api/migrations/0001_init.sql` through `0004`
+- D1 database: `atpolls-db` (fee2f25a-8b4a-4d46-b245-9d5da93c117d), plus `mmopaint-db` for the mmopaint canvas (optional binding, falls back to `DB`)
+- Durable Objects: `PollCoordinator`, `SurveyCoordinator`, `MmoCanvas`
+- Migrations: `poll/apps/api/migrations/0001_init.sql` through `0023_mmopaint.sql` (and counting). Sequence is the source of truth for application order — never reuse numbers.
 - Build order: `build:shared` → `build:web` → deploy worker
 - Has its own `poll/CLAUDE.md` for implementation details
 
@@ -565,24 +601,51 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 
 ## GitHub Actions
 
-| Workflow | Trigger | Deploys To |
-|----------|---------|------------|
-| `deploy-poll.yml` | Push to `main` (poll/**) or manual | Cloudflare Worker + Pages |
-| `deploy-rite.yml` | Push to `main` or `claude/sentence-editing-drill-*` (rite/**) or manual | D1 migration + Cloudflare Worker (rite.mino.mobi) |
-| `deploy-airchat.yml` | Push to `main` or `claude/sentence-editing-drill-*` (airchat/**) or manual | D1 migration + Cloudflare Worker (airchat.mino.mobi) |
-| `fetch-lexicons.yml` | Push to scripts/fetch-lexicons.mjs, monthly cron, or manual | Downloads NRC / AFINN / Concreteness / SUBTLEX-US, commits JSON to `rite/lexicon/data/` |
-| `post-to-bluesky.yml` | Push to `time/posts/` | Bluesky (3 accounts) |
-| `publish-whtwnd.yml` | Push to `time/entries/` | PDS (WhiteWind records) |
-| `sync-phylo.yml` | Push to tracked paths | PDS (phylo records) |
-| `d1-migrate.yml` | Manual | D1 database |
-| `anchor-cosines.yml` | Push/manual | Commits embeddings to repo |
-| `score-deep-wiki.yml` | Push/manual | PDS (card catalog) |
+The full set of workflows lives under `.github/workflows/`. Deploy workflows are also summarized in the **Per-project deploy workflow map** above; this section covers the non-deploy automation (provisioning, syncing, publishing, scoring). When in doubt, **read the workflow file** — these are short, declarative, and the source of truth.
 
-**Key secrets** (GitHub Actions environment):
-- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
-- `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD`
-- `BLUESKY_MODULO_HANDLE`, `BLUESKY_MODULO_APP_PASSWORD`
-- `BLUESKY_MORPHYX_HANDLE`, `BLUESKY_MORPHYX_APP_PASSWORD`
+### Deploy workflows (see deploy map above)
+
+`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`
+
+### Provisioning / one-shots
+
+| Workflow | Purpose |
+|----------|---------|
+| `create-mmo-db.yml` | Creates the `mmopaint-db` D1 database and binds it to the poll worker. Run once per environment. |
+| `create-kv-namespace.yml` | Provisions Cloudflare KV namespaces. |
+| `d1-migrate.yml` | Manual D1 migration runner — fallback when `deploy-*.yml` migration step isn't enough. |
+
+### Content + data pipelines (these write to PDS, Bluesky, or commit data back to the repo)
+
+| Workflow | Trigger | Side effect |
+|----------|---------|-------------|
+| `post-to-bluesky.yml` | Push to `time/posts/**.md` | **Posts to real Bluesky** (3 accounts). Danger zone — see Project 3. |
+| `publish-whtwnd.yml` | Push to `time/entries/**` | Writes WhiteWind records to PDS. |
+| `publish-answers-categories.yml` | Push tracked paths | Publishes Yahoo Answers ATProto categories. |
+| `sync-phylo.yml` | Push tracked paths | Writes phylo records to PDS. |
+| `sync-finance.yml` | Push tracked paths | Syncs finance datasets. |
+| `sync-pm.yml` | Push tracked paths | Syncs project-management data. |
+| `verify-phylo.yml` | Push/manual | Verifies phylo PDS state. |
+| `register-feed-generator.yml` | Manual | One-time registration of the SimCluster feed generator on Bluesky. |
+| `score-deep-wiki.yml` | Push/manual | Scores Wiki Cards, writes catalog to PDS. |
+| `anchor-cosines.yml` | Push/manual | Commits embedding anchors back to the repo. |
+| `build-complementarity.yml` | Push/manual | Builds complementarity dataset. |
+| `build-cult-basis.yml` | Push to `scripts/build-cult-basis.mjs`, manual | Rebuilds `wars/cult/basis.*` artifacts. |
+| `fetch-lexicons.yml` | Push, monthly cron, manual | Downloads NRC / AFINN / Concreteness / SUBTLEX-US; commits JSON to `rite/lexicon/data/`. |
+| `fetch-atproto-data.yml` | Manual / scheduled | Pulls ATProto records into the repo. |
+| `fetch-flavor-data.yml` | Manual / scheduled | Pulls flavor/recipe data. |
+| `fetch-lexicon-json.yml` | Manual / scheduled | Earlier lexicon variant (kept for back-compat). |
+| `fetch-yum-wikipedia.yml` | Manual / scheduled | Wikipedia scraping for yum/recipe dataset. |
+| `query-otol.yml` | Manual | Queries Open Tree of Life. |
+| `mine-fodder.yml` | Cron (every 6h) | Mines Project Gutenberg for rite/fodder candidates. |
+| `write-test-recipe.yml` | Manual / test | Recipe-writing smoke test. |
+
+### Key secrets (GitHub Actions environment)
+
+- **Cloudflare**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — used by every `deploy-*.yml`.
+- **Bluesky posting**: `BLUESKY_HANDLE`/`_APP_PASSWORD` (main), and `_MODULO_`/`_MORPHYX_` variants.
+- **Rite/Airchat extras**: `OPENAI_API_KEY` (Whisper), `RITE_ADMIN_KEY`, `ADMIN_KEY` (airchat).
+- **Poll worker secrets** (set via `wrangler secret put`, not Actions env): see Project 1 list — `RSA_*`, `OAUTH_*`, `ATPROTO_SERVICE_*`.
 
 ---
 
@@ -643,11 +706,39 @@ npx wrangler d1 execute atpolls-db --file=poll/apps/api/migrations/0001_init.sql
 
 ---
 
-## Sandbox Constraints
+## Working in this sandbox (capabilities audit)
 
-- **Large file writes fail.** The Write tool chokes on files over ~800 lines in this sandbox. Use `bash cat >> file` in chunks, or build incrementally with Edit.
-- **Prefer small incremental steps.** Write a skeleton first, then add features one at a time. Don't try to write an entire app in one tool call.
-- **Test early.** Commit working increments rather than trying to land a complete feature in one shot.
+You're running in Claude Code's managed remote-execution environment — an ephemeral container with the repo cloned fresh. Container is reclaimed after inactivity; anything worth keeping has to be committed and pushed.
+
+### What works
+
+- **File ops at any size**: `Read`, `Edit`, `Write` all work on large files. Prefer `Edit` for changes to existing files (sends only the diff); `Write` is fine for new files or full rewrites. The "800-line ceiling" warning from earlier CLAUDE.md revisions is no longer accurate — multi-thousand-line merges and edits land cleanly.
+- **Git**: clone, branch, merge, commit, push to `origin` — all work. Push has retry-with-exponential-backoff guidance baked into the harness prompt.
+- **GitHub via MCP**: `mcp__github__*` tools (scoped to `minormobius/agent01`) let you read PRs, post comments, list commits, create branches, open PRs, run secret scans, etc. **Use these instead of trying to install `gh`** — there is no `gh` CLI.
+- **WebFetch / WebSearch**: public-internet reads work. Useful for checking docs, looking up library APIs, reading public Bluesky posts.
+- **Subagents**: `Explore` for read-only multi-file search; `Plan` for architecture; `general-purpose` for catch-all. Spawn in parallel when work is independent.
+- **Bash**: full local shell, multi-line, background runs, hooks.
+
+### What does NOT work from here
+
+- **No `wrangler deploy` to Cloudflare.** The sandbox can't authenticate to the Cloudflare API. Push to a deploy-triggering branch and let the Action run it.
+- **No live Bluesky / PDS writes** (createSession, uploadBlob, createRecord). Same reason — auth secrets live in GH Actions, not here.
+- **No remote D1 writes** (`wrangler d1 execute --remote`). Use `d1-migrate.yml` or let `deploy-*.yml` apply migrations.
+- **No `gh` CLI / `hub` CLI** — use the GitHub MCP tools.
+- **No persistent state between sessions.** Anything not committed is gone.
+
+### Practical pattern
+
+The deploy workflows ARE your network. The shape of a normal feature loop is:
+
+```
+1. Edit files locally in the sandbox.
+2. Commit + push to a Claude feature branch whose name matches a deploy workflow's trigger glob.
+3. The workflow fires, builds, migrates, deploys. The user reviews the live site.
+4. (Optional) merge to main.
+```
+
+If step 2's branch doesn't match any trigger glob, the deploy won't fire and the change won't ship. Either rename the branch or edit the workflow's `branches:` list (small, low-risk PR).
 
 ---
 
@@ -655,8 +746,9 @@ npx wrangler d1 execute atpolls-db --file=poll/apps/api/migrations/0001_init.sql
 
 1. **Don't break what's working.** Read before changing. Test before pushing.
 2. **Minimal changes.** Fix what's broken, nothing more. No drive-by refactors.
-3. **Headers matter.** COOP/COEP, HSTS, CSP -- get them right or features silently fail.
-4. **Build order matters.** Poll monorepo: shared -> web -> deploy. Always.
-5. **Push triggers actions.** Know what workflows fire before you push. A push to `time/posts/` posts to Bluesky. A push to `poll/` deploys the worker.
-6. **Sandbox can't reach the internet.** All network operations (API calls, deploys, PDS writes) happen via GitHub Actions, not here.
-7. **Feed and poll share D1.** The `atpolls-db` database serves both projects. Migrations live in `poll/apps/api/migrations/` but the feed worker references them too.
+3. **Headers matter.** COOP/COEP, HSTS, CSP — get them right or features silently fail.
+4. **Build order matters.** Poll monorepo: shared → web → deploy. Always.
+5. **Push triggers Actions, and Actions ship to prod.** Know which workflow your push wakes up before you push it. A push to `time/posts/` posts to Bluesky. A push to `poll/` from `claude/bluesky-anonymous-polls-*` deploys the poll worker. A push to `cards/` from *any* `claude/*` branch deploys cards. See the deploy map above.
+6. **Deploys belong in GitHub Actions, not in your bash session.** The sandbox can't reach Cloudflare/Bluesky/PDS — that's by design, and the deploy workflows already hold the right secrets, build steps, and migration ordering. If you find yourself wanting to `wrangler deploy` from here, you actually want to push to a branch the workflow recognizes.
+7. **Feed, poll, rite, airchat share D1 (`atpolls-db`).** Migrations live in `poll/apps/api/migrations/` and apply to every consumer. Number sequentially; if two branches collide on the same migration number, the later merge renumbers (see commit `070f919` for the pattern).
+8. **The user pushes to feature branches deliberately.** When you see commits land on a `claude/foo-*` branch and the site updates, that's the intended deploy path — not a mistake to "fix" by retargeting to `main`.
