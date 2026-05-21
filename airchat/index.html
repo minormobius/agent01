@@ -148,6 +148,28 @@ button.danger { background: var(--rec); }
   background: var(--accent); color: var(--bg); border-color: var(--accent);
 }
 .filter-chip:disabled { opacity: 0.4; cursor: wait; }
+
+.speed-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 0.4rem 0;
+}
+.speed-label {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.speed-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.speed-chip {
+  font-family: var(--mono); font-size: 0.7rem; padding: 0.3rem 0.55rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.speed-chip:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.speed-chip.active {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+.speed-chip:disabled { opacity: 0.4; cursor: wait; }
+
 .filter-status {
   font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.06em;
@@ -487,6 +509,10 @@ footer a { color: var(--muted); text-decoration: underline; }
       <div class="preview" id="preview">
         <audio id="preview-audio" controls></audio>
         <div class="filter-row" id="filter-row"></div>
+        <div class="speed-row">
+          <span class="speed-label">Voice speed</span>
+          <div class="speed-chips" id="speed-chips"></div>
+        </div>
         <div class="filter-status" id="filter-status"></div>
         <div class="transcript-meta">
           <span><span id="transcribe-status">transcribing…</span></span>
@@ -560,7 +586,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 </div>
 
 <script type="module">
-import { FILTERS, applyFilter } from './lib/filters.js';
+import { FILTERS, applyFilter, applyVoiceSpeed } from './lib/filters.js';
 import { makeCaptionedVideo, makeCaptionedVideoRealtime } from './lib/video.js';
 import { renderComposition, loadBundledIndex, loadBundledComposition, fetchCompositionsByHandle } from './lib/music-render.js';
 
@@ -581,8 +607,11 @@ const state = {
   originalBlob: null,     // unfiltered recording, kept so we can re-filter
   originalMime: '',       // mime of originalBlob
   currentFilter: 'none',  // active filter id
+  voiceSpeed: 1,          // 0.75 | 1 | 1.25 | 1.5 | 2 — applied AFTER filter
+  originalDuration: 0,    // recording length BEFORE speed change
+  originalSegments: null, // Whisper segments BEFORE speed change (seconds)
   transcript: '',
-  segments: null,         // [{ start, end, text }] in seconds (from Whisper)
+  segments: null,         // [{ start, end, text }] rescaled for current voiceSpeed
   musicBlob: null,        // user-supplied background track (optional)
   musicName: '',
   musicVolume: 25,        // 0..100, applied as 0..1 gain in ffmpeg amix
@@ -781,7 +810,9 @@ async function onRecordingDone(blob, mime) {
   state.originalBlob = blob;
   state.originalMime = mime;
   state.currentFilter = 'none';
-  state.duration = (Date.now() - state.recordStart) / 1000;
+  state.voiceSpeed = 1;
+  state.originalDuration = (Date.now() - state.recordStart) / 1000;
+  state.duration = state.originalDuration;
   $('preview-audio').src = URL.createObjectURL(blob);
   $('preview').classList.add('show');
   $('post-status').innerHTML = '';
@@ -790,6 +821,7 @@ async function onRecordingDone(blob, mime) {
   $('transcribe-lang').textContent = '';
   $('filter-status').textContent = '';
   renderFilterChips();
+  renderSpeedChips();
   // Send to worker → Whisper.
   try {
     const res = await fetch('/api/airchat/transcribe', {
@@ -805,10 +837,16 @@ async function onRecordingDone(blob, mime) {
     }
     state.transcript = data.text || '';
     state.detectedLang = data.language || null;
-    state.segments = Array.isArray(data.segments) ? data.segments : null;
-    if (typeof data.duration === 'number') state.duration = data.duration;
+    // Capture original segments + duration; current state.segments/duration
+    // are rescaled by voiceSpeed (1 right after recording, so == original).
+    state.originalSegments = Array.isArray(data.segments) ? data.segments : null;
+    state.segments = state.originalSegments;
+    if (typeof data.duration === 'number') {
+      state.originalDuration = data.duration;
+      state.duration = data.duration / state.voiceSpeed;
+    }
     $('transcript-box').value = state.transcript;
-    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB${state.segments ? ' · ' + state.segments.length + ' segments' : ''}`;
+    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB${state.originalSegments ? ' · ' + state.originalSegments.length + ' segments' : ''}`;
     $('transcribe-lang').textContent = state.detectedLang ? `lang: ${state.detectedLang}` : '';
   } catch (e) {
     $('transcribe-status').textContent = 'network error: ' + (e?.message || e);
@@ -827,35 +865,85 @@ function renderFilterChips() {
   });
 }
 
+const SPEED_OPTIONS = [
+  { value: 0.75, label: '0.75×' },
+  { value: 1,    label: '1×'    },
+  { value: 1.25, label: '1.25×' },
+  { value: 1.5,  label: '1.5×'  },
+  { value: 2,    label: '2×'    },
+];
+
+function renderSpeedChips() {
+  const row = $('speed-chips');
+  row.innerHTML = SPEED_OPTIONS.map((s) => {
+    const active = Math.abs(s.value - state.voiceSpeed) < 0.001 ? ' active' : '';
+    return `<button type="button" class="speed-chip${active}" data-speed="${s.value}" title="${s.label} voice (pitch preserved)">${s.label}</button>`;
+  }).join('');
+  $$('.speed-chip', row).forEach((btn) => {
+    btn.addEventListener('click', () => setSpeed(Number(btn.dataset.speed)));
+  });
+}
+
 async function setFilter(filterId) {
   if (filterId === state.currentFilter) return;
+  state.currentFilter = filterId;
+  await reapplyVoicePipeline();
+}
+
+async function setSpeed(speed) {
+  if (Math.abs(speed - state.voiceSpeed) < 0.001) return;
+  state.voiceSpeed = speed;
+  await reapplyVoicePipeline();
+}
+
+// Re-derive state.audioBlob, state.audioMime, state.duration, and
+// state.segments from the unmodified originals + the current filter +
+// speed. Called on every filter/speed change. Both filter and speed
+// re-run from state.originalBlob each time so they don't compound on
+// repeated tweaks.
+async function reapplyVoicePipeline() {
   if (!state.originalBlob) return;
-  // Lock the chip row while re-encoding so users don't spam-click
-  // through filters mid-render.
-  $$('.filter-chip').forEach((c) => { c.disabled = true; });
-  $('filter-status').textContent = filterId === 'none' ? 'reverting…' : `applying ${filterId}…`;
+  $$('.filter-chip, .speed-chip').forEach((c) => { c.disabled = true; });
+  $('filter-status').textContent = 'processing…';
   try {
-    let outBlob, outMime;
-    if (filterId === 'none') {
-      outBlob = state.originalBlob;
-      outMime = state.originalMime;
-    } else {
-      outBlob = await applyFilter(state.originalBlob, filterId);
-      outMime = 'audio/wav';                                  // filters always output WAV
+    let blob = state.originalBlob;
+    let mime = state.originalMime;
+    if (state.currentFilter !== 'none') {
+      blob = await applyFilter(blob, state.currentFilter);
+      mime = 'audio/wav';
     }
-    state.audioBlob = outBlob;
-    state.audioMime = outMime;
-    state.currentFilter = filterId;
-    $('preview-audio').src = URL.createObjectURL(outBlob);
-    $$('.filter-chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === filterId));
-    $('filter-status').textContent = filterId === 'none'
-      ? ''
-      : `${filterId} · ${Math.round(outBlob.size / 1024)} KB`;
+    if (Math.abs(state.voiceSpeed - 1) > 0.001) {
+      blob = await applyVoiceSpeed(blob, state.voiceSpeed);
+      mime = 'audio/wav';
+    }
+    state.audioBlob = blob;
+    state.audioMime = mime;
+    state.duration = state.originalDuration / state.voiceSpeed;
+    // Captions rescale to the new audio timeline so live captioning +
+    // video captions sync correctly to the sped/slowed voice.
+    state.segments = state.originalSegments
+      ? state.originalSegments.map((s) => ({
+          start: s.start / state.voiceSpeed,
+          end:   s.end   / state.voiceSpeed,
+          text:  s.text,
+        }))
+      : null;
+
+    $('preview-audio').src = URL.createObjectURL(blob);
+    $$('.filter-chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === state.currentFilter));
+    $$('.speed-chip').forEach((c) => c.classList.toggle('active', Math.abs(Number(c.dataset.speed) - state.voiceSpeed) < 0.001));
+
+    const parts = [];
+    if (state.currentFilter !== 'none') parts.push(state.currentFilter);
+    if (Math.abs(state.voiceSpeed - 1) > 0.001) parts.push(state.voiceSpeed + '×');
+    parts.push(`${Math.round(blob.size / 1024)} KB`);
+    parts.push(`${state.duration.toFixed(1)}s`);
+    $('filter-status').textContent = parts.join(' · ');
   } catch (e) {
-    console.error('filter error', e);
+    console.error('voice pipeline error', e);
     $('filter-status').textContent = 'error: ' + (e?.message || e);
   } finally {
-    $$('.filter-chip').forEach((c) => { c.disabled = false; });
+    $$('.filter-chip, .speed-chip').forEach((c) => { c.disabled = false; });
   }
 }
 
@@ -997,6 +1085,8 @@ function resetPreview() {
   state.audioBlob = null; state.audioMime = '';
   state.originalBlob = null; state.originalMime = '';
   state.currentFilter = 'none';
+  state.voiceSpeed = 1;
+  state.originalDuration = 0; state.originalSegments = null;
   state.transcript = ''; state.duration = 0; state.segments = null;
   clearMusic();
   for (const img of state.bgImages) { try { img.bitmap?.close?.(); } catch {} }
@@ -1009,6 +1099,7 @@ function resetPreview() {
   $('post-status').innerHTML = '';
   $('filter-status').textContent = '';
   $('filter-row').innerHTML = '';
+  $('speed-chips').innerHTML = '';
   $('video-box').classList.remove('show');
   $('vpreview').style.display = 'none'; $('vpreview').src = '';
   $('vactions').style.display = 'none'; $('vactions').innerHTML = '';

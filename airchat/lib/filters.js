@@ -125,26 +125,24 @@ async function loadSoundTouch() {
   }
 }
 
-async function anonymousFilter(buffer) {
+// Shared SoundTouchJS-backed audio processing — used by the anonymous
+// filter (pitch shift, tempo=1) and applyVoiceSpeed (tempo change,
+// pitch=0). Returns a new AudioBuffer at the original sample rate or
+// null if SoundTouch failed to load.
+async function soundTouchProcess(buffer, { pitchSemitones = 0, tempo = 1 }) {
   const st = await loadSoundTouch();
-  if (!st || !st.SoundTouch) {
-    // Degradation path: tape-style pitch shift (changes tempo too).
-    // Still anonymizes casually; just sounds slower.
-    return tapeFilter(buffer, 0.72);
-  }
+  if (!st || !st.SoundTouch) return null;
   const { SoundTouch, SimpleFilter, WebAudioBufferSource } = st;
 
   const numChannels = buffer.numberOfChannels;
   const soundTouch = new SoundTouch(buffer.sampleRate);
-  soundTouch.pitchSemitones = -5;
-  soundTouch.tempo = 1;
+  soundTouch.pitchSemitones = pitchSemitones;
+  soundTouch.tempo = tempo;
   soundTouch.rate = 1;
 
   const source = new WebAudioBufferSource(buffer);
   const filter = new SimpleFilter(source, soundTouch);
 
-  // Pull samples in chunks. SoundTouchJS emits interleaved L/R regardless
-  // of input channels — we just take channel 0 if mono, both if stereo.
   const BUFFER_FRAMES = 4096;
   const interleaved = new Float32Array(BUFFER_FRAMES * 2);
   const collected = [];
@@ -162,12 +160,11 @@ async function anonymousFilter(buffer) {
     totalFrames += n;
   }
 
-  // Pack into an AudioBuffer at the original sample rate.
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
-  const shifted = ctx.createBuffer(numChannels, totalFrames, buffer.sampleRate);
-  const lOut = shifted.getChannelData(0);
-  const rOut = numChannels > 1 ? shifted.getChannelData(1) : null;
+  const out = ctx.createBuffer(numChannels, totalFrames, buffer.sampleRate);
+  const lOut = out.getChannelData(0);
+  const rOut = numChannels > 1 ? out.getChannelData(1) : null;
   let offset = 0;
   for (const chunk of collected) {
     lOut.set(chunk.l, offset);
@@ -175,11 +172,21 @@ async function anonymousFilter(buffer) {
     offset += chunk.l.length;
   }
   ctx.close();
+  return out;
+}
+
+async function anonymousFilter(buffer) {
+  const shifted = await soundTouchProcess(buffer, { pitchSemitones: -5, tempo: 1 });
+  if (!shifted) {
+    // Degradation path: tape-style pitch shift (changes tempo too).
+    // Still anonymizes casually; just sounds slower.
+    return tapeFilter(buffer, 0.72);
+  }
 
   // Run the pitch-shifted buffer through a gentle low-pass to soften
   // residual formant peaks. Makes the voice harder to identify than
   // pitch shift alone.
-  const offline = new OfflineAudioContext(numChannels, shifted.length, shifted.sampleRate);
+  const offline = new OfflineAudioContext(shifted.numberOfChannels, shifted.length, shifted.sampleRate);
   const src = offline.createBufferSource();
   src.buffer = shifted;
   const lp = offline.createBiquadFilter();
@@ -189,6 +196,29 @@ async function anonymousFilter(buffer) {
   src.connect(lp).connect(offline.destination);
   src.start(0);
   return offline.startRendering();
+}
+
+// ─── speed (independent of filter) ──────────────────────────────────────
+//
+// Time-stretch the voice without changing pitch. Used for the
+// "1.25×/1.5×/2×" picker — voice speeds up but stays your voice (no
+// chipmunk effect). Music in the video mux stays at its own tempo.
+// Captions get rescaled in the caller so they sync to the new audio
+// duration.
+//
+//   applyVoiceSpeed(blob, 1) → blob (no-op)
+//   applyVoiceSpeed(blob, 1.5) → blob (1.5× faster, pitch unchanged)
+//   applyVoiceSpeed(blob, 0.75) → blob (slower)
+//
+// Falls back to tape-style speed change (pitch will shift) if
+// SoundTouchJS can't load.
+export async function applyVoiceSpeed(blob, speed) {
+  if (!speed || Math.abs(speed - 1) < 0.001) return blob;
+  const buffer = await decodeAudio(blob);
+  const processed = await soundTouchProcess(buffer, { pitchSemitones: 0, tempo: speed });
+  if (processed) return audioBufferToWavBlob(processed);
+  // Fallback (chipmunk-y but functional): tape pitch+speed.
+  return audioBufferToWavBlob(await tapeFilter(buffer, speed));
 }
 
 // ─── WAV encoding ───────────────────────────────────────────────────────
