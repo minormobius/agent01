@@ -51,21 +51,36 @@ jobs:
         # core URLs via toBlobURL inside the worker context, which is
         # a CORS fetch (allowed) rather than a Worker spawn (denied).
         #
+        # Pulls tarballs straight from the npm registry — filenames are
+        # deterministic and we don't depend on npm CLI flags like
+        # --pack-destination behaving consistently across versions.
         # Total vendored size: ~70 KB.
         run: |
-          set -e
+          set -euo pipefail
           rm -rf vendor/ffmpeg
           mkdir -p vendor/ffmpeg
-          cd vendor/ffmpeg
-          npm pack @ffmpeg/[email protected] --silent --pack-destination /tmp >/dev/null
-          npm pack @ffmpeg/[email protected]    --silent --pack-destination /tmp >/dev/null
-          tar xzf /tmp/ffmpeg-ffmpeg-0.12.15.tgz
-          mv package ffmpeg
-          tar xzf /tmp/ffmpeg-util-0.12.2.tgz
-          mv package util
-          echo "Vendored:"
-          find . -name '*.js' -o -name '*.wasm' | head -20
-          du -sh ffmpeg util
+          echo "Downloading @ffmpeg/[email protected] tarball…"
+          curl -fsSL "https://registry.npmjs.org/@ffmpeg/ffmpeg/-/ffmpeg-0.12.15.tgz" -o /tmp/ffmpeg-ffmpeg.tgz
+          echo "Downloading @ffmpeg/[email protected] tarball…"
+          curl -fsSL "https://registry.npmjs.org/@ffmpeg/util/-/util-0.12.2.tgz" -o /tmp/ffmpeg-util.tgz
+          echo "Extracting ffmpeg/ffmpeg into vendor/ffmpeg/ffmpeg/…"
+          tar xzf /tmp/ffmpeg-ffmpeg.tgz -C vendor/ffmpeg/
+          mv vendor/ffmpeg/package vendor/ffmpeg/ffmpeg
+          echo "Extracting ffmpeg/util into vendor/ffmpeg/util/…"
+          tar xzf /tmp/ffmpeg-util.tgz -C vendor/ffmpeg/
+          mv vendor/ffmpeg/package vendor/ffmpeg/util
+          echo "=== vendored contents ==="
+          find vendor/ffmpeg -maxdepth 5 -name '*.js' | sort
+          echo "=== sizes ==="
+          du -sh vendor/ffmpeg/ffmpeg vendor/ffmpeg/util
+          # Sanity-check the file the worker spawn URL will resolve to.
+          test -f vendor/ffmpeg/ffmpeg/dist/esm/worker.js \
+            || (echo "FATAL: worker.js missing — vendoring is broken" && exit 1)
+          test -f vendor/ffmpeg/ffmpeg/dist/esm/index.js \
+            || (echo "FATAL: index.js missing" && exit 1)
+          test -f vendor/ffmpeg/util/dist/esm/index.js \
+            || (echo "FATAL: util/index.js missing" && exit 1)
+          echo "✓ vendor files present"
 
       - name: Run D1 migrations (airchat tables on shared atpolls-db)
         if: ${{ inputs.skip_migrations != true }}
@@ -139,7 +154,7 @@ jobs:
           curl -fsS https://airchat.mino.mobi/api/airchat/health 2>/dev/null || true
           exit 0
 
-      - name: Verify worker is live
+      - name: Verify worker is live + vendor files are reachable
         continue-on-error: true
         run: |
           for attempt in 1 2 3 4 5; do
@@ -147,12 +162,24 @@ jobs:
             if echo "$HEALTH" | grep -q '"ok":true'; then
               echo "$HEALTH"
               echo "✓ worker is live"
-              exit 0
+              break
             fi
             echo "  attempt $attempt: not yet, sleeping…"
             sleep 4
           done
-          echo "⚠️ worker didn't respond to /api/airchat/health within 20s — edge propagation may be slow, continuing anyway."
+          echo ""
+          echo "=== Verifying vendored ffmpeg files are reachable from the edge ==="
+          for url in \
+            "https://airchat.mino.mobi/vendor/ffmpeg/ffmpeg/dist/esm/index.js" \
+            "https://airchat.mino.mobi/vendor/ffmpeg/ffmpeg/dist/esm/worker.js" \
+            "https://airchat.mino.mobi/vendor/ffmpeg/util/dist/esm/index.js"; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "$url" || echo "fail")
+            if [ "$STATUS" = "200" ]; then
+              echo "  ✓ $url"
+            else
+              echo "  ⚠️  $url → $STATUS  — the realtime encoder still works (no vendor needed), but ffmpeg.wasm path will fail"
+            fi
+          done
 
       - name: Seed whitelist from airchat/whitelist.txt (idempotent)
         # Reads airchat/whitelist.txt one entry per line. Each entry is:
