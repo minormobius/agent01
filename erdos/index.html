@@ -291,6 +291,7 @@ footer a:hover { color: var(--accent); }
 
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="grid" role="tab">grid</button>
+  <button class="tab" data-tab="cm" role="tab">cm-field</button>
   <button class="tab" data-tab="growth" role="tab">growth</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
@@ -331,6 +332,40 @@ footer a:hover { color: var(--accent); }
   </div>
 </section>
 
+<!-- ─────────── CM-FIELD PANE ─────────── -->
+<section class="pane" data-pane="cm">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="cm-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">CM field K</span>
+        <div class="preset-row" id="cm-field-row">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">polydisc radius · R</span>
+        <div class="ctrl-row">
+          <input id="cm-r-slider" type="range" min="1.5" max="4.5" value="2.5" step="0.1">
+          <span class="ctrl-val" id="cm-r-val">2.5</span>
+        </div>
+      </div>
+
+      <div class="stats" id="cm-stats">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="stat-note">
+        Lattice points of O<sub>K</sub> with |&sigma;<sub>1</sub>(x)| &le; R <em>and</em> |&sigma;<sub>2</sub>(x)| &le; R,
+        projected to &sigma;<sub>1</sub>(x) &isin; &#8450;. Edges drawn where the projected distance is 1.
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ─────────── GROWTH PANE ─────────── -->
 <section class="pane" data-pane="growth">
   <div class="growth-wrap">
@@ -359,19 +394,25 @@ footer a:hover { color: var(--accent); }
 
 <p>The proof was checked and digested in a <a href="https://cdn.openai.com/pdf/74c24085-19b0-4534-9c90-465b8e29ad73/unit-distance-remarks.pdf">19-page paper</a> by Noga Alon, Thomas Bloom, Tim Gowers, Daniel Litt, Will Sawin, Arul Shankar, Jacob Tsimerman, Victor Wang, and Melanie Matchett Wood. Bloom — who had torched OpenAI's <em>previous</em> Erdős claim seven months ago — verified this one personally.</p>
 
-<h2>How the proof works</h2>
-<p>The classical construction (visible in the <strong>grid</strong> tab) places points on a square integer grid. The number of pairs at squared distance <em>m</em> is roughly <em>n</em> · r₂(<em>m</em>) / 2, where r₂(<em>m</em>) is the number of integer solutions to a² + b² = <em>m</em>. When <em>m</em> is a product of <em>k</em> distinct primes ≡ 1&nbsp;mod&nbsp;4, r₂(<em>m</em>) grows like 4 · 2<sup>k</sup>. Pick <em>m</em> = 5 · 13 · 17 · 29 · 37 · …, push <em>k</em> as far as the grid allows, and you get the Erdős lower bound.</p>
+<h2>The classical construction (1946)</h2>
+<p>The <strong>grid</strong> tab is the construction Erdős discovered: place points on a square integer grid. The number of pairs at squared distance <em>m</em> is roughly <em>n</em> · r₂(<em>m</em>) / 2, where r₂(<em>m</em>) is the number of integer solutions to a² + b² = <em>m</em>. When <em>m</em> is a product of <em>k</em> distinct primes ≡ 1&nbsp;mod&nbsp;4, r₂(<em>m</em>) grows like 4 · 2<sup>k</sup>. Pick <em>m</em> = 5 · 13 · 17 · 29 · 37 · …, push <em>k</em> as far as the grid allows, and you get Erdős's lower bound of <em>n</em><sup>1 + c/log&nbsp;log&nbsp;n</sup>.</p>
 
-<p>Algebraically: these grid points live in the <strong>ring of Gaussian integers</strong> ℤ[<em>i</em>], the ring of integers in the field ℚ(<em>i</em>). This field is a <em>CM field</em> — a totally imaginary quadratic extension of a totally real field, where elements of absolute value 1 form a nicely structured set.</p>
+<p>Algebraically: these grid points live in the <strong>ring of Gaussian integers</strong> ℤ[<em>i</em>], the ring of integers in the field ℚ(<em>i</em>). This is a <em>CM field</em> — a totally imaginary quadratic extension of a totally real field. Its degree over ℚ is <em>n</em> = 2; the geometry-of-numbers parameter is <em>f</em> = [ℚ(<em>i</em>)<sup>+</sup>:ℚ] = 1.</p>
 
-<p>The new construction replaces ℚ(<em>i</em>) with a CM field <em>K</em> of <em>growing degree</em> <em>f</em> = [<em>K</em>:ℚ]. The key challenge: keep the lattice well-shaped as <em>f</em> → ∞. The proof uses:</p>
-<ul>
-  <li>An infinite <strong>Golod-Shafarevich class field tower</strong> to find CM fields with bounded root discriminant and degree → ∞.</li>
-  <li>A pigeonhole argument (Lemma 2.2 in the remarks paper) showing that fixing a rational prime that splits completely in the tower yields many magnitude-1 algebraic numbers with bounded denominator.</li>
-  <li>The <strong>geometry of numbers</strong> (Lemma 2.1) to extract, by averaging, a translate of the lattice that contains a 2D point set with many unit distances.</li>
-</ul>
+<p>This is the picture mathematicians carried for 80 years. The criss-crossing in the grid tab is its hero image. It's the <em>before</em>.</p>
 
-<p>Embedding the ring of integers <em>O<sub>K</sub></em> as a lattice in ℂ<sup>f</sup>, taking a bounded window of lattice points, and projecting to one complex coordinate of ℂ ≅ ℝ² gives the planar point set.</p>
+<h2>The new construction (2026)</h2>
+<p>Replace ℚ(<em>i</em>) with a CM field <em>K</em> of <em>growing degree</em>. The new construction:</p>
+<ol>
+  <li>Pick a CM field <em>K</em> = <em>L</em>(<em>i</em>) where <em>L</em> is totally real, with <em>f</em> = [<em>L</em>:ℚ] → ∞.</li>
+  <li>Embed the ring of integers <em>O<sub>K</sub></em> as a lattice in <strong>ℂ<sup>f</sup></strong> via the Minkowski map (one chosen complex embedding per conjugate pair).</li>
+  <li>Find a large set <em>U</em> of magnitude-one elements <em>u</em> ∈ <em>K</em>* — these satisfy |σ(<em>u</em>)| = 1 for every complex embedding σ. They come from prime splitting in <em>K</em> followed by a pigeonhole on the class group of <em>K</em>.</li>
+  <li>Take all lattice points inside a <strong>polydisc</strong> {|<em>z<sub>r</sub></em>| ≤ <em>R</em>}<sup>f</sup>.</li>
+  <li><strong>Project to one complex coordinate</strong>. The projected pairs (<em>x</em>, <em>x</em>+<em>u</em>) for <em>u</em> ∈ <em>U</em> are exactly at distance 1 in ℂ ≅ ℝ², because |σ<sub>1</sub>(<em>u</em>)| = 1.</li>
+</ol>
+<p>To make the lattice well-shaped while [<em>K</em>:ℚ] grows, the proof uses an infinite <strong>Golod–Shafarevich class field tower</strong> over a cyclic cubic base field <em>F</em> — totally-real fields with bounded root discriminant whose degrees go to infinity, in which a fixed prime <em>q</em> ≡ 1&nbsp;mod&nbsp;4 splits completely at every level. Sawin's refinement turns this into the explicit exponent ε ≥ 0.014.</p>
+
+<p>The point set is <strong>not a grid</strong>. It's the irregular 2D shadow of a 4D, 6D, …, 2<em>f</em>D lattice — the points cluster by algebraic structure, with the polydisc envelope projecting to (something near) a disc rather than a square. <strong>Nobody has published a figure of this</strong>: the proof papers contain zero diagrams. The <strong>cm-field</strong> tab is our own faithful realisation at the smallest non-trivial case (<em>f</em> = 2, the degree-4 CM fields ℚ(ζ₅), ℚ(ζ₈), ℚ(ζ₁₂)), enumerated, projected, and decorated with the unit-distance pairs it actually produces. At <em>f</em> = 2 you don't get the polynomial improvement yet — you need <em>f</em> → ∞ — but you can see the <em>shape</em>.</p>
 
 <h2>Why mathematicians missed this</h2>
 <p>Several blockers led people away from this approach:</p>
@@ -387,14 +428,11 @@ footer a:hover { color: var(--accent); }
 </blockquote>
 
 <h2>What's in this site</h2>
-<p>The <strong>grid</strong> tab is the classical construction: a <em>k</em>×<em>k</em> grid of integer lattice points (Gaussian integers, if you like), with edges between every pair of points at squared distance <em>m</em>. Pick <em>m</em> with many distinct prime factors ≡ 1&nbsp;mod&nbsp;4 — the presets walk through 1, 5, 25, 65, 325, 1105, 32045 — and watch the edge count explode. That explosion is the engine of Erdős's lower bound.</p>
-
-<p>The <strong>growth</strong> tab plots the bounds on log-log axes:</p>
 <ul>
-  <li><strong>Erdős lower bound</strong> (1946): <em>n</em><sup>1 + c/log&nbsp;log&nbsp;n</sup> — slightly super-linear, the curve you're standing on now in the grid tab.</li>
-  <li><strong>OpenAI / Sawin lower bound</strong> (2026): <em>n</em><sup>1.014</sup> — the news. Polynomial in <em>n</em>, fixed exponent.</li>
-  <li><strong>Spencer-Szemerédi-Trotter upper bound</strong> (1984): <em>n</em><sup>4/3</sup>.</li>
-  <li><strong>The disproven conjecture</strong> Erdős thought was tight: <em>n</em><sup>1+o(1)</sup>, drawn as a hatched region. The new lower bound pokes out of this region, which is why we know it's wrong.</li>
+  <li><strong>grid</strong> — the classical 1946 construction. A <em>k</em>×<em>k</em> grid of integer lattice points (Gaussian integers, if you like), with edges between every pair at squared distance <em>m</em>. Pick <em>m</em> with many distinct prime factors ≡ 1&nbsp;mod&nbsp;4 — the presets walk through 1, 5, 25, 65, 325, 1105, 32045 — and watch the edge count explode. The eight-direction line bundle visible at <em>m</em> = 5 is what gives the iconic image its octagonal-star feel; that's the classical construction looking its best.</li>
+  <li><strong>cm-field</strong> — our faithful realisation of the new 2026 construction at <em>f</em> = 2. Pick a degree-4 CM field ℚ(ζ<sub>5</sub>), ℚ(ζ<sub>8</sub>), or ℚ(ζ<sub>12</sub>); choose a polydisc radius <em>R</em>; the page enumerates O<sub>K</sub> lattice points in the bidisc, projects to one ℂ coordinate, and finds the actual unit-distance pairs in that projection. The shape is qualitatively new: <em>no grid</em>, an irregular cloud with the symmetry of <em>K</em>, edges arising from cross-dimensional algebraic structure rather than from a 2D lattice basis.</li>
+  <li><strong>growth</strong> — log-log chart of the bounds: Erdős's lower (1946) — slightly super-linear; OpenAI / Sawin's new lower (2026) — <em>n</em><sup>1.014</sup>, polynomial in <em>n</em>; Spencer–Szemerédi–Trotter upper (1984) — <em>n</em><sup>4/3</sup>; and the disproven conjecture region. The new lower bound visibly pokes out of the disproven band.</li>
+  <li><strong>docs</strong> — this page.</li>
 </ul>
 
 <p>The gap between the new lower bound (<em>n</em><sup>1.014</sup>) and the SST upper bound (<em>n</em><sup>1.333</sup>) is now polynomially open. The next chapter of the story.</p>
@@ -741,6 +779,304 @@ renderGrid();
 window.addEventListener('resize', () => {
   if (document.querySelector('.pane.active').dataset.pane === 'grid') renderGrid();
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// CM-field renderer
+// ─────────────────────────────────────────────────────────────────────
+// Faithful (small-f) realisation of the OpenAI / Sawin 2026 construction.
+//
+// Strategy: pick a degree-4 CM field K = Q(ζ_m), with totally-real subfield
+// L = K^+ of degree f = 2 over Q. The ring of integers is O_K = Z[ζ_m].
+// We enumerate lattice points x = a_0 + a_1·ζ + a_2·ζ² + a_3·ζ³ with each
+// a_i ∈ Z, keep those whose Minkowski-embedding coordinates (σ_1(x), σ_2(x))
+// both have absolute value ≤ R, project to σ_1(x) ∈ C ≅ R², and draw an
+// edge between every pair of projected points at Euclidean distance 1.
+//
+// This is the new construction at f=2, not the asymptotic f→∞ regime — the
+// polynomial improvement ν(n) ≥ n^1.014 needs degree growth — but it
+// faithfully shows the qualitative shape: an irregular cloud, NOT a square
+// grid, with unit distances coming from cross-dimensional algebraic
+// structure rather than from grid symmetries.
+
+const cmCanvas = document.getElementById('cm-canvas');
+const cmCtx = cmCanvas.getContext('2d');
+const cmRSlider = document.getElementById('cm-r-slider');
+const cmRVal = document.getElementById('cm-r-val');
+const cmStatsEl = document.getElementById('cm-stats');
+const cmFieldRow = document.getElementById('cm-field-row');
+
+// Degree-4 CM fields. For Q(ζ_m), basis is {1, ζ, ζ², ζ³}. Embeddings σ_k
+// for k coprime to m send ζ to e^(2πik/m); we pick one σ from each complex-
+// conjugate pair. Conjugate pairs: σ_k pairs with σ_{m-k}.
+const CM_FIELDS = [
+  // ζ_5: 5th roots of unity. Pairs (1,4), (2,3). Pick σ_1, σ_2.
+  { id: 'q5',  label: 'Q(ζ₅)',  m: 5,  pick: [1, 2], symmetry: 10 },
+  // ζ_8: 8th roots. Coprime k ∈ {1,3,5,7}. Pairs (1,7), (3,5). Pick σ_1, σ_3.
+  { id: 'q8',  label: 'Q(ζ₈)',  m: 8,  pick: [1, 3], symmetry: 8 },
+  // ζ_12: 12th roots. Coprime k ∈ {1,5,7,11}. Pairs (1,11), (5,7). Pick σ_1, σ_5.
+  { id: 'q12', label: 'Q(ζ₁₂)', m: 12, pick: [1, 5], symmetry: 12 },
+];
+
+let cmState = {
+  fieldIdx: 0,
+  R: 2.5,
+  hover: null,        // index into projected-points array
+  points: [],         // [{px, py, abcd}, ...]  projected lattice points
+  edges: [],          // [[i, j], ...]
+};
+
+// Pre-cached cos/sin per (m, pick) for quick embedding
+function embeddingTrigs(m, k) {
+  const cs = [];
+  for (let j = 0; j < 4; j++) {  // for ζ⁰, ζ¹, ζ², ζ³
+    const angle = 2 * Math.PI * k * j / m;
+    cs.push([Math.cos(angle), Math.sin(angle)]);
+  }
+  return cs;
+}
+
+function buildCMFieldButtons() {
+  cmFieldRow.innerHTML = '';
+  CM_FIELDS.forEach((f, i) => {
+    const b = document.createElement('button');
+    b.className = 'preset';
+    b.dataset.idx = i;
+    b.textContent = f.label;
+    b.addEventListener('click', () => { setCMField(i); });
+    cmFieldRow.appendChild(b);
+  });
+  syncCMFieldButtons();
+}
+
+function syncCMFieldButtons() {
+  cmFieldRow.querySelectorAll('.preset').forEach((btn, i) => {
+    btn.classList.toggle('active', i === cmState.fieldIdx);
+  });
+}
+
+function setCMField(idx) {
+  cmState.fieldIdx = idx;
+  syncCMFieldButtons();
+  renderCM();
+}
+
+cmRSlider.addEventListener('input', e => {
+  cmState.R = parseFloat(e.target.value);
+  cmRVal.textContent = cmState.R.toFixed(1);
+  renderCM();
+});
+
+cmCanvas.addEventListener('mousemove', onCMHover);
+cmCanvas.addEventListener('mouseleave', () => { cmState.hover = null; drawCM(); });
+
+function onCMHover(e) {
+  if (!cmState.points.length) return;
+  const rect = cmCanvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (cmCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (cmCanvas.height / rect.height);
+  let best = -1, bestD = 14 * 14;
+  for (let i = 0; i < cmState.points.length; i++) {
+    const p = cmState.points[i];
+    const d2 = (p.px - mx) * (p.px - mx) + (p.py - my) * (p.py - my);
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  if (best !== cmState.hover) {
+    cmState.hover = best === -1 ? null : best;
+    drawCM();
+  }
+}
+
+function renderCM() {
+  const field = CM_FIELDS[cmState.fieldIdx];
+  const R = cmState.R;
+
+  // Trigs for the two embeddings we keep
+  const trig1 = embeddingTrigs(field.m, field.pick[0]);
+  const trig2 = embeddingTrigs(field.m, field.pick[1]);
+
+  // Enumerate lattice points x = a + b·ζ + c·ζ² + d·ζ³ with each a_i ∈ [-M, M],
+  // keep those where both Minkowski coords have |·| ≤ R. M is the box bound on
+  // coefficients — large enough that R is interior, but not so large that we
+  // spend forever filtering. Each coefficient lies in [-R*4, R*4] roughly.
+  const M = Math.ceil(R * 2.5);
+  const Rsq = R * R;
+
+  const points = [];
+  for (let a = -M; a <= M; a++) {
+    for (let b = -M; b <= M; b++) {
+      for (let c = -M; c <= M; c++) {
+        for (let d = -M; d <= M; d++) {
+          // σ_1(x) = a + b·e^(iα) + c·e^(2iα) + d·e^(3iα)
+          const x1 = a + b * trig1[1][0] + c * trig1[2][0] + d * trig1[3][0];
+          const y1 = b * trig1[1][1] + c * trig1[2][1] + d * trig1[3][1];
+          if (x1 * x1 + y1 * y1 > Rsq) continue;
+          // σ_2(x) = a + b·e^(iβ) + c·e^(2iβ) + d·e^(3iβ)
+          const x2 = a + b * trig2[1][0] + c * trig2[2][0] + d * trig2[3][0];
+          const y2 = b * trig2[1][1] + c * trig2[2][1] + d * trig2[3][1];
+          if (x2 * x2 + y2 * y2 > Rsq) continue;
+          points.push({ z1x: x1, z1y: y1, abcd: [a, b, c, d] });
+        }
+      }
+    }
+  }
+
+  // Find unit-distance pairs in the projection. Real lattice arithmetic
+  // guarantees these exist exactly (not as floating-point coincidence) when
+  // the displacement comes from a norm-1 element of K — but we detect them
+  // numerically because we don't enumerate norm-1 elements explicitly.
+  const edges = [];
+  const tol = 1e-5;
+  // Spatial hashing for speed: bucket by floor(z1x * 2)
+  const buckets = new Map();
+  for (let i = 0; i < points.length; i++) {
+    const key = Math.floor(points[i].z1x * 2);
+    for (const k of [key - 2, key - 1, key, key + 1, key + 2]) {
+      if (!buckets.has(k)) buckets.set(k, []);
+    }
+    buckets.get(key).push(i);
+  }
+  for (let i = 0; i < points.length; i++) {
+    const pi = points[i];
+    const key = Math.floor(pi.z1x * 2);
+    for (let kk = key - 2; kk <= key + 2; kk++) {
+      const bucket = buckets.get(kk);
+      if (!bucket) continue;
+      for (const j of bucket) {
+        if (j <= i) continue;
+        const pj = points[j];
+        const dx = pj.z1x - pi.z1x;
+        const dy = pj.z1y - pi.z1y;
+        const d2 = dx * dx + dy * dy;
+        if (Math.abs(d2 - 1) < tol) edges.push([i, j]);
+      }
+    }
+  }
+
+  cmState.points = points;
+  cmState.edges = edges;
+  cmState.hover = null;
+  drawCM();
+}
+
+function drawCM() {
+  const ctx = cmCtx;
+  const W = cmCanvas.width;
+  const H = cmCanvas.height;
+  ctx.fillStyle = getComputedStyle(cmCanvas).backgroundColor;
+  ctx.fillRect(0, 0, W, H);
+
+  const { points, edges, hover, R } = cmState;
+  if (!points.length) return;
+
+  // Canvas-space mapping: unit-disc of radius R → canvas, centered
+  const pad = 36;
+  const span = Math.min(W, H) - 2 * pad;
+  const scale = span / (2 * R);
+  const cx = W / 2, cy = H / 2;
+  function px(z1x) { return cx + z1x * scale; }
+  function py(z1y) { return cy - z1y * scale; }  // flip y for screen
+  for (const p of points) {
+    p.px = px(p.z1x);
+    p.py = py(p.z1y);
+  }
+
+  // Polydisc envelope hint — soft circle at radius R in projection
+  ctx.strokeStyle = '#dadada';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R * scale, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Edges (faint base layer; highlight incident on hover)
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = '#11111155';
+  ctx.beginPath();
+  for (const [i, j] of edges) {
+    if (hover !== null && (i === hover || j === hover)) continue;
+    ctx.moveTo(points[i].px, points[i].py);
+    ctx.lineTo(points[j].px, points[j].py);
+  }
+  ctx.stroke();
+
+  if (hover !== null) {
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
+    ctx.beginPath();
+    for (const [i, j] of edges) {
+      if (i === hover || j === hover) {
+        ctx.moveTo(points[i].px, points[i].py);
+        ctx.lineTo(points[j].px, points[j].py);
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Points
+  const r = Math.max(1.8, Math.min(4, scale * 0.04));
+  ctx.fillStyle = '#111';
+  for (const p of points) {
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hover ring
+  if (hover !== null) {
+    const hp = points[hover];
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(hp.px, hp.py, r * 1.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(hp.px, hp.py, r * 3.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  updateCMStats();
+}
+
+function updateCMStats() {
+  const { points, edges, hover } = cmState;
+  const field = CM_FIELDS[cmState.fieldIdx];
+  const n = points.length;
+  const m = edges.length;
+  const expReached = (n > 1 && m > 0) ? Math.log(m) / Math.log(n) : 0;
+
+  let hoverDeg = null, hoverCoords = null;
+  if (hover !== null) {
+    hoverDeg = 0;
+    for (const [i, j] of edges) {
+      if (i === hover || j === hover) hoverDeg++;
+    }
+    hoverCoords = points[hover].abcd;
+  }
+
+  cmStatsEl.innerHTML = `
+    <div class="stat-row"><span class="k">field K</span><span class="v">${field.label}</span></div>
+    <div class="stat-row"><span class="k">[K:ℚ]</span><span class="v">4</span></div>
+    <div class="stat-row"><span class="k">f = [K⁺:ℚ]</span><span class="v">2</span></div>
+    <div class="stat-row"><span class="k">points · n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">unit-distance pairs</span><span class="v hot">${m.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="k">log(edges)/log(n)</span><span class="v">${expReached.toFixed(3)}</span></div>
+    ${hoverCoords !== null ? `<div class="stat-row"><span class="k">x = (${hoverCoords.join(',')})</span><span class="v hot">${hoverDeg}</span></div>` : ''}
+  `;
+}
+
+buildCMFieldButtons();
+renderCM();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'cm') drawCM();
+});
+
+// Hook into the tab switcher: lazily render CM when activated (it's expensive)
+const originalShowTab = showTab;
+showTab = function(name) {
+  originalShowTab(name);
+  if (name === 'cm') renderCM();
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // Growth chart renderer
