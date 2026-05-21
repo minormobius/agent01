@@ -1,0 +1,138 @@
+name: Deploy Rite
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/sentence-editing-drill-*'
+    paths:
+      - 'rite/**'
+      - 'poll/apps/api/migrations/0014_fodder.sql'
+      - 'poll/apps/api/migrations/0015_ask.sql'
+      - 'poll/apps/api/migrations/0016_ask_map.sql'
+      - 'poll/apps/api/migrations/0017_signal.sql'
+      - '.github/workflows/deploy-rite.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rite
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Run D1 migrations (rite tables on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          for f in \
+            ../poll/apps/api/migrations/0014_fodder.sql \
+            ../poll/apps/api/migrations/0015_ask.sql \
+            ../poll/apps/api/migrations/0016_ask_map.sql \
+            ../poll/apps/api/migrations/0017_signal.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        # Just confirm the deploy reached the edge — don't fail if propagation
+        # is slow, the deploy step above is the source of truth.
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://rite.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "✓ worker is live"
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 4
+          done
+          echo "⚠️ worker didn't respond to /api/health within 20s — edge propagation may be slow, continuing anyway."
+
+      - name: Sync ADMIN_KEY to worker + seed first batch (best-effort)
+        # Marked best-effort: every sub-step here is "nice to have" but must
+        # not fail the workflow. The actual deploy already succeeded above.
+        continue-on-error: true
+        if: ${{ inputs.skip_migrations != true }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_RITE_ADMIN_KEY: ${{ secrets.RITE_ADMIN_KEY }}
+        run: |
+          # Disable -e so individual command failures don't abort the script.
+          set +e
+
+          if [ -n "$GH_RITE_ADMIN_KEY" ]; then
+            echo "Using RITE_ADMIN_KEY from GH secrets (mine-fodder.yml will work)."
+            KEY="$GH_RITE_ADMIN_KEY"
+          else
+            echo "RITE_ADMIN_KEY not set in GH secrets — generating ephemeral key for this deploy."
+            KEY=$(openssl rand -hex 32)
+          fi
+          echo "::add-mask::$KEY"
+
+          # File-based stdin is more reliable than a pipe for `wrangler secret put`
+          # in CI; some wrangler versions hit edge cases with closed stdin pipes.
+          KEYFILE=$(mktemp)
+          printf '%s' "$KEY" > "$KEYFILE"
+          echo "Pushing ADMIN_KEY to the worker…"
+          npx wrangler secret put ADMIN_KEY < "$KEYFILE"
+          SECRET_RC=$?
+          rm -f "$KEYFILE"
+          if [ $SECRET_RC -ne 0 ]; then
+            echo "⚠️ wrangler secret put returned $SECRET_RC — skipping seed (manual mining workflow can run later)."
+            exit 0
+          fi
+
+          echo "Triggering up to 5 mining runs to seed initial candidates…"
+          TOTAL=0
+          for i in 1 2 3 4 5; do
+            echo "--- Mine run $i ---"
+            RESP=$(curl -fsS -X POST -H "X-Admin-Key: $KEY" \
+              https://rite.mino.mobi/api/fodder/admin/mine 2>&1)
+            CURL_RC=$?
+            echo "$RESP"
+            if [ $CURL_RC -ne 0 ]; then
+              echo "  curl returned $CURL_RC — skipping rest of seed"
+              break
+            fi
+            INSERTED=$(echo "$RESP" | python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin); m=d.get("mined",d); print(m.get("inserted",0) if isinstance(m,dict) else 0)
+except: print(0)' 2>/dev/null)
+            TOTAL=$((TOTAL + ${INSERTED:-0}))
+            sleep 3
+          done
+          echo "Total candidates inserted: $TOTAL"
+
+          echo "Final stats (informational):"
+          curl -fsS https://rite.mino.mobi/api/fodder/stats || true
+          # Always succeed: this entire step is best-effort.
+          exit 0

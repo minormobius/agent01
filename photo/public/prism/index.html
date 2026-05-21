@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prismatic Corneas</title>
+  <meta name="description" content="See through a prismatic cornea. Live camera, refracted with rainbow halos, starbursts, and ghosting — all client-side WebGL." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁</text></svg>" />
+  <style>
+    :root {
+      --ink: #f0eef8;
+      --ink-dim: #9b96b5;
+      --line: #2a2645;
+      --accent: #b69dff;
+      --gold: #d4b86a;
+      --bg: #050410;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+      overflow: hidden; height: 100%; }
+    canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+    .panel {
+      position: fixed;
+      top: 1rem; left: 1rem; right: 1rem;
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+      padding: 0.75rem 1rem;
+      background: rgba(5, 4, 16, 0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      backdrop-filter: blur(14px);
+      z-index: 10;
+      transition: opacity 300ms ease;
+    }
+    .panel.hidden { opacity: 0; pointer-events: none; }
+
+    .title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.4rem; font-weight: 500;
+      letter-spacing: 0.02em;
+      margin-right: 0.5rem;
+    }
+    .title .eye { color: var(--gold); }
+
+    .mode-toggle {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .mode-toggle .btn {
+      border-radius: 0;
+      border: none;
+      border-right: 1px solid var(--line);
+      background: transparent;
+    }
+    .mode-toggle .btn:last-child { border-right: none; }
+    .mode-toggle .btn.active {
+      background: var(--accent);
+      color: #15102a;
+    }
+
+    .ctrl-set {
+      display: contents;
+    }
+    .ctrl-set[hidden] {
+      display: none;
+    }
+
+    .ctrl {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.85rem; color: var(--ink-dim);
+    }
+    .ctrl input[type="range"] {
+      accent-color: var(--accent);
+      width: 100px;
+    }
+    .btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-family: inherit; font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--gold); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .spacer { flex: 1; }
+
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      background: rgba(5,4,16,0.85);
+      z-index: 20;
+      text-align: center; padding: 2rem;
+    }
+    .overlay h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2.5rem; font-weight: 500;
+      margin: 0;
+    }
+    .overlay p { color: var(--ink-dim); max-width: 32rem; margin: 0; }
+    .overlay .start {
+      background: var(--accent);
+      color: #15102a;
+      border: none;
+      padding: 0.75rem 1.75rem;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .overlay .start:hover { background: var(--gold); }
+    .overlay .err { color: #d96450; font-size: 0.9rem; }
+
+    .help {
+      position: fixed; bottom: 1rem; left: 0; right: 0;
+      text-align: center; font-size: 0.75rem; color: var(--ink-dim);
+      z-index: 10; pointer-events: none;
+      font-style: italic;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <div class="panel" id="panel">
+    <span class="title"><span class="eye">👁</span> Prismatic Corneas</span>
+
+    <div class="mode-toggle">
+      <button class="btn mode-btn active" data-mode="cornea">cornea</button>
+      <button class="btn mode-btn" data-mode="compound">compound</button>
+    </div>
+
+    <div class="ctrl-set" data-set="cornea">
+      <label class="ctrl">halo <input type="range" id="halo" min="0" max="300" value="120" /></label>
+      <label class="ctrl">spread <input type="range" id="burst" min="20" max="400" value="160" /></label>
+      <label class="ctrl">spokes <input type="range" id="spokes" min="0" max="100" value="40" /></label>
+      <label class="ctrl">chroma <input type="range" id="cab" min="0" max="200" value="70" /></label>
+      <label class="ctrl">ghost <input type="range" id="ghost" min="0" max="80" value="0" /></label>
+      <label class="ctrl">warp <input type="range" id="warp" min="0" max="200" value="35" /></label>
+      <label class="ctrl">thresh <input type="range" id="thresh" min="0" max="100" value="42" /></label>
+    </div>
+
+    <div class="ctrl-set" data-set="compound" hidden>
+      <label class="ctrl">facets <input type="range" id="size" min="6" max="120" value="40" /></label>
+      <label class="ctrl">chroma <input type="range" id="cchroma" min="0" max="200" value="55" /></label>
+      <label class="ctrl">refract <input type="range" id="refract" min="0" max="200" value="80" /></label>
+      <label class="ctrl">edge <input type="range" id="edge" min="0" max="100" value="35" /></label>
+      <label class="ctrl">spin <input type="range" id="spin" min="0" max="100" value="0" /></label>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn" id="flip-btn" title="switch camera">⇋ flip</button>
+    <button class="btn" id="freeze-btn" title="freeze">❄ freeze</button>
+    <button class="btn" id="capture-btn" title="save PNG">⤓ capture</button>
+    <button class="btn" id="hide-btn" title="hide panel (tap to show)">— hide</button>
+  </div>
+
+  <div class="help">click anywhere to hide / show controls</div>
+
+  <div class="overlay" id="overlay">
+    <h1>👁 Prismatic Corneas</h1>
+    <p>What the world looks like through an irregularly-refracting cornea: rainbow halos around lights, starburst spokes, ghost copies, soft chromatic warp. Camera stays in your browser — nothing is uploaded.</p>
+    <button class="start" id="start-btn">grant camera</button>
+    <p class="err" id="err" hidden></p>
+  </div>
+
+  <script id="vert" type="x-shader/x-vertex">
+    attribute vec2 a_pos;
+    varying vec2 v_uv;
+    void main() {
+      v_uv = a_pos * 0.5 + 0.5;
+      gl_Position = vec4(a_pos, 0.0, 1.0);
+    }
+  </script>
+
+  <script id="frag" type="x-shader/x-fragment">
+    precision highp float;
+    varying vec2 v_uv;
+    uniform sampler2D u_video;
+    uniform vec2 u_resolution;
+    uniform vec2 u_videoSize;
+    uniform float u_mirror;
+    uniform int u_mode;            // 0 = cornea (default), 1 = compound
+
+    // Cornea-mode params
+    uniform float u_halo;          // multiplier for ring-integrated streak
+    uniform float u_burst;         // max sample radius in px (spread)
+    uniform float u_spokes;        // 0..1 — how starburst-like the halo is
+    uniform float u_cab;           // radial chromatic aberration (px)
+    uniform float u_ghost;         // ghost displacement (px)
+    uniform float u_warp;          // pincushion refractive warp
+    uniform float u_threshold;     // brightness threshold (0..1)
+
+    // Compound-mode params (preserved from previous version)
+    uniform float u_facetSize;
+    uniform float u_cChroma;
+    uniform float u_refract;
+    uniform float u_edge;
+    uniform float u_spin;
+
+    // ---------- utility ----------
+    vec3 hue(float h) {
+      vec3 k = vec3(0.0, 4.0, 2.0);
+      return clamp(abs(mod(h * 6.0 + k, 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    }
+
+    float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+    // Cover-fit the video into the canvas: scale to fill, center-crop.
+    vec2 coverUV(vec2 pixel) {
+      vec2 cAR = u_resolution / u_videoSize;
+      float scale = max(cAR.x, cAR.y);
+      vec2 disp = (u_resolution - u_videoSize * scale) * 0.5;
+      vec2 src = (pixel - disp) / scale;
+      vec2 uv = src / u_videoSize;
+      uv.x = mix(uv.x, 1.0 - uv.x, u_mirror);
+      uv.y = 1.0 - uv.y;
+      return uv;
+    }
+
+    vec3 sampleVideo(vec2 pixel) {
+      vec2 uv = coverUV(pixel);
+      // Clamp; outside the frame returns black so halos don't leak.
+      if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return vec3(0.0);
+      return texture2D(u_video, uv).rgb;
+    }
+
+    // ---------- cornea pass ----------
+    // Inspired by keratoconus visual symptoms: irregular corneal refraction
+    // doesn't tile the image — it convolves bright sources with a kernel
+    // that has rainbow rings, fixed-angle spokes, and possibly ghosts.
+    // We integrate brightness on concentric rings around each output pixel:
+    //   * each ring contributes a single hue → rainbow halo
+    //   * angle sampling is discrete → spokes emerge between angles
+    vec3 corneaPass(vec2 pixel) {
+      vec2 center = u_resolution * 0.5;
+      vec2 fromC = pixel - center;
+      float radius = length(fromC);
+      float dC = radius / max(length(center), 1.0);
+      vec2 ndC = (radius > 1e-3) ? fromC / radius : vec2(0.0);
+
+      // Global refractive warp (radial pincushion).
+      vec2 warped = pixel + ndC * (u_warp * dC * dC * 2.0);
+
+      // Radial chromatic aberration: R outward, B inward (atmospheric halo
+      // convention: red innermost, blue outermost — blue refracts more).
+      float cab = u_cab * dC;
+      vec3 base;
+      base.r = sampleVideo(warped - ndC * cab * 0.3).r;
+      base.g = sampleVideo(warped).g;
+      base.b = sampleVideo(warped + ndC * cab * 0.3).b;
+
+      // Optional ghost / monocular diplopia along the prismatic axis.
+      if (u_ghost > 0.5) {
+        vec2 axis = vec2(1.0, 0.4);                  // fixed astigmatic axis
+        axis /= length(axis);
+        vec3 g1 = sampleVideo(warped + axis * u_ghost);
+        vec3 g2 = sampleVideo(warped - axis * u_ghost * 0.6);
+        base += (g1 + g2 * 0.6) * 0.25 * smoothstep(0.3, 1.0, luma(g1 + g2));
+      }
+
+      // Halo + starburst integral.
+      // RINGS controls radial spectrum smoothness; ANGLES controls how
+      // many spokes the discrete sampling produces.
+      const int RINGS = 5;
+      const int ANGLES = 12;
+      const float TWOPI = 6.2831853;
+      vec3 streak = vec3(0.0);
+
+      for (int ring = 1; ring <= RINGS; ring++) {
+        float fr = float(ring) / float(RINGS);
+        float r = fr * u_burst;
+        // Warm-to-cool radial spectrum: red innermost, violet outermost —
+        // matches atmospheric halos and prismatic dispersion where shorter
+        // wavelengths refract more.
+        vec3 tint = hue(fr * 0.78);
+        float falloff = exp(-fr * 1.1);
+
+        // Slight angle offset per ring smooths the halo without losing
+        // spokes entirely.
+        float angOffset = float(ring) * 0.21;
+
+        for (int a = 0; a < ANGLES; a++) {
+          float ang = (float(a) + 0.5) * (TWOPI / float(ANGLES)) + angOffset;
+          vec2 dir = vec2(cos(ang), sin(ang));
+          vec3 s = sampleVideo(warped + dir * r);
+          // Use perceived brightness for threshold — bright lights drive halos.
+          float br = luma(s);
+          float t = smoothstep(u_threshold, 1.0, br);
+          // Mix in source's own color so colored lights tint their halos.
+          vec3 contrib = mix(tint, tint * (0.4 + 0.6 * s), 0.55);
+          streak += t * contrib * falloff;
+        }
+      }
+      // Normalize by angle count so spoke knob just rebalances spokes vs halo.
+      streak *= u_halo * 0.012 / float(ANGLES) * (1.0 + u_spokes * 3.0);
+
+      // Veiling glare: small isotropic bloom from the brightest sample.
+      vec3 result = base + streak;
+
+      return result;
+    }
+
+    // ---------- compound pass (legacy hex mode) ----------
+    vec4 hexTile(vec2 p) {
+      const vec2 s = vec2(1.0, 1.7320508);
+      vec4 hC = floor(vec4(p, p - vec2(0.5, 1.0)) / s.xyxy) + 0.5;
+      vec4 h = vec4(p - hC.xy * s, p - (hC.zw + 0.5) * s);
+      return dot(h.xy, h.xy) < dot(h.zw, h.zw)
+        ? vec4(h.xy, hC.xy * s)
+        : vec4(h.zw, (hC.zw + 0.5) * s);
+    }
+    float hexDist(vec2 p) {
+      p = abs(p);
+      return max(p.x * 0.8660254 + p.y * 0.5, p.y);
+    }
+
+    vec3 compoundPass(vec2 pixel) {
+      float size = max(u_facetSize, 4.0);
+      vec2 hexP = pixel / size;
+      vec4 h = hexTile(hexP);
+      vec2 cellOffset = h.xy;
+      vec2 cellCenter = h.zw * size;
+
+      float dHex = hexDist(cellOffset);
+      float len = length(cellOffset);
+      vec2 ndir = len > 1e-5 ? cellOffset / len : vec2(0.0);
+
+      float seed = fract(sin(dot(h.zw, vec2(12.9898, 78.233))) * 43758.5453);
+      float ang = u_spin * (seed - 0.5) * 2.0;
+      float ca = cos(ang), sa = sin(ang);
+      vec2 rotDir = vec2(ca * ndir.x - sa * ndir.y, sa * ndir.x + ca * ndir.y);
+
+      float refractAmt = u_refract * dHex;
+      vec2 sampleBase = cellCenter + rotDir * refractAmt;
+
+      float cShift = u_cChroma * dHex;
+      vec3 col;
+      col.r = sampleVideo(sampleBase + rotDir * cShift).r;
+      col.g = sampleVideo(sampleBase).g;
+      col.b = sampleVideo(sampleBase - rotDir * cShift).b;
+
+      float edge = smoothstep(0.85, 1.0, dHex);
+      col *= 1.0 - edge * u_edge * 0.04;
+
+      float sheen = smoothstep(0.25, 0.0, dHex) * 0.18;
+      col += sheen * vec3(0.95, 0.93, 1.0);
+
+      return col;
+    }
+
+    void main() {
+      vec2 pix = v_uv * u_resolution;
+      vec3 col = (u_mode == 0) ? corneaPass(pix) : compoundPass(pix);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  </script>
+
+  <script>
+  (() => {
+    const canvas = document.getElementById('gl');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const errEl = document.getElementById('err');
+    const panel = document.getElementById('panel');
+    const flipBtn = document.getElementById('flip-btn');
+    const freezeBtn = document.getElementById('freeze-btn');
+    const captureBtn = document.getElementById('capture-btn');
+    const hideBtn = document.getElementById('hide-btn');
+    const modeBtns = [...document.querySelectorAll('.mode-btn')];
+    const ctrlSets = {
+      cornea: document.querySelector('.ctrl-set[data-set="cornea"]'),
+      compound: document.querySelector('.ctrl-set[data-set="compound"]'),
+    };
+
+    // Cornea-mode controls
+    const haloR = document.getElementById('halo');
+    const burstR = document.getElementById('burst');
+    const spokesR = document.getElementById('spokes');
+    const cabR = document.getElementById('cab');
+    const ghostR = document.getElementById('ghost');
+    const warpR = document.getElementById('warp');
+    const threshR = document.getElementById('thresh');
+
+    // Compound-mode controls
+    const sizeR = document.getElementById('size');
+    const cChromaR = document.getElementById('cchroma');
+    const refractR = document.getElementById('refract');
+    const edgeR = document.getElementById('edge');
+    const spinR = document.getElementById('spin');
+
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.autoplay = true;
+
+    let gl, prog, posBuf, tex;
+    const uLoc = {};
+    let stream = null;
+    let facingMode = 'user';
+    let frozen = false;
+    let raf = 0;
+    let mode = 'cornea';
+
+    function setupGL() {
+      gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: false });
+      if (!gl) throw new Error('WebGL not supported');
+
+      const vs = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vs, document.getElementById('vert').textContent);
+      gl.compileShader(vs);
+      if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS))
+        throw new Error('vs: ' + gl.getShaderInfoLog(vs));
+
+      const fs = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fs, document.getElementById('frag').textContent);
+      gl.compileShader(fs);
+      if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS))
+        throw new Error('fs: ' + gl.getShaderInfoLog(fs));
+
+      prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+        throw new Error('link: ' + gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+
+      posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+        -1,  1,  1, -1,  1,  1,
+      ]), gl.STATIC_DRAW);
+      const aPos = gl.getAttribLocation(prog, 'a_pos');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      const names = [
+        'u_video','u_resolution','u_videoSize','u_mirror','u_mode',
+        'u_halo','u_burst','u_spokes','u_cab','u_ghost','u_warp','u_threshold',
+        'u_facetSize','u_cChroma','u_refract','u_edge','u_spin',
+      ];
+      for (const n of names) uLoc[n] = gl.getUniformLocation(prog, n);
+
+      tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
+    function resize() {
+      // Cornea mode does ~60 texture taps per pixel — cap DPR more
+      // aggressively to keep phones smooth.
+      const dprCap = mode === 'cornea' ? 1.25 : 1.75;
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+      const w = Math.floor(window.innerWidth * dpr);
+      const h = Math.floor(window.innerHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+    }
+
+    function frame() {
+      raf = requestAnimationFrame(frame);
+      resize();
+      if (!video.videoWidth) return;
+      if (!frozen) {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        try {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+        } catch (e) { return; }
+      }
+
+      gl.uniform1i(uLoc.u_video, 0);
+      gl.uniform2f(uLoc.u_resolution, canvas.width, canvas.height);
+      gl.uniform2f(uLoc.u_videoSize, video.videoWidth, video.videoHeight);
+      gl.uniform1f(uLoc.u_mirror, facingMode === 'user' ? 1.0 : 0.0);
+      gl.uniform1i(uLoc.u_mode, mode === 'cornea' ? 0 : 1);
+
+      // Cornea uniforms — interpret sliders.
+      gl.uniform1f(uLoc.u_halo, parseFloat(haloR.value));
+      gl.uniform1f(uLoc.u_burst, parseFloat(burstR.value));
+      gl.uniform1f(uLoc.u_spokes, parseFloat(spokesR.value) * 0.01);
+      gl.uniform1f(uLoc.u_cab, parseFloat(cabR.value) * 0.5);
+      gl.uniform1f(uLoc.u_ghost, parseFloat(ghostR.value));
+      gl.uniform1f(uLoc.u_warp, parseFloat(warpR.value) * 0.5);
+      gl.uniform1f(uLoc.u_threshold, parseFloat(threshR.value) * 0.01);
+
+      // Compound uniforms.
+      gl.uniform1f(uLoc.u_facetSize, parseFloat(sizeR.value));
+      gl.uniform1f(uLoc.u_cChroma, parseFloat(cChromaR.value) * 0.5);
+      gl.uniform1f(uLoc.u_refract, parseFloat(refractR.value) * 0.4);
+      gl.uniform1f(uLoc.u_edge, parseFloat(edgeR.value));
+      gl.uniform1f(uLoc.u_spin, parseFloat(spinR.value) * 0.0314);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    async function startCamera(m) {
+      if (stream) for (const t of stream.getTracks()) t.stop();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: m, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      facingMode = m;
+    }
+
+    async function begin() {
+      startBtn.disabled = true; startBtn.textContent = 'starting…';
+      try {
+        setupGL();
+        await startCamera('environment'); // rear camera tends to see more lights
+        overlay.style.display = 'none';
+        if (!raf) frame();
+      } catch (err) {
+        errEl.hidden = false;
+        errEl.textContent = err.message || String(err);
+        startBtn.disabled = false; startBtn.textContent = 'try again';
+      }
+    }
+
+    function setMode(m) {
+      mode = m;
+      for (const b of modeBtns) b.classList.toggle('active', b.dataset.mode === m);
+      ctrlSets.cornea.hidden = m !== 'cornea';
+      ctrlSets.compound.hidden = m !== 'compound';
+    }
+
+    startBtn.addEventListener('click', begin);
+    modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    flipBtn.addEventListener('click', async () => {
+      const next = facingMode === 'user' ? 'environment' : 'user';
+      flipBtn.disabled = true;
+      try { await startCamera(next); } finally { flipBtn.disabled = false; }
+    });
+
+    freezeBtn.addEventListener('click', () => {
+      frozen = !frozen;
+      freezeBtn.textContent = frozen ? '▶ resume' : '❄ freeze';
+    });
+
+    captureBtn.addEventListener('click', () => {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `prismatic-corneas-${mode}-${Date.now()}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }, 'image/png');
+    });
+
+    hideBtn.addEventListener('click', () => panel.classList.add('hidden'));
+    document.addEventListener('click', (e) => {
+      if (overlay.style.display !== 'none') return;
+      if (panel.contains(e.target)) return;
+      panel.classList.toggle('hidden');
+    });
+  })();
+  </script>
+</body>
+</html>

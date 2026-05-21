@@ -1,0 +1,66 @@
+name: build-cult-basis
+
+on:
+  push:
+    paths:
+      - 'wars/cult/basis.js'
+      - 'scripts/build-cult-basis.mjs'
+      - '.github/workflows/build-cult-basis.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-cult-basis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache HuggingFace model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-cache-Xenova-all-MiniLM-L6-v2
+
+      - name: Install transformers.js
+        run: npm install --no-save --no-package-lock @xenova/transformers@2.17.2
+
+      - name: Build basis
+        run: node scripts/build-cult-basis.mjs
+
+      - name: Verify outputs
+        run: |
+          ls -la wars/cult/basis.bin wars/cult/basis.json
+          node -e "const j = require('./wars/cult/basis.json'); console.log('count:', j.count, 'dim:', j.dim, 'model:', j.model)"
+
+      - name: Commit and push if changed
+        run: |
+          if [ -n "$(git status --porcelain wars/cult/basis.bin wars/cult/basis.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add wars/cult/basis.bin wars/cult/basis.json
+            git commit -m "build(cult): refresh precomputed basis embeddings"
+            for i in 1 2 3 4; do
+              if git push; then
+                exit 0
+              fi
+              sleep $((2 ** i))
+            done
+            echo "push failed after retries"
+            exit 1
+          else
+            echo "No changes to basis artifacts"
+          fi

@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lexicon &mdash; word-level analysis of a Bluesky archive</title>
+<meta name="description" content="Word clouds and lexicon-tagged views of someone's Bluesky prose: NRC emotion, AFINN sentiment, concreteness, distinctive vocabulary.">
+<meta property="og:title" content="lexicon">
+<meta property="og:description" content="Word clouds and lexicon-tagged views of someone's prose.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/lexicon/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030; --warm: #a06020;
+  --card-bg: #fff;
+  --joy: #d8a020; --sadness: #4060a0; --anger: #a03030; --fear: #604080;
+  --disgust: #608030; --surprise: #c060a0; --trust: #2a7a8a; --anticipation: #c08020;
+  --pos: #2a7a2a; --neg: #a03030;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --warm: #d0a060;
+    --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 880px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.stage { display: none; }
+.stage.active { display: block; }
+
+form#handle-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+input[type="text"] { padding: 0.7rem 0.9rem; font-family: var(--serif); font-size: 1rem; background: var(--bg); color: var(--text); border: 1px solid var(--rule); border-radius: 4px; outline: none; }
+input:focus { border-color: var(--accent); }
+button { font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s; }
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+/* typeahead */
+.typeahead-wrap { position: relative; flex: 1; min-width: 200px; }
+.typeahead-wrap #handle { width: 100%; flex: initial; min-width: 0; }
+.typeahead-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10; max-height: 360px; overflow-y: auto; display: none; }
+.typeahead-results.show { display: block; }
+.typeahead-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.7rem; cursor: pointer; border-bottom: 1px solid var(--rule); }
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-faint); }
+.typeahead-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.typeahead-item .at-handle { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+.upload-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.upload-label {
+  cursor: pointer; padding: 0.35rem 0.7rem;
+  border: 1px solid var(--accent); color: var(--accent); border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem;
+}
+.upload-label:hover { background: var(--accent-faint); }
+.upload-name { color: var(--text); }
+
+.gutenberg-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.gutenberg-row .typeahead-wrap { flex: 1; min-width: 240px; }
+.gutenberg-row input {
+  width: 100%; flex: initial; min-width: 0;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+}
+.gutenberg-row .typeahead-item .avatar {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-faint); color: var(--accent);
+  font-family: var(--serif); font-size: 1rem;
+}
+.loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar { height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.7rem; }
+.progress-bar > .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+
+/* lexicon stage */
+.profile-strip { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.profile-strip b { color: var(--accent); }
+.profile-strip .actions { display: flex; gap: 0.4rem; }
+.profile-strip .actions button { font-size: 0.7rem; padding: 0.3rem 0.6rem; }
+
+.summary-strip { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.7rem; }
+.summary-strip b { color: var(--text); }
+
+.view-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.view-tab { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.5rem 0.85rem; background: transparent; color: var(--muted); border: none; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -1px; }
+.view-tab:hover { color: var(--text); }
+.view-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+#cloud-region {
+  background: var(--card-bg);
+  border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1.2rem 1.4rem; min-height: 320px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 0.4rem 0.7rem;
+  line-height: 1.3;
+}
+#cloud-region > svg {
+  /* The Usage view fills the whole cloud-region; flex centering still applies. */
+  width: 100%; height: auto; max-width: 100%;
+}
+.word {
+  display: inline-block;
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  cursor: default;
+  transition: background 0.15s;
+  font-family: var(--serif);
+  position: relative;
+}
+.word:hover { background: var(--accent-faint); }
+.word .pop {
+  position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -4px);
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.3rem 0.5rem; font-size: 0.7rem; font-family: var(--mono);
+  color: var(--muted); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 5;
+}
+.word:hover .pop { opacity: 1; }
+/* NRC color classes */
+.word.emo-joy           { color: var(--joy); }
+.word.emo-sadness       { color: var(--sadness); }
+.word.emo-anger         { color: var(--anger); }
+.word.emo-fear          { color: var(--fear); }
+.word.emo-disgust       { color: var(--disgust); }
+.word.emo-surprise      { color: var(--surprise); }
+.word.emo-trust         { color: var(--trust); }
+.word.emo-anticipation  { color: var(--anticipation); }
+.word.emo-none          { color: var(--text); opacity: 0.55; }
+
+.legend-row { display: flex; gap: 0.7rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0.5rem 0 1.2rem; align-items: center; }
+.legend-row .swatch { display: inline-block; width: 0.85rem; height: 0.85rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -2px; }
+.legend-row .axes-hint { margin-left: auto; font-style: italic; text-transform: none; }
+
+/* docs */
+.docs { line-height: 1.6; }
+.docs h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; font-weight: 700; color: var(--accent); }
+.docs h2:first-child { margin-top: 0; }
+.docs p { margin: 0.5rem 0; }
+.docs ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+.docs li { margin: 0.25rem 0; }
+.docs code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-faint); padding: 0.1em 0.35em; border-radius: 3px; }
+.docs a { color: var(--accent); }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>lexicon<span class="dot">.</span></h1>
+  <p class="subtitle">Word-level lenses on a Bluesky archive's prose. Frequency, distinctiveness, emotion, sentiment, concreteness.</p>
+</header>
+
+<main>
+  <!-- Stage 1: handle input -->
+  <section id="stage-input" class="stage active">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
+      <button type="submit">Open lexicon</button>
+    </form>
+    <div class="upload-row">
+      <span>or upload a text file:</span>
+      <input type="file" id="upload" accept=".txt,.md,.markdown,text/plain,text/markdown" hidden>
+      <label for="upload" class="upload-label">Choose file…</label>
+      <span id="upload-name" class="upload-name"></span>
+    </div>
+    <div class="gutenberg-row">
+      <span>or load from Project Gutenberg:</span>
+      <div class="typeahead-wrap">
+        <input id="gutenberg-q" type="text" placeholder="search by title, author, keyword" autocomplete="off">
+        <div id="gutenberg-results" class="typeahead-results" role="listbox"></div>
+      </div>
+    </div>
+    <p class="hint">
+      Tokenize all the prose, tag each word against four open lexicons (NRC emotion, Brysbaert
+      concreteness, AFINN sentiment, SUBTLEX baseline frequency). Source can be a Bluesky archive
+      (CAR fetch from the user's PDS) or an uploaded plain-text / markdown document. All
+      deterministic; no inference; nothing leaves your browser.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <!-- Stage 2: loading -->
+  <section id="stage-loading" class="stage">
+    <div class="loading"><div class="spinner"></div><p id="progress-text">Resolving handle…</p></div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <!-- Stage 3: lexicon view -->
+  <section id="stage-lexicon" class="stage">
+    <div class="profile-strip">
+      <span id="profile-meta"></span>
+      <span class="actions"><button id="back" class="ghost">New profile</button></span>
+    </div>
+    <div class="summary-strip" id="summary-strip"></div>
+
+    <nav class="view-tabs" role="tablist">
+      <button class="view-tab active" data-view="freq">Frequency</button>
+      <button class="view-tab" data-view="tfidf">Distinctive</button>
+      <button class="view-tab" data-view="usage">Usage scatter</button>
+      <button class="view-tab" data-view="nrc">NRC · emotion</button>
+      <button class="view-tab" data-view="afinn">AFINN · sentiment</button>
+      <button class="view-tab" data-view="concreteness">Concreteness</button>
+      <button class="view-tab" data-view="timeline">Timeline</button>
+      <button class="view-tab" data-view="docs">Docs</button>
+    </nav>
+
+    <div id="cloud-region"></div>
+    <div class="legend-row" id="legend-row"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/ask/">/ask/</a> &middot; <a href="/list/">/list/</a> &middot; <a href="/web/">/web/</a> &middot; <a href="/signal/">/signal/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import { pullProfile, uploadProfile, analyzeProfile } from '../lib/atproto/index.js';
+import { searchGutenberg, fetchGutenbergText, gutenbergFilename } from '../lib/gutenberg.js';
+import { makePanZoom } from '../lib/pan-zoom.js';
+import { STOPWORDS, NRC, CONCRETENESS, AFINN, BASELINE_FREQ } from './lexicons.js';
+
+const $ = (id) => document.getElementById(id);
+const PUBLIC_API = 'https://api.bsky.app';
+const MIN_THREAD_CHARS = 300;
+
+// State that persists across views.
+const state = {
+  did: null, handle: null, posts: [], threads: [],
+  freq: new Map(),       // word -> raw count
+  totalTokens: 0,
+  view: 'freq',
+  // Timeline pan/zoom state. timelineZoom is the visible x-domain ([tMin, tMax]
+  // ms) or null for full extent; timelinePanZoom is the lazy makePanZoom handle.
+  timelineZoom: null,
+  timelinePanZoom: null,
+};
+
+// Lazy override: prefer ./data/{nrc,concreteness,afinn,baseline}.json if a
+// future fetch-lexicons script wrote them, otherwise fall back to the inline
+// mini lexicons. Same shapes; same behavior.
+const LEX = { NRC, CONCRETENESS, AFINN, BASELINE_FREQ };
+async function tryLoadFullLexicon(name, key) {
+  try {
+    const res = await fetch(`./data/${name}.json`);
+    if (!res.ok) return;
+    const data = await res.json();
+    LEX[key] = data;
+  } catch {}
+}
+const lexiconLoad = Promise.all([
+  tryLoadFullLexicon('nrc', 'NRC'),
+  tryLoadFullLexicon('concreteness', 'CONCRETENESS'),
+  tryLoadFullLexicon('afinn', 'AFINN'),
+  tryLoadFullLexicon('baseline', 'BASELINE_FREQ'),
+]);
+
+function showStage(name) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name)); }
+function setProgress(text, frac) { $('progress-text').textContent = text; if (typeof frac === 'number') $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%'; }
+function showError(msg) { $('input-error').textContent = msg; $('input-error').style.display = 'block'; }
+function clearError() { $('input-error').style.display = 'none'; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+// ----- typeahead -----
+const ta = { results: [], active: -1, timer: null, abort: null };
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || [];
+    ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+function renderTypeahead() {
+  const el = $('typeahead-results');
+  if (!ta.results.length) { el.classList.remove('show'); el.innerHTML = ''; $('handle').setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = ta.results.map((a, i) => `
+    <div class="typeahead-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info"><div class="display-name">${escapeHtml(a.displayName || a.handle)}</div><div class="at-handle">@${escapeHtml(a.handle)}</div></div>
+    </div>`).join('');
+  el.classList.add('show'); $('handle').setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const item = el.children[ta.active]; if (item) item.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('typeahead-results').classList.remove('show'); ta.results = []; ta.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickAndSubmit(h) { $('handle').value = h; hideTypeahead(); $('handle-form').requestSubmit(); }
+$('handle').addEventListener('input', () => { clearTimeout(ta.timer); ta.timer = setTimeout(() => fetchTypeahead($('handle').value), 180); });
+$('handle').addEventListener('keydown', (e) => {
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && ta.active >= 0) { e.preventDefault(); pickAndSubmit(ta.results[ta.active].handle); }
+  else if (e.key === 'Escape') hideTypeahead();
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); $('handle').value = ta.results[ta.active].handle; hideTypeahead(); }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => { const item = e.target.closest('.typeahead-item'); if (!item) return; e.preventDefault(); pickAndSubmit(item.dataset.handle); });
+$('handle').addEventListener('blur', () => setTimeout(hideTypeahead, 120));
+
+// ----- tokenize + count -----
+function tokenize(text) {
+  // [a-z'] words, length ≥ 3, drop stopwords, drop pure-digit words.
+  const out = [];
+  const re = /[a-z'][a-z']+/g;
+  const lower = text.toLowerCase();
+  let m;
+  while ((m = re.exec(lower)) !== null) {
+    const w = m[0].replace(/^'+|'+$/g, '');
+    if (w.length < 3) continue;
+    if (STOPWORDS.has(w)) continue;
+    out.push(w);
+  }
+  return out;
+}
+function buildFrequency(threads) {
+  const freq = new Map();
+  let total = 0;
+  for (const t of threads) {
+    for (const w of tokenize(t.text)) {
+      freq.set(w, (freq.get(w) || 0) + 1);
+      total++;
+    }
+  }
+  return { freq, total };
+}
+
+// ----- handle submit -----
+async function handleSubmit() {
+  clearError();
+  const h = $('handle').value.trim();
+  if (!h) return;
+  showStage('loading');
+  setProgress('Loading lexicons…', 0);
+  try {
+    await lexiconLoad;
+    setProgress('Resolving handle…', 0);
+    const result = await pullProfile(h, setProgress);
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+async function handleUpload(file) {
+  if (!file) return;
+  clearError();
+  if (file.size > 5 * 1024 * 1024) {
+    showError(`File is ${(file.size / 1024 / 1024).toFixed(1)} MB; max is 5 MB.`);
+    return;
+  }
+  showStage('loading');
+  setProgress('Loading lexicons…', 0);
+  try {
+    await lexiconLoad;
+    setProgress(`Reading ${file.name}…`, 0.3);
+    const text = await file.text();
+    setProgress('Splitting into sections…', 0.6);
+    const result = uploadProfile(text, file.name);
+    if (!result.posts.length) {
+      showStage('input');
+      showError('Document had no readable content after splitting.');
+      return;
+    }
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+
+async function proceedWithProfile(result) {
+  state.did = result.did; state.handle = result.handle; state.posts = result.posts;
+  setProgress('Building threads…', 1);
+  state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
+  if (!state.threads.length) {
+    showStage('input');
+    showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}.`);
+    return;
+  }
+  setProgress('Tokenizing & counting…', 1);
+  const { freq, total } = buildFrequency(state.threads);
+  state.freq = freq; state.totalTokens = total;
+  // Pre-compute per-thread lexicon stats once. The Timeline view aggregates
+  // these by time-bin; doing it once at corpus-build time keeps each
+  // re-render cheap.
+  for (const t of state.threads) t.lex = computeThreadLex(t.text);
+  // Wipe any previous timeline pan/zoom — different profile = different range.
+  state.timelineZoom = null;
+  if (state.timelinePanZoom) { state.timelinePanZoom.destroy(); state.timelinePanZoom = null; }
+  showStage('lexicon');
+  renderProfileStrip();
+  renderSummary();
+  state.view = 'freq';
+  document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.view === 'freq'));
+  renderView();
+}
+
+function renderProfileStrip() {
+  $('profile-meta').innerHTML = `<b>@${escapeHtml(state.handle)}</b> &middot; ${state.threads.length} threads &middot; ${state.totalTokens.toLocaleString()} content words after stopword filter`;
+}
+function renderSummary() {
+  // Per-emotion totals (NRC), mean concreteness, mean AFINN.
+  const emoCount = { joy:0, sadness:0, anger:0, fear:0, disgust:0, surprise:0, trust:0, anticipation:0 };
+  let posCount = 0, negCount = 0;
+  let conSum = 0, conN = 0;
+  let aSum = 0, aN = 0;
+  for (const [w, n] of state.freq) {
+    const tags = LEX.NRC[w];
+    if (tags) {
+      for (const t of tags) {
+        if (emoCount[t] !== undefined) emoCount[t] += n;
+        else if (t === 'positive') posCount += n;
+        else if (t === 'negative') negCount += n;
+      }
+    }
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c === 'number') { conSum += c * n; conN += n; }
+    const a = LEX.AFINN[w];
+    if (typeof a === 'number') { aSum += a * n; aN += n; }
+  }
+  const conMean = conN ? (conSum / conN).toFixed(2) : '?';
+  const aMean = aN ? (aSum / aN).toFixed(2) : '?';
+  // Top emotion
+  let topEmo = null, topEmoN = -1;
+  for (const [k, v] of Object.entries(emoCount)) if (v > topEmoN) { topEmo = k; topEmoN = v; }
+  $('summary-strip').innerHTML = `
+    mean concreteness <b>${conMean}</b> &middot;
+    mean AFINN <b>${aMean >= 0 ? '+' : ''}${aMean}</b> &middot;
+    top emotion <b>${escapeHtml(topEmo || '—')}</b> &middot;
+    pos/neg ${posCount}/${negCount}
+  `;
+}
+
+// ----- view dispatch -----
+function renderView() {
+  if (state.view === 'docs') { renderDocs(); return; }
+  const region = $('cloud-region');
+  region.innerHTML = '';
+  const items = scoredItems(state.view);
+  if (!items.length) {
+    region.innerHTML = '<div class="hint" style="text-align:center; padding:2rem;">No words to show under this lens.</div>';
+    $('legend-row').innerHTML = '';
+    return;
+  }
+  const maxScore = items[0].score;
+  // Tag-cloud layout: font-size by sqrt(score) for visual balance.
+  region.innerHTML = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="font-size: ${fs}rem;">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  renderLegend();
+}
+
+function renderLegend() {
+  if (state.view === 'freq') {
+    $('legend-row').innerHTML = `<span class="axes-hint">size = raw frequency in this profile's corpus</span>`;
+  } else if (state.view === 'tfidf') {
+    $('legend-row').innerHTML = `<span class="axes-hint">≥ 6 chars · ≥ 2 uses · size = freq / log(baseline+8) — 'their words' that aren't common English</span>`;
+  } else if (state.view === 'nrc') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
+      <span><span class="swatch" style="background: var(--anticipation)"></span>anticip.</span>
+      <span><span class="swatch" style="background: var(--trust)"></span>trust</span>
+      <span><span class="swatch" style="background: var(--surprise)"></span>surprise</span>
+      <span><span class="swatch" style="background: var(--sadness)"></span>sadness</span>
+      <span><span class="swatch" style="background: var(--fear)"></span>fear</span>
+      <span><span class="swatch" style="background: var(--anger)"></span>anger</span>
+      <span><span class="swatch" style="background: var(--disgust)"></span>disgust</span>
+      <span class="axes-hint">color = dominant NRC emotion · uncolored = no tag</span>
+    `;
+  } else if (state.view === 'afinn') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: var(--neg)"></span>negative</span>
+      <span><span class="swatch" style="background: var(--muted)"></span>neutral / untagged</span>
+      <span><span class="swatch" style="background: var(--pos)"></span>positive</span>
+      <span class="axes-hint">color depth = absolute AFINN score (1–5)</span>
+    `;
+  } else if (state.view === 'concreteness') {
+    $('legend-row').innerHTML = `
+      <span><span class="swatch" style="background: #d8a020"></span>abstract (1)</span>
+      <span><span class="swatch" style="background: #608030"></span>concrete (5)</span>
+      <span class="axes-hint">color gradient = Brysbaert concreteness rating</span>
+    `;
+  }
+}
+
+function scoredItems(view) {
+  const out = [];
+  for (const [word, count] of state.freq) {
+    let score = count;
+    let cls = '';
+    let popover = `${count}× in corpus`;
+    if (view === 'tfidf') {
+      // "Distinctive vocabulary": rare-but-used words this writer reaches for
+      // disproportionately. Filter aggressively before scoring:
+      //   - length ≥ 6 chars: surface domain/literary vocab, weed out typos
+      //   - count ≥ 2: drop hapax legomena (one-offs are usually noise)
+      //   - baseline must be present: words with no baseline data tell us
+      //     nothing about distinctiveness; hide rather than guess
+      if (word.length < 6) continue;
+      if (count < 2) continue;
+      if (STOPWORDS.has(word)) continue;
+      const baseline = LEX.BASELINE_FREQ[word] ?? 0;
+      if (!baseline) continue;
+      const tf = count / state.totalTokens;
+      // Smoothing constant 8 widens the gap between common-overrepresented
+      // and rare-but-real vocabulary words.
+      score = tf / Math.log(8 + baseline);
+      // Stash baseline on the item so we can sort by it (rare → common)
+      // rather than by score, which the user found more intuitive.
+      popover = `${count}× · baseline ${baseline.toFixed(1)}/M · score ${(score * 1e5).toFixed(2)}`;
+      out.push({ word, score, cls, popover, _sortKey: baseline });
+      continue;
+    } else if (view === 'nrc') {
+      const tags = LEX.NRC[word];
+      if (!tags) {
+        cls = 'emo-none';
+        popover = `${count}× · no NRC tag`;
+      } else {
+        const emo = tags.find(t => ['joy','sadness','anger','fear','disgust','surprise','trust','anticipation'].includes(t));
+        cls = 'emo-' + (emo || 'none');
+        popover = `${count}× · ${tags.join(', ')}`;
+      }
+    } else if (view === 'afinn') {
+      const a = LEX.AFINN[word];
+      if (typeof a !== 'number') {
+        // Skip untagged in AFINN view; the cloud is too noisy otherwise.
+        continue;
+      }
+      const intensity = Math.min(1, Math.abs(a) / 5);
+      const c = a >= 0 ? 'var(--pos)' : 'var(--neg)';
+      cls = '';
+      // Inline color via style override below.
+      out.push({ word, score: count, cls: '', popover: `${count}× · AFINN ${a >= 0 ? '+' : ''}${a}`, _inlineColor: c, _intensity: intensity });
+      continue;
+    } else if (view === 'concreteness') {
+      const c = LEX.CONCRETENESS[word];
+      if (typeof c !== 'number') continue;
+      // Skip untagged; cloud is too noisy. Color along an abstract→concrete gradient.
+      // 1.0 = warm yellow (#d8a020), 5.0 = forest green (#608030). Lerp HSL-ish.
+      const t = (c - 1) / 4;
+      const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+      const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+      const b = Math.round(0x20 * (1 - t) + 0x30 * t);
+      const colorHex = `rgb(${r},${g},${b})`;
+      out.push({ word, score: count, cls: '', popover: `${count}× · concreteness ${c.toFixed(1)}/5`, _inlineColor: colorHex });
+      continue;
+    }
+    out.push({ word, score, cls, popover });
+  }
+  // If items provide a _sortKey (used by 'distinctive' to sort rare→common
+  // by baseline ASC), honor it; otherwise fall back to score DESC.
+  if (out.length && out[0]._sortKey != null) {
+    out.sort((a, b) => a._sortKey - b._sortKey);
+  } else {
+    out.sort((a, b) => b.score - a.score);
+  }
+  return out;
+}
+
+// Override tag-cloud renderer for views that need inline colors (afinn, concreteness).
+function renderViewWithInlineColors(items) {
+  const region = $('cloud-region');
+  if (!items.length) { region.innerHTML = '<div class="hint">No words to show under this lens.</div>'; return; }
+  const maxScore = items[0].score;
+  region.innerHTML = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    let style = `font-size: ${fs}rem;`;
+    if (it._inlineColor) style += ` color: ${it._inlineColor};`;
+    if (typeof it._intensity === 'number') style += ` opacity: ${(0.45 + 0.55 * it._intensity).toFixed(2)};`;
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="${style}">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+}
+
+// Override renderView() to dispatch the views that aren't tag-clouds.
+const origRenderView = renderView;
+renderView = function () {
+  if (state.view === 'docs')          { renderDocs(); return; }
+  if (state.view === 'usage')         { renderUsageScatter(); return; }
+  if (state.view === 'timeline')      { renderTimelineView(); return; }
+  if (state.view === 'nrc')           { renderNrcView(); return; }
+  if (state.view === 'afinn')         { renderAfinnView(); return; }
+  if (state.view === 'concreteness')  { renderConcretenessView(); return; }
+  origRenderView();
+};
+
+// ─── NRC view: radar above the cloud ──────────────────────────────────────
+// The cloud shows individual words; the radar makes the macro composition
+// explicit. Same data, two scales of resolution.
+//
+// Scoring (post-fix): every NRC tag-set inflates trust because (a) NRC has
+// 2× more trust-tagged words than surprise-tagged, and (b) common multi-tag
+// words like "good" / "money" / "mother" used to contribute a full count to
+// each of their 4-6 tags, carpet-bombing every emotion. Two compounding
+// fixes:
+//   1. Inverse-weight: a word with N emotion tags contributes 1/N per
+//      occurrence to each tag (so "tree" with 6 tags adds 0.17 each, not
+//      1.0 each).
+//   2. Lift over baseline: each emotion's score is the writer's per-million
+//      rate divided by the expected per-million rate computed from SUBTLEX
+//      baseline frequencies × NRC tagging. 1.0 = average English; >1 means
+//      they over-use that emotion's vocabulary, <1 means they under-use it.
+//      That deflates trust naturally because the baseline trust rate is
+//      genuinely high.
+
+let _nrcBaselineRates = null;
+function getNrcBaselineRates(emos) {
+  if (_nrcBaselineRates) return _nrcBaselineRates;
+  const rates = Object.fromEntries(emos.map(e => [e, 0]));
+  for (const [word, freq] of Object.entries(LEX.BASELINE_FREQ || {})) {
+    const tags = LEX.NRC[word];
+    if (!tags) continue;
+    const coreTags = tags.filter(t => rates[t] !== undefined);
+    if (!coreTags.length) continue;
+    const w = freq / coreTags.length;
+    for (const t of coreTags) rates[t] += w;
+  }
+  _nrcBaselineRates = rates;
+  return rates;
+}
+
+function renderNrcView() {
+  const EMOS = ['joy', 'anticipation', 'trust', 'surprise', 'sadness', 'fear', 'anger', 'disgust'];
+  const emoCount = Object.fromEntries(EMOS.map(e => [e, 0]));     // raw count for label display
+  const emoWeighted = Object.fromEntries(EMOS.map(e => [e, 0]));  // 1/N-weighted, for fair lift math
+
+  for (const [w, n] of state.freq) {
+    const tags = LEX.NRC[w];
+    if (!tags) continue;
+    const coreTags = tags.filter(t => emoCount[t] !== undefined);
+    if (!coreTags.length) continue;
+    const weight = n / coreTags.length;
+    for (const t of coreTags) {
+      emoCount[t] += n;            // raw, for "trust = 412 occurrences" display
+      emoWeighted[t] += weight;    // weighted, for lift math
+    }
+  }
+
+  const baselineRates = getNrcBaselineRates(EMOS);
+  const corpusTotal = state.totalTokens || 1;
+  const lift = {};
+  for (const e of EMOS) {
+    const corpusPm = (emoWeighted[e] / corpusTotal) * 1e6;
+    lift[e] = baselineRates[e] > 0 ? corpusPm / baselineRates[e] : 0;
+  }
+
+  const radar = renderNrcRadar(EMOS, emoCount, lift);
+  const items = scoredItems('nrc');
+  const region = $('cloud-region');
+  if (!items.length) {
+    region.innerHTML = radar + '<div class="hint" style="flex-basis:100%; text-align:center;">No tagged words.</div>';
+    renderLegend();
+    return;
+  }
+  const maxScore = items[0].score;
+  const cloudHtml = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="font-size: ${fs}rem;">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  region.innerHTML = radar + cloudHtml;
+  renderLegend();
+}
+
+function renderNrcRadar(emos, emoCount, lift) {
+  const W = 480, H = 380;
+  const cx = W / 2, cy = H / 2 + 8;
+  const R = 130;
+  // Outer ring sized to whichever emotion has the highest lift, with a floor
+  // of 1.5 so a perfectly-average writer still has a polygon visible inside
+  // the rings (rather than collapsed at the center).
+  const maxLift = Math.max(1.5, ...emos.map(e => lift[e] || 0));
+
+  const angle = (i) => -Math.PI / 2 + i * 2 * Math.PI / emos.length;
+  const pt = (i, ratio) => [
+    cx + R * ratio * Math.cos(angle(i)),
+    cy + R * ratio * Math.sin(angle(i)),
+  ];
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;" aria-label="NRC emotion composition radar">`;
+
+  // Concentric guide rings, with the lift=1.0 reference ring marked specially
+  // (it's the "average English" boundary — inside means under-use, outside
+  // means over-use).
+  for (const r of [0.25, 0.5, 0.75, 1.0]) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="${(R * r).toFixed(2)}" fill="none" stroke="var(--rule)" stroke-opacity="${r === 1 ? 0.6 : 0.3}"/>`;
+  }
+  const refRingFrac = 1.0 / maxLift;
+  if (refRingFrac > 0.05 && refRingFrac < 1) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="${(R * refRingFrac).toFixed(2)}" fill="none" stroke="var(--accent)" stroke-opacity="0.7" stroke-dasharray="3 4"/>`;
+    svg += `<text x="${(cx + R * refRingFrac + 4).toFixed(2)}" y="${(cy + 3).toFixed(2)}" fill="var(--accent)" font-family="var(--mono)" font-size="9" font-style="italic">avg</text>`;
+  }
+
+  // Spokes + labels (emotion name, raw count, lift).
+  for (let i = 0; i < emos.length; i++) {
+    const [sx, sy] = pt(i, 1);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${sx.toFixed(2)}" y2="${sy.toFixed(2)}" stroke="var(--rule)" stroke-opacity="0.4"/>`;
+    const [lx, ly] = pt(i, 1.18);
+    const emo = emos[i];
+    const nudge = sy < cy - R * 0.5 ? -10 : (sy > cy + R * 0.5 ? 8 : 4);
+    const liftStr = (lift[emo] || 0).toFixed(2) + '×';
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge).toFixed(2)}" text-anchor="middle" fill="var(--${emo})" font-family="var(--mono)" font-size="11" font-weight="700">${emo}</text>`;
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 12).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="10" font-weight="600">${liftStr}</text>`;
+    svg += `<text x="${lx.toFixed(2)}" y="${(ly + nudge + 24).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="9">${emoCount[emo] || 0}</text>`;
+  }
+
+  // Polygon shape uses lift / maxLift so 1.0 lands on the dashed reference ring.
+  const points = emos.map((emo, i) => {
+    const [x, y] = pt(i, (lift[emo] || 0) / maxLift);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  svg += `<polygon points="${points}" fill="var(--accent)" fill-opacity="0.18" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  for (let i = 0; i < emos.length; i++) {
+    const [x, y] = pt(i, (lift[emos[i]] || 0) / maxLift);
+    svg += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" fill="var(--${emos[i]})"/>`;
+  }
+
+  svg += `<text x="${cx}" y="${(cy + R + 50).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10" font-style="italic">outer ring = ${maxLift.toFixed(2)}× lift · dashed ring = baseline (1.0×) · raw counts shown beneath</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
+
+// ─── AFINN view: sentiment distribution + colored cloud ───────────────────
+function renderAfinnView() {
+  // Bin word *occurrences* (count-weighted) by AFINN integer score -5..+5.
+  const bins = new Array(11).fill(0);
+  let total = 0, weightedSum = 0, distinctTagged = 0;
+  for (const [w, n] of state.freq) {
+    const a = LEX.AFINN[w];
+    if (typeof a !== 'number') continue;
+    const idx = Math.round(a) + 5;
+    if (idx < 0 || idx > 10) continue;
+    bins[idx] += n;
+    total += n;
+    weightedSum += a * n;
+    distinctTagged++;
+  }
+  const mean = total ? weightedSum / total : 0;
+
+  const dist = total > 0 ? renderAfinnDistribution(bins, total, distinctTagged, mean) : '';
+  renderCloudBelow('afinn', dist, 'No AFINN-tagged words.');
+}
+
+function renderAfinnDistribution(bins, total, distinct, mean) {
+  const W = 560, H = 230;
+  const PT = 26, PR = 16, PB = 38, PL = 36;
+  const innerW = W - PL - PR, innerH = H - PT - PB;
+  const maxCount = Math.max(1, ...bins);
+  const barW = innerW / bins.length;
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom:0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;">`;
+  // Baseline + faint zero column
+  svg += `<line x1="${PL}" y1="${PT+innerH}" x2="${W-PR}" y2="${PT+innerH}" stroke="var(--rule)"/>`;
+
+  for (let i = 0; i < bins.length; i++) {
+    const v = i - 5;
+    const h = innerH * (bins[i] / maxCount);
+    const x = PL + i * barW;
+    const y = PT + innerH - h;
+    const color = v === 0 ? 'var(--muted)' : v > 0 ? 'var(--good)' : 'var(--bad)';
+    const opacity = v === 0 ? 0.35 : Math.min(0.95, 0.4 + Math.abs(v) * 0.12);
+    svg += `<rect x="${(x + 1).toFixed(2)}" y="${y.toFixed(2)}" width="${(barW - 2).toFixed(2)}" height="${h.toFixed(2)}" fill="${color}" fill-opacity="${opacity}"/>`;
+    const label = v >= 0 ? `+${v}` : String(v);
+    svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${PT + innerH + 14}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${label}</text>`;
+    if (bins[i] > 0 && h > 14) {
+      svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${(y - 4).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="9">${bins[i]}</text>`;
+    }
+  }
+
+  // Mean line: -5..+5 maps linearly to 0..innerW.
+  const meanFrac = (mean + 5) / 10;
+  const meanX = PL + innerW * meanFrac;
+  svg += `<line x1="${meanX.toFixed(2)}" y1="${PT}" x2="${meanX.toFixed(2)}" y2="${PT + innerH}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  svg += `<text x="${meanX.toFixed(2)}" y="${(PT - 8).toFixed(2)}" text-anchor="middle" fill="var(--accent)" font-family="var(--mono)" font-size="10" font-weight="700">mean ${mean >= 0 ? '+' : ''}${mean.toFixed(2)}</text>`;
+
+  svg += `<text x="${PL + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">AFINN sentiment score (negative ← 0 → positive)</text>`;
+  svg += `<text x="${W - PR}" y="${PT - 8}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${total.toLocaleString()} occurrences · ${distinct} distinct words</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
+
+// ─── Concreteness view: distribution + gradient cloud ─────────────────────
+function renderConcretenessView() {
+  // 8 bins of width 0.5 spanning [1.0, 5.0]. Bin i covers [1 + 0.5·i, 1 + 0.5·(i+1)).
+  const bins = new Array(8).fill(0);
+  let total = 0, weightedSum = 0, distinct = 0;
+  for (const [w, n] of state.freq) {
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c !== 'number') continue;
+    const idx = Math.min(7, Math.max(0, Math.floor((c - 1) * 2)));
+    bins[idx] += n;
+    total += n;
+    weightedSum += c * n;
+    distinct++;
+  }
+  const mean = total ? weightedSum / total : 0;
+
+  const dist = total > 0 ? renderConcretenessDistribution(bins, total, distinct, mean) : '';
+  renderCloudBelow('concreteness', dist, 'No Concreteness-tagged words.');
+}
+
+function renderConcretenessDistribution(bins, total, distinct, mean) {
+  const W = 560, H = 230;
+  const PT = 26, PR = 16, PB = 38, PL = 36;
+  const innerW = W - PL - PR, innerH = H - PT - PB;
+  const maxCount = Math.max(1, ...bins);
+  const barW = innerW / bins.length;
+
+  // Same yellow→green gradient the cloud uses (1 = abstract, 5 = concrete).
+  const colorAt = (t) => {
+    const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+    const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+    const b = Math.round(0x20 * (1 - t) + 0x30 * t);
+    return `rgb(${r},${g},${b})`;
+  };
+
+  let svg = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom:0.8rem;">`;
+  svg += `<svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;">`;
+  svg += `<line x1="${PL}" y1="${PT+innerH}" x2="${W-PR}" y2="${PT+innerH}" stroke="var(--rule)"/>`;
+
+  for (let i = 0; i < bins.length; i++) {
+    const t = bins.length === 1 ? 0 : i / (bins.length - 1);
+    const h = innerH * (bins[i] / maxCount);
+    const x = PL + i * barW;
+    const y = PT + innerH - h;
+    svg += `<rect x="${(x + 1).toFixed(2)}" y="${y.toFixed(2)}" width="${(barW - 2).toFixed(2)}" height="${h.toFixed(2)}" fill="${colorAt(t)}" fill-opacity="0.85"/>`;
+    if (bins[i] > 0 && h > 14) {
+      svg += `<text x="${(x + barW / 2).toFixed(2)}" y="${(y - 4).toFixed(2)}" text-anchor="middle" fill="var(--text)" font-family="var(--mono)" font-size="9">${bins[i]}</text>`;
+    }
+  }
+  // Axis ticks at integer concreteness values 1..5.
+  for (const v of [1, 2, 3, 4, 5]) {
+    const tickX = PL + innerW * (v - 1) / 4;
+    svg += `<line x1="${tickX.toFixed(2)}" y1="${PT + innerH}" x2="${tickX.toFixed(2)}" y2="${PT + innerH + 4}" stroke="var(--rule)"/>`;
+    svg += `<text x="${tickX.toFixed(2)}" y="${PT + innerH + 16}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${v}</text>`;
+  }
+
+  // Mean line: domain [1, 5] → x.
+  const meanFrac = (mean - 1) / 4;
+  const meanX = PL + innerW * Math.max(0, Math.min(1, meanFrac));
+  svg += `<line x1="${meanX.toFixed(2)}" y1="${PT}" x2="${meanX.toFixed(2)}" y2="${PT + innerH}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  svg += `<text x="${meanX.toFixed(2)}" y="${(PT - 8).toFixed(2)}" text-anchor="middle" fill="var(--accent)" font-family="var(--mono)" font-size="10" font-weight="700">mean ${mean.toFixed(2)}</text>`;
+
+  svg += `<text x="${PL + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">concreteness rating (1 = abstract → 5 = concrete)</text>`;
+  svg += `<text x="${W - PR}" y="${PT - 8}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${total.toLocaleString()} occurrences · ${distinct} distinct words</text>`;
+
+  svg += '</svg></div>';
+  return svg;
+}
+
+// Shared cloud renderer used by NRC/AFINN/Concreteness views — they all want
+// chart-above + cloud-below in #cloud-region. NRC uses the standard tag-cloud
+// rendering (CSS classes via .word.emo-*); AFINN/Concreteness use inline
+// colors from scoredItems' _inlineColor / _intensity fields.
+function renderCloudBelow(view, leadingHtml, emptyMessage) {
+  const items = scoredItems(view);
+  const region = $('cloud-region');
+  if (!items.length) {
+    region.innerHTML = (leadingHtml || '') + `<div class="hint" style="flex-basis:100%; text-align:center; padding:1rem;">${emptyMessage || 'No tagged words.'}</div>`;
+    renderLegend();
+    return;
+  }
+  const maxScore = items[0].score;
+  const cloudHtml = items.slice(0, 220).map(it => {
+    const fs = (0.85 + 1.7 * Math.sqrt(it.score / maxScore)).toFixed(2);
+    let style = `font-size: ${fs}rem;`;
+    if (it._inlineColor) style += ` color: ${it._inlineColor};`;
+    if (typeof it._intensity === 'number') style += ` opacity: ${(0.45 + 0.55 * it._intensity).toFixed(2)};`;
+    return `<span class="word${it.cls ? ' ' + it.cls : ''}" style="${style}">${escapeHtml(it.word)}<span class="pop">${escapeHtml(it.popover)}</span></span>`;
+  }).join('');
+  region.innerHTML = (leadingHtml || '') + cloudHtml;
+  renderLegend();
+}
+
+// ─── Usage scatter ────────────────────────────────────────────────────────
+// log-log scatter of general usage (baseline per-million from SUBTLEX-like
+// data) on x against this writer's usage (corpus per-million) on y. The
+// diagonal y=x represents "uses this word at exactly the average rate."
+// Words above the line are over-represented in this writer's vocabulary,
+// below = under-represented; how far from the line measures distinctiveness.
+//
+// Same SVG-only approach atlas uses; no charting library. Helpers inlined
+// here rather than imported from atlas — when atlas next gets edited the
+// lib extraction is a natural follow-up.
+
+// ─── Timeline ─────────────────────────────────────────────────────────────
+// Bin threads by time and plot the macro stats over time so the writer's
+// arc becomes visible. Small multiples: activity, Flesch, concreteness,
+// AFINN, plus a dominant-emotion strip at the bottom. All driven by the
+// per-thread lex stats computed at proceedWithProfile time.
+
+const NRC_EMOS = ['joy', 'anticipation', 'trust', 'surprise', 'sadness', 'fear', 'anger', 'disgust'];
+
+// Per-thread tag counts + per-thread aggregate stats. Called once when the
+// corpus is built; aggregated per-bin in renderTimelineView.
+function computeThreadLex(text) {
+  const lower = (text || '').toLowerCase();
+  const tokens = [];
+  const re = /[a-z']{3,}/g;
+  let m;
+  while ((m = re.exec(lower)) !== null) {
+    tokens.push(m[0].replace(/^'+|'+$/g, ''));
+  }
+  let conSum = 0, conCount = 0;
+  let afSum = 0, afCount = 0;
+  const nrc = Object.fromEntries(NRC_EMOS.map((e) => [e, 0]));
+  let nrcTotalWeight = 0;
+  for (const w of tokens) {
+    const c = LEX.CONCRETENESS[w];
+    if (typeof c === 'number') { conSum += c; conCount++; }
+    const a = LEX.AFINN[w];
+    if (typeof a === 'number') { afSum += a; afCount++; }
+    const tags = LEX.NRC[w];
+    if (tags) {
+      const core = tags.filter((t) => nrc[t] !== undefined);
+      if (core.length) {
+        const wgt = 1 / core.length;
+        for (const t of core) nrc[t] += wgt;
+        nrcTotalWeight += 1;
+      }
+    }
+  }
+  return {
+    tokens: tokens.length,
+    concreteness: conCount ? conSum / conCount : null,
+    afinn: afCount ? afSum / afCount : null,
+    nrc,
+    nrcTotal: nrcTotalWeight,
+  };
+}
+
+// Format helpers for the continuous time axis.
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtTimeLabel(t, spanDays) {
+  const d = new Date(t);
+  if (spanDays < 90)   return `${MONTH_SHORT[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  if (spanDays < 730)  return `${MONTH_SHORT[d.getUTCMonth()]} '${String(d.getUTCFullYear()).slice(-2)}`;
+  return String(d.getUTCFullYear());
+}
+function topEmotionOf(nrc) {
+  let top = null, val = 0;
+  for (const e of NRC_EMOS) if ((nrc[e] || 0) > val) { val = nrc[e]; top = e; }
+  return top;
+}
+
+function renderTimelineView() {
+  const region = $('cloud-region');
+  // Keep the timeline SVG element stable across re-renders so pan-zoom
+  // listeners attached to it survive. Other view-switches blow away region's
+  // innerHTML and we recreate on next entry.
+  let svgEl = region.querySelector('#timeline-svg');
+  const needFreshMount = !svgEl;
+  if (needFreshMount) {
+    if (state.timelinePanZoom) { state.timelinePanZoom.destroy(); state.timelinePanZoom = null; }
+    region.innerHTML = `<div style="flex-basis:100%; display:flex; justify-content:center; margin-bottom: 0.7rem;"><svg id="timeline-svg" preserveAspectRatio="none" style="width:100%; max-width:1000px; height:auto;" aria-label="Per-thread timeline with 90-day trailing mean"></svg></div>`;
+    svgEl = region.querySelector('#timeline-svg');
+  }
+
+  if (!state.threads || state.threads.length < 3) {
+    svgEl.innerHTML = `<text x="500" y="60" text-anchor="middle" fill="var(--muted)" font-style="italic">Need at least a few timestamped threads.</text>`;
+    svgEl.setAttribute('viewBox', '0 0 1000 120');
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  // Per-thread points sorted by time. Each thread is the unit of observation —
+  // no binning. The smooth lines are 90-day trailing rolling means evaluated
+  // at fixed sample points across the span.
+  const points = state.threads
+    .map((t) => {
+      const ts = t.createdAt ? new Date(t.createdAt).getTime() : NaN;
+      if (!Number.isFinite(ts)) return null;
+      return {
+        t: ts,
+        flesch: t.reading?.flesch ?? null,
+        concreteness: t.lex?.concreteness ?? null,
+        afinn: t.lex?.afinn ?? null,
+        topEmo: t.lex ? topEmotionOf(t.lex.nrc) : null,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.t - b.t);
+  if (points.length < 3) {
+    region.innerHTML = `<div class="hint" style="padding:2rem; text-align:center;">No threads have parseable timestamps.</div>`;
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  const tMin = points[0].t;
+  const tMax = points[points.length - 1].t;
+  // Visible window (pan/zoom). Defaults to full extent. Note: the rolling
+  // mean uses ALL threads (incl. those before visMin, for proper 90-day
+  // trailing); only sample-time placement and dot rendering use visMin/visMax.
+  const visMin = state.timelineZoom ? state.timelineZoom[0] : tMin;
+  const visMax = state.timelineZoom ? state.timelineZoom[1] : tMax;
+  const spanDays = (visMax - visMin) / 86400000;
+  const WINDOW_MS = 90 * 86400000;
+
+  // 200 sample points for the rolling-mean line. With a 1000-wide SVG that's
+  // ~5px between samples — smooth without being expensive.
+  const NUM_SAMPLES = 200;
+  const samples = new Array(NUM_SAMPLES);
+  for (let i = 0; i < NUM_SAMPLES; i++) {
+    samples[i] = visMin + (visMax - visMin) * (i / (NUM_SAMPLES - 1));
+  }
+
+  // 90-day trailing mean of getter(p) at each sample time, computed with a
+  // sliding-window pointer pair (O(N + S) total).
+  function rollingMean(getter) {
+    const out = new Array(NUM_SAMPLES);
+    let left = 0, right = 0;
+    let sum = 0, count = 0;
+    for (let s = 0; s < NUM_SAMPLES; s++) {
+      const t = samples[s];
+      const winStart = t - WINDOW_MS;
+      while (right < points.length && points[right].t <= t) {
+        const v = getter(points[right]);
+        if (v != null && Number.isFinite(v)) { sum += v; count++; }
+        right++;
+      }
+      while (left < right && points[left].t < winStart) {
+        const v = getter(points[left]);
+        if (v != null && Number.isFinite(v)) { sum -= v; count--; }
+        left++;
+      }
+      out[s] = count > 0 ? sum / count : null;
+    }
+    return out;
+  }
+
+  const W = 1000;
+  const PAD_L = 56, PAD_R = 24;
+  const innerW = W - PAD_L - PAD_R;
+  const panelDefs = [
+    { key: 'flesch',       label: 'reading ease',     h: 88, fmt: (v) => v == null ? '' : v.toFixed(0),                                        getter: (p) => p.flesch },
+    { key: 'concreteness', label: 'concreteness',     h: 88, fmt: (v) => v == null ? '' : v.toFixed(2),                                        getter: (p) => p.concreteness },
+    { key: 'afinn',        label: 'sentiment',        h: 88, fmt: (v) => v == null ? '' : (v >= 0 ? '+' : '') + v.toFixed(2),                  getter: (p) => p.afinn },
+    { key: 'emotion',      label: 'dominant emotion', h: 36 },
+  ];
+  const gap = 12;
+  const headerH = 22;
+  const xLabelsH = 28;
+  const H = headerH + panelDefs.reduce((s, p) => s + p.h + gap, 0) + xLabelsH;
+
+  const tToX = (t) => PAD_L + (innerW * (t - visMin)) / Math.max(1, visMax - visMin);
+
+  const fleschVals = points.map((p) => p.flesch).filter((v) => v != null);
+  const fleschMin = Math.floor(Math.min(0, ...fleschVals));
+  const fleschMax = Math.ceil(Math.max(100, ...fleschVals));
+  const concDomain = [1, 5];
+  const afVals = points.map((p) => p.afinn).filter((v) => v != null);
+  const afMaxAbs = Math.max(0.6, ...afVals.map(Math.abs));
+  const afDomain = [-afMaxAbs, afMaxAbs];
+
+  // Update viewBox on stable SVG; contents are rebuilt each render.
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let svg = '';
+  const isZoomed = state.timelineZoom && (visMin > tMin || visMax < tMax);
+  svg += `<text x="${PAD_L}" y="14" fill="var(--muted)" font-family="var(--mono)" font-size="10" text-transform="uppercase">${points.length} threads · ${fmtTimeLabel(visMin, spanDays)} → ${fmtTimeLabel(visMax, spanDays)}${isZoomed ? ' (zoomed)' : ''} · 90-day trailing mean</text>`;
+
+  function panelTop(idx) {
+    let y = headerH;
+    for (let i = 0; i < idx; i++) y += panelDefs[i].h + gap;
+    return y;
+  }
+
+  function renderScatterPanel(idx, dMin, dMax, dotColorOf) {
+    const def = panelDefs[idx];
+    const top = panelTop(idx);
+    const h = def.h;
+    const baseline = top + h;
+    svg += `<text x="${PAD_L - 6}" y="${top + 10}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="9" text-transform="uppercase">${def.label}</text>`;
+    svg += `<line x1="${PAD_L}" y1="${baseline}" x2="${W - PAD_R}" y2="${baseline}" stroke="var(--rule)"/>`;
+    svg += `<line x1="${PAD_L}" y1="${top}" x2="${PAD_L}" y2="${baseline}" stroke="var(--rule)" stroke-opacity="0.4"/>`;
+    svg += `<text x="${W - PAD_R + 2}" y="${top + 10}" fill="var(--muted)" font-family="var(--mono)" font-size="9">${def.fmt(dMax)}</text>`;
+    svg += `<text x="${W - PAD_R + 2}" y="${baseline}" fill="var(--muted)" font-family="var(--mono)" font-size="9">${def.fmt(dMin)}</text>`;
+    if (dMin < 0 && dMax > 0) {
+      const zy = top + h - h * (0 - dMin) / (dMax - dMin);
+      svg += `<line x1="${PAD_L}" y1="${zy.toFixed(2)}" x2="${W - PAD_R}" y2="${zy.toFixed(2)}" stroke="var(--rule)" stroke-opacity="0.5" stroke-dasharray="2 3"/>`;
+    }
+    const valToY = (v) => top + h - h * (v - dMin) / Math.max(1e-9, dMax - dMin);
+
+    // Per-thread dots (faint so density itself reads as activity).
+    for (const p of points) {
+      if (p.t < visMin || p.t > visMax) continue;          // clip to visible window
+      const v = def.getter(p);
+      if (v == null || !Number.isFinite(v)) continue;
+      const cx = tToX(p.t);
+      const cy = valToY(v);
+      const col = dotColorOf ? dotColorOf(v) : 'var(--text)';
+      svg += `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="1.7" fill="${col}" fill-opacity="0.35"/>`;
+    }
+
+    // 90-day trailing mean line on top of the scatter.
+    const series = rollingMean(def.getter);
+    let d = '';
+    let pen = false;
+    for (let s = 0; s < NUM_SAMPLES; s++) {
+      const v = series[s];
+      if (v == null) { pen = false; continue; }
+      const x = tToX(samples[s]).toFixed(2);
+      const y = valToY(v).toFixed(2);
+      d += `${pen ? 'L' : 'M'} ${x} ${y} `;
+      pen = true;
+    }
+    if (d) svg += `<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+
+  const concDotColor = (v) => {
+    const t = Math.max(0, Math.min(1, (v - 1) / 4));
+    const r = Math.round(0xd8 * (1 - t) + 0x60 * t);
+    const g = Math.round(0xa0 * (1 - t) + 0x80 * t);
+    const bl = Math.round(0x20 * (1 - t) + 0x30 * t);
+    return `rgb(${r},${g},${bl})`;
+  };
+  const afDotColor = (v) => (v >= 0 ? 'var(--good)' : 'var(--bad)');
+
+  renderScatterPanel(0, fleschMin, fleschMax, null);
+  renderScatterPanel(1, concDomain[0], concDomain[1], concDotColor);
+  renderScatterPanel(2, afDomain[0], afDomain[1], afDotColor);
+
+  // Dominant-emotion strip: every thread = a thin vertical tick colored by
+  // its own dominant NRC emotion. The cloud of ticks itself shows when the
+  // writer was active; clustering of one color shows when an emotion was on.
+  {
+    const top = panelTop(3);
+    const h = panelDefs[3].h;
+    svg += `<text x="${PAD_L - 6}" y="${top + 12}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="9" text-transform="uppercase">dom. emotion</text>`;
+    svg += `<rect x="${PAD_L}" y="${top}" width="${innerW}" height="${h}" fill="var(--card-bg)" stroke="var(--rule)" stroke-opacity="0.4"/>`;
+    for (const p of points) {
+      if (!p.topEmo) continue;
+      if (p.t < visMin || p.t > visMax) continue;
+      const x = tToX(p.t);
+      svg += `<line x1="${x.toFixed(2)}" y1="${(top + 4).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(top + h - 4).toFixed(2)}" stroke="var(--${p.topEmo})" stroke-opacity="0.75" stroke-width="1.5"/>`;
+    }
+  }
+
+  // Shared x-axis labels at the bottom.
+  const labelY = headerH + panelDefs.reduce((s, p) => s + p.h + gap, 0) + 14;
+  const numLabels = 7;
+  for (let i = 0; i < numLabels; i++) {
+    const t = visMin + (visMax - visMin) * (i / (numLabels - 1));
+    const x = tToX(t);
+    svg += `<text x="${x.toFixed(2)}" y="${labelY}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${escapeHtml(fmtTimeLabel(t, spanDays))}</text>`;
+  }
+
+  svgEl.innerHTML = svg;
+
+  // Lazily attach the shared pan/zoom helper once the SVG element exists.
+  // The helper listens on svgEl itself, so it survives later svgEl.innerHTML
+  // rebuilds. xBounds are the full time range; xDomain is the current visible
+  // window, which may equal the full range or be a zoom.
+  if (!state.timelinePanZoom) {
+    state.timelinePanZoom = makePanZoom(svgEl, {
+      xDomain: state.timelineZoom || [tMin, tMax],
+      xBounds: [tMin, tMax],
+      axes: 'x',
+      onChange: ({ xDomain }) => {
+        state.timelineZoom = xDomain;
+        renderTimelineView();
+      },
+    });
+  }
+
+  $('legend-row').innerHTML = `
+    <span><span class="swatch" style="background: var(--joy)"></span>joy</span>
+    <span><span class="swatch" style="background: var(--anticipation)"></span>anticip.</span>
+    <span><span class="swatch" style="background: var(--trust)"></span>trust</span>
+    <span><span class="swatch" style="background: var(--surprise)"></span>surprise</span>
+    <span><span class="swatch" style="background: var(--sadness)"></span>sadness</span>
+    <span><span class="swatch" style="background: var(--fear)"></span>fear</span>
+    <span><span class="swatch" style="background: var(--anger)"></span>anger</span>
+    <span><span class="swatch" style="background: var(--disgust)"></span>disgust</span>
+    <span class="axes-hint">scroll = zoom · drag = pan · <a href="#" id="timeline-reset-zoom" style="color: var(--accent); text-decoration: underline;">reset</a></span>
+  `;
+  const resetLink = $('timeline-reset-zoom');
+  if (resetLink) {
+    resetLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.timelinePanZoom) state.timelinePanZoom.reset();
+    });
+  }
+}
+
+function renderUsageScatter() {
+  const region = $('cloud-region');
+  region.innerHTML = '';
+
+  // Build the data: words with both a baseline and ≥ 2 corpus uses.
+  const totalTokens = state.totalTokens || 1;
+  const points = [];
+  for (const [word, count] of state.freq) {
+    if (count < 2) continue;
+    if (STOPWORDS.has(word)) continue;
+    const baseline = LEX.BASELINE_FREQ[word];
+    if (!baseline || baseline <= 0) continue;
+    const corpusPm = (count / totalTokens) * 1e6;
+    points.push({ word, count, baseline, corpusPm });
+  }
+  if (!points.length) {
+    region.innerHTML = '<div class="hint" style="text-align:center; padding:2rem;">No words with both baseline data and ≥ 2 uses to plot.</div>';
+    $('legend-row').innerHTML = '';
+    return;
+  }
+
+  // Axis ranges, in log space. Pad slightly so dots don't sit on the edge.
+  const xMin = Math.max(0.1, Math.min(...points.map(p => p.baseline)) * 0.9);
+  const xMax = Math.max(...points.map(p => p.baseline)) * 1.1;
+  const yMin = Math.max(0.5, Math.min(...points.map(p => p.corpusPm)) * 0.9);
+  const yMax = Math.max(...points.map(p => p.corpusPm)) * 1.1;
+
+  const W = 1000, H = 480;
+  const PAD_T = 22, PAD_R = 24, PAD_B = 38, PAD_L = 64;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+  const xToPx = (v) => {
+    const lo = Math.log10(xMin), hi = Math.log10(xMax);
+    return PAD_L + innerW * (Math.log10(Math.max(v, xMin)) - lo) / (hi - lo);
+  };
+  const yToPx = (v) => {
+    const lo = Math.log10(yMin), hi = Math.log10(yMax);
+    return PAD_T + innerH - innerH * (Math.log10(Math.max(v, yMin)) - lo) / (hi - lo);
+  };
+
+  // Decade ticks on each axis.
+  const decadeTicks = (lo, hi) => {
+    const ticks = [];
+    for (let d = Math.floor(Math.log10(lo)); d <= Math.ceil(Math.log10(hi)); d++) {
+      for (const m of [1, 3]) {
+        const v = m * Math.pow(10, d);
+        if (v >= lo * 0.99 && v <= hi * 1.01) ticks.push(v);
+      }
+    }
+    return ticks;
+  };
+  const fmtTick = (v) => v >= 1000 ? (v / 1000) + 'k' : (v >= 10 ? Math.round(v) : v.toFixed(1));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block; width:100%; height:auto;">`;
+  // X axis
+  svg += `<line stroke="var(--rule)" x1="${PAD_L}" y1="${PAD_T + innerH}" x2="${W - PAD_R}" y2="${PAD_T + innerH}"/>`;
+  for (const v of decadeTicks(xMin, xMax)) {
+    const x = xToPx(v);
+    svg += `<line stroke="var(--rule)" stroke-opacity="0.4" x1="${x}" y1="${PAD_T + innerH}" x2="${x}" y2="${PAD_T + innerH + 4}"/>`;
+    svg += `<text x="${x}" y="${PAD_T + innerH + 16}" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)" font-size="10">${fmtTick(v)}</text>`;
+  }
+  svg += `<text x="${PAD_L + innerW / 2}" y="${H - 6}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11">general usage (baseline /M, log scale)</text>`;
+  // Y axis
+  svg += `<line stroke="var(--rule)" x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T + innerH}"/>`;
+  for (const v of decadeTicks(yMin, yMax)) {
+    const y = yToPx(v);
+    svg += `<line stroke="var(--rule)" stroke-opacity="0.25" x1="${PAD_L}" y1="${y}" x2="${PAD_L + innerW}" y2="${y}"/>`;
+    svg += `<text x="${PAD_L - 8}" y="${y + 3}" text-anchor="end" fill="var(--muted)" font-family="var(--mono)" font-size="10">${fmtTick(v)}</text>`;
+  }
+  svg += `<text x="20" y="${PAD_T + innerH / 2}" text-anchor="middle" fill="var(--muted)" font-style="italic" font-size="11" transform="rotate(-90 20 ${PAD_T + innerH / 2})">corpus usage (/M, log scale)</text>`;
+
+  // Diagonal y = x (over-represented above the line).
+  const diagXMin = Math.max(xMin, yMin);
+  const diagXMax = Math.min(xMax, yMax);
+  if (diagXMin < diagXMax) {
+    svg += `<line stroke="var(--accent)" stroke-dasharray="3 5" stroke-opacity="0.5" x1="${xToPx(diagXMin)}" y1="${yToPx(diagXMin)}" x2="${xToPx(diagXMax)}" y2="${yToPx(diagXMax)}"/>`;
+    // Annotate "over-represented" on the upper side.
+    const midX = Math.sqrt(diagXMin * diagXMax);
+    svg += `<text x="${xToPx(midX) + 12}" y="${yToPx(midX) - 6}" fill="var(--accent)" font-style="italic" font-size="10" font-family="var(--mono)">over-represented ↑</text>`;
+    svg += `<text x="${xToPx(midX) - 12}" y="${yToPx(midX) + 14}" fill="var(--muted)" font-style="italic" font-size="10" font-family="var(--mono)" text-anchor="end">↓ under-represented</text>`;
+  }
+
+  // Count above vs below the diagonal for the legend summary.
+  let above = 0, below = 0, on = 0;
+  for (const p of points) {
+    if (p.corpusPm > p.baseline) above++;
+    else if (p.corpusPm < p.baseline) below++;
+    else on++;
+  }
+  const ratio = below > 0 ? (above / below).toFixed(2) : '∞';
+
+  // Plot dots. Sort above-diagonal last so they paint on top of below-diagonal
+  // and stay readable. All dots same size — corpus usage is already encoded
+  // by Y position, baseline by X; size as a third axis would just be redundant.
+  const ordered = [...points].sort((a, b) => {
+    const ka = a.corpusPm > a.baseline ? 1 : 0;
+    const kb = b.corpusPm > b.baseline ? 1 : 0;
+    return ka - kb;
+  });
+  for (const p of ordered) {
+    const cx = xToPx(p.baseline);
+    const cy = yToPx(p.corpusPm);
+    const aboveDiagonal = p.corpusPm > p.baseline;
+    const color = aboveDiagonal ? 'var(--good)' : 'var(--muted)';
+    const opacity = aboveDiagonal ? 0.7 : 0.35;
+    svg += `<circle data-word="${escapeHtml(p.word)}" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="3.5" fill="${color}" fill-opacity="${opacity}" stroke="${color}" stroke-opacity="0"><title>${escapeHtml(p.word)} — corpus ${p.corpusPm.toFixed(1)}/M (${p.count}×) · baseline ${p.baseline.toFixed(1)}/M</title></circle>`;
+  }
+  svg += '</svg>';
+  region.innerHTML = svg;
+
+  $('legend-row').innerHTML = `
+    <span><span class="swatch" style="background: var(--good)"></span><b style="color: var(--good)">${above}</b> over-represented</span>
+    <span><span class="swatch" style="background: var(--muted)"></span><b>${below}</b> under-represented</span>
+    <span><b>${ratio}×</b> ratio above / below</span>
+    <span class="axes-hint">log-log · diagonal y=x · hover for details</span>
+  `;
+}
+
+function renderDocs() {
+  $('legend-row').innerHTML = '';
+  $('cloud-region').innerHTML = `
+    <div class="docs" style="max-width:680px; padding:0.5rem 0.5rem 1rem;">
+      <h2>What you're looking at</h2>
+      <p>The same prose corpus that powers <a href="/atlas/">/atlas/</a> and <a href="/redact/">/redact/</a>, viewed through five word-level lenses. Words are tokenized, lowercased, stripped of stopwords (articles, pronouns, common auxiliaries, contractions, and social-media filler), and counted across all the user's prose threads.</p>
+
+      <h2>Frequency</h2>
+      <p>The simplest cloud: word size by raw count. Useful baseline; fast to scan; tends to be dominated by topic-defining nouns and the writer's verbal tics.</p>
+
+      <h2>Distinctive</h2>
+      <p>"Their words" — vocabulary that's actually theirs vs. the common pool. Word size by <code>frequency_in_corpus / log(8 + baseline_frequency)</code>, where <code>baseline_frequency</code> is per-million in general English (subtitle-derived; we use the OpenSubtitles 2018 word counts published by <a href="https://github.com/hermitdave/FrequencyWords">hermitdave/FrequencyWords</a>, which have similar distribution to <a href="http://crr.ugent.be/archives/679">SUBTLEX-US</a>).</p>
+      <p>Three pre-filters keep the cloud from being dominated by noise:</p>
+      <ul>
+        <li><b>Length ≥ 6 characters.</b> Distinctive vocabulary tends to be longer; short words ("good", "love", "home") are usually too common-or-too-noisy to read as voice. Long words also weed out most typos and tokenizer artifacts.</li>
+        <li><b>Frequency ≥ 2 in corpus.</b> One-offs (hapax legomena) are unreliable signal — most are typos, names, or single-context references.</li>
+        <li><b>Baseline must be present.</b> If a word isn't in the baseline at all we can't say anything about distinctiveness; better to hide than guess. Words are listed in order of baseline frequency ascending — rarest in general English first.</li>
+      </ul>
+
+      <h2>Usage scatter</h2>
+      <p>The thing the cloud only hints at, drawn explicitly: a log-log scatter of <b>general usage</b> (baseline per-million, x-axis) against <b>corpus usage</b> (per-million in this writer's prose, y-axis). Each dot is one word.</p>
+      <p>The dashed diagonal is <code>y = x</code>: words that this writer uses at exactly the same rate as the general English corpus. Above the line = over-represented (their distinctive vocabulary, colored green). Below the line = under-represented (words the writer reaches for less than average, faded). How far from the diagonal measures distinctiveness.</p>
+      <p>This is the same view as the Distinctive cloud, just made visual. The Distinctive cloud sorts the over-represented words; the scatter shows the whole space, including under-represented words and how strongly above/below the diagonal each cluster sits.</p>
+
+      <h2>NRC · emotion</h2>
+      <p>Color by which of eight emotions the word belongs to (anger, anticipation, disgust, fear, joy, sadness, surprise, trust), per the <a href="https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm">NRC Emotion Lexicon</a> (Mohammad &amp; Turney 2013). The full lexicon has ~14k words; the version shipping inline with this page is a hand-authored mini covering the most-impactful ~300 words. Run <code>scripts/fetch-lexicons.mjs</code> to swap in the full data.</p>
+      <p>Words can carry multiple emotion tags ("love" → joy + trust + positive). The cloud picks the first emotion tag for coloring; the popover shows them all. Untagged words appear faded.</p>
+      <p>The radar at the top shows <b>lift over baseline</b> rather than raw counts. Two adjustments make the polygon actually informative:</p>
+      <ul>
+        <li><b>Inverse-weight multi-tag words.</b> A word with N emotion tags contributes 1/N per occurrence to each, not 1×N. Without this, a word like "tree" (tagged with 6 emotions in NRC) carpet-bombs the radar — and "good", "money", "mother", "hope", "deal" all carry 4–6 tags.</li>
+        <li><b>Lift = corpus rate / baseline rate.</b> Each emotion's score is computed as the writer's per-million rate of words tagged with that emotion divided by the expected per-million rate from SUBTLEX × NRC tagging. <code>1.00×</code> = average English; the dashed reference ring marks it. Above the ring = over-uses that emotion's vocabulary; inside = under-uses. This deflates the otherwise-huge trust score that NRC produces because (a) it has 1231 trust-tagged words vs only 534 for surprise, and (b) many common everyday nouns (father, school, team) carry trust tags.</li>
+      </ul>
+      <p>Each axis label shows the lift score, the raw occurrence count beneath it, and the emotion name in its color. The polygon shape is the lift; the outer ring scales to the largest lift in this writer (with a floor of 1.5× so a perfectly-average writer still has a visible polygon).</p>
+
+      <h2>AFINN · sentiment</h2>
+      <p>Color by sentiment score on a -5 (most negative) to +5 (most positive) scale, per <a href="https://github.com/fnielsen/afinn">AFINN</a> (Nielsen 2011). Green = positive, red = negative; opacity scales with intensity. Untagged words are hidden (the cloud is too noisy otherwise) — what you see is the writer's affect-laden vocabulary.</p>
+
+      <h2>Concreteness</h2>
+      <p>Color along an abstract→concrete gradient using <a href="http://crr.ugent.be/papers/Concreteness_ratings_Brysbaert_et_al_BRM.pdf">Brysbaert, Warriner &amp; Kuperman (2014)</a>'s 1–5 ratings (40k words, mean of 30+ annotators per word). Yellow = abstract ("justice", "consciousness"); green = concrete ("table", "rain"). Distinctively concrete or abstract writers look strikingly different.</p>
+
+      <h2>Timeline</h2>
+      <p>Each thread is one dot at its <code>createdAt</code>. No binning — the texture of when the writer wrote what shows directly. The maroon line through each panel is the <b>90-day trailing mean</b>: at any time <i>t</i>, it's the average of all threads whose timestamps fell in the prior 90 days. Smooths enough to read arcs without flattening the noise.</p>
+      <p>Four stacked panels share one continuous time axis:</p>
+      <ul>
+        <li><b>Reading ease</b> — Flesch per thread; higher = easier prose.</li>
+        <li><b>Concreteness</b> — Brysbaert mean per thread, dots colored along the same yellow→green gradient as the cloud (1 = abstract, 5 = concrete).</li>
+        <li><b>Sentiment</b> — AFINN mean per thread, dots green above zero / red below.</li>
+        <li><b>Dominant emotion strip</b> — every thread gets a thin vertical tick at its time, colored by its own top NRC emotion (after inverse-tag-weighting). Clumps of one color show emotional seasons; the cloud of ticks shows activity.</li>
+      </ul>
+      <p>Sparse activity periods show as gaps in the line (no threads to average). The line picks up again when the writer resumes — so silence is itself part of the arc, not hidden by a backfilled bin.</p>
+
+      <h2>Caveats</h2>
+      <ul>
+        <li><b>Mini lexicons.</b> The shipping versions are small approximations sized to fit inline (~25 KB total). Coverage on a typical thread is ~30–40% of content words. The full published lexicons have ~5–40× more coverage and are CC-licensed; the swap script fetches them and writes <code>./data/*.json</code>, which the page prefers automatically.</li>
+        <li><b>Word-level vs. context.</b> "Sick" is negative in AFINN but positive in skater slang. "Dark" is fearful in NRC but neutral as a color. These lexicons measure word-association at population scale, not utterance meaning. Read the cloud as climate, not certainty.</li>
+        <li><b>No lemmatization.</b> "Run" / "running" / "ran" count separately. A small follow-up.</li>
+      </ul>
+
+      <h2>Citations</h2>
+      <ul>
+        <li>Mohammad, S. M., &amp; Turney, P. D. (2013). Crowdsourcing a word-emotion association lexicon. <i>Computational Intelligence</i>, 29(3), 436–465.</li>
+        <li>Brysbaert, M., Warriner, A. B., &amp; Kuperman, V. (2014). Concreteness ratings for 40 thousand generally known English word lemmas. <i>Behavior Research Methods</i>, 46(3), 904–911.</li>
+        <li>Nielsen, F. Å. (2011). A new ANEW: Evaluation of a word list for sentiment analysis in microblogs. <i>arXiv:1103.2903</i>.</li>
+        <li>Brysbaert, M., &amp; New, B. (2009). Moving beyond Kučera and Francis: A critical evaluation of current word frequency norms. <i>Behavior Research Methods</i>, 41(4), 977–990.</li>
+      </ul>
+    </div>
+  `;
+}
+
+// ----- view tab clicks -----
+document.querySelectorAll('.view-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.view = btn.dataset.view;
+    document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderView();
+  });
+});
+
+// ----- wire up -----
+$('handle-form').addEventListener('submit', (e) => { e.preventDefault(); handleSubmit(); });
+$('upload').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  $('upload-name').textContent = file.name;
+  handleUpload(file);
+  e.target.value = '';
+});
+
+// ----- Gutenberg search -----
+const gta = { results: [], active: -1, timer: null, abort: null };
+async function fetchGutenbergSuggestions(query) {
+  const q = (query || '').trim();
+  if (q.length < 2) { hideGutenbergResults(); return; }
+  if (gta.abort) gta.abort.abort();
+  gta.abort = new AbortController();
+  try {
+    gta.results = await searchGutenberg(q, { signal: gta.abort.signal });
+    gta.active = -1;
+    renderGutenbergResults();
+  } catch (e) { if (e.name !== 'AbortError') console.error('gutenberg', e); }
+}
+function renderGutenbergResults() {
+  const el = $('gutenberg-results');
+  if (!gta.results.length) { el.classList.remove('show'); el.innerHTML = ''; return; }
+  el.innerHTML = gta.results.map((b, i) => `
+    <div class="typeahead-item${i === gta.active ? ' active' : ''}" data-id="${b.id}" role="option">
+      <div class="avatar">📖</div>
+      <div class="info">
+        <div class="display-name">${escapeHtml(b.title)}</div>
+        <div class="at-handle">${escapeHtml(b.author)} · ${b.downloads.toLocaleString()} downloads · #${b.id}</div>
+      </div>
+    </div>
+  `).join('');
+  el.classList.add('show');
+  if (gta.active >= 0) { const item = el.children[gta.active]; if (item) item.scrollIntoView({ block: 'nearest' }); }
+}
+function hideGutenbergResults() {
+  $('gutenberg-results').classList.remove('show');
+  gta.results = []; gta.active = -1;
+}
+async function handleGutenbergPick(book) {
+  hideGutenbergResults();
+  $('gutenberg-q').value = `${book.title} — ${book.author}`;
+  clearError();
+  showStage('loading');
+  setProgress(`Fetching "${book.title}" by ${book.author}…`, 0);
+  try {
+    await lexiconLoad;
+    const text = await fetchGutenbergText(book.id);
+    setProgress('Splitting into sections…', 0.5);
+    const result = uploadProfile(text, gutenbergFilename(book));
+    if (!result.posts.length) {
+      showStage('input');
+      showError('Book had no readable content after splitting.');
+      return;
+    }
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+$('gutenberg-q').addEventListener('input', () => {
+  clearTimeout(gta.timer);
+  gta.timer = setTimeout(() => fetchGutenbergSuggestions($('gutenberg-q').value), 300);
+});
+$('gutenberg-q').addEventListener('keydown', (e) => {
+  if (!gta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); gta.active = (gta.active + 1) % gta.results.length; renderGutenbergResults(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); gta.active = (gta.active - 1 + gta.results.length) % gta.results.length; renderGutenbergResults(); }
+  else if (e.key === 'Enter' && gta.active >= 0) { e.preventDefault(); handleGutenbergPick(gta.results[gta.active]); }
+  else if (e.key === 'Escape') hideGutenbergResults();
+});
+$('gutenberg-results').addEventListener('mousedown', (e) => {
+  const item = e.target.closest('.typeahead-item');
+  if (!item) return; e.preventDefault();
+  const id = parseInt(item.dataset.id, 10);
+  const book = gta.results.find(b => b.id === id);
+  if (book) handleGutenbergPick(book);
+});
+$('gutenberg-q').addEventListener('blur', () => setTimeout(hideGutenbergResults, 150));
+$('back').addEventListener('click', () => {
+  state.did = null; state.handle = null; state.posts = []; state.threads = [];
+  state.freq = new Map(); state.totalTokens = 0;
+  $('handle').value = '';
+  showStage('input'); $('handle').focus();
+});
+</script>
+</body>
+</html>

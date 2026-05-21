@@ -7,20 +7,30 @@
 
 import { PollCoordinator } from './durable-objects/poll-coordinator.js';
 import { SurveyCoordinator } from './durable-objects/survey-coordinator.js';
+import { MmoCanvas } from './durable-objects/mmo-canvas.js';
 import { handlePollRoutes } from './routes/polls.js';
 import { handleAuthRoutes } from './routes/auth.js';
 import { handleBallotRoutes } from './routes/ballots.js';
 import { handleSurveyRoutes } from './routes/surveys.js';
 import { handleSurveyBallotRoutes } from './routes/survey-ballots.js';
+import { handleDrawRoutes } from './routes/draw.js';
+import { handleMmoRoutes } from './routes/mmopaint.js';
 import { getClientPublicJWK, getClientSigningKey } from './oauth/keypair.js';
 import { discoverAuthServer } from './oauth/discovery.js';
 
-export { PollCoordinator, SurveyCoordinator };
+export { PollCoordinator, SurveyCoordinator, MmoCanvas };
 
 export interface Env {
   DB: D1Database;
+  /**
+   * MMO Paint's own D1 database. Bound by the create-mmo-db workflow.
+   * Code falls back to `DB` (atpolls-db) if unbound, so the worker keeps
+   * working before the workflow has been run.
+   */
+  MMO_DB?: D1Database;
   POLL_COORDINATOR: DurableObjectNamespace;
   SURVEY_COORDINATOR: DurableObjectNamespace;
+  MMO_CANVAS: DurableObjectNamespace;
   ASSETS: { fetch: typeof fetch };
   FRONTEND_URL: string;
   ATPROTO_MOCK_MODE: string;
@@ -65,7 +75,7 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 
     // CORS
     if (request.method === 'OPTIONS') {
-      return corsResponse(env);
+      return corsResponse(env, request);
     }
 
     // Health check
@@ -138,6 +148,10 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       // Route to appropriate handler
       if (url.pathname.startsWith('/api/auth/') || url.pathname === '/api/me') {
         response = await handleAuthRoutes(request, env, url);
+      } else if (url.pathname.startsWith('/api/draw/')) {
+        response = await handleDrawRoutes(request, env, url);
+      } else if (url.pathname.startsWith('/api/mmo/')) {
+        response = await handleMmoRoutes(request, env, url);
       } else if (url.pathname.match(/^\/api\/surveys\/[^/]+\/ballots/)) {
         response = await handleSurveyBallotRoutes(request, env, url);
       } else if (url.pathname.startsWith('/api/surveys')) {
@@ -152,37 +166,59 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         response = jsonResponse({ error: 'Not found' }, 404);
       }
 
+      // WebSocket upgrade responses (101 Switching Protocols) carry a
+      // non-cloneable `webSocket` property — don't run them through the
+      // CORS wrapper, which would copy them via `new Response(...)` and
+      // drop the upgrade.
+      if (response.status === 101) return response;
+
       // Add CORS headers to all responses
-      return addCorsHeaders(response, env);
+      return addCorsHeaders(response, env, request);
     } catch (err: any) {
       console.error('Unhandled error:', err);
       return addCorsHeaders(
         jsonResponse({ error: 'Internal server error' }, 500),
-        env
+        env,
+        request,
       );
     }
 }
 
-function corsResponse(env: Env): Response {
+const ALLOWED_ORIGINS = new Set([
+  'https://mino.mobi',
+  'https://www.mino.mobi',
+  'http://localhost:8788',
+  'http://localhost:5173',
+]);
+
+function pickAllowOrigin(request: Request, env: Env): string {
+  const origin = request.headers.get('Origin') || '';
+  if (origin === env.FRONTEND_URL) return origin;
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  return env.FRONTEND_URL || '*';
+}
+
+function corsResponse(env: Env, request?: Request): Response {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders(env),
+    headers: corsHeaders(env, request),
   });
 }
 
-function corsHeaders(env: Env): Record<string, string> {
+function corsHeaders(env: Env, request?: Request): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': env.FRONTEND_URL || '*',
+    'Access-Control-Allow-Origin': request ? pickAllowOrigin(request, env) : (env.FRONTEND_URL || '*'),
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
   };
 }
 
-function addCorsHeaders(response: Response, env: Env): Response {
+function addCorsHeaders(response: Response, env: Env, request?: Request): Response {
   const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(corsHeaders(env))) {
+  for (const [key, value] of Object.entries(corsHeaders(env, request))) {
     headers.set(key, value);
   }
   return new Response(response.body, {
@@ -305,7 +341,13 @@ async function handleClientMetadata(env: Env): Promise<Response> {
     client_name: 'ATPolls',
     client_uri: 'https://poll.mino.mobi',
     redirect_uris: ['https://poll.mino.mobi/api/auth/oauth/callback'],
-    scope: 'atproto transition:generic',
+    // Scopes the client may request at authorize time. transition:generic
+    // stays for poll's "Post to Bluesky". The bare repo:<nsid> form is
+    // what the docs example uses — `?action=create` is in the spec but
+    // bsky.social's PAR endpoint rejects it today (May 2026) with
+    // "invalid scope: not declared in client metadata". Bare NSID still
+    // narrows scope to one record type, which is the important bit.
+    scope: 'atproto transition:generic repo:com.minomobi.mmopaint.stroke',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',

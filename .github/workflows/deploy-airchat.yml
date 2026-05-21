@@ -1,0 +1,346 @@
+name: Deploy Airchat
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/sentence-editing-drill-*'
+    paths:
+      - 'airchat/**'
+      - 'poll/apps/api/migrations/0018_airchat.sql'
+      - 'poll/apps/api/migrations/0019_airchat_oauth.sql'
+      - 'poll/apps/api/migrations/0020_airchat_reply_cids.sql'
+      - 'poll/apps/api/migrations/0021_airchat_segments.sql'
+      - '.github/workflows/deploy-airchat.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: airchat
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Vendor @ffmpeg/ffmpeg + @ffmpeg/util into airchat/vendor/
+        # The FFmpeg class instantiates a Worker via
+        # `new Worker(new URL("./worker.js", import.meta.url))`. When the
+        # package is imported cross-origin (jsdelivr/esm.sh), the worker
+        # URL is also cross-origin, which Firefox refuses with
+        # SecurityError: "The operation is insecure." Vendoring the
+        # package locally puts worker.js on the same origin and the
+        # Worker constructor accepts it.
+        #
+        # The @ffmpeg/core package (huge wasm, ~30 MB) stays on CDN —
+        # it's over Cloudflare's per-asset limit. video.js wraps the
+        # core URLs via toBlobURL inside the worker context, which is
+        # a CORS fetch (allowed) rather than a Worker spawn (denied).
+        #
+        # Pulls tarballs straight from the npm registry — filenames are
+        # deterministic and we don't depend on npm CLI flags like
+        # --pack-destination behaving consistently across versions.
+        # Total vendored size: ~70 KB.
+        run: |
+          set -euo pipefail
+          rm -rf vendor/ffmpeg
+          mkdir -p vendor/ffmpeg
+          echo "Downloading @ffmpeg/[email protected] tarball…"
+          curl -fsSL "https://registry.npmjs.org/@ffmpeg/ffmpeg/-/ffmpeg-0.12.15.tgz" -o /tmp/ffmpeg-ffmpeg.tgz
+          echo "Downloading @ffmpeg/[email protected] tarball…"
+          curl -fsSL "https://registry.npmjs.org/@ffmpeg/util/-/util-0.12.2.tgz" -o /tmp/ffmpeg-util.tgz
+          echo "Extracting ffmpeg/ffmpeg into vendor/ffmpeg/ffmpeg/…"
+          tar xzf /tmp/ffmpeg-ffmpeg.tgz -C vendor/ffmpeg/
+          mv vendor/ffmpeg/package vendor/ffmpeg/ffmpeg
+          echo "Extracting ffmpeg/util into vendor/ffmpeg/util/…"
+          tar xzf /tmp/ffmpeg-util.tgz -C vendor/ffmpeg/
+          mv vendor/ffmpeg/package vendor/ffmpeg/util
+          echo "=== vendored contents ==="
+          find vendor/ffmpeg -maxdepth 5 -name '*.js' | sort
+          echo "=== sizes ==="
+          du -sh vendor/ffmpeg/ffmpeg vendor/ffmpeg/util
+          # Sanity-check the file the worker spawn URL will resolve to.
+          test -f vendor/ffmpeg/ffmpeg/dist/esm/worker.js \
+            || (echo "FATAL: worker.js missing — vendoring is broken" && exit 1)
+          test -f vendor/ffmpeg/ffmpeg/dist/esm/index.js \
+            || (echo "FATAL: index.js missing" && exit 1)
+          test -f vendor/ffmpeg/util/dist/esm/index.js \
+            || (echo "FATAL: util/index.js missing" && exit 1)
+          echo "✓ vendor files present"
+
+      - name: Run D1 migrations (airchat tables on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          for f in \
+            ../poll/apps/api/migrations/0018_airchat.sql \
+            ../poll/apps/api/migrations/0019_airchat_oauth.sql \
+            ../poll/apps/api/migrations/0020_airchat_reply_cids.sql \
+            ../poll/apps/api/migrations/0021_airchat_segments.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Sync worker secrets from GH Actions secrets
+        # Pushes OPENAI_API_KEY + ADMIN_KEY to the airchat worker on every
+        # deploy. This avoids the "wrangler secret put from the wrong cwd
+        # silently targets a different worker" gotcha — set the secrets
+        # once in GitHub Settings → Secrets, the workflow keeps the
+        # worker in sync.
+        #
+        # Marked best-effort: deploy already succeeded above; secret
+        # rotation is bonus. File-based stdin (vs piped) is more reliable
+        # in CI for wrangler secret put.
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_AIRCHAT_ADMIN_KEY: ${{ secrets.AIRCHAT_ADMIN_KEY }}
+        run: |
+          set +e
+
+          push_secret() {
+            local NAME="$1"
+            local VALUE="$2"
+            if [ -z "$VALUE" ]; then
+              echo "  · $NAME not set in GH secrets — skipping"
+              return 0
+            fi
+            local FILE
+            FILE=$(mktemp)
+            printf '%s' "$VALUE" > "$FILE"
+            echo "  · pushing $NAME to airchat worker…"
+            # --name airchat ensures we target the right worker regardless
+            # of what wrangler.jsonc is discovered at runtime.
+            npx wrangler secret put "$NAME" --name airchat < "$FILE" >/dev/null 2>&1
+            local RC=$?
+            rm -f "$FILE"
+            if [ $RC -eq 0 ]; then
+              echo "  · ✓ $NAME synced"
+            else
+              echo "  · ⚠️  wrangler secret put $NAME returned $RC"
+            fi
+          }
+
+          echo "=== Syncing worker secrets ==="
+          push_secret OPENAI_API_KEY "$GH_OPENAI_API_KEY"
+          push_secret ADMIN_KEY "$GH_AIRCHAT_ADMIN_KEY"
+
+          echo "=== Confirming bindings ==="
+          curl -fsS https://airchat.mino.mobi/api/airchat/health 2>/dev/null || true
+          exit 0
+
+      - name: Verify worker is live + vendor files are reachable
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://airchat.mino.mobi/api/airchat/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "✓ worker is live"
+              break
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 4
+          done
+          echo ""
+          echo "=== Verifying vendored ffmpeg files are reachable from the edge ==="
+          for url in \
+            "https://airchat.mino.mobi/vendor/ffmpeg/ffmpeg/dist/esm/index.js" \
+            "https://airchat.mino.mobi/vendor/ffmpeg/ffmpeg/dist/esm/worker.js" \
+            "https://airchat.mino.mobi/vendor/ffmpeg/util/dist/esm/index.js"; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "$url" || echo "fail")
+            if [ "$STATUS" = "200" ]; then
+              echo "  ✓ $url"
+            else
+              echo "  ⚠️  $url → $STATUS  — the realtime encoder still works (no vendor needed), but ffmpeg.wasm path will fail"
+            fi
+          done
+
+      - name: Seed whitelist from airchat/whitelist.txt (idempotent)
+        # Reads airchat/whitelist.txt one entry per line. Each entry is:
+        #   - bluesky handle (resolved via public API)
+        #   - DID (inserted as-is)
+        #   - `list:<url|at-uri>` — bsky list, expanded into every
+        #     member's DID at deploy time
+        # INSERT-OR-IGNOREs into airchat_whitelist by DID primary key
+        # so re-running deploy is safe and additive.
+        #
+        # Marked best-effort: deploy succeeds even if API calls flake
+        # (the worker is already up; you can re-push later).
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          if [ ! -f whitelist.txt ]; then
+            echo "no whitelist.txt — skipping seed"
+            exit 0
+          fi
+          echo "=== Seeding whitelist from airchat/whitelist.txt ==="
+          INSERTED=0
+          FAILED=0
+
+          # Helper: insert one (did, handle, note) triple. Returns 0 on success.
+          insert_did() {
+            local DID="$1" HANDLE="$2" NOTE="$3"
+            local ESCAPED_HANDLE
+            ESCAPED_HANDLE=$(echo "$HANDLE" | sed "s/'/''/g")
+            local ESCAPED_NOTE
+            ESCAPED_NOTE=$(echo "$NOTE" | sed "s/'/''/g")
+            local SQL="INSERT OR IGNORE INTO airchat_whitelist (did, handle, note) VALUES ('$DID', '$ESCAPED_HANDLE', '$ESCAPED_NOTE');"
+            npx wrangler d1 execute atpolls-db --remote --command "$SQL" >/dev/null 2>&1
+          }
+
+          # Helper: normalize a list URL/URI to canonical at://did/.../rkey form.
+          # Accepts at:// URI or https://bsky.app/profile/<actor>/lists/<rkey>.
+          # Returns "" on parse failure.
+          parse_list_uri() {
+            local INPUT="$1"
+            if [[ "$INPUT" == at://* ]]; then
+              echo "$INPUT"
+              return 0
+            fi
+            if [[ "$INPUT" =~ /profile/([^/]+)/lists/([^/?#]+) ]]; then
+              local ACTOR="${BASH_REMATCH[1]}"
+              local RKEY="${BASH_REMATCH[2]}"
+              local DID="$ACTOR"
+              if [[ ! "$DID" == did:* ]]; then
+                DID=$(curl -sS "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$ACTOR" 2>/dev/null | jq -r '.did // empty' 2>/dev/null)
+                if [ -z "$DID" ]; then return 1; fi
+              fi
+              echo "at://$DID/app.bsky.graph.list/$RKEY"
+              return 0
+            fi
+            return 1
+          }
+
+          # Helper: expand a bsky list URI into individual member DIDs and
+          # insert each. Paginates via cursor; bsky.app limit is 100/page.
+          expand_list() {
+            local LIST_URI="$1"
+            echo "→ expanding list $LIST_URI"
+            local CURSOR=""
+            local PAGE=0
+            local TOTAL=0
+            while :; do
+              PAGE=$((PAGE + 1))
+              local ENCODED_URI
+              ENCODED_URI=$(printf '%s' "$LIST_URI" | jq -sRr @uri)
+              local URL="https://api.bsky.app/xrpc/app.bsky.graph.getList?list=$ENCODED_URI&limit=100"
+              if [ -n "$CURSOR" ]; then
+                local ENCODED_CURSOR
+                ENCODED_CURSOR=$(printf '%s' "$CURSOR" | jq -sRr @uri)
+                URL="$URL&cursor=$ENCODED_CURSOR"
+              fi
+              local RESP
+              RESP=$(curl -sS "$URL" 2>/dev/null)
+              local COUNT
+              COUNT=$(echo "$RESP" | jq '.items | length' 2>/dev/null)
+              if [ -z "$COUNT" ] || [ "$COUNT" = "null" ] || [ "$COUNT" = "0" ]; then
+                if [ "$PAGE" = "1" ]; then
+                  echo "  ⚠️  list returned no members (first page). Response:"
+                  echo "$RESP" | head -c 500
+                  echo ""
+                  FAILED=$((FAILED + 1))
+                fi
+                break
+              fi
+              echo "  page $PAGE: $COUNT members"
+              # For each member, extract did + handle and insert.
+              while IFS=$'\t' read -r MDID MHANDLE; do
+                if [ -z "$MDID" ]; then continue; fi
+                if insert_did "$MDID" "$MHANDLE" "from list $LIST_URI"; then
+                  TOTAL=$((TOTAL + 1))
+                else
+                  echo "    ! failed to insert $MDID ($MHANDLE)"
+                fi
+              done < <(echo "$RESP" | jq -r '.items[] | [.subject.did, (.subject.handle // "")] | @tsv' 2>/dev/null)
+              CURSOR=$(echo "$RESP" | jq -r '.cursor // empty' 2>/dev/null)
+              if [ -z "$CURSOR" ]; then break; fi
+            done
+            echo "  ✓ list expansion: $TOTAL inserted (or already present)"
+            INSERTED=$((INSERTED + TOTAL))
+          }
+
+          while IFS= read -r raw || [ -n "$raw" ]; do
+            entry=$(echo "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$entry" ] && continue
+            case "$entry" in \#*) continue ;; esac
+
+            # list: prefix → expand into members
+            if [[ "$entry" == list:* ]]; then
+              LIST_INPUT="${entry#list:}"
+              LIST_URI=$(parse_list_uri "$LIST_INPUT")
+              if [ -z "$LIST_URI" ]; then
+                echo "→ ⚠️  unrecognized list URL: $LIST_INPUT"
+                FAILED=$((FAILED + 1))
+                continue
+              fi
+              expand_list "$LIST_URI"
+              continue
+            fi
+
+            # Direct DID
+            if [[ "$entry" == did:* ]]; then
+              echo "→ direct DID: $entry"
+              if insert_did "$entry" "" "seeded from whitelist.txt"; then
+                echo "  ✓ inserted (or already present)"
+                INSERTED=$((INSERTED + 1))
+              else
+                echo "  ⚠️  insert failed"
+                FAILED=$((FAILED + 1))
+              fi
+              continue
+            fi
+
+            # Handle: resolve to DID
+            echo "→ resolving @$entry…"
+            RESP=$(curl -sS "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=$entry" 2>&1)
+            DID=$(echo "$RESP" | jq -r '.did // empty' 2>/dev/null)
+            if [ -z "$DID" ]; then
+              echo "  ⚠️  could not resolve @$entry — response was: $RESP"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+            echo "  resolved to $DID"
+            if insert_did "$DID" "$entry" "seeded from whitelist.txt"; then
+              echo "  ✓ inserted (or already present)"
+              INSERTED=$((INSERTED + 1))
+            else
+              echo "  ⚠️  insert failed"
+              FAILED=$((FAILED + 1))
+            fi
+          done < whitelist.txt
+
+          echo ""
+          echo "=== Seed summary: $INSERTED ok, $FAILED failed ==="
+          echo "=== Whitelist row count ==="
+          npx wrangler d1 execute atpolls-db --remote \
+            --command "SELECT COUNT(*) AS total FROM airchat_whitelist;" 2>&1 | tail -10 || true
+          exit 0

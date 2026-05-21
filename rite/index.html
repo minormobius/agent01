@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rite &mdash; sentence editing drill</title>
+<meta name="description" content="Practice brevity. Rewrite a verbose sentence into something concise and clear, as fast as possible.">
+<meta property="og:title" content="rite">
+<meta property="og:description" content="A sentence editing drill. Practice brevity.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a;
+  --warn: #a06020;
+  --bad: #a03030;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --accent: #c97070;
+    --accent-faint: rgba(201, 112, 112, 0.08);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 2rem 1rem 4rem;
+}
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+header {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+h1 {
+  font-size: 2rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 .dot { color: var(--accent); }
+.tag {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.subtitle {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0.4rem 0 0;
+}
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.timer { color: var(--accent); font-weight: 700; }
+.original {
+  background: var(--accent-faint);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  border-radius: 0 4px 4px 0;
+}
+textarea {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+textarea:focus { border-color: var(--accent); }
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+button {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.live-stats {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.live-stats .ok { color: var(--good); }
+.live-stats .warn { color: var(--warn); }
+.live-stats .bad { color: var(--bad); }
+.result {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  display: none;
+}
+.result.show { display: block; }
+.score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.score {
+  font-family: var(--mono);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.score-label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.comment {
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.bar {
+  background: var(--accent-faint);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+  position: relative;
+  overflow: hidden;
+}
+.bar .fill {
+  position: absolute;
+  inset: 0 100% 0 0;
+  background: var(--accent);
+  opacity: 0.18;
+  transition: inset 0.4s ease;
+}
+.bar .label {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+.bar .value {
+  position: relative;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.reference {
+  background: var(--accent-faint);
+  border-left: 3px solid var(--good);
+  padding: 0.8rem 1rem;
+  border-radius: 0 4px 4px 0;
+  margin-top: 1rem;
+}
+.reference .best-line {
+  font-size: 1.05rem;
+  margin-bottom: 0.5rem;
+}
+.reference .alts {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--rule);
+  font-size: 0.9rem;
+}
+.reference .alts .alt {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+  color: var(--muted);
+}
+.reference .alts .alt .sim {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+.reference .label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+footer {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+.streak {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.view { display: none; }
+.view.active { display: block; }
+.docs h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.docs h2:first-child { margin-top: 0; }
+.docs p { margin: 0.5rem 0; }
+.docs ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+.docs li { margin: 0.25rem 0; }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--accent-faint);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.docs .formula {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  background: var(--accent-faint);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+  margin: 0.75rem 0;
+  white-space: pre-wrap;
+}
+.docs table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  width: 100%;
+}
+.docs th, .docs td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.docs th {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent-faint);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 0.4rem;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>rite<span class="dot">.</span></h1>
+      <p class="subtitle">A sentence editing drill. Practice brevity.</p>
+    </div>
+    <div class="streak" id="streak"></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="drill">Drill</button>
+    <button class="tab" data-view="docs">Docs</button>
+  </nav>
+
+  <section class="view active" id="view-drill">
+  <div class="meta">
+    <span id="style-tag">&nbsp;</span>
+    <span class="timer" id="timer">0.0s</span>
+  </div>
+  <div class="original" id="original">Loading&hellip;</div>
+
+  <textarea id="edit" placeholder="Rewrite it. Concise. Clear. Keep the meaning." autofocus></textarea>
+
+  <div class="controls">
+    <button id="submit">Submit</button>
+    <button id="skip" class="ghost">Skip</button>
+    <span class="live-stats" id="live"></span>
+  </div>
+
+  <div class="result" id="result">
+    <div class="score-row">
+      <span class="score" id="score">0</span>
+      <span class="score-label">out of 100</span>
+    </div>
+    <div class="comment" id="comment"></div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="reference">
+      <div class="label">Closest reference rewrite</div>
+      <div class="best-line" id="reference"></div>
+      <div class="alts" id="reference-alts"></div>
+    </div>
+    <div class="controls" style="margin-top: 1rem;">
+      <button id="next">Next sentence</button>
+    </div>
+  </div>
+  </section>
+
+  <section class="view docs" id="view-docs">
+    <h2>What this is</h2>
+    <p>A drill for one specific skill: turning verbose, hard-to-read prose into something concise and clear, fast. You're shown a sentence in the manner of a Victorian novelist, a regulator, an academic, or a corporate memo. You rewrite it. You're scored.</p>
+
+    <h2>Where the sentences come from</h2>
+    <p>45 hand-curated sentences in <code>corpus.json</code>, tagged by style:</p>
+    <ul>
+      <li><b>Victorian</b> &mdash; long subordinate clauses, qualifying asides, throat-clearing.</li>
+      <li><b>Bureaucratic</b> &mdash; nominalizations, passive stacks, hedged conclusions.</li>
+      <li><b>Academic</b> &mdash; "It must be acknowledged that there exists&hellip;"</li>
+      <li><b>Legal</b> &mdash; "Pursuant to&hellip;", "Notwithstanding the foregoing&hellip;"</li>
+      <li><b>Corporate / TOS</b> &mdash; PR-speak and click-through filler.</li>
+    </ul>
+    <p>Each sentence ships with <b>three reference rewrites</b> &mdash; typically a literal paraphrase, an idiomatic version, and a third variant. Grading takes the highest similarity across all three, so idioms ("the proof's in the pudding", "back to square one", "doomed to repeat it") score as well as literal rewrites.</p>
+
+    <h2>How grading works</h2>
+    <p>Every submission gets four sub-scores, combined with a speed multiplier:</p>
+    <div class="formula">score = (0.5 &middot; fidelity + 0.3 &middot; brevity + 0.2 &middot; clarity) &times; speed &times; 100</div>
+    <table>
+      <thead><tr><th>Component</th><th>Weight</th><th>Measured by</th></tr></thead>
+      <tbody>
+        <tr><td>Fidelity</td><td>50%</td><td>Maximum cosine similarity (BGE embeddings) between your edit and any of the reference rewrites. Falls back to Jaccard token overlap if the AI binding is unavailable.</td></tr>
+        <tr><td>Brevity</td><td>30%</td><td>Peaks when your word count &asymp; the median reference word count. Capped near zero if you didn't shorten the original at all.</td></tr>
+        <tr><td>Clarity</td><td>20%</td><td>Flesch reading-ease delta vs. the original. A 40-point jump caps the score.</td></tr>
+        <tr><td>Speed</td><td>multiplier</td><td>1.0 at &le;10s, decays linearly to 0.5 at 60s.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What it costs</h2>
+    <p>Runs on a Cloudflare Worker with the Workers AI binding. Each grade does one batched embedding call (~1 neuron). The $5 Workers Paid plan includes 10,000 free neurons/day &mdash; roughly <b>5,000 free grades/day</b> before pay-per-use kicks in.</p>
+
+    <h2>Tips</h2>
+    <ul>
+      <li>Strip nominalizations: "make a determination" &rarr; "decide".</li>
+      <li>Cut hedges: "it would seem to be the case that&hellip;"</li>
+      <li>Active voice when you can; the Flesch score rewards it indirectly via shorter sentences.</li>
+      <li>If you're stuck, type <i>anything</i> short and submit &mdash; the reference rewrite is shown afterwards.</li>
+      <li><code>Cmd</code>/<code>Ctrl</code>+<code>Enter</code> submits.</li>
+    </ul>
+
+    <h2>Source</h2>
+    <p>The drill is a single Worker plus static assets. Corpus, scoring, and worker code live in the <code>rite/</code> directory of <a href="https://github.com/minormobius/agent01">minormobius/agent01</a>.</p>
+
+    <h2>Want to contribute sentences?</h2>
+    <p>The corpus is crowdsourced via <a href="/fodder/">/fodder/</a> — a Tinder-style swipe interface where you triage verbose sentences mined nightly from Project Gutenberg. Right-swipes feed back into this corpus.</p>
+
+    <h2>Sibling tools</h2>
+    <p>
+      <a href="/atlas/">/atlas/</a> — multi-view analytics over a Bluesky archive's prose threads.<br>
+      <a href="/lexicon/">/lexicon/</a> — word-level lenses (frequency, distinctiveness, NRC emotion, AFINN sentiment, concreteness).<br>
+      <a href="/redact/">/redact/</a> — a Redactle-style game over someone's longest Bluesky threads.<br>
+      <a href="/ask/">/ask/</a> — semantic search across a Bluesky archive's prose threads.<br>
+      <a href="/list/">/list/</a> — semantic analysis over a Bluesky list (themes that bind the group).
+    </p>
+  </section>
+
+  <footer>
+    <span>rite &middot; sentence editing drill</span>
+    <span><a href="https://mino.mobi">mino.mobi</a></span>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+const state = {
+  current: null,
+  startedAt: 0,
+  timerHandle: null,
+  graded: false,
+  streak: 0,
+  totalScore: 0,
+  rounds: 0,
+};
+
+async function loadSentence() {
+  state.graded = false;
+  $('result').classList.remove('show');
+  $('edit').value = '';
+  $('edit').disabled = false;
+  $('submit').disabled = false;
+  $('skip').disabled = false;
+  $('original').textContent = 'Loading…';
+  $('style-tag').textContent = '';
+  updateLive();
+
+  try {
+    const res = await fetch('/api/sentence');
+    if (!res.ok) throw new Error('fetch failed');
+    state.current = await res.json();
+  } catch (e) {
+    $('original').textContent = 'Could not load a sentence. Try again.';
+    return;
+  }
+  $('original').textContent = state.current.original;
+  $('style-tag').textContent = `${state.current.style} · ${state.current.word_count} words`;
+  $('edit').focus();
+  startTimer();
+}
+
+function startTimer() {
+  state.startedAt = performance.now();
+  if (state.timerHandle) clearInterval(state.timerHandle);
+  state.timerHandle = setInterval(() => {
+    if (state.graded) return;
+    const sec = (performance.now() - state.startedAt) / 1000;
+    $('timer').textContent = sec.toFixed(1) + 's';
+  }, 100);
+}
+
+function stopTimer() {
+  if (state.timerHandle) clearInterval(state.timerHandle);
+  state.timerHandle = null;
+}
+
+function updateLive() {
+  const text = $('edit').value.trim();
+  const orig = state.current ? state.current.word_count : 0;
+  const w = text ? (text.match(/\S+/g) || []).length : 0;
+  if (!w) { $('live').textContent = ''; return; }
+  let cls = '';
+  if (orig && w >= orig) cls = 'bad';
+  else if (orig && w > orig * 0.6) cls = 'warn';
+  else cls = 'ok';
+  $('live').innerHTML = `<span class="${cls}">${w} word${w === 1 ? '' : 's'}</span> &middot; ${text.length} chars`;
+}
+
+async function submitEdit() {
+  if (state.graded || !state.current) return;
+  const edit = $('edit').value.trim();
+  if (!edit) return;
+  state.graded = true;
+  stopTimer();
+  $('submit').disabled = true;
+  $('skip').disabled = true;
+  $('edit').disabled = true;
+  $('comment').innerHTML = '<span class="spinner"></span> Grading…';
+  $('result').classList.add('show');
+
+  const elapsed = performance.now() - state.startedAt;
+  let result;
+  try {
+    const res = await fetch('/api/grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: state.current.id, edit, elapsed_ms: elapsed }),
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'grade failed');
+  } catch (e) {
+    $('comment').textContent = 'Grading failed: ' + (e.message || e);
+    return;
+  }
+
+  renderResult(result);
+}
+
+function renderResult(r) {
+  $('score').textContent = r.score;
+  $('comment').textContent = r.comment;
+  // Best reference; fall back to legacy single-reference field if present.
+  const best = r.best_reference || r.reference || (r.references && r.references.find(x => x.best)?.text) || '';
+  $('reference').textContent = best;
+  // Alternate references with their similarity scores.
+  const alts = (r.references || []).filter(x => x.text !== best);
+  $('reference-alts').innerHTML = alts.length
+    ? '<div class="label" style="margin-bottom:0.3rem;">Other valid rewrites</div>' +
+      alts.map(a => `<div class="alt"><span>${escapeHtml(a.text)}</span><span class="sim">${Math.round(a.similarity * 100)}%</span></div>`).join('')
+    : '';
+
+  const bars = [
+    { key: 'fidelity', label: 'Fidelity' },
+    { key: 'brevity', label: 'Brevity' },
+    { key: 'clarity', label: 'Clarity' },
+    { key: 'time_bonus', label: 'Speed' },
+  ];
+  $('breakdown').innerHTML = bars.map(({ key, label }) => {
+    const v = r.breakdown[key];
+    const pct = Math.round(v * 100);
+    return `<div class="bar">
+      <div class="fill" style="inset: 0 ${100 - pct}% 0 0;"></div>
+      <div class="label"><span>${label}</span></div>
+      <div class="value">${pct}</div>
+    </div>`;
+  }).join('');
+
+  state.rounds++;
+  state.totalScore += r.score;
+  if (r.score >= 70) state.streak++;
+  else state.streak = 0;
+  renderStreak();
+}
+
+function renderStreak() {
+  if (!state.rounds) { $('streak').textContent = ''; return; }
+  const avg = Math.round(state.totalScore / state.rounds);
+  let s = `avg ${avg} · ${state.rounds} round${state.rounds === 1 ? '' : 's'}`;
+  if (state.streak >= 2) s += ` · 🔥 ${state.streak}`;
+  $('streak').textContent = s;
+}
+
+$('submit').addEventListener('click', submitEdit);
+$('next').addEventListener('click', loadSentence);
+$('skip').addEventListener('click', loadSentence);
+$('edit').addEventListener('input', updateLive);
+$('edit').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    submitEdit();
+  }
+});
+
+document.querySelectorAll('.tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.view;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + target));
+    if (target === 'drill') $('edit').focus();
+    history.replaceState(null, '', target === 'drill' ? '/' : '#docs');
+  });
+});
+if (location.hash === '#docs') {
+  document.querySelector('.tab[data-view="docs"]').click();
+}
+
+loadSentence();
+</script>
+</body>
+</html>

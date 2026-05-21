@@ -100,7 +100,26 @@ const Overworld = {
     if (this.currentMap.exits) {
       for (const exit of this.currentMap.exits) {
         if (nx === exit.x && ny === exit.y) {
+          // Gated exits (e.g. leaving the home town before getting a starter).
+          if (exit.requires === 'starter' && !Game.state.hasStarter) {
+            this.showDialog([
+              'Wait! Don\'t go out yet!',
+              'It\'s dangerous to go without a critter of your own.',
+              'See Prof. Willow at the lab first.',
+            ]);
+            return;
+          }
           this.startTransition(exit.toMap, exit.toX, exit.toY);
+          return;
+        }
+      }
+    }
+
+    // Check for doors (walking into a door enters the building)
+    if (this.currentMap.doors) {
+      for (const door of this.currentMap.doors) {
+        if (nx === door.x && ny === door.y) {
+          this.startTransition(door.toMap, door.toX, door.toY);
           return;
         }
       }
@@ -222,6 +241,7 @@ const Overworld = {
   checkEncounter() {
     const map = this.currentMap;
     if (!map.encounterTable) return false;
+    if (!Game.state.party || Game.state.party.length === 0) return false;
     const tile = this.getTile(this.playerX, this.playerY);
     if (tile !== TILE.GRASS_TALL) return false;
     if (this.repelSteps > 0) {
@@ -242,6 +262,7 @@ const Overworld = {
 
   checkTrainers() {
     if (!this.currentMap.trainers) return;
+    if (!Game.state.party || Game.state.party.length === 0) return;
     for (const trainer of this.currentMap.trainers) {
       if (trainer.defeated) continue;
 

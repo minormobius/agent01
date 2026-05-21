@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>yapchat &mdash; voice-first social on ATProto</title>
+<meta name="description" content="Voice posts on ATProto. Record, transcribe, post. Public read; whitelist write.">
+<meta property="og:title" content="yapchat">
+<meta property="og:description" content="Voice-first social on ATProto.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://airchat.mino.mobi/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030;
+  --rec: #c93030;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --card-bg: #1a1a1a; --rec: #ff5555;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 720px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.7rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.me-strip {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: flex; gap: 0.5rem; align-items: center;
+}
+.me-strip b { color: var(--accent); }
+.me-strip a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+.stage { display: none; }
+.stage.active { display: block; }
+
+input[type="text"], input[type="password"] {
+  padding: 0.7rem 0.9rem; font-family: var(--serif); font-size: 1rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+  width: 100%;
+}
+input:focus { border-color: var(--accent); }
+button {
+  font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg);
+  border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.danger { background: var(--rec); }
+
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.success { background: rgba(42, 122, 42, 0.08); border-left: 3px solid var(--good); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+/* login */
+.login-card { display: flex; flex-direction: column; gap: 0.7rem; max-width: 420px; }
+.login-card label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* typeahead — same pattern as rite surfaces */
+.ta-wrap { position: relative; }
+.ta-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10;
+  max-height: 320px; overflow-y: auto; display: none;
+}
+.ta-results.show { display: block; }
+.ta-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.5rem 0.7rem; cursor: pointer; border-bottom: 1px solid var(--rule);
+}
+.ta-item:last-child { border-bottom: none; }
+.ta-item:hover, .ta-item.active { background: var(--accent-faint); }
+.ta-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.ta-item .info { flex: 1; min-width: 0; }
+.ta-item .dn { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.ta-item .h { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* recorder */
+.recorder {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 1.2rem; margin-bottom: 1.4rem;
+}
+.rec-button {
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+  margin: 0.5rem auto 0.8rem;
+}
+.rec-circle {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: var(--rec); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.85rem; font-family: var(--mono); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  transition: transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(201, 48, 48, 0.3);
+}
+.rec-circle:hover { transform: scale(1.04); }
+.rec-circle:active { transform: scale(0.97); }
+.rec-circle:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.rec-circle.recording { background: var(--bad); animation: pulse 1.2s infinite; }
+.rec-circle.recording::before {
+  content: ''; display: block; width: 28px; height: 28px;
+  background: white; border-radius: 4px;
+}
+.rec-circle:not(.recording)::before {
+  content: ''; display: block; width: 32px; height: 32px;
+  background: white; border-radius: 50%;
+}
+@keyframes pulse { 0%, 100% { box-shadow: 0 4px 12px rgba(201, 48, 48, 0.3); } 50% { box-shadow: 0 4px 28px rgba(201, 48, 48, 0.7); } }
+.rec-time {
+  font-family: var(--mono); font-size: 1.4rem; color: var(--text);
+  font-weight: 700; min-height: 1.6rem;
+}
+.rec-time.warn { color: var(--rec); }
+.rec-hint { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.preview { display: none; margin-top: 1rem; }
+.preview.show { display: block; }
+.preview audio { width: 100%; margin-bottom: 0.7rem; }
+.filter-row {
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
+  margin: 0 0 0.4rem 0;
+}
+.filter-chip {
+  font-family: var(--mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.3rem 0.6rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.filter-chip:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.filter-chip.active {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+.filter-chip:disabled { opacity: 0.4; cursor: wait; }
+
+.speed-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 0.4rem 0;
+}
+.speed-label {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.speed-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.speed-chip {
+  font-family: var(--mono); font-size: 0.7rem; padding: 0.3rem 0.55rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.speed-chip:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.speed-chip.active {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+.speed-chip:disabled { opacity: 0.4; cursor: wait; }
+
+.filter-status {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.4rem; min-height: 0.85em;
+}
+.transcript-box {
+  width: 100%; min-height: 88px; padding: 0.7rem 0.9rem;
+  font-family: var(--serif); font-size: 1rem; line-height: 1.5;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+  resize: vertical;
+}
+.transcript-box:focus { border-color: var(--accent); }
+.transcript-meta {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem;
+  display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+}
+.preview-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; flex-wrap: wrap; }
+.preview-actions button { font-size: 0.8rem; }
+
+/* video export */
+.video-box {
+  margin-top: 0.7rem; padding: 0.7rem 0.85rem;
+  background: var(--accent-faint); border: 1px solid var(--accent);
+  border-radius: 6px; display: none;
+}
+.video-box.show { display: block; }
+.video-box .vlabel {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
+}
+.encoder-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.encoder-label { display: block; margin-bottom: 0.25rem; }
+.music-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.music-label { display: block; margin-bottom: 0.25rem; }
+.music-select {
+  font-family: var(--mono); font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px;
+  margin-right: 0.4rem; min-width: 200px;
+}
+.music-select:focus { border-color: var(--accent); outline: none; }
+.music-row input[type="file"] {
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--text);
+}
+.music-controls {
+  margin-top: 0.4rem;
+  display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
+}
+.music-name {
+  font-family: var(--mono); font-size: 0.7rem;
+  color: var(--accent); text-transform: none; letter-spacing: 0;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.music-vol-label {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-family: var(--mono); font-size: 0.65rem;
+}
+.music-vol-label input[type="range"] { width: 100px; accent-color: var(--accent); }
+.music-clear {
+  font-family: var(--mono); font-size: 0.6rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0.2rem 0.5rem; cursor: pointer;
+}
+.music-clear:hover { color: var(--bad); border-color: var(--bad); }
+.music-import {
+  margin-top: 0.4rem;
+  display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.7rem;
+}
+.music-import input[type="text"] {
+  flex: 1; min-width: 180px;
+  padding: 0.3rem 0.5rem;
+  font-family: var(--mono); font-size: 0.75rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px;
+}
+.music-import input[type="text"]:focus { border-color: var(--accent); outline: none; }
+.music-import button {
+  font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0.3rem 0.6rem;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+}
+.music-import button:hover:not(:disabled) { background: var(--accent-faint); }
+.music-import button:disabled { opacity: 0.5; cursor: wait; }
+.music-import-status {
+  flex-basis: 100%;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: none; letter-spacing: 0;
+  min-height: 0.85em;
+}
+.music-import-status.err { color: var(--bad); }
+.music-import-status.ok  { color: var(--good); }
+
+.bg-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.bg-label { display: block; margin-bottom: 0.25rem; }
+.bg-row input[type="file"] {
+  font-family: var(--mono); font-size: 0.75rem; color: var(--text);
+}
+.bg-hint {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  text-transform: none; letter-spacing: 0; font-style: italic;
+  margin-top: 0.2rem;
+}
+.bg-thumbs {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem;
+}
+.bg-thumb {
+  position: relative; width: 56px; height: 56px; border-radius: 4px;
+  overflow: hidden; border: 1px solid var(--rule); background: #000;
+}
+.bg-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bg-thumb-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; padding: 0; cursor: pointer;
+  background: var(--rec); color: white;
+  border: none; border-radius: 50%;
+  font-size: 12px; font-family: var(--mono); line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.bg-thumb-remove:hover { opacity: 0.85; }
+.video-box .vbar {
+  height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden;
+  margin: 0.3rem 0;
+}
+.video-box .vbar > .vfill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+.video-box .vstatus {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted); min-height: 0.85em;
+}
+.video-box .vlog {
+  font-family: var(--mono); font-size: 0.55rem; color: var(--muted);
+  max-height: 6em; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+  margin-top: 0.3rem; padding: 0.3rem 0.5rem;
+  background: rgba(120, 120, 120, 0.06); border-radius: 3px;
+  display: none;
+}
+.video-box .vlog.show { display: block; }
+.video-box video {
+  width: 100%; max-width: 320px; margin-top: 0.5rem;
+  border-radius: 6px; display: block;
+}
+.video-box .vactions {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem;
+}
+.video-box .vactions a, .video-box .vactions button {
+  font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0.35rem 0.7rem;
+  background: var(--accent); color: var(--bg);
+  border: 1px solid var(--accent); border-radius: 4px;
+  text-decoration: none; cursor: pointer;
+}
+.video-box .vactions a:hover, .video-box .vactions button:hover { opacity: 0.85; }
+
+/* live captions on feed cards */
+.voice-caption {
+  font-family: var(--serif); font-style: italic;
+  background: var(--accent-faint); border-left: 3px solid var(--accent);
+  padding: 0.4rem 0.7rem; border-radius: 0 4px 4px 0;
+  font-size: 0.92rem; line-height: 1.5;
+  color: var(--text);
+  margin-top: 0.2rem; min-height: 1.5em;
+  display: none;
+}
+.voice-caption.show { display: block; }
+
+/* feed */
+.feed-head { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+
+.thread { margin-bottom: 1.2rem; }
+.thread-replies {
+  margin-left: 2rem;
+  border-left: 2px solid var(--rule);
+  padding-left: 1rem;
+  margin-top: 0.3rem;
+}
+.thread-replies .voice-card {
+  background: transparent;
+  border-color: var(--rule);
+}
+.thread-orphan-head {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem;
+  padding: 0.4rem 0.6rem; background: var(--accent-faint); border-radius: 4px;
+  font-style: italic;
+}
+
+.voice-card {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.9rem 1rem; margin-bottom: 0.6rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+.voice-head {
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.voice-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent-faint); object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 0.95rem;
+  color: var(--accent); overflow: hidden;
+}
+.voice-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.voice-id { flex: 1; min-width: 0; }
+.voice-name { font-family: var(--serif); font-weight: 700; color: var(--text); font-size: 0.98rem; line-height: 1.15; }
+.voice-who { font-family: var(--mono); color: var(--accent); font-size: 0.7rem; }
+.voice-meta-line { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.voice-reply-line {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+}
+.voice-reply-line .arrow { color: var(--accent); }
+.voice-audio { width: 100%; }
+.voice-text { color: var(--text); font-size: 1rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+.voice-actions { display: flex; gap: 0.4rem; }
+.voice-actions button {
+  font-size: 0.65rem; padding: 0.3rem 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.06em; background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+}
+.voice-actions button:hover { background: var(--accent-faint); }
+.voice-actions button.danger { color: var(--rec); border-color: var(--rec); }
+.voice-actions button.danger:hover { background: rgba(201, 48, 48, 0.1); }
+
+.feed-load { display: block; margin: 1rem auto 0; }
+
+/* reply banner in recorder */
+.reply-banner {
+  background: var(--accent-faint);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.8rem;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.reply-banner .label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 0.4rem; }
+.reply-banner .target { color: var(--accent); font-weight: 600; }
+.reply-banner .cancel {
+  font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.06em; background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+.reply-banner .cancel:hover { color: var(--accent); border-color: var(--accent); }
+
+footer {
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <div>
+    <h1>yapchat<span class="dot">.</span></h1>
+    <p class="subtitle">Voice posts on ATProto. Tap, talk, transcribe, post.</p>
+  </div>
+  <div class="me-strip" id="me-strip"></div>
+</header>
+
+<main>
+  <!-- Stage 1: login -->
+  <section id="stage-login" class="stage active">
+    <div class="login-card">
+      <label for="handle">Bluesky handle</label>
+      <div class="ta-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ta-results">
+        <div id="ta-results" class="ta-results" role="listbox"></div>
+      </div>
+      <button id="oauth-btn">Sign in with Bluesky</button>
+      <p class="hint">
+        You get redirected to Bluesky to approve yapchat, then back here. We
+        ask for a minimum-privilege scope — the token can only write
+        <code>com.minomobi.airchat.voice</code> records and upload audio
+        blobs to your repo. It cannot post to your bsky feed, follow
+        accounts, send chats, or touch anything else.
+      </p>
+      <p class="hint">
+        Voice posts go to your PDS as <code>com.minomobi.airchat.voice</code> records. Audio is a blob on your repo; the transcript is a string on the record. Reads are public to anyone; writes go through us so you can use Whisper without exposing the key.
+      </p>
+      <p class="hint">
+        Closed alpha — writes are gated to a small whitelist. Reading the feed works for everyone.
+      </p>
+      <div id="login-error" class="error" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- Stage 2: not whitelisted (signed in but no write access) -->
+  <section id="stage-denied" class="stage">
+    <div class="error">
+      You're signed in as <b id="denied-handle"></b>, but writes are gated to a small whitelist right now.
+      You can still browse the feed below. Access opens up as the whitelist grows — DM @minormobius.bsky.social on bsky if you'd like in.
+    </div>
+    <button id="denied-logout" class="ghost" style="margin-top: 0.8rem;">Sign out</button>
+  </section>
+
+  <!-- Stage 3: recorder -->
+  <section id="stage-rec" class="stage">
+    <div class="recorder">
+      <div id="reply-banner" class="reply-banner" style="display:none">
+        <div>
+          <span class="label">↳ Replying to</span>
+          <span class="target" id="reply-target"></span>
+        </div>
+        <button type="button" class="cancel" id="cancel-reply">cancel</button>
+      </div>
+      <div class="rec-button">
+        <button id="rec-circle" class="rec-circle" aria-label="Record"></button>
+        <div class="rec-time" id="rec-time">0:00</div>
+        <div class="rec-hint" id="rec-hint">tap to record · max <span id="rec-cap">90</span>s</div>
+      </div>
+
+      <div class="preview" id="preview">
+        <audio id="preview-audio" controls></audio>
+        <div class="filter-row" id="filter-row"></div>
+        <div class="speed-row">
+          <span class="speed-label">Voice speed</span>
+          <div class="speed-chips" id="speed-chips"></div>
+        </div>
+        <div class="filter-status" id="filter-status"></div>
+        <div class="transcript-meta">
+          <span><span id="transcribe-status">transcribing…</span></span>
+          <span id="transcribe-lang"></span>
+        </div>
+        <textarea id="transcript-box" class="transcript-box" placeholder="Transcript will appear here…" maxlength="4000"></textarea>
+        <div class="preview-actions">
+          <button id="post-btn">Post</button>
+          <button id="video-btn" class="ghost" title="Render a captioned mp4 you can drop into bsky">Make video</button>
+          <button id="redo-btn" class="ghost">Redo</button>
+          <button id="discard-btn" class="ghost">Discard</button>
+        </div>
+        <div id="post-status"></div>
+        <div id="video-box" class="video-box">
+          <div class="vlabel">Captioned video</div>
+          <div class="encoder-row">
+            <label class="encoder-label" for="video-encoder">Encoder</label>
+            <select id="video-encoder" class="music-select">
+              <option value="realtime" selected>Realtime (browser-native, works everywhere)</option>
+              <option value="ffmpeg">ffmpeg.wasm (desktop, higher quality, ~30 MB download)</option>
+            </select>
+          </div>
+          <div class="music-row">
+            <label class="music-label" for="music-source">Background music (optional)</label>
+            <select id="music-source" class="music-select">
+              <option value="">— none —</option>
+              <option value="lib" disabled>library (loading…)</option>
+              <option value="file">upload my own…</option>
+            </select>
+            <input id="music-file" type="file" accept="audio/*" style="display:none">
+            <div class="music-import">
+              <input id="music-import-handle" type="text" placeholder="@handle.bsky.social" autocapitalize="none" spellcheck="false">
+              <button id="music-import-btn" type="button">Import their compositions</button>
+              <span id="music-import-status" class="music-import-status"></span>
+            </div>
+            <div class="music-controls" id="music-controls" style="display:none">
+              <span class="music-name" id="music-name"></span>
+              <label class="music-vol-label">Volume <input id="music-volume" type="range" min="0" max="100" value="25"></label>
+              <button type="button" id="music-clear" class="music-clear">remove</button>
+            </div>
+          </div>
+          <div class="bg-row">
+            <label class="bg-label" for="bg-images-input">Background images (optional, up to 4)</label>
+            <input id="bg-images-input" type="file" accept="image/*" multiple>
+            <div class="bg-hint">rotate equidistantly through the clip with cross-fades</div>
+            <div class="bg-thumbs" id="bg-thumbs"></div>
+          </div>
+          <div class="vbar"><div id="vfill" class="vfill"></div></div>
+          <div id="vstatus" class="vstatus"></div>
+          <pre id="vlog" class="vlog"></pre>
+          <video id="vpreview" controls style="display:none"></video>
+          <div id="vactions" class="vactions" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feed (always shown when authed; sits below recorder, or alone if not signed in) -->
+  <section id="feed-section">
+    <div class="feed-head">Recent voices</div>
+    <div id="feed"></div>
+    <button id="load-more" class="ghost feed-load" style="display:none">Load more</button>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">yapchat &middot; airchat.mino.mobi</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import { FILTERS, applyFilter, applyVoiceSpeed } from './lib/filters.js';
+import { makeCaptionedVideo, makeCaptionedVideoRealtime } from './lib/video.js';
+import { renderComposition, loadBundledIndex, loadBundledComposition, fetchCompositionsByHandle } from './lib/music-render.js';
+
+const $ = (id) => document.getElementById(id);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const MAX_REC_SEC = 90;
+const WARN_REC_SEC = 75;
+
+const state = {
+  me: null,                                  // { did, handle, pds_url } when signed in & whitelisted
+  recording: false,
+  mediaRecorder: null,
+  recordChunks: [],
+  recordStart: 0,
+  recordTimerHandle: null,
+  audioBlob: null,        // current (possibly filtered) blob — what posts
+  audioMime: '',          // mime of audioBlob
+  originalBlob: null,     // unfiltered recording, kept so we can re-filter
+  originalMime: '',       // mime of originalBlob
+  currentFilter: 'none',  // active filter id
+  voiceSpeed: 1,          // 0.75 | 1 | 1.25 | 1.5 | 2 — applied AFTER filter
+  originalDuration: 0,    // recording length BEFORE speed change
+  originalSegments: null, // Whisper segments BEFORE speed change (seconds)
+  transcript: '',
+  segments: null,         // [{ start, end, text }] rescaled for current voiceSpeed
+  musicBlob: null,        // user-supplied background track (optional)
+  musicName: '',
+  musicVolume: 25,        // 0..100, applied as 0..1 gain in ffmpeg amix
+  bgImages: [],           // [{ file, bitmap, name }] — up to 4 background photos
+  importedCompositions: new Map(),  // id → { name, handle, value } from PDS imports
+  duration: 0,
+  detectedLang: null,
+  feedCursor: null,
+  feedItems: [],
+  replyTo: null,                             // { parent_uri, parent_cid, root_uri, root_cid, parent_handle, parent_did }
+  profileCache: new Map(),                   // did → { handle, displayName, avatar }
+};
+
+function showStage(name) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+function showLoginError(msg) { $('login-error').textContent = msg; $('login-error').style.display = 'block'; }
+function clearLoginError() { $('login-error').style.display = 'none'; }
+
+// ─── auth ────────────────────────────────────────────────────────────────
+async function bootstrap() {
+  $('rec-cap').textContent = MAX_REC_SEC;
+  await loadFeed();
+  // Check existing session (cookie may already be set from a prior visit).
+  const wl = await fetch('/api/airchat/whitelist/check').then(r => r.json()).catch(() => ({}));
+  if (wl.authenticated && wl.whitelisted) {
+    state.me = { did: wl.did, handle: wl.handle };
+    renderMe();
+    showStage('rec');
+  } else if (wl.authenticated && !wl.whitelisted) {
+    $('denied-handle').textContent = '@' + wl.handle;
+    showStage('denied');
+  } else {
+    showStage('login');
+  }
+}
+
+function renderMe() {
+  const m = state.me;
+  if (!m) { $('me-strip').innerHTML = ''; return; }
+  $('me-strip').innerHTML = `<b>@${escapeHtml(m.handle)}</b> &middot; <a id="logout-link">sign out</a>`;
+  $('me-strip').querySelector('#logout-link').addEventListener('click', logout);
+}
+
+// ─── typeahead ──────────────────────────────────────────────────────────
+const PUBLIC_BSKY_API = 'https://api.bsky.app';
+const ta = { results: [], active: -1, timer: null, abort: null };
+
+async function fetchTypeahead(q) {
+  const v = q.replace(/^@/, '').trim();
+  if (v.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${PUBLIC_BSKY_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(v)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || [];
+    ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+}
+function renderTypeahead() {
+  const el = $('ta-results');
+  if (!ta.results.length) { el.classList.remove('show'); el.innerHTML = ''; $('handle').setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = ta.results.map((a, i) => `
+    <div class="ta-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info"><div class="dn">${escapeHtml(a.displayName || a.handle)}</div><div class="h">@${escapeHtml(a.handle)}</div></div>
+    </div>`).join('');
+  el.classList.add('show');
+  $('handle').setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const it = el.children[ta.active]; if (it) it.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('ta-results').classList.remove('show'); ta.results = []; ta.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickHandle(h) { $('handle').value = h; hideTypeahead(); }
+
+$('handle').addEventListener('input', () => { clearTimeout(ta.timer); const v = $('handle').value; ta.timer = setTimeout(() => fetchTypeahead(v), 180); });
+$('handle').addEventListener('keydown', (e) => {
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && ta.active >= 0) { e.preventDefault(); pickHandle(ta.results[ta.active].handle); $('oauth-btn').click(); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); pickHandle(ta.results[ta.active].handle); }
+});
+$('ta-results').addEventListener('mousedown', (e) => {
+  // mousedown so we fire before the input's blur hides the dropdown
+  const it = e.target.closest('.ta-item');
+  if (!it) return; e.preventDefault();
+  pickHandle(it.dataset.handle);
+});
+$('handle').addEventListener('blur', () => { setTimeout(hideTypeahead, 120); });
+
+$('oauth-btn').addEventListener('click', async () => {
+  clearLoginError();
+  const handle = $('handle').value.trim();
+  if (!handle) { showLoginError('Bluesky handle required.'); return; }
+  $('oauth-btn').disabled = true;
+  try {
+    const res = await fetch('/api/airchat/auth/oauth/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ handle }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.auth_url) {
+      showLoginError(data.error || `OAuth start failed (${res.status})`);
+      return;
+    }
+    location.href = data.auth_url;
+  } catch (e) {
+    showLoginError('Network error: ' + (e?.message || e));
+  } finally {
+    $('oauth-btn').disabled = false;
+  }
+});
+
+async function logout() {
+  await fetch('/api/airchat/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+  state.me = null;
+  renderMe();
+  showStage('login');
+}
+$('denied-logout').addEventListener('click', logout);
+
+// ─── recording ───────────────────────────────────────────────────────────
+function pickRecorderMime() {
+  // Order of preference: webm/opus (Chrome/Firefox/Edge), mp4 (Safari), ogg.
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for (const m of candidates) if (MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+
+$('rec-circle').addEventListener('click', async () => {
+  if (state.recording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+});
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    const mime = pickRecorderMime();
+    const opts = mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 };
+    const rec = new MediaRecorder(stream, opts);
+    state.recordChunks = [];
+    rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) state.recordChunks.push(e.data); };
+    rec.onstop = () => {
+      // close mic immediately so the browser indicator clears
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(state.recordChunks, { type: rec.mimeType || mime || 'audio/webm' });
+      onRecordingDone(blob, rec.mimeType || mime || 'audio/webm');
+    };
+    rec.start();
+    state.mediaRecorder = rec;
+    state.recording = true;
+    state.recordStart = Date.now();
+    $('rec-circle').classList.add('recording');
+    $('rec-circle').setAttribute('aria-label', 'Stop recording');
+    $('rec-hint').textContent = 'tap to stop';
+    tickRecordTimer();
+    state.recordTimerHandle = setInterval(tickRecordTimer, 250);
+  } catch (e) {
+    alert('Could not start recording: ' + (e?.message || e) + '\nYou may need to allow microphone access.');
+  }
+}
+
+function tickRecordTimer() {
+  const elapsed = (Date.now() - state.recordStart) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  $('rec-time').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  $('rec-time').classList.toggle('warn', elapsed >= WARN_REC_SEC);
+  if (elapsed >= MAX_REC_SEC) stopRecording();
+}
+
+function stopRecording() {
+  if (!state.recording) return;
+  clearInterval(state.recordTimerHandle);
+  state.recordTimerHandle = null;
+  state.mediaRecorder?.stop();
+  state.recording = false;
+  $('rec-circle').classList.remove('recording');
+  $('rec-circle').setAttribute('aria-label', 'Record');
+  $('rec-hint').textContent = 'tap to record · max ' + MAX_REC_SEC + 's';
+}
+
+async function onRecordingDone(blob, mime) {
+  state.audioBlob = blob;
+  state.audioMime = mime;
+  state.originalBlob = blob;
+  state.originalMime = mime;
+  state.currentFilter = 'none';
+  state.voiceSpeed = 1;
+  state.originalDuration = (Date.now() - state.recordStart) / 1000;
+  state.duration = state.originalDuration;
+  $('preview-audio').src = URL.createObjectURL(blob);
+  $('preview').classList.add('show');
+  $('post-status').innerHTML = '';
+  $('transcript-box').value = '';
+  $('transcribe-status').textContent = 'transcribing…';
+  $('transcribe-lang').textContent = '';
+  $('filter-status').textContent = '';
+  renderFilterChips();
+  renderSpeedChips();
+  // Send to worker → Whisper.
+  try {
+    const res = await fetch('/api/airchat/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': mime },
+      credentials: 'include',
+      body: blob,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      $('transcribe-status').textContent = `whisper error · ${data.error || res.status}`;
+      return;
+    }
+    state.transcript = data.text || '';
+    state.detectedLang = data.language || null;
+    // Capture original segments + duration; current state.segments/duration
+    // are rescaled by voiceSpeed (1 right after recording, so == original).
+    state.originalSegments = Array.isArray(data.segments) ? data.segments : null;
+    state.segments = state.originalSegments;
+    if (typeof data.duration === 'number') {
+      state.originalDuration = data.duration;
+      state.duration = data.duration / state.voiceSpeed;
+    }
+    $('transcript-box').value = state.transcript;
+    $('transcribe-status').textContent = `transcribed · ${data.time_ms} ms · ${Math.round((data.audio_bytes||0)/1024)} KB${state.originalSegments ? ' · ' + state.originalSegments.length + ' segments' : ''}`;
+    $('transcribe-lang').textContent = state.detectedLang ? `lang: ${state.detectedLang}` : '';
+  } catch (e) {
+    $('transcribe-status').textContent = 'network error: ' + (e?.message || e);
+  }
+}
+
+// ─── filters ─────────────────────────────────────────────────────────────
+function renderFilterChips() {
+  const row = $('filter-row');
+  row.innerHTML = FILTERS.map((f) => {
+    const active = f.id === state.currentFilter ? ' active' : '';
+    return `<button type="button" class="filter-chip${active}" data-filter="${f.id}" title="${escapeHtml(f.description)}">${escapeHtml(f.label)}</button>`;
+  }).join('');
+  $$('.filter-chip', row).forEach((btn) => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+}
+
+const SPEED_OPTIONS = [
+  { value: 0.75, label: '0.75×' },
+  { value: 1,    label: '1×'    },
+  { value: 1.25, label: '1.25×' },
+  { value: 1.5,  label: '1.5×'  },
+  { value: 2,    label: '2×'    },
+];
+
+function renderSpeedChips() {
+  const row = $('speed-chips');
+  row.innerHTML = SPEED_OPTIONS.map((s) => {
+    const active = Math.abs(s.value - state.voiceSpeed) < 0.001 ? ' active' : '';
+    return `<button type="button" class="speed-chip${active}" data-speed="${s.value}" title="${s.label} voice (pitch preserved)">${s.label}</button>`;
+  }).join('');
+  $$('.speed-chip', row).forEach((btn) => {
+    btn.addEventListener('click', () => setSpeed(Number(btn.dataset.speed)));
+  });
+}
+
+async function setFilter(filterId) {
+  if (filterId === state.currentFilter) return;
+  state.currentFilter = filterId;
+  await reapplyVoicePipeline();
+}
+
+async function setSpeed(speed) {
+  if (Math.abs(speed - state.voiceSpeed) < 0.001) return;
+  state.voiceSpeed = speed;
+  await reapplyVoicePipeline();
+}
+
+// Re-derive state.audioBlob, state.audioMime, state.duration, and
+// state.segments from the unmodified originals + the current filter +
+// speed. Called on every filter/speed change. Both filter and speed
+// re-run from state.originalBlob each time so they don't compound on
+// repeated tweaks.
+async function reapplyVoicePipeline() {
+  if (!state.originalBlob) return;
+  $$('.filter-chip, .speed-chip').forEach((c) => { c.disabled = true; });
+  $('filter-status').textContent = 'processing…';
+  try {
+    let blob = state.originalBlob;
+    let mime = state.originalMime;
+    if (state.currentFilter !== 'none') {
+      blob = await applyFilter(blob, state.currentFilter);
+      mime = 'audio/wav';
+    }
+    if (Math.abs(state.voiceSpeed - 1) > 0.001) {
+      blob = await applyVoiceSpeed(blob, state.voiceSpeed);
+      mime = 'audio/wav';
+    }
+    state.audioBlob = blob;
+    state.audioMime = mime;
+    state.duration = state.originalDuration / state.voiceSpeed;
+    // Captions rescale to the new audio timeline so live captioning +
+    // video captions sync correctly to the sped/slowed voice.
+    state.segments = state.originalSegments
+      ? state.originalSegments.map((s) => ({
+          start: s.start / state.voiceSpeed,
+          end:   s.end   / state.voiceSpeed,
+          text:  s.text,
+        }))
+      : null;
+
+    $('preview-audio').src = URL.createObjectURL(blob);
+    $$('.filter-chip').forEach((c) => c.classList.toggle('active', c.dataset.filter === state.currentFilter));
+    $$('.speed-chip').forEach((c) => c.classList.toggle('active', Math.abs(Number(c.dataset.speed) - state.voiceSpeed) < 0.001));
+
+    const parts = [];
+    if (state.currentFilter !== 'none') parts.push(state.currentFilter);
+    if (Math.abs(state.voiceSpeed - 1) > 0.001) parts.push(state.voiceSpeed + '×');
+    parts.push(`${Math.round(blob.size / 1024)} KB`);
+    parts.push(`${state.duration.toFixed(1)}s`);
+    $('filter-status').textContent = parts.join(' · ');
+  } catch (e) {
+    console.error('voice pipeline error', e);
+    $('filter-status').textContent = 'error: ' + (e?.message || e);
+  } finally {
+    $$('.filter-chip, .speed-chip').forEach((c) => { c.disabled = false; });
+  }
+}
+
+$('redo-btn').addEventListener('click', () => {
+  resetPreview();
+});
+$('discard-btn').addEventListener('click', () => {
+  resetPreview();
+  $('rec-time').textContent = '0:00';
+});
+
+// ─── video export ────────────────────────────────────────────────────────
+const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const VLOG_MAX_LINES = 20;
+const _vlogLines = [];
+function appendVlog(line) {
+  if (!line) return;
+  _vlogLines.push(line);
+  if (_vlogLines.length > VLOG_MAX_LINES) _vlogLines.splice(0, _vlogLines.length - VLOG_MAX_LINES);
+  $('vlog').textContent = _vlogLines.join('\n');
+  $('vlog').classList.add('show');
+  $('vlog').scrollTop = $('vlog').scrollHeight;
+}
+function clearVlog() {
+  _vlogLines.length = 0;
+  $('vlog').textContent = '';
+  $('vlog').classList.remove('show');
+}
+
+$('video-btn').addEventListener('click', async () => {
+  if (!state.audioBlob || !state.duration) return;
+  const text = $('transcript-box').value.trim();
+  // Use the segments returned by Whisper. If absent (e.g. transcribe
+  // failed but user manually typed a transcript), build a single
+  // segment spanning the whole clip — captions still display, just
+  // without word-level timing.
+  let segments = state.segments;
+  if ((!segments || !segments.length) && text) {
+    segments = [{ start: 0, end: state.duration, text }];
+  }
+  segments = (segments || []).filter((s) => s.end > s.start && s.text && s.text.trim());
+  if (!segments.length) {
+    alert('No transcript yet — wait for transcription or type one in.');
+    return;
+  }
+  const encoder = $('video-encoder').value;
+  if (encoder === 'ffmpeg' && IS_MOBILE) {
+    const ok = confirm(
+      'Heads up: ffmpeg.wasm in-browser is heavy (~30 MB download + ~200 MB working memory). ' +
+      'Mobile browsers (iOS Safari especially) sometimes run out of memory or hang. ' +
+      'The realtime encoder is the better choice on phones. Use ffmpeg.wasm anyway?'
+    );
+    if (!ok) { $('video-btn').disabled = false; return; }
+  }
+  $('video-btn').disabled = true;
+  $('video-box').classList.add('show');
+  $('vpreview').style.display = 'none';
+  $('vactions').style.display = 'none';
+  $('vactions').innerHTML = '';
+  clearVlog();
+  $('vstatus').textContent = encoder === 'realtime'
+    ? `encoding in real time (~${Math.ceil(state.duration)}s)…`
+    : 'loading ffmpeg.wasm (first time: ~30 MB download)…';
+  $('vfill').style.width = '0%';
+  try {
+    const me = state.me || {};
+    const encoderFn = encoder === 'ffmpeg' ? makeCaptionedVideo : makeCaptionedVideoRealtime;
+    const blob = await encoderFn({
+      audioBlob: state.audioBlob,
+      audioMime: state.audioMime,
+      segments,
+      duration: state.duration,
+      displayName: me.handle || 'you',
+      handle: me.handle || '',
+      avatarUrl: null,                                 // optional — we don't surface own avatar here yet
+      musicBlob: state.musicBlob,
+      musicName: state.musicName,
+      musicGain: state.musicVolume / 100,             // 0..100 → 0..1 amplitude gain
+      bgImages: state.bgImages.map((b) => b.bitmap),  // 0..4 ImageBitmaps; rotated equidistantly
+      onProgress: (p) => {
+        if (p.stage === 'loading-ffmpeg') $('vstatus').textContent = p.message || 'loading ffmpeg…';
+        else if (p.stage === 'ffmpeg-log') appendVlog(p.message);
+        else if (p.stage === 'loaded')    $('vstatus').textContent = 'ffmpeg loaded; rendering frames…';
+        else if (p.stage === 'rendering') {
+          $('vstatus').textContent = `rendering frames · ${Math.round((p.progress || 0) * 100)}%`;
+          $('vfill').style.width = `${(p.progress || 0) * 50}%`;
+        } else if (p.stage === 'encoding') {
+          $('vstatus').textContent = `encoding mp4 · ${Math.round((p.progress || 0) * 100)}%`;
+          $('vfill').style.width = `${50 + (p.progress || 0) * 50}%`;
+        } else if (p.stage === 'done') {
+          $('vstatus').textContent = `done · ${(p.size / 1024 / 1024).toFixed(2)} MB`;
+          $('vfill').style.width = '100%';
+        }
+      },
+    });
+    const url = URL.createObjectURL(blob);
+    $('vpreview').src = url;
+    $('vpreview').style.display = 'block';
+    const outMime = blob.type || 'video/mp4';
+    const outExt = outMime.includes('mp4') ? 'mp4' : outMime.includes('webm') ? 'webm' : 'bin';
+    const filename = `yapchat-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.${outExt}`;
+    const acts = $('vactions');
+    acts.innerHTML = `
+      <a download="${filename}" href="${url}">Download ${outExt}</a>
+      <button type="button" id="vcopy">Copy to clipboard</button>
+      <button type="button" id="vshare">Share…</button>
+    `;
+    acts.style.display = 'flex';
+    $('vcopy').addEventListener('click', async () => {
+      try {
+        // Chrome 121+ supports ClipboardItem with video MIME types.
+        // The mime in ClipboardItem must match the blob's actual type.
+        await navigator.clipboard.write([new ClipboardItem({ [outMime.split(';')[0]]: blob })]);
+        $('vstatus').textContent = 'copied to clipboard';
+      } catch (e) {
+        $('vstatus').textContent = 'clipboard copy unsupported in this browser — use Download or Share';
+      }
+    });
+    $('vshare').addEventListener('click', async () => {
+      try {
+        const file = new File([blob], filename, { type: outMime });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'yapchat voice', text });
+        } else {
+          $('vstatus').textContent = 'native share unsupported — use Download';
+        }
+      } catch (e) {
+        if (e?.name !== 'AbortError') $('vstatus').textContent = 'share error: ' + (e?.message || e);
+      }
+    });
+  } catch (e) {
+    console.error('video generation failed', e);
+    $('vstatus').textContent = 'error: ' + (e?.message || e);
+  } finally {
+    $('video-btn').disabled = false;
+  }
+});
+function resetPreview() {
+  state.audioBlob = null; state.audioMime = '';
+  state.originalBlob = null; state.originalMime = '';
+  state.currentFilter = 'none';
+  state.voiceSpeed = 1;
+  state.originalDuration = 0; state.originalSegments = null;
+  state.transcript = ''; state.duration = 0; state.segments = null;
+  clearMusic();
+  for (const img of state.bgImages) { try { img.bitmap?.close?.(); } catch {} }
+  state.bgImages = [];
+  if ($('bg-images-input')) $('bg-images-input').value = '';
+  if ($('bg-thumbs')) $('bg-thumbs').innerHTML = '';
+  $('preview').classList.remove('show');
+  $('preview-audio').src = '';
+  $('transcript-box').value = '';
+  $('post-status').innerHTML = '';
+  $('filter-status').textContent = '';
+  $('filter-row').innerHTML = '';
+  $('speed-chips').innerHTML = '';
+  $('video-box').classList.remove('show');
+  $('vpreview').style.display = 'none'; $('vpreview').src = '';
+  $('vactions').style.display = 'none'; $('vactions').innerHTML = '';
+  $('vstatus').textContent = '';
+  $('vfill').style.width = '0%';
+}
+
+// ─── background music for video ──────────────────────────────────────────
+//
+// Three sources, all end at state.musicBlob being a Blob that gets
+// passed to ffmpeg as the background track:
+//   1. none (default)
+//   2. bundled library — fetch a com.minomobi.music.composition JSON
+//      from /compositions/, render it to a WAV via the shared synth.
+//      Same shape as a real ATProto record, so we can later swap the
+//      fetch for a PDS getRecord call without touching the renderer.
+//   3. user upload — file input, any audio/* mime.
+const MAX_MUSIC_BYTES = 25 * 1024 * 1024;                // 25 MB cap
+let _musicLibraryIndex = null;                            // lazy-loaded
+
+function clearMusic() {
+  state.musicBlob = null;
+  state.musicName = '';
+  if ($('music-file')) $('music-file').value = '';
+  if ($('music-source')) $('music-source').value = '';
+  if ($('music-controls')) $('music-controls').style.display = 'none';
+  if ($('music-name')) $('music-name').textContent = '';
+}
+
+async function ensureMusicLibraryLoaded() {
+  if (_musicLibraryIndex) return _musicLibraryIndex;
+  try {
+    _musicLibraryIndex = await loadBundledIndex('/compositions/');
+    const sel = $('music-source');
+    // Drop the "loading…" stub and inject one option per composition.
+    const libOpts = (_musicLibraryIndex.compositions || []).map((c) => {
+      const opt = document.createElement('option');
+      opt.value = 'lib:' + c.id;
+      opt.textContent = c.name + (c.subtitle ? ` · ${c.subtitle}` : '');
+      return opt;
+    });
+    // Remove the disabled placeholder, splice in real options before "file".
+    const placeholder = Array.from(sel.options).find((o) => o.value === 'lib');
+    if (placeholder) placeholder.remove();
+    const fileOpt = Array.from(sel.options).find((o) => o.value === 'file');
+    for (const opt of libOpts) sel.insertBefore(opt, fileOpt);
+    return _musicLibraryIndex;
+  } catch (e) {
+    console.warn('music library load failed', e);
+    return null;
+  }
+}
+
+async function pickFromLibrary(id) {
+  await ensureMusicLibraryLoaded();
+  const entry = (_musicLibraryIndex?.compositions || []).find((c) => c.id === id);
+  if (!entry) throw new Error('unknown composition: ' + id);
+  $('music-controls').style.display = 'flex';
+  $('music-name').textContent = `${entry.name} · rendering…`;
+  const composition = await loadBundledComposition(entry, '/compositions/');
+  // Render via the shared synth. ~50-200ms for a short loop.
+  const wavBlob = await renderComposition(composition);
+  state.musicBlob = wavBlob;
+  state.musicName = entry.name;
+  $('music-name').textContent = `${entry.name} · ${(wavBlob.size / 1024).toFixed(1)} KB (8-bit, rendered)`;
+}
+
+$('music-source').addEventListener('change', async (e) => {
+  const value = e.target.value;
+  if (!value) {                          // "— none —"
+    clearMusic();
+    return;
+  }
+  if (value === 'file') {                // open file picker
+    state.musicBlob = null;
+    state.musicName = '';
+    $('music-controls').style.display = 'none';
+    $('music-file').click();
+    return;
+  }
+  if (value.startsWith('lib:')) {        // bundled composition
+    try {
+      await pickFromLibrary(value.slice(4));
+    } catch (err) {
+      alert('Could not render composition: ' + (err?.message || err));
+      $('music-source').value = '';
+      clearMusic();
+    }
+    return;
+  }
+  if (value.startsWith('remote:')) {     // PDS-imported composition
+    const entry = state.importedCompositions.get(value);
+    if (!entry) { clearMusic(); return; }
+    try {
+      $('music-controls').style.display = 'flex';
+      $('music-name').textContent = `${entry.name} · @${entry.handle} · rendering…`;
+      const wavBlob = await renderComposition(entry.value);
+      state.musicBlob = wavBlob;
+      state.musicName = `${entry.name} (@${entry.handle})`;
+      $('music-name').textContent = `${entry.name} · @${entry.handle} · ${(wavBlob.size / 1024).toFixed(1)} KB (rendered)`;
+    } catch (err) {
+      alert('Could not render composition: ' + (err?.message || err));
+      $('music-source').value = '';
+      clearMusic();
+    }
+  }
+});
+
+$('music-file').addEventListener('change', (e) => {
+  const f = e.target.files?.[0];
+  if (!f) { clearMusic(); return; }
+  if (f.size > MAX_MUSIC_BYTES) {
+    alert(`Music file too large (${(f.size / 1024 / 1024).toFixed(1)} MB > ${MAX_MUSIC_BYTES / 1024 / 1024} MB cap).`);
+    e.target.value = '';
+    return;
+  }
+  state.musicBlob = f;
+  state.musicName = f.name || '';
+  $('music-name').textContent = `${f.name} · ${(f.size / 1024 / 1024).toFixed(2)} MB`;
+  $('music-controls').style.display = 'flex';
+});
+$('music-volume').addEventListener('input', (e) => {
+  state.musicVolume = Number(e.target.value) || 0;
+});
+$('music-clear').addEventListener('click', clearMusic);
+
+// Preload the library index when the page mounts so the dropdown's
+// "loading…" stub gets replaced before the user even opens the video
+// panel.
+ensureMusicLibraryLoaded();
+
+// ─── music import from PDS handle ────────────────────────────────────────
+$('music-import-btn').addEventListener('click', async () => {
+  const handle = $('music-import-handle').value.replace(/^@/, '').trim();
+  if (!handle) return;
+  const statusEl = $('music-import-status');
+  statusEl.className = 'music-import-status';
+  statusEl.textContent = `resolving @${handle}…`;
+  $('music-import-btn').disabled = true;
+  try {
+    const { records } = await fetchCompositionsByHandle(handle);
+    if (!records.length) {
+      statusEl.textContent = `@${handle} has no com.minomobi.music.composition records`;
+      statusEl.className = 'music-import-status err';
+      return;
+    }
+    const sel = $('music-source');
+    const fileOpt = Array.from(sel.options).find((o) => o.value === 'file');
+    let added = 0;
+    for (const rec of records) {
+      const id = 'remote:' + rec.uri;
+      if (state.importedCompositions.has(id)) continue;        // dedupe across imports
+      state.importedCompositions.set(id, {
+        name: rec.value?.name || '(untitled)',
+        handle, value: rec.value, uri: rec.uri,
+      });
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${rec.value?.name || '(untitled)'} · @${handle}`;
+      sel.insertBefore(opt, fileOpt);
+      added++;
+    }
+    statusEl.textContent = `+ ${added} composition${added === 1 ? '' : 's'} from @${handle}${added < records.length ? ` (${records.length - added} already imported)` : ''}`;
+    statusEl.className = 'music-import-status ok';
+  } catch (e) {
+    statusEl.textContent = 'error: ' + (e?.message || e);
+    statusEl.className = 'music-import-status err';
+  } finally {
+    $('music-import-btn').disabled = false;
+  }
+});
+
+// Enter in the import field triggers the button.
+$('music-import-handle').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('music-import-btn').click(); }
+});
+
+// ─── background images ──────────────────────────────────────────────────
+const MAX_BG_IMAGES = 4;
+const MAX_BG_IMAGE_BYTES = 12 * 1024 * 1024;             // 12 MB per image cap
+
+$('bg-images-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []).slice(0, MAX_BG_IMAGES);
+  // Free any old ImageBitmaps before replacing.
+  for (const img of state.bgImages) { try { img.bitmap?.close?.(); } catch {} }
+  state.bgImages = [];
+  for (const file of files) {
+    if (file.size > MAX_BG_IMAGE_BYTES) {
+      alert(`${file.name} too large (${(file.size / 1024 / 1024).toFixed(1)} MB > ${MAX_BG_IMAGE_BYTES / 1024 / 1024} MB cap), skipping.`);
+      continue;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      state.bgImages.push({ file, bitmap, name: file.name });
+    } catch (err) {
+      console.error('bg image decode failed', file.name, err);
+    }
+  }
+  renderBgThumbs();
+  // Reset input so the user can pick the same files again after removing.
+  e.target.value = '';
+});
+
+function renderBgThumbs() {
+  const host = $('bg-thumbs');
+  if (!state.bgImages.length) { host.innerHTML = ''; return; }
+  host.innerHTML = state.bgImages.map((img, i) => `
+    <div class="bg-thumb" data-i="${i}">
+      <img src="${URL.createObjectURL(img.file)}" alt="">
+      <button type="button" class="bg-thumb-remove" data-i="${i}" title="remove">×</button>
+    </div>
+  `).join('');
+  host.querySelectorAll('.bg-thumb-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.i);
+      const removed = state.bgImages.splice(i, 1)[0];
+      try { removed?.bitmap?.close?.(); } catch {}
+      renderBgThumbs();
+    });
+  });
+}
+
+// ─── post ────────────────────────────────────────────────────────────────
+$('post-btn').addEventListener('click', async () => {
+  const text = $('transcript-box').value.trim();
+  if (!state.audioBlob) { $('post-status').innerHTML = '<div class="error">No recording.</div>'; return; }
+  if (!text) { $('post-status').innerHTML = '<div class="error">Transcript is empty. Add one before posting.</div>'; return; }
+  $('post-btn').disabled = true;
+  $('post-status').innerHTML = '<div class="hint">Uploading…</div>';
+  try {
+    const form = new FormData();
+    const ext = state.audioMime.includes('mp4')  ? 'mp4'
+              : state.audioMime.includes('wav')  ? 'wav'
+              : state.audioMime.includes('ogg')  ? 'ogg'
+              : 'webm';
+    form.append('audio', state.audioBlob, 'voice.' + ext);
+    form.append('meta', JSON.stringify({
+      text,
+      duration: state.duration,
+      lang: state.detectedLang ? [state.detectedLang] : null,
+      reply: state.replyTo ? {
+        parent: { uri: state.replyTo.parent_uri, cid: state.replyTo.parent_cid },
+        root:   { uri: state.replyTo.root_uri,   cid: state.replyTo.root_cid },
+      } : null,
+      // Convert Whisper's float-seconds to integer milliseconds for
+      // DAG-CBOR storage. End must beat start; tiny clip-end Whisper
+      // sometimes emits identical floats — drop those.
+      segments: state.segments ? state.segments
+        .map((s) => ({
+          start: Math.round(s.start * 1000),
+          end:   Math.round(s.end * 1000),
+          text:  s.text,
+        }))
+        .filter((s) => s.end > s.start && s.text && s.text.trim())
+        : null,
+    }));
+    const res = await fetch('/api/airchat/post', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const main = data.error || `post failed (${res.status})`;
+      const details = data.details ? `\n\n${data.details}` : '';
+      $('post-status').innerHTML = `<div class="error" style="white-space: pre-wrap;">${escapeHtml(main + details)}</div>`;
+      return;
+    }
+    $('post-status').innerHTML = `<div class="success">Posted ✓ &middot; <a href="${escapeHtml(data.uri)}" style="color: var(--accent);">${escapeHtml(data.rkey)}</a></div>`;
+    // Reset and re-fetch the feed.
+    resetPreview();
+    $('rec-time').textContent = '0:00';
+    cancelReply();
+    await loadFeed();
+  } catch (e) {
+    $('post-status').innerHTML = `<div class="error">Network error: ${escapeHtml(e?.message || String(e))}</div>`;
+  } finally {
+    $('post-btn').disabled = false;
+  }
+});
+
+// ─── feed ────────────────────────────────────────────────────────────────
+async function loadFeed(append = false) {
+  const url = new URL('/api/airchat/feed', location.origin);
+  if (append && state.feedCursor) url.searchParams.set('cursor', state.feedCursor);
+  url.searchParams.set('limit', '25');
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const data = await res.json();
+  if (append) {
+    state.feedItems = state.feedItems.concat(data.items || []);
+  } else {
+    state.feedItems = data.items || [];
+  }
+  state.feedCursor = data.cursor;
+  // First render with placeholders (initials) so the feed is interactive
+  // immediately; then fetch avatars/display names in the background and
+  // re-render once they're in the cache.
+  renderFeed();
+  const dids = Array.from(new Set(state.feedItems.map((v) => v.did).filter(Boolean)));
+  // Include any parent DIDs from reply lines so reply-card "↳ @parent" resolves
+  for (const v of state.feedItems) {
+    if (v.reply?.parent_uri) {
+      const d = didFromAtUri(v.reply.parent_uri);
+      if (d) dids.push(d);
+    }
+  }
+  fetchProfiles(Array.from(new Set(dids))).then(() => renderFeed());
+}
+
+// ─── bsky profile fetch (avatars + display names) ────────────────────────
+async function fetchProfiles(dids) {
+  const need = dids.filter(d => d && !state.profileCache.has(d));
+  if (!need.length) return;
+  // Mark "in-flight" so concurrent renders don't refetch.
+  for (const d of need) state.profileCache.set(d, null);
+  for (let i = 0; i < need.length; i += 25) {
+    const batch = need.slice(i, i + 25);
+    const params = new URLSearchParams();
+    for (const d of batch) params.append('actors', d);
+    try {
+      const res = await fetch(`${PUBLIC_BSKY_API}/xrpc/app.bsky.actor.getProfiles?${params}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const p of (data.profiles || [])) {
+        state.profileCache.set(p.did, {
+          handle: p.handle || null,
+          displayName: p.displayName || null,
+          avatar: p.avatar || null,
+        });
+      }
+    } catch {}
+    // Anything still null after the call = lookup miss; set to {} so we
+    // don't loop forever.
+    for (const d of batch) if (state.profileCache.get(d) === null) state.profileCache.set(d, {});
+  }
+}
+
+function profileFor(did) {
+  const p = state.profileCache.get(did);
+  return (p && typeof p === 'object') ? p : {};
+}
+
+function didFromAtUri(uri) {
+  const m = String(uri || '').match(/^at:\/\/([^/]+)\//);
+  return m ? m[1] : '';
+}
+
+// ─── feed organization: group voices into threads ────────────────────────
+function organizeFeed(items) {
+  // items arrive newest-first. We bucket every voice into its thread by
+  // root_uri (or by self uri if it's a root). Roots that aren't in the
+  // current page show as "orphan" threads (just the replies, with a
+  // pointer to the upstream root URI).
+  const threads = [];                 // [{ root, replies: [], orphanRootUri }]
+  const seenRoots = new Map();        // rootUri → thread index
+
+  for (const v of items) {
+    if (!v.reply) {
+      seenRoots.set(v.uri, threads.length);
+      threads.push({ root: v, replies: [] });
+    }
+  }
+  for (const v of items) {
+    if (!v.reply) continue;
+    const rootUri = v.reply.root_uri;
+    if (seenRoots.has(rootUri)) {
+      threads[seenRoots.get(rootUri)].replies.push(v);
+    } else {
+      seenRoots.set(rootUri, threads.length);
+      threads.push({ root: null, replies: [v], orphanRootUri: rootUri });
+    }
+  }
+  // Within each thread, replies oldest-first (read order)
+  for (const t of threads) t.replies.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+  return threads;
+}
+
+// ─── feed render ─────────────────────────────────────────────────────────
+function renderVoiceCard(v) {
+  const did = v.did || '';
+  const handle = v.handle || profileFor(did).handle || did;
+  const display = profileFor(did).displayName || handle;
+  const avatar = profileFor(did).avatar;
+  const initial = (display || handle || '?').replace(/^@/, '').charAt(0).toUpperCase();
+  const when = (v.created_at || '').slice(0, 16).replace('T', ' ');
+  const dur = v.duration ? Math.round(v.duration) + 's' : '';
+
+  // Reply context line — only on reply cards
+  let replyLine = '';
+  if (v.reply && v.reply.parent_uri) {
+    const parentDid = didFromAtUri(v.reply.parent_uri);
+    const parentHandle = profileFor(parentDid).handle || parentDid;
+    replyLine = `<div class="voice-reply-line"><span class="arrow">↳</span> replying to @${escapeHtml(parentHandle)}</div>`;
+  }
+
+  const avatarHtml = avatar
+    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer">`
+    : escapeHtml(initial);
+
+  return `
+    <div class="voice-card" data-uri="${escapeHtml(v.uri)}">
+      ${replyLine}
+      <div class="voice-head">
+        <div class="voice-avatar">${avatarHtml}</div>
+        <div class="voice-id">
+          <div class="voice-name">${escapeHtml(display)}</div>
+          <div class="voice-who">@${escapeHtml(handle)}</div>
+        </div>
+        <div class="voice-meta-line">${escapeHtml(when)}${dur ? ' · ' + dur : ''}</div>
+      </div>
+      ${v.audio_url ? `<audio class="voice-audio" controls preload="none" src="${escapeHtml(v.audio_url)}" data-uri="${escapeHtml(v.uri)}"></audio>` : ''}
+      ${v.segments && v.segments.length ? `<div class="voice-caption" data-for="${escapeHtml(v.uri)}"></div>` : ''}
+      <div class="voice-text">${escapeHtml(v.text || '')}</div>
+      ${state.me ? `<div class="voice-actions">
+        <button type="button" class="reply-btn" data-uri="${escapeHtml(v.uri)}">Reply</button>
+        ${state.me.did === did ? `<button type="button" class="delete-btn danger" data-uri="${escapeHtml(v.uri)}">Delete</button>` : ''}
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function renderFeed() {
+  const host = $('feed');
+  if (!state.feedItems.length) {
+    host.innerHTML = `<div class="hint">No voice posts yet. Be the first.</div>`;
+    $('load-more').style.display = 'none';
+    return;
+  }
+  const threads = organizeFeed(state.feedItems);
+  host.innerHTML = threads.map((t) => {
+    const rootHtml = t.root
+      ? renderVoiceCard(t.root)
+      : `<div class="thread-orphan-head">↳ replies to a thread above</div>`;
+    const repliesHtml = t.replies.length
+      ? `<div class="thread-replies">${t.replies.map(renderVoiceCard).join('')}</div>`
+      : '';
+    return `<div class="thread">${rootHtml}${repliesHtml}</div>`;
+  }).join('');
+  $('load-more').style.display = state.feedCursor ? 'block' : 'none';
+
+  // Wire reply + delete buttons (explicit is fine at this scale).
+  host.querySelectorAll('.reply-btn').forEach((btn) => {
+    btn.addEventListener('click', () => startReply(btn.dataset.uri));
+  });
+  host.querySelectorAll('.delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => deleteOwn(btn.dataset.uri));
+  });
+  // Live captions: when an audio element plays, find the matching voice
+  // by uri, look up the active segment for the current playback time,
+  // render into the sibling .voice-caption box. Segments are integer
+  // milliseconds on the feed payload; audio.currentTime is float seconds.
+  host.querySelectorAll('audio.voice-audio').forEach((audio) => {
+    const uri = audio.dataset.uri;
+    const v = state.feedItems.find((x) => x.uri === uri);
+    if (!v || !v.segments || !v.segments.length) return;
+    const captionBox = host.querySelector(`.voice-caption[data-for="${CSS.escape(uri)}"]`);
+    if (!captionBox) return;
+    let lastIdx = -1;
+    audio.addEventListener('play', () => captionBox.classList.add('show'));
+    audio.addEventListener('pause', () => {/* leave visible so they can read */});
+    audio.addEventListener('ended', () => {/* leave visible */});
+    audio.addEventListener('timeupdate', () => {
+      const tMs = audio.currentTime * 1000;
+      // Find the active segment. Cheap linear scan — fine at <500 segments.
+      const idx = v.segments.findIndex((s) => tMs >= s.start && tMs < s.end);
+      if (idx === lastIdx) return;
+      lastIdx = idx;
+      if (idx === -1) { captionBox.textContent = ''; return; }
+      captionBox.textContent = v.segments[idx].text;
+      captionBox.classList.add('show');
+    });
+  });
+}
+
+async function deleteOwn(uri) {
+  if (!confirm('Delete this voice post? Removes it from your PDS too — can\'t be undone.')) return;
+  try {
+    const res = await fetch(`/api/airchat/voice?uri=${encodeURIComponent(uri)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert('Delete failed: ' + (data.error || `http ${res.status}`));
+      return;
+    }
+    // Drop locally and re-render. If it was the parent of an in-progress
+    // reply, also cancel the reply (its parent is gone).
+    if (state.replyTo && (state.replyTo.parent_uri === uri || state.replyTo.root_uri === uri)) {
+      cancelReply();
+    }
+    state.feedItems = state.feedItems.filter((v) => v.uri !== uri);
+    renderFeed();
+  } catch (e) {
+    alert('Network error: ' + (e?.message || e));
+  }
+}
+
+// ─── reply ───────────────────────────────────────────────────────────────
+function startReply(uri) {
+  const v = state.feedItems.find((x) => x.uri === uri);
+  if (!v) return;
+  // If the target is itself a reply, inherit its root. Otherwise the
+  // target IS the root.
+  const root = v.reply
+    ? { uri: v.reply.root_uri, cid: v.reply.root_cid }
+    : { uri: v.uri, cid: v.cid };
+  const parent = { uri: v.uri, cid: v.cid };
+  if (!root.cid || !parent.cid) {
+    alert("Can't reply: missing CID for the parent. (Re-deploy may be in progress; try again in a minute.)");
+    return;
+  }
+  state.replyTo = {
+    parent_uri: parent.uri, parent_cid: parent.cid,
+    root_uri: root.uri,     root_cid: root.cid,
+    parent_handle: v.handle || didFromAtUri(v.uri),
+    parent_did: v.did,
+  };
+  $('reply-target').textContent = '@' + state.replyTo.parent_handle;
+  $('reply-banner').style.display = 'flex';
+  // Scroll to recorder so the user sees the banner + record button.
+  document.querySelector('#stage-rec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelReply() {
+  state.replyTo = null;
+  $('reply-banner').style.display = 'none';
+  $('reply-target').textContent = '';
+}
+$('cancel-reply').addEventListener('click', cancelReply);
+
+$('load-more').addEventListener('click', () => loadFeed(true));
+
+// ─── go ──────────────────────────────────────────────────────────────────
+bootstrap();
+</script>
+</body>
+</html>

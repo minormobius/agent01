@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>web &mdash; outbound link knowledge graph</title>
+<meta name="description" content="The graph of outbound links from a Bluesky writer. PageRank over co-occurrence; query to surface a neighborhood.">
+<meta property="og:title" content="web">
+<meta property="og:description" content="Outbound link graph. Query → personalized PageRank.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/web/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a; --bad: #a03030;
+  --card-bg: #fff;
+  --node-fill: #c97070;
+  --edge: rgba(139, 0, 0, 0.18);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a; --bad: #d07070; --card-bg: #1a1a1a;
+    --node-fill: #c97070;
+    --edge: rgba(201, 112, 112, 0.22);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 17px; line-height: 1.55; padding: 1.5rem 1rem 4rem; min-height: 100vh; }
+.wrap { max-width: 1200px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.stage { display: none; }
+.stage.active { display: block; }
+form#handle-form { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+input[type="text"] {
+  flex: 1; min-width: 240px; padding: 0.7rem 0.9rem;
+  font-family: var(--serif); font-size: 1rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px; outline: none;
+}
+input:focus { border-color: var(--accent); }
+button {
+  font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem; background: var(--accent); color: var(--bg);
+  border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.hint { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.error { background: rgba(160, 48, 48, 0.08); border-left: 3px solid var(--bad); padding: 0.7rem 1rem; border-radius: 0 4px 4px 0; font-size: 0.95rem; margin-top: 0.7rem; }
+
+.typeahead-wrap { position: relative; flex: 1; min-width: 240px; }
+.typeahead-wrap #handle { width: 100%; flex: initial; min-width: 0; }
+.typeahead-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 10;
+  max-height: 360px; overflow-y: auto; display: none;
+}
+.typeahead-results.show { display: block; }
+.typeahead-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.5rem 0.7rem; cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-faint); }
+.typeahead-item .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.typeahead-item .at-handle { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.loading { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); font-style: italic; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--accent-faint); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar { height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.7rem; }
+.progress-bar > .fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+
+.profile-strip {
+  font-family: var(--mono); font-size: 0.75rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 0.7rem;
+  display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center;
+}
+.profile-strip b { color: var(--accent); }
+
+.toolbar {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;
+  margin-bottom: 0.8rem;
+}
+.toolbar input[type="text"] { padding: 0.55rem 0.7rem; font-size: 0.95rem; }
+.toolbar label {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  cursor: pointer; padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--card-bg);
+}
+.toolbar label.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.toolbar input[type="checkbox"] { margin: 0; accent-color: var(--accent); }
+
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 800px) { .panes { grid-template-columns: 1fr; } }
+
+.graph-pane {
+  border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--card-bg); position: relative;
+  overflow: hidden;
+}
+.graph-pane svg { display: block; width: 100%; height: 600px; touch-action: none; cursor: grab; }
+.graph-pane svg.dragging { cursor: grabbing; }
+.graph-empty { padding: 2rem 1rem; text-align: center; color: var(--muted); font-style: italic; }
+.layout-status {
+  position: absolute; top: 0.5rem; left: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  background: var(--card-bg); padding: 0.15rem 0.4rem; border-radius: 3px;
+  border: 1px solid var(--rule);
+  pointer-events: none;
+}
+
+.side-pane {
+  border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--card-bg);
+  display: flex; flex-direction: column;
+  max-height: 600px;
+}
+.side-head {
+  padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.side-head b { color: var(--text); }
+.side-body { padding: 0.5rem 0.7rem; overflow-y: auto; flex: 1; }
+.rank-row {
+  display: flex; gap: 0.5rem; align-items: baseline;
+  padding: 0.35rem 0; border-bottom: 1px dashed var(--rule);
+  font-size: 0.85rem;
+}
+.rank-row:last-child { border-bottom: none; }
+.rank-row .rank-num {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  min-width: 1.4rem; text-align: right;
+}
+.rank-row .rank-link {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rank-row .rank-link a { color: var(--text); text-decoration: none; }
+.rank-row .rank-link a:hover { color: var(--accent); text-decoration: underline; }
+.rank-row .rank-domain { color: var(--accent); }
+.rank-row .rank-pr {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  min-width: 3rem; text-align: right;
+}
+.rank-row.match .rank-num { color: var(--accent); font-weight: bold; }
+.rank-row.selected { background: var(--accent-faint); border-radius: 3px; padding-left: 0.3rem; padding-right: 0.3rem; }
+
+.detail {
+  padding: 0.5rem 0.7rem;
+  border-top: 1px solid var(--rule);
+  background: var(--accent-faint);
+  font-size: 0.85rem;
+}
+.detail .det-url {
+  font-family: var(--mono); font-size: 0.78rem; word-break: break-all;
+  color: var(--accent);
+}
+.detail .det-url a { color: inherit; text-decoration: none; }
+.detail .det-url a:hover { text-decoration: underline; }
+.detail .det-meta {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-top: 0.3rem;
+}
+.detail .det-anchors {
+  margin-top: 0.4rem; font-style: italic; line-height: 1.4;
+}
+.detail .det-anchors .anchor-q {
+  display: block; margin-top: 0.2rem; padding-left: 0.6rem;
+  border-left: 2px solid var(--accent);
+  color: var(--text);
+}
+.detail .det-neighbors {
+  margin-top: 0.5rem; font-size: 0.78rem;
+}
+.detail .det-neighbors .nb {
+  display: inline-block; margin-right: 0.4rem;
+  color: var(--accent); cursor: pointer;
+}
+.detail .det-neighbors .nb:hover { text-decoration: underline; }
+
+footer {
+  margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+
+/* SVG node + edge styling done inline. */
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>web<span class="dot">.</span></h1>
+  <p class="subtitle">The graph of where a writer points outward. PageRank over co-occurrence; query to surface a neighborhood.</p>
+</header>
+
+<main>
+  <section id="stage-input" class="stage active">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="bluesky handle (e.g. minomobi.com)" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
+      <button type="submit">Build graph</button>
+    </form>
+    <p class="hint" style="text-align:left">
+      Pulls a writer's repo, extracts every external link from post facets (skipping bsky.app / *.bsky.social), and builds a co-occurrence graph: two URLs share an edge whenever they appear in the same thread. PageRank ranks the most central links. The search box runs <em>personalized</em> PageRank seeded on URLs whose domain or anchor text matches your query &mdash; the top results are the URLs the writer connects most strongly to that idea.
+      <br><br>
+      Best for writers who link out a lot. Sparse linkers will see a sparse, less interesting graph.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <section id="stage-loading" class="stage">
+    <div class="loading"><div class="spinner"></div><p id="progress-text">Loading&hellip;</p></div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <section id="stage-graph" class="stage">
+    <div class="profile-strip" id="profile-strip"></div>
+
+    <div class="toolbar">
+      <input id="query" type="text" placeholder="search domain, anchor, link card title, or post text&hellip;" style="flex: 1; min-width: 200px;">
+      <label id="rollup-label" class="active"><input type="checkbox" id="rollup" checked> domain rollup</label>
+      <button class="ghost" id="restart-btn" type="button">New handle</button>
+    </div>
+
+    <div class="panes">
+      <div class="graph-pane">
+        <svg id="graph-svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet">
+          <g id="edges-layer"></g>
+          <g id="nodes-layer"></g>
+        </svg>
+        <div class="layout-status" id="layout-status"></div>
+        <div class="graph-empty" id="graph-empty" style="display:none">No external links found in this profile&apos;s posts.</div>
+      </div>
+      <div class="side-pane">
+        <div class="side-head" id="side-head">Top by PageRank</div>
+        <div class="side-body" id="side-body"></div>
+        <div class="detail" id="detail" style="display:none"></div>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top: 1rem;">
+      Drag to pan, scroll to zoom. Click a node to inspect its anchor texts and neighbors. Multi-CAR indices &mdash; the union of many writers&apos; outbound webs &mdash; on the roadmap.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/list/">/list/</a> &middot; <a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/redact/">/redact/</a> &middot; <a href="/ask/">/ask/</a> &middot; <a href="/signal/">/signal/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import { pullProfile, buildThreadChains } from '../lib/atproto/index.js';
+import { makePanZoom } from '../lib/pan-zoom.js';
+
+const $ = (id) => document.getElementById(id);
+
+// Hosts we treat as "internal" to Bluesky and therefore not part of the
+// outbound web. Includes any *.bsky.social handle subdomain.
+const INTERNAL_HOSTS = new Set([
+  'bsky.app', 'staging.bsky.app', 'main.bsky.dev',
+  'bsky.social', 'bsky.network',
+]);
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'ref', 'ref_src', 'mc_cid', 'mc_eid',
+]);
+
+const state = {
+  did: null,
+  handle: null,
+  links: [],          // [{ uri, anchor, postUri, threadIdx }]
+  nodes: [],          // [{ id, uri, domain, isDomain, anchors: [], postUris: Set, count }]
+  edges: [],          // [a, b, weight]
+  pos: [],            // [{x, y}] parallel to nodes
+  pr: [],             // current PageRank (uniform or personalized)
+  selectedIdx: null,
+  rollupDomain: true,    // default ON — single-URL noise (poll.mino.mobi/foo/123, /bar/456) crowds out real co-occurrence patterns; the domain view is the more honest read.
+  query: '',
+  matchSet: new Set(),
+  panZoom: null,
+};
+
+// ─── stage helpers ───────────────────────────────────────────────────────
+function showStage(name) { document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name)); }
+function setProgress(text, frac) {
+  $('progress-text').textContent = text;
+  if (typeof frac === 'number') $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%';
+}
+function showError(msg) { $('input-error').textContent = msg; $('input-error').style.display = 'block'; }
+function clearError() { $('input-error').style.display = 'none'; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+// ─── link extraction ─────────────────────────────────────────────────────
+//
+// Bluesky stores rich-text annotations in `record.facets`, each with
+// `index.byteStart/byteEnd` over the UTF-8 encoding of `text` and a list of
+// `features`. We only care about `app.bsky.richtext.facet#link` features.
+// The anchor text is the slice of bytes the facet covers, decoded back to
+// a string. We preserve byte-accurate slicing to match how the Bluesky
+// client renders these.
+function extractLinksFromPost(post, threadIdx) {
+  const out = [];
+  const r = post.record;
+  if (!r) return out;
+  const text = (r.text || '').trim();
+  const postText = text.length > 280 ? text.slice(0, 280) + '…' : text;
+  const facets = r.facets || [];
+  const textBytes = facets.length ? new TextEncoder().encode(text) : null;
+  const decoder = textBytes ? new TextDecoder() : null;
+
+  // Bluesky stores rich-text annotations in `record.facets`, each with
+  // `index.byteStart/byteEnd` over the UTF-8 encoding of `text` and a list of
+  // `features`. We pick `app.bsky.richtext.facet#link` features and slice
+  // the anchor text by byte range. App.bsky.embed.external posts also
+  // contribute a link with the card's title + description.
+  for (const f of facets) {
+    for (const feat of (f.features || [])) {
+      if (feat.$type !== 'app.bsky.richtext.facet#link') continue;
+      const uri = feat.uri;
+      if (!uri) continue;
+      let anchor = '';
+      if (textBytes && f.index) {
+        const s = f.index.byteStart || 0;
+        const e = f.index.byteEnd || s;
+        try { anchor = decoder.decode(textBytes.slice(s, e)); } catch { anchor = ''; }
+      }
+      out.push({ uri, anchor, title: '', description: '', postText, postUri: post.uri, threadIdx });
+    }
+  }
+  if (r.embed?.$type === 'app.bsky.embed.external' && r.embed.external?.uri) {
+    const ext = r.embed.external;
+    out.push({
+      uri: ext.uri,
+      anchor: '',
+      title: ext.title || '',
+      description: ext.description || '',
+      postText,
+      postUri: post.uri,
+      threadIdx,
+    });
+  }
+  return out;
+}
+
+function isInternalUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return true;
+    const host = u.hostname.toLowerCase();
+    if (INTERNAL_HOSTS.has(host)) return true;
+    if (host.endsWith('.bsky.social')) return true;
+    if (host.endsWith('.bsky.app')) return true;
+    return false;
+  } catch { return true; }
+}
+
+function canonicalize(url) {
+  try {
+    const u = new URL(url);
+    u.hostname = u.hostname.toLowerCase();
+    if (u.hostname.startsWith('www.')) u.hostname = u.hostname.slice(4);
+    u.hash = '';
+    const drop = [];
+    for (const k of u.searchParams.keys()) {
+      if (TRACKING_PARAMS.has(k) || k.startsWith('utm_')) drop.push(k);
+    }
+    for (const k of drop) u.searchParams.delete(k);
+    let s = u.toString();
+    // Strip lone trailing slash on root paths only ("https://x.com/" → "https://x.com").
+    s = s.replace(/\/$/, '');
+    return s;
+  } catch { return url; }
+}
+
+function domainOf(url) {
+  try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ''); }
+  catch { return url; }
+}
+
+// ─── graph build ─────────────────────────────────────────────────────────
+//
+// Two modes:
+//   urlMode    — every distinct external URL is a node. Edges = thread co-occurrence.
+//   domainMode — every distinct domain is a node. Edges = thread co-occurrence.
+// Edge weight is the number of distinct threads in which both nodes appear.
+//
+// A thread for this purpose is a reply/quote chain (via shared
+// buildThreadChains). Solo posts are length-1 chains; a single-link solo
+// post produces a node with no edges. PageRank still ranks it via teleport.
+function buildGraph(links, { rollupDomain }) {
+  const idOf = rollupDomain
+    ? (l) => domainOf(l.uri)
+    : (l) => canonicalize(l.uri);
+
+  const nodeMap = new Map();
+  for (const l of links) {
+    const id = idOf(l);
+    if (!nodeMap.has(id)) {
+      nodeMap.set(id, {
+        id,
+        uri: rollupDomain ? `https://${id}` : canonicalize(l.uri),
+        domain: domainOf(l.uri),
+        isDomain: rollupDomain,
+        anchors: new Map(),
+        titles: new Map(),
+        descriptions: new Set(),
+        postSnippets: new Set(),
+        postUris: new Set(),
+        count: 0,
+        searchBlob: '',  // pre-lowercased haystack, built once below
+      });
+    }
+    const n = nodeMap.get(id);
+    n.count++;
+    if (l.postUri) n.postUris.add(l.postUri);
+    const a = (l.anchor || '').trim();
+    if (a) n.anchors.set(a, (n.anchors.get(a) || 0) + 1);
+    const t = (l.title || '').trim();
+    if (t) n.titles.set(t, (n.titles.get(t) || 0) + 1);
+    const d = (l.description || '').trim();
+    if (d) n.descriptions.add(d);
+    const pt = (l.postText || '').trim();
+    if (pt) n.postSnippets.add(pt);
+  }
+  // Build per-node lowercase search haystack: domain + URL + every anchor +
+  // every link-card title + every description + every post snippet. This
+  // covers writers who paste raw URLs (anchor === URL → mostly useless for
+  // search) AND writers who share rich-preview cards (title + description
+  // carry the real signal). When the link is buried in a meaty post, the
+  // snippet catches that too.
+  for (const n of nodeMap.values()) {
+    const parts = [n.id, n.uri, n.domain];
+    for (const a of n.anchors.keys()) parts.push(a);
+    for (const t of n.titles.keys()) parts.push(t);
+    for (const d of n.descriptions) parts.push(d);
+    for (const s of n.postSnippets) parts.push(s);
+    n.searchBlob = parts.join('\n').toLowerCase();
+  }
+  const nodes = Array.from(nodeMap.values());
+  const idIdx = new Map(nodes.map((n, i) => [n.id, i]));
+
+  // Group link instances by thread, then add edges between every pair of
+  // distinct node-ids that appear together in that thread.
+  const linksByThread = new Map();
+  for (const l of links) {
+    const key = l.threadIdx;
+    if (!linksByThread.has(key)) linksByThread.set(key, []);
+    linksByThread.get(key).push(idOf(l));
+  }
+  const edgeWeight = new Map(); // "a|b" (a < b) → weight
+  for (const ids of linksByThread.values()) {
+    const uniq = Array.from(new Set(ids));
+    if (uniq.length < 2) continue;
+    for (let i = 0; i < uniq.length; i++) {
+      for (let j = i + 1; j < uniq.length; j++) {
+        const a = idIdx.get(uniq[i]);
+        const b = idIdx.get(uniq[j]);
+        if (a == null || b == null) continue;
+        const k = a < b ? `${a}|${b}` : `${b}|${a}`;
+        edgeWeight.set(k, (edgeWeight.get(k) || 0) + 1);
+      }
+    }
+  }
+  const edges = [];
+  for (const [k, w] of edgeWeight) {
+    const [a, b] = k.split('|').map(Number);
+    edges.push([a, b, w]);
+  }
+  return { nodes, edges };
+}
+
+// ─── PageRank ────────────────────────────────────────────────────────────
+//
+// Standard power iteration. teleport=null gives uniform PR (raw centrality).
+// Pass a sparse seed array (length N, nonzero on matched nodes) for
+// personalized PR — convergence is as fast as uniform; the result skews
+// toward nodes well-connected to the seed set.
+function pageRank(N, edges, opts = {}) {
+  const { damping = 0.85, iters = 30, teleport = null } = opts;
+  if (!N) return [];
+  const adj = Array.from({ length: N }, () => []);
+  const totalWeight = new Array(N).fill(0);
+  for (const [a, b, w] of edges) {
+    adj[a].push([b, w]);
+    adj[b].push([a, w]);
+    totalWeight[a] += w;
+    totalWeight[b] += w;
+  }
+  let tel;
+  if (teleport) {
+    const sum = teleport.reduce((s, x) => s + x, 0);
+    tel = sum > 0 ? teleport.map(x => x / sum) : new Array(N).fill(1 / N);
+  } else {
+    tel = new Array(N).fill(1 / N);
+  }
+  let pr = new Array(N).fill(1 / N);
+  for (let it = 0; it < iters; it++) {
+    let danglingMass = 0;
+    for (let i = 0; i < N; i++) if (totalWeight[i] === 0) danglingMass += pr[i];
+    const next = new Array(N).fill(0);
+    for (let i = 0; i < N; i++) {
+      let inflow = 0;
+      for (const [j, w] of adj[i]) {
+        if (totalWeight[j] > 0) inflow += pr[j] * (w / totalWeight[j]);
+      }
+      next[i] = (1 - damping) * tel[i] + damping * (inflow + danglingMass * tel[i]);
+    }
+    pr = next;
+  }
+  return pr;
+}
+
+// ─── force-directed layout ───────────────────────────────────────────────
+//
+// Fruchterman-Reingold over O(N²) repulsion. Plenty fast for typical
+// outbound-web sizes (~50–500 nodes). We yield to the event loop every
+// few iterations so the spinner can repaint.
+async function fruchtermanReingold(nodes, edges, { width, height, iters, onTick }) {
+  const N = nodes.length;
+  if (!N) return [];
+  // Layout in a virtual coordinate space (no hard walls); rescale to fit
+  // the viewport once the cloud has settled. Hard-clamping during
+  // iteration was pinning every node to the boundary on profiles where
+  // repulsion outran attraction, producing the dreaded "red rectangle".
+  const LW = width, LH = height;
+  const area = LW * LH;
+  const k = Math.sqrt(area / Math.max(1, N));
+  const cx = LW / 2, cy = LH / 2;
+
+  // Weak gravity toward center. Replaces the hard-wall clamp: instead of
+  // forbidding nodes from leaving the frame, we just give every node a
+  // pull proportional to its distance from center. Disconnected components
+  // and degree-1 nodes don't fly off into the void; the cloud stays bound
+  // without pinning anyone to a wall.
+  const gravity = 0.03;
+
+  const pos = nodes.map((_, i) => {
+    const angle = (i / N) * Math.PI * 2;
+    const r = 0.25 * Math.min(LW, LH);
+    return {
+      x: cx + r * Math.cos(angle) + (Math.random() - 0.5) * 30,
+      y: cy + r * Math.sin(angle) + (Math.random() - 0.5) * 30,
+    };
+  });
+  let temp = Math.min(LW, LH) / 8;
+  const cooling = Math.pow(0.01, 1 / iters);
+
+  for (let it = 0; it < iters; it++) {
+    const disp = nodes.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        let dx = pos[i].x - pos[j].x;
+        let dy = pos[i].y - pos[j].y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 0.01) { dx = (Math.random() - 0.5) * 0.1; dy = (Math.random() - 0.5) * 0.1; d2 = dx * dx + dy * dy + 0.01; }
+        const d = Math.sqrt(d2);
+        const force = (k * k) / d;
+        const fx = (dx / d) * force;
+        const fy = (dy / d) * force;
+        disp[i].x += fx; disp[i].y += fy;
+        disp[j].x -= fx; disp[j].y -= fy;
+      }
+    }
+    for (const [a, b, w] of edges) {
+      const dx = pos[a].x - pos[b].x;
+      const dy = pos[a].y - pos[b].y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const force = (d * d) / k * Math.sqrt(w);
+      const fx = (dx / d) * force;
+      const fy = (dy / d) * force;
+      disp[a].x -= fx; disp[a].y -= fy;
+      disp[b].x += fx; disp[b].y += fy;
+    }
+    for (let i = 0; i < N; i++) {
+      disp[i].x -= (pos[i].x - cx) * gravity;
+      disp[i].y -= (pos[i].y - cy) * gravity;
+    }
+    for (let i = 0; i < N; i++) {
+      const d = Math.sqrt(disp[i].x ** 2 + disp[i].y ** 2) || 0.01;
+      pos[i].x += (disp[i].x / d) * Math.min(d, temp);
+      pos[i].y += (disp[i].y / d) * Math.min(d, temp);
+    }
+    temp *= cooling;
+    if (onTick && (it % 5 === 0 || it === iters - 1)) {
+      onTick(it + 1, iters);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  // Fit-to-viewport: bounding box → scale + center into the SVG frame
+  // with a small inset so labels and large nodes don't clip.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of pos) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  const pad = 50;
+  const rangeX = Math.max(1, maxX - minX);
+  const rangeY = Math.max(1, maxY - minY);
+  const scale = Math.min((LW - pad * 2) / rangeX, (LH - pad * 2) / rangeY);
+  const ox = pad + (LW - pad * 2 - rangeX * scale) / 2 - minX * scale;
+  const oy = pad + (LH - pad * 2 - rangeY * scale) / 2 - minY * scale;
+  for (const p of pos) {
+    p.x = p.x * scale + ox;
+    p.y = p.y * scale + oy;
+  }
+  return pos;
+}
+
+// ─── render ──────────────────────────────────────────────────────────────
+const SVG_W = 1200, SVG_H = 600;
+
+function nodeRadius(n, prVal) {
+  // Min 4, scale with sqrt(PR) up to ~22.
+  const base = 4 + 18 * Math.sqrt(Math.max(0, prVal * state.nodes.length));
+  return Math.max(3, Math.min(22, base));
+}
+
+function nodeColor(idx) {
+  const n = state.nodes[idx];
+  const inMatch = state.matchSet.has(idx);
+  if (inMatch) return 'var(--accent)';
+  // Darken slightly for non-match. Use accent at lower opacity → just use node-fill.
+  return 'var(--node-fill)';
+}
+
+function renderGraph() {
+  const edgeLayer = $('edges-layer');
+  const nodeLayer = $('nodes-layer');
+  edgeLayer.innerHTML = '';
+  nodeLayer.innerHTML = '';
+  if (!state.nodes.length) {
+    $('graph-empty').style.display = 'block';
+    return;
+  }
+  $('graph-empty').style.display = 'none';
+
+  // Edges first so nodes draw on top.
+  const maxEdgeW = state.edges.reduce((m, [, , w]) => Math.max(m, w), 1);
+  const edgeFrag = document.createDocumentFragment();
+  for (const [a, b, w] of state.edges) {
+    const pa = state.pos[a], pb = state.pos[b];
+    if (!pa || !pb) continue;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', pa.x.toFixed(1));
+    line.setAttribute('y1', pa.y.toFixed(1));
+    line.setAttribute('x2', pb.x.toFixed(1));
+    line.setAttribute('y2', pb.y.toFixed(1));
+    line.setAttribute('stroke', 'var(--edge)');
+    line.setAttribute('stroke-width', (0.4 + 1.6 * Math.sqrt(w / maxEdgeW)).toFixed(2));
+    line.setAttribute('stroke-linecap', 'round');
+    edgeFrag.appendChild(line);
+  }
+  edgeLayer.appendChild(edgeFrag);
+
+  // Nodes
+  const nodeFrag = document.createDocumentFragment();
+  for (let i = 0; i < state.nodes.length; i++) {
+    const n = state.nodes[i];
+    const p = state.pos[i];
+    if (!p) continue;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'node');
+    g.setAttribute('data-idx', i);
+    g.style.cursor = 'pointer';
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', p.x.toFixed(1));
+    circle.setAttribute('cy', p.y.toFixed(1));
+    const r = nodeRadius(n, state.pr[i] || 0);
+    circle.setAttribute('r', r.toFixed(1));
+    circle.setAttribute('fill', nodeColor(i));
+    circle.setAttribute('fill-opacity', state.matchSet.size && !state.matchSet.has(i) ? '0.3' : '0.85');
+    circle.setAttribute('stroke', state.selectedIdx === i ? 'var(--text)' : (state.matchSet.has(i) ? 'var(--accent)' : 'transparent'));
+    circle.setAttribute('stroke-width', state.selectedIdx === i ? '2' : '1.5');
+    g.appendChild(circle);
+
+    // Label only on PR-significant nodes so we don't paint a forest of text.
+    if ((state.pr[i] || 0) * state.nodes.length > 0.6 || state.selectedIdx === i || state.matchSet.has(i)) {
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', p.x.toFixed(1));
+      label.setAttribute('y', (p.y - r - 3).toFixed(1));
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-family', 'var(--mono)');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('fill', 'var(--text)');
+      label.setAttribute('opacity', '0.85');
+      label.setAttribute('pointer-events', 'none');
+      label.textContent = labelFor(n);
+      g.appendChild(label);
+    }
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${labelFor(n)}\n${n.uri}\n${n.count} mention${n.count === 1 ? '' : 's'} · PR ${(state.pr[i] || 0).toFixed(4)}`;
+    g.appendChild(title);
+
+    nodeFrag.appendChild(g);
+  }
+  nodeLayer.appendChild(nodeFrag);
+}
+
+function labelFor(n) {
+  if (n.isDomain) return n.id;
+  // Show the domain plus a short tail of the path.
+  try {
+    const u = new URL(n.uri);
+    const host = u.hostname.replace(/^www\./, '');
+    let path = u.pathname.replace(/^\//, '');
+    if (path.length > 22) path = path.slice(0, 20) + '…';
+    return path ? `${host}/${path}` : host;
+  } catch { return n.id.slice(0, 32); }
+}
+
+// ─── side panel (top-PR list + detail) ───────────────────────────────────
+function renderSide() {
+  const head = $('side-head');
+  if (state.query) {
+    head.innerHTML = `Query: <b>${escapeHtml(state.query)}</b> &middot; ${state.matchSet.size} match${state.matchSet.size === 1 ? '' : 'es'} &middot; personalized PageRank`;
+  } else {
+    head.innerHTML = `Top by <b>PageRank</b> &middot; ${state.nodes.length} ${state.nodes[0]?.isDomain ? 'domains' : 'urls'}`;
+  }
+  const body = $('side-body');
+  // Sort by PR desc.
+  const order = state.nodes.map((_, i) => i).sort((a, b) => (state.pr[b] || 0) - (state.pr[a] || 0));
+  const top = order.slice(0, 50);
+  body.innerHTML = top.map((i, rankIdx) => {
+    const n = state.nodes[i];
+    const isMatch = state.matchSet.has(i);
+    const isSel = state.selectedIdx === i;
+    const cls = `rank-row${isMatch ? ' match' : ''}${isSel ? ' selected' : ''}`;
+    return `
+      <div class="${cls}" data-idx="${i}">
+        <span class="rank-num">${rankIdx + 1}</span>
+        <span class="rank-link">
+          <a href="${escapeHtml(n.uri)}" target="_blank" rel="noopener">
+            ${n.isDomain ? `<span class="rank-domain">${escapeHtml(n.id)}</span>` : `<span class="rank-domain">${escapeHtml(n.domain)}</span> <span class="muted">${escapeHtml(labelFor(n).replace(n.domain, ''))}</span>`}
+          </a>
+        </span>
+        <span class="rank-pr">${(state.pr[i] || 0).toFixed(3)}</span>
+      </div>
+    `;
+  }).join('');
+  // Wire click-to-select.
+  body.querySelectorAll('.rank-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.tagName === 'A') return; // let link clicks fall through
+      const idx = parseInt(row.dataset.idx, 10);
+      selectNode(idx);
+    });
+  });
+  renderDetail();
+}
+
+function renderDetail() {
+  const det = $('detail');
+  if (state.selectedIdx == null) { det.style.display = 'none'; return; }
+  const n = state.nodes[state.selectedIdx];
+  const anchorList = Array.from(n.anchors.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const titleList = Array.from(n.titles.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const neighborIds = new Set();
+  for (const [a, b] of state.edges) {
+    if (a === state.selectedIdx) neighborIds.add(b);
+    else if (b === state.selectedIdx) neighborIds.add(a);
+  }
+  const neighbors = Array.from(neighborIds)
+    .map(i => ({ i, n: state.nodes[i], pr: state.pr[i] || 0 }))
+    .sort((a, b) => b.pr - a.pr)
+    .slice(0, 6);
+  det.style.display = 'block';
+  det.innerHTML = `
+    <div class="det-url"><a href="${escapeHtml(n.uri)}" target="_blank" rel="noopener">${escapeHtml(n.uri)}</a></div>
+    <div class="det-meta">
+      ${n.count} mention${n.count === 1 ? '' : 's'}
+      &middot; ${n.postUris.size} post${n.postUris.size === 1 ? '' : 's'}
+      &middot; PR ${(state.pr[state.selectedIdx] || 0).toFixed(4)}
+    </div>
+    ${titleList.length ? `<div class="det-anchors"><span class="muted" style="text-transform:uppercase;font-family:var(--mono);font-size:0.65rem;">card title</span>${titleList.map(([t, c]) => `<span class="anchor-q">${escapeHtml(t)}${c > 1 ? ` <span class="muted">(×${c})</span>` : ''}</span>`).join('')}</div>` : ''}
+    ${anchorList.length ? `<div class="det-anchors"><span class="muted" style="text-transform:uppercase;font-family:var(--mono);font-size:0.65rem;">anchor text</span>${anchorList.map(([a, c]) => `<span class="anchor-q">${escapeHtml(a)}${c > 1 ? ` <span class="muted">(×${c})</span>` : ''}</span>`).join('')}</div>` : ''}
+    ${neighbors.length ? `<div class="det-neighbors">connects to: ${neighbors.map(({ i, n }) => `<span class="nb" data-idx="${i}">${escapeHtml(labelFor(n))}</span>`).join('')}</div>` : ''}
+  `;
+  det.querySelectorAll('.nb').forEach(el => {
+    el.addEventListener('click', () => selectNode(parseInt(el.dataset.idx, 10)));
+  });
+}
+
+function selectNode(idx) {
+  state.selectedIdx = (state.selectedIdx === idx) ? null : idx;
+  renderGraph();
+  renderSide();
+}
+
+// ─── query handling ──────────────────────────────────────────────────────
+//
+// Match nodes whose domain or any anchor text contains the query (case-insensitive
+// substring). Build a personalization vector seeded uniformly on matches and
+// rerun PR. Empty query → uniform PR (raw centrality).
+function applyQuery(q) {
+  state.query = (q || '').trim();
+  state.matchSet = new Set();
+  if (state.query) {
+    const needle = state.query.toLowerCase();
+    for (let i = 0; i < state.nodes.length; i++) {
+      if (state.nodes[i].searchBlob.includes(needle)) state.matchSet.add(i);
+    }
+  }
+  if (state.matchSet.size) {
+    const tel = new Array(state.nodes.length).fill(0);
+    for (const i of state.matchSet) tel[i] = 1;
+    state.pr = pageRank(state.nodes.length, state.edges, { teleport: tel });
+  } else {
+    state.pr = pageRank(state.nodes.length, state.edges);
+  }
+  renderGraph();
+  renderSide();
+}
+
+// ─── main flow ───────────────────────────────────────────────────────────
+async function load(handle) {
+  clearError();
+  showStage('loading');
+  setProgress('Loading…', 0);
+  try {
+    const profile = await pullProfile(handle, setProgress);
+    state.did = profile.did;
+    state.handle = profile.handle;
+
+    setProgress('Building thread chains…', 1);
+    const chains = buildThreadChains(profile.posts);
+    // Map every post → its thread index for co-occurrence grouping.
+    const threadOfPostUri = new Map();
+    chains.forEach((chain, ti) => { for (const p of chain) threadOfPostUri.set(p.uri, ti); });
+
+    setProgress('Extracting external links…', 1);
+    const links = [];
+    for (const p of profile.posts) {
+      const ti = threadOfPostUri.get(p.uri);
+      if (ti == null) continue;
+      const ls = extractLinksFromPost(p, ti);
+      for (const l of ls) {
+        if (isInternalUrl(l.uri)) continue;
+        links.push(l);
+      }
+    }
+    state.links = links;
+
+    if (!links.length) {
+      showStage('graph');
+      $('profile-strip').innerHTML = `<b>@${escapeHtml(state.handle)}</b> &middot; 0 outbound links found`;
+      $('graph-empty').style.display = 'block';
+      $('side-body').innerHTML = '';
+      return;
+    }
+
+    await rebuildAndLayout('Laying out graph…');
+    showStage('graph');
+
+    // Pan/zoom: re-map xDomain/yDomain onto the SVG's viewBox so the existing
+    // nodes/edges visually pan & zoom without a re-layout. Listeners are
+    // bound once and survive innerHTML replacements on the layers.
+    if (!state.panZoom) {
+      const svg = $('graph-svg');
+      state.panZoom = makePanZoom(svg, {
+        xDomain: [0, SVG_W], yDomain: [0, SVG_H],
+        xBounds: [-SVG_W, SVG_W * 2],
+        yBounds: [-SVG_H, SVG_H * 2],
+        onChange: ({ xDomain, yDomain }) => {
+          // pan-zoom is chart-style (y grows up); SVG is screen-style (y
+          // grows down). Drag-down increases yDomain in chart space, which
+          // means we need viewBox y to DECREASE so the content moves with
+          // the finger. Mapping is viewBox y = SVG_H - yDomain[1].
+          const w = xDomain[1] - xDomain[0];
+          const h = yDomain[1] - yDomain[0];
+          const vbY = SVG_H - yDomain[1];
+          svg.setAttribute('viewBox', `${xDomain[0]} ${vbY} ${w} ${h}`);
+        },
+      });
+    } else {
+      state.panZoom.reset();
+      $('graph-svg').setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
+    }
+  } catch (e) {
+    showStage('input');
+    showError(String(e?.message || e));
+  }
+}
+
+async function rebuildAndLayout(label) {
+  setProgress(label || 'Building graph…', 0);
+  const { nodes, edges } = buildGraph(state.links, { rollupDomain: state.rollupDomain });
+  state.nodes = nodes;
+  state.edges = edges;
+  state.selectedIdx = null;
+
+  const profileLine = `<b>@${escapeHtml(state.handle)}</b> &middot; <b>${state.links.length}</b> outbound link mentions &middot; <b>${nodes.length}</b> ${state.rollupDomain ? 'domains' : 'urls'} &middot; <b>${edges.length}</b> co-occurrence edges`;
+  $('profile-strip').innerHTML = profileLine;
+
+  // PR before layout so node sizes are right on first paint.
+  state.pr = pageRank(nodes.length, edges);
+  state.matchSet = new Set();
+
+  // Layout: more iters for bigger graphs (capped).
+  const iters = Math.min(200, Math.max(80, Math.round(60 + nodes.length * 0.4)));
+  $('layout-status').textContent = `layout 0 / ${iters}`;
+  state.pos = await fruchtermanReingold(nodes, edges, {
+    width: SVG_W, height: SVG_H,
+    iters,
+    onTick: (i, total) => {
+      $('layout-status').textContent = `layout ${i} / ${total}`;
+      setProgress(`Laying out graph (${i}/${total})…`, i / total);
+    },
+  });
+  $('layout-status').textContent = `${nodes.length} nodes · ${edges.length} edges`;
+  // Apply current query (if any) and render.
+  applyQuery(state.query);
+}
+
+// ─── typeahead on handle input ──────────────────────────────────────────
+const PUBLIC_API = 'https://api.bsky.app';
+const typeahead = { results: [], active: -1, timer: null, abort: null };
+
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (typeahead.abort) typeahead.abort.abort();
+  typeahead.abort = new AbortController();
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`,
+      { signal: typeahead.abort.signal }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    typeahead.results = data.actors || [];
+    typeahead.active = -1;
+    renderTypeahead();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error('typeahead', e);
+  }
+}
+function renderTypeahead() {
+  const el = $('typeahead-results'); const h = $('handle');
+  if (!typeahead.results.length) { el.classList.remove('show'); el.innerHTML = ''; h.setAttribute('aria-expanded', 'false'); return; }
+  el.innerHTML = typeahead.results.map((a, i) => `
+    <div class="typeahead-item${i === typeahead.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === typeahead.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info">
+        <div class="display-name">${escapeHtml(a.displayName || a.handle)}</div>
+        <div class="at-handle">@${escapeHtml(a.handle)}</div>
+      </div>
+    </div>`).join('');
+  el.classList.add('show'); h.setAttribute('aria-expanded', 'true');
+  if (typeahead.active >= 0) { const it = el.children[typeahead.active]; if (it) it.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead() { $('typeahead-results').classList.remove('show'); typeahead.results = []; typeahead.active = -1; $('handle').setAttribute('aria-expanded', 'false'); }
+function pickAndSubmit(h) { $('handle').value = h; hideTypeahead(); $('handle-form').requestSubmit(); }
+
+$('handle').addEventListener('input', () => {
+  clearTimeout(typeahead.timer);
+  const v = $('handle').value;
+  typeahead.timer = setTimeout(() => fetchTypeahead(v), 180);
+});
+$('handle').addEventListener('keydown', (e) => {
+  if (!typeahead.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); typeahead.active = (typeahead.active + 1) % typeahead.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); typeahead.active = (typeahead.active - 1 + typeahead.results.length) % typeahead.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter' && typeahead.active >= 0) { e.preventDefault(); pickAndSubmit(typeahead.results[typeahead.active].handle); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && typeahead.active >= 0) { e.preventDefault(); $('handle').value = typeahead.results[typeahead.active].handle; hideTypeahead(); }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => {
+  // mousedown (not click) so it fires before the input's blur hides the dropdown.
+  const item = e.target.closest('.typeahead-item'); if (!item) return;
+  e.preventDefault(); pickAndSubmit(item.dataset.handle);
+});
+$('handle').addEventListener('blur', () => { setTimeout(() => hideTypeahead(), 120); });
+$('handle').addEventListener('focus', () => { if ($('handle').value.trim()) fetchTypeahead($('handle').value); });
+
+// ─── wire up ─────────────────────────────────────────────────────────────
+$('handle-form').addEventListener('submit', (e) => { e.preventDefault(); load($('handle').value); });
+$('restart-btn').addEventListener('click', () => { showStage('input'); $('handle').focus(); });
+$('rollup').addEventListener('change', async (e) => {
+  state.rollupDomain = e.target.checked;
+  $('rollup-label').classList.toggle('active', state.rollupDomain);
+  await rebuildAndLayout(state.rollupDomain ? 'Rolling up to domains…' : 'Rebuilding URL graph…');
+});
+
+let _qTimer = null;
+$('query').addEventListener('input', (e) => {
+  clearTimeout(_qTimer);
+  const v = e.target.value;
+  _qTimer = setTimeout(() => applyQuery(v), 120);
+});
+
+// SVG node click → select. Use event delegation on the layer.
+$('nodes-layer').addEventListener('click', (e) => {
+  let g = e.target.closest('g.node');
+  if (!g) return;
+  const idx = parseInt(g.dataset.idx, 10);
+  if (!isNaN(idx)) selectNode(idx);
+});
+
+// ?handle= deeplink, mirroring ask/atlas/lexicon.
+{
+  const params = new URLSearchParams(location.search);
+  const h = params.get('handle');
+  if (h) {
+    $('handle').value = h.replace(/^@/, '');
+    setTimeout(() => $('handle-form').requestSubmit(), 0);
+  }
+}
+</script>
+</body>
+</html>

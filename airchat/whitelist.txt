@@ -1,0 +1,23 @@
+# airchat whitelist — write access seed list.
+#
+# One entry per line. Three formats accepted:
+#   - bluesky handle (e.g. alice.bsky.social): resolved to DID via the
+#     public bsky API at deploy time.
+#   - DID directly (e.g. did:plc:xxx): inserted as-is, no resolution.
+#   - bluesky list (`list:<url-or-at-uri>`): expanded into all its
+#     members at deploy time, each inserted by DID. Use to bulk-grant
+#     access from a curated bsky list.
+#
+# Lines starting with `#` and blank lines are skipped. The deploy
+# workflow INSERT-OR-IGNOREs into airchat_whitelist on every deploy
+# (idempotent).
+#
+# To add someone: append below, commit, push. Done.
+
+# Bulk: minormobius's airchat-access list (~100 ppl)
+list:at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p
+
+# Individual:
+minormobius.bsky.social
+did:plc:7zre4plmd5jllccww575j6sb
+cee.wtf

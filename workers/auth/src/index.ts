@@ -16,6 +16,9 @@ export interface Env {
 
 // --- Origin allowlist ---
 
+// Sites that authenticate through this worker. The `*.mino.mobi` wildcard
+// check below covers anything we forget, but list explicit origins so a
+// reader can see who's actually using the worker.
 const ALLOWED_ORIGINS = [
   'https://minomobi.com',
   'https://www.minomobi.com',
@@ -26,6 +29,13 @@ const ALLOWED_ORIGINS = [
   'https://zoom.mino.mobi',
   'https://read.mino.mobi',
   'https://cards.mino.mobi',
+  'https://wave.mino.mobi',
+  'https://wiki.mino.mobi',
+  'https://music.mino.mobi',
+  'https://sweat.mino.mobi',
+  'https://answers.mino.mobi',
+  'https://org.mino.mobi',
+  'https://cluster.mino.mobi',
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {
