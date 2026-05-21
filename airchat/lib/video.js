@@ -14,13 +14,21 @@
 // entirely. Encoding is slower than realtime but bounded (~2-4×
 // audio duration on a modern laptop for a 720p square video).
 //
-// ffmpeg.wasm is heavy (~30 MB first load) and pulls from a CDN.
-// We surface progress through the onProgress callback so the UI can
-// show a meaningful spinner.
+// LOADING NOTE: the FFmpeg class spawns an internal Worker pointing at
+// coreURL. Browsers refuse to construct a Worker from a cross-origin
+// URL, so passing unpkg/jsdelivr URLs *directly* makes ff.load() hang
+// forever (no error, just never resolves). The fix is `toBlobURL` from
+// @ffmpeg/util — it fetches the file, wraps it in a blob: URL, and
+// the Worker happily loads the same-origin blob. This is the canonical
+// pattern from ffmpegwasm.netlify.app/docs.
+//
+// We also use the UMD core build (not ESM) — that's the build the
+// FFmpeg main class spawns into a Worker; the ESM core triggers
+// import-resolution issues inside the worker context.
 
-const FFMPEG_VERSION = '0.12.10';
+const FFMPEG_VERSION = '0.12.15';
 const CORE_VERSION = '0.12.6';
-const CDN_BASE = 'https://unpkg.com';
+const UTIL_VERSION = '0.12.2';
 
 let _ffmpegInstance = null;
 let _ffmpegLoading = null;
@@ -29,19 +37,26 @@ export async function getFFmpeg(onProgress) {
   if (_ffmpegInstance) return _ffmpegInstance;
   if (_ffmpegLoading) return _ffmpegLoading;
   _ffmpegLoading = (async () => {
-    onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching ffmpeg.wasm…' });
-    const mod = await import(`${CDN_BASE}/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm/index.js`);
-    const ff = new mod.FFmpeg();
+    onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching ffmpeg module…' });
+    // esm.sh transforms the package into a real ESM with proper exports;
+    // unpkg's raw esm bundle had Worker-resolution issues in our case.
+    const ffMod   = await import(`https://esm.sh/@ffmpeg/ffmpeg@${FFMPEG_VERSION}`);
+    const utilMod = await import(`https://esm.sh/@ffmpeg/util@${UTIL_VERSION}`);
+    const ff = new ffMod.FFmpeg();
     ff.on('log', ({ message }) => onProgress?.({ stage: 'ffmpeg-log', message }));
     ff.on('progress', ({ progress }) => {
       if (typeof progress === 'number' && progress >= 0 && progress <= 1) {
         onProgress?.({ stage: 'encoding', progress });
       }
     });
-    await ff.load({
-      coreURL:  `${CDN_BASE}/@ffmpeg/core@${CORE_VERSION}/dist/esm/ffmpeg-core.js`,
-      wasmURL:  `${CDN_BASE}/@ffmpeg/core@${CORE_VERSION}/dist/esm/ffmpeg-core.wasm`,
-    });
+    onProgress?.({ stage: 'loading-ffmpeg', message: 'wrapping core as blob URL…' });
+    const baseURL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
+    const [coreURL, wasmURL] = await Promise.all([
+      utilMod.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      utilMod.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    ]);
+    onProgress?.({ stage: 'loading-ffmpeg', message: 'initializing ffmpeg…' });
+    await ff.load({ coreURL, wasmURL });
     _ffmpegInstance = ff;
     onProgress?.({ stage: 'loaded' });
     return ff;
