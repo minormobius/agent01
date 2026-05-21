@@ -180,6 +180,12 @@ button.danger { background: var(--rec); }
   font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
 }
+.encoder-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.encoder-label { display: block; margin-bottom: 0.25rem; }
 .music-row {
   margin-bottom: 0.6rem;
   font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
@@ -435,6 +441,13 @@ footer a { color: var(--muted); text-decoration: underline; }
         <div id="post-status"></div>
         <div id="video-box" class="video-box">
           <div class="vlabel">Captioned video</div>
+          <div class="encoder-row">
+            <label class="encoder-label" for="video-encoder">Encoder</label>
+            <select id="video-encoder" class="music-select">
+              <option value="realtime" selected>Realtime (browser-native, works everywhere)</option>
+              <option value="ffmpeg">ffmpeg.wasm (desktop, higher quality, ~30 MB download)</option>
+            </select>
+          </div>
           <div class="music-row">
             <label class="music-label" for="music-source">Background music (optional)</label>
             <select id="music-source" class="music-select">
@@ -476,7 +489,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <script type="module">
 import { FILTERS, applyFilter } from './lib/filters.js';
-import { makeCaptionedVideo } from './lib/video.js';
+import { makeCaptionedVideo, makeCaptionedVideoRealtime } from './lib/video.js';
 import { renderComposition, loadBundledIndex, loadBundledComposition } from './lib/music-render.js';
 
 const $ = (id) => document.getElementById(id);
@@ -814,12 +827,12 @@ $('video-btn').addEventListener('click', async () => {
     alert('No transcript yet — wait for transcription or type one in.');
     return;
   }
-  if (IS_MOBILE) {
+  const encoder = $('video-encoder').value;
+  if (encoder === 'ffmpeg' && IS_MOBILE) {
     const ok = confirm(
-      'Heads up: ffmpeg.wasm in-browser video encoding is heavy (~30 MB download + ~200 MB working memory). ' +
-      'Mobile browsers (iOS Safari especially) sometimes run out of memory or hang during wasm load. ' +
-      'It might work — if it does, great. If it hangs past 90s you\'ll see a timeout. ' +
-      'Recommended path is desktop. Try anyway?'
+      'Heads up: ffmpeg.wasm in-browser is heavy (~30 MB download + ~200 MB working memory). ' +
+      'Mobile browsers (iOS Safari especially) sometimes run out of memory or hang. ' +
+      'The realtime encoder is the better choice on phones. Use ffmpeg.wasm anyway?'
     );
     if (!ok) { $('video-btn').disabled = false; return; }
   }
@@ -829,11 +842,14 @@ $('video-btn').addEventListener('click', async () => {
   $('vactions').style.display = 'none';
   $('vactions').innerHTML = '';
   clearVlog();
-  $('vstatus').textContent = 'loading ffmpeg.wasm (first time: ~30 MB download)…';
+  $('vstatus').textContent = encoder === 'realtime'
+    ? `encoding in real time (~${Math.ceil(state.duration)}s)…`
+    : 'loading ffmpeg.wasm (first time: ~30 MB download)…';
   $('vfill').style.width = '0%';
   try {
     const me = state.me || {};
-    const blob = await makeCaptionedVideo({
+    const encoderFn = encoder === 'ffmpeg' ? makeCaptionedVideo : makeCaptionedVideoRealtime;
+    const blob = await encoderFn({
       audioBlob: state.audioBlob,
       audioMime: state.audioMime,
       segments,
@@ -863,18 +879,21 @@ $('video-btn').addEventListener('click', async () => {
     const url = URL.createObjectURL(blob);
     $('vpreview').src = url;
     $('vpreview').style.display = 'block';
-    const filename = `yapchat-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.mp4`;
+    const outMime = blob.type || 'video/mp4';
+    const outExt = outMime.includes('mp4') ? 'mp4' : outMime.includes('webm') ? 'webm' : 'bin';
+    const filename = `yapchat-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.${outExt}`;
     const acts = $('vactions');
     acts.innerHTML = `
-      <a download="${filename}" href="${url}">Download mp4</a>
+      <a download="${filename}" href="${url}">Download ${outExt}</a>
       <button type="button" id="vcopy">Copy to clipboard</button>
       <button type="button" id="vshare">Share…</button>
     `;
     acts.style.display = 'flex';
     $('vcopy').addEventListener('click', async () => {
       try {
-        // Chrome 121+ supports ClipboardItem for video/mp4.
-        await navigator.clipboard.write([new ClipboardItem({ 'video/mp4': blob })]);
+        // Chrome 121+ supports ClipboardItem with video MIME types.
+        // The mime in ClipboardItem must match the blob's actual type.
+        await navigator.clipboard.write([new ClipboardItem({ [outMime.split(';')[0]]: blob })]);
         $('vstatus').textContent = 'copied to clipboard';
       } catch (e) {
         $('vstatus').textContent = 'clipboard copy unsupported in this browser — use Download or Share';
@@ -882,8 +901,9 @@ $('video-btn').addEventListener('click', async () => {
     });
     $('vshare').addEventListener('click', async () => {
       try {
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'video/mp4' })] })) {
-          await navigator.share({ files: [new File([blob], filename, { type: 'video/mp4' })], title: 'yapchat voice', text });
+        const file = new File([blob], filename, { type: outMime });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'yapchat voice', text });
         } else {
           $('vstatus').textContent = 'native share unsupported — use Download';
         }

@@ -50,17 +50,22 @@ export async function getFFmpeg(onProgress) {
   if (_ffmpegLoading) return _ffmpegLoading;
   _ffmpegLoading = (async () => {
     try {
-      onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching ffmpeg module…' });
-      // jsdelivr's +esm endpoint produces a more reliable ESM than
-      // esm.sh for ffmpeg.wasm specifically — fewer worker-context
-      // import-resolution issues in our testing.
+      onProgress?.({ stage: 'loading-ffmpeg', message: 'loading vendored ffmpeg…' });
+      // IMPORTANT: ffmpeg packages are vendored at deploy time into
+      // /vendor/ffmpeg/ (see .github/workflows/deploy-airchat.yml). The
+      // FFmpeg class spawns its internal Worker via
+      //   `new Worker(new URL("./worker.js", import.meta.url))`
+      // which fails with SecurityError ("The operation is insecure")
+      // if the module's origin doesn't match the page. Same-origin
+      // vendoring is the canonical fix; CDN imports of @ffmpeg/ffmpeg
+      // can't work without a bundler that rewrites that line.
       const ffMod   = await withTimeout(
-        import(`https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/+esm`),
-        30_000, 'ffmpeg module fetch',
+        import('/vendor/ffmpeg/ffmpeg/dist/esm/index.js'),
+        30_000, 'ffmpeg module load',
       );
       const utilMod = await withTimeout(
-        import(`https://cdn.jsdelivr.net/npm/@ffmpeg/util@${UTIL_VERSION}/+esm`),
-        30_000, '@ffmpeg/util fetch',
+        import('/vendor/ffmpeg/util/dist/esm/index.js'),
+        30_000, '@ffmpeg/util load',
       );
       const ff = new ffMod.FFmpeg();
 
@@ -128,21 +133,7 @@ export async function makeCaptionedVideo(opts) {
 
   const ff = await getFFmpeg(onProgress);
 
-  // Pre-load the avatar bitmap. Cross-origin images can taint the canvas
-  // and break toBlob; we fetch the bytes and create an ImageBitmap which
-  // bypasses the taint flag.
-  let avatarBitmap = null;
-  if (avatarUrl) {
-    try {
-      const r = await fetch(avatarUrl, { mode: 'cors' });
-      if (r.ok) {
-        const ab = await r.blob();
-        avatarBitmap = await createImageBitmap(ab);
-      }
-    } catch (e) {
-      console.warn('avatar fetch failed', e);
-    }
-  }
+  const avatarBitmap = await loadAvatarBitmap(avatarUrl);
 
   // Render frames → PNG → virtual FS.
   onProgress?.({ stage: 'rendering', progress: 0, totalFrames });
@@ -233,6 +224,149 @@ export async function makeCaptionedVideo(opts) {
 
   onProgress?.({ stage: 'done', progress: 1, size: result.size });
   return result;
+}
+
+// ─── realtime (MediaRecorder) encoder ───────────────────────────────────
+//
+// Browser-native, no wasm. Output is webm (Chrome/Firefox/Edge) or
+// mp4 (Safari/iOS) — both accepted by bsky's upload. Runs in
+// wall-clock time: a 30s clip takes 30s. Mobile-friendly because
+// there's no big wasm download and no large working memory.
+//
+//   await makeCaptionedVideoRealtime({
+//     audioBlob, audioMime, segments, duration,
+//     displayName, handle, avatarUrl,
+//     musicBlob, musicGain,
+//     onProgress,
+//   })  → Blob (video/webm or video/mp4)
+
+export async function makeCaptionedVideoRealtime(opts) {
+  const {
+    audioBlob, segments = [], duration,
+    displayName, handle, avatarUrl,
+    musicBlob = null, musicGain = 0.25,
+    onProgress,
+  } = opts;
+  if (!audioBlob || !duration) throw new Error('missing audio or duration');
+
+  const W = 720, H = 720;
+  const FPS = 30;
+
+  const avatarBitmap = await loadAvatarBitmap(avatarUrl);
+
+  // Canvas (offscreen via DOM element kept off-screen).
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  // Draw the first frame *before* captureStream so the recorder
+  // doesn't start with a black frame.
+  drawFrame(ctx, W, H, { time: 0, duration, segments, handle, displayName, avatarBitmap });
+
+  // Audio graph: voice (one-shot) + optional looped music mixed to
+  // a MediaStreamDestinationNode. The destination's .stream gives us
+  // a real-time audio track we can hand to MediaRecorder.
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new Ctx();
+  const audioBuffer = await audioCtx.decodeAudioData(await audioBlob.arrayBuffer());
+  let musicBuffer = null;
+  if (musicBlob) {
+    try {
+      musicBuffer = await audioCtx.decodeAudioData(await musicBlob.arrayBuffer());
+    } catch (e) {
+      console.warn('music decode failed; proceeding without', e);
+    }
+  }
+  const audioDest = audioCtx.createMediaStreamDestination();
+  const voiceSrc = audioCtx.createBufferSource();
+  voiceSrc.buffer = audioBuffer;
+  voiceSrc.connect(audioDest);
+  let musicSrc = null;
+  if (musicBuffer) {
+    musicSrc = audioCtx.createBufferSource();
+    musicSrc.buffer = musicBuffer;
+    musicSrc.loop = true;                              // tile short tracks under longer voice
+    const g = audioCtx.createGain();
+    g.gain.value = Math.max(0, Math.min(1, musicGain));
+    musicSrc.connect(g);
+    g.connect(audioDest);
+  }
+
+  // Combined stream: canvas video + mixed audio.
+  const videoStream = canvas.captureStream(FPS);
+  const stream = new MediaStream([
+    ...videoStream.getVideoTracks(),
+    ...audioDest.stream.getAudioTracks(),
+  ]);
+
+  // Pick the best MIME type the browser supports. mp4 first (Safari +
+  // recent Chrome land directly on the format bsky prefers); webm
+  // fallback for Firefox.
+  const candidates = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+  ];
+  let mimeType = '';
+  for (const c of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(c)) { mimeType = c; break; }
+  }
+  const recorderOpts = mimeType ? { mimeType, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 } : {};
+  const recorder = new MediaRecorder(stream, recorderOpts);
+  const chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+  const recorderDone = new Promise((resolve, reject) => {
+    recorder.onstop = resolve;
+    recorder.onerror = (e) => reject(new Error('MediaRecorder error: ' + (e.error?.message || e)));
+  });
+
+  onProgress?.({ stage: 'encoding', progress: 0, message: `realtime · ${mimeType || 'browser default'}` });
+  recorder.start(200);
+
+  // Start audio playback — this is what drives the recording timeline.
+  // Tiny lead-in so the recorder sees the first sample.
+  const startAt = audioCtx.currentTime + 0.05;
+  voiceSrc.start(startAt);
+  if (musicSrc) musicSrc.start(startAt);
+
+  // Animation loop: redraw the canvas with the current segment caption.
+  const t0 = performance.now();
+  let stopRequested = false;
+  function tick() {
+    const tSec = (performance.now() - t0) / 1000;
+    drawFrame(ctx, W, H, { time: tSec, duration, segments, handle, displayName, avatarBitmap });
+    onProgress?.({ stage: 'encoding', progress: Math.min(1, tSec / duration) });
+    if (tSec < duration + 0.3) {
+      requestAnimationFrame(tick);
+    } else if (!stopRequested) {
+      stopRequested = true;
+      // Small lag-tail so the last frame is in the output before we cut.
+      setTimeout(() => recorder.state !== 'inactive' && recorder.stop(), 100);
+    }
+  }
+  requestAnimationFrame(tick);
+
+  await recorderDone;
+  try { audioCtx.close(); } catch {}
+
+  const blob = new Blob(chunks, { type: mimeType || (chunks[0]?.type) || 'video/webm' });
+  onProgress?.({ stage: 'done', progress: 1, size: blob.size, mimeType: blob.type });
+  return blob;
+}
+
+async function loadAvatarBitmap(avatarUrl) {
+  if (!avatarUrl) return null;
+  try {
+    const r = await fetch(avatarUrl, { mode: 'cors' });
+    if (!r.ok) return null;
+    const ab = await r.blob();
+    return await createImageBitmap(ab);
+  } catch (e) {
+    console.warn('avatar fetch failed', e);
+    return null;
+  }
 }
 
 // ─── canvas frame rendering ─────────────────────────────────────────────

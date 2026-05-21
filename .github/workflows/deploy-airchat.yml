@@ -37,6 +37,36 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
+      - name: Vendor @ffmpeg/ffmpeg + @ffmpeg/util into airchat/vendor/
+        # The FFmpeg class instantiates a Worker via
+        # `new Worker(new URL("./worker.js", import.meta.url))`. When the
+        # package is imported cross-origin (jsdelivr/esm.sh), the worker
+        # URL is also cross-origin, which Firefox refuses with
+        # SecurityError: "The operation is insecure." Vendoring the
+        # package locally puts worker.js on the same origin and the
+        # Worker constructor accepts it.
+        #
+        # The @ffmpeg/core package (huge wasm, ~30 MB) stays on CDN —
+        # it's over Cloudflare's per-asset limit. video.js wraps the
+        # core URLs via toBlobURL inside the worker context, which is
+        # a CORS fetch (allowed) rather than a Worker spawn (denied).
+        #
+        # Total vendored size: ~70 KB.
+        run: |
+          set -e
+          rm -rf vendor/ffmpeg
+          mkdir -p vendor/ffmpeg
+          cd vendor/ffmpeg
+          npm pack @ffmpeg/[email protected] --silent --pack-destination /tmp >/dev/null
+          npm pack @ffmpeg/[email protected]    --silent --pack-destination /tmp >/dev/null
+          tar xzf /tmp/ffmpeg-ffmpeg-0.12.15.tgz
+          mv package ffmpeg
+          tar xzf /tmp/ffmpeg-util-0.12.2.tgz
+          mv package util
+          echo "Vendored:"
+          find . -name '*.js' -o -name '*.wasm' | head -20
+          du -sh ffmpeg util
+
       - name: Run D1 migrations (airchat tables on shared atpolls-db)
         if: ${{ inputs.skip_migrations != true }}
         run: |
