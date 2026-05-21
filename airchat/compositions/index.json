@@ -5,8 +5,36 @@
       "id": "drift",
       "file": "drift.json",
       "name": "Drift",
-      "subtitle": "downtempo · 13s loop · 76 BPM",
+      "subtitle": "downtempo · 13s loop · 76 BPM · Am",
       "tags": ["lofi", "dreamy", "downtempo", "minor", "loop"]
+    },
+    {
+      "id": "cathedral",
+      "file": "cathedral.json",
+      "name": "Cathedral",
+      "subtitle": "sawtooth organ drone · 8s · 60 BPM · Cm",
+      "tags": ["ambient", "drone", "organ", "slow", "contemplative"]
+    },
+    {
+      "id": "crystal",
+      "file": "crystal.json",
+      "name": "Crystal",
+      "subtitle": "bright Lydian pluck · 11s · 84 BPM · Emaj7",
+      "tags": ["bright", "hopeful", "lydian", "shimmery"]
+    },
+    {
+      "id": "lull",
+      "file": "lull.json",
+      "name": "Lull",
+      "subtitle": "sparse Dorian dream · 13s · 56 BPM · Dm",
+      "tags": ["sparse", "dreamy", "dorian", "slow", "lonely"]
+    },
+    {
+      "id": "embers",
+      "file": "embers.json",
+      "name": "Embers",
+      "subtitle": "Phrygian Andalusian · 8s · 90 BPM · Em",
+      "tags": ["phrygian", "moody", "walking", "andalusian", "flamenco-tinged"]
     }
   ]
 }
