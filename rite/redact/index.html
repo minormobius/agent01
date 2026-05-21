@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>redact &mdash; Bluesky thread redaction game</title>
+<meta name="description" content="A Redactle-style game for Bluesky. Enter a handle, find their longest prose threads, guess the censored words.">
+<meta property="og:title" content="redact">
+<meta property="og:description" content="A Redactle for Bluesky threads. Guess the censored words.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/redact">
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #2a7a2a;
+  --good-faint: rgba(42, 122, 42, 0.18);
+  --bad: #a03030;
+  --redact: #1a1a1a;
+  --redact-fg: #1a1a1a;
+  --card-bg: #fff;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --accent: #c97070;
+    --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6abf6a;
+    --good-faint: rgba(106, 191, 106, 0.18);
+    --redact: #d4d4d4;
+    --redact-fg: #d4d4d4;
+    --card-bg: #1a1a1a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.55;
+  padding: 1.5rem 1rem 4rem;
+  min-height: 100vh;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+header.app {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+h1 {
+  font-size: 2rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 .dot { color: var(--accent); }
+.subtitle {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0.3rem 0 0;
+}
+.stage { display: none; }
+.stage.active { display: block; }
+
+/* ---- input ---- */
+form#handle-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+input[type="text"], #handle, #guess {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.7rem 0.9rem;
+  font-family: var(--serif);
+  font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
+
+/* ---- typeahead ---- */
+.typeahead-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.typeahead-wrap #handle {
+  width: 100%;
+  flex: initial;
+  min-width: 0;
+}
+.typeahead-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 10;
+  max-height: 360px;
+  overflow-y: auto;
+  display: none;
+}
+.typeahead-results.show { display: block; }
+.typeahead-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active {
+  background: var(--accent-faint);
+}
+.typeahead-item .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rule);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .display-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.typeahead-item .at-handle {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.typeahead-empty {
+  padding: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  text-align: center;
+}
+button {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1.1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* ---- loading ---- */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent-faint);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-bar {
+  height: 4px;
+  background: var(--accent-faint);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 0.7rem;
+}
+.progress-bar > .fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s;
+}
+.error {
+  background: rgba(160, 48, 48, 0.08);
+  border-left: 3px solid var(--bad);
+  padding: 0.7rem 1rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+  margin-top: 0.7rem;
+}
+
+/* upload row — alternative entry point to a Bluesky handle */
+.upload-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.upload-label {
+  cursor: pointer; padding: 0.35rem 0.7rem;
+  border: 1px solid var(--accent); color: var(--accent); border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem;
+}
+.upload-label:hover { background: var(--accent-faint); }
+.upload-name { color: var(--text); }
+
+.gutenberg-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.gutenberg-row .typeahead-wrap { flex: 1; min-width: 240px; }
+.gutenberg-row input {
+  width: 100%; flex: initial; min-width: 0;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+}
+.gutenberg-row .typeahead-item .avatar {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-faint); color: var(--accent);
+  font-family: var(--serif); font-size: 1rem;
+}
+
+/* ---- chart ---- */
+.chart-meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chart-meta b { color: var(--accent); }
+#chart {
+  width: 100%;
+  height: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+#chart .bar { fill: var(--accent); fill-opacity: 0.55; }
+/* Color-by-difficulty: harder threads pop, easier ones fade. */
+#chart .bar.tier-hard   { fill-opacity: 0.95; }
+#chart .bar.tier-medium { fill-opacity: 0.55; }
+#chart .bar.tier-easy   { fill-opacity: 0.25; }
+#chart .bar.selected    { fill-opacity: 1; stroke: var(--text); stroke-width: 0.5; }
+.legend-row {
+  display: flex; gap: 0.7rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 0.35rem 0 0.2rem;
+  align-items: center;
+}
+.legend-row .swatch {
+  display: inline-block; width: 0.85rem; height: 0.85rem; border-radius: 2px;
+  background: var(--accent); margin-right: 0.3rem; vertical-align: -2px;
+}
+.legend-row .swatch.tier-hard   { opacity: 0.95; }
+.legend-row .swatch.tier-medium { opacity: 0.55; }
+.legend-row .swatch.tier-easy   { opacity: 0.25; }
+#chart .cursor { stroke: var(--accent); stroke-width: 2; }
+#chart .axis { stroke: var(--rule); stroke-width: 1; }
+#chart .label { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+#chart .selected-label { fill: var(--accent); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0.7rem 0;
+}
+.chart-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---- game ---- */
+.game-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+#post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.4rem 1.5rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+}
+#post-content p {
+  margin: 0 0 1rem;
+}
+#post-content p:last-child { margin-bottom: 0; }
+.redacted {
+  display: inline-block;
+  background: var(--redact);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 1px;
+  user-select: none;
+  vertical-align: baseline;
+  line-height: 1.2;
+  cursor: help;
+}
+.redacted.flash { animation: flash 0.6s ease; }
+@keyframes flash {
+  0%   { background: var(--redact); }
+  50%  { background: var(--good); color: var(--bg); }
+  100% { background: transparent; color: inherit; }
+}
+.redacted.revealed {
+  background: var(--good-faint);
+  color: var(--good);
+  font-weight: 600;
+}
+.game-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.game-controls button { flex-shrink: 0; }
+#score {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 0.5rem;
+}
+#score b { color: var(--accent); }
+#score.complete { color: var(--good); }
+.guessed-list {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  text-align: center;
+  word-break: break-word;
+}
+.guessed-list .ok  { color: var(--good); }
+.guessed-list .bad { color: var(--bad); }
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>redact<span class="dot">.</span></h1>
+  <p class="subtitle">A Redactle for Bluesky threads. Pull a handle, pick the longest prose, guess the words.</p>
+</header>
+
+<main>
+  <!-- Stage 1: handle input -->
+  <section id="stage-input" class="stage active">
+    <form id="handle-form" autocomplete="off">
+      <div class="typeahead-wrap">
+        <input id="handle" type="text" placeholder="alice.bsky.social" autofocus autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="typeahead-results">
+        <div id="typeahead-results" class="typeahead-results" role="listbox"></div>
+      </div>
+      <button type="submit">Pull profile</button>
+    </form>
+    <div class="upload-row">
+      <span>or upload a text file:</span>
+      <input type="file" id="upload" accept=".txt,.md,.markdown,text/plain,text/markdown" hidden>
+      <label for="upload" class="upload-label">Choose file…</label>
+      <span id="upload-name" class="upload-name"></span>
+    </div>
+    <div class="gutenberg-row">
+      <span>or load from Project Gutenberg:</span>
+      <div class="typeahead-wrap">
+        <input id="gutenberg-q" type="text" placeholder="search by title, author, keyword" autocomplete="off">
+        <div id="gutenberg-results" class="typeahead-results" role="listbox"></div>
+      </div>
+    </div>
+    <p class="hint" style="text-align:left">
+      Bluesky path: pull the user's full repo as a CAR from their PDS (parses locally with WASM,
+      ~30 s for big repos). Upload path: split a plain-text or markdown document into sections
+      and play those instead. Either way ranks the longest pure-prose threads, no images or link
+      cards. Pure client-side; nothing leaves your browser.
+    </p>
+    <div id="input-error" class="error" style="display:none"></div>
+  </section>
+
+  <!-- Stage 2: loading -->
+  <section id="stage-loading" class="stage">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p id="progress-text">Resolving handle&hellip;</p>
+    </div>
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+  </section>
+
+  <!-- Stage 3: pareto chart -->
+  <section id="stage-chart" class="stage">
+    <div class="chart-meta" id="chart-meta"></div>
+    <svg id="chart" viewBox="0 0 600 260" preserveAspectRatio="none"></svg>
+    <div class="legend-row" aria-label="Difficulty legend">
+      <span><span class="swatch tier-hard"></span>hard (Flesch &lt; 50)</span>
+      <span><span class="swatch tier-medium"></span>medium (50&ndash;70)</span>
+      <span><span class="swatch tier-easy"></span>easy (&gt; 70)</span>
+      <span style="margin-left:auto; text-transform:none; font-style:italic;">grade = Flesch&ndash;Kincaid US grade level</span>
+    </div>
+    <p class="hint">Drag through the chart to pick a thread, then press <b>show</b>.</p>
+    <div class="chart-controls">
+      <button id="show">Show selected</button>
+      <button id="back" class="ghost">New profile</button>
+    </div>
+  </section>
+
+  <!-- Stage 4: game -->
+  <section id="stage-game" class="stage">
+    <header class="game-meta">
+      <button id="back-to-chart" class="ghost" style="font-size:0.7rem; padding:0.3rem 0.6rem;">&larr; back to chart</button>
+      <span id="game-meta-text"></span>
+    </header>
+    <article id="post-content"></article>
+    <div class="game-controls">
+      <input id="guess" type="text" placeholder="Guess a word" autocomplete="off" autocapitalize="none">
+      <button id="guess-btn">Guess</button>
+      <button id="reveal" class="ghost">Reveal all</button>
+    </div>
+    <div id="score"></div>
+    <div id="guessed-list" class="guessed-list"></div>
+  </section>
+</main>
+
+<footer>
+  <span><a href="/">&larr; rite</a></span>
+  <span><a href="/atlas/">/atlas/</a> &middot; <a href="/lexicon/">/lexicon/</a> &middot; <a href="/ask/">/ask/</a> &middot; <a href="/list/">/list/</a> &middot; <a href="/web/">/web/</a> &middot; <a href="/signal/">/signal/</a></span>
+  <span><a href="https://mino.mobi">mino.mobi</a></span>
+</footer>
+
+</div>
+
+<script type="module">
+import {
+  pullProfile,
+  uploadProfile,
+  analyzeProfile,
+  fleschTier,
+} from '../lib/atproto/index.js';
+import { searchGutenberg, fetchGutenbergText, gutenbergFilename } from '../lib/gutenberg.js';
+
+const $ = (id) => document.getElementById(id);
+
+// ----- constants -----
+const PUBLIC_API = 'https://api.bsky.app';
+const MIN_THREAD_CHARS = 300;
+const REDACT_RATIO = 0.45;       // fraction of content words to redact
+
+const STOPWORDS = new Set(`
+the a an and or but of to in on at by for with from as is are was were be been
+being have has had do does did will would shall should can could may might
+must i you he she it we they them his her its our their my your this that these
+those there here who what when where why how which whom whose if then so than
+too very just only also even still much many more most some any all both each
+either neither such own same other another no not nor yes
+about above after again against because before below between down during few
+further into off once out over through under until up upon while above let lets
+get got go gone went said say says ask asked told tell tells well now then
+`.trim().split(/\s+/));
+
+// ----- state -----
+const state = {
+  did: null,
+  handle: null,
+  posts: [],          // raw post objects from getAuthorFeed
+  threads: [],        // [{ id, posts: [...], textBlocks: [str], totalChars, createdAt }]
+  selectedIdx: 0,     // index into threads (sorted desc by length)
+  game: null,         // { tokens, redactedSet, revealedSet, guessed, gaveUp }
+};
+
+// ----- stage transition -----
+function showStage(name) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.toggle('active', s.id === 'stage-' + name));
+}
+
+
+// ----- chart -----
+function renderChart() {
+  const svg = $('chart');
+  const W = 600, H = 260, PAD_L = 40, PAD_R = 12, PAD_T = 14, PAD_B = 28;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+  svg.innerHTML = '';
+  const ts = state.threads;
+  if (!ts.length) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" class="label">No prose threads ≥ ${MIN_THREAD_CHARS} chars.</text>`;
+    return;
+  }
+  const maxLen = ts[0].totalChars;
+  const barW = Math.max(1, innerW / ts.length);
+  // Y axis grid
+  const ySteps = [0, 0.25, 0.5, 0.75, 1].map(f => ({
+    y: PAD_T + innerH * (1 - f),
+    label: Math.round(maxLen * f).toLocaleString(),
+  }));
+  let svgHtml = '';
+  for (const s of ySteps) {
+    svgHtml += `<line class="axis" x1="${PAD_L}" y1="${s.y}" x2="${W - PAD_R}" y2="${s.y}" stroke-opacity="0.4"/>`;
+    svgHtml += `<text x="${PAD_L - 6}" y="${s.y + 3}" text-anchor="end" class="label">${s.label}</text>`;
+  }
+  // Bars — opacity tier reflects Flesch reading level (harder = more saturated).
+  for (let i = 0; i < ts.length; i++) {
+    const t = ts[i];
+    const h = innerH * (t.totalChars / maxLen);
+    const x = PAD_L + i * barW;
+    const y = PAD_T + innerH - h;
+    const tier = fleschTier(t.reading?.flesch);
+    const cls = `bar tier-${tier}` + (i === state.selectedIdx ? ' selected' : '');
+    svgHtml += `<rect class="${cls}" data-idx="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0.5, barW - 0.4).toFixed(2)}" height="${Math.max(0, h).toFixed(2)}"/>`;
+  }
+  // Cursor
+  const cursorX = PAD_L + (state.selectedIdx + 0.5) * barW;
+  svgHtml += `<line id="cursor" class="cursor" x1="${cursorX.toFixed(2)}" y1="${PAD_T - 4}" x2="${cursorX.toFixed(2)}" y2="${H - PAD_B + 4}"/>`;
+  // X-axis label: rank + length + reading level
+  const sel = ts[state.selectedIdx];
+  const rd = sel.reading;
+  const readingBit = rd
+    ? ` · grade ${rd.grade.toFixed(1)} · Flesch ${rd.flesch.toFixed(0)}`
+    : '';
+  svgHtml += `<text x="${W/2}" y="${H - 6}" text-anchor="middle" class="selected-label">#${state.selectedIdx + 1} of ${ts.length} · ${sel.totalChars.toLocaleString()} chars · ${sel.postCount} post${sel.postCount === 1 ? '' : 's'}${readingBit}</text>`;
+  svg.innerHTML = svgHtml;
+
+  // Pointer events
+  const setSelectedFromX = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const xInSvg = ((clientX - rect.left) / rect.width) * W;
+    const colX = xInSvg - PAD_L;
+    let idx = Math.floor(colX / barW);
+    if (idx < 0) idx = 0;
+    if (idx >= ts.length) idx = ts.length - 1;
+    if (idx !== state.selectedIdx) {
+      state.selectedIdx = idx;
+      renderChart();
+      updateChartMeta();
+    }
+  };
+  let dragging = false;
+  svg.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    svg.setPointerCapture(e.pointerId);
+    setSelectedFromX(e.clientX);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (dragging) setSelectedFromX(e.clientX);
+  });
+  svg.addEventListener('pointerup',     () => { dragging = false; });
+  svg.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+function updateChartMeta() {
+  const sel = state.threads[state.selectedIdx];
+  if (!sel) { $('chart-meta').innerHTML = ''; return; }
+  const date = (sel.createdAt || '').slice(0, 10);
+  const rd = sel.reading;
+  const readingBit = rd
+    ? `<br>reading: <b>grade ${rd.grade.toFixed(1)}</b> &middot; Flesch ${rd.flesch.toFixed(0)} &middot; ${(rd.complex_word_ratio * 100).toFixed(0)}% complex words`
+    : '';
+  $('chart-meta').innerHTML = `
+    <span><b>@${state.handle}</b> &middot; ${state.threads.length} threads &middot; ${state.posts.length} posts scanned</span>
+    <span>selected: rank #${state.selectedIdx + 1} &middot; ${sel.totalChars.toLocaleString()} chars &middot; ${date}${readingBit}</span>
+  `;
+}
+
+// ----- redact / game -----
+function tokenize(text) {
+  // Split on word vs. non-word. \p{L} catches unicode letters; fallback regex if not supported.
+  let re;
+  try { re = /([\p{L}\p{N}']+)/gu; } catch { re = /([A-Za-z0-9']+)/g; }
+  const tokens = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) tokens.push({ kind: 'sep', text: text.slice(last, m.index) });
+    tokens.push({ kind: 'word', text: m[0] });
+    last = re.lastIndex;
+  }
+  if (last < text.length) tokens.push({ kind: 'sep', text: text.slice(last) });
+  return tokens;
+}
+
+function shouldRedact(word) {
+  const w = word.toLowerCase();
+  if (w.length < 4) return false;
+  if (STOPWORDS.has(w)) return false;
+  if (/^\d+$/.test(w)) return false;     // pure numbers
+  return true;
+}
+
+function pickRedactions(tokens, ratio) {
+  // Mark a deterministic subset of redact-eligible words.
+  // Use a hash of the word + index so the redaction is stable per thread+session.
+  const eligible = [];
+  tokens.forEach((tok, i) => {
+    if (tok.kind === 'word' && shouldRedact(tok.text)) eligible.push(i);
+  });
+  // Shuffle deterministically.
+  const seed = state.threads[state.selectedIdx].id;
+  const ordered = eligible.map(i => ({ i, k: hashStr(seed + ':' + i) }))
+    .sort((a, b) => a.k - b.k)
+    .map(x => x.i);
+  const want = Math.round(ordered.length * ratio);
+  return new Set(ordered.slice(0, want));
+}
+
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
+}
+
+function startGame() {
+  const thread = state.threads[state.selectedIdx];
+  // We tokenize each block separately so we can render paragraphs, but token
+  // indices remain global so redaction lookups stay simple.
+  const blocks = thread.textBlocks.map(tokenize);
+  const flat = [];
+  for (let bi = 0; bi < blocks.length; bi++) {
+    for (const t of blocks[bi]) {
+      flat.push({ ...t, block: bi });
+    }
+  }
+  state.game = {
+    blocks,
+    tokens: flat,
+    redactedSet: pickRedactions(flat, REDACT_RATIO),
+    revealedSet: new Set(),
+    guessedRight: new Set(),
+    guessedWrong: new Set(),
+    gaveUp: false,
+  };
+  $('guess').value = '';
+  $('guess').disabled = false;
+  $('guess-btn').disabled = false;
+  $('reveal').disabled = false;
+  $('reveal').textContent = 'Reveal all';
+  renderPost();
+  updateScore();
+  $('guessed-list').textContent = '';
+  $('game-meta-text').textContent =
+    `@${state.handle} · rank #${state.selectedIdx + 1} of ${state.threads.length} · ${thread.postCount} post${thread.postCount===1?'':'s'} · ${(thread.createdAt||'').slice(0,10)}`;
+}
+
+function renderPost() {
+  const game = state.game;
+  // Build paragraphs (one per block).
+  let html = '';
+  let bi = -1;
+  for (let i = 0; i < game.tokens.length; i++) {
+    const t = game.tokens[i];
+    if (t.block !== bi) {
+      if (bi >= 0) html += '</p>';
+      bi = t.block;
+      html += '<p>';
+    }
+    if (t.kind === 'sep') {
+      html += escapeHtml(t.text);
+    } else if (game.redactedSet.has(i)) {
+      const revealed = game.revealedSet.has(i);
+      const cls = 'redacted' + (revealed ? ' revealed' : '');
+      // Width hint: pad with spaces equal to word length so the box matches.
+      // We use the actual word so revealing flips the box to text.
+      const display = revealed ? escapeHtml(t.text) : ' '.repeat(Math.max(2, t.text.length));
+      html += `<span class="${cls}" data-i="${i}">${display}</span>`;
+    } else {
+      html += escapeHtml(t.text);
+    }
+  }
+  if (bi >= 0) html += '</p>';
+  $('post-content').innerHTML = html;
+}
+
+function applyGuess(rawGuess) {
+  const guess = (rawGuess || '').trim().toLowerCase();
+  if (!guess) return;
+  const game = state.game;
+  let revealed = 0;
+  for (let i = 0; i < game.tokens.length; i++) {
+    const tok = game.tokens[i];
+    if (tok.kind !== 'word') continue;
+    if (!game.redactedSet.has(i) || game.revealedSet.has(i)) continue;
+    if (tok.text.toLowerCase() === guess) {
+      game.revealedSet.add(i);
+      revealed++;
+    }
+  }
+  if (revealed > 0) {
+    game.guessedRight.add(guess);
+    renderPost();
+    // Brief flash on newly revealed.
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.redacted.revealed').forEach(el => {
+        if (!el.dataset.flashed) {
+          el.classList.add('flash');
+          el.dataset.flashed = '1';
+          setTimeout(() => el.classList.remove('flash'), 700);
+        }
+      });
+    });
+  } else if (!game.guessedRight.has(guess)) {
+    game.guessedWrong.add(guess);
+  }
+  $('guess').value = '';
+  updateScore();
+  renderGuessedList();
+  if (revealed === 0) {
+    // Brief shake on input
+    $('guess').animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
+      { duration: 200 }
+    );
+  }
+}
+
+function revealAll() {
+  const game = state.game;
+  game.gaveUp = true;
+  for (const i of game.redactedSet) game.revealedSet.add(i);
+  renderPost();
+  updateScore();
+  $('guess').disabled = true;
+  $('guess-btn').disabled = true;
+  $('reveal').disabled = true;
+  $('reveal').textContent = 'Revealed';
+}
+
+function updateScore() {
+  const game = state.game;
+  const total = game.redactedSet.size;
+  let revealed = 0;
+  for (const i of game.redactedSet) if (game.revealedSet.has(i)) revealed++;
+  const pct = total ? Math.round((revealed / total) * 100) : 0;
+  let label;
+  if (game.gaveUp) {
+    label = `<b>${revealed}</b> / ${total} guessed (${pct}%) — gave up`;
+  } else if (revealed === total && total > 0) {
+    label = `<b>${total}</b> / ${total} ✓ — perfect`;
+    $('score').classList.add('complete');
+  } else {
+    label = `<b>${revealed}</b> / ${total} guessed (${pct}%)`;
+  }
+  $('score').innerHTML = label;
+  if (revealed !== total || total === 0) $('score').classList.remove('complete');
+}
+
+function renderGuessedList() {
+  const game = state.game;
+  const right = [...game.guessedRight];
+  const wrong = [...game.guessedWrong];
+  let html = '';
+  if (right.length) html += right.map(w => `<span class="ok">✓ ${escapeHtml(w)}</span>`).join(' &middot; ');
+  if (wrong.length) html += (right.length ? ' &middot; ' : '') + wrong.map(w => `<span class="bad">✕ ${escapeHtml(w)}</span>`).join(' &middot; ');
+  $('guessed-list').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// ----- progress / errors -----
+function setProgress(text, frac) {
+  $('progress-text').textContent = text;
+  if (typeof frac === 'number') {
+    $('progress-fill').style.width = Math.min(100, Math.max(0, frac * 100)) + '%';
+  }
+}
+function showError(msg) {
+  $('input-error').textContent = msg;
+  $('input-error').style.display = 'block';
+}
+function clearError() {
+  $('input-error').style.display = 'none';
+}
+
+// ----- typeahead -----
+const typeahead = {
+  results: [],
+  active: -1,
+  timer: null,
+  abort: null,
+};
+
+async function fetchTypeahead(query) {
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (typeahead.abort) typeahead.abort.abort();
+  typeahead.abort = new AbortController();
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`,
+      { signal: typeahead.abort.signal }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    typeahead.results = data.actors || [];
+    typeahead.active = -1;
+    renderTypeahead();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.error('typeahead', e);
+  }
+}
+
+function renderTypeahead() {
+  const el = $('typeahead-results');
+  const handle = $('handle');
+  if (!typeahead.results.length) {
+    el.classList.remove('show');
+    el.innerHTML = '';
+    handle.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  el.innerHTML = typeahead.results.map((a, i) => `
+    <div class="typeahead-item${i === typeahead.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === typeahead.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info">
+        <div class="display-name">${escapeHtml(a.displayName || a.handle)}</div>
+        <div class="at-handle">@${escapeHtml(a.handle)}</div>
+      </div>
+    </div>
+  `).join('');
+  el.classList.add('show');
+  handle.setAttribute('aria-expanded', 'true');
+  // Keep the active item in view.
+  if (typeahead.active >= 0) {
+    const item = el.children[typeahead.active];
+    if (item) item.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function hideTypeahead() {
+  $('typeahead-results').classList.remove('show');
+  typeahead.results = [];
+  typeahead.active = -1;
+  $('handle').setAttribute('aria-expanded', 'false');
+}
+
+function pickAndSubmit(handleStr) {
+  $('handle').value = handleStr;
+  hideTypeahead();
+  $('handle-form').requestSubmit();
+}
+
+$('handle').addEventListener('input', () => {
+  clearTimeout(typeahead.timer);
+  const v = $('handle').value;
+  typeahead.timer = setTimeout(() => fetchTypeahead(v), 180);
+});
+$('handle').addEventListener('keydown', (e) => {
+  if (!typeahead.results.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    typeahead.active = (typeahead.active + 1) % typeahead.results.length;
+    renderTypeahead();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    typeahead.active = (typeahead.active - 1 + typeahead.results.length) % typeahead.results.length;
+    renderTypeahead();
+  } else if (e.key === 'Enter' && typeahead.active >= 0) {
+    e.preventDefault();
+    pickAndSubmit(typeahead.results[typeahead.active].handle);
+  } else if (e.key === 'Escape') {
+    hideTypeahead();
+  } else if (e.key === 'Tab' && typeahead.active >= 0) {
+    // Tab fills without submitting, so the user can review before pressing enter.
+    e.preventDefault();
+    $('handle').value = typeahead.results[typeahead.active].handle;
+    hideTypeahead();
+  }
+});
+$('typeahead-results').addEventListener('mousedown', (e) => {
+  // mousedown (not click) so it fires before the input's blur hides the dropdown.
+  const item = e.target.closest('.typeahead-item');
+  if (!item) return;
+  e.preventDefault();
+  pickAndSubmit(item.dataset.handle);
+});
+$('handle').addEventListener('blur', () => {
+  // Delay slightly so a click on a dropdown item still registers.
+  setTimeout(() => hideTypeahead(), 120);
+});
+$('handle').addEventListener('focus', () => {
+  if ($('handle').value.trim()) fetchTypeahead($('handle').value);
+});
+
+// ----- wire up -----
+async function proceedWithProfile(result) {
+  state.did = result.did;
+  state.handle = result.handle;
+  state.posts = result.posts;
+  setProgress('Building threads…', 1);
+  state.threads = analyzeProfile(state.posts, { minChars: MIN_THREAD_CHARS });
+  state.selectedIdx = 0;
+  if (!state.threads.length) {
+    showStage('input');
+    showError(`No prose threads ≥ ${MIN_THREAD_CHARS} chars for @${state.handle}. Their posts may be mostly images / links.`);
+    return;
+  }
+  showStage('chart');
+  updateChartMeta();
+  renderChart();
+}
+
+$('handle-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearError();
+  const handle = $('handle').value.trim();
+  if (!handle) return;
+  showStage('loading');
+  setProgress('Resolving handle…', 0);
+  try {
+    const result = await pullProfile(handle, setProgress);
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+});
+
+$('upload').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  $('upload-name').textContent = file.name;
+  e.target.value = '';
+  clearError();
+  if (file.size > 5 * 1024 * 1024) {
+    showError(`File is ${(file.size / 1024 / 1024).toFixed(1)} MB; max is 5 MB.`);
+    return;
+  }
+  showStage('loading');
+  setProgress(`Reading ${file.name}…`, 0);
+  try {
+    const text = await file.text();
+    setProgress('Splitting into sections…', 0.5);
+    const result = uploadProfile(text, file.name);
+    if (!result.posts.length) {
+      showStage('input');
+      showError('Document had no readable content after splitting.');
+      return;
+    }
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+});
+
+// ----- Gutenberg search -----
+const gta = { results: [], active: -1, timer: null, abort: null };
+async function fetchGutenbergSuggestions(query) {
+  const q = (query || '').trim();
+  if (q.length < 2) { hideGutenbergResults(); return; }
+  if (gta.abort) gta.abort.abort();
+  gta.abort = new AbortController();
+  try {
+    gta.results = await searchGutenberg(q, { signal: gta.abort.signal });
+    gta.active = -1;
+    renderGutenbergResults();
+  } catch (e) { if (e.name !== 'AbortError') console.error('gutenberg', e); }
+}
+function renderGutenbergResults() {
+  const el = $('gutenberg-results');
+  if (!gta.results.length) { el.classList.remove('show'); el.innerHTML = ''; return; }
+  el.innerHTML = gta.results.map((b, i) => `
+    <div class="typeahead-item${i === gta.active ? ' active' : ''}" data-id="${b.id}" role="option">
+      <div class="avatar">📖</div>
+      <div class="info">
+        <div class="display-name">${escapeHtml(b.title)}</div>
+        <div class="at-handle">${escapeHtml(b.author)} · ${b.downloads.toLocaleString()} downloads · #${b.id}</div>
+      </div>
+    </div>
+  `).join('');
+  el.classList.add('show');
+  if (gta.active >= 0) { const item = el.children[gta.active]; if (item) item.scrollIntoView({ block: 'nearest' }); }
+}
+function hideGutenbergResults() {
+  $('gutenberg-results').classList.remove('show');
+  gta.results = []; gta.active = -1;
+}
+async function handleGutenbergPick(book) {
+  hideGutenbergResults();
+  $('gutenberg-q').value = `${book.title} — ${book.author}`;
+  clearError();
+  showStage('loading');
+  setProgress(`Fetching "${book.title}" by ${book.author}…`, 0);
+  try {
+    const text = await fetchGutenbergText(book.id);
+    setProgress('Splitting into sections…', 0.5);
+    const result = uploadProfile(text, gutenbergFilename(book));
+    if (!result.posts.length) {
+      showStage('input');
+      showError('Book had no readable content after splitting.');
+      return;
+    }
+    await proceedWithProfile(result);
+  } catch (err) {
+    showStage('input');
+    showError(String(err.message || err));
+  }
+}
+$('gutenberg-q').addEventListener('input', () => {
+  clearTimeout(gta.timer);
+  gta.timer = setTimeout(() => fetchGutenbergSuggestions($('gutenberg-q').value), 300);
+});
+$('gutenberg-q').addEventListener('keydown', (e) => {
+  if (!gta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); gta.active = (gta.active + 1) % gta.results.length; renderGutenbergResults(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); gta.active = (gta.active - 1 + gta.results.length) % gta.results.length; renderGutenbergResults(); }
+  else if (e.key === 'Enter' && gta.active >= 0) { e.preventDefault(); handleGutenbergPick(gta.results[gta.active]); }
+  else if (e.key === 'Escape') hideGutenbergResults();
+});
+$('gutenberg-results').addEventListener('mousedown', (e) => {
+  const item = e.target.closest('.typeahead-item');
+  if (!item) return; e.preventDefault();
+  const id = parseInt(item.dataset.id, 10);
+  const book = gta.results.find(b => b.id === id);
+  if (book) handleGutenbergPick(book);
+});
+$('gutenberg-q').addEventListener('blur', () => setTimeout(hideGutenbergResults, 150));
+
+$('show').addEventListener('click', () => {
+  if (!state.threads.length) return;
+  showStage('game');
+  startGame();
+  $('guess').focus();
+});
+$('back').addEventListener('click', () => {
+  state.posts = []; state.threads = []; state.did = null; state.handle = null;
+  $('handle').value = '';
+  showStage('input');
+  $('handle').focus();
+});
+$('back-to-chart').addEventListener('click', () => {
+  showStage('chart');
+});
+$('guess-btn').addEventListener('click', () => applyGuess($('guess').value));
+$('guess').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); applyGuess($('guess').value); }
+});
+$('reveal').addEventListener('click', revealAll);
+</script>
+</body>
+</html>

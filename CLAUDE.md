@@ -15,6 +15,8 @@ Three systems are under active production management on this branch:
 ### 1. ATPolls (`poll/`) — Bluesky Polling
 ### 2. SimCluster Feed (`workers/feed/`) + Zoom Viewer (`zoom/`) — Bluesky Feed Generator
 ### 3. Bluesky Post Pipeline (`src/post_thread.py` + `time/posts/`) — Multi-Account Publishing
+### 4. Rite (`rite/`) — Sentence Editing Drill + Fodder Crowdsourcing
+### 5. Airchat (`airchat/`) — Voice-first social on ATProto
 
 Details for each follow in dedicated sections below.
 
@@ -315,6 +317,180 @@ Morphyx's reply (chains from modulo's)
 
 ---
 
+## Project 4: Rite (`rite/`) — Sentence Editing Drill + Fodder
+
+**Live at**: `rite.mino.mobi`
+**Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
+**Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
+
+Single Worker that hosts nine surfaces, all over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
+
+- **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
+- **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
+- **`/redact/`** — Redactle-style game over a Bluesky user's longest prose threads. Pulls their full repo as a CAR, finds prose chains, picks ≈45% of content words to censor, scores guesses.
+- **`/ask/`** — semantic search over a profile's prose threads. Embeds each thread once via BGE, stores `(did, thread_id, text, embedding BLOB, x, y)` in D1, renders a 2D PCA map; query box highlights matching threads.
+- **`/atlas/`** — multi-view analytics over the same threads (scatter chars × Flesch, Pareto by length, Pareto by difficulty, Flesch histogram). Pure deterministic scoring, no inference.
+- **`/lexicon/`** — word-level lenses tagged against open lexicons (NRC Emotion, Brysbaert Concreteness, AFINN, SUBTLEX-US baseline). Frequency, TF-IDF distinctiveness, emotion-color, sentiment-color, concreteness gradient. Lexicons fetched + committed by `.github/workflows/fetch-lexicons.yml` to `rite/lexicon/data/*.json`; page falls back to inline mini-lexicons if the fetched files aren't present.
+- **`/list/`** — semantic analysis over a Bluesky list. Resolves a list URL via `app.bsky.graph.getList`, fans out to `/api/ask/check` + `/api/ask/map` per member, aggregates each indexed member's cluster labels into list-level themes (words appearing in cluster labels of ≥ 2 members). Members not yet indexed get a deeplink to ask (`/ask/?handle=…`); an "Index all" button runs the same in-tab pullProfile→analyzeProfile→POST /api/ask/index pipeline sequentially per member.
+- **`/web/`** — outbound link knowledge graph. Pulls a writer's CAR, extracts every external link facet (skipping bsky.app / *.bsky.social), builds a co-occurrence graph (two URLs share an edge whenever they appear in the same thread), runs PageRank, lays it out with Fruchterman-Reingold. The query box runs *personalized* PageRank seeded on URLs whose domain or anchor text matches — top-ranked URLs are the writer's strongest connections to that idea. Domain rollup toggle. Pure client-side; multi-CAR union on roadmap.
+- **`/signal/`** — semantic map of what a writer *reposts* (their taste, vs `/ask/`'s voice). Pulls the CAR, walks every `app.bsky.feed.repost` record, hydrates each `subject.uri` target via `app.bsky.feed.getPosts` (25 URIs/call), drops self-reposts and image-only targets, BGE-embeds, stores in D1 keyed by `(subscriber_did, target_uri)`, then PCA + k-means + cluster labels in the same shape as `/ask/`. Capped at most-recent 3000 reposts per index round. Server endpoints: `/api/signal/{check,index,query,map,target}`. Schema keyed by subscriber+target so the same target post can sit in many subscribers' indexes — leaves room for cross-user signal analytics later.
+
+### Architecture
+
+```
+rite/worker.js (single entry)
+  ├── ASSETS binding   → static (index.html, fodder/index.html, corpus.json)
+  ├── AI binding       → @cf/baai/bge-base-en-v1.5  (drill grading)
+  │                       @cf/meta/llama-3.1-8b-instruct (fodder rewrites)
+  └── DB binding (DB)  → atpolls-db (shared with poll + feed)
+
+Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-proxy
+                   → harvest verbose sentences → Llama → D1 'pending'
+```
+
+### Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/sentence` | Drill: random verbose sentence (or `?id=v007` for a specific one) |
+| `POST /api/grade` | Drill: score user's edit |
+| `GET /api/fodder/next` | Fodder: next batch of unvoted-by-this-voter pending candidates |
+| `POST /api/fodder/vote` | Fodder: record `yes` / `no` / `skip` swipe |
+| `GET /api/fodder/promoted` | Approved candidates in corpus.json shape (used by sync script) |
+| `GET /api/fodder/stats` | Counts: pending / approved / rejected / total votes / total voters |
+| `POST /api/fodder/admin/mine` | Manual mining trigger; requires `X-Admin-Key` matching `ADMIN_KEY` secret |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `rite/worker.js` | All routes + cron handler (~620 lines, single file) |
+| `rite/index.html` | Drill UI |
+| `rite/fodder/index.html` | Swipe deck UI (vanilla JS, pointer events, no build) |
+| `rite/corpus.json` | 45 hand-curated sentences with multiple references each |
+| `rite/wrangler.jsonc` | Worker + ASSETS + AI + D1 + cron (0 */6 * * *) |
+| `poll/apps/api/migrations/0014_fodder.sql` | D1 schema for `fodder_candidates`, `fodder_votes`, `fodder_state` |
+| `scripts/sync-fodder-to-rite.mjs` | Pulls approved fodder back into `rite/corpus.json` (idempotent) |
+
+### Deploy workflow (`deploy-rite.yml`)
+
+Triggers on push to `main` or `claude/sentence-editing-drill-*` that touches `rite/**`. Steps:
+
+1. Apply `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — failure is treated as already-applied and continues).
+2. `npx wrangler deploy` from `rite/` — uploads worker + assets, provisions `rite.mino.mobi`.
+3. Best-effort POST to `/api/fodder/admin/mine` to seed the first batch (skipped silently if `RITE_ADMIN_KEY` secret isn't set).
+
+Required secrets:
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already set, shared with poll/feed deploys.
+- `RITE_ADMIN_KEY` (optional) — must match the worker's `ADMIN_KEY` to enable post-deploy seed.
+
+### Crowdsource → drill sync
+
+```bash
+node scripts/sync-fodder-to-rite.mjs --dry      # preview new approvals
+node scripts/sync-fodder-to-rite.mjs            # append to rite/corpus.json
+git add rite/corpus.json && git commit && git push
+```
+
+Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from hand-curated rite IDs (`v001`).
+
+### Cost on $5 Workers Paid
+
+- Drill grading: ~1 neuron per submission (BGE batched).
+- Fodder mining: ~11 neurons × 5 candidates × 4 cron runs/day = ~220 neurons/day.
+- Voting: zero AI calls (pure D1).
+
+10,000 free neurons/day comfortably covers everything.
+
+---
+
+## Project 5: Airchat (`airchat/`) — Voice-First Social
+
+**Live at**: `airchat.mino.mobi`
+**Stack**: Cloudflare Worker + D1 + OpenAI Whisper
+**Deploy**: `.github/workflows/deploy-airchat.yml`
+
+### What It Does
+
+Voice posts on ATProto. Browser records audio (MediaRecorder API), worker proxies the audio through OpenAI Whisper for transcription, and the worker uploads the audio as a blob to the user's PDS + writes a `com.minomobi.airchat.voice` record referencing the blob. Reads are public (D1 cache of every whitelisted user's records, audio served via the author's PDS `com.atproto.sync.getBlob`). Writes are gated to a small whitelist.
+
+### Architecture
+
+```
+Browser (MediaRecorder)  ─►  Cloudflare Worker (BFF)
+                                       ├── OpenAI Whisper (transcribe)
+                                       ├── user's PDS (uploadBlob + createRecord)
+                                       └── D1 (sessions + whitelist + feed cache)
+```
+
+### Auth
+
+**OAuth only** (app-password removed). Confidential-client ATProto OAuth — PKCE + DPoP + PAR + `private_key_jwt`. Ported from poll's `apps/api/src/oauth/` to vanilla JS in `airchat/oauth/`. Keypair auto-generates in `airchat_oauth_keypair` (D1, singleton) on first `/client-metadata.json` request — no manual secret config. PDS calls are made with `Authorization: DPoP <token>` plus a fresh DPoP proof per request. Browser only ever holds an opaque `airchat_sid` httpOnly cookie.
+
+**Minimum-privilege scope**: `atproto repo:com.minomobi.airchat.voice blob:audio/*` — the token can write our voice lexicon + upload audio blobs, nothing else (no `transition:generic`).
+
+App-pw helper dispatches (`pdsAuthCall`, `ensureFreshAccess`) remain so legacy app-pw sessions degrade gracefully (force re-auth on first refresh failure).
+
+### Whitelist
+
+Two layers:
+- **`airchat_whitelist` D1 table** — durable; seeded from `airchat/whitelist.txt` (handles, DIDs, `list:` entries) on every deploy.
+- **`LIVE_WHITELIST_LISTS` in worker.js** — bluesky lists treated as live source of truth. On every auth check, if the DID isn't in the table, we fetch the list (cached 5 min per worker isolate) and check membership. A hit auto-inserts the DID for O(1) future checks. Adding to the bsky list grants access in ≤5 min without a redeploy; removal does NOT auto-revoke (manual DELETE required).
+
+### Migration history
+
+- `0018_airchat.sql` — whitelist, sessions, voices feed cache.
+- `0019_airchat_oauth.sql` — OAuth keypair singleton + ephemeral states + `airchat_sessions` columns (`auth_method`, `dpop_key_jwk`, `oauth_scope`).
+
+### Lexicon
+
+`com.minomobi.airchat.voice` — schema doc at `airchat/lexicons/voice.json`. Fields: `audio` (blob ref), `text` (transcript), `duration` (sec), `createdAt`, optional `reply.{parent,root}`, optional `lang[]`.
+
+The bsky appview ignores non-`app.bsky.*` collections, so these records don't enter the firehose-indexable space. They live on the user's own PDS, paid for by the user; the blob is pinned as long as the record references it. We pay $0 for storage.
+
+### Routes
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/airchat/health` | Health + bindings check |
+| GET | `/api/airchat/whitelist/check` | Public: is this DID on the whitelist? Optional session-aware |
+| POST | `/api/airchat/auth/start` | App-password sign-in; returns session cookie |
+| POST | `/api/airchat/auth/oauth/start` | Start OAuth flow; returns auth URL to redirect to |
+| GET | `/api/airchat/auth/oauth/callback` | OAuth callback (auth server redirects here); establishes session + 302s to `/` |
+| GET | `/client-metadata.json` | OAuth client metadata + public key (served from D1 keypair) |
+| GET | `/api/airchat/auth/me` | Current session info |
+| POST | `/api/airchat/auth/logout` | Drop session |
+| POST | `/api/airchat/transcribe` | Audio body → Whisper → transcript |
+| POST | `/api/airchat/post` | Multipart (audio + meta) → uploadBlob + createRecord + cache |
+| GET | `/api/airchat/feed` | Public: feed of all whitelisted users' voices (paginated) |
+| GET | `/api/airchat/voice` | Public: single voice record by URI |
+| POST | `/api/airchat/admin/whitelist/{add,remove}` | Admin (X-Admin-Key) |
+| GET | `/api/airchat/admin/whitelist/list` | Admin |
+
+### D1 Tables (on shared `atpolls-db`)
+
+- `airchat_whitelist (did PRIMARY KEY, handle, added_at, added_by, note)`
+- `airchat_sessions (session_id PRIMARY KEY, did, handle, pds_url, access_jwt, refresh_jwt, access_expires_at, created_at, last_seen_at)`
+- `airchat_voices (uri PRIMARY KEY, did, rkey, cid, pds_url, audio_cid, audio_mime, audio_size, duration_sec, text, reply_root_uri, reply_parent_uri, created_at, indexed_at)`
+- `airchat_oauth_keypair (id=1 singleton, private_key_jwk, public_key_jwk, kid, created_at)` — auto-generated on first `/client-metadata.json` request
+- `airchat_oauth_states (state PRIMARY KEY, code_verifier, dpop_key_jwk, did, pds_url, auth_server_url, token_endpoint, dpop_nonce, return_to, created_at, expires_at)` — ephemeral, 5-minute TTL
+
+Migrations: `poll/apps/api/migrations/0018_airchat.sql` + `0019_airchat_oauth.sql`.
+
+### Required Secrets
+
+- `OPENAI_API_KEY` — Whisper (`whisper-1` model)
+- `ADMIN_KEY` — gates `/api/airchat/admin/*` for whitelist mgmt
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already in GH Actions
+
+### Cost notes
+
+- Whisper: $0.006/min. At 100 posts/day × 30s avg → ~$0.30/day. Per-request hard cap of 16 MB (Whisper's ceiling is 25 MB).
+- Audio storage: $0 to us (lives on poster's PDS).
+- Workers/D1: comfortably under free tier.
+
+---
+
 ## Other Workers (Reference)
 
 Not actively managed but documented for context:
@@ -338,6 +514,7 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | **Bakery** | `bakery/` | React + Vite | `npm run build` → `dist/` | Pages (bakery.mino.mobi) |
 | **ATPhoto** | `photo/` | React 19 + Vite 6 + DuckDB-WASM + Rust/WASM | `npm run build` → `dist/` | Pages (photo.mino.mobi) — deploys from `claude/atproto-arena-duckdb-8H9SQ` |
 | **ATPolls** | `poll/` | React + Vite + Workers + D1 + DO | Monorepo: shared → web → api | Pages + Worker (poll.mino.mobi) |
+| **Rite** | `rite/` | Worker + ASSETS + D1 + AI (no build, vanilla JS) | `wrangler deploy` (via `deploy-rite.yml`) | Worker (rite.mino.mobi) — drill at `/`, fodder at `/fodder/`, redact at `/redact/`, ask at `/ask/`, atlas at `/atlas/`, lexicon at `/lexicon/`. Shares `atpolls-db`. All five browser surfaces share `rite/lib/atproto/` (CAR + threads + reading level). |
 
 **Poll specifics**:
 - Workspace monorepo: `packages/shared`, `apps/web`, `apps/api`
@@ -391,6 +568,9 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 | Workflow | Trigger | Deploys To |
 |----------|---------|------------|
 | `deploy-poll.yml` | Push to `main` (poll/**) or manual | Cloudflare Worker + Pages |
+| `deploy-rite.yml` | Push to `main` or `claude/sentence-editing-drill-*` (rite/**) or manual | D1 migration + Cloudflare Worker (rite.mino.mobi) |
+| `deploy-airchat.yml` | Push to `main` or `claude/sentence-editing-drill-*` (airchat/**) or manual | D1 migration + Cloudflare Worker (airchat.mino.mobi) |
+| `fetch-lexicons.yml` | Push to scripts/fetch-lexicons.mjs, monthly cron, or manual | Downloads NRC / AFINN / Concreteness / SUBTLEX-US, commits JSON to `rite/lexicon/data/` |
 | `post-to-bluesky.yml` | Push to `time/posts/` | Bluesky (3 accounts) |
 | `publish-whtwnd.yml` | Push to `time/entries/` | PDS (WhiteWind records) |
 | `sync-phylo.yml` | Push to tracked paths | PDS (phylo records) |

@@ -1,0 +1,70 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.airchat.voice",
+  "description": "A voice post: an audio blob with a Whisper transcript and optional threading.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["audio", "text", "createdAt"],
+        "properties": {
+          "audio": {
+            "type": "blob",
+            "accept": ["audio/webm", "audio/mp4", "audio/ogg", "audio/wav", "audio/mpeg"],
+            "maxSize": 16000000,
+            "description": "The voice recording. Browser-encoded, typically webm/opus."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "Transcript. Whisper-generated, possibly user-edited before posting."
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Duration in whole seconds. DAG-CBOR (ATProto's storage encoding) has no float type."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "reply": {
+            "type": "ref",
+            "ref": "#replyRef"
+          },
+          "lang": {
+            "type": "array",
+            "items": { "type": "string", "format": "language" },
+            "maxLength": 3,
+            "description": "BCP-47 language tags Whisper detected."
+          },
+          "segments": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#segment" },
+            "maxLength": 500,
+            "description": "Whisper segment timings (start_ms, end_ms, text). Enables synced caption display during playback + captioned video export."
+          }
+        }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "required": ["start", "end", "text"],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0, "description": "Start time in milliseconds." },
+        "end":   { "type": "integer", "minimum": 0, "description": "End time in milliseconds." },
+        "text":  { "type": "string", "maxLength": 500 }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": ["root", "parent"],
+      "properties": {
+        "root":   { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "parent": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+      }
+    }
+  }
+}

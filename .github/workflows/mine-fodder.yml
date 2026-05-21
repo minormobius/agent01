@@ -1,0 +1,63 @@
+name: Mine Fodder
+
+# Triggers a mining run on rite.mino.mobi/api/fodder/admin/mine.
+# Each run picks the next book in the round-robin (cursor in fodder_state)
+# and inserts up to 5 fresh candidates as 'pending'.
+#
+# Fires automatically on a push that touches this workflow file (so you can
+# kick it off by editing the file), and is also runnable manually from the
+# Actions tab via "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'How many sequential mining runs to chain (each picks next book)'
+        required: false
+        type: string
+        default: '5'
+  push:
+    branches:
+      - main
+      - 'claude/sentence-editing-drill-*'
+    paths:
+      - '.github/workflows/mine-fodder.yml'
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secret
+        run: |
+          if [ -z "${{ secrets.RITE_ADMIN_KEY }}" ]; then
+            echo "::error::RITE_ADMIN_KEY secret is not set in this repo. The worker's ADMIN_KEY must match this value. Set both:"
+            echo "  gh secret set RITE_ADMIN_KEY --body '<your-key>'"
+            echo "  cd rite && npx wrangler secret put ADMIN_KEY  # paste same value"
+            exit 1
+          fi
+
+      - name: Mine candidates
+        run: |
+          RUNS="${{ inputs.runs || '5' }}"
+          echo "Will perform $RUNS mining run(s) against rite.mino.mobi…"
+          TOTAL_INSERTED=0
+          for i in $(seq 1 "$RUNS"); do
+            echo "=== Run $i / $RUNS ==="
+            RESP=$(curl -fsS -X POST \
+              -H "X-Admin-Key: ${{ secrets.RITE_ADMIN_KEY }}" \
+              -H "Content-Type: application/json" \
+              https://rite.mino.mobi/api/fodder/admin/mine) || {
+                echo "::warning::Mining call $i failed; continuing"
+                continue
+              }
+            echo "$RESP" | python3 -m json.tool || echo "$RESP"
+            INSERTED=$(echo "$RESP" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("inserted",0))' 2>/dev/null || echo 0)
+            TOTAL_INSERTED=$((TOTAL_INSERTED + INSERTED))
+            sleep 3
+          done
+          echo "—— Total candidates inserted across all runs: $TOTAL_INSERTED ——"
+
+      - name: Show stats
+        run: |
+          echo "Current fodder stats:"
+          curl -fsS https://rite.mino.mobi/api/fodder/stats | python3 -m json.tool || true

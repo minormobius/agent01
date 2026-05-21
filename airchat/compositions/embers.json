@@ -1,0 +1,52 @@
+{
+  "$type": "com.minomobi.music.composition",
+  "name": "Embers",
+  "description": "E Phrygian Andalusian descent — Em → D → C → B with that flamenco half-step bite. Walking triangle bass, sustained sawtooth, square pluck, and a soft hat. Moody, slightly Spanish. ~8s loop at 90 BPM.",
+  "bpm": 90,
+  "steps": 48,
+  "tracks": [
+    {
+      "name": "Bass",
+      "instrument": "triangle",
+      "volume": 60,
+      "notes": [
+        "40,0,3,82", "40,4,3,75", "40,8,3,82", "40,12,3,75",
+        "38,16,3,82", "38,20,3,75", "38,24,3,82", "38,28,3,75",
+        "36,32,3,82", "36,36,3,75", "35,40,3,82", "35,44,3,75"
+      ]
+    },
+    {
+      "name": "Pad",
+      "instrument": "sawtooth",
+      "volume": 24,
+      "notes": [
+        "52,0,16,42", "55,0,16,42", "59,0,16,42",
+        "50,16,16,42", "54,16,16,42", "57,16,16,42",
+        "48,32,8,42", "52,32,8,42", "55,32,8,42",
+        "47,40,8,42", "51,40,8,42", "54,40,8,42"
+      ]
+    },
+    {
+      "name": "Pluck",
+      "instrument": "square",
+      "volume": 32,
+      "notes": [
+        "64,2,2,68", "65,4,2,68", "67,6,4,68",
+        "64,12,4,62",
+        "62,18,2,65", "64,20,2,65", "62,24,4,68",
+        "60,32,4,72", "59,40,4,75", "55,44,4,62"
+      ]
+    },
+    {
+      "name": "Hat",
+      "instrument": "noise",
+      "volume": 16,
+      "notes": [
+        "60,2,1,30", "60,6,1,30", "60,10,1,30", "60,14,1,30",
+        "60,18,1,30", "60,22,1,30", "60,26,1,30", "60,30,1,30",
+        "60,34,1,30", "60,38,1,30", "60,42,1,30", "60,46,1,30"
+      ]
+    }
+  ],
+  "createdAt": "2026-05-16T00:00:00.000Z"
+}
