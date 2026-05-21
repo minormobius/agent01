@@ -1,0 +1,20 @@
+# Demo script: title -> exit playerhouse -> walk to lab -> talk to prof -> grab starter.
+# Run with:  node pokemon/eval-script.mjs --trace pokemon/scripts/get-starter.txt
+#
+# DSL:
+#   z, x, start            single keypress (confirm/cancel/start)
+#   up|down|left|right [N] walk N tiles in that direction (default 1)
+#   wait N                 advance N idle frames
+#   # ...                  comment, ignored
+#   ;                      action separator (newlines also work)
+
+z              # title -> overworld, player spawns in Your House (4,4)
+down 5         # walk south, mat at (4,7) transitions to Rootvale Town (3,6)
+right 1        # (4,6)
+down 3         # stops at (4,9), lab wall blocks (4,10)
+right 4        # (8,9), detour around lab
+down 4         # (8,13)
+left 4         # walk into door tile (4,13) -> Professor's Lab (5,8)
+up 6           # up to (5,3), professor NPC at (5,2) blocks further
+z              # talk to professor -> _STARTER_SELECT_ -> mode 'starterSelect'
+z              # confirm starter index 0 (Embark) -> party gains Embark L5

@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<title>proteus — amoeba qualia</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #07090c;
+    --fg: #d8d8d8;
+    --dim: #6a727b;
+    --accent: #f0a050;
+    --panel: rgba(14, 17, 22, 0.78);
+    --border: #1a1f26;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+  #app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    flex-wrap: wrap;
+  }
+  #topbar .title {
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  #topbar .group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  #topbar label {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #topbar .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  #topbar input[type="range"] {
+    width: 100px;
+  }
+  #status {
+    margin-left: auto;
+    color: var(--dim);
+    letter-spacing: 0.04em;
+  }
+  #stage {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 40%, #0d1218 0%, #07090c 70%);
+  }
+  #map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+  #detached-banner {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 10px;
+    background: rgba(120, 30, 40, 0.7);
+    color: #ffd8d8;
+    border: 1px solid #803040;
+    border-radius: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #detached-banner.show { opacity: 1; }
+  #budget-strip {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  #budget-label { white-space: nowrap; }
+  #budget-bar {
+    flex: 1 1 auto;
+    height: 5px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #budget-fill {
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, #b8482c, #f0a050 60%, #f8d870);
+    transition: width 0.15s linear;
+  }
+  #engulf-count {
+    white-space: nowrap;
+    color: var(--accent);
+  }
+  /* swatch colors */
+  .sw-adhesion { background: #f0a050; }
+  .sw-light    { background: #f8f0a8; }
+  .sw-chem     { background: #70d088; }
+  .sw-tension  { background: #d870c8; }
+  /* Docs panel */
+  #docs-btn {
+    background: #1a1f26;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    font: inherit;
+  }
+  #docs-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #docs-modal.show { display: flex; }
+  #docs-content {
+    background: #0c1218;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: min(720px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 18px 22px;
+    line-height: 1.55;
+  }
+  #docs-content h2 {
+    color: var(--accent);
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  #docs-content h3 {
+    color: #d8d8d8;
+    margin: 18px 0 6px 0;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 3px;
+  }
+  #docs-content p { margin: 4px 0; font-size: 12px; }
+  #docs-content code {
+    color: var(--accent);
+    background: #1a1f26;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 11px;
+  }
+  #docs-content .row { display: flex; gap: 8px; margin: 4px 0; }
+  #docs-content .row .k {
+    min-width: 80px;
+    color: var(--accent);
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+  #docs-content .row .v { flex: 1 1 auto; font-size: 12px; }
+  #docs-content .sw {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  #docs-close {
+    background: transparent;
+    color: var(--dim);
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    float: right;
+    line-height: 1;
+    padding: 0 4px;
+  }
+  #docs-close:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <span class="title">proteus</span>
+    <div class="group">
+      <label><input type="checkbox" data-channel="adhesion"><span class="swatch sw-adhesion"></span>adhesion</label>
+      <label><input type="checkbox" data-channel="light"><span class="swatch sw-light"></span>light</label>
+      <label><input type="checkbox" data-channel="chem" checked><span class="swatch sw-chem"></span>chemistry</label>
+      <label><input type="checkbox" data-channel="tension" checked><span class="swatch sw-tension"></span>tension</label>
+    </div>
+    <div class="group">
+      <label>brush <input type="range" id="brush" min="6" max="80" value="28"></label>
+    </div>
+    <div class="group">
+      <label>push <input type="range" id="push" min="0" max="6" step="0.05" value="2.0"></label>
+      <label>base <input type="range" id="base" min="0" max="0.5" step="0.005" value="0.05"></label>
+    </div>
+    <div class="group">
+      <label>springK <input type="range" id="springK" min="1" max="60" step="0.5" value="6"></label>
+      <label>γ <input type="range" id="bendK" min="0" max="2" step="0.01" value="0.5"></label>
+    </div>
+    <div class="group">
+      <label><input type="checkbox" id="show-debug"> debug</label>
+      <button id="reset-btn" style="background:#1a1f26;color:var(--fg);border:1px solid var(--border);padding:3px 9px;border-radius:3px;cursor:pointer;font:inherit;">reset</button>
+      <button id="docs-btn">docs</button>
+    </div>
+    <div id="status">tap = extend&nbsp;&nbsp;drag up = retract</div>
+    <div id="hud" style="margin-left: 8px; color: var(--accent); font-size: 11px;"></div>
+  </div>
+  <div id="stage">
+    <canvas id="map"></canvas>
+    <div id="detached-banner">detached</div>
+    <div id="budget-strip">
+      <span id="budget-label">membrane reserve</span>
+      <div id="budget-bar"><div id="budget-fill"></div></div>
+      <span id="engulf-count">engulfed 0</span>
+    </div>
+  </div>
+</div>
+
+<div id="docs-modal">
+  <div id="docs-content">
+    <button id="docs-close" aria-label="close">×</button>
+    <h2>proteus controls</h2>
+    <p>You are inside the amoeba. You don't see it directly; you only see its
+    self-report painted on a map. The map's horizontal axis is the
+    <em>arc length along the membrane perimeter</em>, starting from the
+    south pole (the ventral adhesion centroid). Vertical is nominal latitude:
+    sensors all sit on the equator (middle horizontal band); the top and
+    bottom of the map are <em>virtual</em> dorsal and ventral poles painted
+    from samples at the cell footprint.</p>
+
+    <h3>Input gesture</h3>
+    <div class="row"><span class="k">tap</span><span class="v">Anchors the brush at the touch point and starts a mild extend at that arc position (directive +0.5 at the brushed nodes).</span></div>
+    <div class="row"><span class="k">hold</span><span class="v">Cortex stays at the extend target while you hold. Pseudopod grows.</span></div>
+    <div class="row"><span class="k">drag down</span><span class="v">Stronger extend. Full strength at 60 CSS-px drag.</span></div>
+    <div class="row"><span class="k">drag up</span><span class="v">Flip to retract: directive goes negative at the anchor, pulling that arc region inward. Full retract at 60 CSS-px up.</span></div>
+    <div class="row"><span class="k">release</span><span class="v">Directive decays to 0 over ~1 second; the pseudopod relaxes back.</span></div>
+    <p>The brush footprint is centered at the <em>anchor</em>, not the current pointer. The drag is a vertical-slider gesture, not a brush trail.
+    A blue ring around the anchor = extending; warm-red ring = retracting; the line from anchor to pointer shows the drag offset.</p>
+
+    <h3>Sliders</h3>
+    <div class="row"><span class="k">brush</span><span class="v">Brush radius in CSS pixels (6–80). Wider brush = more nodes inside the footprint Gaussian per gesture.</span></div>
+    <div class="row"><span class="k">push</span><span class="v"><code>sim.pushStrength</code> (0–6, default 2.0). The signed per-node force coefficient: a brushed node feels <code>basePressure + pushStrength × directive</code>. Higher push = more dramatic response per gesture; too high explodes the cell.</span></div>
+    <div class="row"><span class="k">base</span><span class="v"><code>sim.basePressure</code> (0–0.5, default 0.05). A small constant outward radial force on every node, every tick. Acts as turgor / balloon pressure. Set to 0 for a flaccid cell; turn up to discourage inward folds.</span></div>
+    <div class="row"><span class="k">springK</span><span class="v"><code>sim.springK</code> (1–60, default 6). Uniform cortical spring stiffness. Resists stretch and compression of edges. Higher = tighter / less deformable. Lower = floppier and easier to pseudopod.</span></div>
+    <div class="row"><span class="k">γ</span><span class="v"><code>sim.bendK</code> (0–2, default 0.5). Bending / curvature stiffness — pulls each node toward the midpoint of its two neighbors with force proportional to displacement. Discrete Laplace surface tension. Higher γ rounds out sharp features; low γ lets fine curvature accumulate (including stable double-walled involutions).</span></div>
+
+    <h3>Buttons</h3>
+    <div class="row"><span class="k">debug</span><span class="v">Toggle the top-down god's-eye view: substrate fields as a tinted bitmap, the cell polyline overlaid, sensor dots colored by their current channel readings, south pole X, chem-gradient arrow, food markers (pulsing = unconsumed, X = digested), and a legend with live winding number + budget.</span></div>
+    <div class="row"><span class="k">reset</span><span class="v">Rebuild the cell at the world's suggested start position and re-apply all current slider tunings.</span></div>
+    <div class="row"><span class="k">docs</span><span class="v">This panel.</span></div>
+
+    <h3>Sensor channels (toggles, colored swatches)</h3>
+    <div class="row"><span class="k"><span class="sw sw-adhesion"></span>adhesion</span><span class="v">Substrate grip strength at each sensor. <em>Off by default</em> — currently a rendering artifact; will become real once the ventral surface gets its own sensor sheet.</span></div>
+    <div class="row"><span class="k"><span class="sw sw-light"></span>light</span><span class="v">Ambient light at each sensor. Off by default — same caveat: dorsal surface will get real sensors later.</span></div>
+    <div class="row"><span class="k"><span class="sw sw-chem"></span>chemistry</span><span class="v">Chemical signal strength sampled at each sensor's world position. On by default. In Level 1 this is a single Gaussian centered on the food, so the gradient leads cleanly to a meal.</span></div>
+    <div class="row"><span class="k"><span class="sw sw-tension"></span>tension</span><span class="v">Cortical stretch magnitude at each sensor (proprioception). On by default. Lights up wherever springs are stretched — extending regions glow, taut bands of the resting cell show a faint hum.</span></div>
+
+    <h3>Bottom strip: membrane reserve</h3>
+    <p>The colored bar at the bottom is <code>sim.budget</code> — the cell's internal pool of recyclable membrane material. Sources:</p>
+    <div class="row"><span class="k">wrinkle</span><span class="v">The dorsal-posterior bunching zone accumulates wrinkle. Wrinkled nodes shed material into the budget over time. (Currently this zone is partly conceptual until ventral/dorsal sensors land.)</span></div>
+    <div class="row"><span class="k">merge</span><span class="v">When two adjacent nodes get pushed close together (edge below 45% of rest length), tectonics collapses them; recycled material refunds 0.025 to budget.</span></div>
+    <div class="row"><span class="k">engulf</span><span class="v">Each engulfed food dumps food.value (0.4) into budget AND grows the cell (targetArea × 1.08, perimeter0 × √1.08). The cell now wants to be bigger after a meal.</span></div>
+    <p>Sinks:</p>
+    <div class="row"><span class="k">tension</span><span class="v">High-tension nodes draw from budget to relax. Their restLenRatio grows so the local spring rest length increases, reducing strain.</span></div>
+    <div class="row"><span class="k">split</span><span class="v">When an edge gets stretched beyond 220% of rest length, tectonics inserts a midpoint node — costs 0.04 from the budget. This is how the cell physically grows after engulfment.</span></div>
+
+    <h3>HUD readout (top right)</h3>
+    <div class="row"><span class="k">push base K γ</span><span class="v">Live slider values.</span></div>
+    <div class="row"><span class="k">N</span><span class="v">Current node count. Starts at 256; climbs with tectonic splits as the cell grows. Floored at 64, ceiling 1024.</span></div>
+    <div class="row"><span class="k">R</span><span class="v">Mean radial distance of nodes from the cell centroid. A rough "cell size" indicator.</span></div>
+    <div class="row"><span class="k">vmax</span><span class="v">Peak node velocity magnitude across all nodes. Useful for tuning: spikes during deformation, settles low at equilibrium. Hard-clamped at 8.0 in the integrator as a safety net.</span></div>
+    <div class="row"><span class="k">dir±</span><span class="v">Peak |directive| across nodes — measures how strongly your input is registering. ~0.5 on tap, up to ±1.0 on full drag.</span></div>
+    <div class="row"><span class="k">fed</span><span class="v">Total food engulfments since reset.</span></div>
+    <div class="row"><span class="k">DETACHED</span><span class="v">Appears if sum of node adhesion drops below the threshold. Input is suppressed in this state — the cell drifts passively until contact is re-established.</span></div>
+
+    <h3>Notes on emergent behavior</h3>
+    <p><strong>Double walls / stable involutions:</strong> at low γ, bending can't blunt sharp curvature fast enough, so a fold can tuck inside and persist. Both shell and fold feel outward pressure but are already separated, so nothing actively unfolds them. Raising γ usually melts them. With arc-length mapU you can also target the inner fold's surface position directly and press extend to push it back out.</p>
+    <p><strong>Wandering frame:</strong> mapU is anchored to the south pole, which is itself the adhesion-weighted centroid. As the cell crawls over the substrate, the south pole shifts and the entire map rotates. This is the cell's actual frame — there's no fixed north star inside an amoeba.</p>
+  </div>
+</div>
+
+<script type="module">
+  import { createWorld } from './world.js';
+  import { createSim, tick } from './sim.js';
+  import { createRenderer, render } from './render.js';
+  import { attachInput, tickInput } from './input.js';
+
+  const canvas = document.getElementById('map');
+  const banner = document.getElementById('detached-banner');
+  const channelToggles = {
+    adhesion: document.querySelector('input[data-channel="adhesion"]'),
+    light:    document.querySelector('input[data-channel="light"]'),
+    chem:     document.querySelector('input[data-channel="chem"]'),
+    tension:  document.querySelector('input[data-channel="tension"]'),
+  };
+  const showDebug = document.getElementById('show-debug');
+  const brushSlider = document.getElementById('brush');
+  const pushSlider = document.getElementById('push');
+  const baseSlider = document.getElementById('base');
+  const springSlider = document.getElementById('springK');
+  const bendSlider = document.getElementById('bendK');
+  const resetBtn = document.getElementById('reset-btn');
+  const getBrushRadius = () => parseFloat(brushSlider.value);
+  const budgetFill = document.getElementById('budget-fill');
+  const engulfCount = document.getElementById('engulf-count');
+  const hud = document.getElementById('hud');
+
+  // Hidden world. Level 1 = no obstacles, single food point that's the only
+  // chem source, broad smooth substrate adhesion. Cell heads up the gradient,
+  // wraps the food, engulfment dumps material into sim.budget.
+  const world = createWorld({ w: 800, h: 800, seed: 1729, level: 1 });
+
+  function makeCell() {
+    return createSim({
+      world,
+      N: 256,
+      radius: 60,
+      cx: world.suggestedStart.x,
+      cy: world.suggestedStart.y,
+    });
+  }
+  let sim = makeCell();
+  function applyTuning() {
+    sim.pushStrength = parseFloat(pushSlider.value);
+    sim.basePressure = parseFloat(baseSlider.value);
+    sim.springK = parseFloat(springSlider.value);
+    sim.bendK = parseFloat(bendSlider.value);
+  }
+  applyTuning();
+  pushSlider.addEventListener('input', applyTuning);
+  baseSlider.addEventListener('input', applyTuning);
+  springSlider.addEventListener('input', applyTuning);
+  bendSlider.addEventListener('input', applyTuning);
+  resetBtn.addEventListener('click', () => {
+    sim = makeCell();
+    applyTuning();
+  });
+
+  // Docs modal.
+  const docsBtn = document.getElementById('docs-btn');
+  const docsModal = document.getElementById('docs-modal');
+  const docsClose = document.getElementById('docs-close');
+  docsBtn.addEventListener('click', () => docsModal.classList.add('show'));
+  docsClose.addEventListener('click', () => docsModal.classList.remove('show'));
+  docsModal.addEventListener('click', (e) => {
+    if (e.target === docsModal) docsModal.classList.remove('show');
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') docsModal.classList.remove('show');
+  });
+
+  // Renderer owns the offscreen low-res grid, the texture flow layer, and a
+  // cached top-down world bitmap used by the debug view.
+  const renderer = createRenderer({ canvas, world });
+
+  // Pointer input writes directive targets onto sim.nodes via tickInput().
+  const inputState = attachInput({ canvas, sim, getBrushRadius });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = Math.max(2, Math.round(rect.width  * dpr));
+    canvas.height = Math.max(2, Math.round(rect.height * dpr));
+    renderer.resize(canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Main loop. Fixed-step sim at ~30Hz, render every animation frame.
+  const stepMs = 1000 / 30;
+  let last = performance.now();
+  let acc = 0;
+  function frame(t) {
+    const dt = Math.min(100, t - last);
+    last = t;
+    acc += dt;
+    // Drive pointer input at frame rate so held fingers keep pulling cortex
+    // toward target even without further pointermove events.
+    tickInput(canvas, sim, inputState, getBrushRadius, dt / 1000);
+    while (acc >= stepMs) {
+      tick(sim, stepMs / 1000);
+      acc -= stepMs;
+    }
+    render(renderer, sim, {
+      channels: {
+        adhesion: channelToggles.adhesion.checked,
+        light:    channelToggles.light.checked,
+        chem:     channelToggles.chem.checked,
+        tension:  channelToggles.tension.checked,
+      },
+      debug: showDebug.checked,
+    });
+    // Brush-anchor indicator. Drawn on top of whatever the renderer just
+    // produced so the player can see their input register even when the
+    // sensor map happens to look uniform in that region.
+    if (inputState.pressed && inputState.anchor) {
+      const ctx2 = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      const dpr2 = rect.width > 0 ? canvas.width / rect.width : 1;
+      const rad = parseFloat(brushSlider.value) * dpr2;
+      const extending = inputState.target > 0;
+      const stroke = extending
+        ? 'rgba(120, 200, 255, 0.85)'
+        : 'rgba(255, 140, 100, 0.85)';
+      ctx2.save();
+      ctx2.strokeStyle = stroke;
+      ctx2.lineWidth = 2 * dpr2;
+      ctx2.beginPath();
+      ctx2.arc(inputState.anchor.px, inputState.anchor.py, rad, 0, Math.PI * 2);
+      ctx2.stroke();
+      // Drag-offset line from anchor to current pointer, hints at slider state.
+      ctx2.beginPath();
+      ctx2.moveTo(inputState.anchor.px, inputState.anchor.py);
+      ctx2.lineTo(inputState.cur.px, inputState.cur.py);
+      ctx2.stroke();
+      ctx2.restore();
+    }
+    banner.classList.toggle('show', sim.detached);
+    const pct = Math.max(0, Math.min(1, sim.budget / sim.budgetMax));
+    budgetFill.style.width = (pct * 100).toFixed(1) + '%';
+    engulfCount.textContent = 'engulfed ' + sim.engulfedCount;
+    // Live HUD. push/base = current sim parameters from sliders;
+    // R = mean cell radius; vmax = peak node speed; dir± = peak |directive|.
+    let rsum = 0, vmax = 0, ddev = 0;
+    for (let i = 0; i < sim.N; i++) {
+      const n = sim.nodes[i];
+      const dx = n.x - sim.cellCx, dy = n.y - sim.cellCy;
+      rsum += Math.hypot(dx, dy);
+      const sp = Math.hypot(n.vx, n.vy);
+      if (sp > vmax) vmax = sp;
+      const d = Math.abs(n.directive);
+      if (d > ddev) ddev = d;
+    }
+    const rmean = rsum / sim.N;
+    hud.textContent =
+      'push=' + sim.pushStrength.toFixed(2) +
+      ' base=' + sim.basePressure.toFixed(3) +
+      ' K=' + sim.springK.toFixed(1) +
+      ' γ=' + sim.bendK.toFixed(2) +
+      ' N=' + sim.N +
+      ' R=' + rmean.toFixed(1) +
+      ' vmax=' + vmax.toFixed(2) +
+      ' dir±=' + ddev.toFixed(2) +
+      ' fed=' + sim.engulfedCount +
+      (sim.detached ? ' DETACHED' : '');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
