@@ -56,6 +56,94 @@ Existing projects (org, crm, wave, photo, labglass, bakery, time, cards, etc.) e
 
 ---
 
+## OAuth Strategy — read this before adding auth to any site
+
+There is a **dedicated, shared OAuth worker** at `workers/auth/` deployed to `auth.mino.mobi`. New sites that need Bluesky auth use it. A few existing sites are grandfathered into their own thing — leave them alone unless you're actively refactoring.
+
+### Canonical architecture
+
+```
+┌─────────────────────────┐         ┌──────────────────────────────────┐
+│  Any static site        │         │  workers/auth/  →  auth.mino.mobi│
+│  (bakery, photo, wave,  │         │                                  │
+│  wiki, your-new-site)   │         │  • /client-metadata.json         │
+│                         │         │  • /oauth/start                  │
+│  import { AuthClient }  │ ──────► │  • /oauth/callback               │
+│    from packages/       │         │  • /api/me, /api/refresh         │
+│         oauth-client/   │         │  • /pds/* (DPoP-bound proxy)     │
+│         auth.js         │         │                                  │
+│                         │ ◄────── │  D1: mino-auth-db (sessions,     │
+│  Bearer <session_id>    │         │       oauth_keypair, states)     │
+└─────────────────────────┘         └──────────────────────────────────┘
+```
+
+- **`workers/auth/`** — Cloudflare Worker (1.2k LOC TS) that holds the confidential OAuth client: PKCE + DPoP + PAR + `private_key_jwt`. Signing keypair is auto-generated into D1 on first `/client-metadata.json` request — no manual secret config. Sessions are opaque `Bearer` tokens; the worker holds the DPoP-bound PDS refresh token and minted access tokens on the site's behalf and proxies PDS calls through `/pds/*`.
+- **`packages/oauth-client/auth.js`** — 9.7 KB browser-side library, no deps, no build. Exports `AuthClient` with `login(handle, {scope})`, `init()`, `getUser()`, `logout()`, and `auth.pds.{createRecord, putRecord, listRecords, deleteRecord, uploadBlob, getBlob}`. PDS calls go through the worker, so the browser never sees a token that talks to a PDS directly.
+- **Deploy workflow**: `.github/workflows/deploy-auth.yml` — triggers on `main` or `claude/implement-oauth-bsky-JgUdn` touching `workers/auth/**`. The workflow auto-creates `mino-auth-db` on first run via `wrangler d1 create` (the `TODO_CREATE_DATABASE` placeholder in `workers/auth/wrangler.jsonc` is intentional — `sed`-patched at deploy time, not committed back).
+
+### Per-site permission shaping — yes, this is supported
+
+The worker accepts a `scope` parameter on every OAuth start and stores it per-session:
+
+```js
+const auth = new AuthClient();
+// Default (identity + generic write):
+await auth.login('alice.bsky.social');                       // 'atproto transition:generic'
+
+// Custom: identity-only (no writes):
+await auth.login('alice.bsky.social', { scope: 'atproto' });
+
+// Custom: writes scoped to one lexicon + a blob type:
+await auth.login('alice.bsky.social', {
+  scope: 'atproto repo:com.example.thing blob:image/*',
+});
+```
+
+Constraint: the worker's `client-metadata.json` declares the **umbrella scope** (currently `atproto transition:generic` — see `workers/auth/src/index.ts:182`). Sites can request narrower scopes within that umbrella. To exceed it — e.g. add a new `blob:` type that's outside `transition:generic` — bump the metadata scope. The ATProto auth server enforces the metadata as the ceiling.
+
+When tightening a site's scope, prefer the narrowest scope that lets the feature work. The reward shows up in the Bluesky consent screen, which lists exactly what the site can do.
+
+### Adding a new site to the shared OAuth worker
+
+Three steps:
+
+1. **Allowlist the origin**. Add `https://your-site.mino.mobi` to `ALLOWED_ORIGINS` in `workers/auth/src/index.ts:21-30`. (The wildcard `*.mino.mobi` check on line 36 catches subdomains, but list the explicit origin so future devs can see who's using the worker.)
+2. **Import the client lib**. From your site: `import { AuthClient } from '../../packages/oauth-client/auth.js'`. Do **not** hand-roll an `auth.js` — photo/wave/wiki did, and they each diverge slightly. Use the shared lib.
+3. **Pick a scope**. Default is `atproto transition:generic`. If you can get away with less, pass `{ scope }` to `login()`.
+
+That's it. Push to a branch matching `deploy-auth.yml`'s trigger glob to update `ALLOWED_ORIGINS`; push your site's branch to deploy the frontend.
+
+### Grandfathered exceptions (don't extend these to new sites)
+
+| Site | OAuth | Why it's separate | Migration cost |
+|------|-------|-------------------|----------------|
+| **poll** | Own BFF at `poll/apps/api/src/oauth/` | Shipped before `workers/auth/` existed. The auth worker was *extracted from* poll (see the file headers: "Extracted from poll/apps/api/src/oauth/..."). | **Hard.** Poll *is* the OAuth BFF for itself and its sub-rooms (mmo, draw, paint). Migrating means redesigning session storage and likely deprecating poll's `/api/auth/*` route surface. |
+| **airchat** | Own OAuth at `airchat/oauth/` | Cloned poll's modules to vanilla JS when airchat needed to ship; `airchat/oauth/jwt.js` says "Port of poll's apps/api/src/oauth/jwt.ts". | **Medium.** Custom scope (`atproto repo:com.minomobi.airchat.voice blob:audio/*`) is already a scope the auth worker can grant. Migration = (1) bump auth worker's umbrella to cover `blob:audio/*`, (2) use `auth.pds.uploadBlob()` through the proxy, (3) drop `airchat/oauth/`. Worth doing on the next airchat refactor. |
+| **mmo, draw, paint** | Call poll's `/api/{draw,mmo}/oauth/start` | These backends live *inside* poll's worker — they're rooms in poll's house, not separate sites. | **Tied to poll.** Migrating them means migrating poll or moving them out of poll's worker first. |
+
+**Mental model**: sites that have their own Worker doing BFF-style OAuth are grandfathered. Sites that are static frontends (or could be static + a thin Worker) should use `workers/auth/`. When in doubt, use the shared worker.
+
+### Sites that should be on the shared worker but currently have hand-rolled clients
+
+These talk to `auth.mino.mobi` but reimplement the client lib instead of importing it. Easy migration target:
+
+| Site | Local file to delete | Replacement |
+|------|---------------------|-------------|
+| photo | `photo/src/lib/auth.js` | `import { AuthClient } from '../../packages/oauth-client/auth.js'` |
+| wave | `wave/src/lib/auth.ts` | same |
+| wiki | `wiki/src/lib/auth.ts` | same |
+| labglass, music, sweat, answers, org | various inline OAuth bits | same |
+
+Bakery is the reference: `bakery/src/atproto.js` imports the shared lib. Copy that pattern.
+
+### What to never do
+
+- **Never reimplement OAuth in a new site.** Use the shared worker.
+- **Never commit the patched `database_id` back to `workers/auth/wrangler.jsonc`.** The `TODO_CREATE_DATABASE` literal is intentional — the deploy workflow handles it.
+- **Never widen the umbrella scope in `client-metadata.json` casually.** Every site that uses the worker inherits the ceiling. Add new scopes only when a real feature needs them.
+
+---
+
 ## Domain & Infrastructure
 
 - **Domain**: `minomobi.com` (also `mino.mobi` — used in public-facing URLs)
