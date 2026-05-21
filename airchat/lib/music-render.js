@@ -170,3 +170,72 @@ export async function loadBundledComposition(entry, base = '/compositions/') {
   if (!res.ok) throw new Error(`${file} fetch failed (${res.status})`);
   return res.json();
 }
+
+// ─── PDS import ─────────────────────────────────────────────────────────
+//
+// Fetch all com.minomobi.music.composition records from a handle's repo.
+// Resolves handle → DID via bsky's public API, DID → PDS endpoint via
+// PLC directory (or did:web's well-known doc), then listRecords on the
+// custom collection.
+//
+// Returns: [{ uri, cid, value }, …] where value is the composition shape
+// that renderComposition() consumes directly.
+
+const BSKY_PUBLIC_API = 'https://api.bsky.app';
+const PLC_DIR = 'https://plc.directory';
+
+export async function fetchCompositionsByHandle(rawHandle) {
+  const handle = String(rawHandle || '').replace(/^@/, '').trim().toLowerCase();
+  if (!handle) throw new Error('empty handle');
+
+  // 1) handle → DID
+  const r1 = await fetch(`${BSKY_PUBLIC_API}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!r1.ok) throw new Error(`could not resolve @${handle}`);
+  const { did } = await r1.json();
+
+  // 2) DID → PDS service endpoint
+  const pdsUrl = await resolvePds(did);
+  if (!pdsUrl) throw new Error(`no PDS endpoint for ${did}`);
+
+  // 3) listRecords for our composition collection
+  const records = [];
+  let cursor;
+  for (let page = 0; page < 5; page++) {            // safety cap, 5×100 = 500 max
+    const params = new URLSearchParams({
+      repo: did,
+      collection: 'com.minomobi.music.composition',
+      limit: '100',
+    });
+    if (cursor) params.set('cursor', cursor);
+    const r2 = await fetch(`${pdsUrl.replace(/\/$/, '')}/xrpc/com.atproto.repo.listRecords?${params}`);
+    if (!r2.ok) throw new Error(`listRecords failed (${r2.status})`);
+    const data = await r2.json();
+    for (const rec of (data.records || [])) {
+      records.push({ uri: rec.uri, cid: rec.cid, value: rec.value });
+    }
+    if (!data.cursor || (data.records || []).length === 0) break;
+    cursor = data.cursor;
+  }
+  return { did, handle, pdsUrl, records };
+}
+
+async function resolvePds(did) {
+  try {
+    if (did.startsWith('did:plc:')) {
+      const r = await fetch(`${PLC_DIR}/${did}`);
+      if (!r.ok) return null;
+      const doc = await r.json();
+      const pds = (doc.service || []).find((s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer');
+      return pds?.serviceEndpoint || null;
+    }
+    if (did.startsWith('did:web:')) {
+      const host = did.slice('did:web:'.length).replace(/:/g, '/');
+      const r = await fetch(`https://${host}/.well-known/did.json`);
+      if (!r.ok) return null;
+      const doc = await r.json();
+      const pds = (doc.service || []).find((s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer');
+      return pds?.serviceEndpoint || null;
+    }
+  } catch {}
+  return null;
+}

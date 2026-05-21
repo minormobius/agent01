@@ -225,6 +225,67 @@ button.danger { background: var(--rec); }
   padding: 0.2rem 0.5rem; cursor: pointer;
 }
 .music-clear:hover { color: var(--bad); border-color: var(--bad); }
+.music-import {
+  margin-top: 0.4rem;
+  display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.7rem;
+}
+.music-import input[type="text"] {
+  flex: 1; min-width: 180px;
+  padding: 0.3rem 0.5rem;
+  font-family: var(--mono); font-size: 0.75rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px;
+}
+.music-import input[type="text"]:focus { border-color: var(--accent); outline: none; }
+.music-import button {
+  font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 0.3rem 0.6rem;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+}
+.music-import button:hover:not(:disabled) { background: var(--accent-faint); }
+.music-import button:disabled { opacity: 0.5; cursor: wait; }
+.music-import-status {
+  flex-basis: 100%;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: none; letter-spacing: 0;
+  min-height: 0.85em;
+}
+.music-import-status.err { color: var(--bad); }
+.music-import-status.ok  { color: var(--good); }
+
+.bg-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.bg-label { display: block; margin-bottom: 0.25rem; }
+.bg-row input[type="file"] {
+  font-family: var(--mono); font-size: 0.75rem; color: var(--text);
+}
+.bg-hint {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  text-transform: none; letter-spacing: 0; font-style: italic;
+  margin-top: 0.2rem;
+}
+.bg-thumbs {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem;
+}
+.bg-thumb {
+  position: relative; width: 56px; height: 56px; border-radius: 4px;
+  overflow: hidden; border: 1px solid var(--rule); background: #000;
+}
+.bg-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bg-thumb-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; padding: 0; cursor: pointer;
+  background: var(--rec); color: white;
+  border: none; border-radius: 50%;
+  font-size: 12px; font-family: var(--mono); line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.bg-thumb-remove:hover { opacity: 0.85; }
 .video-box .vbar {
   height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden;
   margin: 0.3rem 0;
@@ -456,11 +517,22 @@ footer a { color: var(--muted); text-decoration: underline; }
               <option value="file">upload my own…</option>
             </select>
             <input id="music-file" type="file" accept="audio/*" style="display:none">
+            <div class="music-import">
+              <input id="music-import-handle" type="text" placeholder="@handle.bsky.social" autocapitalize="none" spellcheck="false">
+              <button id="music-import-btn" type="button">Import their compositions</button>
+              <span id="music-import-status" class="music-import-status"></span>
+            </div>
             <div class="music-controls" id="music-controls" style="display:none">
               <span class="music-name" id="music-name"></span>
               <label class="music-vol-label">Volume <input id="music-volume" type="range" min="0" max="100" value="25"></label>
               <button type="button" id="music-clear" class="music-clear">remove</button>
             </div>
+          </div>
+          <div class="bg-row">
+            <label class="bg-label" for="bg-images-input">Background images (optional, up to 4)</label>
+            <input id="bg-images-input" type="file" accept="image/*" multiple>
+            <div class="bg-hint">rotate equidistantly through the clip with cross-fades</div>
+            <div class="bg-thumbs" id="bg-thumbs"></div>
           </div>
           <div class="vbar"><div id="vfill" class="vfill"></div></div>
           <div id="vstatus" class="vstatus"></div>
@@ -490,7 +562,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 <script type="module">
 import { FILTERS, applyFilter } from './lib/filters.js';
 import { makeCaptionedVideo, makeCaptionedVideoRealtime } from './lib/video.js';
-import { renderComposition, loadBundledIndex, loadBundledComposition } from './lib/music-render.js';
+import { renderComposition, loadBundledIndex, loadBundledComposition, fetchCompositionsByHandle } from './lib/music-render.js';
 
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -514,6 +586,8 @@ const state = {
   musicBlob: null,        // user-supplied background track (optional)
   musicName: '',
   musicVolume: 25,        // 0..100, applied as 0..1 gain in ffmpeg amix
+  bgImages: [],           // [{ file, bitmap, name }] — up to 4 background photos
+  importedCompositions: new Map(),  // id → { name, handle, value } from PDS imports
   duration: 0,
   detectedLang: null,
   feedCursor: null,
@@ -860,6 +934,7 @@ $('video-btn').addEventListener('click', async () => {
       musicBlob: state.musicBlob,
       musicName: state.musicName,
       musicGain: state.musicVolume / 100,             // 0..100 → 0..1 amplitude gain
+      bgImages: state.bgImages.map((b) => b.bitmap),  // 0..4 ImageBitmaps; rotated equidistantly
       onProgress: (p) => {
         if (p.stage === 'loading-ffmpeg') $('vstatus').textContent = p.message || 'loading ffmpeg…';
         else if (p.stage === 'ffmpeg-log') appendVlog(p.message);
@@ -924,6 +999,10 @@ function resetPreview() {
   state.currentFilter = 'none';
   state.transcript = ''; state.duration = 0; state.segments = null;
   clearMusic();
+  for (const img of state.bgImages) { try { img.bitmap?.close?.(); } catch {} }
+  state.bgImages = [];
+  if ($('bg-images-input')) $('bg-images-input').value = '';
+  if ($('bg-thumbs')) $('bg-thumbs').innerHTML = '';
   $('preview').classList.remove('show');
   $('preview-audio').src = '';
   $('transcript-box').value = '';
@@ -1018,6 +1097,23 @@ $('music-source').addEventListener('change', async (e) => {
       $('music-source').value = '';
       clearMusic();
     }
+    return;
+  }
+  if (value.startsWith('remote:')) {     // PDS-imported composition
+    const entry = state.importedCompositions.get(value);
+    if (!entry) { clearMusic(); return; }
+    try {
+      $('music-controls').style.display = 'flex';
+      $('music-name').textContent = `${entry.name} · @${entry.handle} · rendering…`;
+      const wavBlob = await renderComposition(entry.value);
+      state.musicBlob = wavBlob;
+      state.musicName = `${entry.name} (@${entry.handle})`;
+      $('music-name').textContent = `${entry.name} · @${entry.handle} · ${(wavBlob.size / 1024).toFixed(1)} KB (rendered)`;
+    } catch (err) {
+      alert('Could not render composition: ' + (err?.message || err));
+      $('music-source').value = '';
+      clearMusic();
+    }
   }
 });
 
@@ -1043,6 +1139,97 @@ $('music-clear').addEventListener('click', clearMusic);
 // "loading…" stub gets replaced before the user even opens the video
 // panel.
 ensureMusicLibraryLoaded();
+
+// ─── music import from PDS handle ────────────────────────────────────────
+$('music-import-btn').addEventListener('click', async () => {
+  const handle = $('music-import-handle').value.replace(/^@/, '').trim();
+  if (!handle) return;
+  const statusEl = $('music-import-status');
+  statusEl.className = 'music-import-status';
+  statusEl.textContent = `resolving @${handle}…`;
+  $('music-import-btn').disabled = true;
+  try {
+    const { records } = await fetchCompositionsByHandle(handle);
+    if (!records.length) {
+      statusEl.textContent = `@${handle} has no com.minomobi.music.composition records`;
+      statusEl.className = 'music-import-status err';
+      return;
+    }
+    const sel = $('music-source');
+    const fileOpt = Array.from(sel.options).find((o) => o.value === 'file');
+    let added = 0;
+    for (const rec of records) {
+      const id = 'remote:' + rec.uri;
+      if (state.importedCompositions.has(id)) continue;        // dedupe across imports
+      state.importedCompositions.set(id, {
+        name: rec.value?.name || '(untitled)',
+        handle, value: rec.value, uri: rec.uri,
+      });
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${rec.value?.name || '(untitled)'} · @${handle}`;
+      sel.insertBefore(opt, fileOpt);
+      added++;
+    }
+    statusEl.textContent = `+ ${added} composition${added === 1 ? '' : 's'} from @${handle}${added < records.length ? ` (${records.length - added} already imported)` : ''}`;
+    statusEl.className = 'music-import-status ok';
+  } catch (e) {
+    statusEl.textContent = 'error: ' + (e?.message || e);
+    statusEl.className = 'music-import-status err';
+  } finally {
+    $('music-import-btn').disabled = false;
+  }
+});
+
+// Enter in the import field triggers the button.
+$('music-import-handle').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('music-import-btn').click(); }
+});
+
+// ─── background images ──────────────────────────────────────────────────
+const MAX_BG_IMAGES = 4;
+const MAX_BG_IMAGE_BYTES = 12 * 1024 * 1024;             // 12 MB per image cap
+
+$('bg-images-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []).slice(0, MAX_BG_IMAGES);
+  // Free any old ImageBitmaps before replacing.
+  for (const img of state.bgImages) { try { img.bitmap?.close?.(); } catch {} }
+  state.bgImages = [];
+  for (const file of files) {
+    if (file.size > MAX_BG_IMAGE_BYTES) {
+      alert(`${file.name} too large (${(file.size / 1024 / 1024).toFixed(1)} MB > ${MAX_BG_IMAGE_BYTES / 1024 / 1024} MB cap), skipping.`);
+      continue;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      state.bgImages.push({ file, bitmap, name: file.name });
+    } catch (err) {
+      console.error('bg image decode failed', file.name, err);
+    }
+  }
+  renderBgThumbs();
+  // Reset input so the user can pick the same files again after removing.
+  e.target.value = '';
+});
+
+function renderBgThumbs() {
+  const host = $('bg-thumbs');
+  if (!state.bgImages.length) { host.innerHTML = ''; return; }
+  host.innerHTML = state.bgImages.map((img, i) => `
+    <div class="bg-thumb" data-i="${i}">
+      <img src="${URL.createObjectURL(img.file)}" alt="">
+      <button type="button" class="bg-thumb-remove" data-i="${i}" title="remove">×</button>
+    </div>
+  `).join('');
+  host.querySelectorAll('.bg-thumb-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.i);
+      const removed = state.bgImages.splice(i, 1)[0];
+      try { removed?.bitmap?.close?.(); } catch {}
+      renderBgThumbs();
+    });
+  });
+}
 
 // ─── post ────────────────────────────────────────────────────────────────
 $('post-btn').addEventListener('click', async () => {

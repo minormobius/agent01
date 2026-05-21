@@ -123,6 +123,7 @@ export async function makeCaptionedVideo(opts) {
     audioBlob, audioMime, segments = [], duration,
     displayName, handle, avatarUrl,
     musicBlob = null, musicName = '', musicGain = 0.25,
+    bgImages = [],                                       // up to 4 ImageBitmaps; rotated equidistantly
     onProgress,
   } = opts;
   if (!audioBlob || !duration) throw new Error('missing audio or duration');
@@ -143,7 +144,7 @@ export async function makeCaptionedVideo(opts) {
   for (let f = 0; f < totalFrames; f++) {
     const tSec = f / FPS;
     drawFrame(ctx, W, H, {
-      time: tSec, duration, segments, handle, displayName, avatarBitmap,
+      time: tSec, duration, segments, handle, displayName, avatarBitmap, bgImages,
     });
     const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
     const ab = await blob.arrayBuffer();
@@ -245,6 +246,7 @@ export async function makeCaptionedVideoRealtime(opts) {
     audioBlob, segments = [], duration,
     displayName, handle, avatarUrl,
     musicBlob = null, musicGain = 0.25,
+    bgImages = [],
     onProgress,
   } = opts;
   if (!audioBlob || !duration) throw new Error('missing audio or duration');
@@ -260,7 +262,7 @@ export async function makeCaptionedVideoRealtime(opts) {
   const ctx = canvas.getContext('2d');
   // Draw the first frame *before* captureStream so the recorder
   // doesn't start with a black frame.
-  drawFrame(ctx, W, H, { time: 0, duration, segments, handle, displayName, avatarBitmap });
+  drawFrame(ctx, W, H, { time: 0, duration, segments, handle, displayName, avatarBitmap, bgImages });
 
   // Audio graph: voice (one-shot) + optional looped music mixed to
   // a MediaStreamDestinationNode. The destination's .stream gives us
@@ -336,7 +338,7 @@ export async function makeCaptionedVideoRealtime(opts) {
   let stopRequested = false;
   function tick() {
     const tSec = (performance.now() - t0) / 1000;
-    drawFrame(ctx, W, H, { time: tSec, duration, segments, handle, displayName, avatarBitmap });
+    drawFrame(ctx, W, H, { time: tSec, duration, segments, handle, displayName, avatarBitmap, bgImages });
     onProgress?.({ stage: 'encoding', progress: Math.min(1, tSec / duration) });
     if (tSec < duration + 0.3) {
       requestAnimationFrame(tick);
@@ -371,18 +373,76 @@ async function loadAvatarBitmap(avatarUrl) {
 
 // ─── canvas frame rendering ─────────────────────────────────────────────
 function drawFrame(ctx, W, H, opts) {
-  // Background
-  ctx.fillStyle = '#0f0f0f';
+  drawBackgroundLayer(ctx, W, H, opts);
+  drawAvatarHeader(ctx, W, H, opts);
+  drawCaptionLayer(ctx, W, H, opts);
+  drawProgressBar(ctx, W, H, opts);
+  drawFooter(ctx, W, H, opts);
+}
+
+// Background layer: either a slideshow of user-supplied images
+// (rotating equidistantly through the clip with cross-fades on slot
+// boundaries) or the original dark+accent gradient when no images
+// are supplied. A dark gradient overlay is composed on top of the
+// image slideshow so caption text stays readable regardless of the
+// underlying photo's contrast.
+function drawBackgroundLayer(ctx, W, H, opts) {
+  const bgImages = opts.bgImages || [];
+  if (bgImages.length === 0) {
+    ctx.fillStyle = '#0f0f0f';
+    ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, 0, 160);
+    grad.addColorStop(0, 'rgba(201, 112, 112, 0.10)');
+    grad.addColorStop(1, 'rgba(201, 112, 112, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 160);
+    return;
+  }
+
+  const N = bgImages.length;
+  const slotDur = Math.max(0.001, opts.duration / N);
+  const slotFloat = opts.time / slotDur;
+  const segIndex = Math.max(0, Math.min(N - 1, Math.floor(slotFloat)));
+  const nextIndex = Math.min(N - 1, segIndex + 1);
+  const tInSlot = opts.time - segIndex * slotDur;
+  const FADE_DUR = 0.6;                                  // seconds
+
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
+  drawCoverImage(ctx, W, H, bgImages[segIndex]);
 
-  // Subtle accent gradient at the top for visual interest
-  const grad = ctx.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(201, 112, 112, 0.10)');
-  grad.addColorStop(1, 'rgba(201, 112, 112, 0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, 160);
+  // Cross-fade into the next image during the last FADE_DUR of the slot.
+  // Skip on the last slot (no next image).
+  if (segIndex < N - 1 && tInSlot > slotDur - FADE_DUR) {
+    const fade = Math.min(1, (tInSlot - (slotDur - FADE_DUR)) / FADE_DUR);
+    ctx.globalAlpha = fade;
+    drawCoverImage(ctx, W, H, bgImages[nextIndex]);
+    ctx.globalAlpha = 1;
+  }
 
-  // Avatar + handle header
+  // Dark gradient overlay — heavier at top/bottom so the avatar header
+  // + footer + caption all sit on darker pixels and the middle still
+  // reveals the image.
+  const overlay = ctx.createLinearGradient(0, 0, 0, H);
+  overlay.addColorStop(0,    'rgba(0, 0, 0, 0.55)');
+  overlay.addColorStop(0.30, 'rgba(0, 0, 0, 0.25)');
+  overlay.addColorStop(0.70, 'rgba(0, 0, 0, 0.25)');
+  overlay.addColorStop(1,    'rgba(0, 0, 0, 0.75)');
+  ctx.fillStyle = overlay;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawCoverImage(ctx, W, H, img) {
+  if (!img) return;
+  const iw = img.width || img.naturalWidth || 0;
+  const ih = img.height || img.naturalHeight || 0;
+  if (!iw || !ih) return;
+  const scale = Math.max(W / iw, H / ih);              // object-fit: cover
+  const dw = iw * scale, dh = ih * scale;
+  ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+}
+
+function drawAvatarHeader(ctx, W, H, opts) {
   const padX = 48;
   const avatarSize = 64;
   const avatarY = 48;
@@ -394,61 +454,86 @@ function drawFrame(ctx, W, H, opts) {
     ctx.drawImage(opts.avatarBitmap, padX, avatarY, avatarSize, avatarSize);
     ctx.restore();
   } else {
-    // Initial-letter placeholder
-    ctx.fillStyle = 'rgba(201, 112, 112, 0.15)';
+    ctx.fillStyle = 'rgba(201, 112, 112, 0.20)';
     ctx.beginPath();
     ctx.arc(padX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#c97070';
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 32px ui-monospace, "SF Mono", monospace';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     const initial = (opts.displayName || opts.handle || '?').replace(/^@/, '').charAt(0).toUpperCase();
     ctx.fillText(initial, padX + avatarSize / 2, avatarY + avatarSize / 2);
   }
+  // Drop shadow for the name + handle so they read over photos.
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#d4d4d4';
+  ctx.fillStyle = '#fafafa';
   ctx.font = 'bold 26px Georgia, serif';
   ctx.fillText(opts.displayName || opts.handle || '', padX + avatarSize + 16, avatarY + 30);
-  ctx.fillStyle = '#c97070';
+  ctx.fillStyle = '#ffc4c4';
   ctx.font = '18px ui-monospace, "SF Mono", monospace';
   ctx.fillText('@' + (opts.handle || ''), padX + avatarSize + 16, avatarY + 56);
+  ctx.restore();
+}
 
-  // Caption — the current segment, wrapped, centered vertically in the
-  // middle band of the frame.
+function drawCaptionLayer(ctx, W, H, opts) {
   const t = opts.time;
   const current = (opts.segments || []).find((s) => t >= s.start && t < s.end);
-  if (current && current.text) {
-    ctx.fillStyle = '#fafafa';
-    ctx.font = '34px Georgia, "Iowan Old Style", serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    const maxWidth = W - padX * 2;
-    const lines = wrapText(ctx, current.text, maxWidth);
-    const lineHeight = 48;
-    const totalH = lines.length * lineHeight;
-    const startY = 200 + (W - 280 - totalH) / 2;
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], padX, startY + i * lineHeight);
-    }
-  }
+  if (!current || !current.text) return;
 
-  // Progress bar
+  const padX = 48;
+  const maxWidth = W - padX * 2;
+  ctx.font = '36px Georgia, "Iowan Old Style", serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const lines = wrapText(ctx, current.text, maxWidth);
+  const lineHeight = 50;
+  const totalH = lines.length * lineHeight;
+  const startY = 200 + (W - 280 - totalH) / 2;
+
+  // Render each line with a stroke for guaranteed contrast over any
+  // background, then fill in the bright text on top. This is more
+  // reliable than shadowBlur which can vary across browsers.
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < lines.length; i++) {
+    ctx.strokeText(lines[i], padX, startY + i * lineHeight);
+  }
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], padX, startY + i * lineHeight);
+  }
+}
+
+function drawProgressBar(ctx, W, H, opts) {
+  const padX = 48;
   const barH = 4;
   const barY = H - 64;
-  ctx.fillStyle = 'rgba(201, 112, 112, 0.18)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
   ctx.fillRect(padX, barY, W - padX * 2, barH);
-  ctx.fillStyle = '#c97070';
-  const progress = Math.min(1, t / opts.duration);
+  ctx.fillStyle = '#ffffff';
+  const progress = Math.min(1, opts.time / opts.duration);
   ctx.fillRect(padX, barY, (W - padX * 2) * progress, barH);
+}
 
-  // Footer brand
-  ctx.fillStyle = '#666';
+function drawFooter(ctx, W, H, _opts) {
+  const padX = 48;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = '#cccccc';
   ctx.font = '14px ui-monospace, "SF Mono", monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('yapchat · airchat.mino.mobi', padX, H - 28);
+  ctx.restore();
 }
 
 // Pick an extension ffmpeg's demuxer will recognize, falling back to
