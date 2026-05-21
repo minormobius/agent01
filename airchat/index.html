@@ -186,6 +186,14 @@ button.danger { background: var(--rec); }
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .music-label { display: block; margin-bottom: 0.25rem; }
+.music-select {
+  font-family: var(--mono); font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--rule); border-radius: 4px;
+  margin-right: 0.4rem; min-width: 200px;
+}
+.music-select:focus { border-color: var(--accent); outline: none; }
 .music-row input[type="file"] {
   font-family: var(--mono); font-size: 0.75rem;
   color: var(--text);
@@ -419,8 +427,13 @@ footer a { color: var(--muted); text-decoration: underline; }
         <div id="video-box" class="video-box">
           <div class="vlabel">Captioned video</div>
           <div class="music-row">
-            <label class="music-label" for="music-file">Background music (optional)</label>
-            <input id="music-file" type="file" accept="audio/*">
+            <label class="music-label" for="music-source">Background music (optional)</label>
+            <select id="music-source" class="music-select">
+              <option value="">— none —</option>
+              <option value="lib" disabled>library (loading…)</option>
+              <option value="file">upload my own…</option>
+            </select>
+            <input id="music-file" type="file" accept="audio/*" style="display:none">
             <div class="music-controls" id="music-controls" style="display:none">
               <span class="music-name" id="music-name"></span>
               <label class="music-vol-label">Volume <input id="music-volume" type="range" min="0" max="100" value="25"></label>
@@ -454,6 +467,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 <script type="module">
 import { FILTERS, applyFilter } from './lib/filters.js';
 import { makeCaptionedVideo } from './lib/video.js';
+import { renderComposition, loadBundledIndex, loadBundledComposition } from './lib/music-render.js';
 
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -866,15 +880,88 @@ function resetPreview() {
 }
 
 // ─── background music for video ──────────────────────────────────────────
+//
+// Three sources, all end at state.musicBlob being a Blob that gets
+// passed to ffmpeg as the background track:
+//   1. none (default)
+//   2. bundled library — fetch a com.minomobi.music.composition JSON
+//      from /compositions/, render it to a WAV via the shared synth.
+//      Same shape as a real ATProto record, so we can later swap the
+//      fetch for a PDS getRecord call without touching the renderer.
+//   3. user upload — file input, any audio/* mime.
 const MAX_MUSIC_BYTES = 25 * 1024 * 1024;                // 25 MB cap
+let _musicLibraryIndex = null;                            // lazy-loaded
 
 function clearMusic() {
   state.musicBlob = null;
   state.musicName = '';
   if ($('music-file')) $('music-file').value = '';
+  if ($('music-source')) $('music-source').value = '';
   if ($('music-controls')) $('music-controls').style.display = 'none';
   if ($('music-name')) $('music-name').textContent = '';
 }
+
+async function ensureMusicLibraryLoaded() {
+  if (_musicLibraryIndex) return _musicLibraryIndex;
+  try {
+    _musicLibraryIndex = await loadBundledIndex('/compositions/');
+    const sel = $('music-source');
+    // Drop the "loading…" stub and inject one option per composition.
+    const libOpts = (_musicLibraryIndex.compositions || []).map((c) => {
+      const opt = document.createElement('option');
+      opt.value = 'lib:' + c.id;
+      opt.textContent = c.name + (c.subtitle ? ` · ${c.subtitle}` : '');
+      return opt;
+    });
+    // Remove the disabled placeholder, splice in real options before "file".
+    const placeholder = Array.from(sel.options).find((o) => o.value === 'lib');
+    if (placeholder) placeholder.remove();
+    const fileOpt = Array.from(sel.options).find((o) => o.value === 'file');
+    for (const opt of libOpts) sel.insertBefore(opt, fileOpt);
+    return _musicLibraryIndex;
+  } catch (e) {
+    console.warn('music library load failed', e);
+    return null;
+  }
+}
+
+async function pickFromLibrary(id) {
+  await ensureMusicLibraryLoaded();
+  const entry = (_musicLibraryIndex?.compositions || []).find((c) => c.id === id);
+  if (!entry) throw new Error('unknown composition: ' + id);
+  $('music-controls').style.display = 'flex';
+  $('music-name').textContent = `${entry.name} · rendering…`;
+  const composition = await loadBundledComposition(entry, '/compositions/');
+  // Render via the shared synth. ~50-200ms for a short loop.
+  const wavBlob = await renderComposition(composition);
+  state.musicBlob = wavBlob;
+  state.musicName = entry.name;
+  $('music-name').textContent = `${entry.name} · ${(wavBlob.size / 1024).toFixed(1)} KB (8-bit, rendered)`;
+}
+
+$('music-source').addEventListener('change', async (e) => {
+  const value = e.target.value;
+  if (!value) {                          // "— none —"
+    clearMusic();
+    return;
+  }
+  if (value === 'file') {                // open file picker
+    state.musicBlob = null;
+    state.musicName = '';
+    $('music-controls').style.display = 'none';
+    $('music-file').click();
+    return;
+  }
+  if (value.startsWith('lib:')) {        // bundled composition
+    try {
+      await pickFromLibrary(value.slice(4));
+    } catch (err) {
+      alert('Could not render composition: ' + (err?.message || err));
+      $('music-source').value = '';
+      clearMusic();
+    }
+  }
+});
 
 $('music-file').addEventListener('change', (e) => {
   const f = e.target.files?.[0];
@@ -893,6 +980,11 @@ $('music-volume').addEventListener('input', (e) => {
   state.musicVolume = Number(e.target.value) || 0;
 });
 $('music-clear').addEventListener('click', clearMusic);
+
+// Preload the library index when the page mounts so the dropdown's
+// "loading…" stub gets replaced before the user even opens the video
+// panel.
+ensureMusicLibraryLoaded();
 
 // ─── post ────────────────────────────────────────────────────────────────
 $('post-btn').addEventListener('click', async () => {

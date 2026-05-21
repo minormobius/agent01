@@ -1,0 +1,12 @@
+{
+  "description": "yapchat's bundled music library. Each entry references a com.minomobi.music.composition shaped JSON file. Add more by composing in /music, exporting the JSON, dropping it here, and appending to this list.",
+  "compositions": [
+    {
+      "id": "drift",
+      "file": "drift.json",
+      "name": "Drift",
+      "subtitle": "downtempo · 13s loop · 76 BPM",
+      "tags": ["lofi", "dreamy", "downtempo", "minor", "loop"]
+    }
+  ]
+}
