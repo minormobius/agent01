@@ -307,6 +307,149 @@ hr {
   margin-top: 0.2rem;
 }
 
+/* ── Visualization tabs + stage ── */
+.vis-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.5rem auto 1.1rem;
+  flex-wrap: wrap;
+  max-width: min(92vw, 720px);
+}
+.vis-tab {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.7rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.vis-tab:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.vis-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+#vis-stage {
+  position: relative;
+  width: min(92vw, 720px);
+  margin: 0 auto 1rem;
+}
+.vis-mode {
+  display: none;
+  position: relative;
+  width: 100%;
+}
+.vis-mode.active { display: block; }
+
+/* canvas / svg in modes */
+.vis-mode[data-mode="constellation"] canvas,
+.vis-mode[data-mode="force"] canvas {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  background: #0a0a14;
+  border-radius: 4px;
+}
+.vis-mode[data-mode="subway"] svg {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  display: block;
+  background: #0c0c12;
+  border-radius: 4px;
+}
+
+.vis-tip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 10, 20, 0.95);
+  border: 1px solid var(--accent);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: #ddd;
+  border-radius: 2px;
+  z-index: 5;
+  display: none;
+  white-space: nowrap;
+  transform: translate(0, -50%);
+}
+
+/* Periodic table */
+#periodic-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+.periodic-section {
+  margin-bottom: 0.9rem;
+}
+.periodic-cat-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  opacity: 0.7;
+}
+.periodic-cells {
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+.periodic-cell {
+  padding: 0.5rem 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--link);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.02em;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.periodic-cell:hover {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  transform: translateY(-1px);
+}
+.periodic-cell .pc-commits {
+  display: block;
+  font-size: 0.5rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  opacity: 0.65;
+}
+.periodic-scanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-faint) 50%, transparent);
+  animation: periodic-sweep 11s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes periodic-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(400%); }
+}
+
 /* Claude's section — feature-branch inheritance log */
 .claude-lede {
   font-size: 0.95rem;
@@ -556,6 +699,35 @@ footer a:hover {
 
 <h1>minomobi</h1>
 
+<div class="vis-tabs" role="tablist">
+  <button class="vis-tab active" data-mode="constellation" role="tab">constellation</button>
+  <button class="vis-tab" data-mode="subway" role="tab">subway</button>
+  <button class="vis-tab" data-mode="periodic" role="tab">periodic</button>
+  <button class="vis-tab" data-mode="force" role="tab">force</button>
+  <button class="vis-tab" data-mode="orrery" role="tab">orrery</button>
+</div>
+
+<div id="vis-stage">
+  <div class="vis-mode active" data-mode="constellation">
+    <canvas id="constellation-canvas"></canvas>
+    <div id="constellation-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="subway">
+    <svg id="subway-svg" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="subway-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="periodic">
+    <div id="periodic-stage"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="force">
+    <canvas id="force-canvas"></canvas>
+    <div id="force-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="orrery">
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
@@ -712,6 +884,8 @@ footer a:hover {
   <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
   <div class="ofb-group"><div class="ofb-links"><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/yum.html">yum</a><a href="https://mino.mobi/answers/">answers</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/music/">music</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/wild/">wild</a><a href="https://mino.mobi/disk/">disk</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/clock/scape/">torusworld</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a></div></div>
 </nav>
+  </div>
+</div>
 
 <div class="site-count">70+ surfaces</div>
 
@@ -1314,6 +1488,633 @@ footer a:hover {
   <a href="mailto:tips@mino.mobi">tips@mino.mobi</a> &middot;
   <span class="build-stamp">shipped 2026-05-21</span>
 </footer>
+
+<script>
+// ─── Visualization stage: shared data + tab switcher + four renderers ───
+(function() {
+  // Project taxonomy. Each entry: { n: name, u: url, c: category, k: commits, a: age, p?: parent }.
+  // Short keys keep the inline data compact.
+  var P = [
+    // bluesky
+    { n:'poll',     u:'https://poll.mino.mobi',                  c:'bluesky', k:75, a:'warm' },
+    { n:'airchat',  u:'https://airchat.mino.mobi',               c:'bluesky', k:25, a:'hot' },
+    { n:'zoom',     u:'https://zoom.mino.mobi',                  c:'bluesky', k:23, a:'warm' },
+    { n:'weft',     u:'https://mino.mobi/weft/',                 c:'bluesky', k:19, a:'hot' },
+    { n:'photo',    u:'https://photo.mino.mobi',                 c:'bluesky', k:39, a:'hot' },
+    { n:'thread',   u:'https://photo.mino.mobi/#/thread',        c:'bluesky', k:3,  a:'hot',  p:'photo' },
+    { n:'astro',    u:'https://photo.mino.mobi/astro/',          c:'bluesky', k:4,  a:'hot',  p:'photo' },
+    { n:'prism',    u:'https://photo.mino.mobi/prism/',          c:'bluesky', k:3,  a:'hot',  p:'photo' },
+    { n:'ternary',  u:'https://mino.mobi/ternary/',              c:'bluesky', k:7,  a:'warm' },
+    { n:'judge',    u:'https://mino.mobi/judge/',                c:'bluesky', k:9,  a:'cold' },
+    { n:'novelty',  u:'https://mino.mobi/novelty/',              c:'bluesky', k:12, a:'cold' },
+    { n:'echo',     u:'https://mino.mobi/echo/',                 c:'bluesky', k:1,  a:'cold' },
+    { n:'density',  u:'https://mino.mobi/density/',              c:'bluesky', k:5,  a:'cold' },
+    { n:'seek',     u:'https://mino.mobi/seek/',                 c:'bluesky', k:3,  a:'cold' },
+    { n:'cluster',  u:'https://mino.mobi/cluster/',              c:'bluesky', k:10, a:'cold' },
+    { n:'wild',     u:'https://mino.mobi/wild/',                 c:'bluesky', k:3,  a:'warm' },
+    { n:'disk',     u:'https://mino.mobi/disk/',                 c:'bluesky', k:2,  a:'warm' },
+    { n:'answers',  u:'https://mino.mobi/answers/',              c:'bluesky', k:30, a:'hot' },
+    { n:'rite',     u:'https://rite.mino.mobi',                  c:'bluesky', k:42, a:'hot' },
+    { n:'fodder',   u:'https://rite.mino.mobi/fodder/',          c:'bluesky', k:8,  a:'hot',  p:'rite' },
+    { n:'redact',   u:'https://rite.mino.mobi/redact/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
+    { n:'ask',      u:'https://rite.mino.mobi/ask/',             c:'bluesky', k:6,  a:'hot',  p:'rite' },
+    { n:'atlas',    u:'https://rite.mino.mobi/atlas/',           c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'lexicon',  u:'https://rite.mino.mobi/lexicon/',         c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'list',     u:'https://rite.mino.mobi/list/',            c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'web',      u:'https://rite.mino.mobi/web/',             c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'signal',   u:'https://rite.mino.mobi/signal/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
+    // work
+    { n:'org',      u:'https://org.mino.mobi',                   c:'work',    k:40, a:'hot' },
+    { n:'pm',       u:'https://mino.mobi/pm/',                   c:'work',    k:17, a:'warm', p:'org' },
+    { n:'wave',     u:'https://wave.mino.mobi',                  c:'work',    k:10, a:'cold', p:'org' },
+    { n:'wiki',     u:'https://mino.mobi/wiki/',                 c:'work',    k:15, a:'warm', p:'org' },
+    { n:'crm',      u:'https://mino.mobi/crm/',                  c:'work',    k:14, a:'warm', p:'org' },
+    { n:'bounty',   u:'https://mino.mobi/bounty/',               c:'work',    k:5,  a:'cold' },
+    // data
+    { n:'time',     u:'https://mino.mobi/time/',                 c:'data',    k:15, a:'cold' },
+    { n:'mega',     u:'https://mino.mobi/mega/',                 c:'data',    k:11, a:'cold' },
+    { n:'finance',  u:'https://mino.mobi/finance/',              c:'data',    k:28, a:'hot' },
+    { n:'bogo',     u:'https://mino.mobi/finance/bogo/',         c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'agimet',   u:'https://mino.mobi/finance/agimet/',       c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'stocks',   u:'https://mino.mobi/finance/stocks/',       c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'wars',     u:'https://mino.mobi/wars/',                 c:'data',    k:7,  a:'hot' },
+    { n:'cult',     u:'https://mino.mobi/wars/cult/',            c:'data',    k:5,  a:'hot',  p:'wars' },
+    { n:'flows',    u:'https://mino.mobi/flows/',                c:'data',    k:5,  a:'cold' },
+    { n:'phylo',    u:'https://mino.mobi/phylo/',                c:'data',    k:28, a:'cold' },
+    { n:'cards',    u:'https://mino.mobi/cards/',                c:'data',    k:122,a:'hot' },
+    { n:'yum',      u:'https://mino.mobi/cards/yum.html',        c:'data',    k:6,  a:'hot',  p:'cards' },
+    // tools
+    { n:'labglass', u:'https://mino.mobi/labglass/',             c:'tools',   k:25, a:'cold' },
+    { n:'os',       u:'https://os.mino.mobi',                    c:'tools',   k:16, a:'warm' },
+    { n:'read',     u:'https://mino.mobi/read/',                 c:'tools',   k:37, a:'hot' },
+    { n:'flow',     u:'https://mino.mobi/read/flow/',            c:'tools',   k:1,  a:'warm', p:'read' },
+    { n:'post01',   u:'https://mino.mobi/read/post01/',          c:'tools',   k:13, a:'hot',  p:'read' },
+    { n:'noise',    u:'https://mino.mobi/noise/',                c:'tools',   k:6,  a:'cold' },
+    { n:'music',    u:'https://mino.mobi/music/',                c:'tools',   k:17, a:'cold' },
+    { n:'bakery',   u:'https://bake.mino.mobi',                  c:'tools',   k:25, a:'cold' },
+    { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold' },
+    // games
+    { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot' },
+    { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', p:'clock' },
+    { n:'stretch',   u:'https://mino.mobi/clock/stretch/',       c:'games',   k:4,  a:'warm', p:'clock' },
+    { n:'globe',     u:'https://mino.mobi/clock/globe/',         c:'games',   k:11, a:'hot',  p:'clock' },
+    { n:'hand',      u:'https://mino.mobi/clock/hand/',          c:'games',   k:6,  a:'warm', p:'clock' },
+    { n:'scope',     u:'https://mino.mobi/clock/scope/',         c:'games',   k:6,  a:'warm', p:'clock' },
+    { n:'mole',      u:'https://mino.mobi/clock/mole/',          c:'games',   k:3,  a:'hot',  p:'clock' },
+    { n:'ship',      u:'https://mino.mobi/clock/ship/',          c:'games',   k:6,  a:'hot',  p:'clock' },
+    { n:'helix',     u:'https://mino.mobi/clock/helix/',         c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'corn',      u:'https://mino.mobi/clock/corn/',          c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'mol',       u:'https://mino.mobi/clock/mol/',           c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'torusworld',u:'https://mino.mobi/clock/scape/',         c:'games',   k:24, a:'warm' },
+    { n:'pac',       u:'https://mino.mobi/clock/pac/',           c:'games',   k:18, a:'hot',  p:'torusworld' },
+    { n:'torpac',    u:'https://mino.mobi/clock/torpac/',        c:'games',   k:1,  a:'warm', p:'torusworld' },
+    { n:'knotpac',   u:'https://mino.mobi/clock/knotpac/',       c:'games',   k:11, a:'warm', p:'torusworld' },
+    { n:'inpac',     u:'https://mino.mobi/clock/inpac/',         c:'games',   k:9,  a:'warm', p:'torusworld' },
+    { n:'chess',     u:'https://mino.mobi/clock/toruschess/',    c:'games',   k:2,  a:'warm', p:'torusworld' },
+    { n:'pokemon',   u:'https://mino.mobi/pokemon/',             c:'games',   k:22, a:'warm' },
+    { n:'proteus',   u:'https://mino.mobi/pokemon/proteus/',     c:'games',   k:15, a:'hot',  p:'pokemon' },
+    { n:'mmo',       u:'https://mino.mobi/mmo/',                 c:'games',   k:18, a:'hot' },
+    { n:'draw',      u:'https://mino.mobi/draw/',                c:'games',   k:6,  a:'hot',  p:'mmo' },
+    { n:'paint',     u:'https://mino.mobi/paint/',               c:'games',   k:5,  a:'hot',  p:'mmo' },
+    { n:'range',     u:'https://mino.mobi/range/',               c:'games',   k:3,  a:'hot',  p:'mmo' },
+  ];
+
+  var CATS = {
+    bluesky: { label:'bluesky', color:'#6ec1e4' },
+    work:    { label:'work',    color:'#e6a23c' },
+    data:    { label:'data',    color:'#67c23a' },
+    tools:   { label:'tools',   color:'#a880ff' },
+    games:   { label:'games',   color:'#f56991' },
+  };
+
+  // ── Tab switcher ──
+  var mode = 'constellation';
+  var animator = null;
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.vis-tab').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.mode === m);
+    });
+    document.querySelectorAll('.vis-mode').forEach(function(d) {
+      d.classList.toggle('active', d.dataset.mode === m);
+    });
+    if (animator) { cancelAnimationFrame(animator); animator = null; }
+    if (m === 'constellation') startConstellation();
+    else if (m === 'subway') startSubway();
+    else if (m === 'periodic') startPeriodic();
+    else if (m === 'force') startForce();
+    else if (m === 'orrery') {
+      // existing orrery script listens to resize for layout
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+  document.querySelectorAll('.vis-tab').forEach(function(b) {
+    b.addEventListener('click', function() { setMode(b.dataset.mode); });
+  });
+
+  // ─────────── Constellation ───────────
+  // Stars grouped into category regions, slow rotational drift, twinkling.
+  function startConstellation() {
+    var cvs = document.getElementById('constellation-canvas');
+    var tip = document.getElementById('constellation-tip');
+    var ctx = cvs.getContext('2d');
+    var stars = [];
+    var rotation = 0;
+    var mx = -999, my = -999;
+    var hovered = null;
+    var last = performance.now();
+    var dpr = 1;
+
+    function layout() {
+      var rect = cvs.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+      var catKeys = Object.keys(CATS);
+      stars = [];
+      catKeys.forEach(function(cat, ci) {
+        var projs = P.filter(function(p) { return p.c === cat; });
+        if (!projs.length) return;
+        var catAngle = ci * Math.PI * 2 / catKeys.length - Math.PI / 2;
+        var catCx = cx + Math.cos(catAngle) * Math.min(W, H) * 0.28;
+        var catCy = cy + Math.sin(catAngle) * Math.min(W, H) * 0.28;
+        projs.forEach(function(p, i) {
+          // arrange in concentric rings within the cluster
+          var ring = Math.floor(i / 8);
+          var slot = i % 8;
+          var a = slot * Math.PI / 4 + (ring * 0.31) + ci * 0.7;
+          var r = 18 + ring * 22;
+          stars.push({
+            p: p,
+            bx: catCx + Math.cos(a) * r,
+            by: catCy + Math.sin(a) * r,
+            ph: Math.random() * Math.PI * 2,
+            cat: cat,
+          });
+        });
+      });
+    }
+
+    function draw() {
+      if (mode !== 'constellation') { animator = null; return; }
+      var now = performance.now();
+      var dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      rotation += dt * 0.04;
+
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+
+      // background
+      var bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H));
+      bg.addColorStop(0, '#0d0d18');
+      bg.addColorStop(1, '#040408');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // far stars (decorative)
+      for (var i = 0; i < 90; i++) {
+        var fx = (i * 37 + (now * 0.005) % W) % W;
+        var fy = (i * 71 + Math.sin(i) * 30) % H;
+        var ft = Math.sin(now * 0.0015 + i) * 0.4 + 0.5;
+        ctx.fillStyle = 'rgba(255,255,255,' + (ft * 0.18).toFixed(3) + ')';
+        ctx.fillRect(fx, fy, 1, 1);
+      }
+
+      // rotate projected positions around center
+      var cosR = Math.cos(rotation), sinR = Math.sin(rotation);
+      stars.forEach(function(s) {
+        var dx = s.bx - cx, dy = s.by - cy;
+        s.x = cx + dx * cosR - dy * sinR;
+        s.y = cy + dx * sinR + dy * cosR;
+      });
+
+      // constellation lines: 2 nearest same-cat neighbors
+      ctx.lineWidth = 0.6;
+      stars.forEach(function(s) {
+        var others = stars.filter(function(o) { return o.cat === s.cat && o !== s; });
+        others.sort(function(a, b) {
+          return Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y);
+        });
+        var color = CATS[s.cat].color;
+        for (var k = 0; k < Math.min(2, others.length); k++) {
+          var o = others[k];
+          ctx.strokeStyle = color + '28';
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(o.x, o.y);
+          ctx.stroke();
+        }
+      });
+
+      // stars
+      hovered = null;
+      var bestD = 18;
+      stars.forEach(function(s) {
+        var tw = Math.sin(now * 0.0022 + s.ph) * 0.3 + 0.7;
+        var color = CATS[s.cat].color;
+        var size = 1.8 + Math.sqrt(s.p.k) * 0.35;
+        var op = (s.p.a === 'hot' ? 1 : s.p.a === 'warm' ? 0.82 : 0.6) * tw;
+
+        // glow halo
+        var grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, size * 4);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.5, color + '40');
+        grad.addColorStop(1, color + '00');
+        ctx.globalAlpha = op * 0.55;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size * 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // bright core
+        ctx.globalAlpha = op;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // label for hot or large projects
+        if (s.p.a === 'hot' || s.p.k > 35) {
+          ctx.globalAlpha = op * 0.85;
+          ctx.fillStyle = '#cdd';
+          ctx.font = '9px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.p.n, s.x, s.y + size + 11);
+        }
+
+        var d = Math.hypot(s.x - mx, s.y - my);
+        if (d < bestD) { bestD = d; hovered = s; }
+      });
+      ctx.globalAlpha = 1;
+
+      if (hovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hovered.x, hovered.y, 13, 0, Math.PI * 2);
+        ctx.stroke();
+        tip.textContent = hovered.p.n + ' · ' + hovered.cat + ' · ' + hovered.p.k + ' commits';
+        tip.style.display = 'block';
+        tip.style.left = (hovered.x + 16) + 'px';
+        tip.style.top = (hovered.y) + 'px';
+        cvs.style.cursor = 'pointer';
+      } else {
+        tip.style.display = 'none';
+        cvs.style.cursor = 'default';
+      }
+
+      animator = requestAnimationFrame(draw);
+    }
+
+    cvs.onmousemove = function(e) {
+      var r = cvs.getBoundingClientRect();
+      mx = e.clientX - r.left; my = e.clientY - r.top;
+    };
+    cvs.onmouseleave = function() { mx = -999; my = -999; };
+    cvs.onclick = function() { if (hovered) window.open(hovered.p.u, '_blank'); };
+
+    layout();
+    last = performance.now();
+    if (!animator) draw();
+    if (!cvs._resized) {
+      cvs._resized = true;
+      window.addEventListener('resize', function() { if (mode === 'constellation') layout(); });
+    }
+  }
+
+  // ─────────── Subway ───────────
+  // One horizontal line per category, stations along it, an animated dot per line.
+  var subwayAnimator = null;
+  function startSubway() {
+    var svg = document.getElementById('subway-svg');
+    var tip = document.getElementById('subway-tip');
+    svg.innerHTML = '';
+    var W = 1000, H = 600;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    var catKeys = Object.keys(CATS);
+    var trains = [];
+
+    function el(name, attrs) {
+      var n = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    }
+
+    catKeys.forEach(function(cat, ci) {
+      var projs = P.filter(function(p) { return p.c === cat; });
+      if (!projs.length) return;
+      // Sort: parents first then their children adjacent
+      projs.sort(function(a, b) {
+        var ap = a.p || a.n, bp = b.p || b.n;
+        if (ap === bp) return (a.p ? 1 : 0) - (b.p ? 1 : 0);
+        return ap.localeCompare(bp);
+      });
+      var color = CATS[cat].color;
+      var y = 60 + ci * (H - 120) / (catKeys.length - 1);
+      var x0 = 110, x1 = W - 40;
+
+      // line
+      svg.appendChild(el('path', {
+        d: 'M ' + x0 + ' ' + y + ' L ' + x1 + ' ' + y,
+        stroke: color, 'stroke-width': 5, opacity: 0.45, 'stroke-linecap': 'round', fill: 'none'
+      }));
+
+      // category label at left
+      var lbl = el('text', {
+        x: x0 - 12, y: y + 4, 'text-anchor': 'end',
+        'font-size': 12, 'font-family': 'ui-monospace, monospace',
+        fill: color, opacity: 0.85
+      });
+      lbl.textContent = cat;
+      svg.appendChild(lbl);
+
+      // stations
+      projs.forEach(function(p, i) {
+        var x = x0 + (x1 - x0) * i / Math.max(1, projs.length - 1);
+        var r = 4 + Math.sqrt(p.k) * 0.45;
+        var g = el('g', { 'data-name': p.n });
+        g.setAttribute('cursor', 'pointer');
+        g.appendChild(el('circle', {
+          cx: x, cy: y, r: r,
+          fill: p.a === 'hot' ? color : '#1a1a1a',
+          stroke: color, 'stroke-width': 2.2
+        }));
+        var lblY = (i % 2 === 0) ? y - r - 6 : y + r + 12;
+        var nm = el('text', {
+          x: x, y: lblY, 'text-anchor': 'middle',
+          'font-size': 10, 'font-family': 'ui-monospace, monospace',
+          fill: '#aaa', opacity: 0.85
+        });
+        nm.textContent = p.n;
+        g.appendChild(nm);
+        g.addEventListener('click', function() { window.open(p.u, '_blank'); });
+        g.addEventListener('mouseenter', function(e) {
+          tip.textContent = p.n + ' · ' + p.k + ' commits';
+          tip.style.display = 'block';
+          var sr = svg.getBoundingClientRect();
+          tip.style.left = (e.clientX - sr.left + 14) + 'px';
+          tip.style.top = (e.clientY - sr.top) + 'px';
+        });
+        g.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+        svg.appendChild(g);
+      });
+
+      // train
+      var train = el('circle', {
+        r: 5.5, fill: color, opacity: 0.95,
+        'data-y': y
+      });
+      trains.push({ el: train, y: y, x0: x0, x1: x1, period: 18 + ci * 2.5, offset: ci * 3 });
+      svg.appendChild(train);
+    });
+
+    var start = performance.now();
+    function tick(now) {
+      if (mode !== 'subway') { subwayAnimator = null; return; }
+      var elapsed = (now - start) / 1000;
+      trains.forEach(function(t) {
+        var prog = ((elapsed + t.offset) % t.period) / t.period;
+        var x = t.x0 + (t.x1 - t.x0) * prog;
+        t.el.setAttribute('cx', x);
+        t.el.setAttribute('cy', t.y);
+      });
+      subwayAnimator = requestAnimationFrame(tick);
+    }
+    subwayAnimator = requestAnimationFrame(tick);
+  }
+
+  // ─────────── Periodic table ───────────
+  function startPeriodic() {
+    var stage = document.getElementById('periodic-stage');
+    stage.innerHTML = '';
+    var scan = document.createElement('div');
+    scan.className = 'periodic-scanner';
+    stage.appendChild(scan);
+    Object.keys(CATS).forEach(function(cat) {
+      var projs = P.filter(function(p) { return p.c === cat; });
+      if (!projs.length) return;
+      // sort: parents first, then by commit count desc
+      projs.sort(function(a, b) {
+        if (!a.p && b.p) return -1;
+        if (a.p && !b.p) return 1;
+        return b.k - a.k;
+      });
+      var sec = document.createElement('div');
+      sec.className = 'periodic-section';
+      var hdr = document.createElement('div');
+      hdr.className = 'periodic-cat-label';
+      hdr.textContent = cat + ' · ' + projs.length;
+      hdr.style.color = CATS[cat].color;
+      sec.appendChild(hdr);
+      var grid = document.createElement('div');
+      grid.className = 'periodic-cells';
+      projs.forEach(function(p) {
+        var cell = document.createElement('a');
+        cell.className = 'periodic-cell';
+        cell.href = p.u;
+        cell.dataset.age = p.a;
+        if (p.a === 'hot') {
+          cell.style.borderColor = CATS[cat].color;
+        }
+        cell.innerHTML = '<span>' + p.n + '</span><span class="pc-commits">' + p.k + '</span>';
+        grid.appendChild(cell);
+      });
+      sec.appendChild(grid);
+      stage.appendChild(sec);
+    });
+  }
+
+  // ─────────── Force graph ───────────
+  function startForce() {
+    var cvs = document.getElementById('force-canvas');
+    var tip = document.getElementById('force-tip');
+    var ctx = cvs.getContext('2d');
+    var dpr = 1;
+    var nodes = [];
+    var edges = [];
+    var mx = -999, my = -999, mdown = false;
+    var dragNode = null;
+    var hovered = null;
+    var last = performance.now();
+    var pressTime = 0;
+
+    function layout() {
+      var rect = cvs.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var W = rect.width, H = rect.height;
+      nodes = P.map(function(p) {
+        return {
+          p: p,
+          x: W / 2 + (Math.random() - 0.5) * W * 0.6,
+          y: H / 2 + (Math.random() - 0.5) * H * 0.6,
+          vx: 0, vy: 0,
+          r: 3 + Math.sqrt(p.k) * 0.4,
+        };
+      });
+      edges = [];
+      nodes.forEach(function(n) {
+        if (n.p.p) {
+          var parent = nodes.find(function(o) { return o.p.n === n.p.p; });
+          if (parent) edges.push({ a: n, b: parent, kind: 'parent' });
+        }
+      });
+      // Light same-cat connections
+      Object.keys(CATS).forEach(function(cat) {
+        var cn = nodes.filter(function(n) { return n.p.c === cat; });
+        for (var i = 0; i < cn.length - 1; i++) {
+          if (Math.random() < 0.25) edges.push({ a: cn[i], b: cn[i + 1], kind: 'cat' });
+        }
+      });
+    }
+
+    function step() {
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+      // Repulsion (n^2 — fine for ~70 nodes)
+      for (var i = 0; i < nodes.length; i++) {
+        for (var j = i + 1; j < nodes.length; j++) {
+          var a = nodes[i], b = nodes[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var d2 = dx * dx + dy * dy + 1;
+          var d = Math.sqrt(d2);
+          var f = 130 / d2;
+          a.vx -= (dx / d) * f; a.vy -= (dy / d) * f;
+          b.vx += (dx / d) * f; b.vy += (dy / d) * f;
+        }
+      }
+      // Springs
+      edges.forEach(function(e) {
+        var dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
+        var d = Math.hypot(dx, dy) || 1;
+        var rest = e.kind === 'parent' ? 36 : 64;
+        var f = (d - rest) * 0.04;
+        e.a.vx += (dx / d) * f; e.a.vy += (dy / d) * f;
+        e.b.vx -= (dx / d) * f; e.b.vy -= (dy / d) * f;
+      });
+      // Centering
+      nodes.forEach(function(n) {
+        n.vx += (cx - n.x) * 0.0009;
+        n.vy += (cy - n.y) * 0.0009;
+      });
+      // Integrate
+      nodes.forEach(function(n) {
+        n.vx *= 0.87; n.vy *= 0.87;
+        if (n === dragNode) {
+          n.x = mx; n.y = my; n.vx = 0; n.vy = 0;
+        } else {
+          n.x += n.vx; n.y += n.vy;
+          n.x = Math.max(12, Math.min(W - 12, n.x));
+          n.y = Math.max(12, Math.min(H - 12, n.y));
+        }
+      });
+    }
+
+    function draw() {
+      if (mode !== 'force') { animator = null; return; }
+      step();
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      ctx.fillStyle = '#0a0a14';
+      ctx.fillRect(0, 0, W, H);
+
+      // edges
+      ctx.lineWidth = 0.7;
+      edges.forEach(function(e) {
+        var color = CATS[e.a.p.c].color;
+        ctx.strokeStyle = color + (e.kind === 'parent' ? '90' : '30');
+        ctx.beginPath();
+        ctx.moveTo(e.a.x, e.a.y);
+        ctx.lineTo(e.b.x, e.b.y);
+        ctx.stroke();
+      });
+
+      // nodes
+      hovered = null;
+      var bestD = 16;
+      nodes.forEach(function(n) {
+        var color = CATS[n.p.c].color;
+        if (n.p.a === 'hot') {
+          var grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 4);
+          grad.addColorStop(0, color);
+          grad.addColorStop(0.5, color + '40');
+          grad.addColorStop(1, color + '00');
+          ctx.globalAlpha = 0.45;
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+        if (n.r > 4) {
+          ctx.fillStyle = '#ccd';
+          ctx.font = '9px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.p.n, n.x, n.y + n.r + 10);
+        }
+        var d = Math.hypot(n.x - mx, n.y - my);
+        if (d < bestD) { bestD = d; hovered = n; }
+      });
+
+      if (hovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hovered.x, hovered.y, hovered.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        tip.textContent = hovered.p.n + ' · ' + hovered.p.c;
+        tip.style.display = 'block';
+        tip.style.left = (hovered.x + 14) + 'px';
+        tip.style.top = (hovered.y + 8) + 'px';
+        cvs.style.cursor = dragNode ? 'grabbing' : 'grab';
+      } else {
+        tip.style.display = 'none';
+        cvs.style.cursor = 'default';
+      }
+
+      animator = requestAnimationFrame(draw);
+    }
+
+    cvs.onmousemove = function(e) {
+      var r = cvs.getBoundingClientRect();
+      mx = e.clientX - r.left; my = e.clientY - r.top;
+    };
+    cvs.onmouseleave = function() { mx = -999; my = -999; dragNode = null; mdown = false; };
+    cvs.onmousedown = function() { mdown = true; pressTime = performance.now(); if (hovered) dragNode = hovered; };
+    cvs.onmouseup = function() {
+      var elapsed = performance.now() - pressTime;
+      if (dragNode && elapsed < 220 && Math.hypot(dragNode.vx, dragNode.vy) < 4) {
+        window.open(dragNode.p.u, '_blank');
+      }
+      dragNode = null; mdown = false;
+    };
+
+    layout();
+    last = performance.now();
+    if (!animator) draw();
+    if (!cvs._resized) {
+      cvs._resized = true;
+      window.addEventListener('resize', function() { if (mode === 'force') layout(); });
+    }
+  }
+
+  // Start in default mode
+  setMode('constellation');
+})();
+</script>
 
 <script>
 (function() {
