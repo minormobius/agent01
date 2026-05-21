@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>erdős — unit distance, disproven</title>
+<meta name="description" content="Interactive visualization of Erdős's 1946 unit-distance construction, in light of the May 2026 OpenAI disproof of the unit-distance conjecture.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #c45;
+    --accent-faint: rgba(204, 68, 85, 0.10);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header {
+  margin-bottom: 1.5rem;
+}
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+
+/* ── Tabs ── */
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Panes ── */
+.pane { display: none; }
+.pane.active { display: block; }
+
+/* ── Grid pane ── */
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+#grid-canvas, #growth-canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: crosshair;
+}
+#growth-canvas { aspect-ratio: 5 / 4; cursor: default; }
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; }
+.ctrl-row input[type="number"] {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--fg);
+}
+.ctrl-row .ctrl-val {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  min-width: 2.4em;
+  text-align: right;
+}
+.preset-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.preset {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.preset:hover { color: var(--fg); border-color: var(--muted); }
+.preset.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+/* ── Growth pane ── */
+.growth-wrap { position: relative; }
+.growth-legend {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.4rem 1.4rem;
+  margin-top: 1rem;
+}
+.legend-item { display: flex; align-items: baseline; gap: 0.5rem; }
+.legend-swatch {
+  display: inline-block;
+  width: 16px; height: 3px;
+  flex-shrink: 0;
+  position: relative;
+  top: -2px;
+}
+.legend-name { color: var(--fg); font-weight: 600; }
+.legend-formula { color: var(--muted); margin-left: 0.3rem; }
+
+/* ── Docs pane ── */
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>erdős</h1>
+  <p class="subtitle">unit distance, disproven · may 2026</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="grid" role="tab">grid</button>
+  <button class="tab" data-tab="growth" role="tab">growth</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── GRID PANE ─────────── -->
+<section class="pane active" data-pane="grid">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="grid-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid size · k×k</span>
+        <div class="ctrl-row">
+          <input id="k-slider" type="range" min="4" max="22" value="13" step="1">
+          <span class="ctrl-val" id="k-val">13</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">squared distance · m</span>
+        <div class="ctrl-row">
+          <input id="m-input" type="number" min="1" max="200000" value="25" step="1">
+        </div>
+        <div class="preset-row" id="preset-row">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div class="stats" id="stats">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="stat-note">
+        Hover a point to highlight every other point exactly √m away from it.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── GROWTH PANE ─────────── -->
+<section class="pane" data-pane="growth">
+  <div class="growth-wrap">
+    <canvas id="growth-canvas" width="900" height="720"></canvas>
+    <div class="growth-legend" id="growth-legend">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The problem</h2>
+<p>In 1946, Paul Erdős asked: place <em>n</em> points in the Euclidean plane. How many pairs of points can be at exactly the same distance?</p>
+
+<p>The obvious construction is a square grid. Erdős showed that an √<em>n</em> × √<em>n</em> grid, with a careful choice of unit, yields roughly <em>n</em><sup>1 + c/log&nbsp;log&nbsp;n</sup> pairs at unit distance — the exponent creeps just barely past 1. He conjectured this was essentially optimal: that no arrangement could push the count above <em>n</em><sup>1 + o(1)</sup>.</p>
+
+<p>The conjecture stood for 80 years. Erdős attached a $500 prize. Spencer, Szemerédi, and Trotter proved a matching upper bound of <em>n</em><sup>4/3</sup> in 1984, narrowing the gap from above. The unit-distance conjecture itself resisted.</p>
+
+<h2>May 20, 2026</h2>
+<p>An internal reasoning model at OpenAI produced a proof that <strong>the conjecture is false</strong>. There exists ε > 0 and an infinite family of point configurations achieving at least <em>n</em><sup>1+ε</sup> unit-distance pairs. Will Sawin refined the explicit constant to ε ≥ 0.014.</p>
+
+<p>That's a <em>polynomial</em> improvement over Erdős's lower bound — qualitatively different from sub-polynomial growth. The conjecture isn't merely imprecise; it's wrong.</p>
+
+<p>The proof was checked and digested in a <a href="https://cdn.openai.com/pdf/74c24085-19b0-4534-9c90-465b8e29ad73/unit-distance-remarks.pdf">19-page paper</a> by Noga Alon, Thomas Bloom, Tim Gowers, Daniel Litt, Will Sawin, Arul Shankar, Jacob Tsimerman, Victor Wang, and Melanie Matchett Wood. Bloom — who had torched OpenAI's <em>previous</em> Erdős claim seven months ago — verified this one personally.</p>
+
+<h2>How the proof works</h2>
+<p>The classical construction (visible in the <strong>grid</strong> tab) places points on a square integer grid. The number of pairs at squared distance <em>m</em> is roughly <em>n</em> · r₂(<em>m</em>) / 2, where r₂(<em>m</em>) is the number of integer solutions to a² + b² = <em>m</em>. When <em>m</em> is a product of <em>k</em> distinct primes ≡ 1&nbsp;mod&nbsp;4, r₂(<em>m</em>) grows like 4 · 2<sup>k</sup>. Pick <em>m</em> = 5 · 13 · 17 · 29 · 37 · …, push <em>k</em> as far as the grid allows, and you get the Erdős lower bound.</p>
+
+<p>Algebraically: these grid points live in the <strong>ring of Gaussian integers</strong> ℤ[<em>i</em>], the ring of integers in the field ℚ(<em>i</em>). This field is a <em>CM field</em> — a totally imaginary quadratic extension of a totally real field, where elements of absolute value 1 form a nicely structured set.</p>
+
+<p>The new construction replaces ℚ(<em>i</em>) with a CM field <em>K</em> of <em>growing degree</em> <em>f</em> = [<em>K</em>:ℚ]. The key challenge: keep the lattice well-shaped as <em>f</em> → ∞. The proof uses:</p>
+<ul>
+  <li>An infinite <strong>Golod-Shafarevich class field tower</strong> to find CM fields with bounded root discriminant and degree → ∞.</li>
+  <li>A pigeonhole argument (Lemma 2.2 in the remarks paper) showing that fixing a rational prime that splits completely in the tower yields many magnitude-1 algebraic numbers with bounded denominator.</li>
+  <li>The <strong>geometry of numbers</strong> (Lemma 2.1) to extract, by averaging, a translate of the lattice that contains a 2D point set with many unit distances.</li>
+</ul>
+
+<p>Embedding the ring of integers <em>O<sub>K</sub></em> as a lattice in ℂ<sup>f</sup>, taking a bounded window of lattice points, and projecting to one complex coordinate of ℂ ≅ ℝ² gives the planar point set.</p>
+
+<h2>Why mathematicians missed this</h2>
+<p>Several blockers led people away from this approach:</p>
+<ul>
+  <li>Erdős believed the conjecture was true. His prize was payable for either direction, but the community spent decades trying to prove the upper bound.</li>
+  <li>The first natural generalization — varying primes in a <em>fixed</em> CM field — gives no asymptotic improvement; the prime number theorem makes the choice of field invisible. You have to vary the field itself.</li>
+  <li>Pursuing increasing-degree number fields means working in high-dimensional lattices and projecting to 2D. In Tsimerman's words, "a very scary dynamic" — it consumes attention and frequently doesn't work out.</li>
+</ul>
+
+<p>The AI tried it anyway. One line from its chain of thought, quoted in the remarks paper:</p>
+<blockquote>
+  …in principle all extremal examples can be taken algebraic. But the degree and height of that algebraic realization can be enormous… Maybe that enormous degree is not just an annoyance but a source of possible counterexamples. Number fields deserve a closer look.
+</blockquote>
+
+<h2>What's in this site</h2>
+<p>The <strong>grid</strong> tab is the classical construction: a <em>k</em>×<em>k</em> grid of integer lattice points (Gaussian integers, if you like), with edges between every pair of points at squared distance <em>m</em>. Pick <em>m</em> with many distinct prime factors ≡ 1&nbsp;mod&nbsp;4 — the presets walk through 1, 5, 25, 65, 325, 1105, 32045 — and watch the edge count explode. That explosion is the engine of Erdős's lower bound.</p>
+
+<p>The <strong>growth</strong> tab plots the bounds on log-log axes:</p>
+<ul>
+  <li><strong>Erdős lower bound</strong> (1946): <em>n</em><sup>1 + c/log&nbsp;log&nbsp;n</sup> — slightly super-linear, the curve you're standing on now in the grid tab.</li>
+  <li><strong>OpenAI / Sawin lower bound</strong> (2026): <em>n</em><sup>1.014</sup> — the news. Polynomial in <em>n</em>, fixed exponent.</li>
+  <li><strong>Spencer-Szemerédi-Trotter upper bound</strong> (1984): <em>n</em><sup>4/3</sup>.</li>
+  <li><strong>The disproven conjecture</strong> Erdős thought was tight: <em>n</em><sup>1+o(1)</sup>, drawn as a hatched region. The new lower bound pokes out of this region, which is why we know it's wrong.</li>
+</ul>
+
+<p>The gap between the new lower bound (<em>n</em><sup>1.014</sup>) and the SST upper bound (<em>n</em><sup>1.333</sup>) is now polynomially open. The next chapter of the story.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li><a href="https://openai.com/index/model-disproves-discrete-geometry-conjecture/">OpenAI announcement, May 20 2026</a></li>
+  <li><a href="https://cdn.openai.com/pdf/74c24085-19b0-4534-9c90-465b8e29ad73/unit-distance-remarks.pdf">Remarks on the disproof of the unit distance conjecture</a> — Alon, Bloom, Gowers, Litt, Sawin, Shankar, Tsimerman, Wang, Wood (19 pp)</li>
+  <li><a href="https://arxiv.org/abs/2605.20579">An explicit lower bound for the unit distance problem</a> — Sawin (the ε = 0.014 refinement)</li>
+  <li><a href="https://gilkalai.wordpress.com/2026/05/21/amazing-erdos-unit-distance-problem-was-disproved-it-was-achieved-by-ai/">Amazing: Erdős's Unit Distance Problem was Disproved!</a> — Gil Kalai's blog</li>
+  <li><a href="https://www.erdosproblems.com/90">erdosproblems.com #90</a> — the curated catalog entry</li>
+  <li>Erdős, P. (1946). <em>On sets of distances of n points.</em> American Mathematical Monthly 53, 248–250 — the original.</li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  if (name === 'grid')   renderGrid();
+  if (name === 'growth') renderGrowth();
+  // sync to URL
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+// Restore tab from hash
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['grid', 'growth', 'docs'].includes(initialHash)) {
+  showTab(initialHash);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Math helpers
+// ─────────────────────────────────────────────────────────────────────
+
+/** r₂(m): number of integer (a, b) with a² + b² = m. */
+function r2(m) {
+  if (m <= 0) return m === 0 ? 1 : 0;
+  let count = 0;
+  const bound = Math.floor(Math.sqrt(m));
+  for (let a = -bound; a <= bound; a++) {
+    const left = m - a * a;
+    if (left < 0) continue;
+    const b = Math.sqrt(left);
+    if (Number.isInteger(b)) count += (b === 0 ? 1 : 2);
+  }
+  return count;
+}
+
+/** All displacement vectors (a, b) with a² + b² = m, restricted to a "positive" half
+ *  (a > 0, or a = 0 and b > 0) so each undirected edge is enumerated once. */
+function displacementsFor(m) {
+  const out = [];
+  if (m <= 0) return out;
+  const bound = Math.floor(Math.sqrt(m));
+  for (let a = 0; a <= bound; a++) {
+    const left = m - a * a;
+    if (left < 0) continue;
+    const b = Math.sqrt(left);
+    if (!Number.isInteger(b)) continue;
+    if (a === 0) {
+      if (b > 0) out.push([0, b]);
+    } else {
+      // a > 0: include both b and -b (when b !== 0)
+      out.push([a, b]);
+      if (b !== 0) out.push([a, -b]);
+    }
+  }
+  return out;
+}
+
+/** Edges between grid points at squared distance m, in a k × k grid (k² points).
+ *  Returns array of [i1, j1, i2, j2]. */
+function unitDistancePairs(k, m) {
+  const edges = [];
+  const disps = displacementsFor(m);
+  for (const [a, b] of disps) {
+    const iMin = Math.max(0, -a);
+    const iMax = Math.min(k - 1, k - 1 - a);
+    const jMin = Math.max(0, -b);
+    const jMax = Math.min(k - 1, k - 1 - b);
+    for (let i = iMin; i <= iMax; i++) {
+      for (let j = jMin; j <= jMax; j++) {
+        edges.push([i, j, i + a, j + b]);
+      }
+    }
+  }
+  return edges;
+}
+
+/** Factorize m as small primes. Returns array of [prime, exponent]. */
+function factorize(m) {
+  const out = [];
+  let n = m;
+  for (let p = 2; p * p <= n; p++) {
+    if (n % p === 0) {
+      let e = 0;
+      while (n % p === 0) { n = n / p; e++; }
+      out.push([p, e]);
+    }
+  }
+  if (n > 1) out.push([n, 1]);
+  return out;
+}
+
+/** Format the factorization, marking primes ≡ 1 mod 4 in accent color. */
+function formatFactors(factors) {
+  if (!factors.length) return '1';
+  return factors.map(([p, e]) => {
+    const hot = (p % 4 === 1);
+    const cls = hot ? ' class="hot"' : '';
+    const power = e === 1 ? `${p}` : `${p}<sup>${e}</sup>`;
+    return hot ? `<span${cls} style="color:var(--accent)">${power}</span>` : power;
+  }).join(' · ');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Grid renderer
+// ─────────────────────────────────────────────────────────────────────
+
+const gridCanvas = document.getElementById('grid-canvas');
+const gridCtx = gridCanvas.getContext('2d');
+const kSlider = document.getElementById('k-slider');
+const kVal = document.getElementById('k-val');
+const mInput = document.getElementById('m-input');
+const presetRow = document.getElementById('preset-row');
+const statsEl = document.getElementById('stats');
+
+let gridState = {
+  k: 13,
+  m: 25,
+  hover: null,   // [i, j] or null
+  pointPx: null, // computed positions, [{x, y, i, j}, ...]
+};
+
+// Curated m presets. Each is a product of distinct primes ≡ 1 mod 4 (or a power of one),
+// chosen to walk through the explosion in r₂(m).
+const PRESETS = [
+  { m: 1,     label: 'm=1' },     // r₂ = 4: nearest neighbors
+  { m: 2,     label: '2' },        // r₂ = 4: diagonal neighbors
+  { m: 5,     label: '5' },        // r₂ = 8
+  { m: 25,    label: '25' },       // r₂ = 12: standard grid demo
+  { m: 65,    label: '5·13' },    // r₂ = 16
+  { m: 325,   label: '5²·13' },   // r₂ = 24
+  { m: 1105,  label: '5·13·17' }, // r₂ = 32
+  { m: 5525,  label: '5²·13·17' }, // r₂ = 48
+  { m: 32045, label: '5·13·17·29' }, // r₂ = 64
+];
+
+function buildPresets() {
+  presetRow.innerHTML = '';
+  for (const p of PRESETS) {
+    const b = document.createElement('button');
+    b.className = 'preset';
+    b.dataset.m = p.m;
+    b.textContent = p.label;
+    b.title = `m = ${p.m}`;
+    b.addEventListener('click', () => { setM(p.m); });
+    presetRow.appendChild(b);
+  }
+}
+
+function syncPresetButtons(m) {
+  presetRow.querySelectorAll('.preset').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.m, 10) === m);
+  });
+}
+
+function setM(m) {
+  gridState.m = m;
+  mInput.value = m;
+  syncPresetButtons(m);
+  renderGrid();
+}
+
+function setK(k) {
+  gridState.k = k;
+  kVal.textContent = k;
+  renderGrid();
+}
+
+kSlider.addEventListener('input', e => setK(parseInt(e.target.value, 10)));
+mInput.addEventListener('input', e => {
+  const m = Math.max(1, Math.min(200000, parseInt(e.target.value, 10) || 1));
+  gridState.m = m;
+  syncPresetButtons(m);
+  renderGrid();
+});
+gridCanvas.addEventListener('mousemove', onGridHover);
+gridCanvas.addEventListener('mouseleave', () => { gridState.hover = null; renderGrid(); });
+
+function onGridHover(e) {
+  if (!gridState.pointPx) return;
+  const rect = gridCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (gridCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (gridCanvas.height / rect.height);
+  // find nearest grid point
+  let best = null, bestD = 20 * 20;
+  for (const p of gridState.pointPx) {
+    const d2 = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+    if (d2 < bestD) { bestD = d2; best = p; }
+  }
+  const newHover = best ? [best.i, best.j] : null;
+  const changed = !sameHover(newHover, gridState.hover);
+  gridState.hover = newHover;
+  if (changed) renderGrid();
+}
+
+function sameHover(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+function renderGrid() {
+  const ctx = gridCtx;
+  const W = gridCanvas.width;
+  const H = gridCanvas.height;
+  ctx.fillStyle = getComputedStyle(gridCanvas).backgroundColor;
+  ctx.fillRect(0, 0, W, H);
+
+  const { k, m, hover } = gridState;
+
+  // Layout: grid points in a square inset
+  const pad = 36;
+  const gridW = Math.min(W, H) - 2 * pad;
+  const step = (k === 1) ? 0 : gridW / (k - 1);
+  const x0 = (W - gridW) / 2;
+  const y0 = (H - gridW) / 2;
+
+  // Compute & cache point positions
+  const points = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = 0; j < k; j++) {
+      points.push({ i, j, x: x0 + i * step, y: y0 + j * step });
+    }
+  }
+  gridState.pointPx = points;
+
+  // Compute edges
+  const edges = unitDistancePairs(k, m);
+
+  // Edges first (so points sit on top)
+  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = '#11111155';
+  ctx.beginPath();
+  // Faint base layer of all edges
+  for (const [i1, j1, i2, j2] of edges) {
+    if (hover && ((hover[0] === i1 && hover[1] === j1) || (hover[0] === i2 && hover[1] === j2))) continue;
+    ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
+    ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
+  }
+  ctx.stroke();
+
+  // Highlight edges incident to the hovered point
+  if (hover) {
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
+    ctx.beginPath();
+    for (const [i1, j1, i2, j2] of edges) {
+      const incidentA = (hover[0] === i1 && hover[1] === j1);
+      const incidentB = (hover[0] === i2 && hover[1] === j2);
+      if (!(incidentA || incidentB)) continue;
+      ctx.moveTo(x0 + i1 * step, y0 + j1 * step);
+      ctx.lineTo(x0 + i2 * step, y0 + j2 * step);
+    }
+    ctx.stroke();
+  }
+
+  // Points
+  const r = Math.max(1.8, Math.min(5, step * 0.16));
+  ctx.fillStyle = '#111';
+  for (const p of points) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hovered point ring + recolor
+  if (hover) {
+    const hp = points.find(p => p.i === hover[0] && p.j === hover[1]);
+    if (hp) {
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8b0000';
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, r * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, r * 3.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Stats
+  updateStats(k, m, edges.length, hover, edges);
+}
+
+function updateStats(k, m, edgeCount, hover, edges) {
+  const n = k * k;
+  const r2m = r2(m);
+  const factors = factorize(m);
+  const factorsHtml = formatFactors(factors);
+
+  // How many edges incident to hovered point?
+  let hoverDeg = null;
+  if (hover) {
+    hoverDeg = 0;
+    for (const [i1, j1, i2, j2] of edges) {
+      if ((hover[0] === i1 && hover[1] === j1) || (hover[0] === i2 && hover[1] === j2)) hoverDeg++;
+    }
+  }
+
+  const expReached = edgeCount > 0 ? Math.log(edgeCount) / Math.log(n) : 0;
+
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">points · n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">edges</span><span class="v hot">${edgeCount.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="k">log(edges)/log(n)</span><span class="v">${expReached.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">m = ${m}</span><span class="v">${factorsHtml}</span></div>
+    <div class="stat-row"><span class="k">r₂(m)</span><span class="v">${r2m}</span></div>
+    ${hover !== null ? `<div class="stat-row"><span class="k">hovered (${hover[0]},${hover[1]})</span><span class="v hot">${hoverDeg} edges</span></div>` : ''}
+  `;
+}
+
+buildPresets();
+syncPresetButtons(gridState.m);
+renderGrid();
+// Recompute on resize so the DPR/layout stays sharp
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'grid') renderGrid();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth chart renderer
+// ─────────────────────────────────────────────────────────────────────
+
+const growthCanvas = document.getElementById('growth-canvas');
+const growthCtx = growthCanvas.getContext('2d');
+const growthLegend = document.getElementById('growth-legend');
+
+const BOUNDS = [
+  {
+    name: 'Spencer–Szemerédi–Trotter upper',
+    formula: 'O(n^(4/3))',
+    fn: n => Math.pow(n, 4/3),
+    color: '#888',
+    dash: [6, 4],
+  },
+  {
+    name: 'OpenAI / Sawin lower (2026)',
+    formula: 'Ω(n^(1.014))',
+    fn: n => Math.pow(n, 1.014),
+    color: '#c45',
+    dash: [],
+  },
+  {
+    name: 'Erdős lower (1946)',
+    formula: 'Ω(n^(1 + 0.5/log log n))',
+    fn: n => Math.pow(n, 1 + 0.5 / Math.log(Math.log(n))),
+    color: '#6ec1e4',
+    dash: [],
+  },
+  {
+    name: 'trivial · n',
+    formula: 'Ω(n)',
+    fn: n => n,
+    color: '#aaa',
+    dash: [2, 4],
+  },
+];
+
+const DISPROVEN = {
+  name: 'disproven conjecture · n^(1+o(1))',
+  formula: 'the Erdős conjecture',
+  color: '#999',
+};
+
+function renderGrowth() {
+  const ctx = growthCtx;
+  const W = growthCanvas.width;
+  const H = growthCanvas.height;
+  const px = (W < H ? W : H) / (W < H ? W : H); // dpr placeholder
+  ctx.fillStyle = getComputedStyle(growthCanvas).backgroundColor;
+  ctx.fillRect(0, 0, W, H);
+
+  // Axis range: x = log10(n) from 1.5 to 6.5; y = log10(edges) from 1.5 to 9.5
+  const xMin = 1.5, xMax = 6.5;
+  const yMin = 1.5, yMax = 9.5;
+  const padL = 70, padR = 30, padT = 30, padB = 60;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const px2x = lx => padL + (lx - xMin) / (xMax - xMin) * plotW;
+  const py2y = ly => padT + (1 - (ly - yMin) / (yMax - yMin)) * plotH;
+
+  // Plot background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(padL, padT, plotW, plotH);
+
+  // Disproven band: between n^(1) at bottom and n^(1+small) at top — shade subtly
+  // We'll shade the region of pre-2026 conjecture: from n^1 up to n^(1+small) where small → 0
+  // For visual purposes, take the region between n and n^1.005 (representing "any sub-polynomial")
+  ctx.fillStyle = 'rgba(150, 150, 150, 0.10)';
+  ctx.beginPath();
+  let started = false;
+  for (let lx = xMin; lx <= xMax; lx += 0.05) {
+    const n = Math.pow(10, lx);
+    const ly = lx; // y = n
+    const X = px2x(lx);
+    const Y = py2y(ly);
+    if (!started) { ctx.moveTo(X, Y); started = true; }
+    else ctx.lineTo(X, Y);
+  }
+  for (let lx = xMax; lx >= xMin; lx -= 0.05) {
+    const n = Math.pow(10, lx);
+    const upper = Math.pow(n, 1 + 0.5 / Math.log(Math.log(n))); // Erdős lower
+    const ly = Math.log10(upper);
+    ctx.lineTo(px2x(lx), py2y(ly));
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Grid lines (log decades)
+  ctx.strokeStyle = '#e5e5e5';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let lx = Math.ceil(xMin); lx <= Math.floor(xMax); lx++) {
+    ctx.moveTo(px2x(lx), padT);
+    ctx.lineTo(px2x(lx), padT + plotH);
+  }
+  for (let ly = Math.ceil(yMin); ly <= Math.floor(yMax); ly++) {
+    ctx.moveTo(padL, py2y(ly));
+    ctx.lineTo(padL + plotW, py2y(ly));
+  }
+  ctx.stroke();
+
+  // Plot each bound
+  ctx.lineWidth = 2;
+  for (const b of BOUNDS) {
+    ctx.strokeStyle = b.color;
+    if (b.dash.length) ctx.setLineDash(b.dash); else ctx.setLineDash([]);
+    ctx.beginPath();
+    let firstPoint = true;
+    for (let lx = xMin; lx <= xMax; lx += 0.02) {
+      const n = Math.pow(10, lx);
+      const y = b.fn(n);
+      const ly = Math.log10(y);
+      if (ly < yMin || ly > yMax) {
+        firstPoint = true;
+        continue;
+      }
+      const X = px2x(lx), Y = py2y(ly);
+      if (firstPoint) { ctx.moveTo(X, Y); firstPoint = false; }
+      else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Axes
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + plotH);
+  ctx.lineTo(padL + plotW, padT + plotH);
+  ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle = '#444';
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let lx = Math.ceil(xMin); lx <= Math.floor(xMax); lx++) {
+    const X = px2x(lx);
+    ctx.fillText('10' + sup(lx), X, padT + plotH + 6);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let ly = Math.ceil(yMin); ly <= Math.floor(yMax); ly++) {
+    ctx.fillText('10' + sup(ly), padL - 8, py2y(ly));
+  }
+
+  // Axis titles
+  ctx.fillStyle = '#222';
+  ctx.font = '12px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('n · points', padL + plotW / 2, padT + plotH + 28);
+  ctx.save();
+  ctx.translate(18, padT + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top';
+  ctx.fillText('max unit-distance pairs', 0, 0);
+  ctx.restore();
+
+  // Render legend
+  let legendHtml = '';
+  for (const b of BOUNDS) {
+    const dashStyle = b.dash.length ? `background: repeating-linear-gradient(90deg, ${b.color}, ${b.color} ${b.dash[0]}px, transparent ${b.dash[0]}px, transparent ${b.dash[0] + b.dash[1]}px)` : `background: ${b.color}`;
+    legendHtml += `
+      <div class="legend-item">
+        <span class="legend-swatch" style="${dashStyle}"></span>
+        <span><span class="legend-name">${b.name}</span><span class="legend-formula">${b.formula}</span></span>
+      </div>
+    `;
+  }
+  legendHtml += `
+    <div class="legend-item">
+      <span class="legend-swatch" style="background: rgba(150,150,150,0.3)"></span>
+      <span><span class="legend-name">disproven conjecture</span><span class="legend-formula">n^(1+o(1)) — Erdős 1946–2026</span></span>
+    </div>
+  `;
+  growthLegend.innerHTML = legendHtml;
+}
+
+function sup(n) {
+  // 4 → ⁴
+  const s = String(n);
+  const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  return s.split('').map(c => map[c] || c).join('');
+}
+
+// Render growth on first show (lazy: it's invisible until tab clicked,
+// but pre-render so the canvas is filled if user navigates directly via hash)
+renderGrowth();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'growth') renderGrowth();
+});
+</script>
+</body>
+</html>
