@@ -180,6 +180,37 @@ button.danger { background: var(--rec); }
   font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
 }
+.music-row {
+  margin-bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.music-label { display: block; margin-bottom: 0.25rem; }
+.music-row input[type="file"] {
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--text);
+}
+.music-controls {
+  margin-top: 0.4rem;
+  display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
+}
+.music-name {
+  font-family: var(--mono); font-size: 0.7rem;
+  color: var(--accent); text-transform: none; letter-spacing: 0;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.music-vol-label {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-family: var(--mono); font-size: 0.65rem;
+}
+.music-vol-label input[type="range"] { width: 100px; accent-color: var(--accent); }
+.music-clear {
+  font-family: var(--mono); font-size: 0.6rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0.2rem 0.5rem; cursor: pointer;
+}
+.music-clear:hover { color: var(--bad); border-color: var(--bad); }
 .video-box .vbar {
   height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden;
   margin: 0.3rem 0;
@@ -387,6 +418,15 @@ footer a { color: var(--muted); text-decoration: underline; }
         <div id="post-status"></div>
         <div id="video-box" class="video-box">
           <div class="vlabel">Captioned video</div>
+          <div class="music-row">
+            <label class="music-label" for="music-file">Background music (optional)</label>
+            <input id="music-file" type="file" accept="audio/*">
+            <div class="music-controls" id="music-controls" style="display:none">
+              <span class="music-name" id="music-name"></span>
+              <label class="music-vol-label">Volume <input id="music-volume" type="range" min="0" max="100" value="25"></label>
+              <button type="button" id="music-clear" class="music-clear">remove</button>
+            </div>
+          </div>
           <div class="vbar"><div id="vfill" class="vfill"></div></div>
           <div id="vstatus" class="vstatus"></div>
           <video id="vpreview" controls style="display:none"></video>
@@ -434,6 +474,9 @@ const state = {
   currentFilter: 'none',  // active filter id
   transcript: '',
   segments: null,         // [{ start, end, text }] in seconds (from Whisper)
+  musicBlob: null,        // user-supplied background track (optional)
+  musicName: '',
+  musicVolume: 25,        // 0..100, applied as 0..1 gain in ffmpeg amix
   duration: 0,
   detectedLang: null,
   feedCursor: null,
@@ -747,6 +790,9 @@ $('video-btn').addEventListener('click', async () => {
       displayName: me.handle || 'you',
       handle: me.handle || '',
       avatarUrl: null,                                 // optional — we don't surface own avatar here yet
+      musicBlob: state.musicBlob,
+      musicName: state.musicName,
+      musicGain: state.musicVolume / 100,             // 0..100 → 0..1 amplitude gain
       onProgress: (p) => {
         if (p.stage === 'loading-ffmpeg') $('vstatus').textContent = p.message || 'loading ffmpeg…';
         else if (p.stage === 'loaded')    $('vstatus').textContent = 'ffmpeg loaded; rendering frames…';
@@ -805,6 +851,7 @@ function resetPreview() {
   state.originalBlob = null; state.originalMime = '';
   state.currentFilter = 'none';
   state.transcript = ''; state.duration = 0; state.segments = null;
+  clearMusic();
   $('preview').classList.remove('show');
   $('preview-audio').src = '';
   $('transcript-box').value = '';
@@ -817,6 +864,35 @@ function resetPreview() {
   $('vstatus').textContent = '';
   $('vfill').style.width = '0%';
 }
+
+// ─── background music for video ──────────────────────────────────────────
+const MAX_MUSIC_BYTES = 25 * 1024 * 1024;                // 25 MB cap
+
+function clearMusic() {
+  state.musicBlob = null;
+  state.musicName = '';
+  if ($('music-file')) $('music-file').value = '';
+  if ($('music-controls')) $('music-controls').style.display = 'none';
+  if ($('music-name')) $('music-name').textContent = '';
+}
+
+$('music-file').addEventListener('change', (e) => {
+  const f = e.target.files?.[0];
+  if (!f) { clearMusic(); return; }
+  if (f.size > MAX_MUSIC_BYTES) {
+    alert(`Music file too large (${(f.size / 1024 / 1024).toFixed(1)} MB > ${MAX_MUSIC_BYTES / 1024 / 1024} MB cap).`);
+    e.target.value = '';
+    return;
+  }
+  state.musicBlob = f;
+  state.musicName = f.name || '';
+  $('music-name').textContent = `${f.name} · ${(f.size / 1024 / 1024).toFixed(2)} MB`;
+  $('music-controls').style.display = 'flex';
+});
+$('music-volume').addEventListener('input', (e) => {
+  state.musicVolume = Number(e.target.value) || 0;
+});
+$('music-clear').addEventListener('click', clearMusic);
 
 // ─── post ────────────────────────────────────────────────────────────────
 $('post-btn').addEventListener('click', async () => {

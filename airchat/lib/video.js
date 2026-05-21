@@ -52,11 +52,14 @@ export async function getFFmpeg(onProgress) {
 // ─── public api ─────────────────────────────────────────────────────────
 //
 //   await makeCaptionedVideo({
-//     audioBlob: Blob,                  // the audio to mux in
+//     audioBlob: Blob,                  // the voice audio to mux in
 //     audioMime: 'audio/wav' | …,
 //     segments:  [{ start, end, text }] // seconds (float)
 //     duration:  Number,                // total audio length, seconds
 //     displayName, handle, avatarUrl,
+//     musicBlob: Blob | null,           // optional background track
+//     musicName: string | null,         // for ext detection
+//     musicGain: 0..1 (default 0.25)    // mix level for background
 //     onProgress: ({ stage, progress, message }) => void
 //   })  → Blob (video/mp4)
 
@@ -64,6 +67,7 @@ export async function makeCaptionedVideo(opts) {
   const {
     audioBlob, audioMime, segments = [], duration,
     displayName, handle, avatarUrl,
+    musicBlob = null, musicName = '', musicGain = 0.25,
     onProgress,
   } = opts;
   if (!audioBlob || !duration) throw new Error('missing audio or duration');
@@ -112,21 +116,46 @@ export async function makeCaptionedVideo(opts) {
     }
   }
 
-  // Audio → virtual FS. Pick a sensible extension from the mime so
+  // Voice audio → virtual FS. Pick a sensible extension from the mime so
   // ffmpeg's demuxer picks the right format.
-  const audioExt = audioMime.includes('wav')  ? 'wav'
-                 : audioMime.includes('mp4')  ? 'mp4'
-                 : audioMime.includes('ogg')  ? 'ogg'
-                 : audioMime.includes('mpeg') ? 'mp3'
-                 : 'webm';
-  const audioName = 'audio.' + audioExt;
-  await ff.writeFile(audioName, new Uint8Array(await audioBlob.arrayBuffer()));
+  const voiceName = 'voice.' + extFromMime(audioMime);
+  await ff.writeFile(voiceName, new Uint8Array(await audioBlob.arrayBuffer()));
+
+  // Optional background music → virtual FS. We let ffmpeg loop it
+  // (via -stream_loop -1 on its input) so a short track tiles across
+  // a longer voice clip; -shortest + amix duration=first cut the mix
+  // to voice length so the music doesn't overrun.
+  let musicFileName = null;
+  if (musicBlob) {
+    musicFileName = 'music.' + extFromMime(musicBlob.type, musicName);
+    await ff.writeFile(musicFileName, new Uint8Array(await musicBlob.arrayBuffer()));
+  }
 
   onProgress?.({ stage: 'encoding', progress: 0 });
-  await ff.exec([
+
+  const args = [
     '-framerate', String(FPS),
     '-i', 'f_%05d.png',
-    '-i', audioName,
+    '-i', voiceName,
+  ];
+  if (musicFileName) {
+    // -stream_loop -1 must precede its corresponding -i. Loops the
+    // music indefinitely; the amix:duration=first below clips the mix
+    // to voice length.
+    args.push('-stream_loop', '-1', '-i', musicFileName);
+    // Mix voice (input 1) with attenuated music (input 2). dropout_transition=0
+    // avoids the auto-ducking that amix applies when one input ends.
+    const gain = Math.max(0, Math.min(1, musicGain)).toFixed(3);
+    args.push(
+      '-filter_complex',
+      `[2:a]volume=${gain}[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
+      '-map', '0:v',
+      '-map', '[a]',
+    );
+  } else {
+    args.push('-map', '0:v', '-map', '1:a');
+  }
+  args.push(
     '-c:v', 'libx264',
     '-preset', 'ultrafast',                              // 2-3× faster encode, slightly larger files
     '-crf', '24',
@@ -137,7 +166,8 @@ export async function makeCaptionedVideo(opts) {
     '-movflags', '+faststart',
     '-y',
     'out.mp4',
-  ]);
+  );
+  await ff.exec(args);
 
   const out = await ff.readFile('out.mp4');
   const result = new Blob([out.buffer], { type: 'video/mp4' });
@@ -147,7 +177,8 @@ export async function makeCaptionedVideo(opts) {
   for (let f = 0; f < totalFrames; f++) {
     try { await ff.deleteFile(`f_${String(f).padStart(5, '0')}.png`); } catch {}
   }
-  try { await ff.deleteFile(audioName); } catch {}
+  try { await ff.deleteFile(voiceName); } catch {}
+  if (musicFileName) { try { await ff.deleteFile(musicFileName); } catch {} }
   try { await ff.deleteFile('out.mp4'); } catch {}
 
   onProgress?.({ stage: 'done', progress: 1, size: result.size });
@@ -234,6 +265,23 @@ function drawFrame(ctx, W, H, opts) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('yapchat · airchat.mino.mobi', padX, H - 28);
+}
+
+// Pick an extension ffmpeg's demuxer will recognize, falling back to
+// the filename if mime doesn't disambiguate. Default mp3 because that's
+// the most common upload format and ffmpeg autodetects most files
+// anyway via probing.
+function extFromMime(mime, filename) {
+  const m = String(mime || '').toLowerCase();
+  if (m.includes('wav'))                       return 'wav';
+  if (m.includes('webm'))                      return 'webm';
+  if (m.includes('mp4') || m.includes('m4a') || m.includes('aac')) return 'm4a';
+  if (m.includes('ogg') || m.includes('opus')) return 'ogg';
+  if (m.includes('flac'))                      return 'flac';
+  if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';
+  const fname = String(filename || '').toLowerCase();
+  const fm = fname.match(/\.([a-z0-9]+)$/);
+  return fm ? fm[1] : 'mp3';
 }
 
 function wrapText(ctx, text, maxWidth) {
