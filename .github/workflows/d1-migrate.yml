@@ -29,12 +29,12 @@ jobs:
         run: |
           if [ -n "${{ inputs.migration_file }}" ]; then
             echo "Running single migration: apps/api/migrations/${{ inputs.migration_file }}"
-            npx wrangler d1 execute anon-polls-db --file="apps/api/migrations/${{ inputs.migration_file }}" --remote
+            npx wrangler d1 execute atpolls-db --file="apps/api/migrations/${{ inputs.migration_file }}" --remote
           else
             echo "Running all migrations..."
             for f in apps/api/migrations/*.sql; do
               echo "Running: $f"
-              npx wrangler d1 execute anon-polls-db --file="$f" --remote
+              npx wrangler d1 execute atpolls-db --file="$f" --remote
             done
           fi
         env:

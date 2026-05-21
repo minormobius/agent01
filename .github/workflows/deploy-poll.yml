@@ -2,7 +2,11 @@ name: Deploy Anonymous Polls
 
 on:
   push:
-    branches: [main, 'claude/bluesky-anonymous-polls-*', 'claude/document-projects-oPse6']
+    branches:
+      - main
+      - 'claude/bluesky-anonymous-polls-*'
+      - 'claude/document-projects-oPse6'
+      - 'claude/polygon-drawing-game-*'
     paths:
       - 'poll/**'
       - '.github/workflows/deploy-poll.yml'
@@ -32,7 +36,7 @@ jobs:
         run: |
           for f in migrations/*.sql; do
             echo "Running migration: $f"
-            npx wrangler d1 execute anon-polls-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
+            npx wrangler d1 execute atpolls-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
           done
         working-directory: poll/apps/api
         env:

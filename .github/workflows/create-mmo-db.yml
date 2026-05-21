@@ -1,0 +1,137 @@
+name: Bootstrap MMO D1 Database
+
+# Creates the mmopaint-db D1 database (or finds the existing one),
+# binds it as MMO_DB in poll/apps/api/wrangler.toml, and commits the
+# change back. The follow-up push triggers deploy-poll, which deploys
+# the worker with the new binding active.
+#
+# Idempotent and auto-running. Runs on every push to the same branches
+# deploy-poll listens on; after the first run, a precheck step sees
+# the binding is already in wrangler.toml and short-circuits without
+# hitting the Cloudflare API. GitHub suppresses workflow runs for
+# pushes made via GITHUB_TOKEN, so the self-commit doesn't loop.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'claude/polygon-drawing-game-*'
+      - 'claude/bluesky-anonymous-polls-*'
+      - 'claude/document-projects-oPse6'
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if MMO_DB already bound
+        id: precheck
+        run: |
+          set -euo pipefail
+          if [ ! -f poll/apps/api/wrangler.toml ]; then
+            echo "wrangler.toml missing — not applicable"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -q 'binding = "MMO_DB"' poll/apps/api/wrangler.toml; then
+            echo "✓ MMO_DB binding already present — nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "MMO_DB binding missing — will provision"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find or create mmopaint-db
+        if: steps.precheck.outputs.skip != 'true'
+        id: db
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCT:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCT" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets missing"; exit 1
+          fi
+
+          api() {
+            curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$@"
+          }
+
+          echo "Looking up existing mmopaint-db…"
+          LIST=$(api "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/d1/database?name=mmopaint-db&per_page=50")
+          UUID=$(echo "$LIST" | jq -r '.result[]? | select(.name=="mmopaint-db") | .uuid' | head -1)
+
+          if [ -n "$UUID" ] && [ "$UUID" != "null" ]; then
+            echo "✓ mmopaint-db already exists: $UUID"
+          else
+            echo "Creating mmopaint-db…"
+            CREATE=$(api -X POST -H "Content-Type: application/json" \
+              --data '{"name":"mmopaint-db"}' \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/d1/database")
+            UUID=$(echo "$CREATE" | jq -r '.result.uuid')
+            if [ -z "$UUID" ] || [ "$UUID" = "null" ]; then
+              echo "❌ Failed to create:"; echo "$CREATE"; exit 1
+            fi
+            echo "✓ Created mmopaint-db: $UUID"
+          fi
+          echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
+
+      - name: Patch poll/apps/api/wrangler.toml
+        if: steps.precheck.outputs.skip != 'true'
+        id: patch
+        env:
+          UUID: ${{ steps.db.outputs.uuid }}
+        run: |
+          set -euo pipefail
+          F=poll/apps/api/wrangler.toml
+          {
+            echo ""
+            echo "# MMO Paint isolated D1 — created by .github/workflows/create-mmo-db.yml"
+            echo "[[d1_databases]]"
+            echo "binding = \"MMO_DB\""
+            echo "database_name = \"mmopaint-db\""
+            echo "database_id = \"$UUID\""
+            echo ""
+            echo "[[env.production.d1_databases]]"
+            echo "binding = \"MMO_DB\""
+            echo "database_name = \"mmopaint-db\""
+            echo "database_id = \"$UUID\""
+          } >> "$F"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "--- updated wrangler.toml tail ---"
+          tail -20 "$F"
+
+      - name: Commit
+        if: steps.precheck.outputs.skip != 'true' && steps.patch.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add poll/apps/api/wrangler.toml
+          git commit -m "ci: bind MMO_DB d1 database (mmopaint-db) in wrangler.toml"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Summary
+        env:
+          UUID:    ${{ steps.db.outputs.uuid }}
+          SKIPPED: ${{ steps.precheck.outputs.skip }}
+        run: |
+          {
+            echo "## MMO D1 Database"
+            echo ""
+            if [ "$SKIPPED" = "true" ]; then
+              echo "MMO_DB binding already in wrangler.toml — no-op run."
+            else
+              echo "Database \`mmopaint-db\` — UUID: \`$UUID\`"
+              echo ""
+              echo "wrangler.toml updated. The new commit will trigger deploy-poll, which deploys the worker with MMO_DB bound. The worker self-heals the schema on first request."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -25,7 +25,12 @@ export interface Session {
 }
 
 const SESSION_COOKIE = 'atpolls_session';
-const SESSION_TTL_HOURS = 24;
+const SESSION_TTL_HOURS = 168;   // 7 days; sliding window in lookupSession
+                                  // pushes this forward on every authed request.
+                                  // The hard ceiling is the OAuth refresh token's
+                                  // own expiry (~90d on bsky.social).
+const SESSION_SLIDE_WHEN_LT_HOURS = 72;  // only write to D1 to extend the row
+                                          // if it has < 3 days remaining.
 const REFRESH_TTL_DAYS = 90;
 
 export async function handleAuthRoutes(
@@ -183,6 +188,18 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     return jsonResponse({ error: 'Missing code or state parameter' }, 400);
   }
 
+  // Pre-fetch the original returnTo from the state row so that if
+  // anything blows up inside handleOAuthCallback, we can still bounce
+  // the user back to the page that started the flow (e.g. mino.mobi/mmo)
+  // with an error param, instead of stranding them on poll.mino.mobi/.
+  let stateReturnTo: string | null = null;
+  try {
+    const row = await env.DB.prepare(
+      `SELECT return_to FROM oauth_states WHERE state = ? LIMIT 1`
+    ).bind(state).first<{ return_to: string | null }>();
+    stateReturnTo = row?.return_to || null;
+  } catch { /* best-effort; fall back to FRONTEND_URL on error */ }
+
   try {
     const result = await handleOAuthCallback(env, code, state, iss, request);
 
@@ -196,25 +213,50 @@ async function handleOAuthCallbackRoute(request: Request, env: Env, url: URL): P
     // Also create a long-lived refresh token for PWA persistence
     const appRefreshToken = await createRefreshToken(env, result.did, result.handle);
 
-    // Redirect to frontend with session cookie
+    // Redirect to frontend. If returnTo is an external URL on a trusted
+    // sibling site (e.g. https://mino.mobi/draw), send the user there with
+    // the session ID and basic identity in a URL fragment so the page can
+    // store them — the cookie is scoped to poll.mino.mobi and won't be
+    // readable cross-origin from mino.mobi.
     const frontendUrl = env.FRONTEND_URL || '';
     const returnTo = result.returnTo || '/';
+    const externalTrusted = /^https:\/\/(?:www\.)?mino\.mobi(?:\/|$)/.test(returnTo);
 
-    // Set cookie and redirect
-    const redirectUrl = `${frontendUrl}${returnTo}`;
-    const response = new Response(null, {
-      status: 302,
-      headers: {
-        Location: redirectUrl,
-        'Set-Cookie': sessionCookie(session.sessionId, request),
-      },
-    });
+    let redirectUrl: string;
+    const headers: Record<string, string> = {};
 
-    return response;
+    if (externalTrusted) {
+      const sep = returnTo.includes('#') ? '&' : '#';
+      redirectUrl = `${returnTo}${sep}session=${encodeURIComponent(session.sessionId)}`
+                  + `&did=${encodeURIComponent(result.did)}`
+                  + `&handle=${encodeURIComponent(result.handle)}`;
+    } else {
+      redirectUrl = `${frontendUrl}${returnTo}`;
+      headers['Set-Cookie'] = sessionCookie(session.sessionId, request);
+    }
+    headers['Location'] = redirectUrl;
+
+    return new Response(null, { status: 302, headers });
   } catch (err: any) {
     console.error('OAuth callback error:', err.message);
+    // Use the pre-fetched returnTo if available so the user lands back
+    // on the originating app (mino.mobi/mmo, /draw, etc.) with the error
+    // surfaced in a URL param. Falls back to the poll frontend root
+    // for legacy flows that didn't pass a returnTo.
     const frontendUrl = env.FRONTEND_URL || '';
-    return Response.redirect(`${frontendUrl}/?error=${encodeURIComponent(err.message)}`, 302);
+    const isExternal = stateReturnTo && /^https:\/\/(?:www\.)?mino\.mobi(?:\/|$)/.test(stateReturnTo);
+    const errParam = `error=${encodeURIComponent(err.message || 'oauth callback failed')}`;
+    let target: string;
+    if (isExternal) {
+      // Put the error on the fragment, same shape as the success case.
+      const sep = stateReturnTo!.includes('#') ? '&' : '#';
+      target = `${stateReturnTo}${sep}${errParam}`;
+    } else if (stateReturnTo) {
+      target = `${frontendUrl}${stateReturnTo}?${errParam}`;
+    } else {
+      target = `${frontendUrl}/?${errParam}`;
+    }
+    return Response.redirect(target, 302);
   }
 }
 
@@ -269,6 +311,21 @@ async function lookupSession(env: Env, sessionId: string): Promise<Session | nul
   ).bind(sessionId).first();
 
   if (!row) return null;
+
+  // Sliding-window expiry: each authed request pushes expires_at forward,
+  // but only when the row has < SESSION_SLIDE_WHEN_LT_HOURS remaining, so
+  // we don't write to D1 on every getSession call. As long as the user is
+  // active within the TTL window the session never silently expires.
+  env.DB.prepare(
+    `UPDATE sessions
+        SET expires_at = datetime('now', '+${SESSION_TTL_HOURS} hours')
+      WHERE session_id = ?
+        AND expires_at < datetime('now', '+${SESSION_SLIDE_WHEN_LT_HOURS} hours')`
+  ).bind(sessionId).run().catch((e) => {
+    // Best-effort — a missed slide just means the user re-auths sooner.
+    console.warn('[auth] session slide failed:', e?.message);
+  });
+
   return {
     sessionId: row.session_id as string,
     did: row.did as string,
