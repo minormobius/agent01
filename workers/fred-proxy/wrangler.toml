@@ -1,0 +1,10 @@
+name = "fred-proxy"
+main = "src/index.js"
+compatibility_date = "2026-02-20"
+
+[[routes]]
+pattern = "fred.mino.mobi"
+custom_domain = true
+
+[observability]
+enabled = true
