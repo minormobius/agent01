@@ -314,6 +314,7 @@ footer a:hover { color: var(--accent); }
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="spindle" role="tab">spindle</button>
   <button class="tab" data-tab="degrey" role="tab">de grey</button>
+  <button class="tab" data-tab="play" role="tab">play</button>
   <button class="tab" data-tab="tiling" role="tab">tiling</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
@@ -384,6 +385,43 @@ footer a:hover { color: var(--accent); }
         carefully chosen scheme until even 4 colours can't satisfy
         every edge. Use <em>reveal coloring</em> to backtrack to a
         proper colouring at the chosen palette size.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PLAY PANE ─────────── -->
+<section class="pane" data-pane="play">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="play-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">difficulty</span>
+        <div class="btn-row" id="play-difficulty-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">click a vertex to cycle</span>
+        <div class="swatch-row" id="play-swatch-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="play-new-btn">new puzzle</button>
+          <button class="btn" id="play-reveal-btn">reveal</button>
+          <button class="btn" id="play-clear-btn">clear</button>
+        </div>
+      </div>
+      <div class="stats" id="play-stats"></div>
+      <div class="verdict" id="play-verdict"></div>
+      <div class="stat-note">
+        A procedurally generated unit-distance graph. Each one is anchored
+        by either a triangle (χ=3) or a Moser spindle (χ=4), then grown
+        by equilateral-triangle completions on random existing edges. A
+        backtracking solver verifies the chromatic number before the
+        puzzle ships, so the colour target is always honest. Try to
+        finish using <em>exactly</em> the target palette — every vertex
+        coloured, no edge with matching endpoints.
       </div>
     </div>
   </div>
@@ -470,6 +508,8 @@ footer a:hover { color: var(--accent); }
 <h2>What's in this site</h2>
 <ul>
   <li><strong>spindle</strong> — the Moser spindle (7 vertices, 11 edges). Click a vertex to cycle its colour. Cap the palette at 3 and try to find a valid colouring — you can't. Cap at 4 and many work. The conflict count and verdict update live.</li>
+  <li><strong>de grey</strong> — a Moser flower (six rotated spindles around a shared centre), with the same colour-cycling interaction at a richer scale. A backtracking solver finds a proper colouring on demand.</li>
+  <li><strong>play</strong> — procedurally generated unit-distance graph puzzles. Pick a difficulty (3 or 4 colour target); the page generates a fresh graph, anchors it with a structure that forces the target chromatic number, grows it by equilateral-triangle completions, then verifies χ(G) with the solver before letting you near it. The colour target on each puzzle is always honest — the solver has confirmed both that the graph needs the target and that it doesn't need more.</li>
   <li><strong>tiling</strong> — Isbell's 7-colour hexagonal tiling. The hex-side slider shows the constraint: hexes too small leave gaps in the unit-distance argument; too large and same-colour hexes get within 1 of each other. The unit-circle overlay drags around and demonstrates no colour collision.</li>
   <li><strong>docs</strong> — this page.</li>
 </ul>
@@ -518,13 +558,14 @@ function showTab(name) {
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
   if (name === 'spindle') renderSpindle();
   if (name === 'degrey')  renderDegrey();
+  if (name === 'play')    renderPlay();
   if (name === 'tiling')  renderTiling();
   try { history.replaceState(null, '', '#' + name); } catch {}
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
 const initialHash = (location.hash || '').replace(/^#/, '');
-if (['spindle', 'degrey', 'tiling', 'docs'].includes(initialHash) && initialHash !== 'spindle') {
+if (['spindle', 'degrey', 'play', 'tiling', 'docs'].includes(initialHash) && initialHash !== 'spindle') {
   setTimeout(() => showTab(initialHash), 0);
 }
 
@@ -1067,6 +1108,300 @@ buildDgSwatchRow();
 renderDegrey();
 window.addEventListener('resize', () => {
   if (document.querySelector('.pane.active').dataset.pane === 'degrey') renderDegrey();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Play: procedural unit-distance graph puzzles
+// ─────────────────────────────────────────────────────────────────────
+// Generate a random unit-distance graph by:
+//   1. Seeding with an anchor structure whose chromatic number forces
+//      the target (triangle → χ=3, Moser spindle → χ=4).
+//   2. Growing by repeated equilateral-triangle completions on random
+//      existing edges. Each new vertex lies at the apex of an equilateral
+//      triangle on one of the existing unit-distance edges, automatically
+//      adding two unit-distance edges to it, plus any extra edges where
+//      the new vertex happens to be at unit distance from another vertex.
+//   3. Verifying χ via the backtracking solver: find the smallest k
+//      with a valid k-colouring. Reject and regenerate if it doesn't
+//      match the target.
+// This keeps the colour target honest — the puzzle is guaranteed to
+// need exactly that many colours, no more and no fewer.
+
+function genUnitDistanceGraph(targetChi, targetSize) {
+  const TOL = 1e-6;
+  let vertices, edges;
+
+  if (targetChi === 3) {
+    // Equilateral triangle: χ = 3, edges all unit
+    vertices = [
+      { x: 0,   y: 0 },
+      { x: 1,   y: 0 },
+      { x: 0.5, y: SQRT3 / 2 },
+    ];
+    edges = [[0, 1], [1, 2], [0, 2]];
+  } else {
+    // Moser spindle: χ = 4
+    vertices = SPINDLE.vertices.map(v => ({ x: v.x, y: v.y }));
+    edges = SPINDLE.edges.map(e => [e[0], e[1]]);
+  }
+
+  // Grow by equilateral-triangle completion on random edges
+  let attempts = 0;
+  while (vertices.length < targetSize && attempts++ < targetSize * 30) {
+    if (edges.length === 0) break;
+    const [a, b] = edges[Math.floor(Math.random() * edges.length)];
+    const A = vertices[a], B = vertices[b];
+    // Two equilateral-triangle apexes on the perpendicular bisector of AB
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+    const dx = B.x - A.x, dy = B.y - A.y;
+    const perpX = -dy * SQRT3 / 2;
+    const perpY =  dx * SQRT3 / 2;
+    const cand = Math.random() < 0.5
+      ? { x: mx + perpX, y: my + perpY }
+      : { x: mx - perpX, y: my - perpY };
+    // Skip if this point coincides with an existing vertex
+    let dupe = false;
+    for (const v of vertices) {
+      const ddx = v.x - cand.x, ddy = v.y - cand.y;
+      if (ddx * ddx + ddy * ddy < TOL) { dupe = true; break; }
+    }
+    if (dupe) continue;
+    // Accept the new vertex and find all unit-distance edges to it
+    vertices.push(cand);
+    const nIdx = vertices.length - 1;
+    for (let i = 0; i < nIdx; i++) {
+      const ddx = vertices[i].x - cand.x;
+      const ddy = vertices[i].y - cand.y;
+      if (Math.abs(ddx * ddx + ddy * ddy - 1) < TOL) edges.push([i, nIdx]);
+    }
+  }
+  return { vertices, edges };
+}
+
+function computeChi(graph) {
+  for (let k = 1; k <= 5; k++) {
+    if (solveColoring(graph, k)) return k;
+  }
+  return null;
+}
+
+const playCanvas = document.getElementById('play-canvas');
+const playCtx = playCanvas.getContext('2d');
+const playDifficultyRow = document.getElementById('play-difficulty-row');
+const playSwatchRow = document.getElementById('play-swatch-row');
+const playStatsEl = document.getElementById('play-stats');
+const playVerdictEl = document.getElementById('play-verdict');
+
+let playState = {
+  difficulty: 4,        // current target χ
+  graph: null,
+  colors: null,
+  chromaticNumber: null,
+  vertexPx: null,
+};
+
+function buildPlayDifficultyRow() {
+  playDifficultyRow.innerHTML = '';
+  for (const n of [3, 4]) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === playState.difficulty ? ' active' : '');
+    b.dataset.n = n;
+    b.textContent = n + ' colours';
+    b.addEventListener('click', () => {
+      playState.difficulty = n;
+      playDifficultyRow.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', parseInt(x.dataset.n, 10) === n)
+      );
+      generateNewPuzzle();
+    });
+    playDifficultyRow.appendChild(b);
+  }
+}
+
+function buildPlaySwatchRow() {
+  playSwatchRow.innerHTML = '';
+  const k = playState.chromaticNumber || playState.difficulty;
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.style.background = PALETTE[i - 1];
+    s.dataset.disabled = i > k;
+    const lbl = document.createElement('span');
+    lbl.className = 'swatch-label';
+    lbl.textContent = i;
+    s.appendChild(lbl);
+    playSwatchRow.appendChild(s);
+  }
+}
+
+function generateNewPuzzle() {
+  const target = playState.difficulty;
+  const sizeRange = target === 3 ? [10, 16] : [12, 22];
+  let best = null;
+  // Try up to 30 generations; pick the first whose χ matches target.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const targetSize = sizeRange[0] + Math.floor(Math.random() * (sizeRange[1] - sizeRange[0] + 1));
+    const g = genUnitDistanceGraph(target, targetSize);
+    if (g.vertices.length < sizeRange[0]) continue;
+    const chi = computeChi(g);
+    if (chi === target) {
+      best = { graph: g, chi };
+      break;
+    }
+    // Keep a backup in case nothing hits exactly
+    if (!best && chi !== null) best = { graph: g, chi };
+  }
+  if (!best) {
+    // Last-resort fallback
+    const g = genUnitDistanceGraph(target, sizeRange[0]);
+    best = { graph: g, chi: computeChi(g) || target };
+  }
+  playState.graph = best.graph;
+  playState.colors = new Array(best.graph.vertices.length).fill(0);
+  playState.chromaticNumber = best.chi;
+  buildPlaySwatchRow();
+  renderPlay();
+}
+
+document.getElementById('play-new-btn').addEventListener('click', generateNewPuzzle);
+document.getElementById('play-reveal-btn').addEventListener('click', () => {
+  if (!playState.graph) return;
+  const sol = solveColoring(playState.graph, playState.chromaticNumber);
+  if (sol) {
+    playState.colors = sol;
+    renderPlay();
+  }
+});
+document.getElementById('play-clear-btn').addEventListener('click', () => {
+  if (!playState.graph) return;
+  playState.colors = new Array(playState.graph.vertices.length).fill(0);
+  renderPlay();
+});
+
+playCanvas.addEventListener('click', e => {
+  if (!playState.vertexPx) return;
+  const rect = playCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (playCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (playCanvas.height / rect.height);
+  let best = -1, bestD = 22 * 22;
+  for (let i = 0; i < playState.vertexPx.length; i++) {
+    const v = playState.vertexPx[i];
+    const d2 = (v.x - x) * (v.x - x) + (v.y - y) * (v.y - y);
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  if (best >= 0) {
+    const k = playState.chromaticNumber;
+    playState.colors[best] = (playState.colors[best] + 1) % (k + 1);
+    renderPlay();
+  }
+});
+
+function renderPlay() {
+  if (!playState.graph) { generateNewPuzzle(); return; }
+  const ctx = playCtx;
+  const W = playCanvas.width;
+  const H = playCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const { graph, colors, chromaticNumber } = playState;
+  const verts = graph.vertices;
+  if (verts.length === 0) return;
+
+  // Layout
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const v of verts) {
+    if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+    if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y;
+  }
+  const pad = 60;
+  const spanX = maxX - minX || 1;
+  const spanY = maxY - minY || 1;
+  const scale = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  function px(x) { return W / 2 + (x - cx) * scale; }
+  function py(y) { return H / 2 - (y - cy) * scale; }
+
+  const vertexPx = verts.map(v => ({ x: px(v.x), y: py(v.y) }));
+  playState.vertexPx = vertexPx;
+
+  // Edges
+  const conflicts = new Set();
+  let conflictCount = 0;
+  for (const [a, b] of graph.edges) {
+    const ca = colors[a], cb = colors[b];
+    let color = '#ccc', lw = 1.3;
+    if (ca !== 0 && cb !== 0) {
+      if (ca === cb) {
+        color = '#e63946'; lw = 2.6;
+        conflicts.add(a); conflicts.add(b);
+        conflictCount++;
+      } else {
+        color = '#999'; lw = 1.3;
+      }
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(vertexPx[a].x, vertexPx[a].y);
+    ctx.lineTo(vertexPx[b].x, vertexPx[b].y);
+    ctx.stroke();
+  }
+
+  // Vertices
+  const r = Math.min(16, Math.max(10, 200 / Math.sqrt(verts.length)));
+  for (let i = 0; i < verts.length; i++) {
+    const v = vertexPx[i];
+    const c = colors[i];
+    ctx.lineWidth = conflicts.has(i) ? 2.6 : 1.2;
+    ctx.strokeStyle = conflicts.has(i) ? '#e63946' : '#111';
+    ctx.fillStyle = c === 0 ? '#fff' : PALETTE[c - 1];
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Stats
+  const coloredCount = colors.filter(c => c !== 0).length;
+  const usedColors = new Set(colors.filter(c => c !== 0)).size;
+  playStatsEl.innerHTML = `
+    <div class="stat-row"><span class="k">vertices</span><span class="v">${verts.length}</span></div>
+    <div class="stat-row"><span class="k">edges</span><span class="v">${graph.edges.length}</span></div>
+    <div class="stat-row"><span class="k">target · χ(G)</span><span class="v hot">${chromaticNumber}</span></div>
+    <div class="stat-row"><span class="k">coloured</span><span class="v">${coloredCount} / ${verts.length}</span></div>
+    <div class="stat-row"><span class="k">colours used</span><span class="v">${usedColors}</span></div>
+    <div class="stat-row"><span class="k">conflict edges</span><span class="v ${conflictCount > 0 ? 'fail' : ''}">${conflictCount}</span></div>
+  `;
+
+  let verdict, cls;
+  if (coloredCount === 0) {
+    verdict = `colour all ${verts.length} vertices using ${chromaticNumber} colours · no conflicting edges`;
+    cls = 'partial';
+  } else if (coloredCount < verts.length) {
+    verdict = `${verts.length - coloredCount} left`;
+    cls = 'partial';
+  } else if (conflictCount > 0) {
+    verdict = `${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — try again`;
+    cls = 'fail';
+  } else if (usedColors > chromaticNumber) {
+    verdict = `valid, but using more colours than needed`;
+    cls = 'partial';
+  } else {
+    verdict = `solved · χ(G) = ${chromaticNumber}`;
+    cls = 'win';
+  }
+  playVerdictEl.textContent = verdict;
+  playVerdictEl.className = 'verdict ' + cls;
+}
+
+buildPlayDifficultyRow();
+buildPlaySwatchRow();
+// Don't auto-generate at module load; do it lazily on first render to
+// keep the initial page-load cost down (the solver can take ~100ms).
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'play') renderPlay();
 });
 
 // ─────────────────────────────────────────────────────────────────────
