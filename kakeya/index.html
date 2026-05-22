@@ -587,26 +587,6 @@ function render() {
   const covered = dirs.map(d => directionCovered(state.K, q, d));
   const coveredCount = covered.filter(c => c >= 0).length;
 
-  // Highlight lines that ARE inside K (drawn under the cells, faintly)
-  ctx.lineWidth = Math.max(2, cellSize * 0.05);
-  ctx.strokeStyle = cssVar('--accent') || '#a35a00';
-  ctx.globalAlpha = 0.15;
-  for (let di = 0; di < dirs.length; di++) {
-    const off = covered[di];
-    if (off < 0) continue;
-    const pts = linePoints(q, dirs[di], off);
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      const [px, py] = pts[i];
-      const cx = x0 + px * cellSize + cellSize / 2;
-      const cy = y0 + (q - 1 - py) * cellSize + cellSize / 2;
-      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-    }
-    // Don't close — just a polyline through the line's points
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
   // Grid + cells
   for (let i = 0; i < q; i++) {
     for (let j = 0; j < q; j++) {
@@ -623,6 +603,71 @@ function render() {
       ctx.strokeRect(cx + 1, cy + 1, cellSize - 2, cellSize - 2);
     }
   }
+
+  // Draw covered lines OVER the cells, with wrap-aware segments.
+  // For each consecutive cell pair in a line, check whether stepping by
+  // the canonical direction (dxs, dys) lands on the next cell (no wrap)
+  // or off-grid (wrap). For wraps, draw an "exit stub" from one cell
+  // toward the boundary and an "entry stub" arriving from the opposite
+  // boundary — so you can read "this line wraps around" off the page
+  // without the polyline streaking across the whole grid.
+  //
+  // Lines are drawn in white over the accent-filled K cells so the line
+  // contrasts the cell — easier to see which cells of K form which line
+  // when several covered lines overlap.
+  const lineW = Math.max(2.4, cellSize * 0.055);
+  ctx.lineWidth = lineW;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#fff';
+  ctx.globalAlpha = 0.9;
+  const stubLen = 0.8;  // fraction of cell-step length; clearly crosses boundary
+
+  function centerOf(ix, iy) {
+    return [x0 + ix * cellSize + cellSize / 2,
+            y0 + (q - 1 - iy) * cellSize + cellSize / 2];
+  }
+
+  for (let di = 0; di < dirs.length; di++) {
+    const off = covered[di];
+    if (off < 0) continue;
+    const dir = dirs[di];
+    // Canonical small step in 𝔽_q — reduce slopes m > q/2 to negative to
+    // get the geometric step rather than a wrap-around one.
+    let dxs, dys;
+    if (dir.kind === 'vertical') { dxs = 0; dys = 1; }
+    else                          { dxs = 1; dys = dir.m > q / 2 ? dir.m - q : dir.m; }
+    const dxC =  dxs * cellSize;
+    const dyC = -dys * cellSize;  // canvas y is flipped
+
+    const pts = linePoints(q, dir, off);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[i + 1];
+      const expX = x1 + dxs;
+      const expY = y1 + dys;
+      const [px1, py1] = centerOf(x1, y1);
+      const [px2, py2] = centerOf(x2, y2);
+      if (expX === x2 && expY === y2) {
+        // No wrap: direct segment between cell centres
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
+      } else {
+        // Wrap: exit stub from p1, entry stub to p2 (each extends past the
+        // grid boundary so the wraparound reads visually)
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px1 + dxC * stubLen, py1 + dyC * stubLen);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px2 - dxC * stubLen, py2 - dyC * stubLen);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
 
   // Axis labels (small)
   ctx.fillStyle = '#888';
