@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>elements — periodic mandala</title>
-<meta name="description" content="The 118 elements arranged as a mandala: concentric rings for electron shells, angular sectors for orbital blocks (s, p, d, f). Click any element to open its Wikipedia page.">
+<meta name="description" content="The 118 elements arranged as a mandala: concentric rings for electron shells, angular sectors for orbital blocks in fill order (s, f, d, p), so going clockwise follows atomic number. Click any element to open its Wikipedia page.">
 
 <style>
 :root {
@@ -190,9 +190,9 @@ footer a:hover { color: var(--accent); }
   <p class="subtitle">118 elements as electron shells</p>
   <p class="intro">
     Concentric rings are electron shells (period 1 to 7, inner to outer). Angular sectors
-    are orbital blocks (s, p, d, f), sized to their capacities of 2, 6, 10, and 14 electrons.
-    Each "column" of the standard periodic table maps to a radial spoke. Hover for details,
-    click to open Wikipedia.
+    are orbital blocks in fill order — s, f, d, p — sized to their capacities of 2, 14, 10,
+    and 6 electrons, so going clockwise around any ring follows atomic number. Hover for
+    details, click to open Wikipedia.
   </p>
 </header>
 
@@ -384,9 +384,11 @@ function cssVar(name) {
 const TOTAL_SLOTS = 32;
 const SLOT_DEG = 360 / TOTAL_SLOTS;
 // Block start positions in slot units, going clockwise from 12 o'clock.
-// s starts at 0, then p, then d, then f wraps back to s.
-const BLOCK_START_SLOT = { s: 0, p: 2, d: 8, f: 18 };
-// → s: slots 0..1, p: 2..7, d: 8..17, f: 18..31
+// Order is s → f → d → p — the order electrons actually fill across a
+// period (Cs Ba → lanthanides → Hf..Hg → Tl..Rn), so going around any
+// ring follows atomic number.
+const BLOCK_START_SLOT = { s: 0, f: 2, d: 16, p: 26 };
+// → s: slots 0..1, f: 2..15, d: 16..25, p: 26..31
 
 function elementAngleDeg(el) {
   const slotStart = BLOCK_START_SLOT[el.b];
