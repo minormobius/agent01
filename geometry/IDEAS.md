@@ -1,0 +1,56 @@
+# Geometry pack — ideas
+
+Interactive sites on extremal-geometry conjectures: each follows the same shape (one interactive viz, growth/history view where useful, prose docs) with a single-file static HTML scaffold. Style varies slightly per page — distinctive accent colour, sister-site cross-links in the header, optional play tab. Series cross-referenced through the root landing page's `data` category.
+
+## Built
+
+| Path | Subject | Story-shape | Accent |
+|------|---------|-------------|--------|
+| `/erdos/` | Erdős unit-distance problem | AI built a new construction that beats the grid; 80-year conjecture disproven (OpenAI 2026) | red `#8b0000` |
+| `/guthkatz/` | Erdős distinct-distances problem | Polynomial-method lower bound matches the grid optimum up to √log n (Guth–Katz 2015) | steel blue `#1a5e7a` |
+| `/hadwiger/` | Chromatic number of the plane | Amateur biogerontologist nudged the lower bound from 4 to 5 after 68 years (de Grey 2018). Procedural play mode added. | purple `#5e3b8b` |
+| `/runner/` | Lonely runner conjecture | Wills 1967, proven k ≤ 7, open for k ≥ 8 — animation-native | teal `#0aa19c` |
+
+## Next priorities
+
+(Top of list when extending the pack. Keep this ordered.)
+
+1. **`/kakeya/`** — Finite-field Kakeya conjecture (Dvir 2008). *The* proof that birthed the polynomial method; direct ancestor of Guth–Katz. Visualize Besicovitch sets in 𝔽_q² for small q (3, 5, 7, 11); the proof reduces to a polynomial-degree argument that fits in a paragraph. Closes a *polynomial-method trilogy* with guthkatz.
+
+2. **`/capset/`** — Largest subset of 𝔽_3^n with no three-term arithmetic progression. Croot–Lev–Pach + Ellenberg–Gijswijt 2016, polynomial method again. Bound dropped from 3^n/n to 2.756^n. Hard to viz at high n; n=3 case is 27 cells in a 3×3×3 grid and very tractable.
+
+## Other candidates
+
+- **`/szemeredi-trotter/`** — Point-line incidence bound, O((mn)^(2/3) + m + n). 1983, foundational, underlies guthkatz. Interactive grid + lines, drag to see incidences match the bound.
+- **`/heilbronn/`** — Place n points in unit square to maximize the smallest triangle. Records get updated regularly via heuristic search; site as a record-attempt sandbox with leaderboard via poll/draw infrastructure.
+- **`/borsuk/`** — Borsuk's 1933 partition conjecture, disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as erdős: unexpected construction wrecks low-dim intuition. Hard to viz in dim ≥ 64.
+- **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
+- **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983; progress over decades; current bound ~|A|^{4/3 - ε}.
+- **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
+- **`/geometry/`** — Meta-index page for the whole series. After 5+ entries, this writes itself: family-resemblance table sortable by decade / technique / status.
+
+## Pattern notes
+
+Every entry should have:
+
+- Single-file static HTML page in its own top-level directory (`/<name>/index.html`).
+- Header: crumb to `mino.mobi`, h1, subtitle, sister-site crossref strip.
+- Format bar (theme + reveal-all) if there's coloring or hover-driven viz.
+- Tabs: at least one interactive viz tab, optional growth/history/play tabs, docs tab.
+- Distinct accent colour from the siblings (record above).
+- Entry added to root `index.html` PROJECTS array (category: `data`, age: `hot`).
+- Cross-links to sister sites in `<footer>`.
+- Math validated in a smoke test (run inside the deploy commit body).
+
+## Anti-patterns
+
+- **No server-side compute.** Everything static HTML + canvas JS. The polynomial-method demos in particular tempt one toward server-side SAT solvers; resist.
+- **Don't pick problems that need > 500 vertices to demonstrate.** The page becomes click-uncolourable. (Reveal-only static rendering is fine — see hadwiger's plan for the actual de Grey graph.)
+- **Don't draw a log-log growth chart for problems with two data points.** A prose timeline reads better.
+- **Don't overclaim.** Be honest when a procedural construction doesn't quite reach the claimed bound (see hadwiger's "Moser flower"); the page can still be educational.
+
+## Branching ideas (not in the main series but adjacent)
+
+- **`/dvir/`** — explicitly a polynomial-method explainer page that walks through Dvir's 5-page proof in interactive steps. Could share material with `/kakeya/`.
+- **`/polymath/`** — page about the Polymath collaborative projects. Polymath16 (hadwiger) is the most natural entry.
+- **`/erdos-problems/`** — interactive index of all the Erdős open problems with progress trackers. Linked from `/erdos/` and `/guthkatz/`.

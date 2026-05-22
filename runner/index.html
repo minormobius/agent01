@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>runner — lonely runner conjecture</title>
+<meta name="description" content="Interactive visualization of the lonely runner conjecture (Wills, 1967): k runners on a circular track at distinct integer speeds, when does each become lonely? Proved for k ≤ 7, open for k ≥ 8.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #0aa19c;
+  --accent-faint: rgba(10, 161, 156, 0.10);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --c1: #e63946;
+  --c2: #f4a261;
+  --c3: #ffd166;
+  --c4: #2a9d8f;
+  --c5: #1d4e89;
+  --c6: #7b2cbf;
+  --c7: #e2538f;
+  --avoidance: rgba(230, 57, 70, 0.13);
+  --lonely-glow: rgba(10, 161, 156, 0.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #4dd6d0;
+    --accent-faint: rgba(77, 214, 208, 0.12);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; }
+.ctrl-row .ctrl-val {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  min-width: 2.6em;
+  text-align: right;
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+.stat-row .v.fail { color: #e63946; }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>runner</h1>
+  <p class="subtitle">lonely runner conjecture · proven k ≤ 7 · 1967–open</p>
+  <p class="crossref">sister sites: <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="track" role="tab">track</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── TRACK PANE ─────────── -->
+<section class="pane active" data-pane="track">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="track-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">runners · k</span>
+        <div class="ctrl-row">
+          <input id="k-slider" type="range" min="3" max="12" value="5" step="1">
+          <span class="ctrl-val" id="k-val">5</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">speeds</span>
+        <div class="btn-row" id="speeds-row"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn active" id="play-btn">pause</button>
+          <button class="btn" id="find-btn">find lonely</button>
+          <button class="btn" id="reset-btn">reset · t=0</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">tempo</span>
+        <div class="ctrl-row">
+          <input id="tempo-slider" type="range" min="0.05" max="2" value="0.35" step="0.05">
+          <span class="ctrl-val" id="tempo-val">0.35</span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="verdict" id="verdict"></div>
+
+      <div class="stat-note">
+        Each runner runs around a unit-circumference track at a distinct
+        integer speed. A runner is <em>lonely</em> when no other runner
+        is within distance 1/<em>k</em> of them. The conjecture: for any
+        choice of speeds, there's some time when every runner is lonely
+        at once. Proven for <em>k</em> ≤ 7; open for <em>k</em> ≥ 8.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The conjecture</h2>
+<p>Place <em>k</em> runners on a circular track of unit length, all at the starting line. Send them off at distinct integer speeds. Run forever. The <strong>lonely runner conjecture</strong> says: for each runner there's some moment when no other runner is within 1/<em>k</em> of them. Equivalently — and the equivalence is by passing to the frame of the runner you're observing — for any <em>k</em>−1 distinct nonzero integers <em>v</em>₁, …, <em>v</em><sub><em>k</em>−1</sub>, there exists a time <em>t</em> such that the fractional parts {<em>v<sub>i</sub></em>·<em>t</em>} all lie in [1/<em>k</em>, 1 − 1/<em>k</em>].</p>
+
+<p>Joseph Wills posed it in 1967; Tom Cusick gave it the name "lonely runner" in 1973 while studying view-obstruction problems in the geometry of numbers.</p>
+
+<h2>What's hard about it</h2>
+<p>For small <em>k</em> the conjecture is almost obvious — fewer runners means more places for them to spread out, and the lonely interval (1/<em>k</em>, 1 − 1/<em>k</em>) is wide. As <em>k</em> grows the lonely interval shrinks to a sliver near the back of the track, and you need <em>more</em> runners to simultaneously be in that sliver. The Diophantine problem of when <em>v</em>₁<em>t</em>, …, <em>v</em><sub><em>k</em>−1</sub><em>t</em> can simultaneously avoid a small neighbourhood of zero becomes delicate.</p>
+
+<h2>History</h2>
+<ul>
+  <li><strong>1967</strong> — Wills poses the question.</li>
+  <li><strong>1973</strong> — Cusick reframes it as a view-obstruction problem and gives it the "lonely runner" name. Proves <em>k</em> = 4.</li>
+  <li><strong>1984</strong> — Cusick &amp; Pomerance prove <em>k</em> = 5.</li>
+  <li><strong>2001</strong> — Bohman, Holzman, &amp; Kleitman prove <em>k</em> = 6 using a careful case analysis.</li>
+  <li><strong>2008</strong> — Barajas &amp; Serra prove <em>k</em> = 7.</li>
+  <li><strong><em>k</em> ≥ 8</strong> — open. Believed true.</li>
+</ul>
+
+<h2>Equivalent forms</h2>
+<p>The lonely runner problem is also a question about <strong>covering integers by arithmetic progressions</strong>, a question about <strong>view-obstruction</strong> in the geometry of numbers (asking when integer-point lines from the origin in ℝ<em>ⁿ</em> are "seen" by a small ball), and a question about <strong>flow on a torus</strong> (the runner positions are a flow line on the <em>n</em>-torus, and the conjecture asks about avoiding a thickening of a coordinate hyperplane). Different fields prove different cases using their own tools.</p>
+
+<h2>Why this matters beyond a track</h2>
+<p>The conjecture is a clean test case for our understanding of <strong>simultaneous Diophantine approximation</strong> — how independently can <em>k</em> linear forms over the integers behave modulo 1? Every time someone proves a new <em>k</em>, the proof unlocks a related family of problems. Bohman–Holzman–Kleitman's <em>k</em> = 6 proof in particular introduced combinatorial-Fourier tools that have been useful elsewhere.</p>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>track</strong> — the canonical animation. <em>k</em> runners around a circle. The avoidance arc (the 1/<em>k</em>-neighbourhood of the lonely runner's position) is shaded; runners <em>outside</em> it count as "lonely-from-this-runner". An all-lonely moment lights the centre. The slider lets you pick <em>k</em>, the speed presets vary which integer speeds the other runners use, and the <em>find lonely</em> button does a forward search until it finds a simultaneous all-lonely time.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<h2>Why this sits alongside erdős, guthkatz, and hadwiger</h2>
+<p>The geometry pack so far: <a href="https://mino.mobi/erdos/">erdős</a> (extremal point counts in the plane), <a href="https://mino.mobi/guthkatz/">guthkatz</a> (extremal distance counts), <a href="https://mino.mobi/hadwiger/">hadwiger</a> (colouring the plane). <strong>runner</strong> is the first that's not strictly in the Euclidean plane — it's on the circle, which is a torus. But the family resemblance is real: an extremal-combinatorics question with a small-integer answer, a long climb of partial results, and an open endpoint. The story-shape carries.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Wills, J. M. (1967). <em>Zwei Sätze über inhomogene diophantische Approximation von Irrationalzahlen.</em> Monatshefte für Mathematik 71, 263–269.</li>
+  <li>Cusick, T. W. (1973). <em>View-obstruction problems.</em> Aequationes Mathematicae 9, 165–170.</li>
+  <li>Bohman, T., Holzman, R. &amp; Kleitman, D. (2001). <em>Six lonely runners.</em> Electronic Journal of Combinatorics 8.</li>
+  <li>Barajas, J. &amp; Serra, O. (2008). <em>The lonely runner with seven runners.</em> Electronic Journal of Combinatorics 15.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Lonely_runner_conjecture">Wikipedia — Lonely runner conjecture</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <span>·</span>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <span>·</span>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['track', 'docs'].includes(initialHash) && initialHash !== 'track') {
+  setTimeout(() => showTab(initialHash), 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Palette + helpers
+// ─────────────────────────────────────────────────────────────────────
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const PALETTE = [
+  cssVar('--c1') || '#e63946',
+  cssVar('--c2') || '#f4a261',
+  cssVar('--c3') || '#ffd166',
+  cssVar('--c4') || '#2a9d8f',
+  cssVar('--c5') || '#1d4e89',
+  cssVar('--c6') || '#7b2cbf',
+  cssVar('--c7') || '#e2538f',
+];
+
+// ─────────────────────────────────────────────────────────────────────
+// State + speed presets
+// ─────────────────────────────────────────────────────────────────────
+const state = {
+  k: 5,                   // total runners (including the lonely observer)
+  speeds: [1, 2, 3, 4],   // distinct positive integer speeds of the k-1 non-lonely runners
+  t: 0,                   // simulation time
+  playing: true,
+  tempo: 0.35,            // multiplier on dt for animation
+  lastFrame: null,
+  foundLonelyT: null,     // most recent "find lonely" result (for highlighting)
+};
+
+// First k-1 primes — used by the 'primes' preset
+function firstPrimes(n) {
+  const out = [];
+  let p = 2;
+  while (out.length < n) {
+    let prime = true;
+    for (let d = 2; d * d <= p; d++) if (p % d === 0) { prime = false; break; }
+    if (prime) out.push(p);
+    p++;
+  }
+  return out;
+}
+
+function speedsForPreset(preset, k) {
+  const m = k - 1;
+  if (preset === 'consecutive') {
+    const arr = [];
+    for (let i = 1; i <= m; i++) arr.push(i);
+    return arr;
+  }
+  if (preset === 'odd') {
+    const arr = [];
+    for (let i = 1; arr.length < m; i += 2) arr.push(i);
+    return arr;
+  }
+  if (preset === 'primes') {
+    return firstPrimes(m);
+  }
+  if (preset === 'shuffle') {
+    // Random distinct integers in [1, 2k+1]
+    const pool = [];
+    for (let i = 1; i <= 2 * k + 1; i++) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, m).sort((a, b) => a - b);
+  }
+  return [];
+}
+
+let activePreset = 'consecutive';
+
+function buildSpeedsRow() {
+  const row = document.getElementById('speeds-row');
+  row.innerHTML = '';
+  for (const p of ['consecutive', 'odd', 'primes', 'shuffle']) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (p === activePreset ? ' active' : '');
+    b.textContent = p;
+    b.addEventListener('click', () => {
+      activePreset = p;
+      state.speeds = speedsForPreset(p, state.k);
+      state.t = 0;
+      state.foundLonelyT = null;
+      row.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', x.textContent === p)
+      );
+    });
+    row.appendChild(b);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────────────────────────────
+const kSlider = document.getElementById('k-slider');
+const kVal = document.getElementById('k-val');
+const tempoSlider = document.getElementById('tempo-slider');
+const tempoVal = document.getElementById('tempo-val');
+const playBtn = document.getElementById('play-btn');
+const findBtn = document.getElementById('find-btn');
+const resetBtn = document.getElementById('reset-btn');
+const statsEl = document.getElementById('stats');
+const verdictEl = document.getElementById('verdict');
+
+kSlider.addEventListener('input', e => {
+  state.k = parseInt(e.target.value, 10);
+  kVal.textContent = state.k;
+  state.speeds = speedsForPreset(activePreset, state.k);
+  state.t = 0;
+  state.foundLonelyT = null;
+});
+tempoSlider.addEventListener('input', e => {
+  state.tempo = parseFloat(e.target.value);
+  tempoVal.textContent = state.tempo.toFixed(2);
+});
+playBtn.addEventListener('click', () => {
+  state.playing = !state.playing;
+  playBtn.textContent = state.playing ? 'pause' : 'play';
+  playBtn.classList.toggle('active', state.playing);
+});
+resetBtn.addEventListener('click', () => {
+  state.t = 0;
+  state.foundLonelyT = null;
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Math: is the configuration "all lonely" at time t?
+// ─────────────────────────────────────────────────────────────────────
+// In the lonely runner's frame, runner i (speed v_i, i=1..k-1) is at
+// fractional position {v_i * t}. The lonely runner is at position 0.
+// Runner i is "outside the avoidance arc" of the lonely runner iff
+// {v_i * t} ∈ (1/k, 1 - 1/k). All-lonely iff this holds for every i.
+
+function fracPos(v, t) {
+  let p = v * t;
+  p = p - Math.floor(p);
+  if (p < 0) p += 1;
+  return p;
+}
+
+function isAllLonely(speeds, t, k) {
+  // Conjecture uses closed interval: distance ≥ 1/k, i.e. {v·t} ∈ [1/k, 1−1/k].
+  // Canonical witnesses (e.g. t = 1/k for speeds 1, 2, …, k−1) sit exactly on
+  // the boundary, so strict inequality would miss them.
+  const lo = 1 / k, hi = 1 - 1 / k;
+  const EPS = 1e-9;
+  for (const v of speeds) {
+    const p = fracPos(v, t);
+    if (p < lo - EPS || p > hi + EPS) return false;
+  }
+  return true;
+}
+
+function countLonely(speeds, t, k) {
+  const lo = 1 / k, hi = 1 - 1 / k;
+  const EPS = 1e-9;
+  let c = 0;
+  for (const v of speeds) {
+    const p = fracPos(v, t);
+    if (p >= lo - EPS && p <= hi + EPS) c++;
+  }
+  return c;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Find first time t > current at which everyone is simultaneously lonely.
+// Sampling resolution depends on max speed; search a bounded horizon.
+// ─────────────────────────────────────────────────────────────────────
+function findLonelyTime(speeds, kk, fromT, horizon = 50) {
+  if (speeds.length === 0) return fromT;
+  const maxV = Math.max(...speeds);
+  // Step ~ 1 / (40 * maxV * kk) — fine enough to catch narrow lonely windows
+  const step = 1 / Math.max(20, 40 * maxV * kk);
+  const limit = fromT + horizon;
+  // Skip ahead slightly so we don't return the current sample
+  for (let t = fromT + step; t < limit; t += step) {
+    if (isAllLonely(speeds, t, kk)) {
+      // Refine: walk backward to interval start, then forward to centre
+      let lo = t;
+      while (lo - step > fromT && isAllLonely(speeds, lo - step, kk)) lo -= step;
+      let hi = t;
+      while (hi + step < limit && isAllLonely(speeds, hi + step, kk)) hi += step;
+      return (lo + hi) / 2;
+    }
+  }
+  return null;
+}
+
+findBtn.addEventListener('click', () => {
+  const t = findLonelyTime(state.speeds, state.k, state.t);
+  if (t !== null) {
+    state.t = t;
+    state.foundLonelyT = t;
+  } else {
+    state.foundLonelyT = -1;  // signal "not found"
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Render: circle, avoidance arc, runners, indicator
+// ─────────────────────────────────────────────────────────────────────
+const trackCanvas = document.getElementById('track-canvas');
+const trackCtx = trackCanvas.getContext('2d');
+
+function render() {
+  const ctx = trackCtx;
+  const W = trackCanvas.width;
+  const H = trackCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2;
+  const R = Math.min(W, H) * 0.36;  // track radius
+  const k = state.k;
+  const speeds = state.speeds;
+
+  // Avoidance arc (sector wedge inside the circle covering ±1/k of the top)
+  // We treat angle 0 = top, growing clockwise. The avoidance arc spans
+  // angles -2π/k through +2π/k.
+  const halfArc = 2 * Math.PI / k;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  // Start at angle (-halfArc), in canvas coords; up = -y so:
+  //   p ∈ (-1/k, 1/k) maps to angles α = 2π·p, drawn as (cx + R sin α, cy - R cos α)
+  for (let a = -halfArc; a <= halfArc; a += halfArc / 24) {
+    ctx.lineTo(cx + R * Math.sin(a), cy - R * Math.cos(a));
+  }
+  ctx.closePath();
+  ctx.fillStyle = cssVar('--avoidance') || 'rgba(230, 57, 70, 0.13)';
+  ctx.fill();
+
+  // Track circle
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Lonely-zone indicator: thin marks at the boundaries (1/k and 1-1/k positions)
+  ctx.strokeStyle = '#e63946';
+  ctx.lineWidth = 1;
+  for (const sign of [-1, 1]) {
+    const a = sign * halfArc;
+    const x1 = cx + (R - 8) * Math.sin(a);
+    const y1 = cy - (R - 8) * Math.cos(a);
+    const x2 = cx + (R + 8) * Math.sin(a);
+    const y2 = cy - (R + 8) * Math.cos(a);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // The lonely runner — hollow ring at top (position 0)
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(cx, cy - R, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // tiny inner dot for clarity
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(cx, cy - R, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Other runners — coloured filled circles
+  let allLonely = true;
+  let inAvoid = 0;
+  for (let i = 0; i < speeds.length; i++) {
+    const v = speeds[i];
+    const p = fracPos(v, state.t);
+    const a = 2 * Math.PI * p;
+    const x = cx + R * Math.sin(a);
+    const y = cy - R * Math.cos(a);
+    const inLonely = p >= 1 / k - 1e-9 && p <= 1 - 1 / k + 1e-9;
+    if (!inLonely) { allLonely = false; inAvoid++; }
+    const color = PALETTE[i % PALETTE.length];
+    // Dim runners in the avoidance arc; pop runners in the lonely zone
+    ctx.globalAlpha = inLonely ? 1.0 : 0.4;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = inLonely ? 1.5 : 1;
+    ctx.beginPath();
+    ctx.arc(x, y, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Speed label
+    ctx.globalAlpha = inLonely ? 1.0 : 0.7;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v, x, y);
+  }
+  ctx.globalAlpha = 1;
+
+  // Centre indicator
+  if (allLonely) {
+    // Glow
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.4);
+    grad.addColorStop(0, cssVar('--lonely-glow') || 'rgba(10,161,156,0.85)');
+    grad.addColorStop(1, 'rgba(10,161,156,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    // Centre label
+    ctx.fillStyle = cssVar('--accent') || '#0aa19c';
+    ctx.font = 'bold 22px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LONELY', cx, cy);
+  } else {
+    // Just t and count
+    ctx.fillStyle = '#999';
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`t = ${state.t.toFixed(2)}`, cx, cy - 12);
+    ctx.fillText(`${speeds.length - inAvoid} / ${speeds.length} lonely`, cx, cy + 12);
+  }
+
+  // Stats panel
+  const provedStr = k <= 7 ? 'proved' : 'open';
+  const provedClass = k <= 7 ? 'win' : 'hot';
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">runners · k</span><span class="v">${k}</span></div>
+    <div class="stat-row"><span class="k">speeds</span><span class="v">${speeds.join(', ') || '∅'}</span></div>
+    <div class="stat-row"><span class="k">avoidance arc</span><span class="v">2/${k} = ${(2/k).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">t</span><span class="v">${state.t.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">currently lonely</span><span class="v hot">${speeds.length - inAvoid} / ${speeds.length}</span></div>
+    <div class="stat-row"><span class="k">conjecture status</span><span class="v ${provedClass}">${provedStr}</span></div>
+  `;
+
+  // Verdict
+  if (allLonely) {
+    verdictEl.textContent = `all lonely at t = ${state.t.toFixed(3)}`;
+    verdictEl.className = 'verdict win';
+  } else if (state.foundLonelyT === -1) {
+    verdictEl.textContent = `no all-lonely time found in search horizon — try shuffle or a smaller k`;
+    verdictEl.className = 'verdict partial';
+  } else {
+    verdictEl.textContent = `${inAvoid} runner${inAvoid === 1 ? '' : 's'} inside the avoidance arc`;
+    verdictEl.className = 'verdict partial';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Animation loop
+// ─────────────────────────────────────────────────────────────────────
+function loop(timestamp) {
+  if (state.lastFrame === null) state.lastFrame = timestamp;
+  const dt = Math.min((timestamp - state.lastFrame) / 1000, 0.05);
+  state.lastFrame = timestamp;
+  if (state.playing && document.querySelector('.pane.active').dataset.pane === 'track') {
+    state.t += dt * state.tempo;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+buildSpeedsRow();
+playBtn.classList.add('active');
+playBtn.textContent = 'pause';
+requestAnimationFrame(loop);
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>
