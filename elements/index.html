@@ -125,6 +125,36 @@ canvas {
   max-width: 240px;
   line-height: 1.45;
 }
+
+.view-toggle {
+  display: flex;
+  margin: 0.5rem auto 1rem;
+  width: fit-content;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.view-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  font: inherit;
+}
+.view-btn + .view-btn { border-left: 1px solid var(--rule); }
+.view-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.view-btn:not(.active):hover {
+  background: var(--accent-faint);
+  color: var(--accent);
+}
 .tip .tip-name {
   font-weight: 600;
   font-size: 0.85rem;
@@ -194,7 +224,18 @@ footer a:hover { color: var(--accent); }
     and 6 electrons, so going clockwise around any ring follows atomic number. Hover for
     details, click to open Wikipedia.
   </p>
+  <p class="intro" id="intro-chemistry" style="display:none">
+    <strong>Chemistry view.</strong> Nobles rotated straight up. Helium joins them at the
+    centre by closed-shell logic. Hydrogen straddles both columns adjacent to the nobles —
+    alkali on one side, halogen on the other — making its perennial dual citizenship visible.
+    Period 1 is drawn as a tight inner ring so the H/He/H trio reads as a single small motif.
+  </p>
 </header>
+
+<div class="view-toggle" role="group" aria-label="View mode">
+  <button class="view-btn active" data-view="fill" type="button">fill order</button>
+  <button class="view-btn" data-view="chemistry" type="button">chemistry</button>
+</div>
 
 <div class="mandala-wrap">
   <canvas id="mandala" width="720" height="720"></canvas>
@@ -390,17 +431,55 @@ const SLOT_DEG = 360 / TOTAL_SLOTS;
 const BLOCK_START_SLOT = { s: 0, f: 2, d: 16, p: 26 };
 // → s: slots 0..1, f: 2..15, d: 16..25, p: 26..31
 
-function elementAngleDeg(el) {
-  const slotStart = BLOCK_START_SLOT[el.b];
-  const slotCentre = slotStart + (el.i - 0.5);
-  return -90 + slotCentre * SLOT_DEG;  // -90° starts at 12 o'clock
+// View state. 'fill' is the default protonic-order layout. 'chemistry'
+// rotates so the noble column points straight up and moves He/H to their
+// chemically meaningful positions (He → noble; H → alkali + halogen).
+let viewMode = 'fill';
+
+// Rotation applied to all angles in chemistry view, so noble (p position
+// 6, slot 31.5) lands at exactly -90° (straight up). 270 - 264.375 = 5.625°.
+function viewRotationDeg() {
+  return viewMode === 'chemistry' ? 5.625 : 0;
+}
+
+function slotAngleDeg(b, i) {
+  const slotStart = BLOCK_START_SLOT[b];
+  const slotCentre = slotStart + (i - 0.5);
+  return -90 + slotCentre * SLOT_DEG + viewRotationDeg();
 }
 
 // Period → radius. Inner periods need extra spacing per element since
-// the slot arc-length shrinks at small radii. Non-uniform spacing fixes
-// crowding at the centre and breathing room at the rim.
-const RADII = [115, 156, 192, 222, 250, 275, 298];
-function elementRadius(el) { return RADII[el.p - 1]; }
+// the slot arc-length shrinks at small radii. Chemistry view tightens
+// P1 so the H/He/H trio reads as a compact inner motif.
+const RADII_FILL = [115, 156, 192, 222, 250, 275, 298];
+const RADII_CHEM = [ 95, 156, 192, 222, 250, 275, 298];
+function radiusFor(period) {
+  return (viewMode === 'chemistry' ? RADII_CHEM : RADII_FILL)[period - 1];
+}
+
+// Per-view display placements. In chemistry view, He moves to the noble
+// column and H duplicates into alkali + halogen. Each entry is a render
+// position; the source element stays the data record we link to.
+function displayList() {
+  const list = [];
+  for (const el of ELEMENTS) {
+    if (viewMode === 'chemistry') {
+      if (el.z === 1) {
+        // Hydrogen: shown twice, once on each side of helium.
+        list.push({ el, b: 's', i: 1, p: 1, role: 'h-alkali' });
+        list.push({ el, b: 'p', i: 5, p: 1, role: 'h-halogen' });
+        continue;
+      }
+      if (el.z === 2) {
+        // Helium: placed with the nobles (1s² closed shell).
+        list.push({ el, b: 'p', i: 6, p: 1, role: 'he-noble' });
+        continue;
+      }
+    }
+    list.push({ el, b: el.b, i: el.i, p: el.p, role: null });
+  }
+  return list;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Rendering
@@ -419,13 +498,15 @@ function render() {
 
   const cx = W / 2, cy = H / 2;
 
+  const rot = viewRotationDeg();
+
   // Block tints — wedge sectors, full radial extent
   for (const block of ['s', 'p', 'd', 'f']) {
     const cap = BLOCK_INFO[block].capacity;
     const start = BLOCK_START_SLOT[block];
-    const a0 = (-90 + start * SLOT_DEG) * Math.PI / 180;
-    const a1 = (-90 + (start + cap) * SLOT_DEG) * Math.PI / 180;
-    const rMax = RADII[6] + 20;
+    const a0 = (-90 + start * SLOT_DEG + rot) * Math.PI / 180;
+    const a1 = (-90 + (start + cap) * SLOT_DEG + rot) * Math.PI / 180;
+    const rMax = RADII_FILL[6] + 20;
     ctx.fillStyle = cssVar(BLOCK_INFO[block].tint);
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -443,8 +524,8 @@ function render() {
     const cap = BLOCK_INFO[block].capacity;
     const start = BLOCK_START_SLOT[block];
     const midSlot = start + cap / 2;
-    const midA = (-90 + midSlot * SLOT_DEG) * Math.PI / 180;
-    const lr = RADII[6] + 28;
+    const midA = (-90 + midSlot * SLOT_DEG + rot) * Math.PI / 180;
+    const lr = RADII_FILL[6] + 28;
     const lx = cx + lr * Math.cos(midA);
     const ly = cy + lr * Math.sin(midA);
     ctx.fillText(block + '-block', lx, ly);
@@ -453,37 +534,43 @@ function render() {
   // Faint ring guides
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.10)';
   ctx.lineWidth = 0.6;
-  for (let p = 0; p < 7; p++) {
+  for (let p = 1; p <= 7; p++) {
     ctx.beginPath();
-    ctx.arc(cx, cy, RADII[p], 0, Math.PI * 2);
+    ctx.arc(cx, cy, radiusFor(p), 0, Math.PI * 2);
     ctx.stroke();
   }
-  // Period labels along the s-block sector (top-right, just outside each ring)
+  // Period labels — placed in an empty radial channel for the current view.
+  // Fill view: alongside the s-block sector (top, slightly off-axis).
+  // Chemistry view: along the f-block sector at its outer edge, where P1
+  // would otherwise have no neighbour to anchor the label against.
   ctx.fillStyle = cssVar('--muted') || '#999';
   ctx.font = '9px ui-monospace, monospace';
   ctx.textAlign = 'left';
-  for (let p = 0; p < 7; p++) {
-    const a = -Math.PI / 2 + 0.6;  // slightly off s-block centre
-    const lx = cx + RADII[p] * Math.cos(a);
-    const ly = cy + RADII[p] * Math.sin(a);
-    ctx.fillText('n=' + (p + 1), lx + 4, ly - 4);
+  const labelAngleRad = (-Math.PI / 2) + 0.6 + (rot * Math.PI / 180);
+  for (let p = 1; p <= 7; p++) {
+    const r = radiusFor(p);
+    const lx = cx + r * Math.cos(labelAngleRad);
+    const ly = cy + r * Math.sin(labelAngleRad);
+    ctx.fillText('n=' + p, lx + 4, ly - 4);
   }
 
   // Element nodes — caches layout for hit-test
   layoutPx = [];
-  // Node radius shrinks for inner periods so H/He don't crowd.
+  // Node radius shrinks for inner periods so H/He don't crowd. In
+  // chemistry view P1 holds three nodes within a 22.5° arc, so shrink
+  // them further to keep the trio clear.
   function nodeRadius(p) {
-    if (p <= 1) return 12;
+    if (p === 1) return viewMode === 'chemistry' ? 9 : 12;
     if (p <= 3) return 13;
     return 14;
   }
-  for (const el of ELEMENTS) {
-    const r = elementRadius(el);
-    const a = elementAngleDeg(el) * Math.PI / 180;
+  for (const pos of displayList()) {
+    const r = radiusFor(pos.p);
+    const a = slotAngleDeg(pos.b, pos.i) * Math.PI / 180;
     const x = cx + r * Math.cos(a);
     const y = cy + r * Math.sin(a);
-    const nr = nodeRadius(el.p);
-    layoutPx.push({ el, x, y, r: nr });
+    const nr = nodeRadius(pos.p);
+    layoutPx.push({ el: pos.el, role: pos.role, x, y, r: nr });
   }
   // Two-pass draw: non-hovered first, then hovered on top
   function drawNode(p, isHover) {
@@ -531,10 +618,20 @@ canvas.addEventListener('mousemove', e => {
   if (hovered) {
     canvas.style.cursor = 'pointer';
     const el = hovered.el;
+    const role = hovered.role;
+    let noteHtml = '';
+    if (role === 'he-noble') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">drawn with the nobles (1s² closed shell)</div>';
+    } else if (role === 'h-alkali') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">as alkali (1s¹ valence electron) — also drawn opposite as halogen</div>';
+    } else if (role === 'h-halogen') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">as halogen (one short of 1s²) — also drawn opposite as alkali</div>';
+    }
     tip.innerHTML = `
       <div class="tip-name">${el.s} · ${el.n}</div>
       <div class="tip-meta">Z = ${el.z} · period ${el.p} · ${el.b}-block · pos ${el.i}</div>
       <div class="tip-config">${CATEGORIES[el.c].label}</div>
+      ${noteHtml}
       <div class="tip-link">click to open wikipedia →</div>
     `;
     tip.style.display = 'block';
@@ -584,6 +681,20 @@ function buildLegend() {
 buildLegend();
 render();
 window.addEventListener('resize', render);
+
+// View toggle
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    viewMode = btn.dataset.view;
+    document.getElementById('intro-chemistry').style.display = (viewMode === 'chemistry') ? '' : 'none';
+    hovered = null;
+    tip.style.display = 'none';
+    render();
+  });
+});
 </script>
 </body>
 </html>
