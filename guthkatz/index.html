@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>guthkatz — distinct distances, almost-resolved</title>
+<meta name="description" content="Interactive visualization of the Erdős distinct-distances problem, in light of Guth–Katz's 2015 polynomial-method breakthrough.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #1a5e7a;
+  --accent-faint: rgba(26, 94, 122, 0.07);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #5fb2cf;
+    --accent-faint: rgba(95, 178, 207, 0.10);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Format bar */
+.format-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.8rem 0 1.1rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+}
+.format-bar.hidden { display: none; }
+.fmt-toggle, .fmt-style {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.6rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fmt-toggle:hover, .fmt-style:hover { color: var(--fg); border-color: var(--muted); }
+.fmt-toggle.active, .fmt-style.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+.fmt-spacer { flex: 1; }
+.fmt-label {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 0.2rem;
+  font-size: 0.55rem;
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+#grid-canvas, #growth-canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: crosshair;
+}
+#growth-canvas { aspect-ratio: 5 / 4; cursor: default; }
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; }
+.ctrl-row .ctrl-val {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  min-width: 2.4em;
+  text-align: right;
+}
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.growth-wrap { position: relative; }
+.growth-legend {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.4rem 1.4rem;
+  margin-top: 1rem;
+}
+.legend-item { display: flex; align-items: baseline; gap: 0.5rem; }
+.legend-swatch {
+  display: inline-block;
+  width: 16px; height: 3px;
+  flex-shrink: 0;
+  position: relative;
+  top: -2px;
+}
+.legend-name { color: var(--fg); font-weight: 600; }
+.legend-formula { color: var(--muted); margin-left: 0.3rem; }
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>guthkatz</h1>
+  <p class="subtitle">distinct distances, almost-resolved · 2015</p>
+  <p class="crossref">sister site: <a href="https://mino.mobi/erdos/">erdős — unit distance, disproven (2026)</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="grid" role="tab">grid</button>
+  <button class="tab" data-tab="growth" role="tab">growth</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<div class="format-bar" id="format-bar">
+  <button class="fmt-toggle" id="reveal-all-btn">reveal all</button>
+  <div class="fmt-spacer"></div>
+  <span class="fmt-label">style</span>
+  <button class="fmt-style active" data-theme="default">default</button>
+  <button class="fmt-style" data-theme="sharp">sharp</button>
+</div>
+
+<!-- ─────────── GRID PANE ─────────── -->
+<section class="pane active" data-pane="grid">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="grid-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid size · k×k</span>
+        <div class="ctrl-row">
+          <input id="k-slider" type="range" min="4" max="22" value="10" step="1">
+          <span class="ctrl-val" id="k-val">10</span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="stat-note">
+        Hover a point to colour every other point by its distance class —
+        concentric "rings" of equal-distance points emerge. The count of rings
+        is how many distinct distances are seen from that point.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── GROWTH PANE ─────────── -->
+<section class="pane" data-pane="growth">
+  <div class="growth-wrap">
+    <canvas id="growth-canvas" width="900" height="720"></canvas>
+    <div class="growth-legend" id="growth-legend"></div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The problem</h2>
+<p>In the same 1946 paper that posed the unit-distance problem, Paul Erdős asked the dual question: place <em>n</em> points in the plane. What is the <em>minimum</em> number of distinct pairwise distances they can determine? Call this number <em>g</em>(<em>n</em>).</p>
+
+<p>The √<em>n</em> × √<em>n</em> integer grid is again the natural candidate. Its squared distances are exactly the integers expressible as <em>a</em>² + <em>b</em>². By Landau's 1908 theorem, the number of such integers up to <em>N</em> is asymptotic to <em>N</em> / √log&nbsp;<em>N</em>. So the grid gives <em>g</em>(<em>n</em>) ≤ <em>O</em>(<em>n</em> / √log&nbsp;<em>n</em>) — and Erdős conjectured this was tight.</p>
+
+<p>The lower bound was where the trouble started. The trivial bound is <em>g</em>(<em>n</em>) = Ω(√<em>n</em>): with fewer distances than √<em>n</em>, the unit-distance graph at one of those distances would be too dense to embed in the plane. Closing the gap from √<em>n</em> up to <em>n</em> / √log&nbsp;<em>n</em> took 69 years.</p>
+
+<h2>The long climb</h2>
+<ul>
+  <li><strong>1952</strong> — Moser: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>2/3</sup>)</li>
+  <li><strong>1984</strong> — Chung: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>5/7</sup>), via the Spencer–Szemerédi–Trotter incidence bound (which was their motivation in proving it)</li>
+  <li><strong>1992</strong> — Chung–Szemerédi–Trotter: <em>n</em><sup>4/5</sup> / log <em>n</em></li>
+  <li><strong>1997</strong> — Székely: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>4/5</sup>) — the crossing-number proof of SST gives a slicker route to this bound</li>
+  <li><strong>2001</strong> — Solymosi–Tóth: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>6/7−<em>o</em>(1)</sup>)</li>
+  <li><strong>2003</strong> — Tardos: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>(4e−1)/(5e−1)−<em>o</em>(1)</sup>) ≈ <em>n</em><sup>0.864</sup></li>
+  <li><strong>2004</strong> — Katz–Tardos: <em>g</em>(<em>n</em>) = Ω(<em>n</em><sup>(48−14e)/(55−16e)−<em>o</em>(1)</sup>) ≈ <em>n</em><sup>0.8641</sup></li>
+  <li><strong>2015</strong> — <strong>Guth–Katz</strong>: <em>g</em>(<em>n</em>) = Ω(<em>n</em> / log <em>n</em>)</li>
+</ul>
+
+<p>The jump from <em>n</em><sup>0.864</sup> to <em>n</em> / log <em>n</em> is enormous. Guth and Katz didn't grind out another exponent — they introduced a fundamentally new tool.</p>
+
+<h2>The polynomial method</h2>
+<p>Guth and Katz reduce the distinct-distances problem to an incidence problem about lines in ℝ³, and then attack <em>that</em> with algebraic geometry. The sketch:</p>
+<ol>
+  <li><strong>Elekes–Sharir framework</strong> (2010): map each pair of points (<em>p</em>, <em>q</em>) ∈ <em>P</em><sup>2</sup> to the rigid motion that takes <em>p</em> to <em>q</em>. Rigid motions of the plane form a 3-dimensional space ℝ × <em>SO</em>(2) ≈ ℝ³, and the rigid motions taking one point to another sweep out a line. Counting distinct distances reduces to counting <em>incidences</em> between special lines in ℝ³.</li>
+  <li><strong>Polynomial ham sandwich</strong>: by Stone–Tukey, given a finite set of points in ℝ³, there's a polynomial of low degree whose zero set bisects them. This lets you build a polynomial of degree <em>D</em> whose zero set partitions the points into <em>O</em>(<em>D</em>³) cells, each holding ≤ <em>n</em> / <em>D</em>³ points.</li>
+  <li><strong>The case split</strong>: a line in ℝ³ either lies in the polynomial's zero set, or crosses it transversally at most <em>D</em> times. Lines in the zero set are handled by classical algebraic-geometry bounds (Bezout, ruled surfaces). Lines crossing the zero set are handled cell-by-cell.</li>
+  <li><strong>Balance</strong>: pick <em>D</em> so the two cases cancel, and the master bound falls out.</li>
+</ol>
+
+<p>The argument's depth is its <em>generality</em>. The polynomial method, born in Dvir's 2008 proof of the finite-field Kakeya conjecture, exploded after Guth–Katz: it now resolves problems across additive combinatorics, geometric measure theory, and harmonic analysis.</p>
+
+<h2>The remaining gap</h2>
+<p>Erdős's conjectured bound is <em>n</em> / √log&nbsp;<em>n</em>. Guth–Katz proved <em>n</em> / log&nbsp;<em>n</em>. The ratio is √log&nbsp;<em>n</em> — sub-polynomial. For all practical purposes, the distinct-distances problem is solved; mathematicians still call the gap "the final √log&nbsp;<em>n</em>" and it's one of the more frustrating open problems in discrete geometry.</p>
+
+<p>The grid example is conjecturally tight from above. The remaining open question — closing the √log <em>n</em> gap from below — would settle a problem first asked 80 years ago.</p>
+
+<h2>Compare and contrast</h2>
+<p>The unit-distance and distinct-distances problems share a 1946 source paper, a base example (the √<em>n</em> × √<em>n</em> grid), and an algebraic substrate (Gaussian integers). Their fates have diverged:</p>
+<ul>
+  <li><strong>Distinct distances</strong> was beaten by humans with algebraic geometry, in 2015. The grid was the right example all along; the proof was the hard part. <a href="https://mino.mobi/guthkatz/">←</a> you are here.</li>
+  <li><strong>Unit distances</strong> was disproven by an AI in 2026 — the grid was <em>not</em> the right example. The construction the AI found uses lattices in CM fields of growing degree. <a href="https://mino.mobi/erdos/">erdős →</a></li>
+</ul>
+<p>Two problems, one paper, eighty years, opposite endings.</p>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>grid</strong> — interactive <em>k</em>×<em>k</em> grid. Hover a point: every other point gets coloured by its distance from the hovered one, so concentric "rings" of equal-distance points appear. Stats panel shows total distinct distances in the whole set, distinct distances from the hovered point, and the ratio against Erdős's conjectured <em>n</em> / √log&nbsp;<em>n</em>.</li>
+  <li><strong>growth</strong> — log-log chart of the historical lower bounds, from the trivial √<em>n</em> through the 1952–2004 climb, capped by Guth–Katz's 2015 <em>n</em> / log <em>n</em>. The Erdős conjecture is drawn as a dashed ceiling; the trivial upper <em>n</em>(<em>n</em>−1)/2 sits at the top.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li><a href="https://annals.math.princeton.edu/2015/181-1/p04">Guth, L. and Katz, N. (2015). <em>On the Erdős distinct distances problem in the plane.</em></a> Annals of Mathematics 181, 155–190.</li>
+  <li><a href="https://arxiv.org/abs/1011.4105">Guth–Katz arxiv preprint (2010)</a></li>
+  <li><a href="https://terrytao.wordpress.com/2010/11/20/the-guth-katz-bound-on-the-erdos-distance-problem/">Terry Tao — exposition of Guth–Katz on his blog</a></li>
+  <li><a href="https://www.erdosproblems.com/89">erdosproblems.com #89</a> — the curated catalog entry</li>
+  <li>Erdős, P. (1946). <em>On sets of distances of n points.</em> American Mathematical Monthly 53, 248–250 — the original.</li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Format state (theme + reveal-all) — shared
+// ─────────────────────────────────────────────────────────────────────
+const THEMES = {
+  default: {
+    bg:        '#fafafa',
+    node:      '#111',
+    nodeStroke: null,
+    ringEdge:  'rgba(17, 17, 17, 0.18)',
+    distHue:   (t) => `hsl(${Math.round(220 + t * 140)}, 65%, 50%)`,  // blue→pink
+    hover:     '#1a5e7a',
+    polydisc:  '#dadada',
+    nodeRMul:  1.0,
+    edgeW:     0.6,
+    edgeWHi:   1.6,
+  },
+  sharp: {
+    bg:        '#0a0a0e',
+    node:      '#ffd900',
+    nodeStroke: '#a07f00',
+    ringEdge:  'rgba(255, 217, 0, 0.18)',
+    distHue:   (t) => `hsl(${Math.round(180 + t * 90)}, 90%, ${50 + t*15}%)`,  // cyan→blue
+    hover:     '#ffffff',
+    polydisc:  '#22304a',
+    nodeRMul:  1.15,
+    edgeW:     0.7,
+    edgeWHi:   1.8,
+  },
+};
+const fmt = { theme: 'default', revealAll: false };
+function T() { return THEMES[fmt.theme]; }
+
+document.getElementById('reveal-all-btn').addEventListener('click', function() {
+  fmt.revealAll = !fmt.revealAll;
+  this.classList.toggle('active', fmt.revealAll);
+  refreshCurrent();
+});
+document.querySelectorAll('.fmt-style').forEach(b => {
+  b.addEventListener('click', () => {
+    fmt.theme = b.dataset.theme;
+    document.querySelectorAll('.fmt-style').forEach(x =>
+      x.classList.toggle('active', x.dataset.theme === fmt.theme)
+    );
+    refreshCurrent();
+  });
+});
+function refreshCurrent() {
+  const m = document.querySelector('.pane.active').dataset.pane;
+  if (m === 'grid') renderGrid();
+  else if (m === 'growth') renderGrowth();
+}
+const formatBar = document.getElementById('format-bar');
+function syncFormatBar(name) {
+  formatBar.classList.toggle('hidden', name === 'docs');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  syncFormatBar(name);
+  if (name === 'grid')   renderGrid();
+  if (name === 'growth') renderGrowth();
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+syncFormatBar('grid');
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+// Restore tab from hash — deferred so renderer state has time to initialise
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['grid', 'growth', 'docs'].includes(initialHash) && initialHash !== 'grid') {
+  setTimeout(() => showTab(initialHash), 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Math helpers
+// ─────────────────────────────────────────────────────────────────────
+
+/** All distinct squared distances in a k×k grid (excluding zero). */
+function distinctSquaredDistances(k) {
+  const s = new Set();
+  for (let a = 0; a < k; a++) {
+    for (let b = 0; b < k; b++) {
+      if (a === 0 && b === 0) continue;
+      s.add(a * a + b * b);
+    }
+  }
+  return s;
+}
+
+/** Distinct squared distances from (i, j) to any other point in the k×k grid. */
+function distancesFromPoint(k, i, j) {
+  const s = new Set();
+  for (let i2 = 0; i2 < k; i2++) {
+    for (let j2 = 0; j2 < k; j2++) {
+      if (i === i2 && j === j2) continue;
+      s.add((i - i2) * (i - i2) + (j - j2) * (j - j2));
+    }
+  }
+  return s;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Grid renderer
+// ─────────────────────────────────────────────────────────────────────
+
+const gridCanvas = document.getElementById('grid-canvas');
+const gridCtx = gridCanvas.getContext('2d');
+const kSlider = document.getElementById('k-slider');
+const kVal = document.getElementById('k-val');
+const statsEl = document.getElementById('stats');
+
+let gridState = {
+  k: 10,
+  hover: null,        // [i, j] or null
+  pointPx: null,      // [{i, j, x, y, d2 (when hovered)}, ...]
+};
+
+kSlider.addEventListener('input', e => {
+  gridState.k = parseInt(e.target.value, 10);
+  kVal.textContent = gridState.k;
+  gridState.hover = null;
+  renderGrid();
+});
+gridCanvas.addEventListener('mousemove', onGridHover);
+gridCanvas.addEventListener('mouseleave', () => { gridState.hover = null; renderGrid(); });
+
+function onGridHover(e) {
+  if (!gridState.pointPx) return;
+  const rect = gridCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (gridCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (gridCanvas.height / rect.height);
+  let best = null, bestD = 18 * 18;
+  for (const p of gridState.pointPx) {
+    const d2 = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+    if (d2 < bestD) { bestD = d2; best = p; }
+  }
+  const newH = best ? [best.i, best.j] : null;
+  if (!sameHover(newH, gridState.hover)) {
+    gridState.hover = newH;
+    renderGrid();
+  }
+}
+function sameHover(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+function renderGrid() {
+  const ctx = gridCtx;
+  const W = gridCanvas.width;
+  const H = gridCanvas.height;
+  const th = T();
+  ctx.fillStyle = th.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const { k, hover } = gridState;
+
+  const pad = 36;
+  const gridW = Math.min(W, H) - 2 * pad;
+  const step = (k === 1) ? 0 : gridW / (k - 1);
+  const x0 = (W - gridW) / 2;
+  const y0 = (H - gridW) / 2;
+
+  const points = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = 0; j < k; j++) {
+      points.push({ i, j, x: x0 + i * step, y: y0 + j * step });
+    }
+  }
+  gridState.pointPx = points;
+
+  // Compute distances if needed for coloring
+  const distinctAll = distinctSquaredDistances(k);
+  let distinctFromHover = null;
+  if (hover) {
+    distinctFromHover = distancesFromPoint(k, hover[0], hover[1]);
+  }
+
+  // Build distance-rank lookup so colors are perceptually-ordered
+  let rankMap = null;
+  if (hover || fmt.revealAll) {
+    const arr = [...distinctAll].sort((a, b) => a - b);
+    rankMap = new Map(arr.map((d, i) => [d, i / Math.max(1, arr.length - 1)]));
+  }
+
+  // Reveal-all: draw all pairs colored by distance class (faint)
+  if (fmt.revealAll && rankMap) {
+    ctx.lineWidth = th.edgeW;
+    for (let a = 0; a < points.length; a++) {
+      for (let b = a + 1; b < points.length; b++) {
+        const pa = points[a], pb = points[b];
+        const d2 = (pa.i - pb.i) * (pa.i - pb.i) + (pa.j - pb.j) * (pa.j - pb.j);
+        const t = rankMap.get(d2) ?? 0;
+        ctx.strokeStyle = th.distHue(t).replace(')', ', 0.30)').replace('hsl', 'hsla');
+        // Above .replace trick is too brittle; use globalAlpha
+        ctx.strokeStyle = th.distHue(t);
+        ctx.globalAlpha = 0.18;
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Points: hovered point + others colored by distance class from hover
+  const r = Math.max(2.2, Math.min(6, step * 0.18)) * th.nodeRMul;
+  if (hover) {
+    // Order distinct distances from the hovered point so we can color
+    const hd2List = [...distinctFromHover].sort((a, b) => a - b);
+    const hdRank = new Map(hd2List.map((d, i) => [d, i / Math.max(1, hd2List.length - 1)]));
+
+    // Draw faint rings at each distance from the hovered point (under the points)
+    const hp = points.find(p => p.i === hover[0] && p.j === hover[1]);
+    if (hp) {
+      ctx.lineWidth = 0.8;
+      for (const d2 of hd2List) {
+        const radius = Math.sqrt(d2) * step;
+        ctx.strokeStyle = th.distHue(hdRank.get(d2));
+        ctx.globalAlpha = 0.18;
+        ctx.beginPath();
+        ctx.arc(hp.x, hp.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    for (const p of points) {
+      if (p.i === hover[0] && p.j === hover[1]) continue;
+      const d2 = (p.i - hover[0]) * (p.i - hover[0]) + (p.j - hover[1]) * (p.j - hover[1]);
+      const t = hdRank.get(d2);
+      ctx.fillStyle = th.distHue(t);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // hovered point: bigger, in accent
+    if (hp) {
+      ctx.fillStyle = th.hover;
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, r * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = th.hover;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, r * 3.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    // No hover: plain points
+    ctx.fillStyle = th.node;
+    for (const p of points) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (th.nodeStroke) {
+      ctx.strokeStyle = th.nodeStroke;
+      ctx.lineWidth = 0.5;
+      for (const p of points) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  updateStats(k, distinctAll.size, distinctFromHover, hover);
+}
+
+function updateStats(k, distinct, distinctFromHover, hover) {
+  const n = k * k;
+  const totalPairs = n * (n - 1) / 2;
+  const conj = n / Math.sqrt(Math.log(Math.max(2, n)));
+  const gkLower = n / Math.log(Math.max(2, n));
+  const trivLower = Math.sqrt(n);
+  // Color the ratio against the bounds
+  const ratioConj = distinct / conj;
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">points · n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">total pairs</span><span class="v">${totalPairs.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="k">distinct distances</span><span class="v hot">${distinct}</span></div>
+    <div class="stat-row"><span class="k">√n · trivial lower</span><span class="v">${trivLower.toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">n/log n · Guth–Katz</span><span class="v">${gkLower.toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">n/√log n · Erdős conj.</span><span class="v">${conj.toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">grid / Erdős ratio</span><span class="v">${ratioConj.toFixed(2)}</span></div>
+    ${hover !== null ? `<div class="stat-row"><span class="k">from (${hover[0]},${hover[1]})</span><span class="v hot">${distinctFromHover.size}</span></div>` : ''}
+  `;
+}
+
+renderGrid();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'grid') renderGrid();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth chart renderer
+// ─────────────────────────────────────────────────────────────────────
+const growthCanvas = document.getElementById('growth-canvas');
+const growthCtx = growthCanvas.getContext('2d');
+const growthLegend = document.getElementById('growth-legend');
+
+const BOUNDS = [
+  {
+    name: 'trivial upper · n(n−1)/2',
+    formula: 'O(n²)',
+    fn: n => n * (n - 1) / 2,
+    color: '#bbb',
+    dash: [2, 4],
+  },
+  {
+    name: 'Erdős conjecture (1946)',
+    formula: 'g(n) ≥ Ω(n/√log n)',
+    fn: n => n / Math.sqrt(Math.log(n)),
+    color: '#1a5e7a',
+    dash: [6, 4],
+  },
+  {
+    name: 'Guth–Katz (2015)',
+    formula: 'g(n) ≥ Ω(n/log n)',
+    fn: n => n / Math.log(n),
+    color: '#c45',
+    dash: [],
+  },
+  {
+    name: 'Katz–Tardos (2004)',
+    formula: '≈ n^0.864',
+    fn: n => Math.pow(n, 0.8641),
+    color: '#e6a23c',
+    dash: [],
+  },
+  {
+    name: 'Solymosi–Tóth (2001)',
+    formula: 'n^(6/7)',
+    fn: n => Math.pow(n, 6 / 7),
+    color: '#67c23a',
+    dash: [],
+  },
+  {
+    name: 'Chung–Szemerédi–Trotter (1992)',
+    formula: 'n^(4/5) / log n',
+    fn: n => Math.pow(n, 4 / 5) / Math.log(n),
+    color: '#a880ff',
+    dash: [],
+  },
+  {
+    name: 'Moser (1952)',
+    formula: 'n^(2/3)',
+    fn: n => Math.pow(n, 2 / 3),
+    color: '#888',
+    dash: [],
+  },
+  {
+    name: 'trivial · √n',
+    formula: 'Ω(n^(1/2))',
+    fn: n => Math.sqrt(n),
+    color: '#aaa',
+    dash: [2, 4],
+  },
+];
+
+function renderGrowth() {
+  const ctx = growthCtx;
+  const W = growthCanvas.width;
+  const H = growthCanvas.height;
+  ctx.fillStyle = getComputedStyle(growthCanvas).backgroundColor;
+  ctx.fillRect(0, 0, W, H);
+
+  // log10 axes
+  const xMin = 1.5, xMax = 6.5;
+  const yMin = 0.5, yMax = 12.5;
+  const padL = 70, padR = 30, padT = 30, padB = 60;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const px = lx => padL + (lx - xMin) / (xMax - xMin) * plotW;
+  const py = ly => padT + (1 - (ly - yMin) / (yMax - yMin)) * plotH;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(padL, padT, plotW, plotH);
+
+  // Shade the "gap" — between Guth-Katz lower and Erdős conjecture
+  ctx.fillStyle = 'rgba(196, 68, 85, 0.10)';
+  ctx.beginPath();
+  let first = true;
+  for (let lx = xMin; lx <= xMax; lx += 0.05) {
+    const n = Math.pow(10, lx);
+    const ly = Math.log10(n / Math.log(n));
+    const X = px(lx), Y = py(ly);
+    if (first) { ctx.moveTo(X, Y); first = false; } else ctx.lineTo(X, Y);
+  }
+  for (let lx = xMax; lx >= xMin; lx -= 0.05) {
+    const n = Math.pow(10, lx);
+    const ly = Math.log10(n / Math.sqrt(Math.log(n)));
+    ctx.lineTo(px(lx), py(ly));
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Grid lines
+  ctx.strokeStyle = '#e5e5e5';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let lx = Math.ceil(xMin); lx <= Math.floor(xMax); lx++) {
+    ctx.moveTo(px(lx), padT);
+    ctx.lineTo(px(lx), padT + plotH);
+  }
+  for (let ly = Math.ceil(yMin); ly <= Math.floor(yMax); ly++) {
+    ctx.moveTo(padL, py(ly));
+    ctx.lineTo(padL + plotW, py(ly));
+  }
+  ctx.stroke();
+
+  // Plot curves
+  for (const b of BOUNDS) {
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = b.name.includes('Guth–Katz') ? 2.6 : 1.8;
+    ctx.setLineDash(b.dash);
+    ctx.beginPath();
+    let firstPt = true;
+    for (let lx = xMin; lx <= xMax; lx += 0.02) {
+      const n = Math.pow(10, lx);
+      const y = b.fn(n);
+      if (y <= 0) { firstPt = true; continue; }
+      const ly = Math.log10(y);
+      if (ly < yMin || ly > yMax) { firstPt = true; continue; }
+      const X = px(lx), Y = py(ly);
+      if (firstPt) { ctx.moveTo(X, Y); firstPt = false; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Axes
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + plotH);
+  ctx.lineTo(padL + plotW, padT + plotH);
+  ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle = '#444';
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let lx = Math.ceil(xMin); lx <= Math.floor(xMax); lx++) {
+    ctx.fillText('10' + sup(lx), px(lx), padT + plotH + 6);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let ly = Math.ceil(yMin); ly <= Math.floor(yMax); ly++) {
+    ctx.fillText('10' + sup(ly), padL - 8, py(ly));
+  }
+
+  // Axis titles
+  ctx.fillStyle = '#222';
+  ctx.font = '12px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('n · points', padL + plotW / 2, padT + plotH + 28);
+  ctx.save();
+  ctx.translate(18, padT + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top';
+  ctx.fillText('lower bound on distinct distances g(n)', 0, 0);
+  ctx.restore();
+
+  // Legend
+  let html = '';
+  for (const b of BOUNDS) {
+    const dashStyle = b.dash.length
+      ? `background: repeating-linear-gradient(90deg, ${b.color}, ${b.color} ${b.dash[0]}px, transparent ${b.dash[0]}px, transparent ${b.dash[0] + b.dash[1]}px)`
+      : `background: ${b.color}`;
+    html += `<div class="legend-item">
+      <span class="legend-swatch" style="${dashStyle}"></span>
+      <span><span class="legend-name">${b.name}</span><span class="legend-formula">${b.formula}</span></span>
+    </div>`;
+  }
+  html += `<div class="legend-item">
+    <span class="legend-swatch" style="background: rgba(196,68,85,0.30)"></span>
+    <span><span class="legend-name">remaining gap</span><span class="legend-formula">just √log n — sub-polynomial</span></span>
+  </div>`;
+  growthLegend.innerHTML = html;
+}
+
+function sup(n) {
+  const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  return String(n).split('').map(c => map[c] || c).join('');
+}
+
+renderGrowth();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'growth') renderGrowth();
+});
+</script>
+</body>
+</html>
