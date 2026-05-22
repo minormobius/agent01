@@ -1248,8 +1248,8 @@ const BOUNDS = [
   },
   {
     name: 'Erdős lower (1946)',
-    formula: 'Ω(n^(1 + 0.5/log log n))',
-    fn: n => Math.pow(n, 1 + 0.5 / Math.log(Math.log(n))),
+    formula: 'Ω(n^(1 + c/log log n))',
+    fn: n => Math.pow(n, 1 + 0.15 / Math.log(Math.log(n))),
     color: '#6ec1e4',
     dash: [],
   },
@@ -1289,24 +1289,29 @@ function renderGrowth() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(padL, padT, plotW, plotH);
 
-  // Disproven band: between n^(1) at bottom and n^(1+small) at top — shade subtly
-  // We'll shade the region of pre-2026 conjecture: from n^1 up to n^(1+small) where small → 0
-  // For visual purposes, take the region between n and n^1.005 (representing "any sub-polynomial")
-  ctx.fillStyle = 'rgba(150, 150, 150, 0.10)';
+  // The open gap: shaded region between Erdős's proved lower bound (the
+  // floor we know ν(n) exceeds) and Spencer–Szemerédi–Trotter's proved
+  // upper bound (the ceiling we know ν(n) doesn't exceed). This is where
+  // ν(n) actually lives. The new 2026 lower bound n^1.014 lifts the floor
+  // by a polynomial amount, narrowing the gap from below.
+  ctx.fillStyle = 'rgba(196, 68, 85, 0.10)';
   ctx.beginPath();
   let started = false;
+  // Top edge: SST upper, left to right
   for (let lx = xMin; lx <= xMax; lx += 0.05) {
     const n = Math.pow(10, lx);
-    const ly = lx; // y = n
+    const top = Math.pow(n, 4 / 3);
+    const ly = Math.log10(top);
     const X = px2x(lx);
     const Y = py2y(ly);
     if (!started) { ctx.moveTo(X, Y); started = true; }
     else ctx.lineTo(X, Y);
   }
+  // Bottom edge: Erdős lower (c = 0.15), right to left
   for (let lx = xMax; lx >= xMin; lx -= 0.05) {
     const n = Math.pow(10, lx);
-    const upper = Math.pow(n, 1 + 0.5 / Math.log(Math.log(n))); // Erdős lower
-    const ly = Math.log10(upper);
+    const bottom = Math.pow(n, 1 + 0.15 / Math.log(Math.log(n)));
+    const ly = Math.log10(bottom);
     ctx.lineTo(px2x(lx), py2y(ly));
   }
   ctx.closePath();
@@ -1399,8 +1404,8 @@ function renderGrowth() {
   }
   legendHtml += `
     <div class="legend-item">
-      <span class="legend-swatch" style="background: rgba(150,150,150,0.3)"></span>
-      <span><span class="legend-name">disproven conjecture</span><span class="legend-formula">n^(1+o(1)) — Erdős 1946–2026</span></span>
+      <span class="legend-swatch" style="background: rgba(196,68,85,0.30)"></span>
+      <span><span class="legend-name">open gap</span><span class="legend-formula">between Erdős&rsquo;s proved lower and SST&rsquo;s proved upper</span></span>
     </div>
   `;
   growthLegend.innerHTML = legendHtml;

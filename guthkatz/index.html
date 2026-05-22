@@ -338,9 +338,12 @@ footer a:hover { color: var(--accent); }
       <div class="stats" id="stats"></div>
 
       <div class="stat-note">
-        Hover a point to colour every other point by its distance class —
-        concentric "rings" of equal-distance points emerge. The count of rings
-        is how many distinct distances are seen from that point.
+        Hover a point to colour every other point by its distance class — concentric
+        "rings" of equal-distance points emerge; the count is how many distinct
+        distances are seen from that point. <strong>Reveal&nbsp;all</strong>
+        draws the rings <em>themselves</em> from every grid point: the
+        moiré-like overlay is the dot-pattern structure that produces the
+        Erdős grid's <em>n</em>/√log&nbsp;<em>n</em> distinct distances.
       </div>
     </div>
   </div>
@@ -403,9 +406,16 @@ footer a:hover { color: var(--accent); }
 </ul>
 <p>Two problems, one paper, eighty years, opposite endings.</p>
 
+<h2>The dot pattern that produces the result</h2>
+<p>The √<em>n</em> × √<em>n</em> integer grid (the configuration shown in the <strong>grid</strong> tab) <em>is</em> the construction whose distinct-distance count matches the bound. Its pairwise squared distances are exactly the integers <em>a</em>² + <em>b</em>² with <em>a</em>, <em>b</em> ∈ {0, …, √<em>n</em>−1}; the number of <em>distinct</em> such integers, by Landau's 1908 theorem, is asymptotically 2<em>n</em> / √log(2<em>n</em>) — Erdős's conjectured floor for <em>g</em>(<em>n</em>).</p>
+
+<p>Guth–Katz's 2015 lower bound of Ω(<em>n</em> / log <em>n</em>) says no <em>n</em>-point configuration can do better than that (i.e. cram fewer distinct distances) by more than a √log <em>n</em> factor. The grid is the optimum (modulo the gap); the proof is that no exotic configuration can beat it.</p>
+
+<p>Toggle <strong>reveal all</strong> in the grid tab to overlay the dot pattern's full distance structure — every grid point becomes the centre of concentric rings at each distinct squared distance, and the moiré of those rings <em>is</em> the visual signature that produces Landau-many distinct distances.</p>
+
 <h2>What's in this site</h2>
 <ul>
-  <li><strong>grid</strong> — interactive <em>k</em>×<em>k</em> grid. Hover a point: every other point gets coloured by its distance from the hovered one, so concentric "rings" of equal-distance points appear. Stats panel shows total distinct distances in the whole set, distinct distances from the hovered point, and the ratio against Erdős's conjectured <em>n</em> / √log&nbsp;<em>n</em>.</li>
+  <li><strong>grid</strong> — interactive <em>k</em>×<em>k</em> grid. Hover a point: every other point gets coloured by its distance from the hovered one, so concentric "rings" of equal-distance points appear. Toggle <strong>reveal all</strong> to draw the rings themselves from every point — the dot-pattern structure that achieves Erdős's bound. Stats panel shows total distinct distances in the whole set, distinct distances from the hovered point, and ratios against the three reference quantities (trivial √<em>n</em>, Guth–Katz <em>n</em>/log <em>n</em>, Erdős conjecture <em>n</em>/√log <em>n</em>).</li>
   <li><strong>growth</strong> — log-log chart of the historical lower bounds, from the trivial √<em>n</em> through the 1952–2004 climb, capped by Guth–Katz's 2015 <em>n</em> / log <em>n</em>. The Erdős conjecture is drawn as a dashed ceiling; the trivial upper <em>n</em>(<em>n</em>−1)/2 sits at the top.</li>
   <li><strong>docs</strong> — this page.</li>
 </ul>
@@ -622,21 +632,29 @@ function renderGrid() {
     rankMap = new Map(arr.map((d, i) => [d, i / Math.max(1, arr.length - 1)]));
   }
 
-  // Reveal-all: draw all pairs colored by distance class (faint)
-  if (fmt.revealAll && rankMap) {
-    ctx.lineWidth = th.edgeW;
-    for (let a = 0; a < points.length; a++) {
-      for (let b = a + 1; b < points.length; b++) {
-        const pa = points[a], pb = points[b];
-        const d2 = (pa.i - pb.i) * (pa.i - pb.i) + (pa.j - pb.j) * (pa.j - pb.j);
-        const t = rankMap.get(d2) ?? 0;
-        ctx.strokeStyle = th.distHue(t).replace(')', ', 0.30)').replace('hsl', 'hsla');
-        // Above .replace trick is too brittle; use globalAlpha
-        ctx.strokeStyle = th.distHue(t);
-        ctx.globalAlpha = 0.18;
+  // Reveal-all: draw the "dot pattern that produces their result" — concentric
+  // rings at every distinct squared distance, centered on every grid point.
+  // For a √n × √n grid the number of distinct squared distances is the count
+  // of integers ≤ 2(k−1)² expressible as a²+b², which is asymptotically
+  // 2n / √log(2n) (Landau, 1908). That ratio is the conjectured optimum,
+  // matched by Guth–Katz's n / log n lower bound up to a √log n factor.
+  // The grid below IS the configuration that produces the result.
+  if (fmt.revealAll && rankMap && !hover) {
+    const arr = [...distinctAll].sort((a, b) => a - b);
+    const rank = new Map(arr.map((d, idx) => [d, idx / Math.max(1, arr.length - 1)]));
+    // Adaptive alpha + thinning: rings × points scales as O(k⁴); throttle so a
+    // k=22 grid still renders in a few hundred ms while a k=8 grid is dense.
+    const totalArcs = points.length * arr.length;
+    const baseAlpha = Math.max(0.018, Math.min(0.10, 1200 / totalArcs));
+    ctx.lineWidth = 0.45;
+    for (const p of points) {
+      for (const d2 of arr) {
+        const radius = Math.sqrt(d2) * step;
+        if (radius < 1) continue;
+        ctx.strokeStyle = th.distHue(rank.get(d2));
+        ctx.globalAlpha = baseAlpha;
         ctx.beginPath();
-        ctx.moveTo(pa.x, pa.y);
-        ctx.lineTo(pb.x, pb.y);
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
