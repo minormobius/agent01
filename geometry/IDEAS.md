@@ -12,6 +12,7 @@ Interactive sites on extremal-geometry conjectures: each follows the same shape 
 | `/runner/` | Lonely runner conjecture | Wills 1967, proven k ≤ 7, open for k ≥ 8 — animation-native | teal `#0aa19c` |
 | `/kakeya/` | Finite-field Kakeya conjecture | Dvir 2008 five-page polynomial-method proof; ancestor of Guth–Katz | rust `#a35a00` |
 | `/capset/` | Cap-set problem in 𝔽₃ⁿ | Ellenberg–Gijswijt 2016 broke 3ⁿ/n to 2.756ⁿ — polynomial method again | pine green `#3a8a40` |
+| `/elements/` | Periodic table as mandala | Concentric rings = shells (n=1..7); angular sectors = s/p/d/f blocks sized by capacity. Each of 118 element nodes deeplinks to Wikipedia. Branch from the main pack — chem-not-geometry, but same scaffold | indigo `#3d4a72` |
 
 ## Next priorities
 
