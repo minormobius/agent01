@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>play · games.mino.mobi</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --surface: #181822;
+    --surface-2: #1f1f2c;
+    --border: #2a2a3a;
+    --text: #e6e6ee;
+    --dim: #8888a0;
+    --accent: #ff6a3d;
+    --accent2: #5ee8c1;
+    --warn: #ffd166;
+    --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100%; height: 100%; }
+  body { overflow: hidden; }
+
+  /* TV layout */
+  body.tv { display: flex; flex-direction: column; padding: 32px 48px; }
+  body.tv #tv-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); color: var(--dim); font-size: 14px;
+    border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 24px;
+  }
+  body.tv #tv-header .code { color: var(--accent); font-size: 32px; letter-spacing: 0.15em; font-weight: 700; }
+  body.tv #tv-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  body.tv #tv-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 13px; color: var(--dim); }
+  body.tv .big { font-size: clamp(36px, 7vw, 84px); line-height: 1.1; font-weight: 700; margin: 24px 0; max-width: 1200px; }
+  body.tv .copy { color: var(--dim); font-size: clamp(16px, 2vw, 22px); margin-bottom: 32px; }
+  body.tv .grid { display: grid; gap: 18px; width: 100%; max-width: 1000px; }
+  body.tv .answer { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; font-size: 24px; text-align: left; transition: transform 0.2s; }
+  body.tv .answer.winner { border-color: var(--accent2); background: var(--surface-2); }
+  body.tv .answer .meta { font-family: var(--mono); font-size: 13px; color: var(--dim); margin-top: 8px; }
+  body.tv .players-strip { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  body.tv .player-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-family: var(--mono); font-size: 13px; }
+  body.tv .player-chip.host { border-color: var(--warn); color: var(--warn); }
+  body.tv .player-chip.done { border-color: var(--accent2); color: var(--accent2); }
+  body.tv .qr-box { background: white; padding: 14px; border-radius: 10px; display: inline-block; margin-bottom: 12px; }
+  body.tv .qr-box img { display: block; width: 220px; height: 220px; }
+
+  /* Phone layout */
+  body.phone { display: flex; flex-direction: column; padding: 20px; max-width: 540px; margin: 0 auto; }
+  body.phone #phone-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); color: var(--dim); font-size: 12px;
+    margin-bottom: 18px;
+  }
+  body.phone #phone-header .code { color: var(--accent); letter-spacing: 0.15em; font-size: 18px; font-weight: 700; }
+  body.phone h2 { font-family: var(--mono); font-size: 14px; color: var(--dim); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.08em; }
+  body.phone .copy { color: var(--dim); margin: 12px 0 20px; line-height: 1.5; font-size: 16px; }
+  body.phone .prompt-text { font-size: 22px; line-height: 1.3; margin: 16px 0; padding: 16px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+  body.phone textarea, body.phone input[type="text"] {
+    width: 100%; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; font-family: var(--sans); font-size: 17px; resize: vertical;
+  }
+  body.phone textarea { min-height: 110px; }
+  body.phone button {
+    background: var(--accent); color: #1a0a06; border: none; padding: 14px 18px;
+    font-family: var(--mono); font-size: 15px; border-radius: 10px; cursor: pointer; font-weight: 700;
+    width: 100%; margin-top: 12px;
+  }
+  body.phone button.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  body.phone button:disabled { opacity: 0.4; cursor: not-allowed; }
+  body.phone .option-btn {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    text-align: left; padding: 16px; font-family: var(--sans); font-size: 16px; line-height: 1.4;
+    margin-top: 10px; font-weight: normal;
+  }
+  body.phone .option-btn.selected { border-color: var(--accent); background: var(--surface-2); }
+  body.phone .host-panel {
+    margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--warn);
+    border-radius: 10px;
+  }
+  body.phone .host-panel h3 { font-family: var(--mono); font-size: 13px; color: var(--warn); margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  body.phone .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  body.phone .login-box input { margin-bottom: 10px; }
+  body.phone .badge { background: var(--surface); border-radius: 6px; padding: 4px 8px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+  .hidden { display: none !important; }
+  .scoreboard { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 600px; margin-top: 16px; }
+  .scoreboard .row { display: flex; justify-content: space-between; padding: 12px 16px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+  .scoreboard .row.top { border-color: var(--accent2); }
+  .scoreboard .row .handle { font-family: var(--mono); }
+  .scoreboard .row .score { font-family: var(--mono); color: var(--accent2); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- TV root (hidden if phone) -->
+<div id="tv-root" class="hidden">
+  <div id="tv-header">
+    <div><span class="code" id="tv-code">····</span></div>
+    <div id="tv-game-name"></div>
+  </div>
+  <div id="tv-main">
+    <div id="tv-loading" class="copy">connecting…</div>
+    <div id="tv-content"></div>
+  </div>
+  <div id="tv-footer">
+    <div>join at <b id="tv-join-url"></b></div>
+    <div id="tv-players-count"></div>
+  </div>
+</div>
+
+<!-- Phone root (hidden if tv) -->
+<div id="phone-root" class="hidden">
+  <div id="phone-header">
+    <div>room <span class="code" id="phone-code">····</span></div>
+    <div id="phone-game-name"></div>
+  </div>
+  <div id="phone-content"></div>
+</div>
+
+<script type="module">
+import { AuthClient } from './lib/auth.js';
+
+const params = new URLSearchParams(location.search);
+const code = (params.get('code') || '').toUpperCase();
+const role = params.get('role') === 'tv' ? 'tv' : 'phone';
+
+if (!/^[A-Z0-9]{4}$/.test(code)) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:monospace">missing or bad room code in url</div>';
+  throw new Error('bad code');
+}
+
+document.body.classList.add(role);
+document.getElementById(role + '-root').classList.remove('hidden');
+document.getElementById('tv-code').textContent = code;
+document.getElementById('phone-code').textContent = code;
+
+const joinUrl = `${location.host}/?join=${code}`;
+const tvJoinUrlEl = document.getElementById('tv-join-url');
+if (tvJoinUrlEl) tvJoinUrlEl.textContent = joinUrl;
+
+// ============= ROUTING =============
+if (role === 'tv') {
+  runTv();
+} else {
+  runPhone();
+}
+
+// ============= TV =============
+async function runTv() {
+  // No auth needed for TV. Just connect.
+  const ws = openWs({ role: 'tv' });
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'hello' || m.type === 'state') {
+      document.getElementById('tv-loading').classList.add('hidden');
+      renderTv(m.snapshot);
+    }
+  };
+}
+
+function renderTv(s) {
+  if (!s) return;
+  document.getElementById('tv-game-name').textContent = s.game?.name || '';
+  document.getElementById('tv-players-count').textContent =
+    `${s.view?.players?.length || 0} players`;
+  const root = document.getElementById('tv-content');
+  const renderer = TEMPLATES_TV[s.game?.template];
+  if (!renderer) { root.textContent = `no TV renderer for template ${s.game?.template}`; return; }
+  root.innerHTML = renderer(s);
+}
+
+// ============= PHONE =============
+let auth, ws, currentSnapshot, currentPlayerView;
+
+async function runPhone() {
+  auth = new AuthClient();
+  await auth.init();
+
+  if (!auth.isLoggedIn()) {
+    showLogin();
+    return;
+  }
+  connectPhone();
+}
+
+function showLogin() {
+  const root = document.getElementById('phone-content');
+  root.innerHTML = `
+    <h2>Sign in to play</h2>
+    <p class="copy">We use your Bluesky handle as your name in the game. Your handle and avatar are the only things this room sees — no posting permissions are requested.</p>
+    <div class="login-box">
+      <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="username" />
+      <button id="login-btn">Sign in with Bluesky</button>
+    </div>
+  `;
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const handle = document.getElementById('handle-input').value.trim();
+    if (!handle) return;
+    try {
+      await auth.login(handle, { scope: 'atproto' });
+    } catch (e) {
+      alert('Login failed: ' + e.message);
+    }
+  });
+  document.getElementById('handle-input').addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') document.getElementById('login-btn').click();
+  });
+}
+
+function connectPhone() {
+  const token = auth.getToken();
+  ws = openWs({ role: 'phone', sid: token });
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'hello' || m.type === 'state') {
+      currentSnapshot = m.snapshot;
+      currentPlayerView = m.playerView;
+      renderPhone();
+    }
+    if (m.type === 'error') {
+      alert(m.message);
+    }
+  };
+  ws.onclose = (ev) => {
+    if (ev.code === 1008 || ev.code === 4401 || ev.code === 4403) {
+      const root = document.getElementById('phone-content');
+      root.innerHTML = `<h2>Can't join</h2><p class="copy">${ev.reason || 'Not allowed in this room.'}</p>`;
+    }
+  };
+}
+
+function sendMsg(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+function renderPhone() {
+  const root = document.getElementById('phone-content');
+  const s = currentSnapshot;
+  const me = currentPlayerView;
+  if (!s) return;
+  document.getElementById('phone-game-name').textContent = s.game?.name || '';
+  const renderer = TEMPLATES_PHONE[s.game?.template];
+  if (!renderer) { root.textContent = `no phone renderer for template ${s.game?.template}`; return; }
+  root.innerHTML = renderer(s, me, auth.getUser());
+
+  // Re-bind interactive handlers after each render.
+  const submitBtn = root.querySelector('#submit-answer');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      const text = root.querySelector('#answer-input').value.trim();
+      if (text) sendMsg({ type: 'submit', value: text });
+    });
+  }
+  root.querySelectorAll('.option-btn[data-did]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sendMsg({ type: 'vote', target: btn.dataset.did });
+    });
+  });
+  const startBtn = root.querySelector('#host-start');
+  if (startBtn) startBtn.addEventListener('click', () => sendMsg({ type: 'host:start' }));
+  const nextBtn = root.querySelector('#host-next');
+  if (nextBtn) nextBtn.addEventListener('click', () => sendMsg({ type: 'host:next' }));
+  const resetBtn = root.querySelector('#host-reset');
+  if (resetBtn) resetBtn.addEventListener('click', () => sendMsg({ type: 'host:reset' }));
+}
+
+// ============= shared =============
+function openWs({ role, sid }) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const qs = new URLSearchParams({ role });
+  if (sid) qs.set('sid', sid);
+  const url = `${proto}://${location.host}/api/rooms/${code}/ws?${qs}`;
+  return new WebSocket(url);
+}
+
+// ============= TEMPLATES =============
+const TEMPLATES_TV = {
+  'prompt-submit-vote': renderTvPromptSubmitVote,
+};
+const TEMPLATES_PHONE = {
+  'prompt-submit-vote': renderPhonePromptSubmitVote,
+};
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function renderTvPromptSubmitVote(s) {
+  const v = s.view;
+  if (v.phase === 'lobby') {
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(location.origin + '/play.html?code=' + s.code + '&role=phone')}`;
+    return `
+      <div class="qr-box"><img src="${qr}" alt="join qr" /></div>
+      <div class="copy">scan or go to <b>${escapeHtml(location.host)}/play.html?code=${s.code}</b></div>
+      <div class="big">waiting for players</div>
+      <div class="players-strip">
+        ${(v.players || []).map((p) => `<div class="player-chip ${p.did === s.hostDid ? 'host' : ''}">${escapeHtml(p.handle)}</div>`).join('')}
+      </div>
+      <div class="copy" style="margin-top:24px">host: tap <b>Start</b> on your phone when everyone's in.</div>
+    `;
+  }
+  if (v.phase === 'prompt') {
+    return `
+      <div class="copy">round ${v.round} of ${v.rounds} · prompt</div>
+      <div class="big">${escapeHtml(v.copy)}</div>
+      <div class="players-strip">
+        ${(v.players || []).map((p) => {
+          const done = (v.submitted || []).includes(p.did);
+          return `<div class="player-chip ${done ? 'done' : ''}">${escapeHtml(p.handle)}${done ? ' ✓' : ''}</div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+  if (v.phase === 'vote') {
+    return `
+      <div class="copy">round ${v.round} of ${v.rounds} · vote</div>
+      <div class="big">${escapeHtml(v.copy)}</div>
+      <div class="grid">
+        ${(v.shuffled || []).map((s2) => `<div class="answer">${escapeHtml(s2.text)}</div>`).join('')}
+      </div>
+      <div class="players-strip" style="margin-top:24px">
+        ${(v.players || []).map((p) => {
+          const done = (v.voted || []).includes(p.did);
+          return `<div class="player-chip ${done ? 'done' : ''}">${escapeHtml(p.handle)}${done ? ' ✓' : ''}</div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+  if (v.phase === 'reveal') {
+    const maxVotes = Math.max(0, ...Object.values(v.voteCount || {}));
+    const ranked = (v.shuffled || []).map((row) => ({
+      ...row,
+      votes: v.voteCount?.[row.did] || 0,
+      author: (v.players || []).find((p) => p.did === row.did)?.handle || '?',
+    })).sort((a, b) => b.votes - a.votes);
+    return `
+      <div class="copy">round ${v.round} of ${v.rounds} · reveal</div>
+      <div class="big">${escapeHtml(v.copy)}</div>
+      <div class="grid">
+        ${ranked.map((r) => `
+          <div class="answer ${r.votes === maxVotes && maxVotes > 0 ? 'winner' : ''}">
+            ${escapeHtml(r.text)}
+            <div class="meta">${escapeHtml(r.author)} · ${r.votes} vote${r.votes === 1 ? '' : 's'} · +${v.roundScores?.[r.did] || 0}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="copy" style="margin-top:24px">host: tap <b>${v.finalRound ? 'Final scores' : 'Next round'}</b></div>
+    `;
+  }
+  if (v.phase === 'final') {
+    return `
+      <div class="big">final scores</div>
+      <div class="scoreboard">
+        ${(v.scoreboard || []).map((r, i) => `
+          <div class="row ${i === 0 ? 'top' : ''}">
+            <div class="handle">${i === 0 ? '👑 ' : ''}${escapeHtml(r.handle)}</div>
+            <div class="score">${r.score}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="copy" style="margin-top:24px">host: tap <b>Reset</b> to play again</div>
+    `;
+  }
+  return '';
+}
+
+function renderPhonePromptSubmitVote(s, me, user) {
+  const v = s.view;
+  const isHost = me?.isHost;
+  const youBlock = `<div style="margin-bottom:18px;color:var(--dim);font-family:var(--mono);font-size:12px">playing as <b style="color:var(--text)">@${escapeHtml(user?.handle)}</b>${isHost ? ' <span class="badge" style="color:var(--warn);border:1px solid var(--warn)">HOST</span>' : ''}</div>`;
+
+  if (v.phase === 'lobby') {
+    return youBlock + `
+      <h2>Lobby</h2>
+      <p class="copy">Waiting for ${s.game?.name}. The host starts the game when everyone's in.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">
+        ${(v.players || []).map((p) => `<span class="badge">${escapeHtml(p.handle)}</span>`).join('')}
+      </div>
+      ${isHost ? `
+        <div class="host-panel">
+          <h3>You're the host</h3>
+          <button id="host-start">Start game (${v.players?.length || 0} players)</button>
+        </div>
+      ` : ''}
+    `;
+  }
+  if (v.phase === 'prompt') {
+    if (me?.submitted) {
+      return youBlock + `
+        <h2>Submitted</h2>
+        <p class="copy">Nice. Waiting for the others.</p>
+      `;
+    }
+    return youBlock + `
+      <h2>Your prompt</h2>
+      <div class="prompt-text">${escapeHtml(me?.prompt || '(loading)')}</div>
+      <textarea id="answer-input" placeholder="Type your answer…" maxlength="240"></textarea>
+      <button id="submit-answer">Submit</button>
+    `;
+  }
+  if (v.phase === 'vote') {
+    const youAnswered = (v.shuffled || []).some((r) => r.did === user.did);
+    if (!youAnswered) {
+      return youBlock + `
+        <h2>Vote</h2>
+        <p class="copy">You didn't submit this round. Watch the others.</p>
+      `;
+    }
+    if (me?.voted) {
+      return youBlock + `
+        <h2>Voted</h2>
+        <p class="copy">Your vote is in. Waiting for everyone else.</p>
+      `;
+    }
+    return youBlock + `
+      <h2>Pick your favorite</h2>
+      <p class="copy">${escapeHtml(me?.copy || '')}</p>
+      ${(me?.options || []).map((o) => `
+        <button class="option-btn" data-did="${escapeHtml(o.did)}">${escapeHtml(o.text)}</button>
+      `).join('')}
+    `;
+  }
+  if (v.phase === 'reveal') {
+    return youBlock + `
+      <h2>Reveal</h2>
+      <p class="copy">Check the TV for the round results.</p>
+      ${isHost ? `
+        <div class="host-panel">
+          <h3>Host controls</h3>
+          <button id="host-next">${v.finalRound ? 'Show final scores' : 'Next round'}</button>
+        </div>
+      ` : ''}
+    `;
+  }
+  if (v.phase === 'final') {
+    return youBlock + `
+      <h2>Game over</h2>
+      <p class="copy">Final scores are on the TV.</p>
+      ${isHost ? `
+        <div class="host-panel">
+          <h3>Host controls</h3>
+          <button id="host-reset">Play again (same room)</button>
+        </div>
+      ` : ''}
+    `;
+  }
+  return '';
+}
+</script>
+</body>
+</html>
