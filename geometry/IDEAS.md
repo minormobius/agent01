@@ -10,18 +10,18 @@ Interactive sites on extremal-geometry conjectures: each follows the same shape 
 | `/guthkatz/` | Erdős distinct-distances problem | Polynomial-method lower bound matches the grid optimum up to √log n (Guth–Katz 2015) | steel blue `#1a5e7a` |
 | `/hadwiger/` | Chromatic number of the plane | Amateur biogerontologist nudged the lower bound from 4 to 5 after 68 years (de Grey 2018). Procedural play mode added. | purple `#5e3b8b` |
 | `/runner/` | Lonely runner conjecture | Wills 1967, proven k ≤ 7, open for k ≥ 8 — animation-native | teal `#0aa19c` |
+| `/kakeya/` | Finite-field Kakeya conjecture | Dvir 2008 five-page polynomial-method proof; ancestor of Guth–Katz | rust `#a35a00` |
 
 ## Next priorities
 
 (Top of list when extending the pack. Keep this ordered.)
 
-1. **`/kakeya/`** — Finite-field Kakeya conjecture (Dvir 2008). *The* proof that birthed the polynomial method; direct ancestor of Guth–Katz. Visualize Besicovitch sets in 𝔽_q² for small q (3, 5, 7, 11); the proof reduces to a polynomial-degree argument that fits in a paragraph. Closes a *polynomial-method trilogy* with guthkatz.
+1. **`/capset/`** — Largest subset of 𝔽_3^n with no three-term arithmetic progression. Croot–Lev–Pach + Ellenberg–Gijswijt 2016, polynomial method again. Bound dropped from 3^n/n to 2.756^n. Hard to viz at high n; n=3 case is 27 cells in a 3×3×3 grid and very tractable. Closes the polynomial-method trilogy started with guthkatz and continued with kakeya.
 
-2. **`/capset/`** — Largest subset of 𝔽_3^n with no three-term arithmetic progression. Croot–Lev–Pach + Ellenberg–Gijswijt 2016, polynomial method again. Bound dropped from 3^n/n to 2.756^n. Hard to viz at high n; n=3 case is 27 cells in a 3×3×3 grid and very tractable.
+2. **`/szemeredi-trotter/`** — Point-line incidence bound, O((mn)^(2/3) + m + n). 1983, foundational, underlies guthkatz. Interactive grid + lines, drag to see incidences match the bound.
 
 ## Other candidates
 
-- **`/szemeredi-trotter/`** — Point-line incidence bound, O((mn)^(2/3) + m + n). 1983, foundational, underlies guthkatz. Interactive grid + lines, drag to see incidences match the bound.
 - **`/heilbronn/`** — Place n points in unit square to maximize the smallest triangle. Records get updated regularly via heuristic search; site as a record-attempt sandbox with leaderboard via poll/draw infrastructure.
 - **`/borsuk/`** — Borsuk's 1933 partition conjecture, disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as erdős: unexpected construction wrecks low-dim intuition. Hard to viz in dim ≥ 64.
 - **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
