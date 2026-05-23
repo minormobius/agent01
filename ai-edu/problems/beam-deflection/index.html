@@ -687,11 +687,19 @@ function draw() {
   const beamL = beamX1 - beamX0;
   const centerY = Math.round(cssH * 0.62);
 
-  // Scale the deflection so the largest realistic max (cantilever
-  // point = 1/3) maps to ~70px below the neutral axis. Use a
-  // case-independent constant so morphing feels consistent across
-  // cases.
-  const ampPx = 200;
+  // Per-frame normalization. The six case magnitudes span ~130x
+  // (cantilever-point = 1/3, clamped-clamped-UDL = 1/384), so a
+  // constant scale would make the stiff cases visually invisible.
+  // Find max |w| in the currently displayed nodal vector and map it
+  // to a fixed pixel amplitude. The numerical readout next to the
+  // canvas carries the absolute magnitude.
+  let curMax = 1e-9;
+  for (let i = 0; i < state.current.length; i += 2) {
+    const a = Math.abs(state.current[i]);
+    if (a > curMax) curMax = a;
+  }
+  const targetPx = 78;
+  const ampPx = targetPx / curMax;
 
   // Undeformed reference
   ctx.strokeStyle = col.undeformed;
