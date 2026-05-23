@@ -184,7 +184,114 @@ pub fn closed_form_deflection(bc: &str, load: &str) -> Vec<f64> {
 }
 
 // =============================================================
-// Free vibration (Problem 2: beam-vibration)
+// 2D pin-jointed truss (Problem 2: truss)
+// =============================================================
+
+/// Solve a 2D pin-jointed truss by the direct stiffness method.
+/// All members have unit axial stiffness EA = 1, so each member's
+/// stiffness is 1/L. Inputs are flat arrays (built by the JS bridge
+/// generators); DOF k of node n is global index 2n (x) / 2n+1 (y).
+///
+///   node_x, node_y    : nodal coordinates (length = n_nodes)
+///   member_i, member_j: end-node indices of each member
+///   fixed_dofs        : global DOF indices held at zero (supports)
+///   load_dofs/load_vals: applied nodal forces
+///
+/// Returns a flat Vec<f64>:
+///   [ member_force_0 .. member_force_{M-1},   (tension +, compression -)
+///     u_0 .. u_{2N-1} ]                        (nodal displacements)
+///
+/// If the assembled system is singular (the truss is a mechanism),
+/// returns a single-element vec [NaN].
+#[wasm_bindgen]
+pub fn solve_truss(
+    node_x: Vec<f64>,
+    node_y: Vec<f64>,
+    member_i: Vec<u32>,
+    member_j: Vec<u32>,
+    fixed_dofs: Vec<u32>,
+    load_dofs: Vec<u32>,
+    load_vals: Vec<f64>,
+) -> Vec<f64> {
+    let n_nodes = node_x.len();
+    let n_dof = 2 * n_nodes;
+    let n_members = member_i.len();
+
+    let mut k = DMatrix::<f64>::zeros(n_dof, n_dof);
+    // Cache (i, j, c, s, ea_over_l) per member for force recovery.
+    let mut geom: Vec<(usize, usize, f64, f64, f64)> = Vec::with_capacity(n_members);
+
+    for m in 0..n_members {
+        let i = member_i[m] as usize;
+        let j = member_j[m] as usize;
+        let dx = node_x[j] - node_x[i];
+        let dy = node_y[j] - node_y[i];
+        let len = (dx * dx + dy * dy).sqrt();
+        let c = dx / len;
+        let s = dy / len;
+        let ea_over_l = 1.0 / len; // EA = 1
+
+        let kl = [
+            [ c * c,  c * s, -c * c, -c * s],
+            [ c * s,  s * s, -c * s, -s * s],
+            [-c * c, -c * s,  c * c,  c * s],
+            [-c * s, -s * s,  c * s,  s * s],
+        ];
+        let dofs = [2 * i, 2 * i + 1, 2 * j, 2 * j + 1];
+        for a in 0..4 {
+            for b in 0..4 {
+                k[(dofs[a], dofs[b])] += ea_over_l * kl[a][b];
+            }
+        }
+        geom.push((i, j, c, s, ea_over_l));
+    }
+
+    let mut f = DVector::<f64>::zeros(n_dof);
+    for (idx, &d) in load_dofs.iter().enumerate() {
+        f[d as usize] += load_vals[idx];
+    }
+
+    let is_fixed: Vec<bool> =
+        (0..n_dof).map(|i| fixed_dofs.contains(&(i as u32))).collect();
+    let free_idx: Vec<usize> = (0..n_dof).filter(|i| !is_fixed[*i]).collect();
+    let n_free = free_idx.len();
+
+    let mut k_free = DMatrix::<f64>::zeros(n_free, n_free);
+    let mut f_free = DVector::<f64>::zeros(n_free);
+    for (a, &ga) in free_idx.iter().enumerate() {
+        for (b, &gb) in free_idx.iter().enumerate() {
+            k_free[(a, b)] = k[(ga, gb)];
+        }
+        f_free[a] = f[ga];
+    }
+
+    // A well-formed determinate (or redundant) truss gives an SPD
+    // reduced stiffness matrix. Cholesky fails on a mechanism.
+    let u_free = match k_free.cholesky() {
+        Some(chol) => chol.solve(&f_free),
+        None => return vec![f64::NAN],
+    };
+
+    let mut u = DVector::<f64>::zeros(n_dof);
+    for (a, &ga) in free_idx.iter().enumerate() {
+        u[ga] = u_free[a];
+    }
+
+    let mut out = Vec::with_capacity(n_members + n_dof);
+    for &(i, j, c, s, ea_over_l) in &geom {
+        // Axial force, tension positive:
+        // F = (EA/L) * [ (u_j - u_i) . (c, s) ]
+        let elong = c * (u[2 * j] - u[2 * i]) + s * (u[2 * j + 1] - u[2 * i + 1]);
+        out.push(ea_over_l * elong);
+    }
+    for v in u.iter() {
+        out.push(*v);
+    }
+    out
+}
+
+// =============================================================
+// Free vibration (Problem 3: beam-vibration)
 // =============================================================
 
 /// Solve for the first `n_modes` natural frequencies AND mode shapes
