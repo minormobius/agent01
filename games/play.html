@@ -115,8 +115,24 @@
     <div>room <span class="code" id="phone-code">····</span></div>
     <div id="phone-game-name"></div>
   </div>
-  <div id="phone-content"></div>
+  <div id="phone-content">
+    <p class="copy" id="phone-bootstrap">connecting…</p>
+  </div>
 </div>
+
+<!-- Top-level error banner (filled by window.onerror / unhandledrejection) -->
+<div id="errbar" style="position:fixed;left:0;right:0;bottom:0;background:#3a1010;color:#ffb4b4;font:13px/1.4 ui-monospace,monospace;padding:10px 14px;display:none;z-index:9999;white-space:pre-wrap"></div>
+
+<script>
+function showFatal(msg) {
+  const el = document.getElementById('errbar');
+  if (!el) return;
+  el.textContent = String(msg);
+  el.style.display = 'block';
+}
+window.addEventListener('error', (e) => showFatal('error: ' + (e.message || e.error)));
+window.addEventListener('unhandledrejection', (e) => showFatal('promise: ' + (e.reason?.message || e.reason)));
+</script>
 
 <script type="module">
 import { AuthClient } from './lib/auth.js';
@@ -140,11 +156,20 @@ const tvJoinUrlEl = document.getElementById('tv-join-url');
 if (tvJoinUrlEl) tvJoinUrlEl.textContent = joinUrl;
 
 // ============= ROUTING =============
-if (role === 'tv') {
-  runTv();
-} else {
-  runPhone();
-}
+(async () => {
+  try {
+    if (role === 'tv') {
+      await runTv();
+    } else {
+      await runPhone();
+    }
+  } catch (e) {
+    console.error('boot failed', e);
+    showFatal('boot failed: ' + (e?.message || e));
+    const root = document.getElementById('phone-content') || document.getElementById('tv-content');
+    if (root) root.innerHTML = `<p class="copy">Could not start the room. ${(e?.message || e)}</p>`;
+  }
+})();
 
 // ============= TV =============
 async function runTv() {
@@ -173,14 +198,23 @@ function renderTv(s) {
 // ============= PHONE =============
 let auth, ws, currentSnapshot, currentPlayerView;
 
+function bootStatus(text) {
+  const el = document.getElementById('phone-bootstrap');
+  if (el) el.textContent = text;
+}
+
 async function runPhone() {
+  bootStatus('loading auth…');
   auth = new AuthClient();
+  bootStatus('checking session…');
   await auth.init();
 
   if (!auth.isLoggedIn()) {
+    bootStatus('');
     showLogin();
     return;
   }
+  bootStatus('connecting to room…');
   connectPhone();
 }
 
