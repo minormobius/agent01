@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>szemerédi–trotter — point-line incidence bound</title>
+<meta name="description" content="Interactive visualization of the Szemerédi–Trotter theorem (1983): m points and n lines in the plane share at most O((mn)^(2/3) + m + n) incidences. Build the Erdős tight construction and watch the bound be matched.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #5a1a3a;
+  --accent-faint: rgba(90, 26, 58, 0.10);
+  --accent-tint: rgba(90, 26, 58, 0.05);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #efe6ea;
+  --tag-text: #4a1830;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --hit: #5a1a3a;
+  --line-stroke: rgba(90, 26, 58, 0.45);
+  --line-stroke-loud: rgba(90, 26, 58, 0.75);
+  --pt-cold: #b0b0b0;
+  --bound-stroke: rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #d870a8;
+    --accent-faint: rgba(216, 112, 168, 0.13);
+    --accent-tint: rgba(216, 112, 168, 0.06);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #2a1a22;
+    --tag-text: #d8a0c0;
+    --hit: #b0306a;
+    --line-stroke: rgba(176, 48, 106, 0.50);
+    --line-stroke-loud: rgba(176, 48, 106, 0.80);
+    --pt-cold: #888;
+    --bound-stroke: rgba(0, 0, 0, 0.40);
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.work-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .work-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas.viz {
+  width: 100%;
+  aspect-ratio: 5 / 2;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+canvas.growth {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 1rem;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val {
+  font-size: 0.7rem;
+  color: var(--accent);
+  min-width: 1.5em;
+  text-align: right;
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+  color: var(--muted);
+}
+.verdict.tight { color: var(--accent); font-weight: 600; }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.4rem;
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+
+.formula {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05em;
+  background: var(--accent-tint);
+  padding: 0.35rem 0.6rem;
+  border-radius: 2px;
+  display: inline-block;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>szemerédi–trotter</h1>
+  <p class="subtitle">point-line incidences · 1983</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="build" role="tab">build</button>
+  <button class="tab" data-tab="growth" role="tab">growth</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- BUILD TAB ─────────────────────────────────────────────────────── -->
+<div class="pane active" id="pane-build">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  m points + n lines in the plane share at most <span class="formula">I = O((mn)<sup>2/3</sup> + m + n)</span> incidences. Erdős's construction makes the bound tight: a small thin grid of points and lines saturates it up to a constant. Swap modes to compare the tight construction against random placements.
+</p>
+
+<div class="work-wrap">
+  <canvas id="viz" class="viz" width="700" height="280"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">mode</span>
+      <div class="btn-row" id="mode-row">
+        <button class="btn active" data-mode="tight">tight construction</button>
+        <button class="btn" data-mode="random">random</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group" id="k-group">
+      <span class="ctrl-label">K · construction parameter</span>
+      <div class="slider-row">
+        <input type="range" id="k-slider" min="1" max="4" step="1" value="3">
+        <span class="val" id="k-val">3</span>
+      </div>
+      <div class="stat-note">
+        Points laid out on a K × 2K² grid; lines y = ax + b with 1 ≤ a ≤ K, 1 ≤ b ≤ K². Each line hits exactly K points → I = K⁴.
+      </div>
+    </div>
+
+    <div class="ctrl-group" id="random-m-group" style="display:none">
+      <span class="ctrl-label">m · points</span>
+      <div class="slider-row">
+        <input type="range" id="rm-slider" min="10" max="200" step="5" value="80">
+        <span class="val" id="rm-val">80</span>
+      </div>
+    </div>
+    <div class="ctrl-group" id="random-n-group" style="display:none">
+      <span class="ctrl-label">n · lines</span>
+      <div class="slider-row">
+        <input type="range" id="rn-slider" min="5" max="80" step="1" value="40">
+        <span class="val" id="rn-val">40</span>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- GROWTH TAB ────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-growth">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  As K grows, the Erdős construction's incidence count tracks <em>(mn)<sup>2/3</sup></em> exactly — a straight line of slope 2/3 in log-log space. Random placements never come close.
+</p>
+
+<canvas id="growth-canvas" class="growth" width="700" height="420"></canvas>
+
+<div class="stats" id="growth-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
+<!-- DOCS TAB ──────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="meta-stamp">Endre Szemerédi · William Trotter · 1983</p>
+
+<p>
+  An <em>incidence</em> is a point lying on a line. Given m points and n lines in the
+  Euclidean plane, how many incidences can there be? Each line can hit all m points only
+  if all the points are collinear — and they aren't, in general — so the question is how
+  the count grows with m and n.
+</p>
+
+<blockquote>
+  I(P, L) ≤ C · (m · n)<sup>2/3</sup> + m + n.
+</blockquote>
+
+<p>
+  That's the Szemerédi–Trotter theorem. The constant C is harmless; what matters is the
+  exponent. Naive upper bounds (every pair of points defines at most one line; every
+  line is determined by two points) give Θ(m√n + n) or Θ(n√m + m), both worse than ST
+  except in degenerate ranges. ST is the truth.
+</p>
+
+<h2>Why 2/3?</h2>
+<p>
+  The exponent comes from a cell-decomposition argument due to Clarkson, Edelsbrunner,
+  Guibas, Sharir, and Welzl: cut the plane into r² cells using r random lines, then
+  count incidences inside cells (each cell has few points and few lines, by random
+  sampling bounds) and across cells (each line crosses at most r cells). Optimising r
+  drops out (mn)<sup>2/3</sup>.
+</p>
+<p>
+  A second proof — Kaplan, Matoušek, Sharir (2010), independently Guth (2014) — uses
+  the polynomial method. A degree-d polynomial vanishing on the points forces lines
+  with d+1 incidences to lie inside its zero set; Bézout-like bounds finish the count.
+  The technique is exactly the one Dvir uses on <a href="https://mino.mobi/kakeya/">kakeya</a>
+  and Guth–Katz use on <a href="https://mino.mobi/guthkatz/">guthkatz</a> — the ST
+  theorem is in many ways the seed crystal of the polynomial-method era.
+</p>
+
+<h2>The tight construction</h2>
+<p>
+  Erdős had given a matching lower bound long before the theorem was proved. Take
+  points on the integer grid {1,…,K} × {1,…,2K²}, and the lines y = ax + b with
+  a ∈ {1,…,K}, b ∈ {1,…,K²}. Then:
+</p>
+<ul>
+  <li>m = 2K³ points, n = K³ lines.</li>
+  <li>Each line passes through exactly K points: for x = 1,…,K, y = ax + b sits in
+  [a + b, aK + b] ⊆ [2, 2K²]. So every line hits the grid K times.</li>
+  <li>Total: I = nK = K⁴ ≈ (mn)<sup>2/3</sup> up to a constant of 2<sup>2/3</sup>.</li>
+</ul>
+<p>
+  Drag the K slider in the build tab to grow the construction. The
+  <code>I / (mn)<sup>2/3</sup></code> ratio is the constant 2<sup>−2/3</sup> ≈ 0.63 —
+  flat in K. Random placements, by contrast, give I ≈ O(m + n) on expectation, far
+  below the bound.
+</p>
+
+<h2>Connections in the pack</h2>
+<ul>
+  <li><a href="https://mino.mobi/guthkatz/">guthkatz</a> uses ST plus the polynomial
+  method to bound distinct distances at n/log n. ST is the prerequisite.</li>
+  <li><a href="https://mino.mobi/kakeya/">kakeya</a> introduces the polynomial method
+  to incidence-style problems in 2008; ST gets a polynomial proof shortly after.</li>
+  <li><a href="https://mino.mobi/capset/">capset</a> applies the same technique to
+  finite-field arithmetic-progression-free sets.</li>
+  <li><a href="https://mino.mobi/erdos/">erdős</a>'s unit-distance question is a
+  cousin: count point pairs at a fixed distance, instead of point-line incidences.
+  It uses ST as one of its inputs.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/capset/">capset</a>
+</footer>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Incidence count: a point (x, y) is on a line (a, b, c) representing
+// ax + by + c = 0 if a*x + b*y + c is approximately zero. We use a
+// small absolute tolerance.
+function countIncidences(points, lines) {
+  let n = 0;
+  for (const L of lines) {
+    for (const p of points) {
+      if (Math.abs(L.a * p.x + L.b * p.y + L.c) < 1e-6) n++;
+    }
+  }
+  return n;
+}
+
+// Per-point hit count, used for visual emphasis.
+function pointHitCounts(points, lines) {
+  const hits = new Array(points.length).fill(0);
+  for (let i = 0; i < points.length; i++) {
+    for (const L of lines) {
+      if (Math.abs(L.a * points[i].x + L.b * points[i].y + L.c) < 1e-6) hits[i]++;
+    }
+  }
+  return hits;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Configurations
+// ─────────────────────────────────────────────────────────────────────
+
+// Erdős tight construction. Returns { points, lines, bbox }.
+// Points on {1..K} × {1..2K²}; lines y = ax + b with 1 ≤ a ≤ K, 1 ≤ b ≤ K².
+// We transpose for display so the grid is wide × short.
+function tightConstruction(K) {
+  const points = [];
+  for (let x = 1; x <= K; x++) {
+    for (let y = 1; y <= 2 * K * K; y++) {
+      points.push({ x, y });
+    }
+  }
+  const lines = [];
+  for (let a = 1; a <= K; a++) {
+    for (let b = 1; b <= K * K; b++) {
+      // Line: y = a*x + b  ⇔  a*x - y + b = 0
+      lines.push({ a: a, b: -1, c: b, slope: a, intercept: b });
+    }
+  }
+  return {
+    points, lines,
+    bbox: { xmin: 0.5, xmax: K + 0.5, ymin: 0.5, ymax: 2 * K * K + 0.5 },
+    K,
+  };
+}
+
+// Random points + random lines through pairs of integer points in a square.
+// Uses a fixed seed so the visual is stable on slider movement.
+function mulberry32(seed) {
+  return function() {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomConfig(m, n, seed = 0xa17e) {
+  const rng = mulberry32(seed);
+  const S = 30;  // points live in [0, S] × [0, S]
+  const points = [];
+  // Sample with integer coords so collinearity is plausible but rare.
+  const seen = new Set();
+  while (points.length < m) {
+    const x = Math.floor(rng() * (S + 1));
+    const y = Math.floor(rng() * (S + 1));
+    const key = x * 100 + y;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    points.push({ x, y });
+  }
+  const lines = [];
+  let safety = 0;
+  while (lines.length < n && safety < n * 10) {
+    safety++;
+    const i = Math.floor(rng() * points.length);
+    let j = Math.floor(rng() * points.length);
+    if (j === i) j = (j + 1) % points.length;
+    const p = points[i], q = points[j];
+    // Line through p and q: (q.y - p.y) x + (p.x - q.x) y + (q.x p.y - p.x q.y) = 0
+    const a = q.y - p.y;
+    const b = p.x - q.x;
+    const c = q.x * p.y - p.x * q.y;
+    // Normalise so equality compares precisely on integer grids.
+    const g = gcd3(Math.abs(a), Math.abs(b), Math.abs(c)) || 1;
+    const sa = a / g, sb = b / g, sc = c / g;
+    // Canonicalise sign so duplicate lines collapse.
+    const key = `${sa},${sb},${sc}|${-sa},${-sb},${-sc}`.split('|').sort()[0];
+    if (lines.some(L => L.key === key)) continue;
+    lines.push({ a: sa, b: sb, c: sc, key });
+  }
+  return {
+    points, lines,
+    bbox: { xmin: -1, xmax: S + 1, ymin: -1, ymax: S + 1 },
+  };
+}
+
+function gcd2(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
+function gcd3(a, b, c) { return gcd2(gcd2(a, b), c); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('viz');
+const ctx = canvas.getContext('2d');
+
+function renderConfig(cfg) {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const { points, lines, bbox } = cfg;
+  const PAD = 26;
+  const xspan = bbox.xmax - bbox.xmin;
+  const yspan = bbox.ymax - bbox.ymin;
+  const sx = (W - 2 * PAD) / xspan;
+  const sy = (H - 2 * PAD) / yspan;
+  function tx(x) { return PAD + (x - bbox.xmin) * sx; }
+  function ty(y) { return H - PAD - (y - bbox.ymin) * sy; }
+
+  // Pre-compute hit counts to size points
+  const hits = pointHitCounts(points, lines);
+
+  // Draw lines first (so points sit on top)
+  ctx.strokeStyle = cssVar('--line-stroke') || 'rgba(90,26,58,0.45)';
+  ctx.lineWidth = 0.8;
+  for (const L of lines) {
+    // Find two intersection points of L with the bbox.
+    // L: a*x + b*y + c = 0  →  y = -(a*x + c)/b  when b != 0.
+    const x0 = bbox.xmin, x1 = bbox.xmax;
+    const y0 = bbox.ymin, y1 = bbox.ymax;
+    const pts = [];
+    function pushIf(x, y) {
+      if (x >= x0 - 1e-6 && x <= x1 + 1e-6 && y >= y0 - 1e-6 && y <= y1 + 1e-6) {
+        pts.push({ x, y });
+      }
+    }
+    if (Math.abs(L.b) > 1e-9) {
+      pushIf(x0, -(L.a * x0 + L.c) / L.b);
+      pushIf(x1, -(L.a * x1 + L.c) / L.b);
+    }
+    if (Math.abs(L.a) > 1e-9) {
+      pushIf(-(L.b * y0 + L.c) / L.a, y0);
+      pushIf(-(L.b * y1 + L.c) / L.a, y1);
+    }
+    if (pts.length >= 2) {
+      ctx.beginPath();
+      ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+      ctx.lineTo(tx(pts[1].x), ty(pts[1].y));
+      ctx.stroke();
+    }
+  }
+
+  // Draw points; size and colour by hit count
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const h = hits[i];
+    const r = h > 0 ? Math.min(4, 2 + h * 0.4) : 1.8;
+    ctx.beginPath();
+    ctx.arc(tx(p.x), ty(p.y), r, 0, Math.PI * 2);
+    if (h > 0) {
+      ctx.fillStyle = cssVar('--hit') || '#5a1a3a';
+      ctx.fill();
+    } else {
+      ctx.fillStyle = cssVar('--pt-cold') || '#b0b0b0';
+      ctx.fill();
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// State + UI
+// ─────────────────────────────────────────────────────────────────────
+
+let mode = 'tight';
+let K = 3;
+let rm = 80, rn = 40;
+
+function currentConfig() {
+  if (mode === 'tight') return tightConstruction(K);
+  return randomConfig(rm, rn);
+}
+
+function fmt(x, digits = 0) {
+  if (!Number.isFinite(x)) return '—';
+  if (digits === 0) return String(Math.round(x));
+  return x.toFixed(digits);
+}
+
+function refresh() {
+  const cfg = currentConfig();
+  renderConfig(cfg);
+
+  const m = cfg.points.length;
+  const n = cfg.lines.length;
+  const I = countIncidences(cfg.points, cfg.lines);
+  const mnPow = Math.pow(m * n, 2 / 3);
+  const boundC = mnPow + m + n;         // bound with constant C = 1
+  const ratio = mnPow > 0 ? I / mnPow : 0;
+
+  const statHtml = `
+    <div class="stat-row"><span class="k">m · points</span><span class="v">${fmt(m)}</span></div>
+    <div class="stat-row"><span class="k">n · lines</span><span class="v">${fmt(n)}</span></div>
+    <div class="stat-row"><span class="k">I · incidences</span><span class="v hot">${fmt(I)}</span></div>
+    <div class="stat-row"><span class="k">(mn)<sup>2/3</sup></span><span class="v">${fmt(mnPow, 1)}</span></div>
+    <div class="stat-row"><span class="k">m + n</span><span class="v">${fmt(m + n)}</span></div>
+    <div class="stat-row"><span class="k">bound (C=1)</span><span class="v">${fmt(boundC, 1)}</span></div>
+    <div class="stat-row"><span class="k">I / (mn)<sup>2/3</sup></span><span class="v win">${fmt(ratio, 3)}</span></div>
+  `;
+  document.getElementById('stats').innerHTML = statHtml;
+
+  let verdictText, verdictClass;
+  if (mode === 'tight') {
+    verdictText = `tight: ratio ≈ 2<sup>−2/3</sup> = ${fmt(Math.pow(2, -2 / 3), 3)} (theoretical limit)`;
+    verdictClass = 'verdict tight';
+  } else {
+    verdictText = `random: typically I ≈ m + n; bound is loose by a factor of ${fmt(boundC / Math.max(I, 1), 1)}×`;
+    verdictClass = 'verdict';
+  }
+  const v = document.getElementById('verdict');
+  v.className = verdictClass;
+  v.innerHTML = verdictText;
+}
+
+// Mode buttons
+document.querySelectorAll('#mode-row .btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('#mode-row .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    document.getElementById('k-group').style.display       = (mode === 'tight') ? '' : 'none';
+    document.getElementById('random-m-group').style.display = (mode === 'random') ? '' : 'none';
+    document.getElementById('random-n-group').style.display = (mode === 'random') ? '' : 'none';
+    refresh();
+  });
+});
+
+document.getElementById('k-slider').addEventListener('input', e => {
+  K = parseInt(e.target.value, 10);
+  document.getElementById('k-val').textContent = K;
+  refresh();
+});
+
+document.getElementById('rm-slider').addEventListener('input', e => {
+  rm = parseInt(e.target.value, 10);
+  document.getElementById('rm-val').textContent = rm;
+  refresh();
+});
+
+document.getElementById('rn-slider').addEventListener('input', e => {
+  rn = parseInt(e.target.value, 10);
+  document.getElementById('rn-val').textContent = rn;
+  refresh();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav.tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'growth') renderGrowth();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth tab — log-log scaling
+// ─────────────────────────────────────────────────────────────────────
+
+const growthCanvas = document.getElementById('growth-canvas');
+const gctx = growthCanvas.getContext('2d');
+
+// Pre-compute tight values for K = 1..6 and a sweep of random samples.
+function growthData() {
+  const tight = [];
+  for (let k = 1; k <= 6; k++) {
+    const m = 2 * k * k * k;
+    const n = k * k * k;
+    const I = k * k * k * k;
+    tight.push({ k, m, n, I, label: 'K=' + k });
+  }
+  const random = [];
+  // Random sweep: a handful of (m, n) pairs.
+  const cases = [
+    { m: 30,  n: 20 },
+    { m: 60,  n: 40 },
+    { m: 100, n: 60 },
+    { m: 150, n: 100 },
+    { m: 220, n: 140 },
+  ];
+  for (const c of cases) {
+    const cfg = randomConfig(c.m, c.n, 0xa17e);
+    const I = countIncidences(cfg.points, cfg.lines);
+    random.push({ m: c.m, n: c.n, I });
+  }
+  return { tight, random };
+}
+
+function renderGrowth() {
+  const W = growthCanvas.width, H = growthCanvas.height;
+  gctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  gctx.fillRect(0, 0, W, H);
+
+  const data = growthData();
+  // Compute log10 ranges
+  const allMN = [...data.tight, ...data.random].map(d => d.m * d.n);
+  const allI  = [...data.tight, ...data.random].map(d => Math.max(d.I, 1));
+  const xmin = Math.log10(Math.min(...allMN)) - 0.2;
+  const xmax = Math.log10(Math.max(...allMN)) + 0.2;
+  const ymin = Math.log10(Math.min(...allI))  - 0.4;
+  const ymax = Math.log10(Math.max(...allI))  + 0.3;
+  const PAD = { l: 60, r: 20, t: 24, b: 44 };
+
+  function tx(lx) { return PAD.l + (lx - xmin) / (xmax - xmin) * (W - PAD.l - PAD.r); }
+  function ty(ly) { return H - PAD.b - (ly - ymin) / (ymax - ymin) * (H - PAD.t - PAD.b); }
+
+  // Axes
+  gctx.strokeStyle = cssVar('--bound-stroke') || 'rgba(0,0,0,0.35)';
+  gctx.lineWidth = 1;
+  gctx.beginPath();
+  gctx.moveTo(PAD.l, PAD.t);
+  gctx.lineTo(PAD.l, H - PAD.b);
+  gctx.lineTo(W - PAD.r, H - PAD.b);
+  gctx.stroke();
+
+  // Tick marks
+  gctx.fillStyle = cssVar('--muted') || '#777';
+  gctx.font = '10px ui-monospace, monospace';
+  gctx.textAlign = 'center';
+  for (let v = Math.ceil(xmin); v <= Math.floor(xmax); v++) {
+    const x = tx(v);
+    gctx.beginPath(); gctx.moveTo(x, H - PAD.b); gctx.lineTo(x, H - PAD.b + 4); gctx.stroke();
+    gctx.fillText('10' + supScript(v), x, H - PAD.b + 16);
+  }
+  gctx.textAlign = 'right';
+  for (let v = Math.ceil(ymin); v <= Math.floor(ymax); v++) {
+    const y = ty(v);
+    gctx.beginPath(); gctx.moveTo(PAD.l - 4, y); gctx.lineTo(PAD.l, y); gctx.stroke();
+    gctx.fillText('10' + supScript(v), PAD.l - 8, y + 3);
+  }
+
+  // Axis labels
+  gctx.fillStyle = cssVar('--muted') || '#777';
+  gctx.font = '11px ui-monospace, monospace';
+  gctx.textAlign = 'center';
+  gctx.fillText('m · n', (PAD.l + W - PAD.r) / 2, H - 12);
+  gctx.save();
+  gctx.translate(18, (PAD.t + H - PAD.b) / 2);
+  gctx.rotate(-Math.PI / 2);
+  gctx.fillText('I  (incidences)', 0, 0);
+  gctx.restore();
+
+  // Reference line: I = (mn)^(2/3)
+  // In log space: log I = (2/3) log(mn). Plot two endpoints over the visible range.
+  gctx.strokeStyle = cssVar('--bound-stroke') || 'rgba(0,0,0,0.45)';
+  gctx.lineWidth = 1.2;
+  gctx.setLineDash([4, 4]);
+  gctx.beginPath();
+  gctx.moveTo(tx(xmin), ty((2 / 3) * xmin));
+  gctx.lineTo(tx(xmax), ty((2 / 3) * xmax));
+  gctx.stroke();
+  gctx.setLineDash([]);
+  // Reference line label
+  gctx.fillStyle = cssVar('--muted') || '#777';
+  gctx.font = 'italic 10px ui-monospace, monospace';
+  gctx.textAlign = 'left';
+  const refLabelX = xmin + (xmax - xmin) * 0.62;
+  gctx.fillText('I = (mn)²ᐟ³', tx(refLabelX) + 6, ty((2 / 3) * refLabelX) - 6);
+
+  // Tight construction trace
+  gctx.strokeStyle = cssVar('--accent') || '#5a1a3a';
+  gctx.lineWidth = 1.6;
+  gctx.beginPath();
+  data.tight.forEach((d, i) => {
+    const x = tx(Math.log10(d.m * d.n));
+    const y = ty(Math.log10(d.I));
+    if (i === 0) gctx.moveTo(x, y); else gctx.lineTo(x, y);
+  });
+  gctx.stroke();
+  // Tight dots + labels
+  for (const d of data.tight) {
+    const x = tx(Math.log10(d.m * d.n));
+    const y = ty(Math.log10(d.I));
+    gctx.fillStyle = cssVar('--accent') || '#5a1a3a';
+    gctx.beginPath(); gctx.arc(x, y, 4, 0, Math.PI * 2); gctx.fill();
+    gctx.font = '10px ui-monospace, monospace';
+    gctx.textAlign = 'left';
+    gctx.fillText(d.label, x + 7, y + 4);
+  }
+
+  // Random dots
+  gctx.fillStyle = cssVar('--pt-cold') || '#b0b0b0';
+  for (const d of data.random) {
+    if (d.I < 1) continue;
+    const x = tx(Math.log10(d.m * d.n));
+    const y = ty(Math.log10(d.I));
+    gctx.beginPath(); gctx.arc(x, y, 3.5, 0, Math.PI * 2); gctx.fill();
+  }
+  // Random series label
+  if (data.random.length > 0) {
+    const last = data.random[data.random.length - 1];
+    if (last.I >= 1) {
+      const x = tx(Math.log10(last.m * last.n));
+      const y = ty(Math.log10(last.I));
+      gctx.fillStyle = cssVar('--muted') || '#777';
+      gctx.font = '10px ui-monospace, monospace';
+      gctx.textAlign = 'left';
+      gctx.fillText('random', x + 7, y + 4);
+    }
+  }
+
+  // Stats table below the chart
+  let html = '<div class="stat-row"><span class="k">construction</span><span class="v">m · n · I · I/(mn)²ᐟ³</span></div>';
+  for (const d of data.tight) {
+    const ratio = d.I / Math.pow(d.m * d.n, 2 / 3);
+    html += `<div class="stat-row"><span class="k">${d.label}</span><span class="v">${d.m} · ${d.n} · ${d.I} · ${ratio.toFixed(3)}</span></div>`;
+  }
+  document.getElementById('growth-stats').innerHTML = html;
+}
+
+function supScript(n) {
+  const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  return String(n).split('').map(c => map[c] || c).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────
+refresh();
+window.addEventListener('resize', () => {
+  refresh();
+  if (document.getElementById('pane-growth').classList.contains('active')) renderGrowth();
+});
+</script>
+
+</body>
+</html>

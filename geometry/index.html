@@ -28,6 +28,7 @@
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
+  --c-st:       #5a1a3a;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -54,6 +55,7 @@
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
+    --c-st:       #d870a8;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -341,7 +343,8 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/hadwiger/">hadwiger</a> ·
     <a href="https://mino.mobi/runner/">runner</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
-    <a href="https://mino.mobi/capset/">capset</a>
+    <a href="https://mino.mobi/capset/">capset</a> ·
+    <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
   </p>
 </header>
@@ -393,12 +396,6 @@ footer a:hover { color: var(--accent); }
 <h3 style="margin-top:0.6rem">Next</h3>
 <ol class="roadmap">
   <li>
-    <span class="item-name">/szemeredi-trotter/</span> — point-line incidence bound,
-    O((mn)^(2/3) + m + n). 1983, foundational, underlies guthkatz. Interactive grid +
-    lines, drag to see the realised incidence count track the bound. The "missing
-    ancestor" of the polynomial-method trilogy.
-  </li>
-  <li>
     <span class="item-name">/heilbronn/</span> — place n points in the unit square to
     maximise the smallest triangle area. Records get updated regularly via heuristic
     search; build the site as a record-attempt sandbox with a poll/draw-backed
@@ -410,19 +407,21 @@ footer a:hover { color: var(--accent); }
     erdős: unexpected construction wrecks low-dim intuition. Need to find a way to viz
     counterexamples that live in dim ≥ 64.
   </li>
-</ol>
-
-<h3>Other candidates</h3>
-<ul class="candidates">
   <li>
     <span class="item-name">/viazovska/</span> — sphere packing in dim 8 (E₈) and dim 24
     (Leech lattice). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D
     projections of the lattice + a density argument that updates as you scrub through
     projections.
   </li>
+</ol>
+
+<h3>Other candidates</h3>
+<ul class="candidates">
   <li>
     <span class="item-name">/elekes/</span> — sum-product bound. Erdős–Szemerédi 1983;
-    incremental progress over decades; current bound around |A|^{4/3 − ε}.
+    incremental progress over decades; current bound around |A|^{4/3 − ε}. Sister
+    problem to <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> —
+    same year, also resolved with incidence-counting machinery.
   </li>
   <li>
     <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
@@ -494,6 +493,18 @@ footer a:hover { color: var(--accent); }
 // Family-resemblance table — data, render, sort
 // ─────────────────────────────────────────────────────────────────────
 const PACK = [
+  {
+    name: 'szemerédi–trotter',
+    url:  'https://mino.mobi/szemeredi-trotter/',
+    accent: 'var(--c-st)',
+    problem: 'Point-line incidences in ℝ²',
+    era: 1983,
+    eraText: 'Szemerédi–Trotter 1983',
+    tech: 'cell decomposition',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'proved (tight)',
+  },
   {
     name: 'kakeya',
     url:  'https://mino.mobi/kakeya/',

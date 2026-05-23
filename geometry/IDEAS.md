@@ -13,22 +13,22 @@ Interactive sites on extremal-geometry conjectures: each follows the same shape 
 | `/runner/` | Lonely runner conjecture | Wills 1967, proven k ≤ 7, open for k ≥ 8 — animation-native | teal `#0aa19c` |
 | `/kakeya/` | Finite-field Kakeya conjecture | Dvir 2008 five-page polynomial-method proof; ancestor of Guth–Katz | rust `#a35a00` |
 | `/capset/` | Cap-set problem in 𝔽₃ⁿ | Ellenberg–Gijswijt 2016 broke 3ⁿ/n to 2.756ⁿ — polynomial method again | pine green `#3a8a40` |
+| `/szemeredi-trotter/` | Point-line incidences in ℝ² | Szemerédi–Trotter 1983 — I ≤ C(mn)^(2/3) + m + n. The Erdős tight construction (K × 2K² grid + K³ lines) matches the bound at I/(mn)^(2/3) = 2^(−2/3) ≈ 0.63 for every K. The seed crystal that the polynomial-method trilogy grew out of. | wine `#5a1a3a` |
 | `/elements/` | Periodic table as mandala | Concentric rings = shells (n=1..7); angular sectors = s/f/d/p blocks sized by capacity, ordered to follow atomic number; chemistry-view toggle aligns nobles with helium and straddles hydrogen across alkali + halogen columns. Each of 118 element nodes deeplinks to Wikipedia. Branch from the main pack — chem-not-geometry, but same scaffold | indigo `#3d4a72` |
 
 ## Next priorities
 
 (Top of list when extending the pack. Keep this ordered.)
 
-1. **`/szemeredi-trotter/`** — Point-line incidence bound, O((mn)^(2/3) + m + n). 1983, foundational, underlies guthkatz. Interactive grid + lines, drag to see incidences match the bound. The "missing ancestor" of the polynomial-method trilogy.
+1. **`/heilbronn/`** — Place n points in unit square to maximize the smallest triangle. Records get updated regularly via heuristic search; site as a record-attempt sandbox with leaderboard via poll/draw infrastructure.
 
-2. **`/heilbronn/`** — Place n points in unit square to maximize the smallest triangle. Records get updated regularly via heuristic search; site as a record-attempt sandbox with leaderboard via poll/draw infrastructure.
+2. **`/borsuk/`** — Borsuk's 1933 partition conjecture, disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as erdős: unexpected construction wrecks low-dim intuition. Hard to viz in dim ≥ 64 — solving that part is most of the work.
 
-3. **`/borsuk/`** — Borsuk's 1933 partition conjecture, disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as erdős: unexpected construction wrecks low-dim intuition. Hard to viz in dim ≥ 64 — solving that part is most of the work.
+3. **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
 
 ## Other candidates
 
-- **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
-- **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983; progress over decades; current bound ~|A|^{4/3 - ε}.
+- **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983 (same year as ST, sister problem with shared machinery); progress over decades; current bound ~|A|^{4/3 - ε}.
 - **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
 
 ## Pattern notes
