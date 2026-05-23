@@ -31,6 +31,13 @@
   }
   ul.problems a { font-weight: 600; text-decoration: none; }
   ul.problems a:hover { text-decoration: underline; }
+  .section-note {
+    font-size: 0.9rem;
+    color: #888;
+    font-style: italic;
+    margin: -0.25rem 0 0.5rem;
+  }
+  @media (prefers-color-scheme: dark) { .section-note { color: #999; } }
   ul.problems .tag {
     font-size: 0.8rem;
     color: #888;
@@ -66,10 +73,12 @@ that used to need a week and a numerical-methods refresher.
 The skill being grown isn't <em>know finite elements</em>. It's
 <em>direct and audit a collaborator that supplies them</em>. Every problem
 here is open-ended, with staged hints, and ends with one example solution
-shown as calibration &mdash; not as an answer key. Validation comes from
-the physics itself: a wrong solver announces itself when energy isn't
-conserved, when units don't work, when the uniform case fails to match a
-known closed-form answer.
+shown as calibration &mdash; not as an answer key. Validation never comes
+from a grader; it comes from an oracle you can check yourself. For a
+physics solver that's the physics &mdash; energy must conserve, the
+uniform case must match the closed form. For a data analysis it's
+reconciliation &mdash; the totals must tie out, the headline must survive
+a robustness check. A wrong answer announces itself either way.
 </p>
 
 <h2>Getting started</h2>
@@ -84,7 +93,11 @@ known closed-form answer.
   </li>
 </ul>
 
-<h2>Problems</h2>
+<h2>Numerical solvers</h2>
+<p class="section-note">
+  Stand up a solver for a half-remembered physics problem; the physics
+  is the oracle.
+</p>
 <ul class="problems">
   <li>
     <a href="./problems/beam-deflection/">Beam deflection</a>
@@ -112,6 +125,22 @@ known closed-form answer.
       Euler&ndash;Bernoulli beam, natural frequencies and mode shapes.
       Verify against the closed-form &beta;L roots; perturb until the
       closed form is gone.
+    </div>
+  </li>
+</ul>
+
+<h2>Data &amp; analysis</h2>
+<p class="section-note">
+  Process real data to a report; reconciliation is the oracle.
+</p>
+<ul class="problems">
+  <li>
+    <a href="./problems/spend-report/">Spend report from a messy export</a>
+    <span class="tag">data &middot; reconciliation &middot; Office replacement</span>
+    <div class="desc">
+      A real-feeling purchase-order CSV with planted defects. Clean it,
+      total it, chart it &mdash; then watch the headline finding flip
+      when reconciliation catches a typo every other check missed.
     </div>
   </li>
 </ul>
