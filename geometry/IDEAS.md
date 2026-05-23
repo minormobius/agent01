@@ -15,22 +15,23 @@ Interactive sites on extremal-geometry conjectures: each follows the same shape 
 | `/capset/` | Cap-set problem in 𝔽₃ⁿ | Ellenberg–Gijswijt 2016 broke 3ⁿ/n to 2.756ⁿ — polynomial method again | pine green `#3a8a40` |
 | `/szemeredi-trotter/` | Point-line incidences in ℝ² | Szemerédi–Trotter 1983 — I ≤ C(mn)^(2/3) + m + n. The Erdős tight construction (K × 2K² grid + K³ lines) matches the bound at I/(mn)^(2/3) = 2^(−2/3) ≈ 0.63 for every K. The seed crystal that the polynomial-method trilogy grew out of. | wine `#5a1a3a` |
 | `/heilbronn/` | Maximize the smallest triangle | Heilbronn ~1950, open. Place n points in unit square; score is min over C(n, 3) triangles. Heilbronn conjectured Θ(1/n²); KPS 1981 disproved with c·log(n)/n². Drag + in-page annealer + localStorage personal-best tracker. Bounds plot includes Cohen–Pohoata–Zakharov 2024 upper bound. | moss `#2a6a4a` |
+| `/borsuk/` | Partition into smaller pieces | Borsuk 1933 conjectured ℝᵈ subsets need only d+1 pieces. True in dim ≤ 3; Kahn–Kalai 1993 disproved at d=1325 via Frankl–Wilson. 2D demo (drag polygon, rotate radial 3-cut) + dimension-race timeline 1325 → 65 → 64. The "open band 4..63" is the still-unknown zone. | midnight `#3a3060` |
 | `/elements/` | Periodic table as mandala | Concentric rings = shells (n=1..7); angular sectors = s/f/d/p blocks sized by capacity, ordered to follow atomic number; chemistry-view toggle aligns nobles with helium and straddles hydrogen across alkali + halogen columns. Each of 118 element nodes deeplinks to Wikipedia. Branch from the main pack — chem-not-geometry, but same scaffold | indigo `#3d4a72` |
 
 ## Next priorities
 
 (Top of list when extending the pack. Keep this ordered.)
 
-1. **`/borsuk/`** — Borsuk's 1933 partition conjecture, disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as erdős: unexpected construction wrecks low-dim intuition. Hard to viz in dim ≥ 64 — solving that part is most of the work.
+1. **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
 
-2. **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
+2. **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983 (same year as ST, sister problem with shared machinery); progress over decades; current bound ~|A|^{4/3 - ε}.
 
-3. **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983 (same year as ST, sister problem with shared machinery); progress over decades; current bound ~|A|^{4/3 - ε}.
+3. **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
 
 ## Other candidates
 
-- **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
 - **`/cohen-pohoata-zakharov/`** — explicit 2024 improvement on Heilbronn's upper bound, via polynomial method. Could spin off from `/heilbronn/` as a technique-focused explainer.
+- **`/frankl-wilson/`** — the rank-of-incidence-matrix theorem that drove the original Kahn–Kalai counterexample on `/borsuk/`. Adjacent to capset; could anchor a "finite-field linear-algebra toolkit" page.
 - **Leaderboard for `/heilbronn/`** — the current version stores personal bests in localStorage; future iteration could wire it to the poll/draw backend for a global leaderboard with submission verification.
 
 ## Pattern notes

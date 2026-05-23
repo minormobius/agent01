@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>borsuk — partitioning sets into smaller pieces</title>
+<meta name="description" content="Borsuk's 1933 conjecture: every bounded subset of ℝᵈ splits into d+1 pieces of strictly smaller diameter. True in dim 2 and 3 (drag a polygon to verify). Disproved by Kahn–Kalai 1993 in dim 1325; the threshold has shrunk to dim 64.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #3a3060;
+  --accent-faint: rgba(58, 48, 96, 0.10);
+  --accent-tint: rgba(58, 48, 96, 0.06);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #e6e2ee;
+  --tag-text: #2a2050;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* Three piece colours — distinct hues sharing the accent's saturation */
+  --p1: #a64a4a;
+  --p2: #4a8a6a;
+  --p3: #4a6aa6;
+  --p1-fill: rgba(166, 74, 74, 0.10);
+  --p2-fill: rgba(74, 138, 106, 0.10);
+  --p3-fill: rgba(74, 106, 166, 0.10);
+  --shape-stroke: #222;
+  --diam-stroke: rgba(58, 48, 96, 0.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #9080d4;
+    --accent-faint: rgba(144, 128, 212, 0.12);
+    --accent-tint: rgba(144, 128, 212, 0.06);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #1a1828;
+    --tag-text: #a89cd4;
+    --shape-stroke: #222;
+    --diam-stroke: rgba(58, 48, 96, 0.85);
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.work-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .work-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas.field {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  touch-action: none;
+  cursor: crosshair;
+}
+canvas.timeline {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 1rem;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val {
+  font-size: 0.7rem;
+  color: var(--accent);
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.p1 { color: var(--p1); }
+.stat-row .v.p2 { color: var(--p2); }
+.stat-row .v.p3 { color: var(--p3); }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+  color: var(--muted);
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.fail { color: #b04030; font-weight: 600; }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.4rem;
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>borsuk</h1>
+  <p class="subtitle">partition into smaller pieces · false above dim 63</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="low" role="tab">low-dim</button>
+  <button class="tab" data-tab="timeline" role="tab">dimension race</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- LOW-DIM TAB ───────────────────────────────────────────────────── -->
+<div class="pane active" id="pane-low">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Borsuk's 1933 conjecture: every bounded set in ℝᵈ can be cut into d+1 pieces, each of
+  strictly smaller diameter than the original. In dim 2 you need 3 pieces; in dim 3
+  you need 4. Drag the polygon to test — the radial partition from the centroid keeps
+  every piece under the original diameter, no matter what you try.
+</p>
+
+<div class="work-wrap">
+  <canvas id="field" class="field" width="600" height="600"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">shape</span>
+      <div class="btn-row">
+        <button class="btn active" data-shape="hexagon">hexagon</button>
+        <button class="btn" data-shape="circle">circle</button>
+        <button class="btn" data-shape="square">square</button>
+        <button class="btn" data-shape="triangle">triangle</button>
+        <button class="btn" data-shape="reuleaux">reuleaux</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">cut rotation · θ</span>
+      <div class="slider-row">
+        <input type="range" id="theta-slider" min="0" max="120" step="1" value="0">
+        <span class="val" id="theta-val">0°</span>
+      </div>
+      <div class="stat-note">
+        The three radial cuts rotate together. Borsuk's theorem promises some θ makes
+        every piece smaller; in 2D, almost every θ does.
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- TIMELINE TAB ──────────────────────────────────────────────────── -->
+<div class="pane" id="pane-timeline">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Borsuk's conjecture stood for 60 years before Kahn and Kalai broke it in dim 1325 by
+  reusing the Frankl–Wilson theorem. The minimum known dimension where the conjecture
+  fails has been shrinking ever since — currently down to 64 (Jenrich 2014). Whether
+  it's false in any dimension between 4 and 63 is still open.
+</p>
+
+<canvas id="timeline-canvas" class="timeline" width="700" height="420"></canvas>
+
+<div class="stats" id="timeline-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.85;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
+<!-- DOCS TAB ──────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="meta-stamp">Karol Borsuk · 1933 · false above dim 63</p>
+
+<p>
+  Take a bounded subset of ℝᵈ. Its <em>diameter</em> is the largest distance between
+  any two of its points. Borsuk asked: can we always split it into pieces, each of
+  smaller diameter, and how many pieces do we need?
+</p>
+
+<blockquote>
+  Borsuk 1933: d+1 pieces always suffice.
+</blockquote>
+
+<p>
+  This isn't crazy. A disk in the plane splits into 3 sectors of 120° each; each
+  sector has diameter √3·R &lt; 2R. A ball in 3-space splits into 4 pieces using an
+  inscribed regular tetrahedron. Borsuk himself proved it in dim 2; Eggleston proved
+  it in dim 3 using a clever projection argument. The conjecture was on its way.
+</p>
+
+<h2>The Kahn–Kalai breakthrough</h2>
+<p>
+  Sixty years later, Jeff Kahn and Gil Kalai exhibited a finite set of ±1 vectors in
+  dim 1325 that resists partition into 1326 smaller-diameter pieces. The construction
+  uses the Frankl–Wilson theorem on the rank of certain set-incidence matrices over
+  finite fields. The "set" is the vertices of a Hamming-style configuration where most
+  pairs of vectors achieve the maximum pairwise distance — so any partition must split
+  many such pairs apart, and 1326 isn't enough.
+</p>
+
+<p>
+  The number of pieces required actually grows faster than any polynomial in d. Kahn
+  and Kalai showed B(d) ≥ (1.2)<sup>√d</sup> asymptotically; later authors have
+  improved the base.
+</p>
+
+<h2>The dimension race</h2>
+<p>
+  Once the conjecture was known to fail somewhere, attention turned to the lowest
+  dimension where it does. Each improvement comes from sharpening the combinatorial
+  construction:
+</p>
+<ul>
+  <li><strong>Kahn–Kalai 1993</strong> · dim 1325</li>
+  <li><strong>Raigorodskii 1997</strong> · dim 561</li>
+  <li><strong>Hinrichs 1999</strong> · dim 323</li>
+  <li><strong>Hinrichs–Richter 2003</strong> · dim 298</li>
+  <li><strong>Bondarenko 2014</strong> · dim 65, two-distance set on a sphere</li>
+  <li><strong>Jenrich 2014</strong> · dim 64, refining Bondarenko</li>
+</ul>
+<p>
+  Whether the conjecture fails in any dimension between 4 and 63 is open. For
+  applications in convex geometry it's also open whether <em>smooth convex bodies</em>
+  satisfy the conjecture — the known counterexamples are all finite point sets, which
+  is allowed but feels like cheating.
+</p>
+
+<h2>Connections in the pack</h2>
+<ul>
+  <li>Like <a href="https://mino.mobi/erdos/">erdős</a>'s unit-distance question
+  (also disproven by an unexpected construction), borsuk shows low-dimensional
+  intuition fails badly in high dim. Both are "the conjecture was a guess, and the
+  guess was wrong."</li>
+  <li>The Frankl–Wilson theorem is also the seed for
+  <a href="https://mino.mobi/capset/">capset</a>-adjacent finite-field counting
+  arguments; both live in the same combinatorial-geometry toolbox.</li>
+  <li>Unlike <a href="https://mino.mobi/heilbronn/">heilbronn</a>, where the right
+  answer is unknown but the gap is bounded, borsuk's answer is now known to be
+  unboundedly off from the conjectured d+1.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/capset/">capset</a>
+  <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+</footer>
+
+<script>
+'use strict';
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Shape data: each shape is a polygon (vertices in unit-square coords
+// centred at 0.5, 0.5). For circles + reuleaux we use fine discretisation.
+// ─────────────────────────────────────────────────────────────────────
+
+function regularNgon(n, r = 0.42, rotation = -Math.PI / 2) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = rotation + (i / n) * 2 * Math.PI;
+    pts.push({ x: 0.5 + r * Math.cos(a), y: 0.5 + r * Math.sin(a) });
+  }
+  return pts;
+}
+
+function reuleauxTriangle() {
+  // Reuleaux triangle: take three vertices of an equilateral triangle,
+  // each arc is the part of a circle centred at the opposite vertex.
+  // Approximate by 90 boundary points.
+  const r = 0.42;
+  const cx = 0.5, cy = 0.5;
+  // Three triangle vertices
+  const v = [];
+  for (let i = 0; i < 3; i++) {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / 3;
+    v.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  }
+  // For each arc: from v[i] to v[(i+1)%3] going around v[(i+2)%3] of radius |v_i v_{i+2}|.
+  const pts = [];
+  const steps = 30;
+  for (let i = 0; i < 3; i++) {
+    const a = v[i], b = v[(i + 1) % 3], c = v[(i + 2) % 3];
+    const radius = Math.hypot(a.x - c.x, a.y - c.y);
+    const startAng = Math.atan2(a.y - c.y, a.x - c.x);
+    const endAng   = Math.atan2(b.y - c.y, b.x - c.x);
+    // Sweep the arc the short way (it goes outward through the bulge)
+    let sweep = endAng - startAng;
+    while (sweep > Math.PI) sweep -= 2 * Math.PI;
+    while (sweep < -Math.PI) sweep += 2 * Math.PI;
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      const ang = startAng + sweep * t;
+      pts.push({ x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
+    }
+  }
+  return pts;
+}
+
+function makeShape(name) {
+  switch (name) {
+    case 'hexagon':  return regularNgon(6);
+    case 'circle':   return regularNgon(64);
+    case 'square':   return [
+      { x: 0.15, y: 0.15 }, { x: 0.85, y: 0.15 },
+      { x: 0.85, y: 0.85 }, { x: 0.15, y: 0.85 }
+    ];
+    case 'triangle': return regularNgon(3);
+    case 'reuleaux': return reuleauxTriangle();
+  }
+  return regularNgon(6);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Geometry helpers
+// ─────────────────────────────────────────────────────────────────────
+
+function centroid(pts) {
+  // Polygon centroid via signed area formula
+  let cx = 0, cy = 0, A = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], q = pts[(i + 1) % pts.length];
+    const cross = p.x * q.y - q.x * p.y;
+    A += cross;
+    cx += (p.x + q.x) * cross;
+    cy += (p.y + q.y) * cross;
+  }
+  A /= 2;
+  if (Math.abs(A) < 1e-9) {
+    // Degenerate; fall back to mean
+    cx = 0; cy = 0;
+    for (const p of pts) { cx += p.x; cy += p.y; }
+    return { x: cx / pts.length, y: cy / pts.length };
+  }
+  return { x: cx / (6 * A), y: cy / (6 * A) };
+}
+
+// Sample the polygon boundary at roughly equal arc length intervals.
+function sampleBoundary(pts, N) {
+  const segs = [];
+  let total = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    segs.push({ a, b, len });
+    total += len;
+  }
+  const samples = [];
+  for (let k = 0; k < N; k++) {
+    let s = (k / N) * total;
+    for (const seg of segs) {
+      if (s <= seg.len) {
+        const t = s / seg.len;
+        samples.push({
+          x: seg.a.x + t * (seg.b.x - seg.a.x),
+          y: seg.a.y + t * (seg.b.y - seg.a.y),
+        });
+        break;
+      }
+      s -= seg.len;
+    }
+  }
+  return samples;
+}
+
+// Find the pair of points with largest pairwise distance.
+function diameterPair(pts) {
+  let max = 0, ia = 0, ib = 0;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > max) { max = d2; ia = i; ib = j; }
+    }
+  }
+  return { dist: Math.sqrt(max), a: pts[ia], b: pts[ib] };
+}
+
+// Partition: 3 sectors from centroid, rotated by thetaDeg.
+function partition(boundary, c, thetaDeg) {
+  const t = thetaDeg * Math.PI / 180;
+  const buckets = [[], [], []];
+  for (const p of boundary) {
+    let ang = Math.atan2(p.y - c.y, p.x - c.x) - t;
+    ang = ((ang % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const bucket = Math.floor(ang / (2 * Math.PI / 3));
+    buckets[bucket].push(p);
+  }
+  // Each piece includes the centroid (since pieces are cones from c).
+  // Also include the cut endpoints (boundary points nearest the cut angles)
+  // so the piece's diameter accounts for the radial cuts.
+  for (let k = 0; k < 3; k++) {
+    buckets[k].push(c);
+  }
+  return buckets;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// State + rendering
+// ─────────────────────────────────────────────────────────────────────
+let shape = makeShape('hexagon');
+let isDraggable = true;
+let dragIdx = -1;
+let theta = 0;
+let shapeName = 'hexagon';
+
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+
+function tx(x) { return 24 + x * (canvas.width - 48); }
+function ty(y) { return 24 + y * (canvas.height - 48); }
+function invX(px) { return (px - 24) / (canvas.width - 48); }
+function invY(py) { return (py - 24) / (canvas.height - 48); }
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const c = centroid(shape);
+  // Boundary samples for diameter computation
+  const boundary = sampleBoundary(shape, 240);
+  const fullDiam = diameterPair(boundary);
+  const pieces = partition(boundary, c, theta);
+  const pieceDiams = pieces.map(diameterPair);
+
+  // 1. Fill the three sector tints (clipped to shape)
+  const sectorColors = [cssVar('--p1-fill'), cssVar('--p2-fill'), cssVar('--p3-fill')];
+  const sectorStrokes = [cssVar('--p1'), cssVar('--p2'), cssVar('--p3')];
+  ctx.save();
+  // Build clip path for the shape
+  ctx.beginPath();
+  shape.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(tx(p.x), ty(p.y));
+    else ctx.lineTo(tx(p.x), ty(p.y));
+  });
+  ctx.closePath();
+  ctx.clip();
+  // Draw three large sector wedges from centroid, each 120°
+  const R = canvas.width;  // big enough to extend past the shape
+  for (let k = 0; k < 3; k++) {
+    const a0 = (theta + k * 120) * Math.PI / 180;
+    const a1 = (theta + (k + 1) * 120) * Math.PI / 180;
+    ctx.fillStyle = sectorColors[k];
+    ctx.beginPath();
+    ctx.moveTo(tx(c.x), ty(c.y));
+    ctx.arc(tx(c.x), ty(c.y), R, a0, a1);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 2. Draw the shape outline
+  ctx.strokeStyle = cssVar('--shape-stroke') || '#222';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  shape.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(tx(p.x), ty(p.y));
+    else ctx.lineTo(tx(p.x), ty(p.y));
+  });
+  ctx.closePath();
+  ctx.stroke();
+
+  // 3. Draw cut lines from centroid to boundary in each cut direction
+  ctx.strokeStyle = cssVar('--muted') || '#888';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  for (let k = 0; k < 3; k++) {
+    const a = (theta + k * 120) * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(tx(c.x), ty(c.y));
+    ctx.lineTo(tx(c.x) + R * Math.cos(a), ty(c.y) + R * Math.sin(a));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // 4. Original-shape diameter (faint, behind pieces)
+  ctx.strokeStyle = cssVar('--diam-stroke') || 'rgba(0,0,0,0.7)';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(tx(fullDiam.a.x), ty(fullDiam.a.y));
+  ctx.lineTo(tx(fullDiam.b.x), ty(fullDiam.b.y));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 5. Each piece's diameter chord
+  for (let k = 0; k < 3; k++) {
+    const d = pieceDiams[k];
+    if (!d.a || !d.b) continue;
+    ctx.strokeStyle = sectorStrokes[k];
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(tx(d.a.x), ty(d.a.y));
+    ctx.lineTo(tx(d.b.x), ty(d.b.y));
+    ctx.stroke();
+  }
+
+  // 6. Centroid marker
+  ctx.fillStyle = cssVar('--accent') || '#3a3060';
+  ctx.beginPath();
+  ctx.arc(tx(c.x), ty(c.y), 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 7. Vertices (only for hexagon/triangle/square — not circle/reuleaux)
+  if (isDraggable) {
+    for (let i = 0; i < shape.length; i++) {
+      ctx.fillStyle = (i === dragIdx) ? cssVar('--accent') : cssVar('--shape-stroke');
+      ctx.beginPath();
+      ctx.arc(tx(shape[i].x), ty(shape[i].y), i === dragIdx ? 6 : 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Update stats
+  refreshStats(fullDiam.dist, pieceDiams.map(d => d.dist));
+}
+
+function refreshStats(fullD, pieceDs) {
+  const maxPiece = Math.max(...pieceDs);
+  const ratio = maxPiece / fullD;
+  const pct = (ratio * 100).toFixed(1);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-row"><span class="k">original diameter</span><span class="v hot">${fullD.toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">piece 1</span><span class="v p1">${pieceDs[0].toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">piece 2</span><span class="v p2">${pieceDs[1].toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">piece 3</span><span class="v p3">${pieceDs[2].toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">max piece / orig</span><span class="v">${pct}%</span></div>
+  `;
+  const v = document.getElementById('verdict');
+  if (ratio < 1 - 1e-6) {
+    v.className = 'verdict win';
+    v.innerHTML = `radial partition fits: max piece ${pct}% of original ✓`;
+  } else {
+    v.className = 'verdict fail';
+    v.innerHTML = `this θ doesn't work — rotate or unstretch (Borsuk still holds with another partition)`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Pointer interaction (drag vertices)
+// ─────────────────────────────────────────────────────────────────────
+function pointerXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    px: (e.clientX - rect.left) * (canvas.width / rect.width),
+    py: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
+function hitTest(px, py) {
+  if (!isDraggable) return -1;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < shape.length; i++) {
+    const dx = tx(shape[i].x) - px, dy = ty(shape[i].y) - py;
+    const d = dx * dx + dy * dy;
+    if (d < bestD && d <= 16 * 16) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+canvas.addEventListener('pointerdown', e => {
+  const { px, py } = pointerXY(e);
+  dragIdx = hitTest(px, py);
+  if (dragIdx >= 0) {
+    canvas.setPointerCapture(e.pointerId);
+    render();
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (dragIdx < 0) return;
+  const { px, py } = pointerXY(e);
+  shape[dragIdx].x = Math.max(0.02, Math.min(0.98, invX(px)));
+  shape[dragIdx].y = Math.max(0.02, Math.min(0.98, invY(py)));
+  render();
+});
+
+canvas.addEventListener('pointerup', () => { dragIdx = -1; render(); });
+
+// ─────────────────────────────────────────────────────────────────────
+// Shape buttons + theta slider
+// ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.btn[data-shape]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn[data-shape]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    shapeName = btn.dataset.shape;
+    shape = makeShape(shapeName);
+    // Circle / reuleaux are read-only (too many vertices to drag meaningfully)
+    isDraggable = (shapeName !== 'circle' && shapeName !== 'reuleaux');
+    canvas.style.cursor = isDraggable ? 'crosshair' : 'default';
+    dragIdx = -1;
+    render();
+  });
+});
+
+document.getElementById('theta-slider').addEventListener('input', e => {
+  theta = parseInt(e.target.value, 10);
+  document.getElementById('theta-val').textContent = theta + '°';
+  render();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav.tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'timeline') renderTimeline();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Timeline tab
+// ─────────────────────────────────────────────────────────────────────
+const RECORDS = [
+  { year: 1993, dim: 1325, authors: 'Kahn–Kalai',         note: 'first counterexample, Frankl–Wilson rank' },
+  { year: 1997, dim:  561, authors: 'Raigorodskii',       note: 'finite-field construction' },
+  { year: 1999, dim:  323, authors: 'Hinrichs',           note: 'binary code refinement' },
+  { year: 2003, dim:  298, authors: 'Hinrichs–Richter',   note: 'sharper distance counting' },
+  { year: 2014, dim:   65, authors: 'Bondarenko',         note: 'two-distance sets on a sphere' },
+  { year: 2014, dim:   64, authors: 'Jenrich',            note: 'refines Bondarenko' },
+];
+
+const timelineCanvas = document.getElementById('timeline-canvas');
+const tctx = timelineCanvas.getContext('2d');
+
+function renderTimeline() {
+  const W = timelineCanvas.width, H = timelineCanvas.height;
+  tctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  tctx.fillRect(0, 0, W, H);
+
+  const xmin = 1990, xmax = 2026;
+  const ymin = 0.5, ymax = 3.5;  // log10(dim): 0.5..3.5 → dim 3..3162
+  const PAD = { l: 70, r: 30, t: 30, b: 56 };
+
+  const xx = y => PAD.l + (y - xmin) / (xmax - xmin) * (W - PAD.l - PAD.r);
+  const yy = ly => H - PAD.b - (ly - ymin) / (ymax - ymin) * (H - PAD.t - PAD.b);
+
+  // Axes
+  tctx.strokeStyle = cssVar('--rule') || '#aaa';
+  tctx.lineWidth = 1;
+  tctx.beginPath();
+  tctx.moveTo(PAD.l, PAD.t);
+  tctx.lineTo(PAD.l, H - PAD.b);
+  tctx.lineTo(W - PAD.r, H - PAD.b);
+  tctx.stroke();
+
+  // X ticks
+  tctx.fillStyle = cssVar('--muted') || '#777';
+  tctx.font = '10px ui-monospace, monospace';
+  tctx.textAlign = 'center';
+  for (let yr = 1990; yr <= 2025; yr += 5) {
+    const x = xx(yr);
+    tctx.beginPath(); tctx.moveTo(x, H - PAD.b); tctx.lineTo(x, H - PAD.b + 4); tctx.stroke();
+    tctx.fillText(String(yr), x, H - PAD.b + 16);
+  }
+  // Y ticks (powers of 10)
+  tctx.textAlign = 'right';
+  const supScript = (n) => {
+    const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  };
+  for (let v = 1; v <= 3; v++) {
+    const y = yy(v);
+    tctx.beginPath(); tctx.moveTo(PAD.l - 4, y); tctx.lineTo(PAD.l, y); tctx.stroke();
+    tctx.fillText('10' + supScript(v), PAD.l - 8, y + 3);
+  }
+
+  // Axis labels
+  tctx.font = '11px ui-monospace, monospace';
+  tctx.textAlign = 'center';
+  tctx.fillText('year', (PAD.l + W - PAD.r) / 2, H - 14);
+  tctx.save();
+  tctx.translate(20, (PAD.t + H - PAD.b) / 2);
+  tctx.rotate(-Math.PI / 2);
+  tctx.fillText('minimum d where Borsuk fails', 0, 0);
+  tctx.restore();
+
+  // Connect the records with a step line (since each record stands until improved)
+  tctx.strokeStyle = cssVar('--accent') || '#3a3060';
+  tctx.lineWidth = 1.6;
+  tctx.beginPath();
+  let prev = null;
+  for (const r of RECORDS) {
+    const X = xx(r.year);
+    const Y = yy(Math.log10(r.dim));
+    if (prev === null) {
+      tctx.moveTo(X, Y);
+    } else {
+      // Step: horizontal at previous dim to this year, then vertical down
+      tctx.lineTo(X, prev);
+      tctx.lineTo(X, Y);
+    }
+    prev = Y;
+  }
+  // Extend the latest record horizontally to today
+  if (RECORDS.length > 0) {
+    tctx.lineTo(xx(2026), prev);
+  }
+  tctx.stroke();
+
+  // Dots + labels
+  for (const r of RECORDS) {
+    const X = xx(r.year);
+    const Y = yy(Math.log10(r.dim));
+    tctx.fillStyle = cssVar('--accent') || '#3a3060';
+    tctx.beginPath();
+    tctx.arc(X, Y, 5, 0, Math.PI * 2);
+    tctx.fill();
+    tctx.fillStyle = cssVar('--fg') || '#222';
+    tctx.font = 'bold 10px ui-monospace, monospace';
+    tctx.textAlign = 'left';
+    tctx.fillText('d = ' + r.dim, X + 9, Y + 3);
+    tctx.font = '10px ui-monospace, monospace';
+    tctx.fillStyle = cssVar('--muted') || '#777';
+    tctx.fillText(r.authors, X + 9, Y + 16);
+  }
+
+  // Open band: dim 4..63 is the "still unknown" zone
+  tctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+  tctx.fillRect(PAD.l, yy(Math.log10(63)), W - PAD.l - PAD.r, yy(Math.log10(4)) - yy(Math.log10(63)));
+  tctx.fillStyle = cssVar('--muted') || '#777';
+  tctx.font = 'italic 10px ui-monospace, monospace';
+  tctx.textAlign = 'left';
+  tctx.fillText('open: dim 4..63 — status unknown', PAD.l + 6, yy(Math.log10(20)));
+
+  // Stats table
+  let html = '<div class="stat-row"><span class="k">year</span><span class="v">min d · authors</span></div>';
+  for (const r of RECORDS) {
+    html += `<div class="stat-row"><span class="k">${r.year}</span><span class="v">d = ${r.dim} · ${r.authors}</span></div>`;
+  }
+  html += '<div class="stat-row" style="margin-top:0.5rem"><span class="k">still open</span><span class="v">dimensions 4 through 63</span></div>';
+  document.getElementById('timeline-stats').innerHTML = html;
+}
+
+// Boot
+render();
+window.addEventListener('resize', () => {
+  render();
+  if (document.getElementById('pane-timeline').classList.contains('active')) renderTimeline();
+});
+</script>
+
+</body>
+</html>

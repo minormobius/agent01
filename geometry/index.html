@@ -30,6 +30,7 @@
   --c-elements: #3d4a72;
   --c-st:       #5a1a3a;
   --c-heilbronn:#2a6a4a;
+  --c-borsuk:   #3a3060;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -58,6 +59,7 @@
     --c-elements: #8aa0d4;
     --c-st:       #d870a8;
     --c-heilbronn:#6abf8f;
+    --c-borsuk:   #9080d4;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -347,7 +349,8 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
-    <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a> ·
+    <a href="https://mino.mobi/borsuk/">borsuk</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
   </p>
 </header>
@@ -399,12 +402,6 @@ footer a:hover { color: var(--accent); }
 <h3 style="margin-top:0.6rem">Next</h3>
 <ol class="roadmap">
   <li>
-    <span class="item-name">/borsuk/</span> — Borsuk's 1933 partition conjecture,
-    disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as
-    erdős: unexpected construction wrecks low-dim intuition. Need to find a way to viz
-    counterexamples that live in dim ≥ 64.
-  </li>
-  <li>
     <span class="item-name">/viazovska/</span> — sphere packing in dim 8 (E₈) and dim 24
     (Leech lattice). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D
     projections of the lattice + a density argument that updates as you scrub through
@@ -415,19 +412,25 @@ footer a:hover { color: var(--accent); }
     (same year as ST, sister problem with shared machinery); progress over decades;
     current bound around |A|^{4/3 − ε}.
   </li>
+  <li>
+    <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
+    Green–Tao 2013 resolved the asymptotic.
+  </li>
 </ol>
 
 <h3>Other candidates</h3>
 <ul class="candidates">
   <li>
-    <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
-    Green–Tao 2013 resolved the asymptotic.
-  </li>
-  <li>
     <span class="item-name">/cohen-pohoata-zakharov/</span> — explicit 2024 improvement
     on Heilbronn's upper bound, via polynomial method. Could spin off from
     <a href="https://mino.mobi/heilbronn/">heilbronn</a> as a technique-focused
     explainer.
+  </li>
+  <li>
+    <span class="item-name">/frankl-wilson/</span> — the rank-of-incidence-matrix
+    theorem that drove the original Kahn–Kalai counterexample on
+    <a href="https://mino.mobi/borsuk/">borsuk</a>. Adjacent to capset; could anchor
+    a "finite-field linear-algebra toolkit" page.
   </li>
 </ul>
 
@@ -489,6 +492,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
   <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
 
@@ -508,6 +512,18 @@ const PACK = [
     status: 'proved',
     statusRank: 0,
     statusText: 'proved (tight)',
+  },
+  {
+    name: 'borsuk',
+    url:  'https://mino.mobi/borsuk/',
+    accent: 'var(--c-borsuk)',
+    problem: 'Borsuk partition conjecture',
+    era: 1993,
+    eraText: 'Kahn–Kalai 1993',
+    tech: 'Frankl–Wilson',
+    status: 'disproved',
+    statusRank: 4,
+    statusText: 'false above dim 63',
   },
   {
     name: 'kakeya',
