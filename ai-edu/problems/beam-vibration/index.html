@@ -344,7 +344,7 @@ def plot_modes(modes): ...      # optional</pre>
     panel above</em> &mdash; uniform cantilever, Hermite cubics,
     consistent mass, Cholesky reduction onto a standard symmetric
     eigenproblem.
-    <a href="./solver/src/lib.rs">solver/src/lib.rs</a> (~80 lines).
+    <a href="/wasm/beam-solver/src/lib.rs">solver/src/lib.rs</a> (~80 lines).
   </p>
   <p>
     Your solver probably looks different in shape &mdash; that's
@@ -373,7 +373,7 @@ def plot_modes(modes): ...      # optional</pre>
 
 <script type="module">
 import init, { solve_cantilever_with_modes, closed_form_cantilever }
-  from './pkg/beam_solver.js';
+  from '/wasm/beam-solver/pkg/beam_solver.js';
 
 const N_MODES = 4;
 const SUBSCRIPTS = ['₁', '₂', '₃', '₄'];

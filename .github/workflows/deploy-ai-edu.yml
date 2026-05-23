@@ -26,8 +26,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ai-edu/problems/beam-vibration/solver/target
-          key: ai-edu-cargo-${{ hashFiles('ai-edu/problems/beam-vibration/solver/Cargo.toml') }}
+            ai-edu/wasm/beam-solver/target
+          key: ai-edu-cargo-${{ hashFiles('ai-edu/wasm/beam-solver/Cargo.toml') }}
           restore-keys: |
             ai-edu-cargo-
 
@@ -36,28 +36,32 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Build beam-vibration WASM solver
-        working-directory: ai-edu/problems/beam-vibration/solver
+      - name: Build shared beam-solver WASM
+        working-directory: ai-edu/wasm/beam-solver
         run: |
           wasm-pack build \
             --target web \
             --release \
-            --out-dir ../../../dist/problems/beam-vibration/pkg \
+            --out-dir ../../dist/wasm/beam-solver/pkg \
             --out-name beam_solver
 
       - name: Stage static assets
         working-directory: ai-edu
         run: |
           mkdir -p dist/problems/beam-vibration
+          mkdir -p dist/problems/beam-deflection
           mkdir -p dist/getting-started/windows
+          mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
           cp PROBLEM_TEMPLATE.md dist/
           cp problems/beam-vibration/index.html dist/problems/beam-vibration/
+          cp problems/beam-deflection/index.html dist/problems/beam-deflection/
           cp getting-started/windows/index.html dist/getting-started/windows/
+          # Ship the Rust source so the "worked solution" links resolve.
+          cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
           ls -la dist/
-          ls -la dist/problems/beam-vibration/
-          ls -la dist/problems/beam-vibration/pkg/
-          ls -la dist/getting-started/windows/
+          ls -la dist/problems/
+          ls -la dist/wasm/beam-solver/pkg/
 
       - name: Deploy to Cloudflare
         working-directory: ai-edu
