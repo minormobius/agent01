@@ -29,6 +29,7 @@
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
   --c-st:       #5a1a3a;
+  --c-heilbronn:#2a6a4a;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -56,6 +57,7 @@
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
     --c-st:       #d870a8;
+    --c-heilbronn:#6abf8f;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -344,7 +346,8 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/runner/">runner</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
-    <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+    <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
   </p>
 </header>
@@ -396,12 +399,6 @@ footer a:hover { color: var(--accent); }
 <h3 style="margin-top:0.6rem">Next</h3>
 <ol class="roadmap">
   <li>
-    <span class="item-name">/heilbronn/</span> — place n points in the unit square to
-    maximise the smallest triangle area. Records get updated regularly via heuristic
-    search; build the site as a record-attempt sandbox with a poll/draw-backed
-    leaderboard.
-  </li>
-  <li>
     <span class="item-name">/borsuk/</span> — Borsuk's 1933 partition conjecture,
     disproved by Kahn–Kalai 1993 with a high-dimensional counterexample. Same shape as
     erdős: unexpected construction wrecks low-dim intuition. Need to find a way to viz
@@ -413,19 +410,24 @@ footer a:hover { color: var(--accent); }
     projections of the lattice + a density argument that updates as you scrub through
     projections.
   </li>
+  <li>
+    <span class="item-name">/elekes/</span> — sum-product bound. Erdős–Szemerédi 1983
+    (same year as ST, sister problem with shared machinery); progress over decades;
+    current bound around |A|^{4/3 − ε}.
+  </li>
 </ol>
 
 <h3>Other candidates</h3>
 <ul class="candidates">
   <li>
-    <span class="item-name">/elekes/</span> — sum-product bound. Erdős–Szemerédi 1983;
-    incremental progress over decades; current bound around |A|^{4/3 − ε}. Sister
-    problem to <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> —
-    same year, also resolved with incidence-counting machinery.
-  </li>
-  <li>
     <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
     Green–Tao 2013 resolved the asymptotic.
+  </li>
+  <li>
+    <span class="item-name">/cohen-pohoata-zakharov/</span> — explicit 2024 improvement
+    on Heilbronn's upper bound, via polynomial method. Could spin off from
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a> as a technique-focused
+    explainer.
   </li>
 </ul>
 
@@ -485,6 +487,8 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/runner/">runner</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
+  <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
 
@@ -576,6 +580,18 @@ const PACK = [
     status: 'disproved',
     statusRank: 4,
     statusText: 'upper bound broken',
+  },
+  {
+    name: 'heilbronn',
+    url:  'https://mino.mobi/heilbronn/',
+    accent: 'var(--c-heilbronn)',
+    problem: 'Heilbronn triangle problem',
+    era: 1950,
+    eraText: 'Heilbronn ~1950, open',
+    tech: 'heuristic search',
+    status: 'open',
+    statusRank: 3,
+    statusText: 'log n / n² known, gap open',
   },
 ];
 

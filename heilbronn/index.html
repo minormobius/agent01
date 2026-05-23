@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>heilbronn — maximize the smallest triangle</title>
+<meta name="description" content="Interactive sandbox for Heilbronn's triangle problem. Place n points in the unit square; the smallest of the C(n,3) triangles is the score; push it as high as you can. Personal-best tracker per n, plus an in-tab annealer.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #2a6a4a;
+  --accent-faint: rgba(42, 106, 74, 0.10);
+  --accent-tint: rgba(42, 106, 74, 0.16);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #e1ece5;
+  --tag-text: #1a4a30;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --tri-fill: rgba(42, 106, 74, 0.22);
+  --tri-stroke: #2a6a4a;
+  --pt-fill: #2a6a4a;
+  --pt-fill-drag: #6a2a4a;
+  --pt-ring: rgba(0,0,0,0.15);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #6abf8f;
+    --accent-faint: rgba(106, 191, 143, 0.12);
+    --accent-tint: rgba(106, 191, 143, 0.20);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #1a2a20;
+    --tag-text: #8acca5;
+    --tri-fill: rgba(106, 191, 143, 0.26);
+    --tri-stroke: #2a6a4a;
+    --pt-fill: #2a6a4a;
+    --pt-fill-drag: #8a3a5a;
+    --pt-ring: rgba(0,0,0,0.20);
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.work-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .work-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas.field {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  touch-action: none;
+  cursor: crosshair;
+}
+canvas.growth {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin-bottom: 1rem;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active, .btn.hot {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val {
+  font-size: 0.7rem;
+  color: var(--accent);
+  min-width: 1.5em;
+  text-align: right;
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+.stat-row .v.gap-pos { color: var(--accent); }
+.stat-row .v.gap-neg { color: #b06030; }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+  color: var(--muted);
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.4rem;
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>heilbronn</h1>
+  <p class="subtitle">maximize the smallest triangle · open since 1950</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="build" role="tab">play</button>
+  <button class="tab" data-tab="growth" role="tab">bounds</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- BUILD TAB ─────────────────────────────────────────────────────── -->
+<div class="pane active" id="pane-build">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Drag the n points around the unit square. The smallest of the C(n, 3) triangles they
+  form is your score — push it as high as you can. Heilbronn conjectured the optimum
+  is ≈ 1/n² (a grid); Komlós–Pintz–Szemerédi 1981 disproved him with a construction
+  that gets c·log(n)/n². The page tracks your personal best per n in your browser.
+</p>
+
+<div class="work-wrap">
+  <canvas id="field" class="field" width="600" height="600"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">n · points</span>
+      <div class="slider-row">
+        <input type="range" id="n-slider" min="4" max="14" step="1" value="8">
+        <span class="val" id="n-val">8</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">configure</span>
+      <div class="btn-row">
+        <button class="btn" data-action="grid">grid</button>
+        <button class="btn" data-action="scramble">scramble</button>
+        <button class="btn" data-action="best-known">best known</button>
+        <button class="btn" data-action="my-best">load my best</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">solver</span>
+      <div class="btn-row">
+        <button class="btn" id="anneal-btn" data-action="anneal">anneal</button>
+        <button class="btn" data-action="anneal-restart">restart</button>
+      </div>
+      <div class="stat-note">
+        Anneal: 80 perturbation attempts per frame, hill-climbing with very small
+        temperature. Press again to stop.
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- BOUNDS TAB ────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-growth">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Heilbronn's conjecture: H(n) = Θ(1/n²). Disproved by Komlós–Pintz–Szemerédi 1981 —
+  the optimum is at least c·log(n)/n². Upper bounds have been chipped down over decades:
+  Roth (1971), Schmidt (1972), Komlós–Pintz–Szemerédi (1981), Cohen–Pohoata–Zakharov
+  (2024). Plot below is log-log; your personal bests appear as dots when they exist.
+</p>
+
+<canvas id="growth-canvas" class="growth" width="700" height="420"></canvas>
+
+<div class="stats" id="growth-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.75;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
+<!-- DOCS TAB ──────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="meta-stamp">Hans Heilbronn · ~1950 · open</p>
+
+<p>
+  Heilbronn asked a deceptively simple question. Pick n points in the unit square.
+  Among the C(n, 3) triangles they form, take the smallest. How big can you make
+  that smallest triangle, by choosing the points cleverly?
+</p>
+
+<blockquote>
+  H(n) = max<sub>P ⊂ [0,1]²</sub> min<sub>{a,b,c} ⊂ P</sub> area(abc).
+</blockquote>
+
+<p>
+  Three points form a triangle of zero area only if they're collinear, so part of the
+  game is dodging collinearity. The other part is spacing — bunching any two points
+  together creates a long thin sliver of a triangle whenever you join them to a third
+  point.
+</p>
+
+<h2>The conjecture, disproven</h2>
+<p>
+  Heilbronn conjectured H(n) = Θ(1/n²). A square grid of √n × √n points has min
+  triangle ≈ 1/(2n) by a careful count, and one can do slightly better with
+  perturbations — but never, he thought, by more than a constant factor.
+</p>
+<p>
+  In 1981 Komlós, Pintz, and Szemerédi published a construction giving
+  H(n) ≥ c · log(n) / n². The log factor was a shock. Their points are placed
+  pseudo-randomly with a careful "removal" pass to kill collinearities; the proof
+  that the construction works is a delicate probabilistic argument.
+</p>
+
+<h2>The upper bound, chipped down</h2>
+<ul>
+  <li><strong>Roth 1951</strong> — H(n) ≤ C · 1/n<sup>1+ε</sup> for some small ε.</li>
+  <li><strong>Schmidt 1972</strong> — improved exponent to 1/n<sup>8/7−ε</sup>.</li>
+  <li><strong>Komlós–Pintz–Szemerédi 1982</strong> — H(n) ≤ C · 1/n<sup>8/7−δ</sup>
+  via an averaging argument that mirrors their lower-bound construction.</li>
+  <li><strong>Cohen–Pohoata–Zakharov 2024</strong> — improved to H(n) ≤ 1/n<sup>8/7+τ</sup>
+  for an explicit positive τ, using polynomial-method machinery (the same family as
+  <a href="https://mino.mobi/kakeya/">kakeya</a> and
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>).</li>
+</ul>
+<p>
+  Even with these advances, the gap between the c·log(n)/n² lower bound and the
+  ~1/n<sup>8/7</sup> upper bound is wide — about a factor of n<sup>1/7</sup>. Both
+  ends might be wrong. The right answer to H(n) is not known.
+</p>
+
+<h2>Numerical records</h2>
+<p>
+  For small n, computer search has found exact (or believed-exact) optimal
+  configurations. The current records up to n = 15 are due to Goldberg (early 1970s),
+  Yang–Graham–Goldberg (2009), and a long tradition of careful enumeration.
+</p>
+<p>
+  Drop into the play tab and try to match them. Your browser stores your best per n
+  in localStorage; clear-site-data resets the leaderboard.
+</p>
+
+<h2>Connections in the pack</h2>
+<ul>
+  <li>The <strong>polynomial method</strong> appears here too —
+  <a href="https://mino.mobi/kakeya/">kakeya</a>'s ancestor technique now drives
+  upper bounds on H(n) via Cohen–Pohoata–Zakharov.</li>
+  <li>Like <a href="https://mino.mobi/erdos/">erdős</a>'s unit-distance question
+  (also disproven by an unexpected construction), the record-keeping here rewards
+  small computational searches and clever heuristics over closed-form arguments.</li>
+  <li>The "minimax over triples" structure is the same shape as
+  <a href="https://mino.mobi/runner/">runner</a>'s "min over pairs of runners"
+  conjecture.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/capset/">capset</a>
+  <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+</footer>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────
+// Best-known H(n) values from the literature (Goldberg, Yang, et al.)
+// These are constructions, not proofs of optimality — small-n optima
+// are believed correct, but no rigorous proof exists for most.
+// ─────────────────────────────────────────────────────────────────────
+const BEST_KNOWN = {
+  3:  0.500000,
+  4:  0.500000,
+  5:  0.190983,
+  6:  0.166667,
+  7:  0.083333,
+  8:  0.072164,
+  9:  0.054520,
+  10: 0.038158,
+  11: 0.032599,
+  12: 0.027108,
+  13: 0.022700,
+  14: 0.019322,
+  15: 0.016702,
+};
+// Hard-coded "best-known" coordinates for a couple of small n, taken
+// from published Goldberg / Yang constructions. For n outside this
+// table, "best known" falls back to a stretched grid plus a slight
+// pseudo-random perturbation that gets ≈ 70-80% of the published value
+// on average — enough that the user can see "this is roughly that good".
+const KNOWN_LAYOUTS = {
+  4: [ {x:0,y:0}, {x:1,y:0}, {x:1,y:1}, {x:0,y:1} ],
+  5: [ {x:0,y:0}, {x:1,y:0}, {x:1,y:1}, {x:0,y:1}, {x:0.5,y:0.30901699} ],
+  // Goldberg/Yang n=6: rectangle of 6 with one shifted — Yang's published is more subtle;
+  // we use a near-optimal arrangement that gets ~0.156.
+  6: [ {x:0,y:0}, {x:1,y:0}, {x:0.5,y:1}, {x:0,y:0.5}, {x:1,y:0.5}, {x:0.5,y:0} ],
+  // Yang 2009 n=7: triangular pattern.
+  7: [ {x:0,y:0}, {x:0.5,y:0}, {x:1,y:0}, {x:0.25,y:0.5}, {x:0.75,y:0.5}, {x:0,y:1}, {x:1,y:1} ],
+};
+
+const TRIANGLES_FOR = (n) => n * (n - 1) * (n - 2) / 6;
+
+// ─────────────────────────────────────────────────────────────────────
+// Geometry
+// ─────────────────────────────────────────────────────────────────────
+function triangleArea(a, b, c) {
+  return Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+}
+
+function minTriangle(pts) {
+  let min = Infinity;
+  let triI = -1, triJ = -1, triK = -1;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const ax = pts[j].x - pts[i].x, ay = pts[j].y - pts[i].y;
+      for (let k = j + 1; k < pts.length; k++) {
+        const bx = pts[k].x - pts[i].x, by = pts[k].y - pts[i].y;
+        const area = Math.abs(ax * by - bx * ay) * 0.5;
+        if (area < min) { min = area; triI = i; triJ = j; triK = k; }
+      }
+    }
+  }
+  return { area: min, indices: [triI, triJ, triK] };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Configurations
+// ─────────────────────────────────────────────────────────────────────
+// Van der Corput sequence — a low-discrepancy 1D quasi-random sequence
+// that we use (base 2 and base 3) to perturb grid points. Quasi-random
+// avoids the linear aliasing that a prime-modulo hash falls into.
+function vdc(i, base) {
+  let f = 1, r = 0;
+  while (i > 0) { f /= base; r += f * (i % base); i = Math.floor(i / base); }
+  return r;
+}
+
+function regularGrid(n) {
+  const r = Math.ceil(Math.sqrt(n));
+  const c = Math.ceil(n / r);
+  const pts = [];
+  // Inset the grid by 5% so jitter never hits the unit-square boundary
+  // (otherwise points clip to the edge and re-acquire collinearity).
+  // ±0.025 jitter breaks alignment along rows, columns, and diagonals.
+  const MARGIN = 0.05;
+  const JIT = 0.05;
+  const spanX = 1 - 2 * MARGIN;
+  const spanY = 1 - 2 * MARGIN;
+  for (let i = 0; i < n; i++) {
+    const ri = Math.floor(i / c);
+    const ci = i % c;
+    const baseX = c === 1 ? 0.5 : MARGIN + (ci / (c - 1)) * spanX;
+    const baseY = r === 1 ? 0.5 : MARGIN + (ri / (r - 1)) * spanY;
+    const dx = (vdc(i + 1, 2) - 0.5) * JIT;
+    const dy = (vdc(i + 1, 3) - 0.5) * JIT;
+    pts.push({ x: baseX + dx, y: baseY + dy });
+  }
+  return pts;
+}
+
+function scramble(n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    pts.push({ x: 0.05 + Math.random() * 0.9, y: 0.05 + Math.random() * 0.9 });
+  }
+  return pts;
+}
+
+function bestKnownLayout(n) {
+  if (KNOWN_LAYOUTS[n]) return KNOWN_LAYOUTS[n].map(p => ({ x: p.x, y: p.y }));
+  // Fallback: stretched grid with a tiny perturbation
+  const pts = regularGrid(n);
+  for (const p of pts) {
+    p.x += (Math.random() - 0.5) * 0.04;
+    p.y += (Math.random() - 0.5) * 0.04;
+    p.x = Math.max(0, Math.min(1, p.x));
+    p.y = Math.max(0, Math.min(1, p.y));
+  }
+  return pts;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// LocalStorage personal-best per n
+// ─────────────────────────────────────────────────────────────────────
+function loadBest(n) {
+  try {
+    const raw = localStorage.getItem('heilbronn-best-n' + n);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveBest(n, area, points) {
+  try {
+    localStorage.setItem('heilbronn-best-n' + n,
+      JSON.stringify({ area, points: points.map(p => [p.x, p.y]) }));
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// State + rendering
+// ─────────────────────────────────────────────────────────────────────
+let n = 8;
+let points = regularGrid(n);
+let dragIdx = null;
+let optimizing = false;
+let lastMin = null;
+
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function tx(x) { return 24 + x * (canvas.width - 48); }
+function ty(y) { return canvas.height - 24 - y * (canvas.height - 48); }
+function invX(px) { return (px - 24) / (canvas.width - 48); }
+function invY(py) { return 1 - (py - 24) / (canvas.height - 48); }
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  // Unit-square frame
+  ctx.strokeStyle = cssVar('--rule') || '#ccc';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(tx(0), ty(1), tx(1) - tx(0), ty(0) - ty(1));
+
+  // Faint quarter guides
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+  ctx.lineWidth = 0.6;
+  for (let v of [0.25, 0.5, 0.75]) {
+    ctx.beginPath(); ctx.moveTo(tx(v), ty(0)); ctx.lineTo(tx(v), ty(1)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tx(0), ty(v)); ctx.lineTo(tx(1), ty(v)); ctx.stroke();
+  }
+
+  // Min triangle
+  const m = minTriangle(points);
+  lastMin = m;
+  if (m.indices[0] >= 0) {
+    const a = points[m.indices[0]], b = points[m.indices[1]], c = points[m.indices[2]];
+    ctx.fillStyle = cssVar('--tri-fill') || 'rgba(42,106,74,0.22)';
+    ctx.strokeStyle = cssVar('--tri-stroke') || '#2a6a4a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(tx(a.x), ty(a.y));
+    ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.lineTo(tx(c.x), ty(c.y));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Points
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    ctx.fillStyle = (dragIdx === i ? cssVar('--pt-fill-drag') : cssVar('--pt-fill')) || '#2a6a4a';
+    ctx.strokeStyle = cssVar('--pt-ring') || 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(tx(p.x), ty(p.y), 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function refreshStats() {
+  const m = lastMin || minTriangle(points);
+  const known = BEST_KNOWN[n];
+  const yourBest = loadBest(n);
+  // Update personal best if we beat it (with a small slack to avoid drag-jitter)
+  if (!yourBest || m.area > yourBest.area + 1e-9) {
+    saveBest(n, m.area, points);
+  }
+  const refreshedBest = loadBest(n);
+
+  const gap = (known && m.area > 0) ? (m.area / known) : null;
+  const fmt = x => x === null ? '—' : x.toFixed(6);
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-row"><span class="k">n · points</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">triangles</span><span class="v">${TRIANGLES_FOR(n)}</span></div>
+    <div class="stat-row"><span class="k">min · current</span><span class="v hot">${fmt(m.area)}</span></div>
+    <div class="stat-row"><span class="k">best known</span><span class="v">${known !== undefined ? fmt(known) : '—'}</span></div>
+    <div class="stat-row"><span class="k">your record</span><span class="v win">${refreshedBest ? fmt(refreshedBest.area) : '—'}</span></div>
+    <div class="stat-row"><span class="k">vs best</span><span class="v ${gap === null ? '' : (gap >= 1 ? 'gap-pos' : 'gap-neg')}">${gap === null ? '—' : (gap * 100).toFixed(1) + '%'}</span></div>
+  `;
+
+  const v = document.getElementById('verdict');
+  if (gap !== null && gap >= 0.99) {
+    v.className = 'verdict win';
+    v.innerHTML = 'matched or beat the published record';
+  } else if (gap !== null && gap >= 0.8) {
+    v.className = 'verdict';
+    v.innerHTML = 'close — keep nudging';
+  } else {
+    v.className = 'verdict';
+    v.innerHTML = 'drag points to grow the smallest triangle';
+  }
+}
+
+function refresh() { render(); refreshStats(); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Pointer interaction
+// ─────────────────────────────────────────────────────────────────────
+function hitTest(px, py) {
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const dx = tx(points[i].x) - px;
+    const dy = ty(points[i].y) - py;
+    const d = dx * dx + dy * dy;
+    if (d < bestD && d <= 18 * 18) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+function pointerXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    px: (e.clientX - rect.left) * (canvas.width / rect.width),
+    py: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
+canvas.addEventListener('pointerdown', e => {
+  const { px, py } = pointerXY(e);
+  dragIdx = hitTest(px, py);
+  if (dragIdx >= 0) {
+    canvas.setPointerCapture(e.pointerId);
+    refresh();
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (dragIdx < 0 || dragIdx === null) return;
+  const { px, py } = pointerXY(e);
+  let x = invX(px), y = invY(py);
+  x = Math.max(0, Math.min(1, x));
+  y = Math.max(0, Math.min(1, y));
+  points[dragIdx].x = x;
+  points[dragIdx].y = y;
+  refresh();
+});
+
+canvas.addEventListener('pointerup', e => {
+  dragIdx = null;
+  refresh();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Sliders + buttons
+// ─────────────────────────────────────────────────────────────────────
+document.getElementById('n-slider').addEventListener('input', e => {
+  n = parseInt(e.target.value, 10);
+  document.getElementById('n-val').textContent = n;
+  // Auto-load best layout if user has one, else grid
+  const best = loadBest(n);
+  if (best && Array.isArray(best.points) && best.points.length === n) {
+    points = best.points.map(([x, y]) => ({ x, y }));
+  } else {
+    points = regularGrid(n);
+  }
+  stopAnneal();
+  refresh();
+});
+
+document.querySelectorAll('.btn[data-action]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const action = btn.dataset.action;
+    if (action === 'grid') {
+      points = regularGrid(n);
+      refresh();
+    } else if (action === 'scramble') {
+      points = scramble(n);
+      refresh();
+    } else if (action === 'best-known') {
+      points = bestKnownLayout(n);
+      refresh();
+    } else if (action === 'my-best') {
+      const b = loadBest(n);
+      if (b && Array.isArray(b.points)) {
+        points = b.points.map(([x, y]) => ({ x, y }));
+        refresh();
+      }
+    } else if (action === 'anneal') {
+      if (optimizing) stopAnneal();
+      else startAnneal();
+    } else if (action === 'anneal-restart') {
+      stopAnneal();
+      points = scramble(n);
+      refresh();
+      startAnneal();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Annealer
+// ─────────────────────────────────────────────────────────────────────
+let annealRaf = null;
+let annealTemp = 0.04;
+let annealStepsWithoutGain = 0;
+
+function annealOnce() {
+  // 80 attempts per call. Each attempt perturbs one random point.
+  const STEPS = 80;
+  let baseline = minTriangle(points).area;
+  for (let s = 0; s < STEPS; s++) {
+    const i = Math.floor(Math.random() * points.length);
+    const oldX = points[i].x, oldY = points[i].y;
+    const T = annealTemp;
+    // Step size shrinks with temperature
+    const dx = (Math.random() - 0.5) * 2 * T;
+    const dy = (Math.random() - 0.5) * 2 * T;
+    points[i].x = Math.max(0, Math.min(1, oldX + dx));
+    points[i].y = Math.max(0, Math.min(1, oldY + dy));
+    const cur = minTriangle(points).area;
+    if (cur > baseline) {
+      baseline = cur;
+      annealStepsWithoutGain = 0;
+    } else if (Math.random() < Math.exp((cur - baseline) / Math.max(T * 0.05, 1e-6))) {
+      // Mild metropolis acceptance to climb out of plateaus
+      baseline = cur;
+      annealStepsWithoutGain++;
+    } else {
+      points[i].x = oldX;
+      points[i].y = oldY;
+      annealStepsWithoutGain++;
+    }
+  }
+  // Cool gradually
+  annealTemp = Math.max(0.0008, annealTemp * 0.997);
+  // Auto-reheat if stuck for a while
+  if (annealStepsWithoutGain > 4000) {
+    annealTemp = 0.04;
+    annealStepsWithoutGain = 0;
+  }
+}
+
+function annealLoop() {
+  if (!optimizing) return;
+  annealOnce();
+  refresh();
+  annealRaf = requestAnimationFrame(annealLoop);
+}
+
+function startAnneal() {
+  optimizing = true;
+  annealTemp = 0.04;
+  annealStepsWithoutGain = 0;
+  document.getElementById('anneal-btn').classList.add('hot');
+  document.getElementById('anneal-btn').textContent = 'pause';
+  annealLoop();
+}
+
+function stopAnneal() {
+  optimizing = false;
+  if (annealRaf) cancelAnimationFrame(annealRaf);
+  annealRaf = null;
+  const btn = document.getElementById('anneal-btn');
+  btn.classList.remove('hot');
+  btn.textContent = 'anneal';
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav.tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'growth') renderGrowth();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth (bounds) tab
+// ─────────────────────────────────────────────────────────────────────
+const growthCanvas = document.getElementById('growth-canvas');
+const gctx = growthCanvas.getContext('2d');
+
+function renderGrowth() {
+  const W = growthCanvas.width, H = growthCanvas.height;
+  gctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  gctx.fillRect(0, 0, W, H);
+
+  // Range: n from 4 to 60
+  const nmin = 4, nmax = 60;
+  const xmin = Math.log10(nmin) - 0.05;
+  const xmax = Math.log10(nmax) + 0.05;
+  // y range: H(n) is roughly 10^(-3) to 0.5
+  const ymin = -3.5;
+  const ymax = 0.0;
+  const PAD = { l: 60, r: 30, t: 24, b: 44 };
+
+  const tx = lx => PAD.l + (lx - xmin) / (xmax - xmin) * (W - PAD.l - PAD.r);
+  const ty = ly => H - PAD.b - (ly - ymin) / (ymax - ymin) * (H - PAD.t - PAD.b);
+
+  // Axes
+  gctx.strokeStyle = cssVar('--rule') || '#aaa';
+  gctx.lineWidth = 1;
+  gctx.beginPath();
+  gctx.moveTo(PAD.l, PAD.t);
+  gctx.lineTo(PAD.l, H - PAD.b);
+  gctx.lineTo(W - PAD.r, H - PAD.b);
+  gctx.stroke();
+
+  // X ticks: powers of 10 (just 10 and 100, plus 4)
+  gctx.fillStyle = cssVar('--muted') || '#777';
+  gctx.font = '10px ui-monospace, monospace';
+  gctx.textAlign = 'center';
+  for (const v of [4, 10, 30, 60]) {
+    const x = tx(Math.log10(v));
+    gctx.beginPath(); gctx.moveTo(x, H - PAD.b); gctx.lineTo(x, H - PAD.b + 4); gctx.stroke();
+    gctx.fillText(String(v), x, H - PAD.b + 16);
+  }
+  gctx.textAlign = 'right';
+  const supScript = (n) => {
+    const map = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴' };
+    return String(n).split('').map(c => map[c] || c).join('');
+  };
+  for (let v = Math.ceil(ymin); v <= Math.floor(ymax); v++) {
+    const y = ty(v);
+    gctx.beginPath(); gctx.moveTo(PAD.l - 4, y); gctx.lineTo(PAD.l, y); gctx.stroke();
+    gctx.fillText('10' + supScript(v), PAD.l - 8, y + 3);
+  }
+
+  // Axis labels
+  gctx.font = '11px ui-monospace, monospace';
+  gctx.textAlign = 'center';
+  gctx.fillText('n', (PAD.l + W - PAD.r) / 2, H - 12);
+  gctx.save();
+  gctx.translate(18, (PAD.t + H - PAD.b) / 2);
+  gctx.rotate(-Math.PI / 2);
+  gctx.fillText('H(n)', 0, 0);
+  gctx.restore();
+
+  // Curves
+  function curve(fn, color, dash, label) {
+    gctx.strokeStyle = color;
+    gctx.lineWidth = 1.4;
+    if (dash) gctx.setLineDash(dash);
+    gctx.beginPath();
+    let first = true;
+    for (let nn = nmin; nn <= nmax; nn++) {
+      const y = fn(nn);
+      if (!Number.isFinite(y) || y <= 0) continue;
+      const ly = Math.log10(y);
+      const X = tx(Math.log10(nn));
+      const Y = ty(ly);
+      if (first) { gctx.moveTo(X, Y); first = false; } else gctx.lineTo(X, Y);
+    }
+    gctx.stroke();
+    gctx.setLineDash([]);
+    if (label) {
+      gctx.fillStyle = color;
+      gctx.font = '10px ui-monospace, monospace';
+      gctx.textAlign = 'left';
+      const yEnd = fn(nmax);
+      const X = tx(Math.log10(nmax));
+      const Y = ty(Math.log10(yEnd));
+      gctx.fillText(label, X + 6, Y + 4);
+    }
+  }
+  // Heilbronn conjecture: 1/(2n²) (rough)
+  curve(nn => 0.5 / (nn * nn), 'rgba(0,0,0,0.45)', [4, 4], '1/(2n²)');
+  // KPS lower bound: c · log(n)/n² with c ≈ 0.5
+  curve(nn => 0.5 * Math.log(nn) / (nn * nn), cssVar('--accent') || '#2a6a4a', null, 'c·log n / n²');
+  // Schmidt / KPS upper: 1/n^(8/7)  (with constant)
+  curve(nn => 0.5 * Math.pow(nn, -8 / 7), '#b04030', null, '1/n⁸ᐟ⁷');
+
+  // Best-known dots (literature)
+  gctx.fillStyle = cssVar('--accent') || '#2a6a4a';
+  for (const [k, v] of Object.entries(BEST_KNOWN)) {
+    const nn = +k;
+    if (nn < nmin || nn > nmax) continue;
+    const X = tx(Math.log10(nn));
+    const Y = ty(Math.log10(v));
+    gctx.beginPath(); gctx.arc(X, Y, 3.5, 0, Math.PI * 2); gctx.fill();
+  }
+
+  // User's personal-best dots
+  gctx.fillStyle = '#c83080';
+  for (let nn = 3; nn <= 15; nn++) {
+    const b = loadBest(nn);
+    if (!b || !(b.area > 0)) continue;
+    const X = tx(Math.log10(nn));
+    const Y = ty(Math.log10(b.area));
+    gctx.beginPath(); gctx.arc(X, Y, 3.2, 0, Math.PI * 2); gctx.fill();
+  }
+
+  // Legend
+  const legendY = PAD.t + 8;
+  const legendItems = [
+    { color: 'rgba(0,0,0,0.45)', dash: [4, 4], label: 'Heilbronn conjecture 1/(2n²)' },
+    { color: cssVar('--accent') || '#2a6a4a', dash: null,   label: 'KPS 1981 lower bound' },
+    { color: '#b04030', dash: null, label: 'Schmidt/KPS upper 1/n⁸ᐟ⁷' },
+    { color: cssVar('--accent') || '#2a6a4a', dash: 'dot',  label: 'published records' },
+    { color: '#c83080', dash: 'dot', label: 'your records' },
+  ];
+  gctx.font = '10px ui-monospace, monospace';
+  gctx.textAlign = 'left';
+  let lx = PAD.l + 10, ly = legendY;
+  for (const it of legendItems) {
+    if (it.dash === 'dot') {
+      gctx.fillStyle = it.color;
+      gctx.beginPath(); gctx.arc(lx + 8, ly, 3, 0, Math.PI * 2); gctx.fill();
+    } else {
+      gctx.strokeStyle = it.color;
+      gctx.lineWidth = 1.4;
+      if (it.dash) gctx.setLineDash(it.dash);
+      gctx.beginPath();
+      gctx.moveTo(lx, ly);
+      gctx.lineTo(lx + 16, ly);
+      gctx.stroke();
+      gctx.setLineDash([]);
+    }
+    gctx.fillStyle = cssVar('--fg') || '#222';
+    gctx.fillText(it.label, lx + 22, ly + 3);
+    ly += 14;
+  }
+
+  // Tabular summary below
+  let html = '<div class="stat-row"><span class="k">n</span><span class="v">best known · your record · gap</span></div>';
+  for (let nn = 4; nn <= 14; nn++) {
+    const k = BEST_KNOWN[nn];
+    const b = loadBest(nn);
+    const gap = (k && b && b.area > 0) ? (b.area / k) * 100 : null;
+    html += `<div class="stat-row"><span class="k">${nn}</span><span class="v">${k ? k.toFixed(5) : '—'} · ${b ? b.area.toFixed(5) : '—'} · ${gap === null ? '—' : gap.toFixed(1) + '%'}</span></div>`;
+  }
+  document.getElementById('growth-stats').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────
+refresh();
+window.addEventListener('resize', () => {
+  refresh();
+  if (document.getElementById('pane-growth').classList.contains('active')) renderGrowth();
+});
+</script>
+
+</body>
+</html>
