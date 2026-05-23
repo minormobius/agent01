@@ -1,0 +1,64 @@
+name: Deploy AI Edu
+
+on:
+  push:
+    branches: [main, 'claude/ai-edu-site-architecture-*']
+    paths:
+      - 'ai-edu/**'
+      - '.github/workflows/deploy-ai-edu.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ai-edu/problems/beam-vibration/solver/target
+          key: ai-edu-cargo-${{ hashFiles('ai-edu/problems/beam-vibration/solver/Cargo.toml') }}
+          restore-keys: |
+            ai-edu-cargo-
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
+
+      - name: Build beam-vibration WASM solver
+        working-directory: ai-edu/problems/beam-vibration/solver
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir ../../../dist/problems/beam-vibration/pkg \
+            --out-name beam_solver
+
+      - name: Stage static assets
+        working-directory: ai-edu
+        run: |
+          mkdir -p dist/problems/beam-vibration
+          cp index.html dist/
+          cp PROBLEM_TEMPLATE.md dist/
+          cp problems/beam-vibration/index.html dist/problems/beam-vibration/
+          ls -la dist/
+          ls -la dist/problems/beam-vibration/
+          ls -la dist/problems/beam-vibration/pkg/
+
+      - name: Deploy to Cloudflare
+        working-directory: ai-edu
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

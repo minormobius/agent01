@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ai-edu",
+  "compatibility_date": "2026-02-20",
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "ai.mino.mobi", "custom_domain": true }
+  ]
+}

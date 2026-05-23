@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-pair numerics for engineers — draft</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.55 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 38rem;
+    margin: 3rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.5rem; }
+  ul.problems { list-style: none; padding: 0; }
+  ul.problems li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #ddd;
+  }
+  @media (prefers-color-scheme: dark) {
+    ul.problems li { border-bottom-color: #333; }
+  }
+  ul.problems a { font-weight: 600; text-decoration: none; }
+  ul.problems a:hover { text-decoration: underline; }
+  ul.problems .tag {
+    font-size: 0.8rem;
+    color: #888;
+    margin-left: 0.5rem;
+    font-weight: normal;
+  }
+  ul.problems .desc {
+    font-size: 0.92rem;
+    color: #555;
+    margin-top: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { ul.problems .desc { color: #bbb; } }
+  footer {
+    margin-top: 4rem;
+    font-size: 0.85rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<h1>AI-pair numerics for engineers</h1>
+<p class="lede">Draft zone. Half-remembered physics, an afternoon, a real solver.</p>
+
+<p>
+You already have the engineering intuition. The thesis here: paired with an
+AI that supplies the numerical machinery, you can stand up a working solver
+for a half-remembered physics problem in an afternoon &mdash; something
+that used to need a week and a numerical-methods refresher.
+</p>
+
+<p>
+The skill being grown isn't <em>know finite elements</em>. It's
+<em>direct and audit a collaborator that supplies them</em>. Every problem
+here is open-ended, with staged hints, and ends with one example solution
+shown as calibration &mdash; not as an answer key. Validation comes from
+the physics itself: a wrong solver announces itself when energy isn't
+conserved, when units don't work, when the uniform case fails to match a
+known closed-form answer.
+</p>
+
+<h2>Problems</h2>
+<ul class="problems">
+  <li>
+    <a href="./problems/beam-vibration/">Beam vibration</a>
+    <span class="tag">FEM &middot; eigenproblem &middot; vibrations</span>
+    <div class="desc">
+      Euler&ndash;Bernoulli beam, natural frequencies and mode shapes.
+      Verify against the closed-form &beta;L roots; perturb until the
+      closed form is gone.
+    </div>
+  </li>
+</ul>
+
+<footer>
+  Template: <a href="./PROBLEM_TEMPLATE.md">PROBLEM_TEMPLATE.md</a>.
+  Draft zone &mdash; expect rough edges.
+</footer>
+
+</body>
+</html>
