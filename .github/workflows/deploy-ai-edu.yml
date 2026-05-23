@@ -49,12 +49,15 @@ jobs:
         working-directory: ai-edu
         run: |
           mkdir -p dist/problems/beam-vibration
+          mkdir -p dist/getting-started/windows
           cp index.html dist/
           cp PROBLEM_TEMPLATE.md dist/
           cp problems/beam-vibration/index.html dist/problems/beam-vibration/
+          cp getting-started/windows/index.html dist/getting-started/windows/
           ls -la dist/
           ls -la dist/problems/beam-vibration/
           ls -la dist/problems/beam-vibration/pkg/
+          ls -la dist/getting-started/windows/
 
       - name: Deploy to Cloudflare
         working-directory: ai-edu
