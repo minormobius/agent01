@@ -1035,11 +1035,13 @@ async function recomputeAskMap(env, did, opts = {}) {
   const sx = maxX - minX || 1;
   const sy = maxY - minY || 1;
 
-  // Cluster in full 768-d space (NOT on the 2D projection — PCA tends to
-  // smudge topical structure on personal-corpus BGE embeddings, which is
-  // exactly the case the user warned about).
-  // K heuristic: clamp(sqrt(N/15), 3, 8). Skip clustering entirely for very
-  // small corpora where the math is unstable.
+  // Same caps signal applies — at 3000 threads the KNN pass alone is
+  // ~7B float ops and blows past Cloudflare's CPU budget (the 1102
+  // "Worker exceeded resource limits" symptom). KNN is a nice-to-have
+  // (the "you keep coming back to these threads" hint); silhouette is
+  // descriptive; both drop quality for very large corpora rather than
+  // breaking the recompute entirely.
+  const KNN_CAP_ASK = 1500;
   let labels = null;
   let silhouette = null;
   let clusterMeta = null;
@@ -1048,7 +1050,8 @@ async function recomputeAskMap(env, did, opts = {}) {
     const K = Math.min(8, Math.max(3, Math.round(Math.sqrt(vectors.length / 15))));
     const km = kmeansSpherical(vectors, K, ASK_EMBED_DIM, 30);
     labels = km.labels;
-    silhouette = silhouetteSampled(vectors, labels, 400);
+    const silSample = vectors.length > 1500 ? 250 : 400;
+    silhouette = silhouetteSampled(vectors, labels, silSample);
     const clusterTexts = Array.from({ length: K }, () => []);
     for (let i = 0; i < meta.length; i++) clusterTexts[labels[i]].push(meta[i].text || '');
     // Bring the SUBTLEX baseline into cluster labeling so common words
@@ -1069,9 +1072,9 @@ async function recomputeAskMap(env, did, opts = {}) {
   }
 
   // Per-thread 3 nearest neighbors in full embedding space — works even when
-  // clusters are weak. Cap the computation at modest N to stay inside the
-  // CPU budget (O(N^2)). For larger corpora we'd want approximate NN.
-  if (vectors.length >= 4 && vectors.length <= 3000) {
+  // clusters are weak. O(N² · dim) is the killer; cap and skip for larger
+  // corpora.
+  if (vectors.length >= 4 && vectors.length <= KNN_CAP_ASK) {
     neighborsList = computeKNN(vectors, 3);
   }
 
@@ -1213,12 +1216,12 @@ async function askQuery(request, env) {
     return json({ error: 'embedding failed' }, 500);
   }
 
-  // Fetch all rows for the DID. Stream cosine in JS — for ≤ a few thousand
-  // rows this is well under 100ms; revisit with proper vector indexing if
-  // any single user crosses ~10k threads.
+  // Two-pass top-K. First pass SELECTs only (thread_id, embedding) so
+  // we don't carry every thread's text into memory — at 5000+ threads
+  // the full-row pull was triggering 1102 "exceeded resource limits".
+  // Second pass fetches text + metadata for just the winners.
   const { results } = await env.DB.prepare(
-    `SELECT thread_id, text, post_count, char_count, flesch, created_at, embedding
-     FROM ask_threads WHERE did = ?`
+    `SELECT thread_id, embedding FROM ask_threads WHERE did = ?`
   ).bind(did).all();
   const rows = results || [];
   if (!rows.length) {
@@ -1226,27 +1229,51 @@ async function askQuery(request, env) {
   }
 
   const qNorm = vecNorm(queryVec);
-  const scored = [];
+  const top = [];                                          // ascending by score, length ≤ k
   for (const r of rows) {
     const v = blobToFloats(r.embedding);
     if (!v || v.length !== ASK_EMBED_DIM) continue;
     const score = cosineFast(queryVec, v, qNorm);
-    scored.push({
-      thread_id: r.thread_id,
-      text: r.text,
-      post_count: r.post_count,
-      char_count: r.char_count,
-      flesch: r.flesch,
-      created_at: r.created_at,
-      score,
-    });
+    if (top.length < k) {
+      top.push({ thread_id: r.thread_id, score });
+      top.sort((a, b) => a.score - b.score);
+    } else if (score > top[0].score) {
+      top[0] = { thread_id: r.thread_id, score };
+      top.sort((a, b) => a.score - b.score);
+    }
   }
-  scored.sort((a, b) => b.score - a.score);
+
+  if (!top.length) {
+    return json({ q, indexed: true, total_threads: rows.length, hits: [], time_ms: Date.now() - t0 });
+  }
+
+  const winnerTids = top.map((t) => t.thread_id);
+  const winnerPlaceholders = winnerTids.map(() => '?').join(',');
+  const { results: winnerRows } = await env.DB.prepare(
+    `SELECT thread_id, text, post_count, char_count, flesch, created_at
+     FROM ask_threads WHERE did = ? AND thread_id IN (${winnerPlaceholders})`
+  ).bind(did, ...winnerTids).all();
+  const byTid = new Map((winnerRows || []).map((r) => [r.thread_id, r]));
+
+  top.reverse();
+  const hits = top.map(({ thread_id, score }) => {
+    const r = byTid.get(thread_id) || {};
+    return {
+      thread_id,
+      text: r.text || '',
+      post_count: r.post_count || 0,
+      char_count: r.char_count || 0,
+      flesch: r.flesch == null ? null : r.flesch,
+      created_at: r.created_at || '',
+      score,
+    };
+  });
+
   return json({
     q,
     indexed: true,
     total_threads: rows.length,
-    hits: scored.slice(0, k),
+    hits,
     time_ms: Date.now() - t0,
   });
 }
@@ -1292,36 +1319,73 @@ async function askBridge(request, env) {
   const avg = new Float32Array(ASK_EMBED_DIM);
   for (const v of vectors) for (let i = 0; i < ASK_EMBED_DIM; i++) avg[i] += v[i];
   for (let i = 0; i < ASK_EMBED_DIM; i++) avg[i] /= vectors.length;
+  const avgNorm = vecNorm(avg);
 
-  // Scan all other threads for the closest cosine match. Excluding the
-  // inputs is essential — otherwise the average usually picks one of
-  // them as its own nearest neighbor.
+  // Top-K heap scan. Two design choices that keep big corpora in budget:
+  //   1. SELECT only (thread_id, embedding) — skip text from the wide
+  //      scan. Carrying 5000 × ~10 KB text strings into worker memory
+  //      is what tripped the 1102 "exceeded resource limits".
+  //   2. Maintain a sorted-ascending top[] of length ≤ k. We only
+  //      keep thread_id + score during the scan; the actual text gets
+  //      fetched in a second pinpoint query against just the winners.
   const inputSet = new Set(tids);
   const { results } = await env.DB.prepare(
-    `SELECT thread_id, text, char_count, created_at, embedding FROM ask_threads
-     WHERE did = ?`
+    `SELECT thread_id, embedding FROM ask_threads WHERE did = ?`
   ).bind(did).all();
+  const totalScanned = (results || []).length;
 
-  const avgNorm = vecNorm(avg);
-  const scored = [];
+  const top = [];                                          // ascending by score, length ≤ k
   for (const r of results || []) {
     if (inputSet.has(r.thread_id)) continue;
     const v = blobToFloats(r.embedding);
     if (!v || v.length !== ASK_EMBED_DIM) continue;
     const score = cosineFast(avg, v, avgNorm);
-    scored.push({
-      thread_id: r.thread_id,
-      text: r.text,
-      char_count: r.char_count,
-      created_at: r.created_at,
-      score,
+    if (top.length < k) {
+      top.push({ thread_id: r.thread_id, score });
+      top.sort((a, b) => a.score - b.score);
+    } else if (score > top[0].score) {
+      top[0] = { thread_id: r.thread_id, score };
+      top.sort((a, b) => a.score - b.score);
+    }
+  }
+
+  if (!top.length) {
+    return json({
+      inputs: tids,
+      avg_basis: vectors.length,
+      total_scanned: totalScanned,
+      hits: [],
+      time_ms: Date.now() - t0,
     });
   }
-  scored.sort((a, b) => b.score - a.score);
+
+  // Pin-point fetch of text + metadata for just the winners.
+  const winnerTids = top.map((t) => t.thread_id);
+  const winnerPlaceholders = winnerTids.map(() => '?').join(',');
+  const { results: winnerRows } = await env.DB.prepare(
+    `SELECT thread_id, text, char_count, created_at FROM ask_threads
+     WHERE did = ? AND thread_id IN (${winnerPlaceholders})`
+  ).bind(did, ...winnerTids).all();
+  const byTid = new Map((winnerRows || []).map((r) => [r.thread_id, r]));
+
+  // Reverse to descending (best first); join in text.
+  top.reverse();
+  const hits = top.map(({ thread_id, score }) => {
+    const r = byTid.get(thread_id) || {};
+    return {
+      thread_id,
+      text: r.text || '',
+      char_count: r.char_count || 0,
+      created_at: r.created_at || '',
+      score,
+    };
+  });
+
   return json({
     inputs: tids,
     avg_basis: vectors.length,
-    hits: scored.slice(0, k),
+    total_scanned: totalScanned,
+    hits,
     time_ms: Date.now() - t0,
   });
 }
