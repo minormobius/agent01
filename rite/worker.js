@@ -53,6 +53,7 @@ export default {
       if (url.pathname === '/api/ask/check')                           return askCheck(env, url);
       if (url.pathname === '/api/ask/index' && request.method === 'POST') return askIndex(request, env);
       if (url.pathname === '/api/ask/query' && request.method === 'POST') return askQuery(request, env);
+      if (url.pathname === '/api/ask/bridge' && request.method === 'POST') return askBridge(request, env);
       if (url.pathname === '/api/ask/map')                             return askMap(env, url);
       if (url.pathname === '/api/ask/thread')                          return askThread(env, url);
 
@@ -1245,6 +1246,81 @@ async function askQuery(request, env) {
     q,
     indexed: true,
     total_threads: rows.length,
+    hits: scored.slice(0, k),
+    time_ms: Date.now() - t0,
+  });
+}
+
+// Bridge: take the centroid of N input thread embeddings, find the existing
+// threads closest to that centroid. The "thought-shaped hole" interpretation
+// of the question "what bridges idea A and idea B?" — return the writer's
+// own threads that sit between the inputs in 768-d semantic space.
+//
+// Same machinery as askQuery but the target vector is computed from
+// stored embeddings (no Workers AI inference) rather than embedding a
+// query string. Cheap: just DB reads + a JS averaging pass + cosine scan.
+async function askBridge(request, env) {
+  if (!env.DB) return json({ error: 'D1 not configured' }, 500);
+  const t0 = Date.now();
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const { did } = body || {};
+  const k = Math.max(1, Math.min(20, Number(body?.k) || 5));
+  const tids = Array.isArray(body?.tids)
+    ? body.tids.filter((t) => typeof t === 'string' && t.length).slice(0, 8)
+    : [];
+  if (typeof did !== 'string' || tids.length < 2) {
+    return json({ error: 'missing did or need ≥ 2 tids' }, 400);
+  }
+
+  // Load embeddings for the input tids.
+  const placeholders = tids.map(() => '?').join(',');
+  const inputRes = await env.DB.prepare(
+    `SELECT thread_id, embedding FROM ask_threads
+     WHERE did = ? AND thread_id IN (${placeholders})`
+  ).bind(did, ...tids).all();
+  const vectors = [];
+  for (const r of inputRes.results || []) {
+    const v = blobToFloats(r.embedding);
+    if (v && v.length === ASK_EMBED_DIM) vectors.push(v);
+  }
+  if (vectors.length < 2) {
+    return json({ error: `only ${vectors.length} input(s) had decodable embeddings; need ≥ 2` }, 400);
+  }
+
+  // Centroid in full 768-d space.
+  const avg = new Float32Array(ASK_EMBED_DIM);
+  for (const v of vectors) for (let i = 0; i < ASK_EMBED_DIM; i++) avg[i] += v[i];
+  for (let i = 0; i < ASK_EMBED_DIM; i++) avg[i] /= vectors.length;
+
+  // Scan all other threads for the closest cosine match. Excluding the
+  // inputs is essential — otherwise the average usually picks one of
+  // them as its own nearest neighbor.
+  const inputSet = new Set(tids);
+  const { results } = await env.DB.prepare(
+    `SELECT thread_id, text, char_count, created_at, embedding FROM ask_threads
+     WHERE did = ?`
+  ).bind(did).all();
+
+  const avgNorm = vecNorm(avg);
+  const scored = [];
+  for (const r of results || []) {
+    if (inputSet.has(r.thread_id)) continue;
+    const v = blobToFloats(r.embedding);
+    if (!v || v.length !== ASK_EMBED_DIM) continue;
+    const score = cosineFast(avg, v, avgNorm);
+    scored.push({
+      thread_id: r.thread_id,
+      text: r.text,
+      char_count: r.char_count,
+      created_at: r.created_at,
+      score,
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return json({
+    inputs: tids,
+    avg_basis: vectors.length,
     hits: scored.slice(0, k),
     time_ms: Date.now() - t0,
   });
