@@ -52,6 +52,7 @@ jobs:
           mkdir -p dist/problems/beam-deflection
           mkdir -p dist/problems/truss-bridges
           mkdir -p dist/problems/spend-report/data
+          mkdir -p dist/problems/decision-point
           mkdir -p dist/getting-started/windows
           mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
@@ -61,6 +62,7 @@ jobs:
           cp problems/truss-bridges/index.html dist/problems/truss-bridges/
           cp problems/spend-report/index.html dist/problems/spend-report/
           cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/
+          cp problems/decision-point/index.html dist/problems/decision-point/
           cp getting-started/windows/index.html dist/getting-started/windows/
           # Ship the Rust source so the "worked solution" links resolve.
           cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
