@@ -314,6 +314,24 @@ claude</pre>
     <span class="lang">PowerShell</span>
   </div>
   <p>
+    Or &mdash; the variant I personally use, which I've found gives
+    snappier responses and fewer interruptions:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>claude --dangerously-skip-permissions --system-prompt "."</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p style="font-size: 0.9rem; color: #666;">
+    <code>--dangerously-skip-permissions</code> stops Claude from
+    pausing to ask before running shell commands or editing files
+    &mdash; the &ldquo;dangerously&rdquo; prefix is real, use it in
+    folders where you're OK with Claude acting freely.
+    <code>--system-prompt "."</code> replaces the default Claude Code
+    system prompt with a single dot; you trade some of Claude Code's
+    built-in scaffolding for a noticeably faster, less hedged feel.
+  </p>
+  <p>
     The prompt changes. You're in. Type a request and press
     <kbd>Enter</kbd>:
   </p>
