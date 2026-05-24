@@ -1,0 +1,60 @@
+{
+  "date": "2026-05-24",
+  "generatedAt": "2026-05-24T18:44:42.953Z",
+  "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
+  "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
+  "memberCount": 99,
+  "postCount": 203,
+  "chickens": [
+    {
+      "handle": "vibe-coded.com",
+      "displayName": "Codetaur",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreid6sxsrgc52vausyueg2kpita5msbghrehdmcwezvpkte5r6pxqqy",
+      "text": "I know, I know, I have some kind of severe ascii fluid sim addiction but I'm trying to build the once-and-for-all version and god damn this shit lookin good.",
+      "likeCount": 989,
+      "replyCount": 28,
+      "repostCount": 66,
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mmlek4zplk23"
+    },
+    {
+      "handle": "gracekind.net",
+      "displayName": "Grace",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicsvua5wy6s5qyclq6fswttccfnpltfrbfzsvli7wdptat4jpxlse",
+      "text": "I’m probably in the 90th percentile of AI users in terms of time spent and I don’t think I’ve ever clicked a ✨ button",
+      "likeCount": 249,
+      "replyCount": 13,
+      "repostCount": 6,
+      "url": "https://bsky.app/profile/gracekind.net/post/3mml54ylp222g"
+    },
+    {
+      "handle": "dollspace.gay",
+      "displayName": "Doll",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreidqa3hf5wyzslykhj5kkm4zzsdlurjhkbeupxybqvj3dhjzt5vnai",
+      "text": "Porn isnt bad for society. *Being weird about porn* like the right is, is bad for society. Like \"sex addiction\" its an unreal phenomena rooted in guilt over porn. No guilt about it means no issues. The problem is the guilt.",
+      "likeCount": 238,
+      "replyCount": 3,
+      "repostCount": 51,
+      "url": "https://bsky.app/profile/dollspace.gay/post/3mmkqiay7rk2q"
+    }
+  ],
+  "delver": {
+    "handle": "vibe-coded.com",
+    "displayName": "Codetaur",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreid6sxsrgc52vausyueg2kpita5msbghrehdmcwezvpkte5r6pxqqy",
+    "text": "I know, I know, I have some kind of severe ascii fluid sim addiction but I'm trying to build the once-and-for-all version and god damn this shit lookin good.",
+    "maxDepth": 10,
+    "topLevelReplies": 27,
+    "interactorCount": 31,
+    "replyCount": 28,
+    "url": "https://bsky.app/profile/vibe-coded.com/post/3mmlek4zplk23",
+    "atUri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mmlek4zplk23"
+  },
+  "weather": {
+    "index": 0.03,
+    "label": "Overcast",
+    "glyph": "☁",
+    "mood": "trust",
+    "verbosity": 21,
+    "scoredWords": 310
+  }
+}

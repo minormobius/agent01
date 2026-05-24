@@ -1,0 +1,45 @@
+name: Bisk Daily Digest
+
+on:
+  schedule:
+    # 13:00 UTC daily — recompute the SimCluster superlatives for the last 24h.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      list_uri:
+        description: 'Override list AT-URI (defaults to bisk/config.json)'
+        required: false
+        type: string
+
+# Commit the freshly computed data back; the push to bisk/data/** trips
+# deploy-bisk.yml, which ships it to bisk.mino.mobi.
+permissions:
+  contents: write
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build digest
+        env:
+          BISK_LIST: ${{ inputs.list_uri }}
+        run: node scripts/build-bisk-digest.mjs
+
+      - name: Commit data
+        run: |
+          git config user.name "bisk-bot"
+          git config user.email "bisk@minomobi.com"
+          git add bisk/data
+          if git diff --staged --quiet; then
+            echo "No digest changes."
+          else
+            git commit -m "bisk: daily digest $(date -u +%Y-%m-%d)"
+            for attempt in 1 2 3 4; do
+              git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
+            done
+          fi
